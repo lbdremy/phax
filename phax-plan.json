@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "phax-self",
+    "title": "Build the phax CLI",
+    "branch": "lbdremy/phax-self",
+    "backend": "claude-code-cli"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "CLI skeleton, phax.json schema, and plan validation",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-cli-skeleton",
+      "commit": {
+        "subject": "ai(phase-01): create cli skeleton and validate phax configuration",
+        "body": "Bootstrap the `phax` project with a strict TypeScript / Effect setup, the four-layer source structure (CLI / app / domain / infra), schema validation for `phax.json` and `phax-plan.json`, branded domain types, a tagged error model, and a `phax validate` command exercised against the schemas."
+      }
+    }
+  ]
+}

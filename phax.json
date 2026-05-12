@@ -1,0 +1,24 @@
+{
+  "$schema": "https://phax.dev/schema/phax.schema.json",
+  "version": 1,
+  "project": { "name": "phax", "type": "single-package" },
+  "state":   { "root": "~/.phax" },
+  "editor":  { "command": "zed" },
+  "agent":   { "backend": "claude-code-cli", "maxFixAttempts": 1 },
+  "commands": {
+    "setup":   ["pnpm install"],
+    "cleanup": ["rm -rf node_modules"]
+  },
+  "gateProfiles": {
+    "fast": ["pnpm typecheck", "pnpm test:unit"],
+    "full": [
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm format:check",
+      "pnpm knip",
+      "pnpm test",
+      "pnpm audit:architecture",
+      "pnpm build"
+    ]
+  }
+}
