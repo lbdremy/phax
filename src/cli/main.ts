@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { consoleOutput } from "../ports/output.js";
 import { runValidate } from "./commands/validate.js";
+import { runUnlock } from "./commands/unlock.js";
 
 const program = new Command();
 
@@ -16,6 +17,15 @@ program
   .option("--plan <path>", "Path to phax-plan.json", "phax-plan.json")
   .action((opts: { config: string; plan: string }) => {
     const exitCode = runValidate(opts, consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("unlock <short-name>")
+  .description("Remove a stale run lock; use --force to remove any lock")
+  .option("--force", "Remove the lock regardless of staleness")
+  .action(async (shortName: string, opts: { force?: boolean }) => {
+    const exitCode = await runUnlock(shortName, opts, consoleOutput);
     process.exit(exitCode);
   });
 

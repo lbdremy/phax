@@ -1,0 +1,104 @@
+import { Effect, Layer } from "effect";
+import { execFile as nodeExecFile } from "node:child_process";
+import { Git, GitError } from "../ports/git.js";
+import type { BranchName, WorktreePath } from "../domain/branded.js";
+import { decodeBranchName } from "../domain/branded.js";
+import { Either } from "effect";
+import { isPortcelainClean, parseBranchOutput, parseBranchExistsOutput } from "../schemas/git.js";
+
+function gitRun(
+  args: readonly string[],
+  cwd: string,
+): Effect.Effect<{ stdout: string; stderr: string }, GitError> {
+  const command = `git ${args.join(" ")}`;
+  return Effect.tryPromise({
+    try: () =>
+      new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+        nodeExecFile("git", [...args], { cwd }, (err, stdout, stderr) => {
+          if (err) {
+            reject(Object.assign(err, { stdout: String(stdout), stderr: String(stderr) }));
+          } else {
+            resolve({ stdout: String(stdout), stderr: String(stderr) });
+          }
+        });
+      }),
+    catch: (err) => {
+      const e = err as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
+      return new GitError({
+        message: e.message,
+        command,
+        stderr: e.stderr !== undefined ? String(e.stderr) : undefined,
+        exitCode: typeof e.code === "number" ? e.code : undefined,
+      });
+    },
+  });
+}
+
+function gitRunAllowFail(
+  args: readonly string[],
+  cwd: string,
+): Effect.Effect<{ stdout: string; stderr: string; exitCode: number }, never> {
+  return Effect.sync(() => ({ stdout: "", stderr: "", exitCode: 0 })).pipe(
+    Effect.flatMap(() =>
+      gitRun(args, cwd).pipe(
+        Effect.map((r) => ({ ...r, exitCode: 0 })),
+        Effect.catchAll((err) =>
+          Effect.succeed({ stdout: "", stderr: err.stderr ?? "", exitCode: err.exitCode ?? 1 }),
+        ),
+      ),
+    ),
+  );
+}
+
+export const NodeGitLayer = Layer.succeed(Git, {
+  isClean: (repo) =>
+    gitRun(["status", "--porcelain"], repo).pipe(
+      Effect.map(({ stdout }) => isPortcelainClean(stdout)),
+    ),
+
+  currentBranch: (repo) =>
+    gitRun(["rev-parse", "--abbrev-ref", "HEAD"], repo).pipe(
+      Effect.flatMap(({ stdout }) => {
+        const name = parseBranchOutput(stdout);
+        const result = decodeBranchName(name);
+        if (Either.isLeft(result)) {
+          return Effect.fail(
+            new GitError({
+              message: `Could not parse branch name: "${name}"`,
+              command: "git rev-parse --abbrev-ref HEAD",
+            }),
+          );
+        }
+        return Effect.succeed(result.right);
+      }),
+    ),
+
+  createBranch: (branch, from, repo) => gitRun(["branch", branch, from], repo).pipe(Effect.asVoid),
+
+  branchExists: (branch, repo) =>
+    gitRunAllowFail(["rev-parse", "--verify", "--quiet", branch], repo).pipe(
+      Effect.map(({ stdout, exitCode }) => exitCode === 0 && parseBranchExistsOutput(stdout)),
+    ),
+
+  addWorktree: (branch, path, repo) =>
+    gitRun(["worktree", "add", path, branch], repo).pipe(Effect.asVoid),
+
+  removeWorktree: (path, force, repo) => {
+    const args: string[] = ["worktree", "remove"];
+    if (force) args.push("--force");
+    args.push(path);
+    return gitRun(args, repo).pipe(Effect.asVoid);
+  },
+
+  commit: (repo, subject, body) =>
+    gitRun(["commit", "-m", subject, "-m", body], repo).pipe(Effect.asVoid),
+
+  worktreeIsClean: (path) =>
+    gitRun(["status", "--porcelain"], path as string).pipe(
+      Effect.map(({ stdout }) => isPortcelainClean(stdout)),
+    ),
+});
+
+export function makeNodeGitLayer(): Layer.Layer<Git> {
+  return NodeGitLayer;
+}
