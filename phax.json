@@ -2,11 +2,11 @@
   "$schema": "https://phax.dev/schema/phax.schema.json",
   "version": 1,
   "project": { "name": "phax", "type": "single-package" },
-  "state":   { "root": "~/.phax" },
-  "editor":  { "command": "zed" },
-  "agent":   { "backend": "claude-code-cli", "maxFixAttempts": 1 },
+  "state": { "root": "~/.phax" },
+  "editor": { "command": "zed" },
+  "agent": { "backend": "claude-code-cli", "maxFixAttempts": 1 },
   "commands": {
-    "setup":   ["pnpm install"],
+    "setup": ["pnpm install"],
     "cleanup": ["rm -rf node_modules"]
   },
   "gateProfiles": {

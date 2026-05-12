@@ -1,18 +1,18 @@
-import { Schema } from "effect"
+import { Schema } from "effect";
 
-const NonEmptyCommandArray = Schema.NonEmptyArray(Schema.NonEmptyString)
+const NonEmptyCommandArray = Schema.NonEmptyArray(Schema.NonEmptyString);
 
 const GateProfilesSchema = Schema.Record({
   key: Schema.NonEmptyString,
   value: NonEmptyCommandArray,
-})
+});
 
 const WorkspaceSchema = Schema.Struct({
   id: Schema.NonEmptyString,
   name: Schema.NonEmptyString,
   path: Schema.NonEmptyString,
   gateProfiles: Schema.optional(GateProfilesSchema),
-})
+});
 
 export const PhaxConfigSchema = Schema.Struct({
   $schema: Schema.optional(Schema.String),
@@ -43,20 +43,20 @@ export const PhaxConfigSchema = Schema.Struct({
   ),
   gateProfiles: GateProfilesSchema,
   workspaces: Schema.optional(Schema.Array(WorkspaceSchema)),
-})
+});
 
-export type PhaxConfig = Schema.Schema.Type<typeof PhaxConfigSchema>
-export type PhaxConfigWorkspace = Schema.Schema.Type<typeof WorkspaceSchema>
+export type PhaxConfig = Schema.Schema.Type<typeof PhaxConfigSchema>;
+export type PhaxConfigWorkspace = Schema.Schema.Type<typeof WorkspaceSchema>;
 
 export interface ResolvedConfig {
-  readonly raw: PhaxConfig
-  readonly stateRoot: string
-  readonly repoRoot: string
-  readonly editorCommand: string
-  readonly backend: "claude-code-cli"
-  readonly maxFixAttempts: number
+  readonly raw: PhaxConfig;
+  readonly stateRoot: string;
+  readonly repoRoot: string;
+  readonly editorCommand: string;
+  readonly backend: "claude-code-cli";
+  readonly maxFixAttempts: number;
 }
 
 export const decodePhaxConfig = Schema.decodeUnknownEither(PhaxConfigSchema, {
   onExcessProperty: "error",
-})
+});
