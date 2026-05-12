@@ -70,3 +70,13 @@ export class LockConflictError extends Data.TaggedError("LockConflictError")<{
   lockPath: string;
   lockingPid: number;
 }> {}
+
+export class InvalidTransitionError extends Data.TaggedError("InvalidTransitionError")<{
+  from: string;
+  to: string;
+  entity: "run" | "phase";
+}> {
+  override get message(): string {
+    return `Invalid ${this.entity} state transition: ${this.from} → ${this.to}`;
+  }
+}

@@ -1,5 +1,11 @@
 {
-  "entry": ["src/cli/main.ts", "src/schemas/*.ts", "src/domain/branded.ts", "src/domain/errors.ts"],
+  "entry": [
+    "src/schemas/*.ts",
+    "src/domain/*.ts",
+    "src/ports/*.ts",
+    "src/infra/*.ts",
+    "src/app/*.ts"
+  ],
   "project": ["src/**/*.ts"],
   "ignoreDependencies": ["@effect/platform", "@effect/platform-node"]
 }
