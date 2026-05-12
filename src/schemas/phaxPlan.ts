@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { JSONSchema, Schema } from "effect";
 
 const EffortSchema = Schema.Literal("low", "medium", "high");
 
@@ -32,3 +32,7 @@ export type Effort = Schema.Schema.Type<typeof EffortSchema>;
 export const decodePhaxPlan = Schema.decodeUnknownEither(PhaxPlanSchema, {
   onExcessProperty: "error",
 });
+
+export function getPhaxPlanJsonSchema(): object {
+  return JSONSchema.make(PhaxPlanSchema);
+}

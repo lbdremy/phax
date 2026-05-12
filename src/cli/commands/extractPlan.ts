@@ -1,0 +1,68 @@
+import { Effect, Either } from "effect";
+import { resolve } from "node:path";
+import type { OutputPort } from "../../ports/output.js";
+import { extractPlan } from "../../app/extractPlan.js";
+import { loadConfig } from "../../app/loadConfig.js";
+import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
+import { NodeFileSystemLayer } from "../../infra/fs.js";
+import { makeNodeLockLayer } from "../../infra/lock.js";
+
+export interface ExtractPlanCliOptions {
+  planMd: string;
+  out: string;
+  force?: boolean | undefined;
+  model?: string | undefined;
+  effort?: string | undefined;
+}
+
+export async function runExtractPlan(
+  opts: ExtractPlanCliOptions,
+  out: OutputPort,
+): Promise<number> {
+  const configResult = loadConfig(process.cwd());
+  if (Either.isLeft(configResult)) {
+    out.error(`Config error: ${configResult.left.message}`);
+    return 1;
+  }
+  const config = configResult.right;
+
+  const planMdPath = resolve(process.cwd(), opts.planMd);
+  const outPath = resolve(process.cwd(), opts.out);
+  const model = opts.model ?? "claude-sonnet-4-6";
+  const effort = opts.effort ?? "medium";
+
+  const effect = extractPlan({
+    planMdPath,
+    outPath,
+    force: opts.force ?? false,
+    model,
+    effort,
+    cwd: process.cwd(),
+  }).pipe(
+    Effect.provide(makeNodeBackendLayer()),
+    Effect.provide(NodeFileSystemLayer),
+    Effect.provide(makeNodeLockLayer(config.stateRoot)),
+  );
+
+  const result = await Effect.runPromise(Effect.either(effect));
+
+  if (Either.isLeft(result)) {
+    const err = result.left;
+    out.error(`extract-plan failed: ${err.message}`);
+    if ("path" in err && typeof err.path === "string" && err.path.length > 0) {
+      out.error(`  at: ${err.path}`);
+    }
+    return 1;
+  }
+
+  const { outPath: writtenPath, reportPath, warnings, plan } = result.right;
+  out.log(`✓ Extracted ${plan.phases.length} phase(s) to "${writtenPath}"`);
+  out.log(`✓ Report written to "${reportPath}"`);
+  if (warnings.length > 0) {
+    out.warn(`Warnings (${warnings.length}):`);
+    for (const w of warnings) {
+      out.warn(`  - ${w}`);
+    }
+  }
+  return 0;
+}
