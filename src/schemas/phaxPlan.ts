@@ -1,6 +1,6 @@
-import { Schema } from "effect"
+import { Schema } from "effect";
 
-const EffortSchema = Schema.Literal("low", "medium", "high")
+const EffortSchema = Schema.Literal("low", "medium", "high");
 
 const PhaseSchema = Schema.Struct({
   id: Schema.NonEmptyString,
@@ -12,7 +12,7 @@ const PhaseSchema = Schema.Struct({
     subject: Schema.NonEmptyString,
     body: Schema.NonEmptyString,
   }),
-})
+});
 
 export const PhaxPlanSchema = Schema.Struct({
   version: Schema.Literal(1),
@@ -23,12 +23,12 @@ export const PhaxPlanSchema = Schema.Struct({
     backend: Schema.NonEmptyString,
   }),
   phases: Schema.NonEmptyArray(PhaseSchema),
-})
+});
 
-export type PhaxPlan = Schema.Schema.Type<typeof PhaxPlanSchema>
-export type PhaxPlanPhase = Schema.Schema.Type<typeof PhaseSchema>
-export type Effort = Schema.Schema.Type<typeof EffortSchema>
+export type PhaxPlan = Schema.Schema.Type<typeof PhaxPlanSchema>;
+export type PhaxPlanPhase = Schema.Schema.Type<typeof PhaseSchema>;
+export type Effort = Schema.Schema.Type<typeof EffortSchema>;
 
 export const decodePhaxPlan = Schema.decodeUnknownEither(PhaxPlanSchema, {
   onExcessProperty: "error",
-})
+});
