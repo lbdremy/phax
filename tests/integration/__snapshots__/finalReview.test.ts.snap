@@ -1,0 +1,68 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`openFinalReview > matches the review-handoff.md snapshot 1`] = `
+"# Review Handoff: my-run
+
+## Run Information
+
+- **Run ID**: my-run-1234567890
+- **Short Name**: my-run
+- **Branch**: feature/my-run
+- **Gate Profile**: fast
+
+## Final Phase
+
+- **Phase ID**: phase-01
+- **Title**: First Phase
+- **Worktree Path**: /fake/worktrees/my-run/phase-01
+- **Claude Session ID**: sess-abc123
+
+## Entry Commands
+
+\`\`\`bash
+# Resume the Claude session interactively
+phax enter my-run
+
+# Open a shell in the final worktree
+phax shell my-run
+
+# Print the worktree path (for scripting)
+phax path my-run
+
+# Open in editor
+phax open my-run
+\`\`\`
+
+## Resume Claude Session Manually
+
+\`\`\`bash
+cd /fake/worktrees/my-run/phase-01
+claude --resume sess-abc123
+\`\`\`
+
+## Conductor Handoff
+
+Branch: \`feature/my-run\`
+Worktree: \`/fake/worktrees/my-run/phase-01\`
+
+Open the worktree directory in Conductor or point a new workspace at branch \`feature/my-run\`.
+
+## Completed Phases
+
+| Phase | Title | Status | Commit |
+|-------|-------|--------|--------|
+| phase-01 | First Phase | committed | (none) |
+
+## Final Gates Status
+
+Gate profile \`fast\` was used for this run.
+
+## Archive Instructions
+
+When you are done reviewing, finalize this run:
+
+\`\`\`bash
+phax archive my-run
+\`\`\`
+"
+`;
