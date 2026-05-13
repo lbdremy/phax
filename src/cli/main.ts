@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { consoleOutput } from "../ports/output.js";
+import { setupInterruptHandlers } from "./interruptHandler.js";
 import { runValidate } from "./commands/validate.js";
 import { runUnlock } from "./commands/unlock.js";
 import { runExtractPlan } from "./commands/extractPlan.js";
@@ -9,6 +10,10 @@ import { runPath, runPathLast } from "./commands/path.js";
 import { runOpen, runOpenLast } from "./commands/open.js";
 import { runLs } from "./commands/ls.js";
 import { runArchive, runArchiveLast } from "./commands/archive.js";
+import { runRun } from "./commands/run.js";
+import { runResume } from "./commands/resume.js";
+
+setupInterruptHandlers();
 
 const program = new Command();
 
@@ -157,6 +162,26 @@ program
   .option("--force", "Archive even if the final worktree has uncommitted changes")
   .action(async (opts: { force?: boolean }) => {
     const exitCode = await runArchiveLast(opts, consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("run")
+  .description("Run all phases from a phax-plan.json, or preview with --dry-run")
+  .option("--plan <path>", "Path to phax-plan.json", "phax-plan.json")
+  .option("--dry-run", "Print the execution plan without performing any side effects")
+  .option("--profile <profile>", "Gate profile to use (overrides config default)")
+  .action(async (opts: { plan?: string; dryRun?: boolean; profile?: string }) => {
+    const exitCode = await runRun(opts, consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("resume <short-name>")
+  .description("Resume a run from its next pending phase")
+  .option("--yes", "Proceed without confirmation")
+  .action(async (shortName: string, opts: { yes?: boolean }) => {
+    const exitCode = await runResume(shortName, opts, consoleOutput);
     process.exit(exitCode);
   });
 
