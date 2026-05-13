@@ -1,0 +1,187 @@
+import { Either } from "effect";
+import { describe, expect, it } from "vitest";
+import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
+import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { decodePhaseStatus, decodeRunStatus } from "../../src/schemas/status.js";
+
+const validConfig = {
+  version: 1,
+  project: { name: "my-project", type: "single-package" },
+  state: { root: "~/.phax" },
+  gateProfiles: { fast: ["pnpm test"] },
+} as const;
+
+describe("decodePhaxConfig", () => {
+  it("accepts a minimal valid config", () => {
+    expect(Either.isRight(decodePhaxConfig(validConfig))).toBe(true);
+  });
+
+  it("accepts a full config with all optional fields", () => {
+    const full = {
+      ...validConfig,
+      editor: { command: "zed" },
+      agent: { backend: "claude-code-cli", maxFixAttempts: 1 },
+      commands: { setup: ["pnpm install"], cleanup: ["rm -rf node_modules"] },
+      gateProfiles: { fast: ["pnpm test"], full: ["pnpm test", "pnpm lint"] },
+      workspaces: [{ id: "frontend", name: "Frontend", path: "./packages/ui" }],
+    };
+    expect(Either.isRight(decodePhaxConfig(full))).toBe(true);
+  });
+
+  it("rejects a config with version != 1", () => {
+    expect(Either.isLeft(decodePhaxConfig({ ...validConfig, version: 2 }))).toBe(true);
+  });
+
+  it("rejects a config with an empty gate profile command array", () => {
+    const bad = { ...validConfig, gateProfiles: { fast: [] } };
+    expect(Either.isLeft(decodePhaxConfig(bad))).toBe(true);
+  });
+
+  it("rejects a config with excess properties", () => {
+    expect(Either.isLeft(decodePhaxConfig({ ...validConfig, unknown: "field" }))).toBe(true);
+  });
+
+  it("rejects a config missing the required project field", () => {
+    const { project: _, ...noProject } = validConfig;
+    expect(Either.isLeft(decodePhaxConfig(noProject))).toBe(true);
+  });
+
+  it("rejects a config with invalid project type", () => {
+    const bad = { ...validConfig, project: { name: "x", type: "invalid-type" } };
+    expect(Either.isLeft(decodePhaxConfig(bad))).toBe(true);
+  });
+
+  it("rejects a config with maxFixAttempts out of range", () => {
+    const bad = {
+      ...validConfig,
+      agent: { backend: "claude-code-cli", maxFixAttempts: 11 },
+    };
+    expect(Either.isLeft(decodePhaxConfig(bad))).toBe(true);
+  });
+
+  it("rejects non-object input", () => {
+    expect(Either.isLeft(decodePhaxConfig("not-an-object"))).toBe(true);
+    expect(Either.isLeft(decodePhaxConfig(null))).toBe(true);
+    expect(Either.isLeft(decodePhaxConfig(42))).toBe(true);
+  });
+});
+
+const validPlan = {
+  version: 1,
+  run: {
+    shortName: "my-run",
+    title: "My Run",
+    branch: "feature/my-run",
+    backend: "claude-code-cli",
+  },
+  phases: [
+    {
+      id: "phase-01",
+      title: "First Phase",
+      model: "claude-sonnet-4-6",
+      effort: "low",
+      planMarkdownAnchor: "#phase-01-first",
+      commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
+    },
+  ],
+} as const;
+
+describe("decodePhaxPlan", () => {
+  it("accepts a valid plan", () => {
+    expect(Either.isRight(decodePhaxPlan(validPlan))).toBe(true);
+  });
+
+  it("rejects a plan with no phases", () => {
+    const bad = { ...validPlan, phases: [] };
+    expect(Either.isLeft(decodePhaxPlan(bad))).toBe(true);
+  });
+
+  it("rejects a phase with invalid effort", () => {
+    const bad = {
+      ...validPlan,
+      phases: [{ ...validPlan.phases[0]!, effort: "extreme" }],
+    };
+    expect(Either.isLeft(decodePhaxPlan(bad))).toBe(true);
+  });
+
+  it("rejects a plan missing a required field", () => {
+    const { run: _, ...noRun } = validPlan;
+    expect(Either.isLeft(decodePhaxPlan(noRun))).toBe(true);
+  });
+
+  it("rejects excess properties", () => {
+    const bad = { ...validPlan, extra: "field" };
+    expect(Either.isLeft(decodePhaxPlan(bad))).toBe(true);
+  });
+});
+
+const now = new Date().toISOString();
+
+describe("decodeRunStatus", () => {
+  const validRunStatus = {
+    version: 1,
+    shortName: "my-run",
+    runId: "my-run-123",
+    state: "created",
+    createdAt: now,
+    updatedAt: now,
+    phasesCount: 3,
+  };
+
+  it("accepts a valid run status", () => {
+    expect(Either.isRight(decodeRunStatus(validRunStatus))).toBe(true);
+  });
+
+  it("accepts an optional gateProfileId", () => {
+    expect(Either.isRight(decodeRunStatus({ ...validRunStatus, gateProfileId: "fast" }))).toBe(
+      true,
+    );
+  });
+
+  it("rejects an invalid state", () => {
+    const bad = { ...validRunStatus, state: "invalid-state" };
+    expect(Either.isLeft(decodeRunStatus(bad))).toBe(true);
+  });
+
+  it("rejects missing required fields", () => {
+    const { shortName: _, ...noShortName } = validRunStatus;
+    expect(Either.isLeft(decodeRunStatus(noShortName))).toBe(true);
+  });
+});
+
+describe("decodePhaseStatus", () => {
+  const validPhaseStatus = {
+    version: 1,
+    phaseId: "phase-01",
+    phaseIndex: 0,
+    state: "pending",
+    model: "claude-sonnet-4-6",
+    effort: "low",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  it("accepts a valid phase status", () => {
+    expect(Either.isRight(decodePhaseStatus(validPhaseStatus))).toBe(true);
+  });
+
+  it("accepts optional worktreePath and claudeSessionId", () => {
+    const withOptionals = {
+      ...validPhaseStatus,
+      worktreePath: "/path/to/worktree",
+      claudeSessionId: "sess-abc",
+      commitHash: "abc123",
+    };
+    expect(Either.isRight(decodePhaseStatus(withOptionals))).toBe(true);
+  });
+
+  it("rejects an invalid phase state", () => {
+    const bad = { ...validPhaseStatus, state: "not-a-state" };
+    expect(Either.isLeft(decodePhaseStatus(bad))).toBe(true);
+  });
+
+  it("rejects an invalid effort", () => {
+    const bad = { ...validPhaseStatus, effort: "extreme" };
+    expect(Either.isLeft(decodePhaseStatus(bad))).toBe(true);
+  });
+});

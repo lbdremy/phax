@@ -4,8 +4,11 @@
     "src/domain/*.ts",
     "src/ports/*.ts",
     "src/infra/*.ts",
-    "src/app/*.ts"
+    "src/infra/fakes/*.ts",
+    "src/app/*.ts",
+    "tests/**/*.test.ts",
+    "tests/type/*.ts"
   ],
-  "project": ["src/**/*.ts"],
+  "project": ["src/**/*.ts", "tests/**/*.ts"],
   "ignoreDependencies": ["@effect/platform", "@effect/platform-node"]
 }
