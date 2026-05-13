@@ -1,0 +1,139 @@
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { Either } from "effect";
+import type { ShortName } from "../domain/branded.js";
+import { decodeRunStatus, decodePhaseStatus, type PhaseStatus } from "../schemas/status.js";
+import { decodePhaxPlan } from "../schemas/phaxPlan.js";
+
+export interface RunReviewInfo {
+  readonly shortName: string;
+  readonly runId: string;
+  readonly runState: string;
+  readonly branch: string;
+  readonly stateRoot: string;
+  readonly runPath: string;
+  readonly finalPhaseId: string;
+  readonly finalPhaseTitle: string;
+  readonly worktreePath: string;
+  readonly claudeSessionId: string | undefined;
+  readonly gateProfileId: string | undefined;
+  readonly phaseStatuses: readonly PhaseStatus[];
+  readonly planPhases: ReadonlyArray<{ id: string; title: string }>;
+  readonly updatedAt: string;
+}
+
+function tryReadJson(path: string): unknown {
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function loadRunReviewInfo(
+  runPath: string,
+  stateRoot: string,
+): Either.Either<RunReviewInfo, string> {
+  const runStatusPath = join(runPath, "run-status.json");
+  if (!existsSync(runStatusPath)) {
+    return Either.left(`No run-status.json at "${runPath}"`);
+  }
+
+  const rawRunStatus = tryReadJson(runStatusPath);
+  const runStatusResult = decodeRunStatus(rawRunStatus);
+  if (Either.isLeft(runStatusResult)) {
+    return Either.left(`Invalid run-status.json at "${runPath}"`);
+  }
+  const runStatus = runStatusResult.right;
+
+  const rawPlan = tryReadJson(join(runPath, "phax-plan.json"));
+  const planResult = decodePhaxPlan(rawPlan);
+  const plan = Either.isRight(planResult) ? planResult.right : undefined;
+
+  const branch = plan?.run.branch ?? "(unknown)";
+  const planPhases = plan?.phases.map((p) => ({ id: p.id, title: p.title })) ?? [];
+
+  const phaseStatuses: PhaseStatus[] = [];
+  let entries: string[];
+  try {
+    entries = readdirSync(runPath);
+  } catch {
+    entries = [];
+  }
+  const phaseDirs = entries.filter((e) => /^phase-\d{2}$/.test(e)).toSorted();
+  for (const dir of phaseDirs) {
+    const raw = tryReadJson(join(runPath, dir, "status.json"));
+    if (raw === undefined) continue;
+    const decoded = decodePhaseStatus(raw);
+    if (Either.isRight(decoded)) {
+      phaseStatuses.push(decoded.right);
+    }
+  }
+
+  const finalPhaseStatus =
+    phaseStatuses.toReversed().find((p) => p.worktreePath !== undefined) ??
+    phaseStatuses[phaseStatuses.length - 1];
+
+  if (!finalPhaseStatus) {
+    return Either.left(`No phase statuses found at "${runPath}"`);
+  }
+
+  const finalPlanPhase = planPhases.find((p) => p.id === finalPhaseStatus.phaseId);
+
+  return Either.right({
+    shortName: runStatus.shortName,
+    runId: runStatus.runId,
+    runState: runStatus.state,
+    branch,
+    stateRoot,
+    runPath,
+    finalPhaseId: finalPhaseStatus.phaseId,
+    finalPhaseTitle: finalPlanPhase?.title ?? finalPhaseStatus.phaseId,
+    worktreePath: finalPhaseStatus.worktreePath ?? "",
+    claudeSessionId: finalPhaseStatus.claudeSessionId,
+    gateProfileId: runStatus.gateProfileId,
+    phaseStatuses,
+    planPhases,
+    updatedAt: runStatus.updatedAt,
+  });
+}
+
+export function resolveRunByShortName(
+  shortName: ShortName,
+  stateRoot: string,
+): Either.Either<RunReviewInfo, string> {
+  return loadRunReviewInfo(join(stateRoot, "runs", shortName), stateRoot);
+}
+
+export function resolveLastReviewOpenRun(stateRoot: string): Either.Either<RunReviewInfo, string> {
+  const runsDir = join(stateRoot, "runs");
+  if (!existsSync(runsDir)) {
+    return Either.left(`No runs directory at "${runsDir}"`);
+  }
+
+  let entries: string[];
+  try {
+    entries = readdirSync(runsDir);
+  } catch {
+    return Either.left(`Failed to read runs directory at "${runsDir}"`);
+  }
+
+  const candidates: RunReviewInfo[] = [];
+  for (const entry of entries) {
+    const info = loadRunReviewInfo(join(runsDir, entry), stateRoot);
+    if (Either.isRight(info) && info.right.runState === "review_open") {
+      candidates.push(info.right);
+    }
+  }
+
+  if (candidates.length === 0) {
+    return Either.left("No review_open runs found");
+  }
+
+  candidates.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const first = candidates[0];
+  if (first === undefined) {
+    return Either.left("No review_open runs found");
+  }
+  return Either.right(first);
+}
