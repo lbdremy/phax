@@ -4,6 +4,7 @@ import { Either } from "effect";
 import type { ShortName } from "../domain/branded.js";
 import { decodeRunStatus, decodePhaseStatus, type PhaseStatus } from "../schemas/status.js";
 import { decodePhaxPlan } from "../schemas/phaxPlan.js";
+import { decodeRegistry } from "../schemas/registry.js";
 
 export interface RunReviewInfo {
   readonly shortName: string;
@@ -106,6 +107,33 @@ export function resolveRunByShortName(
 }
 
 export function resolveLastReviewOpenRun(stateRoot: string): Either.Either<RunReviewInfo, string> {
+  const registryPath = join(stateRoot, "registry.json");
+  if (existsSync(registryPath)) {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(readFileSync(registryPath, "utf8")) as unknown;
+    } catch {
+      raw = undefined;
+    }
+    if (raw !== undefined) {
+      const decoded = decodeRegistry(raw);
+      if (Either.isRight(decoded)) {
+        const reviewOpenEntries = decoded.right.runs
+          .filter((r) => r.state === "review_open")
+          .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+        for (const entry of reviewOpenEntries) {
+          const info = loadRunReviewInfo(join(stateRoot, "runs", entry.shortName), stateRoot);
+          if (Either.isRight(info)) return info;
+        }
+        if (reviewOpenEntries.length > 0) {
+          return Either.left("review_open run found in registry but its run folder is missing");
+        }
+        return Either.left("No review_open runs found");
+      }
+    }
+  }
+
+  // Fall back to filesystem scan when no registry exists
   const runsDir = join(stateRoot, "runs");
   if (!existsSync(runsDir)) {
     return Either.left(`No runs directory at "${runsDir}"`);
@@ -130,8 +158,8 @@ export function resolveLastReviewOpenRun(stateRoot: string): Either.Either<RunRe
     return Either.left("No review_open runs found");
   }
 
-  candidates.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const first = candidates[0];
+  const sortedCandidates = candidates.toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const first = sortedCandidates[0];
   if (first === undefined) {
     return Either.left("No review_open runs found");
   }
