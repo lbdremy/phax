@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "project": { "name": "hello-world", "type": "single-package" },
+  "state": { "root": "~/.phax" },
+  "editor": { "command": "zed" },
+  "agent": { "backend": "claude-code-cli", "maxFixAttempts": 1 },
+  "commands": {
+    "setup": ["pnpm install"],
+    "cleanup": ["rm -rf node_modules"]
+  },
+  "gateProfiles": {
+    "fast": ["pnpm typecheck", "pnpm test"],
+    "full": ["pnpm typecheck", "pnpm test", "pnpm build"]
+  }
+}
