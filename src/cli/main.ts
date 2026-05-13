@@ -3,6 +3,10 @@ import { consoleOutput } from "../ports/output.js";
 import { runValidate } from "./commands/validate.js";
 import { runUnlock } from "./commands/unlock.js";
 import { runExtractPlan } from "./commands/extractPlan.js";
+import { runEnter, runEnterLast } from "./commands/enter.js";
+import { runShell, runShellLast } from "./commands/shell.js";
+import { runPath, runPathLast } from "./commands/path.js";
+import { runOpen, runOpenLast } from "./commands/open.js";
 
 const program = new Command();
 
@@ -50,6 +54,70 @@ program
       process.exit(exitCode);
     },
   );
+
+program
+  .command("enter <short-name>")
+  .description("Resume the final Claude session interactively")
+  .action(async (shortName: string) => {
+    const exitCode = await runEnter(shortName, consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("enter-last")
+  .description("Resume the most recent review_open run's Claude session interactively")
+  .action(async () => {
+    const exitCode = await runEnterLast(consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("shell <short-name>")
+  .description("Open a shell in the final worktree")
+  .action(async (shortName: string) => {
+    const exitCode = await runShell(shortName, consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("shell-last")
+  .description("Open a shell in the most recent review_open run's final worktree")
+  .action(async () => {
+    const exitCode = await runShellLast(consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("path <short-name>")
+  .description("Print the final worktree path (script-friendly, one line)")
+  .action((shortName: string) => {
+    const exitCode = runPath(shortName, consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("path-last")
+  .description("Print the final worktree path of the most recent review_open run")
+  .action(() => {
+    const exitCode = runPathLast(consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("open <short-name>")
+  .description("Open the final worktree in the configured editor")
+  .action(async (shortName: string) => {
+    const exitCode = await runOpen(shortName, consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("open-last")
+  .description("Open the most recent review_open run's final worktree in the editor")
+  .action(async () => {
+    const exitCode = await runOpenLast(consoleOutput);
+    process.exit(exitCode);
+  });
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   consoleOutput.error(`Unexpected error: ${String(err)}`);
