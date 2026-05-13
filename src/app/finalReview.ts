@@ -9,6 +9,8 @@ import {
 } from "../schemas/status.js";
 import { openRunReview, committedToReviewOpen } from "../domain/state.js";
 import type { RunReviewInfo } from "./resolveRunInfo.js";
+import { setRunStatus } from "./registry.js";
+import { RegistryCorruptionError } from "../domain/errors.js";
 
 function buildReviewHandoffMarkdown(info: RunReviewInfo): string {
   const phaseTable = info.phaseStatuses
@@ -160,7 +162,9 @@ function transitionFinalPhaseToReviewOpen(
   });
 }
 
-export function openFinalReview(info: RunReviewInfo): Effect.Effect<void, FsError, FileSystem> {
+export function openFinalReview(
+  info: RunReviewInfo,
+): Effect.Effect<void, FsError | RegistryCorruptionError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
 
@@ -169,5 +173,7 @@ export function openFinalReview(info: RunReviewInfo): Effect.Effect<void, FsErro
 
     const handoffContent = buildReviewHandoffMarkdown(info);
     yield* fs.writeAtomic(join(info.runPath, "review-handoff.md"), handoffContent);
+
+    yield* setRunStatus(info.stateRoot, info.shortName, { state: "review_open" });
   });
 }

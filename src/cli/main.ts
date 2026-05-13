@@ -7,6 +7,8 @@ import { runEnter, runEnterLast } from "./commands/enter.js";
 import { runShell, runShellLast } from "./commands/shell.js";
 import { runPath, runPathLast } from "./commands/path.js";
 import { runOpen, runOpenLast } from "./commands/open.js";
+import { runLs } from "./commands/ls.js";
+import { runArchive, runArchiveLast } from "./commands/archive.js";
 
 const program = new Command();
 
@@ -116,6 +118,45 @@ program
   .description("Open the most recent review_open run's final worktree in the editor")
   .action(async () => {
     const exitCode = await runOpenLast(consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("ls")
+  .description("List runs from the registry")
+  .option("--active", "Show only active runs (created or running)")
+  .option("--failed", "Show only failed runs")
+  .option("--review-open", "Show only review_open runs")
+  .option("--archived", "Show only archived runs")
+  .option("--json", "Output as JSON")
+  .action(
+    async (opts: {
+      active?: boolean;
+      failed?: boolean;
+      reviewOpen?: boolean;
+      archived?: boolean;
+      json?: boolean;
+    }) => {
+      const exitCode = await runLs(opts, consoleOutput);
+      process.exit(exitCode);
+    },
+  );
+
+program
+  .command("archive <short-name>")
+  .description("Archive a completed or review_open run")
+  .option("--force", "Archive even if the final worktree has uncommitted changes")
+  .action(async (shortName: string, opts: { force?: boolean }) => {
+    const exitCode = await runArchive(shortName, opts, consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("archive-last")
+  .description("Archive the most recent review_open run")
+  .option("--force", "Archive even if the final worktree has uncommitted changes")
+  .action(async (opts: { force?: boolean }) => {
+    const exitCode = await runArchiveLast(opts, consoleOutput);
     process.exit(exitCode);
   });
 

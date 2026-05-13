@@ -5,6 +5,8 @@ import type { ShortName, RunId } from "../domain/branded.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import { type RunStatus } from "../schemas/status.js";
+import { upsertRun } from "./registry.js";
+import { RegistryCorruptionError } from "../domain/errors.js";
 
 function makeRunId(shortName: ShortName): RunId {
   return `${shortName}-${Date.now()}` as RunId;
@@ -24,7 +26,7 @@ export function createRunFolder(
   planMd: string,
   plan: PhaxPlan,
   config: ResolvedConfig,
-): Effect.Effect<RunFolderResult, FsError, FileSystem> {
+): Effect.Effect<RunFolderResult, FsError | RegistryCorruptionError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
 
@@ -51,6 +53,17 @@ export function createRunFolder(
     };
 
     yield* fs.writeAtomic(join(runPath, "run-status.json"), JSON.stringify(runStatus, null, 2));
+
+    yield* upsertRun(config.stateRoot, {
+      shortName,
+      runId,
+      state: "created",
+      branch: plan.run.branch,
+      projectName: config.raw.project.name,
+      phasesCount: plan.phases.length,
+      createdAt: now,
+      updatedAt: now,
+    });
 
     return { runPath, runId };
   });
