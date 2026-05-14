@@ -1,8 +1,16 @@
-import { Either } from "effect";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
-import { decodeShortName } from "../../domain/branded.js";
+import { decodeRunId, decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
+import { loadPlan } from "../../app/loadPlan.js";
 import { inspectResume } from "../../app/resume.js";
+import { decodeRunStatus } from "../../schemas/status.js";
+import { executePlan } from "../../app/executePlan.js";
+import { withRunLock } from "../../app/lock.js";
+import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
+import { exitCodeForError, provideRunLayers } from "./runLayers.js";
 
 export interface ResumeCommandOptions {
   yes?: boolean;
@@ -18,7 +26,8 @@ export async function runResume(
     out.error(`Config error: ${configResult.left.message}`);
     return 1;
   }
-  const { stateRoot } = configResult.right;
+  const config = configResult.right;
+  const { stateRoot } = config;
 
   const shortNameResult = decodeShortName(shortNameArg);
   if (Either.isLeft(shortNameResult)) {
@@ -48,8 +57,94 @@ export async function runResume(
     return 0;
   }
 
-  out.error(
-    "phax resume execution is not yet implemented. Use phax enter to continue interactively.",
-  );
-  return 1;
+  const runPath = join(stateRoot, "runs", shortName);
+  const planPath = join(runPath, "phax-plan.json");
+  const planMdPath = join(runPath, "plan.md");
+
+  const planResult = loadPlan(planPath);
+  if (Either.isLeft(planResult)) {
+    out.error(`Plan error: ${planResult.left.message}`);
+    return 2;
+  }
+  const plan = planResult.right;
+
+  let planMd: string;
+  try {
+    planMd = readFileSync(planMdPath, "utf8");
+  } catch (e) {
+    out.error(
+      `Cannot read plan.md at "${planMdPath}": ${e instanceof Error ? e.message : String(e)}`,
+    );
+    return 2;
+  }
+
+  let runStatusRaw: unknown;
+  try {
+    runStatusRaw = JSON.parse(readFileSync(join(runPath, "run-status.json"), "utf8"));
+  } catch (e) {
+    out.error(`Cannot read run-status.json: ${e instanceof Error ? e.message : String(e)}`);
+    return 2;
+  }
+
+  const runStatusResult = decodeRunStatus(runStatusRaw);
+  if (Either.isLeft(runStatusResult)) {
+    out.error(`Invalid run-status.json: ${String(runStatusResult.left)}`);
+    return 2;
+  }
+  const runStatus = runStatusResult.right;
+
+  const runIdResult = decodeRunId(runStatus.runId);
+  if (Either.isLeft(runIdResult)) {
+    out.error(`Invalid runId in run-status.json`);
+    return 2;
+  }
+  const runId = runIdResult.right;
+
+  const profiles = config.raw.gateProfiles;
+  const gateProfileId =
+    runStatus.gateProfileId ??
+    ("full" in profiles
+      ? "full"
+      : "fast" in profiles
+        ? "fast"
+        : (Object.keys(profiles)[0] ?? null));
+
+  if (gateProfileId === null) {
+    out.error("No gate profiles configured in phax.json");
+    return 2;
+  }
+
+  setRunInterruptContext(shortName, stateRoot);
+  try {
+    const program = withRunLock(
+      shortName,
+      executePlan({
+        shortName,
+        plan,
+        planMd,
+        config,
+        gateProfileId,
+        workspaceId: undefined,
+        allowDirty: true,
+        runPath,
+        runId,
+        startIndex: decision.nextPhaseIndex,
+      }),
+    );
+
+    const result = await Effect.runPromise(Effect.either(provideRunLayers(program, config)));
+
+    if (Either.isLeft(result)) {
+      const err = result.left;
+      out.error(`phax resume failed: ${err instanceof Error ? err.message : String(err)}`);
+      return exitCodeForError(err);
+    }
+
+    out.log(
+      `Run "${shortName}" reached review_open. Use \`phax enter ${shortName}\` or \`phax archive ${shortName}\` when done.`,
+    );
+    return 0;
+  } finally {
+    clearRunInterruptContext();
+  }
 }
