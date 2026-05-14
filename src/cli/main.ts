@@ -166,15 +166,33 @@ program
   });
 
 program
-  .command("run")
+  .command("run [short-name]")
   .description("Run all phases from a phax-plan.json, or preview with --dry-run")
+  .option("--plan-md <path>", "Path to plan.md", "plan.md")
   .option("--plan <path>", "Path to phax-plan.json", "phax-plan.json")
-  .option("--dry-run", "Print the execution plan without performing any side effects")
   .option("--profile <profile>", "Gate profile to use (overrides config default)")
-  .action(async (opts: { plan?: string; dryRun?: boolean; profile?: string }) => {
-    const exitCode = await runRun(opts, consoleOutput);
-    process.exit(exitCode);
-  });
+  .option("--workspace <id>", "Workspace id (monorepo)")
+  .option("--allow-dirty", "Allow starting when the working tree is dirty")
+  .option("--dry-run", "Preview only — zero side effects")
+  .action(
+    async (
+      shortName: string | undefined,
+      opts: {
+        planMd?: string;
+        plan?: string;
+        profile?: string;
+        workspace?: string;
+        allowDirty?: boolean;
+        dryRun?: boolean;
+      },
+    ) => {
+      const exitCode = await runRun(
+        shortName !== undefined ? { shortName, ...opts } : opts,
+        consoleOutput,
+      );
+      process.exit(exitCode);
+    },
+  );
 
 program
   .command("resume <short-name>")
