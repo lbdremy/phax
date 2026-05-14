@@ -15,6 +15,7 @@ export type GitCall =
 export class FakeGitImpl implements GitOps {
   readonly calls: GitCall[] = [];
   readonly cleanWorktrees = new Set<string>();
+  readonly worktreeIsCleanQueue = new Map<string, boolean[]>();
   isCleanDefault = true;
   activeBranch: BranchName = "main" as BranchName;
   readonly existingBranches = new Set<string>();
@@ -37,6 +38,12 @@ export class FakeGitImpl implements GitOps {
 
   addExistingBranch(branch: string): void {
     this.existingBranches.add(branch);
+  }
+
+  enqueueWorktreeIsClean(path: string, ...values: boolean[]): void {
+    const queue = this.worktreeIsCleanQueue.get(path) ?? [];
+    queue.push(...values);
+    this.worktreeIsCleanQueue.set(path, queue);
   }
 
   isClean(repo: string): Effect.Effect<boolean, GitError> {
@@ -77,6 +84,10 @@ export class FakeGitImpl implements GitOps {
 
   worktreeIsClean(path: WorktreePath): Effect.Effect<boolean, GitError> {
     this.calls.push({ method: "worktreeIsClean", path });
+    const queue = this.worktreeIsCleanQueue.get(path as string);
+    if (queue !== undefined && queue.length > 0) {
+      return Effect.succeed(queue.shift()!);
+    }
     return Effect.succeed(this.cleanWorktrees.has(path as string));
   }
 }

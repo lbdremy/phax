@@ -53,9 +53,12 @@ This calls Claude Code headlessly with the `phax-plan.json` JSON Schema, validat
 ## Run
 
 ```bash
-phax run --plan phax-plan.json            # full execution
-phax run --plan phax-plan.json --dry-run  # preview only — zero side effects
-phax run --plan phax-plan.json --profile fast  # override gate profile
+phax run                                        # full execution (reads plan.md + phax-plan.json)
+phax run --plan-md plan.md --plan plan.json     # explicit paths
+phax run --dry-run                              # preview only — zero side effects
+phax run --profile fast                         # override gate profile
+phax run --allow-dirty                          # skip clean-tree guard
+phax run --workspace packages/api              # workspace-scoped gate commands (monorepo)
 ```
 
 Each phase:
