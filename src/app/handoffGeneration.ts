@@ -7,9 +7,10 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { decodePhaseStatus, encodePhaseStatus } from "../schemas/status.js";
 
 const REQUIRED_HANDOFF_SECTIONS = [
-  "## What was done",
-  "## Key decisions",
-  "## Handoff to next phase",
+  "## What was delivered",
+  "## Key decisions and why",
+  "## Exact locations (file paths and exported names)",
+  "## What the next phase needs to know",
 ];
 
 function buildHandoffPrompt(): string {
@@ -20,11 +21,12 @@ function buildHandoffPrompt(): string {
     "",
     "Consult `.skills/phax-phase-handoff.md` for the expected format.",
     "",
-    "The file must include these sections:",
+    "The file must include these four sections in order:",
     ...REQUIRED_HANDOFF_SECTIONS.map((s) => `- \`${s}\``),
     "",
     "Be concise and precise. Focus on what the next phase needs to know.",
     "Do not repeat the phase instructions — only what was actually done and decided.",
+    "Do not summarise the session transcript — write facts and decisions only.",
   ].join("\n");
 }
 

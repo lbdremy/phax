@@ -10,19 +10,26 @@ fed to `phax extract-plan`.
 extraction succeeds when every required field is present and unambiguous. It
 fails loudly when required data is missing — it never guesses.
 
-## Required fields per phase
+## Per-phase field set
 
-Each phase section must contain (verbatim text, suitable for extraction):
+Each phase section must contain all of the following. Fields marked **extracted**
+are pulled by `phax extract-plan` into `phax-plan.json`; the rest are
+informational for the executing agent.
 
-| Field                | Location in section                                 |
-| -------------------- | --------------------------------------------------- |
-| `id`                 | Derived from the heading number (`phase-01` → id 1) |
-| `title`              | Section heading after the dash                      |
-| `model`              | `**Recommended model:** <model-id>` line            |
-| `effort`             | `**Recommended effort:** low\|medium\|high` line    |
-| `planMarkdownAnchor` | `{#phase-NN-<slug>}` in the heading                 |
-| `commit.subject`     | `### Commit subject` subsection                     |
-| `commit.body`        | `### Commit body` subsection                        |
+| Field                    | Location in section                                   | Extracted? |
+| ------------------------ | ----------------------------------------------------- | ---------- |
+| `id`                     | Derived from the heading number (`phase-01` → `"1"`)  | yes        |
+| `title`                  | Section heading after the dash                        | yes        |
+| `model`                  | `**Recommended model:** <model-id>` line              | yes        |
+| `effort`                 | `**Recommended effort:** low\|medium\|high` line      | yes        |
+| `planMarkdownAnchor`     | `{#phase-NN-<slug>}` in the heading line              | yes        |
+| `commit.subject`         | `### Commit subject` subsection                       | yes        |
+| `commit.body`            | `### Commit body` subsection                          | yes        |
+| Objective                | Opening paragraph of the phase section                | no         |
+| Detailed instructions    | Bullet list of what to implement                      | no         |
+| Included scope           | Explicit list of what is in scope                     | no         |
+| Excluded scope           | Explicit list of what is out of scope                 | no         |
+| Expected handoff content | What the executing agent must document in the handoff | no         |
 
 ## Heading format
 
@@ -46,12 +53,24 @@ Use exact model IDs — the extractor validates them:
 
 `low` | `medium` | `high` — nothing else.
 
+## Planning constraints
+
+- **Sequential only.** Phases execute one at a time; phax has no parallel
+  execution mode.
+- **No invented repo commands.** Gates come from `phax.json`, not from
+  `plan.md`. Never invent `pnpm` scripts or CLI commands that do not already
+  exist in the project.
+- **Small, committable phases.** Each phase must produce a single coherent
+  commit. If the diff would be hard to review, split the phase.
+- **Gate-verifiable outcomes.** Every phase must have an outcome the configured
+  gates can verify mechanically (type-check, tests, lint, build, etc.).
+- **Handoff-complete.** The handoff the executing agent writes must be enough
+  for the next phase to proceed without re-reading earlier phases.
+
 ## What makes a good phase boundary
 
 - One clear outcome per phase (a file, a feature, a set of tests).
 - Gates from `phax.json` must be able to verify the outcome mechanically.
-- The handoff that the executing agent writes must be enough for the next phase
-  to proceed without re-reading earlier phases.
 - Phases that share state (e.g., a port defined in phase N used in phase N+1)
   must name the exact module path in the handoff expectations.
 
@@ -63,6 +82,8 @@ Use exact model IDs — the extractor validates them:
   objective splits reviewer attention and risks the gate failing on unrelated work.
 - Skipping the `{#phase-NN-<slug>}` anchor — `phax extract-plan` uses it as the
   `planMarkdownAnchor` field and will error without it.
+- Parallel or overlapping phase scope — each phase must be independently
+  committable; assume the previous phase is done and merged.
 
 ## Example well-formed section header
 

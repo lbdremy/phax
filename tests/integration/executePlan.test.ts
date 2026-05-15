@@ -15,11 +15,13 @@ import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
 
 const HANDOFF_CONTENT = [
-  "## What was done",
+  "## What was delivered",
   "Phase completed successfully.",
-  "## Key decisions",
+  "## Key decisions and why",
   "No major decisions.",
-  "## Handoff to next phase",
+  "## Exact locations (file paths and exported names)",
+  "No new exports.",
+  "## What the next phase needs to know",
   "Ready to proceed.",
 ].join("\n");
 
