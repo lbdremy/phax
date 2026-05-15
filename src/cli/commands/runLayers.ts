@@ -1,14 +1,21 @@
-import { Effect } from "effect";
+import { Effect, type Layer } from "effect";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { NodeShellLayer } from "../../infra/shell.js";
+import {
+  NoopTracerLayer,
+  makeTraceTracerLayer,
+  makeVerboseTracerLayer,
+} from "../../infra/tracer.js";
 import { Backend } from "../../ports/backend.js";
 import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
 import { Lock } from "../../ports/lock.js";
 import { Shell } from "../../ports/shell.js";
+import type { OutputPort } from "../../ports/output.js";
+import { Tracer } from "../../ports/tracer.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   ClaudeInvocationError,
@@ -23,8 +30,9 @@ import {
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 
 export function provideRunLayers<A, E>(
-  effect: Effect.Effect<A, E, Backend | FileSystem | Git | Shell | Lock>,
+  effect: Effect.Effect<A, E, Backend | FileSystem | Git | Shell | Lock | Tracer>,
   config: ResolvedConfig,
+  tracerLayer: Layer.Layer<Tracer>,
 ): Effect.Effect<A, E, never> {
   return effect.pipe(
     Effect.provide(makeNodeBackendLayer()),
@@ -32,7 +40,28 @@ export function provideRunLayers<A, E>(
     Effect.provide(NodeGitLayer),
     Effect.provide(NodeShellLayer),
     Effect.provide(makeNodeLockLayer(config.stateRoot)),
+    Effect.provide(tracerLayer),
   );
+}
+
+/**
+ * Build the tracer layer for a command from its `--verbose` / `--trace` flags.
+ * `--trace` writes JSONL to `traceJsonlPath` (and also renders verbosely when
+ * both flags are set); `--verbose` alone renders to the OutputPort; neither
+ * yields the no-op tracer.
+ */
+export function buildTracerLayer(
+  opts: { verbose?: boolean | undefined; trace?: boolean | undefined },
+  traceJsonlPath: string,
+  out: OutputPort,
+): Layer.Layer<Tracer> {
+  if (opts.trace === true) {
+    return makeTraceTracerLayer(traceJsonlPath, out, opts.verbose === true);
+  }
+  if (opts.verbose === true) {
+    return makeVerboseTracerLayer(out);
+  }
+  return NoopTracerLayer;
 }
 
 export function exitCodeForError(err: unknown): number {

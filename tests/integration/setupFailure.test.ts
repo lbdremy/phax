@@ -11,6 +11,7 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
+import { NoopTracerLayer } from "../../src/infra/tracer.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
 
@@ -78,6 +79,7 @@ describe("executePlan — setup command failure", () => {
       fakeShell.layer,
       makeFakeBackend().layer,
       NodeFileSystemLayer,
+      NoopTracerLayer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -137,6 +139,7 @@ describe("executePlan — setup command failure", () => {
       fakeShell.layer,
       makeFakeBackend().layer,
       NodeFileSystemLayer,
+      NoopTracerLayer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -196,6 +199,7 @@ describe("executePlan — setup command failure", () => {
       fakeShell.layer,
       makeFakeBackend().layer,
       NodeFileSystemLayer,
+      NoopTracerLayer,
     );
 
     const { runPath, runId } = await Effect.runPromise(

@@ -10,10 +10,12 @@ import { decodeRunStatus } from "../../schemas/status.js";
 import { executePlan } from "../../app/executePlan.js";
 import { withRunLock } from "../../app/lock.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
-import { exitCodeForError, provideRunLayers } from "./runLayers.js";
+import { buildTracerLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
 
 export interface ResumeCommandOptions {
   yes?: boolean;
+  verbose?: boolean;
+  trace?: boolean;
 }
 
 export async function runResume(
@@ -114,6 +116,8 @@ export async function runResume(
     return 2;
   }
 
+  const tracerLayer = buildTracerLayer(opts, join(runPath, "trace.jsonl"), out);
+
   setRunInterruptContext(shortName, stateRoot);
   try {
     const program = withRunLock(
@@ -132,7 +136,9 @@ export async function runResume(
       }),
     );
 
-    const result = await Effect.runPromise(Effect.either(provideRunLayers(program, config)));
+    const result = await Effect.runPromise(
+      Effect.either(provideRunLayers(program, config, tracerLayer)),
+    );
 
     if (Either.isLeft(result)) {
       const err = result.left;

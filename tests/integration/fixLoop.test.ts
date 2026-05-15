@@ -5,6 +5,7 @@ import { GateFailedError } from "../../src/domain/errors.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
+import { NoopTracerLayer } from "../../src/infra/tracer.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 
 const cwd = "/fake/worktrees/my-run/phase-01";
@@ -34,6 +35,8 @@ const baseOpts = {
     phaseFolderPath,
   },
   maxFixAttempts: 1,
+  run: "my-run",
+  phaseId: "phase-01",
 };
 
 function makeResumeResult(newSessionId = "sess-fixed") {
@@ -54,7 +57,9 @@ describe("runGatesWithFixLoop", () => {
 
     const outcome = await Effect.runPromise(
       runGatesWithFixLoop(baseOpts).pipe(
-        Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer, fakeBackend.layer)),
+        Effect.provide(
+          Layer.mergeAll(fakeFs.layer, fakeShell.layer, fakeBackend.layer, NoopTracerLayer),
+        ),
       ),
     );
 
@@ -76,7 +81,9 @@ describe("runGatesWithFixLoop", () => {
 
     const outcome = await Effect.runPromise(
       runGatesWithFixLoop(baseOpts).pipe(
-        Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer, fakeBackend.layer)),
+        Effect.provide(
+          Layer.mergeAll(fakeFs.layer, fakeShell.layer, fakeBackend.layer, NoopTracerLayer),
+        ),
       ),
     );
 
@@ -96,7 +103,9 @@ describe("runGatesWithFixLoop", () => {
     const result = await Effect.runPromise(
       Effect.either(
         runGatesWithFixLoop(baseOpts).pipe(
-          Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer, fakeBackend.layer)),
+          Effect.provide(
+            Layer.mergeAll(fakeFs.layer, fakeShell.layer, fakeBackend.layer, NoopTracerLayer),
+          ),
         ),
       ),
     );
@@ -121,7 +130,9 @@ describe("runGatesWithFixLoop", () => {
 
     await Effect.runPromise(
       runGatesWithFixLoop(baseOpts).pipe(
-        Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer, fakeBackend.layer)),
+        Effect.provide(
+          Layer.mergeAll(fakeFs.layer, fakeShell.layer, fakeBackend.layer, NoopTracerLayer),
+        ),
       ),
     );
 
@@ -146,7 +157,9 @@ describe("runGatesWithFixLoop", () => {
 
     await Effect.runPromise(
       runGatesWithFixLoop({ ...baseOpts, maxFixAttempts: 2 }).pipe(
-        Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer, fakeBackend.layer)),
+        Effect.provide(
+          Layer.mergeAll(fakeFs.layer, fakeShell.layer, fakeBackend.layer, NoopTracerLayer),
+        ),
       ),
     );
 

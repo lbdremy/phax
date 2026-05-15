@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Lock } from "../ports/lock.js";
+import { Tracer } from "../ports/tracer.js";
 import { PhaxPlanSchema, getPhaxPlanJsonSchema, type PhaxPlan } from "../schemas/phaxPlan.js";
 import { ClaudeInvocationError, LockConflictError, PlanValidationError } from "../domain/errors.js";
 import { decodeShortName } from "../domain/branded.js";
@@ -99,11 +100,26 @@ export type ExtractPlanError =
 
 export function extractPlan(
   opts: ExtractPlanOptions,
-): Effect.Effect<ExtractPlanResult, ExtractPlanError, Backend | FileSystem | Lock> {
+): Effect.Effect<ExtractPlanResult, ExtractPlanError, Backend | FileSystem | Lock | Tracer> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const backend = yield* Backend;
     const lock = yield* Lock;
+    const tracer = yield* Tracer;
+
+    const emitContract = (
+      event: "contract.validated" | "contract.invalid",
+      status: "ok" | "failed",
+      details?: Record<string, unknown>,
+    ): Effect.Effect<void, never, never> =>
+      tracer.event({
+        timestamp: new Date().toISOString(),
+        run: "extract-plan",
+        event,
+        boundary: "phax-plan.json",
+        status,
+        details,
+      });
 
     const planMd = yield* fs.readText(opts.planMdPath).pipe(
       Effect.mapError(
@@ -163,6 +179,7 @@ export function extractPlan(
     try {
       parsed = JSON.parse(runResult.finalText);
     } catch {
+      yield* emitContract("contract.invalid", "failed", { reason: "non-json-output" });
       return yield* Effect.fail(
         new PlanValidationError({
           message: `Claude returned non-JSON output. Raw response: ${runResult.finalText.slice(0, 300)}`,
@@ -173,12 +190,14 @@ export function extractPlan(
     // Local schema validation is mandatory regardless of which model produced the output (spec §6).
     const decoded = decodePlan(parsed);
     if (Either.isLeft(decoded)) {
+      yield* emitContract("contract.invalid", "failed", { reason: "schema-validation-failed" });
       return yield* Effect.fail(
         new PlanValidationError({
           message: `Extracted JSON failed schema validation:\n${formatParseError(decoded.left)}`,
         }),
       );
     }
+    yield* emitContract("contract.validated", "ok", { phases: decoded.right.phases.length });
     const plan = decoded.right;
 
     const detectedAnchors = detectPhaseAnchors(planMd);

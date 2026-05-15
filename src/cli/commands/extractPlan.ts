@@ -1,11 +1,12 @@
 import { Effect, Either } from "effect";
-import { resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import type { OutputPort } from "../../ports/output.js";
 import { extractPlan } from "../../app/extractPlan.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
+import { buildTracerLayer } from "./runLayers.js";
 
 export interface ExtractPlanCliOptions {
   planMd: string;
@@ -13,6 +14,8 @@ export interface ExtractPlanCliOptions {
   force?: boolean | undefined;
   model?: string | undefined;
   effort?: string | undefined;
+  verbose?: boolean | undefined;
+  trace?: boolean | undefined;
 }
 
 export async function runExtractPlan(
@@ -32,6 +35,8 @@ export async function runExtractPlan(
   const model = opts.model ?? config.extractPlanModel;
   const effort = opts.effort ?? config.extractPlanEffort;
 
+  const tracerLayer = buildTracerLayer(opts, join(dirname(outPath), "trace.jsonl"), out);
+
   const effect = extractPlan({
     planMdPath,
     outPath,
@@ -43,6 +48,7 @@ export async function runExtractPlan(
     Effect.provide(makeNodeBackendLayer()),
     Effect.provide(NodeFileSystemLayer),
     Effect.provide(makeNodeLockLayer(config.stateRoot)),
+    Effect.provide(tracerLayer),
   );
 
   const result = await Effect.runPromise(Effect.either(effect));

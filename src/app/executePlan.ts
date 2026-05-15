@@ -23,6 +23,7 @@ import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
+import { Tracer, type TraceEventName, type TraceStatus } from "../ports/tracer.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import {
@@ -177,7 +178,7 @@ export type ExecutePlanError =
 
 export function executePlan(
   opts: ExecutePlanOptions,
-): Effect.Effect<ExecutePlanResult, ExecutePlanError, Backend | FileSystem | Git | Shell> {
+): Effect.Effect<ExecutePlanResult, ExecutePlanError, Backend | FileSystem | Git | Shell | Tracer> {
   const {
     shortName,
     plan,
@@ -192,6 +193,32 @@ export function executePlan(
   } = opts;
 
   const program = Effect.gen(function* () {
+    const tracer = yield* Tracer;
+    const emit = (
+      event: TraceEventName,
+      status: TraceStatus,
+      extra?: {
+        phase?: string | undefined;
+        boundary?: string | undefined;
+        details?: Record<string, unknown> | undefined;
+      },
+    ): Effect.Effect<void, never, never> =>
+      tracer.event({
+        timestamp: new Date().toISOString(),
+        run: shortName as string,
+        phase: extra?.phase,
+        event,
+        boundary: extra?.boundary,
+        status,
+        details: extra?.details,
+      });
+
+    yield* emit("config.discovered", "info", { boundary: "phax.json" });
+    yield* emit("config.validated", "ok", {
+      boundary: "phax.json",
+      details: { gateProfileId, repoRoot: config.repoRoot, workspaceId },
+    });
+
     let gateCommands: readonly string[];
     try {
       gateCommands = resolveGateProfile(config, gateProfileId, workspaceId);
@@ -208,6 +235,7 @@ export function executePlan(
     if (startIndex === 0) {
       branch = yield* prepareRunBranch(shortName, plan.run.branch, config.repoRoot, allowDirty);
       yield* transitionRunRunning(runPath);
+      yield* emit("state.transition", "ok", { details: { entity: "run", to: "running" } });
       yield* recordGateProfileInRunStatus(runPath, gateProfileId);
     } else {
       const branchResult = decodeBranchName(plan.run.branch);
@@ -237,6 +265,10 @@ export function executePlan(
       const phaseFolderPath = yield* createPhaseFolder(runPath, phase, i);
 
       yield* transitionPhasePendingToSettingUp(phaseFolderPath);
+      yield* emit("state.transition", "ok", {
+        phase: phase.id,
+        details: { entity: "phase", to: "setting_up_worktree" },
+      });
 
       const phaseIdResult = decodePhaseId(phase.id);
       if (Either.isLeft(phaseIdResult)) {
@@ -257,8 +289,17 @@ export function executePlan(
       );
 
       yield* recordPhaseWorktreePath(phaseFolderPath, worktreePath);
+      yield* emit("git.worktree.created", "ok", {
+        phase: phase.id,
+        boundary: "worktree",
+        details: { worktreePath: worktreePath as string },
+      });
 
       yield* transitionPhaseSettingUpToRunning(phaseFolderPath);
+      yield* emit("state.transition", "ok", {
+        phase: phase.id,
+        details: { entity: "phase", to: "running" },
+      });
 
       yield* setupPhase({ worktreePath, phaseFolderPath, setupCommands });
 
@@ -283,8 +324,21 @@ export function executePlan(
       };
 
       const backend = yield* Backend;
+      yield* emit("agent.invocation.started", "info", {
+        phase: phase.id,
+        boundary: "claude-code",
+        details: { model: phase.model, effort: phase.effort },
+      });
       const agentResult = yield* backend.runAgent(promptText, agentOptions);
       const sessionId = agentResult.sessionId;
+      yield* emit("agent.invocation.completed", "ok", {
+        phase: phase.id,
+        boundary: "claude-code",
+      });
+      yield* emit("agent.session.captured", "ok", {
+        phase: phase.id,
+        details: { sessionId: sessionId as string },
+      });
 
       yield* runGatesWithFixLoop({
         commands: gateCommands,
@@ -293,15 +347,29 @@ export function executePlan(
         sessionId,
         agentOptions,
         maxFixAttempts: config.maxFixAttempts,
+        run: shortName as string,
+        phaseId: phase.id,
       });
 
       yield* transitionPhaseRunningToPassed(phaseFolderPath);
+      yield* emit("state.transition", "ok", {
+        phase: phase.id,
+        details: { entity: "phase", to: "passed" },
+      });
 
+      yield* emit("handoff.requested", "info", {
+        phase: phase.id,
+        boundary: "phase-handoff.md",
+      });
       yield* generatePhaseHandoff({
         sessionId,
         agentOptions,
         phaseFolderPath,
         worktreePath: worktreePath as string,
+      });
+      yield* emit("handoff.validated", "ok", {
+        phase: phase.id,
+        boundary: "phase-handoff.md",
       });
 
       yield* commitPhase({
@@ -316,6 +384,11 @@ export function executePlan(
       });
 
       committedPhases.push(phase.id);
+      yield* emit("git.commit.created", "ok", {
+        phase: phase.id,
+        boundary: "git",
+        details: { subject: phase.commit.subject },
+      });
 
       if (isFinal) {
         finalWorktreePath = worktreePath;
