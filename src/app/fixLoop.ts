@@ -10,6 +10,7 @@ import type { PhaseState } from "../domain/state.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Shell, type ShellError } from "../ports/shell.js";
+import { Tracer } from "../ports/tracer.js";
 import { decodePhaseStatus, encodePhaseStatus } from "../schemas/status.js";
 import { runGates, type GateOutcome } from "./gates.js";
 
@@ -73,6 +74,10 @@ export interface RunGatesWithFixLoopOptions {
   readonly sessionId: ClaudeSessionId;
   readonly agentOptions: AgentRunOptions;
   readonly maxFixAttempts: number;
+  /** Run short name, for trace events. */
+  readonly run: string;
+  /** Current phase id, for trace events. */
+  readonly phaseId: string;
 }
 
 export function runGatesWithFixLoop(
@@ -80,9 +85,10 @@ export function runGatesWithFixLoop(
 ): Effect.Effect<
   GateOutcome,
   GateFailedError | FsError | ShellError | ClaudeInvocationError | ClaudeSessionIdMissingError,
-  Shell | FileSystem | Backend
+  Shell | FileSystem | Backend | Tracer
 > {
-  const { commands, cwd, phaseFolderPath, sessionId, agentOptions, maxFixAttempts } = opts;
+  const { commands, cwd, phaseFolderPath, sessionId, agentOptions, maxFixAttempts, run, phaseId } =
+    opts;
 
   function logPath(attempt: number): string {
     return join(phaseFolderPath, `checks-attempt-${String(attempt).padStart(2, "0")}.log`);
@@ -94,12 +100,30 @@ export function runGatesWithFixLoop(
   ): Effect.Effect<
     GateOutcome,
     GateFailedError | FsError | ShellError | ClaudeInvocationError | ClaudeSessionIdMissingError,
-    Shell | FileSystem | Backend
+    Shell | FileSystem | Backend | Tracer
   > {
     return Effect.gen(function* () {
+      const tracer = yield* Tracer;
+      const emit = (
+        event: "gate.started" | "gate.completed" | "gate.failed" | "fix.started" | "fix.completed",
+        status: "ok" | "failed" | "info",
+        details?: Record<string, unknown>,
+      ): Effect.Effect<void, never, never> =>
+        tracer.event({
+          timestamp: new Date().toISOString(),
+          run,
+          phase: phaseId,
+          event,
+          boundary: "gate",
+          status,
+          details,
+        });
+
+      yield* emit("gate.started", "info", { attempt });
       const gateResult = yield* Effect.either(runGates(commands, cwd, logPath(attempt)));
 
       if (Either.isRight(gateResult)) {
+        yield* emit("gate.completed", "ok", { attempt });
         return gateResult.right;
       }
 
@@ -109,6 +133,11 @@ export function runGatesWithFixLoop(
         return yield* Effect.fail(error);
       }
 
+      yield* emit("gate.failed", "failed", {
+        attempt,
+        command: error.command,
+        exitCode: error.exitCode,
+      });
       yield* updatePhaseState(phaseFolderPath, "gates_failed");
 
       if (attempt > maxFixAttempts) {
@@ -122,6 +151,7 @@ export function runGatesWithFixLoop(
       const logContent = yield* fs.readText(logPath(attempt));
       const fixPrompt = buildFixPrompt(error, logContent, attempt);
 
+      yield* emit("fix.started", "info", { attempt });
       const backend = yield* Backend;
       const fixResult = yield* backend.resumeAgentSession(currentSessionId, fixPrompt, {
         model: agentOptions.model,
@@ -135,6 +165,7 @@ export function runGatesWithFixLoop(
       });
 
       yield* updatePhaseState(phaseFolderPath, "running");
+      yield* emit("fix.completed", "ok", { attempt });
 
       return yield* loop(attempt + 1, fixResult.sessionId);
     });

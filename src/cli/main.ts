@@ -20,7 +20,17 @@ const program = new Command();
 program
   .name("phax")
   .description("Drive Claude Code through isolated, gated phases")
-  .version("0.1.0");
+  .version("0.1.0")
+  .option("--verbose", "Print human-readable progress and system events")
+  .option("--trace", "Write structured JSONL trace events to the run folder");
+
+function globalTraceOpts(): { verbose?: boolean; trace?: boolean } {
+  const g = program.opts<{ verbose?: boolean; trace?: boolean }>();
+  const result: { verbose?: boolean; trace?: boolean } = {};
+  if (g.verbose !== undefined) result.verbose = g.verbose;
+  if (g.trace !== undefined) result.trace = g.trace;
+  return result;
+}
 
 program
   .command("validate")
@@ -60,7 +70,7 @@ program
       model?: string;
       effort?: string;
     }) => {
-      const exitCode = await runExtractPlan(opts, consoleOutput);
+      const exitCode = await runExtractPlan({ ...opts, ...globalTraceOpts() }, consoleOutput);
       process.exit(exitCode);
     },
   );
@@ -189,8 +199,9 @@ program
         dryRun?: boolean;
       },
     ) => {
+      const merged = { ...opts, ...globalTraceOpts() };
       const exitCode = await runRun(
-        shortName !== undefined ? { shortName, ...opts } : opts,
+        shortName !== undefined ? { shortName, ...merged } : merged,
         consoleOutput,
       );
       process.exit(exitCode);
@@ -202,7 +213,7 @@ program
   .description("Resume a run from its next pending phase")
   .option("--yes", "Proceed without confirmation")
   .action(async (shortName: string, opts: { yes?: boolean }) => {
-    const exitCode = await runResume(shortName, opts, consoleOutput);
+    const exitCode = await runResume(shortName, { ...opts, ...globalTraceOpts() }, consoleOutput);
     process.exit(exitCode);
   });
 

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName } from "../../domain/branded.js";
@@ -11,7 +11,7 @@ import { executePlan } from "../../app/executePlan.js";
 import { withRunLock } from "../../app/lock.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
-import { exitCodeForError, provideRunLayers } from "./runLayers.js";
+import { buildTracerLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
 
 export interface RunCommandOptions {
   shortName?: string;
@@ -21,6 +21,8 @@ export interface RunCommandOptions {
   profile?: string;
   workspace?: string;
   allowDirty?: boolean;
+  verbose?: boolean;
+  trace?: boolean;
 }
 
 function pickGateProfileId(config: ResolvedConfig, profileOpt: string | undefined): string | null {
@@ -104,6 +106,9 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     return 2;
   }
 
+  const traceJsonlPath = join(config.stateRoot, "runs", shortName, "trace.jsonl");
+  const tracerLayer = buildTracerLayer(opts, traceJsonlPath, out);
+
   setRunInterruptContext(shortName, config.stateRoot);
   try {
     const program = withRunLock(
@@ -126,7 +131,9 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
       ),
     );
 
-    const result = await Effect.runPromise(Effect.either(provideRunLayers(program, config)));
+    const result = await Effect.runPromise(
+      Effect.either(provideRunLayers(program, config, tracerLayer)),
+    );
 
     if (Either.isLeft(result)) {
       const err = result.left;
