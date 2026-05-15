@@ -28,8 +28,9 @@ export async function runExtractPlan(
 
   const planMdPath = resolve(process.cwd(), opts.planMd);
   const outPath = resolve(process.cwd(), opts.out);
-  const model = opts.model ?? "claude-sonnet-4-6";
-  const effort = opts.effort ?? "medium";
+  // Precedence: explicit CLI flag > phax.json agent.extractPlan > built-in default
+  const model = opts.model ?? config.extractPlanModel;
+  const effort = opts.effort ?? config.extractPlanEffort;
 
   const effect = extractPlan({
     planMdPath,

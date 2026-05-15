@@ -92,6 +92,8 @@ describe("executePlan — happy-path 2-phase run", () => {
       editorCommand: "echo",
       backend: "claude-code-cli",
       maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
     };
 
     const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
@@ -211,6 +213,8 @@ describe("executePlan — happy-path 2-phase run", () => {
       editorCommand: "echo",
       backend: "claude-code-cli",
       maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
     };
 
     const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");

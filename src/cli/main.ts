@@ -47,8 +47,11 @@ program
   .requiredOption("--plan-md <path>", "Path to the plan.md file to extract from")
   .requiredOption("--out <path>", "Output path for phax-plan.json")
   .option("--force", "Overwrite existing output file (blocked if the run is actively locked)")
-  .option("--model <model>", "Claude model to use", "claude-sonnet-4-6")
-  .option("--effort <effort>", "Effort level (low|medium|high)", "medium")
+  .option("--model <model>", "Claude model to use (overrides phax.json agent.extractPlan.model)")
+  .option(
+    "--effort <effort>",
+    "Effort level (low|medium|high, overrides phax.json agent.extractPlan.effort)",
+  )
   .action(
     async (opts: {
       planMd: string;
