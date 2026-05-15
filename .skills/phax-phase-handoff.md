@@ -65,9 +65,22 @@ workarounds that look odd but are intentional.
 - Total length: 150–400 words. Longer is not better.
 - Never say "I implemented X" — just state what exists.
 
+## Quality rules
+
+- **Next-phase-only.** Write for the agent that will execute the next phase, not
+  for a general reader. Omit anything that agent cannot act on.
+- **No transcript summaries.** Do not narrate what you did during the session.
+  State facts: what exists, what was decided, what the next phase must know.
+- **Name architectural decisions and risks.** If you chose a design that a
+  future maintainer might question, name it and explain the constraint that
+  forced it.
+- **Name known gaps.** If something is intentionally incomplete, say so
+  explicitly — do not leave the next phase to discover it.
+
 ## Anti-patterns
 
 - Summarising the phase objective (already in `plan.md`).
 - Repeating what the commit message says.
 - Writing "the code is self-explanatory" — if it were, this file wouldn't exist.
 - Omitting a required section heading — this causes `handoff_failed`.
+- Transcript summaries ("I first tried X, then Y") — write decisions, not history.
