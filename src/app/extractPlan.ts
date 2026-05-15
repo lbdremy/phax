@@ -170,6 +170,7 @@ export function extractPlan(
       );
     }
 
+    // Local schema validation is mandatory regardless of which model produced the output (spec §6).
     const decoded = decodePlan(parsed);
     if (Either.isLeft(decoded)) {
       return yield* Effect.fail(

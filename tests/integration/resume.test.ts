@@ -82,6 +82,8 @@ describe("executePlan — resume from startIndex: 1", () => {
       editorCommand: "echo",
       backend: "claude-code-cli",
       maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
     };
 
     // Create run folder to establish run-status.json and registry entry.
@@ -219,6 +221,8 @@ describe("executePlan — resume from startIndex: 1", () => {
       editorCommand: "echo",
       backend: "claude-code-cli",
       maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
     };
 
     const setupLayers = Layer.mergeAll(

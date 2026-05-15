@@ -59,6 +59,57 @@ describe("decodePhaxConfig", () => {
     expect(Either.isLeft(decodePhaxConfig(bad))).toBe(true);
   });
 
+  it("accepts agent.extractPlan with model and effort", () => {
+    const cfg = {
+      ...validConfig,
+      agent: {
+        backend: "claude-code-cli",
+        extractPlan: { model: "claude-haiku-4-5-20251001", effort: "low" },
+      },
+    };
+    expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
+  });
+
+  it("accepts agent.extractPlan with only model", () => {
+    const cfg = {
+      ...validConfig,
+      agent: { backend: "claude-code-cli", extractPlan: { model: "claude-sonnet-4-6" } },
+    };
+    expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
+  });
+
+  it("accepts agent.extractPlan with only effort", () => {
+    const cfg = {
+      ...validConfig,
+      agent: { backend: "claude-code-cli", extractPlan: { effort: "medium" } },
+    };
+    expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
+  });
+
+  it("accepts agent.extractPlan as an empty object", () => {
+    const cfg = {
+      ...validConfig,
+      agent: { backend: "claude-code-cli", extractPlan: {} },
+    };
+    expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
+  });
+
+  it("rejects agent.extractPlan with invalid effort", () => {
+    const cfg = {
+      ...validConfig,
+      agent: { backend: "claude-code-cli", extractPlan: { effort: "extreme" } },
+    };
+    expect(Either.isLeft(decodePhaxConfig(cfg))).toBe(true);
+  });
+
+  it("rejects agent.extractPlan with excess properties", () => {
+    const cfg = {
+      ...validConfig,
+      agent: { backend: "claude-code-cli", extractPlan: { unknown: "field" } },
+    };
+    expect(Either.isLeft(decodePhaxConfig(cfg))).toBe(true);
+  });
+
   it("rejects non-object input", () => {
     expect(Either.isLeft(decodePhaxConfig("not-an-object"))).toBe(true);
     expect(Either.isLeft(decodePhaxConfig(null))).toBe(true);

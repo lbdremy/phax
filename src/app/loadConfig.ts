@@ -4,7 +4,11 @@ import { homedir } from "node:os";
 import { execSync } from "node:child_process";
 import { Either } from "effect";
 import { ConfigValidationError } from "../domain/errors.js";
-import { type ResolvedConfig, decodePhaxConfig } from "../schemas/phaxConfig.js";
+import {
+  type ResolvedConfig,
+  decodePhaxConfig,
+  DEFAULT_EXTRACT_MODEL,
+} from "../schemas/phaxConfig.js";
 import { formatParseError } from "../schemas/formatError.js";
 
 function findGitRoot(startDir: string): string | undefined {
@@ -135,6 +139,8 @@ export function loadConfig(
     editorCommand: config.editor?.command ?? "zed",
     backend: config.agent?.backend ?? "claude-code-cli",
     maxFixAttempts: config.agent?.maxFixAttempts ?? 1,
+    extractPlanModel: config.agent?.extractPlan?.model ?? DEFAULT_EXTRACT_MODEL,
+    extractPlanEffort: config.agent?.extractPlan?.effort ?? "low",
   };
 
   return Either.right(resolved);
