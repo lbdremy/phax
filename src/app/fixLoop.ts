@@ -5,6 +5,8 @@ import {
   type ClaudeInvocationError,
   type ClaudeSessionIdMissingError,
   GateFailedError,
+  type RateLimitError,
+  type UsageLimitError,
 } from "../domain/errors.js";
 import type { PhaseState } from "../domain/state.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
@@ -84,7 +86,13 @@ export function runGatesWithFixLoop(
   opts: RunGatesWithFixLoopOptions,
 ): Effect.Effect<
   GateOutcome,
-  GateFailedError | FsError | ShellError | ClaudeInvocationError | ClaudeSessionIdMissingError,
+  | GateFailedError
+  | FsError
+  | ShellError
+  | ClaudeInvocationError
+  | ClaudeSessionIdMissingError
+  | RateLimitError
+  | UsageLimitError,
   Shell | FileSystem | Backend | Tracer
 > {
   const { commands, cwd, phaseFolderPath, sessionId, agentOptions, maxFixAttempts, run, phaseId } =
@@ -99,7 +107,13 @@ export function runGatesWithFixLoop(
     currentSessionId: ClaudeSessionId,
   ): Effect.Effect<
     GateOutcome,
-    GateFailedError | FsError | ShellError | ClaudeInvocationError | ClaudeSessionIdMissingError,
+    | GateFailedError
+    | FsError
+    | ShellError
+    | ClaudeInvocationError
+    | ClaudeSessionIdMissingError
+    | RateLimitError
+    | UsageLimitError,
     Shell | FileSystem | Backend | Tracer
   > {
     return Effect.gen(function* () {

@@ -1,4 +1,5 @@
 import { Effect, Either } from "effect";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { Git } from "../ports/git.js";
 import type { BranchName, PhaseId, ShortName, WorktreePath } from "../domain/branded.js";
@@ -74,6 +75,13 @@ export function createPhaseWorktree(
       );
     }
     const worktreePath = pathResult.right;
+
+    // Idempotent: when resuming a rate-limited phase the worktree already
+    // exists. Reuse it — `git worktree add` would fail on an occupied path,
+    // and the partial work / session state must be preserved.
+    if (existsSync(worktreeDir)) {
+      return worktreePath;
+    }
 
     yield* git.addWorktree(branch, worktreePath, repoRoot).pipe(
       Effect.mapError(

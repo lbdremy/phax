@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeRunId, decodeShortName } from "../../domain/branded.js";
+import { RateLimitError, UsageLimitError } from "../../domain/errors.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { loadPlan } from "../../app/loadPlan.js";
 import { inspectResume } from "../../app/resume.js";
@@ -142,6 +143,13 @@ export async function runResume(
 
     if (Either.isLeft(result)) {
       const err = result.left;
+      if (err instanceof RateLimitError || err instanceof UsageLimitError) {
+        out.warn(`Run "${shortName}" paused again: ${err.message}`);
+        out.log(
+          `See ${join(runPath, "resume-instructions.md")} — resume with \`phax resume ${shortName} --yes\` once the limit clears.`,
+        );
+        return exitCodeForError(err);
+      }
       out.error(`phax resume failed: ${err instanceof Error ? err.message : String(err)}`);
       return exitCodeForError(err);
     }

@@ -6,10 +6,20 @@ import { dirname, join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { Backend, type AgentRunOptions, type AgentRunResult } from "../ports/backend.js";
 import { FsError } from "../ports/fs.js";
-import { ClaudeInvocationError, ClaudeSessionIdMissingError } from "../domain/errors.js";
+import {
+  ClaudeInvocationError,
+  ClaudeSessionIdMissingError,
+  RateLimitError,
+  UsageLimitError,
+} from "../domain/errors.js";
 import { decodeClaudeSessionId } from "../domain/branded.js";
 import type { ClaudeSessionId } from "../domain/branded.js";
-import { findResultEvent } from "../schemas/claudeOutput.js";
+import {
+  classifyRateLimit,
+  findResultEvent,
+  hasErroredResultEvent,
+  type RateLimitClassification,
+} from "../schemas/claudeOutput.js";
 import { decodePhaseStatus, encodePhaseStatus } from "../schemas/status.js";
 
 function wrapFsError(err: unknown): FsError {
@@ -121,11 +131,33 @@ function buildArgs(options: AgentRunOptions, resumeSessionId?: string): string[]
   return args;
 }
 
+/** Build a typed rate-limit / usage-limit error from a classification. */
+function rateLimitErrorFor(
+  classification: RateLimitClassification,
+): RateLimitError | UsageLimitError {
+  const fields = {
+    rawMessage: classification.rawMessage,
+    resetAt: classification.resetAt,
+  };
+  return classification.kind === "usage_limit"
+    ? new UsageLimitError({
+        message: "Claude Code stopped: usage limit reached.",
+        ...fields,
+      })
+    : new RateLimitError({
+        message: "Claude Code stopped: rate limit hit.",
+        ...fields,
+      });
+}
+
 function runAgentEffect(
   prompt: string,
   options: AgentRunOptions,
   resumeSessionId?: string,
-): Effect.Effect<AgentRunResult, ClaudeInvocationError | ClaudeSessionIdMissingError | FsError> {
+): Effect.Effect<
+  AgentRunResult,
+  ClaudeInvocationError | ClaudeSessionIdMissingError | RateLimitError | UsageLimitError | FsError
+> {
   const args = buildArgs(options, resumeSessionId);
   return Effect.gen(function* () {
     const { lines, exitCode, stderr } = yield* Effect.tryPromise({
@@ -133,6 +165,15 @@ function runAgentEffect(
       catch: (err): ClaudeInvocationError =>
         new ClaudeInvocationError({ message: err instanceof Error ? err.message : String(err) }),
     });
+
+    // Reclassify a failure as a rate/usage limit when the output carries one of
+    // the known signatures — on a non-zero exit, or on an errored result event.
+    if (exitCode !== 0 || hasErroredResultEvent(lines)) {
+      const classification = classifyRateLimit(stderr, lines);
+      if (classification !== undefined) {
+        return yield* Effect.fail(rateLimitErrorFor(classification));
+      }
+    }
 
     if (exitCode !== 0) {
       return yield* Effect.fail(
@@ -185,7 +226,7 @@ export function makeNodeBackendLayer(): Layer.Layer<Backend> {
   return Layer.succeed(Backend, {
     runAgent: (prompt, options) =>
       runAgentEffect(prompt, options).pipe(
-        Effect.mapError((e): ClaudeInvocationError | FsError =>
+        Effect.mapError((e): ClaudeInvocationError | RateLimitError | UsageLimitError | FsError =>
           e instanceof ClaudeSessionIdMissingError
             ? new ClaudeInvocationError({ message: e.message })
             : e,

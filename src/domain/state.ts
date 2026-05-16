@@ -9,7 +9,8 @@ export type RunState =
   | "completed"
   | "stopped"
   | "archived"
-  | "interrupted";
+  | "interrupted"
+  | "rate_limited";
 
 export type PhaseState =
   | "pending"
@@ -24,7 +25,8 @@ export type PhaseState =
   | "cleaned_up"
   | "review_open"
   | "handoff_failed"
-  | "skipped";
+  | "skipped"
+  | "rate_limited";
 
 type RunTransition = Either.Either<RunState, InvalidTransitionError>;
 type PhaseTransition = Either.Either<PhaseState, InvalidTransitionError>;
@@ -60,6 +62,14 @@ export const completeRun = (state: RunState): RunTransition =>
 
 export const archiveRun = (state: RunState): RunTransition =>
   runTransition(state, "archived", ["review_open", "completed"]);
+
+// A run pauses on a rate/usage limit; it stays resumable.
+export const rateLimitRun = (state: RunState): RunTransition =>
+  runTransition(state, "rate_limited", ["running"]);
+
+// Resuming a rate-limited run brings it back to `running`.
+export const resumeRateLimitedRun = (state: RunState): RunTransition =>
+  runTransition(state, "running", ["rate_limited"]);
 
 // Phase transitions
 export const pendingToSettingUp = (state: PhaseState): PhaseTransition =>
@@ -103,3 +113,11 @@ export const passedToHandoffFailed = (state: PhaseState): PhaseTransition =>
 
 export const skipPhase = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "skipped", ["pending"]);
+
+// A phase pauses on a rate/usage limit while the agent is working.
+export const rateLimitPhase = (state: PhaseState): PhaseTransition =>
+  phaseTransition(state, "rate_limited", ["running", "fixing"]);
+
+// Resuming a rate-limited phase brings it back to `running`.
+export const rateLimitedToRunning = (state: PhaseState): PhaseTransition =>
+  phaseTransition(state, "running", ["rate_limited"]);

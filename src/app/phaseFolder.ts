@@ -23,6 +23,14 @@ export function createPhaseFolder(
     const phasePath = join(runPath, phaseDir(phase.id));
     yield* fs.mkdirp(phasePath);
 
+    // Idempotent: when resuming a rate-limited phase the folder already exists.
+    // Preserve its status.json so the phase keeps its rate_limited/worktree/
+    // session state instead of being reset to `pending`.
+    const statusPath = join(phasePath, "status.json");
+    if (yield* fs.exists(statusPath)) {
+      return phasePath;
+    }
+
     const now = nowIso();
     const phaseStatus: PhaseStatus = {
       version: 1,
@@ -35,7 +43,7 @@ export function createPhaseFolder(
       updatedAt: now,
     };
 
-    yield* fs.writeAtomic(join(phasePath, "status.json"), JSON.stringify(phaseStatus, null, 2));
+    yield* fs.writeAtomic(statusPath, JSON.stringify(phaseStatus, null, 2));
 
     return phasePath;
   });

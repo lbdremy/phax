@@ -39,6 +39,20 @@ export class ClaudeSessionIdMissingError extends Data.TaggedError("ClaudeSession
   outputPath: string;
 }> {}
 
+export class RateLimitError extends Data.TaggedError("RateLimitError")<{
+  message: string;
+  rawMessage: string;
+  resetAt?: string | undefined;
+  phaseId?: string | undefined;
+}> {}
+
+export class UsageLimitError extends Data.TaggedError("UsageLimitError")<{
+  message: string;
+  rawMessage: string;
+  resetAt?: string | undefined;
+  phaseId?: string | undefined;
+}> {}
+
 export class GateFailedError extends Data.TaggedError("GateFailedError")<{
   message: string;
   command: string;
