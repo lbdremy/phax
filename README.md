@@ -111,6 +111,32 @@ phax archive-last               # most recent review_open run
 phax archive <short-name> --force  # allow uncommitted changes in final worktree
 ```
 
+## Testing
+
+```bash
+pnpm test               # unit + integration — fast, no network, no Claude Code
+pnpm test:e2e:real      # opt-in real E2E — requires claude CLI + auth, costs tokens
+```
+
+The E2E suite skips automatically unless `PHAX_E2E_RUN=1` is set, so it never runs by accident. See [`docs/e2e-testing.md`](docs/e2e-testing.md) for prerequisites, isolation model, and how to read failure artifacts.
+
+## Debugging
+
+Add `--verbose` to any `run` or `resume` command to print config discovery, state transitions, agent invocations, gate results, and commit events to the terminal:
+
+```bash
+phax run --verbose
+phax resume <short-name> --verbose
+```
+
+Add `--trace` to also write a structured JSONL log to `~/.phax/runs/<short-name>/trace.jsonl`:
+
+```bash
+phax run --trace
+```
+
+Both flags can be combined (`--verbose --trace`). See [`docs/extract-plan-model.md`](docs/extract-plan-model.md) for how to configure the model used by `extract-plan`.
+
 ## Resume
 
 ```bash
@@ -140,6 +166,7 @@ phax unlock <short-name> --force  # remove any lock
 | 4    | Unsafe git state (dirty worktree)             |
 | 5    | Claude invocation error                       |
 | 6    | Handoff generation failed                     |
+| 8    | Rate limit or usage limit hit (resumable)     |
 
 ## Environment variables
 
