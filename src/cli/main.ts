@@ -5,6 +5,8 @@ import { runValidate } from "./commands/validate.js";
 import { runUnlock } from "./commands/unlock.js";
 import { runExtractPlan } from "./commands/extractPlan.js";
 import { runEnter, runEnterLast } from "./commands/enter.js";
+import { runEnterPhase } from "./commands/enterPhase.js";
+import { runSessionInfo } from "./commands/sessionInfo.js";
 import { runShell, runShellLast } from "./commands/shell.js";
 import { runPath, runPathLast } from "./commands/path.js";
 import { runOpen, runOpenLast } from "./commands/open.js";
@@ -88,6 +90,22 @@ program
   .description("Resume the most recent review_open run's Claude session interactively")
   .action(async () => {
     const exitCode = await runEnterLast(consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("enter-phase <short-name> <phase-id>")
+  .description("Resume a specific phase's Claude session interactively")
+  .action(async (shortName: string, phaseId: string) => {
+    const exitCode = await runEnterPhase(shortName, phaseId, consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("session-info <short-name>")
+  .description("Print session diagnostics for a run (state, phase, worktree, session id)")
+  .action(async (shortName: string) => {
+    const exitCode = await runSessionInfo(shortName, consoleOutput);
     process.exit(exitCode);
   });
 

@@ -21,6 +21,32 @@ export interface RunReviewInfo {
   readonly phaseStatuses: readonly PhaseStatus[];
   readonly planPhases: ReadonlyArray<{ id: string; title: string }>;
   readonly updatedAt: string;
+  readonly stoppedReason: string | undefined;
+  readonly lastError: string | undefined;
+}
+
+export interface PhaseInfo {
+  readonly shortName: string;
+  readonly runId: string;
+  readonly runState: string;
+  readonly stateRoot: string;
+  readonly runPath: string;
+  readonly phaseStatus: PhaseStatus;
+  readonly planPhases: ReadonlyArray<{ id: string; title: string }>;
+  readonly stoppedReason: string | undefined;
+  readonly lastError: string | undefined;
+}
+
+const TERMINAL_PHASE_STATES = new Set([
+  "cleaned_up",
+  "review_open",
+  "failed",
+  "skipped",
+  "handoff_failed",
+]);
+
+export function findCurrentPhase(phaseStatuses: readonly PhaseStatus[]): PhaseStatus | undefined {
+  return phaseStatuses.find((p) => !TERMINAL_PHASE_STATES.has(p.state));
 }
 
 function tryReadJson(path: string): unknown {
@@ -96,6 +122,8 @@ function loadRunReviewInfo(
     phaseStatuses,
     planPhases,
     updatedAt: runStatus.updatedAt,
+    stoppedReason: runStatus.stoppedReason,
+    lastError: runStatus.lastError,
   });
 }
 
@@ -164,4 +192,32 @@ export function resolveLastReviewOpenRun(stateRoot: string): Either.Either<RunRe
     return Either.left("No review_open runs found");
   }
   return Either.right(first);
+}
+
+export function resolvePhaseInfo(
+  shortName: ShortName,
+  phaseId: string,
+  stateRoot: string,
+): Either.Either<PhaseInfo, string> {
+  const runPath = join(stateRoot, "runs", shortName);
+  const infoResult = loadRunReviewInfo(runPath, stateRoot);
+  if (Either.isLeft(infoResult)) return Either.left(infoResult.left);
+  const info = infoResult.right;
+
+  const phaseStatus = info.phaseStatuses.find((p) => p.phaseId === phaseId);
+  if (!phaseStatus) {
+    return Either.left(`Phase "${phaseId}" not found in run "${shortName}"`);
+  }
+
+  return Either.right({
+    shortName: info.shortName,
+    runId: info.runId,
+    runState: info.runState,
+    stateRoot,
+    runPath,
+    phaseStatus,
+    planPhases: info.planPhases,
+    stoppedReason: info.stoppedReason,
+    lastError: info.lastError,
+  });
 }

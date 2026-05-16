@@ -9,20 +9,17 @@ import {
   type RunReviewInfo,
 } from "../../app/resolveRunInfo.js";
 
-function enterRun(info: RunReviewInfo, out: OutputPort): number {
-  if (!info.claudeSessionId) {
-    out.error(`No Claude session ID found for run "${info.shortName}".`);
-    return 1;
-  }
-  if (!info.worktreePath) {
-    out.error(`No worktree path found for run "${info.shortName}".`);
-    return 1;
-  }
+const ENTERABLE_RUN_STATES = new Set(["review_open", "rate_limited", "interrupted", "failed"]);
 
-  out.log(`Entering Claude session ${info.claudeSessionId} in ${info.worktreePath}`);
+export function spawnClaudeResume(
+  sessionId: string,
+  worktreePath: string,
+  out: OutputPort,
+): number {
+  out.log(`Entering Claude session ${sessionId} in ${worktreePath}`);
 
-  const result = spawnSync("claude", ["--resume", info.claudeSessionId], {
-    cwd: info.worktreePath,
+  const result = spawnSync("claude", ["--resume", sessionId], {
+    cwd: worktreePath,
     stdio: "inherit",
   });
 
@@ -32,6 +29,27 @@ function enterRun(info: RunReviewInfo, out: OutputPort): number {
   }
 
   return result.status ?? 0;
+}
+
+function enterRun(info: RunReviewInfo, out: OutputPort): number {
+  if (!ENTERABLE_RUN_STATES.has(info.runState)) {
+    out.error(
+      `Run "${info.shortName}" is in state "${info.runState}" — no interactive session is available. ` +
+        `Entry is only possible for: ${[...ENTERABLE_RUN_STATES].join(", ")}.`,
+    );
+    return 1;
+  }
+
+  if (!info.claudeSessionId) {
+    out.error(`No Claude session ID found for run "${info.shortName}".`);
+    return 1;
+  }
+  if (!info.worktreePath) {
+    out.error(`No worktree path found for run "${info.shortName}".`);
+    return 1;
+  }
+
+  return spawnClaudeResume(info.claudeSessionId, info.worktreePath, out);
 }
 
 export async function runEnter(shortNameArg: string, out: OutputPort): Promise<number> {
