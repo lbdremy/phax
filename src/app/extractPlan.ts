@@ -5,7 +5,13 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { Lock } from "../ports/lock.js";
 import { Tracer } from "../ports/tracer.js";
 import { PhaxPlanSchema, getPhaxPlanJsonSchema, type PhaxPlan } from "../schemas/phaxPlan.js";
-import { ClaudeInvocationError, LockConflictError, PlanValidationError } from "../domain/errors.js";
+import {
+  ClaudeInvocationError,
+  LockConflictError,
+  PlanValidationError,
+  RateLimitError,
+  UsageLimitError,
+} from "../domain/errors.js";
 import { decodeShortName } from "../domain/branded.js";
 import { formatParseError } from "../schemas/formatError.js";
 
@@ -95,6 +101,8 @@ export interface ExtractPlanResult {
 export type ExtractPlanError =
   | PlanValidationError
   | ClaudeInvocationError
+  | RateLimitError
+  | UsageLimitError
   | FsError
   | LockConflictError;
 

@@ -24,8 +24,10 @@ import {
   GateFailedError,
   LockConflictError,
   PlanValidationError,
+  RateLimitError,
   RegistryCorruptionError,
   UnsafeGitStateError,
+  UsageLimitError,
 } from "../../domain/errors.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 
@@ -71,6 +73,7 @@ export function exitCodeForError(err: unknown): number {
   if (err instanceof ClaudeInvocationError || err instanceof ClaudeSessionIdMissingError) return 5;
   if (err instanceof ArchiveBlockedByDirtyWorktreeError) return 6;
   if (err instanceof LockConflictError) return 7;
+  if (err instanceof RateLimitError || err instanceof UsageLimitError) return 8;
   if (err instanceof RegistryCorruptionError) return 10;
   return 1;
 }

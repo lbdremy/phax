@@ -17,6 +17,10 @@ import {
   passedToCommitted,
   passedToHandoffFailed,
   pendingToSettingUp,
+  rateLimitPhase,
+  rateLimitRun,
+  rateLimitedToRunning,
+  resumeRateLimitedRun,
   runningToGatesFailed,
   runningToPassed,
   settingUpToRunning,
@@ -124,6 +128,32 @@ describe("Run state transitions", () => {
       "rejects transition from %s",
       (state) => {
         assertLeft(archiveRun(state as Parameters<typeof archiveRun>[0]));
+      },
+    );
+  });
+
+  describe("rateLimitRun", () => {
+    it("transitions running → rate_limited", () => {
+      assertRight(rateLimitRun("running"), "rate_limited");
+    });
+
+    it.each(["created", "failed", "review_open", "completed", "rate_limited"])(
+      "rejects transition from %s",
+      (state) => {
+        assertLeft(rateLimitRun(state as Parameters<typeof rateLimitRun>[0]));
+      },
+    );
+  });
+
+  describe("resumeRateLimitedRun", () => {
+    it("transitions rate_limited → running", () => {
+      assertRight(resumeRateLimitedRun("rate_limited"), "running");
+    });
+
+    it.each(["created", "running", "failed", "completed"])(
+      "rejects transition from %s",
+      (state) => {
+        assertLeft(resumeRateLimitedRun(state as Parameters<typeof resumeRateLimitedRun>[0]));
       },
     );
   });
@@ -270,6 +300,29 @@ describe("Phase state transitions", () => {
 
     it("rejects from running", () => {
       assertLeft(skipPhase("running"));
+    });
+  });
+
+  describe("rateLimitPhase", () => {
+    it.each(["running", "fixing"])("transitions %s → rate_limited", (state) => {
+      assertRight(rateLimitPhase(state as Parameters<typeof rateLimitPhase>[0]), "rate_limited");
+    });
+
+    it.each(["pending", "passed", "committed", "rate_limited"])(
+      "rejects transition from %s",
+      (state) => {
+        assertLeft(rateLimitPhase(state as Parameters<typeof rateLimitPhase>[0]));
+      },
+    );
+  });
+
+  describe("rateLimitedToRunning", () => {
+    it("transitions rate_limited → running", () => {
+      assertRight(rateLimitedToRunning("rate_limited"), "running");
+    });
+
+    it.each(["pending", "running", "fixing", "passed"])("rejects transition from %s", (state) => {
+      assertLeft(rateLimitedToRunning(state as Parameters<typeof rateLimitedToRunning>[0]));
     });
   });
 });

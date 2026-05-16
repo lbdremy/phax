@@ -1,7 +1,12 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
 import type { ClaudeSessionId } from "../domain/branded.js";
-import { type ClaudeInvocationError, type ClaudeSessionIdMissingError } from "../domain/errors.js";
+import {
+  type ClaudeInvocationError,
+  type ClaudeSessionIdMissingError,
+  type RateLimitError,
+  type UsageLimitError,
+} from "../domain/errors.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { decodePhaseStatus, encodePhaseStatus } from "../schemas/status.js";
@@ -82,7 +87,12 @@ export function generatePhaseHandoff(
   opts: GenerateHandoffOptions,
 ): Effect.Effect<
   void,
-  FsError | ClaudeInvocationError | ClaudeSessionIdMissingError | HandoffValidationError,
+  | FsError
+  | ClaudeInvocationError
+  | ClaudeSessionIdMissingError
+  | RateLimitError
+  | UsageLimitError
+  | HandoffValidationError,
   FileSystem | Backend
 > {
   const { sessionId, agentOptions, phaseFolderPath, worktreePath } = opts;

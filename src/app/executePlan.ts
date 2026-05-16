@@ -7,14 +7,20 @@ import {
   ClaudeInvocationError,
   ClaudeSessionIdMissingError,
   GateFailedError,
+  RateLimitError,
   RegistryCorruptionError,
   SetupCommandFailedError,
   UnsafeGitStateError,
+  UsageLimitError,
   WorktreeCreationError,
 } from "../domain/errors.js";
 import {
   failRun,
   pendingToSettingUp,
+  rateLimitPhase,
+  rateLimitRun,
+  rateLimitedToRunning,
+  resumeRateLimitedRun,
   runningToPassed,
   settingUpToRunning,
   startRun,
@@ -47,6 +53,7 @@ import { recordPhaseWorktreePath } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRunByShortName } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
+import { writeResumeInstructions } from "./resumeInstructions.js";
 import { createPhaseWorktree, prepareRunBranch } from "./worktree.js";
 
 function patchPhaseStatus(
@@ -143,6 +150,108 @@ function transitionPhaseRunningToPassed(
   });
 }
 
+/** Resume entry point: bring a `rate_limited` run back to `running` (no-op otherwise). */
+function transitionRunResumeRateLimited(runPath: string): Effect.Effect<void, FsError, FileSystem> {
+  return patchRunStatus(runPath, (s) => {
+    const next = resumeRateLimitedRun(s.state);
+    if (Either.isLeft(next)) return s;
+    return { ...s, state: next.right, updatedAt: new Date().toISOString() };
+  });
+}
+
+/** Resume entry point: bring a `rate_limited` phase back to `running` (no-op otherwise). */
+function transitionPhaseResumeRateLimited(
+  phaseFolderPath: string,
+): Effect.Effect<void, FsError, FileSystem> {
+  return patchPhaseStatus(phaseFolderPath, (s) => {
+    const next = rateLimitedToRunning(s.state);
+    if (Either.isLeft(next)) return s;
+    return { ...s, state: next.right, updatedAt: new Date().toISOString() };
+  });
+}
+
+function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
+  return e instanceof RateLimitError || e instanceof UsageLimitError;
+}
+
+interface RateLimitStopContext {
+  readonly error: RateLimitError | UsageLimitError;
+  readonly runPath: string;
+  readonly shortName: string;
+  readonly phaseId: string | undefined;
+  readonly phaseFolderPath: string | undefined;
+  readonly worktreePath: string | undefined;
+  readonly sessionId: string | undefined;
+}
+
+/**
+ * Pause a run on a rate/usage limit (spec §9): transition the run and the
+ * in-flight phase to `rate_limited`, write `resume-instructions.md`, and emit
+ * the trace events. Worktree, logs and session id are deliberately left in
+ * place so the run can resume. This never fails — the original limit error is
+ * re-raised by the caller so the CLI still sets a non-zero exit code.
+ */
+function handleRateLimitStop(
+  ctx: RateLimitStopContext,
+): Effect.Effect<void, never, FileSystem | Tracer> {
+  return Effect.gen(function* () {
+    const tracer = yield* Tracer;
+    const isUsage = ctx.error instanceof UsageLimitError;
+    const reason = isUsage ? "Usage limit" : "Rate limit";
+
+    yield* patchRunStatus(ctx.runPath, (s) => {
+      const next = rateLimitRun(s.state);
+      if (Either.isLeft(next)) return s;
+      return {
+        ...s,
+        state: next.right,
+        stoppedReason: "rate_limited",
+        lastError: ctx.error.message,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    if (ctx.phaseFolderPath !== undefined) {
+      yield* patchPhaseStatus(ctx.phaseFolderPath, (s) => {
+        const next = rateLimitPhase(s.state);
+        if (Either.isLeft(next)) return s;
+        return { ...s, state: next.right, updatedAt: new Date().toISOString() };
+      });
+    }
+
+    yield* writeResumeInstructions({
+      runPath: ctx.runPath,
+      shortName: ctx.shortName,
+      reason,
+      resetAt: ctx.error.resetAt,
+      phaseId: ctx.phaseId,
+      worktreePath: ctx.worktreePath,
+      sessionId: ctx.sessionId,
+      rawMessage: ctx.error.rawMessage,
+    });
+
+    const baseEvent = {
+      run: ctx.shortName,
+      phase: ctx.phaseId,
+      timestamp: new Date().toISOString(),
+    };
+    yield* tracer.event({
+      ...baseEvent,
+      event: "rate_limit.detected",
+      boundary: "claude-code",
+      status: "failed",
+      details: { kind: isUsage ? "usage_limit" : "rate_limit", resetAt: ctx.error.resetAt },
+    });
+    yield* tracer.event({
+      ...baseEvent,
+      event: "resume.available",
+      boundary: "resume-instructions.md",
+      status: "info",
+      details: { resumeCommand: `phax resume ${ctx.shortName}` },
+    });
+  }).pipe(Effect.catchAll(() => Effect.void));
+}
+
 export interface ExecutePlanOptions {
   readonly shortName: ShortName;
   readonly plan: PhaxPlan;
@@ -174,7 +283,9 @@ export type ExecutePlanError =
   | GateFailedError
   | HandoffValidationError
   | ArchiveBlockedByDirtyWorktreeError
-  | RegistryCorruptionError;
+  | RegistryCorruptionError
+  | RateLimitError
+  | UsageLimitError;
 
 export function executePlan(
   opts: ExecutePlanOptions,
@@ -191,6 +302,13 @@ export function executePlan(
     runId,
     startIndex,
   } = opts;
+
+  // Tracked as the loop progresses so a rate-limit stop knows which phase,
+  // worktree and session were in flight when the limit was hit.
+  let currentPhaseId: string | undefined;
+  let currentPhaseFolderPath: string | undefined;
+  let currentWorktreePath: string | undefined;
+  let currentSessionId: string | undefined;
 
   const program = Effect.gen(function* () {
     const tracer = yield* Tracer;
@@ -250,6 +368,11 @@ export function executePlan(
       branch = branchResult.right;
     }
 
+    // Resuming a rate-limited run: bring it back to `running`. No-op for a
+    // fresh run (already `running`) — works whether resume restarts at the
+    // first phase (startIndex 0) or a later one.
+    yield* transitionRunResumeRateLimited(runPath);
+
     const setupCommands: readonly string[] = config.raw.commands?.setup ?? [];
     const cleanupCommands: readonly string[] = config.raw.commands?.cleanup ?? [];
 
@@ -263,6 +386,14 @@ export function executePlan(
       const isFinal = i === plan.phases.length - 1;
 
       const phaseFolderPath = yield* createPhaseFolder(runPath, phase, i);
+      currentPhaseId = phase.id;
+      currentPhaseFolderPath = phaseFolderPath;
+      currentWorktreePath = undefined;
+      currentSessionId = undefined;
+
+      // Resuming a rate-limited phase: bring it back to `running` so the
+      // forward transitions below apply (no-op for a fresh `pending` phase).
+      yield* transitionPhaseResumeRateLimited(phaseFolderPath);
 
       yield* transitionPhasePendingToSettingUp(phaseFolderPath);
       yield* emit("state.transition", "ok", {
@@ -288,6 +419,7 @@ export function executePlan(
         config.repoRoot,
       );
 
+      currentWorktreePath = worktreePath as string;
       yield* recordPhaseWorktreePath(phaseFolderPath, worktreePath);
       yield* emit("git.worktree.created", "ok", {
         phase: phase.id,
@@ -331,6 +463,7 @@ export function executePlan(
       });
       const agentResult = yield* backend.runAgent(promptText, agentOptions);
       const sessionId = agentResult.sessionId;
+      currentSessionId = sessionId as string;
       yield* emit("agent.invocation.completed", "ok", {
         phase: phase.id,
         boundary: "claude-code",
@@ -433,8 +566,24 @@ export function executePlan(
   });
 
   return program.pipe(
-    Effect.tapError(() =>
-      transitionRunFailedIfRunning(runPath).pipe(Effect.catchAll(() => Effect.void)),
+    // A rate/usage limit pauses the run instead of failing it: transition to
+    // `rate_limited`, write resume-instructions.md, then re-raise so the CLI
+    // still exits non-zero. Cleanup is skipped — the worktree must survive.
+    Effect.catchIf(isRateLimitError, (e) =>
+      handleRateLimitStop({
+        error: e,
+        runPath,
+        shortName: shortName as string,
+        phaseId: currentPhaseId,
+        phaseFolderPath: currentPhaseFolderPath,
+        worktreePath: currentWorktreePath,
+        sessionId: currentSessionId,
+      }).pipe(Effect.flatMap(() => Effect.fail(e))),
+    ),
+    Effect.tapError((e) =>
+      isRateLimitError(e)
+        ? Effect.void
+        : transitionRunFailedIfRunning(runPath).pipe(Effect.catchAll(() => Effect.void)),
     ),
   );
 }

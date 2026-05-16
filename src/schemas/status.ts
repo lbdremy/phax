@@ -9,6 +9,7 @@ const RunStateSchema = Schema.Union(
   Schema.Literal("stopped"),
   Schema.Literal("archived"),
   Schema.Literal("interrupted"),
+  Schema.Literal("rate_limited"),
 );
 
 const PhaseStateSchema = Schema.Union(
@@ -25,6 +26,7 @@ const PhaseStateSchema = Schema.Union(
   Schema.Literal("review_open"),
   Schema.Literal("handoff_failed"),
   Schema.Literal("skipped"),
+  Schema.Literal("rate_limited"),
 );
 
 const EffortSchema = Schema.Union(
@@ -43,6 +45,10 @@ export const RunStatusSchema = Schema.Struct({
   phasesCount: Schema.Number,
   currentPhaseIndex: Schema.optionalWith(Schema.Number, { exact: true }),
   gateProfileId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  // Why the run last stopped (e.g. "rate_limited"); surfaced by `session-info`.
+  stoppedReason: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  // Human-readable description of the last error that stopped the run.
+  lastError: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
 });
 
 export type RunStatus = Schema.Schema.Type<typeof RunStatusSchema>;
