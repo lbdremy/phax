@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "project": { "name": "e2e-fixture", "type": "single-package" },
+  "state": { "root": "~/.phax" },
+  "agent": {
+    "backend": "claude-code-cli",
+    "maxFixAttempts": 1,
+    "extractPlan": {
+      "model": "claude-haiku-4-5-20251001",
+      "effort": "low"
+    }
+  },
+  "gateProfiles": {
+    "minimal": ["node --version"]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "phax-e2e-fixture",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --version"
+  }
+}

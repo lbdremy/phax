@@ -18,7 +18,8 @@
     "lint:fix": "oxlint --fix .",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "knip": "knip"
+    "knip": "knip",
+    "test:e2e:real": "vitest run --config vitest.e2e.config.ts"
   },
   "dependencies": {
     "@effect/platform": "^0.96.0",
