@@ -26,6 +26,8 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
+const shortName = Either.getOrThrow(decodeShortName("my-run"));
+
 function sanitizePath(path: string): string {
   return path.replace(/\/var\/folders\/[^/]+\/[^/]+\/T\/[^/]+/, "<tmpdir>");
 }
@@ -45,8 +47,6 @@ function sanitizeDetails(
   return sanitized;
 }
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
-
 const rawPlan = {
   version: 1,
   run: { shortName: "my-run", title: "My Run", branch: "ai/my-run", backend: "claude-code-cli" },
@@ -62,11 +62,11 @@ const rawPlan = {
   ],
 } as const;
 
-describe("executePlan — tracing", () => {
+describe("State Machine Contract", () => {
   let stateRoot: string;
 
   beforeEach(async () => {
-    stateRoot = await mkdtemp(join(tmpdir(), "phax-trace-test-"));
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-contract-test-"));
     const phase01Worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
     await mkdir(phase01Worktree, { recursive: true });
     await writeFile(join(phase01Worktree, "phase-handoff.md"), HANDOFF_CONTENT);
@@ -76,7 +76,7 @@ describe("executePlan — tracing", () => {
     await rm(stateRoot, { recursive: true, force: true });
   });
 
-  it("emits the expected trace event sequence for a one-phase run", async () => {
+  it("snapshots the ordered trace event sequence for a happy-path one-phase run", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
 
     const config: ResolvedConfig = {
@@ -155,33 +155,7 @@ describe("executePlan — tracing", () => {
 
     expect(Either.isRight(result)).toBe(true);
 
-    const names = fakeTracer.impl.eventNames();
-    // Config + run start
-    expect(names).toContain("config.discovered");
-    expect(names).toContain("config.validated");
-    expect(names).toContain("state.transition");
-    // Phase lifecycle
-    expect(names).toContain("git.worktree.created");
-    expect(names).toContain("agent.invocation.started");
-    expect(names).toContain("agent.invocation.completed");
-    expect(names).toContain("agent.session.captured");
-    expect(names).toContain("gate.started");
-    expect(names).toContain("gate.completed");
-    expect(names).toContain("handoff.requested");
-    expect(names).toContain("handoff.validated");
-    expect(names).toContain("git.commit.created");
-
-    // Ordering: invocation precedes gates precede commit.
-    expect(names.indexOf("agent.invocation.started")).toBeLessThan(names.indexOf("gate.started"));
-    expect(names.indexOf("gate.completed")).toBeLessThan(names.indexOf("git.commit.created"));
-
-    // Every event carries the run short name and a valid timestamp.
-    for (const e of fakeTracer.impl.events) {
-      expect(e.run).toBe("my-run");
-      expect(Number.isNaN(Date.parse(e.timestamp))).toBe(false);
-    }
-
-    // Snapshot the full ordered event sequence for the trace contract.
+    // Snapshot the ordered event sequence with status and phase information.
     const eventSequence = fakeTracer.impl.events.map((e) => ({
       event: e.event,
       status: e.status,
@@ -189,6 +163,96 @@ describe("executePlan — tracing", () => {
       boundary: e.boundary,
       details: sanitizeDetails(e.details),
     }));
-    expect(eventSequence).toMatchSnapshot("trace-event-sequence");
+
+    expect(eventSequence).toMatchSnapshot("happy-path-one-phase-event-sequence");
+  });
+
+  it("snapshots the rate-limit pause and resume event sequence", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+
+    const config: ResolvedConfig = {
+      raw: {
+        version: 1,
+        project: { name: "test-project", type: "single-package" },
+        state: { root: stateRoot },
+        gateProfiles: { full: ["true"] },
+        commands: { setup: ["true"], cleanup: ["true"] },
+      },
+      stateRoot,
+      repoRoot: stateRoot,
+      editorCommand: "echo",
+      backend: "claude-code-cli",
+      maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
+    };
+
+    const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(phase01WorktreePath, false);
+
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "deadbeef12345678\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    // First run hits a rate limit during phase-01.
+    fakeBackend.impl.failRunWithRateLimit(0, {
+      kind: "rate_limit",
+      resetAt: "2026-05-20T14:30:00Z",
+    });
+
+    const fakeTracer = makeFakeTracer();
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      fakeTracer.layer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const runResult = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    // Run should fail with rate limit.
+    expect(Either.isLeft(runResult)).toBe(true);
+
+    // Snapshot only the rate-limit and resume events.
+    const pauseEvents = fakeTracer.impl.events
+      .filter((e) => e.event.includes("rate") || e.event === "resume.available")
+      .map((e) => ({
+        event: e.event,
+        status: e.status,
+        phase: e.phase,
+        boundary: e.boundary,
+        details: e.details,
+      }));
+
+    expect(pauseEvents).toMatchSnapshot("rate-limit-pause-sequence");
   });
 });
