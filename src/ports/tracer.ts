@@ -24,7 +24,12 @@ export type TraceEventName =
   | "handoff.validated"
   | "rate_limit.detected"
   | "resume.available"
-  | "archive.completed";
+  | "archive.completed"
+  | "event.handled"
+  | "event.ignored"
+  | "event.stale"
+  | "event.rejected"
+  | "event.unexpected";
 
 export type TraceStatus = "ok" | "failed" | "info";
 
