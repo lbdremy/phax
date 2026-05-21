@@ -28,6 +28,41 @@ export type PhaseState =
   | "skipped"
   | "rate_limited";
 
+// Hierarchical state model. The dispatcher (phase-03) composes a PhaxState
+// from the flat RunStatus + PhaseStatus persisted on disk; the reducer
+// (phase-02) operates exclusively on this hierarchical view.
+
+export type PhaseSubState =
+  | { readonly state: "pending" }
+  | { readonly state: "setting_up_worktree" }
+  | { readonly state: "running" }
+  | { readonly state: "gates_failed"; readonly attempt: number }
+  | { readonly state: "fixing"; readonly attempt: number }
+  | { readonly state: "passed" }
+  | { readonly state: "committed"; readonly hash: string }
+  | { readonly state: "cleaning_up" }
+  | { readonly state: "cleaned_up" }
+  | { readonly state: "handoff_failed"; readonly missing: readonly string[] }
+  | { readonly state: "failed"; readonly cause: string }
+  | { readonly state: "skipped" }
+  | { readonly state: "rate_limited" }
+  | { readonly state: "review_open" };
+
+export type PhaseSubStateName = PhaseSubState["state"];
+
+export type PhaxState =
+  | { readonly run: "created" }
+  | { readonly run: "running"; readonly phase: PhaseSubState }
+  | { readonly run: "rate_limited"; readonly phase: PhaseSubState }
+  | { readonly run: "interrupted"; readonly phase: PhaseSubState }
+  | { readonly run: "review_open"; readonly phase: { readonly state: "review_open" } }
+  | { readonly run: "failed"; readonly cause: string }
+  | { readonly run: "completed" }
+  | { readonly run: "stopped" }
+  | { readonly run: "archived" };
+
+export type PhaxStateName = PhaxState["run"];
+
 type RunTransition = Either.Either<RunState, InvalidTransitionError>;
 type PhaseTransition = Either.Either<PhaseState, InvalidTransitionError>;
 
@@ -42,82 +77,103 @@ function phaseTransition(from: PhaseState, to: PhaseState, allowed: PhaseState[]
 }
 
 // Run transitions
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts; kept for compatibility with the current runtime wiring until phase-06. */
 export const startRun = (state: RunState): RunTransition =>
   runTransition(state, "running", ["created"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const failRun = (state: RunState): RunTransition =>
   runTransition(state, "failed", ["running"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const stopRun = (state: RunState): RunTransition =>
   runTransition(state, "stopped", ["running"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const interruptRun = (state: RunState): RunTransition =>
   runTransition(state, "interrupted", ["running"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const openRunReview = (state: RunState): RunTransition =>
   runTransition(state, "review_open", ["running"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const completeRun = (state: RunState): RunTransition =>
   runTransition(state, "completed", ["running"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const archiveRun = (state: RunState): RunTransition =>
   runTransition(state, "archived", ["review_open", "completed"]);
 
-// A run pauses on a rate/usage limit; it stays resumable.
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const rateLimitRun = (state: RunState): RunTransition =>
   runTransition(state, "rate_limited", ["running"]);
 
-// Resuming a rate-limited run brings it back to `running`.
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const resumeRateLimitedRun = (state: RunState): RunTransition =>
   runTransition(state, "running", ["rate_limited"]);
 
 // Phase transitions
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const pendingToSettingUp = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "setting_up_worktree", ["pending"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const settingUpToRunning = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "running", ["setting_up_worktree"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const runningToGatesFailed = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "gates_failed", ["running"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const gatesFailedToFixing = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "fixing", ["gates_failed"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const fixingToRunning = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "running", ["fixing"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const runningToPassed = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "passed", ["running", "fixing"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const failPhase = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "failed", ["running", "fixing", "gates_failed", "setting_up_worktree"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const passedToCommitted = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "committed", ["passed"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const committedToCleaningUp = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "cleaning_up", ["committed"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const cleaningUpToCleanedUp = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "cleaned_up", ["cleaning_up"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const committedToCleanedUp = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "cleaned_up", ["committed"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const committedToReviewOpen = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "review_open", ["committed"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const passedToHandoffFailed = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "handoff_failed", ["passed"]);
 
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const skipPhase = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "skipped", ["pending"]);
 
-// A phase pauses on a rate/usage limit while the agent is working.
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const rateLimitPhase = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "rate_limited", ["running", "fixing"]);
 
-// Resuming a rate-limited phase brings it back to `running`.
+/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const rateLimitedToRunning = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "running", ["rate_limited"]);
