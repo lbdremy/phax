@@ -1,7 +1,7 @@
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "./branded.js";
 import type { RateLimitError, UsageLimitError } from "./errors.js";
 
-interface PhaxEventBase {
+export interface PhaxEventBase {
   readonly eventId: string;
   readonly occurredAt: string;
   readonly run: RunId;

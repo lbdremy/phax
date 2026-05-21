@@ -30,6 +30,9 @@ export class FakeBackendImpl implements BackendOps {
   private rateLimitAtRunIndex: number | undefined;
   private rateLimitKnob: RateLimitKnob | undefined;
 
+  /** When set, the next `resumeAgentSession` call fails with a limit error. */
+  private resumeRateLimitKnob: RateLimitKnob | undefined;
+
   addRunResponse(result: AgentRunResult): void {
     this.runResponses.push(result);
   }
@@ -44,13 +47,18 @@ export class FakeBackendImpl implements BackendOps {
     this.rateLimitKnob = knob;
   }
 
-  private limitError(): RateLimitError | UsageLimitError {
-    const knob = this.rateLimitKnob;
+  /** Simulate a rate/usage-limit failure on the next `resumeAgentSession` call. */
+  failNextResumeWithRateLimit(knob: RateLimitKnob): void {
+    this.resumeRateLimitKnob = knob;
+  }
+
+  private limitError(knob?: RateLimitKnob): RateLimitError | UsageLimitError {
+    const k = knob ?? this.rateLimitKnob;
     const fields = {
-      rawMessage: knob?.kind === "usage_limit" ? "usage limit reached" : "rate limit exceeded",
-      resetAt: knob?.resetAt,
+      rawMessage: k?.kind === "usage_limit" ? "usage limit reached" : "rate limit exceeded",
+      resetAt: k?.resetAt,
     };
-    return knob?.kind === "usage_limit"
+    return k?.kind === "usage_limit"
       ? new UsageLimitError({ message: "FakeBackend: usage limit reached.", ...fields })
       : new RateLimitError({ message: "FakeBackend: rate limit hit.", ...fields });
   }
@@ -80,6 +88,11 @@ export class FakeBackendImpl implements BackendOps {
     options: AgentRunOptions,
   ): Effect.Effect<AgentRunResult, ClaudeInvocationError | RateLimitError | UsageLimitError> {
     this.resumeCalls.push({ sessionId, prompt, options });
+    if (this.resumeRateLimitKnob !== undefined) {
+      const knob = this.resumeRateLimitKnob;
+      this.resumeRateLimitKnob = undefined;
+      return Effect.fail(this.limitError(knob));
+    }
     const result = this.resumeResponses[this.resumeIdx++];
     if (result === undefined) {
       return Effect.fail(

@@ -20,6 +20,7 @@ export interface CommitPhaseOptions {
 
 export interface CommitResult {
   readonly committed: boolean;
+  readonly commitHash?: string | undefined;
   readonly skippedReason?: string | undefined;
 }
 
@@ -119,6 +120,6 @@ export function commitPhase(
 
     yield* saveDiffPatch(opts.worktreePath, opts.phaseFolderPath);
 
-    return { committed: true };
+    return { committed: true, commitHash };
   });
 }
