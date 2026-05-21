@@ -83,6 +83,29 @@ describe("makeVerboseTracerLayer", () => {
   });
 });
 
+describe("disposition trace event names", () => {
+  it("accepts every event.<disposition> name through the verbose tracer", async () => {
+    const { out, logs, errors } = makeFakeOutput();
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const tracer = yield* Tracer;
+        yield* tracer.event({ ...sampleEvent, event: "event.handled", status: "ok" });
+        yield* tracer.event({ ...sampleEvent, event: "event.ignored", status: "info" });
+        yield* tracer.event({ ...sampleEvent, event: "event.stale", status: "info" });
+        yield* tracer.event({ ...sampleEvent, event: "event.rejected", status: "info" });
+        yield* tracer.event({ ...sampleEvent, event: "event.unexpected", status: "failed" });
+      }).pipe(Effect.provide(makeVerboseTracerLayer(out))),
+    );
+    expect(logs).toHaveLength(4);
+    expect(logs.map((l) => l.includes("event.handled"))).toContain(true);
+    expect(logs.map((l) => l.includes("event.ignored"))).toContain(true);
+    expect(logs.map((l) => l.includes("event.stale"))).toContain(true);
+    expect(logs.map((l) => l.includes("event.rejected"))).toContain(true);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("event.unexpected");
+  });
+});
+
 describe("makeTraceTracerLayer", () => {
   let dir: string;
 
