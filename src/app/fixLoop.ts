@@ -7,6 +7,7 @@ import {
   type ClaudeSessionIdMissingError,
   GateFailedError,
   type RateLimitError,
+  type RegistryCorruptionError,
   type SetupCommandFailedError,
   type UsageLimitError,
 } from "../domain/errors.js";
@@ -71,7 +72,8 @@ export function runGatesWithFixLoop(
   | ClaudeInvocationError
   | ClaudeSessionIdMissingError
   | RateLimitError
-  | UsageLimitError,
+  | UsageLimitError
+  | RegistryCorruptionError,
   Shell | FileSystem | Backend | Git | Tracer
 > {
   const {
@@ -119,7 +121,8 @@ export function runGatesWithFixLoop(
     | ClaudeInvocationError
     | ClaudeSessionIdMissingError
     | RateLimitError
-    | UsageLimitError,
+    | UsageLimitError
+    | RegistryCorruptionError,
     Shell | FileSystem | Backend | Git | Tracer
   > {
     return Effect.gen(function* () {
@@ -144,6 +147,12 @@ export function runGatesWithFixLoop(
 
       if (Either.isRight(gateResult)) {
         yield* emit("gate.completed", "ok", { attempt });
+        const gatePassedEvent: PhaxEvent = {
+          ...eventBase(),
+          type: "GatePassed",
+          attempt,
+        };
+        yield* dispatch(gatePassedEvent, dispatchCtx);
         return gateResult.right;
       }
 

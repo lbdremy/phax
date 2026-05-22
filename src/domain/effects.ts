@@ -1,5 +1,8 @@
 import type { TraceEventName, TraceStatus } from "../ports/tracer.js";
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
+import type { RunReviewInfo } from "./runReviewInfo.js";
+
+export type { RunReviewInfo };
 
 export interface StatePatch {
   readonly run?: Partial<RunStatus> | undefined;
@@ -7,13 +10,13 @@ export interface StatePatch {
 }
 
 export interface ResumeContext {
-  readonly runDir: string;
+  readonly reason: "Rate limit" | "Usage limit";
+  readonly kind: "rate_limit" | "usage_limit";
   readonly resetAt?: string | undefined;
-}
-
-export interface RunReviewInfo {
-  readonly runId: string;
-  readonly runDir: string;
+  readonly phaseId?: string | undefined;
+  readonly worktreePath?: string | undefined;
+  readonly sessionId?: string | undefined;
+  readonly rawMessage?: string | undefined;
 }
 
 export interface PersistState {
@@ -25,6 +28,7 @@ export interface EmitTrace {
   readonly type: "EmitTrace";
   readonly name: TraceEventName;
   readonly status: TraceStatus;
+  readonly boundary?: string | undefined;
   readonly details?: Record<string, unknown> | undefined;
 }
 

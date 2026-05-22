@@ -23,11 +23,48 @@ exports[`executePlan — tracing > emits the expected trace event sequence for a
   {
     "boundary": undefined,
     "details": {
+      "eventId": "<uuid>",
+      "eventType": "RunStarted",
+      "phaseStateBefore": undefined,
+      "runStateBefore": "created",
+    },
+    "event": "event.handled",
+    "phase": undefined,
+    "status": "ok",
+  },
+  {
+    "boundary": undefined,
+    "details": {
       "entity": "run",
       "to": "running",
     },
     "event": "state.transition",
     "phase": undefined,
+    "status": "ok",
+  },
+  {
+    "boundary": undefined,
+    "details": {
+      "eventId": "<uuid>",
+      "eventType": "RunResumeRequested",
+      "phaseStateBefore": "pending",
+      "reason": "run is already running",
+      "runStateBefore": "running",
+    },
+    "event": "event.ignored",
+    "phase": "phase-01",
+    "status": "info",
+  },
+  {
+    "boundary": undefined,
+    "details": {
+      "eventId": "<uuid>",
+      "eventType": "PhaseStartRequested",
+      "phaseStateBefore": "pending",
+      "runStateBefore": "running",
+    },
+    "event": "event.handled",
+    "phase": "phase-01",
     "status": "ok",
   },
   {
@@ -46,6 +83,18 @@ exports[`executePlan — tracing > emits the expected trace event sequence for a
       "worktreePath": "<tmpdir>/worktrees/my-run/phase-01",
     },
     "event": "git.worktree.created",
+    "phase": "phase-01",
+    "status": "ok",
+  },
+  {
+    "boundary": undefined,
+    "details": {
+      "eventId": "<uuid>",
+      "eventType": "WorktreeCreated",
+      "phaseStateBefore": "setting_up_worktree",
+      "runStateBefore": "running",
+    },
+    "event": "event.handled",
     "phase": "phase-01",
     "status": "ok",
   },
@@ -106,6 +155,18 @@ exports[`executePlan — tracing > emits the expected trace event sequence for a
   {
     "boundary": undefined,
     "details": {
+      "eventId": "<uuid>",
+      "eventType": "GatePassed",
+      "phaseStateBefore": "running",
+      "runStateBefore": "running",
+    },
+    "event": "event.handled",
+    "phase": "phase-01",
+    "status": "ok",
+  },
+  {
+    "boundary": undefined,
+    "details": {
       "entity": "phase",
       "to": "passed",
     },
@@ -155,6 +216,38 @@ exports[`executePlan — tracing > emits the expected trace event sequence for a
       "subject": "ai(phase-01): do thing",
     },
     "event": "git.commit.created",
+    "phase": "phase-01",
+    "status": "ok",
+  },
+  {
+    "boundary": undefined,
+    "details": {
+      "eventId": "<uuid>",
+      "eventType": "FinalReviewOpened",
+      "phaseStateBefore": "committed",
+      "runStateBefore": "running",
+    },
+    "event": "event.handled",
+    "phase": "phase-01",
+    "status": "ok",
+  },
+  {
+    "boundary": undefined,
+    "details": {
+      "entity": "run",
+      "to": "review_open",
+    },
+    "event": "state.transition",
+    "phase": undefined,
+    "status": "ok",
+  },
+  {
+    "boundary": undefined,
+    "details": {
+      "entity": "phase",
+      "to": "review_open",
+    },
+    "event": "state.transition",
     "phase": "phase-01",
     "status": "ok",
   },

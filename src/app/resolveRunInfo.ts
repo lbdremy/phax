@@ -2,28 +2,12 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Either } from "effect";
 import type { ShortName } from "../domain/branded.js";
+import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { decodeRunStatus, decodePhaseStatus, type PhaseStatus } from "../schemas/status.js";
 import { decodePhaxPlan } from "../schemas/phaxPlan.js";
 import { decodeRegistry } from "../schemas/registry.js";
 
-export interface RunReviewInfo {
-  readonly shortName: string;
-  readonly runId: string;
-  readonly runState: string;
-  readonly branch: string;
-  readonly stateRoot: string;
-  readonly runPath: string;
-  readonly finalPhaseId: string;
-  readonly finalPhaseTitle: string;
-  readonly worktreePath: string;
-  readonly claudeSessionId: string | undefined;
-  readonly gateProfileId: string | undefined;
-  readonly phaseStatuses: readonly PhaseStatus[];
-  readonly planPhases: ReadonlyArray<{ id: string; title: string }>;
-  readonly updatedAt: string;
-  readonly stoppedReason: string | undefined;
-  readonly lastError: string | undefined;
-}
+export type { RunReviewInfo };
 
 export interface PhaseInfo {
   readonly shortName: string;

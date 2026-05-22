@@ -89,7 +89,12 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
       switch (state.run) {
         case "review_open":
         case "completed":
-          return handled({ run: "archived" });
+          // Diff patch persists state="archived" to runs/<short>/run-status.json
+          // first; then MoveRunToArchive renames the directory. The registry
+          // index entry (which carries archivePath) is updated by the caller.
+          return handled({ run: "archived" }, [
+            { type: "MoveRunToArchive", from: event.from, to: event.to },
+          ]);
         case "archived":
           return rejected("run is already archived");
         case "created":
@@ -124,8 +129,11 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "running":
         case "interrupted": {
           const ps = state.phase.state;
-          if (ps === "cleaned_up" || ps === "skipped") {
-            return handled({ run: "review_open", phase: { state: "review_open" } });
+          if (ps === "committed" || ps === "cleaned_up" || ps === "skipped") {
+            return handled({ run: "review_open", phase: { state: "review_open" } }, [
+              { type: "OpenRunReview", info: event.info },
+              { type: "WriteFinalReport", info: event.info },
+            ]);
           }
           return unexpected(`final review opened while phase is ${ps}`);
         }
@@ -168,6 +176,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
           if (ps === "pending" || ps === "cleaned_up" || ps === "skipped") {
             return handled({ run: "running", phase: { state: "setting_up_worktree" } });
           }
+          if (ps === "setting_up_worktree" || ps === "running") {
+            return ignored(`phase already in ${ps}`);
+          }
           return rejected(`cannot start a new phase while current phase is ${ps}`);
         }
         case "created":
@@ -188,6 +199,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "running": {
           if (state.phase.state === "setting_up_worktree") {
             return handled({ run: "running", phase: { state: "running" } });
+          }
+          if (state.phase.state === "running") {
+            return ignored("worktree already in place; phase already running");
           }
           return unexpected(`worktree created while phase is ${state.phase.state}`);
         }
@@ -555,7 +569,42 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "running": {
           const ps = state.phase.state;
           if (ps === "running" || ps === "fixing") {
-            return handled({ run: "rate_limited", phase: { state: "rate_limited" } });
+            const reason: "Rate limit" | "Usage limit" =
+              event.kind === "usage_limit" ? "Usage limit" : "Rate limit";
+            return handled({ run: "rate_limited", phase: { state: "rate_limited" } }, [
+              {
+                type: "PersistState",
+                patch: {
+                  run: { stoppedReason: "rate_limited", lastError: event.cause.message },
+                },
+              },
+              {
+                type: "WriteResumeInstructions",
+                ctx: {
+                  reason,
+                  kind: event.kind,
+                  resetAt: event.resetAt,
+                  phaseId: event.phase,
+                  worktreePath: event.worktreePath,
+                  sessionId: event.sessionId,
+                  rawMessage: event.cause.rawMessage,
+                },
+              },
+              {
+                type: "EmitTrace",
+                name: "rate_limit.detected",
+                status: "failed",
+                boundary: "claude-code",
+                details: { kind: event.kind, resetAt: event.resetAt },
+              },
+              {
+                type: "EmitTrace",
+                name: "resume.available",
+                status: "info",
+                boundary: "resume-instructions.md",
+                details: { resumeCommand: `phax resume ${event.run}` },
+              },
+            ]);
           }
           return ignored(`rate limit while phase is ${ps}`);
         }

@@ -7,6 +7,8 @@ import { readRegistry } from "../../app/registry.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
+import { NodeShellLayer } from "../../infra/shell.js";
+import { NoopTracerLayer } from "../../infra/tracer.js";
 import { resolveLastReviewOpenRun } from "../../app/resolveRunInfo.js";
 import { decodeShortName as decode } from "../../domain/branded.js";
 
@@ -20,8 +22,16 @@ function buildLayer(
   | import("../../ports/fs.js").FileSystem
   | import("../../ports/git.js").Git
   | import("../../ports/lock.js").Lock
+  | import("../../ports/shell.js").Shell
+  | import("../../ports/tracer.js").Tracer
 > {
-  return Layer.mergeAll(NodeFileSystemLayer, makeNodeGitLayer(), makeNodeLockLayer(stateRoot));
+  return Layer.mergeAll(
+    NodeFileSystemLayer,
+    makeNodeGitLayer(),
+    makeNodeLockLayer(stateRoot),
+    NodeShellLayer,
+    NoopTracerLayer,
+  );
 }
 
 export async function runArchive(

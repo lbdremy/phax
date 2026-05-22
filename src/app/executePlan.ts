@@ -1,6 +1,7 @@
 import { Effect, Either } from "effect";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { RunId, ShortName, WorktreePath } from "../domain/branded.js";
+import type { PhaseId, RunId, ShortName, WorktreePath } from "../domain/branded.js";
 import { decodeBranchName, decodePhaseId } from "../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
@@ -14,17 +15,7 @@ import {
   UsageLimitError,
   WorktreeCreationError,
 } from "../domain/errors.js";
-import {
-  failRun,
-  pendingToSettingUp,
-  rateLimitPhase,
-  rateLimitRun,
-  rateLimitedToRunning,
-  resumeRateLimitedRun,
-  runningToPassed,
-  settingUpToRunning,
-  startRun,
-} from "../domain/state.js";
+import type { PhaxEvent, PhaxEventBase } from "../domain/events.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
@@ -32,18 +23,9 @@ import { Shell, type ShellError } from "../ports/shell.js";
 import { Tracer, type TraceEventName, type TraceStatus } from "../ports/tracer.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
-import {
-  decodePhaseStatus,
-  decodeRunStatus,
-  encodePhaseStatus,
-  encodeRunStatus,
-  type PhaseStatus,
-  type RunStatus,
-} from "../schemas/status.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
-import { writeFinalReport } from "./finalReport.js";
-import { openFinalReview } from "./finalReview.js";
+import { dispatch, type DispatcherContext } from "./dispatcher.js";
 import { recordGateProfileInRunStatus, resolveGateProfile } from "./gates.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
@@ -53,203 +35,10 @@ import { recordPhaseWorktreePath } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRunByShortName } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
-import { writeResumeInstructions } from "./resumeInstructions.js";
 import { createPhaseWorktree, prepareRunBranch } from "./worktree.js";
-
-function patchPhaseStatus(
-  phaseFolderPath: string,
-  patch: (s: PhaseStatus) => PhaseStatus,
-): Effect.Effect<void, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const statusPath = join(phaseFolderPath, "status.json");
-    const raw = yield* fs.readText(statusPath);
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw) as unknown;
-    } catch {
-      return;
-    }
-
-    const decoded = decodePhaseStatus(parsed);
-    if (Either.isRight(decoded)) {
-      const updated = patch(decoded.right);
-      yield* fs.writeAtomic(statusPath, JSON.stringify(encodePhaseStatus(updated), null, 2));
-    }
-  });
-}
-
-function patchRunStatus(
-  runPath: string,
-  patch: (s: RunStatus) => RunStatus,
-): Effect.Effect<void, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const statusPath = join(runPath, "run-status.json");
-    const raw = yield* fs.readText(statusPath);
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw) as unknown;
-    } catch {
-      return;
-    }
-
-    const decoded = decodeRunStatus(parsed);
-    if (Either.isRight(decoded)) {
-      const updated = patch(decoded.right);
-      yield* fs.writeAtomic(statusPath, JSON.stringify(encodeRunStatus(updated), null, 2));
-    }
-  });
-}
-
-function transitionRunRunning(runPath: string): Effect.Effect<void, FsError, FileSystem> {
-  return patchRunStatus(runPath, (s) => {
-    const next = startRun(s.state);
-    if (Either.isLeft(next)) return s;
-    return { ...s, state: next.right, updatedAt: new Date().toISOString() };
-  });
-}
-
-function transitionRunFailedIfRunning(runPath: string): Effect.Effect<void, FsError, FileSystem> {
-  return patchRunStatus(runPath, (s) => {
-    const next = failRun(s.state);
-    if (Either.isLeft(next)) return s;
-    return { ...s, state: next.right, updatedAt: new Date().toISOString() };
-  });
-}
-
-function transitionPhasePendingToSettingUp(
-  phaseFolderPath: string,
-): Effect.Effect<void, FsError, FileSystem> {
-  return patchPhaseStatus(phaseFolderPath, (s) => {
-    const next = pendingToSettingUp(s.state);
-    if (Either.isLeft(next)) return s;
-    return { ...s, state: next.right, updatedAt: new Date().toISOString() };
-  });
-}
-
-function transitionPhaseSettingUpToRunning(
-  phaseFolderPath: string,
-): Effect.Effect<void, FsError, FileSystem> {
-  return patchPhaseStatus(phaseFolderPath, (s) => {
-    const next = settingUpToRunning(s.state);
-    if (Either.isLeft(next)) return s;
-    return { ...s, state: next.right, updatedAt: new Date().toISOString() };
-  });
-}
-
-function transitionPhaseRunningToPassed(
-  phaseFolderPath: string,
-): Effect.Effect<void, FsError, FileSystem> {
-  return patchPhaseStatus(phaseFolderPath, (s) => {
-    const next = runningToPassed(s.state);
-    if (Either.isLeft(next)) return s;
-    return { ...s, state: next.right, updatedAt: new Date().toISOString() };
-  });
-}
-
-/** Resume entry point: bring a `rate_limited` run back to `running` (no-op otherwise). */
-function transitionRunResumeRateLimited(runPath: string): Effect.Effect<void, FsError, FileSystem> {
-  return patchRunStatus(runPath, (s) => {
-    const next = resumeRateLimitedRun(s.state);
-    if (Either.isLeft(next)) return s;
-    return { ...s, state: next.right, updatedAt: new Date().toISOString() };
-  });
-}
-
-/** Resume entry point: bring a `rate_limited` phase back to `running` (no-op otherwise). */
-function transitionPhaseResumeRateLimited(
-  phaseFolderPath: string,
-): Effect.Effect<void, FsError, FileSystem> {
-  return patchPhaseStatus(phaseFolderPath, (s) => {
-    const next = rateLimitedToRunning(s.state);
-    if (Either.isLeft(next)) return s;
-    return { ...s, state: next.right, updatedAt: new Date().toISOString() };
-  });
-}
 
 function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
   return e instanceof RateLimitError || e instanceof UsageLimitError;
-}
-
-interface RateLimitStopContext {
-  readonly error: RateLimitError | UsageLimitError;
-  readonly runPath: string;
-  readonly shortName: string;
-  readonly phaseId: string | undefined;
-  readonly phaseFolderPath: string | undefined;
-  readonly worktreePath: string | undefined;
-  readonly sessionId: string | undefined;
-}
-
-/**
- * Pause a run on a rate/usage limit (spec §9): transition the run and the
- * in-flight phase to `rate_limited`, write `resume-instructions.md`, and emit
- * the trace events. Worktree, logs and session id are deliberately left in
- * place so the run can resume. This never fails — the original limit error is
- * re-raised by the caller so the CLI still sets a non-zero exit code.
- */
-function handleRateLimitStop(
-  ctx: RateLimitStopContext,
-): Effect.Effect<void, never, FileSystem | Tracer> {
-  return Effect.gen(function* () {
-    const tracer = yield* Tracer;
-    const isUsage = ctx.error instanceof UsageLimitError;
-    const reason = isUsage ? "Usage limit" : "Rate limit";
-
-    yield* patchRunStatus(ctx.runPath, (s) => {
-      const next = rateLimitRun(s.state);
-      if (Either.isLeft(next)) return s;
-      return {
-        ...s,
-        state: next.right,
-        stoppedReason: "rate_limited",
-        lastError: ctx.error.message,
-        updatedAt: new Date().toISOString(),
-      };
-    });
-
-    if (ctx.phaseFolderPath !== undefined) {
-      yield* patchPhaseStatus(ctx.phaseFolderPath, (s) => {
-        const next = rateLimitPhase(s.state);
-        if (Either.isLeft(next)) return s;
-        return { ...s, state: next.right, updatedAt: new Date().toISOString() };
-      });
-    }
-
-    yield* writeResumeInstructions({
-      runPath: ctx.runPath,
-      shortName: ctx.shortName,
-      reason,
-      resetAt: ctx.error.resetAt,
-      phaseId: ctx.phaseId,
-      worktreePath: ctx.worktreePath,
-      sessionId: ctx.sessionId,
-      rawMessage: ctx.error.rawMessage,
-    });
-
-    const baseEvent = {
-      run: ctx.shortName,
-      phase: ctx.phaseId,
-      timestamp: new Date().toISOString(),
-    };
-    yield* tracer.event({
-      ...baseEvent,
-      event: "rate_limit.detected",
-      boundary: "claude-code",
-      status: "failed",
-      details: { kind: isUsage ? "usage_limit" : "rate_limit", resetAt: ctx.error.resetAt },
-    });
-    yield* tracer.event({
-      ...baseEvent,
-      event: "resume.available",
-      boundary: "resume-instructions.md",
-      status: "info",
-      details: { resumeCommand: `phax resume ${ctx.shortName}` },
-    });
-  }).pipe(Effect.catchAll(() => Effect.void));
 }
 
 export interface ExecutePlanOptions {
@@ -303,12 +92,35 @@ export function executePlan(
     startIndex,
   } = opts;
 
-  // Tracked as the loop progresses so a rate-limit stop knows which phase,
-  // worktree and session were in flight when the limit was hit.
+  // Tracked as the loop progresses so the rate-limit catch handler knows which
+  // phase, worktree, and session were in flight when the limit was hit. These
+  // values flow onto the RateLimitDetected event so the reducer can emit a
+  // fully-populated WriteResumeInstructions command.
   let currentPhaseId: string | undefined;
   let currentPhaseFolderPath: string | undefined;
   let currentWorktreePath: string | undefined;
   let currentSessionId: string | undefined;
+
+  function eventBase(phaseId?: string): PhaxEventBase {
+    return {
+      eventId: randomUUID(),
+      occurredAt: new Date().toISOString(),
+      run: shortName as unknown as RunId,
+      phase: phaseId as PhaseId | undefined,
+    };
+  }
+
+  function dispatchCtx(
+    phaseFolderPath?: string,
+    phaseId?: string,
+  ): DispatcherContext {
+    return {
+      runPath,
+      shortName: shortName as string,
+      phaseFolderPath,
+      phaseId,
+    };
+  }
 
   const program = Effect.gen(function* () {
     const tracer = yield* Tracer;
@@ -352,8 +164,7 @@ export function executePlan(
     let branch;
     if (startIndex === 0) {
       branch = yield* prepareRunBranch(shortName, plan.run.branch, config.repoRoot, allowDirty);
-      yield* transitionRunRunning(runPath);
-      yield* emit("state.transition", "ok", { details: { entity: "run", to: "running" } });
+      yield* dispatch({ ...eventBase(), type: "RunStarted" }, dispatchCtx());
       yield* recordGateProfileInRunStatus(runPath, gateProfileId);
     } else {
       const branchResult = decodeBranchName(plan.run.branch);
@@ -368,10 +179,17 @@ export function executePlan(
       branch = branchResult.right;
     }
 
-    // Resuming a rate-limited run: bring it back to `running`. No-op for a
-    // fresh run (already `running`) — works whether resume restarts at the
-    // first phase (startIndex 0) or a later one.
-    yield* transitionRunResumeRateLimited(runPath);
+    // Lift a rate-limited run+phase back to running. On a fresh run the reducer
+    // returns Ignored (run already running) and produces no writes; on resume
+    // it transitions both the run and the in-flight phase to `running` so the
+    // forward dispatches below treat the resumed phase as a normal new phase.
+    const resumePhase = plan.phases[startIndex];
+    const resumePhaseFolderPath = resumePhase ? join(runPath, resumePhase.id) : undefined;
+    const resumePhaseId = resumePhase?.id;
+    yield* dispatch(
+      { ...eventBase(resumePhaseId), type: "RunResumeRequested" },
+      dispatchCtx(resumePhaseFolderPath, resumePhaseId),
+    );
 
     const setupCommands: readonly string[] = config.raw.commands?.setup ?? [];
     const cleanupCommands: readonly string[] = config.raw.commands?.cleanup ?? [];
@@ -391,15 +209,15 @@ export function executePlan(
       currentWorktreePath = undefined;
       currentSessionId = undefined;
 
-      // Resuming a rate-limited phase: bring it back to `running` so the
-      // forward transitions below apply (no-op for a fresh `pending` phase).
-      yield* transitionPhaseResumeRateLimited(phaseFolderPath);
+      const ctx = dispatchCtx(phaseFolderPath, phase.id);
 
-      yield* transitionPhasePendingToSettingUp(phaseFolderPath);
-      yield* emit("state.transition", "ok", {
-        phase: phase.id,
-        details: { entity: "phase", to: "setting_up_worktree" },
-      });
+      // pending → setting_up_worktree (Ignored on a resumed phase already in
+      // setting_up_worktree/running; Rejected if the phase is past pending in
+      // an unexpected way).
+      yield* dispatch(
+        { ...eventBase(phase.id), type: "PhaseStartRequested", phaseId: phase.id as PhaseId },
+        ctx,
+      );
 
       const phaseIdResult = decodePhaseId(phase.id);
       if (Either.isLeft(phaseIdResult)) {
@@ -427,11 +245,12 @@ export function executePlan(
         details: { worktreePath: worktreePath as string },
       });
 
-      yield* transitionPhaseSettingUpToRunning(phaseFolderPath);
-      yield* emit("state.transition", "ok", {
-        phase: phase.id,
-        details: { entity: "phase", to: "running" },
-      });
+      // setting_up_worktree → running (Ignored on a resumed phase already
+      // running).
+      yield* dispatch(
+        { ...eventBase(phase.id), type: "WorktreeCreated", path: worktreePath },
+        ctx,
+      );
 
       yield* setupPhase({ worktreePath, phaseFolderPath, setupCommands });
 
@@ -473,6 +292,8 @@ export function executePlan(
         details: { sessionId: sessionId as string },
       });
 
+      // running → passed transition is dispatched inside fixLoop on the
+      // gate-success branch via dispatch(GatePassed).
       yield* runGatesWithFixLoop({
         commands: gateCommands,
         cwd: worktreePath as string,
@@ -483,12 +304,6 @@ export function executePlan(
         run: shortName as string,
         phaseId: phase.id,
         runPath,
-      });
-
-      yield* transitionPhaseRunningToPassed(phaseFolderPath);
-      yield* emit("state.transition", "ok", {
-        phase: phase.id,
-        details: { entity: "phase", to: "passed" },
       });
 
       yield* emit("handoff.requested", "info", {
@@ -509,6 +324,7 @@ export function executePlan(
         boundary: "phase-handoff.md",
       });
 
+      // commitPhase dispatches CommitCreated internally.
       yield* commitPhase({
         phase,
         worktreePath,
@@ -541,9 +357,15 @@ export function executePlan(
             }),
           );
         }
-        yield* openFinalReview(infoResult.right);
-        yield* writeFinalReport(infoResult.right);
+        // running/{committed} → review_open. The reducer emits OpenRunReview
+        // and WriteFinalReport effects; the runner writes review-handoff.md,
+        // updates the registry, and writes final-report.md.
+        yield* dispatch(
+          { ...eventBase(phase.id), type: "FinalReviewOpened", info: infoResult.right },
+          ctx,
+        );
       } else {
+        // cleanupPhase dispatches CleanupStarted/CleanupCompleted internally.
         yield* cleanupPhase({
           worktreePath,
           phaseFolderPath,
@@ -574,24 +396,38 @@ export function executePlan(
   });
 
   return program.pipe(
-    // A rate/usage limit pauses the run instead of failing it: transition to
-    // `rate_limited`, write resume-instructions.md, then re-raise so the CLI
-    // still exits non-zero. Cleanup is skipped — the worktree must survive.
+    // A rate/usage limit pauses the run instead of failing it: dispatch
+    // RateLimitDetected so the reducer transitions run+phase to `rate_limited`,
+    // writes resume-instructions.md, and emits the trace events. Then re-raise
+    // so the CLI still sets a non-zero exit code. Worktree, logs, and session
+    // id are deliberately preserved by the dispatcher (no cleanup effect).
     Effect.catchIf(isRateLimitError, (e) =>
-      handleRateLimitStop({
-        error: e,
-        runPath,
-        shortName: shortName as string,
-        phaseId: currentPhaseId,
-        phaseFolderPath: currentPhaseFolderPath,
-        worktreePath: currentWorktreePath,
-        sessionId: currentSessionId,
-      }).pipe(Effect.flatMap(() => Effect.fail(e))),
+      Effect.gen(function* () {
+        const kind: "rate_limit" | "usage_limit" =
+          e instanceof UsageLimitError ? "usage_limit" : "rate_limit";
+        const rateLimitEvent: PhaxEvent = {
+          ...eventBase(currentPhaseId),
+          type: "RateLimitDetected",
+          kind,
+          resetAt: e.resetAt,
+          cause: e,
+          worktreePath: currentWorktreePath as WorktreePath | undefined,
+          sessionId: currentSessionId as never,
+        };
+        yield* dispatch(
+          rateLimitEvent,
+          dispatchCtx(currentPhaseFolderPath, currentPhaseId),
+        );
+        return yield* Effect.fail(e);
+      }).pipe(Effect.catchAll(() => Effect.fail(e))),
     ),
     Effect.tapError((e) =>
       isRateLimitError(e)
         ? Effect.void
-        : transitionRunFailedIfRunning(runPath).pipe(Effect.catchAll(() => Effect.void)),
+        : dispatch(
+            { ...eventBase(currentPhaseId), type: "RunFailed", cause: e },
+            dispatchCtx(currentPhaseFolderPath, currentPhaseId),
+          ).pipe(Effect.catchAll(() => Effect.void)),
     ),
   );
 }

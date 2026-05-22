@@ -1,7 +1,11 @@
 import { Effect } from "effect";
 import { randomUUID } from "node:crypto";
 import type { PhaseId, RunId, WorktreePath } from "../domain/branded.js";
-import { ArchiveBlockedByDirtyWorktreeError, SetupCommandFailedError } from "../domain/errors.js";
+import {
+  ArchiveBlockedByDirtyWorktreeError,
+  RegistryCorruptionError,
+  SetupCommandFailedError,
+} from "../domain/errors.js";
 import type { PhaxEvent } from "../domain/events.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
@@ -28,7 +32,12 @@ export function cleanupPhase(
   opts: CleanupPhaseOptions,
 ): Effect.Effect<
   void,
-  SetupCommandFailedError | ArchiveBlockedByDirtyWorktreeError | GitError | ShellError | FsError,
+  | SetupCommandFailedError
+  | ArchiveBlockedByDirtyWorktreeError
+  | GitError
+  | ShellError
+  | FsError
+  | RegistryCorruptionError,
   Git | Shell | FileSystem | Tracer
 > {
   const {
