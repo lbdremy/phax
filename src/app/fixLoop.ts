@@ -1,48 +1,23 @@
 import { Effect, Either } from "effect";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { ClaudeSessionId } from "../domain/branded.js";
+import type { ClaudeSessionId, PhaseId, RunId } from "../domain/branded.js";
 import {
   type ClaudeInvocationError,
   type ClaudeSessionIdMissingError,
   GateFailedError,
   type RateLimitError,
+  type SetupCommandFailedError,
   type UsageLimitError,
 } from "../domain/errors.js";
-import type { PhaseState } from "../domain/state.js";
+import type { PhaxEvent, PhaxEventBase } from "../domain/events.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
+import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { Tracer } from "../ports/tracer.js";
-import { decodePhaseStatus, encodePhaseStatus } from "../schemas/status.js";
+import { dispatch } from "./dispatcher.js";
 import { runGates, type GateOutcome } from "./gates.js";
-
-function updatePhaseState(
-  phaseFolderPath: string,
-  newState: PhaseState,
-): Effect.Effect<void, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const statusPath = join(phaseFolderPath, "status.json");
-    const raw = yield* fs.readText(statusPath);
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw) as unknown;
-    } catch {
-      return;
-    }
-
-    const decoded = decodePhaseStatus(parsed);
-    if (Either.isRight(decoded)) {
-      const updated = {
-        ...decoded.right,
-        state: newState,
-        updatedAt: new Date().toISOString(),
-      };
-      yield* fs.writeAtomic(statusPath, JSON.stringify(encodePhaseStatus(updated), null, 2));
-    }
-  });
-}
 
 function buildFixPrompt(gateError: GateFailedError, logContent: string, attempt: number): string {
   return [
@@ -80,6 +55,8 @@ export interface RunGatesWithFixLoopOptions {
   readonly run: string;
   /** Current phase id, for trace events. */
   readonly phaseId: string;
+  /** Run folder; the dispatcher reads run-status.json from here. */
+  readonly runPath: string;
 }
 
 export function runGatesWithFixLoop(
@@ -89,14 +66,41 @@ export function runGatesWithFixLoop(
   | GateFailedError
   | FsError
   | ShellError
+  | GitError
+  | SetupCommandFailedError
   | ClaudeInvocationError
   | ClaudeSessionIdMissingError
   | RateLimitError
   | UsageLimitError,
-  Shell | FileSystem | Backend | Tracer
+  Shell | FileSystem | Backend | Git | Tracer
 > {
-  const { commands, cwd, phaseFolderPath, sessionId, agentOptions, maxFixAttempts, run, phaseId } =
-    opts;
+  const {
+    commands,
+    cwd,
+    phaseFolderPath,
+    sessionId,
+    agentOptions,
+    maxFixAttempts,
+    run,
+    phaseId,
+    runPath,
+  } = opts;
+
+  const dispatchCtx = {
+    runPath,
+    shortName: run,
+    phaseFolderPath,
+    phaseId,
+  } as const;
+
+  function eventBase(): PhaxEventBase {
+    return {
+      eventId: randomUUID(),
+      occurredAt: new Date().toISOString(),
+      run: run as RunId,
+      phase: phaseId as PhaseId,
+    };
+  }
 
   function logPath(attempt: number): string {
     return join(phaseFolderPath, `checks-attempt-${String(attempt).padStart(2, "0")}.log`);
@@ -110,11 +114,13 @@ export function runGatesWithFixLoop(
     | GateFailedError
     | FsError
     | ShellError
+    | GitError
+    | SetupCommandFailedError
     | ClaudeInvocationError
     | ClaudeSessionIdMissingError
     | RateLimitError
     | UsageLimitError,
-    Shell | FileSystem | Backend | Tracer
+    Shell | FileSystem | Backend | Git | Tracer
   > {
     return Effect.gen(function* () {
       const tracer = yield* Tracer;
@@ -152,14 +158,32 @@ export function runGatesWithFixLoop(
         command: error.command,
         exitCode: error.exitCode,
       });
-      yield* updatePhaseState(phaseFolderPath, "gates_failed");
+
+      const gateFailedEvent: PhaxEvent = {
+        ...eventBase(),
+        type: "GateFailed",
+        command: error.command,
+        exitCode: error.exitCode,
+        logPath: error.logPath,
+        attempt,
+      };
+      yield* dispatch(gateFailedEvent, dispatchCtx);
 
       if (attempt > maxFixAttempts) {
-        yield* updatePhaseState(phaseFolderPath, "failed");
+        const exhaustedEvent: PhaxEvent = {
+          ...eventBase(),
+          type: "FixAttemptsExhausted",
+        };
+        yield* dispatch(exhaustedEvent, dispatchCtx);
         return yield* Effect.fail(error);
       }
 
-      yield* updatePhaseState(phaseFolderPath, "fixing");
+      const fixStartedEvent: PhaxEvent = {
+        ...eventBase(),
+        type: "FixStarted",
+        attempt,
+      };
+      yield* dispatch(fixStartedEvent, dispatchCtx);
 
       const fs = yield* FileSystem;
       const logContent = yield* fs.readText(logPath(attempt));
@@ -178,7 +202,12 @@ export function runGatesWithFixLoop(
         phaseFolderPath: agentOptions.phaseFolderPath,
       });
 
-      yield* updatePhaseState(phaseFolderPath, "running");
+      const fixCompletedEvent: PhaxEvent = {
+        ...eventBase(),
+        type: "FixCompleted",
+        sessionId: fixResult.sessionId,
+      };
+      yield* dispatch(fixCompletedEvent, dispatchCtx);
       yield* emit("fix.completed", "ok", { attempt });
 
       return yield* loop(attempt + 1, fixResult.sessionId);

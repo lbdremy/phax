@@ -5,6 +5,7 @@ import type { PhaxCommand, PhaxCommandType, StatePatch } from "../domain/effects
 import type { PhaxEvent } from "../domain/events.js";
 import { interpret } from "../domain/reducer.js";
 import type { PhaseSubState, PhaxState } from "../domain/state.js";
+import type { SetupCommandFailedError } from "../domain/errors.js";
 import { FileSystem, FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
@@ -185,7 +186,7 @@ export function dispatch(
   ctx: DispatcherContext,
 ): Effect.Effect<
   DispatchResult,
-  FsError | GitError | ShellError,
+  FsError | GitError | ShellError | SetupCommandFailedError,
   FileSystem | Git | Shell | Tracer
 > {
   return Effect.gen(function* () {

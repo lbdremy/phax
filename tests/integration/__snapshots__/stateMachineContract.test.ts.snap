@@ -128,6 +128,28 @@ exports[`State Machine Contract > snapshots the ordered trace event sequence for
     "status": "ok",
   },
   {
+    "boundary": undefined,
+    "details": {
+      "eventId": "<uuid>",
+      "eventType": "CommitCreated",
+      "phaseStateBefore": "passed",
+      "runStateBefore": "running",
+    },
+    "event": "event.handled",
+    "phase": "phase-01",
+    "status": "ok",
+  },
+  {
+    "boundary": undefined,
+    "details": {
+      "entity": "phase",
+      "to": "committed",
+    },
+    "event": "state.transition",
+    "phase": "phase-01",
+    "status": "ok",
+  },
+  {
     "boundary": "git",
     "details": {
       "subject": "ai(phase-01): do thing",

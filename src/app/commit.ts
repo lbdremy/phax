@@ -1,11 +1,15 @@
-import { Effect, Either } from "effect";
+import { Effect } from "effect";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { ClaudeSessionId, WorktreePath } from "../domain/branded.js";
+import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "../domain/branded.js";
+import type { SetupCommandFailedError } from "../domain/errors.js";
+import type { PhaxEvent } from "../domain/events.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { decodePhaseStatus, encodePhaseStatus } from "../schemas/status.js";
+import { Tracer } from "../ports/tracer.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
+import { dispatch } from "./dispatcher.js";
 
 export interface CommitPhaseOptions {
   readonly phase: PhaxPlanPhase;
@@ -16,6 +20,8 @@ export interface CommitPhaseOptions {
   readonly sessionId: ClaudeSessionId;
   readonly gateLogPath: string;
   readonly repoRoot: string;
+  /** Run folder; the dispatcher reads run-status.json from here. */
+  readonly runPath: string;
 }
 
 export interface CommitResult {
@@ -41,35 +47,6 @@ function buildCommitBody(opts: CommitPhaseOptions): string {
     `Gate-Log: ${opts.gateLogPath}`,
   ];
   return lines.join("\n");
-}
-
-function updatePhaseWithCommit(
-  phaseFolderPath: string,
-  commitHash: string,
-): Effect.Effect<void, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const statusPath = join(phaseFolderPath, "status.json");
-    const raw = yield* fs.readText(statusPath);
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw) as unknown;
-    } catch {
-      return;
-    }
-
-    const decoded = decodePhaseStatus(parsed);
-    if (Either.isRight(decoded)) {
-      const updated = {
-        ...decoded.right,
-        state: "committed" as const,
-        commitHash,
-        updatedAt: new Date().toISOString(),
-      };
-      yield* fs.writeAtomic(statusPath, JSON.stringify(encodePhaseStatus(updated), null, 2));
-    }
-  });
 }
 
 function getCommitHash(worktreePath: WorktreePath): Effect.Effect<string, ShellError, Shell> {
@@ -102,7 +79,11 @@ function saveDiffPatch(
 
 export function commitPhase(
   opts: CommitPhaseOptions,
-): Effect.Effect<CommitResult, GitError | ShellError | FsError, Git | Shell | FileSystem> {
+): Effect.Effect<
+  CommitResult,
+  GitError | ShellError | FsError | SetupCommandFailedError,
+  Git | Shell | FileSystem | Tracer
+> {
   return Effect.gen(function* () {
     const git = yield* Git;
 
@@ -116,7 +97,20 @@ export function commitPhase(
 
     const commitHash = yield* getCommitHash(opts.worktreePath);
 
-    yield* updatePhaseWithCommit(opts.phaseFolderPath, commitHash);
+    const event: PhaxEvent = {
+      eventId: randomUUID(),
+      occurredAt: new Date().toISOString(),
+      run: opts.shortName as RunId,
+      phase: opts.phase.id as PhaseId,
+      type: "CommitCreated",
+      hash: commitHash,
+    };
+    yield* dispatch(event, {
+      runPath: opts.runPath,
+      shortName: opts.shortName,
+      phaseFolderPath: opts.phaseFolderPath,
+      phaseId: opts.phase.id,
+    });
 
     yield* saveDiffPatch(opts.worktreePath, opts.phaseFolderPath);
 

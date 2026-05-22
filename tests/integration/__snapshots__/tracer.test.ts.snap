@@ -128,6 +128,28 @@ exports[`executePlan — tracing > emits the expected trace event sequence for a
     "status": "ok",
   },
   {
+    "boundary": undefined,
+    "details": {
+      "eventId": "<uuid>",
+      "eventType": "CommitCreated",
+      "phaseStateBefore": "passed",
+      "runStateBefore": "running",
+    },
+    "event": "event.handled",
+    "phase": "phase-01",
+    "status": "ok",
+  },
+  {
+    "boundary": undefined,
+    "details": {
+      "entity": "phase",
+      "to": "committed",
+    },
+    "event": "state.transition",
+    "phase": "phase-01",
+    "status": "ok",
+  },
+  {
     "boundary": "git",
     "details": {
       "subject": "ai(phase-01): do thing",

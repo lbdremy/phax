@@ -2,6 +2,7 @@ import { Effect, Either } from "effect";
 import { join } from "node:path";
 import type { WorktreePath } from "../domain/branded.js";
 import type { PhaxCommand } from "../domain/effects.js";
+import { SetupCommandFailedError } from "../domain/errors.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
@@ -82,13 +83,23 @@ function parseCommandTokens(raw: string): readonly [string, ...string[]] | null 
 
 function runCleanupShell(
   cmd: Extract<PhaxCommand, { type: "RunCleanupShell" }>,
-): Effect.Effect<void, ShellError, Shell> {
+): Effect.Effect<void, ShellError | SetupCommandFailedError, Shell> {
   return Effect.gen(function* () {
     const shell = yield* Shell;
     for (const raw of cmd.commands) {
       const tokens = parseCommandTokens(raw);
       if (tokens === null) continue;
-      yield* shell.run({ command: tokens, cwd: cmd.cwd });
+      const result = yield* shell.run({ command: tokens, cwd: cmd.cwd });
+      if (result.exitCode !== 0) {
+        return yield* Effect.fail(
+          new SetupCommandFailedError({
+            message: `Cleanup command failed: ${raw} (exit ${result.exitCode})`,
+            command: raw,
+            exitCode: result.exitCode,
+            stderr: result.stderr,
+          }),
+        );
+      }
     }
   });
 }
@@ -101,7 +112,11 @@ function runCleanupShell(
 export function run(
   cmd: PhaxCommand,
   ctx: EffectRunnerContext,
-): Effect.Effect<void, FsError | ShellError | GitError, FileSystem | Git | Shell | Tracer> {
+): Effect.Effect<
+  void,
+  FsError | ShellError | GitError | SetupCommandFailedError,
+  FileSystem | Git | Shell | Tracer
+> {
   switch (cmd.type) {
     case "PersistState":
       return persistState(ctx, cmd);
@@ -127,7 +142,7 @@ export function run(
     case "RemoveWorktree":
       return Effect.gen(function* () {
         const git = yield* Git;
-        yield* git.removeWorktree(cmd.path as WorktreePath, cmd.force, ctx.runPath);
+        yield* git.removeWorktree(cmd.path as WorktreePath, cmd.force, cmd.repoRoot);
       });
     case "RunCleanupShell":
       return runCleanupShell(cmd);

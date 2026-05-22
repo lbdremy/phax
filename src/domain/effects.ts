@@ -37,6 +37,7 @@ export interface RemoveWorktree {
   readonly type: "RemoveWorktree";
   readonly path: string;
   readonly force: boolean;
+  readonly repoRoot: string;
 }
 
 export interface RunCleanupShell {

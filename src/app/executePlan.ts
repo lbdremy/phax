@@ -482,6 +482,7 @@ export function executePlan(
         maxFixAttempts: config.maxFixAttempts,
         run: shortName as string,
         phaseId: phase.id,
+        runPath,
       });
 
       yield* transitionPhaseRunningToPassed(phaseFolderPath);
@@ -499,6 +500,9 @@ export function executePlan(
         agentOptions,
         phaseFolderPath,
         worktreePath: worktreePath as string,
+        runPath,
+        shortName: shortName as string,
+        phaseId: phase.id,
       });
       yield* emit("handoff.validated", "ok", {
         phase: phase.id,
@@ -514,6 +518,7 @@ export function executePlan(
         sessionId,
         gateLogPath: join(phaseFolderPath, "checks-attempt-01.log"),
         repoRoot: config.repoRoot,
+        runPath,
       });
 
       committedPhases.push(phase.id);
@@ -545,6 +550,9 @@ export function executePlan(
           cleanupCommands,
           repoRoot: config.repoRoot,
           isFinalPhase: false,
+          runPath,
+          shortName: shortName as string,
+          phaseId: phase.id,
         });
       }
     }

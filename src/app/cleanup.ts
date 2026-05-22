@@ -1,48 +1,14 @@
-import { Effect, Either } from "effect";
-import { join } from "node:path";
-import type { WorktreePath } from "../domain/branded.js";
+import { Effect } from "effect";
+import { randomUUID } from "node:crypto";
+import type { PhaseId, RunId, WorktreePath } from "../domain/branded.js";
 import { ArchiveBlockedByDirtyWorktreeError, SetupCommandFailedError } from "../domain/errors.js";
+import type { PhaxEvent } from "../domain/events.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { decodePhaseStatus, encodePhaseStatus } from "../schemas/status.js";
-
-function parseCommandTokens(raw: string): readonly [string, ...string[]] {
-  const parts = raw.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0];
-  if (parts.length === 0 || first === undefined) {
-    throw new Error(`Empty cleanup command: "${raw}"`);
-  }
-  return [first, ...parts.slice(1)];
-}
-
-function updatePhaseState(
-  phaseFolderPath: string,
-  state: "cleaning_up" | "cleaned_up",
-): Effect.Effect<void, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const statusPath = join(phaseFolderPath, "status.json");
-    const raw = yield* fs.readText(statusPath);
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw) as unknown;
-    } catch {
-      return;
-    }
-
-    const decoded = decodePhaseStatus(parsed);
-    if (Either.isRight(decoded)) {
-      const updated = {
-        ...decoded.right,
-        state,
-        updatedAt: new Date().toISOString(),
-      };
-      yield* fs.writeAtomic(statusPath, JSON.stringify(encodePhaseStatus(updated), null, 2));
-    }
-  });
-}
+import { Tracer } from "../ports/tracer.js";
+import { dispatch } from "./dispatcher.js";
+import { run as runEffect } from "./effectRunner.js";
 
 export interface CleanupPhaseOptions {
   readonly worktreePath: WorktreePath;
@@ -50,6 +16,12 @@ export interface CleanupPhaseOptions {
   readonly cleanupCommands: readonly string[];
   readonly repoRoot: string;
   readonly isFinalPhase: boolean;
+  /** Run folder; the dispatcher reads run-status.json from here. */
+  readonly runPath: string;
+  /** Run short name, for dispatch context and event base. */
+  readonly shortName: string;
+  /** Current phase id, for dispatch context and event base. */
+  readonly phaseId: string;
 }
 
 export function cleanupPhase(
@@ -57,9 +29,18 @@ export function cleanupPhase(
 ): Effect.Effect<
   void,
   SetupCommandFailedError | ArchiveBlockedByDirtyWorktreeError | GitError | ShellError | FsError,
-  Git | Shell | FileSystem
+  Git | Shell | FileSystem | Tracer
 > {
-  const { worktreePath, phaseFolderPath, cleanupCommands, repoRoot, isFinalPhase } = opts;
+  const {
+    worktreePath,
+    phaseFolderPath,
+    cleanupCommands,
+    repoRoot,
+    isFinalPhase,
+    runPath,
+    shortName,
+    phaseId,
+  } = opts;
 
   return Effect.gen(function* () {
     if (isFinalPhase) {
@@ -67,7 +48,6 @@ export function cleanupPhase(
     }
 
     const git = yield* Git;
-    const shell = yield* Shell;
 
     const isClean = yield* git.worktreeIsClean(worktreePath);
     if (!isClean) {
@@ -79,35 +59,30 @@ export function cleanupPhase(
       );
     }
 
-    yield* updatePhaseState(phaseFolderPath, "cleaning_up");
+    const dispatchCtx = { runPath, shortName, phaseFolderPath, phaseId } as const;
+    const runnerCtx = { runPath, phaseFolderPath, phaseId, shortName } as const;
 
-    for (const rawCommand of cleanupCommands) {
-      let tokens: readonly [string, ...string[]];
-      try {
-        tokens = parseCommandTokens(rawCommand);
-      } catch {
-        continue;
-      }
+    const baseEvent = () => ({
+      eventId: randomUUID(),
+      occurredAt: new Date().toISOString(),
+      run: shortName as RunId,
+      phase: phaseId as PhaseId,
+    });
 
-      const result = yield* shell.run({
-        command: tokens,
-        cwd: worktreePath as string,
-      });
+    const startedEvent: PhaxEvent = { ...baseEvent(), type: "CleanupStarted" };
+    yield* dispatch(startedEvent, dispatchCtx);
 
-      if (result.exitCode !== 0) {
-        return yield* Effect.fail(
-          new SetupCommandFailedError({
-            message: `Cleanup command failed: ${rawCommand} (exit ${result.exitCode})`,
-            command: rawCommand,
-            exitCode: result.exitCode,
-            stderr: result.stderr,
-          }),
-        );
-      }
-    }
+    yield* runEffect(
+      { type: "RunCleanupShell", commands: cleanupCommands, cwd: worktreePath as string },
+      runnerCtx,
+    );
 
-    yield* git.removeWorktree(worktreePath, false, repoRoot);
+    yield* runEffect(
+      { type: "RemoveWorktree", path: worktreePath as string, force: false, repoRoot },
+      runnerCtx,
+    );
 
-    yield* updatePhaseState(phaseFolderPath, "cleaned_up");
+    const completedEvent: PhaxEvent = { ...baseEvent(), type: "CleanupCompleted" };
+    yield* dispatch(completedEvent, dispatchCtx);
   });
 }

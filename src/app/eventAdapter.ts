@@ -17,12 +17,13 @@ import type {
   ArchiveBlockedByDirtyWorktreeError,
   ClaudeInvocationError,
   ClaudeSessionIdMissingError,
-  SetupCommandFailedError,
 } from "../domain/errors.js";
+import { SetupCommandFailedError } from "../domain/errors.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
+import { Tracer } from "../ports/tracer.js";
 import { cleanupPhase, type CleanupPhaseOptions } from "./cleanup.js";
 import { commitPhase, type CommitPhaseOptions } from "./commit.js";
 import { runGates } from "./gates.js";
@@ -170,7 +171,11 @@ export function adaptGateRun(
 export function adaptCommit(
   opts: CommitPhaseOptions,
   base: PhaxEventBase,
-): Effect.Effect<CommitCreated | null, GitError | ShellError | FsError, Git | Shell | FileSystem> {
+): Effect.Effect<
+  CommitCreated | null,
+  GitError | ShellError | FsError | SetupCommandFailedError,
+  Git | Shell | FileSystem | Tracer
+> {
   return commitPhase(opts).pipe(
     Effect.map((result): CommitCreated | null => {
       if (!result.committed || result.commitHash === undefined) {
@@ -187,7 +192,7 @@ export function adaptCleanup(
 ): Effect.Effect<
   CleanupCompleted | null,
   SetupCommandFailedError | ArchiveBlockedByDirtyWorktreeError | GitError | ShellError | FsError,
-  Git | Shell | FileSystem
+  Git | Shell | FileSystem | Tracer
 > {
   if (opts.isFinalPhase) {
     return Effect.succeed(null);
@@ -202,8 +207,13 @@ export function adaptHandoffGenerate(
   base: PhaxEventBase,
 ): Effect.Effect<
   HandoffValidated | HandoffMissing | RateLimitDetected,
-  ClaudeInvocationError | ClaudeSessionIdMissingError | FsError,
-  FileSystem | Backend
+  | ClaudeInvocationError
+  | ClaudeSessionIdMissingError
+  | GitError
+  | ShellError
+  | FsError
+  | SetupCommandFailedError,
+  FileSystem | Backend | Git | Shell | Tracer
 > {
   return generatePhaseHandoff(opts).pipe(
     Effect.map((): HandoffValidated => ({ ...base, type: "HandoffValidated" })),
@@ -234,7 +244,12 @@ export function adaptHandoffGenerate(
         e,
       ): Effect.Effect<
         HandoffMissing,
-        ClaudeInvocationError | ClaudeSessionIdMissingError | FsError
+        | ClaudeInvocationError
+        | ClaudeSessionIdMissingError
+        | GitError
+        | ShellError
+        | FsError
+        | SetupCommandFailedError
       > => {
         if (e instanceof HandoffValidationError) {
           return Effect.succeed({
@@ -243,7 +258,15 @@ export function adaptHandoffGenerate(
             missingSections: e.missingSections,
           });
         }
-        return Effect.fail(e as ClaudeInvocationError | ClaudeSessionIdMissingError | FsError);
+        return Effect.fail(
+          e as
+            | ClaudeInvocationError
+            | ClaudeSessionIdMissingError
+            | GitError
+            | ShellError
+            | FsError
+            | SetupCommandFailedError,
+        );
       },
     ),
   );
