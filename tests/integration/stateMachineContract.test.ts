@@ -38,7 +38,9 @@ function sanitizeDetails(
   if (!details) return details;
   const sanitized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(details)) {
-    if (typeof value === "string" && value.includes("/")) {
+    if (key === "eventId") {
+      sanitized[key] = "<uuid>";
+    } else if (typeof value === "string" && value.includes("/")) {
       sanitized[key] = sanitizePath(value);
     } else {
       sanitized[key] = value;

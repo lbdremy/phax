@@ -7,6 +7,7 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
+import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
 import {
   adaptAgentRun,
   adaptAgentResume,
@@ -23,7 +24,19 @@ import type { GenerateHandoffOptions } from "../../src/app/handoffGeneration.js"
 const runId = "my-run" as RunId;
 const phaseId = "phase-01" as PhaseId;
 const worktreePath = "/runs/my-run/worktrees/phase-01" as WorktreePath;
-const phaseFolderPath = "/runs/my-run/phase-01";
+const runPath = "/runs/my-run";
+const phaseFolderPath = `${runPath}/phase-01`;
+
+const runStatusSeed = JSON.stringify({
+  version: 1,
+  shortName: "my-run",
+  runId: "my-run-2026-05-21",
+  state: "running",
+  createdAt: "2026-05-21T00:00:00.000Z",
+  updatedAt: "2026-05-21T00:00:00.000Z",
+  phasesCount: 1,
+  currentPhaseIndex: 0,
+});
 
 const base: PhaxEventBase = {
   eventId: "evt-1",
@@ -256,13 +269,15 @@ describe("adaptCommit", () => {
     shortName: "my-run",
     sessionId: "sess-abc" as never,
     gateLogPath: `${phaseFolderPath}/checks-attempt-01.log`,
-    repoRoot: "/runs/my-run",
+    repoRoot: runPath,
+    runPath,
   };
 
   it("changes present → CommitCreated with hash", async () => {
     const fakeGit = makeFakeGit();
     const fakeShell = makeFakeShell();
     const fakeFs = makeFakeFileSystem();
+    const fakeTracer = makeFakeTracer();
 
     // worktreeIsClean returns false → changes present
     fakeGit.impl.enqueueWorktreeIsClean(worktreePath as string, false);
@@ -275,8 +290,9 @@ describe("adaptCommit", () => {
     // git diff HEAD^ HEAD returns empty diff
     fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, phaseStatusSeed);
+    fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
 
-    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer);
+    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer, fakeTracer.layer);
 
     const event = await Effect.runPromise(
       adaptCommit(commitOpts, base).pipe(Effect.provide(layer)),
@@ -292,11 +308,13 @@ describe("adaptCommit", () => {
     const fakeGit = makeFakeGit();
     const fakeShell = makeFakeShell();
     const fakeFs = makeFakeFileSystem();
+    const fakeTracer = makeFakeTracer();
 
     fakeGit.impl.enqueueWorktreeIsClean(worktreePath as string, true);
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, phaseStatusSeed);
+    fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
 
-    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer);
+    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer, fakeTracer.layer);
 
     const event = await Effect.runPromise(
       adaptCommit(commitOpts, base).pipe(Effect.provide(layer)),
@@ -313,19 +331,37 @@ describe("adaptCleanup", () => {
     worktreePath,
     phaseFolderPath,
     cleanupCommands: [],
-    repoRoot: "/runs/my-run",
+    repoRoot: runPath,
     isFinalPhase: false,
+    runPath,
+    shortName: "my-run",
+    phaseId: phaseId as string,
   };
+
+  // Cleanup transitions phase committed → cleaning_up → cleaned_up via dispatch.
+  const committedPhaseSeed = JSON.stringify({
+    version: 1,
+    phaseId: "phase-01",
+    phaseIndex: 0,
+    model: "claude-sonnet-4-6",
+    effort: "low",
+    state: "committed",
+    commitHash: "deadbeef",
+    createdAt: "2026-05-21T00:00:00.000Z",
+    updatedAt: "2026-05-21T00:00:00.000Z",
+  });
 
   it("non-final phase, clean worktree → CleanupCompleted", async () => {
     const fakeGit = makeFakeGit();
     const fakeShell = makeFakeShell();
     const fakeFs = makeFakeFileSystem();
+    const fakeTracer = makeFakeTracer();
 
     fakeGit.impl.enqueueWorktreeIsClean(worktreePath as string, true);
-    fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, phaseStatusSeed);
+    fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, committedPhaseSeed);
+    fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
 
-    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer);
+    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer, fakeTracer.layer);
 
     const event = await Effect.runPromise(
       adaptCleanup(baseCleanupOpts, base).pipe(Effect.provide(layer)),
@@ -339,7 +375,8 @@ describe("adaptCleanup", () => {
     const fakeGit = makeFakeGit();
     const fakeShell = makeFakeShell();
     const fakeFs = makeFakeFileSystem();
-    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer);
+    const fakeTracer = makeFakeTracer();
+    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer, fakeTracer.layer);
 
     const event = await Effect.runPromise(
       adaptCleanup({ ...baseCleanupOpts, isFinalPhase: true }, base).pipe(Effect.provide(layer)),
@@ -359,11 +396,41 @@ describe("adaptHandoffGenerate", () => {
     agentOptions: { model: "claude-sonnet-4-6", effort: "low", cwd: worktreePath as string },
     phaseFolderPath,
     worktreePath: worktreePath as string,
+    runPath,
+    shortName: "my-run",
+    phaseId: phaseId as string,
+  };
+
+  // For HandoffMissing dispatch the reducer needs the phase in `passed`.
+  const passedPhaseSeed = JSON.stringify({
+    version: 1,
+    phaseId: "phase-01",
+    phaseIndex: 0,
+    model: "claude-sonnet-4-6",
+    effort: "low",
+    state: "passed",
+    createdAt: "2026-05-21T00:00:00.000Z",
+    updatedAt: "2026-05-21T00:00:00.000Z",
+  });
+
+  const handoffLayers = () => {
+    const fakeBackend = makeFakeBackend();
+    const fakeFs = makeFakeFileSystem();
+    const fakeGit = makeFakeGit();
+    const fakeShell = makeFakeShell();
+    const fakeTracer = makeFakeTracer();
+    const layer = Layer.mergeAll(
+      fakeBackend.layer,
+      fakeFs.layer,
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeTracer.layer,
+    );
+    return { fakeBackend, fakeFs, fakeGit, fakeShell, fakeTracer, layer };
   };
 
   it("valid handoff file → HandoffValidated", async () => {
-    const fakeBackend = makeFakeBackend();
-    const fakeFs = makeFakeFileSystem();
+    const { fakeBackend, fakeFs, layer } = handoffLayers();
 
     fakeBackend.impl.addResumeResponse({
       sessionId: "sess-abc" as never,
@@ -380,8 +447,6 @@ describe("adaptHandoffGenerate", () => {
       ].join("\n"),
     );
 
-    const layer = Layer.mergeAll(fakeBackend.layer, fakeFs.layer);
-
     const event = await Effect.runPromise(
       adaptHandoffGenerate(handoffOpts, base).pipe(Effect.provide(layer)),
     );
@@ -390,18 +455,16 @@ describe("adaptHandoffGenerate", () => {
   });
 
   it("handoff file missing → HandoffMissing with all sections", async () => {
-    const fakeBackend = makeFakeBackend();
-    const fakeFs = makeFakeFileSystem();
+    const { fakeBackend, fakeFs, layer } = handoffLayers();
 
     fakeBackend.impl.addResumeResponse({
       sessionId: "sess-abc" as never,
       outputPath: "/out.jsonl",
       finalText: "",
     });
-    fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, phaseStatusSeed);
+    fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, passedPhaseSeed);
+    fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
     // handoff file NOT created
-
-    const layer = Layer.mergeAll(fakeBackend.layer, fakeFs.layer);
 
     const event = await Effect.runPromise(
       adaptHandoffGenerate(handoffOpts, base).pipe(Effect.provide(layer)),
@@ -414,8 +477,7 @@ describe("adaptHandoffGenerate", () => {
   });
 
   it("handoff file has missing sections → HandoffMissing", async () => {
-    const fakeBackend = makeFakeBackend();
-    const fakeFs = makeFakeFileSystem();
+    const { fakeBackend, fakeFs, layer } = handoffLayers();
 
     fakeBackend.impl.addResumeResponse({
       sessionId: "sess-abc" as never,
@@ -426,9 +488,8 @@ describe("adaptHandoffGenerate", () => {
       `${worktreePath as string}/phase-handoff.md`,
       "## What was delivered\nsome content",
     );
-    fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, phaseStatusSeed);
-
-    const layer = Layer.mergeAll(fakeBackend.layer, fakeFs.layer);
+    fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, passedPhaseSeed);
+    fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
 
     const event = await Effect.runPromise(
       adaptHandoffGenerate(handoffOpts, base).pipe(Effect.provide(layer)),
@@ -442,15 +503,12 @@ describe("adaptHandoffGenerate", () => {
   });
 
   it("RateLimitError during backend call → RateLimitDetected", async () => {
-    const fakeBackend = makeFakeBackend();
-    const fakeFs = makeFakeFileSystem();
+    const { fakeBackend, layer } = handoffLayers();
 
     fakeBackend.impl.failNextResumeWithRateLimit({
       kind: "rate_limit",
       resetAt: "2026-05-21T03:00:00.000Z",
     });
-
-    const layer = Layer.mergeAll(fakeBackend.layer, fakeFs.layer);
 
     const event = await Effect.runPromise(
       adaptHandoffGenerate(handoffOpts, base).pipe(Effect.provide(layer)),
@@ -465,11 +523,8 @@ describe("adaptHandoffGenerate", () => {
   });
 
   it("ClaudeInvocationError bubbles", async () => {
-    const fakeBackend = makeFakeBackend();
-    const fakeFs = makeFakeFileSystem();
+    const { layer } = handoffLayers();
     // no resume response queued → ClaudeInvocationError
-
-    const layer = Layer.mergeAll(fakeBackend.layer, fakeFs.layer);
 
     const result = await Effect.runPromise(
       Effect.either(adaptHandoffGenerate(handoffOpts, base).pipe(Effect.provide(layer))),

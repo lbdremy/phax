@@ -1,15 +1,21 @@
-import { Effect, Either } from "effect";
+import { Effect } from "effect";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { ClaudeSessionId } from "../domain/branded.js";
+import type { ClaudeSessionId, PhaseId, RunId } from "../domain/branded.js";
 import {
   type ClaudeInvocationError,
   type ClaudeSessionIdMissingError,
   type RateLimitError,
+  type SetupCommandFailedError,
   type UsageLimitError,
 } from "../domain/errors.js";
+import type { PhaxEvent } from "../domain/events.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { decodePhaseStatus, encodePhaseStatus } from "../schemas/status.js";
+import { Git, type GitError } from "../ports/git.js";
+import { Shell, type ShellError } from "../ports/shell.js";
+import { Tracer } from "../ports/tracer.js";
+import { dispatch } from "./dispatcher.js";
 
 const REQUIRED_HANDOFF_SECTIONS = [
   "## What was delivered",
@@ -39,33 +45,6 @@ function validateHandoffSections(content: string): string[] {
   return REQUIRED_HANDOFF_SECTIONS.filter((section) => !content.includes(section));
 }
 
-function updatePhaseStateHandoffFailed(
-  phaseFolderPath: string,
-): Effect.Effect<void, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const statusPath = join(phaseFolderPath, "status.json");
-    const raw = yield* fs.readText(statusPath);
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw) as unknown;
-    } catch {
-      return;
-    }
-
-    const decoded = decodePhaseStatus(parsed);
-    if (Either.isRight(decoded)) {
-      const updated = {
-        ...decoded.right,
-        state: "handoff_failed" as const,
-        updatedAt: new Date().toISOString(),
-      };
-      yield* fs.writeAtomic(statusPath, JSON.stringify(encodePhaseStatus(updated), null, 2));
-    }
-  });
-}
-
 export class HandoffValidationError extends Error {
   readonly _tag = "HandoffValidationError";
   constructor(
@@ -81,6 +60,12 @@ export interface GenerateHandoffOptions {
   readonly agentOptions: AgentRunOptions;
   readonly phaseFolderPath: string;
   readonly worktreePath: string;
+  /** Run folder; the dispatcher reads run-status.json from here. */
+  readonly runPath: string;
+  /** Run short name, for dispatch context and event base. */
+  readonly shortName: string;
+  /** Current phase id, for dispatch context and event base. */
+  readonly phaseId: string;
 }
 
 export function generatePhaseHandoff(
@@ -88,14 +73,18 @@ export function generatePhaseHandoff(
 ): Effect.Effect<
   void,
   | FsError
+  | GitError
+  | ShellError
+  | SetupCommandFailedError
   | ClaudeInvocationError
   | ClaudeSessionIdMissingError
   | RateLimitError
   | UsageLimitError
   | HandoffValidationError,
-  FileSystem | Backend
+  FileSystem | Backend | Git | Shell | Tracer
 > {
-  const { sessionId, agentOptions, phaseFolderPath, worktreePath } = opts;
+  const { sessionId, agentOptions, phaseFolderPath, worktreePath, runPath, shortName, phaseId } =
+    opts;
 
   return Effect.gen(function* () {
     const backend = yield* Backend;
@@ -113,8 +102,27 @@ export function generatePhaseHandoff(
 
     const handoffPath = join(worktreePath, "phase-handoff.md");
     const exists = yield* fs.exists(handoffPath);
+
+    const dispatchHandoffMissing = (missing: readonly string[]) =>
+      Effect.gen(function* () {
+        const event: PhaxEvent = {
+          eventId: randomUUID(),
+          occurredAt: new Date().toISOString(),
+          run: shortName as RunId,
+          phase: phaseId as PhaseId,
+          type: "HandoffMissing",
+          missingSections: missing,
+        };
+        yield* dispatch(event, {
+          runPath,
+          shortName,
+          phaseFolderPath,
+          phaseId,
+        });
+      });
+
     if (!exists) {
-      yield* updatePhaseStateHandoffFailed(phaseFolderPath);
+      yield* dispatchHandoffMissing(REQUIRED_HANDOFF_SECTIONS);
       return yield* Effect.fail(
         new HandoffValidationError(REQUIRED_HANDOFF_SECTIONS, worktreePath),
       );
@@ -123,7 +131,7 @@ export function generatePhaseHandoff(
     const content = yield* fs.readText(handoffPath);
     const missingSections = validateHandoffSections(content);
     if (missingSections.length > 0) {
-      yield* updatePhaseStateHandoffFailed(phaseFolderPath);
+      yield* dispatchHandoffMissing(missingSections);
       return yield* Effect.fail(new HandoffValidationError(missingSections, worktreePath));
     }
   });
