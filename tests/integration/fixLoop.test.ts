@@ -113,18 +113,18 @@ describe("runGatesWithFixLoop", () => {
     expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
     expect(outcome.attemptLogPath).toContain("checks-attempt-02");
 
-    // The event sequence: GateFailed → FixStarted → FixCompleted dispatches.
+    // The event sequence: GateFailed → FixStarted → FixCompleted → GatePassed.
     const dispositionEvents = fakeTracer.impl.events.filter(
       (e) => e.event === "event.handled",
     );
     const dispositionTypes = dispositionEvents.map((e) => e.details?.eventType);
-    expect(dispositionTypes).toEqual(["GateFailed", "FixStarted", "FixCompleted"]);
+    expect(dispositionTypes).toEqual(["GateFailed", "FixStarted", "FixCompleted", "GatePassed"]);
 
     // Phase state transitions reflect the reducer's view.
     const phaseTransitions = fakeTracer.impl.events
       .filter((e) => e.event === "state.transition")
       .map((e) => (e.details as { entity?: string; to?: string }).to);
-    expect(phaseTransitions).toEqual(["gates_failed", "fixing", "running"]);
+    expect(phaseTransitions).toEqual(["gates_failed", "fixing", "running", "passed"]);
   });
 
   it("fails with GateFailedError and dispatches FixAttemptsExhausted after all attempts fail", async () => {

@@ -1,8 +1,8 @@
 import { Effect, Either } from "effect";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { WorktreePath } from "../domain/branded.js";
 import type { PhaxCommand } from "../domain/effects.js";
-import { SetupCommandFailedError } from "../domain/errors.js";
+import { RegistryCorruptionError, SetupCommandFailedError } from "../domain/errors.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
@@ -13,7 +13,10 @@ import {
   encodePhaseStatus,
   encodeRunStatus,
 } from "../schemas/status.js";
+import { setRunStatus } from "./registry.js";
 import { writeResumeInstructions } from "./resumeInstructions.js";
+import { buildReviewHandoffMarkdown } from "./reviewHandoff.js";
+import { writeFinalReport } from "./finalReport.js";
 
 export interface EffectRunnerContext {
   readonly runPath: string;
@@ -114,7 +117,7 @@ export function run(
   ctx: EffectRunnerContext,
 ): Effect.Effect<
   void,
-  FsError | ShellError | GitError | SetupCommandFailedError,
+  FsError | ShellError | GitError | SetupCommandFailedError | RegistryCorruptionError,
   FileSystem | Git | Shell | Tracer
 > {
   switch (cmd.type) {
@@ -128,16 +131,21 @@ export function run(
           run: ctx.shortName,
           phase: ctx.phaseId,
           event: cmd.name,
+          boundary: cmd.boundary,
           status: cmd.status,
           details: cmd.details,
         });
       });
     case "WriteResumeInstructions":
       return writeResumeInstructions({
-        runPath: cmd.ctx.runDir,
+        runPath: ctx.runPath,
         shortName: ctx.shortName,
-        reason: "Rate limit",
+        reason: cmd.ctx.reason,
         resetAt: cmd.ctx.resetAt,
+        phaseId: cmd.ctx.phaseId,
+        worktreePath: cmd.ctx.worktreePath,
+        sessionId: cmd.ctx.sessionId,
+        rawMessage: cmd.ctx.rawMessage,
       }).pipe(Effect.asVoid);
     case "RemoveWorktree":
       return Effect.gen(function* () {
@@ -156,13 +164,17 @@ export function run(
     case "MoveRunToArchive":
       return Effect.gen(function* () {
         const fs = yield* FileSystem;
+        yield* fs.mkdirp(dirname(cmd.to));
         yield* fs.rename(cmd.from, cmd.to);
       });
     case "OpenRunReview":
+      return Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const content = buildReviewHandoffMarkdown(cmd.info);
+        yield* fs.writeAtomic(join(cmd.info.runPath, "review-handoff.md"), content);
+        yield* setRunStatus(cmd.info.stateRoot, cmd.info.shortName, { state: "review_open" });
+      });
     case "WriteFinalReport":
-      // Phase-05/06 will wire these. They need richer info than the trimmed
-      // RunReviewInfo carried on the command; the dispatcher does not emit
-      // them yet, so reaching this branch in phase-03 is a programmer error.
-      return Effect.dieMessage(`${cmd.type} effect not yet implemented`);
+      return writeFinalReport(cmd.info);
   }
 }

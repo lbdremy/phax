@@ -1,5 +1,6 @@
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "./branded.js";
 import type { RateLimitError, UsageLimitError } from "./errors.js";
+import type { RunReviewInfo } from "./runReviewInfo.js";
 
 export interface PhaxEventBase {
   readonly eventId: string;
@@ -24,6 +25,8 @@ export interface RunInterruptRequested extends PhaxEventBase {
 
 export interface RunArchiveRequested extends PhaxEventBase {
   readonly type: "RunArchiveRequested";
+  readonly from: string;
+  readonly to: string;
 }
 
 export interface RunFailed extends PhaxEventBase {
@@ -33,6 +36,7 @@ export interface RunFailed extends PhaxEventBase {
 
 export interface FinalReviewOpened extends PhaxEventBase {
   readonly type: "FinalReviewOpened";
+  readonly info: RunReviewInfo;
 }
 
 export interface RunCompleted extends PhaxEventBase {
@@ -123,6 +127,8 @@ export interface RateLimitDetected extends PhaxEventBase {
   readonly kind: "rate_limit" | "usage_limit";
   readonly resetAt?: string | undefined;
   readonly cause: RateLimitError | UsageLimitError;
+  readonly worktreePath?: WorktreePath | undefined;
+  readonly sessionId?: ClaudeSessionId | undefined;
 }
 
 export type PhaxEvent =

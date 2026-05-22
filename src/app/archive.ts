@@ -1,18 +1,22 @@
 import { Effect, Either } from "effect";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { FileSystem, FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Lock } from "../ports/lock.js";
+import { Shell, type ShellError } from "../ports/shell.js";
+import { Tracer } from "../ports/tracer.js";
 import { decodeRunStatus } from "../schemas/status.js";
-import { archiveRun as transitionToArchived } from "../domain/state.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   RegistryCorruptionError,
   LockConflictError,
+  SetupCommandFailedError,
 } from "../domain/errors.js";
-import type { ShortName, WorktreePath } from "../domain/branded.js";
+import type { RunId, ShortName, WorktreePath } from "../domain/branded.js";
 import { resolveRunByShortName } from "./resolveRunInfo.js";
 import { setRunStatus } from "./registry.js";
+import { dispatch } from "./dispatcher.js";
 
 export interface ArchiveOptions {
   force?: boolean;
@@ -27,10 +31,12 @@ export function archive(
   void,
   | FsError
   | GitError
+  | ShellError
+  | SetupCommandFailedError
   | RegistryCorruptionError
   | ArchiveBlockedByDirtyWorktreeError
   | LockConflictError,
-  FileSystem | Git | Lock
+  FileSystem | Git | Shell | Lock | Tracer
 > {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -69,8 +75,7 @@ export function archive(
       );
     }
     const runStatus = decoded.right;
-    const stateTransition = transitionToArchived(runStatus.state);
-    if (Either.isLeft(stateTransition)) {
+    if (runStatus.state !== "review_open" && runStatus.state !== "completed") {
       return yield* Effect.fail(
         new FsError({
           message: `Cannot archive run "${shortName}" in state "${runStatus.state}". Run must be review_open or completed.`,
@@ -101,10 +106,21 @@ export function archive(
       }
     }
 
-    // 5. Move runs/<short-name> → archive/<short-name>
+    // 5. Dispatch RunArchiveRequested: reducer transitions run → archived,
+    //    emits MoveRunToArchive (rename runs/<short> → archive/<short>) and
+    //    PersistState(archivePath). The dispatcher writes run-status.json.
     const archivePath = join(stateRoot, "archive", shortName);
-    yield* fs.mkdirp(join(stateRoot, "archive"));
-    yield* fs.rename(runPath, archivePath);
+    yield* dispatch(
+      {
+        eventId: randomUUID(),
+        occurredAt: new Date().toISOString(),
+        run: shortName as unknown as RunId,
+        type: "RunArchiveRequested",
+        from: runPath,
+        to: archivePath,
+      },
+      { runPath, shortName: shortName as string },
+    );
 
     // 6. Remove the final worktree only if clean (or if force)
     if (worktreePath) {
@@ -121,7 +137,8 @@ export function archive(
       }
     }
 
-    // 7. Update registry
+    // 7. Update registry index (run-status.json is already written by the
+    //    dispatcher above; this call only refreshes the central registry.json).
     yield* setRunStatus(stateRoot, shortName, {
       state: "archived",
       archivePath,

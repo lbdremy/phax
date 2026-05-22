@@ -1,7 +1,10 @@
-import { Effect, Either } from "effect";
+import { Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { openFinalReview } from "../../src/app/finalReview.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeShell } from "../../src/infra/fakes/shell.js";
+import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
 import type { RunReviewInfo } from "../../src/app/resolveRunInfo.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 
@@ -56,24 +59,35 @@ function makePhaseStatusJson(state: string): string {
   return JSON.stringify({ ...phaseStatus, state });
 }
 
+function setupLayers() {
+  const fs = makeFakeFileSystem();
+  const layers = Layer.mergeAll(
+    fs.layer,
+    makeFakeGit().layer,
+    makeFakeShell().layer,
+    makeFakeTracer().layer,
+  );
+  return { impl: fs.impl, layers };
+}
+
 describe("openFinalReview", () => {
   it("writes review-handoff.md to the run path", async () => {
-    const { impl, layer } = makeFakeFileSystem();
+    const { impl, layers } = setupLayers();
     impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
     impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
 
-    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layer)));
+    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
     const handoff = impl.getFile(`${runPath}/review-handoff.md`);
     expect(handoff).toBeDefined();
   });
 
   it("review-handoff.md contains run id, short name, and branch", async () => {
-    const { impl, layer } = makeFakeFileSystem();
+    const { impl, layers } = setupLayers();
     impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
     impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
 
-    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layer)));
+    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
     const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
     expect(handoff).toContain("my-run");
@@ -82,11 +96,11 @@ describe("openFinalReview", () => {
   });
 
   it("review-handoff.md contains the entry commands", async () => {
-    const { impl, layer } = makeFakeFileSystem();
+    const { impl, layers } = setupLayers();
     impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
     impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
 
-    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layer)));
+    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
     const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
     expect(handoff).toContain("phax enter my-run");
@@ -96,11 +110,11 @@ describe("openFinalReview", () => {
   });
 
   it("review-handoff.md contains the session id and resume snippet", async () => {
-    const { impl, layer } = makeFakeFileSystem();
+    const { impl, layers } = setupLayers();
     impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
     impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
 
-    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layer)));
+    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
     const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
     expect(handoff).toContain("sess-abc123");
@@ -108,11 +122,11 @@ describe("openFinalReview", () => {
   });
 
   it("transitions run-status.json to review_open", async () => {
-    const { impl, layer } = makeFakeFileSystem();
+    const { impl, layers } = setupLayers();
     impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
     impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
 
-    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layer)));
+    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
     const raw = impl.getFile(`${runPath}/run-status.json`);
     const parsed = JSON.parse(raw!) as { state: string };
@@ -120,11 +134,11 @@ describe("openFinalReview", () => {
   });
 
   it("transitions phase status to review_open", async () => {
-    const { impl, layer } = makeFakeFileSystem();
+    const { impl, layers } = setupLayers();
     impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
     impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
 
-    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layer)));
+    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
     const raw = impl.getFile(`${runPath}/phase-01/status.json`);
     const parsed = JSON.parse(raw!) as { state: string };
@@ -132,11 +146,11 @@ describe("openFinalReview", () => {
   });
 
   it("includes the Conductor handoff section", async () => {
-    const { impl, layer } = makeFakeFileSystem();
+    const { impl, layers } = setupLayers();
     impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
     impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
 
-    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layer)));
+    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
     const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
     expect(handoff).toContain("Conductor Handoff");
@@ -145,22 +159,22 @@ describe("openFinalReview", () => {
   });
 
   it("matches the review-handoff.md snapshot", async () => {
-    const { impl, layer } = makeFakeFileSystem();
+    const { impl, layers } = setupLayers();
     impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
     impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
 
-    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layer)));
+    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
     const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
     expect(handoff).toMatchSnapshot();
   });
 
   it("handles missing run-status.json gracefully (no crash)", async () => {
-    const { impl, layer } = makeFakeFileSystem();
+    const { impl, layers } = setupLayers();
     impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
 
     await Effect.runPromise(
-      Effect.ignore(openFinalReview(runReviewInfo).pipe(Effect.provide(layer))),
+      Effect.ignore(openFinalReview(runReviewInfo).pipe(Effect.provide(layers))),
     );
   });
 });

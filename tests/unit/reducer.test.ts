@@ -11,7 +11,8 @@ import { RateLimitError } from "../../src/domain/errors.js";
 import type { PhaxEvent, PhaxEventType } from "../../src/domain/events.js";
 import { phaxDispositionMatrix } from "../../src/domain/matrix.js";
 import { interpret } from "../../src/domain/reducer.js";
-import type { PhaseSubState, PhaxState, PhaxStateName } from "../../src/domain/state.js";
+import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
+import type { PhaxState, PhaxStateName } from "../../src/domain/state.js";
 
 function unwrap<T>(e: Either.Either<T, unknown>): T {
   if (Either.isLeft(e)) throw new Error("decode failed");
@@ -34,14 +35,38 @@ const rateLimitError = new RateLimitError({
   rawMessage: "rate limited",
 });
 
+const sampleReviewInfo: RunReviewInfo = {
+  shortName: "run-1",
+  runId: "run-1",
+  runState: "running",
+  branch: "ai/run-1",
+  stateRoot: "/tmp/state",
+  runPath: "/tmp/state/runs/run-1",
+  finalPhaseId: "phase-01",
+  finalPhaseTitle: "Final",
+  worktreePath: "/tmp/wt",
+  claudeSessionId: undefined,
+  gateProfileId: undefined,
+  phaseStatuses: [],
+  planPhases: [],
+  updatedAt: "2026-05-20T12:00:00Z",
+  stoppedReason: undefined,
+  lastError: undefined,
+};
+
 /** Representative event of every variant — used by the consistency walker. */
 const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } = {
   RunStarted: { ...base, type: "RunStarted" },
   RunResumeRequested: { ...base, type: "RunResumeRequested" },
   RunInterruptRequested: { ...base, type: "RunInterruptRequested" },
-  RunArchiveRequested: { ...base, type: "RunArchiveRequested" },
+  RunArchiveRequested: {
+    ...base,
+    type: "RunArchiveRequested",
+    from: "/tmp/state/runs/run-1",
+    to: "/tmp/state/archive/run-1",
+  },
   RunFailed: { ...base, type: "RunFailed", cause: new Error("boom") },
-  FinalReviewOpened: { ...base, type: "FinalReviewOpened" },
+  FinalReviewOpened: { ...base, type: "FinalReviewOpened", info: sampleReviewInfo },
   RunCompleted: { ...base, type: "RunCompleted" },
   PhaseStartRequested: { ...base, type: "PhaseStartRequested", phaseId },
   WorktreeCreated: { ...base, type: "WorktreeCreated", phase: phaseId, path: worktreePath },

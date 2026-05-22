@@ -17,6 +17,7 @@ import type {
   ArchiveBlockedByDirtyWorktreeError,
   ClaudeInvocationError,
   ClaudeSessionIdMissingError,
+  RegistryCorruptionError,
 } from "../domain/errors.js";
 import { SetupCommandFailedError } from "../domain/errors.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
@@ -173,7 +174,7 @@ export function adaptCommit(
   base: PhaxEventBase,
 ): Effect.Effect<
   CommitCreated | null,
-  GitError | ShellError | FsError | SetupCommandFailedError,
+  GitError | ShellError | FsError | SetupCommandFailedError | RegistryCorruptionError,
   Git | Shell | FileSystem | Tracer
 > {
   return commitPhase(opts).pipe(
@@ -191,7 +192,12 @@ export function adaptCleanup(
   base: PhaxEventBase,
 ): Effect.Effect<
   CleanupCompleted | null,
-  SetupCommandFailedError | ArchiveBlockedByDirtyWorktreeError | GitError | ShellError | FsError,
+  | SetupCommandFailedError
+  | ArchiveBlockedByDirtyWorktreeError
+  | GitError
+  | ShellError
+  | FsError
+  | RegistryCorruptionError,
   Git | Shell | FileSystem | Tracer
 > {
   if (opts.isFinalPhase) {

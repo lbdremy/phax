@@ -6,6 +6,7 @@ import {
   type ClaudeInvocationError,
   type ClaudeSessionIdMissingError,
   type RateLimitError,
+  type RegistryCorruptionError,
   type SetupCommandFailedError,
   type UsageLimitError,
 } from "../domain/errors.js";
@@ -80,7 +81,8 @@ export function generatePhaseHandoff(
   | ClaudeSessionIdMissingError
   | RateLimitError
   | UsageLimitError
-  | HandoffValidationError,
+  | HandoffValidationError
+  | RegistryCorruptionError,
   FileSystem | Backend | Git | Shell | Tracer
 > {
   const { sessionId, agentOptions, phaseFolderPath, worktreePath, runPath, shortName, phaseId } =

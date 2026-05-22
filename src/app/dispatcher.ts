@@ -5,7 +5,7 @@ import type { PhaxCommand, PhaxCommandType, StatePatch } from "../domain/effects
 import type { PhaxEvent } from "../domain/events.js";
 import { interpret } from "../domain/reducer.js";
 import type { PhaseSubState, PhaxState } from "../domain/state.js";
-import type { SetupCommandFailedError } from "../domain/errors.js";
+import type { RegistryCorruptionError, SetupCommandFailedError } from "../domain/errors.js";
 import { FileSystem, FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
@@ -186,7 +186,7 @@ export function dispatch(
   ctx: DispatcherContext,
 ): Effect.Effect<
   DispatchResult,
-  FsError | GitError | ShellError | SetupCommandFailedError,
+  FsError | GitError | ShellError | SetupCommandFailedError | RegistryCorruptionError,
   FileSystem | Git | Shell | Tracer
 > {
   return Effect.gen(function* () {
@@ -270,7 +270,15 @@ export function dispatch(
         details: { entity: "run", to: patch.run.state },
       });
     }
-    if (patch.phase !== undefined && patch.phase.state !== undefined) {
+    // Only emit a phase state.transition trace when a phase folder exists in
+    // the dispatcher context; otherwise the runner did not persist the phase
+    // patch (e.g., the RunStarted event transitions the reducer to phase
+    // "pending" but no phase folder has been created yet).
+    if (
+      patch.phase !== undefined &&
+      patch.phase.state !== undefined &&
+      ctx.phaseFolderPath !== undefined
+    ) {
       yield* tracer.event({
         timestamp: new Date().toISOString(),
         run: ctx.shortName,
