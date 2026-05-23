@@ -82,7 +82,7 @@ const ctx: DispatcherContext = {
 };
 
 describe("dispatch — handled transitions", () => {
-  it("transitions created → running on RunStarted and emits state.transition", async () => {
+  it("transitions created → running on RunStarted and persists the new run state", async () => {
     const fakeFs = seedFs({ runState: "created" });
     const { layer, fakeTracer } = makeLayers(fakeFs);
 
@@ -99,7 +99,6 @@ describe("dispatch — handled transitions", () => {
 
     const names = fakeTracer.impl.eventNames();
     expect(names).toContain("event.handled");
-    expect(names).toContain("state.transition");
 
     const persisted = JSON.parse(fakeFs.impl.getFile(`${runPath}/run-status.json`)!) as {
       state: string;
@@ -126,11 +125,11 @@ describe("dispatch — handled transitions", () => {
     };
     expect(phasePersisted.state).toBe("setting_up_worktree");
 
-    const transitionEvents = fakeTracer.impl.events.filter((e) => e.event === "state.transition");
-    expect(transitionEvents).toHaveLength(1);
-    expect(transitionEvents[0]?.details).toMatchObject({
-      entity: "phase",
-      to: "setting_up_worktree",
+    const handled = fakeTracer.impl.events.filter((e) => e.event === "event.handled");
+    expect(handled).toHaveLength(1);
+    expect(handled[0]?.details).toMatchObject({
+      eventType: "PhaseStartRequested",
+      phaseStateBefore: "pending",
     });
   });
 
@@ -183,7 +182,6 @@ describe("dispatch — non-handled dispositions", () => {
 
     const names = fakeTracer.impl.eventNames();
     expect(names).toContain("event.stale");
-    expect(names).not.toContain("state.transition");
   });
 
   it("emits event.rejected on archive-from-running", async () => {

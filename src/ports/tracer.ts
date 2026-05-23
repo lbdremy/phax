@@ -9,7 +9,6 @@ export type TraceEventName =
   | "config.validated"
   | "contract.validated"
   | "contract.invalid"
-  | "state.transition"
   | "git.worktree.created"
   | "git.commit.created"
   | "agent.invocation.started"

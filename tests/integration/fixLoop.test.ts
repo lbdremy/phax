@@ -118,11 +118,10 @@ describe("runGatesWithFixLoop", () => {
     const dispositionTypes = dispositionEvents.map((e) => e.details?.eventType);
     expect(dispositionTypes).toEqual(["GateFailed", "FixStarted", "FixCompleted", "GatePassed"]);
 
-    // Phase state transitions reflect the reducer's view.
-    const phaseTransitions = fakeTracer.impl.events
-      .filter((e) => e.event === "state.transition")
-      .map((e) => (e.details as { entity?: string; to?: string }).to);
-    expect(phaseTransitions).toEqual(["gates_failed", "fixing", "running", "passed"]);
+    const persisted = JSON.parse(
+      fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!,
+    ) as { state: string };
+    expect(persisted.state).toBe("passed");
   });
 
   it("fails with GateFailedError and dispatches FixAttemptsExhausted after all attempts fail", async () => {
@@ -148,10 +147,10 @@ describe("runGatesWithFixLoop", () => {
       .map((e) => e.details?.eventType);
     expect(dispositionTypes).toContain("FixAttemptsExhausted");
 
-    const phaseTransitions = fakeTracer.impl.events
-      .filter((e) => e.event === "state.transition")
-      .map((e) => (e.details as { entity?: string; to?: string }).to);
-    expect(phaseTransitions[phaseTransitions.length - 1]).toBe("failed");
+    const persisted = JSON.parse(
+      fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!,
+    ) as { state: string };
+    expect(persisted.state).toBe("failed");
   });
 
   it("includes gate output in the fix prompt sent to resumeAgentSession", async () => {
