@@ -123,36 +123,8 @@ export const settingUpToRunning = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "running", ["setting_up_worktree"]);
 
 /** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
-export const runningToGatesFailed = (state: PhaseState): PhaseTransition =>
-  phaseTransition(state, "gates_failed", ["running"]);
-
-/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
-export const gatesFailedToFixing = (state: PhaseState): PhaseTransition =>
-  phaseTransition(state, "fixing", ["gates_failed"]);
-
-/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
-export const fixingToRunning = (state: PhaseState): PhaseTransition =>
-  phaseTransition(state, "running", ["fixing"]);
-
-/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const runningToPassed = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "passed", ["running", "fixing"]);
-
-/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
-export const failPhase = (state: PhaseState): PhaseTransition =>
-  phaseTransition(state, "failed", ["running", "fixing", "gates_failed", "setting_up_worktree"]);
-
-/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
-export const passedToCommitted = (state: PhaseState): PhaseTransition =>
-  phaseTransition(state, "committed", ["passed"]);
-
-/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
-export const committedToCleaningUp = (state: PhaseState): PhaseTransition =>
-  phaseTransition(state, "cleaning_up", ["committed"]);
-
-/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
-export const cleaningUpToCleanedUp = (state: PhaseState): PhaseTransition =>
-  phaseTransition(state, "cleaned_up", ["cleaning_up"]);
 
 /** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const committedToCleanedUp = (state: PhaseState): PhaseTransition =>
@@ -161,10 +133,6 @@ export const committedToCleanedUp = (state: PhaseState): PhaseTransition =>
 /** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const committedToReviewOpen = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "review_open", ["committed"]);
-
-/** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
-export const passedToHandoffFailed = (state: PhaseState): PhaseTransition =>
-  phaseTransition(state, "handoff_failed", ["passed"]);
 
 /** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const skipPhase = (state: PhaseState): PhaseTransition =>

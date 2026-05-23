@@ -18,6 +18,11 @@ export function clearRunInterruptContext(): void {
   activeRunContext = undefined;
 }
 
+// Sanctioned bypass of the dispatcher single-writer invariant: SIGINT/SIGTERM
+// handlers run in a synchronous context where Effect / await are unavailable,
+// so the interrupt path writes run-status.json directly with the synchronous
+// fs API. The architectural guard test allows this file to import the status
+// schemas for the same reason.
 function syncWriteInterruptedState(ctx: RunInterruptContext): void {
   const statusPath = join(ctx.stateRoot, "runs", ctx.shortName, "run-status.json");
   if (!existsSync(statusPath)) return;
