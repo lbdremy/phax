@@ -286,9 +286,9 @@ export function adaptWorktreeCreate(
 ): Effect.Effect<WorktreeCreated, GitError, Git> {
   return Git.pipe(
     Effect.flatMap((git) =>
-      git.addWorktree(branch, path, repoRoot).pipe(
-        Effect.map((): WorktreeCreated => ({ ...base, type: "WorktreeCreated", path })),
-      ),
+      git
+        .addWorktree(branch, path, repoRoot)
+        .pipe(Effect.map((): WorktreeCreated => ({ ...base, type: "WorktreeCreated", path }))),
     ),
   );
 }

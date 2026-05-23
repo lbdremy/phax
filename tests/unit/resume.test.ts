@@ -56,10 +56,7 @@ describe("inspectResume", () => {
   });
 
   it("refuses runs in created state with reason=created", () => {
-    writeFileSync(
-      join(runPath, "run-status.json"),
-      JSON.stringify(makeRunStatus("created")),
-    );
+    writeFileSync(join(runPath, "run-status.json"), JSON.stringify(makeRunStatus("created")));
     writeFileSync(
       join(runPath, "phase-01", "status.json"),
       JSON.stringify(makePhaseStatus("pending")),
@@ -94,10 +91,7 @@ describe("inspectResume", () => {
   });
 
   it("refuses runs in review_open state with reason=review_open", () => {
-    writeFileSync(
-      join(runPath, "run-status.json"),
-      JSON.stringify(makeRunStatus("review_open")),
-    );
+    writeFileSync(join(runPath, "run-status.json"), JSON.stringify(makeRunStatus("review_open")));
     writeFileSync(
       join(runPath, "phase-01", "status.json"),
       JSON.stringify(makePhaseStatus("review_open")),
@@ -112,10 +106,7 @@ describe("inspectResume", () => {
   });
 
   it("allows runs in rate_limited state", () => {
-    writeFileSync(
-      join(runPath, "run-status.json"),
-      JSON.stringify(makeRunStatus("rate_limited")),
-    );
+    writeFileSync(join(runPath, "run-status.json"), JSON.stringify(makeRunStatus("rate_limited")));
     writeFileSync(
       join(runPath, "phase-01", "status.json"),
       JSON.stringify(makePhaseStatus("rate_limited")),

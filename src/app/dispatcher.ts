@@ -36,9 +36,7 @@ export interface DispatchResult {
   readonly executedEffects: readonly PhaxCommandType[];
 }
 
-function readPhaxState(
-  ctx: DispatcherContext,
-): Effect.Effect<PhaxState, FsError, FileSystem> {
+function readPhaxState(ctx: DispatcherContext): Effect.Effect<PhaxState, FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const runRaw = yield* fs.readText(join(ctx.runPath, "run-status.json"));
@@ -89,9 +87,7 @@ function diffPatch(before: PhaxState, after: PhaxState): StatePatch {
   let runPatch: Partial<RunStatus> | undefined;
   if (beforeRun !== afterRun) {
     runPatch =
-      after.run === "failed"
-        ? { state: afterRun, lastError: after.cause }
-        : { state: afterRun };
+      after.run === "failed" ? { state: afterRun, lastError: after.cause } : { state: afterRun };
   }
 
   let phasePatch: Partial<PhaseStatus> | undefined;

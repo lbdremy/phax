@@ -56,7 +56,11 @@ export async function runSessionInfo(shortNameArg: string, out: OutputPort): Pro
     }`,
   );
 
-  const runState = composePhaxState(info.runState as RunStatus["state"], info.lastError, currentPhase);
+  const runState = composePhaxState(
+    info.runState as RunStatus["state"],
+    info.lastError,
+    currentPhase,
+  );
   out.log(
     `Suggested resume: ${
       canResume(runState)

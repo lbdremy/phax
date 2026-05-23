@@ -110,10 +110,7 @@ export function executePlan(
     };
   }
 
-  function dispatchCtx(
-    phaseFolderPath?: string,
-    phaseId?: string,
-  ): DispatcherContext {
+  function dispatchCtx(phaseFolderPath?: string, phaseId?: string): DispatcherContext {
     return {
       runPath,
       shortName: shortName as string,
@@ -247,10 +244,7 @@ export function executePlan(
 
       // setting_up_worktree → running (Ignored on a resumed phase already
       // running).
-      yield* dispatch(
-        { ...eventBase(phase.id), type: "WorktreeCreated", path: worktreePath },
-        ctx,
-      );
+      yield* dispatch({ ...eventBase(phase.id), type: "WorktreeCreated", path: worktreePath }, ctx);
 
       yield* setupPhase({ worktreePath, phaseFolderPath, setupCommands });
 
@@ -414,10 +408,7 @@ export function executePlan(
           worktreePath: currentWorktreePath as WorktreePath | undefined,
           sessionId: currentSessionId as never,
         };
-        yield* dispatch(
-          rateLimitEvent,
-          dispatchCtx(currentPhaseFolderPath, currentPhaseId),
-        );
+        yield* dispatch(rateLimitEvent, dispatchCtx(currentPhaseFolderPath, currentPhaseId));
         return yield* Effect.fail(e);
       }).pipe(Effect.catchAll(() => Effect.fail(e))),
     ),
