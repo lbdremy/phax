@@ -4,6 +4,7 @@ import { Either } from "effect";
 import type { RunId, ShortName } from "../domain/branded.js";
 import { interpret } from "../domain/reducer.js";
 import { TERMINAL_PHASE_STATES } from "../domain/state.js";
+import type { PhaxState } from "../domain/state.js";
 import type { RunStatus, PhaseStatus } from "../schemas/status.js";
 import { resolveRunByShortName, findCurrentPhase } from "./resolveRunInfo.js";
 import { composePhaxState } from "./phaxState.js";
@@ -48,6 +49,16 @@ function refusalMessageForRunState(shortName: string, runState: RunStatus["state
     default:
       return `Run "${shortName}" cannot be resumed from state "${runState}".`;
   }
+}
+
+export function canResume(state: PhaxState): boolean {
+  const disposition = interpret(state, {
+    type: "RunResumeRequested",
+    eventId: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    run: "" as RunId,
+  });
+  return disposition.kind === "Handled" || disposition.kind === "Ignored";
 }
 
 export function inspectResume(

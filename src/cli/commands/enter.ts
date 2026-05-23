@@ -9,8 +9,6 @@ import {
   type RunReviewInfo,
 } from "../../app/resolveRunInfo.js";
 
-const ENTERABLE_RUN_STATES = new Set(["review_open", "rate_limited", "interrupted", "failed"]);
-
 export function spawnClaudeResume(
   sessionId: string,
   worktreePath: string,
@@ -32,14 +30,6 @@ export function spawnClaudeResume(
 }
 
 function enterRun(info: RunReviewInfo, out: OutputPort): number {
-  if (!ENTERABLE_RUN_STATES.has(info.runState)) {
-    out.error(
-      `Run "${info.shortName}" is in state "${info.runState}" — no interactive session is available. ` +
-        `Entry is only possible for: ${[...ENTERABLE_RUN_STATES].join(", ")}.`,
-    );
-    return 1;
-  }
-
   if (!info.claudeSessionId) {
     out.error(`No Claude session ID found for run "${info.shortName}".`);
     return 1;

@@ -3,6 +3,9 @@ import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunByShortName, findCurrentPhase } from "../../app/resolveRunInfo.js";
+import { canResume } from "../../app/resume.js";
+import { composePhaxState } from "../../app/phaxState.js";
+import type { RunStatus } from "../../schemas/status.js";
 
 export async function runSessionInfo(shortNameArg: string, out: OutputPort): Promise<number> {
   const configResult = loadConfig(process.cwd());
@@ -53,10 +56,10 @@ export async function runSessionInfo(shortNameArg: string, out: OutputPort): Pro
     }`,
   );
 
-  const RESUMABLE_STATES = new Set(["rate_limited", "interrupted", "failed"]);
+  const runState = composePhaxState(info.runState as RunStatus["state"], info.lastError, currentPhase);
   out.log(
     `Suggested resume: ${
-      RESUMABLE_STATES.has(info.runState)
+      canResume(runState)
         ? `phax resume ${info.shortName}`
         : "(run is not resumable from this state)"
     }`,
