@@ -188,6 +188,16 @@ phax unlock <short-name> --force  # remove any lock
 
 **Format conflicts** — run `pnpm format`, do not add lint exceptions. **Knip failures** — remove the dead code or wire it into an entry point, do not add `ignoreDependencies` entries casually.
 
+## State Machine
+
+phax is implemented as an explicit hierarchical state machine. Every signal (gate result, rate limit, agent completion, archive request) is a typed `PhaxEvent`. The pure reducer returns a `Disposition` — `Handled`, `Ignored`, `Stale`, `Rejected`, or `Unexpected` — plus optional side-effect commands. The single `dispatch()` entry point is the only writer to `status.json` and `run-status.json`.
+
+See [`docs/state-machine.md`](docs/state-machine.md) for:
+- Mermaid diagrams of the run and phase hierarchies
+- The full event-disposition matrix
+- The event and command vocabularies
+- A worked example of adding a new signal
+
 ## Security notes
 
 `phax` never interpolates user-controlled data (branch names, workspace paths, plan fields) into shell command strings. All git and shell invocations pass arguments as separate `argv` tokens. Gate commands from `phax.json` are treated as opaque pre-validated arrays, not shell strings.
