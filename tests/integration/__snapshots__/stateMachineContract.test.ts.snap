@@ -35,16 +35,6 @@ exports[`State Machine Contract > snapshots the ordered trace event sequence for
   {
     "boundary": undefined,
     "details": {
-      "entity": "run",
-      "to": "running",
-    },
-    "event": "state.transition",
-    "phase": undefined,
-    "status": "ok",
-  },
-  {
-    "boundary": undefined,
-    "details": {
       "eventId": "<uuid>",
       "eventType": "RunResumeRequested",
       "phaseStateBefore": "pending",
@@ -68,16 +58,6 @@ exports[`State Machine Contract > snapshots the ordered trace event sequence for
     "status": "ok",
   },
   {
-    "boundary": undefined,
-    "details": {
-      "entity": "phase",
-      "to": "setting_up_worktree",
-    },
-    "event": "state.transition",
-    "phase": "phase-01",
-    "status": "ok",
-  },
-  {
     "boundary": "worktree",
     "details": {
       "worktreePath": "<tmpdir>/worktrees/my-run/phase-01",
@@ -95,16 +75,6 @@ exports[`State Machine Contract > snapshots the ordered trace event sequence for
       "runStateBefore": "running",
     },
     "event": "event.handled",
-    "phase": "phase-01",
-    "status": "ok",
-  },
-  {
-    "boundary": undefined,
-    "details": {
-      "entity": "phase",
-      "to": "running",
-    },
-    "event": "state.transition",
     "phase": "phase-01",
     "status": "ok",
   },
@@ -165,16 +135,6 @@ exports[`State Machine Contract > snapshots the ordered trace event sequence for
     "status": "ok",
   },
   {
-    "boundary": undefined,
-    "details": {
-      "entity": "phase",
-      "to": "passed",
-    },
-    "event": "state.transition",
-    "phase": "phase-01",
-    "status": "ok",
-  },
-  {
     "boundary": "phase-handoff.md",
     "details": undefined,
     "event": "handoff.requested",
@@ -201,16 +161,6 @@ exports[`State Machine Contract > snapshots the ordered trace event sequence for
     "status": "ok",
   },
   {
-    "boundary": undefined,
-    "details": {
-      "entity": "phase",
-      "to": "committed",
-    },
-    "event": "state.transition",
-    "phase": "phase-01",
-    "status": "ok",
-  },
-  {
     "boundary": "git",
     "details": {
       "subject": "ai(phase-01): do thing",
@@ -228,26 +178,6 @@ exports[`State Machine Contract > snapshots the ordered trace event sequence for
       "runStateBefore": "running",
     },
     "event": "event.handled",
-    "phase": "phase-01",
-    "status": "ok",
-  },
-  {
-    "boundary": undefined,
-    "details": {
-      "entity": "run",
-      "to": "review_open",
-    },
-    "event": "state.transition",
-    "phase": undefined,
-    "status": "ok",
-  },
-  {
-    "boundary": undefined,
-    "details": {
-      "entity": "phase",
-      "to": "review_open",
-    },
-    "event": "state.transition",
     "phase": "phase-01",
     "status": "ok",
   },
