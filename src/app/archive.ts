@@ -6,9 +6,9 @@ import { Git, type GitError } from "../ports/git.js";
 import { Lock } from "../ports/lock.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { Tracer } from "../ports/tracer.js";
-import { decodeRunStatus } from "../schemas/status.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
+  InvalidTransitionError,
   RegistryCorruptionError,
   LockConflictError,
   SetupCommandFailedError,
@@ -35,6 +35,7 @@ export function archive(
   | SetupCommandFailedError
   | RegistryCorruptionError
   | ArchiveBlockedByDirtyWorktreeError
+  | InvalidTransitionError
   | LockConflictError,
   FileSystem | Git | Shell | Lock | Tracer
 > {
@@ -56,41 +57,15 @@ export function archive(
       );
     }
 
-    // 2. Refuse unless run is review_open or completed
+    // 2. Find the final worktree path from phase statuses
     const runPath = join(stateRoot, "runs", shortName);
-    const runStatusPath = join(runPath, "run-status.json");
-    const rawText = yield* fs.readText(runStatusPath);
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(rawText) as unknown;
-    } catch {
-      return yield* Effect.fail(
-        new FsError({ message: `Failed to parse run-status.json at "${runStatusPath}"` }),
-      );
-    }
-    const decoded = decodeRunStatus(parsed);
-    if (Either.isLeft(decoded)) {
-      return yield* Effect.fail(
-        new FsError({ message: `Invalid run-status.json at "${runStatusPath}"` }),
-      );
-    }
-    const runStatus = decoded.right;
-    if (runStatus.state !== "review_open" && runStatus.state !== "completed") {
-      return yield* Effect.fail(
-        new FsError({
-          message: `Cannot archive run "${shortName}" in state "${runStatus.state}". Run must be review_open or completed.`,
-        }),
-      );
-    }
-
-    // 3. Find the final worktree path from phase statuses
     const infoResult = yield* Effect.sync(() => resolveRunByShortName(shortName, stateRoot));
     const worktreePath =
       Either.isRight(infoResult) && infoResult.right.worktreePath
         ? (infoResult.right.worktreePath as WorktreePath)
         : undefined;
 
-    // 4. Check final worktree cleanliness
+    // 3. Check final worktree cleanliness
     if (worktreePath) {
       const worktreeExists = yield* fs.exists(worktreePath);
       if (worktreeExists) {
@@ -106,11 +81,13 @@ export function archive(
       }
     }
 
-    // 5. Dispatch RunArchiveRequested: reducer transitions run → archived,
-    //    emits MoveRunToArchive (rename runs/<short> → archive/<short>) and
-    //    PersistState(archivePath). The dispatcher writes run-status.json.
+    // 4. Dispatch RunArchiveRequested. The reducer is the source of truth for
+    //    which run states allow archiving (review_open and completed); any
+    //    other state comes back as a Rejected disposition and we surface that
+    //    as an InvalidTransitionError. On Handled, the reducer emits
+    //    MoveRunToArchive and the dispatcher persists run-status.json.
     const archivePath = join(stateRoot, "archive", shortName);
-    yield* dispatch(
+    const result = yield* dispatch(
       {
         eventId: randomUUID(),
         occurredAt: new Date().toISOString(),
@@ -121,8 +98,17 @@ export function archive(
       },
       { runPath, shortName: shortName as string },
     );
+    if (result.disposition !== "Handled") {
+      return yield* Effect.fail(
+        new InvalidTransitionError({
+          from: result.stateBefore.run,
+          to: "archived",
+          entity: "run",
+        }),
+      );
+    }
 
-    // 6. Remove the final worktree only if clean (or if force)
+    // 5. Remove the final worktree only if clean (or if force)
     if (worktreePath) {
       const worktreeExists = yield* fs.exists(worktreePath);
       if (worktreeExists) {
@@ -137,7 +123,7 @@ export function archive(
       }
     }
 
-    // 7. Update registry index (run-status.json is already written by the
+    // 6. Update registry index (run-status.json is already written by the
     //    dispatcher above; this call only refreshes the central registry.json).
     yield* setRunStatus(stateRoot, shortName, {
       state: "archived",
