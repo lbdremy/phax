@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
+import { isPhaseTerminal } from "../domain/state.js";
 import type { RunReviewInfo } from "./resolveRunInfo.js";
 import type { PhaseStatus } from "../schemas/status.js";
 
@@ -16,10 +17,8 @@ function formatDuration(startIso: string, endIso: string): string {
   return `${s}s`;
 }
 
-const TERMINAL_PHASE_STATES = new Set(["committed", "cleaned_up", "review_open", "skipped"]);
-
 function isPhaseSuccessful(p: PhaseStatus): boolean {
-  return TERMINAL_PHASE_STATES.has(p.state) && p.state !== "skipped";
+  return isPhaseTerminal(p.state as any) && p.state !== "skipped";
 }
 
 function buildFinalReportMarkdown(info: RunReviewInfo): string {
