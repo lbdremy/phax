@@ -110,8 +110,8 @@ All events share a base shape:
 
 ```typescript
 interface PhaxEventBase {
-  eventId: string;       // unique per event
-  occurredAt: string;    // ISO-8601
+  eventId: string; // unique per event
+  occurredAt: string; // ISO-8601
   run: RunId;
   phase?: PhaseId;
   correlationId?: string;
@@ -120,54 +120,54 @@ interface PhaxEventBase {
 
 ### Run-shaped events
 
-| Event | Trigger |
-|---|---|
-| `RunStarted` | `phax run` initialises a new run |
-| `RunResumeRequested` | `phax resume` after rate-limit or interrupt |
-| `RunInterruptRequested` | SIGINT / SIGTERM received |
-| `RunArchiveRequested` | `phax archive` (carries `from` / `to` paths) |
-| `RunFailed` | unrecoverable error (carries `cause`) |
-| `FinalReviewOpened` | last phase finished; review worktree opened (carries `info`) |
-| `RunCompleted` | all phases done, no review phase |
+| Event                   | Trigger                                                      |
+| ----------------------- | ------------------------------------------------------------ |
+| `RunStarted`            | `phax run` initialises a new run                             |
+| `RunResumeRequested`    | `phax resume` after rate-limit or interrupt                  |
+| `RunInterruptRequested` | SIGINT / SIGTERM received                                    |
+| `RunArchiveRequested`   | `phax archive` (carries `from` / `to` paths)                 |
+| `RunFailed`             | unrecoverable error (carries `cause`)                        |
+| `FinalReviewOpened`     | last phase finished; review worktree opened (carries `info`) |
+| `RunCompleted`          | all phases done, no review phase                             |
 
 ### Phase-shaped events
 
-| Event | Trigger |
-|---|---|
-| `PhaseStartRequested` | orchestrator starts the next phase (carries `phaseId`) |
-| `WorktreeCreated` | `git worktree add` succeeded (carries `path`) |
-| `AgentInvocationStarted` | Claude Code subprocess launched |
-| `AgentInvocationCompleted` | Claude Code subprocess exited (carries `sessionId`) |
-| `GateStarted` | gate suite begins (carries `attempt`) |
-| `GatePassed` | all gate commands exited 0 (carries `attempt`) |
-| `GateFailed` | a gate command failed (carries `command`, `exitCode`, `logPath`, `attempt`) |
-| `FixStarted` | fix-loop iteration begins (carries `attempt`) |
-| `FixCompleted` | fix agent exited (carries `sessionId`) |
-| `FixAttemptsExhausted` | max fix attempts reached without passing |
-| `HandoffRequested` | orchestrator asks Claude to write `phase-handoff.md` |
-| `HandoffValidated` | handoff sections all present |
-| `HandoffMissing` | handoff validation failed (carries `missingSections`) |
-| `CommitCreated` | `git commit` succeeded (carries `hash`) |
-| `CleanupStarted` | cleanup shell commands starting |
-| `CleanupCompleted` | worktree removed, cleanup done |
+| Event                      | Trigger                                                                     |
+| -------------------------- | --------------------------------------------------------------------------- |
+| `PhaseStartRequested`      | orchestrator starts the next phase (carries `phaseId`)                      |
+| `WorktreeCreated`          | `git worktree add` succeeded (carries `path`)                               |
+| `AgentInvocationStarted`   | Claude Code subprocess launched                                             |
+| `AgentInvocationCompleted` | Claude Code subprocess exited (carries `sessionId`)                         |
+| `GateStarted`              | gate suite begins (carries `attempt`)                                       |
+| `GatePassed`               | all gate commands exited 0 (carries `attempt`)                              |
+| `GateFailed`               | a gate command failed (carries `command`, `exitCode`, `logPath`, `attempt`) |
+| `FixStarted`               | fix-loop iteration begins (carries `attempt`)                               |
+| `FixCompleted`             | fix agent exited (carries `sessionId`)                                      |
+| `FixAttemptsExhausted`     | max fix attempts reached without passing                                    |
+| `HandoffRequested`         | orchestrator asks Claude to write `phase-handoff.md`                        |
+| `HandoffValidated`         | handoff sections all present                                                |
+| `HandoffMissing`           | handoff validation failed (carries `missingSections`)                       |
+| `CommitCreated`            | `git commit` succeeded (carries `hash`)                                     |
+| `CleanupStarted`           | cleanup shell commands starting                                             |
+| `CleanupCompleted`         | worktree removed, cleanup done                                              |
 
 ### Cross-cutting
 
-| Event | Trigger |
-|---|---|
+| Event               | Trigger                                                                                                                |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `RateLimitDetected` | `RateLimitError` or `UsageLimitError` from Claude (carries `kind`, `resetAt?`, `cause`, `worktreePath?`, `sessionId?`) |
 
 ## Dispositions
 
 Every `(state, event)` pair produces exactly one of:
 
-| Kind | Meaning |
-|---|---|
-| `Handled` | transition applied; `nextState` + `effects` populated |
-| `Ignored` | event valid but no state change needed (e.g. duplicate `RunResumeRequested` while already running) |
-| `Stale` | event arrived after the machine moved past the state it targets (e.g. `GateFailed` against a `committed` phase) |
-| `Rejected` | event is illegal in this state (e.g. `RunStarted` while `running`) |
-| `Unexpected` | event should never occur here — signals a bug in the caller |
+| Kind         | Meaning                                                                                                         |
+| ------------ | --------------------------------------------------------------------------------------------------------------- |
+| `Handled`    | transition applied; `nextState` + `effects` populated                                                           |
+| `Ignored`    | event valid but no state change needed (e.g. duplicate `RunResumeRequested` while already running)              |
+| `Stale`      | event arrived after the machine moved past the state it targets (e.g. `GateFailed` against a `committed` phase) |
+| `Rejected`   | event is illegal in this state (e.g. `RunStarted` while `running`)                                              |
+| `Unexpected` | event should never occur here — signals a bug in the caller                                                     |
 
 The disposition is emitted as a trace event (`event.handled`, `event.ignored`, `event.stale`, `event.rejected`, `event.unexpected`) alongside the existing `state.transition` event, carrying `{ stateBefore, eventType, disposition, reason, eventId, correlationId }`.
 
@@ -175,53 +175,53 @@ The disposition is emitted as a trace event (`event.handled`, `event.ignored`, `
 
 The compile-time `phaxDispositionMatrix` in `src/domain/matrix.ts` declares the expected disposition kind for every `(run-state, event)` pair. TypeScript's `satisfies` keyword rejects any missing cell.
 
-| Event ↓ / Run state → | created | running | rate_limited | interrupted | review_open | failed | completed | stopped | archived |
-|---|---|---|---|---|---|---|---|---|---|
-| `RunStarted` | **H** | R | R | R | R | R | R | R | R |
-| `RunResumeRequested` | R | I | **H** | **H** | R | R | R | R | R |
-| `RunInterruptRequested` | R | **H** | **H** | I | R | R | R | R | R |
-| `RunArchiveRequested` | R | R | R | R | **H** | R | **H** | R | R |
-| `RunFailed` | R | **H** | **H** | **H** | R | I | R | R | R |
-| `FinalReviewOpened` | U | U | U | U | I | R | R | R | R |
-| `RunCompleted` | U | **H** | R | R | R | R | I | R | R |
-| `PhaseStartRequested` | R | I | R | R | R | S | S | S | S |
-| `WorktreeCreated` | U | I | S | S | S | S | S | S | S |
-| `AgentInvocationStarted` | U | **H** | U | S | U | S | S | S | S |
-| `AgentInvocationCompleted` | U | **H** | S | S | U | S | S | S | S |
-| `GateStarted` | U | **H** | U | S | U | S | S | S | S |
-| `GatePassed` | U | **H** | S | S | U | S | S | S | S |
-| `GateFailed` | U | **H** | S | S | U | S | S | S | S |
-| `FixStarted` | U | U | U | S | U | S | S | S | S |
-| `FixCompleted` | U | U | S | S | U | S | S | S | S |
-| `FixAttemptsExhausted` | U | U | S | S | U | S | S | S | S |
-| `HandoffRequested` | U | U | U | S | U | S | S | S | S |
-| `HandoffValidated` | U | U | U | S | U | S | S | S | S |
-| `HandoffMissing` | U | U | U | S | U | S | S | S | S |
-| `CommitCreated` | U | U | U | S | U | S | S | S | S |
-| `CleanupStarted` | U | U | U | S | U | S | S | S | S |
-| `CleanupCompleted` | U | U | S | S | U | S | S | S | S |
-| `RateLimitDetected` | U | **H** | I | I | S | S | S | S | S |
+| Event ↓ / Run state →      | created | running | rate_limited | interrupted | review_open | failed | completed | stopped | archived |
+| -------------------------- | ------- | ------- | ------------ | ----------- | ----------- | ------ | --------- | ------- | -------- |
+| `RunStarted`               | **H**   | R       | R            | R           | R           | R      | R         | R       | R        |
+| `RunResumeRequested`       | R       | I       | **H**        | **H**       | R           | R      | R         | R       | R        |
+| `RunInterruptRequested`    | R       | **H**   | **H**        | I           | R           | R      | R         | R       | R        |
+| `RunArchiveRequested`      | R       | R       | R            | R           | **H**       | R      | **H**     | R       | R        |
+| `RunFailed`                | R       | **H**   | **H**        | **H**       | R           | I      | R         | R       | R        |
+| `FinalReviewOpened`        | U       | U       | U            | U           | I           | R      | R         | R       | R        |
+| `RunCompleted`             | U       | **H**   | R            | R           | R           | R      | I         | R       | R        |
+| `PhaseStartRequested`      | R       | I       | R            | R           | R           | S      | S         | S       | S        |
+| `WorktreeCreated`          | U       | I       | S            | S           | S           | S      | S         | S       | S        |
+| `AgentInvocationStarted`   | U       | **H**   | U            | S           | U           | S      | S         | S       | S        |
+| `AgentInvocationCompleted` | U       | **H**   | S            | S           | U           | S      | S         | S       | S        |
+| `GateStarted`              | U       | **H**   | U            | S           | U           | S      | S         | S       | S        |
+| `GatePassed`               | U       | **H**   | S            | S           | U           | S      | S         | S       | S        |
+| `GateFailed`               | U       | **H**   | S            | S           | U           | S      | S         | S       | S        |
+| `FixStarted`               | U       | U       | U            | S           | U           | S      | S         | S       | S        |
+| `FixCompleted`             | U       | U       | S            | S           | U           | S      | S         | S       | S        |
+| `FixAttemptsExhausted`     | U       | U       | S            | S           | U           | S      | S         | S       | S        |
+| `HandoffRequested`         | U       | U       | U            | S           | U           | S      | S         | S       | S        |
+| `HandoffValidated`         | U       | U       | U            | S           | U           | S      | S         | S       | S        |
+| `HandoffMissing`           | U       | U       | U            | S           | U           | S      | S         | S       | S        |
+| `CommitCreated`            | U       | U       | U            | S           | U           | S      | S         | S       | S        |
+| `CleanupStarted`           | U       | U       | U            | S           | U           | S      | S         | S       | S        |
+| `CleanupCompleted`         | U       | U       | S            | S           | U           | S      | S         | S       | S        |
+| `RateLimitDetected`        | U       | **H**   | I            | I           | S           | S      | S         | S       | S        |
 
 **H** = Handled, **I** = Ignored, **S** = Stale, **R** = Rejected, **U** = Unexpected
 
-> Note: cells for `running` and `rate_limited` / `interrupted` reflect the *canonical* phase substate (`running`). Phase-substates like `committed` or `cleaned_up` may produce a different kind — the reducer is the source of truth.
+> Note: cells for `running` and `rate_limited` / `interrupted` reflect the _canonical_ phase substate (`running`). Phase-substates like `committed` or `cleaned_up` may produce a different kind — the reducer is the source of truth.
 
 ## Effect Commands
 
 The reducer emits `PhaxCommand[]` for `Handled` dispositions. The effect runner executes them in order:
 
-| Command | Effect |
-|---|---|
-| `PersistState { patch }` | write `run-status.json` + `status.json` atomically |
-| `EmitTrace { name, status, details }` | append to `trace.jsonl` via the `Tracer` port |
-| `WriteResumeInstructions { ctx }` | write `resume.md` with rate-limit context |
-| `RemoveWorktree { path, force, repoRoot }` | `git worktree remove` |
-| `RunCleanupShell { commands, cwd }` | execute cleanup shell commands sequentially |
-| `WriteAtomic { path, content }` | `FileSystem.writeAtomic` |
-| `OpenRunReview { info }` | open review worktree, write `review-handoff.md` |
-| `WriteFinalReport { info }` | write final report |
-| `MoveRunToArchive { from, to }` | rename run directory |
-| `RecordCommitMetadata { hash }` | write commit hash to phase metadata |
+| Command                                    | Effect                                             |
+| ------------------------------------------ | -------------------------------------------------- |
+| `PersistState { patch }`                   | write `run-status.json` + `status.json` atomically |
+| `EmitTrace { name, status, details }`      | append to `trace.jsonl` via the `Tracer` port      |
+| `WriteResumeInstructions { ctx }`          | write `resume.md` with rate-limit context          |
+| `RemoveWorktree { path, force, repoRoot }` | `git worktree remove`                              |
+| `RunCleanupShell { commands, cwd }`        | execute cleanup shell commands sequentially        |
+| `WriteAtomic { path, content }`            | `FileSystem.writeAtomic`                           |
+| `OpenRunReview { info }`                   | open review worktree, write `review-handoff.md`    |
+| `WriteFinalReport { info }`                | write final report                                 |
+| `MoveRunToArchive { from, to }`            | rename run directory                               |
+| `RecordCommitMetadata { hash }`            | write commit hash to phase metadata                |
 
 ## Happy-Path Trace Sequence
 

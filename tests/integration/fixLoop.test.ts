@@ -114,9 +114,7 @@ describe("runGatesWithFixLoop", () => {
     expect(outcome.attemptLogPath).toContain("checks-attempt-02");
 
     // The event sequence: GateFailed → FixStarted → FixCompleted → GatePassed.
-    const dispositionEvents = fakeTracer.impl.events.filter(
-      (e) => e.event === "event.handled",
-    );
+    const dispositionEvents = fakeTracer.impl.events.filter((e) => e.event === "event.handled");
     const dispositionTypes = dispositionEvents.map((e) => e.details?.eventType);
     expect(dispositionTypes).toEqual(["GateFailed", "FixStarted", "FixCompleted", "GatePassed"]);
 

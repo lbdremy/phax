@@ -153,5 +153,4 @@ export const TERMINAL_PHASE_STATES = new Set<PhaseState>([
   "skipped",
 ]);
 
-export const isPhaseTerminal = (s: PhaseState): boolean =>
-  TERMINAL_PHASE_STATES.has(s);
+export const isPhaseTerminal = (s: PhaseState): boolean => TERMINAL_PHASE_STATES.has(s);

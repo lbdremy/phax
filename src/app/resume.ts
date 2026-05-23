@@ -75,11 +75,7 @@ export function inspectResume(
   const info = infoResult.right;
 
   const currentPhase = findCurrentPhase(info.phaseStatuses);
-  const state = composePhaxState(
-    info.runState as RunStatus["state"],
-    info.lastError,
-    currentPhase,
-  );
+  const state = composePhaxState(info.runState as RunStatus["state"], info.lastError, currentPhase);
 
   const disposition = interpret(state, {
     type: "RunResumeRequested",

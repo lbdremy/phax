@@ -70,12 +70,7 @@ function makeLayers(fakeFs: ReturnType<typeof seedFs>) {
   const fakeTracer = makeFakeTracer();
   const fakeGit = makeFakeGit();
   const fakeShell = makeFakeShell();
-  const layer = Layer.mergeAll(
-    fakeFs.layer,
-    fakeTracer.layer,
-    fakeGit.layer,
-    fakeShell.layer,
-  );
+  const layer = Layer.mergeAll(fakeFs.layer, fakeTracer.layer, fakeGit.layer, fakeShell.layer);
   return { layer, fakeTracer, fakeGit, fakeShell };
 }
 
@@ -106,9 +101,9 @@ describe("dispatch — handled transitions", () => {
     expect(names).toContain("event.handled");
     expect(names).toContain("state.transition");
 
-    const persisted = JSON.parse(
-      fakeFs.impl.getFile(`${runPath}/run-status.json`)!,
-    ) as { state: string };
+    const persisted = JSON.parse(fakeFs.impl.getFile(`${runPath}/run-status.json`)!) as {
+      state: string;
+    };
     expect(persisted.state).toBe("running");
   });
 
@@ -126,9 +121,9 @@ describe("dispatch — handled transitions", () => {
 
     expect(result.disposition).toBe("Handled");
 
-    const phasePersisted = JSON.parse(
-      fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!,
-    ) as { state: string };
+    const phasePersisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as {
+      state: string;
+    };
     expect(phasePersisted.state).toBe("setting_up_worktree");
 
     const transitionEvents = fakeTracer.impl.events.filter((e) => e.event === "state.transition");
@@ -153,9 +148,10 @@ describe("dispatch — handled transitions", () => {
 
     expect(result.disposition).toBe("Handled");
 
-    const persisted = JSON.parse(
-      fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!,
-    ) as { state: string; commitHash?: string };
+    const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as {
+      state: string;
+      commitHash?: string;
+    };
     expect(persisted.state).toBe("committed");
     expect(persisted.commitHash).toBe("deadbeef12345678");
   });
