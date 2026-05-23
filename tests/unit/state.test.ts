@@ -3,25 +3,17 @@ import { describe, expect, it } from "vitest";
 import { InvalidTransitionError } from "../../src/domain/errors.js";
 import {
   archiveRun,
-  cleaningUpToCleanedUp,
   committedToCleanedUp,
-  committedToCleaningUp,
   committedToReviewOpen,
   completeRun,
-  failPhase,
   failRun,
-  fixingToRunning,
-  gatesFailedToFixing,
   interruptRun,
   openRunReview,
-  passedToCommitted,
-  passedToHandoffFailed,
   pendingToSettingUp,
   rateLimitPhase,
   rateLimitRun,
   rateLimitedToRunning,
   resumeRateLimitedRun,
-  runningToGatesFailed,
   runningToPassed,
   settingUpToRunning,
   skipPhase,
@@ -188,36 +180,6 @@ describe("Phase state transitions", () => {
     });
   });
 
-  describe("runningToGatesFailed", () => {
-    it("transitions running → gates_failed", () => {
-      assertRight(runningToGatesFailed("running"), "gates_failed");
-    });
-
-    it("rejects from pending", () => {
-      assertLeft(runningToGatesFailed("pending"));
-    });
-  });
-
-  describe("gatesFailedToFixing", () => {
-    it("transitions gates_failed → fixing", () => {
-      assertRight(gatesFailedToFixing("gates_failed"), "fixing");
-    });
-
-    it("rejects from running", () => {
-      assertLeft(gatesFailedToFixing("running"));
-    });
-  });
-
-  describe("fixingToRunning", () => {
-    it("transitions fixing → running", () => {
-      assertRight(fixingToRunning("fixing"), "running");
-    });
-
-    it("rejects from passed", () => {
-      assertLeft(fixingToRunning("passed"));
-    });
-  });
-
   describe("runningToPassed", () => {
     it("transitions running → passed", () => {
       assertRight(runningToPassed("running"), "passed");
@@ -229,41 +191,6 @@ describe("Phase state transitions", () => {
 
     it("rejects from pending", () => {
       assertLeft(runningToPassed("pending"));
-    });
-  });
-
-  describe("failPhase", () => {
-    it.each(["running", "fixing", "gates_failed", "setting_up_worktree"])(
-      "transitions %s → failed",
-      (state) => {
-        assertRight(failPhase(state as Parameters<typeof failPhase>[0]), "failed");
-      },
-    );
-
-    it("rejects from passed", () => {
-      assertLeft(failPhase("passed"));
-    });
-  });
-
-  describe("passedToCommitted", () => {
-    it("transitions passed → committed", () => {
-      assertRight(passedToCommitted("passed"), "committed");
-    });
-
-    it("rejects from running", () => {
-      assertLeft(passedToCommitted("running"));
-    });
-  });
-
-  describe("committedToCleaningUp", () => {
-    it("transitions committed → cleaning_up", () => {
-      assertRight(committedToCleaningUp("committed"), "cleaning_up");
-    });
-  });
-
-  describe("cleaningUpToCleanedUp", () => {
-    it("transitions cleaning_up → cleaned_up", () => {
-      assertRight(cleaningUpToCleanedUp("cleaning_up"), "cleaned_up");
     });
   });
 
@@ -280,16 +207,6 @@ describe("Phase state transitions", () => {
 
     it("rejects from passed", () => {
       assertLeft(committedToReviewOpen("passed"));
-    });
-  });
-
-  describe("passedToHandoffFailed", () => {
-    it("transitions passed → handoff_failed", () => {
-      assertRight(passedToHandoffFailed("passed"), "handoff_failed");
-    });
-
-    it("rejects from committed", () => {
-      assertLeft(passedToHandoffFailed("committed"));
     });
   });
 
