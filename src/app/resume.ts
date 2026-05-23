@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Either } from "effect";
 import type { RunId, ShortName } from "../domain/branded.js";
 import { interpret } from "../domain/reducer.js";
+import { TERMINAL_PHASE_STATES } from "../domain/state.js";
 import type { RunStatus, PhaseStatus } from "../schemas/status.js";
 import { resolveRunByShortName, findCurrentPhase } from "./resolveRunInfo.js";
 import { composePhaxState } from "./phaxState.js";
@@ -25,8 +26,6 @@ export interface ResumeRefusal {
   readonly reason: ResumeRefusalReason;
   readonly message: string;
 }
-
-const TERMINAL_PHASE_STATES = new Set(["committed", "cleaned_up", "review_open", "skipped"]);
 
 function findNextResumablePhase(phaseStatuses: readonly PhaseStatus[]): PhaseStatus | undefined {
   return phaseStatuses.find((p) => !TERMINAL_PHASE_STATES.has(p.state));

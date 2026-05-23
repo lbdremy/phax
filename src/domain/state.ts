@@ -145,3 +145,13 @@ export const rateLimitPhase = (state: PhaseState): PhaseTransition =>
 /** @deprecated Subsumed by the reducer in src/domain/reducer.ts. */
 export const rateLimitedToRunning = (state: PhaseState): PhaseTransition =>
   phaseTransition(state, "running", ["rate_limited"]);
+
+export const TERMINAL_PHASE_STATES = new Set<PhaseState>([
+  "committed",
+  "cleaned_up",
+  "review_open",
+  "skipped",
+]);
+
+export const isPhaseTerminal = (s: PhaseState): boolean =>
+  TERMINAL_PHASE_STATES.has(s);
