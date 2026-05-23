@@ -106,9 +106,8 @@ function diffPatch(before: PhaxState, after: PhaxState): StatePatch {
 
 /**
  * Central entry point: read the on-disk hierarchical state, run the reducer,
- * emit the disposition trace event, and — when handled — persist the new
- * state, emit the legacy state.transition event, and execute every command
- * the reducer produced through the effect runner.
+ * emit the disposition trace event, persist the new state when handled, and
+ * execute every command the reducer produced through the effect runner.
  */
 export function dispatch(
   event: PhaxEvent,
@@ -188,35 +187,6 @@ export function dispatch(
       status: "ok",
       details: dispositionDetails,
     });
-
-    // Emit legacy state.transition events to preserve the existing contract.
-    if (patch.run !== undefined && patch.run.state !== undefined) {
-      yield* tracer.event({
-        timestamp: new Date().toISOString(),
-        run: ctx.shortName,
-        event: "state.transition",
-        status: "ok",
-        details: { entity: "run", to: patch.run.state },
-      });
-    }
-    // Only emit a phase state.transition trace when a phase folder exists in
-    // the dispatcher context; otherwise the runner did not persist the phase
-    // patch (e.g., the RunStarted event transitions the reducer to phase
-    // "pending" but no phase folder has been created yet).
-    if (
-      patch.phase !== undefined &&
-      patch.phase.state !== undefined &&
-      ctx.phaseFolderPath !== undefined
-    ) {
-      yield* tracer.event({
-        timestamp: new Date().toISOString(),
-        run: ctx.shortName,
-        phase: ctx.phaseId,
-        event: "state.transition",
-        status: "ok",
-        details: { entity: "phase", to: patch.phase.state },
-      });
-    }
 
     // Execute reducer-emitted commands.
     const executed: PhaxCommandType[] = [];

@@ -161,7 +161,6 @@ describe("executePlan — tracing", () => {
     // Config + run start
     expect(names).toContain("config.discovered");
     expect(names).toContain("config.validated");
-    expect(names).toContain("state.transition");
     // Phase lifecycle
     expect(names).toContain("git.worktree.created");
     expect(names).toContain("agent.invocation.started");
