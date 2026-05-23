@@ -29,7 +29,7 @@ function buildHandoffPrompt(): string {
   return [
     "# Generate phase handoff",
     "",
-    "Gates have passed. Now write `phase-handoff.md` in the current directory.",
+    "Gates have passed. Now write `.phax-context/phase-handoff.md` (the `.phax-context/` folder is gitignored phax metadata — do not write at the worktree root).",
     "",
     "Consult `.skills/phax-phase-handoff.md` for the expected format.",
     "",
@@ -102,7 +102,7 @@ export function generatePhaseHandoff(
       phaseFolderPath,
     });
 
-    const handoffPath = join(worktreePath, "phase-handoff.md");
+    const handoffPath = join(worktreePath, ".phax-context", "phase-handoff.md");
     const exists = yield* fs.exists(handoffPath);
 
     const dispatchHandoffMissing = (missing: readonly string[]) =>
@@ -136,5 +136,10 @@ export function generatePhaseHandoff(
       yield* dispatchHandoffMissing(missingSections);
       return yield* Effect.fail(new HandoffValidationError(missingSections, worktreePath));
     }
+
+    // Persist a copy in the phax run folder so later phases (via handoffInjection)
+    // and post-run consumers (review, archive) can read it without depending on
+    // the gitignored `.phax-context/` folder in the worktree.
+    yield* fs.writeAtomic(join(phaseFolderPath, "phase-handoff.md"), content);
   });
 }

@@ -198,19 +198,17 @@ program
 
 program
   .command("run [short-name]")
-  .description("Run all phases from a phax-plan.json, or preview with --dry-run")
+  .description("Extract a plan from plan.md and run all phases, or preview with --dry-run")
   .option("--plan-md <path>", "Path to plan.md", "plan.md")
-  .option("--plan <path>", "Path to phax-plan.json", "phax-plan.json")
   .option("--profile <profile>", "Gate profile to use (overrides config default)")
   .option("--workspace <id>", "Workspace id (monorepo)")
   .option("--allow-dirty", "Allow starting when the working tree is dirty")
-  .option("--dry-run", "Preview only — zero side effects")
+  .option("--dry-run", "Preview only — extracts the plan but performs no run actions")
   .action(
     async (
       shortName: string | undefined,
       opts: {
         planMd?: string;
-        plan?: string;
         profile?: string;
         workspace?: string;
         allowDirty?: boolean;

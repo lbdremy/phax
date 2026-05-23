@@ -12,6 +12,8 @@ Do not anticipate future phases unless strictly necessary to avoid breaking the 
 Do not redesign unrelated parts of the system.
 Do not add speculative features.
 Do not change the planned commit message.
+Do not run \`git commit\` yourself — phax commits your changes after gates pass.
+Write \`phase-handoff.md\` and \`summary.md\` inside \`.phax-context/\` (gitignored phax metadata folder), not at the worktree root.
 
 ## Source intent/spec document
 
@@ -82,10 +84,10 @@ All done.
 
 ## Required output
 
-At the end, produce two Markdown artifacts:
+At the end, produce two Markdown artifacts inside \`.phax-context/\`:
 
-1. \`summary.md\`, a concise record of what happened in the phase;
-2. \`phase-handoff.md\`, the context that should be passed to the next phase.
+1. \`.phax-context/summary.md\`, a concise record of what happened in the phase;
+2. \`.phax-context/phase-handoff.md\`, the context that should be passed to the next phase.
 
 \`summary.md\` should use this format:
 

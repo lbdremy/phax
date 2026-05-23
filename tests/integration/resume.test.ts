@@ -136,8 +136,11 @@ describe("executePlan — resume from startIndex: 1", () => {
 
     // Pre-create phase-02 worktree directory with the handoff file the agent would produce.
     const phase02WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-02");
-    await mkdir(phase02WorktreePath, { recursive: true });
-    await writeFile(join(phase02WorktreePath, "phase-handoff.md"), HANDOFF_CONTENT);
+    await mkdir(join(phase02WorktreePath, ".phax-context"), { recursive: true });
+    await writeFile(
+      join(phase02WorktreePath, ".phax-context", "phase-handoff.md"),
+      HANDOFF_CONTENT,
+    );
 
     const fakeGit = makeFakeGit();
     // phase-02 (final): dirty so commitPhase actually commits; cleanupPhase is skipped.
@@ -273,8 +276,11 @@ describe("executePlan — resume from startIndex: 1", () => {
     );
 
     const phase02WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-02");
-    await mkdir(phase02WorktreePath, { recursive: true });
-    await writeFile(join(phase02WorktreePath, "phase-handoff.md"), HANDOFF_CONTENT);
+    await mkdir(join(phase02WorktreePath, ".phax-context"), { recursive: true });
+    await writeFile(
+      join(phase02WorktreePath, ".phax-context", "phase-handoff.md"),
+      HANDOFF_CONTENT,
+    );
 
     const fakeGit = makeFakeGit();
     // Mark repo as NOT clean — if prepareRunBranch were called with allowDirty: false

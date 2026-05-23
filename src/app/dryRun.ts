@@ -1,8 +1,7 @@
 import { join } from "node:path";
-import { Either } from "effect";
-import { loadConfig } from "./loadConfig.js";
-import { loadPlan } from "./loadPlan.js";
 import { resolveGateProfile } from "./gates.js";
+import type { ResolvedConfig } from "../schemas/phaxConfig.js";
+import type { PhaxPlan } from "../schemas/phaxPlan.js";
 
 export interface DryRunPhase {
   readonly index: number;
@@ -27,29 +26,12 @@ export interface DryRunReport {
 }
 
 export function buildDryRunReport(
-  cwd: string,
-  planPath: string,
+  plan: PhaxPlan,
+  config: ResolvedConfig,
   gateProfileId?: string,
-): Either.Either<DryRunReport, string> {
-  const configResult = loadConfig(cwd);
-  if (Either.isLeft(configResult)) {
-    return Either.left(`Config error: ${configResult.left.message}`);
-  }
-  const config = configResult.right;
-
-  const planResult = loadPlan(planPath);
-  if (Either.isLeft(planResult)) {
-    return Either.left(`Plan error: ${planResult.left.message}`);
-  }
-  const plan = planResult.right;
-
+): DryRunReport {
   const profileId = gateProfileId ?? "full";
-  let gateCommands: readonly string[];
-  try {
-    gateCommands = resolveGateProfile(config, profileId);
-  } catch (err) {
-    return Either.left(`Gate profile error: ${String(err)}`);
-  }
+  const gateCommands = resolveGateProfile(config, profileId);
 
   const worktreesRoot = join(config.stateRoot, "worktrees", plan.run.shortName);
   const phases: DryRunPhase[] = plan.phases.map((p, i) => ({
@@ -61,7 +43,7 @@ export function buildDryRunReport(
     worktreePath: join(worktreesRoot, p.id),
   }));
 
-  return Either.right({
+  return {
     shortName: plan.run.shortName,
     branch: plan.run.branch,
     projectName: config.raw.project.name,
@@ -72,7 +54,7 @@ export function buildDryRunReport(
     gateCommands,
     phases,
     runPath: join(config.stateRoot, "runs", plan.run.shortName),
-  });
+  };
 }
 
 export function formatDryRunReport(report: DryRunReport): string {

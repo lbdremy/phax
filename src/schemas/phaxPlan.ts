@@ -14,6 +14,19 @@ const PhaseSchema = Schema.Struct({
   }),
 });
 
+// What we ask Claude to extract from plan.md: only the human-authored fields.
+// `branch` and `backend` are filled in deterministically by phax (from git and
+// phax.json) so we never ask Claude to guess them.
+export const ExtractedPhaxPlanSchema = Schema.Struct({
+  version: Schema.Literal(1),
+  run: Schema.Struct({
+    shortName: Schema.NonEmptyString,
+    title: Schema.NonEmptyString,
+  }),
+  phases: Schema.NonEmptyArray(PhaseSchema),
+});
+
+// The full persisted plan, after phax merges in the deterministic fields.
 export const PhaxPlanSchema = Schema.Struct({
   version: Schema.Literal(1),
   run: Schema.Struct({
@@ -25,6 +38,7 @@ export const PhaxPlanSchema = Schema.Struct({
   phases: Schema.NonEmptyArray(PhaseSchema),
 });
 
+export type ExtractedPhaxPlan = Schema.Schema.Type<typeof ExtractedPhaxPlanSchema>;
 export type PhaxPlan = Schema.Schema.Type<typeof PhaxPlanSchema>;
 export type PhaxPlanPhase = Schema.Schema.Type<typeof PhaseSchema>;
 export type Effort = Schema.Schema.Type<typeof EffortSchema>;
@@ -35,4 +49,8 @@ export const decodePhaxPlan = Schema.decodeUnknownEither(PhaxPlanSchema, {
 
 export function getPhaxPlanJsonSchema(): object {
   return JSONSchema.make(PhaxPlanSchema);
+}
+
+export function getExtractedPlanJsonSchema(): object {
+  return JSONSchema.make(ExtractedPhaxPlanSchema);
 }

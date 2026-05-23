@@ -90,8 +90,14 @@ export const NodeGitLayer = Layer.succeed(Git, {
     return gitRun(args, repo).pipe(Effect.asVoid);
   },
 
+  // Stage everything then commit. `.gitignore` in the worktree excludes
+  // `.phax-context/` (phax metadata), so this leaves handoff/summary out of
+  // the commit while still capturing new and modified source files.
   commit: (repo, subject, body) =>
-    gitRun(["commit", "-m", subject, "-m", body], repo).pipe(Effect.asVoid),
+    gitRun(["add", "-A"], repo).pipe(
+      Effect.flatMap(() => gitRun(["commit", "-m", subject, "-m", body], repo)),
+      Effect.asVoid,
+    ),
 
   worktreeIsClean: (path) =>
     gitRun(["status", "--porcelain"], path as string).pipe(

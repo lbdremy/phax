@@ -4,7 +4,11 @@ import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Lock } from "../ports/lock.js";
 import { Tracer } from "../ports/tracer.js";
-import { PhaxPlanSchema, getPhaxPlanJsonSchema, type PhaxPlan } from "../schemas/phaxPlan.js";
+import {
+  ExtractedPhaxPlanSchema,
+  getExtractedPlanJsonSchema,
+  type PhaxPlan,
+} from "../schemas/phaxPlan.js";
 import {
   ClaudeInvocationError,
   LockConflictError,
@@ -15,7 +19,9 @@ import {
 import { decodeShortName } from "../domain/branded.js";
 import { formatParseError } from "../schemas/formatError.js";
 
-const decodePlan = Schema.decodeUnknownEither(PhaxPlanSchema, { onExcessProperty: "error" });
+const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
+  onExcessProperty: "error",
+});
 
 function detectPhaseAnchors(planMd: string): string[] {
   const matches = planMd.match(/##\s+phase-\d{2}/gi) ?? [];
@@ -82,37 +88,42 @@ function buildExtractReport(plan: PhaxPlan, detectedAnchors: string[], warnings:
   return lines.join("\n");
 }
 
-export interface ExtractPlanOptions {
+export interface ExtractPlanCoreOptions {
   readonly planMdPath: string;
-  readonly outPath: string;
-  readonly force: boolean;
   readonly model: string;
   readonly effort: string;
   readonly cwd: string;
+  // `backend` and `branch` are filled in deterministically by phax — never
+  // asked of the model. `backend` comes from phax.json; `branch` is derived
+  // from shortName as `phax/<shortName>` (the namespace phax owns).
+  readonly backend: string;
 }
 
-export interface ExtractPlanResult {
+export interface ExtractPlanCoreResult {
   readonly plan: PhaxPlan;
-  readonly outPath: string;
-  readonly reportPath: string;
+  readonly planMd: string;
   readonly warnings: string[];
+  readonly detectedAnchors: string[];
 }
 
-export type ExtractPlanError =
+export type ExtractPlanCoreError =
   | PlanValidationError
   | ClaudeInvocationError
   | RateLimitError
   | UsageLimitError
-  | FsError
-  | LockConflictError;
+  | FsError;
 
-export function extractPlan(
-  opts: ExtractPlanOptions,
-): Effect.Effect<ExtractPlanResult, ExtractPlanError, Backend | FileSystem | Lock | Tracer> {
+/**
+ * Extract a PhaxPlan from a plan.md file via Claude. Performs no file writes —
+ * callers persist the result wherever they want (cwd for `phax extract-plan`,
+ * the run folder for `phax run`).
+ */
+export function extractPlanCore(
+  opts: ExtractPlanCoreOptions,
+): Effect.Effect<ExtractPlanCoreResult, ExtractPlanCoreError, Backend | FileSystem | Tracer> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const backend = yield* Backend;
-    const lock = yield* Lock;
     const tracer = yield* Tracer;
 
     const emitContract = (
@@ -138,6 +149,95 @@ export function extractPlan(
           }),
       ),
     );
+
+    const jsonSchema = getExtractedPlanJsonSchema();
+    const prompt = buildExtractionPrompt(planMd, jsonSchema);
+
+    const runResult = yield* backend.runAgent(prompt, {
+      model: opts.model,
+      effort: opts.effort,
+      cwd: opts.cwd,
+    });
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stripJsonCodeFence(runResult.finalText));
+    } catch {
+      yield* emitContract("contract.invalid", "failed", { reason: "non-json-output" });
+      return yield* Effect.fail(
+        new PlanValidationError({
+          message: `Claude returned non-JSON output. Raw response: ${runResult.finalText.slice(0, 300)}`,
+        }),
+      );
+    }
+
+    // Local schema validation is mandatory regardless of which model produced the output (spec §6).
+    const decoded = decodeExtractedPlan(parsed);
+    if (Either.isLeft(decoded)) {
+      yield* emitContract("contract.invalid", "failed", { reason: "schema-validation-failed" });
+      return yield* Effect.fail(
+        new PlanValidationError({
+          message: `Extracted JSON failed schema validation:\n${formatParseError(decoded.left)}`,
+        }),
+      );
+    }
+    yield* emitContract("contract.validated", "ok", { phases: decoded.right.phases.length });
+    const plan: PhaxPlan = {
+      ...decoded.right,
+      run: {
+        ...decoded.right.run,
+        branch: `phax/${decoded.right.run.shortName}`,
+        backend: opts.backend,
+      },
+    };
+
+    const detectedAnchors = detectPhaseAnchors(planMd);
+    const warnings: string[] = [];
+
+    if (detectedAnchors.length > 0 && plan.phases.length !== detectedAnchors.length) {
+      warnings.push(
+        `plan.md has ${detectedAnchors.length} detected phase anchor(s) but ${plan.phases.length} phase(s) were extracted.`,
+      );
+    }
+
+    for (const phase of plan.phases) {
+      const anchorPhaseId = phase.planMarkdownAnchor.match(/phase-\d{2}/i)?.[0]?.toLowerCase();
+      if (anchorPhaseId && !detectedAnchors.includes(anchorPhaseId)) {
+        warnings.push(
+          `Phase "${phase.id}" references anchor "${phase.planMarkdownAnchor}" not found in plan.md.`,
+        );
+      }
+    }
+
+    return { plan, planMd, warnings, detectedAnchors };
+  });
+}
+
+export interface ExtractPlanOptions extends ExtractPlanCoreOptions {
+  readonly outPath: string;
+  readonly force: boolean;
+}
+
+export interface ExtractPlanResult {
+  readonly plan: PhaxPlan;
+  readonly outPath: string;
+  readonly reportPath: string;
+  readonly warnings: string[];
+}
+
+export type ExtractPlanError = ExtractPlanCoreError | LockConflictError;
+
+/**
+ * Persistent wrapper around `extractPlanCore`: validates the target path is
+ * writable (no clobbering an active run), runs the core extraction, then writes
+ * `phax-plan.json` and `extract-report.md` next to it.
+ */
+export function extractPlan(
+  opts: ExtractPlanOptions,
+): Effect.Effect<ExtractPlanResult, ExtractPlanError, Backend | FileSystem | Lock | Tracer> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const lock = yield* Lock;
 
     const outExists = yield* fs.exists(opts.outPath);
 
@@ -174,57 +274,7 @@ export function extractPlan(
       }
     }
 
-    const jsonSchema = getPhaxPlanJsonSchema();
-    const prompt = buildExtractionPrompt(planMd, jsonSchema);
-
-    const runResult = yield* backend.runAgent(prompt, {
-      model: opts.model,
-      effort: opts.effort,
-      cwd: opts.cwd,
-    });
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(runResult.finalText);
-    } catch {
-      yield* emitContract("contract.invalid", "failed", { reason: "non-json-output" });
-      return yield* Effect.fail(
-        new PlanValidationError({
-          message: `Claude returned non-JSON output. Raw response: ${runResult.finalText.slice(0, 300)}`,
-        }),
-      );
-    }
-
-    // Local schema validation is mandatory regardless of which model produced the output (spec §6).
-    const decoded = decodePlan(parsed);
-    if (Either.isLeft(decoded)) {
-      yield* emitContract("contract.invalid", "failed", { reason: "schema-validation-failed" });
-      return yield* Effect.fail(
-        new PlanValidationError({
-          message: `Extracted JSON failed schema validation:\n${formatParseError(decoded.left)}`,
-        }),
-      );
-    }
-    yield* emitContract("contract.validated", "ok", { phases: decoded.right.phases.length });
-    const plan = decoded.right;
-
-    const detectedAnchors = detectPhaseAnchors(planMd);
-    const warnings: string[] = [];
-
-    if (detectedAnchors.length > 0 && plan.phases.length !== detectedAnchors.length) {
-      warnings.push(
-        `plan.md has ${detectedAnchors.length} detected phase anchor(s) but ${plan.phases.length} phase(s) were extracted.`,
-      );
-    }
-
-    for (const phase of plan.phases) {
-      const anchorPhaseId = phase.planMarkdownAnchor.match(/phase-\d{2}/i)?.[0]?.toLowerCase();
-      if (anchorPhaseId && !detectedAnchors.includes(anchorPhaseId)) {
-        warnings.push(
-          `Phase "${phase.id}" references anchor "${phase.planMarkdownAnchor}" not found in plan.md.`,
-        );
-      }
-    }
+    const { plan, warnings, detectedAnchors } = yield* extractPlanCore(opts);
 
     yield* fs.writeAtomic(opts.outPath, JSON.stringify(plan, null, 2));
 
@@ -233,6 +283,15 @@ export function extractPlan(
 
     return { plan, outPath: opts.outPath, reportPath, warnings };
   });
+}
+
+// Claude sometimes wraps JSON output in a ```json fence despite the prompt
+// forbidding it. Strip a single leading/trailing fence so JSON.parse succeeds.
+function stripJsonCodeFence(text: string): string {
+  const trimmed = text.trim();
+  const fence = /^```(?:json)?\s*\n([\s\S]*?)\n?```$/i;
+  const match = trimmed.match(fence);
+  return match?.[1]?.trim() ?? trimmed;
 }
 
 function parseShortNameFromPlanText(text: string): string | undefined {

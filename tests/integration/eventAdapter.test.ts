@@ -438,7 +438,7 @@ describe("adaptHandoffGenerate", () => {
       finalText: "",
     });
     fakeFs.impl.setFile(
-      `${worktreePath as string}/phase-handoff.md`,
+      `${worktreePath as string}/.phax-context/phase-handoff.md`,
       [
         "## What was delivered",
         "## Key decisions and why",
@@ -485,7 +485,7 @@ describe("adaptHandoffGenerate", () => {
       finalText: "",
     });
     fakeFs.impl.setFile(
-      `${worktreePath as string}/phase-handoff.md`,
+      `${worktreePath as string}/.phax-context/phase-handoff.md`,
       "## What was delivered\nsome content",
     );
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, passedPhaseSeed);

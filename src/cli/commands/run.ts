@@ -1,12 +1,11 @@
-import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName } from "../../domain/branded.js";
 import { RateLimitError, UsageLimitError } from "../../domain/errors.js";
 import { loadConfig } from "../../app/loadConfig.js";
-import { loadPlan } from "../../app/loadPlan.js";
 import { buildDryRunReport, formatDryRunReport } from "../../app/dryRun.js";
+import { extractPlanCore } from "../../app/extractPlan.js";
 import { createRunFolder } from "../../app/runFolder.js";
 import { executePlan } from "../../app/executePlan.js";
 import { withRunLock } from "../../app/lock.js";
@@ -17,7 +16,6 @@ import { buildTracerLayer, exitCodeForError, provideRunLayers } from "./runLayer
 export interface RunCommandOptions {
   shortName?: string;
   planMd?: string;
-  plan?: string;
   dryRun?: boolean;
   profile?: string;
   workspace?: string;
@@ -42,18 +40,7 @@ function pickGateProfileId(config: ResolvedConfig, profileOpt: string | undefine
 
 export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<number> {
   const cwd = process.cwd();
-  const planPath = resolve(cwd, opts.plan ?? "phax-plan.json");
   const planMdPath = resolve(cwd, opts.planMd ?? "plan.md");
-
-  if (opts.dryRun) {
-    const reportResult = buildDryRunReport(cwd, planPath, opts.profile);
-    if (Either.isLeft(reportResult)) {
-      out.error(reportResult.left);
-      return 1;
-    }
-    out.log(formatDryRunReport(reportResult.right));
-    return 0;
-  }
 
   const configResult = loadConfig(cwd);
   if (Either.isLeft(configResult)) {
@@ -62,21 +49,54 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   }
   const config = configResult.right;
 
-  const planResult = loadPlan(planPath);
-  if (Either.isLeft(planResult)) {
-    out.error(`Plan error: ${planResult.left.message}`);
+  const gateProfileId = pickGateProfileId(config, opts.profile);
+  if (gateProfileId === null) {
+    if (opts.profile !== undefined) {
+      out.error(
+        `Gate profile "${opts.profile}" not found in phax.json. Available: ${Object.keys(config.raw.gateProfiles).join(", ")}`,
+      );
+    } else {
+      out.error("No gate profiles configured in phax.json");
+    }
     return 2;
   }
-  const plan = planResult.right;
 
-  let planMd: string;
-  try {
-    planMd = readFileSync(planMdPath, "utf8");
-  } catch (e) {
-    out.error(
-      `Cannot read plan.md at "${planMdPath}": ${e instanceof Error ? e.message : String(e)}`,
-    );
-    return 2;
+  // Extract plan.md → PhaxPlan via Claude. The result is never persisted in
+  // the user's repo — `createRunFolder` snapshots it under ~/.phax/runs/.
+  const extractEffect = extractPlanCore({
+    planMdPath,
+    model: config.extractPlanModel,
+    effort: config.extractPlanEffort,
+    cwd,
+    backend: config.backend,
+  });
+
+  // We don't yet know the shortName (it comes out of extraction), so use a
+  // placeholder tracer layer rooted at the state-root for the extract step,
+  // then rebuild it under the real run folder for execute.
+  const extractTraceLayer = buildTracerLayer(
+    opts,
+    join(config.stateRoot, "extract-trace.jsonl"),
+    out,
+  );
+
+  const extracted = await Effect.runPromise(
+    Effect.either(provideRunLayers(extractEffect, config, extractTraceLayer)),
+  );
+
+  if (Either.isLeft(extracted)) {
+    const err = extracted.left;
+    if (err instanceof RateLimitError || err instanceof UsageLimitError) {
+      out.error(`Plan extraction paused: ${err.message}`);
+      return exitCodeForError(err);
+    }
+    out.error(`Plan extraction failed: ${err instanceof Error ? err.message : String(err)}`);
+    return exitCodeForError(err);
+  }
+
+  const { plan, planMd, warnings } = extracted.right;
+  for (const w of warnings) {
+    out.warn(`extract warning: ${w}`);
   }
 
   if (opts.shortName !== undefined && opts.shortName !== plan.run.shortName) {
@@ -95,16 +115,9 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   }
   const shortName = shortNameResult.right;
 
-  const gateProfileId = pickGateProfileId(config, opts.profile);
-  if (gateProfileId === null) {
-    if (opts.profile !== undefined) {
-      out.error(
-        `Gate profile "${opts.profile}" not found in phax.json. Available: ${Object.keys(config.raw.gateProfiles).join(", ")}`,
-      );
-    } else {
-      out.error("No gate profiles configured in phax.json");
-    }
-    return 2;
+  if (opts.dryRun) {
+    out.log(formatDryRunReport(buildDryRunReport(plan, config, opts.profile)));
+    return 0;
   }
 
   const runFolder = join(config.stateRoot, "runs", shortName);

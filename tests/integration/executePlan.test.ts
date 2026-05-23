@@ -64,13 +64,19 @@ describe("executePlan — happy-path 2-phase run", () => {
 
     // Pre-create worktree directories so generatePhaseHandoff can find the handoff files.
     // FakeGit's addWorktree does not create real directories; we create them here to simulate
-    // the agent having written phase-handoff.md in the worktree.
+    // the agent having written .phax-context/phase-handoff.md in the worktree.
     const phase01Worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
     const phase02Worktree = join(stateRoot, "worktrees", "my-run", "phase-02");
-    await mkdir(phase01Worktree, { recursive: true });
-    await mkdir(phase02Worktree, { recursive: true });
-    await writeFile(join(phase01Worktree, "phase-handoff.md"), HANDOFF_CONTENT);
-    await writeFile(join(phase02Worktree, "phase-handoff.md"), HANDOFF_CONTENT);
+    await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
+    await mkdir(join(phase02Worktree, ".phax-context"), { recursive: true });
+    await writeFile(
+      join(phase01Worktree, ".phax-context", "phase-handoff.md"),
+      HANDOFF_CONTENT,
+    );
+    await writeFile(
+      join(phase02Worktree, ".phax-context", "phase-handoff.md"),
+      HANDOFF_CONTENT,
+    );
   });
 
   afterEach(async () => {

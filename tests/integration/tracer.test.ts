@@ -70,8 +70,11 @@ describe("executePlan — tracing", () => {
   beforeEach(async () => {
     stateRoot = await mkdtemp(join(tmpdir(), "phax-trace-test-"));
     const phase01Worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
-    await mkdir(phase01Worktree, { recursive: true });
-    await writeFile(join(phase01Worktree, "phase-handoff.md"), HANDOFF_CONTENT);
+    await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
+    await writeFile(
+      join(phase01Worktree, ".phax-context", "phase-handoff.md"),
+      HANDOFF_CONTENT,
+    );
   });
 
   afterEach(async () => {

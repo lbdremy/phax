@@ -251,8 +251,11 @@ describe("executePlan — rate-limit detection and resume", () => {
     const phase02FolderPath = join(runPath, "phase-02");
     const phase02WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-02");
     await mkdir(phase02FolderPath, { recursive: true });
-    await mkdir(phase02WorktreePath, { recursive: true });
-    await writeFile(join(phase02WorktreePath, "phase-handoff.md"), HANDOFF_CONTENT);
+    await mkdir(join(phase02WorktreePath, ".phax-context"), { recursive: true });
+    await writeFile(
+      join(phase02WorktreePath, ".phax-context", "phase-handoff.md"),
+      HANDOFF_CONTENT,
+    );
     await writeFile(
       join(phase02FolderPath, "status.json"),
       JSON.stringify({
