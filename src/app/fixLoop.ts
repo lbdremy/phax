@@ -20,7 +20,11 @@ import { Tracer } from "../ports/tracer.js";
 import { dispatch } from "./dispatcher.js";
 import { runGates, type GateOutcome } from "./gates.js";
 
-function buildFixPrompt(gateError: GateFailedError, logContent: string, attempt: number): string {
+function buildFixPrompt(
+  gateError: GateFailedError,
+  logContent: string,
+  attempt: number,
+): string {
   return [
     "# Gate checks failed — fix required",
     "",
@@ -41,6 +45,7 @@ function buildFixPrompt(gateError: GateFailedError, logContent: string, attempt:
     "Make the minimum changes required to pass the gate.",
     "Do not change unrelated code or introduce new features.",
     "",
+    "Make sure to run the failed command after your changes to verify the gate now passes.",
     "The gate run will be re-attempted automatically after your changes.",
   ].join("\n");
 }
@@ -105,7 +110,10 @@ export function runGatesWithFixLoop(
   }
 
   function logPath(attempt: number): string {
-    return join(phaseFolderPath, `checks-attempt-${String(attempt).padStart(2, "0")}.log`);
+    return join(
+      phaseFolderPath,
+      `checks-attempt-${String(attempt).padStart(2, "0")}.log`,
+    );
   }
 
   function loop(
@@ -128,7 +136,12 @@ export function runGatesWithFixLoop(
     return Effect.gen(function* () {
       const tracer = yield* Tracer;
       const emit = (
-        event: "gate.started" | "gate.completed" | "gate.failed" | "fix.started" | "fix.completed",
+        event:
+          | "gate.started"
+          | "gate.completed"
+          | "gate.failed"
+          | "fix.started"
+          | "fix.completed",
         status: "ok" | "failed" | "info",
         details?: Record<string, unknown>,
       ): Effect.Effect<void, never, never> =>
@@ -143,7 +156,9 @@ export function runGatesWithFixLoop(
         });
 
       yield* emit("gate.started", "info", { attempt });
-      const gateResult = yield* Effect.either(runGates(commands, cwd, logPath(attempt)));
+      const gateResult = yield* Effect.either(
+        runGates(commands, cwd, logPath(attempt)),
+      );
 
       if (Either.isRight(gateResult)) {
         yield* emit("gate.completed", "ok", { attempt });
@@ -200,16 +215,20 @@ export function runGatesWithFixLoop(
 
       yield* emit("fix.started", "info", { attempt });
       const backend = yield* Backend;
-      const fixResult = yield* backend.resumeAgentSession(currentSessionId, fixPrompt, {
-        model: agentOptions.model,
-        effort: agentOptions.effort,
-        cwd: agentOptions.cwd,
-        outputJsonlPath: join(
-          phaseFolderPath,
-          `fix-attempt-${String(attempt).padStart(2, "0")}.jsonl`,
-        ),
-        phaseFolderPath: agentOptions.phaseFolderPath,
-      });
+      const fixResult = yield* backend.resumeAgentSession(
+        currentSessionId,
+        fixPrompt,
+        {
+          model: agentOptions.model,
+          effort: agentOptions.effort,
+          cwd: agentOptions.cwd,
+          outputJsonlPath: join(
+            phaseFolderPath,
+            `fix-attempt-${String(attempt).padStart(2, "0")}.jsonl`,
+          ),
+          phaseFolderPath: agentOptions.phaseFolderPath,
+        },
+      );
 
       const fixCompletedEvent: PhaxEvent = {
         ...eventBase(),

@@ -8,10 +8,12 @@ export interface BuildPhasePromptOptions {
   readonly planJson: PhaxPlan;
   readonly currentPhase: PhaxPlanPhase;
   readonly previousHandoff?: string | undefined;
+  readonly gateCommands: string[];
 }
 
 export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
-  const { planMd, planJson, currentPhase, previousHandoff } = opts;
+  const { planMd, planJson, currentPhase, previousHandoff, gateCommands } =
+    opts;
   const handoffSection = previousHandoff ?? "(no previous phase)";
 
   return [
@@ -58,6 +60,8 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "- Do not include unrelated refactors.",
     "- Do not implement excluded scope.",
     "- Do not move work from future phases into this phase unless required to keep the current phase coherent.",
+    "- Run the gate commands again after your changes to verify the gates are satisfied.",
+    gateCommands.join("\n"),
     "",
     "## Required output",
     "",
@@ -110,6 +114,7 @@ export interface GeneratePhasePromptOptions {
   readonly planJson: PhaxPlan;
   readonly currentPhase: PhaxPlanPhase;
   readonly previousHandoff?: string | undefined;
+  readonly gateCommands: string[];
 }
 
 export function generatePhasePrompt(
