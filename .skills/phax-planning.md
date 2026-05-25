@@ -66,6 +66,7 @@ Use exact model IDs — the extractor validates them:
   gates can verify mechanically (type-check, tests, lint, build, etc.).
 - **Handoff-complete.** The handoff the executing agent writes must be enough
   for the next phase to proceed without re-reading earlier phases.
+- **Comprehensive instructions** Make sure each phase has enough details so the model and effort you are picking for this phase can execute the phase with success.
 
 ## What makes a good phase boundary
 
