@@ -30,7 +30,9 @@ const TERMINAL_PHASE_STATES = new Set([
 ]);
 
 export function findCurrentPhase(phaseStatuses: readonly PhaseStatus[]): PhaseStatus | undefined {
-  return phaseStatuses.find((p) => !TERMINAL_PHASE_STATES.has(p.state));
+  return phaseStatuses
+    .filter((p) => !TERMINAL_PHASE_STATES.has(p.state))
+    .toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
 }
 
 function tryReadJson(path: string): unknown {
@@ -81,9 +83,7 @@ function loadRunReviewInfo(
     }
   }
 
-  const finalPhaseStatus =
-    phaseStatuses.toReversed().find((p) => p.worktreePath !== undefined) ??
-    phaseStatuses[phaseStatuses.length - 1];
+  const finalPhaseStatus = phaseStatuses.toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
 
   if (!finalPhaseStatus) {
     return Either.left(`No phase statuses found at "${runPath}"`);
