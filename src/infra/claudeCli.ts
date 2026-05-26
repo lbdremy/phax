@@ -4,11 +4,7 @@ import { createWriteStream } from "node:fs";
 import { mkdir, open, readFile, rename } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { randomBytes } from "node:crypto";
-import {
-  Backend,
-  type AgentRunOptions,
-  type AgentRunResult,
-} from "../ports/backend.js";
+import { Backend, type AgentRunOptions, type AgentRunResult } from "../ports/backend.js";
 import { FsError } from "../ports/fs.js";
 import {
   ClaudeInvocationError,
@@ -65,9 +61,7 @@ function spawnClaude(
 
     let writeStream: ReturnType<typeof createWriteStream> | undefined;
     if (outputJsonlPath) {
-      mkdir(dirname(outputJsonlPath), { recursive: true }).catch(
-        () => undefined,
-      );
+      mkdir(dirname(outputJsonlPath), { recursive: true }).catch(() => undefined);
       writeStream = createWriteStream(outputJsonlPath, { flags: "w" });
     }
 
@@ -126,20 +120,14 @@ async function persistSessionId(
         claudeSessionId: sessionId,
         updatedAt: new Date().toISOString(),
       };
-      await writeAtomic(
-        statusPath,
-        JSON.stringify(encodePhaseStatus(updated), null, 2),
-      );
+      await writeAtomic(statusPath, JSON.stringify(encodePhaseStatus(updated), null, 2));
     }
   } catch {
     // Status file absent or malformed — session-id.txt already written, continue.
   }
 }
 
-function buildArgs(
-  options: AgentRunOptions,
-  resumeSessionId?: string,
-): string[] {
+function buildArgs(options: AgentRunOptions, resumeSessionId?: string): string[] {
   // `claude` requires `--verbose` whenever `--print` is paired with
   // `--output-format=stream-json`; without it the CLI exits with code 1.
   // `--permission-mode bypassPermissions` is required for non-interactive runs:
@@ -188,11 +176,7 @@ function runAgentEffect(
   resumeSessionId?: string,
 ): Effect.Effect<
   AgentRunResult,
-  | ClaudeInvocationError
-  | ClaudeSessionIdMissingError
-  | RateLimitError
-  | UsageLimitError
-  | FsError
+  ClaudeInvocationError | ClaudeSessionIdMissingError | RateLimitError | UsageLimitError | FsError
 > {
   const args = buildArgs(options, resumeSessionId);
   return Effect.gen(function* () {
@@ -247,11 +231,7 @@ function runAgentEffect(
 
     if (options.phaseFolderPath !== undefined) {
       yield* Effect.tryPromise({
-        try: () =>
-          persistSessionId(
-            capturedSessionId,
-            options.phaseFolderPath as string,
-          ),
+        try: () => persistSessionId(capturedSessionId, options.phaseFolderPath as string),
         catch: wrapFsError,
       });
     }
@@ -268,21 +248,13 @@ export function makeNodeBackendLayer(): Layer.Layer<Backend> {
   return Layer.succeed(Backend, {
     runAgent: (prompt, options) =>
       runAgentEffect(prompt, options).pipe(
-        Effect.mapError(
-          (
-            e,
-          ):
-            | ClaudeInvocationError
-            | RateLimitError
-            | UsageLimitError
-            | FsError =>
-            e instanceof ClaudeSessionIdMissingError
-              ? new ClaudeInvocationError({ message: e.message })
-              : e,
+        Effect.mapError((e): ClaudeInvocationError | RateLimitError | UsageLimitError | FsError =>
+          e instanceof ClaudeSessionIdMissingError
+            ? new ClaudeInvocationError({ message: e.message })
+            : e,
         ),
       ),
 
-    resumeAgentSession: (sessionId, prompt, options) =>
-      runAgentEffect(prompt, options, sessionId),
+    resumeAgentSession: (sessionId, prompt, options) => runAgentEffect(prompt, options, sessionId),
   });
 }

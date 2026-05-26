@@ -19,6 +19,7 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "knip": "knip",
+    "audit:architecture": "vitest run tests/unit/architecturalGuards.test.ts",
     "test:e2e:real": "vitest run --config vitest.e2e.config.ts"
   },
   "dependencies": {

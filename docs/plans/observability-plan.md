@@ -123,25 +123,17 @@ maps to / from.
 - Create `src/domain/telemetry/events.ts`:
   - `SemanticTelemetryEvent` discriminated union with these variants from
     doctrine §5, each carrying `runId: RunId` and an optional
-    `operationId: string`:
-    - `StateTransitionTelemetryEvent` — `type: "state.transition"`,
-      `event: string`, `stateBefore: string`, `stateAfter: string`,
-      `dispatcher: string`.
-    - `AdapterCallStartedTelemetryEvent` — `type: "adapter.call.started"`,
-      `adapter: string`, `operation: string`.
-    - `AdapterCallSucceededTelemetryEvent` — `type:
-      "adapter.call.succeeded"`, `adapter: string`, `operation: string`.
-    - `AdapterCallFailedTelemetryEvent` — `type: "adapter.call.failed"`,
-      `adapter: string`, `operation: string`, optional `expected`,
-      `actual`, `exitCode: number`, `stderrExcerpt: string`.
-    - `StepStartedTelemetryEvent` — `type: "step.started"`, `step: string`.
-    - `StepCompletedTelemetryEvent` — `type: "step.completed"`,
-      `step: string`, `result: "success" | "failure"`.
-    - `GateEvaluatedTelemetryEvent` — `type: "gate.evaluated"`,
-      `gate: string`, `result: "accepted" | "rejected"`, optional
-      `reason: string`.
-    - `ArtifactGeneratedTelemetryEvent` — `type: "artifact.generated"`,
-      `artifact: string`, `path: string`.
+    `operationId: string`: - `StateTransitionTelemetryEvent` — `type: "state.transition"`,
+    `event: string`, `stateBefore: string`, `stateAfter: string`,
+    `dispatcher: string`. - `AdapterCallStartedTelemetryEvent` — `type: "adapter.call.started"`,
+    `adapter: string`, `operation: string`. - `AdapterCallSucceededTelemetryEvent` — `type:
+"adapter.call.succeeded"`, `adapter: string`, `operation: string`. - `AdapterCallFailedTelemetryEvent` — `type: "adapter.call.failed"`,
+    `adapter: string`, `operation: string`, optional `expected`,
+    `actual`, `exitCode: number`, `stderrExcerpt: string`. - `StepStartedTelemetryEvent` — `type: "step.started"`, `step: string`. - `StepCompletedTelemetryEvent` — `type: "step.completed"`,
+    `step: string`, `result: "success" | "failure"`. - `GateEvaluatedTelemetryEvent` — `type: "gate.evaluated"`,
+    `gate: string`, `result: "accepted" | "rejected"`, optional
+    `reason: string`. - `ArtifactGeneratedTelemetryEvent` — `type: "artifact.generated"`,
+    `artifact: string`, `path: string`.
   - Each variant exposes a `make<VariantName>(...)` smart constructor that
     enforces the required-field set at the type level. Use
     `exactOptionalPropertyTypes` semantics throughout.
@@ -226,25 +218,19 @@ logs, errors, and metrics through one stable interface, matching doctrine
 ### Detailed instructions
 
 - Create `src/ports/systemTelemetry.ts`:
-  - `interface SystemTelemetryOps` with the methods from doctrine §4:
-    - `withOperation<A, E, R>(name: string, attrs: TelemetryAttributes,
-      operation: Effect.Effect<A, E, R>): Effect.Effect<A, E, R>` — wraps
-      an operation in a logical span and re-throws unchanged.
-    - `recordEvent(event: SemanticTelemetryEvent):
-      Effect.Effect<void, never, never>`.
-    - `recordTransition(transition: StateTransitionTelemetryEvent):
-      Effect.Effect<void, never, never>`.
-    - `recordError(report: SystemErrorReport):
-      Effect.Effect<void, never, never>`.
-    - `incrementCounter(name: string, attrs?: TelemetryAttributes):
-      Effect.Effect<void, never, never>`.
-    - `recordDuration(name: string, durationMs: number,
-      attrs?: TelemetryAttributes): Effect.Effect<void, never, never>`.
+  - `interface SystemTelemetryOps` with the methods from doctrine §4: - `withOperation<A, E, R>(name: string, attrs: TelemetryAttributes,
+operation: Effect.Effect<A, E, R>): Effect.Effect<A, E, R>` — wraps
+    an operation in a logical span and re-throws unchanged. - `recordEvent(event: SemanticTelemetryEvent):
+Effect.Effect<void, never, never>`. - `recordTransition(transition: StateTransitionTelemetryEvent):
+Effect.Effect<void, never, never>`. - `recordError(report: SystemErrorReport):
+Effect.Effect<void, never, never>`. - `incrementCounter(name: string, attrs?: TelemetryAttributes):
+Effect.Effect<void, never, never>`. - `recordDuration(name: string, durationMs: number,
+attrs?: TelemetryAttributes): Effect.Effect<void, never, never>`.
   - `type TelemetryAttributes = Readonly<Record<string, string | number |
-    boolean>>` — restrict to JSON-serialisable scalars so every backend
+boolean>>` — restrict to JSON-serialisable scalars so every backend
     can encode them.
   - `class SystemTelemetry extends Context.Tag("phax/SystemTelemetry")
-    <SystemTelemetry, SystemTelemetryOps>() {}`.
+<SystemTelemetry, SystemTelemetryOps>() {}`.
 - Provide one helper layer in the same file:
   - `NoopSystemTelemetryLayer: Layer.Layer<SystemTelemetry>` that discards
     every call. Used as the safe default before phase-06's factory and in
@@ -398,7 +384,7 @@ service interface so it can be composed with the OTel adapter in phase-06.
 
 - Create `src/infra/telemetry/jsonFile.ts`:
   - `makeJsonFileSystemTelemetryLayer(path: string):
-    Layer.Layer<SystemTelemetry>` returning a layer where each call writes
+Layer.Layer<SystemTelemetry>` returning a layer where each call writes
     a single JSON line to `path`.
   - Use the `FileSystem` port from `src/ports/fs.ts` so the adapter stays
     inside the project's existing IO discipline (no direct
@@ -483,13 +469,13 @@ deeper reasoning.
   - `@opentelemetry/sdk-metrics`
   - `@opentelemetry/resources`
   - `@opentelemetry/semantic-conventions`
-  Use the corresponding `@opentelemetry/exporter-*-otlp-http` exporters
-  only behind opt-in env vars; do not start them automatically.
+    Use the corresponding `@opentelemetry/exporter-*-otlp-http` exporters
+    only behind opt-in env vars; do not start them automatically.
 - Create `src/infra/telemetry/openTelemetry.ts`:
   - `interface OpenTelemetryAdapterOptions { tracerName: string;
-    meterName: string; resourceAttributes: TelemetryAttributes }`.
+meterName: string; resourceAttributes: TelemetryAttributes }`.
   - `makeOpenTelemetrySystemTelemetryLayer(opts):
-    Layer.Layer<SystemTelemetry>`.
+Layer.Layer<SystemTelemetry>`.
   - Mapping rules (doctrine §6):
     - `runId` is encoded as a span attribute `phax.run.id` on every span
       and as a baggage entry kept inside the run's root span context.
@@ -587,8 +573,8 @@ together — but still does not change any application call site.
 
 - Create `src/infra/telemetry/composite.ts`:
   - `makeCompositeSystemTelemetryLayer(layers:
-    ReadonlyArray<Layer.Layer<SystemTelemetry>>):
-    Layer.Layer<SystemTelemetry>`.
+ReadonlyArray<Layer.Layer<SystemTelemetry>>):
+Layer.Layer<SystemTelemetry>`.
   - Each method (`recordEvent`, `recordTransition`, `recordError`,
     `incrementCounter`, `recordDuration`) fans out to every inner
     implementation; any inner failure is caught — outer must still resolve
@@ -599,12 +585,12 @@ together — but still does not change any application call site.
     in `layers` wraps last (becomes the outer scope).
 - Create `src/infra/telemetry/layer.ts`:
   - `interface TelemetryFactoryInput {
-      output: OutputPort;
-      verbose: boolean;
-      tracePath?: string;
-      otelEnabled: boolean;
-      runId: RunId;
-    }`.
+  output: OutputPort;
+  verbose: boolean;
+  tracePath?: string;
+  otelEnabled: boolean;
+  runId: RunId;
+}`.
   - `makeSystemTelemetryLayer(input): Layer.Layer<SystemTelemetry>` that
     composes:
     - `InMemoryTelemetry` always last (so tests / diagnostics can attach
@@ -694,26 +680,17 @@ the actual removal happens in phase-09.
     dispatcher) or `telemetry.recordEvent` (for `event.ignored`,
     `event.stale`, `event.rejected`, `event.unexpected`).
   - Map each existing `TraceEventName` to a `SemanticTelemetryEvent`
-    variant:
-    - `config.discovered`, `config.validated`, `contract.validated`,
-      `contract.invalid` → `step.started` / `step.completed` with
-      `step: "config.discover"` / `"config.validate"` /
-      `"contract.validate"` and `result` matching the outcome.
-    - `git.worktree.created`, `git.commit.created` →
-      `adapter.call.succeeded` with `adapter: "git"`,
-      `operation: "worktree.create"` / `"commit.create"`.
-    - `agent.invocation.*` → `adapter.call.*` with `adapter:
-      "claude-code-cli"`.
-    - `agent.session.captured` → `artifact.generated` with
-      `artifact: "claude-session-id"`.
-    - `gate.started`, `gate.completed`, `gate.failed` →
-      `step.started` / `step.completed` and `gate.evaluated`.
-    - `fix.started`, `fix.completed` → `step.started` / `step.completed`
-      with `step: "fix-loop"`.
-    - `handoff.requested`, `handoff.validated` → `step.*`.
-    - `rate_limit.detected` → `adapter.call.failed` with `adapter:
-      "claude-code-cli"` and `actual: "rate_limited"`.
-    - `resume.available`, `archive.completed` → `step.completed`.
+    variant: - `config.discovered`, `config.validated`, `contract.validated`,
+    `contract.invalid` → `step.started` / `step.completed` with
+    `step: "config.discover"` / `"config.validate"` /
+    `"contract.validate"` and `result` matching the outcome. - `git.worktree.created`, `git.commit.created` →
+    `adapter.call.succeeded` with `adapter: "git"`,
+    `operation: "worktree.create"` / `"commit.create"`. - `agent.invocation.*` → `adapter.call.*` with `adapter:
+"claude-code-cli"`. - `agent.session.captured` → `artifact.generated` with
+    `artifact: "claude-session-id"`. - `gate.started`, `gate.completed`, `gate.failed` →
+    `step.started` / `step.completed` and `gate.evaluated`. - `fix.started`, `fix.completed` → `step.started` / `step.completed`
+    with `step: "fix-loop"`. - `handoff.requested`, `handoff.validated` → `step.*`. - `rate_limit.detected` → `adapter.call.failed` with `adapter:
+"claude-code-cli"` and `actual: "rate_limited"`. - `resume.available`, `archive.completed` → `step.completed`.
 - Wrap each adapter call in the orchestration code with
   `telemetry.withOperation(name, attrs, eff)`. Names use the
   `phax.<adapter>.<operation>` convention.
@@ -1189,25 +1166,25 @@ Ship `docs/observability.md` summarising the doctrine, the `SystemTelemetry` por
 
 ## Appendix A — Doctrine-section to phase mapping
 
-| Doctrine section                              | Phase(s) |
-| --------------------------------------------- | -------- |
-| §1 Core principle (three-layer split)         | 01, 02, 05, 11 |
-| §2 Vocabulary (trace, span, event, log, …)    | 01, 12   |
-| §3 Architecture (domain / app / infra)        | 01, 02, 11 |
-| §4 `SystemTelemetry` port                     | 02       |
-| §5 Semantic events                            | 01       |
-| §6 OpenTelemetry as envelope                  | 05       |
-| §7 Snapshot strategy                          | 01, 03, 10, 11 |
-| §8 Happy path E2E tests                       | 10       |
-| §9 Adapter boundary failures                  | 08       |
-| §10 Error reporting                           | 08       |
-| §11 Metrics                                   | 03, 05, 06 |
-| §12 Recommended implementations               | 03, 04, 05, 06 |
-| §13 Placement in a STEME-compatible codebase  | 01, 02, 11 |
-| §14 Effect integration strategy               | 02, 07   |
-| §15 Proof-preserving iteration                | 03, 10   |
-| §16 Practical rule of thumb                   | 11, 12   |
-| §17 Summary                                   | 12       |
+| Doctrine section                             | Phase(s)       |
+| -------------------------------------------- | -------------- |
+| §1 Core principle (three-layer split)        | 01, 02, 05, 11 |
+| §2 Vocabulary (trace, span, event, log, …)   | 01, 12         |
+| §3 Architecture (domain / app / infra)       | 01, 02, 11     |
+| §4 `SystemTelemetry` port                    | 02             |
+| §5 Semantic events                           | 01             |
+| §6 OpenTelemetry as envelope                 | 05             |
+| §7 Snapshot strategy                         | 01, 03, 10, 11 |
+| §8 Happy path E2E tests                      | 10             |
+| §9 Adapter boundary failures                 | 08             |
+| §10 Error reporting                          | 08             |
+| §11 Metrics                                  | 03, 05, 06     |
+| §12 Recommended implementations              | 03, 04, 05, 06 |
+| §13 Placement in a STEME-compatible codebase | 01, 02, 11     |
+| §14 Effect integration strategy              | 02, 07         |
+| §15 Proof-preserving iteration               | 03, 10         |
+| §16 Practical rule of thumb                  | 11, 12         |
+| §17 Summary                                  | 12             |
 
 ## Appendix B — End-to-end verification
 

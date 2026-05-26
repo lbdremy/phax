@@ -118,9 +118,9 @@ describe("runGatesWithFixLoop", () => {
     const dispositionTypes = dispositionEvents.map((e) => e.details?.eventType);
     expect(dispositionTypes).toEqual(["GateFailed", "FixStarted", "FixCompleted", "GatePassed"]);
 
-    const persisted = JSON.parse(
-      fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!,
-    ) as { state: string };
+    const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as {
+      state: string;
+    };
     expect(persisted.state).toBe("passed");
   });
 
@@ -147,9 +147,9 @@ describe("runGatesWithFixLoop", () => {
       .map((e) => e.details?.eventType);
     expect(dispositionTypes).toContain("FixAttemptsExhausted");
 
-    const persisted = JSON.parse(
-      fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!,
-    ) as { state: string };
+    const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as {
+      state: string;
+    };
     expect(persisted.state).toBe("failed");
   });
 

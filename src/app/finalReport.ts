@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { isPhaseTerminal } from "../domain/state.js";
+import type { PhaseState } from "../domain/state.js";
 import type { RunReviewInfo } from "./resolveRunInfo.js";
 import type { PhaseStatus } from "../schemas/status.js";
 
@@ -18,7 +19,7 @@ function formatDuration(startIso: string, endIso: string): string {
 }
 
 function isPhaseSuccessful(p: PhaseStatus): boolean {
-  return isPhaseTerminal(p.state as any) && p.state !== "skipped";
+  return isPhaseTerminal(p.state as PhaseState) && p.state !== "skipped";
 }
 
 function buildFinalReportMarkdown(info: RunReviewInfo): string {
