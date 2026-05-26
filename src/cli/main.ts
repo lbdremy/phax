@@ -14,6 +14,7 @@ import { runLs } from "./commands/ls.js";
 import { runArchive, runArchiveLast } from "./commands/archive.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
+import { registerResumeCommand } from "./commands/resumeRegister.js";
 
 setupInterruptHandlers();
 
@@ -224,14 +225,7 @@ program
     },
   );
 
-program
-  .command("resume <short-name>")
-  .description("Resume a run from its next pending phase")
-  .option("--yes", "Proceed without confirmation")
-  .action(async (shortName: string, opts: { yes?: boolean }) => {
-    const exitCode = await runResume(shortName, { ...opts, ...globalTraceOpts() }, consoleOutput);
-    process.exit(exitCode);
-  });
+registerResumeCommand(program, runResume, consoleOutput, globalTraceOpts);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   consoleOutput.error(`Unexpected error: ${String(err)}`);
