@@ -13,6 +13,7 @@ import {
   ClaudeInvocationError,
   ClaudeSessionIdMissingError,
   GateFailedError,
+  PhaseHadNoChangesError,
   RateLimitError,
   RegistryCorruptionError,
   SetupCommandFailedError,
@@ -53,6 +54,10 @@ function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
   return e instanceof RateLimitError || e instanceof UsageLimitError;
 }
 
+function isNoChangesError(e: unknown): e is PhaseHadNoChangesError {
+  return e instanceof PhaseHadNoChangesError;
+}
+
 export interface ExecutePlanOptions {
   readonly shortName: ShortName;
   readonly plan: PhaxPlan;
@@ -86,7 +91,8 @@ export type ExecutePlanError =
   | ArchiveBlockedByDirtyWorktreeError
   | RegistryCorruptionError
   | RateLimitError
-  | UsageLimitError;
+  | UsageLimitError
+  | PhaseHadNoChangesError;
 
 export function executePlan(
   opts: ExecutePlanOptions,
@@ -460,8 +466,16 @@ export function executePlan(
         return yield* Effect.fail(e);
       }).pipe(Effect.catchAll(() => Effect.fail(e))),
     ),
+    // A no-changes exit pauses the run instead of failing it: the event was
+    // already dispatched inside commitPhase, so we just re-raise here to ensure
+    // a non-zero exit code. The run is already in `interrupted` state.
+    Effect.catchIf(isNoChangesError, (e) =>
+      Effect.gen(function* () {
+        return yield* Effect.fail(e);
+      }),
+    ),
     Effect.tapError((e) =>
-      isRateLimitError(e)
+      isRateLimitError(e) || isNoChangesError(e)
         ? Effect.void
         : dispatch(
             { ...eventBase(currentPhaseId), type: "RunFailed", cause: e },

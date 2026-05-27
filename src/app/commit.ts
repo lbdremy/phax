@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "../domain/branded.js";
-import type { RegistryCorruptionError, SetupCommandFailedError } from "../domain/errors.js";
+import { PhaseHadNoChangesError, type RegistryCorruptionError, type SetupCommandFailedError } from "../domain/errors.js";
 import type { PhaxEvent } from "../domain/events.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
@@ -25,9 +25,8 @@ export interface CommitPhaseOptions {
 }
 
 export interface CommitResult {
-  readonly committed: boolean;
-  readonly commitHash?: string | undefined;
-  readonly skippedReason?: string | undefined;
+  readonly committed: true;
+  readonly commitHash: string;
 }
 
 function buildCommitBody(opts: CommitPhaseOptions): string {
@@ -81,7 +80,7 @@ export function commitPhase(
   opts: CommitPhaseOptions,
 ): Effect.Effect<
   CommitResult,
-  GitError | ShellError | FsError | SetupCommandFailedError | RegistryCorruptionError,
+  GitError | ShellError | FsError | SetupCommandFailedError | RegistryCorruptionError | PhaseHadNoChangesError,
   Git | Shell | FileSystem | Tracer
 > {
   return Effect.gen(function* () {
@@ -89,7 +88,32 @@ export function commitPhase(
 
     const isClean = yield* git.worktreeIsClean(opts.worktreePath);
     if (isClean) {
-      return { committed: false, skippedReason: "no changes to commit" };
+      const reason = `Phase ${opts.phase.id} produced no changes — the worktree is clean after the agent finished.`;
+      const noChangesEvent: PhaxEvent = {
+        eventId: randomUUID(),
+        occurredAt: new Date().toISOString(),
+        run: opts.shortName as RunId,
+        phase: opts.phase.id as PhaseId,
+        type: "PhaseHadNoChanges",
+        phaseId: opts.phase.id as PhaseId,
+        worktreePath: opts.worktreePath,
+        sessionId: opts.sessionId,
+        reason,
+      };
+      yield* dispatch(noChangesEvent, {
+        runPath: opts.runPath,
+        shortName: opts.shortName,
+        phaseFolderPath: opts.phaseFolderPath,
+        phaseId: opts.phase.id,
+      });
+      return yield* Effect.fail(
+        new PhaseHadNoChangesError({
+          message: reason,
+          phaseId: opts.phase.id,
+          worktreePath: opts.worktreePath as string,
+          runPath: opts.runPath,
+        }),
+      );
     }
 
     const body = buildCommitBody(opts);
@@ -114,6 +138,6 @@ export function commitPhase(
 
     yield* saveDiffPatch(opts.worktreePath, opts.phaseFolderPath);
 
-    return { committed: true, commitHash };
+    return { committed: true as const, commitHash };
   });
 }

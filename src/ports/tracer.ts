@@ -22,6 +22,7 @@ export type TraceEventName =
   | "handoff.requested"
   | "handoff.validated"
   | "rate_limit.detected"
+  | "phase.no_changes.detected"
   | "resume.available"
   | "archive.completed"
   | "event.handled"

@@ -10,8 +10,8 @@ export interface StatePatch {
 }
 
 export interface ResumeContext {
-  readonly reason: "Rate limit" | "Usage limit";
-  readonly kind: "rate_limit" | "usage_limit";
+  readonly reason: "Rate limit" | "Usage limit" | "No changes";
+  readonly kind: "rate_limit" | "usage_limit" | "no_changes";
   readonly resetAt?: string | undefined;
   readonly phaseId?: string | undefined;
   readonly worktreePath?: string | undefined;

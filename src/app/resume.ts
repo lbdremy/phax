@@ -21,6 +21,8 @@ export interface ResumeDecision {
   readonly nextPhaseIndex: number;
   readonly fromState: string;
   readonly worktreePath: string | undefined;
+  /** Phases that were skipped (produced no changes) and will be bypassed on resume. */
+  readonly skippedPhaseIds: readonly string[];
 }
 
 export interface ResumeRefusal {
@@ -28,8 +30,46 @@ export interface ResumeRefusal {
   readonly message: string;
 }
 
-function findNextResumablePhase(phaseStatuses: readonly PhaseStatus[]): PhaseStatus | undefined {
-  return phaseStatuses.find((p) => !TERMINAL_PHASE_STATES.has(p.state));
+interface NextResumablePhase {
+  readonly phaseId: string;
+  readonly phaseIndex: number;
+  readonly worktreePath: string | undefined;
+}
+
+/**
+ * Walk `planPhases` in order and return the first phase that is either
+ * (a) non-terminal on disk, or (b) has no on-disk status yet (not started).
+ *
+ * This correctly handles the case where a phase was skipped (terminal) and the
+ * *next* phase has no folder on disk — the old phaseStatuses-only scan would
+ * miss it and report "no resumable phases".
+ */
+function findNextResumablePhase(
+  phaseStatuses: readonly PhaseStatus[],
+  planPhases: readonly { id: string; title: string }[],
+): NextResumablePhase | undefined {
+  if (planPhases.length > 0) {
+    const statusByPhaseId = new Map(phaseStatuses.map((p) => [p.phaseId, p]));
+    for (let i = 0; i < planPhases.length; i++) {
+      const planPhase = planPhases[i];
+      if (!planPhase) continue;
+      const status = statusByPhaseId.get(planPhase.id);
+      if (!status) {
+        // No on-disk folder yet — this phase hasn't started.
+        return { phaseId: planPhase.id, phaseIndex: i, worktreePath: undefined };
+      }
+      if (!TERMINAL_PHASE_STATES.has(status.state)) {
+        return { phaseId: status.phaseId, phaseIndex: status.phaseIndex, worktreePath: status.worktreePath };
+      }
+    }
+    return undefined;
+  }
+
+  // Fallback when no plan is available: scan phaseStatuses directly.
+  const found = phaseStatuses.find((p) => !TERMINAL_PHASE_STATES.has(p.state));
+  return found
+    ? { phaseId: found.phaseId, phaseIndex: found.phaseIndex, worktreePath: found.worktreePath }
+    : undefined;
 }
 
 function refusalMessageForRunState(shortName: string, runState: RunStatus["state"]): string {
@@ -91,7 +131,7 @@ export function inspectResume(
     });
   }
 
-  const nextPhase = findNextResumablePhase(info.phaseStatuses);
+  const nextPhase = findNextResumablePhase(info.phaseStatuses, info.planPhases);
   if (!nextPhase) {
     return Either.left({
       reason: "no_pending_phases",
@@ -106,11 +146,16 @@ export function inspectResume(
     });
   }
 
+  const skippedPhaseIds = info.phaseStatuses
+    .filter((p) => p.state === "skipped" && p.phaseIndex < nextPhase.phaseIndex)
+    .map((p) => p.phaseId);
+
   return Either.right({
     shortName,
     nextPhaseId: nextPhase.phaseId,
     nextPhaseIndex: nextPhase.phaseIndex,
     fromState: info.runState,
     worktreePath: nextPhase.worktreePath,
+    skippedPhaseIds,
   });
 }

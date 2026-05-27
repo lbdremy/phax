@@ -23,6 +23,7 @@ import {
   ConfigValidationError,
   GateFailedError,
   LockConflictError,
+  PhaseHadNoChangesError,
   PlanValidationError,
   RateLimitError,
   RegistryCorruptionError,
@@ -74,6 +75,7 @@ export function exitCodeForError(err: unknown): number {
   if (err instanceof ArchiveBlockedByDirtyWorktreeError) return 6;
   if (err instanceof LockConflictError) return 7;
   if (err instanceof RateLimitError || err instanceof UsageLimitError) return 8;
+  if (err instanceof PhaseHadNoChangesError) return 9;
   if (err instanceof RegistryCorruptionError) return 10;
   return 1;
 }

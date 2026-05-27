@@ -564,6 +564,61 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
       }
       return assertNever(state);
 
+    case "PhaseHadNoChanges":
+      switch (state.run) {
+        case "running": {
+          const ps = state.phase.state;
+          if (ps === "passed") {
+            return handled({ run: "interrupted", phase: { state: "skipped" } }, [
+              {
+                type: "PersistState",
+                patch: {
+                  run: { stoppedReason: "no_changes", lastError: event.reason },
+                },
+              },
+              {
+                type: "WriteResumeInstructions",
+                ctx: {
+                  reason: "No changes",
+                  kind: "no_changes",
+                  phaseId: event.phase,
+                  worktreePath: event.worktreePath as string,
+                  sessionId: event.sessionId as string,
+                },
+              },
+              {
+                type: "EmitTrace",
+                name: "phase.no_changes.detected",
+                status: "failed",
+                boundary: "commit",
+                details: { phaseId: event.phase },
+              },
+              {
+                type: "EmitTrace",
+                name: "resume.available",
+                status: "info",
+                boundary: "resume-instructions.md",
+                details: { resumeCommand: `phax resume ${event.run}` },
+              },
+            ]);
+          }
+          return unexpected(`phase had no changes while phase is ${ps}`);
+        }
+        case "rate_limited":
+          return unexpected("phase had no changes while run is rate_limited");
+        case "interrupted":
+          return stale("phase had no changes on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`phase had no changes while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`phase had no changes on ${state.run} run`);
+      }
+      return assertNever(state);
+
     case "RateLimitDetected":
       switch (state.run) {
         case "running": {
