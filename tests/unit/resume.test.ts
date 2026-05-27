@@ -136,7 +136,12 @@ describe("inspectResume", () => {
     // The plan lists both phases; inspectResume should find phase-02 as the next resumable.
     const plan = {
       version: 1,
-      run: { shortName: "test-run", title: "Test run", branch: "ai/test-run", backend: "claude-code" },
+      run: {
+        shortName: "test-run",
+        title: "Test run",
+        branch: "ai/test-run",
+        backend: "claude-code",
+      },
       phases: [
         {
           id: "phase-01",
@@ -179,7 +184,12 @@ describe("inspectResume", () => {
   it("phase-01 skipped + phase-02 skipped + phase-03 not yet on disk → resumes from phase-03", () => {
     const plan = {
       version: 1,
-      run: { shortName: "test-run", title: "Test run", branch: "ai/test-run", backend: "claude-code" },
+      run: {
+        shortName: "test-run",
+        title: "Test run",
+        branch: "ai/test-run",
+        backend: "claude-code",
+      },
       phases: [makePlanPhase("phase-01"), makePlanPhase("phase-02"), makePlanPhase("phase-03")],
     };
     writeFileSync(join(runPath, "phax-plan.json"), JSON.stringify(plan));

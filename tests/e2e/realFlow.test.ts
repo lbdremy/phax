@@ -35,10 +35,7 @@ describe.skipIf(!shouldRun)("phax real E2E flow", () => {
   afterAll(() => {
     if (!env) return;
     if (failed) {
-      printArtifacts(
-        { repoDir: env.repoDir, phaxHome: env.phaxHome, shortName },
-        "tests failed",
-      );
+      printArtifacts({ repoDir: env.repoDir, phaxHome: env.phaxHome, shortName }, "tests failed");
     } else {
       env.cleanup();
     }
@@ -48,11 +45,9 @@ describe.skipIf(!shouldRun)("phax real E2E flow", () => {
     "run extracts plan.md, executes all phases, and reaches review_open",
     { timeout: 600_000 },
     () => {
-      const result = runCli(
-        ["run", "--plan-md", "plan.md", "--verbose", "--trace"],
-        env.repoDir,
-        { timeout: 590_000 },
-      );
+      const result = runCli(["run", "--plan-md", "plan.md", "--verbose", "--trace"], env.repoDir, {
+        timeout: 590_000,
+      });
 
       if (result.exitCode !== 0) {
         failed = true;
@@ -158,13 +153,7 @@ describe.skipIf(!shouldRun)("phax real E2E flow", () => {
     // and the worktrees folder from worktrees/ to archive/{short}/worktrees/.
     expect(existsSync(join(env.phaxHome, "runs", shortName))).toBe(false);
 
-    const runStatusPath = join(
-      env.phaxHome,
-      "archive",
-      shortName,
-      "runs",
-      "run-status.json",
-    );
+    const runStatusPath = join(env.phaxHome, "archive", shortName, "runs", "run-status.json");
     expect(existsSync(runStatusPath), "archived run-status.json should exist under runs/").toBe(
       true,
     );
@@ -197,38 +186,34 @@ describe.skipIf(!shouldRun)("phax extract-plan (standalone)", () => {
     }
   });
 
-  it(
-    "writes a valid phax-plan.json with 2 phases",
-    { timeout: 180_000 },
-    () => {
-      const planJsonPath = join(env.repoDir, "phax-plan.json");
+  it("writes a valid phax-plan.json with 2 phases", { timeout: 180_000 }, () => {
+    const planJsonPath = join(env.repoDir, "phax-plan.json");
 
-      const result = runCli(
-        ["extract-plan", "--plan-md", "plan.md", "--out", "phax-plan.json"],
-        env.repoDir,
+    const result = runCli(
+      ["extract-plan", "--plan-md", "plan.md", "--out", "phax-plan.json"],
+      env.repoDir,
+    );
+
+    if (result.exitCode !== 0) {
+      failed = true;
+      printArtifacts(
+        { repoDir: env.repoDir, phaxHome: env.phaxHome },
+        `extract-plan failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`,
       );
+    }
 
-      if (result.exitCode !== 0) {
-        failed = true;
-        printArtifacts(
-          { repoDir: env.repoDir, phaxHome: env.phaxHome },
-          `extract-plan failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`,
-        );
-      }
+    expect(result.exitCode, `extract-plan stderr:\n${result.stderr}`).toBe(0);
+    expect(existsSync(planJsonPath), "phax-plan.json should exist").toBe(true);
 
-      expect(result.exitCode, `extract-plan stderr:\n${result.stderr}`).toBe(0);
-      expect(existsSync(planJsonPath), "phax-plan.json should exist").toBe(true);
-
-      const plan = JSON.parse(readFileSync(planJsonPath, "utf8")) as {
-        version: number;
-        run: { shortName: string; branch: string; backend: string };
-        phases: unknown[];
-      };
-      expect(plan.version).toBe(1);
-      expect(plan.run.shortName).toBeTruthy();
-      expect(plan.run.backend).toBe("claude-code-cli");
-      expect(plan.run.branch).toBe(`phax/${plan.run.shortName}`);
-      expect(plan.phases.length).toBe(2);
-    },
-  );
+    const plan = JSON.parse(readFileSync(planJsonPath, "utf8")) as {
+      version: number;
+      run: { shortName: string; branch: string; backend: string };
+      phases: unknown[];
+    };
+    expect(plan.version).toBe(1);
+    expect(plan.run.shortName).toBeTruthy();
+    expect(plan.run.backend).toBe("claude-code-cli");
+    expect(plan.run.branch).toBe(`phax/${plan.run.shortName}`);
+    expect(plan.phases.length).toBe(2);
+  });
 });

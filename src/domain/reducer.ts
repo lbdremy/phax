@@ -89,21 +89,18 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
       switch (state.run) {
         case "review_open":
         case "completed":
-          return handled(
-            { run: "archived" },
-            [
-              { type: "MoveRunToArchive", from: event.from, to: event.to },
-              ...(event.worktreesFrom !== undefined && event.worktreesTo !== undefined
-                ? [
-                    {
-                      type: "MoveRunToArchive" as const,
-                      from: event.worktreesFrom,
-                      to: event.worktreesTo,
-                    },
-                  ]
-                : []),
-            ],
-          );
+          return handled({ run: "archived" }, [
+            { type: "MoveRunToArchive", from: event.from, to: event.to },
+            ...(event.worktreesFrom !== undefined && event.worktreesTo !== undefined
+              ? [
+                  {
+                    type: "MoveRunToArchive" as const,
+                    from: event.worktreesFrom,
+                    to: event.worktreesTo,
+                  },
+                ]
+              : []),
+          ]);
         case "archived":
           return rejected("run is already archived");
         case "created":

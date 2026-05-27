@@ -419,7 +419,7 @@ The command string is descriptive metadata only.
 
 When PHAX starts a Claude Code phase, the phase prompt should include instructions such as:
 
-```md
+````md
 ## Feedback command capture
 
 When you run feedback commands during this phase, pipe their output through PHAX so the run keeps a record of intermediate failures.
@@ -430,6 +430,7 @@ Use this pattern:
 set -o pipefail
 <command> 2>&1 | phax feedback ingest --command "<command>" --kind <kind>
 ```
+````
 
 Examples:
 
@@ -445,7 +446,8 @@ pnpm audit:architecture 2>&1 | phax feedback ingest --command "pnpm audit:archit
 ```
 
 Outside a PHAX phase, this command is pass-through and does not record anything.
-```
+
+````
 
 The prompt must emphasize that deterministic PHAX gates still run after the phase, regardless of what the agent ran manually.
 
@@ -467,7 +469,7 @@ PHAX deterministic gates
   → mandatory after phase execution
   → configured in phax.json
   → decide whether the phase can commit and advance
-```
+````
 
 Gate logs should continue to be captured by PHAX even if the agent did not use `feedback ingest` during the phase.
 
@@ -609,4 +611,3 @@ The tests should avoid real LLM calls.
 This feature can be tested with local streams and temporary directories.
 
 Real E2E tests can later verify that Claude Code follows the phase prompt and uses `feedback ingest` during a phase.
-

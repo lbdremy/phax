@@ -12,8 +12,7 @@ export interface BuildPhasePromptOptions {
 }
 
 export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
-  const { planMd, planJson, currentPhase, previousHandoff, gateCommands } =
-    opts;
+  const { planMd, planJson, currentPhase, previousHandoff, gateCommands } = opts;
   const handoffSection = previousHandoff ?? "(no previous phase)";
 
   return [

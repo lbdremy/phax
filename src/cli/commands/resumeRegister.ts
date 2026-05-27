@@ -15,10 +15,7 @@ export function registerResumeCommand(
     .option("--verbose", "Print human-readable progress and system events")
     .option("--trace", "Write structured JSONL trace events to the run folder")
     .action(
-      async (
-        shortName: string,
-        opts: { yes?: boolean; verbose?: boolean; trace?: boolean },
-      ) => {
+      async (shortName: string, opts: { yes?: boolean; verbose?: boolean; trace?: boolean }) => {
         const merged = { ...getGlobalTraceOpts(), ...opts };
         const exitCode = await runResumeImpl(shortName, merged, out);
         process.exit(exitCode);

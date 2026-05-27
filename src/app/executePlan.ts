@@ -1,12 +1,7 @@
 import { Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type {
-  PhaseId,
-  RunId,
-  ShortName,
-  WorktreePath,
-} from "../domain/branded.js";
+import type { PhaseId, RunId, ShortName, WorktreePath } from "../domain/branded.js";
 import { decodeBranchName, decodePhaseId } from "../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
@@ -26,11 +21,7 @@ import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
-import {
-  Tracer,
-  type TraceEventName,
-  type TraceStatus,
-} from "../ports/tracer.js";
+import { Tracer, type TraceEventName, type TraceStatus } from "../ports/tracer.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import { cleanupPhase } from "./cleanup.js";
@@ -38,10 +29,7 @@ import { commitPhase } from "./commit.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
 import { recordGateProfileInRunStatus, resolveGateProfile } from "./gates.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
-import {
-  generatePhaseHandoff,
-  HandoffValidationError,
-} from "./handoffGeneration.js";
+import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
 import { readPreviousHandoff } from "./handoffInjection.js";
 import { createPhaseFolder } from "./phaseFolder.js";
 import { recordPhaseWorktreePath } from "./phaseStatusUpdates.js";
@@ -96,11 +84,7 @@ export type ExecutePlanError =
 
 export function executePlan(
   opts: ExecutePlanOptions,
-): Effect.Effect<
-  ExecutePlanResult,
-  ExecutePlanError,
-  Backend | FileSystem | Git | Shell | Tracer
-> {
+): Effect.Effect<ExecutePlanResult, ExecutePlanError, Backend | FileSystem | Git | Shell | Tracer> {
   const {
     shortName,
     plan,
@@ -132,10 +116,7 @@ export function executePlan(
     };
   }
 
-  function dispatchCtx(
-    phaseFolderPath?: string,
-    phaseId?: string,
-  ): DispatcherContext {
+  function dispatchCtx(phaseFolderPath?: string, phaseId?: string): DispatcherContext {
     return {
       runPath,
       shortName: shortName as string,
@@ -185,12 +166,7 @@ export function executePlan(
 
     let branch;
     if (startIndex === 0) {
-      branch = yield* prepareRunBranch(
-        shortName,
-        plan.run.branch,
-        config.repoRoot,
-        allowDirty,
-      );
+      branch = yield* prepareRunBranch(shortName, plan.run.branch, config.repoRoot, allowDirty);
       yield* dispatch({ ...eventBase(), type: "RunStarted" }, dispatchCtx());
       yield* recordGateProfileInRunStatus(runPath, gateProfileId);
     } else {
@@ -211,9 +187,7 @@ export function executePlan(
     // it transitions both the run and the in-flight phase to `running` so the
     // forward dispatches below treat the resumed phase as a normal new phase.
     const resumePhase = plan.phases[startIndex];
-    const resumePhaseFolderPath = resumePhase
-      ? join(runPath, resumePhase.id)
-      : undefined;
+    const resumePhaseFolderPath = resumePhase ? join(runPath, resumePhase.id) : undefined;
     const resumePhaseId = resumePhase?.id;
     yield* dispatch(
       { ...eventBase(resumePhaseId), type: "RunResumeRequested" },
@@ -221,8 +195,7 @@ export function executePlan(
     );
 
     const setupCommands: readonly string[] = config.raw.commands?.setup ?? [];
-    const cleanupCommands: readonly string[] =
-      config.raw.commands?.cleanup ?? [];
+    const cleanupCommands: readonly string[] = config.raw.commands?.cleanup ?? [];
 
     const committedPhases: string[] = [];
     let finalWorktreePath: WorktreePath | undefined;
@@ -281,21 +254,13 @@ export function executePlan(
 
       // setting_up_worktree → running (Ignored on a resumed phase already
       // running).
-      yield* dispatch(
-        { ...eventBase(phase.id), type: "WorktreeCreated", path: worktreePath },
-        ctx,
-      );
+      yield* dispatch({ ...eventBase(phase.id), type: "WorktreeCreated", path: worktreePath }, ctx);
 
       yield* setupPhase({ worktreePath, phaseFolderPath, setupCommands });
 
-      const previousHandoff = yield* readPreviousHandoff(
-        runPath,
-        plan.phases,
-        i,
-      );
+      const previousHandoff = yield* readPreviousHandoff(runPath, plan.phases, i);
 
-      const promptGateCommands =
-        config.raw.gateProfiles[gateProfileId]?.flat(1) ?? [];
+      const promptGateCommands = config.raw.gateProfiles[gateProfileId]?.flat(1) ?? [];
       const promptText = buildPhasePrompt({
         planMd,
         planJson: plan,
@@ -459,10 +424,7 @@ export function executePlan(
           worktreePath: currentWorktreePath as WorktreePath | undefined,
           sessionId: currentSessionId as never,
         };
-        yield* dispatch(
-          rateLimitEvent,
-          dispatchCtx(currentPhaseFolderPath, currentPhaseId),
-        );
+        yield* dispatch(rateLimitEvent, dispatchCtx(currentPhaseFolderPath, currentPhaseId));
         return yield* Effect.fail(e);
       }).pipe(Effect.catchAll(() => Effect.fail(e))),
     ),

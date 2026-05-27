@@ -69,14 +69,8 @@ describe("executePlan — happy-path 2-phase run", () => {
     const phase02Worktree = join(stateRoot, "worktrees", "my-run", "phase-02");
     await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
     await mkdir(join(phase02Worktree, ".phax-context"), { recursive: true });
-    await writeFile(
-      join(phase01Worktree, ".phax-context", "phase-handoff.md"),
-      HANDOFF_CONTENT,
-    );
-    await writeFile(
-      join(phase02Worktree, ".phax-context", "phase-handoff.md"),
-      HANDOFF_CONTENT,
-    );
+    await writeFile(join(phase01Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+    await writeFile(join(phase02Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
   });
 
   afterEach(async () => {

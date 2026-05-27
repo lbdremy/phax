@@ -174,11 +174,18 @@ export function adaptCommit(
   base: PhaxEventBase,
 ): Effect.Effect<
   CommitCreated,
-  GitError | ShellError | FsError | SetupCommandFailedError | RegistryCorruptionError | import("../domain/errors.js").PhaseHadNoChangesError,
+  | GitError
+  | ShellError
+  | FsError
+  | SetupCommandFailedError
+  | RegistryCorruptionError
+  | import("../domain/errors.js").PhaseHadNoChangesError,
   Git | Shell | FileSystem | Tracer
 > {
   return commitPhase(opts).pipe(
-    Effect.map((result): CommitCreated => ({ ...base, type: "CommitCreated", hash: result.commitHash })),
+    Effect.map(
+      (result): CommitCreated => ({ ...base, type: "CommitCreated", hash: result.commitHash }),
+    ),
   );
 }
 

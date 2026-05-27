@@ -59,7 +59,11 @@ function findNextResumablePhase(
         return { phaseId: planPhase.id, phaseIndex: i, worktreePath: undefined };
       }
       if (!TERMINAL_PHASE_STATES.has(status.state)) {
-        return { phaseId: status.phaseId, phaseIndex: status.phaseIndex, worktreePath: status.worktreePath };
+        return {
+          phaseId: status.phaseId,
+          phaseIndex: status.phaseIndex,
+          worktreePath: status.worktreePath,
+        };
       }
     }
     return undefined;

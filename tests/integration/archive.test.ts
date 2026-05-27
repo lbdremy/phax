@@ -60,18 +60,17 @@ function seedFs(opts: {
     const worktreesDir = join(stateRoot, "worktrees", shortName);
     fakeFs.impl.addDir(worktreesDir);
     fakeFs.impl.addDir(join(worktreesDir, "phase-01"));
-    fakeFs.impl.setFile(
-      join(worktreesDir, "phase-01", "README.md"),
-      "# phase-01 worktree\n",
-    );
+    fakeFs.impl.setFile(join(worktreesDir, "phase-01", "README.md"), "# phase-01 worktree\n");
   }
 
-  return { fakeFs, withWorktrees: opts.withWorktrees ?? false, worktreeDirty: opts.worktreeDirty ?? false };
+  return {
+    fakeFs,
+    withWorktrees: opts.withWorktrees ?? false,
+    worktreeDirty: opts.worktreeDirty ?? false,
+  };
 }
 
-function makeLayers(
-  seed: ReturnType<typeof seedFs>,
-) {
+function makeLayers(seed: ReturnType<typeof seedFs>) {
   const fakeTracer = makeFakeTracer();
   const fakeGit = makeFakeGit();
   const fakeShell = makeFakeShell();
@@ -82,10 +81,7 @@ function makeLayers(
   // which is unrelated to the worktrees/ directory; but keep this accurate for
   // when a test seeds both and reads the phase-01 worktree path via resolveRunInfo.
   if (seed.withWorktrees && !seed.worktreeDirty) {
-    fakeGit.impl.setCleanWorktree(
-      join(stateRoot, "worktrees", shortName, "phase-01"),
-      true,
-    );
+    fakeGit.impl.setCleanWorktree(join(stateRoot, "worktrees", shortName, "phase-01"), true);
   }
 
   const layer = Layer.mergeAll(
@@ -124,9 +120,7 @@ describe("archive — umbrella layout", () => {
     expect(parsed.state).toBe("archived");
 
     // pruneWorktrees must have been called exactly once with repoRoot
-    const pruneCalls = fakeGit.impl.calls.filter(
-      (c) => c.method === "pruneWorktrees",
-    );
+    const pruneCalls = fakeGit.impl.calls.filter((c) => c.method === "pruneWorktrees");
     expect(pruneCalls).toHaveLength(1);
     expect(pruneCalls[0]).toMatchObject({ method: "pruneWorktrees", repo: repoRoot });
   });
@@ -162,9 +156,7 @@ describe("archive — umbrella layout", () => {
     expect(sourceWorktreeFile).toBeUndefined();
 
     // pruneWorktrees called exactly once
-    const pruneCalls = fakeGit.impl.calls.filter(
-      (c) => c.method === "pruneWorktrees",
-    );
+    const pruneCalls = fakeGit.impl.calls.filter((c) => c.method === "pruneWorktrees");
     expect(pruneCalls).toHaveLength(1);
     expect(pruneCalls[0]).toMatchObject({ method: "pruneWorktrees", repo: repoRoot });
   });

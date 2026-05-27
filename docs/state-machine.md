@@ -219,7 +219,6 @@ The reducer emits `PhaxCommand[]` for `Handled` dispositions. The effect runner 
 | `PersistState { patch }`              | write `run-status.json` + `status.json` atomically |
 | `EmitTrace { name, status, details }` | append to `trace.jsonl` via the `Tracer` port      |
 | `WriteResumeInstructions { ctx }`     | write `resume.md` with rate-limit context          |
-| `PruneWorktrees { repoRoot }`         | `git worktree prune` (drops stale admin records)   |
 | `RunCleanupShell { commands, cwd }`   | execute cleanup shell commands sequentially        |
 | `WriteAtomic { path, content }`       | `FileSystem.writeAtomic`                           |
 | `OpenRunReview { info }`              | open review worktree, write `review-handoff.md`    |

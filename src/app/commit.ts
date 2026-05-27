@@ -2,7 +2,11 @@ import { Effect } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "../domain/branded.js";
-import { PhaseHadNoChangesError, type RegistryCorruptionError, type SetupCommandFailedError } from "../domain/errors.js";
+import {
+  PhaseHadNoChangesError,
+  type RegistryCorruptionError,
+  type SetupCommandFailedError,
+} from "../domain/errors.js";
 import type { PhaxEvent } from "../domain/events.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
@@ -80,7 +84,12 @@ export function commitPhase(
   opts: CommitPhaseOptions,
 ): Effect.Effect<
   CommitResult,
-  GitError | ShellError | FsError | SetupCommandFailedError | RegistryCorruptionError | PhaseHadNoChangesError,
+  | GitError
+  | ShellError
+  | FsError
+  | SetupCommandFailedError
+  | RegistryCorruptionError
+  | PhaseHadNoChangesError,
   Git | Shell | FileSystem | Tracer
 > {
   return Effect.gen(function* () {

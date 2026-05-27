@@ -139,4 +139,3 @@ export function createPhaseWorktree(
     return worktreePath;
   });
 }
-
