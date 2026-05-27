@@ -37,13 +37,6 @@ export interface WriteResumeInstructions {
   readonly ctx: ResumeContext;
 }
 
-export interface RemoveWorktree {
-  readonly type: "RemoveWorktree";
-  readonly path: string;
-  readonly force: boolean;
-  readonly repoRoot: string;
-}
-
 export interface RunCleanupShell {
   readonly type: "RunCleanupShell";
   readonly commands: readonly string[];
@@ -81,7 +74,6 @@ export type PhaxCommand =
   | PersistState
   | EmitTrace
   | WriteResumeInstructions
-  | RemoveWorktree
   | RunCleanupShell
   | WriteAtomic
   | OpenRunReview

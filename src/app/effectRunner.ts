@@ -1,6 +1,5 @@
 import { Effect, Either } from "effect";
 import { dirname, join } from "node:path";
-import type { WorktreePath } from "../domain/branded.js";
 import type { PhaxCommand } from "../domain/effects.js";
 import { RegistryCorruptionError, SetupCommandFailedError } from "../domain/errors.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -147,11 +146,6 @@ export function run(
         sessionId: cmd.ctx.sessionId,
         rawMessage: cmd.ctx.rawMessage,
       }).pipe(Effect.asVoid);
-    case "RemoveWorktree":
-      return Effect.gen(function* () {
-        const git = yield* Git;
-        yield* git.removeWorktree(cmd.path as WorktreePath, cmd.force, cmd.repoRoot);
-      });
     case "RunCleanupShell":
       return runCleanupShell(cmd);
     case "WriteAtomic":

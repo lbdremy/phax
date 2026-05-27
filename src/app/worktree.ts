@@ -1,15 +1,10 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
-import { Git } from "../ports/git.js";
+import { Git, type GitError } from "../ports/git.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { BranchName, PhaseId, ShortName, WorktreePath } from "../domain/branded.js";
 import { decodeBranchName, decodeWorktreePath } from "../domain/branded.js";
-import {
-  ArchiveBlockedByDirtyWorktreeError,
-  UnsafeGitStateError,
-  WorktreeCreationError,
-} from "../domain/errors.js";
-import type { GitError } from "../ports/git.js";
+import { UnsafeGitStateError, WorktreeCreationError } from "../domain/errors.js";
 
 export function prepareRunBranch(
   shortName: ShortName,
@@ -145,26 +140,3 @@ export function createPhaseWorktree(
   });
 }
 
-export function removePhaseWorktree(
-  path: WorktreePath,
-  force: boolean,
-  repoRoot: string,
-): Effect.Effect<void, ArchiveBlockedByDirtyWorktreeError | GitError, Git> {
-  return Effect.gen(function* () {
-    const git = yield* Git;
-
-    if (!force) {
-      const clean = yield* git.worktreeIsClean(path);
-      if (!clean) {
-        return yield* Effect.fail(
-          new ArchiveBlockedByDirtyWorktreeError({
-            message: `Worktree at "${path}" has uncommitted changes. Commit changes or use --force.`,
-            worktreePath: path,
-          }),
-        );
-      }
-    }
-
-    yield* git.removeWorktree(path, force, repoRoot);
-  });
-}
