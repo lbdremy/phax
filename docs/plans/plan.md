@@ -318,7 +318,6 @@ prevents two `phax` processes from mutating the same run.
 - `src/app/worktree.ts`:
   - `prepareRunBranch(shortName, planBranch, repoRoot)` — verifies clean tree unless `--allow-dirty`, creates the branch if needed, returns the branch name.
   - `createPhaseWorktree(shortName, phaseId, branch)` — produces `~/.phax/worktrees/<short-name>/phase-NN/` via `git worktree add`; returns a branded `WorktreePath`.
-  - `removePhaseWorktree(path, force)` — refuses on dirty worktrees unless forced.
 - `src/ports/lock.ts` and `src/infra/lock.ts`: lock file at `~/.phax/locks/<short-name>.lock` containing `{ shortName, pid, status, createdAt, updatedAt }`. `acquire` is atomic create-or-fail; `renew` updates `updatedAt`; `release` removes the file. Stale-detection: lock with `pid` no longer running OR `updatedAt` older than a configurable threshold (default 30 min).
 - `src/app/lock.ts`: `withRunLock(shortName, fn)` — Effect resource that releases on exit; refuses to enter when a non-stale lock exists, surfacing `LockConflictError`.
 - CLI command `phax unlock <short-name>` removes stale locks; `--force` removes any lock.
@@ -625,10 +624,11 @@ non-final phases.
 
 ### Validation expectations
 
-With fake adapters, a happy-path phase produces a commit, a handoff file, a
-diff patch, and removes the worktree. A handoff with missing required sections
-transitions to `handoff_failed`. A no-change phase commits nothing and records
-that fact.
+With fake adapters, a happy-path phase produces a commit, a handoff file, and a
+diff patch. The phase worktree stays on disk. A handoff with missing required
+sections transitions to `handoff_failed`. A no-change phase exits non-zero,
+transitions the run to `interrupted` and the phase to `skipped`, and writes
+`resume-instructions.md`.
 
 ### Commit subject
 
@@ -636,7 +636,7 @@ that fact.
 
 ### Commit body
 
-Add the deliberate post-gate handoff generation step that resumes the phase's Claude session, validates `phase-handoff.md`, commits the phase with the planned message including run/session metadata, persists `diff.patch`, and removes successful non-final worktrees through configured cleanup commands.
+Add the deliberate post-gate handoff generation step that resumes the phase's Claude session, validates `phase-handoff.md`, commits the phase with the planned message including run/session metadata, and persists `diff.patch`. Phase worktrees are preserved on disk until `phax archive`.
 
 ### Expected handoff content
 

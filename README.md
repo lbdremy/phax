@@ -68,7 +68,9 @@ Each phase:
 3. Builds a prompt from the plan and the previous phase's handoff, sends it to Claude Code.
 4. Runs the gate profile; on failure, resumes the same Claude session once and retries.
 5. After passing gates, resumes Claude to produce `phase-handoff.md`.
-6. Commits with the planned message and removes non-final worktrees.
+6. Commits with the planned message. If the worktree is clean (no changes), the run stops with a non-zero exit and writes `resume-instructions.md` — use `phax resume` to continue from the next phase.
+
+Worktrees from every phase persist on disk for the lifetime of the run and are available for inspection until `phax archive` is run.
 
 The final phase stays open for review. A `review-handoff.md` is written to the run folder.
 
@@ -103,7 +105,12 @@ phax ls --json            # machine-readable
 
 ## Archive
 
-Archive moves `~/.phax/runs/<short-name>` → `~/.phax/archive/<short-name>` and removes the final worktree if clean.
+Archive is the **only** operation that touches `worktrees/`. It moves:
+
+- `~/.phax/runs/<short-name>` → `~/.phax/archive/<short-name>/runs/`
+- `~/.phax/worktrees/<short-name>/` → `~/.phax/archive/<short-name>/worktrees/`
+
+Then runs `git worktree prune` to drop stale admin records. Nothing is destructively deleted — every phase's working state is preserved for later inspection.
 
 ```bash
 phax archive <short-name>       # requires review_open or completed
@@ -167,6 +174,7 @@ phax unlock <short-name> --force  # remove any lock
 | 5    | Claude invocation error                       |
 | 6    | Handoff generation failed                     |
 | 8    | Rate limit or usage limit hit (resumable)     |
+| 9    | Phase produced no changes (resumable)         |
 
 ## Environment variables
 
