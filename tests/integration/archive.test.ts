@@ -31,13 +31,12 @@ function seedFs(opts: {
 }) {
   const fakeFs = makeFakeFileSystem();
 
-  // Seed run-status.json
   fakeFs.impl.setFile(
     join(runPath, "run-status.json"),
     JSON.stringify({ ...runStatusBase, state: opts.runState }),
   );
 
-  // Seed registry.json (must satisfy RegistryEntrySchema)
+  // registry.json must satisfy RegistryEntrySchema (branch + projectName required)
   fakeFs.impl.setFile(
     join(stateRoot, "registry.json"),
     JSON.stringify({
@@ -57,7 +56,6 @@ function seedFs(opts: {
     }),
   );
 
-  // Optionally seed the worktrees directory
   if (opts.withWorktrees) {
     const worktreesDir = join(stateRoot, "worktrees", shortName);
     fakeFs.impl.addDir(worktreesDir);
@@ -66,23 +64,24 @@ function seedFs(opts: {
       join(worktreesDir, "phase-01", "README.md"),
       "# phase-01 worktree\n",
     );
-    return { fakeFs, worktreeDirty: opts.worktreeDirty ?? false };
   }
 
-  return { fakeFs, worktreeDirty: false };
+  return { fakeFs, withWorktrees: opts.withWorktrees ?? false, worktreeDirty: opts.worktreeDirty ?? false };
 }
 
 function makeLayers(
-  fakeFs: ReturnType<typeof makeFakeFileSystem>,
-  opts: { worktreeDirty?: boolean } = {},
+  seed: ReturnType<typeof seedFs>,
 ) {
   const fakeTracer = makeFakeTracer();
   const fakeGit = makeFakeGit();
   const fakeShell = makeFakeShell();
   const fakeLock = makeFakeLock();
 
-  // By default worktrees are clean (archive is allowed without --force)
-  if (!opts.worktreeDirty) {
+  // Only set worktree cleanliness when worktrees were actually seeded.
+  // Archive checks cleanliness only on the final worktree (from resolveRunInfo),
+  // which is unrelated to the worktrees/ directory; but keep this accurate for
+  // when a test seeds both and reads the phase-01 worktree path via resolveRunInfo.
+  if (seed.withWorktrees && !seed.worktreeDirty) {
     fakeGit.impl.setCleanWorktree(
       join(stateRoot, "worktrees", shortName, "phase-01"),
       true,
@@ -90,7 +89,7 @@ function makeLayers(
   }
 
   const layer = Layer.mergeAll(
-    fakeFs.layer,
+    seed.fakeFs.layer,
     fakeTracer.layer,
     fakeGit.layer,
     fakeShell.layer,
@@ -105,8 +104,9 @@ function makeLayers(
 
 describe("archive — umbrella layout", () => {
   it("moves runs/{short} to archive/{short}/runs/ (no worktrees dir)", async () => {
-    const { fakeFs } = seedFs({ runState: "review_open", withWorktrees: false });
-    const { layer, fakeGit } = makeLayers(fakeFs);
+    const seed = seedFs({ runState: "review_open", withWorktrees: false });
+    const { fakeFs } = seed;
+    const { layer, fakeGit } = makeLayers(seed);
 
     await Effect.runPromise(
       archive(shortName, stateRoot, repoRoot, {}).pipe(Effect.provide(layer)),
@@ -132,8 +132,9 @@ describe("archive — umbrella layout", () => {
   });
 
   it("moves both runs/ and worktrees/ into archive umbrella when worktrees dir exists", async () => {
-    const { fakeFs } = seedFs({ runState: "review_open", withWorktrees: true });
-    const { layer, fakeGit } = makeLayers(fakeFs);
+    const seed = seedFs({ runState: "review_open", withWorktrees: true });
+    const { fakeFs } = seed;
+    const { layer, fakeGit } = makeLayers(seed);
 
     await Effect.runPromise(
       archive(shortName, stateRoot, repoRoot, {}).pipe(Effect.provide(layer)),
@@ -169,8 +170,9 @@ describe("archive — umbrella layout", () => {
   });
 
   it("sets archivePath in the registry to the umbrella path, not a subfolder", async () => {
-    const { fakeFs } = seedFs({ runState: "review_open", withWorktrees: false });
-    const { layer } = makeLayers(fakeFs);
+    const seed = seedFs({ runState: "review_open", withWorktrees: false });
+    const { fakeFs } = seed;
+    const { layer } = makeLayers(seed);
 
     await Effect.runPromise(
       archive(shortName, stateRoot, repoRoot, {}).pipe(Effect.provide(layer)),
@@ -179,7 +181,8 @@ describe("archive — umbrella layout", () => {
     const raw = fakeFs.impl.getFile(join(stateRoot, "registry.json"));
     expect(raw).toBeDefined();
     const registry = JSON.parse(raw!) as { runs: Array<{ archivePath?: string }> };
-    const entry = registry.runs.find((r) => true); // only one run
+    expect(registry.runs).toHaveLength(1);
+    const entry = registry.runs[0];
     // archivePath should be the umbrella: archive/{short}, not archive/{short}/runs
     expect(entry?.archivePath).toBe(join(stateRoot, "archive", shortName));
     expect(entry?.archivePath).not.toContain("/runs");

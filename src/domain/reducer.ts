@@ -88,22 +88,22 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
     case "RunArchiveRequested":
       switch (state.run) {
         case "review_open":
-        case "completed": {
-          // Diff patch persists state="archived" to runs/<short>/run-status.json
-          // first; then MoveRunToArchive renames the directories. The registry
-          // index entry (which carries archivePath) is updated by the caller.
-          const effects: PhaxCommand[] = [
-            { type: "MoveRunToArchive", from: event.from, to: event.to },
-          ];
-          if (event.worktreesFrom !== undefined && event.worktreesTo !== undefined) {
-            effects.push({
-              type: "MoveRunToArchive",
-              from: event.worktreesFrom,
-              to: event.worktreesTo,
-            });
-          }
-          return handled({ run: "archived" }, effects);
-        }
+        case "completed":
+          return handled(
+            { run: "archived" },
+            [
+              { type: "MoveRunToArchive", from: event.from, to: event.to },
+              ...(event.worktreesFrom !== undefined && event.worktreesTo !== undefined
+                ? [
+                    {
+                      type: "MoveRunToArchive" as const,
+                      from: event.worktreesFrom,
+                      to: event.worktreesTo,
+                    },
+                  ]
+                : []),
+            ],
+          );
         case "archived":
           return rejected("run is already archived");
         case "created":

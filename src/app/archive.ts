@@ -87,9 +87,9 @@ export function archive(
     //    as an InvalidTransitionError. On Handled, the reducer emits
     //    MoveRunToArchive effects and the dispatcher persists run-status.json.
     //
-    //    Archive umbrella layout:
-    //      archive/{short}/runs/     ← moved from runs/{short}
-    //      archive/{short}/worktrees/ ← moved from worktrees/{short}
+    //    Both the run folder and the worktrees folder land under a single
+    //    umbrella so a user can move the entire archive entry as one unit and
+    //    the archivePath registry field stays unambiguous.
     const archivePath = join(stateRoot, "archive", shortName);
     const runsTo = join(archivePath, "runs");
     const worktreesFrom = join(stateRoot, "worktrees", shortName);
