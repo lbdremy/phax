@@ -294,14 +294,14 @@ export function executePlan(
         i,
       );
 
-      const gateCommands =
+      const promptGateCommands =
         config.raw.gateProfiles[gateProfileId]?.flat(1) ?? [];
       const promptText = buildPhasePrompt({
         planMd,
         planJson: plan,
         currentPhase: phase,
         previousHandoff,
-        gateCommands: gateCommands,
+        gateCommands: promptGateCommands,
       });
 
       const fs = yield* FileSystem;

@@ -18,7 +18,7 @@ function formatDuration(startIso: string, endIso: string): string {
 }
 
 function isPhaseSuccessful(p: PhaseStatus): boolean {
-  return isPhaseTerminal(p.state as any) && p.state !== "skipped";
+  return isPhaseTerminal(p.state) && p.state !== "skipped";
 }
 
 function buildFinalReportMarkdown(info: RunReviewInfo): string {
