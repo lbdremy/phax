@@ -27,6 +27,10 @@ export interface RunArchiveRequested extends PhaxEventBase {
   readonly type: "RunArchiveRequested";
   readonly from: string;
   readonly to: string;
+  /** Source path of the worktrees folder (e.g. ~/.phax/worktrees/{short}). */
+  readonly worktreesFrom?: string | undefined;
+  /** Destination path inside the archive umbrella (e.g. ~/.phax/archive/{short}/worktrees). */
+  readonly worktreesTo?: string | undefined;
 }
 
 export interface RunFailed extends PhaxEventBase {

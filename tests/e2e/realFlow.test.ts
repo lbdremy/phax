@@ -154,11 +154,29 @@ describe.skipIf(!shouldRun)("phax real E2E flow", () => {
 
     expect(result.exitCode, `archive stderr:\n${result.stderr}`).toBe(0);
 
-    // archive moves the run folder from runs/ to archive/.
+    // archive moves the run folder from runs/ to archive/{short}/runs/
+    // and the worktrees folder from worktrees/ to archive/{short}/worktrees/.
     expect(existsSync(join(env.phaxHome, "runs", shortName))).toBe(false);
-    const runStatusPath = join(env.phaxHome, "archive", shortName, "run-status.json");
+
+    const runStatusPath = join(
+      env.phaxHome,
+      "archive",
+      shortName,
+      "runs",
+      "run-status.json",
+    );
+    expect(existsSync(runStatusPath), "archived run-status.json should exist under runs/").toBe(
+      true,
+    );
     const runStatus = JSON.parse(readFileSync(runStatusPath, "utf8")) as { state: string };
     expect(runStatus.state).toBe("archived");
+
+    // Worktrees subfolder should exist inside the archive umbrella.
+    const archivedWorktreesDir = join(env.phaxHome, "archive", shortName, "worktrees");
+    expect(
+      existsSync(archivedWorktreesDir),
+      "archived worktrees directory should exist under archive/{short}/worktrees/",
+    ).toBe(true);
   });
 });
 

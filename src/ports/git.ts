@@ -17,6 +17,7 @@ export interface GitOps {
   removeWorktree(path: WorktreePath, force: boolean, repo: string): Effect.Effect<void, GitError>;
   commit(repo: string, subject: string, body: string): Effect.Effect<void, GitError>;
   worktreeIsClean(path: WorktreePath): Effect.Effect<boolean, GitError>;
+  pruneWorktrees(repo: string): Effect.Effect<void, GitError>;
 }
 
 export class Git extends Context.Tag("phax/Git")<Git, GitOps>() {}

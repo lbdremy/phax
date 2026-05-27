@@ -10,7 +10,8 @@ export type GitCall =
   | { method: "addWorktree"; branch: string; path: string; repo: string }
   | { method: "removeWorktree"; path: string; force: boolean; repo: string }
   | { method: "commit"; repo: string; subject: string; body: string }
-  | { method: "worktreeIsClean"; path: string };
+  | { method: "worktreeIsClean"; path: string }
+  | { method: "pruneWorktrees"; repo: string };
 
 export class FakeGitImpl implements GitOps {
   readonly calls: GitCall[] = [];
@@ -89,6 +90,11 @@ export class FakeGitImpl implements GitOps {
       return Effect.succeed(queue.shift()!);
     }
     return Effect.succeed(this.cleanWorktrees.has(path as string));
+  }
+
+  pruneWorktrees(repo: string): Effect.Effect<void, GitError> {
+    this.calls.push({ method: "pruneWorktrees", repo });
+    return Effect.void;
   }
 }
 
