@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { PhaseId, RunId, ShortName, WorktreePath } from "../domain/branded.js";
+import type { BranchName, PhaseId, RunId, ShortName, WorktreePath } from "../domain/branded.js";
 import { decodeBranchName, decodePhaseId } from "../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
@@ -36,7 +36,7 @@ import { recordPhaseWorktreePath } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRunByShortName } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
-import { createPhaseWorktree, prepareRunBranch } from "./worktree.js";
+import { createPhaseWorktree, preparePhaseBranch, prepareRunBranch } from "./worktree.js";
 
 function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
   return e instanceof RateLimitError || e instanceof UsageLimitError;
@@ -182,6 +182,28 @@ export function executePlan(
       branch = branchResult.right;
     }
 
+    // `previousPhaseBranch` tracks the ref each new phase branches off.
+    // On a fresh run phase-01 branches off the run branch; phase-N branches off
+    // phase-(N-1). On resume we seed it from the last completed phase so the
+    // chain is correct without any extra disk read — the naming is total.
+    let previousPhaseBranch: BranchName = branch;
+    if (startIndex > 0) {
+      const prevPhase = plan.phases[startIndex - 1];
+      if (prevPhase !== undefined) {
+        const prevBranchStr = `${plan.run.branch}--${prevPhase.id}`;
+        const prevBranchResult = decodeBranchName(prevBranchStr);
+        if (Either.isLeft(prevBranchResult)) {
+          return yield* Effect.fail(
+            new UnsafeGitStateError({
+              message: `Invalid branch name "${prevBranchStr}": must be non-empty`,
+              repoPath: config.repoRoot,
+            }),
+          );
+        }
+        previousPhaseBranch = prevBranchResult.right;
+      }
+    }
+
     // Lift a rate-limited run+phase back to running. On a fresh run the reducer
     // returns Ignored (run already running) and produces no writes; on resume
     // it transitions both the run and the in-flight phase to `running` so the
@@ -236,10 +258,19 @@ export function executePlan(
           }),
         );
       }
+      // Each phase gets its own branch (<run.branch>--<phaseId>) so multiple
+      // worktrees can coexist — git refuses to check out one branch in two
+      // worktrees simultaneously.
+      const phaseBranch = yield* preparePhaseBranch(
+        branch,
+        phaseIdResult.right,
+        previousPhaseBranch,
+        config.repoRoot,
+      );
       const worktreePath = yield* createPhaseWorktree(
         shortName,
         phaseIdResult.right,
-        branch,
+        phaseBranch,
         config.stateRoot,
         config.repoRoot,
       );
@@ -387,6 +418,9 @@ export function executePlan(
           phaseId: phase.id,
         });
       }
+
+      // Advance the chain: the next phase branches off this phase's branch.
+      previousPhaseBranch = phaseBranch;
     }
 
     if (finalWorktreePath === undefined || finalPhaseId === undefined) {

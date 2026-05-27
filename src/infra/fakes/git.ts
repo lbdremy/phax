@@ -20,6 +20,9 @@ export class FakeGitImpl implements GitOps {
   isCleanDefault = true;
   activeBranch: BranchName = "main" as BranchName;
   readonly existingBranches = new Set<string>();
+  /** Tracks which branches are currently checked out in a worktree.
+   * Maps branch → worktree path; used to simulate git's "already checked out" error. */
+  readonly checkedOutBranches = new Map<string, string>();
 
   setCleanWorktree(path: string, clean: boolean): void {
     if (clean) {
@@ -70,6 +73,16 @@ export class FakeGitImpl implements GitOps {
 
   addWorktree(branch: BranchName, path: WorktreePath, repo: string): Effect.Effect<void, GitError> {
     this.calls.push({ method: "addWorktree", branch, path, repo });
+    const existingPath = this.checkedOutBranches.get(branch as string);
+    if (existingPath !== undefined) {
+      return Effect.fail(
+        new GitError({
+          message: `'${branch}' is already checked out at '${existingPath}'`,
+          command: `git worktree add ${path} ${branch}`,
+        }),
+      );
+    }
+    this.checkedOutBranches.set(branch as string, path as string);
     return Effect.void;
   }
 

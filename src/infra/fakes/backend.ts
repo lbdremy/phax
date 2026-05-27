@@ -1,4 +1,6 @@
 import { Effect, Layer } from "effect";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { ClaudeSessionId } from "../../domain/branded.js";
 import { ClaudeInvocationError, RateLimitError, UsageLimitError } from "../../domain/errors.js";
 import {
@@ -32,6 +34,17 @@ export class FakeBackendImpl implements BackendOps {
 
   /** When set, the next `resumeAgentSession` call fails with a limit error. */
   private resumeRateLimitKnob: RateLimitKnob | undefined;
+
+  /**
+   * When set, each `resumeAgentSession` call writes this content to
+   * `<options.cwd>/.phax-context/phase-handoff.md` before returning.
+   * Useful in tests that need the handoff file without pre-creating worktrees.
+   */
+  private _autoHandoffContent: string | undefined;
+
+  setAutoHandoffContent(content: string): void {
+    this._autoHandoffContent = content;
+  }
 
   addRunResponse(result: AgentRunResult): void {
     this.runResponses.push(result);
@@ -92,6 +105,12 @@ export class FakeBackendImpl implements BackendOps {
       const knob = this.resumeRateLimitKnob;
       this.resumeRateLimitKnob = undefined;
       return Effect.fail(this.limitError(knob));
+    }
+    // If configured, write the handoff file so generatePhaseHandoff can read it.
+    // By the time resumeAgentSession is called, ensurePhaxContextIgnored has
+    // already created <cwd>/.phax-context/, so the write is always safe.
+    if (this._autoHandoffContent !== undefined) {
+      writeFileSync(join(options.cwd, ".phax-context", "phase-handoff.md"), this._autoHandoffContent);
     }
     const result = this.resumeResponses[this.resumeIdx++];
     if (result === undefined) {
