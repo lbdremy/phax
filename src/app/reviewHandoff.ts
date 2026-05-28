@@ -20,7 +20,8 @@ export function buildReviewHandoffMarkdown(info: RunReviewInfo): string {
 
 - **Run ID**: ${info.runId}
 - **Short Name**: ${info.shortName}
-- **Branch**: ${info.branch}
+- **Base Branch**: ${info.branch}
+- **Final Phase Branch (review here)**: \`${info.finalPhaseBranch}\`
 - **Gate Profile**: ${info.gateProfileId ?? "(none)"}
 
 ## Final Phase
@@ -54,10 +55,12 @@ ${resumeSnippet}
 
 ## Conductor Handoff
 
-Branch: \`${info.branch}\`
+Base Branch: \`${info.branch}\`
+Final Phase Branch: \`${info.finalPhaseBranch}\`
 Worktree: \`${info.worktreePath}\`
 
-Open the worktree directory in Conductor or point a new workspace at branch \`${info.branch}\`.
+The full commit chain is on \`${info.finalPhaseBranch}\` (\`${info.branch}\` stays at the run-start commit).
+Open the worktree directory in Conductor or point a new workspace at branch \`${info.finalPhaseBranch}\`.
 
 ## Completed Phases
 

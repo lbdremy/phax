@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Either } from "effect";
 import type { ShortName } from "../domain/branded.js";
+import { decodeBranchName } from "../domain/branded.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { decodeRunStatus, decodePhaseStatus, type PhaseStatus } from "../schemas/status.js";
 import { decodePhaxPlan } from "../schemas/phaxPlan.js";
@@ -91,11 +92,18 @@ function loadRunReviewInfo(
 
   const finalPlanPhase = planPhases.find((p) => p.id === finalPhaseStatus.phaseId);
 
+  const finalPhaseBranchResult = decodeBranchName(`${branch}--${finalPhaseStatus.phaseId}`);
+  if (Either.isLeft(finalPhaseBranchResult)) {
+    return Either.left(`Cannot compute final phase branch for run at "${runPath}"`);
+  }
+  const finalPhaseBranch = finalPhaseBranchResult.right;
+
   return Either.right({
     shortName: runStatus.shortName,
     runId: runStatus.runId,
     runState: runStatus.state,
     branch,
+    finalPhaseBranch,
     stateRoot,
     runPath,
     finalPhaseId: finalPhaseStatus.phaseId,

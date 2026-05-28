@@ -33,6 +33,7 @@ const runReviewInfo: RunReviewInfo = {
   runId: "my-run-1234567890",
   runState: "running",
   branch: "feature/my-run",
+  finalPhaseBranch: "feature/my-run--phase-01" as BranchName,
   stateRoot,
   runPath,
   finalPhaseId: "phase-01",
@@ -43,6 +44,8 @@ const runReviewInfo: RunReviewInfo = {
   phaseStatuses: [phaseStatus],
   planPhases: [{ id: "phase-01", title: "First Phase" }],
   updatedAt: now,
+  stoppedReason: undefined,
+  lastError: undefined,
 };
 
 function makeRunStatusJson(state: string): string {
