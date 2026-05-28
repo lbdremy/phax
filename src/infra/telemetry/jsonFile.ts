@@ -15,6 +15,9 @@ const swallowError = (
   eff: Effect.Effect<void, unknown, never>,
 ): Effect.Effect<void, never, never> => Effect.catchAll(eff, () => Effect.void);
 
+export const makeJsonFileTelemetryOps = (path: string, fs: FileSystemOps): SystemTelemetryOps =>
+  makeOps(path, fs);
+
 const makeOps = (path: string, fs: FileSystemOps): SystemTelemetryOps => {
   const appendJson = (record: unknown): Effect.Effect<void, never, never> =>
     swallowError(fs.appendLine(path, JSON.stringify(record)));
