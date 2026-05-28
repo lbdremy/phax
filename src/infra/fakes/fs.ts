@@ -34,6 +34,13 @@ export class FakeFileSystemImpl implements FileSystemOps {
     return Effect.succeed(content);
   }
 
+  appendLine(path: string, line: string): Effect.Effect<void, FsError> {
+    const existing = this.files.get(path) ?? "";
+    this.files.set(path, existing + line + "\n");
+    this.registerParentDirs(path);
+    return Effect.void;
+  }
+
   writeAtomic(path: string, content: string): Effect.Effect<void, FsError> {
     this.files.set(path, content);
     this.registerParentDirs(path);
