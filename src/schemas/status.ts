@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { BranchNameSchema } from "../domain/branded.js";
 
 const RunStateSchema = Schema.Union(
   Schema.Literal("created"),
@@ -65,6 +66,7 @@ export const PhaseStatusSchema = Schema.Struct({
   effort: EffortSchema,
   createdAt: Schema.NonEmptyString,
   updatedAt: Schema.NonEmptyString,
+  branchName: BranchNameSchema,
   worktreePath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
   claudeSessionId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
   commitHash: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),

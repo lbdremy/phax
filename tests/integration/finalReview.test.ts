@@ -7,6 +7,7 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
 import type { RunReviewInfo } from "../../src/app/resolveRunInfo.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
+import type { BranchName } from "../../src/domain/branded.js";
 
 const stateRoot = "/fake-state";
 const shortName = "my-run";
@@ -20,6 +21,7 @@ const phaseStatus: PhaseStatus = {
   state: "committed",
   model: "claude-sonnet-4-6",
   effort: "low",
+  branchName: "feature/my-run--phase-01" as BranchName,
   createdAt: now,
   updatedAt: now,
   worktreePath: "/fake/worktrees/my-run/phase-01",

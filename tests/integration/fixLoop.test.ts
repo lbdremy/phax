@@ -21,6 +21,7 @@ const phaseStatusJson = JSON.stringify({
   state: "running",
   model: "claude-sonnet-4-6",
   effort: "low",
+  branchName: "ai/my-run--phase-01",
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 });

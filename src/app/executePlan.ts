@@ -32,7 +32,7 @@ import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
 import { readPreviousHandoff } from "./handoffInjection.js";
 import { createPhaseFolder } from "./phaseFolder.js";
-import { recordPhaseWorktreePath } from "./phaseStatusUpdates.js";
+import { recordPhaseWorktreeAndBranch } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRunByShortName } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
@@ -228,26 +228,8 @@ export function executePlan(
       if (phase === undefined) continue;
       const isFinal = i === plan.phases.length - 1;
 
-      const phaseFolderPath = yield* createPhaseFolder(runPath, phase, i);
-      currentPhaseId = phase.id;
-      currentPhaseFolderPath = phaseFolderPath;
-      currentWorktreePath = undefined;
-      currentSessionId = undefined;
-
-      const ctx = dispatchCtx(phaseFolderPath, phase.id);
-
-      // pending → setting_up_worktree (Ignored on a resumed phase already in
-      // setting_up_worktree/running; Rejected if the phase is past pending in
-      // an unexpected way).
-      yield* dispatch(
-        {
-          ...eventBase(phase.id),
-          type: "PhaseStartRequested",
-          phaseId: phase.id as PhaseId,
-        },
-        ctx,
-      );
-
+      // Resolve the phase branch before creating the phase folder so the
+      // initial status.json can include branchName (required by the schema).
       const phaseIdResult = decodePhaseId(phase.id);
       if (Either.isLeft(phaseIdResult)) {
         return yield* Effect.fail(
@@ -267,6 +249,26 @@ export function executePlan(
         previousPhaseBranch,
         config.repoRoot,
       );
+
+      const phaseFolderPath = yield* createPhaseFolder(runPath, phase, i, phaseBranch);
+      currentPhaseId = phase.id;
+      currentPhaseFolderPath = phaseFolderPath;
+      currentWorktreePath = undefined;
+      currentSessionId = undefined;
+
+      const ctx = dispatchCtx(phaseFolderPath, phase.id);
+
+      // pending → setting_up_worktree (Ignored on a resumed phase already in
+      // setting_up_worktree/running; Rejected if the phase is past pending in
+      // an unexpected way).
+      yield* dispatch(
+        {
+          ...eventBase(phase.id),
+          type: "PhaseStartRequested",
+          phaseId: phase.id as PhaseId,
+        },
+        ctx,
+      );
       const worktreePath = yield* createPhaseWorktree(
         shortName,
         phaseIdResult.right,
@@ -276,7 +278,7 @@ export function executePlan(
       );
 
       currentWorktreePath = worktreePath as string;
-      yield* recordPhaseWorktreePath(phaseFolderPath, worktreePath);
+      yield* recordPhaseWorktreeAndBranch(phaseFolderPath, worktreePath, phaseBranch);
       yield* emit("git.worktree.created", "ok", {
         phase: phase.id,
         boundary: "worktree",

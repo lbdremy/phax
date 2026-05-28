@@ -315,6 +315,7 @@ describe("executePlan — per-phase branch regression", () => {
         state: "committed",
         model: "claude-sonnet-4-6",
         effort: "low",
+        branchName: "ai/my-run--phase-01",
         createdAt: now,
         updatedAt: now,
         worktreePath: join(stateRoot, "worktrees", "my-run", "phase-01"),

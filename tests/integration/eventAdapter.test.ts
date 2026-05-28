@@ -56,6 +56,7 @@ const phaseStatusSeed = JSON.stringify({
   model: "claude-sonnet-4-6",
   effort: "low",
   state: "passed",
+  branchName: "ai/my-run--phase-01",
   createdAt: "2026-05-21T00:00:00.000Z",
   updatedAt: "2026-05-21T00:00:00.000Z",
 });
@@ -374,6 +375,7 @@ describe("adaptCleanup", () => {
     model: "claude-sonnet-4-6",
     effort: "low",
     state: "committed",
+    branchName: "ai/my-run--phase-01",
     commitHash: "deadbeef",
     createdAt: "2026-05-21T00:00:00.000Z",
     updatedAt: "2026-05-21T00:00:00.000Z",
@@ -437,6 +439,7 @@ describe("adaptHandoffGenerate", () => {
     model: "claude-sonnet-4-6",
     effort: "low",
     state: "passed",
+    branchName: "ai/my-run--phase-01",
     createdAt: "2026-05-21T00:00:00.000Z",
     updatedAt: "2026-05-21T00:00:00.000Z",
   });
