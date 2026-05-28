@@ -21,6 +21,14 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { Tracer, type TraceEventName, type TraceStatus } from "../ports/tracer.js";
+import { SystemTelemetry } from "../ports/systemTelemetry.js";
+import {
+  makeAdapterCallStartedTelemetryEvent,
+  makeAdapterCallSucceededTelemetryEvent,
+  makeArtifactGeneratedTelemetryEvent,
+  makeStepStartedTelemetryEvent,
+  makeStepCompletedTelemetryEvent,
+} from "../domain/telemetry/events.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import { cleanupPhase } from "./cleanup.js";
@@ -78,7 +86,11 @@ export type ExecutePlanError =
 
 export function executePlan(
   opts: ExecutePlanOptions,
-): Effect.Effect<ExecutePlanResult, ExecutePlanError, Backend | FileSystem | Git | Shell | Tracer> {
+): Effect.Effect<
+  ExecutePlanResult,
+  ExecutePlanError,
+  Backend | FileSystem | Git | Shell | Tracer | SystemTelemetry
+> {
   const {
     shortName,
     plan,
@@ -121,6 +133,7 @@ export function executePlan(
 
   const program = Effect.gen(function* () {
     const tracer = yield* Tracer;
+    const telemetry = yield* SystemTelemetry;
     const emit = (
       event: TraceEventName,
       status: TraceStatus,
@@ -141,10 +154,14 @@ export function executePlan(
       });
 
     yield* emit("config.discovered", "info", { boundary: "phax.json" });
+    yield* telemetry.recordEvent(makeStepStartedTelemetryEvent({ runId, step: "config.discover" }));
     yield* emit("config.validated", "ok", {
       boundary: "phax.json",
       details: { gateProfileId, repoRoot: config.repoRoot, workspaceId },
     });
+    yield* telemetry.recordEvent(
+      makeStepCompletedTelemetryEvent({ runId, step: "config.validate", result: "success" }),
+    );
 
     let gateCommands: readonly string[];
     try {
@@ -241,6 +258,14 @@ export function executePlan(
         boundary: "worktree",
         details: { worktreePath: worktreePath as string },
       });
+      yield* telemetry.recordEvent(
+        makeAdapterCallSucceededTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          adapter: "git",
+          operation: "worktree.create",
+        }),
+      );
 
       // setting_up_worktree → running (Ignored on a resumed phase already
       // running).
@@ -274,17 +299,45 @@ export function executePlan(
         boundary: "claude-code",
         details: { model: phase.model, effort: phase.effort },
       });
-      const agentResult = yield* backend.runAgent(promptText, agentOptions);
+      yield* telemetry.recordEvent(
+        makeAdapterCallStartedTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          adapter: "claude-code-cli",
+          operation: "agent.run",
+        }),
+      );
+      const agentResult = yield* telemetry.withOperation(
+        "phax.claude-code-cli.agent.run",
+        { "phax.phase.id": phase.id },
+        backend.runAgent(promptText, agentOptions),
+      );
       const sessionId = agentResult.sessionId;
       currentSessionId = sessionId as string;
       yield* emit("agent.invocation.completed", "ok", {
         phase: phase.id,
         boundary: "claude-code",
       });
+      yield* telemetry.recordEvent(
+        makeAdapterCallSucceededTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          adapter: "claude-code-cli",
+          operation: "agent.run",
+        }),
+      );
       yield* emit("agent.session.captured", "ok", {
         phase: phase.id,
         details: { sessionId: sessionId as string },
       });
+      yield* telemetry.recordEvent(
+        makeArtifactGeneratedTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          artifact: "claude-session-id",
+          path: sessionId as string,
+        }),
+      );
 
       // running → passed transition is dispatched inside fixLoop on the
       // gate-success branch via dispatch(GatePassed).
@@ -304,6 +357,9 @@ export function executePlan(
         phase: phase.id,
         boundary: "phase-handoff.md",
       });
+      yield* telemetry.recordEvent(
+        makeStepStartedTelemetryEvent({ runId, operationId: phase.id, step: "handoff.generate" }),
+      );
       yield* generatePhaseHandoff({
         sessionId,
         agentOptions,
@@ -317,6 +373,14 @@ export function executePlan(
         phase: phase.id,
         boundary: "phase-handoff.md",
       });
+      yield* telemetry.recordEvent(
+        makeStepCompletedTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          step: "handoff.generate",
+          result: "success",
+        }),
+      );
 
       // commitPhase dispatches CommitCreated internally.
       yield* commitPhase({
@@ -337,6 +401,14 @@ export function executePlan(
         boundary: "git",
         details: { subject: phase.commit.subject },
       });
+      yield* telemetry.recordEvent(
+        makeAdapterCallSucceededTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          adapter: "git",
+          operation: "commit.create",
+        }),
+      );
 
       if (isFinal) {
         finalWorktreePath = worktreePath;

@@ -7,6 +7,7 @@ import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
+import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 
 const runPath = "/state/runs/my-run";
 const phaseFolderPath = "/state/runs/my-run/phase-01";
@@ -68,10 +69,17 @@ function seedFs(opts: {
 
 function makeLayers(fakeFs: ReturnType<typeof seedFs>) {
   const fakeTracer = makeFakeTracer();
+  const fakeTelemetry = makeFakeSystemTelemetry();
   const fakeGit = makeFakeGit();
   const fakeShell = makeFakeShell();
-  const layer = Layer.mergeAll(fakeFs.layer, fakeTracer.layer, fakeGit.layer, fakeShell.layer);
-  return { layer, fakeTracer, fakeGit, fakeShell };
+  const layer = Layer.mergeAll(
+    fakeFs.layer,
+    fakeTracer.layer,
+    fakeTelemetry.layer,
+    fakeGit.layer,
+    fakeShell.layer,
+  );
+  return { layer, fakeTracer, fakeTelemetry, fakeGit, fakeShell };
 }
 
 const ctx: DispatcherContext = {
@@ -84,7 +92,7 @@ const ctx: DispatcherContext = {
 describe("dispatch — handled transitions", () => {
   it("transitions created → running on RunStarted and persists the new run state", async () => {
     const fakeFs = seedFs({ runState: "created" });
-    const { layer, fakeTracer } = makeLayers(fakeFs);
+    const { layer, fakeTracer, fakeTelemetry } = makeLayers(fakeFs);
 
     const event: PhaxEvent = { type: "RunStarted", ...baseEventFields };
 
@@ -99,6 +107,11 @@ describe("dispatch — handled transitions", () => {
 
     const names = fakeTracer.impl.eventNames();
     expect(names).toContain("event.handled");
+
+    const telEvents = fakeTelemetry.impl.events();
+    expect(telEvents.some((e) => e.type === "state.transition" && e.event === "RunStarted")).toBe(
+      true,
+    );
 
     const persisted = JSON.parse(fakeFs.impl.getFile(`${runPath}/run-status.json`)!) as {
       state: string;
@@ -159,7 +172,7 @@ describe("dispatch — handled transitions", () => {
 describe("dispatch — non-handled dispositions", () => {
   it("emits event.stale and does not persist on a stale GateFailed", async () => {
     const fakeFs = seedFs({ runState: "running", phaseState: "cleaned_up" });
-    const { layer, fakeTracer } = makeLayers(fakeFs);
+    const { layer, fakeTracer, fakeTelemetry } = makeLayers(fakeFs);
     const beforePhase = fakeFs.impl.getFile(`${phaseFolderPath}/status.json`);
     const beforeRun = fakeFs.impl.getFile(`${runPath}/run-status.json`);
 
@@ -182,6 +195,13 @@ describe("dispatch — non-handled dispositions", () => {
 
     const names = fakeTracer.impl.eventNames();
     expect(names).toContain("event.stale");
+
+    const telEvents = fakeTelemetry.impl.events();
+    expect(
+      telEvents.some(
+        (e) => e.type === "step.completed" && "step" in e && e.step === "dispatch.GateFailed",
+      ),
+    ).toBe(true);
   });
 
   it("emits event.rejected on archive-from-running", async () => {

@@ -8,6 +8,7 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { Tracer } from "../ports/tracer.js";
+import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { dispatch } from "./dispatcher.js";
 
 /**
@@ -22,7 +23,7 @@ export function openFinalReview(
 ): Effect.Effect<
   void,
   FsError | GitError | ShellError | SetupCommandFailedError | RegistryCorruptionError,
-  FileSystem | Git | Shell | Tracer
+  FileSystem | Git | Shell | Tracer | SystemTelemetry
 > {
   return dispatch(
     {

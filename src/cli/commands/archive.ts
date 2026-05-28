@@ -9,6 +9,7 @@ import { makeNodeLockLayer } from "../../infra/lock.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { NodeShellLayer } from "../../infra/shell.js";
 import { NoopTracerLayer } from "../../infra/tracer.js";
+import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { resolveLastReviewOpenRun } from "../../app/resolveRunInfo.js";
 import { decodeShortName as decode } from "../../domain/branded.js";
 
@@ -24,6 +25,7 @@ function buildLayer(
   | import("../../ports/lock.js").Lock
   | import("../../ports/shell.js").Shell
   | import("../../ports/tracer.js").Tracer
+  | import("../../ports/systemTelemetry.js").SystemTelemetry
 > {
   return Layer.mergeAll(
     NodeFileSystemLayer,
@@ -31,6 +33,7 @@ function buildLayer(
     makeNodeLockLayer(stateRoot),
     NodeShellLayer,
     NoopTracerLayer,
+    NoopSystemTelemetryLayer,
   );
 }
 

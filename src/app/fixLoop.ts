@@ -17,6 +17,12 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { Tracer } from "../ports/tracer.js";
+import { SystemTelemetry } from "../ports/systemTelemetry.js";
+import {
+  makeStepStartedTelemetryEvent,
+  makeStepCompletedTelemetryEvent,
+  makeGateEvaluatedTelemetryEvent,
+} from "../domain/telemetry/events.js";
 import { dispatch } from "./dispatcher.js";
 import { runGates, type GateOutcome } from "./gates.js";
 
@@ -74,7 +80,7 @@ export function runGatesWithFixLoop(
   | RateLimitError
   | UsageLimitError
   | RegistryCorruptionError,
-  Shell | FileSystem | Backend | Git | Tracer
+  Shell | FileSystem | Backend | Git | Tracer | SystemTelemetry
 > {
   const {
     commands,
@@ -123,10 +129,12 @@ export function runGatesWithFixLoop(
     | RateLimitError
     | UsageLimitError
     | RegistryCorruptionError,
-    Shell | FileSystem | Backend | Git | Tracer
+    Shell | FileSystem | Backend | Git | Tracer | SystemTelemetry
   > {
     return Effect.gen(function* () {
       const tracer = yield* Tracer;
+      const telemetry = yield* SystemTelemetry;
+      const runId = run as unknown as RunId;
       const emit = (
         event: "gate.started" | "gate.completed" | "gate.failed" | "fix.started" | "fix.completed",
         status: "ok" | "failed" | "info",
@@ -143,10 +151,29 @@ export function runGatesWithFixLoop(
         });
 
       yield* emit("gate.started", "info", { attempt });
+      yield* telemetry.recordEvent(
+        makeStepStartedTelemetryEvent({ runId, operationId: phaseId, step: `gate.run` }),
+      );
       const gateResult = yield* Effect.either(runGates(commands, cwd, logPath(attempt)));
 
       if (Either.isRight(gateResult)) {
         yield* emit("gate.completed", "ok", { attempt });
+        yield* telemetry.recordEvent(
+          makeStepCompletedTelemetryEvent({
+            runId,
+            operationId: phaseId,
+            step: `gate.run`,
+            result: "success",
+          }),
+        );
+        yield* telemetry.recordEvent(
+          makeGateEvaluatedTelemetryEvent({
+            runId,
+            operationId: phaseId,
+            gate: "checks",
+            result: "accepted",
+          }),
+        );
         const gatePassedEvent: PhaxEvent = {
           ...eventBase(),
           type: "GatePassed",
@@ -167,6 +194,23 @@ export function runGatesWithFixLoop(
         command: error.command,
         exitCode: error.exitCode,
       });
+      yield* telemetry.recordEvent(
+        makeStepCompletedTelemetryEvent({
+          runId,
+          operationId: phaseId,
+          step: `gate.run`,
+          result: "failure",
+        }),
+      );
+      yield* telemetry.recordEvent(
+        makeGateEvaluatedTelemetryEvent({
+          runId,
+          operationId: phaseId,
+          gate: "checks",
+          result: "rejected",
+          reason: `exit ${error.exitCode}: ${error.command}`,
+        }),
+      );
 
       const gateFailedEvent: PhaxEvent = {
         ...eventBase(),
@@ -199,17 +243,24 @@ export function runGatesWithFixLoop(
       const fixPrompt = buildFixPrompt(error, logContent, attempt);
 
       yield* emit("fix.started", "info", { attempt });
+      yield* telemetry.recordEvent(
+        makeStepStartedTelemetryEvent({ runId, operationId: phaseId, step: "fix-loop" }),
+      );
       const backend = yield* Backend;
-      const fixResult = yield* backend.resumeAgentSession(currentSessionId, fixPrompt, {
-        model: agentOptions.model,
-        effort: agentOptions.effort,
-        cwd: agentOptions.cwd,
-        outputJsonlPath: join(
-          phaseFolderPath,
-          `fix-attempt-${String(attempt).padStart(2, "0")}.jsonl`,
-        ),
-        phaseFolderPath: agentOptions.phaseFolderPath,
-      });
+      const fixResult = yield* telemetry.withOperation(
+        "phax.claude-code-cli.agent.resume",
+        { "phax.phase.id": phaseId },
+        backend.resumeAgentSession(currentSessionId, fixPrompt, {
+          model: agentOptions.model,
+          effort: agentOptions.effort,
+          cwd: agentOptions.cwd,
+          outputJsonlPath: join(
+            phaseFolderPath,
+            `fix-attempt-${String(attempt).padStart(2, "0")}.jsonl`,
+          ),
+          phaseFolderPath: agentOptions.phaseFolderPath,
+        }),
+      );
 
       const fixCompletedEvent: PhaxEvent = {
         ...eventBase(),
@@ -218,6 +269,14 @@ export function runGatesWithFixLoop(
       };
       yield* dispatch(fixCompletedEvent, dispatchCtx);
       yield* emit("fix.completed", "ok", { attempt });
+      yield* telemetry.recordEvent(
+        makeStepCompletedTelemetryEvent({
+          runId,
+          operationId: phaseId,
+          step: "fix-loop",
+          result: "success",
+        }),
+      );
 
       return yield* loop(attempt + 1, fixResult.sessionId);
     });

@@ -7,6 +7,7 @@ import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
+import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 
 const runPath = "/fake/runs/my-run";
@@ -78,6 +79,7 @@ function makeLayers() {
     fakeBackend.layer,
     fakeGit.layer,
     fakeTracer.layer,
+    NoopSystemTelemetryLayer,
   );
   return { layer, fakeFs, fakeShell, fakeBackend, fakeGit, fakeTracer };
 }

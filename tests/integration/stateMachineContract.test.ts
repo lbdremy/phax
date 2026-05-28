@@ -12,6 +12,7 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
+import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
 
@@ -133,6 +134,7 @@ describe("State Machine Contract", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       fakeTracer.layer,
+      NoopSystemTelemetryLayer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -219,6 +221,7 @@ describe("State Machine Contract", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       fakeTracer.layer,
+      NoopSystemTelemetryLayer,
     );
 
     const { runPath, runId } = await Effect.runPromise(

@@ -11,6 +11,7 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
+import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
@@ -126,6 +127,7 @@ describe("executePlan — tracing", () => {
     });
 
     const fakeTracer = makeFakeTracer();
+    const fakeTelemetry = makeFakeSystemTelemetry();
 
     const layers = Layer.mergeAll(
       fakeGit.layer,
@@ -133,6 +135,7 @@ describe("executePlan — tracing", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       fakeTracer.layer,
+      fakeTelemetry.layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -191,5 +194,19 @@ describe("executePlan — tracing", () => {
       details: sanitizeDetails(e.details),
     }));
     expect(eventSequence).toMatchSnapshot("trace-event-sequence");
+
+    // Semantic telemetry: confirm key semantic events were recorded in parallel.
+    const telEvents = fakeTelemetry.impl.events();
+    const telTypes = telEvents.map((e) => e.type);
+    expect(telTypes).toContain("step.started");
+    expect(telTypes).toContain("step.completed");
+    expect(telTypes).toContain("adapter.call.started");
+    expect(telTypes).toContain("adapter.call.succeeded");
+    expect(telTypes).toContain("artifact.generated");
+    expect(telTypes).toContain("state.transition");
+
+    // State transitions are recorded for every handled dispatch.
+    const transitions = telEvents.filter((e) => e.type === "state.transition");
+    expect(transitions.length).toBeGreaterThan(0);
   });
 });

@@ -12,6 +12,7 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopTracerLayer } from "../../src/infra/tracer.js";
+import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
 
@@ -94,6 +95,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       makeFakeBackend().layer,
       NodeFileSystemLayer,
       NoopTracerLayer,
+      NoopSystemTelemetryLayer,
     );
     const { runPath, runId } = await Effect.runPromise(
       createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(setupLayers)),
@@ -173,6 +175,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopTracerLayer,
+      NoopSystemTelemetryLayer,
     );
 
     const result = await Effect.runPromise(
@@ -237,6 +240,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       makeFakeBackend().layer,
       NodeFileSystemLayer,
       NoopTracerLayer,
+      NoopSystemTelemetryLayer,
     );
     const { runPath, runId } = await Effect.runPromise(
       createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(setupLayers)),
@@ -315,6 +319,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopTracerLayer,
+      NoopSystemTelemetryLayer,
     );
 
     const result = await Effect.runPromise(

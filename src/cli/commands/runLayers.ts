@@ -16,6 +16,7 @@ import { Lock } from "../../ports/lock.js";
 import { Shell } from "../../ports/shell.js";
 import type { OutputPort } from "../../ports/output.js";
 import { Tracer } from "../../ports/tracer.js";
+import { NoopSystemTelemetryLayer, SystemTelemetry } from "../../ports/systemTelemetry.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   ClaudeInvocationError,
@@ -32,7 +33,7 @@ import {
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 
 export function provideRunLayers<A, E>(
-  effect: Effect.Effect<A, E, Backend | FileSystem | Git | Shell | Lock | Tracer>,
+  effect: Effect.Effect<A, E, Backend | FileSystem | Git | Shell | Lock | Tracer | SystemTelemetry>,
   config: ResolvedConfig,
   tracerLayer: Layer.Layer<Tracer>,
 ): Effect.Effect<A, E, never> {
@@ -43,6 +44,7 @@ export function provideRunLayers<A, E>(
     Effect.provide(NodeShellLayer),
     Effect.provide(makeNodeLockLayer(config.stateRoot)),
     Effect.provide(tracerLayer),
+    Effect.provide(NoopSystemTelemetryLayer),
   );
 }
 

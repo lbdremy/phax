@@ -8,6 +8,7 @@ import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
+import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import {
   adaptAgentRun,
   adaptAgentResume,
@@ -292,7 +293,13 @@ describe("adaptCommit", () => {
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, phaseStatusSeed);
     fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
 
-    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer, fakeTracer.layer);
+    const layer = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeFs.layer,
+      fakeTracer.layer,
+      NoopSystemTelemetryLayer,
+    );
 
     const event = await Effect.runPromise(
       adaptCommit(commitOpts, base).pipe(Effect.provide(layer)),
@@ -314,7 +321,13 @@ describe("adaptCommit", () => {
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, phaseStatusSeed);
     fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
 
-    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer, fakeTracer.layer);
+    const layer = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeFs.layer,
+      fakeTracer.layer,
+      NoopSystemTelemetryLayer,
+    );
 
     const event = await Effect.runPromise(
       adaptCommit(commitOpts, base).pipe(Effect.provide(layer)),
@@ -361,7 +374,13 @@ describe("adaptCleanup", () => {
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, committedPhaseSeed);
     fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
 
-    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer, fakeTracer.layer);
+    const layer = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeFs.layer,
+      fakeTracer.layer,
+      NoopSystemTelemetryLayer,
+    );
 
     const event = await Effect.runPromise(
       adaptCleanup(baseCleanupOpts, base).pipe(Effect.provide(layer)),
@@ -376,7 +395,13 @@ describe("adaptCleanup", () => {
     const fakeShell = makeFakeShell();
     const fakeFs = makeFakeFileSystem();
     const fakeTracer = makeFakeTracer();
-    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer, fakeTracer.layer);
+    const layer = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeFs.layer,
+      fakeTracer.layer,
+      NoopSystemTelemetryLayer,
+    );
 
     const event = await Effect.runPromise(
       adaptCleanup({ ...baseCleanupOpts, isFinalPhase: true }, base).pipe(Effect.provide(layer)),
@@ -425,6 +450,7 @@ describe("adaptHandoffGenerate", () => {
       fakeGit.layer,
       fakeShell.layer,
       fakeTracer.layer,
+      NoopSystemTelemetryLayer,
     );
     return { fakeBackend, fakeFs, fakeGit, fakeShell, fakeTracer, layer };
   };

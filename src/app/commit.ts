@@ -8,6 +8,7 @@ import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Tracer } from "../ports/tracer.js";
+import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import { dispatch } from "./dispatcher.js";
 
@@ -82,7 +83,7 @@ export function commitPhase(
 ): Effect.Effect<
   CommitResult,
   GitError | ShellError | FsError | SetupCommandFailedError | RegistryCorruptionError,
-  Git | Shell | FileSystem | Tracer
+  Git | Shell | FileSystem | Tracer | SystemTelemetry
 > {
   return Effect.gen(function* () {
     const git = yield* Git;

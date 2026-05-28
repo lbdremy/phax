@@ -6,6 +6,7 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
+import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { buildTracerLayer } from "./runLayers.js";
 
 export interface ExtractPlanCliOptions {
@@ -50,6 +51,7 @@ export async function runExtractPlan(
     Effect.provide(NodeFileSystemLayer),
     Effect.provide(makeNodeLockLayer(config.stateRoot)),
     Effect.provide(tracerLayer),
+    Effect.provide(NoopSystemTelemetryLayer),
   );
 
   const result = await Effect.runPromise(Effect.either(effect));
