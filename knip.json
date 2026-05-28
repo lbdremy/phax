@@ -10,6 +10,10 @@
     "tests/type/*.ts"
   ],
   "project": ["src/**/*.ts", "tests/**/*.ts"],
-  "ignoreDependencies": ["@effect/platform", "@effect/platform-node"],
+  "ignoreDependencies": [
+    "@effect/platform",
+    "@effect/platform-node",
+    "@opentelemetry/semantic-conventions"
+  ],
   "ignoreFiles": ["tests/e2e/fixtures/**"]
 }
