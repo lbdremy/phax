@@ -1,0 +1,28 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`InMemoryTelemetry snapshot projection > pins the snapshot for a scripted workflow 1`] = `
+[
+  {
+    "dispatcher": "dispatcher.ts",
+    "event": "RUN_STARTED",
+    "stateAfter": "running",
+    "stateBefore": "idle",
+    "type": "state.transition",
+  },
+  {
+    "adapter": "git",
+    "operation": "worktree.create",
+    "type": "adapter.call.started",
+  },
+  {
+    "adapter": "git",
+    "operation": "worktree.create",
+    "type": "adapter.call.succeeded",
+  },
+  {
+    "result": "success",
+    "step": "setup",
+    "type": "step.completed",
+  },
+]
+`;
