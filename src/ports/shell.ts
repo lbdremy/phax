@@ -3,6 +3,10 @@ import { Context, Data, Effect } from "effect";
 export class ShellError extends Data.TaggedError("ShellError")<{
   message: string;
   cause?: unknown;
+  exitCode?: number;
+  argv?: readonly string[];
+  stderrExcerpt?: string;
+  expected?: string;
 }> {}
 
 export interface ShellRunOptions {

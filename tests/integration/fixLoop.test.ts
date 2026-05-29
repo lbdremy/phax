@@ -7,7 +7,7 @@ import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
-import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
+import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 
 const runPath = "/fake/runs/my-run";
@@ -73,15 +73,16 @@ function makeLayers() {
   const fakeBackend = makeFakeBackend();
   const fakeGit = makeFakeGit();
   const fakeTracer = makeFakeTracer();
+  const fakeTelemetry = makeFakeSystemTelemetry();
   const layer = Layer.mergeAll(
     fakeFs.layer,
     fakeShell.layer,
     fakeBackend.layer,
     fakeGit.layer,
     fakeTracer.layer,
-    NoopSystemTelemetryLayer,
+    fakeTelemetry.layer,
   );
-  return { layer, fakeFs, fakeShell, fakeBackend, fakeGit, fakeTracer };
+  return { layer, fakeFs, fakeShell, fakeBackend, fakeGit, fakeTracer, fakeTelemetry };
 }
 
 describe("runGatesWithFixLoop", () => {
@@ -99,7 +100,7 @@ describe("runGatesWithFixLoop", () => {
   });
 
   it("calls resumeAgentSession on gate failure and dispatches the fix-loop event sequence", async () => {
-    const { layer, fakeFs, fakeShell, fakeBackend, fakeTracer } = makeLayers();
+    const { layer, fakeFs, fakeShell, fakeBackend, fakeTracer, fakeTelemetry } = makeLayers();
 
     seedStatusFiles(fakeFs);
     fakeBackend.impl.addResumeResponse(makeResumeResult());
@@ -124,6 +125,16 @@ describe("runGatesWithFixLoop", () => {
       state: string;
     };
     expect(persisted.state).toBe("passed");
+
+    // The first gate failure should produce a SystemErrorReport.
+    const errors = fakeTelemetry.impl.errors();
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    const gateReport = errors.find((e) => e.adapter === "shell");
+    expect(gateReport).toBeDefined();
+    expect(gateReport!.adapter).toBe("shell");
+    expect(gateReport!.operation).toBe("gate.pnpm test");
+    expect(gateReport!.exitCode).toBe(1);
+    expect(gateReport!.stderrExcerpt).toBe("test failure");
   });
 
   it("fails with GateFailedError and dispatches FixAttemptsExhausted after all attempts fail", async () => {

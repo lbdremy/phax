@@ -38,6 +38,7 @@ export const NodeShellLayer = Layer.succeed(Shell, {
         new ShellError({
           message: err instanceof Error ? err.message : String(err),
           cause: err,
+          argv: [...options.command],
         }),
     }),
 });

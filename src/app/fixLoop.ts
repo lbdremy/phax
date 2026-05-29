@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId } from "../domain/branded.js";
 import {
-  type ClaudeInvocationError,
+  ClaudeInvocationError,
   type ClaudeSessionIdMissingError,
   GateFailedError,
   type RateLimitError,
@@ -23,6 +23,8 @@ import {
   makeStepCompletedTelemetryEvent,
   makeGateEvaluatedTelemetryEvent,
 } from "../domain/telemetry/events.js";
+import { makeSystemErrorReport } from "../domain/telemetry/errors.js";
+import { reportClaudeFailure } from "./telemetry/reportBuilders.js";
 import { dispatch } from "./dispatcher.js";
 import { runGates, type GateOutcome } from "./gates.js";
 
@@ -211,6 +213,18 @@ export function runGatesWithFixLoop(
           reason: `exit ${error.exitCode}: ${error.command}`,
         }),
       );
+      yield* telemetry.recordError(
+        makeSystemErrorReport({
+          type: "gate.failed",
+          runId,
+          operationId: phaseId,
+          adapter: "shell",
+          operation: `gate.${error.command}`,
+          exitCode: error.exitCode,
+          ...(error.stderrExcerpt !== undefined ? { stderrExcerpt: error.stderrExcerpt } : {}),
+          cause: error,
+        }),
+      );
 
       const gateFailedEvent: PhaxEvent = {
         ...eventBase(),
@@ -250,16 +264,31 @@ export function runGatesWithFixLoop(
       const fixResult = yield* telemetry.withOperation(
         "phax.claude-code-cli.agent.resume",
         { "phax.phase.id": phaseId },
-        backend.resumeAgentSession(currentSessionId, fixPrompt, {
-          model: agentOptions.model,
-          effort: agentOptions.effort,
-          cwd: agentOptions.cwd,
-          outputJsonlPath: join(
-            phaseFolderPath,
-            `fix-attempt-${String(attempt).padStart(2, "0")}.jsonl`,
+        backend
+          .resumeAgentSession(currentSessionId, fixPrompt, {
+            model: agentOptions.model,
+            effort: agentOptions.effort,
+            cwd: agentOptions.cwd,
+            outputJsonlPath: join(
+              phaseFolderPath,
+              `fix-attempt-${String(attempt).padStart(2, "0")}.jsonl`,
+            ),
+            phaseFolderPath: agentOptions.phaseFolderPath,
+          })
+          .pipe(
+            Effect.tapError((e) =>
+              e instanceof ClaudeInvocationError
+                ? telemetry.recordError(
+                    reportClaudeFailure(e, {
+                      runId,
+                      operationId: phaseId,
+                      adapter: "claude-code-cli",
+                      operation: "agent.resume",
+                    }),
+                  )
+                : Effect.void,
+            ),
           ),
-          phaseFolderPath: agentOptions.phaseFolderPath,
-        }),
       );
 
       const fixCompletedEvent: PhaxEvent = {

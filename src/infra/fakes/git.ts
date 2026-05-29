@@ -46,6 +46,12 @@ export class FakeGitImpl implements GitOps {
     this.worktreeIsCleanQueue.set(path, queue);
   }
 
+  private nextAddWorktreeError: string | undefined;
+
+  failNextWorktreeAdd(stderr: string): void {
+    this.nextAddWorktreeError = stderr;
+  }
+
   isClean(repo: string): Effect.Effect<boolean, GitError> {
     this.calls.push({ method: "isClean", repo });
     return Effect.succeed(this.isCleanDefault);
@@ -69,6 +75,20 @@ export class FakeGitImpl implements GitOps {
 
   addWorktree(branch: BranchName, path: WorktreePath, repo: string): Effect.Effect<void, GitError> {
     this.calls.push({ method: "addWorktree", branch, path, repo });
+    if (this.nextAddWorktreeError !== undefined) {
+      const stderr = this.nextAddWorktreeError;
+      this.nextAddWorktreeError = undefined;
+      return Effect.fail(
+        new GitError({
+          message: `git worktree add failed: ${stderr}`,
+          command: `git worktree add ${path} ${branch}`,
+          args: ["worktree", "add", path, branch],
+          stderr,
+          stderrExcerpt: stderr,
+          exitCode: 128,
+        }),
+      );
+    }
     return Effect.void;
   }
 

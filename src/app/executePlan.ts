@@ -29,6 +29,7 @@ import {
   makeStepStartedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
 } from "../domain/telemetry/events.js";
+import { reportClaudeFailure } from "./telemetry/reportBuilders.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import { cleanupPhase } from "./cleanup.js";
@@ -310,7 +311,20 @@ export function executePlan(
       const agentResult = yield* telemetry.withOperation(
         "phax.claude-code-cli.agent.run",
         { "phax.phase.id": phase.id },
-        backend.runAgent(promptText, agentOptions),
+        backend.runAgent(promptText, agentOptions).pipe(
+          Effect.tapError((e) =>
+            e instanceof ClaudeInvocationError
+              ? telemetry.recordError(
+                  reportClaudeFailure(e, {
+                    runId,
+                    operationId: phase.id,
+                    adapter: "claude-code-cli",
+                    operation: "agent.run",
+                  }),
+                )
+              : Effect.void,
+          ),
+        ),
       );
       const sessionId = agentResult.sessionId;
       currentSessionId = sessionId as string;

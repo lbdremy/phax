@@ -24,11 +24,14 @@ function gitRun(
       }),
     catch: (err) => {
       const e = err as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
+      const stderrStr = e.stderr !== undefined ? String(e.stderr) : undefined;
+      const exitCode = typeof e.code === "number" ? e.code : undefined;
       return new GitError({
         message: e.message,
         command,
-        stderr: e.stderr !== undefined ? String(e.stderr) : undefined,
-        exitCode: typeof e.code === "number" ? e.code : undefined,
+        ...(stderrStr !== undefined ? { stderr: stderrStr, stderrExcerpt: stderrStr } : {}),
+        ...(exitCode !== undefined ? { exitCode } : {}),
+        args: [...args],
       });
     },
   });

@@ -6,6 +6,9 @@ export class GitError extends Data.TaggedError("GitError")<{
   command: string;
   stderr?: string | undefined;
   exitCode?: number | undefined;
+  args?: readonly string[];
+  stderrExcerpt?: string;
+  expected?: string;
 }> {}
 
 export interface GitOps {

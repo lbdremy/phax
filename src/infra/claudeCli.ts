@@ -185,6 +185,7 @@ function runAgentEffect(
       catch: (err): ClaudeInvocationError =>
         new ClaudeInvocationError({
           message: err instanceof Error ? err.message : String(err),
+          argv: ["claude", ...args],
         }),
     });
 
@@ -202,7 +203,8 @@ function runAgentEffect(
         new ClaudeInvocationError({
           message: `claude exited with code ${exitCode}`,
           exitCode,
-          stderr: stderr || undefined,
+          ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
+          argv: ["claude", ...args],
         }),
       );
     }

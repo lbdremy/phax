@@ -26,6 +26,7 @@ import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { Tracer } from "../ports/tracer.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
+import { reportGitFailure } from "./telemetry/reportBuilders.js";
 import { cleanupPhase, type CleanupPhaseOptions } from "./cleanup.js";
 import { commitPhase, type CommitPhaseOptions } from "./commit.js";
 import { runGates } from "./gates.js";
@@ -284,12 +285,26 @@ export function adaptWorktreeCreate(
   path: WorktreePath,
   repoRoot: string,
   base: PhaxEventBase,
-): Effect.Effect<WorktreeCreated, GitError, Git> {
+): Effect.Effect<WorktreeCreated, GitError, Git | SystemTelemetry> {
   return Git.pipe(
     Effect.flatMap((git) =>
-      git
-        .addWorktree(branch, path, repoRoot)
-        .pipe(Effect.map((): WorktreeCreated => ({ ...base, type: "WorktreeCreated", path }))),
+      git.addWorktree(branch, path, repoRoot).pipe(
+        Effect.map((): WorktreeCreated => ({ ...base, type: "WorktreeCreated", path })),
+        Effect.tapError((e: GitError) =>
+          SystemTelemetry.pipe(
+            Effect.flatMap((telemetry) =>
+              telemetry.recordError(
+                reportGitFailure(e, {
+                  runId: base.run,
+                  ...(base.phase !== undefined ? { operationId: base.phase as string } : {}),
+                  adapter: "git",
+                  operation: "worktree.create",
+                }),
+              ),
+            ),
+          ),
+        ),
+      ),
     ),
   );
 }

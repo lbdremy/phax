@@ -567,7 +567,8 @@ describe("adaptHandoffGenerate", () => {
 
 describe("adaptWorktreeCreate", () => {
   it("success → WorktreeCreated with path", async () => {
-    const { layer } = makeFakeGit();
+    const { layer: gitLayer } = makeFakeGit();
+    const layer = Layer.merge(gitLayer, NoopSystemTelemetryLayer);
     const branch = "my-run/phase-01" as BranchName;
     const repoRoot = "/repos/myproject";
 
