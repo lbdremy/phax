@@ -11,7 +11,7 @@ import { executePlan } from "../../app/executePlan.js";
 import { withRunLock } from "../../app/lock.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
-import { buildTracerLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
+import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
 
 export interface RunCommandOptions {
   shortName?: string;
@@ -72,16 +72,17 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   });
 
   // We don't yet know the shortName (it comes out of extraction), so use a
-  // placeholder tracer layer rooted at the state-root for the extract step,
-  // then rebuild it under the real run folder for execute.
-  const extractTraceLayer = buildTracerLayer(
+  // placeholder telemetry layer for the extract step, then rebuild under the
+  // real run folder for execute.
+  const extractTelemetryLayer = buildSystemTelemetryLayer(
     opts,
-    join(config.stateRoot, "extract-trace.jsonl"),
+    join(config.stateRoot, "extract-semantic.jsonl"),
     out,
+    "extract-plan" as unknown as import("../../domain/branded.js").RunId,
   );
 
   const extracted = await Effect.runPromise(
-    Effect.either(provideRunLayers(extractEffect, config, extractTraceLayer)),
+    Effect.either(provideRunLayers(extractEffect, config, extractTelemetryLayer)),
   );
 
   if (Either.isLeft(extracted)) {
@@ -121,8 +122,13 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   }
 
   const runFolder = join(config.stateRoot, "runs", shortName);
-  const traceJsonlPath = join(runFolder, "trace.jsonl");
-  const tracerLayer = buildTracerLayer(opts, traceJsonlPath, out);
+  const semanticJsonlPath = join(runFolder, "semantic.jsonl");
+  const telemetryLayer = buildSystemTelemetryLayer(
+    opts,
+    semanticJsonlPath,
+    out,
+    shortName as unknown as import("../../domain/branded.js").RunId,
+  );
 
   setRunInterruptContext(shortName, config.stateRoot);
   try {
@@ -147,7 +153,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     );
 
     const result = await Effect.runPromise(
-      Effect.either(provideRunLayers(program, config, tracerLayer)),
+      Effect.either(provideRunLayers(program, config, telemetryLayer)),
     );
 
     if (Either.isLeft(result)) {

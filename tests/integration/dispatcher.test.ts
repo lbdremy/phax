@@ -6,7 +6,6 @@ import type { ClaudeSessionId, PhaseId, RunId } from "../../src/domain/branded.j
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
-import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 
 const runPath = "/state/runs/my-run";
@@ -68,18 +67,11 @@ function seedFs(opts: {
 }
 
 function makeLayers(fakeFs: ReturnType<typeof seedFs>) {
-  const fakeTracer = makeFakeTracer();
   const fakeTelemetry = makeFakeSystemTelemetry();
   const fakeGit = makeFakeGit();
   const fakeShell = makeFakeShell();
-  const layer = Layer.mergeAll(
-    fakeFs.layer,
-    fakeTracer.layer,
-    fakeTelemetry.layer,
-    fakeGit.layer,
-    fakeShell.layer,
-  );
-  return { layer, fakeTracer, fakeTelemetry, fakeGit, fakeShell };
+  const layer = Layer.mergeAll(fakeFs.layer, fakeTelemetry.layer, fakeGit.layer, fakeShell.layer);
+  return { layer, fakeTelemetry, fakeGit, fakeShell };
 }
 
 const ctx: DispatcherContext = {
@@ -92,7 +84,7 @@ const ctx: DispatcherContext = {
 describe("dispatch — handled transitions", () => {
   it("transitions created → running on RunStarted and persists the new run state", async () => {
     const fakeFs = seedFs({ runState: "created" });
-    const { layer, fakeTracer, fakeTelemetry } = makeLayers(fakeFs);
+    const { layer, fakeTelemetry } = makeLayers(fakeFs);
 
     const event: PhaxEvent = { type: "RunStarted", ...baseEventFields };
 
@@ -104,9 +96,6 @@ describe("dispatch — handled transitions", () => {
 
     expect(result.disposition).toBe("Handled");
     expect(result.stateAfter?.run).toBe("running");
-
-    const names = fakeTracer.impl.eventNames();
-    expect(names).toContain("event.handled");
 
     const telEvents = fakeTelemetry.impl.events();
     expect(telEvents.some((e) => e.type === "state.transition" && e.event === "RunStarted")).toBe(
@@ -121,7 +110,7 @@ describe("dispatch — handled transitions", () => {
 
   it("transitions phase pending → setting_up_worktree on PhaseStartRequested", async () => {
     const fakeFs = seedFs({ runState: "running", phaseState: "pending" });
-    const { layer, fakeTracer } = makeLayers(fakeFs);
+    const { layer, fakeTelemetry } = makeLayers(fakeFs);
 
     const event: PhaxEvent = {
       type: "PhaseStartRequested",
@@ -138,12 +127,10 @@ describe("dispatch — handled transitions", () => {
     };
     expect(phasePersisted.state).toBe("setting_up_worktree");
 
-    const handled = fakeTracer.impl.events.filter((e) => e.event === "event.handled");
-    expect(handled).toHaveLength(1);
-    expect(handled[0]?.details).toMatchObject({
-      eventType: "PhaseStartRequested",
-      phaseStateBefore: "pending",
-    });
+    const telEvents = fakeTelemetry.impl.events();
+    expect(
+      telEvents.some((e) => e.type === "state.transition" && e.event === "PhaseStartRequested"),
+    ).toBe(true);
   });
 
   it("persists commitHash and state when CommitCreated is handled", async () => {
@@ -170,9 +157,9 @@ describe("dispatch — handled transitions", () => {
 });
 
 describe("dispatch — non-handled dispositions", () => {
-  it("emits event.stale and does not persist on a stale GateFailed", async () => {
+  it("returns Stale disposition and records step.completed on a stale GateFailed", async () => {
     const fakeFs = seedFs({ runState: "running", phaseState: "cleaned_up" });
-    const { layer, fakeTracer, fakeTelemetry } = makeLayers(fakeFs);
+    const { layer, fakeTelemetry } = makeLayers(fakeFs);
     const beforePhase = fakeFs.impl.getFile(`${phaseFolderPath}/status.json`);
     const beforeRun = fakeFs.impl.getFile(`${runPath}/run-status.json`);
 
@@ -193,9 +180,6 @@ describe("dispatch — non-handled dispositions", () => {
     expect(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)).toBe(beforePhase);
     expect(fakeFs.impl.getFile(`${runPath}/run-status.json`)).toBe(beforeRun);
 
-    const names = fakeTracer.impl.eventNames();
-    expect(names).toContain("event.stale");
-
     const telEvents = fakeTelemetry.impl.events();
     expect(
       telEvents.some(
@@ -204,33 +188,39 @@ describe("dispatch — non-handled dispositions", () => {
     ).toBe(true);
   });
 
-  it("emits event.rejected on archive-from-running", async () => {
+  it("returns Rejected disposition on archive-from-running", async () => {
     const fakeFs = seedFs({ runState: "running", phaseState: "running" });
-    const { layer, fakeTracer } = makeLayers(fakeFs);
+    const { layer, fakeTelemetry } = makeLayers(fakeFs);
 
     const event: PhaxEvent = { type: "RunArchiveRequested", ...baseEventFields };
 
     const result = await Effect.runPromise(dispatch(event, ctx).pipe(Effect.provide(layer)));
 
     expect(result.disposition).toBe("Rejected");
-    expect(fakeTracer.impl.eventNames()).toContain("event.rejected");
+    const telEvents = fakeTelemetry.impl.events();
+    expect(
+      telEvents.some((e) => e.type === "step.completed" && "result" in e && e.result === "failure"),
+    ).toBe(true);
   });
 
-  it("emits event.ignored when RunResumeRequested arrives on a running run", async () => {
+  it("returns Ignored disposition when RunResumeRequested arrives on a running run", async () => {
     const fakeFs = seedFs({ runState: "running", phaseState: "running" });
-    const { layer, fakeTracer } = makeLayers(fakeFs);
+    const { layer, fakeTelemetry } = makeLayers(fakeFs);
 
     const event: PhaxEvent = { type: "RunResumeRequested", ...baseEventFields };
 
     const result = await Effect.runPromise(dispatch(event, ctx).pipe(Effect.provide(layer)));
 
     expect(result.disposition).toBe("Ignored");
-    expect(fakeTracer.impl.eventNames()).toContain("event.ignored");
+    const telEvents = fakeTelemetry.impl.events();
+    expect(
+      telEvents.some((e) => e.type === "step.completed" && "result" in e && e.result === "success"),
+    ).toBe(true);
   });
 
-  it("emits event.unexpected with failed status when an impossible signal arrives", async () => {
+  it("returns Unexpected disposition when an impossible signal arrives", async () => {
     const fakeFs = seedFs({ runState: "created" });
-    const { layer, fakeTracer } = makeLayers(fakeFs);
+    const { layer } = makeLayers(fakeFs);
 
     const event: PhaxEvent = {
       type: "AgentInvocationCompleted",
@@ -245,8 +235,6 @@ describe("dispatch — non-handled dispositions", () => {
     );
 
     expect(result.disposition).toBe("Unexpected");
-    const unexpected = fakeTracer.impl.events.find((e) => e.event === "event.unexpected");
-    expect(unexpected?.status).toBe("failed");
   });
 });
 

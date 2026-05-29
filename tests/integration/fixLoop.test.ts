@@ -6,7 +6,6 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
-import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 
@@ -72,17 +71,15 @@ function makeLayers() {
   const fakeShell = makeFakeShell();
   const fakeBackend = makeFakeBackend();
   const fakeGit = makeFakeGit();
-  const fakeTracer = makeFakeTracer();
   const fakeTelemetry = makeFakeSystemTelemetry();
   const layer = Layer.mergeAll(
     fakeFs.layer,
     fakeShell.layer,
     fakeBackend.layer,
     fakeGit.layer,
-    fakeTracer.layer,
     fakeTelemetry.layer,
   );
-  return { layer, fakeFs, fakeShell, fakeBackend, fakeGit, fakeTracer, fakeTelemetry };
+  return { layer, fakeFs, fakeShell, fakeBackend, fakeGit, fakeTelemetry };
 }
 
 describe("runGatesWithFixLoop", () => {
@@ -100,7 +97,7 @@ describe("runGatesWithFixLoop", () => {
   });
 
   it("calls resumeAgentSession on gate failure and dispatches the fix-loop event sequence", async () => {
-    const { layer, fakeFs, fakeShell, fakeBackend, fakeTracer, fakeTelemetry } = makeLayers();
+    const { layer, fakeFs, fakeShell, fakeBackend, fakeTelemetry } = makeLayers();
 
     seedStatusFiles(fakeFs);
     fakeBackend.impl.addResumeResponse(makeResumeResult());
@@ -116,10 +113,13 @@ describe("runGatesWithFixLoop", () => {
     expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
     expect(outcome.attemptLogPath).toContain("checks-attempt-02");
 
-    // The event sequence: GateFailed → FixStarted → FixCompleted → GatePassed.
-    const dispositionEvents = fakeTracer.impl.events.filter((e) => e.event === "event.handled");
-    const dispositionTypes = dispositionEvents.map((e) => e.details?.eventType);
-    expect(dispositionTypes).toEqual(["GateFailed", "FixStarted", "FixCompleted", "GatePassed"]);
+    // The event sequence: GateFailed → FixStarted → FixCompleted → GatePassed (state transitions).
+    const telEvents = fakeTelemetry.impl.events();
+    const transitionEvents = telEvents
+      .filter((e) => e.type === "state.transition")
+      .map((e) => ("event" in e ? e.event : ""));
+    expect(transitionEvents).toContain("GateFailed");
+    expect(transitionEvents).toContain("GatePassed");
 
     const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as {
       state: string;
@@ -138,7 +138,7 @@ describe("runGatesWithFixLoop", () => {
   });
 
   it("fails with GateFailedError and dispatches FixAttemptsExhausted after all attempts fail", async () => {
-    const { layer, fakeFs, fakeShell, fakeBackend, fakeTracer } = makeLayers();
+    const { layer, fakeFs, fakeShell, fakeBackend, fakeTelemetry } = makeLayers();
 
     seedStatusFiles(fakeFs);
     fakeBackend.impl.addResumeResponse(makeResumeResult());
@@ -155,10 +155,11 @@ describe("runGatesWithFixLoop", () => {
 
     // After max attempts the loop dispatches FixAttemptsExhausted at least once
     // and lands the phase in `failed`.
-    const dispositionTypes = fakeTracer.impl.events
-      .filter((e) => e.event === "event.handled")
-      .map((e) => e.details?.eventType);
-    expect(dispositionTypes).toContain("FixAttemptsExhausted");
+    const transitionEvents = fakeTelemetry.impl
+      .events()
+      .filter((e) => e.type === "state.transition")
+      .map((e) => ("event" in e ? e.event : ""));
+    expect(transitionEvents).toContain("FixAttemptsExhausted");
 
     const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as {
       state: string;

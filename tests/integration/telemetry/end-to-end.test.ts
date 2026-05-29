@@ -3,18 +3,17 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { executePlan } from "../../src/app/executePlan.js";
-import { createRunFolder } from "../../src/app/runFolder.js";
-import { decodeShortName } from "../../src/domain/branded.js";
-import type { ClaudeSessionId } from "../../src/domain/branded.js";
-import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
-import { makeFakeGit } from "../../src/infra/fakes/git.js";
-import { makeFakeShell } from "../../src/infra/fakes/shell.js";
-import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
-import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
-import { NodeFileSystemLayer } from "../../src/infra/fs.js";
-import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { executePlan } from "../../../src/app/executePlan.js";
+import { createRunFolder } from "../../../src/app/runFolder.js";
+import { decodeShortName } from "../../../src/domain/branded.js";
+import type { ClaudeSessionId } from "../../../src/domain/branded.js";
+import { makeFakeBackend } from "../../../src/infra/fakes/backend.js";
+import { makeFakeGit } from "../../../src/infra/fakes/git.js";
+import { makeFakeShell } from "../../../src/infra/fakes/shell.js";
+import { makeFakeSystemTelemetry } from "../../../src/infra/fakes/systemTelemetry.js";
+import { NodeFileSystemLayer } from "../../../src/infra/fs.js";
+import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
+import { decodePhaxPlan } from "../../../src/schemas/phaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -26,27 +25,6 @@ const HANDOFF_CONTENT = [
   "## What the next phase needs to know",
   "Ready to proceed.",
 ].join("\n");
-
-function sanitizePath(path: string): string {
-  return path.replace(/\/var\/folders\/[^/]+\/[^/]+\/T\/[^/]+/, "<tmpdir>");
-}
-
-function sanitizeDetails(
-  details: Record<string, unknown> | undefined,
-): Record<string, unknown> | undefined {
-  if (!details) return details;
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(details)) {
-    if (key === "eventId") {
-      sanitized[key] = "<uuid>";
-    } else if (typeof value === "string" && value.includes("/")) {
-      sanitized[key] = sanitizePath(value);
-    } else {
-      sanitized[key] = value;
-    }
-  }
-  return sanitized;
-}
 
 const shortName = Either.getOrThrow(decodeShortName("my-run"));
 
@@ -65,11 +43,11 @@ const rawPlan = {
   ],
 } as const;
 
-describe("executePlan — tracing", () => {
+describe("executePlan — semantic telemetry end-to-end", () => {
   let stateRoot: string;
 
   beforeEach(async () => {
-    stateRoot = await mkdtemp(join(tmpdir(), "phax-trace-test-"));
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-e2e-telemetry-test-"));
     const phase01Worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
     await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
     await writeFile(join(phase01Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
@@ -79,7 +57,7 @@ describe("executePlan — tracing", () => {
     await rm(stateRoot, { recursive: true, force: true });
   });
 
-  it("emits the expected trace event sequence for a one-phase run", async () => {
+  it("emits the expected semantic event types for a one-phase run", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
 
     const config: ResolvedConfig = {
@@ -126,7 +104,6 @@ describe("executePlan — tracing", () => {
       finalText: "",
     });
 
-    const fakeTracer = makeFakeTracer();
     const fakeTelemetry = makeFakeSystemTelemetry();
 
     const layers = Layer.mergeAll(
@@ -134,7 +111,6 @@ describe("executePlan — tracing", () => {
       fakeShell.layer,
       fakeBackend.layer,
       NodeFileSystemLayer,
-      fakeTracer.layer,
       fakeTelemetry.layer,
     );
 
@@ -160,53 +136,41 @@ describe("executePlan — tracing", () => {
 
     expect(Either.isRight(result)).toBe(true);
 
-    const names = fakeTracer.impl.eventNames();
-    // Config + run start
-    expect(names).toContain("config.discovered");
-    expect(names).toContain("config.validated");
-    // Phase lifecycle
-    expect(names).toContain("git.worktree.created");
-    expect(names).toContain("agent.invocation.started");
-    expect(names).toContain("agent.invocation.completed");
-    expect(names).toContain("agent.session.captured");
-    expect(names).toContain("gate.started");
-    expect(names).toContain("gate.completed");
-    expect(names).toContain("handoff.requested");
-    expect(names).toContain("handoff.validated");
-    expect(names).toContain("git.commit.created");
-
-    // Ordering: invocation precedes gates precede commit.
-    expect(names.indexOf("agent.invocation.started")).toBeLessThan(names.indexOf("gate.started"));
-    expect(names.indexOf("gate.completed")).toBeLessThan(names.indexOf("git.commit.created"));
-
-    // Every event carries the run short name and a valid timestamp.
-    for (const e of fakeTracer.impl.events) {
-      expect(e.run).toBe("my-run");
-      expect(Number.isNaN(Date.parse(e.timestamp))).toBe(false);
-    }
-
-    // Snapshot the full ordered event sequence for the trace contract.
-    const eventSequence = fakeTracer.impl.events.map((e) => ({
-      event: e.event,
-      status: e.status,
-      phase: e.phase,
-      boundary: e.boundary,
-      details: sanitizeDetails(e.details),
-    }));
-    expect(eventSequence).toMatchSnapshot("trace-event-sequence");
-
-    // Semantic telemetry: confirm key semantic events were recorded in parallel.
     const telEvents = fakeTelemetry.impl.events();
     const telTypes = telEvents.map((e) => e.type);
+
+    // Config steps
     expect(telTypes).toContain("step.started");
     expect(telTypes).toContain("step.completed");
+    // Adapter calls
     expect(telTypes).toContain("adapter.call.started");
     expect(telTypes).toContain("adapter.call.succeeded");
+    // Artifact captured
     expect(telTypes).toContain("artifact.generated");
+    // State transitions from dispatcher
     expect(telTypes).toContain("state.transition");
+
+    // Ordering: agent adapter.call.started before its adapter.call.succeeded
+    const startIdx = telEvents.findIndex(
+      (e) => e.type === "adapter.call.started" && "adapter" in e && e.adapter === "claude-code-cli",
+    );
+    const succeededIdx = telEvents.findIndex(
+      (e) =>
+        e.type === "adapter.call.succeeded" &&
+        "adapter" in e &&
+        e.adapter === "claude-code-cli" &&
+        "operation" in e &&
+        e.operation === "agent.run",
+    );
+    expect(startIdx).toBeGreaterThanOrEqual(0);
+    expect(succeededIdx).toBeGreaterThan(startIdx);
 
     // State transitions are recorded for every handled dispatch.
     const transitions = telEvents.filter((e) => e.type === "state.transition");
     expect(transitions.length).toBeGreaterThan(0);
+
+    // Snapshot the semantic trace projection for the contract.
+    const snapshot = fakeTelemetry.impl.getSemanticTraceSnapshot();
+    expect(snapshot).toMatchSnapshot("semantic-trace-snapshot");
   });
 });

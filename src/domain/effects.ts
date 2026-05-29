@@ -1,4 +1,3 @@
-import type { TraceEventName, TraceStatus } from "../ports/tracer.js";
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import type { RunReviewInfo } from "./runReviewInfo.js";
 
@@ -26,8 +25,8 @@ export interface PersistState {
 
 export interface EmitTrace {
   readonly type: "EmitTrace";
-  readonly name: TraceEventName;
-  readonly status: TraceStatus;
+  readonly name: string;
+  readonly status: "ok" | "failed" | "info";
   readonly boundary?: string | undefined;
   readonly details?: Record<string, unknown> | undefined;
 }

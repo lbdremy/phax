@@ -4,7 +4,6 @@ import { openFinalReview } from "../../src/app/finalReview.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
-import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { RunReviewInfo } from "../../src/app/resolveRunInfo.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
@@ -66,7 +65,6 @@ function setupLayers() {
     fs.layer,
     makeFakeGit().layer,
     makeFakeShell().layer,
-    makeFakeTracer().layer,
     NoopSystemTelemetryLayer,
   );
   return { impl: fs.impl, layers };

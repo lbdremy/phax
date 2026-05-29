@@ -24,7 +24,6 @@ import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
-import { Tracer } from "../ports/tracer.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { reportGitFailure } from "./telemetry/reportBuilders.js";
 import { cleanupPhase, type CleanupPhaseOptions } from "./cleanup.js";
@@ -177,7 +176,7 @@ export function adaptCommit(
 ): Effect.Effect<
   CommitCreated | null,
   GitError | ShellError | FsError | SetupCommandFailedError | RegistryCorruptionError,
-  Git | Shell | FileSystem | Tracer | SystemTelemetry
+  Git | Shell | FileSystem | SystemTelemetry
 > {
   return commitPhase(opts).pipe(
     Effect.map((result): CommitCreated | null => {
@@ -200,7 +199,7 @@ export function adaptCleanup(
   | ShellError
   | FsError
   | RegistryCorruptionError,
-  Git | Shell | FileSystem | Tracer | SystemTelemetry
+  Git | Shell | FileSystem | SystemTelemetry
 > {
   if (opts.isFinalPhase) {
     return Effect.succeed(null);
@@ -221,7 +220,7 @@ export function adaptHandoffGenerate(
   | ShellError
   | FsError
   | SetupCommandFailedError,
-  FileSystem | Backend | Git | Shell | Tracer | SystemTelemetry
+  FileSystem | Backend | Git | Shell | SystemTelemetry
 > {
   return generatePhaseHandoff(opts).pipe(
     Effect.map((): HandoffValidated => ({ ...base, type: "HandoffValidated" })),

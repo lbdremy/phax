@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`State Machine Contract > snapshots the ordered semantic trace for a happy-path one-phase run > happy-path-one-phase-semantic-trace 1`] = `
+exports[`executePlan — semantic telemetry end-to-end > emits the expected semantic event types for a one-phase run > semantic-trace-snapshot 1`] = `
 [
   {
     "step": "config.discover",

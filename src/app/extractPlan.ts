@@ -3,7 +3,6 @@ import { dirname, join } from "node:path";
 import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Lock } from "../ports/lock.js";
-import { Tracer } from "../ports/tracer.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import type { RunId } from "../domain/branded.js";
 import { makeStepCompletedTelemetryEvent } from "../domain/telemetry/events.js";
@@ -126,28 +125,13 @@ export function extractPlanCore(
 ): Effect.Effect<
   ExtractPlanCoreResult,
   ExtractPlanCoreError,
-  Backend | FileSystem | Tracer | SystemTelemetry
+  Backend | FileSystem | SystemTelemetry
 > {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const backend = yield* Backend;
-    const tracer = yield* Tracer;
     const telemetry = yield* SystemTelemetry;
     const extractRunId = "extract-plan" as unknown as RunId;
-
-    const emitContract = (
-      event: "contract.validated" | "contract.invalid",
-      status: "ok" | "failed",
-      details?: Record<string, unknown>,
-    ): Effect.Effect<void, never, never> =>
-      tracer.event({
-        timestamp: new Date().toISOString(),
-        run: "extract-plan",
-        event,
-        boundary: "phax-plan.json",
-        status,
-        details,
-      });
 
     const planMd = yield* fs.readText(opts.planMdPath).pipe(
       Effect.mapError(
@@ -172,7 +156,6 @@ export function extractPlanCore(
     try {
       parsed = JSON.parse(stripJsonCodeFence(runResult.finalText));
     } catch {
-      yield* emitContract("contract.invalid", "failed", { reason: "non-json-output" });
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
           runId: extractRunId,
@@ -190,7 +173,6 @@ export function extractPlanCore(
     // Local schema validation is mandatory regardless of which model produced the output (spec §6).
     const decoded = decodeExtractedPlan(parsed);
     if (Either.isLeft(decoded)) {
-      yield* emitContract("contract.invalid", "failed", { reason: "schema-validation-failed" });
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
           runId: extractRunId,
@@ -204,7 +186,6 @@ export function extractPlanCore(
         }),
       );
     }
-    yield* emitContract("contract.validated", "ok", { phases: decoded.right.phases.length });
     yield* telemetry.recordEvent(
       makeStepCompletedTelemetryEvent({
         runId: extractRunId,
@@ -267,7 +248,7 @@ export function extractPlan(
 ): Effect.Effect<
   ExtractPlanResult,
   ExtractPlanError,
-  Backend | FileSystem | Lock | Tracer | SystemTelemetry
+  Backend | FileSystem | Lock | SystemTelemetry
 > {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;

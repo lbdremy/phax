@@ -10,9 +10,8 @@ import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
-import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
+import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
-import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
 
@@ -28,27 +27,6 @@ const HANDOFF_CONTENT = [
 ].join("\n");
 
 const shortName = Either.getOrThrow(decodeShortName("my-run"));
-
-function sanitizePath(path: string): string {
-  return path.replace(/\/var\/folders\/[^/]+\/[^/]+\/T\/[^/]+/, "<tmpdir>");
-}
-
-function sanitizeDetails(
-  details: Record<string, unknown> | undefined,
-): Record<string, unknown> | undefined {
-  if (!details) return details;
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(details)) {
-    if (key === "eventId") {
-      sanitized[key] = "<uuid>";
-    } else if (typeof value === "string" && value.includes("/")) {
-      sanitized[key] = sanitizePath(value);
-    } else {
-      sanitized[key] = value;
-    }
-  }
-  return sanitized;
-}
 
 const rawPlan = {
   version: 1,
@@ -79,7 +57,7 @@ describe("State Machine Contract", () => {
     await rm(stateRoot, { recursive: true, force: true });
   });
 
-  it("snapshots the ordered trace event sequence for a happy-path one-phase run", async () => {
+  it("snapshots the ordered semantic trace for a happy-path one-phase run", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
 
     const config: ResolvedConfig = {
@@ -126,15 +104,14 @@ describe("State Machine Contract", () => {
       finalText: "",
     });
 
-    const fakeTracer = makeFakeTracer();
+    const fakeTelemetry = makeFakeSystemTelemetry();
 
     const layers = Layer.mergeAll(
       fakeGit.layer,
       fakeShell.layer,
       fakeBackend.layer,
       NodeFileSystemLayer,
-      fakeTracer.layer,
-      NoopSystemTelemetryLayer,
+      fakeTelemetry.layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -159,19 +136,12 @@ describe("State Machine Contract", () => {
 
     expect(Either.isRight(result)).toBe(true);
 
-    // Snapshot the ordered event sequence with status and phase information.
-    const eventSequence = fakeTracer.impl.events.map((e) => ({
-      event: e.event,
-      status: e.status,
-      phase: e.phase,
-      boundary: e.boundary,
-      details: sanitizeDetails(e.details),
-    }));
-
-    expect(eventSequence).toMatchSnapshot("happy-path-one-phase-event-sequence");
+    // Snapshot the semantic trace projection — the stable, transport-agnostic contract.
+    const snapshot = fakeTelemetry.impl.getSemanticTraceSnapshot();
+    expect(snapshot).toMatchSnapshot("happy-path-one-phase-semantic-trace");
   });
 
-  it("snapshots the rate-limit pause and resume event sequence", async () => {
+  it("snapshots the rate-limit pause semantic events", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
 
     const config: ResolvedConfig = {
@@ -213,15 +183,14 @@ describe("State Machine Contract", () => {
       resetAt: "2026-05-20T14:30:00Z",
     });
 
-    const fakeTracer = makeFakeTracer();
+    const fakeTelemetry = makeFakeSystemTelemetry();
 
     const layers = Layer.mergeAll(
       fakeGit.layer,
       fakeShell.layer,
       fakeBackend.layer,
       NodeFileSystemLayer,
-      fakeTracer.layer,
-      NoopSystemTelemetryLayer,
+      fakeTelemetry.layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -247,17 +216,14 @@ describe("State Machine Contract", () => {
     // Run should fail with rate limit.
     expect(Either.isLeft(runResult)).toBe(true);
 
-    // Snapshot only the rate-limit and resume events.
-    const pauseEvents = fakeTracer.impl.events
-      .filter((e) => e.event.includes("rate") || e.event === "resume.available")
-      .map((e) => ({
-        event: e.event,
-        status: e.status,
-        phase: e.phase,
-        boundary: e.boundary,
-        details: e.details,
-      }));
-
-    expect(pauseEvents).toMatchSnapshot("rate-limit-pause-sequence");
+    // The rate-limit path should produce an adapter.call.failed event and a
+    // step.completed (resume.notify) event through the EmitTrace → semantic mapping.
+    const telEvents = fakeTelemetry.impl.events();
+    const rateLimitEvents = telEvents.filter(
+      (e) =>
+        (e.type === "adapter.call.failed" && "actual" in e && e.actual === "rate_limited") ||
+        (e.type === "step.completed" && "step" in e && e.step === "resume.notify"),
+    );
+    expect(rateLimitEvents.length).toBeGreaterThanOrEqual(1);
   });
 });

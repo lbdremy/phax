@@ -20,7 +20,6 @@ import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
-import { Tracer, type TraceEventName, type TraceStatus } from "../ports/tracer.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import {
   makeAdapterCallStartedTelemetryEvent,
@@ -90,7 +89,7 @@ export function executePlan(
 ): Effect.Effect<
   ExecutePlanResult,
   ExecutePlanError,
-  Backend | FileSystem | Git | Shell | Tracer | SystemTelemetry
+  Backend | FileSystem | Git | Shell | SystemTelemetry
 > {
   const {
     shortName,
@@ -133,33 +132,9 @@ export function executePlan(
   }
 
   const program = Effect.gen(function* () {
-    const tracer = yield* Tracer;
     const telemetry = yield* SystemTelemetry;
-    const emit = (
-      event: TraceEventName,
-      status: TraceStatus,
-      extra?: {
-        phase?: string | undefined;
-        boundary?: string | undefined;
-        details?: Record<string, unknown> | undefined;
-      },
-    ): Effect.Effect<void, never, never> =>
-      tracer.event({
-        timestamp: new Date().toISOString(),
-        run: shortName as string,
-        phase: extra?.phase,
-        event,
-        boundary: extra?.boundary,
-        status,
-        details: extra?.details,
-      });
 
-    yield* emit("config.discovered", "info", { boundary: "phax.json" });
     yield* telemetry.recordEvent(makeStepStartedTelemetryEvent({ runId, step: "config.discover" }));
-    yield* emit("config.validated", "ok", {
-      boundary: "phax.json",
-      details: { gateProfileId, repoRoot: config.repoRoot, workspaceId },
-    });
     yield* telemetry.recordEvent(
       makeStepCompletedTelemetryEvent({ runId, step: "config.validate", result: "success" }),
     );
@@ -254,11 +229,6 @@ export function executePlan(
 
       currentWorktreePath = worktreePath as string;
       yield* recordPhaseWorktreePath(phaseFolderPath, worktreePath);
-      yield* emit("git.worktree.created", "ok", {
-        phase: phase.id,
-        boundary: "worktree",
-        details: { worktreePath: worktreePath as string },
-      });
       yield* telemetry.recordEvent(
         makeAdapterCallSucceededTelemetryEvent({
           runId,
@@ -295,11 +265,6 @@ export function executePlan(
       };
 
       const backend = yield* Backend;
-      yield* emit("agent.invocation.started", "info", {
-        phase: phase.id,
-        boundary: "claude-code",
-        details: { model: phase.model, effort: phase.effort },
-      });
       yield* telemetry.recordEvent(
         makeAdapterCallStartedTelemetryEvent({
           runId,
@@ -328,10 +293,6 @@ export function executePlan(
       );
       const sessionId = agentResult.sessionId;
       currentSessionId = sessionId as string;
-      yield* emit("agent.invocation.completed", "ok", {
-        phase: phase.id,
-        boundary: "claude-code",
-      });
       yield* telemetry.recordEvent(
         makeAdapterCallSucceededTelemetryEvent({
           runId,
@@ -340,10 +301,6 @@ export function executePlan(
           operation: "agent.run",
         }),
       );
-      yield* emit("agent.session.captured", "ok", {
-        phase: phase.id,
-        details: { sessionId: sessionId as string },
-      });
       yield* telemetry.recordEvent(
         makeArtifactGeneratedTelemetryEvent({
           runId,
@@ -367,10 +324,6 @@ export function executePlan(
         runPath,
       });
 
-      yield* emit("handoff.requested", "info", {
-        phase: phase.id,
-        boundary: "phase-handoff.md",
-      });
       yield* telemetry.recordEvent(
         makeStepStartedTelemetryEvent({ runId, operationId: phase.id, step: "handoff.generate" }),
       );
@@ -382,10 +335,6 @@ export function executePlan(
         runPath,
         shortName: shortName as string,
         phaseId: phase.id,
-      });
-      yield* emit("handoff.validated", "ok", {
-        phase: phase.id,
-        boundary: "phase-handoff.md",
       });
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
@@ -410,11 +359,6 @@ export function executePlan(
       });
 
       committedPhases.push(phase.id);
-      yield* emit("git.commit.created", "ok", {
-        phase: phase.id,
-        boundary: "git",
-        details: { subject: phase.commit.subject },
-      });
       yield* telemetry.recordEvent(
         makeAdapterCallSucceededTelemetryEvent({
           runId,

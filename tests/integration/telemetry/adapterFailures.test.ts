@@ -10,7 +10,6 @@ import { makeFakeFileSystem } from "../../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../../src/infra/fakes/systemTelemetry.js";
-import { makeFakeTracer } from "../../../src/infra/fakes/tracer.js";
 import { adaptWorktreeCreate } from "../../../src/app/eventAdapter.js";
 import { runGatesWithFixLoop } from "../../../src/app/fixLoop.js";
 import { reportClaudeFailure } from "../../../src/app/telemetry/reportBuilders.js";
@@ -61,8 +60,6 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
     const fakeShell = makeFakeShell();
     const fakeBackend = makeFakeBackend();
     const fakeGit = makeFakeGit();
-    const fakeTracer = makeFakeTracer();
-
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, phaseStatusJson);
     fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusJson);
     fakeShell.impl.setDefaultResponse({ exitCode: 1, stdout: "", stderr: "test failure output" });
@@ -72,7 +69,6 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
       fakeShell.layer,
       fakeBackend.layer,
       fakeGit.layer,
-      fakeTracer.layer,
       telLayer,
     );
 

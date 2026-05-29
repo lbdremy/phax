@@ -15,7 +15,6 @@ import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
-import { Tracer } from "../ports/tracer.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { dispatch } from "./dispatcher.js";
 
@@ -84,7 +83,7 @@ export function generatePhaseHandoff(
   | UsageLimitError
   | HandoffValidationError
   | RegistryCorruptionError,
-  FileSystem | Backend | Git | Shell | Tracer | SystemTelemetry
+  FileSystem | Backend | Git | Shell | SystemTelemetry
 > {
   const { sessionId, agentOptions, phaseFolderPath, worktreePath, runPath, shortName, phaseId } =
     opts;

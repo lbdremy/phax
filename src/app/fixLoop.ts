@@ -16,7 +16,6 @@ import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
-import { Tracer } from "../ports/tracer.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import {
   makeStepStartedTelemetryEvent,
@@ -82,7 +81,7 @@ export function runGatesWithFixLoop(
   | RateLimitError
   | UsageLimitError
   | RegistryCorruptionError,
-  Shell | FileSystem | Backend | Git | Tracer | SystemTelemetry
+  Shell | FileSystem | Backend | Git | SystemTelemetry
 > {
   const {
     commands,
@@ -131,35 +130,18 @@ export function runGatesWithFixLoop(
     | RateLimitError
     | UsageLimitError
     | RegistryCorruptionError,
-    Shell | FileSystem | Backend | Git | Tracer | SystemTelemetry
+    Shell | FileSystem | Backend | Git | SystemTelemetry
   > {
     return Effect.gen(function* () {
-      const tracer = yield* Tracer;
       const telemetry = yield* SystemTelemetry;
       const runId = run as unknown as RunId;
-      const emit = (
-        event: "gate.started" | "gate.completed" | "gate.failed" | "fix.started" | "fix.completed",
-        status: "ok" | "failed" | "info",
-        details?: Record<string, unknown>,
-      ): Effect.Effect<void, never, never> =>
-        tracer.event({
-          timestamp: new Date().toISOString(),
-          run,
-          phase: phaseId,
-          event,
-          boundary: "gate",
-          status,
-          details,
-        });
 
-      yield* emit("gate.started", "info", { attempt });
       yield* telemetry.recordEvent(
         makeStepStartedTelemetryEvent({ runId, operationId: phaseId, step: `gate.run` }),
       );
       const gateResult = yield* Effect.either(runGates(commands, cwd, logPath(attempt)));
 
       if (Either.isRight(gateResult)) {
-        yield* emit("gate.completed", "ok", { attempt });
         yield* telemetry.recordEvent(
           makeStepCompletedTelemetryEvent({
             runId,
@@ -191,11 +173,6 @@ export function runGatesWithFixLoop(
         return yield* Effect.fail(error);
       }
 
-      yield* emit("gate.failed", "failed", {
-        attempt,
-        command: error.command,
-        exitCode: error.exitCode,
-      });
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
           runId,
@@ -256,7 +233,6 @@ export function runGatesWithFixLoop(
       const logContent = yield* fs.readText(logPath(attempt));
       const fixPrompt = buildFixPrompt(error, logContent, attempt);
 
-      yield* emit("fix.started", "info", { attempt });
       yield* telemetry.recordEvent(
         makeStepStartedTelemetryEvent({ runId, operationId: phaseId, step: "fix-loop" }),
       );
@@ -297,7 +273,6 @@ export function runGatesWithFixLoop(
         sessionId: fixResult.sessionId,
       };
       yield* dispatch(fixCompletedEvent, dispatchCtx);
-      yield* emit("fix.completed", "ok", { attempt });
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
           runId,

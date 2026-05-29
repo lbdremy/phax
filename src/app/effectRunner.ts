@@ -11,7 +11,6 @@ import {
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
-import { Tracer } from "../ports/tracer.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import {
   decodePhaseStatus,
@@ -155,24 +154,14 @@ export function run(
 ): Effect.Effect<
   void,
   FsError | ShellError | GitError | SetupCommandFailedError | RegistryCorruptionError,
-  FileSystem | Git | Shell | Tracer | SystemTelemetry
+  FileSystem | Git | Shell | SystemTelemetry
 > {
   switch (cmd.type) {
     case "PersistState":
       return persistState(ctx, cmd);
     case "EmitTrace":
       return Effect.gen(function* () {
-        const tracer = yield* Tracer;
         const telemetry = yield* SystemTelemetry;
-        yield* tracer.event({
-          timestamp: new Date().toISOString(),
-          run: ctx.shortName,
-          phase: ctx.phaseId,
-          event: cmd.name,
-          boundary: cmd.boundary,
-          status: cmd.status,
-          details: cmd.details,
-        });
         const runId = ctx.shortName as unknown as RunId;
         const semanticEvent = mapEmitTraceToSemantic(cmd, runId);
         if (semanticEvent !== null) {
