@@ -7,7 +7,8 @@ exports[`openFinalReview > matches the review-handoff.md snapshot 1`] = `
 
 - **Run ID**: my-run-1234567890
 - **Short Name**: my-run
-- **Branch**: feature/my-run
+- **Base Branch**: feature/my-run
+- **Final Phase Branch (review here)**: \`feature/my-run--phase-01\`
 - **Gate Profile**: fast
 
 ## Final Phase
@@ -42,10 +43,12 @@ claude --resume sess-abc123
 
 ## Conductor Handoff
 
-Branch: \`feature/my-run\`
+Base Branch: \`feature/my-run\`
+Final Phase Branch: \`feature/my-run--phase-01\`
 Worktree: \`/fake/worktrees/my-run/phase-01\`
 
-Open the worktree directory in Conductor or point a new workspace at branch \`feature/my-run\`.
+The full commit chain is on \`feature/my-run--phase-01\` (\`feature/my-run\` stays at the run-start commit).
+Open the worktree directory in Conductor or point a new workspace at branch \`feature/my-run--phase-01\`.
 
 ## Completed Phases
 

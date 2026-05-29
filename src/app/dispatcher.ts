@@ -6,10 +6,15 @@ import type { PhaxEvent } from "../domain/events.js";
 import { interpret } from "../domain/reducer.js";
 import type { PhaxState } from "../domain/state.js";
 import type { RegistryCorruptionError, SetupCommandFailedError } from "../domain/errors.js";
+import type { RunId } from "../domain/branded.js";
+import {
+  makeStateTransitionTelemetryEvent,
+  makeStepCompletedTelemetryEvent,
+} from "../domain/telemetry/events.js";
 import { FileSystem, FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
-import { Tracer } from "../ports/tracer.js";
+import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import {
   decodePhaseStatus,
   decodeRunStatus,
@@ -78,6 +83,11 @@ function phaseStateName(state: PhaxState): PhaseStatus["state"] | undefined {
   return undefined;
 }
 
+function compositeState(state: PhaxState): string {
+  const phase = phaseStateName(state);
+  return phase !== undefined ? `${state.run}:${phase}` : state.run;
+}
+
 function diffPatch(before: PhaxState, after: PhaxState): StatePatch {
   const beforeRun = runStateName(before);
   const afterRun = runStateName(after);
@@ -115,46 +125,23 @@ export function dispatch(
 ): Effect.Effect<
   DispatchResult,
   FsError | GitError | ShellError | SetupCommandFailedError | RegistryCorruptionError,
-  FileSystem | Git | Shell | Tracer
+  FileSystem | Git | Shell | SystemTelemetry
 > {
   return Effect.gen(function* () {
-    const tracer = yield* Tracer;
+    const telemetry = yield* SystemTelemetry;
+    const runId = ctx.shortName as unknown as RunId;
     const stateBefore = yield* readPhaxState(ctx);
     const disposition = interpret(stateBefore, event);
 
-    const dispositionEventName =
-      disposition.kind === "Handled"
-        ? "event.handled"
-        : disposition.kind === "Ignored"
-          ? "event.ignored"
-          : disposition.kind === "Stale"
-            ? "event.stale"
-            : disposition.kind === "Rejected"
-              ? "event.rejected"
-              : "event.unexpected";
-
-    const dispositionDetails: Record<string, unknown> = {
-      eventType: event.type,
-      eventId: event.eventId,
-      runStateBefore: stateBefore.run,
-      phaseStateBefore: phaseStateName(stateBefore),
-    };
-    if (event.correlationId !== undefined) {
-      dispositionDetails.correlationId = event.correlationId;
-    }
     if (disposition.kind !== "Handled") {
-      dispositionDetails.reason = disposition.reason;
-    }
-
-    if (disposition.kind !== "Handled") {
-      yield* tracer.event({
-        timestamp: new Date().toISOString(),
-        run: ctx.shortName,
-        phase: ctx.phaseId,
-        event: dispositionEventName,
-        status: disposition.kind === "Unexpected" ? "failed" : "info",
-        details: dispositionDetails,
-      });
+      yield* telemetry.recordEvent(
+        makeStepCompletedTelemetryEvent({
+          runId,
+          step: `dispatch.${event.type}`,
+          result:
+            disposition.kind === "Ignored" || disposition.kind === "Stale" ? "success" : "failure",
+        }),
+      );
       return {
         disposition: disposition.kind,
         reason: disposition.reason,
@@ -178,15 +165,15 @@ export function dispatch(
       yield* runEffect({ type: "PersistState", patch }, runnerCtx);
     }
 
-    // Emit disposition trace.
-    yield* tracer.event({
-      timestamp: new Date().toISOString(),
-      run: ctx.shortName,
-      phase: ctx.phaseId,
-      event: dispositionEventName,
-      status: "ok",
-      details: dispositionDetails,
-    });
+    yield* telemetry.recordTransition(
+      makeStateTransitionTelemetryEvent({
+        runId,
+        event: event.type,
+        stateBefore: compositeState(stateBefore),
+        stateAfter: compositeState(stateAfter),
+        dispatcher: "dispatch",
+      }),
+    );
 
     // Execute reducer-emitted commands.
     const executed: PhaxCommandType[] = [];

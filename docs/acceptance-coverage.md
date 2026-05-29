@@ -31,3 +31,20 @@ Items marked with ✓ are exercised end-to-end by `phax run` integration tests
 | 23  | Archive moves artifacts, does not delete them              | 11         |                  |
 | 24  | `pnpm audit:architecture` enforces layer doctrine          | 14         |                  |
 | 25  | Actionable diagnostics linked to skill correction guides   | 14, 15     |                  |
+
+## Observability doctrine coverage
+
+Maps doctrine §§ to the observability phases that deliver them.
+
+| Doctrine section                                   | Phase(s)                       |
+| -------------------------------------------------- | ------------------------------ |
+| §1 Core principle (three-layer split)              | obs-01, obs-02, obs-05, obs-11 |
+| §4 `SystemTelemetry` port                          | obs-02                         |
+| §5 Semantic events                                 | obs-01                         |
+| §6 OpenTelemetry as envelope                       | obs-05                         |
+| §7 Snapshot strategy                               | obs-01, obs-03, obs-10, obs-11 |
+| §8 Happy path E2E tests                            | obs-10                         |
+| §9–§10 Adapter boundary failures + error reporting | obs-08                         |
+| §11 Metrics                                        | obs-03, obs-05, obs-06         |
+| §12 Recommended implementations                    | obs-03, obs-04, obs-05, obs-06 |
+| §15 Proof-preserving iteration                     | obs-03, obs-10                 |

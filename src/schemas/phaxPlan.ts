@@ -3,7 +3,7 @@ import { JSONSchema, Schema } from "effect";
 const EffortSchema = Schema.Literal("low", "medium", "high");
 
 const PhaseSchema = Schema.Struct({
-  id: Schema.NonEmptyString,
+  id: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
   title: Schema.NonEmptyString,
   model: Schema.NonEmptyString,
   effort: EffortSchema,

@@ -5,7 +5,7 @@ import { archive } from "../../src/app/archive.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
-import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
+import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { makeFakeLock } from "../../src/infra/fakes/lock.js";
 import type { ShortName } from "../../src/domain/branded.js";
 
@@ -71,7 +71,7 @@ function seedFs(opts: {
 }
 
 function makeLayers(seed: ReturnType<typeof seedFs>) {
-  const fakeTracer = makeFakeTracer();
+  const fakeTelemetry = makeFakeSystemTelemetry();
   const fakeGit = makeFakeGit();
   const fakeShell = makeFakeShell();
   const fakeLock = makeFakeLock();
@@ -86,12 +86,12 @@ function makeLayers(seed: ReturnType<typeof seedFs>) {
 
   const layer = Layer.mergeAll(
     seed.fakeFs.layer,
-    fakeTracer.layer,
+    fakeTelemetry.layer,
     fakeGit.layer,
     fakeShell.layer,
     fakeLock.layer,
   );
-  return { layer, fakeTracer, fakeGit, fakeShell, fakeLock };
+  return { layer, fakeTelemetry, fakeGit, fakeShell, fakeLock };
 }
 
 // ---------------------------------------------------------------------------

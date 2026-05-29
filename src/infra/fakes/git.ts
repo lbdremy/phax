@@ -20,6 +20,9 @@ export class FakeGitImpl implements GitOps {
   isCleanDefault = true;
   activeBranch: BranchName = "main" as BranchName;
   readonly existingBranches = new Set<string>();
+  /** Tracks which branches are currently checked out in a worktree.
+   * Maps branch → worktree path; used to simulate git's "already checked out" error. */
+  readonly checkedOutBranches = new Map<string, string>();
 
   setCleanWorktree(path: string, clean: boolean): void {
     if (clean) {
@@ -47,6 +50,12 @@ export class FakeGitImpl implements GitOps {
     this.worktreeIsCleanQueue.set(path, queue);
   }
 
+  private nextAddWorktreeError: string | undefined;
+
+  failNextWorktreeAdd(stderr: string): void {
+    this.nextAddWorktreeError = stderr;
+  }
+
   isClean(repo: string): Effect.Effect<boolean, GitError> {
     this.calls.push({ method: "isClean", repo });
     return Effect.succeed(this.isCleanDefault);
@@ -70,6 +79,30 @@ export class FakeGitImpl implements GitOps {
 
   addWorktree(branch: BranchName, path: WorktreePath, repo: string): Effect.Effect<void, GitError> {
     this.calls.push({ method: "addWorktree", branch, path, repo });
+    if (this.nextAddWorktreeError !== undefined) {
+      const stderr = this.nextAddWorktreeError;
+      this.nextAddWorktreeError = undefined;
+      return Effect.fail(
+        new GitError({
+          message: `git worktree add failed: ${stderr}`,
+          command: `git worktree add ${path} ${branch}`,
+          args: ["worktree", "add", path, branch],
+          stderr,
+          stderrExcerpt: stderr,
+          exitCode: 128,
+        }),
+      );
+    }
+    const existingPath = this.checkedOutBranches.get(branch as string);
+    if (existingPath !== undefined) {
+      return Effect.fail(
+        new GitError({
+          message: `'${branch}' is already checked out at '${existingPath}'`,
+          command: `git worktree add ${path} ${branch}`,
+        }),
+      );
+    }
+    this.checkedOutBranches.set(branch as string, path as string);
     return Effect.void;
   }
 

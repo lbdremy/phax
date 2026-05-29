@@ -63,16 +63,18 @@ phax run --workspace packages/api              # workspace-scoped gate commands 
 
 Each phase:
 
-1. Creates a Git worktree at `~/.phax/worktrees/<short-name>/phase-NN/`.
+1. Creates a Git worktree at `~/.phax/worktrees/<short-name>/phase-NN/` on its own branch `<run.branch>--phase-NN`.
 2. Runs `commands.setup` inside the worktree.
 3. Builds a prompt from the plan and the previous phase's handoff, sends it to Claude Code.
 4. Runs the gate profile; on failure, resumes the same Claude session once and retries.
 5. After passing gates, resumes Claude to produce `phase-handoff.md`.
 6. Commits with the planned message. If the worktree is clean (no changes), the run stops with a non-zero exit and writes `resume-instructions.md` — use `phax resume` to continue from the next phase.
 
+Each phase gets its own branch (`<run.branch>--phase-01`, `<run.branch>--phase-02`, …), chained: phase-01 branches off `<run.branch>`, phase-N branches off the previous phase's branch. The base `<run.branch>` stays at the run-start commit. The final phase's branch carries the full commit chain and is the ref to review, merge, or push.
+
 Worktrees from every phase persist on disk for the lifetime of the run and are available for inspection until `phax archive` is run.
 
-The final phase stays open for review. A `review-handoff.md` is written to the run folder.
+The final phase stays open for review. A `review-handoff.md` is written to the run folder showing the final phase branch as the review target.
 
 ## Review loop
 
@@ -129,20 +131,32 @@ The E2E suite skips automatically unless `PHAX_E2E_RUN=1` is set, so it never ru
 
 ## Debugging
 
-Add `--verbose` to any `run` or `resume` command to print config discovery, state transitions, agent invocations, gate results, and commit events to the terminal:
+Add `--verbose` to any `run` or `resume` command to print semantic events (state transitions, adapter calls, gate results) to the terminal:
 
 ```bash
 phax run --verbose
 phax resume <short-name> --verbose
 ```
 
-Add `--trace` to also write a structured JSONL log to `~/.phax/runs/<short-name>/trace.jsonl`:
+Add `--trace <path>` to write one JSON line per semantic event to a file:
 
 ```bash
-phax run --trace
+phax run --trace ~/.phax/runs/<short-name>/semantic.jsonl
 ```
 
-Both flags can be combined (`--verbose --trace`). See [`docs/extract-plan-model.md`](docs/extract-plan-model.md) for how to configure the model used by `extract-plan`.
+Both flags can be combined. Set `PHAX_OTEL=1` to also export traces to a local OTLP collector. See [`docs/observability.md`](docs/observability.md) for the full observability architecture and [`docs/extract-plan-model.md`](docs/extract-plan-model.md) for how to configure the model used by `extract-plan`.
+
+## Observability
+
+phax emits structured semantic telemetry through the `SystemTelemetry` port — state transitions, adapter calls, gate results, and artifacts. Three output modes:
+
+| Flag / Variable  | Effect                                              |
+| ---------------- | --------------------------------------------------- |
+| `--verbose`      | Print semantic events to the terminal               |
+| `--trace <path>` | Write semantic events as JSONL to `<path>`          |
+| `PHAX_OTEL=1`    | Export to an OTLP collector (OTel traces + metrics) |
+
+See [`docs/observability.md`](docs/observability.md) for architecture details, the snapshot rule, and the adapter-boundary failure contract.
 
 ## Resume
 
@@ -183,6 +197,7 @@ phax unlock <short-name> --force  # remove any lock
 | `PHAX_STATE_ROOT` | Override `state.root` from `phax.json`                         |
 | `PHAX_CLAUDE_BIN` | Path to the `claude` executable (default: `claude` on `$PATH`) |
 | `PHAX_NO_COLOR`   | Disable ANSI color output                                      |
+| `PHAX_OTEL`       | Set to `1` to enable the OpenTelemetry adapter                 |
 
 ## Troubleshooting
 

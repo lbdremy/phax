@@ -1,0 +1,120 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`executePlan — semantic telemetry end-to-end > emits the expected semantic event types for a one-phase run > semantic-trace-snapshot 1`] = `
+[
+  {
+    "step": "config.discover",
+    "type": "step.started",
+  },
+  {
+    "result": "success",
+    "step": "config.validate",
+    "type": "step.completed",
+  },
+  {
+    "dispatcher": "dispatch",
+    "event": "RunStarted",
+    "stateAfter": "running:pending",
+    "stateBefore": "created",
+    "type": "state.transition",
+  },
+  {
+    "result": "success",
+    "step": "dispatch.RunResumeRequested",
+    "type": "step.completed",
+  },
+  {
+    "dispatcher": "dispatch",
+    "event": "PhaseStartRequested",
+    "stateAfter": "running:setting_up_worktree",
+    "stateBefore": "running:pending",
+    "type": "state.transition",
+  },
+  {
+    "adapter": "git",
+    "operation": "worktree.create",
+    "operationId": "phase-01",
+    "type": "adapter.call.succeeded",
+  },
+  {
+    "dispatcher": "dispatch",
+    "event": "WorktreeCreated",
+    "stateAfter": "running:running",
+    "stateBefore": "running:setting_up_worktree",
+    "type": "state.transition",
+  },
+  {
+    "adapter": "claude-code-cli",
+    "operation": "agent.run",
+    "operationId": "phase-01",
+    "type": "adapter.call.started",
+  },
+  {
+    "adapter": "claude-code-cli",
+    "operation": "agent.run",
+    "operationId": "phase-01",
+    "type": "adapter.call.succeeded",
+  },
+  {
+    "artifact": "claude-session-id",
+    "operationId": "phase-01",
+    "path": "sess-01",
+    "type": "artifact.generated",
+  },
+  {
+    "operationId": "phase-01",
+    "step": "gate.run",
+    "type": "step.started",
+  },
+  {
+    "operationId": "phase-01",
+    "result": "success",
+    "step": "gate.run",
+    "type": "step.completed",
+  },
+  {
+    "gate": "checks",
+    "operationId": "phase-01",
+    "result": "accepted",
+    "type": "gate.evaluated",
+  },
+  {
+    "dispatcher": "dispatch",
+    "event": "GatePassed",
+    "stateAfter": "running:passed",
+    "stateBefore": "running:running",
+    "type": "state.transition",
+  },
+  {
+    "operationId": "phase-01",
+    "step": "handoff.generate",
+    "type": "step.started",
+  },
+  {
+    "operationId": "phase-01",
+    "result": "success",
+    "step": "handoff.generate",
+    "type": "step.completed",
+  },
+  {
+    "dispatcher": "dispatch",
+    "event": "CommitCreated",
+    "stateAfter": "running:committed",
+    "stateBefore": "running:passed",
+    "type": "state.transition",
+  },
+  {
+    "adapter": "git",
+    "operation": "commit.create",
+    "operationId": "phase-01",
+    "type": "adapter.call.succeeded",
+  },
+  {
+    "dispatcher": "dispatch",
+    "event": "FinalReviewOpened",
+    "stateAfter": "review_open:review_open",
+    "stateBefore": "running:committed",
+    "type": "state.transition",
+  },
+]
+`;

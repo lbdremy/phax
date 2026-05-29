@@ -8,6 +8,7 @@ export class FsError extends Data.TaggedError("FsError")<{
 export interface FileSystemOps {
   readText(path: string): Effect.Effect<string, FsError>;
   writeAtomic(path: string, content: string): Effect.Effect<void, FsError>;
+  appendLine(path: string, line: string): Effect.Effect<void, FsError>;
   mkdirp(path: string): Effect.Effect<void, FsError>;
   exists(path: string): Effect.Effect<boolean, FsError>;
   remove(path: string): Effect.Effect<void, FsError>;

@@ -1,12 +1,13 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
-import type { WorktreePath } from "../domain/branded.js";
+import type { BranchName, WorktreePath } from "../domain/branded.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { decodePhaseStatus, encodePhaseStatus } from "../schemas/status.js";
 
-export function recordPhaseWorktreePath(
+export function recordPhaseWorktreeAndBranch(
   phaseFolderPath: string,
   worktreePath: WorktreePath,
+  branchName: BranchName,
 ): Effect.Effect<void, FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -25,6 +26,7 @@ export function recordPhaseWorktreePath(
       const updated = {
         ...decoded.right,
         worktreePath: worktreePath as string,
+        branchName,
         updatedAt: new Date().toISOString(),
       };
       yield* fs.writeAtomic(statusPath, JSON.stringify(encodePhaseStatus(updated), null, 2));

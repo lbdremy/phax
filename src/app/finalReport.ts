@@ -55,7 +55,8 @@ function buildFinalReportMarkdown(info: RunReviewInfo): string {
 
 - **Run ID**: ${info.runId}
 - **Short Name**: ${info.shortName}
-- **Branch**: ${info.branch}
+- **Base Branch**: ${info.branch}
+- **Final Phase Branch (review here)**: \`${info.finalPhaseBranch}\`
 - **State**: ${info.runState}
 - **Gate Profile**: ${info.gateProfileId ?? "(none)"}
 - **Total Phases**: ${total}

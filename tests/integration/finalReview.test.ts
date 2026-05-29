@@ -4,9 +4,10 @@ import { openFinalReview } from "../../src/app/finalReview.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
-import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
+import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { RunReviewInfo } from "../../src/app/resolveRunInfo.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
+import type { BranchName } from "../../src/domain/branded.js";
 
 const stateRoot = "/fake-state";
 const shortName = "my-run";
@@ -20,6 +21,7 @@ const phaseStatus: PhaseStatus = {
   state: "committed",
   model: "claude-sonnet-4-6",
   effort: "low",
+  branchName: "feature/my-run--phase-01" as BranchName,
   createdAt: now,
   updatedAt: now,
   worktreePath: "/fake/worktrees/my-run/phase-01",
@@ -31,6 +33,7 @@ const runReviewInfo: RunReviewInfo = {
   runId: "my-run-1234567890",
   runState: "running",
   branch: "feature/my-run",
+  finalPhaseBranch: "feature/my-run--phase-01" as BranchName,
   stateRoot,
   runPath,
   finalPhaseId: "phase-01",
@@ -41,6 +44,8 @@ const runReviewInfo: RunReviewInfo = {
   phaseStatuses: [phaseStatus],
   planPhases: [{ id: "phase-01", title: "First Phase" }],
   updatedAt: now,
+  stoppedReason: undefined,
+  lastError: undefined,
 };
 
 function makeRunStatusJson(state: string): string {
@@ -65,7 +70,7 @@ function setupLayers() {
     fs.layer,
     makeFakeGit().layer,
     makeFakeShell().layer,
-    makeFakeTracer().layer,
+    NoopSystemTelemetryLayer,
   );
   return { impl: fs.impl, layers };
 }

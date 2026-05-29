@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { PhaseId, RunId, ShortName, WorktreePath } from "../domain/branded.js";
+import type { BranchName, PhaseId, RunId, ShortName, WorktreePath } from "../domain/branded.js";
 import { decodeBranchName, decodePhaseId } from "../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
@@ -21,7 +21,15 @@ import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
-import { Tracer, type TraceEventName, type TraceStatus } from "../ports/tracer.js";
+import { SystemTelemetry } from "../ports/systemTelemetry.js";
+import {
+  makeAdapterCallStartedTelemetryEvent,
+  makeAdapterCallSucceededTelemetryEvent,
+  makeArtifactGeneratedTelemetryEvent,
+  makeStepStartedTelemetryEvent,
+  makeStepCompletedTelemetryEvent,
+} from "../domain/telemetry/events.js";
+import { reportClaudeFailure } from "./telemetry/reportBuilders.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import { cleanupPhase } from "./cleanup.js";
@@ -32,11 +40,11 @@ import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
 import { readPreviousHandoff } from "./handoffInjection.js";
 import { createPhaseFolder } from "./phaseFolder.js";
-import { recordPhaseWorktreePath } from "./phaseStatusUpdates.js";
+import { recordPhaseWorktreeAndBranch } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRunByShortName } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
-import { createPhaseWorktree, prepareRunBranch } from "./worktree.js";
+import { createPhaseWorktree, preparePhaseBranch, prepareRunBranch } from "./worktree.js";
 
 function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
   return e instanceof RateLimitError || e instanceof UsageLimitError;
@@ -84,7 +92,11 @@ export type ExecutePlanError =
 
 export function executePlan(
   opts: ExecutePlanOptions,
-): Effect.Effect<ExecutePlanResult, ExecutePlanError, Backend | FileSystem | Git | Shell | Tracer> {
+): Effect.Effect<
+  ExecutePlanResult,
+  ExecutePlanError,
+  Backend | FileSystem | Git | Shell | SystemTelemetry
+> {
   const {
     shortName,
     plan,
@@ -126,31 +138,12 @@ export function executePlan(
   }
 
   const program = Effect.gen(function* () {
-    const tracer = yield* Tracer;
-    const emit = (
-      event: TraceEventName,
-      status: TraceStatus,
-      extra?: {
-        phase?: string | undefined;
-        boundary?: string | undefined;
-        details?: Record<string, unknown> | undefined;
-      },
-    ): Effect.Effect<void, never, never> =>
-      tracer.event({
-        timestamp: new Date().toISOString(),
-        run: shortName as string,
-        phase: extra?.phase,
-        event,
-        boundary: extra?.boundary,
-        status,
-        details: extra?.details,
-      });
+    const telemetry = yield* SystemTelemetry;
 
-    yield* emit("config.discovered", "info", { boundary: "phax.json" });
-    yield* emit("config.validated", "ok", {
-      boundary: "phax.json",
-      details: { gateProfileId, repoRoot: config.repoRoot, workspaceId },
-    });
+    yield* telemetry.recordEvent(makeStepStartedTelemetryEvent({ runId, step: "config.discover" }));
+    yield* telemetry.recordEvent(
+      makeStepCompletedTelemetryEvent({ runId, step: "config.validate", result: "success" }),
+    );
 
     let gateCommands: readonly string[];
     try {
@@ -182,6 +175,28 @@ export function executePlan(
       branch = branchResult.right;
     }
 
+    // `previousPhaseBranch` tracks the ref each new phase branches off.
+    // On a fresh run phase-01 branches off the run branch; phase-N branches off
+    // phase-(N-1). On resume we seed it from the last completed phase so the
+    // chain is correct without any extra disk read — the naming is total.
+    let previousPhaseBranch: BranchName = branch;
+    if (startIndex > 0) {
+      const prevPhase = plan.phases[startIndex - 1];
+      if (prevPhase !== undefined) {
+        const prevBranchStr = `${plan.run.branch}--${prevPhase.id}`;
+        const prevBranchResult = decodeBranchName(prevBranchStr);
+        if (Either.isLeft(prevBranchResult)) {
+          return yield* Effect.fail(
+            new UnsafeGitStateError({
+              message: `Invalid branch name "${prevBranchStr}": must be non-empty`,
+              repoPath: config.repoRoot,
+            }),
+          );
+        }
+        previousPhaseBranch = prevBranchResult.right;
+      }
+    }
+
     // Lift a rate-limited run+phase back to running. On a fresh run the reducer
     // returns Ignored (run already running) and produces no writes; on resume
     // it transitions both the run and the in-flight phase to `running` so the
@@ -206,7 +221,29 @@ export function executePlan(
       if (phase === undefined) continue;
       const isFinal = i === plan.phases.length - 1;
 
-      const phaseFolderPath = yield* createPhaseFolder(runPath, phase, i);
+      // Resolve the phase branch before creating the phase folder so the
+      // initial status.json can include branchName (required by the schema).
+      const phaseIdResult = decodePhaseId(phase.id);
+      if (Either.isLeft(phaseIdResult)) {
+        return yield* Effect.fail(
+          new WorktreeCreationError({
+            message: `Invalid phase id "${phase.id}": must match phase-NN`,
+            branch,
+            path: "",
+          }),
+        );
+      }
+      // Each phase gets its own branch (<run.branch>--<phaseId>) so multiple
+      // worktrees can coexist — git refuses to check out one branch in two
+      // worktrees simultaneously.
+      const phaseBranch = yield* preparePhaseBranch(
+        branch,
+        phaseIdResult.right,
+        previousPhaseBranch,
+        config.repoRoot,
+      );
+
+      const phaseFolderPath = yield* createPhaseFolder(runPath, phase, i, phaseBranch);
       currentPhaseId = phase.id;
       currentPhaseFolderPath = phaseFolderPath;
       currentWorktreePath = undefined;
@@ -225,32 +262,24 @@ export function executePlan(
         },
         ctx,
       );
-
-      const phaseIdResult = decodePhaseId(phase.id);
-      if (Either.isLeft(phaseIdResult)) {
-        return yield* Effect.fail(
-          new WorktreeCreationError({
-            message: `Invalid phase id "${phase.id}": must match phase-NN`,
-            branch,
-            path: "",
-          }),
-        );
-      }
       const worktreePath = yield* createPhaseWorktree(
         shortName,
         phaseIdResult.right,
-        branch,
+        phaseBranch,
         config.stateRoot,
         config.repoRoot,
       );
 
       currentWorktreePath = worktreePath as string;
-      yield* recordPhaseWorktreePath(phaseFolderPath, worktreePath);
-      yield* emit("git.worktree.created", "ok", {
-        phase: phase.id,
-        boundary: "worktree",
-        details: { worktreePath: worktreePath as string },
-      });
+      yield* recordPhaseWorktreeAndBranch(phaseFolderPath, worktreePath, phaseBranch);
+      yield* telemetry.recordEvent(
+        makeAdapterCallSucceededTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          adapter: "git",
+          operation: "worktree.create",
+        }),
+      );
 
       // setting_up_worktree → running (Ignored on a resumed phase already
       // running).
@@ -281,22 +310,50 @@ export function executePlan(
       };
 
       const backend = yield* Backend;
-      yield* emit("agent.invocation.started", "info", {
-        phase: phase.id,
-        boundary: "claude-code",
-        details: { model: phase.model, effort: phase.effort },
-      });
-      const agentResult = yield* backend.runAgent(promptText, agentOptions);
+      yield* telemetry.recordEvent(
+        makeAdapterCallStartedTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          adapter: "claude-code-cli",
+          operation: "agent.run",
+        }),
+      );
+      const agentResult = yield* telemetry.withOperation(
+        "phax.claude-code-cli.agent.run",
+        { "phax.phase.id": phase.id },
+        backend.runAgent(promptText, agentOptions).pipe(
+          Effect.tapError((e) =>
+            e instanceof ClaudeInvocationError
+              ? telemetry.recordError(
+                  reportClaudeFailure(e, {
+                    runId,
+                    operationId: phase.id,
+                    adapter: "claude-code-cli",
+                    operation: "agent.run",
+                  }),
+                )
+              : Effect.void,
+          ),
+        ),
+      );
       const sessionId = agentResult.sessionId;
       currentSessionId = sessionId as string;
-      yield* emit("agent.invocation.completed", "ok", {
-        phase: phase.id,
-        boundary: "claude-code",
-      });
-      yield* emit("agent.session.captured", "ok", {
-        phase: phase.id,
-        details: { sessionId: sessionId as string },
-      });
+      yield* telemetry.recordEvent(
+        makeAdapterCallSucceededTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          adapter: "claude-code-cli",
+          operation: "agent.run",
+        }),
+      );
+      yield* telemetry.recordEvent(
+        makeArtifactGeneratedTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          artifact: "claude-session-id",
+          path: sessionId as string,
+        }),
+      );
 
       // running → passed transition is dispatched inside fixLoop on the
       // gate-success branch via dispatch(GatePassed).
@@ -312,10 +369,9 @@ export function executePlan(
         runPath,
       });
 
-      yield* emit("handoff.requested", "info", {
-        phase: phase.id,
-        boundary: "phase-handoff.md",
-      });
+      yield* telemetry.recordEvent(
+        makeStepStartedTelemetryEvent({ runId, operationId: phase.id, step: "handoff.generate" }),
+      );
       yield* generatePhaseHandoff({
         sessionId,
         agentOptions,
@@ -325,10 +381,14 @@ export function executePlan(
         shortName: shortName as string,
         phaseId: phase.id,
       });
-      yield* emit("handoff.validated", "ok", {
-        phase: phase.id,
-        boundary: "phase-handoff.md",
-      });
+      yield* telemetry.recordEvent(
+        makeStepCompletedTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          step: "handoff.generate",
+          result: "success",
+        }),
+      );
 
       // commitPhase dispatches CommitCreated internally.
       yield* commitPhase({
@@ -344,11 +404,14 @@ export function executePlan(
       });
 
       committedPhases.push(phase.id);
-      yield* emit("git.commit.created", "ok", {
-        phase: phase.id,
-        boundary: "git",
-        details: { subject: phase.commit.subject },
-      });
+      yield* telemetry.recordEvent(
+        makeAdapterCallSucceededTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          adapter: "git",
+          operation: "commit.create",
+        }),
+      );
 
       if (isFinal) {
         finalWorktreePath = worktreePath;
@@ -387,6 +450,9 @@ export function executePlan(
           phaseId: phase.id,
         });
       }
+
+      // Advance the chain: the next phase branches off this phase's branch.
+      previousPhaseBranch = phaseBranch;
     }
 
     if (finalWorktreePath === undefined || finalPhaseId === undefined) {

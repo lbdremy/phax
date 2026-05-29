@@ -11,7 +11,7 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
-import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
+import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import {
   adaptAgentRun,
   adaptAgentResume,
@@ -56,6 +56,7 @@ const phaseStatusSeed = JSON.stringify({
   model: "claude-sonnet-4-6",
   effort: "low",
   state: "passed",
+  branchName: "ai/my-run--phase-01",
   createdAt: "2026-05-21T00:00:00.000Z",
   updatedAt: "2026-05-21T00:00:00.000Z",
 });
@@ -281,7 +282,6 @@ describe("adaptCommit", () => {
     const fakeGit = makeFakeGit();
     const fakeShell = makeFakeShell();
     const fakeFs = makeFakeFileSystem();
-    const fakeTracer = makeFakeTracer();
 
     // worktreeIsClean returns false → changes present
     fakeGit.impl.enqueueWorktreeIsClean(worktreePath as string, false);
@@ -296,7 +296,12 @@ describe("adaptCommit", () => {
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, phaseStatusSeed);
     fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
 
-    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer, fakeTracer.layer);
+    const layer = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeFs.layer,
+      NoopSystemTelemetryLayer,
+    );
 
     const event = await Effect.runPromise(
       adaptCommit(commitOpts, base).pipe(Effect.provide(layer)),
@@ -312,13 +317,17 @@ describe("adaptCommit", () => {
     const fakeGit = makeFakeGit();
     const fakeShell = makeFakeShell();
     const fakeFs = makeFakeFileSystem();
-    const fakeTracer = makeFakeTracer();
 
     fakeGit.impl.enqueueWorktreeIsClean(worktreePath as string, true);
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, phaseStatusSeed);
     fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
 
-    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer, fakeTracer.layer);
+    const layer = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeFs.layer,
+      NoopSystemTelemetryLayer,
+    );
 
     const result = await Effect.runPromise(
       Effect.either(adaptCommit(commitOpts, base).pipe(Effect.provide(layer))),
@@ -374,6 +383,7 @@ describe("adaptCleanup", () => {
     model: "claude-sonnet-4-6",
     effort: "low",
     state: "committed",
+    branchName: "ai/my-run--phase-01",
     commitHash: "deadbeef",
     createdAt: "2026-05-21T00:00:00.000Z",
     updatedAt: "2026-05-21T00:00:00.000Z",
@@ -383,13 +393,17 @@ describe("adaptCleanup", () => {
     const fakeGit = makeFakeGit();
     const fakeShell = makeFakeShell();
     const fakeFs = makeFakeFileSystem();
-    const fakeTracer = makeFakeTracer();
 
     fakeGit.impl.enqueueWorktreeIsClean(worktreePath as string, true);
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, committedPhaseSeed);
     fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
 
-    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer, fakeTracer.layer);
+    const layer = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeFs.layer,
+      NoopSystemTelemetryLayer,
+    );
 
     const event = await Effect.runPromise(
       adaptCleanup(baseCleanupOpts, base).pipe(Effect.provide(layer)),
@@ -403,8 +417,13 @@ describe("adaptCleanup", () => {
     const fakeGit = makeFakeGit();
     const fakeShell = makeFakeShell();
     const fakeFs = makeFakeFileSystem();
-    const fakeTracer = makeFakeTracer();
-    const layer = Layer.mergeAll(fakeGit.layer, fakeShell.layer, fakeFs.layer, fakeTracer.layer);
+
+    const layer = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeFs.layer,
+      NoopSystemTelemetryLayer,
+    );
 
     const event = await Effect.runPromise(
       adaptCleanup({ ...baseCleanupOpts, isFinalPhase: true }, base).pipe(Effect.provide(layer)),
@@ -437,6 +456,7 @@ describe("adaptHandoffGenerate", () => {
     model: "claude-sonnet-4-6",
     effort: "low",
     state: "passed",
+    branchName: "ai/my-run--phase-01",
     createdAt: "2026-05-21T00:00:00.000Z",
     updatedAt: "2026-05-21T00:00:00.000Z",
   });
@@ -446,15 +466,15 @@ describe("adaptHandoffGenerate", () => {
     const fakeFs = makeFakeFileSystem();
     const fakeGit = makeFakeGit();
     const fakeShell = makeFakeShell();
-    const fakeTracer = makeFakeTracer();
+
     const layer = Layer.mergeAll(
       fakeBackend.layer,
       fakeFs.layer,
       fakeGit.layer,
       fakeShell.layer,
-      fakeTracer.layer,
+      NoopSystemTelemetryLayer,
     );
-    return { fakeBackend, fakeFs, fakeGit, fakeShell, fakeTracer, layer };
+    return { fakeBackend, fakeFs, fakeGit, fakeShell, layer };
   };
 
   it("valid handoff file → HandoffValidated", async () => {
@@ -569,7 +589,8 @@ describe("adaptHandoffGenerate", () => {
 
 describe("adaptWorktreeCreate", () => {
   it("success → WorktreeCreated with path", async () => {
-    const { layer } = makeFakeGit();
+    const { layer: gitLayer } = makeFakeGit();
+    const layer = Layer.merge(gitLayer, NoopSystemTelemetryLayer);
     const branch = "my-run/phase-01" as BranchName;
     const repoRoot = "/repos/myproject";
 

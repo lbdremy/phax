@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { join } from "node:path";
+import type { BranchName } from "../domain/branded.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import { type PhaseStatus } from "../schemas/status.js";
@@ -16,6 +17,7 @@ export function createPhaseFolder(
   runPath: string,
   phase: PhaxPlanPhase,
   phaseIndex: number,
+  branchName: BranchName,
 ): Effect.Effect<string, FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -39,6 +41,7 @@ export function createPhaseFolder(
       state: "pending",
       model: phase.model,
       effort: phase.effort,
+      branchName,
       createdAt: now,
       updatedAt: now,
     };

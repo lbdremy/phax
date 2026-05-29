@@ -32,6 +32,9 @@ export class ClaudeInvocationError extends Data.TaggedError("ClaudeInvocationErr
   message: string;
   exitCode?: number | undefined;
   stderr?: string | undefined;
+  argv?: readonly string[];
+  stderrExcerpt?: string;
+  expected?: string;
 }> {}
 
 export class ClaudeSessionIdMissingError extends Data.TaggedError("ClaudeSessionIdMissingError")<{
@@ -58,6 +61,7 @@ export class GateFailedError extends Data.TaggedError("GateFailedError")<{
   command: string;
   exitCode: number;
   logPath: string;
+  stderrExcerpt?: string;
 }> {}
 
 export class FixAttemptFailedError extends Data.TaggedError("FixAttemptFailedError")<{

@@ -1,5 +1,13 @@
 import { Effect, Layer } from "effect";
-import { open, mkdir, access, rm, rename as nodeRename, readFile } from "node:fs/promises";
+import {
+  open,
+  mkdir,
+  access,
+  rm,
+  rename as nodeRename,
+  readFile,
+  appendFile,
+} from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomBytes } from "node:crypto";
 import { FileSystem, FsError } from "../ports/fs.js";
@@ -33,6 +41,16 @@ export const NodeFileSystemLayer = Layer.succeed(FileSystem, {
           await handle.close();
         }
         await nodeRename(tmpPath, path);
+      },
+      catch: wrapFsError,
+    }),
+
+  appendLine: (path, line) =>
+    Effect.tryPromise({
+      try: async () => {
+        const dir = dirname(path);
+        await mkdir(dir, { recursive: true });
+        await appendFile(path, line + "\n", "utf8");
       },
       catch: wrapFsError,
     }),

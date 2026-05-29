@@ -172,7 +172,7 @@ Every `(state, event)` pair produces exactly one of:
 | `Rejected`   | event is illegal in this state (e.g. `RunStarted` while `running`)                                              |
 | `Unexpected` | event should never occur here — signals a bug in the caller                                                     |
 
-The disposition is emitted as a trace event (`event.handled`, `event.ignored`, `event.stale`, `event.rejected`, `event.unexpected`), now the only signal of a state change, carrying `{ stateBefore, eventType, disposition, reason, eventId, correlationId }`.
+The disposition is recorded as a `SemanticTelemetryEvent` (`state.transition`) via `SystemTelemetry.recordTransition`, carrying `{ stateBefore, stateAfter, event, dispatcher }`. Non-transition dispositions (`ignored`, `stale`, `rejected`, `unexpected`) are recorded via `SystemTelemetry.recordEvent` with `type: "step.completed"` and the appropriate result field.
 
 ## Event-Disposition Matrix
 
@@ -217,7 +217,7 @@ The reducer emits `PhaxCommand[]` for `Handled` dispositions. The effect runner 
 | Command                               | Effect                                             |
 | ------------------------------------- | -------------------------------------------------- |
 | `PersistState { patch }`              | write `run-status.json` + `status.json` atomically |
-| `EmitTrace { name, status, details }` | append to `trace.jsonl` via the `Tracer` port      |
+| `EmitTrace { name, status, details }` | record semantic event via `SystemTelemetry`        |
 | `WriteResumeInstructions { ctx }`     | write `resume.md` with rate-limit context          |
 | `RunCleanupShell { commands, cwd }`   | execute cleanup shell commands sequentially        |
 | `WriteAtomic { path, content }`       | `FileSystem.writeAtomic`                           |
@@ -228,31 +228,32 @@ The reducer emits `PhaxCommand[]` for `Handled` dispositions. The effect runner 
 
 ## Happy-Path Trace Sequence
 
-For a single-phase run, `trace.jsonl` must contain these events in order:
+For a single-phase run, `semantic.jsonl` (written when `--trace` is set) must contain these `SemanticTelemetryEvent` entries in order:
 
 ```
-event.handled        RunStarted              run: created → running
-event.handled        PhaseStartRequested     phase: pending → setting_up_worktree
-git.worktree.created
-event.handled        WorktreeCreated         phase: setting_up_worktree → running
-agent.invocation.started
-agent.invocation.completed
-agent.session.captured
-event.handled        AgentInvocationCompleted (no phase transition)
-gate.started
-gate.completed
-event.handled        GatePassed              phase: running → passed
-handoff.requested
-handoff.validated
-event.handled        HandoffValidated        (no phase transition)
-git.commit.created
-event.handled        CommitCreated           phase: passed → committed
-event.handled        CleanupStarted          phase: committed → cleaning_up
-event.handled        CleanupCompleted        phase: cleaning_up → cleaned_up
-event.handled        FinalReviewOpened       run: running → review_open
+state.transition     RunStarted              run: created → running
+state.transition     PhaseStartRequested     phase: pending → setting_up_worktree
+adapter.call.succeeded  adapter: "git", operation: "worktree.create"
+state.transition     WorktreeCreated         phase: setting_up_worktree → running
+adapter.call.started    adapter: "claude-code-cli", operation: "invoke"
+adapter.call.succeeded  adapter: "claude-code-cli", operation: "invoke"
+artifact.generated   artifact: "claude-session-id"
+step.started         step: "gate"
+step.completed       step: "gate", result: "success"
+gate.evaluated       gate: "<gate-command>", result: "accepted"
+state.transition     GatePassed              phase: running → passed
+step.started         step: "handoff"
+step.completed       step: "handoff", result: "success"
+adapter.call.succeeded  adapter: "git", operation: "commit.create"
+state.transition     CommitCreated           phase: passed → committed
+state.transition     CleanupStarted          phase: committed → cleaning_up
+state.transition     CleanupCompleted        phase: cleaning_up → cleaned_up
+state.transition     FinalReviewOpened       run: running → review_open
 ```
 
 A `Stale` or `Rejected` event must leave `status.json` byte-identical — proving the doctrine's "absence of transition is itself an explicit decision."
+
+The E2E snapshot pinning this sequence lives at `tests/e2e/__snapshots__/semanticTrace.test.ts.snap`. See [`docs/observability.md`](observability.md) for the full observability architecture.
 
 ## How to Add a New Signal
 

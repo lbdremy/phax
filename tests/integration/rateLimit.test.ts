@@ -14,7 +14,7 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
-import { NoopTracerLayer } from "../../src/infra/tracer.js";
+import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
@@ -112,7 +112,7 @@ describe("executePlan — rate-limit detection and resume", () => {
       fakeShell.layer,
       fakeBackend.layer,
       NodeFileSystemLayer,
-      NoopTracerLayer,
+      NoopSystemTelemetryLayer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -179,7 +179,7 @@ describe("executePlan — rate-limit detection and resume", () => {
       fakeShell.layer,
       fakeBackend.layer,
       NodeFileSystemLayer,
-      NoopTracerLayer,
+      NoopSystemTelemetryLayer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -220,7 +220,7 @@ describe("executePlan — rate-limit detection and resume", () => {
       makeFakeShell().layer,
       makeFakeBackend().layer,
       NodeFileSystemLayer,
-      NoopTracerLayer,
+      NoopSystemTelemetryLayer,
     );
     const { runPath, runId } = await Effect.runPromise(
       createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(setupLayers)),
@@ -240,6 +240,7 @@ describe("executePlan — rate-limit detection and resume", () => {
         state: "committed",
         model: "claude-sonnet-4-6",
         effort: "low",
+        branchName: "ai/my-run--phase-01",
         createdAt: now,
         updatedAt: now,
         worktreePath: join(stateRoot, "worktrees", "my-run", "phase-01"),
@@ -265,6 +266,7 @@ describe("executePlan — rate-limit detection and resume", () => {
         state: "rate_limited",
         model: "claude-sonnet-4-6",
         effort: "low",
+        branchName: "ai/my-run--phase-02",
         createdAt: now,
         updatedAt: now,
         worktreePath: phase02WorktreePath,
@@ -326,7 +328,7 @@ describe("executePlan — rate-limit detection and resume", () => {
       fakeShell.layer,
       fakeBackend.layer,
       NodeFileSystemLayer,
-      NoopTracerLayer,
+      NoopSystemTelemetryLayer,
     );
 
     const result = await Effect.runPromise(

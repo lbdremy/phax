@@ -1,11 +1,17 @@
 import { Effect, Either } from "effect";
 import { dirname, join } from "node:path";
+import type { RunId } from "../domain/branded.js";
 import type { PhaxCommand } from "../domain/effects.js";
 import { RegistryCorruptionError, SetupCommandFailedError } from "../domain/errors.js";
+import type { SemanticTelemetryEvent } from "../domain/telemetry/events.js";
+import {
+  makeAdapterCallFailedTelemetryEvent,
+  makeStepCompletedTelemetryEvent,
+} from "../domain/telemetry/events.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
-import { Tracer } from "../ports/tracer.js";
+import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import {
   decodePhaseStatus,
   decodeRunStatus,
@@ -76,6 +82,37 @@ function recordCommitMetadata(
   });
 }
 
+function mapEmitTraceToSemantic(
+  cmd: Extract<PhaxCommand, { type: "EmitTrace" }>,
+  runId: RunId,
+): SemanticTelemetryEvent | null {
+  switch (cmd.name) {
+    case "rate_limit.detected":
+      return makeAdapterCallFailedTelemetryEvent({
+        runId,
+        adapter: "claude-code-cli",
+        operation: "agent.run",
+        exitCode: -1,
+        stderrExcerpt: "",
+        actual: "rate_limited",
+      });
+    case "resume.available":
+      return makeStepCompletedTelemetryEvent({
+        runId,
+        step: "resume.notify",
+        result: "success",
+      });
+    case "archive.completed":
+      return makeStepCompletedTelemetryEvent({
+        runId,
+        step: "archive",
+        result: "success",
+      });
+    default:
+      return null;
+  }
+}
+
 function parseCommandTokens(raw: string): readonly [string, ...string[]] | null {
   const parts = raw.trim().split(/\s+/).filter(Boolean);
   const first = parts[0];
@@ -117,23 +154,19 @@ export function run(
 ): Effect.Effect<
   void,
   FsError | ShellError | GitError | SetupCommandFailedError | RegistryCorruptionError,
-  FileSystem | Git | Shell | Tracer
+  FileSystem | Git | Shell | SystemTelemetry
 > {
   switch (cmd.type) {
     case "PersistState":
       return persistState(ctx, cmd);
     case "EmitTrace":
       return Effect.gen(function* () {
-        const tracer = yield* Tracer;
-        yield* tracer.event({
-          timestamp: new Date().toISOString(),
-          run: ctx.shortName,
-          phase: ctx.phaseId,
-          event: cmd.name,
-          boundary: cmd.boundary,
-          status: cmd.status,
-          details: cmd.details,
-        });
+        const telemetry = yield* SystemTelemetry;
+        const runId = ctx.shortName as unknown as RunId;
+        const semanticEvent = mapEmitTraceToSemantic(cmd, runId);
+        if (semanticEvent !== null) {
+          yield* telemetry.recordEvent(semanticEvent);
+        }
       });
     case "WriteResumeInstructions":
       return writeResumeInstructions({

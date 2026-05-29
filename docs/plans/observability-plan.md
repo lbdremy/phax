@@ -123,25 +123,17 @@ maps to / from.
 - Create `src/domain/telemetry/events.ts`:
   - `SemanticTelemetryEvent` discriminated union with these variants from
     doctrine §5, each carrying `runId: RunId` and an optional
-    `operationId: string`:
-    - `StateTransitionTelemetryEvent` — `type: "state.transition"`,
-      `event: string`, `stateBefore: string`, `stateAfter: string`,
-      `dispatcher: string`.
-    - `AdapterCallStartedTelemetryEvent` — `type: "adapter.call.started"`,
-      `adapter: string`, `operation: string`.
-    - `AdapterCallSucceededTelemetryEvent` — `type:
-"adapter.call.succeeded"`, `adapter: string`, `operation: string`.
-    - `AdapterCallFailedTelemetryEvent` — `type: "adapter.call.failed"`,
-      `adapter: string`, `operation: string`, optional `expected`,
-      `actual`, `exitCode: number`, `stderrExcerpt: string`.
-    - `StepStartedTelemetryEvent` — `type: "step.started"`, `step: string`.
-    - `StepCompletedTelemetryEvent` — `type: "step.completed"`,
-      `step: string`, `result: "success" | "failure"`.
-    - `GateEvaluatedTelemetryEvent` — `type: "gate.evaluated"`,
-      `gate: string`, `result: "accepted" | "rejected"`, optional
-      `reason: string`.
-    - `ArtifactGeneratedTelemetryEvent` — `type: "artifact.generated"`,
-      `artifact: string`, `path: string`.
+    `operationId: string`: - `StateTransitionTelemetryEvent` — `type: "state.transition"`,
+    `event: string`, `stateBefore: string`, `stateAfter: string`,
+    `dispatcher: string`. - `AdapterCallStartedTelemetryEvent` — `type: "adapter.call.started"`,
+    `adapter: string`, `operation: string`. - `AdapterCallSucceededTelemetryEvent` — `type:
+"adapter.call.succeeded"`, `adapter: string`, `operation: string`. - `AdapterCallFailedTelemetryEvent` — `type: "adapter.call.failed"`,
+    `adapter: string`, `operation: string`, optional `expected`,
+    `actual`, `exitCode: number`, `stderrExcerpt: string`. - `StepStartedTelemetryEvent` — `type: "step.started"`, `step: string`. - `StepCompletedTelemetryEvent` — `type: "step.completed"`,
+    `step: string`, `result: "success" | "failure"`. - `GateEvaluatedTelemetryEvent` — `type: "gate.evaluated"`,
+    `gate: string`, `result: "accepted" | "rejected"`, optional
+    `reason: string`. - `ArtifactGeneratedTelemetryEvent` — `type: "artifact.generated"`,
+    `artifact: string`, `path: string`.
   - Each variant exposes a `make<VariantName>(...)` smart constructor that
     enforces the required-field set at the type level. Use
     `exactOptionalPropertyTypes` semantics throughout.
@@ -226,19 +218,13 @@ logs, errors, and metrics through one stable interface, matching doctrine
 ### Detailed instructions
 
 - Create `src/ports/systemTelemetry.ts`:
-  - `interface SystemTelemetryOps` with the methods from doctrine §4:
-    - `withOperation<A, E, R>(name: string, attrs: TelemetryAttributes,
+  - `interface SystemTelemetryOps` with the methods from doctrine §4: - `withOperation<A, E, R>(name: string, attrs: TelemetryAttributes,
 operation: Effect.Effect<A, E, R>): Effect.Effect<A, E, R>` — wraps
-      an operation in a logical span and re-throws unchanged.
-    - `recordEvent(event: SemanticTelemetryEvent):
-Effect.Effect<void, never, never>`.
-    - `recordTransition(transition: StateTransitionTelemetryEvent):
-Effect.Effect<void, never, never>`.
-    - `recordError(report: SystemErrorReport):
-Effect.Effect<void, never, never>`.
-    - `incrementCounter(name: string, attrs?: TelemetryAttributes):
-Effect.Effect<void, never, never>`.
-    - `recordDuration(name: string, durationMs: number,
+    an operation in a logical span and re-throws unchanged. - `recordEvent(event: SemanticTelemetryEvent):
+Effect.Effect<void, never, never>`. - `recordTransition(transition: StateTransitionTelemetryEvent):
+Effect.Effect<void, never, never>`. - `recordError(report: SystemErrorReport):
+Effect.Effect<void, never, never>`. - `incrementCounter(name: string, attrs?: TelemetryAttributes):
+Effect.Effect<void, never, never>`. - `recordDuration(name: string, durationMs: number,
 attrs?: TelemetryAttributes): Effect.Effect<void, never, never>`.
   - `type TelemetryAttributes = Readonly<Record<string, string | number |
 boolean>>` — restrict to JSON-serialisable scalars so every backend
@@ -694,26 +680,17 @@ the actual removal happens in phase-09.
     dispatcher) or `telemetry.recordEvent` (for `event.ignored`,
     `event.stale`, `event.rejected`, `event.unexpected`).
   - Map each existing `TraceEventName` to a `SemanticTelemetryEvent`
-    variant:
-    - `config.discovered`, `config.validated`, `contract.validated`,
-      `contract.invalid` → `step.started` / `step.completed` with
-      `step: "config.discover"` / `"config.validate"` /
-      `"contract.validate"` and `result` matching the outcome.
-    - `git.worktree.created`, `git.commit.created` →
-      `adapter.call.succeeded` with `adapter: "git"`,
-      `operation: "worktree.create"` / `"commit.create"`.
-    - `agent.invocation.*` → `adapter.call.*` with `adapter:
-"claude-code-cli"`.
-    - `agent.session.captured` → `artifact.generated` with
-      `artifact: "claude-session-id"`.
-    - `gate.started`, `gate.completed`, `gate.failed` →
-      `step.started` / `step.completed` and `gate.evaluated`.
-    - `fix.started`, `fix.completed` → `step.started` / `step.completed`
-      with `step: "fix-loop"`.
-    - `handoff.requested`, `handoff.validated` → `step.*`.
-    - `rate_limit.detected` → `adapter.call.failed` with `adapter:
-"claude-code-cli"` and `actual: "rate_limited"`.
-    - `resume.available`, `archive.completed` → `step.completed`.
+    variant: - `config.discovered`, `config.validated`, `contract.validated`,
+    `contract.invalid` → `step.started` / `step.completed` with
+    `step: "config.discover"` / `"config.validate"` /
+    `"contract.validate"` and `result` matching the outcome. - `git.worktree.created`, `git.commit.created` →
+    `adapter.call.succeeded` with `adapter: "git"`,
+    `operation: "worktree.create"` / `"commit.create"`. - `agent.invocation.*` → `adapter.call.*` with `adapter:
+"claude-code-cli"`. - `agent.session.captured` → `artifact.generated` with
+    `artifact: "claude-session-id"`. - `gate.started`, `gate.completed`, `gate.failed` →
+    `step.started` / `step.completed` and `gate.evaluated`. - `fix.started`, `fix.completed` → `step.started` / `step.completed`
+    with `step: "fix-loop"`. - `handoff.requested`, `handoff.validated` → `step.*`. - `rate_limit.detected` → `adapter.call.failed` with `adapter:
+"claude-code-cli"` and `actual: "rate_limited"`. - `resume.available`, `archive.completed` → `step.completed`.
 - Wrap each adapter call in the orchestration code with
   `telemetry.withOperation(name, attrs, eff)`. Names use the
   `phax.<adapter>.<operation>` convention.

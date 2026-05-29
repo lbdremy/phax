@@ -68,6 +68,7 @@ export function runGates(
             command: rawCommand,
             exitCode: result.exitCode,
             logPath: attemptLogPath,
+            ...(result.stderr ? { stderrExcerpt: result.stderr } : {}),
           }),
         );
       }

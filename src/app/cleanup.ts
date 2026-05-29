@@ -10,7 +10,7 @@ import type { PhaxEvent } from "../domain/events.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { Tracer } from "../ports/tracer.js";
+import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { dispatch } from "./dispatcher.js";
 import { run as runEffect } from "./effectRunner.js";
 
@@ -38,7 +38,7 @@ export function cleanupPhase(
   | ShellError
   | FsError
   | RegistryCorruptionError,
-  Git | Shell | FileSystem | Tracer
+  Git | Shell | FileSystem | SystemTelemetry
 > {
   const {
     worktreePath,

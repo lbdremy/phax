@@ -57,6 +57,7 @@ async function buildFakeRunFolder(
         state: phase.state,
         model: "claude-sonnet-4-6",
         effort: "low",
+        branchName: `ai/my-run--${phase.id}`,
         createdAt: now,
         updatedAt: now,
         ...(phase.worktreePath ? { worktreePath: phase.worktreePath } : {}),

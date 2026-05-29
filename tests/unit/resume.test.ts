@@ -35,6 +35,7 @@ function makePhaseStatus(state: string): object {
     state,
     model: "claude-sonnet-4-6",
     effort: "low",
+    branchName: "ai/test-run--phase-01",
     createdAt: now,
     updatedAt: now,
   };
@@ -206,6 +207,7 @@ describe("inspectResume", () => {
         state: "skipped",
         model: "claude-sonnet-4-6",
         effort: "low",
+        branchName: `ai/test-run--${id}`,
         createdAt: now,
         updatedAt: now,
       });

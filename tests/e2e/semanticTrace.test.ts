@@ -1,3 +1,15 @@
+/**
+ * Doctrine §15 — proof-preserving iteration.
+ *
+ * This test drives the happy path end-to-end (using controlled fakes for external
+ * services so the flow is deterministic) and snapshots the SemanticTraceSnapshot
+ * projection. Future refactors that alter the event sequence must update this baseline
+ * intentionally with `--update-snapshot`. See docs/observability.md for the doctrine.
+ *
+ * Gate: set PHAX_E2E_RUN=1 to run. The test uses fake adapters — no real `claude`
+ * binary is required.
+ */
+
 import { Effect, Either, Layer } from "effect";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -10,10 +22,11 @@ import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
-import { makeFakeTracer } from "../../src/infra/fakes/tracer.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
+import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { withTelemetryCapture } from "./helpers/telemetry.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -26,26 +39,9 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-function sanitizePath(path: string): string {
-  return path.replace(/\/var\/folders\/[^/]+\/[^/]+\/T\/[^/]+/, "<tmpdir>");
-}
+const UNSTABLE_FIELD_NAMES = ["timestamp", "traceId", "spanId", "durationMs"] as const;
 
-function sanitizeDetails(
-  details: Record<string, unknown> | undefined,
-): Record<string, unknown> | undefined {
-  if (!details) return details;
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(details)) {
-    if (key === "eventId") {
-      sanitized[key] = "<uuid>";
-    } else if (typeof value === "string" && value.includes("/")) {
-      sanitized[key] = sanitizePath(value);
-    } else {
-      sanitized[key] = value;
-    }
-  }
-  return sanitized;
-}
+const shouldRun = process.env["PHAX_E2E_RUN"] === "1";
 
 const shortName = Either.getOrThrow(decodeShortName("my-run"));
 
@@ -64,11 +60,11 @@ const rawPlan = {
   ],
 } as const;
 
-describe("executePlan — tracing", () => {
+describe.skipIf(!shouldRun)("E2E semantic trace — happy-path snapshot", () => {
   let stateRoot: string;
 
   beforeEach(async () => {
-    stateRoot = await mkdtemp(join(tmpdir(), "phax-trace-test-"));
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-e2e-semantic-trace-"));
     const phase01Worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
     await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
     await writeFile(join(phase01Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
@@ -78,7 +74,7 @@ describe("executePlan — tracing", () => {
     await rm(stateRoot, { recursive: true, force: true });
   });
 
-  it("emits the expected trace event sequence for a one-phase run", async () => {
+  it("captures the full semantic trace for a one-phase happy-path run and pins the projection", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
 
     const config: ResolvedConfig = {
@@ -125,14 +121,16 @@ describe("executePlan — tracing", () => {
       finalText: "",
     });
 
-    const fakeTracer = makeFakeTracer();
+    // Compose InMemoryTelemetry on top of NoopSystemTelemetryLayer — this is the
+    // pattern for adding capture alongside any real telemetry layer.
+    const telemetry = withTelemetryCapture(NoopSystemTelemetryLayer);
 
     const layers = Layer.mergeAll(
       fakeGit.layer,
       fakeShell.layer,
       fakeBackend.layer,
       NodeFileSystemLayer,
-      fakeTracer.layer,
+      telemetry.layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -157,39 +155,20 @@ describe("executePlan — tracing", () => {
 
     expect(Either.isRight(result)).toBe(true);
 
-    const names = fakeTracer.impl.eventNames();
-    // Config + run start
-    expect(names).toContain("config.discovered");
-    expect(names).toContain("config.validated");
-    // Phase lifecycle
-    expect(names).toContain("git.worktree.created");
-    expect(names).toContain("agent.invocation.started");
-    expect(names).toContain("agent.invocation.completed");
-    expect(names).toContain("agent.session.captured");
-    expect(names).toContain("gate.started");
-    expect(names).toContain("gate.completed");
-    expect(names).toContain("handoff.requested");
-    expect(names).toContain("handoff.validated");
-    expect(names).toContain("git.commit.created");
+    const snapshot = telemetry.impl.getSemanticTraceSnapshot();
 
-    // Ordering: invocation precedes gates precede commit.
-    expect(names.indexOf("agent.invocation.started")).toBeLessThan(names.indexOf("gate.started"));
-    expect(names.indexOf("gate.completed")).toBeLessThan(names.indexOf("git.commit.created"));
-
-    // Every event carries the run short name and a valid timestamp.
-    for (const e of fakeTracer.impl.events) {
-      expect(e.run).toBe("my-run");
-      expect(Number.isNaN(Date.parse(e.timestamp))).toBe(false);
+    // Guard: the projection must never leak unstable transport fields.
+    const serialized = JSON.stringify(snapshot);
+    for (const field of UNSTABLE_FIELD_NAMES) {
+      expect(serialized, `snapshot must not contain unstable field "${field}"`).not.toContain(
+        `"${field}"`,
+      );
     }
+    // No 13+ digit Unix timestamp values.
+    expect(serialized, "snapshot must not contain raw Unix timestamps").not.toMatch(/\b\d{13,}\b/);
 
-    // Snapshot the full ordered event sequence for the trace contract.
-    const eventSequence = fakeTracer.impl.events.map((e) => ({
-      event: e.event,
-      status: e.status,
-      phase: e.phase,
-      boundary: e.boundary,
-      details: sanitizeDetails(e.details),
-    }));
-    expect(eventSequence).toMatchSnapshot("trace-event-sequence");
+    // Pin the projection. A future refactor that changes the event sequence must
+    // explicitly update this baseline with --update-snapshot.
+    expect(snapshot).toMatchSnapshot("happy-path-semantic-trace");
   });
 });

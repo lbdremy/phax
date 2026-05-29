@@ -3,7 +3,9 @@ import { dirname, join } from "node:path";
 import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Lock } from "../ports/lock.js";
-import { Tracer } from "../ports/tracer.js";
+import { SystemTelemetry } from "../ports/systemTelemetry.js";
+import type { RunId } from "../domain/branded.js";
+import { makeStepCompletedTelemetryEvent } from "../domain/telemetry/events.js";
 import {
   ExtractedPhaxPlanSchema,
   getExtractedPlanJsonSchema,
@@ -120,25 +122,16 @@ export type ExtractPlanCoreError =
  */
 export function extractPlanCore(
   opts: ExtractPlanCoreOptions,
-): Effect.Effect<ExtractPlanCoreResult, ExtractPlanCoreError, Backend | FileSystem | Tracer> {
+): Effect.Effect<
+  ExtractPlanCoreResult,
+  ExtractPlanCoreError,
+  Backend | FileSystem | SystemTelemetry
+> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const backend = yield* Backend;
-    const tracer = yield* Tracer;
-
-    const emitContract = (
-      event: "contract.validated" | "contract.invalid",
-      status: "ok" | "failed",
-      details?: Record<string, unknown>,
-    ): Effect.Effect<void, never, never> =>
-      tracer.event({
-        timestamp: new Date().toISOString(),
-        run: "extract-plan",
-        event,
-        boundary: "phax-plan.json",
-        status,
-        details,
-      });
+    const telemetry = yield* SystemTelemetry;
+    const extractRunId = "extract-plan" as unknown as RunId;
 
     const planMd = yield* fs.readText(opts.planMdPath).pipe(
       Effect.mapError(
@@ -163,7 +156,13 @@ export function extractPlanCore(
     try {
       parsed = JSON.parse(stripJsonCodeFence(runResult.finalText));
     } catch {
-      yield* emitContract("contract.invalid", "failed", { reason: "non-json-output" });
+      yield* telemetry.recordEvent(
+        makeStepCompletedTelemetryEvent({
+          runId: extractRunId,
+          step: "contract.validate",
+          result: "failure",
+        }),
+      );
       return yield* Effect.fail(
         new PlanValidationError({
           message: `Claude returned non-JSON output. Raw response: ${runResult.finalText.slice(0, 300)}`,
@@ -174,14 +173,26 @@ export function extractPlanCore(
     // Local schema validation is mandatory regardless of which model produced the output (spec §6).
     const decoded = decodeExtractedPlan(parsed);
     if (Either.isLeft(decoded)) {
-      yield* emitContract("contract.invalid", "failed", { reason: "schema-validation-failed" });
+      yield* telemetry.recordEvent(
+        makeStepCompletedTelemetryEvent({
+          runId: extractRunId,
+          step: "contract.validate",
+          result: "failure",
+        }),
+      );
       return yield* Effect.fail(
         new PlanValidationError({
           message: `Extracted JSON failed schema validation:\n${formatParseError(decoded.left)}`,
         }),
       );
     }
-    yield* emitContract("contract.validated", "ok", { phases: decoded.right.phases.length });
+    yield* telemetry.recordEvent(
+      makeStepCompletedTelemetryEvent({
+        runId: extractRunId,
+        step: "contract.validate",
+        result: "success",
+      }),
+    );
     const plan: PhaxPlan = {
       ...decoded.right,
       run: {
@@ -234,7 +245,11 @@ export type ExtractPlanError = ExtractPlanCoreError | LockConflictError;
  */
 export function extractPlan(
   opts: ExtractPlanOptions,
-): Effect.Effect<ExtractPlanResult, ExtractPlanError, Backend | FileSystem | Lock | Tracer> {
+): Effect.Effect<
+  ExtractPlanResult,
+  ExtractPlanError,
+  Backend | FileSystem | Lock | SystemTelemetry
+> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const lock = yield* Lock;
