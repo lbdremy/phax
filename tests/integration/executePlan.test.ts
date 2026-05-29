@@ -1,5 +1,5 @@
 import { Effect, Either, Layer } from "effect";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -197,6 +197,10 @@ describe("executePlan — happy-path 2-phase run", () => {
     };
     const entry = registry.runs.find((r) => r.shortName === "my-run");
     expect(entry?.state).toBe("review_open");
+
+    // Cleanup must not remove intermediate-phase worktrees — they persist until archive.
+    await expect(access(phase01WorktreePath)).resolves.toBeUndefined();
+    await expect(access(phase02WorktreePath)).resolves.toBeUndefined();
   });
 
   it("returns committed phase ids and final worktree path", async () => {

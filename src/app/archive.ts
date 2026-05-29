@@ -85,8 +85,19 @@ export function archive(
     //    which run states allow archiving (review_open and completed); any
     //    other state comes back as a Rejected disposition and we surface that
     //    as an InvalidTransitionError. On Handled, the reducer emits
-    //    MoveRunToArchive and the dispatcher persists run-status.json.
+    //    MoveRunToArchive effects and the dispatcher persists run-status.json.
+    //
+    //    Both the run folder and the worktrees folder land under a single
+    //    umbrella so a user can move the entire archive entry as one unit and
+    //    the archivePath registry field stays unambiguous.
     const archivePath = join(stateRoot, "archive", shortName);
+    const runsTo = join(archivePath, "runs");
+    const worktreesFrom = join(stateRoot, "worktrees", shortName);
+    const worktreesTo = join(archivePath, "worktrees");
+
+    // Only include the worktrees pair when the source directory exists.
+    const worktreesDirExists = yield* fs.exists(worktreesFrom);
+
     const result = yield* dispatch(
       {
         eventId: randomUUID(),
@@ -94,7 +105,9 @@ export function archive(
         run: shortName as unknown as RunId,
         type: "RunArchiveRequested",
         from: runPath,
-        to: archivePath,
+        to: runsTo,
+        worktreesFrom: worktreesDirExists ? worktreesFrom : undefined,
+        worktreesTo: worktreesDirExists ? worktreesTo : undefined,
       },
       { runPath, shortName: shortName as string },
     );
@@ -108,23 +121,14 @@ export function archive(
       );
     }
 
-    // 5. Remove the final worktree only if clean (or if force)
-    if (worktreePath) {
-      const worktreeExists = yield* fs.exists(worktreePath);
-      if (worktreeExists) {
-        const isClean = yield* git
-          .worktreeIsClean(worktreePath)
-          .pipe(Effect.orElseSucceed(() => false));
-        if (isClean || opts.force) {
-          yield* git
-            .removeWorktree(worktreePath, opts.force ?? false, repoRoot)
-            .pipe(Effect.ignore);
-        }
-      }
-    }
+    // 5. Prune git's stale worktree admin records. This is safe to call even
+    //    if no worktrees were moved — git worktree prune is a no-op when
+    //    nothing is stale.
+    yield* git.pruneWorktrees(repoRoot).pipe(Effect.ignore);
 
     // 6. Update registry index (run-status.json is already written by the
     //    dispatcher above; this call only refreshes the central registry.json).
+    //    archivePath points at the umbrella directory, not the runs subfolder.
     yield* setRunStatus(stateRoot, shortName, {
       state: "archived",
       archivePath,

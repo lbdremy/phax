@@ -25,12 +25,15 @@ const samplePlan: PhaxPlan = {
   phases: [samplePhase],
 };
 
+const sampleGateCommands: string[] = ["npm run typecheck", "npm run test"];
+
 describe("buildPhasePrompt", () => {
   it("contains the execute-phase heading", () => {
     const prompt = buildPhasePrompt({
       planMd: "# My Plan",
       planJson: samplePlan,
       currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
     });
     expect(prompt).toContain("# Execute one implementation phase");
   });
@@ -40,6 +43,7 @@ describe("buildPhasePrompt", () => {
       planMd: "## Custom Plan Content",
       planJson: samplePlan,
       currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
     });
     expect(prompt).toContain("## Custom Plan Content");
   });
@@ -49,6 +53,7 @@ describe("buildPhasePrompt", () => {
       planMd: "# Plan",
       planJson: samplePlan,
       currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
     });
     expect(prompt).toContain('"shortName": "my-run"');
   });
@@ -58,6 +63,7 @@ describe("buildPhasePrompt", () => {
       planMd: "# Plan",
       planJson: samplePlan,
       currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
     });
     expect(prompt).toContain('"id": "phase-01"');
     expect(prompt).toContain('"title": "CLI skeleton"');
@@ -68,6 +74,7 @@ describe("buildPhasePrompt", () => {
       planMd: "# Plan",
       planJson: samplePlan,
       currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
     });
     expect(prompt).toContain("(no previous phase)");
   });
@@ -79,6 +86,7 @@ describe("buildPhasePrompt", () => {
       planJson: samplePlan,
       currentPhase: samplePhase,
       previousHandoff: handoff,
+      gateCommands: sampleGateCommands,
     });
     expect(prompt).toContain("Phase 00 is done.");
     expect(prompt).not.toContain("(no previous phase)");
@@ -89,6 +97,7 @@ describe("buildPhasePrompt", () => {
       planMd: "# Plan",
       planJson: samplePlan,
       currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
     });
     expect(prompt).toContain("summary.md");
     expect(prompt).toContain("phase-handoff.md");
@@ -99,13 +108,19 @@ describe("buildPhasePrompt", () => {
       planMd: "# Plan",
       planJson: samplePlan,
       currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
     });
     expect(prompt).toContain("Do not broaden the scope");
     expect(prompt).toContain("Do not add speculative features");
   });
 
   it("produces the same output for the same inputs (deterministic)", () => {
-    const opts = { planMd: "# Plan", planJson: samplePlan, currentPhase: samplePhase };
+    const opts = {
+      planMd: "# Plan",
+      planJson: samplePlan,
+      currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
+    };
     expect(buildPhasePrompt(opts)).toBe(buildPhasePrompt(opts));
   });
 
@@ -115,6 +130,7 @@ describe("buildPhasePrompt", () => {
       planJson: samplePlan,
       currentPhase: samplePhase,
       previousHandoff: "# Phase handoff\n\n## Phase completed\n\nAll done.",
+      gateCommands: sampleGateCommands,
     });
     expect(prompt).toMatchSnapshot();
   });

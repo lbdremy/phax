@@ -27,6 +27,10 @@ export interface RunArchiveRequested extends PhaxEventBase {
   readonly type: "RunArchiveRequested";
   readonly from: string;
   readonly to: string;
+  /** Source path of the worktrees folder (e.g. ~/.phax/worktrees/{short}). */
+  readonly worktreesFrom?: string | undefined;
+  /** Destination path inside the archive umbrella (e.g. ~/.phax/archive/{short}/worktrees). */
+  readonly worktreesTo?: string | undefined;
 }
 
 export interface RunFailed extends PhaxEventBase {
@@ -121,6 +125,16 @@ export interface CleanupCompleted extends PhaxEventBase {
   readonly type: "CleanupCompleted";
 }
 
+// Cross-cutting: a phase that produced no changes when the agent finished.
+// Transitions run → interrupted, phase → skipped, writes resume-instructions.md.
+export interface PhaseHadNoChanges extends PhaxEventBase {
+  readonly type: "PhaseHadNoChanges";
+  readonly phaseId: PhaseId;
+  readonly worktreePath: WorktreePath;
+  readonly sessionId: ClaudeSessionId;
+  readonly reason: string;
+}
+
 // Cross-cutting: affects both run and phase substate.
 export interface RateLimitDetected extends PhaxEventBase {
   readonly type: "RateLimitDetected";
@@ -155,6 +169,7 @@ export type PhaxEvent =
   | CommitCreated
   | CleanupStarted
   | CleanupCompleted
+  | PhaseHadNoChanges
   | RateLimitDetected;
 
 export type PhaxEventType = PhaxEvent["type"];

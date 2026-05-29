@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeRunId, decodeShortName } from "../../domain/branded.js";
-import { RateLimitError, UsageLimitError } from "../../domain/errors.js";
+import { PhaseHadNoChangesError, RateLimitError, UsageLimitError } from "../../domain/errors.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { loadPlan } from "../../app/loadPlan.js";
 import { inspectResume } from "../../app/resume.js";
@@ -51,6 +51,9 @@ export async function runResume(
   }
 
   const decision = decisionResult.right;
+  for (const skippedId of decision.skippedPhaseIds) {
+    out.log(`  Skipping ${skippedId} (produced no changes).`);
+  }
   out.log(
     `Run "${decision.shortName}" (state: ${decision.fromState}) — would resume from phase ${decision.nextPhaseIndex + 1}: ${decision.nextPhaseId}`,
   );
@@ -152,6 +155,13 @@ export async function runResume(
         out.warn(`Run "${shortName}" paused again: ${err.message}`);
         out.log(
           `See ${join(runPath, "resume-instructions.md")} — resume with \`phax resume ${shortName} --yes\` once the limit clears.`,
+        );
+        return exitCodeForError(err);
+      }
+      if (err instanceof PhaseHadNoChangesError) {
+        out.warn(`Run "${shortName}" paused: phase ${err.phaseId} produced no changes.`);
+        out.log(
+          `See ${join(runPath, "resume-instructions.md")} — resume with \`phax resume ${shortName} --yes\` to continue with the next phase.`,
         );
         return exitCodeForError(err);
       }

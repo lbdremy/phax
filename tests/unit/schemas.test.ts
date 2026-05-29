@@ -208,6 +208,7 @@ describe("decodePhaseStatus", () => {
     state: "pending",
     model: "claude-sonnet-4-6",
     effort: "low",
+    branchName: "ai/my-run--phase-01",
     createdAt: now,
     updatedAt: now,
   };

@@ -2,7 +2,7 @@ import { Effect, Either } from "effect";
 import { describe, expect, it } from "vitest";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { createPhaseFolder } from "../../src/app/phaseFolder.js";
-import { decodeShortName } from "../../src/domain/branded.js";
+import { decodeShortName, type BranchName } from "../../src/domain/branded.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
@@ -147,7 +147,11 @@ describe("createPhaseFolder", () => {
     const runPath = `${stateRoot}/runs/my-run`;
     const phase = plan.phases[0]!;
 
-    await Effect.runPromise(createPhaseFolder(runPath, phase, 0).pipe(Effect.provide(layer)));
+    await Effect.runPromise(
+      createPhaseFolder(runPath, phase, 0, "feature/my-run--phase-01" as BranchName).pipe(
+        Effect.provide(layer),
+      ),
+    );
 
     const raw = impl.getFile(`${runPath}/phase-01/status.json`);
     expect(raw).toBeDefined();
@@ -168,7 +172,9 @@ describe("createPhaseFolder", () => {
     const phase = plan.phases[0]!;
 
     const phasePath = await Effect.runPromise(
-      createPhaseFolder(runPath, phase, 0).pipe(Effect.provide(layer)),
+      createPhaseFolder(runPath, phase, 0, "feature/my-run--phase-01" as BranchName).pipe(
+        Effect.provide(layer),
+      ),
     );
 
     expect(phasePath).toBe(`${runPath}/phase-01`);

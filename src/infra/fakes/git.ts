@@ -10,7 +10,8 @@ export type GitCall =
   | { method: "addWorktree"; branch: string; path: string; repo: string }
   | { method: "removeWorktree"; path: string; force: boolean; repo: string }
   | { method: "commit"; repo: string; subject: string; body: string }
-  | { method: "worktreeIsClean"; path: string };
+  | { method: "worktreeIsClean"; path: string }
+  | { method: "pruneWorktrees"; repo: string };
 
 export class FakeGitImpl implements GitOps {
   readonly calls: GitCall[] = [];
@@ -19,6 +20,9 @@ export class FakeGitImpl implements GitOps {
   isCleanDefault = true;
   activeBranch: BranchName = "main" as BranchName;
   readonly existingBranches = new Set<string>();
+  /** Tracks which branches are currently checked out in a worktree.
+   * Maps branch → worktree path; used to simulate git's "already checked out" error. */
+  readonly checkedOutBranches = new Map<string, string>();
 
   setCleanWorktree(path: string, clean: boolean): void {
     if (clean) {
@@ -89,6 +93,16 @@ export class FakeGitImpl implements GitOps {
         }),
       );
     }
+    const existingPath = this.checkedOutBranches.get(branch as string);
+    if (existingPath !== undefined) {
+      return Effect.fail(
+        new GitError({
+          message: `'${branch}' is already checked out at '${existingPath}'`,
+          command: `git worktree add ${path} ${branch}`,
+        }),
+      );
+    }
+    this.checkedOutBranches.set(branch as string, path as string);
     return Effect.void;
   }
 
@@ -109,6 +123,11 @@ export class FakeGitImpl implements GitOps {
       return Effect.succeed(queue.shift()!);
     }
     return Effect.succeed(this.cleanWorktrees.has(path as string));
+  }
+
+  pruneWorktrees(repo: string): Effect.Effect<void, GitError> {
+    this.calls.push({ method: "pruneWorktrees", repo });
+    return Effect.void;
   }
 }
 

@@ -48,6 +48,7 @@ function buildFixPrompt(gateError: GateFailedError, logContent: string, attempt:
     "Make the minimum changes required to pass the gate.",
     "Do not change unrelated code or introduce new features.",
     "",
+    "Make sure to run the failed command after your changes to verify the gate now passes.",
     "The gate run will be re-attempted automatically after your changes.",
   ].join("\n");
 }

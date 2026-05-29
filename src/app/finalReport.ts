@@ -2,7 +2,6 @@ import { Effect } from "effect";
 import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { isPhaseTerminal } from "../domain/state.js";
-import type { PhaseState } from "../domain/state.js";
 import type { RunReviewInfo } from "./resolveRunInfo.js";
 import type { PhaseStatus } from "../schemas/status.js";
 
@@ -19,7 +18,7 @@ function formatDuration(startIso: string, endIso: string): string {
 }
 
 function isPhaseSuccessful(p: PhaseStatus): boolean {
-  return isPhaseTerminal(p.state as PhaseState) && p.state !== "skipped";
+  return isPhaseTerminal(p.state) && p.state !== "skipped";
 }
 
 function buildFinalReportMarkdown(info: RunReviewInfo): string {
@@ -56,7 +55,8 @@ function buildFinalReportMarkdown(info: RunReviewInfo): string {
 
 - **Run ID**: ${info.runId}
 - **Short Name**: ${info.shortName}
-- **Branch**: ${info.branch}
+- **Base Branch**: ${info.branch}
+- **Final Phase Branch (review here)**: \`${info.finalPhaseBranch}\`
 - **State**: ${info.runState}
 - **Gate Profile**: ${info.gateProfileId ?? "(none)"}
 - **Total Phases**: ${total}

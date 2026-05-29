@@ -102,6 +102,15 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
   CommitCreated: { ...base, type: "CommitCreated", phase: phaseId, hash: "abc123" },
   CleanupStarted: { ...base, type: "CleanupStarted", phase: phaseId },
   CleanupCompleted: { ...base, type: "CleanupCompleted", phase: phaseId },
+  PhaseHadNoChanges: {
+    ...base,
+    type: "PhaseHadNoChanges",
+    phase: phaseId,
+    phaseId,
+    worktreePath,
+    sessionId,
+    reason: "Phase phase-01 produced no changes",
+  },
   RateLimitDetected: {
     ...base,
     type: "RateLimitDetected",
@@ -396,6 +405,50 @@ describe("interpret — rate limit handling", () => {
   it("rate_limited × RateLimitDetected is Ignored (already paused)", () => {
     const d = interpret(representativeState.rate_limited, sampleEvents.RateLimitDetected);
     expect(d.kind).toBe("Ignored");
+  });
+});
+
+describe("interpret — no-changes handling", () => {
+  it("running + phase=passed × PhaseHadNoChanges → interrupted / skipped", () => {
+    const state: PhaxState = { run: "running", phase: { state: "passed" } };
+    const d = interpret(state, sampleEvents.PhaseHadNoChanges);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({ run: "interrupted", phase: { state: "skipped" } });
+  });
+
+  it("running + phase=passed × PhaseHadNoChanges → emits WriteResumeInstructions effect", () => {
+    const state: PhaxState = { run: "running", phase: { state: "passed" } };
+    const d = interpret(state, sampleEvents.PhaseHadNoChanges);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    const resumeEffect = d.effects.find((e) => e.type === "WriteResumeInstructions");
+    expect(resumeEffect).toBeDefined();
+    if (resumeEffect?.type === "WriteResumeInstructions") {
+      expect(resumeEffect.ctx.reason).toBe("No changes");
+    }
+  });
+
+  it("running + phase=passed × PhaseHadNoChanges → emits PersistState with stoppedReason=no_changes", () => {
+    const state: PhaxState = { run: "running", phase: { state: "passed" } };
+    const d = interpret(state, sampleEvents.PhaseHadNoChanges);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    const persistEffect = d.effects.find((e) => e.type === "PersistState");
+    expect(persistEffect).toBeDefined();
+    if (persistEffect?.type === "PersistState") {
+      expect(persistEffect.patch.run?.stoppedReason).toBe("no_changes");
+    }
+  });
+
+  it("running + phase=running × PhaseHadNoChanges is Unexpected (wrong phase state)", () => {
+    const d = interpret(representativeState.running, sampleEvents.PhaseHadNoChanges);
+    expect(d.kind).toBe("Unexpected");
+  });
+
+  it("interrupted × PhaseHadNoChanges is Stale", () => {
+    const d = interpret(representativeState.interrupted, sampleEvents.PhaseHadNoChanges);
+    expect(d.kind).toBe("Stale");
   });
 });
 

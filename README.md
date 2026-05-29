@@ -63,14 +63,18 @@ phax run --workspace packages/api              # workspace-scoped gate commands 
 
 Each phase:
 
-1. Creates a Git worktree at `~/.phax/worktrees/<short-name>/phase-NN/`.
+1. Creates a Git worktree at `~/.phax/worktrees/<short-name>/phase-NN/` on its own branch `<run.branch>--phase-NN`.
 2. Runs `commands.setup` inside the worktree.
 3. Builds a prompt from the plan and the previous phase's handoff, sends it to Claude Code.
 4. Runs the gate profile; on failure, resumes the same Claude session once and retries.
 5. After passing gates, resumes Claude to produce `phase-handoff.md`.
-6. Commits with the planned message and removes non-final worktrees.
+6. Commits with the planned message. If the worktree is clean (no changes), the run stops with a non-zero exit and writes `resume-instructions.md` — use `phax resume` to continue from the next phase.
 
-The final phase stays open for review. A `review-handoff.md` is written to the run folder.
+Each phase gets its own branch (`<run.branch>--phase-01`, `<run.branch>--phase-02`, …), chained: phase-01 branches off `<run.branch>`, phase-N branches off the previous phase's branch. The base `<run.branch>` stays at the run-start commit. The final phase's branch carries the full commit chain and is the ref to review, merge, or push.
+
+Worktrees from every phase persist on disk for the lifetime of the run and are available for inspection until `phax archive` is run.
+
+The final phase stays open for review. A `review-handoff.md` is written to the run folder showing the final phase branch as the review target.
 
 ## Review loop
 
@@ -103,7 +107,12 @@ phax ls --json            # machine-readable
 
 ## Archive
 
-Archive moves `~/.phax/runs/<short-name>` → `~/.phax/archive/<short-name>` and removes the final worktree if clean.
+Archive is the **only** operation that touches `worktrees/`. It moves:
+
+- `~/.phax/runs/<short-name>` → `~/.phax/archive/<short-name>/runs/`
+- `~/.phax/worktrees/<short-name>/` → `~/.phax/archive/<short-name>/worktrees/`
+
+Then runs `git worktree prune` to drop stale admin records. Nothing is destructively deleted — every phase's working state is preserved for later inspection.
 
 ```bash
 phax archive <short-name>       # requires review_open or completed
@@ -179,6 +188,7 @@ phax unlock <short-name> --force  # remove any lock
 | 5    | Claude invocation error                       |
 | 6    | Handoff generation failed                     |
 | 8    | Rate limit or usage limit hit (resumable)     |
+| 9    | Phase produced no changes (resumable)         |
 
 ## Environment variables
 

@@ -17,6 +17,7 @@ import type {
   ArchiveBlockedByDirtyWorktreeError,
   ClaudeInvocationError,
   ClaudeSessionIdMissingError,
+  PhaseHadNoChangesError,
   RegistryCorruptionError,
 } from "../domain/errors.js";
 import { SetupCommandFailedError } from "../domain/errors.js";
@@ -174,17 +175,19 @@ export function adaptCommit(
   opts: CommitPhaseOptions,
   base: PhaxEventBase,
 ): Effect.Effect<
-  CommitCreated | null,
-  GitError | ShellError | FsError | SetupCommandFailedError | RegistryCorruptionError,
+  CommitCreated,
+  | GitError
+  | ShellError
+  | FsError
+  | SetupCommandFailedError
+  | RegistryCorruptionError
+  | PhaseHadNoChangesError,
   Git | Shell | FileSystem | SystemTelemetry
 > {
   return commitPhase(opts).pipe(
-    Effect.map((result): CommitCreated | null => {
-      if (!result.committed || result.commitHash === undefined) {
-        return null;
-      }
-      return { ...base, type: "CommitCreated", hash: result.commitHash };
-    }),
+    Effect.map(
+      (result): CommitCreated => ({ ...base, type: "CommitCreated", hash: result.commitHash }),
+    ),
   );
 }
 

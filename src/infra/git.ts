@@ -106,6 +106,8 @@ export const NodeGitLayer = Layer.succeed(Git, {
     gitRun(["status", "--porcelain"], path as string).pipe(
       Effect.map(({ stdout }) => isPortcelainClean(stdout)),
     ),
+
+  pruneWorktrees: (repo) => gitRun(["worktree", "prune"], repo).pipe(Effect.asVoid),
 });
 
 export function makeNodeGitLayer(): Layer.Layer<Git> {

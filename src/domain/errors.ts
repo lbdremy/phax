@@ -77,6 +77,13 @@ export class ArchiveBlockedByDirtyWorktreeError extends Data.TaggedError(
   worktreePath: string;
 }> {}
 
+export class PhaseHadNoChangesError extends Data.TaggedError("PhaseHadNoChangesError")<{
+  message: string;
+  phaseId: string;
+  worktreePath: string;
+  runPath: string;
+}> {}
+
 export class RegistryCorruptionError extends Data.TaggedError("RegistryCorruptionError")<{
   message: string;
   registryPath: string;

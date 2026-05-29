@@ -23,7 +23,7 @@ export const decodePhaseId = (u: unknown): Either.Either<PhaseId, ParseError> =>
   Schema.decodeUnknownEither(PhaseIdSchema)(u);
 
 export type BranchName = string & Brand.Brand<"BranchName">;
-const BranchNameSchema = Schema.String.pipe(Schema.minLength(1), Schema.brand("BranchName"));
+export const BranchNameSchema = Schema.String.pipe(Schema.minLength(1), Schema.brand("BranchName"));
 export const decodeBranchName = (u: unknown): Either.Either<BranchName, ParseError> =>
   Schema.decodeUnknownEither(BranchNameSchema)(u);
 

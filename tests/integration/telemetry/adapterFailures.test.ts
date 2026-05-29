@@ -42,6 +42,7 @@ const phaseStatusJson = JSON.stringify({
   effort: "low",
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
+  branchName: "ai/my-run--phase-01",
 });
 
 const base: PhaxEventBase = {

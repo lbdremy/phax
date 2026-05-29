@@ -35,8 +35,20 @@ function makePhaseStatus(state: string): object {
     state,
     model: "claude-sonnet-4-6",
     effort: "low",
+    branchName: "ai/test-run--phase-01",
     createdAt: now,
     updatedAt: now,
+  };
+}
+
+function makePlanPhase(id: string) {
+  return {
+    id,
+    title: `${id} title`,
+    model: "claude-sonnet-4-6",
+    effort: "low",
+    planMarkdownAnchor: `#${id}`,
+    commit: { subject: `feat: ${id}`, body: `${id} body` },
   };
 }
 
@@ -118,5 +130,99 @@ describe("inspectResume", () => {
     if (Either.isLeft(result)) throw new Error("expected decision");
     expect(result.right.fromState).toBe("rate_limited");
     expect(result.right.nextPhaseId).toBe("phase-01");
+  });
+
+  it("phase-01 skipped + phase-02 not yet on disk → resumes from phase-02", () => {
+    // Scenario: phase-01 had no changes (skipped), phase-02 folder doesn't exist yet.
+    // The plan lists both phases; inspectResume should find phase-02 as the next resumable.
+    const plan = {
+      version: 1,
+      run: {
+        shortName: "test-run",
+        title: "Test run",
+        branch: "ai/test-run",
+        backend: "claude-code",
+      },
+      phases: [
+        {
+          id: "phase-01",
+          title: "Phase 01",
+          model: "claude-sonnet-4-6",
+          effort: "low",
+          planMarkdownAnchor: "#phase-01",
+          commit: { subject: "feat: phase-01", body: "Phase 01 body" },
+        },
+        {
+          id: "phase-02",
+          title: "Phase 02",
+          model: "claude-sonnet-4-6",
+          effort: "low",
+          planMarkdownAnchor: "#phase-02",
+          commit: { subject: "feat: phase-02", body: "Phase 02 body" },
+        },
+      ],
+    };
+    writeFileSync(join(runPath, "phax-plan.json"), JSON.stringify(plan));
+    writeFileSync(
+      join(runPath, "run-status.json"),
+      JSON.stringify(makeRunStatus("interrupted", { stoppedReason: "no_changes", phasesCount: 2 })),
+    );
+    // phase-01 is skipped (terminal); phase-02 folder doesn't exist
+    writeFileSync(
+      join(runPath, "phase-01", "status.json"),
+      JSON.stringify({ ...makePhaseStatus("skipped"), phaseId: "phase-01", phaseIndex: 0 }),
+    );
+
+    const result = inspectResume(shortName, stateRoot);
+
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    expect(result.right.nextPhaseId).toBe("phase-02");
+    expect(result.right.nextPhaseIndex).toBe(1);
+    expect(result.right.skippedPhaseIds).toContain("phase-01");
+  });
+
+  it("phase-01 skipped + phase-02 skipped + phase-03 not yet on disk → resumes from phase-03", () => {
+    const plan = {
+      version: 1,
+      run: {
+        shortName: "test-run",
+        title: "Test run",
+        branch: "ai/test-run",
+        backend: "claude-code",
+      },
+      phases: [makePlanPhase("phase-01"), makePlanPhase("phase-02"), makePlanPhase("phase-03")],
+    };
+    writeFileSync(join(runPath, "phax-plan.json"), JSON.stringify(plan));
+    writeFileSync(
+      join(runPath, "run-status.json"),
+      JSON.stringify(makeRunStatus("interrupted", { stoppedReason: "no_changes", phasesCount: 3 })),
+    );
+
+    const makeSkippedStatus = (id: string, index: number) =>
+      JSON.stringify({
+        version: 1,
+        phaseId: id,
+        phaseIndex: index,
+        state: "skipped",
+        model: "claude-sonnet-4-6",
+        effort: "low",
+        branchName: `ai/test-run--${id}`,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+    mkdirSync(join(runPath, "phase-02"), { recursive: true });
+    writeFileSync(join(runPath, "phase-01", "status.json"), makeSkippedStatus("phase-01", 0));
+    writeFileSync(join(runPath, "phase-02", "status.json"), makeSkippedStatus("phase-02", 1));
+    // phase-03 folder does not exist
+
+    const result = inspectResume(shortName, stateRoot);
+
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    expect(result.right.nextPhaseId).toBe("phase-03");
+    expect(result.right.nextPhaseIndex).toBe(2);
+    expect(result.right.skippedPhaseIds).toEqual(["phase-01", "phase-02"]);
   });
 });

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Either } from "effect";
 import type { ShortName } from "../domain/branded.js";
+import { decodeBranchName } from "../domain/branded.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { decodeRunStatus, decodePhaseStatus, type PhaseStatus } from "../schemas/status.js";
 import { decodePhaxPlan } from "../schemas/phaxPlan.js";
@@ -30,7 +31,9 @@ const TERMINAL_PHASE_STATES = new Set([
 ]);
 
 export function findCurrentPhase(phaseStatuses: readonly PhaseStatus[]): PhaseStatus | undefined {
-  return phaseStatuses.find((p) => !TERMINAL_PHASE_STATES.has(p.state));
+  return phaseStatuses
+    .filter((p) => !TERMINAL_PHASE_STATES.has(p.state))
+    .toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
 }
 
 function tryReadJson(path: string): unknown {
@@ -81,9 +84,7 @@ function loadRunReviewInfo(
     }
   }
 
-  const finalPhaseStatus =
-    phaseStatuses.toReversed().find((p) => p.worktreePath !== undefined) ??
-    phaseStatuses[phaseStatuses.length - 1];
+  const finalPhaseStatus = phaseStatuses.toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
 
   if (!finalPhaseStatus) {
     return Either.left(`No phase statuses found at "${runPath}"`);
@@ -91,11 +92,18 @@ function loadRunReviewInfo(
 
   const finalPlanPhase = planPhases.find((p) => p.id === finalPhaseStatus.phaseId);
 
+  const finalPhaseBranchResult = decodeBranchName(`${branch}--${finalPhaseStatus.phaseId}`);
+  if (Either.isLeft(finalPhaseBranchResult)) {
+    return Either.left(`Cannot compute final phase branch for run at "${runPath}"`);
+  }
+  const finalPhaseBranch = finalPhaseBranchResult.right;
+
   return Either.right({
     shortName: runStatus.shortName,
     runId: runStatus.runId,
     runState: runStatus.state,
     branch,
+    finalPhaseBranch,
     stateRoot,
     runPath,
     finalPhaseId: finalPhaseStatus.phaseId,

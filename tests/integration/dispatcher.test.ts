@@ -34,6 +34,7 @@ const phaseStatusBase = {
   phaseIndex: 0,
   model: "claude-sonnet-4-6",
   effort: "low",
+  branchName: "ai/my-run--phase-01",
   createdAt: "2026-05-21T00:00:00.000Z",
   updatedAt: "2026-05-21T00:00:00.000Z",
 } as const;

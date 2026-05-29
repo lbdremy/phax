@@ -1,15 +1,49 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
-import { Git } from "../ports/git.js";
+import { Git, type GitError } from "../ports/git.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { BranchName, PhaseId, ShortName, WorktreePath } from "../domain/branded.js";
 import { decodeBranchName, decodeWorktreePath } from "../domain/branded.js";
-import {
-  ArchiveBlockedByDirtyWorktreeError,
-  UnsafeGitStateError,
-  WorktreeCreationError,
-} from "../domain/errors.js";
-import type { GitError } from "../ports/git.js";
+import { UnsafeGitStateError, WorktreeCreationError } from "../domain/errors.js";
+
+/**
+ * Ensure a per-phase branch exists, creating it from `fromBranch` if absent.
+ *
+ * Branch name convention: `${baseBranch}--${phaseId}` (e.g. `ai/my-run--phase-01`).
+ * The `--` separator avoids the `refs/heads/<base>/<phase>` dir-vs-file conflict
+ * that `/` would cause when `baseBranch` contains a slash.
+ *
+ * Phase-01 branches off the run branch; phase-N branches off phase-(N-1). The
+ * caller maintains `fromBranch` across iterations and passes it in.
+ */
+export function preparePhaseBranch(
+  baseBranch: BranchName,
+  phaseId: PhaseId,
+  fromBranch: BranchName,
+  repoRoot: string,
+): Effect.Effect<BranchName, UnsafeGitStateError | GitError, Git> {
+  return Effect.gen(function* () {
+    const git = yield* Git;
+    const phaseBranchStr = `${baseBranch}--${phaseId}`;
+    const branchResult = decodeBranchName(phaseBranchStr);
+    if (Either.isLeft(branchResult)) {
+      return yield* Effect.fail(
+        new UnsafeGitStateError({
+          message: `Invalid phase branch name "${phaseBranchStr}": must be non-empty`,
+          repoPath: repoRoot,
+        }),
+      );
+    }
+    const phaseBranch = branchResult.right;
+
+    const exists = yield* git.branchExists(phaseBranch, repoRoot);
+    if (!exists) {
+      yield* git.createBranch(phaseBranch, fromBranch, repoRoot);
+    }
+
+    return phaseBranch;
+  });
+}
 
 export function prepareRunBranch(
   shortName: ShortName,
@@ -142,29 +176,5 @@ export function createPhaseWorktree(
     yield* ensurePhaxContextIgnored(worktreeDir);
 
     return worktreePath;
-  });
-}
-
-export function removePhaseWorktree(
-  path: WorktreePath,
-  force: boolean,
-  repoRoot: string,
-): Effect.Effect<void, ArchiveBlockedByDirtyWorktreeError | GitError, Git> {
-  return Effect.gen(function* () {
-    const git = yield* Git;
-
-    if (!force) {
-      const clean = yield* git.worktreeIsClean(path);
-      if (!clean) {
-        return yield* Effect.fail(
-          new ArchiveBlockedByDirtyWorktreeError({
-            message: `Worktree at "${path}" has uncommitted changes. Commit changes or use --force.`,
-            worktreePath: path,
-          }),
-        );
-      }
-    }
-
-    yield* git.removeWorktree(path, force, repoRoot);
   });
 }

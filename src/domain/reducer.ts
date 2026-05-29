@@ -89,11 +89,17 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
       switch (state.run) {
         case "review_open":
         case "completed":
-          // Diff patch persists state="archived" to runs/<short>/run-status.json
-          // first; then MoveRunToArchive renames the directory. The registry
-          // index entry (which carries archivePath) is updated by the caller.
           return handled({ run: "archived" }, [
             { type: "MoveRunToArchive", from: event.from, to: event.to },
+            ...(event.worktreesFrom !== undefined && event.worktreesTo !== undefined
+              ? [
+                  {
+                    type: "MoveRunToArchive" as const,
+                    from: event.worktreesFrom,
+                    to: event.worktreesTo,
+                  },
+                ]
+              : []),
           ]);
         case "archived":
           return rejected("run is already archived");
@@ -561,6 +567,61 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`cleanup completed on ${state.run} run`);
+      }
+      return assertNever(state);
+
+    case "PhaseHadNoChanges":
+      switch (state.run) {
+        case "running": {
+          const ps = state.phase.state;
+          if (ps === "passed") {
+            return handled({ run: "interrupted", phase: { state: "skipped" } }, [
+              {
+                type: "PersistState",
+                patch: {
+                  run: { stoppedReason: "no_changes", lastError: event.reason },
+                },
+              },
+              {
+                type: "WriteResumeInstructions",
+                ctx: {
+                  reason: "No changes",
+                  kind: "no_changes",
+                  phaseId: event.phase,
+                  worktreePath: event.worktreePath as string,
+                  sessionId: event.sessionId as string,
+                },
+              },
+              {
+                type: "EmitTrace",
+                name: "phase.no_changes.detected",
+                status: "failed",
+                boundary: "commit",
+                details: { phaseId: event.phase },
+              },
+              {
+                type: "EmitTrace",
+                name: "resume.available",
+                status: "info",
+                boundary: "resume-instructions.md",
+                details: { resumeCommand: `phax resume ${event.run}` },
+              },
+            ]);
+          }
+          return unexpected(`phase had no changes while phase is ${ps}`);
+        }
+        case "rate_limited":
+          return unexpected("phase had no changes while run is rate_limited");
+        case "interrupted":
+          return stale("phase had no changes on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`phase had no changes while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`phase had no changes on ${state.run} run`);
       }
       return assertNever(state);
 

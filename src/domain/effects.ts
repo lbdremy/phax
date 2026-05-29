@@ -9,8 +9,8 @@ export interface StatePatch {
 }
 
 export interface ResumeContext {
-  readonly reason: "Rate limit" | "Usage limit";
-  readonly kind: "rate_limit" | "usage_limit";
+  readonly reason: "Rate limit" | "Usage limit" | "No changes";
+  readonly kind: "rate_limit" | "usage_limit" | "no_changes";
   readonly resetAt?: string | undefined;
   readonly phaseId?: string | undefined;
   readonly worktreePath?: string | undefined;
@@ -34,13 +34,6 @@ export interface EmitTrace {
 export interface WriteResumeInstructions {
   readonly type: "WriteResumeInstructions";
   readonly ctx: ResumeContext;
-}
-
-export interface RemoveWorktree {
-  readonly type: "RemoveWorktree";
-  readonly path: string;
-  readonly force: boolean;
-  readonly repoRoot: string;
 }
 
 export interface RunCleanupShell {
@@ -80,7 +73,6 @@ export type PhaxCommand =
   | PersistState
   | EmitTrace
   | WriteResumeInstructions
-  | RemoveWorktree
   | RunCleanupShell
   | WriteAtomic
   | OpenRunReview

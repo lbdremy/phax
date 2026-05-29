@@ -81,6 +81,9 @@ All done.
 - Do not include unrelated refactors.
 - Do not implement excluded scope.
 - Do not move work from future phases into this phase unless required to keep the current phase coherent.
+- Run the gate commands again after your changes to verify the gates are satisfied.
+npm run typecheck
+npm run test
 
 ## Required output
 

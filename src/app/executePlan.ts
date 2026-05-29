@@ -1,13 +1,14 @@
 import { Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { PhaseId, RunId, ShortName, WorktreePath } from "../domain/branded.js";
+import type { BranchName, PhaseId, RunId, ShortName, WorktreePath } from "../domain/branded.js";
 import { decodeBranchName, decodePhaseId } from "../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   ClaudeInvocationError,
   ClaudeSessionIdMissingError,
   GateFailedError,
+  PhaseHadNoChangesError,
   RateLimitError,
   RegistryCorruptionError,
   SetupCommandFailedError,
@@ -39,14 +40,18 @@ import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
 import { readPreviousHandoff } from "./handoffInjection.js";
 import { createPhaseFolder } from "./phaseFolder.js";
-import { recordPhaseWorktreePath } from "./phaseStatusUpdates.js";
+import { recordPhaseWorktreeAndBranch } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRunByShortName } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
-import { createPhaseWorktree, prepareRunBranch } from "./worktree.js";
+import { createPhaseWorktree, preparePhaseBranch, prepareRunBranch } from "./worktree.js";
 
 function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
   return e instanceof RateLimitError || e instanceof UsageLimitError;
+}
+
+function isNoChangesError(e: unknown): e is PhaseHadNoChangesError {
+  return e instanceof PhaseHadNoChangesError;
 }
 
 export interface ExecutePlanOptions {
@@ -82,7 +87,8 @@ export type ExecutePlanError =
   | ArchiveBlockedByDirtyWorktreeError
   | RegistryCorruptionError
   | RateLimitError
-  | UsageLimitError;
+  | UsageLimitError
+  | PhaseHadNoChangesError;
 
 export function executePlan(
   opts: ExecutePlanOptions,
@@ -169,6 +175,28 @@ export function executePlan(
       branch = branchResult.right;
     }
 
+    // `previousPhaseBranch` tracks the ref each new phase branches off.
+    // On a fresh run phase-01 branches off the run branch; phase-N branches off
+    // phase-(N-1). On resume we seed it from the last completed phase so the
+    // chain is correct without any extra disk read — the naming is total.
+    let previousPhaseBranch: BranchName = branch;
+    if (startIndex > 0) {
+      const prevPhase = plan.phases[startIndex - 1];
+      if (prevPhase !== undefined) {
+        const prevBranchStr = `${plan.run.branch}--${prevPhase.id}`;
+        const prevBranchResult = decodeBranchName(prevBranchStr);
+        if (Either.isLeft(prevBranchResult)) {
+          return yield* Effect.fail(
+            new UnsafeGitStateError({
+              message: `Invalid branch name "${prevBranchStr}": must be non-empty`,
+              repoPath: config.repoRoot,
+            }),
+          );
+        }
+        previousPhaseBranch = prevBranchResult.right;
+      }
+    }
+
     // Lift a rate-limited run+phase back to running. On a fresh run the reducer
     // returns Ignored (run already running) and produces no writes; on resume
     // it transitions both the run and the in-flight phase to `running` so the
@@ -193,7 +221,29 @@ export function executePlan(
       if (phase === undefined) continue;
       const isFinal = i === plan.phases.length - 1;
 
-      const phaseFolderPath = yield* createPhaseFolder(runPath, phase, i);
+      // Resolve the phase branch before creating the phase folder so the
+      // initial status.json can include branchName (required by the schema).
+      const phaseIdResult = decodePhaseId(phase.id);
+      if (Either.isLeft(phaseIdResult)) {
+        return yield* Effect.fail(
+          new WorktreeCreationError({
+            message: `Invalid phase id "${phase.id}": must match phase-NN`,
+            branch,
+            path: "",
+          }),
+        );
+      }
+      // Each phase gets its own branch (<run.branch>--<phaseId>) so multiple
+      // worktrees can coexist — git refuses to check out one branch in two
+      // worktrees simultaneously.
+      const phaseBranch = yield* preparePhaseBranch(
+        branch,
+        phaseIdResult.right,
+        previousPhaseBranch,
+        config.repoRoot,
+      );
+
+      const phaseFolderPath = yield* createPhaseFolder(runPath, phase, i, phaseBranch);
       currentPhaseId = phase.id;
       currentPhaseFolderPath = phaseFolderPath;
       currentWorktreePath = undefined;
@@ -205,30 +255,23 @@ export function executePlan(
       // setting_up_worktree/running; Rejected if the phase is past pending in
       // an unexpected way).
       yield* dispatch(
-        { ...eventBase(phase.id), type: "PhaseStartRequested", phaseId: phase.id as PhaseId },
+        {
+          ...eventBase(phase.id),
+          type: "PhaseStartRequested",
+          phaseId: phase.id as PhaseId,
+        },
         ctx,
       );
-
-      const phaseIdResult = decodePhaseId(phase.id);
-      if (Either.isLeft(phaseIdResult)) {
-        return yield* Effect.fail(
-          new WorktreeCreationError({
-            message: `Invalid phase id "${phase.id}": must match phase-NN`,
-            branch,
-            path: "",
-          }),
-        );
-      }
       const worktreePath = yield* createPhaseWorktree(
         shortName,
         phaseIdResult.right,
-        branch,
+        phaseBranch,
         config.stateRoot,
         config.repoRoot,
       );
 
       currentWorktreePath = worktreePath as string;
-      yield* recordPhaseWorktreePath(phaseFolderPath, worktreePath);
+      yield* recordPhaseWorktreeAndBranch(phaseFolderPath, worktreePath, phaseBranch);
       yield* telemetry.recordEvent(
         makeAdapterCallSucceededTelemetryEvent({
           runId,
@@ -246,11 +289,13 @@ export function executePlan(
 
       const previousHandoff = yield* readPreviousHandoff(runPath, plan.phases, i);
 
+      const promptGateCommands = config.raw.gateProfiles[gateProfileId]?.flat(1) ?? [];
       const promptText = buildPhasePrompt({
         planMd,
         planJson: plan,
         currentPhase: phase,
         previousHandoff,
+        gateCommands: promptGateCommands,
       });
 
       const fs = yield* FileSystem;
@@ -385,7 +430,11 @@ export function executePlan(
         // and WriteFinalReport effects; the runner writes review-handoff.md,
         // updates the registry, and writes final-report.md.
         yield* dispatch(
-          { ...eventBase(phase.id), type: "FinalReviewOpened", info: infoResult.right },
+          {
+            ...eventBase(phase.id),
+            type: "FinalReviewOpened",
+            info: infoResult.right,
+          },
           ctx,
         );
       } else {
@@ -401,6 +450,9 @@ export function executePlan(
           phaseId: phase.id,
         });
       }
+
+      // Advance the chain: the next phase branches off this phase's branch.
+      previousPhaseBranch = phaseBranch;
     }
 
     if (finalWorktreePath === undefined || finalPhaseId === undefined) {
@@ -442,8 +494,16 @@ export function executePlan(
         return yield* Effect.fail(e);
       }).pipe(Effect.catchAll(() => Effect.fail(e))),
     ),
+    // A no-changes exit pauses the run instead of failing it: the event was
+    // already dispatched inside commitPhase, so we just re-raise here to ensure
+    // a non-zero exit code. The run is already in `interrupted` state.
+    Effect.catchIf(isNoChangesError, (e) =>
+      Effect.gen(function* () {
+        return yield* Effect.fail(e);
+      }),
+    ),
     Effect.tapError((e) =>
-      isRateLimitError(e)
+      isRateLimitError(e) || isNoChangesError(e)
         ? Effect.void
         : dispatch(
             { ...eventBase(currentPhaseId), type: "RunFailed", cause: e },

@@ -55,6 +55,7 @@ async function buildFakeRunFolder(
         state: phase.state,
         model: "claude-sonnet-4-6",
         effort: "low",
+        branchName: `ai/my-run--${phase.id}`,
         createdAt: now,
         updatedAt: now,
         ...(phase.worktreePath ? { worktreePath: phase.worktreePath } : {}),
@@ -65,15 +66,15 @@ async function buildFakeRunFolder(
 }
 
 describe("findCurrentPhase", () => {
-  it("returns the first non-terminal phase", () => {
+  it("returns the highest-index non-terminal phase", () => {
     const phases = [
-      { phaseId: "phase-01", state: "cleaned_up" },
-      { phaseId: "phase-02", state: "rate_limited" },
-      { phaseId: "phase-03", state: "pending" },
+      { phaseId: "phase-01", phaseIndex: 0, state: "cleaned_up" },
+      { phaseId: "phase-02", phaseIndex: 1, state: "passed" },
+      { phaseId: "phase-03", phaseIndex: 2, state: "rate_limited" },
     ] as PhaseStatus[];
 
     const result = findCurrentPhase(phases);
-    expect(result?.phaseId).toBe("phase-02");
+    expect(result?.phaseId).toBe("phase-03");
   });
 
   it("returns undefined when all phases are terminal", () => {

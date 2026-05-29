@@ -86,11 +86,6 @@ export function cleanupPhase(
       runnerCtx,
     );
 
-    yield* runEffect(
-      { type: "RemoveWorktree", path: worktreePath as string, force: false, repoRoot },
-      runnerCtx,
-    );
-
     const completedEvent: PhaxEvent = { ...baseEvent(), type: "CleanupCompleted" };
     yield* dispatch(completedEvent, dispatchCtx);
   });

@@ -63,7 +63,7 @@ stateDiagram-v2
     [*] --> created
     created --> running : RunStarted
     running --> rate_limited : RateLimitDetected
-    running --> interrupted : RunInterruptRequested
+    running --> interrupted : RunInterruptRequested / PhaseHadNoChanges
     running --> failed : RunFailed
     running --> review_open : FinalReviewOpened
     running --> completed : RunCompleted
@@ -96,6 +96,7 @@ stateDiagram-v2
     fixing --> passed : GatePassed
     fixing --> handoff_failed : FixAttemptsExhausted
     passed --> committed : CommitCreated
+    passed --> skipped : PhaseHadNoChanges
     committed --> cleaning_up : CleanupStarted
     committed --> review_open : FinalReviewOpened
     cleaning_up --> cleaned_up : CleanupCompleted
@@ -120,42 +121,44 @@ interface PhaxEventBase {
 
 ### Run-shaped events
 
-| Event                   | Trigger                                                      |
-| ----------------------- | ------------------------------------------------------------ |
-| `RunStarted`            | `phax run` initialises a new run                             |
-| `RunResumeRequested`    | `phax resume` after rate-limit or interrupt                  |
-| `RunInterruptRequested` | SIGINT / SIGTERM received                                    |
-| `RunArchiveRequested`   | `phax archive` (carries `from` / `to` paths)                 |
-| `RunFailed`             | unrecoverable error (carries `cause`)                        |
-| `FinalReviewOpened`     | last phase finished; review worktree opened (carries `info`) |
-| `RunCompleted`          | all phases done, no review phase                             |
+| Event                   | Trigger                                                                                                                                                                            |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RunStarted`            | `phax run` initialises a new run                                                                                                                                                   |
+| `RunResumeRequested`    | `phax resume` after rate-limit or interrupt                                                                                                                                        |
+| `RunInterruptRequested` | SIGINT / SIGTERM received                                                                                                                                                          |
+| `RunArchiveRequested`   | `phax archive` (carries `from`/`to` for the run folder and optional `worktreesFrom`/`worktreesTo` for the worktrees folder — both pairs moved into an umbrella `archive/{short}/`) |
+| `RunFailed`             | unrecoverable error (carries `cause`)                                                                                                                                              |
+| `FinalReviewOpened`     | last phase finished; review worktree opened (carries `info`)                                                                                                                       |
+| `RunCompleted`          | all phases done, no review phase                                                                                                                                                   |
 
 ### Phase-shaped events
 
-| Event                      | Trigger                                                                     |
-| -------------------------- | --------------------------------------------------------------------------- |
-| `PhaseStartRequested`      | orchestrator starts the next phase (carries `phaseId`)                      |
-| `WorktreeCreated`          | `git worktree add` succeeded (carries `path`)                               |
-| `AgentInvocationStarted`   | Claude Code subprocess launched                                             |
-| `AgentInvocationCompleted` | Claude Code subprocess exited (carries `sessionId`)                         |
-| `GateStarted`              | gate suite begins (carries `attempt`)                                       |
-| `GatePassed`               | all gate commands exited 0 (carries `attempt`)                              |
-| `GateFailed`               | a gate command failed (carries `command`, `exitCode`, `logPath`, `attempt`) |
-| `FixStarted`               | fix-loop iteration begins (carries `attempt`)                               |
-| `FixCompleted`             | fix agent exited (carries `sessionId`)                                      |
-| `FixAttemptsExhausted`     | max fix attempts reached without passing                                    |
-| `HandoffRequested`         | orchestrator asks Claude to write `phase-handoff.md`                        |
-| `HandoffValidated`         | handoff sections all present                                                |
-| `HandoffMissing`           | handoff validation failed (carries `missingSections`)                       |
-| `CommitCreated`            | `git commit` succeeded (carries `hash`)                                     |
-| `CleanupStarted`           | cleanup shell commands starting                                             |
-| `CleanupCompleted`         | worktree removed, cleanup done                                              |
+| Event                      | Trigger                                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `PhaseStartRequested`      | orchestrator starts the next phase (carries `phaseId`)                                                                    |
+| `WorktreeCreated`          | `git worktree add` succeeded (carries `path`)                                                                             |
+| `AgentInvocationStarted`   | Claude Code subprocess launched                                                                                           |
+| `AgentInvocationCompleted` | Claude Code subprocess exited (carries `sessionId`)                                                                       |
+| `GateStarted`              | gate suite begins (carries `attempt`)                                                                                     |
+| `GatePassed`               | all gate commands exited 0 (carries `attempt`)                                                                            |
+| `GateFailed`               | a gate command failed (carries `command`, `exitCode`, `logPath`, `attempt`)                                               |
+| `FixStarted`               | fix-loop iteration begins (carries `attempt`)                                                                             |
+| `FixCompleted`             | fix agent exited (carries `sessionId`)                                                                                    |
+| `FixAttemptsExhausted`     | max fix attempts reached without passing                                                                                  |
+| `HandoffRequested`         | orchestrator asks Claude to write `phase-handoff.md`                                                                      |
+| `HandoffValidated`         | handoff sections all present                                                                                              |
+| `HandoffMissing`           | handoff validation failed (carries `missingSections`)                                                                     |
+| `CommitCreated`            | `git commit` succeeded (carries `hash`)                                                                                   |
+| `CleanupStarted`           | cleanup shell commands starting                                                                                           |
+| `CleanupCompleted`         | cleanup shell commands done (worktree stays on disk)                                                                      |
+| `PhaseHadNoChanges`        | worktree clean after agent ran; phase skipped, run interrupted (carries `phaseId`, `worktreePath`, `sessionId`, `reason`) |
 
 ### Cross-cutting
 
-| Event               | Trigger                                                                                                                |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `RateLimitDetected` | `RateLimitError` or `UsageLimitError` from Claude (carries `kind`, `resetAt?`, `cause`, `worktreePath?`, `sessionId?`) |
+| Event               | Trigger                                                                                                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RateLimitDetected` | `RateLimitError` or `UsageLimitError` from Claude (carries `kind`, `resetAt?`, `cause`, `worktreePath?`, `sessionId?`)                                               |
+| `PhaseHadNoChanges` | `commitPhase` finds a clean worktree — real problem requiring user attention (transitions run to `interrupted`, phase to `skipped`; writes `resume-instructions.md`) |
 
 ## Dispositions
 
@@ -201,6 +204,7 @@ The compile-time `phaxDispositionMatrix` in `src/domain/matrix.ts` declares the 
 | `CleanupStarted`           | U       | U       | U            | S           | U           | S      | S         | S       | S        |
 | `CleanupCompleted`         | U       | U       | S            | S           | U           | S      | S         | S       | S        |
 | `RateLimitDetected`        | U       | **H**   | I            | I           | S           | S      | S         | S       | S        |
+| `PhaseHadNoChanges`        | U       | **H**   | S            | S           | S           | S      | S         | S       | S        |
 
 **H** = Handled, **I** = Ignored, **S** = Stale, **R** = Rejected, **U** = Unexpected
 
@@ -210,18 +214,17 @@ The compile-time `phaxDispositionMatrix` in `src/domain/matrix.ts` declares the 
 
 The reducer emits `PhaxCommand[]` for `Handled` dispositions. The effect runner executes them in order:
 
-| Command                                    | Effect                                             |
-| ------------------------------------------ | -------------------------------------------------- |
-| `PersistState { patch }`                   | write `run-status.json` + `status.json` atomically |
-| `EmitTrace { name, status, details }`      | record semantic event via `SystemTelemetry`        |
-| `WriteResumeInstructions { ctx }`          | write `resume.md` with rate-limit context          |
-| `RemoveWorktree { path, force, repoRoot }` | `git worktree remove`                              |
-| `RunCleanupShell { commands, cwd }`        | execute cleanup shell commands sequentially        |
-| `WriteAtomic { path, content }`            | `FileSystem.writeAtomic`                           |
-| `OpenRunReview { info }`                   | open review worktree, write `review-handoff.md`    |
-| `WriteFinalReport { info }`                | write final report                                 |
-| `MoveRunToArchive { from, to }`            | rename run directory                               |
-| `RecordCommitMetadata { hash }`            | write commit hash to phase metadata                |
+| Command                               | Effect                                             |
+| ------------------------------------- | -------------------------------------------------- |
+| `PersistState { patch }`              | write `run-status.json` + `status.json` atomically |
+| `EmitTrace { name, status, details }` | record semantic event via `SystemTelemetry`        |
+| `WriteResumeInstructions { ctx }`     | write `resume.md` with rate-limit context          |
+| `RunCleanupShell { commands, cwd }`   | execute cleanup shell commands sequentially        |
+| `WriteAtomic { path, content }`       | `FileSystem.writeAtomic`                           |
+| `OpenRunReview { info }`              | open review worktree, write `review-handoff.md`    |
+| `WriteFinalReport { info }`           | write final report                                 |
+| `MoveRunToArchive { from, to }`       | rename run directory                               |
+| `RecordCommitMetadata { hash }`       | write commit hash to phase metadata                |
 
 ## Happy-Path Trace Sequence
 

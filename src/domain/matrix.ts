@@ -34,6 +34,7 @@ export const phaxDispositionMatrix = {
     CommitCreated: "Unexpected",
     CleanupStarted: "Unexpected",
     CleanupCompleted: "Unexpected",
+    PhaseHadNoChanges: "Unexpected",
     RateLimitDetected: "Unexpected",
   },
   running: {
@@ -60,6 +61,7 @@ export const phaxDispositionMatrix = {
     CommitCreated: "Unexpected",
     CleanupStarted: "Unexpected",
     CleanupCompleted: "Unexpected",
+    PhaseHadNoChanges: "Unexpected",
     RateLimitDetected: "Handled",
   },
   rate_limited: {
@@ -86,6 +88,7 @@ export const phaxDispositionMatrix = {
     CommitCreated: "Unexpected",
     CleanupStarted: "Unexpected",
     CleanupCompleted: "Stale",
+    PhaseHadNoChanges: "Unexpected",
     RateLimitDetected: "Ignored",
   },
   interrupted: {
@@ -112,6 +115,7 @@ export const phaxDispositionMatrix = {
     CommitCreated: "Stale",
     CleanupStarted: "Stale",
     CleanupCompleted: "Stale",
+    PhaseHadNoChanges: "Stale",
     RateLimitDetected: "Ignored",
   },
   review_open: {
@@ -138,6 +142,7 @@ export const phaxDispositionMatrix = {
     CommitCreated: "Unexpected",
     CleanupStarted: "Unexpected",
     CleanupCompleted: "Unexpected",
+    PhaseHadNoChanges: "Unexpected",
     RateLimitDetected: "Stale",
   },
   failed: {
@@ -164,6 +169,7 @@ export const phaxDispositionMatrix = {
     CommitCreated: "Stale",
     CleanupStarted: "Stale",
     CleanupCompleted: "Stale",
+    PhaseHadNoChanges: "Stale",
     RateLimitDetected: "Stale",
   },
   completed: {
@@ -190,6 +196,7 @@ export const phaxDispositionMatrix = {
     CommitCreated: "Stale",
     CleanupStarted: "Stale",
     CleanupCompleted: "Stale",
+    PhaseHadNoChanges: "Stale",
     RateLimitDetected: "Stale",
   },
   stopped: {
@@ -216,6 +223,7 @@ export const phaxDispositionMatrix = {
     CommitCreated: "Stale",
     CleanupStarted: "Stale",
     CleanupCompleted: "Stale",
+    PhaseHadNoChanges: "Stale",
     RateLimitDetected: "Stale",
   },
   archived: {
@@ -242,6 +250,7 @@ export const phaxDispositionMatrix = {
     CommitCreated: "Stale",
     CleanupStarted: "Stale",
     CleanupCompleted: "Stale",
+    PhaseHadNoChanges: "Stale",
     RateLimitDetected: "Stale",
   },
 } as const satisfies EventDispositionMatrix<PhaxStateName, PhaxEventType>;
