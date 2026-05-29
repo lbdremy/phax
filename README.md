@@ -122,20 +122,32 @@ The E2E suite skips automatically unless `PHAX_E2E_RUN=1` is set, so it never ru
 
 ## Debugging
 
-Add `--verbose` to any `run` or `resume` command to print config discovery, state transitions, agent invocations, gate results, and commit events to the terminal:
+Add `--verbose` to any `run` or `resume` command to print semantic events (state transitions, adapter calls, gate results) to the terminal:
 
 ```bash
 phax run --verbose
 phax resume <short-name> --verbose
 ```
 
-Add `--trace` to also write a structured JSONL log to `~/.phax/runs/<short-name>/trace.jsonl`:
+Add `--trace <path>` to write one JSON line per semantic event to a file:
 
 ```bash
-phax run --trace
+phax run --trace ~/.phax/runs/<short-name>/semantic.jsonl
 ```
 
-Both flags can be combined (`--verbose --trace`). See [`docs/extract-plan-model.md`](docs/extract-plan-model.md) for how to configure the model used by `extract-plan`.
+Both flags can be combined. Set `PHAX_OTEL=1` to also export traces to a local OTLP collector. See [`docs/observability.md`](docs/observability.md) for the full observability architecture and [`docs/extract-plan-model.md`](docs/extract-plan-model.md) for how to configure the model used by `extract-plan`.
+
+## Observability
+
+phax emits structured semantic telemetry through the `SystemTelemetry` port — state transitions, adapter calls, gate results, and artifacts. Three output modes:
+
+| Flag / Variable  | Effect                                              |
+| ---------------- | --------------------------------------------------- |
+| `--verbose`      | Print semantic events to the terminal               |
+| `--trace <path>` | Write semantic events as JSONL to `<path>`          |
+| `PHAX_OTEL=1`    | Export to an OTLP collector (OTel traces + metrics) |
+
+See [`docs/observability.md`](docs/observability.md) for architecture details, the snapshot rule, and the adapter-boundary failure contract.
 
 ## Resume
 
@@ -175,6 +187,7 @@ phax unlock <short-name> --force  # remove any lock
 | `PHAX_STATE_ROOT` | Override `state.root` from `phax.json`                         |
 | `PHAX_CLAUDE_BIN` | Path to the `claude` executable (default: `claude` on `$PATH`) |
 | `PHAX_NO_COLOR`   | Disable ANSI color output                                      |
+| `PHAX_OTEL`       | Set to `1` to enable the OpenTelemetry adapter                 |
 
 ## Troubleshooting
 
