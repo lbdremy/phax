@@ -10,6 +10,9 @@ import { inspectResume } from "../../app/resume.js";
 import { decodeRunStatus } from "../../schemas/status.js";
 import { executePlan } from "../../app/executePlan.js";
 import { withRunLock } from "../../app/lock.js";
+import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
+import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
+import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
 
@@ -120,6 +123,15 @@ export async function runResume(
     return 2;
   }
 
+  const routingResult = await Effect.runPromise(
+    Effect.either(
+      Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
+    ).pipe(Effect.provide(NodeFileSystemLayer)),
+  );
+  const { routing, providerConfig } = Either.isRight(routingResult)
+    ? routingResult.right
+    : { routing: undefined, providerConfig: DEFAULT_PROVIDER_CONFIG };
+
   const telemetryLayer = buildSystemTelemetryLayer(
     opts,
     join(runPath, "semantic.jsonl"),
@@ -142,11 +154,13 @@ export async function runResume(
         runPath,
         runId,
         startIndex: decision.nextPhaseIndex,
+        routing,
+        providerConfig,
       }),
     );
 
     const result = await Effect.runPromise(
-      Effect.either(provideRunLayers(program, config, telemetryLayer)),
+      Effect.either(provideRunLayers(program, config, telemetryLayer, providerConfig)),
     );
 
     if (Either.isLeft(result)) {

@@ -9,6 +9,9 @@ import { extractPlanCore } from "../../app/extractPlan.js";
 import { createRunFolder } from "../../app/runFolder.js";
 import { executePlan } from "../../app/executePlan.js";
 import { withRunLock } from "../../app/lock.js";
+import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
+import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
+import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
@@ -82,7 +85,9 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   );
 
   const extracted = await Effect.runPromise(
-    Effect.either(provideRunLayers(extractEffect, config, extractTelemetryLayer)),
+    Effect.either(
+      provideRunLayers(extractEffect, config, extractTelemetryLayer, DEFAULT_PROVIDER_CONFIG),
+    ),
   );
 
   if (Either.isLeft(extracted)) {
@@ -121,6 +126,17 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     return 0;
   }
 
+  const routingResult = await Effect.runPromise(
+    Effect.either(
+      Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
+    ).pipe(Effect.provide(NodeFileSystemLayer)),
+  );
+  if (Either.isLeft(routingResult)) {
+    out.error(`Failed to load routing config: ${routingResult.left.message}`);
+    return 2;
+  }
+  const { routing, providerConfig } = routingResult.right;
+
   const runFolder = join(config.stateRoot, "runs", shortName);
   const semanticJsonlPath = join(runFolder, "semantic.jsonl");
   const telemetryLayer = buildSystemTelemetryLayer(
@@ -147,13 +163,15 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
             runPath,
             runId,
             startIndex: 0,
+            routing,
+            providerConfig,
           }),
         ),
       ),
     );
 
     const result = await Effect.runPromise(
-      Effect.either(provideRunLayers(program, config, telemetryLayer)),
+      Effect.either(provideRunLayers(program, config, telemetryLayer, providerConfig)),
     );
 
     if (Either.isLeft(result)) {

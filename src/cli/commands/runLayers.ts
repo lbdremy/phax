@@ -1,7 +1,7 @@
 import { Effect, Layer } from "effect";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
-import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
+import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { NodeShellLayer } from "../../infra/shell.js";
@@ -37,9 +37,10 @@ export function provideRunLayers<A, E>(
   effect: Effect.Effect<A, E, Backend | FileSystem | Git | Shell | Lock | SystemTelemetry>,
   config: ResolvedConfig,
   systemTelemetryLayer: Layer.Layer<SystemTelemetry>,
+  providerConfig: ProviderConfig,
 ): Effect.Effect<A, E, never> {
   return effect.pipe(
-    Effect.provide(makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG)),
+    Effect.provide(makeNodeBackendLayer(providerConfig)),
     Effect.provide(NodeFileSystemLayer),
     Effect.provide(NodeGitLayer),
     Effect.provide(NodeShellLayer),
