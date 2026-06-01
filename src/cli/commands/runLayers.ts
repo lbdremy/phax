@@ -1,5 +1,6 @@
 import { Effect, Layer } from "effect";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
+import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
@@ -38,7 +39,7 @@ export function provideRunLayers<A, E>(
   systemTelemetryLayer: Layer.Layer<SystemTelemetry>,
 ): Effect.Effect<A, E, never> {
   return effect.pipe(
-    Effect.provide(makeNodeBackendLayer()),
+    Effect.provide(makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG)),
     Effect.provide(NodeFileSystemLayer),
     Effect.provide(NodeGitLayer),
     Effect.provide(NodeShellLayer),

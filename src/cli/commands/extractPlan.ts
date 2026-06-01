@@ -4,6 +4,7 @@ import type { OutputPort } from "../../ports/output.js";
 import { extractPlan } from "../../app/extractPlan.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
+import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { buildSystemTelemetryLayer } from "./runLayers.js";
@@ -51,7 +52,7 @@ export async function runExtractPlan(
     cwd: process.cwd(),
     backend: config.backend,
   }).pipe(
-    Effect.provide(makeNodeBackendLayer()),
+    Effect.provide(makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG)),
     Effect.provide(NodeFileSystemLayer),
     Effect.provide(makeNodeLockLayer(config.stateRoot)),
     Effect.provide(telemetryLayer),

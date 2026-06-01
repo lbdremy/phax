@@ -81,6 +81,7 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
           phaseFolderPath,
           sessionId,
           agentOptions: {
+            provider: "claude-code" as const,
             model: "claude-sonnet-4-6",
             effort: "medium",
             cwd: "/fake/worktrees/phase-01",
@@ -160,7 +161,12 @@ describe("claude adapter failure via FakeBackend + reportClaudeFailure", () => {
         const telemetry = yield* SystemTelemetry;
 
         const result = yield* Effect.either(
-          backend.runAgent("prompt", { model: "m", effort: "low", cwd: "/" }),
+          backend.runAgent("prompt", {
+            provider: "claude-code",
+            model: "m",
+            effort: "low",
+            cwd: "/",
+          }),
         );
 
         if (Either.isLeft(result)) {

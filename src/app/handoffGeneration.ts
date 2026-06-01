@@ -95,6 +95,7 @@ export function generatePhaseHandoff(
     const handoffPrompt = buildHandoffPrompt();
 
     yield* backend.resumeAgentSession(sessionId, handoffPrompt, {
+      provider: agentOptions.provider,
       model: agentOptions.model,
       effort: agentOptions.effort,
       cwd: worktreePath,

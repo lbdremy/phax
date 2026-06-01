@@ -6,9 +6,11 @@ import type {
   RateLimitError,
   UsageLimitError,
 } from "../domain/errors.js";
+import type { ProviderId } from "../domain/routing/types.js";
 import type { FsError } from "./fs.js";
 
 export interface AgentRunOptions {
+  readonly provider: ProviderId;
   readonly model: string;
   readonly effort: string;
   readonly cwd: string;
