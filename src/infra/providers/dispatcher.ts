@@ -9,6 +9,7 @@ import {
 import type { FsError } from "../../ports/fs.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import { runClaudeAgent } from "./claudeCode.js";
+import { runCodexAgent } from "./codexCli.js";
 import { runVibeAgent } from "./mistralVibe.js";
 
 type RunAgentError = ClaudeInvocationError | RateLimitError | UsageLimitError | FsError;
@@ -42,7 +43,22 @@ export function makeNodeBackendLayer(providerConfig: ProviderConfig): Layer.Laye
           ),
         );
       }
-      // codex-cli adapter lands in phase-07.
+      if (options.provider === "codex-cli") {
+        const entry = providerConfig.providers["codex-cli"];
+        if (!entry) {
+          return Effect.fail(
+            new ClaudeInvocationError({ message: "codex-cli not found in provider config" }),
+          );
+        }
+        return runCodexAgent(prompt, options, entry).pipe(
+          Effect.mapError(
+            (e): RunAgentError =>
+              e instanceof ClaudeSessionIdMissingError
+                ? new ClaudeInvocationError({ message: e.message })
+                : e,
+          ),
+        );
+      }
       return Effect.fail(
         new ClaudeInvocationError({
           message: `Provider "${options.provider}" is not yet wired in the dispatcher (config: ${JSON.stringify(Object.keys(providerConfig.providers))})`,
@@ -62,6 +78,15 @@ export function makeNodeBackendLayer(providerConfig: ProviderConfig): Layer.Laye
           );
         }
         return runVibeAgent(prompt, options, entry, sessionId);
+      }
+      if (options.provider === "codex-cli") {
+        const entry = providerConfig.providers["codex-cli"];
+        if (!entry) {
+          return Effect.fail(
+            new ClaudeInvocationError({ message: "codex-cli not found in provider config" }),
+          );
+        }
+        return runCodexAgent(prompt, options, entry, sessionId);
       }
       return Effect.fail(
         new ClaudeInvocationError({
