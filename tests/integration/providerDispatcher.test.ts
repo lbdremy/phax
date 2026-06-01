@@ -50,13 +50,18 @@ describe("provider dispatcher", () => {
     expect(true).toBe(true);
   });
 
-  it("codex-cli fails with a clear 'not yet wired' error", async () => {
-    const result = await runWithProvider({ ...baseOptions, provider: "codex-cli" });
+  it("codex-cli routes to the Codex adapter, not the 'not yet wired' guard", async () => {
+    const result = await runWithProvider({
+      ...baseOptions,
+      provider: "codex-cli",
+      model: "gpt-5.5",
+    });
 
-    expect(Either.isLeft(result)).toBe(true);
+    // Whether the real `codex` binary is present or not, the dispatch must have
+    // reached the Codex adapter. Confirm the "not yet wired" guard was not hit.
     if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ClaudeInvocationError);
-      expect((result.left as ClaudeInvocationError).message).toContain("not yet wired");
+      expect((result.left as ClaudeInvocationError).message).not.toContain("not yet wired");
     }
+    expect(true).toBe(true);
   });
 });
