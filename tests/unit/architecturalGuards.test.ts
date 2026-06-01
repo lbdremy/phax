@@ -23,7 +23,7 @@ const SINGLE_WRITER_ALLOWLIST: ReadonlySet<string> = new Set([
 const DOCUMENTED_METADATA_WRITERS: ReadonlySet<string> = new Set([
   "src/app/gates.ts",
   "src/app/phaseStatusUpdates.ts",
-  "src/infra/providers/claudeCode.ts",
+  "src/infra/providers/sessionWriter.ts",
 ]);
 
 const ENCODER_IMPORT = /\b(encodePhaseStatus|encodeRunStatus)\b/;
