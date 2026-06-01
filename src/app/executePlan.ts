@@ -26,12 +26,17 @@ import {
   makeAdapterCallStartedTelemetryEvent,
   makeAdapterCallSucceededTelemetryEvent,
   makeArtifactGeneratedTelemetryEvent,
+  makeModelResolvedTelemetryEvent,
   makeStepStartedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
 } from "../domain/telemetry/events.js";
 import { reportClaudeFailure } from "./telemetry/reportBuilders.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
+import type { ModelRouting } from "../schemas/modelRouting.js";
+import type { ProviderConfig } from "../schemas/providerConfig.js";
+import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../domain/routing/defaults.js";
+import { resolveModel } from "../domain/routing/resolve.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
@@ -65,6 +70,8 @@ export interface ExecutePlanOptions {
   readonly runPath: string;
   readonly runId: RunId;
   readonly startIndex: number;
+  readonly routing?: ModelRouting | undefined;
+  readonly providerConfig?: ProviderConfig | undefined;
 }
 
 export interface ExecutePlanResult {
@@ -108,6 +115,8 @@ export function executePlan(
     runPath,
     runId,
     startIndex,
+    routing = DEFAULT_MODEL_ROUTING,
+    providerConfig = DEFAULT_PROVIDER_CONFIG,
   } = opts;
 
   // Tracked as the loop progresses so the rate-limit catch handler knows which
@@ -301,26 +310,56 @@ export function executePlan(
       const fs = yield* FileSystem;
       yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);
 
+      const resolution = resolveModel(
+        { model: phase.model, effort: phase.effort },
+        routing,
+        providerConfig,
+      );
+
+      yield* telemetry.recordEvent(
+        makeModelResolvedTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          requestedFamily: resolution.requested.family,
+          requestedEffort: resolution.requested.effort,
+          normalizedTier: resolution.normalizedTier,
+          selectedProvider: resolution.selected.provider,
+          selectedFamily: resolution.selected.family,
+          selectedConcreteModel: resolution.selected.concreteModel,
+          ...(resolution.selected.thinking !== undefined
+            ? { selectedThinking: resolution.selected.thinking }
+            : {}),
+          relationship: resolution.relationship,
+          reason: resolution.reason,
+        }),
+      );
+
+      yield* fs.writeAtomic(
+        join(phaseFolderPath, "model-resolution.json"),
+        JSON.stringify(resolution, null, 2),
+      );
+
       const agentOptions: AgentRunOptions = {
-        provider: "claude-code",
-        model: phase.model,
-        effort: phase.effort,
+        provider: resolution.selected.provider,
+        model: resolution.selected.concreteModel,
+        effort: resolution.selected.thinking ?? phase.effort,
         cwd: worktreePath as string,
         outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
         phaseFolderPath,
       };
 
       const backend = yield* Backend;
+      const resolvedProvider = resolution.selected.provider;
       yield* telemetry.recordEvent(
         makeAdapterCallStartedTelemetryEvent({
           runId,
           operationId: phase.id,
-          adapter: "claude-code-cli",
+          adapter: resolvedProvider,
           operation: "agent.run",
         }),
       );
       const agentResult = yield* telemetry.withOperation(
-        "phax.claude-code-cli.agent.run",
+        `phax.${resolvedProvider}.agent.run`,
         { "phax.phase.id": phase.id },
         backend.runAgent(promptText, agentOptions).pipe(
           Effect.tapError((e) =>
@@ -329,7 +368,7 @@ export function executePlan(
                   reportClaudeFailure(e, {
                     runId,
                     operationId: phase.id,
-                    adapter: "claude-code-cli",
+                    adapter: resolvedProvider,
                     operation: "agent.run",
                   }),
                 )
@@ -343,7 +382,7 @@ export function executePlan(
         makeAdapterCallSucceededTelemetryEvent({
           runId,
           operationId: phase.id,
-          adapter: "claude-code-cli",
+          adapter: resolvedProvider,
           operation: "agent.run",
         }),
       );

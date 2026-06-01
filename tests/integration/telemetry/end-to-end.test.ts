@@ -152,13 +152,16 @@ describe("executePlan — semantic telemetry end-to-end", () => {
 
     // Ordering: agent adapter.call.started before its adapter.call.succeeded
     const startIdx = telEvents.findIndex(
-      (e) => e.type === "adapter.call.started" && "adapter" in e && e.adapter === "claude-code-cli",
+      (e) =>
+        e.type === "adapter.call.started" &&
+        "adapter" in e &&
+        "operation" in e &&
+        e.operation === "agent.run",
     );
     const succeededIdx = telEvents.findIndex(
       (e) =>
         e.type === "adapter.call.succeeded" &&
         "adapter" in e &&
-        e.adapter === "claude-code-cli" &&
         "operation" in e &&
         e.operation === "agent.run",
     );
