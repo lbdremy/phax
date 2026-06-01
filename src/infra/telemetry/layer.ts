@@ -41,6 +41,8 @@ const formatSemanticEvent = (event: SemanticTelemetryEvent): string => {
       return `phax·gate.evaluated  ${event.gate}  result=${event.result}${event.reason !== undefined ? `  reason=${event.reason}` : ""}`;
     case "artifact.generated":
       return `phax·artifact.generated  ${event.artifact}  path=${event.path}`;
+    case "agent.model.resolved":
+      return `phax·agent.model.resolved  ${event.selectedProvider}/${event.selectedFamily}  model=${event.selectedConcreteModel}  relationship=${event.relationship}`;
   }
 };
 

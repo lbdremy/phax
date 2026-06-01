@@ -1,4 +1,11 @@
 import type { RunId } from "../branded.js";
+import type {
+  ModelFamily,
+  ProviderId,
+  Relationship,
+  RoutingTier,
+  ThinkingLevel,
+} from "../routing/types.js";
 
 export interface StateTransitionTelemetryEvent {
   readonly type: "state.transition";
@@ -70,6 +77,21 @@ export interface ArtifactGeneratedTelemetryEvent {
   readonly path: string;
 }
 
+export interface ModelResolvedTelemetryEvent {
+  readonly type: "agent.model.resolved";
+  readonly runId: RunId;
+  readonly operationId?: string;
+  readonly requestedFamily: ModelFamily;
+  readonly requestedEffort: ThinkingLevel;
+  readonly normalizedTier: RoutingTier;
+  readonly selectedProvider: ProviderId;
+  readonly selectedFamily: ModelFamily;
+  readonly selectedConcreteModel: string;
+  readonly selectedThinking?: ThinkingLevel;
+  readonly relationship: Relationship;
+  readonly reason: string;
+}
+
 export type SemanticTelemetryEvent =
   | StateTransitionTelemetryEvent
   | AdapterCallStartedTelemetryEvent
@@ -78,7 +100,8 @@ export type SemanticTelemetryEvent =
   | StepStartedTelemetryEvent
   | StepCompletedTelemetryEvent
   | GateEvaluatedTelemetryEvent
-  | ArtifactGeneratedTelemetryEvent;
+  | ArtifactGeneratedTelemetryEvent
+  | ModelResolvedTelemetryEvent;
 
 export const makeStateTransitionTelemetryEvent = (
   fields: Omit<StateTransitionTelemetryEvent, "type">,
@@ -111,3 +134,7 @@ export const makeGateEvaluatedTelemetryEvent = (
 export const makeArtifactGeneratedTelemetryEvent = (
   fields: Omit<ArtifactGeneratedTelemetryEvent, "type">,
 ): ArtifactGeneratedTelemetryEvent => ({ type: "artifact.generated", ...fields });
+
+export const makeModelResolvedTelemetryEvent = (
+  fields: Omit<ModelResolvedTelemetryEvent, "type">,
+): ModelResolvedTelemetryEvent => ({ type: "agent.model.resolved", ...fields });
