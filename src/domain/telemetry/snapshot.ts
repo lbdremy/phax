@@ -24,6 +24,15 @@ export interface SemanticTraceSnapshotEntry {
   readonly path?: string;
   // shared result field
   readonly result?: string;
+  // agent.model.resolved
+  readonly requestedFamily?: string;
+  readonly requestedEffort?: string;
+  readonly normalizedTier?: string;
+  readonly selectedProvider?: string;
+  readonly selectedFamily?: string;
+  readonly selectedConcreteModel?: string;
+  readonly selectedThinking?: string;
+  readonly relationship?: string;
 }
 
 export type SemanticTraceSnapshot = ReadonlyArray<SemanticTraceSnapshotEntry>;
@@ -68,5 +77,19 @@ export const projectEvent = (e: SemanticTelemetryEvent): SemanticTraceSnapshotEn
       };
     case "artifact.generated":
       return { type: e.type, ...opId, artifact: e.artifact, path: e.path };
+    case "agent.model.resolved":
+      return {
+        type: e.type,
+        ...opId,
+        requestedFamily: e.requestedFamily,
+        requestedEffort: e.requestedEffort,
+        normalizedTier: e.normalizedTier,
+        selectedProvider: e.selectedProvider,
+        selectedFamily: e.selectedFamily,
+        selectedConcreteModel: e.selectedConcreteModel,
+        ...(e.selectedThinking !== undefined ? { selectedThinking: e.selectedThinking } : {}),
+        relationship: e.relationship,
+        reason: e.reason,
+      };
   }
 };

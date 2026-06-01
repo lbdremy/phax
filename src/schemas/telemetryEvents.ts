@@ -1,4 +1,11 @@
 import { Schema } from "effect";
+import {
+  ModelFamilySchema,
+  ProviderIdSchema,
+  RelationshipSchema,
+  RoutingTierSchema,
+  ThinkingLevelSchema,
+} from "./modelRouting.js";
 
 const StateTransitionTelemetryEventSchema = Schema.Struct({
   type: Schema.Literal("state.transition"),
@@ -70,6 +77,21 @@ const ArtifactGeneratedTelemetryEventSchema = Schema.Struct({
   path: Schema.String,
 });
 
+const ModelResolvedTelemetryEventSchema = Schema.Struct({
+  type: Schema.Literal("agent.model.resolved"),
+  runId: Schema.String.pipe(Schema.minLength(1)),
+  operationId: Schema.optional(Schema.String),
+  requestedFamily: ModelFamilySchema,
+  requestedEffort: ThinkingLevelSchema,
+  normalizedTier: RoutingTierSchema,
+  selectedProvider: ProviderIdSchema,
+  selectedFamily: ModelFamilySchema,
+  selectedConcreteModel: Schema.String.pipe(Schema.minLength(1)),
+  selectedThinking: Schema.optional(ThinkingLevelSchema),
+  relationship: RelationshipSchema,
+  reason: Schema.String.pipe(Schema.minLength(1)),
+});
+
 export const SemanticTelemetryEventSchema = Schema.Union(
   StateTransitionTelemetryEventSchema,
   AdapterCallStartedTelemetryEventSchema,
@@ -79,6 +101,7 @@ export const SemanticTelemetryEventSchema = Schema.Union(
   StepCompletedTelemetryEventSchema,
   GateEvaluatedTelemetryEventSchema,
   ArtifactGeneratedTelemetryEventSchema,
+  ModelResolvedTelemetryEventSchema,
 );
 
 export type SemanticTelemetryEventFromSchema = Schema.Schema.Type<
