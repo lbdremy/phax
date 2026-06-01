@@ -147,6 +147,7 @@ export function extractPlanCore(
     const prompt = buildExtractionPrompt(planMd, jsonSchema);
 
     const runResult = yield* backend.runAgent(prompt, {
+      provider: "claude-code",
       model: opts.model,
       effort: opts.effort,
       cwd: opts.cwd,

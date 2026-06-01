@@ -302,6 +302,7 @@ export function executePlan(
       yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);
 
       const agentOptions: AgentRunOptions = {
+        provider: "claude-code",
         model: phase.model,
         effort: phase.effort,
         cwd: worktreePath as string,

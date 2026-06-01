@@ -243,6 +243,7 @@ export function runGatesWithFixLoop(
         { "phax.phase.id": phaseId },
         backend
           .resumeAgentSession(currentSessionId, fixPrompt, {
+            provider: agentOptions.provider,
             model: agentOptions.model,
             effort: agentOptions.effort,
             cwd: agentOptions.cwd,

@@ -73,9 +73,11 @@ describe("adaptAgentRun", () => {
     });
 
     const event = await Effect.runPromise(
-      adaptAgentRun("prompt", { model: "m", effort: "low", cwd: "/" }, base).pipe(
-        Effect.provide(layer),
-      ),
+      adaptAgentRun(
+        "prompt",
+        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+        base,
+      ).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("AgentInvocationCompleted");
@@ -90,9 +92,11 @@ describe("adaptAgentRun", () => {
     impl.failRunWithRateLimit(0, { kind: "rate_limit", resetAt: "2026-05-21T01:00:00.000Z" });
 
     const event = await Effect.runPromise(
-      adaptAgentRun("prompt", { model: "m", effort: "low", cwd: "/" }, base).pipe(
-        Effect.provide(layer),
-      ),
+      adaptAgentRun(
+        "prompt",
+        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+        base,
+      ).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("RateLimitDetected");
@@ -108,9 +112,11 @@ describe("adaptAgentRun", () => {
     impl.failRunWithRateLimit(0, { kind: "usage_limit" });
 
     const event = await Effect.runPromise(
-      adaptAgentRun("prompt", { model: "m", effort: "low", cwd: "/" }, base).pipe(
-        Effect.provide(layer),
-      ),
+      adaptAgentRun(
+        "prompt",
+        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+        base,
+      ).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("RateLimitDetected");
@@ -125,9 +131,11 @@ describe("adaptAgentRun", () => {
 
     const result = await Effect.runPromise(
       Effect.either(
-        adaptAgentRun("prompt", { model: "m", effort: "low", cwd: "/" }, base).pipe(
-          Effect.provide(layer),
-        ),
+        adaptAgentRun(
+          "prompt",
+          { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+          base,
+        ).pipe(Effect.provide(layer)),
       ),
     );
 
@@ -152,9 +160,12 @@ describe("adaptAgentResume", () => {
     });
 
     const event = await Effect.runPromise(
-      adaptAgentResume(sessionId, "prompt", { model: "m", effort: "low", cwd: "/" }, base).pipe(
-        Effect.provide(layer),
-      ),
+      adaptAgentResume(
+        sessionId,
+        "prompt",
+        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+        base,
+      ).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("AgentInvocationCompleted");
@@ -168,9 +179,12 @@ describe("adaptAgentResume", () => {
     impl.failNextResumeWithRateLimit({ kind: "rate_limit", resetAt: "2026-05-21T02:00:00.000Z" });
 
     const event = await Effect.runPromise(
-      adaptAgentResume(sessionId, "prompt", { model: "m", effort: "low", cwd: "/" }, base).pipe(
-        Effect.provide(layer),
-      ),
+      adaptAgentResume(
+        sessionId,
+        "prompt",
+        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+        base,
+      ).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("RateLimitDetected");
@@ -185,9 +199,12 @@ describe("adaptAgentResume", () => {
     impl.failNextResumeWithRateLimit({ kind: "usage_limit" });
 
     const event = await Effect.runPromise(
-      adaptAgentResume(sessionId, "prompt", { model: "m", effort: "low", cwd: "/" }, base).pipe(
-        Effect.provide(layer),
-      ),
+      adaptAgentResume(
+        sessionId,
+        "prompt",
+        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+        base,
+      ).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("RateLimitDetected");
@@ -201,9 +218,12 @@ describe("adaptAgentResume", () => {
 
     const result = await Effect.runPromise(
       Effect.either(
-        adaptAgentResume(sessionId, "prompt", { model: "m", effort: "low", cwd: "/" }, base).pipe(
-          Effect.provide(layer),
-        ),
+        adaptAgentResume(
+          sessionId,
+          "prompt",
+          { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+          base,
+        ).pipe(Effect.provide(layer)),
       ),
     );
 
@@ -440,7 +460,12 @@ describe("adaptCleanup", () => {
 describe("adaptHandoffGenerate", () => {
   const handoffOpts: GenerateHandoffOptions = {
     sessionId: "sess-abc" as never,
-    agentOptions: { model: "claude-sonnet-4-6", effort: "low", cwd: worktreePath as string },
+    agentOptions: {
+      provider: "claude-code" as const,
+      model: "claude-sonnet-4-6",
+      effort: "low",
+      cwd: worktreePath as string,
+    },
     phaseFolderPath,
     worktreePath: worktreePath as string,
     runPath,

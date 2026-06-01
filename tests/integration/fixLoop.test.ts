@@ -43,6 +43,7 @@ const baseOpts = {
   phaseFolderPath,
   sessionId,
   agentOptions: {
+    provider: "claude-code" as const,
     model: "claude-sonnet-4-6",
     effort: "medium",
     cwd,
