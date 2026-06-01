@@ -12,13 +12,15 @@ import {
   UsageLimitError,
 } from "../../domain/errors.js";
 import { decodeClaudeSessionId } from "../../domain/branded.js";
-import {
-  classifyRateLimit,
-  findResultEvent,
-  hasErroredResultEvent,
-  type RateLimitClassification,
-} from "../../schemas/claudeOutput.js";
+import { classifyRateLimit } from "../../schemas/claudeOutput.js";
+import { findVibeResultEvent, hasVibeErroredResultEvent } from "../../schemas/vibeOutput.js";
 import { persistSessionId } from "./sessionWriter.js";
+
+type VibeProviderEntry = {
+  readonly executable: string;
+  readonly modelEnvVar?: string | undefined;
+  readonly defaultAgent?: string | undefined;
+};
 
 function wrapFsError(err: unknown): FsError {
   return new FsError({
@@ -33,11 +35,25 @@ interface SpawnResult {
   readonly stderr: string;
 }
 
-function spawnClaude(
+export function buildVibeArgs(entry: VibeProviderEntry, resumeSessionId?: string): string[] {
+  const args: string[] = [];
+  if (entry.defaultAgent) {
+    args.push("--agent", entry.defaultAgent);
+  }
+  args.push("--print", "--output-format", "stream-json", "--verbose");
+  if (resumeSessionId) {
+    args.push("--resume", resumeSessionId);
+  }
+  return args;
+}
+
+function spawnVibe(
+  entry: VibeProviderEntry,
   args: readonly string[],
   prompt: string,
   outputJsonlPath: string | undefined,
   cwd: string | undefined,
+  modelAlias: string,
 ): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
     const lines: string[] = [];
@@ -49,9 +65,15 @@ function spawnClaude(
       writeStream = createWriteStream(outputJsonlPath, { flags: "w" });
     }
 
-    const proc = spawn("claude", [...args], {
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      ...(entry.modelEnvVar ? { [entry.modelEnvVar]: modelAlias } : {}),
+    };
+
+    const proc = spawn(entry.executable, [...args], {
       stdio: ["pipe", "pipe", "pipe"],
       ...(cwd !== undefined ? { cwd } : {}),
+      env,
     });
 
     proc.stdin.write(prompt, "utf8");
@@ -86,71 +108,41 @@ function spawnClaude(
   });
 }
 
-function buildArgs(options: AgentRunOptions, resumeSessionId?: string): string[] {
-  // `claude` requires `--verbose` whenever `--print` is paired with
-  // `--output-format=stream-json`; without it the CLI exits with code 1.
-  // `--permission-mode bypassPermissions` is required for non-interactive runs:
-  // phax owns the worktree it spawns claude in, so prompting for Write/Edit
-  // approval would deadlock the headless session.
-  const args = [
-    "--print",
-    "--output-format",
-    "stream-json",
-    "--verbose",
-    "--permission-mode",
-    "bypassPermissions",
-    "--model",
-    options.model,
-    "--effort",
-    options.effort,
-  ];
-  if (resumeSessionId) {
-    args.push("--resume", resumeSessionId);
-  }
-  return args;
-}
-
-/** Build a typed rate-limit / usage-limit error from a classification. */
-function rateLimitErrorFor(
-  classification: RateLimitClassification,
-): RateLimitError | UsageLimitError {
-  const fields = {
-    rawMessage: classification.rawMessage,
-    resetAt: classification.resetAt,
-  };
+function rateLimitErrorFor(classification: {
+  kind: "rate_limit" | "usage_limit";
+  rawMessage: string;
+  resetAt?: string | undefined;
+}): RateLimitError | UsageLimitError {
+  const fields = { rawMessage: classification.rawMessage, resetAt: classification.resetAt };
   return classification.kind === "usage_limit"
-    ? new UsageLimitError({
-        message: "Claude Code stopped: usage limit reached.",
-        ...fields,
-      })
-    : new RateLimitError({
-        message: "Claude Code stopped: rate limit hit.",
-        ...fields,
-      });
+    ? new UsageLimitError({ message: "Vibe stopped: usage limit reached.", ...fields })
+    : new RateLimitError({ message: "Vibe stopped: rate limit hit.", ...fields });
 }
 
-export function runClaudeAgent(
+export function runVibeAgent(
   prompt: string,
   options: AgentRunOptions,
+  entry: VibeProviderEntry,
   resumeSessionId?: string,
 ): Effect.Effect<
   AgentRunResult,
   ClaudeInvocationError | ClaudeSessionIdMissingError | RateLimitError | UsageLimitError | FsError
 > {
-  const args = buildArgs(options, resumeSessionId);
+  const args = buildVibeArgs(entry, resumeSessionId);
+  const argv = [entry.executable, ...args];
+
   return Effect.gen(function* () {
     const { lines, exitCode, stderr } = yield* Effect.tryPromise({
-      try: () => spawnClaude(args, prompt, options.outputJsonlPath, options.cwd),
+      try: () =>
+        spawnVibe(entry, args, prompt, options.outputJsonlPath, options.cwd, options.model),
       catch: (err): ClaudeInvocationError =>
         new ClaudeInvocationError({
           message: err instanceof Error ? err.message : String(err),
-          argv: ["claude", ...args],
+          argv,
         }),
     });
 
-    // Reclassify a failure as a rate/usage limit when the output carries one of
-    // the known signatures — on a non-zero exit, or on an errored result event.
-    if (exitCode !== 0 || hasErroredResultEvent(lines)) {
+    if (exitCode !== 0 || hasVibeErroredResultEvent(lines)) {
       const classification = classifyRateLimit(stderr, lines);
       if (classification !== undefined) {
         return yield* Effect.fail(rateLimitErrorFor(classification));
@@ -160,19 +152,19 @@ export function runClaudeAgent(
     if (exitCode !== 0) {
       return yield* Effect.fail(
         new ClaudeInvocationError({
-          message: `claude exited with code ${exitCode}`,
+          message: `vibe exited with code ${exitCode}`,
           exitCode,
           ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
-          argv: ["claude", ...args],
+          argv,
         }),
       );
     }
 
-    const found = findResultEvent(lines);
+    const found = findVibeResultEvent(lines);
     if (!found) {
       return yield* Effect.fail(
         new ClaudeSessionIdMissingError({
-          message: "No result event with session_id found in claude output",
+          message: "No result event with session_id found in vibe output",
           outputPath: options.outputJsonlPath ?? "",
         }),
       );
@@ -182,7 +174,7 @@ export function runClaudeAgent(
     if (Either.isLeft(sessionIdResult)) {
       return yield* Effect.fail(
         new ClaudeSessionIdMissingError({
-          message: `Invalid session_id in claude output: "${found.sessionId}"`,
+          message: `Invalid session_id in vibe output: "${found.sessionId}"`,
           outputPath: options.outputJsonlPath ?? "",
         }),
       );
