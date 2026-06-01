@@ -15,6 +15,7 @@ import { runArchive, runArchiveLast } from "./commands/archive.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
 import { registerResumeCommand } from "./commands/resumeRegister.js";
+import { registerAgentCommand } from "./commands/agent.js";
 
 setupInterruptHandlers();
 
@@ -226,6 +227,7 @@ program
   );
 
 registerResumeCommand(program, runResume, consoleOutput, globalTraceOpts);
+registerAgentCommand(program, consoleOutput);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   consoleOutput.error(`Unexpected error: ${String(err)}`);
