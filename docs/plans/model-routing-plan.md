@@ -134,19 +134,19 @@ src/infra/telemetry/openTelemetry.ts    ← + OTel mapping for the new event.
 
 ## Model & effort summary
 
-| #   | Phase                                                            | Model               | Effort |
-| --- | ---------------------------------------------------------------- | ------------------- | ------ |
-| 01  | Routing vocabulary + config schemas                              | claude-sonnet-4-6   | medium |
-| 02  | Default tables + global config loader                            | claude-sonnet-4-6   | low    |
-| 03  | Pure model-resolution algorithm                                  | **claude-opus-4-7** | high   |
-| 04  | `agent.model.resolved` telemetry event                           | claude-sonnet-4-6   | low    |
-| 05  | Provider dispatcher backend + Claude adapter extraction          | claude-sonnet-4-6   | medium |
-| 06  | Mistral Vibe provider adapter                                    | claude-sonnet-4-6   | medium |
-| 07  | OpenAI Codex provider adapter                                    | claude-sonnet-4-6   | medium |
-| 08  | Wire resolution into `executePlan` + `extract-plan`              | claude-sonnet-4-6   | medium |
-| 09  | `phax agent setup mistral-vibe` alias installer                  | claude-sonnet-4-6   | high   |
-| 10  | `phax agent` models / resolve / probe commands                   | claude-sonnet-4-6   | medium |
-| 11  | Architectural guards, docs, and routing skill                    | claude-sonnet-4-6   | low    |
+| #   | Phase                                                   | Model               | Effort |
+| --- | ------------------------------------------------------- | ------------------- | ------ |
+| 01  | Routing vocabulary + config schemas                     | claude-sonnet-4-6   | medium |
+| 02  | Default tables + global config loader                   | claude-sonnet-4-6   | low    |
+| 03  | Pure model-resolution algorithm                         | **claude-opus-4-7** | high   |
+| 04  | `agent.model.resolved` telemetry event                  | claude-sonnet-4-6   | low    |
+| 05  | Provider dispatcher backend + Claude adapter extraction | claude-sonnet-4-6   | medium |
+| 06  | Mistral Vibe provider adapter                           | claude-sonnet-4-6   | medium |
+| 07  | OpenAI Codex provider adapter                           | claude-sonnet-4-6   | medium |
+| 08  | Wire resolution into `executePlan` + `extract-plan`     | claude-sonnet-4-6   | medium |
+| 09  | `phax agent setup mistral-vibe` alias installer         | claude-sonnet-4-6   | high   |
+| 10  | `phax agent` models / resolve / probe commands          | claude-sonnet-4-6   | medium |
+| 11  | Architectural guards, docs, and routing skill           | claude-sonnet-4-6   | low    |
 
 ---
 
@@ -498,7 +498,7 @@ select the adapter by `options.provider`. Behavior for Claude must be identical.
   `src/infra/claudeCli.ts` into `src/infra/providers/claudeCode.ts`, exposing
   `runClaudeAgent(prompt, options): Effect<AgentRunResult, …>` and the resume
   variant. Keep the exact `claude` argv (`--print --output-format stream-json
-  --verbose --permission-mode bypassPermissions --model … --effort …`) and the
+--verbose --permission-mode bypassPermissions --model … --effort …`) and the
   rate-limit classification unchanged.
 - Create `src/infra/providers/dispatcher.ts` exporting
   `makeNodeBackendLayer(providerConfig: ProviderConfig): Layer<Backend>`. The
@@ -861,7 +861,7 @@ feat(routing): add Mistral Vibe alias setup helper
 
 Add src/app/vibeSetup.ts and src/schemas/vibeConfig.ts implementing spec §14
 with an append-only strategy: a read-only scan extracts the mistral-medium-3.5
-base model's scalar fields, then five phax-mistral-medium-3.5-* [[models]]
+base model's scalar fields, then five phax-mistral-medium-3.5-\* [[models]]
 blocks are appended changing only alias and thinking. Existing bytes are never
 rewritten, so active_model and user entries cannot be corrupted. Idempotent
 (appends only missing aliases), backs up before writing, and writes atomically.
