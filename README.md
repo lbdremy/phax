@@ -120,6 +120,20 @@ phax archive-last               # most recent review_open run
 phax archive <short-name> --force  # allow uncommitted changes in final worktree
 ```
 
+## Multi-provider model routing
+
+PHAX can route phase execution through Claude Code, Mistral Vibe, or OpenAI Codex based on a user-editable global routing config (`~/.phax/model-routing.json`). The routing layer maps requested model IDs to stable **model families** and **PHAX tiers**, then selects the best available provider from `providerPriority`.
+
+```bash
+phax agent models                              # print routing table + provider priority
+phax agent resolve --model claude-sonnet-4-6 --effort medium [--json]
+phax agent probe                               # check provider executable availability
+phax agent setup mistral-vibe --dry-run        # preview Vibe alias installation
+phax agent setup mistral-vibe --install-model-aliases  # install PHAX Vibe aliases
+```
+
+The default `providerPriority` is `["claude-code"]` — all phases run through Claude Code as today. Add `"mistral-vibe"` or `"codex-cli"` to the priority list to route compatible phases. See [`docs/model-routing.md`](docs/model-routing.md) for the full resolution pipeline, tier table, relationship semantics, and worked examples.
+
 ## Testing
 
 ```bash
