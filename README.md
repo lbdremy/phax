@@ -132,7 +132,7 @@ phax agent setup mistral-vibe --dry-run        # preview Vibe alias installation
 phax agent setup mistral-vibe --install-model-aliases  # install PHAX Vibe aliases
 ```
 
-The default `providerPriority` is `["claude-code"]` — all phases run through Claude Code as today. Add `"mistral-vibe"` or `"codex-cli"` to the priority list to route compatible phases. See [`docs/model-routing.md`](docs/model-routing.md) for the full resolution pipeline, tier table, relationship semantics, and worked examples.
+The default `providerPriority` is `["mistral-vibe", "codex-cli", "claude-code"]` (the spec §12 multi-provider table). On a clean install, mistral-vibe and codex-cli are `enabled: false` in the default provider config, so all phases run through Claude Code as before. Enabling them via `phax agent setup providers` (or editing `~/.phax/providers.json`) activates the richer routing. See [`docs/model-routing.md`](docs/model-routing.md) for the full resolution pipeline, tier table, relationship semantics, and worked examples.
 
 ## Testing
 
