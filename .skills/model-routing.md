@@ -72,6 +72,19 @@ src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
 3. Add `requestedModelNormalization` entries for known versioned IDs.
 4. Update `docs/model-routing.md` family table.
 
+## Per-invocation provider priority override
+
+Both `phax run` and `phax resume` accept `--provider-priority <list>` to override `providerPriority` for that invocation without touching any config file:
+
+```bash
+phax run --provider-priority mistral-vibe,claude-code
+phax resume my-run --yes --provider-priority codex-cli,claude-code
+```
+
+Valid ids: `claude-code`, `mistral-vibe`, `codex-cli`. The list is parsed by `parseProviderPriority` in `src/domain/routing/priorityOverride.ts` (deduped, trimmed, validated; fails fast on empty/unknown). The override is applied by `applyProviderPriorityOverride` which returns a new `ModelRouting` with only `providerPriority` replaced.
+
+**Caveat**: `claude-code` remains the guaranteed terminal fallback in `resolveModel` regardless of the override. An override that omits `claude-code` may still resolve to it when no listed provider can serve a tier.
+
 ## Worked examples (spec §15)
 
 | Request       | Priority           | allowDowngrade | Result                                                       |

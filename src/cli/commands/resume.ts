@@ -11,7 +11,13 @@ import { decodeRunStatus } from "../../schemas/status.js";
 import { executePlan } from "../../app/executePlan.js";
 import { withRunLock } from "../../app/lock.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
-import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
+import { DEFAULT_PROVIDER_CONFIG, DEFAULT_MODEL_ROUTING } from "../../domain/routing/defaults.js";
+import {
+  parseProviderPriority,
+  applyProviderPriorityOverride,
+} from "../../domain/routing/priorityOverride.js";
+import type { NonEmptyArray } from "../../domain/routing/priorityOverride.js";
+import type { ProviderId } from "../../domain/routing/types.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
@@ -20,6 +26,7 @@ export interface ResumeCommandOptions {
   yes?: boolean;
   verbose?: boolean;
   trace?: boolean;
+  providerPriority?: string;
 }
 
 export async function runResume(
@@ -41,6 +48,16 @@ export async function runResume(
     return 1;
   }
   const shortName = shortNameResult.right;
+
+  let priorityOverride: NonEmptyArray<ProviderId> | undefined;
+  if (opts.providerPriority !== undefined) {
+    const parsed = parseProviderPriority(opts.providerPriority);
+    if (!parsed.ok) {
+      out.error(parsed.error);
+      return 1;
+    }
+    priorityOverride = parsed.value;
+  }
 
   const decisionResult = inspectResume(shortName, stateRoot);
   if (Either.isLeft(decisionResult)) {
@@ -128,9 +145,14 @@ export async function runResume(
       Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
     ).pipe(Effect.provide(NodeFileSystemLayer)),
   );
-  const { routing, providerConfig } = Either.isRight(routingResult)
+  const { routing: loadedRouting, providerConfig } = Either.isRight(routingResult)
     ? routingResult.right
     : { routing: undefined, providerConfig: DEFAULT_PROVIDER_CONFIG };
+
+  const routing =
+    priorityOverride !== undefined
+      ? applyProviderPriorityOverride(loadedRouting ?? DEFAULT_MODEL_ROUTING, priorityOverride)
+      : loadedRouting;
 
   const telemetryLayer = buildSystemTelemetryLayer(
     opts,

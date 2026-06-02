@@ -146,6 +146,21 @@ selected provider   ──providerCfg─▶  concrete model/alias
 
 **No silent Opus downgrade**: when `allowDowngrade: false` (the default), resolution will not silently route `claude-opus` phases to a weaker provider. It falls through to `claude-code`.
 
+### Per-invocation override with `--provider-priority`
+
+Both `phax run` and `phax resume` accept a `--provider-priority <list>` flag that overrides `providerPriority` for that single invocation without writing any file on disk:
+
+```bash
+phax run --provider-priority mistral-vibe,claude-code
+phax resume my-run --yes --provider-priority codex-cli,claude-code
+```
+
+`<list>` is a comma-separated sequence of provider ids. Valid ids: `claude-code`, `mistral-vibe`, `codex-cli`. Whitespace around commas is trimmed; trailing commas and duplicates are silently dropped (first-seen order is preserved). An empty or invalid list fails fast with a non-zero exit and a descriptive error.
+
+The flag replaces `routing.providerPriority` in memory for that invocation only. Every other routing field (`allowDowngrade`, `tiers`, `normalization`, etc.) is preserved.
+
+**Important**: `claude-code` remains the guaranteed terminal fallback inside `resolveModel`, regardless of the override. If the override list omits `claude-code` and no listed provider can serve a tier, resolution still falls through to `claude-code`. This is by design — it is not a bug.
+
 ## phax agent commands
 
 ```bash

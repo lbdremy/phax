@@ -59,6 +59,7 @@ phax run --dry-run                              # preview only — zero side eff
 phax run --profile fast                         # override gate profile
 phax run --allow-dirty                          # skip clean-tree guard
 phax run --workspace packages/api              # workspace-scoped gate commands (monorepo)
+phax run --provider-priority mistral-vibe,claude-code  # override provider priority for this run
 ```
 
 Each phase:
@@ -177,6 +178,7 @@ See [`docs/observability.md`](docs/observability.md) for architecture details, t
 ```bash
 phax resume <short-name>        # restart from the next pending phase
 phax resume <short-name> --yes  # skip confirmation
+phax resume <short-name> --yes --provider-priority codex-cli,claude-code  # override provider priority
 ```
 
 Resume validates the run state, lock, and worktree before proceeding. It never re-runs committed phases. If the run is `review_open`, it refuses and points you at `phax enter`.
