@@ -6,8 +6,8 @@ import { dirname } from "node:path";
 import type { AgentRunOptions, AgentRunResult } from "../../ports/backend.js";
 import { FsError } from "../../ports/fs.js";
 import {
-  ClaudeInvocationError,
-  ClaudeSessionIdMissingError,
+  AgentInvocationError,
+  AgentSessionIdMissingError,
   RateLimitError,
   UsageLimitError,
 } from "../../domain/errors.js";
@@ -126,7 +126,7 @@ export function runVibeAgent(
   resumeSessionId?: string,
 ): Effect.Effect<
   AgentRunResult,
-  ClaudeInvocationError | ClaudeSessionIdMissingError | RateLimitError | UsageLimitError | FsError
+  AgentInvocationError | AgentSessionIdMissingError | RateLimitError | UsageLimitError | FsError
 > {
   const args = buildVibeArgs(entry, resumeSessionId);
   const argv = [entry.executable, ...args];
@@ -135,8 +135,8 @@ export function runVibeAgent(
     const { lines, exitCode, stderr } = yield* Effect.tryPromise({
       try: () =>
         spawnVibe(entry, args, prompt, options.outputJsonlPath, options.cwd, options.model),
-      catch: (err): ClaudeInvocationError =>
-        new ClaudeInvocationError({
+      catch: (err): AgentInvocationError =>
+        new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
           argv,
         }),
@@ -151,7 +151,7 @@ export function runVibeAgent(
 
     if (exitCode !== 0) {
       return yield* Effect.fail(
-        new ClaudeInvocationError({
+        new AgentInvocationError({
           message: `vibe exited with code ${exitCode}`,
           exitCode,
           ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
@@ -163,7 +163,7 @@ export function runVibeAgent(
     const found = findVibeResultEvent(lines);
     if (!found) {
       return yield* Effect.fail(
-        new ClaudeSessionIdMissingError({
+        new AgentSessionIdMissingError({
           message: "No result event with session_id found in vibe output",
           outputPath: options.outputJsonlPath ?? "",
         }),
@@ -173,7 +173,7 @@ export function runVibeAgent(
     const sessionIdResult = decodeClaudeSessionId(found.sessionId);
     if (Either.isLeft(sessionIdResult)) {
       return yield* Effect.fail(
-        new ClaudeSessionIdMissingError({
+        new AgentSessionIdMissingError({
           message: `Invalid session_id in vibe output: "${found.sessionId}"`,
           outputPath: options.outputJsonlPath ?? "",
         }),

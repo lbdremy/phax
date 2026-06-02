@@ -19,8 +19,8 @@ import { SystemTelemetry } from "../../ports/systemTelemetry.js";
 import type { RunId } from "../../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
-  ClaudeInvocationError,
-  ClaudeSessionIdMissingError,
+  AgentInvocationError,
+  AgentSessionIdMissingError,
   ConfigValidationError,
   GateFailedError,
   LockConflictError,
@@ -73,7 +73,7 @@ export function exitCodeForError(err: unknown): number {
   if (err instanceof PlanValidationError || err instanceof ConfigValidationError) return 2;
   if (err instanceof UnsafeGitStateError) return 3;
   if (err instanceof GateFailedError) return 4;
-  if (err instanceof ClaudeInvocationError || err instanceof ClaudeSessionIdMissingError) return 5;
+  if (err instanceof AgentInvocationError || err instanceof AgentSessionIdMissingError) return 5;
   if (err instanceof ArchiveBlockedByDirtyWorktreeError) return 6;
   if (err instanceof LockConflictError) return 7;
   if (err instanceof RateLimitError || err instanceof UsageLimitError) return 8;

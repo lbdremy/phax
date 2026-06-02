@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RunId } from "../../../src/domain/branded.js";
-import { ClaudeInvocationError, GateFailedError } from "../../../src/domain/errors.js";
+import { AgentInvocationError, GateFailedError } from "../../../src/domain/errors.js";
 import { GitError } from "../../../src/ports/git.js";
 import { ShellError } from "../../../src/ports/shell.js";
 import {
@@ -101,8 +101,8 @@ describe("reportGitFailure", () => {
 });
 
 describe("reportClaudeFailure", () => {
-  it("maps ClaudeInvocationError fields onto SystemErrorReport", () => {
-    const e = new ClaudeInvocationError({
+  it("maps AgentInvocationError fields onto SystemErrorReport", () => {
+    const e = new AgentInvocationError({
       message: "claude exited with code 1",
       exitCode: 1,
       stderr: "Error: rate limit",
@@ -126,7 +126,7 @@ describe("reportClaudeFailure", () => {
   });
 
   it("falls back to stderr when stderrExcerpt absent", () => {
-    const e = new ClaudeInvocationError({
+    const e = new AgentInvocationError({
       message: "fail",
       exitCode: 1,
       stderr: "unexpected error",
@@ -137,7 +137,7 @@ describe("reportClaudeFailure", () => {
   });
 
   it("handles missing optional fields gracefully", () => {
-    const e = new ClaudeInvocationError({ message: "no responses queued" });
+    const e = new AgentInvocationError({ message: "no responses queued" });
     const report = reportClaudeFailure(e, { runId, adapter: "claude-code-cli", operation: "run" });
 
     expect(report.type).toBe("adapter.claude_failed");
@@ -146,7 +146,7 @@ describe("reportClaudeFailure", () => {
   });
 
   it("expected field is forwarded from ReportContext", () => {
-    const e = new ClaudeInvocationError({ message: "fail", exitCode: 1 });
+    const e = new AgentInvocationError({ message: "fail", exitCode: 1 });
     const report = reportClaudeFailure(e, {
       runId,
       adapter: "claude-code-cli",

@@ -1,5 +1,5 @@
 import type { RunId } from "../../domain/branded.js";
-import type { ClaudeInvocationError } from "../../domain/errors.js";
+import type { AgentInvocationError } from "../../domain/errors.js";
 import { makeSystemErrorReport, type SystemErrorReport } from "../../domain/telemetry/errors.js";
 import type { GitError } from "../../ports/git.js";
 import type { ShellError } from "../../ports/shell.js";
@@ -42,7 +42,7 @@ export function reportGitFailure(e: GitError, ctx: ReportContext): SystemErrorRe
 }
 
 export function reportClaudeFailure(
-  e: ClaudeInvocationError,
+  e: AgentInvocationError,
   ctx: ReportContext,
 ): SystemErrorReport {
   const stderrExcerpt = e.stderrExcerpt ?? e.stderr;

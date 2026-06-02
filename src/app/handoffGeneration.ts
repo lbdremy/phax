@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId } from "../domain/branded.js";
 import {
-  type ClaudeInvocationError,
-  type ClaudeSessionIdMissingError,
+  type AgentInvocationError,
+  type AgentSessionIdMissingError,
   type RateLimitError,
   type RegistryCorruptionError,
   type SetupCommandFailedError,
@@ -77,8 +77,8 @@ export function generatePhaseHandoff(
   | GitError
   | ShellError
   | SetupCommandFailedError
-  | ClaudeInvocationError
-  | ClaudeSessionIdMissingError
+  | AgentInvocationError
+  | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError
   | HandoffValidationError

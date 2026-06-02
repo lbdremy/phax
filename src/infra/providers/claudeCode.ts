@@ -6,8 +6,8 @@ import { dirname } from "node:path";
 import type { AgentRunOptions, AgentRunResult } from "../../ports/backend.js";
 import { FsError } from "../../ports/fs.js";
 import {
-  ClaudeInvocationError,
-  ClaudeSessionIdMissingError,
+  AgentInvocationError,
+  AgentSessionIdMissingError,
   RateLimitError,
   UsageLimitError,
 } from "../../domain/errors.js";
@@ -135,14 +135,14 @@ export function runClaudeAgent(
   resumeSessionId?: string,
 ): Effect.Effect<
   AgentRunResult,
-  ClaudeInvocationError | ClaudeSessionIdMissingError | RateLimitError | UsageLimitError | FsError
+  AgentInvocationError | AgentSessionIdMissingError | RateLimitError | UsageLimitError | FsError
 > {
   const args = buildArgs(options, resumeSessionId);
   return Effect.gen(function* () {
     const { lines, exitCode, stderr } = yield* Effect.tryPromise({
       try: () => spawnClaude(args, prompt, options.outputJsonlPath, options.cwd),
-      catch: (err): ClaudeInvocationError =>
-        new ClaudeInvocationError({
+      catch: (err): AgentInvocationError =>
+        new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
           argv: ["claude", ...args],
         }),
@@ -159,7 +159,7 @@ export function runClaudeAgent(
 
     if (exitCode !== 0) {
       return yield* Effect.fail(
-        new ClaudeInvocationError({
+        new AgentInvocationError({
           message: `claude exited with code ${exitCode}`,
           exitCode,
           ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
@@ -171,7 +171,7 @@ export function runClaudeAgent(
     const found = findResultEvent(lines);
     if (!found) {
       return yield* Effect.fail(
-        new ClaudeSessionIdMissingError({
+        new AgentSessionIdMissingError({
           message: "No result event with session_id found in claude output",
           outputPath: options.outputJsonlPath ?? "",
         }),
@@ -181,7 +181,7 @@ export function runClaudeAgent(
     const sessionIdResult = decodeClaudeSessionId(found.sessionId);
     if (Either.isLeft(sessionIdResult)) {
       return yield* Effect.fail(
-        new ClaudeSessionIdMissingError({
+        new AgentSessionIdMissingError({
           message: `Invalid session_id in claude output: "${found.sessionId}"`,
           outputPath: options.outputJsonlPath ?? "",
         }),

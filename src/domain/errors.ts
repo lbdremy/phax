@@ -28,7 +28,7 @@ export class SetupCommandFailedError extends Data.TaggedError("SetupCommandFaile
   stderr: string;
 }> {}
 
-export class ClaudeInvocationError extends Data.TaggedError("ClaudeInvocationError")<{
+export class AgentInvocationError extends Data.TaggedError("AgentInvocationError")<{
   message: string;
   exitCode?: number | undefined;
   stderr?: string | undefined;
@@ -37,7 +37,7 @@ export class ClaudeInvocationError extends Data.TaggedError("ClaudeInvocationErr
   expected?: string;
 }> {}
 
-export class ClaudeSessionIdMissingError extends Data.TaggedError("ClaudeSessionIdMissingError")<{
+export class AgentSessionIdMissingError extends Data.TaggedError("AgentSessionIdMissingError")<{
   message: string;
   outputPath: string;
 }> {}

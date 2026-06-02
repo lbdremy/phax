@@ -15,8 +15,8 @@ import type {
 } from "../domain/events.js";
 import type {
   ArchiveBlockedByDirtyWorktreeError,
-  ClaudeInvocationError,
-  ClaudeSessionIdMissingError,
+  AgentInvocationError,
+  AgentSessionIdMissingError,
   PhaseHadNoChangesError,
   RegistryCorruptionError,
 } from "../domain/errors.js";
@@ -60,7 +60,7 @@ export function adaptAgentRun(
   base: PhaxEventBase,
 ): Effect.Effect<
   AgentInvocationCompleted | RateLimitDetected,
-  ClaudeInvocationError | FsError,
+  AgentInvocationError | FsError,
   Backend
 > {
   return Backend.pipe(
@@ -107,7 +107,7 @@ export function adaptAgentResume(
   base: PhaxEventBase,
 ): Effect.Effect<
   AgentInvocationCompleted | RateLimitDetected,
-  ClaudeInvocationError | ClaudeSessionIdMissingError | FsError,
+  AgentInvocationError | AgentSessionIdMissingError | FsError,
   Backend
 > {
   return Backend.pipe(
@@ -217,8 +217,8 @@ export function adaptHandoffGenerate(
   base: PhaxEventBase,
 ): Effect.Effect<
   HandoffValidated | HandoffMissing | RateLimitDetected,
-  | ClaudeInvocationError
-  | ClaudeSessionIdMissingError
+  | AgentInvocationError
+  | AgentSessionIdMissingError
   | GitError
   | ShellError
   | FsError
@@ -254,8 +254,8 @@ export function adaptHandoffGenerate(
         e,
       ): Effect.Effect<
         HandoffMissing,
-        | ClaudeInvocationError
-        | ClaudeSessionIdMissingError
+        | AgentInvocationError
+        | AgentSessionIdMissingError
         | GitError
         | ShellError
         | FsError
@@ -270,8 +270,8 @@ export function adaptHandoffGenerate(
         }
         return Effect.fail(
           e as
-            | ClaudeInvocationError
-            | ClaudeSessionIdMissingError
+            | AgentInvocationError
+            | AgentSessionIdMissingError
             | GitError
             | ShellError
             | FsError
