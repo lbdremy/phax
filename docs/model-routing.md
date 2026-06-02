@@ -36,7 +36,7 @@ Tiers represent capability levels independent of provider:
 
 ## Default routing table (`~/.phax/model-routing.json`)
 
-The built-in defaults (`DEFAULT_MODEL_ROUTING`) implement a Claude-only routing table with `providerPriority: ["claude-code"]`. To enable Mistral Vibe or Codex, add them to `providerPriority`:
+The built-in defaults (`DEFAULT_MODEL_ROUTING`) implement the spec §12 multi-provider routing table with `providerPriority: ["mistral-vibe", "codex-cli", "claude-code"]` and `allowDowngrade: true`. **This is non-breaking**: on a clean install, mistral-vibe and codex-cli ship `enabled: false` in the default provider config, so resolution skips them and every phase routes through Claude Code exactly as before. Enabling them (via `phax agent setup providers` or by editing `~/.phax/providers.json`) activates the richer routing with no config edit.
 
 ```json
 {
@@ -90,7 +90,7 @@ selected provider   ──providerCfg─▶  concrete model/alias
 
 1. **Model → family**: look up `requestedModelNormalization`, then heuristic substring match.
 2. **Family + effort → tier**: `normalization[family]` returns either `{ defaultTier }` or a per-effort map.
-3. **Tier + priority → provider**: walk `providerPriority` in order; pick first provider present in `tiers[tier]`.
+3. **Tier + priority → provider**: walk `providerPriority` in order; for each provider skip it if its `providers.json` entry is `enabled: false`; pick first provider present in `tiers[tier]`.
 4. **Relationship classification**: classify the substitution.
 5. **Downgrade gate**: when `allowDowngrade: false` and requested family is `claude-opus`, skip candidates with `downgrade` or `no_equivalent` relationship.
 6. **Concrete model**: resolve via `providerCfg.providers[provider].families[family].model` (claude/codex) or the Vibe alias map.
@@ -142,7 +142,7 @@ selected provider   ──providerCfg─▶  concrete model/alias
 1. Run `phax agent setup mistral-vibe --install-model-aliases` to install the PHAX aliases.
 2. Set `providerPriority: ["mistral-vibe", "claude-code"]` in `~/.phax/model-routing.json`.
 
-**To disable a provider**: remove it from `providerPriority` or set `enabled: false` in `providers.json`.
+**To disable a provider**: set `enabled: false` in `providers.json`. Resolution skips disabled providers even if they appear in `providerPriority` and their aliases exist.
 
 **No silent Opus downgrade**: when `allowDowngrade: false` (the default), resolution will not silently route `claude-opus` phases to a weaker provider. It falls through to `claude-code`.
 

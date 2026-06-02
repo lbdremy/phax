@@ -256,12 +256,18 @@ otherwise.
 ### Detailed instructions
 
 - Create `src/domain/routing/defaults.ts` (pure):
-  - `DEFAULT_MODEL_ROUTING: ModelRouting` — the exact §12 object, plus a
+  - `DEFAULT_MODEL_ROUTING: ModelRouting` — the spec §12 multi-provider table, plus a
     `requestedModelNormalization` seeded with the known plan model ids:
     `"claude-haiku-4-5-20251001" → "claude-haiku"`, `"claude-sonnet-4-6" → "claude-sonnet"`,
     `"claude-opus-4-7" → "claude-opus"`, and the bare aliases `"haiku" → "claude-haiku"`,
     `"sonnet" → "claude-sonnet"`, `"opus" → "claude-opus"`.
-  - `DEFAULT_PROVIDER_CONFIG: ProviderConfig` — the exact §13 object.
+    **Note**: This plan predates the enabled-gating plan (`model-routing-enabled-gating-plan.md`).
+    The shipped implementation of this phase used a Claude-only table
+    (`providerPriority: ["claude-code"]`, `allowDowngrade: false`) for
+    non-breaking safety. The §12 multi-provider table became the default only
+    after resolution was gated on the `enabled` flag, allowing `mistral-vibe`
+    and `codex-cli` to ship disabled by default.
+  - `DEFAULT_PROVIDER_CONFIG: ProviderConfig` — the spec §13 object.
   - Typecheck these constants against the schema-derived types so drift fails
     the build.
 - Create `src/app/loadRouting.ts` using the `FileSystem` port:

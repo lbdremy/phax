@@ -49,7 +49,7 @@ src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
 
 1. `request.model` → look up `routing.requestedModelNormalization` → `ModelFamily`
 2. `family + request.effort` → look up `routing.normalization[family]` → `RoutingTier`
-3. Walk `routing.providerPriority`; for each provider check `routing.tiers[tier][provider]`
+3. Walk `routing.providerPriority`; for each provider skip it if its `providers.json` entry is `enabled: false`; check `routing.tiers[tier][provider]`
 4. Classify the substitution as `exact | equivalent | fallback | downgrade | no_equivalent`
 5. If `allowDowngrade: false` and family is `claude-opus`, skip `downgrade` / `no_equivalent`
 6. Resolve concrete model: claude/codex → `families[family].model`; vibe → `aliases["<family>/<thinking>"]`
