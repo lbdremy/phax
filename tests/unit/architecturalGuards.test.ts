@@ -45,6 +45,66 @@ function listTsFiles(root: string): string[] {
   return out;
 }
 
+// ── Routing domain purity ─────────────────────────────────────────────────────
+// src/domain/routing/ must stay pure: no Effect, no @opentelemetry, no FileSystem
+// port, no infra/ imports. resolveModel is a total pure function over its inputs.
+
+const ROUTING_DOMAIN_FORBIDDEN = [
+  /\bfrom\s+["']effect[/"']/,
+  /\bfrom\s+["']@opentelemetry\//,
+  /\bfrom\s+["'].*ports\/fs/,
+  /\bfrom\s+["'].*\/infra\//,
+];
+
+describe("architectural guard: routing domain purity", () => {
+  const routingDomainRoot = join(srcRoot, "domain", "routing");
+
+  it("src/domain/routing/ imports no Effect, @opentelemetry, FileSystem port, or infra modules", () => {
+    const violations: string[] = [];
+
+    for (const absPath of listTsFiles(routingDomainRoot)) {
+      const rel = relative(repoRoot, absPath).split("\\").join("/");
+      const content = readFileSync(absPath, "utf8");
+
+      for (const pattern of ROUTING_DOMAIN_FORBIDDEN) {
+        if (pattern.test(content)) {
+          violations.push(`${rel}: matches ${pattern}`);
+          break;
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+});
+
+// ── Provider spawn boundary ────────────────────────────────────────────────────
+// Only src/infra/providers/ may spawn provider binaries (claude, vibe, codex).
+// This prevents app/ or domain/ layers from accidentally shelling out directly.
+
+const SPAWN_PATTERN = /\bspawn\s*\(\s*["'`](claude|vibe|codex)/;
+const PROVIDERS_DIR = join(srcRoot, "infra", "providers");
+
+describe("architectural guard: provider spawn boundary", () => {
+  it("only src/infra/providers/ may spawn provider binaries (claude, vibe, codex)", () => {
+    const violations: string[] = [];
+
+    for (const absPath of listTsFiles(srcRoot)) {
+      const rel = relative(repoRoot, absPath).split("\\").join("/");
+
+      const isInProvidersDir = absPath.startsWith(PROVIDERS_DIR);
+      if (isInProvidersDir) continue;
+
+      const content = readFileSync(absPath, "utf8");
+      if (SPAWN_PATTERN.test(content)) {
+        violations.push(rel);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+});
+
 describe("architectural guard: single status writer", () => {
   it("only the dispatcher, runner, and documented metadata writers encode status JSON", () => {
     const violations: string[] = [];
