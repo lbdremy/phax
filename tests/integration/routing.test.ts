@@ -164,6 +164,13 @@ describe("executePlan routing — mistral-vibe priority", () => {
       createRunFolder(shortName, "# Routing Test", plan, config).pipe(Effect.provide(layers)),
     );
 
+    const mistralEnabledProviderConfig = {
+      providers: {
+        ...DEFAULT_PROVIDER_CONFIG.providers,
+        "mistral-vibe": { ...DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"]!, enabled: true },
+      },
+    };
+
     const result = await Effect.runPromise(
       Effect.either(
         executePlan({
@@ -177,7 +184,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
           runId,
           startIndex: 0,
           routing: mistralFirstRouting,
-          providerConfig: DEFAULT_PROVIDER_CONFIG,
+          providerConfig: mistralEnabledProviderConfig,
         }).pipe(Effect.provide(layers)),
       ),
     );
