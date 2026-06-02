@@ -23,7 +23,7 @@ import {
   makeGateEvaluatedTelemetryEvent,
 } from "../domain/telemetry/events.js";
 import { makeSystemErrorReport } from "../domain/telemetry/errors.js";
-import { reportClaudeFailure } from "./telemetry/reportBuilders.js";
+import { reportAgentFailure } from "./telemetry/reportBuilders.js";
 import { dispatch } from "./dispatcher.js";
 import { runGates, type GateOutcome } from "./gates.js";
 
@@ -257,7 +257,7 @@ export function runGatesWithFixLoop(
             Effect.tapError((e) =>
               e instanceof AgentInvocationError
                 ? telemetry.recordError(
-                    reportClaudeFailure(e, {
+                    reportAgentFailure(e, {
                       runId,
                       operationId: phaseId,
                       adapter: "claude-code-cli",

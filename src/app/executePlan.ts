@@ -30,7 +30,7 @@ import {
   makeStepStartedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
 } from "../domain/telemetry/events.js";
-import { reportClaudeFailure } from "./telemetry/reportBuilders.js";
+import { reportAgentFailure } from "./telemetry/reportBuilders.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { ModelRouting } from "../schemas/modelRouting.js";
@@ -365,7 +365,7 @@ export function executePlan(
           Effect.tapError((e) =>
             e instanceof AgentInvocationError
               ? telemetry.recordError(
-                  reportClaudeFailure(e, {
+                  reportAgentFailure(e, {
                     runId,
                     operationId: phase.id,
                     adapter: resolvedProvider,

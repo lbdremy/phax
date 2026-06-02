@@ -41,13 +41,10 @@ export function reportGitFailure(e: GitError, ctx: ReportContext): SystemErrorRe
   });
 }
 
-export function reportClaudeFailure(
-  e: AgentInvocationError,
-  ctx: ReportContext,
-): SystemErrorReport {
+export function reportAgentFailure(e: AgentInvocationError, ctx: ReportContext): SystemErrorReport {
   const stderrExcerpt = e.stderrExcerpt ?? e.stderr;
   return makeSystemErrorReport({
-    type: "adapter.claude_failed",
+    type: "adapter.agent_failed",
     runId: ctx.runId,
     ...(ctx.operationId !== undefined ? { operationId: ctx.operationId } : {}),
     adapter: ctx.adapter,

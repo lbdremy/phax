@@ -12,7 +12,7 @@ import { makeFakeShell } from "../../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../../src/infra/fakes/systemTelemetry.js";
 import { adaptWorktreeCreate } from "../../../src/app/eventAdapter.js";
 import { runGatesWithFixLoop } from "../../../src/app/fixLoop.js";
-import { reportClaudeFailure } from "../../../src/app/telemetry/reportBuilders.js";
+import { reportAgentFailure } from "../../../src/app/telemetry/reportBuilders.js";
 import type { ClaudeSessionId } from "../../../src/domain/branded.js";
 
 const runId = "my-run" as RunId;
@@ -148,7 +148,7 @@ describe("git adapter failure via adaptWorktreeCreate", () => {
 
 // ─── Claude adapter failure ───────────────────────────────────────────────────
 
-describe("claude adapter failure via FakeBackend + reportClaudeFailure", () => {
+describe("claude adapter failure via FakeBackend + reportAgentFailure", () => {
   it("produces a SystemErrorReport with adapter=claude-code-cli when invocation fails", async () => {
     const { impl: telImpl, layer: telLayer } = makeFakeSystemTelemetry();
     const fakeBackend = makeFakeBackend();
@@ -173,7 +173,7 @@ describe("claude adapter failure via FakeBackend + reportClaudeFailure", () => {
           const e = result.left;
           if (e instanceof AgentInvocationError) {
             yield* telemetry.recordError(
-              reportClaudeFailure(e, {
+              reportAgentFailure(e, {
                 runId,
                 operationId: "phase-01",
                 adapter: "claude-code-cli",
@@ -189,7 +189,7 @@ describe("claude adapter failure via FakeBackend + reportClaudeFailure", () => {
     expect(errors.length).toBe(1);
     expect(errors[0]!.adapter).toBe("claude-code-cli");
     expect(errors[0]!.operation).toBe("agent.run");
-    expect(errors[0]!.type).toBe("adapter.claude_failed");
+    expect(errors[0]!.type).toBe("adapter.agent_failed");
     expect(errors[0]!.runId).toBe(runId);
   });
 });
