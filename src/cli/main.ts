@@ -205,6 +205,10 @@ program
   .option("--profile <profile>", "Gate profile to use (overrides config default)")
   .option("--workspace <id>", "Workspace id (monorepo)")
   .option("--allow-dirty", "Allow starting when the working tree is dirty")
+  .option(
+    "--provider-priority <list>",
+    "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)",
+  )
   .option("--dry-run", "Preview only — extracts the plan but performs no run actions")
   .action(
     async (
@@ -214,6 +218,7 @@ program
         profile?: string;
         workspace?: string;
         allowDirty?: boolean;
+        providerPriority?: string;
         dryRun?: boolean;
       },
     ) => {

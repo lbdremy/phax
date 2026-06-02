@@ -11,6 +11,12 @@ import { executePlan } from "../../app/executePlan.js";
 import { withRunLock } from "../../app/lock.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
+import {
+  parseProviderPriority,
+  applyProviderPriorityOverride,
+} from "../../domain/routing/priorityOverride.js";
+import type { NonEmptyArray } from "../../domain/routing/priorityOverride.js";
+import type { ProviderId } from "../../domain/routing/types.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
@@ -23,6 +29,7 @@ export interface RunCommandOptions {
   profile?: string;
   workspace?: string;
   allowDirty?: boolean;
+  providerPriority?: string;
   verbose?: boolean;
   trace?: boolean;
 }
@@ -62,6 +69,16 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
       out.error("No gate profiles configured in phax.json");
     }
     return 2;
+  }
+
+  let priorityOverride: NonEmptyArray<ProviderId> | undefined;
+  if (opts.providerPriority !== undefined) {
+    const parsed = parseProviderPriority(opts.providerPriority);
+    if (!parsed.ok) {
+      out.error(parsed.error);
+      return 2;
+    }
+    priorityOverride = parsed.value;
   }
 
   // Extract plan.md → PhaxPlan via Claude. The result is never persisted in
@@ -122,7 +139,16 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   const shortName = shortNameResult.right;
 
   if (opts.dryRun) {
-    out.log(formatDryRunReport(buildDryRunReport(plan, config, opts.profile)));
+    out.log(
+      formatDryRunReport(
+        buildDryRunReport(
+          plan,
+          config,
+          opts.profile,
+          priorityOverride !== undefined ? [...priorityOverride] : undefined,
+        ),
+      ),
+    );
     return 0;
   }
 
@@ -135,7 +161,11 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     out.error(`Failed to load routing config: ${routingResult.left.message}`);
     return 2;
   }
-  const { routing, providerConfig } = routingResult.right;
+  let { routing } = routingResult.right;
+  const { providerConfig } = routingResult.right;
+  if (priorityOverride !== undefined) {
+    routing = applyProviderPriorityOverride(routing, priorityOverride);
+  }
 
   const runFolder = join(config.stateRoot, "runs", shortName);
   const semanticJsonlPath = join(runFolder, "semantic.jsonl");
