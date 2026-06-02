@@ -56,7 +56,7 @@ Built at the application layer (not inside infra adapters) using `makeSystemErro
 
 - `reportShellFailure(e, ctx)` — Shell adapter failures
 - `reportGitFailure(e, ctx)` — Git adapter failures
-- `reportClaudeFailure(e, ctx)` — Claude CLI adapter failures
+- `reportAgentFailure(e, ctx)` — Agent backend adapter failures
 
 `stderrExcerpt` is always truncated to ≤ 4 KB by `makeSystemErrorReport`.
 

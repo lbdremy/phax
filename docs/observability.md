@@ -71,7 +71,7 @@ Report builders live in `src/app/telemetry/reportBuilders.ts`:
 
 - `reportShellFailure(e, ctx)` — for `ShellError`
 - `reportGitFailure(e, ctx)` — for `GitError`
-- `reportClaudeFailure(e, ctx)` — for `ClaudeInvocationError`
+- `reportAgentFailure(e, ctx)` — for `AgentInvocationError`
 
 All builders call `makeSystemErrorReport` from `src/domain/telemetry/errors.ts`, which truncates `stderrExcerpt` to ≤ 4 KB and appends `…<truncated>` so snapshots remain deterministic.
 
