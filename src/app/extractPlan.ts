@@ -12,7 +12,7 @@ import {
   type PhaxPlan,
 } from "../schemas/phaxPlan.js";
 import {
-  ClaudeInvocationError,
+  AgentInvocationError,
   LockConflictError,
   PlanValidationError,
   RateLimitError,
@@ -110,7 +110,7 @@ export interface ExtractPlanCoreResult {
 
 export type ExtractPlanCoreError =
   | PlanValidationError
-  | ClaudeInvocationError
+  | AgentInvocationError
   | RateLimitError
   | UsageLimitError
   | FsError;

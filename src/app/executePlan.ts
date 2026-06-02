@@ -5,8 +5,8 @@ import type { BranchName, PhaseId, RunId, ShortName, WorktreePath } from "../dom
 import { decodeBranchName, decodePhaseId } from "../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
-  ClaudeInvocationError,
-  ClaudeSessionIdMissingError,
+  AgentInvocationError,
+  AgentSessionIdMissingError,
   GateFailedError,
   PhaseHadNoChangesError,
   RateLimitError,
@@ -87,8 +87,8 @@ export type ExecutePlanError =
   | UnsafeGitStateError
   | WorktreeCreationError
   | SetupCommandFailedError
-  | ClaudeInvocationError
-  | ClaudeSessionIdMissingError
+  | AgentInvocationError
+  | AgentSessionIdMissingError
   | GateFailedError
   | HandoffValidationError
   | ArchiveBlockedByDirtyWorktreeError
@@ -363,7 +363,7 @@ export function executePlan(
         { "phax.phase.id": phase.id },
         backend.runAgent(promptText, agentOptions).pipe(
           Effect.tapError((e) =>
-            e instanceof ClaudeInvocationError
+            e instanceof AgentInvocationError
               ? telemetry.recordError(
                   reportClaudeFailure(e, {
                     runId,

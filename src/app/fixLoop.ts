@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId } from "../domain/branded.js";
 import {
-  ClaudeInvocationError,
-  type ClaudeSessionIdMissingError,
+  AgentInvocationError,
+  type AgentSessionIdMissingError,
   GateFailedError,
   type RateLimitError,
   type RegistryCorruptionError,
@@ -77,8 +77,8 @@ export function runGatesWithFixLoop(
   | ShellError
   | GitError
   | SetupCommandFailedError
-  | ClaudeInvocationError
-  | ClaudeSessionIdMissingError
+  | AgentInvocationError
+  | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError
   | RegistryCorruptionError,
@@ -126,8 +126,8 @@ export function runGatesWithFixLoop(
     | ShellError
     | GitError
     | SetupCommandFailedError
-    | ClaudeInvocationError
-    | ClaudeSessionIdMissingError
+    | AgentInvocationError
+    | AgentSessionIdMissingError
     | RateLimitError
     | UsageLimitError
     | RegistryCorruptionError,
@@ -255,7 +255,7 @@ export function runGatesWithFixLoop(
           })
           .pipe(
             Effect.tapError((e) =>
-              e instanceof ClaudeInvocationError
+              e instanceof AgentInvocationError
                 ? telemetry.recordError(
                     reportClaudeFailure(e, {
                       runId,

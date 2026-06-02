@@ -6,8 +6,8 @@ import { dirname } from "node:path";
 import type { AgentRunOptions, AgentRunResult } from "../../ports/backend.js";
 import { FsError } from "../../ports/fs.js";
 import {
-  ClaudeInvocationError,
-  ClaudeSessionIdMissingError,
+  AgentInvocationError,
+  AgentSessionIdMissingError,
   RateLimitError,
   UsageLimitError,
 } from "../../domain/errors.js";
@@ -148,7 +148,7 @@ export function runCodexAgent(
   resumeSessionId?: string,
 ): Effect.Effect<
   AgentRunResult,
-  ClaudeInvocationError | ClaudeSessionIdMissingError | RateLimitError | UsageLimitError | FsError
+  AgentInvocationError | AgentSessionIdMissingError | RateLimitError | UsageLimitError | FsError
 > {
   const model = entry.families?.["openai-chatgpt"]?.model ?? options.model;
   const args = buildCodexArgs(entry, model, options.effort, resumeSessionId);
@@ -157,8 +157,8 @@ export function runCodexAgent(
   return Effect.gen(function* () {
     const { lines, exitCode, stderr } = yield* Effect.tryPromise({
       try: () => spawnCodex(entry, args, prompt, options.outputJsonlPath, options.cwd),
-      catch: (err): ClaudeInvocationError =>
-        new ClaudeInvocationError({
+      catch: (err): AgentInvocationError =>
+        new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
           argv,
         }),
@@ -173,7 +173,7 @@ export function runCodexAgent(
 
     if (exitCode !== 0) {
       return yield* Effect.fail(
-        new ClaudeInvocationError({
+        new AgentInvocationError({
           message: `codex exited with code ${exitCode}`,
           exitCode,
           ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
@@ -185,7 +185,7 @@ export function runCodexAgent(
     const found = findCodexResultEvent(lines);
     if (!found) {
       return yield* Effect.fail(
-        new ClaudeSessionIdMissingError({
+        new AgentSessionIdMissingError({
           message: "No result event with session_id found in codex output",
           outputPath: options.outputJsonlPath ?? "",
         }),
@@ -195,7 +195,7 @@ export function runCodexAgent(
     const sessionIdResult = decodeClaudeSessionId(found.sessionId);
     if (Either.isLeft(sessionIdResult)) {
       return yield* Effect.fail(
-        new ClaudeSessionIdMissingError({
+        new AgentSessionIdMissingError({
           message: `Invalid session_id in codex output: "${found.sessionId}"`,
           outputPath: options.outputJsonlPath ?? "",
         }),

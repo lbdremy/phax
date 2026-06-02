@@ -1,8 +1,8 @@
 import { Context, Effect } from "effect";
 import type { ClaudeSessionId } from "../domain/branded.js";
 import type {
-  ClaudeInvocationError,
-  ClaudeSessionIdMissingError,
+  AgentInvocationError,
+  AgentSessionIdMissingError,
   RateLimitError,
   UsageLimitError,
 } from "../domain/errors.js";
@@ -30,7 +30,7 @@ export interface BackendOps {
     options: AgentRunOptions,
   ): Effect.Effect<
     AgentRunResult,
-    ClaudeInvocationError | RateLimitError | UsageLimitError | FsError
+    AgentInvocationError | RateLimitError | UsageLimitError | FsError
   >;
 
   resumeAgentSession(
@@ -39,7 +39,7 @@ export interface BackendOps {
     options: AgentRunOptions,
   ): Effect.Effect<
     AgentRunResult,
-    ClaudeInvocationError | ClaudeSessionIdMissingError | RateLimitError | UsageLimitError | FsError
+    AgentInvocationError | AgentSessionIdMissingError | RateLimitError | UsageLimitError | FsError
   >;
 }
 

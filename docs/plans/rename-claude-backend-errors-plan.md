@@ -461,7 +461,7 @@ auto-skips a backend whose executable is not on `PATH`.
 - Any change to `src/`, to `homedir()/.phax` config files, or to the provider
   config path resolution. Enabling/routing backends in the developer's
   `~/.phax` is a one-time prerequisite handled by the `phax agent setup
-  providers` command added in phases 04–05, not by this test.
+providers` command added in phases 04–05, not by this test.
 - The fixture `plan.md` phase models are substituted at runtime, not committed
   per-backend.
 
@@ -519,5 +519,5 @@ CI behaviour unchanged.
 - **Phase 06 gets medium effort** because it reworks spawn/probe logic, fixture
   patching, and backend-aware assertions in the E2E harness, and the executor
   must reason about routing resolution per backend.
-</content>
-</invoke>
+  </content>
+  </invoke>

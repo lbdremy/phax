@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { BranchName, PhaseId, RunId, WorktreePath } from "../../src/domain/branded.js";
 import type { PhaxEventBase } from "../../src/domain/events.js";
 import {
-  ClaudeInvocationError,
+  AgentInvocationError,
   PhaseHadNoChangesError,
   RateLimitError,
 } from "../../src/domain/errors.js";
@@ -125,9 +125,9 @@ describe("adaptAgentRun", () => {
     }
   });
 
-  it("ClaudeInvocationError bubbles as Effect failure", async () => {
+  it("AgentInvocationError bubbles as Effect failure", async () => {
     const { layer } = makeFakeBackend();
-    // no responses queued → ClaudeInvocationError
+    // no responses queued → AgentInvocationError
 
     const result = await Effect.runPromise(
       Effect.either(
@@ -141,7 +141,7 @@ describe("adaptAgentRun", () => {
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ClaudeInvocationError);
+      expect(result.left).toBeInstanceOf(AgentInvocationError);
     }
   });
 });
@@ -213,7 +213,7 @@ describe("adaptAgentResume", () => {
     }
   });
 
-  it("ClaudeInvocationError bubbles", async () => {
+  it("AgentInvocationError bubbles", async () => {
     const { layer } = makeFakeBackend();
 
     const result = await Effect.runPromise(
@@ -229,7 +229,7 @@ describe("adaptAgentResume", () => {
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ClaudeInvocationError);
+      expect(result.left).toBeInstanceOf(AgentInvocationError);
     }
   });
 });
@@ -595,9 +595,9 @@ describe("adaptHandoffGenerate", () => {
     }
   });
 
-  it("ClaudeInvocationError bubbles", async () => {
+  it("AgentInvocationError bubbles", async () => {
     const { layer } = handoffLayers();
-    // no resume response queued → ClaudeInvocationError
+    // no resume response queued → AgentInvocationError
 
     const result = await Effect.runPromise(
       Effect.either(adaptHandoffGenerate(handoffOpts, base).pipe(Effect.provide(layer))),
@@ -605,7 +605,7 @@ describe("adaptHandoffGenerate", () => {
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ClaudeInvocationError);
+      expect(result.left).toBeInstanceOf(AgentInvocationError);
     }
   });
 });

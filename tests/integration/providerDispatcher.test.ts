@@ -2,7 +2,7 @@ import { Effect, Either } from "effect";
 import { describe, expect, it } from "vitest";
 import { makeNodeBackendLayer } from "../../src/infra/providers/dispatcher.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
-import { ClaudeInvocationError } from "../../src/domain/errors.js";
+import { AgentInvocationError } from "../../src/domain/errors.js";
 import { Backend, type AgentRunOptions } from "../../src/ports/backend.js";
 
 const baseOptions: AgentRunOptions = {
@@ -28,7 +28,7 @@ describe("provider dispatcher", () => {
     // dispatch must have reached the Claude adapter. We confirm this by asserting
     // that the error message (if any) does NOT contain "not yet wired".
     if (Either.isLeft(result)) {
-      expect((result.left as ClaudeInvocationError).message).not.toContain("not yet wired");
+      expect((result.left as AgentInvocationError).message).not.toContain("not yet wired");
     }
     // If it succeeded (claude installed + valid run), that also confirms correct routing.
     // Either way, the test passes — the guard is never entered.
@@ -45,7 +45,7 @@ describe("provider dispatcher", () => {
     // Whether the real `vibe` binary is present or not, the dispatch must have
     // reached the Vibe adapter. Confirm the "not yet wired" guard was not hit.
     if (Either.isLeft(result)) {
-      expect((result.left as ClaudeInvocationError).message).not.toContain("not yet wired");
+      expect((result.left as AgentInvocationError).message).not.toContain("not yet wired");
     }
     expect(true).toBe(true);
   });
@@ -60,7 +60,7 @@ describe("provider dispatcher", () => {
     // Whether the real `codex` binary is present or not, the dispatch must have
     // reached the Codex adapter. Confirm the "not yet wired" guard was not hit.
     if (Either.isLeft(result)) {
-      expect((result.left as ClaudeInvocationError).message).not.toContain("not yet wired");
+      expect((result.left as AgentInvocationError).message).not.toContain("not yet wired");
     }
     expect(true).toBe(true);
   });

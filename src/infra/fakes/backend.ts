@@ -2,7 +2,7 @@ import { Effect, Layer } from "effect";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ClaudeSessionId } from "../../domain/branded.js";
-import { ClaudeInvocationError, RateLimitError, UsageLimitError } from "../../domain/errors.js";
+import { AgentInvocationError, RateLimitError, UsageLimitError } from "../../domain/errors.js";
 import {
   Backend,
   type BackendOps,
@@ -79,7 +79,7 @@ export class FakeBackendImpl implements BackendOps {
   runAgent(
     prompt: string,
     options: AgentRunOptions,
-  ): Effect.Effect<AgentRunResult, ClaudeInvocationError | RateLimitError | UsageLimitError> {
+  ): Effect.Effect<AgentRunResult, AgentInvocationError | RateLimitError | UsageLimitError> {
     const callIndex = this.runIdx;
     this.runCalls.push({ prompt, options });
     if (this.rateLimitAtRunIndex === callIndex) {
@@ -89,7 +89,7 @@ export class FakeBackendImpl implements BackendOps {
     const result = this.runResponses[this.runIdx++];
     if (result === undefined) {
       return Effect.fail(
-        new ClaudeInvocationError({ message: "FakeBackend: no more runAgent responses queued" }),
+        new AgentInvocationError({ message: "FakeBackend: no more runAgent responses queued" }),
       );
     }
     return Effect.succeed(result);
@@ -99,7 +99,7 @@ export class FakeBackendImpl implements BackendOps {
     sessionId: ClaudeSessionId,
     prompt: string,
     options: AgentRunOptions,
-  ): Effect.Effect<AgentRunResult, ClaudeInvocationError | RateLimitError | UsageLimitError> {
+  ): Effect.Effect<AgentRunResult, AgentInvocationError | RateLimitError | UsageLimitError> {
     this.resumeCalls.push({ sessionId, prompt, options });
     if (this.resumeRateLimitKnob !== undefined) {
       const knob = this.resumeRateLimitKnob;
@@ -118,7 +118,7 @@ export class FakeBackendImpl implements BackendOps {
     const result = this.resumeResponses[this.resumeIdx++];
     if (result === undefined) {
       return Effect.fail(
-        new ClaudeInvocationError({
+        new AgentInvocationError({
           message: "FakeBackend: no more resumeAgentSession responses queued",
         }),
       );
