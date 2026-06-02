@@ -22,12 +22,21 @@ const claudeOnly: ModelRouting = {
   providerPriority: ["claude-code"],
 };
 
+// All non-Claude providers enabled, for §15 example tests that demonstrate routing behaviour.
+const allEnabledProviderConfig: ProviderConfig = {
+  providers: {
+    ...DEFAULT_PROVIDER_CONFIG.providers,
+    "mistral-vibe": { ...DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"]!, enabled: true },
+    "codex-cli": { ...DEFAULT_PROVIDER_CONFIG.providers["codex-cli"]!, enabled: true },
+  },
+};
+
 describe("resolveModel — spec §15 examples", () => {
   it("Example 1: sonnet/medium with mistral priority → mistral-vibe/mistral-medium/medium (equivalent)", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
       mistralPriority,
-      DEFAULT_PROVIDER_CONFIG,
+      allEnabledProviderConfig,
     );
 
     expect(result.requested.family).toBe("claude-sonnet");
@@ -44,7 +53,7 @@ describe("resolveModel — spec §15 examples", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "high" },
       codexPriority,
-      DEFAULT_PROVIDER_CONFIG,
+      allEnabledProviderConfig,
     );
 
     expect(result.normalizedTier).toBe("strong");
@@ -59,7 +68,7 @@ describe("resolveModel — spec §15 examples", () => {
     const result = resolveModel(
       { model: "claude-opus-4-7", effort: "medium" },
       { ...mistralPriority, allowDowngrade: true },
-      DEFAULT_PROVIDER_CONFIG,
+      allEnabledProviderConfig,
     );
 
     expect(result.normalizedTier).toBe("frontier");
@@ -73,7 +82,7 @@ describe("resolveModel — spec §15 examples", () => {
     const result = resolveModel(
       { model: "claude-opus-4-7", effort: "high" },
       { ...mistralPriority, allowDowngrade: true },
-      DEFAULT_PROVIDER_CONFIG,
+      allEnabledProviderConfig,
     );
 
     expect(result.normalizedTier).toBe("max");
@@ -150,7 +159,7 @@ describe("resolveModel — additional behavior", () => {
       providers: {
         ...DEFAULT_PROVIDER_CONFIG.providers,
         "mistral-vibe": {
-          enabled: false,
+          enabled: true,
           executable: "vibe",
           modelEnvVar: "VIBE_ACTIVE_MODEL",
           defaultAgent: "auto-approve",
@@ -171,6 +180,20 @@ describe("resolveModel — additional behavior", () => {
     expect(result.selected.provider).not.toBe("mistral-vibe");
   });
 
+  it("skips a disabled provider even when its concrete model exists", () => {
+    // mistral-vibe is disabled in DEFAULT_PROVIDER_CONFIG but its alias for
+    // mistral-medium/medium is present. The enabled gate must skip it.
+    const result = resolveModel(
+      { model: "claude-sonnet-4-6", effort: "medium" },
+      mistralPriority,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.relationship).toBe("exact");
+  });
+
   it("classifies a same-family same-effort selection as exact", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
@@ -187,7 +210,7 @@ describe("resolveModel — additional behavior", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
       mistralPriority,
-      DEFAULT_PROVIDER_CONFIG,
+      allEnabledProviderConfig,
     );
 
     expect(result.reason).toMatch(/mistral-vibe/);

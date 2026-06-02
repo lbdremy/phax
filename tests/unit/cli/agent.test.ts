@@ -116,12 +116,22 @@ describe("runAgentResolve", () => {
   });
 
   it("resolves with mistral-vibe priority and shows mistral-vibe as provider", async () => {
-    const { loadModelRouting } = vi.mocked(await import("../../../src/app/loadRouting.js"));
+    const { loadModelRouting, loadProviderConfig } = vi.mocked(
+      await import("../../../src/app/loadRouting.js"),
+    );
     const routing: ModelRouting = {
       ...DEFAULT_MODEL_ROUTING,
       providerPriority: ["mistral-vibe", "claude-code"],
     };
     loadModelRouting.mockReturnValue(Effect.succeed(routing));
+    loadProviderConfig.mockReturnValue(
+      Effect.succeed({
+        providers: {
+          ...DEFAULT_PROVIDER_CONFIG.providers,
+          "mistral-vibe": { ...DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"]!, enabled: true },
+        },
+      }),
+    );
 
     const { out, lines } = makeOutput();
     const code = await runAgentResolve({ model: "claude-sonnet-4-6", effort: "medium" }, out);

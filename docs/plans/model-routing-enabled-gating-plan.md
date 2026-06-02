@@ -49,7 +49,7 @@ This plan closes that gap (Option A from the design discussion):
    object").
 
 The change is small but load-bearing: the §12 default table is only safe
-*because* of the enabled gate, so phase-01 must land before phase-02. Several
+_because_ of the enabled gate, so phase-01 must land before phase-02. Several
 existing tests encode the current no-`enabled` behaviour and must be updated in
 the same commit that introduces the gate.
 
@@ -80,7 +80,7 @@ docs/plans/model-routing-plan.md           ← correct the "exact §12 object" w
   returned; `claude-code` is the guaranteed always-available baseline and its
   `enabled` flag does not remove that guarantee.
 - **No silent Opus downgrade.** The existing `claude-opus` + `allowDowngrade:
-  false` skip of `downgrade`/`no_equivalent` candidates is unchanged; combined
+false` skip of `downgrade`/`no_equivalent` candidates is unchanged; combined
   with the enabled gate it still falls through to `claude-code`/`claude-opus`.
 - **Additive and non-breaking.** A clean install (no `~/.phax/model-routing.json`,
   no `~/.phax/providers.json`) must resolve every phase to `claude-code`, byte
@@ -98,11 +98,11 @@ docs/plans/model-routing-plan.md           ← correct the "exact §12 object" w
 
 ## Model & effort summary
 
-| #   | Phase                                            | Model             | Effort |
-| --- | ------------------------------------------------ | ----------------- | ------ |
-| 01  | Gate resolution on provider `enabled`            | claude-sonnet-4-6 | medium |
-| 02  | Adopt spec §12 routing table as the default      | claude-sonnet-4-6 | medium |
-| 03  | Sync docs and plan wording                       | claude-sonnet-4-6 | low    |
+| #   | Phase                                       | Model             | Effort |
+| --- | ------------------------------------------- | ----------------- | ------ |
+| 01  | Gate resolution on provider `enabled`       | claude-sonnet-4-6 | medium |
+| 02  | Adopt spec §12 routing table as the default | claude-sonnet-4-6 | medium |
+| 03  | Sync docs and plan wording                  | claude-sonnet-4-6 | low    |
 
 ---
 
@@ -144,7 +144,7 @@ Update the existing tests that encode the current no-`enabled` behaviour.
   - Add a fixture `const allEnabledProviderConfig: ProviderConfig` derived from
     `DEFAULT_PROVIDER_CONFIG` with `mistral-vibe` and `codex-cli` set to
     `enabled: true` (spread each provider entry, override `enabled`). The §15
-    example tests are demonstrating routing *behaviour*, so they must run against
+    example tests are demonstrating routing _behaviour_, so they must run against
     enabled providers.
   - Switch the provider-config argument in the §15 example tests that select a
     non-Claude provider — **Example 1** (mistral-vibe), **Example 2**
@@ -297,9 +297,9 @@ non-breaking default with a test.
   - `claude-opus` `low` maps to `frontier` (previously `strong`).
   - `mistral-medium` / `openai-chatgpt` gain per-effort maps (previously
     `{ defaultTier: "standard" }`).
-  Confirm no existing test asserts the old outcomes for these inputs; the
-  documented §15 examples (opus/medium→frontier, opus/high→max,
-  sonnet/medium→standard, sonnet/high→strong) are unchanged by §12.
+    Confirm no existing test asserts the old outcomes for these inputs; the
+    documented §15 examples (opus/medium→frontier, opus/high→max,
+    sonnet/medium→standard, sonnet/high→strong) are unchanged by §12.
 - Add a unit test to `tests/unit/routing/resolve.test.ts`,
   **"clean-install default resolves every phase to claude-code"**: call
   `resolveModel({ model: "claude-sonnet-4-6", effort: "medium" }, DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG)`
@@ -311,7 +311,7 @@ non-breaking default with a test.
   and `tests/integration/routing.test.ts` caused by the new default values
   (e.g. any assertion that hard-codes `providerPriority`, `allowDowngrade`, or a
   normalization outcome). Fixtures that build on `{ ...DEFAULT_MODEL_ROUTING,
-  providerPriority: [...] }` continue to work and should not be rewritten.
+providerPriority: [...] }` continue to work and should not be rewritten.
 
 ### Included scope
 

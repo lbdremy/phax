@@ -165,6 +165,9 @@ export function resolveModel(
     const entry = tierEntries?.[provider];
     if (!entry) continue;
 
+    const providerEntry = providerCfg.providers[provider];
+    if (!providerEntry?.enabled) continue;
+
     const relationship = classifyRelationship(entry, requestedFamily, request.effort);
 
     if (
@@ -201,8 +204,9 @@ export function resolveModel(
     };
   }
 
-  // Terminal: claude-code is the guaranteed provider. Try the tier's claude-code
-  // entry first, then a direct claude-code/<requestedFamily> resolution.
+  // Terminal: enabled gate intentionally does not apply here. claude-code is the
+  // guaranteed baseline so resolveModel stays total regardless of its enabled flag.
+  // Try the tier's claude-code entry first, then a direct claude-code/<requestedFamily> resolution.
   const terminalTierEntry = tierEntries?.["claude-code"];
   if (terminalTierEntry) {
     const concrete = resolveConcrete("claude-code", terminalTierEntry, providerCfg);
