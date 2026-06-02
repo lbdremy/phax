@@ -4,7 +4,7 @@ import { AgentInvocationError, GateFailedError } from "../../../src/domain/error
 import { GitError } from "../../../src/ports/git.js";
 import { ShellError } from "../../../src/ports/shell.js";
 import {
-  reportClaudeFailure,
+  reportAgentFailure,
   reportGitFailure,
   reportShellFailure,
   type ReportContext,
@@ -100,7 +100,7 @@ describe("reportGitFailure", () => {
   });
 });
 
-describe("reportClaudeFailure", () => {
+describe("reportAgentFailure", () => {
   it("maps AgentInvocationError fields onto SystemErrorReport", () => {
     const e = new AgentInvocationError({
       message: "claude exited with code 1",
@@ -110,14 +110,14 @@ describe("reportClaudeFailure", () => {
       argv: ["claude", "--print", "--model", "claude-sonnet-4-6"],
     });
 
-    const report = reportClaudeFailure(e, {
+    const report = reportAgentFailure(e, {
       runId,
       operationId: "phase-01",
       adapter: "claude-code-cli",
       operation: "agent.run",
     });
 
-    expect(report.type).toBe("adapter.claude_failed");
+    expect(report.type).toBe("adapter.agent_failed");
     expect(report.adapter).toBe("claude-code-cli");
     expect(report.operation).toBe("agent.run");
     expect(report.exitCode).toBe(1);
@@ -132,22 +132,22 @@ describe("reportClaudeFailure", () => {
       stderr: "unexpected error",
     });
 
-    const report = reportClaudeFailure(e, { runId, adapter: "claude-code-cli", operation: "run" });
+    const report = reportAgentFailure(e, { runId, adapter: "claude-code-cli", operation: "run" });
     expect(report.stderrExcerpt).toBe("unexpected error");
   });
 
   it("handles missing optional fields gracefully", () => {
     const e = new AgentInvocationError({ message: "no responses queued" });
-    const report = reportClaudeFailure(e, { runId, adapter: "claude-code-cli", operation: "run" });
+    const report = reportAgentFailure(e, { runId, adapter: "claude-code-cli", operation: "run" });
 
-    expect(report.type).toBe("adapter.claude_failed");
+    expect(report.type).toBe("adapter.agent_failed");
     expect("exitCode" in report).toBe(false);
     expect("stderrExcerpt" in report).toBe(false);
   });
 
   it("expected field is forwarded from ReportContext", () => {
     const e = new AgentInvocationError({ message: "fail", exitCode: 1 });
-    const report = reportClaudeFailure(e, {
+    const report = reportAgentFailure(e, {
       runId,
       adapter: "claude-code-cli",
       operation: "agent.run",
