@@ -23,12 +23,14 @@ export interface DryRunReport {
   readonly gateCommands: readonly string[];
   readonly phases: readonly DryRunPhase[];
   readonly runPath: string;
+  readonly providerPriorityOverride?: readonly string[];
 }
 
 export function buildDryRunReport(
   plan: PhaxPlan,
   config: ResolvedConfig,
   gateProfileId?: string,
+  providerPriorityOverride?: readonly string[],
 ): DryRunReport {
   const profileId = gateProfileId ?? "full";
   const gateCommands = resolveGateProfile(config, profileId);
@@ -54,6 +56,7 @@ export function buildDryRunReport(
     gateCommands,
     phases,
     runPath: join(config.stateRoot, "runs", plan.run.shortName),
+    ...(providerPriorityOverride !== undefined ? { providerPriorityOverride } : {}),
   };
 }
 
@@ -65,6 +68,9 @@ export function formatDryRunReport(report: DryRunReport): string {
   lines.push(`  Project:      ${report.projectName}`);
   lines.push(`  Gate profile: ${report.gateProfileId}`);
   lines.push(`  Run path:     ${report.runPath}`);
+  if (report.providerPriorityOverride !== undefined) {
+    lines.push(`  Priority:     ${report.providerPriorityOverride.join(" → ")} (override)`);
+  }
   lines.push("");
 
   lines.push("Setup commands:");
