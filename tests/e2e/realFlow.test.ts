@@ -1,35 +1,25 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
 import { createTempEnv, type TempEnv } from "./helpers/tempEnv.js";
 import { runCli } from "./helpers/runCli.js";
 import { printArtifacts } from "./helpers/artifacts.js";
+import { resolveBackend, probeBackend } from "./helpers/backends.js";
 
-function claudeAvailable(): boolean {
-  try {
-    const r = spawnSync("claude", ["--version"], {
-      encoding: "utf8",
-      timeout: 5_000,
-      stdio: "pipe",
-    });
-    return r.status === 0;
-  } catch {
-    return false;
-  }
-}
+const selectedBackend = resolveBackend(process.env["PHAX_E2E_BACKEND"]);
 
-// Requires both an installed+reachable `claude` CLI and an explicit opt-in
-// (set PHAX_E2E_RUN=1) so the suite never fires accidentally in CI without auth.
-const shouldRun = claudeAvailable() && process.env["PHAX_E2E_RUN"] === "1";
+// Requires both the selected backend's executable to be reachable and an
+// explicit opt-in (set PHAX_E2E_RUN=1) so the suite never fires accidentally
+// in CI without auth.
+const shouldRun = probeBackend(selectedBackend.entry) && process.env["PHAX_E2E_RUN"] === "1";
 
-describe.skipIf(!shouldRun)("phax real E2E flow", () => {
+describe.skipIf(!shouldRun)(`phax real E2E flow [${selectedBackend.id}]`, () => {
   let env: TempEnv;
   let shortName: string;
   let failed = false;
 
   beforeAll(() => {
-    env = createTempEnv();
+    env = createTempEnv(selectedBackend);
   });
 
   afterAll(() => {
@@ -84,7 +74,7 @@ describe.skipIf(!shouldRun)("phax real E2E flow", () => {
       const plan = JSON.parse(readFileSync(planJsonPath, "utf8")) as {
         run: { backend: string; branch: string };
       };
-      expect(plan.run.backend).toBe("claude-code-cli");
+      expect(plan.run.backend).toBe(selectedBackend.id);
       expect(plan.run.branch).toBe(`phax/${shortName}`);
     },
   );
@@ -169,12 +159,12 @@ describe.skipIf(!shouldRun)("phax real E2E flow", () => {
   });
 });
 
-describe.skipIf(!shouldRun)("phax extract-plan (standalone)", () => {
+describe.skipIf(!shouldRun)(`phax extract-plan (standalone) [${selectedBackend.id}]`, () => {
   let env: TempEnv;
   let failed = false;
 
   beforeAll(() => {
-    env = createTempEnv();
+    env = createTempEnv(selectedBackend);
   });
 
   afterAll(() => {
@@ -212,7 +202,7 @@ describe.skipIf(!shouldRun)("phax extract-plan (standalone)", () => {
     };
     expect(plan.version).toBe(1);
     expect(plan.run.shortName).toBeTruthy();
-    expect(plan.run.backend).toBe("claude-code-cli");
+    expect(plan.run.backend).toBe(selectedBackend.id);
     expect(plan.run.branch).toBe(`phax/${plan.run.shortName}`);
     expect(plan.phases.length).toBe(2);
   });
