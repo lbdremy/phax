@@ -1,10 +1,11 @@
 import type { Command } from "commander";
-import { Effect, Either } from "effect";
+import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
-import { Shell } from "../../ports/shell.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
 import { vibeSetup, VIBE_CONFIG_PATH } from "../../app/vibeSetup.js";
+import { providerSetup } from "../../app/providerSetup.js";
+import { probeProviders } from "../../app/providerProbe.js";
 import type { ThinkingLevel } from "../../domain/routing/types.js";
 import type { ModelRouting } from "../../schemas/modelRouting.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
@@ -112,41 +113,17 @@ export async function runAgentProbe(out: OutputPort): Promise<number> {
   if (configs === null) return 2;
   const { providerConfig } = configs;
 
-  const providers = Object.entries(providerConfig.providers) as Array<
-    [string, { enabled: boolean; executable: string }]
-  >;
-
-  const probeOne = (provider: string, executable: string) =>
-    Effect.gen(function* () {
-      const shell = yield* Shell;
-      const result = yield* Effect.either(
-        shell.run({ command: [executable, "--version"], cwd: process.cwd() }),
-      );
-      if (Either.isRight(result) && result.right.exitCode === 0) {
-        return {
-          provider,
-          available: true,
-          detail: result.right.stdout.trim().split("\n")[0] ?? "",
-        };
-      }
-      return { provider, available: false, detail: "" };
-    });
-
   const probeResults = await Effect.runPromise(
-    Effect.all(
-      providers.map(([provider, entry]) => probeOne(provider, entry.executable)),
-      { concurrency: "unbounded" },
-    ).pipe(Effect.provide(NodeShellLayer)),
+    probeProviders(providerConfig).pipe(Effect.provide(NodeShellLayer)),
   );
 
-  for (const { provider, available, detail } of probeResults) {
+  for (const { provider, available } of probeResults) {
     const status = available ? "available" : "unavailable";
     const enabledFlag = providerConfig.providers[provider as keyof typeof providerConfig.providers]
       ?.enabled
       ? ""
       : " (disabled in config)";
-    const detailStr = detail ? ` — ${detail}` : "";
-    out.log(`  ${provider}: ${status}${enabledFlag}${detailStr}`);
+    out.log(`  ${provider}: ${status}${enabledFlag}`);
   }
 
   return 0;
@@ -221,6 +198,78 @@ export async function runAgentSetupMistralVibe(
   return 0;
 }
 
+export interface AgentSetupProvidersOptions {
+  readonly write?: boolean;
+  readonly prune?: boolean;
+  readonly withRouting?: boolean;
+}
+
+export async function runAgentSetupProviders(
+  opts: AgentSetupProvidersOptions,
+  out: OutputPort,
+): Promise<number> {
+  const write = opts.write ?? false;
+  const prune = opts.prune ?? false;
+  const withRouting = opts.withRouting ?? false;
+
+  const effect = providerSetup({ write, prune, withRouting });
+  const result = await Effect.runPromise(
+    Effect.either(effect).pipe(Effect.provide(Layer.merge(NodeFileSystemLayer, NodeShellLayer))),
+  );
+
+  if (Either.isLeft(result)) {
+    out.error(`Setup failed: ${result.left.message}`);
+    return 2;
+  }
+
+  const { plan, written, backupPath, routingScaffolded, providerConfigPath, modelRoutingPath } =
+    result.right;
+
+  if (!write) {
+    out.log("Dry run — no changes written.");
+    if (plan.enabled.length > 0) {
+      out.log(`Would enable (${plan.enabled.length}):`);
+      for (const p of plan.enabled) out.log(`  + ${p}`);
+    }
+    if (plan.disabled.length > 0) {
+      out.log(`Would disable (${plan.disabled.length}):`);
+      for (const p of plan.disabled) out.log(`  - ${p}`);
+    }
+    if (plan.enabled.length === 0 && plan.disabled.length === 0) {
+      out.log("All providers already up-to-date.");
+    }
+    if (plan.unchanged.length > 0) {
+      out.log(`Unchanged (${plan.unchanged.length}): ${plan.unchanged.join(", ")}`);
+    }
+    return 0;
+  }
+
+  if (plan.enabled.length === 0 && plan.disabled.length === 0) {
+    out.log("All providers already up-to-date.");
+  } else {
+    if (plan.enabled.length > 0) {
+      out.log(`Enabled (${plan.enabled.length}):`);
+      for (const p of plan.enabled) out.log(`  + ${p}`);
+    }
+    if (plan.disabled.length > 0) {
+      out.log(`Disabled (${plan.disabled.length}):`);
+      for (const p of plan.disabled) out.log(`  - ${p}`);
+    }
+  }
+  out.log(`Config written to: ${providerConfigPath}`);
+  if (backupPath !== undefined) {
+    out.log(`Backup written to: ${backupPath}`);
+  }
+  if (written && withRouting) {
+    if (routingScaffolded) {
+      out.log(`Routing config scaffolded: ${modelRoutingPath}`);
+    } else {
+      out.log(`Routing config already exists, skipped: ${modelRoutingPath}`);
+    }
+  }
+  return 0;
+}
+
 export function registerAgentCommand(program: Command, out: OutputPort): void {
   const agentCmd = program
     .command("agent")
@@ -266,6 +315,22 @@ export function registerAgentCommand(program: Command, out: OutputPort): void {
     .option("--install-model-aliases", "Actually append the missing aliases and write the backup")
     .action(async (opts: { dryRun?: boolean; installModelAliases?: boolean }) => {
       const exitCode = await runAgentSetupMistralVibe(opts, out);
+      process.exit(exitCode);
+    });
+
+  setupCmd
+    .command("providers")
+    .description(
+      "Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)",
+    )
+    .option("--write", "Persist the reconciled config (writes a timestamped backup first)")
+    .option("--prune", "Also disable providers whose executable is unavailable")
+    .option(
+      "--with-routing",
+      "Scaffold ~/.phax/model-routing.json from defaults when absent (never overwrites)",
+    )
+    .action(async (opts: { write?: boolean; prune?: boolean; withRouting?: boolean }) => {
+      const exitCode = await runAgentSetupProviders(opts, out);
       process.exit(exitCode);
     });
 }
