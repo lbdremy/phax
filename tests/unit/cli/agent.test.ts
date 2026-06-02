@@ -5,6 +5,8 @@ import {
   runAgentResolve,
   runAgentProbe,
   runAgentSetupMistralVibe,
+  runAgentSetupProviders,
+  type AgentSetupProvidersOptions,
 } from "../../../src/cli/commands/agent.js";
 import {
   DEFAULT_MODEL_ROUTING,
@@ -26,6 +28,11 @@ vi.mock("../../../src/app/vibeSetup.js", async (importOriginal) => {
     vibeSetup: vi.fn(),
   };
 });
+
+// Mock providerSetup for the setup providers tests
+vi.mock("../../../src/app/providerSetup.js", () => ({
+  providerSetup: vi.fn(),
+}));
 
 function makeOutput() {
   const lines: string[] = [];
@@ -220,5 +227,92 @@ describe("runAgentSetupMistralVibe", () => {
     const code = await runAgentSetupMistralVibe({ installModelAliases: true }, out);
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain("already present");
+  });
+});
+
+describe("runAgentSetupProviders", () => {
+  const PROVIDER_CONFIG_PATH = "/home/user/.phax/providers.json";
+  const MODEL_ROUTING_PATH = "/home/user/.phax/model-routing.json";
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+  });
+
+  it("dry-run prints plan and writes nothing", async () => {
+    const { providerSetup } = vi.mocked(await import("../../../src/app/providerSetup.js"));
+    vi.mocked(providerSetup).mockReturnValue(
+      Effect.succeed({
+        plan: {
+          config: { providers: {} },
+          enabled: ["mistral-vibe"],
+          disabled: [],
+          unchanged: ["claude-code", "codex-cli"],
+        },
+        written: false,
+        backupPath: undefined,
+        routingScaffolded: false,
+        providerConfigPath: PROVIDER_CONFIG_PATH,
+        modelRoutingPath: MODEL_ROUTING_PATH,
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const opts: AgentSetupProvidersOptions = {};
+    const code = await runAgentSetupProviders(opts, out);
+    expect(code).toBe(0);
+    const text = lines.join("\n");
+    expect(text).toContain("Dry run");
+    expect(text).toContain("mistral-vibe");
+  });
+
+  it("--write prints enabled providers and config path", async () => {
+    const { providerSetup } = vi.mocked(await import("../../../src/app/providerSetup.js"));
+    vi.mocked(providerSetup).mockReturnValue(
+      Effect.succeed({
+        plan: {
+          config: { providers: {} },
+          enabled: ["mistral-vibe"],
+          disabled: [],
+          unchanged: ["claude-code", "codex-cli"],
+        },
+        written: true,
+        backupPath: undefined,
+        routingScaffolded: false,
+        providerConfigPath: PROVIDER_CONFIG_PATH,
+        modelRoutingPath: MODEL_ROUTING_PATH,
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runAgentSetupProviders({ write: true }, out);
+    expect(code).toBe(0);
+    const text = lines.join("\n");
+    expect(text).toContain("mistral-vibe");
+    expect(text).toContain(PROVIDER_CONFIG_PATH);
+  });
+
+  it("--write with backup shows backup path", async () => {
+    const backupPath = `${PROVIDER_CONFIG_PATH}.phax-backup-123`;
+    const { providerSetup } = vi.mocked(await import("../../../src/app/providerSetup.js"));
+    vi.mocked(providerSetup).mockReturnValue(
+      Effect.succeed({
+        plan: {
+          config: { providers: {} },
+          enabled: [],
+          disabled: [],
+          unchanged: ["claude-code"],
+        },
+        written: true,
+        backupPath,
+        routingScaffolded: false,
+        providerConfigPath: PROVIDER_CONFIG_PATH,
+        modelRoutingPath: MODEL_ROUTING_PATH,
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runAgentSetupProviders({ write: true }, out);
+    expect(code).toBe(0);
+    expect(lines.join("\n")).toContain("phax-backup-123");
   });
 });
