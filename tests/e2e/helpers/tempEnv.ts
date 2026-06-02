@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import type { ResolvedBackend } from "./backends.js";
 
 const FIXTURE_DIR = fileURLToPath(new URL("../fixtures/minimal-repo", import.meta.url));
 
@@ -12,18 +13,37 @@ export interface TempEnv {
   cleanup(): void;
 }
 
-export function createTempEnv(): TempEnv {
+export function createTempEnv(backend?: ResolvedBackend): TempEnv {
   const base = tmpdir();
   const repoDir = mkdtempSync(join(base, "phax-e2e-repo-"));
   const phaxHome = mkdtempSync(join(base, "phax-e2e-home-"));
 
   cpSync(FIXTURE_DIR, repoDir, { recursive: true });
 
-  // Override state.root to the isolated phaxHome so the test never touches ~/.phax
+  // Override state.root to the isolated phaxHome so the test never touches ~/.phax.
+  // Also patch agent.backend when a non-default backend is requested.
   const phaxConfigPath = join(repoDir, "phax.json");
-  const config = JSON.parse(readFileSync(phaxConfigPath, "utf8")) as { state: { root: string } };
+  const config = JSON.parse(readFileSync(phaxConfigPath, "utf8")) as {
+    state: { root: string };
+    agent: { backend: string };
+  };
   config.state.root = phaxHome;
+  if (backend) {
+    config.agent.backend = backend.id;
+  }
   writeFileSync(phaxConfigPath, JSON.stringify(config, null, 2));
+
+  // Substitute **Recommended model:** lines in plan.md when a backend is selected,
+  // so each phase is routed to a tier that includes the target provider.
+  if (backend) {
+    const planPath = join(repoDir, "plan.md");
+    const planContent = readFileSync(planPath, "utf8");
+    const patched = planContent.replace(
+      /\*\*Recommended model:\*\* .+/g,
+      `**Recommended model:** ${backend.entry.requestedModel}`,
+    );
+    writeFileSync(planPath, patched);
+  }
 
   // Initialise a real git repo so phax can create worktrees
   const gitOpts = { cwd: repoDir, stdio: "pipe" as const };
