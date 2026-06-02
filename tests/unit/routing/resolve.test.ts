@@ -88,7 +88,7 @@ describe("resolveModel — spec §15 examples", () => {
     expect(result.normalizedTier).toBe("max");
     expect(result.selected.provider).toBe("codex-cli");
     expect(result.selected.family).toBe("openai-chatgpt");
-    expect(result.selected.thinking).toBe("max");
+    expect(result.selected.thinking).toBe("xhigh");
     expect(result.relationship).toBe("downgrade");
   });
 
@@ -186,6 +186,21 @@ describe("resolveModel — additional behavior", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
       mistralPriority,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.relationship).toBe("exact");
+  });
+
+  it("clean-install default resolves every phase to claude-code", () => {
+    // With the §12 default, mistral-vibe and codex-cli are first in providerPriority
+    // but ship enabled: false — the enabled gate must skip them so the result is
+    // identical to a claude-code-only install.
+    const result = resolveModel(
+      { model: "claude-sonnet-4-6", effort: "medium" },
+      DEFAULT_MODEL_ROUTING,
       DEFAULT_PROVIDER_CONFIG,
     );
 
