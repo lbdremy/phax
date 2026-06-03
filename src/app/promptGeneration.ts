@@ -8,12 +8,19 @@ export interface BuildPhasePromptOptions {
   readonly planJson: PhaxPlan;
   readonly currentPhase: PhaxPlanPhase;
   readonly previousHandoff?: string | undefined;
+  readonly previousReconciliation?: string | undefined;
   readonly gateCommands: string[];
 }
 
 export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
-  const { planMd, planJson, currentPhase, previousHandoff, gateCommands } = opts;
+  const { planMd, planJson, currentPhase, previousHandoff, previousReconciliation, gateCommands } =
+    opts;
   const handoffSection = previousHandoff ?? "(no previous phase)";
+
+  const reconciliationSection =
+    previousReconciliation !== undefined
+      ? ["## Previous phase file reconciliation", "", previousReconciliation, ""]
+      : [];
 
   return [
     "# Execute one implementation phase",
@@ -46,6 +53,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "",
     handoffSection,
     "",
+    ...reconciliationSection,
     "## Current phase",
     "",
     JSON.stringify(currentPhase, null, 2),
@@ -59,6 +67,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "- Do not include unrelated refactors.",
     "- Do not implement excluded scope.",
     "- Do not move work from future phases into this phase unless required to keep the current phase coherent.",
+    '- If any planned file was not touched or any unplanned (non-optional) file was changed, explain why under "## What the next phase needs to know" in `phase-handoff.md`.',
     "- Run the gate commands again after your changes to verify the gates are satisfied.",
     gateCommands.join("\n"),
     "",
@@ -113,6 +122,7 @@ export interface GeneratePhasePromptOptions {
   readonly planJson: PhaxPlan;
   readonly currentPhase: PhaxPlanPhase;
   readonly previousHandoff?: string | undefined;
+  readonly previousReconciliation?: string | undefined;
   readonly gateCommands: string[];
 }
 

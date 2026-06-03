@@ -110,6 +110,30 @@ describe("decodePhaxConfig", () => {
     expect(Either.isLeft(decodePhaxConfig(cfg))).toBe(true);
   });
 
+  it("accepts fileReconciliation with mode report_only", () => {
+    const cfg = { ...validConfig, fileReconciliation: { mode: "report_only" } };
+    expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
+  });
+
+  it("accepts fileReconciliation with mode warn", () => {
+    const cfg = { ...validConfig, fileReconciliation: { mode: "warn" } };
+    expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
+  });
+
+  it("rejects fileReconciliation with an unknown mode", () => {
+    const cfg = { ...validConfig, fileReconciliation: { mode: "fail_on_missing" } };
+    expect(Either.isLeft(decodePhaxConfig(cfg))).toBe(true);
+  });
+
+  it("rejects fileReconciliation with excess properties", () => {
+    const cfg = { ...validConfig, fileReconciliation: { mode: "warn", extra: true } };
+    expect(Either.isLeft(decodePhaxConfig(cfg))).toBe(true);
+  });
+
+  it("accepts a config with no fileReconciliation field", () => {
+    expect(Either.isRight(decodePhaxConfig(validConfig))).toBe(true);
+  });
+
   it("rejects non-object input", () => {
     expect(Either.isLeft(decodePhaxConfig("not-an-object"))).toBe(true);
     expect(Either.isLeft(decodePhaxConfig(null))).toBe(true);

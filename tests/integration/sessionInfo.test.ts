@@ -118,6 +118,7 @@ describe("runSessionInfo", () => {
         maxFixAttempts: 3,
         extractPlanModel: "claude-haiku-4-5-20251001",
         extractPlanEffort: "low" as const,
+        fileReconciliationMode: "report_only" as const,
         raw: {
           version: 1 as const,
           project: { name: "test", type: "single-package" as const },

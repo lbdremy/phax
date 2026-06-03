@@ -22,6 +22,10 @@ const ExtractPlanConfigSchema = Schema.Struct({
   effort: Schema.optional(EffortLiteral),
 });
 
+const FileReconciliationConfigSchema = Schema.Struct({
+  mode: Schema.Literal("report_only", "warn"),
+});
+
 export const PhaxConfigSchema = Schema.Struct({
   $schema: Schema.optional(Schema.String),
   version: Schema.Literal(1),
@@ -50,6 +54,7 @@ export const PhaxConfigSchema = Schema.Struct({
       cleanup: Schema.optional(NonEmptyCommandArray),
     }),
   ),
+  fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   gateProfiles: GateProfilesSchema,
   workspaces: Schema.optional(Schema.Array(WorkspaceSchema)),
 });
@@ -68,6 +73,7 @@ export interface ResolvedConfig {
   readonly maxFixAttempts: number;
   readonly extractPlanModel: string;
   readonly extractPlanEffort: Effort;
+  readonly fileReconciliationMode: "report_only" | "warn";
 }
 
 export const decodePhaxConfig = Schema.decodeUnknownEither(PhaxConfigSchema, {

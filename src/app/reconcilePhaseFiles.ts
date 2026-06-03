@@ -15,6 +15,7 @@ export interface ReconcilePhaseFilesOptions {
   readonly worktreePath: WorktreePath;
   readonly phaseFolderPath: string;
   readonly runId: string;
+  readonly fileReconciliationMode: "report_only" | "warn";
 }
 
 export function reconcilePhaseFiles(
@@ -34,6 +35,28 @@ export function reconcilePhaseFiles(
     const entries = yield* git.diffNameStatus(opts.worktreePath);
     const result = reconcile(planned, entries);
     const markdown = renderReconciliationMarkdown(result, planned);
+
+    if (opts.fileReconciliationMode === "warn" && result.hasDeviations) {
+      const deviationSummary = [
+        result.missingPlannedCreate.length > 0
+          ? `missing planned creates: ${result.missingPlannedCreate.join(", ")}`
+          : null,
+        result.missingPlannedEdit.length > 0
+          ? `missing planned edits: ${result.missingPlannedEdit.join(", ")}`
+          : null,
+        result.unplannedCreated.length > 0
+          ? `unplanned creates: ${result.unplannedCreated.join(", ")}`
+          : null,
+        result.unplannedEdited.length > 0
+          ? `unplanned edits: ${result.unplannedEdited.join(", ")}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join("; ");
+      yield* Effect.logWarning(
+        `[phax] File reconciliation deviation in ${opts.phase.id}: ${deviationSummary}`,
+      );
+    }
 
     yield* fs.writeAtomic(
       join(opts.phaseFolderPath, "file-reconciliation.json"),

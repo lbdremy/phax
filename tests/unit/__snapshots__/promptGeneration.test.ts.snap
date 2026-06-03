@@ -87,6 +87,7 @@ All done.
 - Do not include unrelated refactors.
 - Do not implement excluded scope.
 - Do not move work from future phases into this phase unless required to keep the current phase coherent.
+- If any planned file was not touched or any unplanned (non-optional) file was changed, explain why under "## What the next phase needs to know" in \`phase-handoff.md\`.
 - Run the gate commands again after your changes to verify the gates are satisfied.
 npm run typecheck
 npm run test

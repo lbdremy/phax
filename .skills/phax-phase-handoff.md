@@ -58,6 +58,11 @@ Facts that are not derivable from reading the code: invariants, known gaps,
 ordering constraints, things that are deliberately not implemented yet, and any
 workarounds that look odd but are intentional.
 
+If phax flagged file-plan deviations in the reconciliation report (planned files
+you did not touch, or unplanned non-optional files you changed), explain each
+one here: why the deviation happened and whether the next phase should account
+for it.
+
 ## Tone and length
 
 - Short sentences. No padding.

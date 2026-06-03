@@ -127,6 +127,40 @@ describe("buildPhasePrompt", () => {
     expect(buildPhasePrompt(opts)).toBe(buildPhasePrompt(opts));
   });
 
+  it("includes the deviation explanation instruction", () => {
+    const prompt = buildPhasePrompt({
+      planMd: "# Plan",
+      planJson: samplePlan,
+      currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
+    });
+    expect(prompt).toContain("planned file was not touched");
+    expect(prompt).toContain("phase-handoff.md");
+  });
+
+  it("does not include the reconciliation section when previousReconciliation is absent", () => {
+    const prompt = buildPhasePrompt({
+      planMd: "# Plan",
+      planJson: samplePlan,
+      currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
+    });
+    expect(prompt).not.toContain("## Previous phase file reconciliation");
+  });
+
+  it("includes the reconciliation section when previousReconciliation is provided", () => {
+    const reconciliation = "## PHAX File Reconciliation\n\nNo deviations.";
+    const prompt = buildPhasePrompt({
+      planMd: "# Plan",
+      planJson: samplePlan,
+      currentPhase: samplePhase,
+      previousReconciliation: reconciliation,
+      gateCommands: sampleGateCommands,
+    });
+    expect(prompt).toContain("## Previous phase file reconciliation");
+    expect(prompt).toContain("No deviations.");
+  });
+
   it("matches the expected snapshot", () => {
     const prompt = buildPhasePrompt({
       planMd: "# My Plan\n\nPhase overview.",

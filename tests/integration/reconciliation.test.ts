@@ -85,6 +85,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
+      fileReconciliationMode: "report_only" as const,
     };
 
     const phase01WorktreePath = join(stateRoot, "worktrees", "recon-run", "phase-01");
@@ -191,6 +192,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
+      fileReconciliationMode: "report_only" as const,
     };
 
     const phase01WorktreePath = join(stateRoot, "worktrees", "recon-run", "phase-01");

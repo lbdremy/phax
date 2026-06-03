@@ -39,6 +39,7 @@ function buildHandoffPrompt(): string {
     "Be concise and precise. Focus on what the next phase needs to know.",
     "Do not repeat the phase instructions — only what was actually done and decided.",
     "Do not summarise the session transcript — write facts and decisions only.",
+    'If phax reported file-plan deviations (planned files not touched or unplanned files changed), explain each deviation under "## What the next phase needs to know".',
   ].join("\n");
 }
 
