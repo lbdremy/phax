@@ -49,7 +49,7 @@ describe("resolveModel — spec §15 examples", () => {
     expect(result.relationship).toBe("equivalent");
   });
 
-  it("Example 2: sonnet/high with codex priority → codex-cli/openai-chatgpt/medium (equivalent)", () => {
+  it("Example 2: sonnet/high with codex priority → codex-cli/openai-gpt/medium (equivalent)", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "high" },
       codexPriority,
@@ -58,13 +58,13 @@ describe("resolveModel — spec §15 examples", () => {
 
     expect(result.normalizedTier).toBe("strong");
     expect(result.selected.provider).toBe("codex-cli");
-    expect(result.selected.family).toBe("openai-chatgpt");
+    expect(result.selected.family).toBe("openai-gpt");
     expect(result.selected.thinking).toBe("medium");
     expect(result.selected.concreteModel).toBe("gpt-5.5");
     expect(result.relationship).toBe("equivalent");
   });
 
-  it("Example 3: opus/medium with mistral priority + allowDowngrade=true → codex-cli/openai-chatgpt/xhigh (fallback)", () => {
+  it("Example 3: opus/medium with mistral priority + allowDowngrade=true → codex-cli/openai-gpt/xhigh (fallback)", () => {
     const result = resolveModel(
       { model: "claude-opus-4-7", effort: "medium" },
       { ...mistralPriority, allowDowngrade: true },
@@ -73,7 +73,7 @@ describe("resolveModel — spec §15 examples", () => {
 
     expect(result.normalizedTier).toBe("frontier");
     expect(result.selected.provider).toBe("codex-cli");
-    expect(result.selected.family).toBe("openai-chatgpt");
+    expect(result.selected.family).toBe("openai-gpt");
     expect(result.selected.thinking).toBe("xhigh");
     expect(result.relationship).toBe("fallback");
   });
@@ -87,7 +87,7 @@ describe("resolveModel — spec §15 examples", () => {
 
     expect(result.normalizedTier).toBe("max");
     expect(result.selected.provider).toBe("codex-cli");
-    expect(result.selected.family).toBe("openai-chatgpt");
+    expect(result.selected.family).toBe("openai-gpt");
     expect(result.selected.thinking).toBe("xhigh");
     expect(result.relationship).toBe("downgrade");
   });
@@ -137,7 +137,7 @@ describe("resolveModel — additional behavior", () => {
       DEFAULT_PROVIDER_CONFIG,
     );
 
-    expect(result.requested.family).toBe("openai-chatgpt");
+    expect(result.requested.family).toBe("openai-gpt");
   });
 
   it("resolves haiku/medium to cheap tier and claude-code/claude-haiku exactly", () => {

@@ -30,7 +30,7 @@ const BASE_CONFIG: ProviderConfig = {
       enabled: false,
       executable: "codex",
       families: {
-        "openai-chatgpt": { model: "gpt-5.5" },
+        "openai-gpt": { model: "gpt-5.5" },
       },
     },
   },

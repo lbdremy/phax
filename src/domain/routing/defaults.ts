@@ -9,41 +9,41 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
   families: {
     claude: ["claude-haiku", "claude-sonnet", "claude-opus"],
     mistral: ["mistral-medium"],
-    openai: ["openai-chatgpt"],
+    openai: ["openai-gpt"],
   },
   tiers: {
     cheap: {
       "claude-code": { family: "claude-haiku" },
       "mistral-vibe": { family: "mistral-medium", thinking: "off" },
-      "codex-cli": { family: "openai-chatgpt", thinking: "low" },
+      "codex-cli": { family: "openai-gpt", thinking: "low" },
     },
     fast: {
       "claude-code": { family: "claude-haiku" },
       "mistral-vibe": { family: "mistral-medium", thinking: "low" },
-      "codex-cli": { family: "openai-chatgpt", thinking: "low" },
+      "codex-cli": { family: "openai-gpt", thinking: "low" },
     },
     standard: {
       "claude-code": { family: "claude-sonnet", effort: "medium" },
       "mistral-vibe": { family: "mistral-medium", thinking: "medium" },
-      "codex-cli": { family: "openai-chatgpt", thinking: "low" },
+      "codex-cli": { family: "openai-gpt", thinking: "low" },
     },
     strong: {
       "claude-code": { family: "claude-sonnet", effort: "high" },
       "mistral-vibe": { family: "mistral-medium", thinking: "high" },
-      "codex-cli": { family: "openai-chatgpt", thinking: "medium" },
+      "codex-cli": { family: "openai-gpt", thinking: "medium" },
     },
     very_strong: {
       "claude-code": { family: "claude-sonnet", effort: "xhigh" },
       "mistral-vibe": { family: "mistral-medium", thinking: "max" },
-      "codex-cli": { family: "openai-chatgpt", thinking: "high" },
+      "codex-cli": { family: "openai-gpt", thinking: "high" },
     },
     frontier: {
       "claude-code": { family: "claude-opus", effort: "medium" },
-      "codex-cli": { family: "openai-chatgpt", thinking: "xhigh", relationship: "fallback" },
+      "codex-cli": { family: "openai-gpt", thinking: "xhigh", relationship: "fallback" },
     },
     max: {
       "claude-code": { family: "claude-opus", effort: "max" },
-      "codex-cli": { family: "openai-chatgpt", thinking: "xhigh", relationship: "downgrade" },
+      "codex-cli": { family: "openai-gpt", thinking: "xhigh", relationship: "downgrade" },
     },
   },
   normalization: {
@@ -63,7 +63,7 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
       high: "strong",
       max: "very_strong",
     },
-    "openai-chatgpt": { low: "standard", medium: "strong", high: "very_strong", xhigh: "frontier" },
+    "openai-gpt": { low: "standard", medium: "strong", high: "very_strong", xhigh: "frontier" },
   },
   requestedModelNormalization: {
     "claude-haiku-4-5-20251001": "claude-haiku",
@@ -103,7 +103,7 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
       enabled: false,
       executable: "codex",
       families: {
-        "openai-chatgpt": { model: "gpt-5.5" },
+        "openai-gpt": { model: "gpt-5.5" },
       },
     },
   },

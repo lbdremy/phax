@@ -7,10 +7,19 @@ export const ModelFamilySchema = Schema.Literal(
   "claude-sonnet",
   "claude-opus",
   "mistral-medium",
-  "openai-chatgpt",
+  "openai-gpt",
 );
 
-export const ThinkingLevelSchema = Schema.Literal("off", "low", "medium", "high", "xhigh", "max");
+export const ThinkingLevelSchema = Schema.Literal(
+  "none",
+  "off",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+  "ultracode",
+);
 
 export const RoutingTierSchema = Schema.Literal(
   "cheap",
@@ -42,12 +51,14 @@ const DefaultTierNormalizationSchema = Schema.Struct({
 });
 
 const PerEffortNormalizationSchema = Schema.Struct({
+  none: Schema.optional(RoutingTierSchema),
   off: Schema.optional(RoutingTierSchema),
   low: Schema.optional(RoutingTierSchema),
   medium: Schema.optional(RoutingTierSchema),
   high: Schema.optional(RoutingTierSchema),
   xhigh: Schema.optional(RoutingTierSchema),
   max: Schema.optional(RoutingTierSchema),
+  ultracode: Schema.optional(RoutingTierSchema),
 });
 
 const NormalizationEntrySchema = Schema.Union(

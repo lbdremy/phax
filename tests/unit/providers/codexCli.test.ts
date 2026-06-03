@@ -7,7 +7,7 @@ import {
 
 const baseEntry = {
   executable: "codex",
-  families: { "openai-chatgpt": { model: "gpt-5.5" } },
+  families: { "openai-gpt": { model: "gpt-5.5" } },
 };
 
 describe("buildCodexArgs", () => {

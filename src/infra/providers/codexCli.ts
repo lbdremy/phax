@@ -150,7 +150,7 @@ export function runCodexAgent(
   AgentRunResult,
   AgentInvocationError | AgentSessionIdMissingError | RateLimitError | UsageLimitError | FsError
 > {
-  const model = entry.families?.["openai-chatgpt"]?.model ?? options.model;
+  const model = entry.families?.["openai-gpt"]?.model ?? options.model;
   const args = buildCodexArgs(entry, model, options.effort, resumeSessionId);
   const argv = [entry.executable, ...args];
 
