@@ -55,6 +55,34 @@ describe("readRegistry", () => {
     }
   });
 
+  // Regression: `rate_limited` is a valid run lifecycle state (added with rate-limit
+  // detection) but was missing from the registry schema, so any registry containing a
+  // rate-limited run failed to decode and broke `phax run` on startup.
+  it("decodes every run lifecycle state, including rate_limited", async () => {
+    const states: RegistryEntry["state"][] = [
+      "created",
+      "running",
+      "failed",
+      "review_open",
+      "completed",
+      "stopped",
+      "archived",
+      "interrupted",
+      "rate_limited",
+    ];
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile(
+      `${stateRoot}/registry.json`,
+      JSON.stringify({
+        version: 1,
+        runs: states.map((state, i) => makeEntry(`run-${i}`, { state })),
+      }),
+    );
+
+    const registry = await Effect.runPromise(readRegistry(stateRoot).pipe(Effect.provide(layer)));
+    expect(registry.runs.map((r) => r.state)).toEqual(states);
+  });
+
   it("fails with RegistryCorruptionError when JSON fails schema validation", async () => {
     const { impl, layer } = makeFakeFileSystem();
     impl.setFile(`${stateRoot}/registry.json`, JSON.stringify({ version: 99, runs: [] }));

@@ -9,6 +9,7 @@ const RunStateSchema = Schema.Union(
   Schema.Literal("stopped"),
   Schema.Literal("archived"),
   Schema.Literal("interrupted"),
+  Schema.Literal("rate_limited"),
 );
 
 export const RegistryEntrySchema = Schema.Struct({
