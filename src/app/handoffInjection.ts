@@ -31,3 +31,24 @@ export function readPreviousHandoff(
     return yield* fs.readText(pathOpt.value);
   });
 }
+
+export function reconciliationPath(runPath: string, phaseId: string): string {
+  return join(runPath, phaseId, "file-reconciliation.md");
+}
+
+export function readPreviousReconciliation(
+  runPath: string,
+  phases: readonly { readonly id: string }[],
+  currentPhaseIndex: number,
+): Effect.Effect<string | undefined, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    if (currentPhaseIndex === 0) return undefined;
+    const previousPhase = phases[currentPhaseIndex - 1];
+    if (previousPhase === undefined) return undefined;
+    const fs = yield* FileSystem;
+    const path = reconciliationPath(runPath, previousPhase.id);
+    const exists = yield* fs.exists(path);
+    if (!exists) return undefined;
+    return yield* fs.readText(path);
+  });
+}

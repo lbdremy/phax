@@ -44,7 +44,7 @@ import { dispatch, type DispatcherContext } from "./dispatcher.js";
 import { recordGateProfileInRunStatus, resolveGateProfile } from "./gates.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
-import { readPreviousHandoff } from "./handoffInjection.js";
+import { readPreviousHandoff, readPreviousReconciliation } from "./handoffInjection.js";
 import { createPhaseFolder } from "./phaseFolder.js";
 import { recordPhaseWorktreeAndBranch } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
@@ -298,6 +298,7 @@ export function executePlan(
       yield* setupPhase({ worktreePath, phaseFolderPath, setupCommands });
 
       const previousHandoff = yield* readPreviousHandoff(runPath, plan.phases, i);
+      const previousReconciliation = yield* readPreviousReconciliation(runPath, plan.phases, i);
 
       const promptGateCommands = config.raw.gateProfiles[gateProfileId]?.flat(1) ?? [];
       const promptText = buildPhasePrompt({
@@ -305,6 +306,7 @@ export function executePlan(
         planJson: plan,
         currentPhase: phase,
         previousHandoff,
+        previousReconciliation,
         gateCommands: promptGateCommands,
       });
 
@@ -459,6 +461,7 @@ export function executePlan(
         worktreePath,
         phaseFolderPath,
         runId: runId as string,
+        fileReconciliationMode: config.fileReconciliationMode,
       });
 
       if (isFinal) {

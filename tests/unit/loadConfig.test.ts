@@ -100,3 +100,32 @@ describe("loadConfig extractPlan resolution", () => {
     expect(Either.isLeft(result)).toBe(true);
   });
 });
+
+describe("loadConfig fileReconciliation resolution", () => {
+  it("defaults fileReconciliationMode to report_only when not set", () => {
+    writePhaxJson(baseConfig);
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.fileReconciliationMode).toBe("report_only");
+    }
+  });
+
+  it("resolves fileReconciliationMode to warn when configured", () => {
+    writePhaxJson({ ...baseConfig, fileReconciliation: { mode: "warn" } });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.fileReconciliationMode).toBe("warn");
+    }
+  });
+
+  it("resolves fileReconciliationMode to report_only when explicitly set", () => {
+    writePhaxJson({ ...baseConfig, fileReconciliation: { mode: "report_only" } });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.fileReconciliationMode).toBe("report_only");
+    }
+  });
+});

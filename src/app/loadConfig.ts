@@ -141,6 +141,7 @@ export function loadConfig(
     maxFixAttempts: config.agent?.maxFixAttempts ?? 1,
     extractPlanModel: config.agent?.extractPlan?.model ?? DEFAULT_EXTRACT_MODEL,
     extractPlanEffort: config.agent?.extractPlan?.effort ?? "low",
+    fileReconciliationMode: config.fileReconciliation?.mode ?? "report_only",
   };
 
   return Either.right(resolved);
