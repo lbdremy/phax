@@ -122,6 +122,12 @@ exports[`State Machine Contract > snapshots the ordered semantic trace for a hap
     "type": "adapter.call.succeeded",
   },
   {
+    "artifact": "file-reconciliation",
+    "operationId": "phase-01",
+    "path": "phase-01/file-reconciliation.md",
+    "type": "artifact.generated",
+  },
+  {
     "dispatcher": "dispatch",
     "event": "FinalReviewOpened",
     "stateAfter": "review_open:review_open",
