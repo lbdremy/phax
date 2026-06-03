@@ -39,6 +39,7 @@ import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../domain/routin
 import { resolveModel } from "../domain/routing/resolve.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
+import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
 import { recordGateProfileInRunStatus, resolveGateProfile } from "./gates.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
@@ -452,6 +453,13 @@ export function executePlan(
           operation: "commit.create",
         }),
       );
+
+      yield* reconcilePhaseFiles({
+        phase,
+        worktreePath,
+        phaseFolderPath,
+        runId: runId as string,
+      });
 
       if (isFinal) {
         finalWorktreePath = worktreePath;

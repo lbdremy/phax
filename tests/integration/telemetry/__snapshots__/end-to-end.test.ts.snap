@@ -122,6 +122,12 @@ exports[`executePlan — semantic telemetry end-to-end > emits the expected sema
     "type": "adapter.call.succeeded",
   },
   {
+    "artifact": "file-reconciliation",
+    "operationId": "phase-01",
+    "path": "phase-01/file-reconciliation.md",
+    "type": "artifact.generated",
+  },
+  {
     "dispatcher": "dispatch",
     "event": "FinalReviewOpened",
     "stateAfter": "review_open:review_open",
