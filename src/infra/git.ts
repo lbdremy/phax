@@ -5,6 +5,7 @@ import type { BranchName, WorktreePath } from "../domain/branded.js";
 import { decodeBranchName } from "../domain/branded.js";
 import { Either } from "effect";
 import { isPortcelainClean, parseBranchOutput, parseBranchExistsOutput } from "../schemas/git.js";
+import { parseNameStatus } from "../domain/reconciliation/parseNameStatus.js";
 
 function gitRun(
   args: readonly string[],
@@ -108,6 +109,11 @@ export const NodeGitLayer = Layer.succeed(Git, {
     ),
 
   pruneWorktrees: (repo) => gitRun(["worktree", "prune"], repo).pipe(Effect.asVoid),
+
+  diffNameStatus: (path) =>
+    gitRun(["diff", "--name-status", "HEAD^", "HEAD"], path as string).pipe(
+      Effect.map(({ stdout }) => parseNameStatus(stdout)),
+    ),
 });
 
 export function makeNodeGitLayer(): Layer.Layer<Git> {
