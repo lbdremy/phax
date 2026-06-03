@@ -41,7 +41,8 @@ export type RoutingTier =
   | "strong"
   | "very_strong"
   | "frontier"
-  | "max";
+  | "max"
+  | "ultra";
 
 export type Relationship = "exact" | "equivalent" | "fallback" | "downgrade" | "no_equivalent";
 

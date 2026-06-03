@@ -29,6 +29,7 @@ export const RoutingTierSchema = Schema.Literal(
   "very_strong",
   "frontier",
   "max",
+  "ultra",
 );
 
 export const RelationshipSchema = Schema.Literal(

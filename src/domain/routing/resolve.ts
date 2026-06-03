@@ -1,6 +1,8 @@
 import type { ModelRouting } from "../../schemas/modelRouting.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
+import { FAMILY_EFFORTS, isEffortSupported } from "./types.js";
 import type {
+  EffortLevel,
   ModelFamily,
   ProviderId,
   Relationship,
@@ -20,6 +22,41 @@ interface TierEntry {
 interface FamilyResolution {
   readonly family: ModelFamily;
   readonly source: "configured" | "heuristic" | "fallback";
+}
+
+// Ordinal positions used to clamp a requested effort to the nearest level a
+// family actually supports. `none` and `off` both sit at 0 — they represent
+// "no reasoning" for different vendors. Ties prefer the lower (more
+// conservative) supported level.
+const EFFORT_ORDINAL: Record<EffortLevel, number> = {
+  none: 0,
+  off: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+  xhigh: 4,
+  max: 5,
+  ultracode: 6,
+};
+
+function isClaudeFamily(family: ModelFamily): boolean {
+  return family === "claude-haiku" || family === "claude-sonnet" || family === "claude-opus";
+}
+
+function nearestSupportedEffort(family: ModelFamily, effort: ThinkingLevel): ThinkingLevel {
+  if (isEffortSupported(family, effort)) return effort;
+  const supported = FAMILY_EFFORTS[family];
+  const target = EFFORT_ORDINAL[effort];
+  let best: ThinkingLevel = supported[0]!;
+  let bestDistance = Math.abs(EFFORT_ORDINAL[best] - target);
+  for (const candidate of supported) {
+    const d = Math.abs(EFFORT_ORDINAL[candidate] - target);
+    if (d < bestDistance) {
+      best = candidate;
+      bestDistance = d;
+    }
+  }
+  return best;
 }
 
 function resolveFamily(model: string, routing: ModelRouting): FamilyResolution {
@@ -75,6 +112,50 @@ function classifyRelationship(
     return "exact";
   }
   return "equivalent";
+}
+
+// Same-family preservation guard for the terminal claude-code provider.
+//
+// Invariant: when the requested family is a Claude family and we select
+// claude-code, the resolved family must equal the requested family and the
+// resolved effort must lie inside that family's supported set
+// (nearest-clamped if the request is out of set). A cross-Claude-family
+// downgrade is allowed only if the tier entry is explicitly marked
+// `relationship: "downgrade"` AND routing.allowDowngrade is true. This holds
+// even if a user edits the routing table.
+function applyClaudeCodeFamilyGuard(
+  entry: TierEntry,
+  requestedFamily: ModelFamily,
+  requestedEffort: ThinkingLevel,
+  allowDowngrade: boolean,
+): { entry: TierEntry; relationship: Relationship } {
+  if (!isClaudeFamily(requestedFamily)) {
+    return {
+      entry,
+      relationship: classifyRelationship(entry, requestedFamily, requestedEffort),
+    };
+  }
+
+  if (entry.family !== requestedFamily) {
+    // Cross-Claude-family entry: only honour an explicit, permitted downgrade.
+    if (allowDowngrade && entry.relationship === "downgrade") {
+      return { entry, relationship: "downgrade" };
+    }
+    // Otherwise force back to the requested Claude family with clamped effort.
+    const clamped = nearestSupportedEffort(requestedFamily, requestedEffort);
+    return {
+      entry: { family: requestedFamily, effort: clamped },
+      relationship: clamped === requestedEffort ? "exact" : "equivalent",
+    };
+  }
+
+  // Same family — preserve family, use the requested effort clamped to the
+  // family's supported set.
+  const clamped = nearestSupportedEffort(requestedFamily, requestedEffort);
+  return {
+    entry: { family: requestedFamily, effort: clamped },
+    relationship: clamped === requestedEffort ? "exact" : "equivalent",
+  };
 }
 
 interface Concrete {
@@ -162,13 +243,27 @@ export function resolveModel(
   const tierEntries = routing.tiers[tier];
 
   for (const provider of routing.providerPriority) {
-    const entry = tierEntries?.[provider];
-    if (!entry) continue;
+    const rawEntry = tierEntries?.[provider];
+    if (!rawEntry) continue;
 
     const providerEntry = providerCfg.providers[provider];
     if (!providerEntry?.enabled) continue;
 
-    const relationship = classifyRelationship(entry, requestedFamily, request.effort);
+    let entry: TierEntry = rawEntry;
+    let relationship: Relationship;
+
+    if (provider === "claude-code") {
+      const guarded = applyClaudeCodeFamilyGuard(
+        rawEntry,
+        requestedFamily,
+        request.effort,
+        routing.allowDowngrade,
+      );
+      entry = guarded.entry;
+      relationship = guarded.relationship;
+    } else {
+      relationship = classifyRelationship(rawEntry, requestedFamily, request.effort);
+    }
 
     if (
       requestedFamily === "claude-opus" &&
@@ -209,9 +304,14 @@ export function resolveModel(
   // Try the tier's claude-code entry first, then a direct claude-code/<requestedFamily> resolution.
   const terminalTierEntry = tierEntries?.["claude-code"];
   if (terminalTierEntry) {
-    const concrete = resolveConcrete("claude-code", terminalTierEntry, providerCfg);
+    const guarded = applyClaudeCodeFamilyGuard(
+      terminalTierEntry,
+      requestedFamily,
+      request.effort,
+      routing.allowDowngrade,
+    );
+    const concrete = resolveConcrete("claude-code", guarded.entry, providerCfg);
     if (concrete) {
-      const relationship = classifyRelationship(terminalTierEntry, requestedFamily, request.effort);
       return {
         requested: {
           model: request.model,
@@ -221,20 +321,20 @@ export function resolveModel(
         normalizedTier: tier,
         selected: buildSelected(
           "claude-code",
-          terminalTierEntry.family,
+          guarded.entry.family,
           concrete.thinking,
           concrete.concreteModel,
         ),
-        relationship,
+        relationship: guarded.relationship,
         reason: reasonFor(
           request,
           requestedFamily,
           familyResolution.source,
           tier,
           "claude-code",
-          terminalTierEntry.family,
+          guarded.entry.family,
           concrete.thinking,
-          relationship,
+          guarded.relationship,
           true,
         ),
       };
@@ -243,6 +343,10 @@ export function resolveModel(
 
   const directModel = providerCfg.providers["claude-code"]?.families?.[requestedFamily]?.model;
   if (directModel) {
+    const directEffort = isClaudeFamily(requestedFamily)
+      ? nearestSupportedEffort(requestedFamily, request.effort)
+      : request.effort;
+    const relationship: Relationship = directEffort === request.effort ? "exact" : "equivalent";
     return {
       requested: {
         model: request.model,
@@ -250,14 +354,15 @@ export function resolveModel(
         effort: request.effort,
       },
       normalizedTier: tier,
-      selected: buildSelected("claude-code", requestedFamily, request.effort, directModel),
-      relationship: "exact",
-      reason: `No tier entry available for ${tier}; routed directly to claude-code/${requestedFamily}/${request.effort}.`,
+      selected: buildSelected("claude-code", requestedFamily, directEffort, directModel),
+      relationship,
+      reason: `No tier entry available for ${tier}; routed directly to claude-code/${requestedFamily}/${directEffort}.`,
     };
   }
 
   const sonnetFallback =
     providerCfg.providers["claude-code"]?.families?.["claude-sonnet"]?.model ?? "claude-sonnet";
+  const sonnetEffort = nearestSupportedEffort("claude-sonnet", request.effort);
   return {
     requested: {
       model: request.model,
@@ -265,7 +370,7 @@ export function resolveModel(
       effort: request.effort,
     },
     normalizedTier: tier,
-    selected: buildSelected("claude-code", "claude-sonnet", request.effort, sonnetFallback),
+    selected: buildSelected("claude-code", "claude-sonnet", sonnetEffort, sonnetFallback),
     relationship: "no_equivalent",
     reason: `No matching provider for tier ${tier}; defaulted to claude-code/claude-sonnet.`,
   };

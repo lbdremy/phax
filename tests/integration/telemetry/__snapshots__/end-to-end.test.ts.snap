@@ -46,13 +46,14 @@ exports[`executePlan — semantic telemetry end-to-end > emits the expected sema
   {
     "normalizedTier": "fast",
     "operationId": "phase-01",
-    "reason": "Provider priority selected claude-code; claude-sonnet/low maps to tier fast; claude-code provides claude-haiku (equivalent).",
-    "relationship": "equivalent",
+    "reason": "Provider priority selected claude-code; claude-sonnet/low maps to tier fast; claude-code provides claude-sonnet/low (exact).",
+    "relationship": "exact",
     "requestedEffort": "low",
     "requestedFamily": "claude-sonnet",
-    "selectedConcreteModel": "claude-haiku-4-5-20251001",
-    "selectedFamily": "claude-haiku",
+    "selectedConcreteModel": "claude-sonnet-4-6",
+    "selectedFamily": "claude-sonnet",
     "selectedProvider": "claude-code",
+    "selectedThinking": "low",
     "type": "agent.model.resolved",
   },
   {
