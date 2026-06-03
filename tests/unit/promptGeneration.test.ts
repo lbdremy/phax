@@ -8,6 +8,9 @@ const samplePhase: PhaxPlanPhase = {
   model: "claude-sonnet-4-6",
   effort: "medium",
   planMarkdownAnchor: "#phase-01-cli-skeleton",
+  plannedFilesToCreate: [],
+  plannedFilesToEdit: [],
+  optionalFilesToEdit: [],
   commit: {
     subject: "ai(phase-01): create cli skeleton",
     body: "Bootstrap the project.",

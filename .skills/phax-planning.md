@@ -21,26 +21,26 @@ Each phase section must contain all of the following. Fields marked **extracted*
 are pulled by `phax extract-plan` into `phax-plan.json`; the rest are
 informational for the executing agent.
 
-| Field                    | Location in section                                   | Extracted? |
-| ------------------------ | ----------------------------------------------------- | ---------- |
-| `id`                     | Derived from the heading (`phase-01` → `"phase-01"`)  | yes        |
-| `title`                  | Section heading after the dash                        | yes        |
-| `model`                  | `**Recommended model:** <model-id>` line              | yes        |
-| `effort`                 | `**Recommended effort:** low\|medium\|high` line      | yes        |
-| `planMarkdownAnchor`     | `{#phase-NN-<slug>}` in the heading line              | yes        |
-| `plannedFilesToCreate`   | `### Planned files to create` list                    | yes        |
-| `plannedFilesToEdit`     | `### Planned files to edit` list                      | yes        |
-| `optionalFilesToEdit`    | `### Optional files that may be edited` list          | yes        |
-| `commit.subject`         | `### Commit subject` subsection                       | yes        |
-| `commit.body`            | `### Commit body` subsection                          | yes        |
-| Objective                | Opening paragraph of the phase section                | no         |
-| Detailed instructions    | `### Detailed instructions` bullet list               | no         |
-| Boundary contracts       | `### Boundary contracts` subsection                   | no         |
-| Test strategy            | `### Test strategy` subsection                        | no         |
-| Implementation order     | `### Implementation order` subsection                 | no         |
-| Excluded scope           | `### Excluded scope` list                             | no         |
-| Verification             | `### Verification` (names the `phax.json` gate profile)| no        |
-| Expected handoff content | `### Expected handoff content`                        | no         |
+| Field                    | Location in section                                     | Extracted? |
+| ------------------------ | ------------------------------------------------------- | ---------- |
+| `id`                     | Derived from the heading (`phase-01` → `"phase-01"`)    | yes        |
+| `title`                  | Section heading after the dash                          | yes        |
+| `model`                  | `**Recommended model:** <model-id>` line                | yes        |
+| `effort`                 | `**Recommended effort:** low\|medium\|high` line        | yes        |
+| `planMarkdownAnchor`     | `{#phase-NN-<slug>}` in the heading line                | yes        |
+| `plannedFilesToCreate`   | `### Planned files to create` list                      | yes        |
+| `plannedFilesToEdit`     | `### Planned files to edit` list                        | yes        |
+| `optionalFilesToEdit`    | `### Optional files that may be edited` list            | yes        |
+| `commit.subject`         | `### Commit subject` subsection                         | yes        |
+| `commit.body`            | `### Commit body` subsection                            | yes        |
+| Objective                | Opening paragraph of the phase section                  | no         |
+| Detailed instructions    | `### Detailed instructions` bullet list                 | no         |
+| Boundary contracts       | `### Boundary contracts` subsection                     | no         |
+| Test strategy            | `### Test strategy` subsection                          | no         |
+| Implementation order     | `### Implementation order` subsection                   | no         |
+| Excluded scope           | `### Excluded scope` list                               | no         |
+| Verification             | `### Verification` (names the `phax.json` gate profile) | no         |
+| Expected handoff content | `### Expected handoff content`                          | no         |
 
 The three planned-file arrays are **required**: the section must be present even
 when it is empty (write `- (none)` for an empty list). They back the end-of-phase
@@ -61,40 +61,52 @@ include them now to keep plans forward-compatible.
 phase adds.>
 
 ### Detailed instructions
+
 - <what to implement, in enough detail for the chosen model/effort to succeed>
 
 ### Planned files to create
+
 - <repo-relative path you expect to NOT exist before the phase>
 
 ### Planned files to edit
+
 - <repo-relative path you expect to modify>
 
 ### Optional files that may be edited
+
 - <repo-relative path that may need a touch depending on implementation>
 
 ### Boundary contracts
+
 <consumer/producer contracts this phase crosses; omit if it crosses none>
 
 ### Test strategy
+
 <what to test, at which layer, and which tests to write before implementation>
 
 ### Implementation order
+
 <recommended order, usually core-to-surface>
 
 ### Excluded scope
+
 - <what is explicitly NOT in this phase>
 
 ### Verification
+
 <the phax.json gate profile that verifies this phase — do not invent commands>
 
 ### Expected handoff content
+
 <what the agent must record in phase-handoff.md, including an explanation for
 any file-plan deviation phax flags>
 
 ### Commit subject
+
 <single-line conventional-commit subject>
 
 ### Commit body
+
 <commit body explaining the change>
 ```
 
@@ -154,7 +166,7 @@ that layer:
 | Adapters                  | Integration tests                         |
 | ViewModel                 | Integration tests                         |
 | View                      | Component/unit tests                      |
-| Page/route/CLI                | E2E or smoke tests                        |
+| Page/route/CLI            | E2E or smoke tests                        |
 
 Mark which tests to write **before** implementation. Do it for stable contracts
 and critical behavior (domain invariants, application commands, ports, bug
@@ -235,33 +247,42 @@ Introduce the run-folder model and atomic file writes so later phases have a
 durable place to persist run state.
 
 ### Detailed instructions
+
 - Add `createRunFolder(shortName, …)` returning the run path.
 - Route all writes through an atomic write helper.
 
 ### Planned files to create
+
 - `src/app/runFolder.ts`
 - `tests/unit/runFolder.test.ts`
 
 ### Planned files to edit
+
 - `src/app/index.ts`
 
 ### Optional files that may be edited
+
 - (none)
 
 ### Excluded scope
+
 - Phase-level worktree creation (phase-04).
 
 ### Verification
+
 - The project's configured `full` gate profile in `phax.json`.
 
 ### Expected handoff content
+
 - The exact path `src/app/runFolder.ts` and the `createRunFolder` signature.
 - Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
+
 feat(run): add run folder model and atomic writes
 
 ### Commit body
+
 Add createRunFolder and an atomic write helper so later phases can persist run
 state durably. Covered by a unit test exercising the folder layout.
 ```

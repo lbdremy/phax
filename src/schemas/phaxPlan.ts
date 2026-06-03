@@ -8,6 +8,9 @@ const PhaseSchema = Schema.Struct({
   model: Schema.NonEmptyString,
   effort: EffortSchema,
   planMarkdownAnchor: Schema.NonEmptyString,
+  plannedFilesToCreate: Schema.Array(Schema.String),
+  plannedFilesToEdit: Schema.Array(Schema.String),
+  optionalFilesToEdit: Schema.Array(Schema.String),
   commit: Schema.Struct({
     subject: Schema.NonEmptyString,
     body: Schema.NonEmptyString,
