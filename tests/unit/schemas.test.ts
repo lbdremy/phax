@@ -132,6 +132,9 @@ const validPlan = {
       model: "claude-sonnet-4-6",
       effort: "low",
       planMarkdownAnchor: "#phase-01-first",
+      plannedFilesToCreate: [],
+      plannedFilesToEdit: [],
+      optionalFilesToEdit: [],
       commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
     },
   ],
@@ -163,6 +166,48 @@ describe("decodePhaxPlan", () => {
   it("rejects excess properties", () => {
     const bad = { ...validPlan, extra: "field" };
     expect(Either.isLeft(decodePhaxPlan(bad))).toBe(true);
+  });
+
+  it("rejects a phase missing plannedFilesToCreate", () => {
+    const { plannedFilesToCreate: _, ...noCreate } = validPlan.phases[0];
+    const bad = { ...validPlan, phases: [noCreate] };
+    expect(Either.isLeft(decodePhaxPlan(bad))).toBe(true);
+  });
+
+  it("rejects a phase missing plannedFilesToEdit", () => {
+    const { plannedFilesToEdit: _, ...noEdit } = validPlan.phases[0];
+    const bad = { ...validPlan, phases: [noEdit] };
+    expect(Either.isLeft(decodePhaxPlan(bad))).toBe(true);
+  });
+
+  it("rejects a phase missing optionalFilesToEdit", () => {
+    const { optionalFilesToEdit: _, ...noOptional } = validPlan.phases[0];
+    const bad = { ...validPlan, phases: [noOptional] };
+    expect(Either.isLeft(decodePhaxPlan(bad))).toBe(true);
+  });
+
+  it("accepts a phase with empty planned-file arrays", () => {
+    expect(Either.isRight(decodePhaxPlan(validPlan))).toBe(true);
+  });
+
+  it("accepts a phase with populated planned-file arrays and round-trips", () => {
+    const withFiles = {
+      ...validPlan,
+      phases: [
+        {
+          ...validPlan.phases[0],
+          plannedFilesToCreate: ["src/new.ts"],
+          plannedFilesToEdit: ["src/existing.ts"],
+          optionalFilesToEdit: ["docs/readme.md"],
+        },
+      ],
+    };
+    const decoded = decodePhaxPlan(withFiles);
+    expect(Either.isRight(decoded)).toBe(true);
+    if (Either.isLeft(decoded)) throw new Error("unexpected Left");
+    expect(decoded.right.phases[0]!.plannedFilesToCreate).toEqual(["src/new.ts"]);
+    expect(decoded.right.phases[0]!.plannedFilesToEdit).toEqual(["src/existing.ts"]);
+    expect(decoded.right.phases[0]!.optionalFilesToEdit).toEqual(["docs/readme.md"]);
   });
 });
 

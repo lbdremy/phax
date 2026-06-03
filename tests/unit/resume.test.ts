@@ -48,6 +48,9 @@ function makePlanPhase(id: string) {
     model: "claude-sonnet-4-6",
     effort: "low",
     planMarkdownAnchor: `#${id}`,
+    plannedFilesToCreate: [],
+    plannedFilesToEdit: [],
+    optionalFilesToEdit: [],
     commit: { subject: `feat: ${id}`, body: `${id} body` },
   };
 }
@@ -150,6 +153,9 @@ describe("inspectResume", () => {
           model: "claude-sonnet-4-6",
           effort: "low",
           planMarkdownAnchor: "#phase-01",
+          plannedFilesToCreate: [],
+          plannedFilesToEdit: [],
+          optionalFilesToEdit: [],
           commit: { subject: "feat: phase-01", body: "Phase 01 body" },
         },
         {
@@ -158,6 +164,9 @@ describe("inspectResume", () => {
           model: "claude-sonnet-4-6",
           effort: "low",
           planMarkdownAnchor: "#phase-02",
+          plannedFilesToCreate: [],
+          plannedFilesToEdit: [],
+          optionalFilesToEdit: [],
           commit: { subject: "feat: phase-02", body: "Phase 02 body" },
         },
       ],

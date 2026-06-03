@@ -57,7 +57,7 @@ Today:
   existing architectural purity guard.
 - **Git access via a new port method.** `Git.diffNameStatus(worktree)` returns
   parsed `NameStatusEntry[]`; the Node adapter runs `git diff --name-status
-  HEAD^ HEAD` and parses with the pure parser, and the fake lets tests enqueue
+HEAD^ HEAD` and parses with the pure parser, and the fake lets tests enqueue
   entries.
 - **Report first, knobs later.** The report is always written (report-only
   semantics) from the moment it is wired in. The `fileReconciliation.mode`
@@ -110,10 +110,10 @@ updated in this commit to keep the gates green.
   - `plannedFilesToCreate: Schema.Array(Schema.String)`
   - `plannedFilesToEdit: Schema.Array(Schema.String)`
   - `optionalFilesToEdit: Schema.Array(Schema.String)`
-  All three are required (no `Schema.optional`); an empty array is valid. They
-  appear in both `ExtractedPhaxPlanSchema` and `PhaxPlanSchema` because both
-  embed `PhaseSchema`, so `getExtractedPlanJsonSchema()` automatically advertises
-  them to Claude — no change to `src/app/extractPlan.ts` extraction logic.
+    All three are required (no `Schema.optional`); an empty array is valid. They
+    appear in both `ExtractedPhaxPlanSchema` and `PhaxPlanSchema` because both
+    embed `PhaseSchema`, so `getExtractedPlanJsonSchema()` automatically advertises
+    them to Claude — no change to `src/app/extractPlan.ts` extraction logic.
 - Update the root sample plan `phax-plan.json` so its single phase gains the
   three keys (use realistic values, e.g. the files that phase actually created).
 - Update every in-repo phase fixture so the project type-checks and all decode
@@ -139,9 +139,11 @@ updated in this commit to keep the gates green.
   arrays decodes to `Right`; a phase with populated arrays round-trips.
 
 ### Planned files to create
+
 - (none)
 
 ### Planned files to edit
+
 - `src/schemas/phaxPlan.ts`
 - `phax-plan.json`
 - `tests/unit/schemas.test.ts`
@@ -161,22 +163,26 @@ updated in this commit to keep the gates green.
 - `tests/e2e/semanticTrace.test.ts`
 
 ### Optional files that may be edited
+
 - `src/app/extractPlan.ts` (only if you choose to surface the new arrays in
   `buildExtractReport`; not required)
 - `docs/extract-plan-model.md`
 - `examples/hello-world/plan.md`
 
 ### Boundary contracts
+
 None — this phase changes a schema and its fixtures only; it crosses no runtime
 architectural boundary.
 
 ### Test strategy
+
 Contract/schema tests at the domain-schema layer (`tests/unit/schemas.test.ts`):
 write the new failing decode cases first (missing field → `Left`), then add the
 fields to make them pass. The wide fixture edit is mechanical; the type-checker
 and the existing suite are the safety net.
 
 ### Implementation order
+
 1. Add the failing schema test cases for the three required fields.
 2. Add the fields to `PhaseSchema`.
 3. Update `phax-plan.json` and run `pnpm typecheck`; fix each flagged fixture.
@@ -184,15 +190,18 @@ and the existing suite are the safety net.
 5. Run the full gate profile.
 
 ### Excluded scope
+
 - Reconciliation logic, the Git port method, config, and prompt injection
   (phases 02–05).
 
 ### Verification
+
 The project's `full` gate profile in `phax.json` (`pnpm typecheck`, `pnpm lint`,
 `pnpm format:check`, `pnpm knip`, `pnpm test`, `pnpm audit:architecture`,
 `pnpm build`).
 
 ### Expected handoff content
+
 - The exact field names and types added to `PhaseSchema`
   (`plannedFilesToCreate`, `plannedFilesToEdit`, `optionalFilesToEdit`:
   `readonly string[]`, required) and confirmation they are exposed by
@@ -203,9 +212,11 @@ The project's `full` gate profile in `phax.json` (`pnpm typecheck`, `pnpm lint`,
   not need editing), with the reason.
 
 ### Commit subject
+
 feat(schema): add planned-file fields to the phase schema
 
 ### Commit body
+
 Add required `plannedFilesToCreate`, `plannedFilesToEdit`, and
 `optionalFilesToEdit` string arrays to `PhaseSchema`, flowing into both the
 extracted and persisted plan schemas. Update the root sample plan, every phase
@@ -276,6 +287,7 @@ it real git output and write its output to disk.
   and the deviation note).
 
 ### Planned files to create
+
 - `src/domain/reconciliation/types.ts`
 - `src/domain/reconciliation/parseNameStatus.ts`
 - `src/domain/reconciliation/reconcile.ts`
@@ -285,24 +297,29 @@ it real git output and write its output to disk.
 - `tests/unit/reconciliation/render.test.ts`
 
 ### Planned files to edit
+
 - `tests/unit/architecturalGuards.test.ts`
 
 ### Optional files that may be edited
+
 - (none)
 
 ### Boundary contracts
+
 None crossed at runtime. The contract this phase establishes for later consumers
 (phase-03 and phase-04) is the producer surface of `src/domain/reconciliation/`:
 `parseNameStatus`, `reconcile`, `renderReconciliationMarkdown`, and the exported
 types. Be strict on these signatures; consumers depend on them.
 
 ### Test strategy
+
 Domain layer → unit tests, written test-first since this is stable, critical
 logic. Cover parser edge cases (renames, unknown codes, whitespace) and the
 reconcile set algebra exhaustively, including the invariant that touching an
 optional file is never a deviation.
 
 ### Implementation order
+
 1. Write `types.ts`.
 2. Write failing parser tests, then `parseNameStatus.ts`.
 3. Write failing reconcile tests, then `reconcile.ts`.
@@ -311,15 +328,18 @@ optional file is never a deviation.
    full gate profile.
 
 ### Excluded scope
+
 - Any git invocation or file I/O (phase-03/04).
 - Reading planned lists off a `PhaxPlanPhase` (phase-04 maps phase → `PlannedFiles`).
 
 ### Verification
+
 The project's `full` gate profile in `phax.json`. `pnpm audit:architecture` must
 prove `src/domain/reconciliation/` imports no `effect`, `@opentelemetry`,
 `ports/fs`, or `infra` modules.
 
 ### Expected handoff content
+
 - The exact module paths and exported signatures (`parseNameStatus`,
   `reconcile`, `renderReconciliationMarkdown`) and the `NameStatusEntry` /
   `PlannedFiles` / `ReconciliationResult` shapes, so phase-03 can import the
@@ -328,9 +348,11 @@ prove `src/domain/reconciliation/` imports no `effect`, `@opentelemetry`,
 - Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
+
 feat(reconciliation): add pure file-reconciliation domain
 
 ### Commit body
+
 Add `src/domain/reconciliation/` with a name-status parser, a pure `reconcile`
 comparing planned file lists against actual changes, and a Markdown renderer for
 the reconciliation report. The module is pure (guarded by the architectural
@@ -374,19 +396,23 @@ the Node adapter and the fake.
   the new export reachable.
 
 ### Planned files to create
+
 - `tests/integration/gitDiffNameStatus.test.ts`
 
 ### Planned files to edit
+
 - `src/ports/git.ts`
 - `src/infra/git.ts`
 - `src/infra/fakes/git.ts`
 
 ### Optional files that may be edited
+
 - (none)
 
 ### Boundary contracts
 
 #### app/executePlan (future consumer) → Git port (producer)
+
 - Consumer (phase-04): the phase lifecycle, which needs the actual change set
   for a committed phase.
 - Producer: the `Git` port.
@@ -395,37 +421,45 @@ the Node adapter and the fake.
   computed over `HEAD^..HEAD` in the worktree.
 
 #### Git port → Node git adapter (producer)
+
 - The adapter shells out via the existing `gitRun` helper and parses with the
   phase-02 parser; the fake returns queued entries. Both satisfy the same port
   signature.
 
 ### Test strategy
+
 Adapter/integration: a real-git integration test for the Node layer (side
 effects + parsing), since the pure parser is already unit-tested in phase-02.
 The fake's behavior is exercised by phase-04's integration test.
 
 ### Implementation order
+
 1. Add the method to the `GitOps` interface.
 2. Implement it in the fake (+ `GitCall` + enqueue helper).
 3. Implement it in `NodeGitLayer`.
 4. Write the real-git integration test; run the full gate profile.
 
 ### Excluded scope
+
 - Calling `diffNameStatus` from the lifecycle and writing the report (phase-04).
 
 ### Verification
+
 The project's `full` gate profile in `phax.json`.
 
 ### Expected handoff content
+
 - The exact `diffNameStatus` signature and the `HEAD^..HEAD` range it uses.
 - The fake's `enqueueDiffNameStatus(path, entries)` helper name and semantics,
   so phase-04's integration test can drive it.
 - Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
+
 feat(git): add diffNameStatus to the Git port
 
 ### Commit body
+
 Add `Git.diffNameStatus(worktree)` returning the parsed name-status entries for
 `HEAD^..HEAD`, the same range `commit.ts` uses for `diff.patch`. Implement it in
 the Node adapter (runs `git diff --name-status` and parses via the reconciliation
@@ -457,8 +491,8 @@ per-phase artifact. Report-only: it never fails the phase.
   - emits an `ArtifactGenerated` telemetry event for the report, reusing
     `makeArtifactGeneratedTelemetryEvent` (match the pattern around
     `model-resolution.json` in `executePlan.ts`).
-  Requirements: `Git | FileSystem | SystemTelemetry`. Error channel:
-  `GitError | FsError`. Keep it a thin app wrapper, like `commit.ts`/`cleanup.ts`.
+    Requirements: `Git | FileSystem | SystemTelemetry`. Error channel:
+    `GitError | FsError`. Keep it a thin app wrapper, like `commit.ts`/`cleanup.ts`.
 - In `src/app/executePlan.ts`, call `reconcilePhaseFiles(...)` immediately after
   the successful `commitPhase(...)` (and after the `CommitCreated`
   telemetry), before the `isFinal` branch. It runs only on the committed path —
@@ -472,20 +506,24 @@ per-phase artifact. Report-only: it never fails the phase.
   created/missing/unplanned classification.
 
 ### Planned files to create
+
 - `src/app/reconcilePhaseFiles.ts`
 - `tests/integration/reconciliation.test.ts`
 
 ### Planned files to edit
+
 - `src/app/executePlan.ts`
 - `tests/integration/executePlan.test.ts`
 
 ### Optional files that may be edited
+
 - `src/domain/telemetry/events.ts` (only if a dedicated event helper is
   preferable to reusing `makeArtifactGeneratedTelemetryEvent`)
 
 ### Boundary contracts
 
 #### app/executePlan (consumer) → reconcile domain + Git port (producers)
+
 - Consumer: `reconcilePhaseFiles`, needing "the report for this committed phase."
 - Producers: `Git.diffNameStatus` (actual changes) and
   `reconcile`/`renderReconciliationMarkdown` (the comparison + rendering).
@@ -493,24 +531,29 @@ per-phase artifact. Report-only: it never fails the phase.
   written + telemetry event out. No failure on deviation (report-only).
 
 ### Test strategy
+
 Application/integration with the fake Git and a real (temp) FileSystem: assert
 the artifacts are written with correct content for a representative planned-vs-
 actual mismatch. The pure comparison is already covered in phase-02.
 
 ### Implementation order
+
 1. Write `reconcilePhaseFiles.ts` (map phase → planned, call port + domain,
    write artifacts, emit telemetry).
 2. Wire the call into `executePlan.ts` after `commitPhase`.
 3. Write the integration test driving the fake Git; run the full gate profile.
 
 ### Excluded scope
+
 - The `fileReconciliation.mode` config and warn surfacing (phase-05).
 - Injecting the report into the next phase's prompt (phase-05).
 
 ### Verification
+
 The project's `full` gate profile in `phax.json`.
 
 ### Expected handoff content
+
 - The artifact filenames (`file-reconciliation.json`, `file-reconciliation.md`)
   and their location (the phase folder), so phase-05's reader can find them.
 - The `reconcilePhaseFiles` signature and exactly where it is invoked in
@@ -518,9 +561,11 @@ The project's `full` gate profile in `phax.json`.
 - Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
+
 feat(run): write a file-reconciliation report per phase
 
 ### Commit body
+
 After each successful phase commit, compute the planned-vs-actual file
 reconciliation from `git diff --name-status HEAD^ HEAD` and write
 `file-reconciliation.json` and `file-reconciliation.md` into the phase folder,
@@ -550,7 +595,7 @@ prompt and the handoff skill) to explain file-plan deviations.
   event/log line) summarizing the deviations. Do **not** fail the phase — the
   `fail_*` modes are out of scope.
 - Cross-phase injection: add `readPreviousReconciliation(runPath, phases,
-  currentPhaseIndex)` to `src/app/handoffInjection.ts`, mirroring
+currentPhaseIndex)` to `src/app/handoffInjection.ts`, mirroring
   `readPreviousHandoff`, reading `phase-(N-1)/file-reconciliation.md` (returns
   `undefined` for phase index 0 or when absent). In `src/app/promptGeneration.ts`
   add an optional `previousReconciliation` field to `BuildPhasePromptOptions` and
@@ -571,9 +616,11 @@ prompt and the handoff skill) to explain file-plan deviations.
   handoff-skill content, keep it green.
 
 ### Planned files to create
+
 - (none)
 
 ### Planned files to edit
+
 - `src/schemas/phaxConfig.ts`
 - `src/app/loadConfig.ts`
 - `src/app/reconcilePhaseFiles.ts`
@@ -588,6 +635,7 @@ prompt and the handoff skill) to explain file-plan deviations.
 - `tests/unit/__snapshots__/promptGeneration.test.ts.snap`
 
 ### Optional files that may be edited
+
 - `tests/unit/skills.test.ts`
 - `docs/extract-plan-model.md`
 - `phax.json` (only to add a sample `fileReconciliation` block for dogfooding)
@@ -595,10 +643,12 @@ prompt and the handoff skill) to explain file-plan deviations.
 ### Boundary contracts
 
 #### phax.json (producer) → loadConfig → executePlan (consumer)
+
 - The config supplies the mode; `ResolvedConfig.fileReconciliationMode` is the
   stable in-memory shape consumers read. Default `report_only` when absent.
 
 #### promptGeneration (consumer) → previous phase reconciliation artifact (producer)
+
 - Consumer: the next phase's prompt builder, needing "what the previous phase
   planned vs. actually changed."
 - Producer: `phase-(N-1)/file-reconciliation.md` (written in phase-04).
@@ -606,11 +656,13 @@ prompt and the handoff skill) to explain file-plan deviations.
   rendered as a dedicated prompt section.
 
 ### Test strategy
+
 Config → schema/contract tests; loadConfig → unit tests for default/override;
 prompt → snapshot test that the new sections render. Behavior is additive and
 report-only, so no new failure-path tests are needed.
 
 ### Implementation order
+
 1. Add the config field + schema tests, then resolve it in `loadConfig` (+ test).
 2. Add `readPreviousReconciliation` and the prompt section; thread
    `previousReconciliation` through `executePlan`; update the snapshot.
@@ -619,14 +671,17 @@ report-only, so no new failure-path tests are needed.
    skill; run the full gate profile.
 
 ### Excluded scope
+
 - `fail_on_missing_required_created_files` / `fail_on_unexplained_deviation`
   modes and any new run-state-machine transition.
 - Cumulative cross-phase aggregation (`files_*_so_far`).
 
 ### Verification
+
 The project's `full` gate profile in `phax.json`.
 
 ### Expected handoff content
+
 - The final `fileReconciliation.mode` config shape and the
   `ResolvedConfig.fileReconciliationMode` default.
 - That the next phase's prompt now carries the previous phase's reconciliation
@@ -634,9 +689,11 @@ The project's `full` gate profile in `phax.json`.
 - Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
+
 feat(run): add reconciliation mode, warnings, and cross-phase context
 
 ### Commit body
+
 Add an optional `fileReconciliation.mode` (`report_only` | `warn`) to phax.json,
 resolve it onto ResolvedConfig (default `report_only`), warn on deviations in
 `warn` mode without failing the phase, inject the previous phase's
