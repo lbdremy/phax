@@ -1,6 +1,7 @@
 import { Effect, Layer } from "effect";
 import type { BranchName, WorktreePath } from "../../domain/branded.js";
 import { Git, type GitOps, GitError } from "../../ports/git.js";
+import type { NameStatusEntry } from "../../domain/reconciliation/types.js";
 
 export type GitCall =
   | { method: "isClean"; repo: string }
@@ -11,12 +12,14 @@ export type GitCall =
   | { method: "removeWorktree"; path: string; force: boolean; repo: string }
   | { method: "commit"; repo: string; subject: string; body: string }
   | { method: "worktreeIsClean"; path: string }
-  | { method: "pruneWorktrees"; repo: string };
+  | { method: "pruneWorktrees"; repo: string }
+  | { method: "diffNameStatus"; path: string };
 
 export class FakeGitImpl implements GitOps {
   readonly calls: GitCall[] = [];
   readonly cleanWorktrees = new Set<string>();
   readonly worktreeIsCleanQueue = new Map<string, boolean[]>();
+  readonly diffNameStatusQueue = new Map<string, NameStatusEntry[]>();
   isCleanDefault = true;
   activeBranch: BranchName = "main" as BranchName;
   readonly existingBranches = new Set<string>();
@@ -48,6 +51,10 @@ export class FakeGitImpl implements GitOps {
     const queue = this.worktreeIsCleanQueue.get(path) ?? [];
     queue.push(...values);
     this.worktreeIsCleanQueue.set(path, queue);
+  }
+
+  enqueueDiffNameStatus(path: string, entries: NameStatusEntry[]): void {
+    this.diffNameStatusQueue.set(path, entries);
   }
 
   private nextAddWorktreeError: string | undefined;
@@ -128,6 +135,11 @@ export class FakeGitImpl implements GitOps {
   pruneWorktrees(repo: string): Effect.Effect<void, GitError> {
     this.calls.push({ method: "pruneWorktrees", repo });
     return Effect.void;
+  }
+
+  diffNameStatus(path: WorktreePath): Effect.Effect<readonly NameStatusEntry[], GitError> {
+    this.calls.push({ method: "diffNameStatus", path: path as string });
+    return Effect.succeed(this.diffNameStatusQueue.get(path as string) ?? []);
   }
 }
 

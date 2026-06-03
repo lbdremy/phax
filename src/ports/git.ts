@@ -1,5 +1,6 @@
 import { Context, Data, Effect } from "effect";
 import type { BranchName, WorktreePath } from "../domain/branded.js";
+import type { NameStatusEntry } from "../domain/reconciliation/types.js";
 
 export class GitError extends Data.TaggedError("GitError")<{
   message: string;
@@ -21,6 +22,7 @@ export interface GitOps {
   commit(repo: string, subject: string, body: string): Effect.Effect<void, GitError>;
   worktreeIsClean(path: WorktreePath): Effect.Effect<boolean, GitError>;
   pruneWorktrees(repo: string): Effect.Effect<void, GitError>;
+  diffNameStatus(path: WorktreePath): Effect.Effect<readonly NameStatusEntry[], GitError>;
 }
 
 export class Git extends Context.Tag("phax/Git")<Git, GitOps>() {}

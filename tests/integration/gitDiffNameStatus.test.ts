@@ -1,0 +1,98 @@
+import { rm, writeFile } from "node:fs/promises";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { execSync } from "node:child_process";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { Effect } from "effect";
+import { NodeGitLayer } from "../../src/infra/git.js";
+import { Git } from "../../src/ports/git.js";
+import type { WorktreePath } from "../../src/domain/branded.js";
+
+function runGit(args: string, cwd: string): void {
+  execSync(`git ${args}`, { cwd, stdio: "pipe" });
+}
+
+describe("NodeGitLayer.diffNameStatus", () => {
+  let repoDir: string;
+
+  beforeEach(async () => {
+    repoDir = mkdtempSync(join(tmpdir(), "phax-git-diff-test-"));
+    runGit("init", repoDir);
+    runGit("config --local user.email test@phax.test", repoDir);
+    runGit("config --local user.name 'phax test'", repoDir);
+
+    // Initial commit so HEAD^ is valid on the next commit
+    await writeFile(join(repoDir, "README.md"), "# test\n");
+    runGit("add .", repoDir);
+    runGit("commit -m 'chore: initial commit'", repoDir);
+  });
+
+  afterEach(async () => {
+    await rm(repoDir, { recursive: true, force: true });
+  });
+
+  it("returns added, modified, and deleted entries for HEAD^..HEAD", async () => {
+    // Second commit: add files we'll modify/delete later
+    await writeFile(join(repoDir, "to-delete.txt"), "bye\n");
+    await writeFile(join(repoDir, "to-modify.ts"), "export const x = 1;\n");
+    runGit("add .", repoDir);
+    runGit("commit -m 'chore: setup'", repoDir);
+
+    // Third commit: the one we're diffing (HEAD^..HEAD)
+    await writeFile(join(repoDir, "new.ts"), "export const y = 2;\n");
+    await writeFile(join(repoDir, "to-modify.ts"), "export const x = 99;\n");
+    runGit("rm to-delete.txt", repoDir);
+    runGit("add .", repoDir);
+    runGit("commit -m 'feat: changes'", repoDir);
+
+    const entries = await Effect.runPromise(
+      Effect.flatMap(Git, (git) => git.diffNameStatus(repoDir as WorktreePath)).pipe(
+        Effect.provide(NodeGitLayer),
+      ),
+    );
+
+    const byPath = Object.fromEntries(entries.map((e) => [e.path, e.status]));
+    expect(byPath["new.ts"]).toBe("added");
+    expect(byPath["to-modify.ts"]).toBe("modified");
+    expect(byPath["to-delete.txt"]).toBe("deleted");
+    // README.md was touched in an earlier commit, not HEAD^..HEAD
+    expect(byPath["README.md"]).toBeUndefined();
+  });
+
+  it("returns only the modified file when a single file is changed", async () => {
+    await writeFile(join(repoDir, "README.md"), "# updated\n");
+    runGit("add .", repoDir);
+    runGit("commit -m 'update readme'", repoDir);
+
+    const entries = await Effect.runPromise(
+      Effect.flatMap(Git, (git) => git.diffNameStatus(repoDir as WorktreePath)).pipe(
+        Effect.provide(NodeGitLayer),
+      ),
+    );
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.path).toBe("README.md");
+    expect(entries[0]?.status).toBe("modified");
+  });
+
+  it("returns a renamed entry for a renamed file", async () => {
+    await writeFile(join(repoDir, "old-name.ts"), "export const z = 3;\n");
+    runGit("add .", repoDir);
+    runGit("commit -m 'add old-name.ts'", repoDir);
+
+    runGit("mv old-name.ts new-name.ts", repoDir);
+    runGit("commit -m 'rename file'", repoDir);
+
+    const entries = await Effect.runPromise(
+      Effect.flatMap(Git, (git) => git.diffNameStatus(repoDir as WorktreePath)).pipe(
+        Effect.provide(NodeGitLayer),
+      ),
+    );
+
+    const renamed = entries.find((e) => e.status === "renamed");
+    expect(renamed).toBeDefined();
+    expect(renamed?.path).toBe("new-name.ts");
+    expect(renamed?.oldPath).toBe("old-name.ts");
+  });
+});
