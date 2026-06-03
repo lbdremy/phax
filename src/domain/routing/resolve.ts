@@ -32,7 +32,7 @@ function resolveFamily(model: string, routing: ModelRouting): FamilyResolution {
   if (lower.includes("haiku")) return { family: "claude-haiku", source: "heuristic" };
   if (lower.includes("mistral")) return { family: "mistral-medium", source: "heuristic" };
   if (lower.includes("gpt") || lower.includes("openai") || lower.includes("chatgpt")) {
-    return { family: "openai-chatgpt", source: "heuristic" };
+    return { family: "openai-gpt", source: "heuristic" };
   }
 
   return { family: "claude-sonnet", source: "fallback" };

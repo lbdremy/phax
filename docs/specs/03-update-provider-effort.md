@@ -305,40 +305,40 @@ Add or replace these acceptance criteria:
 
 1. `openai-chatgpt` is removed from the spec and replaced by `openai-gpt`.
 2. PHAX recognizes the following provider model families:
+   - `claude-haiku`
+   - `claude-sonnet`
+   - `claude-opus`
+   - `mistral-medium`
+   - `openai-gpt`
 
-   * `claude-haiku`
-   * `claude-sonnet`
-   * `claude-opus`
-   * `mistral-medium`
-   * `openai-gpt`
 3. PHAX recognizes the following Mistral Vibe thinking levels:
+   - `off`
+   - `low`
+   - `medium`
+   - `high`
+   - `max`
 
-   * `off`
-   * `low`
-   * `medium`
-   * `high`
-   * `max`
 4. PHAX recognizes the following OpenAI Codex GPT thinking levels:
+   - `low`
+   - `medium`
+   - `high`
+   - `xhigh`
 
-   * `low`
-   * `medium`
-   * `high`
-   * `xhigh`
 5. PHAX treats Claude Haiku as having no effort level.
 6. PHAX recognizes Claude Sonnet 4.6 effort levels:
+   - `low`
+   - `medium`
+   - `high`
+   - `max`
 
-   * `low`
-   * `medium`
-   * `high`
-   * `max`
 7. PHAX recognizes Claude Opus 4.8 effort levels:
+   - `low`
+   - `medium`
+   - `high`
+   - `xhigh`
+   - `max`
+   - `ultracode`
 
-   * `low`
-   * `medium`
-   * `high`
-   * `xhigh`
-   * `max`
-   * `ultracode`
 8. `claude-sonnet / low` never resolves to `claude-haiku`.
 9. `claude-opus / low` never resolves to `claude-sonnet` unless explicit downgrade is enabled.
 10. `claude-opus / ultracode` has no default equivalent and should prefer Claude Opus.

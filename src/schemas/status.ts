@@ -31,9 +31,14 @@ const PhaseStateSchema = Schema.Union(
 );
 
 const EffortSchema = Schema.Union(
+  Schema.Literal("none"),
+  Schema.Literal("off"),
   Schema.Literal("low"),
   Schema.Literal("medium"),
   Schema.Literal("high"),
+  Schema.Literal("xhigh"),
+  Schema.Literal("max"),
+  Schema.Literal("ultracode"),
 );
 
 export const RunStatusSchema = Schema.Struct({

@@ -71,15 +71,18 @@ export type MistralMediumEffort = "off" | "low" | "medium" | "high" | "max";
 export type OpenAiGptEffort = "low" | "medium" | "high" | "xhigh";
 
 export type EffortLevel =
-  | ClaudeHaikuEffort | ClaudeSonnetEffort | ClaudeOpusEffort
-  | MistralMediumEffort | OpenAiGptEffort; // = none|off|low|medium|high|xhigh|max|ultracode
+  | ClaudeHaikuEffort
+  | ClaudeSonnetEffort
+  | ClaudeOpusEffort
+  | MistralMediumEffort
+  | OpenAiGptEffort; // = none|off|low|medium|high|xhigh|max|ultracode
 
 export const FAMILY_EFFORTS: Record<ModelFamily, readonly EffortLevel[]> = {
-  "claude-haiku":   ["none"],
-  "claude-sonnet":  ["low", "medium", "high", "max"],
-  "claude-opus":    ["low", "medium", "high", "xhigh", "max", "ultracode"],
+  "claude-haiku": ["none"],
+  "claude-sonnet": ["low", "medium", "high", "max"],
+  "claude-opus": ["low", "medium", "high", "xhigh", "max", "ultracode"],
   "mistral-medium": ["off", "low", "medium", "high", "max"],
-  "openai-gpt":     ["low", "medium", "high", "xhigh"],
+  "openai-gpt": ["low", "medium", "high", "xhigh"],
 };
 ```
 
@@ -240,11 +243,11 @@ Opus-only `ultracode` level with no default cross-provider equivalent.
 - Rework `DEFAULT_MODEL_ROUTING` in `src/domain/routing/defaults.ts` to match the
   spec's corrected equivalence table:
   - `normalization["claude-sonnet"]`: `low→fast, medium→standard, high→strong,
-    max→very_strong` (remove the `xhigh` entry — Sonnet has no `xhigh`).
+max→very_strong` (remove the `xhigh` entry — Sonnet has no `xhigh`).
   - `normalization["claude-opus"]`: `low→frontier, medium→frontier, high→max,
-    xhigh→max, max→max, ultracode→ultra`.
+xhigh→max, max→max, ultracode→ultra`.
   - `normalization["openai-gpt"]`: `low→standard, medium→strong,
-    high→very_strong, xhigh→frontier` (renamed key).
+high→very_strong, xhigh→frontier` (renamed key).
   - `tiers.fast.claude-code`: change from `{ family: "claude-haiku" }` to
     `{ family: "claude-sonnet", effort: "low" }` so the Sonnet-low reference
     stays Sonnet (criterion 8) even on the terminal claude-code fallback.

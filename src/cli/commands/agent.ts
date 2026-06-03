@@ -12,7 +12,16 @@ import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { NodeShellLayer } from "../../infra/shell.js";
 
-const THINKING_LEVELS: readonly string[] = ["off", "low", "medium", "high", "xhigh", "max"];
+const THINKING_LEVELS: readonly string[] = [
+  "none",
+  "off",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+  "ultracode",
+];
 
 async function loadConfigs(
   out: OutputPort,
@@ -287,7 +296,10 @@ export function registerAgentCommand(program: Command, out: OutputPort): void {
     .command("resolve")
     .description("Show how a model+effort request resolves to a provider and concrete model")
     .requiredOption("--model <id>", "Requested model id (e.g. claude-sonnet-4-6)")
-    .requiredOption("--effort <level>", "Effort/thinking level (off|low|medium|high|xhigh|max)")
+    .requiredOption(
+      "--effort <level>",
+      "Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode)",
+    )
     .option("--json", "Output the resolution as JSON")
     .action(async (opts: { model: string; effort: string; json?: boolean }) => {
       const exitCode = await runAgentResolve(opts, out);

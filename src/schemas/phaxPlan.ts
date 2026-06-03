@@ -1,6 +1,15 @@
 import { JSONSchema, Schema } from "effect";
 
-const EffortSchema = Schema.Literal("low", "medium", "high");
+const EffortSchema = Schema.Literal(
+  "none",
+  "off",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+  "ultracode",
+);
 
 const PhaseSchema = Schema.Struct({
   id: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),

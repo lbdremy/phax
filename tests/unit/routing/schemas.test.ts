@@ -41,7 +41,7 @@ const validModelRouting = {
     "claude-sonnet": ["claude-sonnet"],
     "claude-opus": ["claude-opus"],
     "mistral-medium": ["mistral-medium"],
-    "openai-chatgpt": ["openai-chatgpt"],
+    "openai-gpt": ["openai-gpt"],
   },
   tiers: {
     cheap: { "claude-code": { family: "claude-haiku" } },
@@ -49,22 +49,22 @@ const validModelRouting = {
     standard: {
       "claude-code": { family: "claude-sonnet" },
       "mistral-vibe": { family: "mistral-medium", thinking: "medium", relationship: "equivalent" },
-      "codex-cli": { family: "openai-chatgpt", thinking: "medium", relationship: "equivalent" },
+      "codex-cli": { family: "openai-gpt", thinking: "medium", relationship: "equivalent" },
     },
     strong: {
       "claude-code": { family: "claude-sonnet", effort: "high" },
-      "codex-cli": { family: "openai-chatgpt", thinking: "medium", relationship: "equivalent" },
+      "codex-cli": { family: "openai-gpt", thinking: "medium", relationship: "equivalent" },
     },
     very_strong: {
       "claude-code": { family: "claude-sonnet", effort: "xhigh" },
     },
     frontier: {
       "claude-code": { family: "claude-opus" },
-      "codex-cli": { family: "openai-chatgpt", thinking: "xhigh", relationship: "fallback" },
+      "codex-cli": { family: "openai-gpt", thinking: "xhigh", relationship: "fallback" },
     },
     max: {
       "claude-code": { family: "claude-opus", effort: "max" },
-      "codex-cli": { family: "openai-chatgpt", thinking: "max", relationship: "downgrade" },
+      "codex-cli": { family: "openai-gpt", thinking: "max", relationship: "downgrade" },
     },
   },
   normalization: {
@@ -85,7 +85,7 @@ const validModelRouting = {
       max: "max",
     },
     "mistral-medium": { defaultTier: "standard" },
-    "openai-chatgpt": { defaultTier: "standard" },
+    "openai-gpt": { defaultTier: "standard" },
   },
   requestedModelNormalization: {
     "claude-haiku-4-5-20251001": "claude-haiku",
@@ -125,7 +125,7 @@ const validProviderConfig = {
       enabled: false,
       executable: "codex",
       families: {
-        "openai-chatgpt": { model: "gpt-5.5" },
+        "openai-gpt": { model: "gpt-5.5" },
       },
     },
   },
@@ -149,7 +149,7 @@ describe("literal schemas", () => {
       "claude-sonnet",
       "claude-opus",
       "mistral-medium",
-      "openai-chatgpt",
+      "openai-gpt",
     ];
     for (const f of families) {
       expect(Either.isRight(decodeModelFamily(f))).toBe(true);
@@ -161,7 +161,16 @@ describe("literal schemas", () => {
   });
 
   it("ThinkingLevelSchema accepts all valid levels", () => {
-    const levels: ThinkingLevel[] = ["off", "low", "medium", "high", "xhigh", "max"];
+    const levels: ThinkingLevel[] = [
+      "none",
+      "off",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultracode",
+    ];
     for (const l of levels) {
       expect(Either.isRight(decodeThinkingLevel(l))).toBe(true);
     }
