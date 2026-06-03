@@ -28,14 +28,18 @@ type SchemaRelationship = Schema.Schema.Type<typeof RelationshipSchema>;
 const p1: ProviderId = "claude-code" satisfies SchemaProviderId;
 const f1: ModelFamily = "claude-sonnet" satisfies SchemaModelFamily;
 const t1: ThinkingLevel = "medium" satisfies SchemaThinkingLevel;
+const t1u: ThinkingLevel = "ultracode" satisfies SchemaThinkingLevel;
 const r1: RoutingTier = "standard" satisfies SchemaRoutingTier;
+const r1u: RoutingTier = "ultra" satisfies SchemaRoutingTier;
 const rel1: Relationship = "exact" satisfies SchemaRelationship;
 
 // domain → schema literal samples
 const p2: SchemaProviderId = "claude-code" satisfies ProviderId;
 const f2: SchemaModelFamily = "claude-sonnet" satisfies ModelFamily;
 const t2: SchemaThinkingLevel = "medium" satisfies ThinkingLevel;
+const t2u: SchemaThinkingLevel = "ultracode" satisfies ThinkingLevel;
 const r2: SchemaRoutingTier = "standard" satisfies RoutingTier;
+const r2u: SchemaRoutingTier = "ultra" satisfies RoutingTier;
 const rel2: SchemaRelationship = "exact" satisfies Relationship;
 
 // Exhaustiveness: assigning the full union both ways forces the compiler to
@@ -67,12 +71,16 @@ const exhaustRelBack: Relationship = schemaRel;
 void p1;
 void f1;
 void t1;
+void t1u;
 void r1;
+void r1u;
 void rel1;
 void p2;
 void f2;
 void t2;
+void t2u;
 void r2;
+void r2u;
 void rel2;
 void exhaustP;
 void exhaustF;

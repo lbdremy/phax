@@ -189,6 +189,7 @@ describe("literal schemas", () => {
       "very_strong",
       "frontier",
       "max",
+      "ultra",
     ];
     for (const t of tiers) {
       expect(Either.isRight(decodeRoutingTier(t))).toBe(true);
@@ -196,7 +197,7 @@ describe("literal schemas", () => {
   });
 
   it("RoutingTierSchema rejects an invalid tier", () => {
-    expect(Either.isLeft(decodeRoutingTier("ultra"))).toBe(true);
+    expect(Either.isLeft(decodeRoutingTier("ultraviolet"))).toBe(true);
   });
 
   it("RelationshipSchema accepts all valid relationships", () => {
@@ -230,7 +231,7 @@ describe("ModelRoutingSchema", () => {
   });
 
   it("rejects an invalid routing tier in defaultTier", () => {
-    const result = decodeModelRouting({ ...validModelRouting, defaultTier: "ultra" });
+    const result = decodeModelRouting({ ...validModelRouting, defaultTier: "ultraviolet" });
     expect(Either.isLeft(result)).toBe(true);
   });
 

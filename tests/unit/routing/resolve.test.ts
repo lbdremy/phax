@@ -66,7 +66,7 @@ describe("resolveModel — spec §15 examples", () => {
 
   it("Example 3: opus/medium with mistral priority + allowDowngrade=true → codex-cli/openai-gpt/xhigh (fallback)", () => {
     const result = resolveModel(
-      { model: "claude-opus-4-7", effort: "medium" },
+      { model: "claude-opus-4-8", effort: "medium" },
       { ...mistralPriority, allowDowngrade: true },
       allEnabledProviderConfig,
     );
@@ -80,7 +80,7 @@ describe("resolveModel — spec §15 examples", () => {
 
   it("Example 4a: opus/high with mistral priority + allowDowngrade=true → codex-cli (downgrade)", () => {
     const result = resolveModel(
-      { model: "claude-opus-4-7", effort: "high" },
+      { model: "claude-opus-4-8", effort: "high" },
       { ...mistralPriority, allowDowngrade: true },
       allEnabledProviderConfig,
     );
@@ -94,7 +94,7 @@ describe("resolveModel — spec §15 examples", () => {
 
   it("Example 4b: opus/high with mistral priority + allowDowngrade=false → claude-code/claude-opus (no silent downgrade)", () => {
     const result = resolveModel(
-      { model: "claude-opus-4-7", effort: "high" },
+      { model: "claude-opus-4-8", effort: "high" },
       { ...mistralPriority, allowDowngrade: false },
       DEFAULT_PROVIDER_CONFIG,
     );
@@ -102,7 +102,7 @@ describe("resolveModel — spec §15 examples", () => {
     expect(result.normalizedTier).toBe("max");
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-opus");
-    expect(result.selected.concreteModel).toBe("claude-opus-4-7");
+    expect(result.selected.concreteModel).toBe("claude-opus-4-8");
   });
 });
 
@@ -140,7 +140,7 @@ describe("resolveModel — additional behavior", () => {
     expect(result.requested.family).toBe("openai-gpt");
   });
 
-  it("resolves haiku/medium to cheap tier and claude-code/claude-haiku exactly", () => {
+  it("resolves haiku/medium to cheap tier and clamps to claude-haiku/none (equivalent)", () => {
     const result = resolveModel(
       { model: "haiku", effort: "medium" },
       claudeOnly,
@@ -150,8 +150,9 @@ describe("resolveModel — additional behavior", () => {
     expect(result.normalizedTier).toBe("cheap");
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-haiku");
+    expect(result.selected.thinking).toBe("none");
     expect(result.selected.concreteModel).toBe("claude-haiku-4-5-20251001");
-    expect(result.relationship).toBe("exact");
+    expect(result.relationship).toBe("equivalent");
   });
 
   it("skips a Vibe candidate when the alias is missing in providerCfg", () => {
