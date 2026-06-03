@@ -45,16 +45,18 @@ function listTsFiles(root: string): string[] {
   return out;
 }
 
-// ── Routing domain purity ─────────────────────────────────────────────────────
-// src/domain/routing/ must stay pure: no Effect, no @opentelemetry, no FileSystem
-// port, no infra/ imports. resolveModel is a total pure function over its inputs.
+// ── Pure domain purity (routing + reconciliation) ────────────────────────────
+// src/domain/routing/ and src/domain/reconciliation/ must stay pure:
+// no Effect, no @opentelemetry, no FileSystem port, no infra/ imports.
 
-const ROUTING_DOMAIN_FORBIDDEN = [
+const PURE_DOMAIN_FORBIDDEN = [
   /\bfrom\s+["']effect[/"']/,
   /\bfrom\s+["']@opentelemetry\//,
   /\bfrom\s+["'].*ports\/fs/,
   /\bfrom\s+["'].*\/infra\//,
 ];
+
+const PURE_DOMAIN_DIRS = ["domain/routing", "domain/reconciliation"];
 
 describe("architectural guard: routing domain purity", () => {
   const routingDomainRoot = join(srcRoot, "domain", "routing");
@@ -66,7 +68,7 @@ describe("architectural guard: routing domain purity", () => {
       const rel = relative(repoRoot, absPath).split("\\").join("/");
       const content = readFileSync(absPath, "utf8");
 
-      for (const pattern of ROUTING_DOMAIN_FORBIDDEN) {
+      for (const pattern of PURE_DOMAIN_FORBIDDEN) {
         if (pattern.test(content)) {
           violations.push(`${rel}: matches ${pattern}`);
           break;
@@ -77,6 +79,31 @@ describe("architectural guard: routing domain purity", () => {
     expect(violations).toEqual([]);
   });
 });
+
+describe("architectural guard: reconciliation domain purity", () => {
+  const reconciliationDomainRoot = join(srcRoot, "domain", "reconciliation");
+
+  it("src/domain/reconciliation/ imports no Effect, @opentelemetry, FileSystem port, or infra modules", () => {
+    const violations: string[] = [];
+
+    for (const absPath of listTsFiles(reconciliationDomainRoot)) {
+      const rel = relative(repoRoot, absPath).split("\\").join("/");
+      const content = readFileSync(absPath, "utf8");
+
+      for (const pattern of PURE_DOMAIN_FORBIDDEN) {
+        if (pattern.test(content)) {
+          violations.push(`${rel}: matches ${pattern}`);
+          break;
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+});
+
+// Keep PURE_DOMAIN_DIRS in scope so it can be extended in future phases.
+void PURE_DOMAIN_DIRS;
 
 // ── Provider spawn boundary ────────────────────────────────────────────────────
 // Only src/infra/providers/ may spawn provider binaries (claude, vibe, codex).
