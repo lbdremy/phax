@@ -9,6 +9,7 @@
     "setup": ["pnpm install"],
     "cleanup": ["rm -rf node_modules"]
   },
+  "providerPriority": ["claude-code"],
   "gateProfiles": {
     "fast": ["pnpm typecheck", "pnpm test:unit"],
     "full": [
