@@ -43,11 +43,11 @@ future `isolated` mode.
    the default, adds the `--security` flag, the unsafe warning, the `isolated`
    stub, and `phax security status`. This avoids any window where "secure" is the
    default but silently enforces nothing.
-4. **Plan extraction is out of scope** *for jailing this iteration*.
+4. **Plan extraction is out of scope** _for jailing this iteration_.
    `extractPlanCore` reads the user repo and writes only the plan; it passes a
    host/`unsafe` policy to satisfy the new port field. **Follow-up intent:** the
    extraction agent only needs the prompt to produce the plan JSON, so a later
-   iteration should jail it *more strictly than phase execution* — read-only
+   iteration should jail it _more strictly than phase execution_ — read-only
    access (or no repo write beyond the plan output) and provider-API-only
    network — not merely the same secure profile. Tracked as a follow-up, not
    built here.
@@ -77,7 +77,7 @@ future `isolated` mode.
   (`src/domain/routing/types.ts`) is a plain type (not schema-validated) written
   to `model-resolution.json` via `JSON.stringify`.
 - `src/domain/routing/types.ts` — `ProviderId = "claude-code" | "mistral-vibe" |
-  "codex-cli"`.
+"codex-cli"`.
 - `src/schemas/phaxConfig.ts` — `PhaxConfigSchema` + `ResolvedConfig`;
   `src/app/loadConfig.ts` resolves defaults (`expandTilde` for `state.root`).
 - `src/domain/errors.ts` — `Data.TaggedError` classes;
@@ -111,7 +111,10 @@ export type McpMode = "disabled" | "local-only" | "allowlist" | "provider-defaul
 
 export interface SecurityPolicy {
   readonly mode: SecurityMode;
-  readonly filesystem: { readonly allowRead: readonly string[]; readonly allowWrite: readonly string[] };
+  readonly filesystem: {
+    readonly allowRead: readonly string[];
+    readonly allowWrite: readonly string[];
+  };
   readonly network: { readonly profile: NetworkProfile; readonly allowDomains: readonly string[] };
   readonly mcp: { readonly mode: McpMode; readonly allow: readonly string[] };
   readonly failClosed: boolean; // true in secure mode
@@ -134,9 +137,21 @@ export interface ProviderSecurityCapability {
   readonly mcpAllowlist: CapabilitySupport;
 }
 export const PROVIDER_SECURITY_CAPABILITIES: Record<ProviderId, ProviderSecurityCapability> = {
-  "claude-code": { filesystemJail: "strong",  networkAllowlist: "supported",   mcpAllowlist: "supported" },
-  "codex-cli":   { filesystemJail: "strong",  networkAllowlist: "supported",   mcpAllowlist: "supported" },
-  "mistral-vibe":{ filesystemJail: "partial", networkAllowlist: "unsupported", mcpAllowlist: "supported" },
+  "claude-code": {
+    filesystemJail: "strong",
+    networkAllowlist: "supported",
+    mcpAllowlist: "supported",
+  },
+  "codex-cli": {
+    filesystemJail: "strong",
+    networkAllowlist: "supported",
+    mcpAllowlist: "supported",
+  },
+  "mistral-vibe": {
+    filesystemJail: "partial",
+    networkAllowlist: "unsupported",
+    mcpAllowlist: "supported",
+  },
 };
 ```
 
@@ -161,12 +176,12 @@ profile is **`unsafe`** in this phase (behavior unchanged); phase-08 flips it.
 - Create `src/domain/security/resolvePolicy.ts` exporting
   `resolveSecurityPolicy(input): SecurityPolicy` where
   `input = { mode: SecurityMode; provider: ProviderId; worktreePath: string;
-  stateRoot: string; config: ResolvedSecurityConfig }`. Behavior:
+stateRoot: string; config: ResolvedSecurityConfig }`. Behavior:
   - **secure**: `filesystem.allowWrite = [worktreePath, stateRoot,
-    ...config.filesystem.allowWrite]`; `filesystem.allowRead = allowWrite ∪
-    config.filesystem.allowRead`; `network.profile = config.network.profile`,
+...config.filesystem.allowWrite]`; `filesystem.allowRead = allowWrite ∪
+config.filesystem.allowRead`; `network.profile = config.network.profile`,
     `network.allowDomains = [PROVIDER_API_DOMAINS[provider],
-    ...(profile === "provider-only" ? [] : config.network.allowDomains)]`;
+...(profile === "provider-only" ? [] : config.network.allowDomains)]`;
     `mcp = config.mcp`; `failClosed = true`. Paths are passed already-absolute by
     the caller; de-duplicate. Default `network.profile` is `provider-only`,
     default `mcp.mode` is `disabled`.
@@ -291,7 +306,7 @@ whether a provider can satisfy a policy, what it downgrades, and how it is marke
     supported).
   - `SecurityMark = "partial-filesystem" | "network-unenforced" | "mcp-unenforced"`.
   - `SecurityEvaluation = { provider; satisfiesStrict: boolean;
-    downgraded: boolean; marks: readonly SecurityMark[]; notes: readonly string[] }`.
+downgraded: boolean; marks: readonly SecurityMark[]; notes: readonly string[] }`.
   - `evaluateProviderSecurity(provider, policy): SecurityEvaluation`. In `secure`
     mode: `satisfiesStrict` is true only when the provider's `filesystemJail` is
     `strong` **and** (`network.profile !== "provider-only"` OR
@@ -299,9 +314,9 @@ whether a provider can satisfy a policy, what it downgrades, and how it is marke
     matching marks. In `unsafe` mode everything is satisfiable, not downgraded,
     no marks.
   - `export const VIBE_PARTIAL_SECURED_MESSAGE = "Mistral Vibe is running with
-    provider-native restrictions, but filesystem/network isolation is weaker than
-    Claude Code or Codex. For stronger isolation, use the future external-sandbox
-    mode.";` and include it in `notes` when Vibe is evaluated in secure mode.
+provider-native restrictions, but filesystem/network isolation is weaker than
+Claude Code or Codex. For stronger isolation, use the future external-sandbox
+mode.";` and include it in `notes` when Vibe is evaluated in secure mode.
 
 ### Planned files to create
 
@@ -377,7 +392,7 @@ and record the skip, so provider priority never overrides a security requirement
 
 - In `src/domain/routing/resolve.ts`, add an **optional** last parameter to
   `resolveModel`: `securityFilter?: (provider: ProviderId) => { allowed: boolean;
-  reason?: string }`. When present, inside the provider-priority walk, after a
+reason?: string }`. When present, inside the provider-priority walk, after a
   provider would otherwise be selected but `securityFilter(provider).allowed`
   is `false`, `continue` (record the skip) instead of returning it. The terminal
   `claude-code` fallback is **not** filtered — Claude is the guaranteed strong
@@ -386,7 +401,7 @@ and record the skip, so provider priority never overrides a security requirement
   unchanged).
 - In `src/domain/routing/types.ts`, add
   `readonly skippedForSecurity?: ReadonlyArray<{ readonly provider: ProviderId;
-  readonly reason: string }>` to `RoutingResolution`, and append a sentence to
+readonly reason: string }>` to `RoutingResolution`, and append a sentence to
   the resolution `reason` when any provider was skipped. `RoutingResolution` is a
   plain type (serialized via `JSON.stringify`, not schema-decoded), so no schema
   edit is required.
@@ -479,7 +494,7 @@ profile is still `unsafe`, so a default run is byte-for-byte today's behavior.
   **required** — every call site must supply it.
 - In `src/domain/errors.ts`: add
   `SecurityEnforcementError extends Data.TaggedError("SecurityEnforcementError")<{
-  message: string; provider: string; mode: string }>`. Add it to the
+message: string; provider: string; mode: string }>`. Add it to the
   `ExecutePlanError` union in `executePlan.ts` and the error unions in
   `fixLoop.ts`, and map it in `runLayers.ts` `exitCodeForError` (new code `11`).
 - In `src/infra/providers/dispatcher.ts`: let `SecurityEnforcementError` pass
@@ -490,11 +505,11 @@ profile is still `unsafe`, so a default run is byte-for-byte today's behavior.
   - Build the routing `securityFilter` from `evaluateProviderSecurity` against a
     policy resolved for each candidate provider (use the policy's strictness, not
     literal paths): `(provider) => { allowed: mode !== "secure" ||
-    evaluateProviderSecurity(provider, policyFor(provider)).satisfiesStrict }`,
+evaluateProviderSecurity(provider, policyFor(provider)).satisfiesStrict }`,
     with a reason string when disallowed. Pass it to `resolveModel`.
   - After resolution, `const security = resolveSecurityPolicy({ mode,
-    provider: resolution.selected.provider, worktreePath, stateRoot:
-    config.stateRoot, config: config.security })` and set
+provider: resolution.selected.provider, worktreePath, stateRoot:
+config.stateRoot, config: config.security })` and set
     `agentOptions.security = security`.
   - Emit nothing new yet (the artifact + telemetry land in phase-09).
 - In `src/app/fixLoop.ts`: when calling `resumeAgentSession`, **spread**
@@ -502,10 +517,10 @@ profile is still `unsafe`, so a default run is byte-for-byte today's behavior.
   struct field-by-field), so `security` propagates automatically.
 - In `src/app/extractPlan.ts`: pass `security` on the extraction `runAgent` call
   using an `unsafe`/host policy (`resolveSecurityPolicy({ mode: "unsafe",
-  provider: "claude-code", worktreePath: opts.cwd, stateRoot: opts.cwd, ... })`
+provider: "claude-code", worktreePath: opts.cwd, stateRoot: opts.cwd, ... })`
   or a small `hostSecurityPolicy()` helper). Document that extraction jailing is
   out of scope this iteration, and leave a `// TODO(security): jail extraction
-  stricter than execution — read-only repo, provider-API-only network` marker so
+stricter than execution — read-only repo, provider-API-only network` marker so
   the follow-up has a home (see "Decisions encoded in this plan" §4).
 - Update `src/infra/fakes/backend.ts` if its recorded-options type needs the new
   field. Extend `tests/integration/executePlan.test.ts` to assert the fake
@@ -1054,8 +1069,9 @@ durable contract — all fields required, mirroring `run-status`/`status` discip
 
 Schema → unit test for `SecurityPosture` round-trip (all-required enforced).
 Telemetry → unit test for the new event maker/schema. Report/trace → integration
-+ e2e snapshot updates. Write the posture-schema test **before** implementation
-(stable persisted contract).
+
+- e2e snapshot updates. Write the posture-schema test **before** implementation
+  (stable persisted contract).
 
 ### Implementation order
 
@@ -1091,4 +1107,7 @@ security.policy.applied semantic event for verbose output and trace logs, and ad
 a Security section to final-report.md recording mode, applied filesystem/network/
 MCP policy, sandbox-enabled, downgrades, and providers skipped for security. Adds
 docs/security.md.
+
+```
+
 ```

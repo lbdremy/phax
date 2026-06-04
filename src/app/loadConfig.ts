@@ -9,6 +9,7 @@ import {
   decodePhaxConfig,
   DEFAULT_EXTRACT_MODEL,
 } from "../schemas/phaxConfig.js";
+import { resolveSecurityConfig, DEFAULT_SECURITY_PROFILE } from "../schemas/securityConfig.js";
 import { formatParseError } from "../schemas/formatError.js";
 
 function findGitRoot(startDir: string): string | undefined {
@@ -132,6 +133,28 @@ export function loadConfig(
   const pathError = validateWorkspacePaths(config, gitRoot);
   if (pathError) return Either.left(pathError);
 
+  const root: string = gitRoot;
+  function resolvePathList(paths: readonly string[] | undefined): readonly string[] {
+    if (!paths || paths.length === 0) return [];
+    return paths.map((p) => resolve(root, expandTilde(p)));
+  }
+
+  const rawSecurity = config.security;
+  const resolvedSecurity = resolveSecurityConfig(
+    rawSecurity
+      ? {
+          ...rawSecurity,
+          filesystem: rawSecurity.filesystem
+            ? {
+                allowRead: resolvePathList(rawSecurity.filesystem.allowRead),
+                allowWrite: resolvePathList(rawSecurity.filesystem.allowWrite),
+              }
+            : undefined,
+        }
+      : undefined,
+    DEFAULT_SECURITY_PROFILE,
+  );
+
   const resolved: ResolvedConfig = {
     raw: config,
     stateRoot: expandTilde(config.state.root),
@@ -142,6 +165,7 @@ export function loadConfig(
     extractPlanModel: config.agent?.extractPlan?.model ?? DEFAULT_EXTRACT_MODEL,
     extractPlanEffort: config.agent?.extractPlan?.effort ?? "low",
     fileReconciliationMode: config.fileReconciliation?.mode ?? "report_only",
+    security: resolvedSecurity,
   };
 
   return Either.right(resolved);

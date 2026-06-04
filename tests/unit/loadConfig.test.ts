@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
@@ -6,6 +6,7 @@ import { Either } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../../src/app/loadConfig.js";
 import { DEFAULT_EXTRACT_MODEL } from "../../src/schemas/phaxConfig.js";
+import { DEFAULT_SECURITY_PROFILE } from "../../src/schemas/securityConfig.js";
 
 const baseConfig = {
   version: 1,
@@ -127,5 +128,69 @@ describe("loadConfig fileReconciliation resolution", () => {
     if (Either.isRight(result)) {
       expect(result.right.fileReconciliationMode).toBe("report_only");
     }
+  });
+});
+
+describe("loadConfig security resolution", () => {
+  it("defaults security profile to DEFAULT_SECURITY_PROFILE when no security block", () => {
+    writePhaxJson(baseConfig);
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.security.profile).toBe(DEFAULT_SECURITY_PROFILE);
+    }
+  });
+
+  it("uses the profile from the security block when set", () => {
+    writePhaxJson({ ...baseConfig, security: { profile: "secure" } });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.security.profile).toBe("secure");
+    }
+  });
+
+  it("defaults network profile to provider-only and mcp mode to disabled", () => {
+    writePhaxJson(baseConfig);
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.security.network.profile).toBe("provider-only");
+      expect(result.right.security.mcp.mode).toBe("disabled");
+    }
+  });
+
+  it("defaults all allow-lists to empty arrays", () => {
+    writePhaxJson(baseConfig);
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.security.filesystem.allowRead).toEqual([]);
+      expect(result.right.security.filesystem.allowWrite).toEqual([]);
+      expect(result.right.security.network.allowDomains).toEqual([]);
+      expect(result.right.security.mcp.allow).toEqual([]);
+    }
+  });
+
+  it("resolves relative filesystem allowWrite paths against gitRoot", () => {
+    writePhaxJson({
+      ...baseConfig,
+      security: { filesystem: { allowWrite: ["relative/path"] } },
+    });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      const write = result.right.security.filesystem.allowWrite;
+      // Use realpathSync to resolve macOS /tmp → /private/tmp symlink
+      const realRepoDir = realpathSync(repoDir);
+      expect(write.length).toBe(1);
+      expect(write[0]).toBe(`${realRepoDir}/relative/path`);
+    }
+  });
+
+  it("rejects an unknown security profile value", () => {
+    writePhaxJson({ ...baseConfig, security: { profile: "super-safe" } });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
   });
 });
