@@ -3,6 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildVibeArgs } from "../../../src/infra/providers/mistralVibe.js";
+import { SecurityEnforcementError } from "../../../src/domain/errors.js";
+import type { AgentRunOptions } from "../../../src/ports/backend.js";
+import type { SecurityPolicy } from "../../../src/domain/security/types.js";
 import {
   findVibeResultEvent,
   findVibeSessionId,
@@ -15,9 +18,36 @@ const baseEntry = {
   defaultAgent: "auto-approve",
 };
 
-describe("buildVibeArgs", () => {
-  it("emits programmatic-mode flags with prompt, agent, streaming output, trust and workdir", () => {
-    const args = buildVibeArgs(baseEntry, "print ok", "/tmp/work");
+const unsafePolicy: SecurityPolicy = {
+  mode: "unsafe",
+  filesystem: { allowRead: [], allowWrite: [] },
+  network: { profile: "open", allowDomains: [] },
+  mcp: { mode: "provider-default", allow: [] },
+  failClosed: false,
+};
+
+const securePolicy: SecurityPolicy = {
+  mode: "secure",
+  filesystem: {
+    allowRead: ["/tmp/work", "/home/me/.phax"],
+    allowWrite: ["/tmp/work", "/home/me/.phax"],
+  },
+  network: { profile: "provider-only", allowDomains: ["api.mistral.ai"] },
+  mcp: { mode: "disabled", allow: [] },
+  failClosed: true,
+};
+
+const baseOptions = (security: SecurityPolicy, cwd = "/tmp/work"): AgentRunOptions => ({
+  provider: "mistral-vibe",
+  model: "mistral-large",
+  effort: "medium",
+  cwd,
+  security,
+});
+
+describe("buildVibeArgs — unsafe mode", () => {
+  it("emits the host-trusted vector with --trust and unscoped workdir", () => {
+    const args = buildVibeArgs(baseEntry, "print ok", baseOptions(unsafePolicy));
     expect(args).toEqual([
       "-p",
       "print ok",
@@ -32,17 +62,82 @@ describe("buildVibeArgs", () => {
   });
 
   it("appends --resume when a session id is provided", () => {
-    const args = buildVibeArgs(baseEntry, "do thing", "/tmp/work", "sess-abc-123");
+    const args = buildVibeArgs(baseEntry, "do thing", baseOptions(unsafePolicy), "sess-abc-123");
     const resumeIdx = args.indexOf("--resume");
     expect(resumeIdx).toBeGreaterThan(0);
     expect(args[resumeIdx + 1]).toBe("sess-abc-123");
   });
 
   it("defaults --agent to auto-approve when entry has no defaultAgent", () => {
-    const args = buildVibeArgs({ executable: "vibe" }, "p", "/tmp/work");
+    const args = buildVibeArgs({ executable: "vibe" }, "p", baseOptions(unsafePolicy));
     const agentIdx = args.indexOf("--agent");
     expect(agentIdx).toBeGreaterThan(0);
     expect(args[agentIdx + 1]).toBe("auto-approve");
+  });
+});
+
+describe("buildVibeArgs — secure mode", () => {
+  it("drops blanket --trust", () => {
+    const args = buildVibeArgs(baseEntry, "p", baseOptions(securePolicy));
+    expect(args).not.toContain("--trust");
+  });
+
+  it("scopes --workdir to the cwd (worktree)", () => {
+    const args = buildVibeArgs(baseEntry, "p", baseOptions(securePolicy));
+    const idx = args.indexOf("--workdir");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe("/tmp/work");
+  });
+
+  it("emits --add-dir for writable paths outside cwd (e.g. ~/.phax)", () => {
+    const args = buildVibeArgs(baseEntry, "p", baseOptions(securePolicy));
+    const addDirs: string[] = [];
+    for (let i = 0; i < args.length - 1; i += 1) {
+      if (args[i] === "--add-dir") {
+        const v = args[i + 1];
+        if (v !== undefined) addDirs.push(v);
+      }
+    }
+    expect(addDirs).toEqual(["/home/me/.phax"]);
+  });
+
+  it("uses entry.defaultAgent as the (restricted) agent injection point", () => {
+    const restrictedEntry = { ...baseEntry, defaultAgent: "phax-restricted" };
+    const args = buildVibeArgs(restrictedEntry, "p", baseOptions(securePolicy));
+    const idx = args.indexOf("--agent");
+    expect(args[idx + 1]).toBe("phax-restricted");
+  });
+
+  it("appends --resume while keeping the secure vector", () => {
+    const args = buildVibeArgs(baseEntry, "p", baseOptions(securePolicy), "sess-xyz");
+    expect(args).not.toContain("--trust");
+    const resumeIdx = args.indexOf("--resume");
+    expect(args[resumeIdx + 1]).toBe("sess-xyz");
+  });
+
+  it("isolated mode follows the secure branch for type totality (CLI gates it earlier)", () => {
+    const args = buildVibeArgs(baseEntry, "p", baseOptions({ ...securePolicy, mode: "isolated" }));
+    expect(args).not.toContain("--trust");
+    expect(args).toContain("--workdir");
+  });
+});
+
+describe("buildVibeArgs — secure mode fail-closed", () => {
+  it("throws SecurityEnforcementError when secure policy has no writable paths", () => {
+    const impossiblePolicy: SecurityPolicy = {
+      ...securePolicy,
+      filesystem: { allowRead: [], allowWrite: [] },
+    };
+    try {
+      buildVibeArgs(baseEntry, "p", baseOptions(impossiblePolicy));
+      throw new Error("expected buildVibeArgs to throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(SecurityEnforcementError);
+      const e = err as SecurityEnforcementError;
+      expect(e.provider).toBe("mistral-vibe");
+      expect(e.mode).toBe("secure");
+      expect(e.message).toMatch(/--trust/);
+    }
   });
 });
 

@@ -9,9 +9,11 @@ import {
   AgentInvocationError,
   AgentSessionIdMissingError,
   RateLimitError,
+  SecurityEnforcementError,
   UsageLimitError,
 } from "../../domain/errors.js";
 import { decodeClaudeSessionId } from "../../domain/branded.js";
+import type { SecurityPolicy } from "../../domain/security/types.js";
 import { classifyRateLimit } from "../../schemas/claudeOutput.js";
 import {
   findVibeResultEvent,
@@ -39,17 +41,69 @@ interface SpawnResult {
   readonly stderr: string;
 }
 
+// Centralized secure-mode Vibe flag set. Vibe's provider-native controls are
+// weaker than Claude/Codex (see PROVIDER_SECURITY_CAPABILITIES): filesystem
+// jail is "partial" and network allowlisting is "unsupported". Strict callers
+// skip Vibe via the routing fallback (phase-03); when Vibe is invoked in
+// secure mode here PHAX hardens what it can and the evaluation surfaces the
+// partial-secured marking. Today's surface:
+//   --agent <entry.defaultAgent ?? "auto-approve">
+//       The approval policy. `entry.defaultAgent` is the injection point for a
+//       PHAX-specific restricted agent (configurable per project); the default
+//       remains auto-approve for non-interactive runs.
+//   --workdir <cwd>
+//       Scopes the agent's working directory to the worktree (allowWrite[0]).
+//   --add-dir <path>
+//       Additional readable/writable directories beyond cwd. Emitted only for
+//       ~/.phax and any project-configured extras.
+//   (no --trust)
+//       Unsafe mode emits --trust to grant blanket directory trust; secure
+//       mode drops it so only the explicit workdir + add-dir set is allowed.
+//
+// Not yet expressible via Vibe CLI flags (tracked in runbook 04b):
+//   - Tool-level restriction beyond the agent's approval policy.
+//   - Network allowlist: not supported by vibe — the partial-secured marking
+//     and VIBE_PARTIAL_SECURED_MESSAGE surface this; the resolved domains
+//     stay on SecurityPolicy and land in security.json (phase-09).
+//   - MCP scoping: vibe configures MCP via its config; PHAX records the
+//     resolved mcp policy on SecurityPolicy but does not emit a flag here
+//     until 04b confirms an override surface.
+function buildVibeSecurityFlags(security: SecurityPolicy, cwd: string): string[] {
+  if (security.mode === "unsafe") {
+    return ["--trust", "--workdir", cwd];
+  }
+  // secure / isolated (CLI gates isolated before reaching here; treat as
+  // secure for type totality).
+  if (security.filesystem.allowWrite.length === 0) {
+    throw new SecurityEnforcementError({
+      message:
+        "Mistral Vibe secure mode requires at least one writable path in the security policy; refusing to run with blanket --trust.",
+      provider: "mistral-vibe",
+      mode: security.mode,
+    });
+  }
+  const addDirs = security.filesystem.allowWrite
+    .filter((p) => p !== cwd)
+    .flatMap((p) => ["--add-dir", p]);
+  return ["--workdir", cwd, ...addDirs];
+}
+
 export function buildVibeArgs(
   entry: VibeProviderEntry,
   prompt: string,
-  cwd: string,
+  options: AgentRunOptions,
   resumeSessionId?: string,
 ): string[] {
-  const args: string[] = ["-p", prompt];
-  args.push("--agent", entry.defaultAgent ?? "auto-approve");
-  args.push("--output", "streaming");
-  args.push("--trust");
-  args.push("--workdir", cwd);
+  const securityFlags = buildVibeSecurityFlags(options.security, options.cwd);
+  const args: string[] = [
+    "-p",
+    prompt,
+    "--agent",
+    entry.defaultAgent ?? "auto-approve",
+    "--output",
+    "streaming",
+    ...securityFlags,
+  ];
   if (resumeSessionId) {
     args.push("--resume", resumeSessionId);
   }
@@ -131,9 +185,22 @@ export function runVibeAgent(
   resumeSessionId?: string,
 ): Effect.Effect<
   AgentRunResult,
-  AgentInvocationError | AgentSessionIdMissingError | RateLimitError | UsageLimitError | FsError
+  | AgentInvocationError
+  | AgentSessionIdMissingError
+  | RateLimitError
+  | UsageLimitError
+  | SecurityEnforcementError
+  | FsError
 > {
-  const args = buildVibeArgs(entry, prompt, options.cwd, resumeSessionId);
+  let args: string[];
+  try {
+    args = buildVibeArgs(entry, prompt, options, resumeSessionId);
+  } catch (err) {
+    if (err instanceof SecurityEnforcementError) {
+      return Effect.fail(err);
+    }
+    throw err;
+  }
   const argv = [entry.executable, ...args];
 
   return Effect.gen(function* () {
