@@ -9,6 +9,7 @@ import type {
   RoutingRequest,
   RoutingResolution,
   RoutingTier,
+  SecurityFilter,
   ThinkingLevel,
 } from "./types.js";
 
@@ -198,6 +199,23 @@ function buildSelected(
   return { provider, family, thinking, concreteModel };
 }
 
+// Append a sentence to the resolution reason listing every provider skipped
+// because the caller-supplied security filter rejected it, and attach the
+// structured `skippedForSecurity` field. Returns the resolution unchanged when
+// no skips occurred so existing no-filter call sites stay byte-for-byte equal.
+function finalize(
+  base: RoutingResolution,
+  skipped: ReadonlyArray<{ provider: ProviderId; reason: string }>,
+): RoutingResolution {
+  if (skipped.length === 0) return base;
+  const list = skipped.map((s) => `${s.provider} (${s.reason})`).join(", ");
+  return {
+    ...base,
+    reason: `${base.reason} Skipped for security: ${list}.`,
+    skippedForSecurity: skipped.map((s) => ({ provider: s.provider, reason: s.reason })),
+  };
+}
+
 function reasonFor(
   request: RoutingRequest,
   requestedFamily: ModelFamily,
@@ -230,6 +248,7 @@ export function resolveModel(
   request: RoutingRequest,
   routing: ModelRouting,
   providerCfg: ProviderConfig,
+  securityFilter?: SecurityFilter,
 ): RoutingResolution {
   const familyResolution = resolveFamily(request.model, routing);
   const requestedFamily = familyResolution.family;
@@ -241,6 +260,7 @@ export function resolveModel(
   );
 
   const tierEntries = routing.tiers[tier];
+  const skippedForSecurity: Array<{ provider: ProviderId; reason: string }> = [];
 
   for (const provider of routing.providerPriority) {
     const rawEntry = tierEntries?.[provider];
@@ -276,27 +296,41 @@ export function resolveModel(
     const concrete = resolveConcrete(provider, entry, providerCfg);
     if (!concrete) continue;
 
-    return {
-      requested: {
-        model: request.model,
-        family: requestedFamily,
-        effort: request.effort,
-      },
-      normalizedTier: tier,
-      selected: buildSelected(provider, entry.family, concrete.thinking, concrete.concreteModel),
-      relationship,
-      reason: reasonFor(
-        request,
-        requestedFamily,
-        familyResolution.source,
-        tier,
-        provider,
-        entry.family,
-        concrete.thinking,
+    if (securityFilter) {
+      const decision = securityFilter(provider);
+      if (!decision.allowed) {
+        skippedForSecurity.push({
+          provider,
+          reason: decision.reason ?? "blocked by security policy",
+        });
+        continue;
+      }
+    }
+
+    return finalize(
+      {
+        requested: {
+          model: request.model,
+          family: requestedFamily,
+          effort: request.effort,
+        },
+        normalizedTier: tier,
+        selected: buildSelected(provider, entry.family, concrete.thinking, concrete.concreteModel),
         relationship,
-        false,
-      ),
-    };
+        reason: reasonFor(
+          request,
+          requestedFamily,
+          familyResolution.source,
+          tier,
+          provider,
+          entry.family,
+          concrete.thinking,
+          relationship,
+          false,
+        ),
+      },
+      skippedForSecurity,
+    );
   }
 
   // Terminal: enabled gate intentionally does not apply here. claude-code is the
@@ -312,32 +346,35 @@ export function resolveModel(
     );
     const concrete = resolveConcrete("claude-code", guarded.entry, providerCfg);
     if (concrete) {
-      return {
-        requested: {
-          model: request.model,
-          family: requestedFamily,
-          effort: request.effort,
+      return finalize(
+        {
+          requested: {
+            model: request.model,
+            family: requestedFamily,
+            effort: request.effort,
+          },
+          normalizedTier: tier,
+          selected: buildSelected(
+            "claude-code",
+            guarded.entry.family,
+            concrete.thinking,
+            concrete.concreteModel,
+          ),
+          relationship: guarded.relationship,
+          reason: reasonFor(
+            request,
+            requestedFamily,
+            familyResolution.source,
+            tier,
+            "claude-code",
+            guarded.entry.family,
+            concrete.thinking,
+            guarded.relationship,
+            true,
+          ),
         },
-        normalizedTier: tier,
-        selected: buildSelected(
-          "claude-code",
-          guarded.entry.family,
-          concrete.thinking,
-          concrete.concreteModel,
-        ),
-        relationship: guarded.relationship,
-        reason: reasonFor(
-          request,
-          requestedFamily,
-          familyResolution.source,
-          tier,
-          "claude-code",
-          guarded.entry.family,
-          concrete.thinking,
-          guarded.relationship,
-          true,
-        ),
-      };
+        skippedForSecurity,
+      );
     }
   }
 
@@ -347,31 +384,37 @@ export function resolveModel(
       ? nearestSupportedEffort(requestedFamily, request.effort)
       : request.effort;
     const relationship: Relationship = directEffort === request.effort ? "exact" : "equivalent";
-    return {
+    return finalize(
+      {
+        requested: {
+          model: request.model,
+          family: requestedFamily,
+          effort: request.effort,
+        },
+        normalizedTier: tier,
+        selected: buildSelected("claude-code", requestedFamily, directEffort, directModel),
+        relationship,
+        reason: `No tier entry available for ${tier}; routed directly to claude-code/${requestedFamily}/${directEffort}.`,
+      },
+      skippedForSecurity,
+    );
+  }
+
+  const sonnetFallback =
+    providerCfg.providers["claude-code"]?.families?.["claude-sonnet"]?.model ?? "claude-sonnet";
+  const sonnetEffort = nearestSupportedEffort("claude-sonnet", request.effort);
+  return finalize(
+    {
       requested: {
         model: request.model,
         family: requestedFamily,
         effort: request.effort,
       },
       normalizedTier: tier,
-      selected: buildSelected("claude-code", requestedFamily, directEffort, directModel),
-      relationship,
-      reason: `No tier entry available for ${tier}; routed directly to claude-code/${requestedFamily}/${directEffort}.`,
-    };
-  }
-
-  const sonnetFallback =
-    providerCfg.providers["claude-code"]?.families?.["claude-sonnet"]?.model ?? "claude-sonnet";
-  const sonnetEffort = nearestSupportedEffort("claude-sonnet", request.effort);
-  return {
-    requested: {
-      model: request.model,
-      family: requestedFamily,
-      effort: request.effort,
+      selected: buildSelected("claude-code", "claude-sonnet", sonnetEffort, sonnetFallback),
+      relationship: "no_equivalent",
+      reason: `No matching provider for tier ${tier}; defaulted to claude-code/claude-sonnet.`,
     },
-    normalizedTier: tier,
-    selected: buildSelected("claude-code", "claude-sonnet", sonnetEffort, sonnetFallback),
-    relationship: "no_equivalent",
-    reason: `No matching provider for tier ${tier}; defaulted to claude-code/claude-sonnet.`,
-  };
+    skippedForSecurity,
+  );
 }

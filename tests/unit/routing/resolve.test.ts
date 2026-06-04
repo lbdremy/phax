@@ -233,4 +233,15 @@ describe("resolveModel — additional behavior", () => {
     expect(result.reason).toMatch(/standard/);
     expect(result.reason).toMatch(/equivalent/);
   });
+
+  it("omits skippedForSecurity when no securityFilter is supplied", () => {
+    const result = resolveModel(
+      { model: "claude-sonnet-4-6", effort: "medium" },
+      mistralPriority,
+      allEnabledProviderConfig,
+    );
+
+    expect(result.skippedForSecurity).toBeUndefined();
+    expect(result.reason).not.toMatch(/Skipped for security/);
+  });
 });
