@@ -66,4 +66,13 @@ export interface RoutingResolution {
   };
   readonly relationship: Relationship;
   readonly reason: string;
+  readonly skippedForSecurity?: ReadonlyArray<{
+    readonly provider: ProviderId;
+    readonly reason: string;
+  }>;
 }
+
+export type SecurityFilter = (provider: ProviderId) => {
+  readonly allowed: boolean;
+  readonly reason?: string;
+};
