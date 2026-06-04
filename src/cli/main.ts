@@ -16,6 +16,7 @@ import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
 import { registerResumeCommand } from "./commands/resumeRegister.js";
 import { registerAgentCommand } from "./commands/agent.js";
+import { registerSecurityCommand } from "./commands/security.js";
 
 setupInterruptHandlers();
 
@@ -210,6 +211,10 @@ program
     "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)",
   )
   .option("--dry-run", "Preview only — extracts the plan but performs no run actions")
+  .option(
+    "--security <mode>",
+    "Security mode override (secure|unsafe|isolated, overrides config default)",
+  )
   .action(
     async (
       shortName: string | undefined,
@@ -233,6 +238,7 @@ program
 
 registerResumeCommand(program, runResume, consoleOutput, globalTraceOpts);
 registerAgentCommand(program, consoleOutput);
+registerSecurityCommand(program, consoleOutput, globalTraceOpts);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   consoleOutput.error(`Unexpected error: ${String(err)}`);

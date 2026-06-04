@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildDryRunReport, formatDryRunReport } from "../../src/app/dryRun.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import { DEFAULT_SECURITY_PROFILE } from "../../src/schemas/securityConfig.js";
 
 const minimalPlan: PhaxPlan = {
   version: 1,
@@ -35,6 +36,12 @@ const minimalConfig: ResolvedConfig = {
       full: ["pnpm test"],
     },
   },
+  security: {
+    profile: "secure",
+    filesystem: { allowRead: [], allowWrite: [] },
+    network: { profile: "provider-only", allowDomains: [] },
+    mcp: { mode: "disabled", allow: [] },
+  },
 };
 
 describe("buildDryRunReport / formatDryRunReport", () => {
@@ -62,5 +69,27 @@ describe("buildDryRunReport / formatDryRunReport", () => {
     const report = buildDryRunReport(minimalPlan, minimalConfig, undefined, ["codex-cli"]);
     const output = formatDryRunReport(report);
     expect(output).toContain("Priority:     codex-cli (override)");
+  });
+
+  it("includes securityMode in the report", () => {
+    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    expect(report.securityMode).toBe(DEFAULT_SECURITY_PROFILE);
+  });
+
+  it("uses passed securityMode over config default", () => {
+    const report = buildDryRunReport(minimalPlan, minimalConfig, undefined, undefined, "unsafe");
+    expect(report.securityMode).toBe("unsafe");
+  });
+
+  it("renders security mode in formatted output", () => {
+    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    const output = formatDryRunReport(report);
+    expect(output).toContain(`Security:     ${DEFAULT_SECURITY_PROFILE}`);
+  });
+
+  it("renders unsafe security mode in formatted output", () => {
+    const report = buildDryRunReport(minimalPlan, minimalConfig, undefined, undefined, "unsafe");
+    const output = formatDryRunReport(report);
+    expect(output).toContain("Security:     unsafe");
   });
 });

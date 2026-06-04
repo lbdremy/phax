@@ -132,12 +132,12 @@ describe("loadConfig fileReconciliation resolution", () => {
 });
 
 describe("loadConfig security resolution", () => {
-  it("defaults security profile to DEFAULT_SECURITY_PROFILE when no security block", () => {
+  it("defaults security profile to secure when no security block", () => {
     writePhaxJson(baseConfig);
     const result = loadConfig(repoDir);
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
-      expect(result.right.security.profile).toBe(DEFAULT_SECURITY_PROFILE);
+      expect(result.right.security.profile).toBe("secure");
     }
   });
 

@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { resolveGateProfile } from "./gates.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
+import type { SecurityMode } from "../domain/security/types.js";
 
 export interface DryRunPhase {
   readonly index: number;
@@ -18,6 +19,7 @@ export interface DryRunReport {
   readonly projectName: string;
   readonly stateRoot: string;
   readonly gateProfileId: string;
+  readonly securityMode: SecurityMode;
   readonly setupCommands: readonly string[];
   readonly cleanupCommands: readonly string[];
   readonly gateCommands: readonly string[];
@@ -31,9 +33,13 @@ export function buildDryRunReport(
   config: ResolvedConfig,
   gateProfileId?: string,
   providerPriorityOverride?: readonly string[],
+  securityMode?: SecurityMode,
 ): DryRunReport {
   const profileId = gateProfileId ?? "full";
   const gateCommands = resolveGateProfile(config, profileId);
+
+  // Use the passed securityMode if provided, otherwise fall back to config
+  const effectiveSecurityMode = securityMode ?? config.security.profile;
 
   const worktreesRoot = join(config.stateRoot, "worktrees", plan.run.shortName);
   const phases: DryRunPhase[] = plan.phases.map((p, i) => ({
@@ -51,6 +57,7 @@ export function buildDryRunReport(
     projectName: config.raw.project.name,
     stateRoot: config.stateRoot,
     gateProfileId: profileId,
+    securityMode: effectiveSecurityMode,
     setupCommands: config.raw.commands?.setup ?? [],
     cleanupCommands: config.raw.commands?.cleanup ?? [],
     gateCommands,
@@ -67,6 +74,7 @@ export function formatDryRunReport(report: DryRunReport): string {
   lines.push(`  Branch:       ${report.branch}`);
   lines.push(`  Project:      ${report.projectName}`);
   lines.push(`  Gate profile: ${report.gateProfileId}`);
+  lines.push(`  Security:     ${report.securityMode}`);
   lines.push(`  Run path:     ${report.runPath}`);
   if (report.providerPriorityOverride !== undefined) {
     lines.push(`  Priority:     ${report.providerPriorityOverride.join(" → ")} (override)`);
