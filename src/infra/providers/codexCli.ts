@@ -34,7 +34,12 @@ interface SpawnResult {
   readonly stderr: string;
 }
 
-/** Map a ThinkingLevel to the codex --reasoning-effort flag value. */
+/**
+ * Map a resolved effort (already an openai-gpt level: low|medium|high|xhigh,
+ * with the legacy off|max kept as safe synonyms) to the value codex accepts
+ * for `model_reasoning_effort`. Codex does not accept `xhigh`; clamp it to
+ * `high`.
+ */
 function mapReasoningEffort(effort: string): string {
   switch (effort) {
     case "off":
@@ -44,7 +49,6 @@ function mapReasoningEffort(effort: string): string {
       return "medium";
     case "high":
     case "xhigh":
-      return "high";
     case "max":
       return "high";
     default:
@@ -56,24 +60,23 @@ export function buildCodexArgs(
   entry: CodexProviderEntry,
   model: string,
   effort: string,
+  cwd: string | undefined,
   resumeSessionId?: string,
 ): string[] {
-  const args: string[] = [
-    "--model",
+  const commonFlags: string[] = [
+    "--json",
+    "--skip-git-repo-check",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "-m",
     model,
-    "--approval-mode",
-    "full-auto",
-    "--reasoning-effort",
-    mapReasoningEffort(effort),
-    "--print",
-    "--output-format",
-    "stream-json",
-    "--verbose",
+    "-c",
+    `model_reasoning_effort="${mapReasoningEffort(effort)}"`,
   ];
   if (resumeSessionId) {
-    args.push("--resume", resumeSessionId);
+    return ["exec", "resume", resumeSessionId, ...commonFlags];
   }
-  return args;
+  const cwdFlags = cwd ? ["-C", cwd] : [];
+  return ["exec", ...cwdFlags, ...commonFlags];
 }
 
 function spawnCodex(
@@ -151,7 +154,7 @@ export function runCodexAgent(
   AgentInvocationError | AgentSessionIdMissingError | RateLimitError | UsageLimitError | FsError
 > {
   const model = entry.families?.["openai-gpt"]?.model ?? options.model;
-  const args = buildCodexArgs(entry, model, options.effort, resumeSessionId);
+  const args = buildCodexArgs(entry, model, options.effort, options.cwd, resumeSessionId);
   const argv = [entry.executable, ...args];
 
   return Effect.gen(function* () {
