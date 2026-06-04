@@ -10,6 +10,13 @@ const baseOptions: AgentRunOptions = {
   model: "claude-sonnet-4-6",
   effort: "medium",
   cwd: "/tmp",
+  security: {
+    mode: "unsafe",
+    filesystem: { allowRead: [], allowWrite: [] },
+    network: { profile: "open", allowDomains: [] },
+    mcp: { mode: "provider-default", allow: [] },
+    failClosed: false,
+  },
 };
 
 function runWithProvider(options: AgentRunOptions) {
