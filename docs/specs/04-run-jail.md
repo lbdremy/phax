@@ -80,7 +80,6 @@ We want user to be able to add more directories, for example for PHAX itself we 
 ~/.phax
 ```
 
-
 ---
 
 # 3. Security modes
@@ -198,7 +197,6 @@ phase worktree
 ```
 
 The phase worktree is where the agent performs code changes.
-
 
 ## 5.2 Denied paths
 

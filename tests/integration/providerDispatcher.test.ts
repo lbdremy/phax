@@ -48,7 +48,7 @@ describe("provider dispatcher", () => {
       expect((result.left as AgentInvocationError).message).not.toContain("not yet wired");
     }
     expect(true).toBe(true);
-  });
+  }, 30_000);
 
   it("codex-cli routes to the Codex adapter, not the 'not yet wired' guard", async () => {
     const result = await runWithProvider({

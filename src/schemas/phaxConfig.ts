@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { SecurityConfigSchema, type ResolvedSecurityConfig } from "./securityConfig.js";
 
 const NonEmptyCommandArray = Schema.NonEmptyArray(Schema.NonEmptyString);
 
@@ -55,6 +56,7 @@ export const PhaxConfigSchema = Schema.Struct({
     }),
   ),
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
+  security: Schema.optional(SecurityConfigSchema),
   gateProfiles: GateProfilesSchema,
   workspaces: Schema.optional(Schema.Array(WorkspaceSchema)),
 });
@@ -74,7 +76,10 @@ export interface ResolvedConfig {
   readonly extractPlanModel: string;
   readonly extractPlanEffort: Effort;
   readonly fileReconciliationMode: "report_only" | "warn";
+  readonly security: ResolvedSecurityConfig;
 }
+
+export type { ResolvedSecurityConfig };
 
 export const decodePhaxConfig = Schema.decodeUnknownEither(PhaxConfigSchema, {
   onExcessProperty: "error",
