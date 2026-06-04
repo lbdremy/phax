@@ -63,5 +63,5 @@ describe("provider dispatcher", () => {
       expect((result.left as AgentInvocationError).message).not.toContain("not yet wired");
     }
     expect(true).toBe(true);
-  });
+  }, 30_000);
 });

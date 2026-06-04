@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildCodexArgs } from "../../../src/infra/providers/codexCli.js";
 import {
@@ -10,105 +13,121 @@ const baseEntry = {
   families: { "openai-gpt": { model: "gpt-5.5" } },
 };
 
+const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
+const sampleLines = readFileSync(join(fixtureDir, "codex-exec-sample.jsonl"), "utf8")
+  .split("\n")
+  .filter((l) => l.trim().length > 0);
+
 describe("buildCodexArgs", () => {
-  it("includes model, approval-mode, reasoning-effort, and output format flags", () => {
-    const args = buildCodexArgs(baseEntry, "gpt-5.5", "medium");
+  it("emits `codex exec` with --json, sandbox bypass, model, cwd, and reasoning-effort config", () => {
+    const args = buildCodexArgs(baseEntry, "gpt-5.5", "medium", "/tmp/work");
     expect(args).toEqual([
-      "--model",
+      "exec",
+      "-C",
+      "/tmp/work",
+      "--json",
+      "--skip-git-repo-check",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "-m",
       "gpt-5.5",
-      "--approval-mode",
-      "full-auto",
-      "--reasoning-effort",
-      "medium",
-      "--print",
-      "--output-format",
-      "stream-json",
-      "--verbose",
+      "-c",
+      'model_reasoning_effort="medium"',
     ]);
   });
 
-  it("appends --resume when a session id is provided", () => {
-    const args = buildCodexArgs(baseEntry, "gpt-5.5", "medium", "session-abc-123");
-    expect(args).toContain("--resume");
-    expect(args).toContain("session-abc-123");
-    const resumeIdx = args.indexOf("--resume");
-    expect(args[resumeIdx + 1]).toBe("session-abc-123");
+  it("omits -C when cwd is undefined", () => {
+    const args = buildCodexArgs(baseEntry, "gpt-5.5", "low", undefined);
+    expect(args).not.toContain("-C");
+    expect(args[0]).toBe("exec");
   });
 
-  it("maps effort levels to reasoning-effort correctly", () => {
-    expect(buildCodexArgs(baseEntry, "gpt-5.5", "off")).toContain("low");
-    expect(buildCodexArgs(baseEntry, "gpt-5.5", "low")).toContain("low");
-    expect(buildCodexArgs(baseEntry, "gpt-5.5", "medium")).toContain("medium");
-    expect(buildCodexArgs(baseEntry, "gpt-5.5", "high")).toContain("high");
-    expect(buildCodexArgs(baseEntry, "gpt-5.5", "xhigh")).toContain("high");
-    expect(buildCodexArgs(baseEntry, "gpt-5.5", "max")).toContain("high");
+  it("emits `codex exec resume <id>` for resume invocations (no -C)", () => {
+    const args = buildCodexArgs(baseEntry, "gpt-5.5", "medium", "/tmp/work", "session-abc-123");
+    expect(args.slice(0, 3)).toEqual(["exec", "resume", "session-abc-123"]);
+    expect(args).not.toContain("-C");
+    expect(args).toContain("--json");
+    expect(args).toContain("--dangerously-bypass-approvals-and-sandbox");
+    expect(args).toContain('model_reasoning_effort="medium"');
+  });
+
+  it("maps openai-gpt effort levels to codex reasoning effort", () => {
+    const effortValue = (effort: string): string => {
+      const args = buildCodexArgs(baseEntry, "gpt-5.5", effort, "/cwd");
+      const idx = args.indexOf("-c");
+      return args[idx + 1] ?? "";
+    };
+    expect(effortValue("low")).toBe('model_reasoning_effort="low"');
+    expect(effortValue("medium")).toBe('model_reasoning_effort="medium"');
+    expect(effortValue("high")).toBe('model_reasoning_effort="high"');
+    // xhigh is not accepted by codex; clamp to high
+    expect(effortValue("xhigh")).toBe('model_reasoning_effort="high"');
+    // legacy synonyms
+    expect(effortValue("off")).toBe('model_reasoning_effort="low"');
+    expect(effortValue("max")).toBe('model_reasoning_effort="high"');
   });
 });
 
 describe("findCodexResultEvent", () => {
-  const goodLine = JSON.stringify({
-    type: "result",
-    session_id: "sess-codex-0001",
-    result: "Here is the codex answer.",
-    is_error: false,
-  });
-
-  it("extracts sessionId and finalText from a valid result line", () => {
-    const found = findCodexResultEvent([goodLine]);
+  it("extracts sessionId and finalText from the captured codex --json sample", () => {
+    const found = findCodexResultEvent(sampleLines);
     expect(found).toEqual({
-      sessionId: "sess-codex-0001",
-      finalText: "Here is the codex answer.",
+      sessionId: "019e8fb5-be1b-7040-b45a-150db63ddff2",
+      finalText: "ok",
     });
   });
 
-  it("returns the last result event when multiple lines exist", () => {
-    const earlier = JSON.stringify({
-      type: "result",
-      session_id: "sess-first",
-      result: "first",
-      is_error: false,
-    });
-    const later = JSON.stringify({
-      type: "result",
-      session_id: "sess-last",
-      result: "last",
-      is_error: false,
-    });
-    const found = findCodexResultEvent([earlier, later]);
-    expect(found?.sessionId).toBe("sess-last");
+  it("returns the last agent_message text when multiple item.completed events exist", () => {
+    const lines = [
+      JSON.stringify({ type: "thread.started", thread_id: "tid-1" }),
+      JSON.stringify({
+        type: "item.completed",
+        item: { id: "item_0", type: "agent_message", text: "first" },
+      }),
+      JSON.stringify({
+        type: "item.completed",
+        item: { id: "item_1", type: "agent_message", text: "last" },
+      }),
+    ];
+    expect(findCodexResultEvent(lines)?.finalText).toBe("last");
   });
 
-  it("returns undefined when no valid result line is present", () => {
+  it("returns undefined when no thread.started event is present", () => {
     expect(findCodexResultEvent([])).toBeUndefined();
-    expect(findCodexResultEvent(['{"type":"assistant","content":"hello"}'])).toBeUndefined();
-    expect(findCodexResultEvent(["not json at all"])).toBeUndefined();
+    expect(findCodexResultEvent(['{"type":"turn.started"}'])).toBeUndefined();
+    expect(findCodexResultEvent(["not json"])).toBeUndefined();
   });
 
-  it("skips blank lines without error", () => {
-    const found = findCodexResultEvent(["", "  ", goodLine, ""]);
-    expect(found?.sessionId).toBe("sess-codex-0001");
+  it("returns sessionId with empty finalText when no agent_message item is emitted", () => {
+    const found = findCodexResultEvent([
+      JSON.stringify({ type: "thread.started", thread_id: "tid-only" }),
+    ]);
+    expect(found).toEqual({ sessionId: "tid-only", finalText: "" });
+  });
+
+  it("ignores non-agent-message item.completed events", () => {
+    const lines = [
+      JSON.stringify({ type: "thread.started", thread_id: "tid-x" }),
+      JSON.stringify({
+        type: "item.completed",
+        item: { id: "i", type: "reasoning", text: "should-be-ignored" },
+      }),
+    ];
+    expect(findCodexResultEvent(lines)).toEqual({ sessionId: "tid-x", finalText: "" });
   });
 });
 
 describe("hasCodexErroredResultEvent", () => {
-  it("returns true when a result event has is_error: true", () => {
-    const errorLine = JSON.stringify({
-      type: "result",
-      session_id: "sess-err",
-      result: "something went wrong",
-      is_error: true,
-    });
-    expect(hasCodexErroredResultEvent([errorLine])).toBe(true);
+  it("returns true on a turn.failed event (codex emits this with exit 0)", () => {
+    const errorLines = [
+      JSON.stringify({ type: "thread.started", thread_id: "tid-err" }),
+      JSON.stringify({ type: "error", message: "boom" }),
+      JSON.stringify({ type: "turn.failed", error: { message: "boom" } }),
+    ];
+    expect(hasCodexErroredResultEvent(errorLines)).toBe(true);
   });
 
-  it("returns false when all result events have is_error: false", () => {
-    const okLine = JSON.stringify({
-      type: "result",
-      session_id: "sess-ok",
-      result: "all good",
-      is_error: false,
-    });
-    expect(hasCodexErroredResultEvent([okLine])).toBe(false);
+  it("returns false for the happy-path captured sample", () => {
+    expect(hasCodexErroredResultEvent(sampleLines)).toBe(false);
   });
 
   it("returns false for an empty line array", () => {
