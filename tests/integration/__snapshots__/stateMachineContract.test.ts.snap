@@ -57,6 +57,17 @@ exports[`State Machine Contract > snapshots the ordered semantic trace for a hap
     "type": "agent.model.resolved",
   },
   {
+    "downgraded": false,
+    "mcpMode": "disabled",
+    "mode": "unsafe",
+    "networkProfile": "provider-only",
+    "operationId": "phase-01",
+    "provider": "claude-code",
+    "sandboxEnabled": false,
+    "skippedForSecurity": [],
+    "type": "security.policy.applied",
+  },
+  {
     "adapter": "claude-code",
     "operation": "agent.run",
     "operationId": "phase-01",

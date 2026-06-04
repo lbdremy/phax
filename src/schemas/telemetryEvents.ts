@@ -6,6 +6,7 @@ import {
   RoutingTierSchema,
   ThinkingLevelSchema,
 } from "./modelRouting.js";
+import { NetworkProfileSchema, McpModeSchema } from "./securityConfig.js";
 
 const StateTransitionTelemetryEventSchema = Schema.Struct({
   type: Schema.Literal("state.transition"),
@@ -92,6 +93,24 @@ const ModelResolvedTelemetryEventSchema = Schema.Struct({
   reason: Schema.String.pipe(Schema.minLength(1)),
 });
 
+const SecurityPolicyAppliedTelemetryEventSchema = Schema.Struct({
+  type: Schema.Literal("security.policy.applied"),
+  runId: Schema.String.pipe(Schema.minLength(1)),
+  operationId: Schema.optional(Schema.String),
+  mode: Schema.Literal("secure", "unsafe", "isolated"),
+  provider: ProviderIdSchema,
+  sandboxEnabled: Schema.Boolean,
+  networkProfile: Schema.String.pipe(Schema.minLength(1)),
+  mcpMode: Schema.String.pipe(Schema.minLength(1)),
+  downgraded: Schema.Boolean,
+  skippedForSecurity: Schema.Array(
+    Schema.Struct({
+      provider: ProviderIdSchema,
+      reason: Schema.String.pipe(Schema.minLength(1)),
+    }),
+  ),
+});
+
 export const SemanticTelemetryEventSchema = Schema.Union(
   StateTransitionTelemetryEventSchema,
   AdapterCallStartedTelemetryEventSchema,
@@ -102,6 +121,7 @@ export const SemanticTelemetryEventSchema = Schema.Union(
   GateEvaluatedTelemetryEventSchema,
   ArtifactGeneratedTelemetryEventSchema,
   ModelResolvedTelemetryEventSchema,
+  SecurityPolicyAppliedTelemetryEventSchema,
 );
 
 export type SemanticTelemetryEventFromSchema = Schema.Schema.Type<

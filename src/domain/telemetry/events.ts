@@ -1,4 +1,5 @@
 import type { RunId } from "../branded.js";
+import type { SecurityMode } from "../security/types.js";
 import type {
   ModelFamily,
   ProviderId,
@@ -92,6 +93,22 @@ export interface ModelResolvedTelemetryEvent {
   readonly reason: string;
 }
 
+export interface SecurityPolicyAppliedTelemetryEvent {
+  readonly type: "security.policy.applied";
+  readonly runId: RunId;
+  readonly operationId?: string;
+  readonly mode: SecurityMode;
+  readonly provider: ProviderId;
+  readonly sandboxEnabled: boolean;
+  readonly networkProfile: string;
+  readonly mcpMode: string;
+  readonly downgraded: boolean;
+  readonly skippedForSecurity: readonly {
+    readonly provider: ProviderId;
+    readonly reason: string;
+  }[];
+}
+
 export type SemanticTelemetryEvent =
   | StateTransitionTelemetryEvent
   | AdapterCallStartedTelemetryEvent
@@ -101,7 +118,8 @@ export type SemanticTelemetryEvent =
   | StepCompletedTelemetryEvent
   | GateEvaluatedTelemetryEvent
   | ArtifactGeneratedTelemetryEvent
-  | ModelResolvedTelemetryEvent;
+  | ModelResolvedTelemetryEvent
+  | SecurityPolicyAppliedTelemetryEvent;
 
 export const makeStateTransitionTelemetryEvent = (
   fields: Omit<StateTransitionTelemetryEvent, "type">,
@@ -138,3 +156,10 @@ export const makeArtifactGeneratedTelemetryEvent = (
 export const makeModelResolvedTelemetryEvent = (
   fields: Omit<ModelResolvedTelemetryEvent, "type">,
 ): ModelResolvedTelemetryEvent => ({ type: "agent.model.resolved", ...fields });
+
+export const makeSecurityPolicyAppliedTelemetryEvent = (
+  fields: Omit<SecurityPolicyAppliedTelemetryEvent, "type">,
+): SecurityPolicyAppliedTelemetryEvent => ({
+  type: "security.policy.applied",
+  ...fields,
+});

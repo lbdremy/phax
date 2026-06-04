@@ -6,6 +6,7 @@ import {
   makeAdapterCallSucceededTelemetryEvent,
   makeArtifactGeneratedTelemetryEvent,
   makeGateEvaluatedTelemetryEvent,
+  makeSecurityPolicyAppliedTelemetryEvent,
   makeStateTransitionTelemetryEvent,
   makeStepCompletedTelemetryEvent,
   makeStepStartedTelemetryEvent,
@@ -169,6 +170,79 @@ describe("makeArtifactGeneratedTelemetryEvent", () => {
     });
     expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
     expect(event.type).toBe("artifact.generated");
+  });
+});
+
+describe("makeSecurityPolicyAppliedTelemetryEvent", () => {
+  it("produces a value the schema accepts", () => {
+    const event = makeSecurityPolicyAppliedTelemetryEvent({
+      runId,
+      mode: "secure",
+      provider: "claude-code",
+      sandboxEnabled: true,
+      networkProfile: "provider-only",
+      mcpMode: "disabled",
+      downgraded: false,
+      skippedForSecurity: [],
+    });
+    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+  });
+
+  it("sets type to security.policy.applied", () => {
+    const event = makeSecurityPolicyAppliedTelemetryEvent({
+      runId,
+      mode: "secure",
+      provider: "claude-code",
+      sandboxEnabled: true,
+      networkProfile: "provider-only",
+      mcpMode: "disabled",
+      downgraded: false,
+      skippedForSecurity: [],
+    });
+    expect(event.type).toBe("security.policy.applied");
+  });
+
+  it("preserves optional operationId when provided", () => {
+    const event = makeSecurityPolicyAppliedTelemetryEvent({
+      runId,
+      operationId: "phase-01",
+      mode: "secure",
+      provider: "claude-code",
+      sandboxEnabled: true,
+      networkProfile: "provider-only",
+      mcpMode: "disabled",
+      downgraded: false,
+      skippedForSecurity: [],
+    });
+    expect(event.operationId).toBe("phase-01");
+  });
+
+  it("accepts downgraded with marks and skipped providers", () => {
+    const event = makeSecurityPolicyAppliedTelemetryEvent({
+      runId,
+      mode: "secure",
+      provider: "mistral-vibe",
+      sandboxEnabled: true,
+      networkProfile: "provider-only",
+      mcpMode: "disabled",
+      downgraded: true,
+      skippedForSecurity: [{ provider: "codex-cli", reason: "cannot satisfy strict secure mode" }],
+    });
+    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+  });
+
+  it("accepts unsafe mode", () => {
+    const event = makeSecurityPolicyAppliedTelemetryEvent({
+      runId,
+      mode: "unsafe",
+      provider: "claude-code",
+      sandboxEnabled: false,
+      networkProfile: "open",
+      mcpMode: "provider-default",
+      downgraded: false,
+      skippedForSecurity: [],
+    });
+    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 });
 

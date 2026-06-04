@@ -33,6 +33,14 @@ export interface SemanticTraceSnapshotEntry {
   readonly selectedConcreteModel?: string;
   readonly selectedThinking?: string;
   readonly relationship?: string;
+  // security.policy.applied
+  readonly mode?: string;
+  readonly provider?: string;
+  readonly sandboxEnabled?: boolean;
+  readonly networkProfile?: string;
+  readonly mcpMode?: string;
+  readonly downgraded?: boolean;
+  readonly skippedForSecurity?: readonly { readonly provider: string; readonly reason: string }[];
 }
 
 export type SemanticTraceSnapshot = ReadonlyArray<SemanticTraceSnapshotEntry>;
@@ -90,6 +98,18 @@ export const projectEvent = (e: SemanticTelemetryEvent): SemanticTraceSnapshotEn
         ...(e.selectedThinking !== undefined ? { selectedThinking: e.selectedThinking } : {}),
         relationship: e.relationship,
         reason: e.reason,
+      };
+    case "security.policy.applied":
+      return {
+        type: e.type,
+        ...opId,
+        mode: e.mode,
+        provider: e.provider,
+        sandboxEnabled: e.sandboxEnabled,
+        networkProfile: e.networkProfile,
+        mcpMode: e.mcpMode,
+        downgraded: e.downgraded,
+        skippedForSecurity: e.skippedForSecurity,
       };
   }
 };
