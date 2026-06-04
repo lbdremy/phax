@@ -79,6 +79,13 @@ describe("executePlan — semantic telemetry end-to-end", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+
+      security: {
+        profile: "unsafe",
+        filesystem: { allowRead: [], allowWrite: [] },
+        network: { profile: "provider-only", allowDomains: [] },
+        mcp: { mode: "disabled", allow: [] },
+      },
     };
 
     const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");

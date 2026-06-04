@@ -1,5 +1,7 @@
 import { Effect, Either, Schema } from "effect";
 import { dirname, join } from "node:path";
+import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
+import { resolveSecurityConfig } from "../schemas/securityConfig.js";
 import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Lock } from "../ports/lock.js";
@@ -16,6 +18,7 @@ import {
   LockConflictError,
   PlanValidationError,
   RateLimitError,
+  SecurityEnforcementError,
   UsageLimitError,
 } from "../domain/errors.js";
 import { decodeShortName } from "../domain/branded.js";
@@ -113,6 +116,7 @@ export type ExtractPlanCoreError =
   | AgentInvocationError
   | RateLimitError
   | UsageLimitError
+  | SecurityEnforcementError
   | FsError;
 
 /**
@@ -146,11 +150,23 @@ export function extractPlanCore(
     const jsonSchema = getExtractedPlanJsonSchema();
     const prompt = buildExtractionPrompt(planMd, jsonSchema);
 
+    // TODO(security): jail extraction stricter than phase execution — the
+    // extraction agent needs only the prompt to produce the plan JSON, so it
+    // should run read-only against the repo and with provider-API-only network.
+    // For now we use a host/unsafe policy so behavior matches today.
+    const extractionSecurity = resolveSecurityPolicy({
+      mode: "unsafe",
+      provider: "claude-code",
+      worktreePath: opts.cwd,
+      stateRoot: opts.cwd,
+      config: resolveSecurityConfig(undefined, "unsafe"),
+    });
     const runResult = yield* backend.runAgent(prompt, {
       provider: "claude-code",
       model: opts.model,
       effort: opts.effort,
       cwd: opts.cwd,
+      security: extractionSecurity,
     });
 
     let parsed: unknown;

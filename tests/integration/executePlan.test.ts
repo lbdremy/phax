@@ -102,6 +102,13 @@ describe("executePlan — happy-path 2-phase run", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+
+      security: {
+        profile: "unsafe",
+        filesystem: { allowRead: [], allowWrite: [] },
+        network: { profile: "provider-only", allowDomains: [] },
+        mcp: { mode: "disabled", allow: [] },
+      },
     };
 
     const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
@@ -175,6 +182,14 @@ describe("executePlan — happy-path 2-phase run", () => {
 
     expect(Either.isRight(result)).toBe(true);
 
+    // Phase-04: every backend.runAgent call receives a resolved SecurityPolicy.
+    // Default profile is `unsafe`, so failClosed is false and the allow-lists are empty.
+    expect(fakeBackend.impl.runCalls).toHaveLength(2);
+    for (const call of fakeBackend.impl.runCalls) {
+      expect(call.options.security.mode).toBe("unsafe");
+      expect(call.options.security.failClosed).toBe(false);
+    }
+
     const phase01Status = JSON.parse(
       await readFile(join(runPath, "phase-01", "status.json"), "utf8"),
     ) as { state: string; worktreePath?: string; commitHash?: string };
@@ -229,6 +244,13 @@ describe("executePlan — happy-path 2-phase run", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+
+      security: {
+        profile: "unsafe",
+        filesystem: { allowRead: [], allowWrite: [] },
+        network: { profile: "provider-only", allowDomains: [] },
+        mcp: { mode: "disabled", allow: [] },
+      },
     };
 
     const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
