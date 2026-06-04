@@ -4,7 +4,10 @@
   "project": { "name": "phax", "type": "single-package" },
   "state": { "root": "~/.phax" },
   "editor": { "command": "zed" },
-  "agent": { "backend": "claude-code-cli", "maxFixAttempts": 1 },
+  "agent": {
+    "backend": "claude-code-cli",
+    "maxFixAttempts": 1
+  },
   "commands": {
     "setup": ["pnpm install"],
     "cleanup": ["rm -rf node_modules"]
