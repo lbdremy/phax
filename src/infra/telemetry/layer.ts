@@ -43,6 +43,8 @@ const formatSemanticEvent = (event: SemanticTelemetryEvent): string => {
       return `phax·artifact.generated  ${event.artifact}  path=${event.path}`;
     case "agent.model.resolved":
       return `phax·agent.model.resolved  ${event.selectedProvider}/${event.selectedFamily}  model=${event.selectedConcreteModel}  relationship=${event.relationship}`;
+    case "security.policy.applied":
+      return `phax·security.policy.applied  mode=${event.mode}  provider=${event.provider}  sandbox=${event.sandboxEnabled}  network=${event.networkProfile}  mcp=${event.mcpMode}${event.downgraded ? "  DOWNGRADED" : ""}${event.skippedForSecurity.length > 0 ? `  skipped=[${event.skippedForSecurity.map((s) => s.provider).join(",")}]` : ""}`;
   }
 };
 

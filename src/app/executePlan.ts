@@ -28,11 +28,13 @@ import {
   makeAdapterCallSucceededTelemetryEvent,
   makeArtifactGeneratedTelemetryEvent,
   makeModelResolvedTelemetryEvent,
+  makeSecurityPolicyAppliedTelemetryEvent,
   makeStepStartedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
 } from "../domain/telemetry/events.js";
 import { reportAgentFailure } from "./telemetry/reportBuilders.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
+import { encodeSecurityPosture, type SecurityPosture } from "../schemas/securityPosture.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { ModelRouting } from "../schemas/modelRouting.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
@@ -383,6 +385,49 @@ export function executePlan(
       yield* fs.writeAtomic(
         join(phaseFolderPath, "model-resolution.json"),
         JSON.stringify(resolution, null, 2),
+      );
+
+      // Build and write security posture artifact
+      const evaluation = evaluateProviderSecurity(resolution.selected.provider, securityPolicy);
+      const securityPosture: SecurityPosture = {
+        version: 1,
+        mode: securityPolicy.mode,
+        provider: resolution.selected.provider,
+        sandboxEnabled: securityPolicy.mode === "secure",
+        filesystem: {
+          allowRead: securityPolicy.filesystem.allowRead,
+          allowWrite: securityPolicy.filesystem.allowWrite,
+        },
+        network: {
+          profile: securityPolicy.network.profile,
+          allowDomains: securityPolicy.network.allowDomains,
+        },
+        mcp: {
+          mode: securityPolicy.mcp.mode,
+          allow: securityPolicy.mcp.allow,
+        },
+        downgraded: evaluation.downgraded,
+        marks: evaluation.marks,
+        providerSkippedForSecurity: resolution.skippedForSecurity ?? [],
+      };
+      yield* fs.writeAtomic(
+        join(phaseFolderPath, "security.json"),
+        JSON.stringify(encodeSecurityPosture(securityPosture), null, 2),
+      );
+
+      // Emit security.policy.applied telemetry event
+      yield* telemetry.recordEvent(
+        makeSecurityPolicyAppliedTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          mode: securityPosture.mode,
+          provider: securityPosture.provider,
+          sandboxEnabled: securityPosture.sandboxEnabled,
+          networkProfile: securityPosture.network.profile,
+          mcpMode: securityPosture.mcp.mode,
+          downgraded: securityPosture.downgraded,
+          skippedForSecurity: securityPosture.providerSkippedForSecurity,
+        }),
       );
 
       const agentOptions: AgentRunOptions = {
