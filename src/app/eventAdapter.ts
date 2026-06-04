@@ -19,6 +19,7 @@ import type {
   AgentSessionIdMissingError,
   PhaseHadNoChangesError,
   RegistryCorruptionError,
+  SecurityEnforcementError,
 } from "../domain/errors.js";
 import { SetupCommandFailedError } from "../domain/errors.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
@@ -60,7 +61,7 @@ export function adaptAgentRun(
   base: PhaxEventBase,
 ): Effect.Effect<
   AgentInvocationCompleted | RateLimitDetected,
-  AgentInvocationError | FsError,
+  AgentInvocationError | SecurityEnforcementError | FsError,
   Backend
 > {
   return Backend.pipe(
@@ -107,7 +108,7 @@ export function adaptAgentResume(
   base: PhaxEventBase,
 ): Effect.Effect<
   AgentInvocationCompleted | RateLimitDetected,
-  AgentInvocationError | AgentSessionIdMissingError | FsError,
+  AgentInvocationError | AgentSessionIdMissingError | SecurityEnforcementError | FsError,
   Backend
 > {
   return Backend.pipe(
@@ -222,6 +223,7 @@ export function adaptHandoffGenerate(
   | GitError
   | ShellError
   | FsError
+  | SecurityEnforcementError
   | SetupCommandFailedError,
   FileSystem | Backend | Git | Shell | SystemTelemetry
 > {
@@ -259,6 +261,7 @@ export function adaptHandoffGenerate(
         | GitError
         | ShellError
         | FsError
+        | SecurityEnforcementError
         | SetupCommandFailedError
       > => {
         if (e instanceof HandoffValidationError) {
@@ -275,6 +278,7 @@ export function adaptHandoffGenerate(
             | GitError
             | ShellError
             | FsError
+            | SecurityEnforcementError
             | SetupCommandFailedError,
         );
       },

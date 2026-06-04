@@ -11,6 +11,7 @@ import {
   PhaseHadNoChangesError,
   RateLimitError,
   RegistryCorruptionError,
+  SecurityEnforcementError,
   SetupCommandFailedError,
   UnsafeGitStateError,
   UsageLimitError,
@@ -37,6 +38,9 @@ import type { ModelRouting } from "../schemas/modelRouting.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
 import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../domain/routing/defaults.js";
 import { resolveModel } from "../domain/routing/resolve.js";
+import type { ProviderId, SecurityFilter } from "../domain/routing/types.js";
+import { evaluateProviderSecurity } from "../domain/security/capabilities.js";
+import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
@@ -96,6 +100,7 @@ export type ExecutePlanError =
   | RegistryCorruptionError
   | RateLimitError
   | UsageLimitError
+  | SecurityEnforcementError
   | PhaseHadNoChangesError;
 
 export function executePlan(
@@ -313,11 +318,44 @@ export function executePlan(
       const fs = yield* FileSystem;
       yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);
 
+      const securityMode = config.security.profile;
+      const policyFor = (provider: ProviderId) =>
+        resolveSecurityPolicy({
+          mode: securityMode,
+          provider,
+          worktreePath: worktreePath as string,
+          stateRoot: config.stateRoot,
+          config: config.security,
+        });
+      const securityFilter: SecurityFilter = (provider) => {
+        if (securityMode !== "secure") {
+          return { allowed: true };
+        }
+        const evaluation = evaluateProviderSecurity(provider, policyFor(provider));
+        return evaluation.satisfiesStrict
+          ? { allowed: true }
+          : {
+              allowed: false,
+              reason: evaluation.marks.length
+                ? `cannot satisfy strict secure mode (${evaluation.marks.join(", ")})`
+                : "cannot satisfy strict secure mode",
+            };
+      };
+
       const resolution = resolveModel(
         { model: phase.model, effort: phase.effort },
         routing,
         providerConfig,
+        securityFilter,
       );
+
+      const securityPolicy = resolveSecurityPolicy({
+        mode: securityMode,
+        provider: resolution.selected.provider,
+        worktreePath: worktreePath as string,
+        stateRoot: config.stateRoot,
+        config: config.security,
+      });
 
       yield* telemetry.recordEvent(
         makeModelResolvedTelemetryEvent({
@@ -347,6 +385,7 @@ export function executePlan(
         model: resolution.selected.concreteModel,
         effort: resolution.selected.thinking ?? phase.effort,
         cwd: worktreePath as string,
+        security: securityPolicy,
         outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
         phaseFolderPath,
       };

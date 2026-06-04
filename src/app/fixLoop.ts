@@ -8,6 +8,7 @@ import {
   GateFailedError,
   type RateLimitError,
   type RegistryCorruptionError,
+  type SecurityEnforcementError,
   type SetupCommandFailedError,
   type UsageLimitError,
 } from "../domain/errors.js";
@@ -81,6 +82,7 @@ export function runGatesWithFixLoop(
   | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError
+  | SecurityEnforcementError
   | RegistryCorruptionError,
   Shell | FileSystem | Backend | Git | SystemTelemetry
 > {
@@ -130,6 +132,7 @@ export function runGatesWithFixLoop(
     | AgentSessionIdMissingError
     | RateLimitError
     | UsageLimitError
+    | SecurityEnforcementError
     | RegistryCorruptionError,
     Shell | FileSystem | Backend | Git | SystemTelemetry
   > {
@@ -243,15 +246,11 @@ export function runGatesWithFixLoop(
         { "phax.phase.id": phaseId },
         backend
           .resumeAgentSession(currentSessionId, fixPrompt, {
-            provider: agentOptions.provider,
-            model: agentOptions.model,
-            effort: agentOptions.effort,
-            cwd: agentOptions.cwd,
+            ...agentOptions,
             outputJsonlPath: join(
               phaseFolderPath,
               `fix-attempt-${String(attempt).padStart(2, "0")}.jsonl`,
             ),
-            phaseFolderPath: agentOptions.phaseFolderPath,
           })
           .pipe(
             Effect.tapError((e) =>

@@ -7,6 +7,7 @@ import {
   type AgentSessionIdMissingError,
   type RateLimitError,
   type RegistryCorruptionError,
+  type SecurityEnforcementError,
   type SetupCommandFailedError,
   type UsageLimitError,
 } from "../domain/errors.js";
@@ -82,6 +83,7 @@ export function generatePhaseHandoff(
   | AgentSessionIdMissingError
   | RateLimitError
   | UsageLimitError
+  | SecurityEnforcementError
   | HandoffValidationError
   | RegistryCorruptionError,
   FileSystem | Backend | Git | Shell | SystemTelemetry
@@ -96,9 +98,7 @@ export function generatePhaseHandoff(
     const handoffPrompt = buildHandoffPrompt();
 
     yield* backend.resumeAgentSession(sessionId, handoffPrompt, {
-      provider: agentOptions.provider,
-      model: agentOptions.model,
-      effort: agentOptions.effort,
+      ...agentOptions,
       cwd: worktreePath,
       outputJsonlPath: join(phaseFolderPath, "handoff-generation.jsonl"),
       phaseFolderPath,

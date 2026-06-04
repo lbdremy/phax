@@ -96,6 +96,12 @@ export class LockConflictError extends Data.TaggedError("LockConflictError")<{
   lockingPid: number;
 }> {}
 
+export class SecurityEnforcementError extends Data.TaggedError("SecurityEnforcementError")<{
+  message: string;
+  provider: string;
+  mode: string;
+}> {}
+
 export class InvalidTransitionError extends Data.TaggedError("InvalidTransitionError")<{
   from: string;
   to: string;

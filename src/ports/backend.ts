@@ -4,9 +4,11 @@ import type {
   AgentInvocationError,
   AgentSessionIdMissingError,
   RateLimitError,
+  SecurityEnforcementError,
   UsageLimitError,
 } from "../domain/errors.js";
 import type { ProviderId } from "../domain/routing/types.js";
+import type { SecurityPolicy } from "../domain/security/types.js";
 import type { FsError } from "./fs.js";
 
 export interface AgentRunOptions {
@@ -14,6 +16,7 @@ export interface AgentRunOptions {
   readonly model: string;
   readonly effort: string;
   readonly cwd: string;
+  readonly security: SecurityPolicy;
   readonly outputJsonlPath?: string | undefined;
   readonly phaseFolderPath?: string | undefined;
 }
@@ -30,7 +33,7 @@ export interface BackendOps {
     options: AgentRunOptions,
   ): Effect.Effect<
     AgentRunResult,
-    AgentInvocationError | RateLimitError | UsageLimitError | FsError
+    AgentInvocationError | RateLimitError | UsageLimitError | SecurityEnforcementError | FsError
   >;
 
   resumeAgentSession(
@@ -39,7 +42,12 @@ export interface BackendOps {
     options: AgentRunOptions,
   ): Effect.Effect<
     AgentRunResult,
-    AgentInvocationError | AgentSessionIdMissingError | RateLimitError | UsageLimitError | FsError
+    | AgentInvocationError
+    | AgentSessionIdMissingError
+    | RateLimitError
+    | UsageLimitError
+    | SecurityEnforcementError
+    | FsError
   >;
 }
 

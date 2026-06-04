@@ -4,6 +4,7 @@ import {
   AgentInvocationError,
   AgentSessionIdMissingError,
   RateLimitError,
+  SecurityEnforcementError,
   UsageLimitError,
 } from "../../domain/errors.js";
 import type { FsError } from "../../ports/fs.js";
@@ -12,7 +13,12 @@ import { runClaudeAgent } from "./claudeCode.js";
 import { runCodexAgent } from "./codexCli.js";
 import { runVibeAgent } from "./mistralVibe.js";
 
-type RunAgentError = AgentInvocationError | RateLimitError | UsageLimitError | FsError;
+type RunAgentError =
+  | AgentInvocationError
+  | RateLimitError
+  | UsageLimitError
+  | SecurityEnforcementError
+  | FsError;
 
 export function makeNodeBackendLayer(providerConfig: ProviderConfig): Layer.Layer<Backend> {
   return Layer.succeed(Backend, {
