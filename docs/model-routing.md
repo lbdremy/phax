@@ -12,27 +12,36 @@ Routing speaks in stable **model families**, not versioned model IDs:
 | `claude-sonnet`  | claude-code, mistral-vibe (equivalent), codex-cli (equivalent) |
 | `claude-opus`    | claude-code, codex-cli (fallback/downgrade)                    |
 | `mistral-medium` | mistral-vibe                                                   |
-| `openai-chatgpt` | codex-cli                                                      |
+| `openai-gpt`     | codex-cli                                                      |
 
 ## Effort / thinking axis
 
-Effort is normalized to a `ThinkingLevel`: `off | low | medium | high | xhigh | max`.
+Effort is normalized to an `EffortLevel` (superset: `none | off | low | medium | high | xhigh | max | ultracode`). `ThinkingLevel` is an alias for the same type. Valid efforts are per family:
 
-Plan phases use `low | medium | high` — the routing layer maps these to full thinking levels.
+| Family           | Valid efforts                                                  |
+| ---------------- | -------------------------------------------------------------- |
+| `claude-haiku`   | `none`                                                         |
+| `claude-sonnet`  | `low` \| `medium` \| `high` \| `max`                           |
+| `claude-opus`    | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
+| `mistral-medium` | `off` \| `low` \| `medium` \| `high` \| `max`                  |
+| `openai-gpt`     | `low` \| `medium` \| `high` \| `xhigh`                         |
+
+Plan phases prefer Claude-oriented naming (`low | medium | high | max`) because Claude is the routing reference scale.
 
 ## PHAX routing tiers
 
 Tiers represent capability levels independent of provider:
 
-| Tier          | Typical use                         |
-| ------------- | ----------------------------------- |
-| `cheap`       | haiku-class, no thinking            |
-| `fast`        | haiku-class with minimal effort     |
-| `standard`    | sonnet/medium — default             |
-| `strong`      | sonnet/high or codex/medium         |
-| `very_strong` | sonnet/xhigh                        |
-| `frontier`    | opus/medium or codex/xhigh fallback |
-| `max`         | opus/max                            |
+| Tier          | Typical use                                  |
+| ------------- | -------------------------------------------- |
+| `cheap`       | Haiku-class, no thinking                     |
+| `fast`        | Sonnet/low — fast path, stays Sonnet         |
+| `standard`    | Sonnet/medium — default                      |
+| `strong`      | Sonnet/high or codex/medium                  |
+| `very_strong` | Sonnet/max or codex/high                     |
+| `frontier`    | Opus/medium or codex/xhigh fallback          |
+| `max`         | Opus/max                                     |
+| `ultra`       | Opus/ultracode only — no Mistral/OpenAI peer |
 
 ## Default routing table (`~/.phax/model-routing.json`)
 
@@ -49,7 +58,7 @@ The built-in defaults (`DEFAULT_MODEL_ROUTING`) implement the spec §12 multi-pr
   "normalization": { ... },
   "requestedModelNormalization": {
     "claude-sonnet-4-6": "claude-sonnet",
-    "claude-opus-4-7": "claude-opus",
+    "claude-opus-4-8": "claude-opus",
     "claude-haiku-4-5-20251001": "claude-haiku"
   }
 }
@@ -60,8 +69,8 @@ The `tiers` object maps each tier to each provider's offering:
 ```json
 "standard": {
   "claude-code":   { "family": "claude-sonnet" },
-  "mistral-vibe":  { "family": "mistral-medium", "thinking": "medium", "relationship": "equivalent" },
-  "codex-cli":     { "family": "openai-chatgpt", "thinking": "medium", "relationship": "equivalent" }
+  "mistral-vibe":  { "family": "mistral-medium", "effort": "medium", "relationship": "equivalent" },
+  "codex-cli":     { "family": "openai-gpt", "effort": "medium", "relationship": "equivalent" }
 }
 ```
 
@@ -93,7 +102,8 @@ selected provider   ──providerCfg─▶  concrete model/alias
 3. **Tier + priority → provider**: walk `providerPriority` in order; for each provider skip it if its `providers.json` entry is `enabled: false`; pick first provider present in `tiers[tier]`.
 4. **Relationship classification**: classify the substitution.
 5. **Downgrade gate**: when `allowDowngrade: false` and requested family is `claude-opus`, skip candidates with `downgrade` or `no_equivalent` relationship.
-6. **Concrete model**: resolve via `providerCfg.providers[provider].families[family].model` (claude/codex) or the Vibe alias map.
+6. **Same-family preservation**: when requested family is a Claude family and provider is `claude-code`, the resolved family is forced to match the requested Claude family (effort is clamped to `FAMILY_EFFORTS`). This invariant holds regardless of the routing table.
+7. **Concrete model**: resolve via `providerCfg.providers[provider].families[family].model` (claude/codex) or the Vibe alias map.
 
 ## Relationship semantics
 
@@ -119,21 +129,28 @@ selected provider   ──providerCfg─▶  concrete model/alias
 
 - Request: `claude-sonnet-4-6` / `high`
 - Normalized: family `claude-sonnet`, tier `strong`
-- Priority: `codex-cli` first → entry `{ family: "openai-chatgpt", thinking: "medium", relationship: "equivalent" }`
-- **Result**: `codex-cli`, `gpt-5.5`, thinking `medium`, relationship `equivalent`
+- Priority: `codex-cli` first → entry `{ family: "openai-gpt", effort: "medium", relationship: "equivalent" }`
+- **Result**: `codex-cli`, `gpt-5.5`, effort `medium`, relationship `equivalent`
 
-### Example 3 — opus/medium, mistral priority, allowDowngrade true
+### Example 3 — opus/medium, codex priority, allowDowngrade true
 
-- Request: `claude-opus-4-7` / `medium`
+- Request: `claude-opus-4-8` / `medium`
 - Normalized: family `claude-opus`, tier `frontier`
-- Priority: `codex-cli` → `{ thinking: "xhigh", relationship: "fallback" }` — allowed because `allowDowngrade: true`
-- **Result**: `codex-cli`, thinking `xhigh`, relationship `fallback`
+- Priority: `codex-cli` → `{ effort: "xhigh", relationship: "fallback" }` — allowed because `allowDowngrade: true`
+- **Result**: `codex-cli`, effort `xhigh`, relationship `fallback`
 
 ### Example 4 — opus/high, allowDowngrade false vs. true
 
-- Request: `claude-opus-4-7` / `high`, tier `max`
-- **allowDowngrade: true**: codex-cli → `{ thinking: "max", relationship: "downgrade" }` → selected
+- Request: `claude-opus-4-8` / `high`, tier `max`
+- **allowDowngrade: true**: codex-cli → `{ effort: "max", relationship: "downgrade" }` → selected
 - **allowDowngrade: false**: `downgrade` skipped → falls through to `claude-code` / `claude-opus`
+
+### Example 5 — sonnet/low, same-family preservation
+
+- Request: `claude-sonnet-4-6` / `low`
+- Normalized: family `claude-sonnet`, tier `fast`
+- `tiers.fast.claude-code = { family: "claude-sonnet", effort: "low" }` — stays Sonnet
+- **Result**: `claude-code`, `claude-sonnet`, effort `low`, relationship `exact` (NOT claude-haiku)
 
 ## Editing the routing config
 

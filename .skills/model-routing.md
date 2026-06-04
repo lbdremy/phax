@@ -6,7 +6,7 @@ Use this skill when extending the routing layer, adding provider adapters, chang
 
 ```
 src/domain/routing/         ← PURE — no IO, no Effect, no infra imports
-  types.ts                  ← ProviderId, ModelFamily, ThinkingLevel, RoutingTier, Relationship literals
+  types.ts                  ← ProviderId, ModelFamily, EffortLevel, ThinkingLevel, RoutingTier, Relationship literals
   defaults.ts               ← DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG constants
   resolve.ts                ← resolveModel(request, routing, providerCfg): RoutingResolution (total, pure)
 
@@ -41,9 +41,25 @@ src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
 
 **No silent Opus downgrade**: when `allowDowngrade: false` (the default), `resolveModel` skips candidates with `downgrade` or `no_equivalent` relationship when the requested family is `claude-opus`. It always has a terminal fallback to `claude-code`.
 
+**Same-family preservation**: effort never changes model family for Claude families. A `claude-sonnet / low` request resolved to `claude-code` stays Sonnet (not Haiku). A same-family switch (e.g. Sonnet → Haiku) requires an explicit `relationship: "downgrade"` entry **and** `allowDowngrade: true`. The `resolveModel` function enforces this invariant regardless of the user-edited routing table.
+
+**`ultracode` is Opus-only**: `claude-opus / ultracode` resolves through the `ultra` tier. No Mistral/OpenAI equivalent exists — it is never silently downgraded when `allowDowngrade: false`.
+
 **Telemetry never fails a run**: the `agent.model.resolved` event is emitted via `telemetry.recordEvent` and errors are swallowed.
 
 **Atomic writes + backup**: `vibeSetup.ts` and the session writer use temp + rename; `vibeSetup.ts` backs up `~/.vibe/config.toml` before appending.
+
+## Per-family effort sets
+
+| Family           | Valid efforts                                                  |
+| ---------------- | -------------------------------------------------------------- |
+| `claude-haiku`   | `none`                                                         |
+| `claude-sonnet`  | `low` \| `medium` \| `high` \| `max`                           |
+| `claude-opus`    | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
+| `mistral-medium` | `off` \| `low` \| `medium` \| `high` \| `max`                  |
+| `openai-gpt`     | `low` \| `medium` \| `high` \| `xhigh`                         |
+
+`FAMILY_EFFORTS` in `types.ts` is the authoritative capability map. Use `isEffortSupported(family, effort)` to check membership. The superset `EffortLevel` is derived from the union of all five; `ThinkingLevel` is an alias for backwards compatibility.
 
 ## Resolution pipeline
 
@@ -52,8 +68,22 @@ src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
 3. Walk `routing.providerPriority`; for each provider skip it if its `providers.json` entry is `enabled: false`; check `routing.tiers[tier][provider]`
 4. Classify the substitution as `exact | equivalent | fallback | downgrade | no_equivalent`
 5. If `allowDowngrade: false` and family is `claude-opus`, skip `downgrade` / `no_equivalent`
-6. Resolve concrete model: claude/codex → `families[family].model`; vibe → `aliases["<family>/<thinking>"]`
-7. Build `RoutingResolution` with `reason` string
+6. Same-family preservation guard: when requested family is a Claude family and provider is `claude-code`, force the resolved family to match the requested Claude family; clamp effort to `FAMILY_EFFORTS` for that family
+7. Resolve concrete model: claude/codex → `families[family].model`; vibe → `aliases["<family>/<thinking>"]`
+8. Build `RoutingResolution` with `reason` string
+
+## Routing tiers
+
+| Tier          | Typical use                                  |
+| ------------- | -------------------------------------------- |
+| `cheap`       | Haiku-class, no thinking                     |
+| `fast`        | Sonnet/low — fast path, stays Sonnet         |
+| `standard`    | Sonnet/medium — default                      |
+| `strong`      | Sonnet/high                                  |
+| `very_strong` | Sonnet/max or codex/high                     |
+| `frontier`    | Opus/medium or codex/xhigh fallback          |
+| `max`         | Opus/max                                     |
+| `ultra`       | Opus/ultracode only — no Mistral/OpenAI peer |
 
 ## Adding a new provider
 
@@ -87,9 +117,11 @@ Valid ids: `claude-code`, `mistral-vibe`, `codex-cli`. The list is parsed by `pa
 
 ## Worked examples (spec §15)
 
-| Request       | Priority           | allowDowngrade | Result                                                       |
-| ------------- | ------------------ | -------------- | ------------------------------------------------------------ |
-| sonnet/medium | mistral-vibe first | —              | mistral-vibe, `phax-mistral-medium-3.5-medium`, `equivalent` |
-| sonnet/high   | codex-cli first    | —              | codex-cli, `gpt-5.5`, thinking `medium`, `equivalent`        |
-| opus/medium   | codex-cli          | true           | codex-cli, thinking `xhigh`, `fallback`                      |
-| opus/high     | codex-cli          | false          | claude-code, `claude-opus`, `exact`                          |
+| Request        | Priority           | allowDowngrade | Result                                                            |
+| -------------- | ------------------ | -------------- | ----------------------------------------------------------------- |
+| sonnet/medium  | mistral-vibe first | —              | mistral-vibe, `phax-mistral-medium-3.5-medium`, `equivalent`      |
+| sonnet/high    | codex-cli first    | —              | codex-cli, `gpt-5.5`, effort `medium`, `equivalent`               |
+| sonnet/low     | claude-code        | —              | claude-code, `claude-sonnet` (NOT haiku — same-family preserved)  |
+| opus/medium    | codex-cli          | true           | codex-cli, effort `xhigh`, `fallback`                             |
+| opus/high      | codex-cli          | false          | claude-code, `claude-opus`, `exact`                               |
+| opus/ultracode | any                | false          | claude-code, `claude-opus`, `ultra` tier (no equivalent anywhere) |

@@ -188,12 +188,22 @@ fixes, regressions); skip strict test-first for exploratory UI and scaffolding.
 Use exact model IDs:
 
 - `claude-sonnet-4-6` — default for most phases
-- `claude-opus-4-7` — reserve for deep reasoning (architecture audit, etc.)
+- `claude-opus-4-8` — reserve for deep reasoning (architecture audit, etc.)
 - `claude-haiku-4-5-20251001` — reserve for trivial tasks
 
 ## Effort values
 
-`low` | `medium` | `high` — nothing else.
+Plans prefer Claude-oriented naming because Claude is the routing reference scale. Valid efforts per model family:
+
+| Family           | Valid efforts                                                  |
+| ---------------- | -------------------------------------------------------------- |
+| `claude-haiku`   | `none`                                                         |
+| `claude-sonnet`  | `low` \| `medium` \| `high` \| `max`                           |
+| `claude-opus`    | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
+| `mistral-medium` | `off` \| `low` \| `medium` \| `high` \| `max`                  |
+| `openai-gpt`     | `low` \| `medium` \| `high` \| `xhigh`                         |
+
+The superset across all families: `none | off | low | medium | high | xhigh | max | ultracode`. Per-family validity is enforced by the routing layer — the plan schema accepts the full superset.
 
 ## Planning constraints
 

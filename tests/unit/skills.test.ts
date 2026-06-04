@@ -31,14 +31,24 @@ describe("phax-planning.md skill", () => {
 
   it("lists all valid model IDs", () => {
     expect(content).toContain("claude-sonnet-4-6");
-    expect(content).toContain("claude-opus-4-7");
+    expect(content).toContain("claude-opus-4-8");
     expect(content).toContain("claude-haiku-4-5-20251001");
   });
 
-  it("lists all valid effort values", () => {
+  it("lists per-family effort values", () => {
+    expect(content).toContain("claude-haiku");
+    expect(content).toContain("none");
+    expect(content).toContain("claude-sonnet");
     expect(content).toContain("low");
     expect(content).toContain("medium");
     expect(content).toContain("high");
+    expect(content).toContain("max");
+    expect(content).toContain("claude-opus");
+    expect(content).toContain("xhigh");
+    expect(content).toContain("ultracode");
+    expect(content).toContain("mistral-medium");
+    expect(content).toContain("off");
+    expect(content).toContain("openai-gpt");
   });
 });
 
