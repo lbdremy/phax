@@ -9,9 +9,11 @@ import {
   AgentInvocationError,
   AgentSessionIdMissingError,
   RateLimitError,
+  SecurityEnforcementError,
   UsageLimitError,
 } from "../../domain/errors.js";
 import { decodeClaudeSessionId } from "../../domain/branded.js";
+import type { SecurityPolicy } from "../../domain/security/types.js";
 import { classifyRateLimit } from "../../schemas/claudeOutput.js";
 import { findCodexResultEvent, hasCodexErroredResultEvent } from "../../schemas/codexOutput.js";
 import { persistSessionId } from "./sessionWriter.js";
@@ -56,27 +58,84 @@ function mapReasoningEffort(effort: string): string {
   }
 }
 
+// Centralized secure-mode Codex flag set. Runbook 04b will validate which of
+// these the installed `codex` CLI actually enforces; corrections feed back
+// here. Today's surface:
+//   --sandbox workspace-write
+//       Restricts subprocess writes to the workspace + writable_roots and (with
+//       network_access=false) blocks subprocess network. Replaces the
+//       --dangerously-bypass-approvals-and-sandbox vector used in unsafe mode.
+//   -a never
+//       Non-interactive approval that does NOT silently escape the sandbox: a
+//       sandbox denial fails the action instead of escalating to host-level
+//       execution. The default `on-failure` would prompt and re-run unsandboxed
+//       when running interactively; `never` is the safe non-interactive analog.
+//   -c sandbox_workspace_write.writable_roots=[...]
+//       JSON-encoded list of writable roots (worktree + ~/.phax + configured).
+//       Codex de-duplicates roots; including cwd is harmless.
+//   -c sandbox_workspace_write.network_access=true|false
+//       Controls subprocess network. provider-only → false (most conservative;
+//       the codex parent process still reaches api.openai.com outside the
+//       sandbox boundary). dev-allowlist/open → true, with the caveat that
+//       codex offers no domain-level allowlist — the resolved domains stay on
+//       SecurityPolicy and surface in security.json (phase-09).
+//
+// Not yet expressible via Codex CLI flags (tracked in 04b):
+//   - MCP scoping: codex configures MCP via [mcp_servers.*] tables in
+//     ~/.codex/config.toml. There is no single-flag disable that PHAX can rely
+//     on across versions. The resolved mcp policy is carried on SecurityPolicy
+//     and recorded in security.json; live enforcement awaits 04b confirmation
+//     of an override surface (or the future external sandbox).
+function buildCodexSecurityFlags(security: SecurityPolicy): string[] {
+  if (security.mode === "unsafe") {
+    return ["--dangerously-bypass-approvals-and-sandbox"];
+  }
+  // secure / isolated (CLI gates isolated before reaching here; treat as
+  // secure for type totality).
+  if (security.filesystem.allowWrite.length === 0) {
+    throw new SecurityEnforcementError({
+      message:
+        "Codex CLI secure mode requires at least one writable path in the security policy; refusing to run with danger-full-access.",
+      provider: "codex-cli",
+      mode: security.mode,
+    });
+  }
+
+  const writableRootsJson = JSON.stringify([...security.filesystem.allowWrite]);
+  const networkAccess = security.network.profile !== "provider-only";
+
+  return [
+    "--sandbox",
+    "workspace-write",
+    "-a",
+    "never",
+    "-c",
+    `sandbox_workspace_write.writable_roots=${writableRootsJson}`,
+    "-c",
+    `sandbox_workspace_write.network_access=${networkAccess}`,
+  ];
+}
+
 export function buildCodexArgs(
   entry: CodexProviderEntry,
-  model: string,
-  effort: string,
-  cwd: string | undefined,
+  options: AgentRunOptions,
   resumeSessionId?: string,
 ): string[] {
+  const model = entry.families?.["openai-gpt"]?.model ?? options.model;
+  const securityFlags = buildCodexSecurityFlags(options.security);
   const commonFlags: string[] = [
     "--json",
     "--skip-git-repo-check",
-    "--dangerously-bypass-approvals-and-sandbox",
+    ...securityFlags,
     "-m",
     model,
     "-c",
-    `model_reasoning_effort="${mapReasoningEffort(effort)}"`,
+    `model_reasoning_effort="${mapReasoningEffort(options.effort)}"`,
   ];
   if (resumeSessionId) {
     return ["exec", "resume", resumeSessionId, ...commonFlags];
   }
-  const cwdFlags = cwd ? ["-C", cwd] : [];
-  return ["exec", ...cwdFlags, ...commonFlags];
+  return ["exec", "-C", options.cwd, ...commonFlags];
 }
 
 function spawnCodex(
@@ -151,10 +210,22 @@ export function runCodexAgent(
   resumeSessionId?: string,
 ): Effect.Effect<
   AgentRunResult,
-  AgentInvocationError | AgentSessionIdMissingError | RateLimitError | UsageLimitError | FsError
+  | AgentInvocationError
+  | AgentSessionIdMissingError
+  | RateLimitError
+  | UsageLimitError
+  | SecurityEnforcementError
+  | FsError
 > {
-  const model = entry.families?.["openai-gpt"]?.model ?? options.model;
-  const args = buildCodexArgs(entry, model, options.effort, options.cwd, resumeSessionId);
+  let args: string[];
+  try {
+    args = buildCodexArgs(entry, options, resumeSessionId);
+  } catch (err) {
+    if (err instanceof SecurityEnforcementError) {
+      return Effect.fail(err);
+    }
+    throw err;
+  }
   const argv = [entry.executable, ...args];
 
   return Effect.gen(function* () {
