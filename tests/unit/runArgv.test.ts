@@ -44,6 +44,10 @@ describe("run subcommand argv parsing", () => {
         "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)",
       )
       .option("--dry-run", "Preview only")
+      .option(
+        "--security <mode>",
+        "Security mode override (secure|unsafe|isolated, overrides config default)",
+      )
       .action(
         async (
           shortName: string | undefined,
@@ -54,6 +58,7 @@ describe("run subcommand argv parsing", () => {
             allowDirty?: boolean;
             providerPriority?: string;
             dryRun?: boolean;
+            security?: string;
           },
         ) => {
           const merged = { ...opts, ...globalTraceOpts() };
@@ -112,5 +117,38 @@ describe("run subcommand argv parsing", () => {
       providerPriority: "claude-code",
       verbose: true,
     });
+  });
+
+  it("passes --security flag to runRun", async () => {
+    const spy = await parseAndCapture(["run", "foo", "--security", "unsafe"]);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy.mock.calls[0][0]).toMatchObject({
+      shortName: "foo",
+      security: "unsafe",
+    });
+  });
+
+  it("passes --security secure", async () => {
+    const spy = await parseAndCapture(["run", "--security", "secure", "--dry-run"]);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy.mock.calls[0][0]).toMatchObject({
+      security: "secure",
+      dryRun: true,
+    });
+  });
+
+  it("passes --security isolated", async () => {
+    const spy = await parseAndCapture(["run", "--security", "isolated", "--dry-run"]);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy.mock.calls[0][0]).toMatchObject({
+      security: "isolated",
+      dryRun: true,
+    });
+  });
+
+  it("omits security when flag is not given", async () => {
+    const spy = await parseAndCapture(["run", "foo"]);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy.mock.calls[0][0].security).toBeUndefined();
   });
 });

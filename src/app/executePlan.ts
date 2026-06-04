@@ -39,6 +39,7 @@ import type { ProviderConfig } from "../schemas/providerConfig.js";
 import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../domain/routing/defaults.js";
 import { resolveModel } from "../domain/routing/resolve.js";
 import type { ProviderId, SecurityFilter } from "../domain/routing/types.js";
+import type { SecurityMode } from "../domain/security/types.js";
 import { evaluateProviderSecurity } from "../domain/security/capabilities.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { cleanupPhase } from "./cleanup.js";
@@ -77,6 +78,7 @@ export interface ExecutePlanOptions {
   readonly startIndex: number;
   readonly routing?: ModelRouting | undefined;
   readonly providerConfig?: ProviderConfig | undefined;
+  readonly securityMode?: SecurityMode | undefined;
 }
 
 export interface ExecutePlanResult {
@@ -123,7 +125,11 @@ export function executePlan(
     startIndex,
     routing = DEFAULT_MODEL_ROUTING,
     providerConfig = DEFAULT_PROVIDER_CONFIG,
+    securityMode: passedSecurityMode,
   } = opts;
+
+  // Use the passed securityMode if provided, otherwise fall back to config
+  const securityMode = passedSecurityMode ?? config.security.profile;
 
   // Tracked as the loop progresses so the rate-limit catch handler knows which
   // phase, worktree, and session were in flight when the limit was hit. These
@@ -318,7 +324,6 @@ export function executePlan(
       const fs = yield* FileSystem;
       yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);
 
-      const securityMode = config.security.profile;
       const policyFor = (provider: ProviderId) =>
         resolveSecurityPolicy({
           mode: securityMode,

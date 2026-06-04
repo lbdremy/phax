@@ -34,7 +34,7 @@ export const SecurityConfigSchema = Schema.Struct({
 
 export type SecurityConfig = Schema.Schema.Type<typeof SecurityConfigSchema>;
 
-export const DEFAULT_SECURITY_PROFILE: SecurityMode = "unsafe";
+export const DEFAULT_SECURITY_PROFILE: SecurityMode = "secure";
 
 export interface ResolvedSecurityConfig {
   readonly profile: SecurityMode;

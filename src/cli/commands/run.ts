@@ -17,6 +17,7 @@ import {
 } from "../../domain/routing/priorityOverride.js";
 import type { NonEmptyArray } from "../../domain/routing/priorityOverride.js";
 import type { ProviderId } from "../../domain/routing/types.js";
+import type { SecurityMode } from "../../domain/security/types.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
@@ -30,6 +31,7 @@ export interface RunCommandOptions {
   workspace?: string;
   allowDirty?: boolean;
   providerPriority?: string;
+  security?: string;
   verbose?: boolean;
   trace?: boolean;
 }
@@ -48,6 +50,45 @@ function pickGateProfileId(config: ResolvedConfig, profileOpt: string | undefine
   return keys[0] ?? null;
 }
 
+const VALID_SECURITY_MODES: SecurityMode[] = ["secure", "unsafe", "isolated"];
+
+function resolveSecurityMode(
+  flagMode: string | undefined,
+  configMode: SecurityMode,
+): SecurityMode | null {
+  if (flagMode !== undefined) {
+    // Validate the flag value
+    if (VALID_SECURITY_MODES.includes(flagMode as SecurityMode)) {
+      return flagMode as SecurityMode;
+    }
+    return null;
+  }
+  return configMode;
+}
+
+function printUnsafeWarning(out: OutputPort): void {
+  const warning = [
+    "",
+    "┌─────────────────────────────────────────────────────────────┐",
+    "│  ⚠️  UNSAFE MODE — HOST UNRESTRICTED                               │",
+    "│                                                                 │",
+    "│  Running in unsafe mode grants the agent full host access:     │",
+    "│    • Full filesystem read/write (including ~/.ssh, /etc)       │",
+    "│    • Unrestricted network access                               │",
+    "│    • MCP servers can connect to any endpoint                  │",
+    "│    • Shell commands run with full user permissions             │",
+    "│                                                                 │",
+    "│  THIS IS NOT RECOMMENDED for untrusted prompts or code.        │",
+    "│  Use --security secure (the default) for provider-native      │",
+    "│  sandboxing, or wait for the future external-sandbox mode.     │",
+    "│                                                                 │",
+    "│  Set security.profile in phax.json to change the default.       │",
+    "└─────────────────────────────────────────────────────────────┘",
+    "",
+  ].join("\n");
+  out.warn(warning);
+}
+
 export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<number> {
   const cwd = process.cwd();
   const planMdPath = resolve(cwd, opts.planMd ?? "plan.md");
@@ -58,6 +99,26 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     return 2;
   }
   const config = configResult.right;
+
+  // Resolve effective security mode: CLI flag overrides config
+  const effectiveSecurityMode = resolveSecurityMode(opts.security, config.security.profile);
+  if (effectiveSecurityMode === null) {
+    out.error(`Invalid security mode "${opts.security}". Must be one of: secure, unsafe, isolated`);
+    return 2;
+  }
+
+  // Handle isolated mode (stub - not yet available)
+  if (effectiveSecurityMode === "isolated") {
+    out.error(
+      "External sandbox mode is planned but not available yet. Use 'secure' for provider-native restrictions or 'unsafe' for host-unrestricted execution.",
+    );
+    return 2;
+  }
+
+  // Print unsafe warning
+  if (effectiveSecurityMode === "unsafe") {
+    printUnsafeWarning(out);
+  }
 
   const gateProfileId = pickGateProfileId(config, opts.profile);
   if (gateProfileId === null) {
@@ -146,6 +207,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
           config,
           opts.profile,
           priorityOverride !== undefined ? [...priorityOverride] : undefined,
+          effectiveSecurityMode,
         ),
       ),
     );
@@ -195,6 +257,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
             startIndex: 0,
             routing,
             providerConfig,
+            securityMode: effectiveSecurityMode,
           }),
         ),
       ),
