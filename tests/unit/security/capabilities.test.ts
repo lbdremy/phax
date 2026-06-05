@@ -22,7 +22,7 @@ void markSample;
 const securePolicy: SecurityPolicy = {
   mode: "secure",
   filesystem: { allowRead: ["/repo"], allowWrite: ["/repo"] },
-  network: { profile: "provider-only", allowDomains: ["api.anthropic.com"] },
+  network: { profile: "provider-only" },
   mcp: { mode: "disabled", allow: [] },
   failClosed: true,
 };
@@ -30,30 +30,27 @@ const securePolicy: SecurityPolicy = {
 const unsafePolicy: SecurityPolicy = {
   mode: "unsafe",
   filesystem: { allowRead: [], allowWrite: [] },
-  network: { profile: "open", allowDomains: [] },
+  network: { profile: "open" },
   mcp: { mode: "provider-default", allow: [] },
   failClosed: false,
 };
 
 describe("PROVIDER_SECURITY_CAPABILITIES", () => {
-  it("claude-code has strong filesystem jail, supported network and MCP allowlist", () => {
+  it("claude-code has strong filesystem jail and supported MCP allowlist", () => {
     const cap = PROVIDER_SECURITY_CAPABILITIES["claude-code"];
     expect(cap.filesystemJail).toBe("strong");
-    expect(cap.networkAllowlist).toBe("supported");
     expect(cap.mcpAllowlist).toBe("supported");
   });
 
-  it("codex-cli has strong filesystem jail, supported network and MCP allowlist", () => {
+  it("codex-cli has strong filesystem jail and supported MCP allowlist", () => {
     const cap = PROVIDER_SECURITY_CAPABILITIES["codex-cli"];
     expect(cap.filesystemJail).toBe("strong");
-    expect(cap.networkAllowlist).toBe("supported");
     expect(cap.mcpAllowlist).toBe("supported");
   });
 
-  it("mistral-vibe has partial filesystem jail, unsupported network allowlist, supported MCP allowlist", () => {
+  it("mistral-vibe has partial filesystem jail and supported MCP allowlist", () => {
     const cap = PROVIDER_SECURITY_CAPABILITIES["mistral-vibe"];
     expect(cap.filesystemJail).toBe("partial");
-    expect(cap.networkAllowlist).toBe("unsupported");
     expect(cap.mcpAllowlist).toBe("supported");
   });
 });
@@ -121,7 +118,7 @@ describe("evaluateProviderSecurity — secure mode, codex-cli", () => {
 });
 
 describe("evaluateProviderSecurity — secure mode, mistral-vibe", () => {
-  it("does not satisfy strict security", () => {
+  it("does not satisfy strict security (partial filesystem jail)", () => {
     const result = evaluateProviderSecurity("mistral-vibe", securePolicy);
     expect(result.satisfiesStrict).toBe(false);
   });
@@ -131,10 +128,9 @@ describe("evaluateProviderSecurity — secure mode, mistral-vibe", () => {
     expect(result.downgraded).toBe(true);
   });
 
-  it("carries partial-filesystem and network-unenforced marks", () => {
+  it("carries the partial-filesystem mark", () => {
     const result = evaluateProviderSecurity("mistral-vibe", securePolicy);
     expect(result.marks).toContain("partial-filesystem");
-    expect(result.marks).toContain("network-unenforced");
   });
 
   it("includes the partial-secured message in notes", () => {
@@ -144,21 +140,24 @@ describe("evaluateProviderSecurity — secure mode, mistral-vibe", () => {
 });
 
 describe("evaluateProviderSecurity — secure mode, network profile interaction", () => {
-  it("claude-code with open network profile still satisfies strict (network allowlist supported)", () => {
+  it("strict satisfaction is independent of network profile (no domain allowlist exists)", () => {
     const openNetworkPolicy: SecurityPolicy = {
       ...securePolicy,
-      network: { profile: "open", allowDomains: [] },
+      network: { profile: "open" },
     };
-    const result = evaluateProviderSecurity("claude-code", openNetworkPolicy);
-    expect(result.satisfiesStrict).toBe(true);
+    // A strong filesystem jail is the only gate; the network profile does not
+    // change whether a provider satisfies strict secure mode.
+    expect(evaluateProviderSecurity("claude-code", openNetworkPolicy).satisfiesStrict).toBe(true);
+    expect(evaluateProviderSecurity("codex-cli", openNetworkPolicy).satisfiesStrict).toBe(true);
   });
 
-  it("mistral-vibe with open network profile still has network-unenforced mark", () => {
+  it("mistral-vibe stays downgraded under any network profile", () => {
     const openNetworkPolicy: SecurityPolicy = {
       ...securePolicy,
-      network: { profile: "open", allowDomains: [] },
+      network: { profile: "open" },
     };
     const result = evaluateProviderSecurity("mistral-vibe", openNetworkPolicy);
-    expect(result.marks).toContain("network-unenforced");
+    expect(result.satisfiesStrict).toBe(false);
+    expect(result.marks).toContain("partial-filesystem");
   });
 });

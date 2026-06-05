@@ -5,14 +5,14 @@ import type { ResolvedSecurityConfig } from "../../../src/schemas/securityConfig
 const baseSecureConfig: ResolvedSecurityConfig = {
   profile: "secure",
   filesystem: { allowRead: [], allowWrite: [] },
-  network: { profile: "provider-only", allowDomains: [] },
+  network: { profile: "provider-only" },
   mcp: { mode: "disabled", allow: [] },
 };
 
 const devAllowlistConfig: ResolvedSecurityConfig = {
   profile: "secure",
   filesystem: { allowRead: ["/extra/read"], allowWrite: ["/extra/write"] },
-  network: { profile: "dev-allowlist", allowDomains: ["example.com"] },
+  network: { profile: "dev-allowlist" },
   mcp: { mode: "allowlist", allow: ["my-mcp"] },
 };
 
@@ -20,9 +20,7 @@ describe("resolveSecurityPolicy — unsafe mode", () => {
   it("returns failClosed false", () => {
     const policy = resolveSecurityPolicy({
       mode: "unsafe",
-      provider: "claude-code",
       worktreePath: "/repo/worktree",
-      stateRoot: "/home/user/.phax",
       config: baseSecureConfig,
     });
     expect(policy.failClosed).toBe(false);
@@ -32,23 +30,18 @@ describe("resolveSecurityPolicy — unsafe mode", () => {
   it("returns empty allow-lists regardless of config", () => {
     const policy = resolveSecurityPolicy({
       mode: "unsafe",
-      provider: "codex-cli",
       worktreePath: "/repo/worktree",
-      stateRoot: "/home/user/.phax",
       config: devAllowlistConfig,
     });
     expect(policy.filesystem.allowWrite).toEqual([]);
     expect(policy.filesystem.allowRead).toEqual([]);
-    expect(policy.network.allowDomains).toEqual([]);
     expect(policy.mcp.allow).toEqual([]);
   });
 
   it("carries mode through as unsafe", () => {
     const policy = resolveSecurityPolicy({
       mode: "unsafe",
-      provider: "mistral-vibe",
       worktreePath: "/repo",
-      stateRoot: "/state",
       config: baseSecureConfig,
     });
     expect(policy.mode).toBe("unsafe");
@@ -56,24 +49,44 @@ describe("resolveSecurityPolicy — unsafe mode", () => {
 });
 
 describe("resolveSecurityPolicy — secure mode, provider-only network", () => {
-  it("includes worktree and stateRoot in allowWrite", () => {
+  it("includes the worktree in allowWrite", () => {
     const policy = resolveSecurityPolicy({
       mode: "secure",
-      provider: "claude-code",
       worktreePath: "/repo/worktree",
-      stateRoot: "/home/user/.phax",
       config: baseSecureConfig,
     });
     expect(policy.filesystem.allowWrite).toContain("/repo/worktree");
+  });
+
+  it("does NOT grant the phax state root by default (only the worktree + config)", () => {
+    const policy = resolveSecurityPolicy({
+      mode: "secure",
+      worktreePath: "/home/user/.phax/worktrees/run/phase-01",
+      config: baseSecureConfig,
+    });
+    // The whole state root must never leak in implicitly — the worktree (which
+    // lives under it) is the only default grant.
+    expect(policy.filesystem.allowWrite).toEqual(["/home/user/.phax/worktrees/run/phase-01"]);
+    expect(policy.filesystem.allowWrite).not.toContain("/home/user/.phax");
+    expect(policy.filesystem.allowRead).not.toContain("/home/user/.phax");
+  });
+
+  it("grants the state root only when a project opts in via config.allowWrite", () => {
+    const policy = resolveSecurityPolicy({
+      mode: "secure",
+      worktreePath: "/home/user/.phax/worktrees/run/phase-01",
+      config: {
+        ...baseSecureConfig,
+        filesystem: { allowRead: [], allowWrite: ["/home/user/.phax"] },
+      },
+    });
     expect(policy.filesystem.allowWrite).toContain("/home/user/.phax");
   });
 
   it("allowRead is a superset of allowWrite", () => {
     const policy = resolveSecurityPolicy({
       mode: "secure",
-      provider: "claude-code",
       worktreePath: "/repo/worktree",
-      stateRoot: "/home/user/.phax",
       config: baseSecureConfig,
     });
     for (const path of policy.filesystem.allowWrite) {
@@ -81,46 +94,34 @@ describe("resolveSecurityPolicy — secure mode, provider-only network", () => {
     }
   });
 
-  it("includes only the provider API domain in allowDomains when profile is provider-only", () => {
+  it("carries the network profile (no domain allowlist exists)", () => {
     const policy = resolveSecurityPolicy({
       mode: "secure",
-      provider: "claude-code",
       worktreePath: "/repo/worktree",
-      stateRoot: "/home/user/.phax",
       config: baseSecureConfig,
     });
-    expect(policy.network.allowDomains).toEqual(["api.anthropic.com"]);
+    expect(policy.network.profile).toBe("provider-only");
+    expect(policy.network).not.toHaveProperty("allowDomains");
   });
 
-  it("uses the correct provider domain for codex-cli", () => {
-    const policy = resolveSecurityPolicy({
+  it("is provider-independent: same config yields the same policy", () => {
+    const a = resolveSecurityPolicy({
       mode: "secure",
-      provider: "codex-cli",
       worktreePath: "/repo/worktree",
-      stateRoot: "/home/user/.phax",
       config: baseSecureConfig,
     });
-    expect(policy.network.allowDomains).toContain("api.openai.com");
-    expect(policy.network.allowDomains).not.toContain("api.anthropic.com");
-  });
-
-  it("uses the correct provider domain for mistral-vibe", () => {
-    const policy = resolveSecurityPolicy({
+    const b = resolveSecurityPolicy({
       mode: "secure",
-      provider: "mistral-vibe",
       worktreePath: "/repo/worktree",
-      stateRoot: "/home/user/.phax",
       config: baseSecureConfig,
     });
-    expect(policy.network.allowDomains).toContain("api.mistral.ai");
+    expect(a).toEqual(b);
   });
 
   it("sets failClosed to true", () => {
     const policy = resolveSecurityPolicy({
       mode: "secure",
-      provider: "claude-code",
       worktreePath: "/repo/worktree",
-      stateRoot: "/home/user/.phax",
       config: baseSecureConfig,
     });
     expect(policy.failClosed).toBe(true);
@@ -129,22 +130,21 @@ describe("resolveSecurityPolicy — secure mode, provider-only network", () => {
   it("applies mcp from config", () => {
     const policy = resolveSecurityPolicy({
       mode: "secure",
-      provider: "claude-code",
       worktreePath: "/repo/worktree",
-      stateRoot: "/home/user/.phax",
       config: baseSecureConfig,
     });
     expect(policy.mcp.mode).toBe("disabled");
     expect(policy.mcp.allow).toEqual([]);
   });
 
-  it("de-duplicates paths when worktree equals stateRoot", () => {
+  it("de-duplicates paths when the worktree is also a configured write path", () => {
     const policy = resolveSecurityPolicy({
       mode: "secure",
-      provider: "claude-code",
       worktreePath: "/shared",
-      stateRoot: "/shared",
-      config: baseSecureConfig,
+      config: {
+        ...baseSecureConfig,
+        filesystem: { allowRead: [], allowWrite: ["/shared"] },
+      },
     });
     const writeCount = policy.filesystem.allowWrite.filter((p) => p === "/shared").length;
     expect(writeCount).toBe(1);
@@ -153,9 +153,7 @@ describe("resolveSecurityPolicy — secure mode, provider-only network", () => {
   it("includes configured extra write paths", () => {
     const policy = resolveSecurityPolicy({
       mode: "secure",
-      provider: "claude-code",
       worktreePath: "/repo/worktree",
-      stateRoot: "/home/user/.phax",
       config: devAllowlistConfig,
     });
     expect(policy.filesystem.allowWrite).toContain("/extra/write");
@@ -163,25 +161,19 @@ describe("resolveSecurityPolicy — secure mode, provider-only network", () => {
 });
 
 describe("resolveSecurityPolicy — secure mode, dev-allowlist network", () => {
-  it("includes provider domain and configured extra domains", () => {
+  it("carries the dev-allowlist network profile", () => {
     const policy = resolveSecurityPolicy({
       mode: "secure",
-      provider: "claude-code",
       worktreePath: "/repo/worktree",
-      stateRoot: "/home/user/.phax",
       config: devAllowlistConfig,
     });
-    expect(policy.network.allowDomains).toContain("api.anthropic.com");
-    expect(policy.network.allowDomains).toContain("example.com");
     expect(policy.network.profile).toBe("dev-allowlist");
   });
 
   it("applies mcp allowlist from config", () => {
     const policy = resolveSecurityPolicy({
       mode: "secure",
-      provider: "claude-code",
       worktreePath: "/repo/worktree",
-      stateRoot: "/home/user/.phax",
       config: devAllowlistConfig,
     });
     expect(policy.mcp.mode).toBe("allowlist");

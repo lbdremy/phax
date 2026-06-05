@@ -65,20 +65,24 @@ function mapReasoningEffort(effort: string): string {
 //       Restricts subprocess writes to the workspace + writable_roots and (with
 //       network_access=false) blocks subprocess network. Replaces the
 //       --dangerously-bypass-approvals-and-sandbox vector used in unsafe mode.
-//   -a never
+//   -c approval_policy="never"
 //       Non-interactive approval that does NOT silently escape the sandbox: a
 //       sandbox denial fails the action instead of escalating to host-level
-//       execution. The default `on-failure` would prompt and re-run unsandboxed
-//       when running interactively; `never` is the safe non-interactive analog.
+//       execution. NOTE: `codex exec` (verified 0.136.0 in runbook 04b) has NO
+//       `-a`/`--ask-for-approval` flag — passing `-a never` makes clap reject
+//       the whole vector ("unexpected argument '-a'"), so secure runs never
+//       start. The config-key form `approval_policy="never"` is the exec-
+//       compatible equivalent and was confirmed live to block an out-of-root
+//       write without re-running it unsandboxed.
 //   -c sandbox_workspace_write.writable_roots=[...]
 //       JSON-encoded list of writable roots (worktree + ~/.phax + configured).
 //       Codex de-duplicates roots; including cwd is harmless.
 //   -c sandbox_workspace_write.network_access=true|false
 //       Controls subprocess network. provider-only → false (most conservative;
 //       the codex parent process still reaches api.openai.com outside the
-//       sandbox boundary). dev-allowlist/open → true, with the caveat that
-//       codex offers no domain-level allowlist — the resolved domains stay on
-//       SecurityPolicy and surface in security.json (phase-09).
+//       sandbox boundary). dev-allowlist/open → true. Codex offers no
+//       domain-level allowlist, and the policy carries none — only the binary
+//       network.profile maps here (04b confirmed no provider enforces domains).
 //
 // Not yet expressible via Codex CLI flags (tracked in 04b):
 //   - MCP scoping: codex configures MCP via [mcp_servers.*] tables in
@@ -107,8 +111,8 @@ function buildCodexSecurityFlags(security: SecurityPolicy): string[] {
   return [
     "--sandbox",
     "workspace-write",
-    "-a",
-    "never",
+    "-c",
+    `approval_policy="never"`,
     "-c",
     `sandbox_workspace_write.writable_roots=${writableRootsJson}`,
     "-c",

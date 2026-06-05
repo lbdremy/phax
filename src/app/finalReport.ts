@@ -45,8 +45,6 @@ function formatSecurityPosture(posture: SecurityPosture): string {
     posture.filesystem.allowRead.length > 0 ? posture.filesystem.allowRead.join(", ") : "(none)";
   const writePaths =
     posture.filesystem.allowWrite.length > 0 ? posture.filesystem.allowWrite.join(", ") : "(none)";
-  const domains =
-    posture.network.allowDomains.length > 0 ? posture.network.allowDomains.join(", ") : "(none)";
   const mcpAllow = posture.mcp.allow.length > 0 ? posture.mcp.allow.join(", ") : "(none)";
   const marks = posture.marks.length > 0 ? posture.marks.join(", ") : "none";
   const skipped =
@@ -55,7 +53,7 @@ function formatSecurityPosture(posture: SecurityPosture): string {
       : "none";
 
   return `
-| ${posture.mode} | ${posture.provider} | ${posture.sandboxEnabled} | ${posture.network.profile} | ${posture.mcp.mode} | ${readPaths} | ${writePaths} | ${domains} | ${mcpAllow} | ${posture.downgraded} | ${marks} | ${skipped} |
+| ${posture.mode} | ${posture.provider} | ${posture.sandboxEnabled} | ${posture.network.profile} | ${posture.mcp.mode} | ${readPaths} | ${writePaths} | ${mcpAllow} | ${posture.downgraded} | ${marks} | ${skipped} |
 `;
 }
 
@@ -127,8 +125,8 @@ ${phaseRows}
 
 - **Run Security Mode**: ${runSecurityMode}
 
-| Phase | Provider | Sandbox | Network Profile | MCP Mode | Allow Read | Allow Write | Allow Domains | MCP Allow | Downgraded | Marks | Skipped for Security |
-|-------|----------|---------|----------------|----------|------------|-------------|---------------|-----------|------------|-------|---------------------|
+| Phase | Provider | Sandbox | Network Profile | MCP Mode | Allow Read | Allow Write | MCP Allow | Downgraded | Marks | Skipped for Security |
+|-------|----------|---------|----------------|----------|------------|-------------|-----------|------------|-------|---------------------|
 ${securityRows}
 
 ## Per-Phase Artifacts

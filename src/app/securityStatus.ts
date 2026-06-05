@@ -11,7 +11,6 @@ interface ProviderStatus {
   readonly provider: ProviderId;
   readonly available: boolean;
   readonly filesystemJail: string;
-  readonly networkAllowlist: string;
   readonly mcpAllowlist: string;
   readonly defaultSecureSupported: boolean;
 }
@@ -42,10 +41,8 @@ export function buildSecurityStatusReport(
       provider,
       available,
       filesystemJail: cap.filesystemJail,
-      networkAllowlist: cap.networkAllowlist,
       mcpAllowlist: cap.mcpAllowlist,
-      defaultSecureSupported:
-        cap.filesystemJail === "strong" && cap.networkAllowlist === "supported",
+      defaultSecureSupported: cap.filesystemJail === "strong",
     });
   }
 
@@ -71,22 +68,21 @@ export function formatSecurityStatusReport(report: SecurityStatusReport): string
   const lines: string[] = [
     "Provider Security Status",
     "",
-    "Provider          | Available | Filesystem Jail | Network Allowlist | MCP Allowlist | Secure Default",
-    "-".repeat(90),
+    "Provider          | Available | Filesystem Jail | MCP Allowlist | Secure Default",
+    "-".repeat(72),
   ];
 
   for (const p of report.providers) {
     const availableStr = p.available ? "✓" : "✗";
     const secureStr = p.defaultSecureSupported ? "✓" : "✗";
     lines.push(
-      `${p.provider.padEnd(16)} | ${availableStr.padEnd(9)} | ${p.filesystemJail.padEnd(15)} | ${p.networkAllowlist.padEnd(16)} | ${p.mcpAllowlist.padEnd(12)} | ${secureStr}`,
+      `${p.provider.padEnd(16)} | ${availableStr.padEnd(9)} | ${p.filesystemJail.padEnd(15)} | ${p.mcpAllowlist.padEnd(12)} | ${secureStr}`,
     );
   }
 
   lines.push("");
   lines.push("Legend:");
   lines.push("  Filesystem Jail: strong | partial | none");
-  lines.push("  Network Allowlist: supported | unsupported");
   lines.push("  MCP Allowlist: supported | unsupported");
   lines.push("  Secure Default: ✓ = can satisfy strict secure mode");
 

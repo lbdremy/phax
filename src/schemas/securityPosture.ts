@@ -13,14 +13,13 @@ export const SecurityPostureSchema = Schema.Struct({
   }),
   network: Schema.Struct({
     profile: NetworkProfileSchema,
-    allowDomains: Schema.Array(Schema.NonEmptyString),
   }),
   mcp: Schema.Struct({
     mode: McpModeSchema,
     allow: Schema.Array(Schema.NonEmptyString),
   }),
   downgraded: Schema.Boolean,
-  marks: Schema.Array(Schema.Literal("partial-filesystem", "network-unenforced", "mcp-unenforced")),
+  marks: Schema.Array(Schema.Literal("partial-filesystem", "mcp-unenforced")),
   providerSkippedForSecurity: Schema.Array(
     Schema.Struct({
       provider: ProviderIdSchema,

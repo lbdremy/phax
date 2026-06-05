@@ -17,7 +17,6 @@ const baseSecurePosture = {
   },
   network: {
     profile: "provider-only" as const,
-    allowDomains: ["api.anthropic.com"],
   },
   mcp: {
     mode: "disabled" as const,
@@ -39,7 +38,6 @@ const unsafePosture = {
   },
   network: {
     profile: "open" as const,
-    allowDomains: [],
   },
   mcp: {
     mode: "disabled" as const,
@@ -61,14 +59,13 @@ const downgradedVibePosture = {
   },
   network: {
     profile: "provider-only" as const,
-    allowDomains: ["api.mistral.ai"],
   },
   mcp: {
     mode: "disabled" as const,
     allow: [],
   },
   downgraded: true,
-  marks: ["partial-filesystem", "network-unenforced"] as const,
+  marks: ["partial-filesystem", "mcp-unenforced"] as const,
   providerSkippedForSecurity: [],
 };
 
@@ -83,7 +80,6 @@ const withSkippedProviders = {
   },
   network: {
     profile: "provider-only" as const,
-    allowDomains: ["api.anthropic.com"],
   },
   mcp: {
     mode: "disabled" as const,
@@ -131,7 +127,7 @@ describe("SecurityPostureSchema", () => {
       expect(Either.isRight(result)).toBe(true);
       if (Either.isRight(result)) {
         expect(result.right.downgraded).toBe(true);
-        expect(result.right.marks).toEqual(["partial-filesystem", "network-unenforced"]);
+        expect(result.right.marks).toEqual(["partial-filesystem", "mcp-unenforced"]);
       }
     });
 

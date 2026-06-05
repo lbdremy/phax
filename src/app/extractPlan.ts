@@ -156,9 +156,7 @@ export function extractPlanCore(
     // For now we use a host/unsafe policy so behavior matches today.
     const extractionSecurity = resolveSecurityPolicy({
       mode: "unsafe",
-      provider: "claude-code",
       worktreePath: opts.cwd,
-      stateRoot: opts.cwd,
       config: resolveSecurityConfig(undefined, "unsafe"),
     });
     const runResult = yield* backend.runAgent(prompt, {

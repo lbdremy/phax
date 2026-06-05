@@ -100,11 +100,12 @@ describe("buildCodexArgs — secure mode", () => {
     expect(args[idx + 1]).toBe("workspace-write");
   });
 
-  it("uses `-a never` so sandbox denials do not silently escape", () => {
+  it('sets approval_policy="never" so sandbox denials do not silently escape', () => {
+    // `codex exec` has no -a/--ask-for-approval flag (verified live in runbook
+    // 04b against 0.136.0); the config-key form is the exec-compatible analog.
     const args = buildCodexArgs(baseEntry, baseOptions(securePolicy));
-    const idx = args.indexOf("-a");
-    expect(idx).toBeGreaterThanOrEqual(0);
-    expect(args[idx + 1]).toBe("never");
+    expect(args).not.toContain("-a");
+    expect(args).toContain(`approval_policy="never"`);
   });
 
   it("sets writable_roots from security.filesystem.allowWrite as a JSON array", () => {

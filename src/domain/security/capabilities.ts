@@ -6,29 +6,25 @@ export type CapabilitySupport = "supported" | "unsupported";
 
 export interface ProviderSecurityCapability {
   readonly filesystemJail: JailStrength;
-  readonly networkAllowlist: CapabilitySupport;
   readonly mcpAllowlist: CapabilitySupport;
 }
 
 export const PROVIDER_SECURITY_CAPABILITIES: Record<ProviderId, ProviderSecurityCapability> = {
   "claude-code": {
     filesystemJail: "strong",
-    networkAllowlist: "supported",
     mcpAllowlist: "supported",
   },
   "codex-cli": {
     filesystemJail: "strong",
-    networkAllowlist: "supported",
     mcpAllowlist: "supported",
   },
   "mistral-vibe": {
     filesystemJail: "partial",
-    networkAllowlist: "unsupported",
     mcpAllowlist: "supported",
   },
 };
 
-export type SecurityMark = "partial-filesystem" | "network-unenforced" | "mcp-unenforced";
+export type SecurityMark = "partial-filesystem" | "mcp-unenforced";
 
 export interface SecurityEvaluation {
   readonly provider: ProviderId;
@@ -57,17 +53,14 @@ export function evaluateProviderSecurity(
     marks.push("partial-filesystem");
   }
 
-  if (cap.networkAllowlist === "unsupported") {
-    marks.push("network-unenforced");
-  }
-
   if (provider === "mistral-vibe" && marks.length > 0) {
     notes.push(VIBE_PARTIAL_SECURED_MESSAGE);
   }
 
-  const satisfiesStrict =
-    cap.filesystemJail === "strong" &&
-    (policy.network.profile === "provider-only" || cap.networkAllowlist === "supported");
+  // A strong filesystem jail is the only hard gate for strict-secure. Network is
+  // governed by profile alone (no domain allowlist exists for any provider), and
+  // MCP gaps surface as marks rather than blocking the run.
+  const satisfiesStrict = cap.filesystemJail === "strong";
 
   const downgraded = !satisfiesStrict;
 

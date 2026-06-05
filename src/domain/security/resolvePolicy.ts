@@ -1,12 +1,9 @@
-import type { ProviderId } from "../routing/types.js";
 import type { ResolvedSecurityConfig } from "../../schemas/securityConfig.js";
-import { type SecurityMode, type SecurityPolicy, PROVIDER_API_DOMAINS } from "./types.js";
+import type { SecurityMode, SecurityPolicy } from "./types.js";
 
 export interface ResolvePolicyInput {
   readonly mode: SecurityMode;
-  readonly provider: ProviderId;
   readonly worktreePath: string;
-  readonly stateRoot: string;
   readonly config: ResolvedSecurityConfig;
 }
 
@@ -15,13 +12,13 @@ function dedupe(paths: readonly string[]): readonly string[] {
 }
 
 export function resolveSecurityPolicy(input: ResolvePolicyInput): SecurityPolicy {
-  const { mode, provider, worktreePath, stateRoot, config } = input;
+  const { mode, worktreePath, config } = input;
 
   if (mode === "unsafe") {
     return {
       mode: "unsafe",
       filesystem: { allowRead: [], allowWrite: [] },
-      network: { profile: config.network.profile, allowDomains: [] },
+      network: { profile: config.network.profile },
       mcp: { mode: config.mcp.mode, allow: [] },
       failClosed: false,
     };
@@ -30,20 +27,27 @@ export function resolveSecurityPolicy(input: ResolvePolicyInput): SecurityPolicy
   // secure (and isolated — treated like secure for type totality; the CLI
   // gates isolated before a run starts, so this branch is only reached in tests
   // or if the caller bypasses the CLI gate)
-  const allowWrite = dedupe([worktreePath, stateRoot, ...config.filesystem.allowWrite]);
+  //
+  // The worktree (the agent's cwd) is the only path granted by default. The
+  // phax state root (~/.phax) is deliberately NOT included: the worktree already
+  // lives under ~/.phax/worktrees/<run>/<phase>, run artifacts in ~/.phax/runs
+  // are written by the unsandboxed parent process (not the agent), and the
+  // phase handoff is written inside the worktree's .phax-context/. Granting the
+  // whole state root would expose every other run and project worktree under
+  // ~/.phax. Projects that genuinely need state-root access (e.g. phax debugging
+  // itself) opt in via `security.filesystem.allowWrite` in phax.json.
+  const allowWrite = dedupe([worktreePath, ...config.filesystem.allowWrite]);
   const allowRead = dedupe([...allowWrite, ...config.filesystem.allowRead]);
 
-  const providerDomain = PROVIDER_API_DOMAINS[provider];
-  const networkProfile = config.network.profile;
-  const allowDomains =
-    networkProfile === "provider-only"
-      ? [providerDomain]
-      : dedupe([providerDomain, ...config.network.allowDomains]);
-
+  // Network is governed only by `network.profile`. No domain allowlist exists:
+  // each provider CLI reaches its own API intrinsically (the parent process
+  // talks to the model outside any sandbox), and no provider enforces a domain
+  // allowlist (confirmed live in runbook 04b). `provider-only` drives codex's
+  // network_access=false; broader profiles permit subprocess network.
   return {
     mode,
     filesystem: { allowRead, allowWrite },
-    network: { profile: networkProfile, allowDomains },
+    network: { profile: config.network.profile },
     mcp: { mode: config.mcp.mode, allow: config.mcp.allow },
     failClosed: true,
   };

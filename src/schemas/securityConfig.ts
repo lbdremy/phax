@@ -17,7 +17,6 @@ const FilesystemConfigSchema = Schema.Struct({
 
 const NetworkConfigSchema = Schema.Struct({
   profile: Schema.optional(NetworkProfileSchema),
-  allowDomains: Schema.optional(Schema.Array(Schema.NonEmptyString)),
 });
 
 const McpConfigSchema = Schema.Struct({
@@ -44,7 +43,6 @@ export interface ResolvedSecurityConfig {
   };
   readonly network: {
     readonly profile: NetworkProfile;
-    readonly allowDomains: readonly string[];
   };
   readonly mcp: {
     readonly mode: McpMode;
@@ -64,7 +62,6 @@ export function resolveSecurityConfig(
     },
     network: {
       profile: raw?.network?.profile ?? "provider-only",
-      allowDomains: raw?.network?.allowDomains ?? [],
     },
     mcp: {
       mode: raw?.mcp?.mode ?? "disabled",

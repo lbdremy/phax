@@ -91,8 +91,16 @@ function spawnClaude(
 // Centralized secure-mode Claude flag set. Runbook 04b will validate which of
 // these the installed `claude` CLI actually enforces; corrections feed back
 // here. Today's surface:
-//   --permission-mode default  (drops bypassPermissions; PHAX no longer hands
-//                              the agent blanket host access)
+//   --permission-mode acceptEdits  (drops bypassPermissions; PHAX no longer
+//                              hands the agent blanket host access. acceptEdits
+//                              — NOT default — is required for headless runs:
+//                              under `default` the --print session has no
+//                              approver, so even in-worktree Write/Edit auto-
+//                              deny and the agent cannot edit its own code.
+//                              acceptEdits auto-approves edits *within* the
+//                              working dirs (cwd + --add-dir) while still
+//                              denying reads/writes outside them. Verified live
+//                              in runbook 04b against claude 2.1.162.)
 //   --add-dir <path>           (one per writable path outside cwd; cwd is
 //                              implicit, so worktree pass-through happens via
 //                              the spawn cwd)
@@ -103,11 +111,11 @@ function spawnClaude(
 //                              and constrains "allowlist")
 //   --mcp-config <path>...     (one per file when mcp.mode === "allowlist")
 //
-// Not yet expressible via Claude CLI flags (tracked in 04b):
-//   - network.allowDomains: there is no native --allowed-domains flag. The
-//     resolved domain list is still carried in SecurityPolicy and surfaced in
-//     the security.json artifact (phase-09); live enforcement awaits either a
-//     settings-file mechanism or the future external sandbox.
+// Network: there is no native --allowed-domains flag and no domain-allowlist
+// concept in the policy (04b confirmed no provider enforces one). The Claude CLI
+// reaches api.anthropic.com intrinsically; the agent's own egress tools
+// (WebFetch/WebSearch) require approval and Bash is disallowed, so secure runs
+// have no unsanctioned network path. Only network.profile is carried.
 function buildSecureClaudeFlags(security: SecurityPolicy, cwd: string): string[] {
   const addDirs = security.filesystem.allowWrite
     .filter((p) => p !== cwd)
@@ -123,7 +131,14 @@ function buildSecureClaudeFlags(security: SecurityPolicy, cwd: string): string[]
     }
   }
 
-  return ["--permission-mode", "default", ...addDirs, "--disallowed-tools", "Bash", ...mcpFlags];
+  return [
+    "--permission-mode",
+    "acceptEdits",
+    ...addDirs,
+    "--disallowed-tools",
+    "Bash",
+    ...mcpFlags,
+  ];
 }
 
 export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): string[] {

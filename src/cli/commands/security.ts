@@ -37,25 +37,28 @@ export function registerSecurityCommand(
   out: OutputPort,
   globalTraceOpts: () => { verbose?: boolean; trace?: boolean },
 ): void {
-  program
+  const runStatusAction = async (opts: { verbose?: boolean; trace?: boolean }) => {
+    const merged = { ...opts, ...globalTraceOpts() };
+    const exitCode = await runSecurityStatus(merged, out);
+    process.exit(exitCode);
+  };
+
+  // `security` is the parent command; `status` is a subcommand. Commander parses
+  // `.command("security status")` as a command *named* `security` (with a bare
+  // arg `status`), which collides with the parent and throws at registration —
+  // crashing the entire CLI. Register a real nested subcommand instead. A bare
+  // `phax security` also runs the status report for convenience.
+  const security = program
     .command("security")
     .description("Security-related commands")
     .option("--verbose", "Print human-readable progress and system events")
     .option("--trace", "Write structured JSONL trace events to the run folder")
-    .action(async (opts: { verbose?: boolean; trace?: boolean }) => {
-      const merged = { ...opts, ...globalTraceOpts() };
-      const exitCode = await runSecurityStatus(merged, out);
-      process.exit(exitCode);
-    });
+    .action(runStatusAction);
 
-  program
-    .command("security status")
+  security
+    .command("status")
     .description("Show provider security capabilities and availability")
     .option("--verbose", "Print human-readable progress and system events")
     .option("--trace", "Write structured JSONL trace events to the run folder")
-    .action(async (opts: { verbose?: boolean; trace?: boolean }) => {
-      const merged = { ...opts, ...globalTraceOpts() };
-      const exitCode = await runSecurityStatus(merged, out);
-      process.exit(exitCode);
-    });
+    .action(runStatusAction);
 }

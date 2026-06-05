@@ -40,7 +40,7 @@ import type { ModelRouting } from "../schemas/modelRouting.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
 import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../domain/routing/defaults.js";
 import { resolveModel } from "../domain/routing/resolve.js";
-import type { ProviderId, SecurityFilter } from "../domain/routing/types.js";
+import type { SecurityFilter } from "../domain/routing/types.js";
 import type { SecurityMode } from "../domain/security/types.js";
 import { evaluateProviderSecurity } from "../domain/security/capabilities.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
@@ -326,19 +326,19 @@ export function executePlan(
       const fs = yield* FileSystem;
       yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);
 
-      const policyFor = (provider: ProviderId) =>
-        resolveSecurityPolicy({
-          mode: securityMode,
-          provider,
-          worktreePath: worktreePath as string,
-          stateRoot: config.stateRoot,
-          config: config.security,
-        });
+      // The resolved policy is provider-independent (filesystem/network/mcp come
+      // from config + worktree, not the provider), so compute it once and reuse
+      // it for both the routing security filter and the selected run.
+      const securityPolicy = resolveSecurityPolicy({
+        mode: securityMode,
+        worktreePath: worktreePath as string,
+        config: config.security,
+      });
       const securityFilter: SecurityFilter = (provider) => {
         if (securityMode !== "secure") {
           return { allowed: true };
         }
-        const evaluation = evaluateProviderSecurity(provider, policyFor(provider));
+        const evaluation = evaluateProviderSecurity(provider, securityPolicy);
         return evaluation.satisfiesStrict
           ? { allowed: true }
           : {
@@ -355,14 +355,6 @@ export function executePlan(
         providerConfig,
         securityFilter,
       );
-
-      const securityPolicy = resolveSecurityPolicy({
-        mode: securityMode,
-        provider: resolution.selected.provider,
-        worktreePath: worktreePath as string,
-        stateRoot: config.stateRoot,
-        config: config.security,
-      });
 
       yield* telemetry.recordEvent(
         makeModelResolvedTelemetryEvent({
@@ -400,7 +392,6 @@ export function executePlan(
         },
         network: {
           profile: securityPolicy.network.profile,
-          allowDomains: securityPolicy.network.allowDomains,
         },
         mcp: {
           mode: securityPolicy.mcp.mode,

@@ -167,7 +167,6 @@ describe("loadConfig security resolution", () => {
     if (Either.isRight(result)) {
       expect(result.right.security.filesystem.allowRead).toEqual([]);
       expect(result.right.security.filesystem.allowWrite).toEqual([]);
-      expect(result.right.security.network.allowDomains).toEqual([]);
       expect(result.right.security.mcp.allow).toEqual([]);
     }
   });

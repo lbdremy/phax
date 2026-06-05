@@ -56,12 +56,15 @@ describe("buildArgs — unsafe mode", () => {
 });
 
 describe("buildArgs — secure mode", () => {
-  it("drops bypassPermissions in favor of --permission-mode default", () => {
+  it("drops bypassPermissions in favor of --permission-mode acceptEdits", () => {
+    // acceptEdits (not default) is required for headless runs: under `default`
+    // the --print session has no approver, so even in-worktree writes auto-deny.
+    // Confirmed live in runbook 04b. See buildSecureClaudeFlags.
     const args = buildArgs(baseOptions(securePolicy));
     expect(args).not.toContain("bypassPermissions");
     const idx = args.indexOf("--permission-mode");
     expect(idx).toBeGreaterThanOrEqual(0);
-    expect(args[idx + 1]).toBe("default");
+    expect(args[idx + 1]).toBe("acceptEdits");
   });
 
   it("adds --add-dir for writable paths outside cwd (worktree implicit via cwd)", () => {
