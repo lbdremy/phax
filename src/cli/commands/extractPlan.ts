@@ -50,7 +50,6 @@ export async function runExtractPlan(
     model,
     effort,
     cwd: process.cwd(),
-    backend: config.backend,
   }).pipe(
     Effect.provide(makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG)),
     Effect.provide(NodeFileSystemLayer),

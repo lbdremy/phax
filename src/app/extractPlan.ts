@@ -98,10 +98,8 @@ export interface ExtractPlanCoreOptions {
   readonly model: string;
   readonly effort: string;
   readonly cwd: string;
-  // `backend` and `branch` are filled in deterministically by phax — never
-  // asked of the model. `backend` comes from phax.json; `branch` is derived
-  // from shortName as `phax/<shortName>` (the namespace phax owns).
-  readonly backend: string;
+  // `branch` is filled in deterministically by phax — never asked of the model.
+  // It is derived from shortName as `phax/<shortName>` (the namespace phax owns).
 }
 
 export interface ExtractPlanCoreResult {
@@ -213,7 +211,6 @@ export function extractPlanCore(
       run: {
         ...decoded.right.run,
         branch: `phax/${decoded.right.run.shortName}`,
-        backend: opts.backend,
       },
     };
 

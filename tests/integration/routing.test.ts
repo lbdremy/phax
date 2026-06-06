@@ -42,7 +42,6 @@ const rawPlan = {
     shortName: "routing-test",
     title: "Routing Test",
     branch: "ai/routing-test",
-    backend: "claude-code-cli",
   },
   phases: [
     {
@@ -119,7 +118,6 @@ describe("executePlan routing — mistral-vibe priority", () => {
       stateRoot,
       repoRoot: stateRoot,
       editorCommand: "echo",
-      backend: "claude-code-cli",
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,

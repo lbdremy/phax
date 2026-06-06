@@ -72,9 +72,8 @@ describe.skipIf(!shouldRun)(`phax real E2E flow [${selectedBackend.id}]`, () => 
       const planJsonPath = join(runsDir, shortName, "phax-plan.json");
       expect(existsSync(planJsonPath), "run folder should snapshot phax-plan.json").toBe(true);
       const plan = JSON.parse(readFileSync(planJsonPath, "utf8")) as {
-        run: { backend: string; branch: string };
+        run: { branch: string };
       };
-      expect(plan.run.backend).toBe(selectedBackend.id);
       expect(plan.run.branch).toBe(`phax/${shortName}`);
     },
   );
@@ -197,12 +196,11 @@ describe.skipIf(!shouldRun)(`phax extract-plan (standalone) [${selectedBackend.i
 
     const plan = JSON.parse(readFileSync(planJsonPath, "utf8")) as {
       version: number;
-      run: { shortName: string; branch: string; backend: string };
+      run: { shortName: string; branch: string };
       phases: unknown[];
     };
     expect(plan.version).toBe(1);
     expect(plan.run.shortName).toBeTruthy();
-    expect(plan.run.backend).toBe(selectedBackend.id);
     expect(plan.run.branch).toBe(`phax/${plan.run.shortName}`);
     expect(plan.phases.length).toBe(2);
   });

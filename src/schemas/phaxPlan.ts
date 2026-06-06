@@ -45,7 +45,6 @@ export const PhaxPlanSchema = Schema.Struct({
     shortName: Schema.NonEmptyString,
     title: Schema.NonEmptyString,
     branch: Schema.NonEmptyString,
-    backend: Schema.NonEmptyString,
   }),
   phases: Schema.NonEmptyArray(PhaseSchema),
 });

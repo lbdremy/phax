@@ -45,7 +45,6 @@ describe("loadConfig extractPlan resolution", () => {
     writePhaxJson({
       ...baseConfig,
       agent: {
-        backend: "claude-code-cli",
         extractPlan: { model: "claude-sonnet-4-6" },
       },
     });
@@ -61,7 +60,6 @@ describe("loadConfig extractPlan resolution", () => {
     writePhaxJson({
       ...baseConfig,
       agent: {
-        backend: "claude-code-cli",
         extractPlan: { effort: "medium" },
       },
     });
@@ -77,7 +75,6 @@ describe("loadConfig extractPlan resolution", () => {
     writePhaxJson({
       ...baseConfig,
       agent: {
-        backend: "claude-code-cli",
         extractPlan: { model: "claude-opus-4-7", effort: "high" },
       },
     });
@@ -93,7 +90,6 @@ describe("loadConfig extractPlan resolution", () => {
     writePhaxJson({
       ...baseConfig,
       agent: {
-        backend: "claude-code-cli",
         extractPlan: { effort: "extreme" },
       },
     });

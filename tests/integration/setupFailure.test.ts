@@ -23,7 +23,6 @@ const rawPlan = {
     shortName: "my-run",
     title: "My Run",
     branch: "ai/my-run",
-    backend: "claude-code-cli",
   },
   phases: [
     {
@@ -65,7 +64,6 @@ describe("executePlan — setup command failure", () => {
       stateRoot,
       repoRoot: stateRoot,
       editorCommand: "echo",
-      backend: "claude-code-cli",
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
@@ -133,7 +131,6 @@ describe("executePlan — setup command failure", () => {
       stateRoot,
       repoRoot: stateRoot,
       editorCommand: "echo",
-      backend: "claude-code-cli",
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
@@ -201,7 +198,6 @@ describe("executePlan — setup command failure", () => {
       stateRoot,
       repoRoot: stateRoot,
       editorCommand: "echo",
-      backend: "claude-code-cli",
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,

@@ -30,7 +30,7 @@ const shortName = Either.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
-  run: { shortName: "my-run", title: "My Run", branch: "ai/my-run", backend: "claude-code-cli" },
+  run: { shortName: "my-run", title: "My Run", branch: "ai/my-run" },
   phases: [
     {
       id: "phase-01",
@@ -74,7 +74,6 @@ describe("State Machine Contract", () => {
       stateRoot,
       repoRoot: stateRoot,
       editorCommand: "echo",
-      backend: "claude-code-cli",
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
@@ -166,7 +165,6 @@ describe("State Machine Contract", () => {
       stateRoot,
       repoRoot: stateRoot,
       editorCommand: "echo",
-      backend: "claude-code-cli",
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,

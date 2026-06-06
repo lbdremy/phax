@@ -149,7 +149,6 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     model: config.extractPlanModel,
     effort: config.extractPlanEffort,
     cwd,
-    backend: config.backend,
   });
 
   // We don't yet know the shortName (it comes out of extraction), so use a

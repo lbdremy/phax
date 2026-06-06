@@ -10,7 +10,6 @@ const minimalPlan: PhaxPlan = {
     shortName: "test-run",
     title: "Test Run",
     branch: "feat/test",
-    backend: "claude-code-cli",
   },
   phases: [
     {
@@ -27,7 +26,6 @@ const minimalConfig: ResolvedConfig = {
   stateRoot: "/home/user/.phax",
   extractPlanModel: "claude-sonnet-4-6",
   extractPlanEffort: "medium",
-  backend: "claude-code-cli",
   raw: {
     version: 1,
     project: { name: "test-project" },

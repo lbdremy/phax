@@ -35,7 +35,6 @@ const rawPlan = {
     shortName: "recon-run",
     title: "Reconciliation Run",
     branch: "ai/recon-run",
-    backend: "claude-code-cli",
   },
   phases: [
     {
@@ -81,7 +80,6 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       stateRoot,
       repoRoot: stateRoot,
       editorCommand: "echo",
-      backend: "claude-code-cli",
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
@@ -195,7 +193,6 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       stateRoot,
       repoRoot: stateRoot,
       editorCommand: "echo",
-      backend: "claude-code-cli",
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,

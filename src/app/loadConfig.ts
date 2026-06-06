@@ -160,7 +160,6 @@ export function loadConfig(
     stateRoot: expandTilde(config.state.root),
     repoRoot: gitRoot,
     editorCommand: config.editor?.command ?? "zed",
-    backend: config.agent?.backend ?? "claude-code-cli",
     maxFixAttempts: config.agent?.maxFixAttempts ?? 1,
     extractPlanModel: config.agent?.extractPlan?.model ?? DEFAULT_EXTRACT_MODEL,
     extractPlanEffort: config.agent?.extractPlan?.effort ?? "low",

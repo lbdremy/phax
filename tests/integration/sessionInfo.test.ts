@@ -114,7 +114,6 @@ describe("runSessionInfo", () => {
         stateRoot,
         repoRoot: stateRoot,
         editorCommand: "echo",
-        backend: "claude-code-cli",
         maxFixAttempts: 3,
         extractPlanModel: "claude-haiku-4-5-20251001",
         extractPlanEffort: "low" as const,

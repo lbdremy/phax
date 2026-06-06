@@ -20,7 +20,7 @@ describe("decodePhaxConfig", () => {
     const full = {
       ...validConfig,
       editor: { command: "zed" },
-      agent: { backend: "claude-code-cli", maxFixAttempts: 1 },
+      agent: { maxFixAttempts: 1 },
       commands: { setup: ["pnpm install"], cleanup: ["rm -rf node_modules"] },
       gateProfiles: { fast: ["pnpm test"], full: ["pnpm test", "pnpm lint"] },
       workspaces: [{ id: "frontend", name: "Frontend", path: "./packages/ui" }],
@@ -54,7 +54,7 @@ describe("decodePhaxConfig", () => {
   it("rejects a config with maxFixAttempts out of range", () => {
     const bad = {
       ...validConfig,
-      agent: { backend: "claude-code-cli", maxFixAttempts: 11 },
+      agent: { maxFixAttempts: 11 },
     };
     expect(Either.isLeft(decodePhaxConfig(bad))).toBe(true);
   });
@@ -63,7 +63,6 @@ describe("decodePhaxConfig", () => {
     const cfg = {
       ...validConfig,
       agent: {
-        backend: "claude-code-cli",
         extractPlan: { model: "claude-haiku-4-5-20251001", effort: "low" },
       },
     };
@@ -73,7 +72,7 @@ describe("decodePhaxConfig", () => {
   it("accepts agent.extractPlan with only model", () => {
     const cfg = {
       ...validConfig,
-      agent: { backend: "claude-code-cli", extractPlan: { model: "claude-sonnet-4-6" } },
+      agent: { extractPlan: { model: "claude-sonnet-4-6" } },
     };
     expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
   });
@@ -81,7 +80,7 @@ describe("decodePhaxConfig", () => {
   it("accepts agent.extractPlan with only effort", () => {
     const cfg = {
       ...validConfig,
-      agent: { backend: "claude-code-cli", extractPlan: { effort: "medium" } },
+      agent: { extractPlan: { effort: "medium" } },
     };
     expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
   });
@@ -89,7 +88,7 @@ describe("decodePhaxConfig", () => {
   it("accepts agent.extractPlan as an empty object", () => {
     const cfg = {
       ...validConfig,
-      agent: { backend: "claude-code-cli", extractPlan: {} },
+      agent: { extractPlan: {} },
     };
     expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
   });
@@ -97,7 +96,7 @@ describe("decodePhaxConfig", () => {
   it("rejects agent.extractPlan with invalid effort", () => {
     const cfg = {
       ...validConfig,
-      agent: { backend: "claude-code-cli", extractPlan: { effort: "extreme" } },
+      agent: { extractPlan: { effort: "extreme" } },
     };
     expect(Either.isLeft(decodePhaxConfig(cfg))).toBe(true);
   });
@@ -105,7 +104,7 @@ describe("decodePhaxConfig", () => {
   it("rejects agent.extractPlan with excess properties", () => {
     const cfg = {
       ...validConfig,
-      agent: { backend: "claude-code-cli", extractPlan: { unknown: "field" } },
+      agent: { extractPlan: { unknown: "field" } },
     };
     expect(Either.isLeft(decodePhaxConfig(cfg))).toBe(true);
   });
@@ -147,7 +146,6 @@ const validPlan = {
     shortName: "my-run",
     title: "My Run",
     branch: "feature/my-run",
-    backend: "claude-code-cli",
   },
   phases: [
     {

@@ -23,7 +23,6 @@ const samplePlan: PhaxPlan = {
     shortName: "my-run",
     title: "My Run",
     branch: "feature/my-run",
-    backend: "claude-code-cli",
   },
   phases: [samplePhase],
 };

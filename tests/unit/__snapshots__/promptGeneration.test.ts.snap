@@ -32,8 +32,7 @@ Phase overview.
   "run": {
     "shortName": "my-run",
     "title": "My Run",
-    "branch": "feature/my-run",
-    "backend": "claude-code-cli"
+    "branch": "feature/my-run"
   },
   "phases": [
     {

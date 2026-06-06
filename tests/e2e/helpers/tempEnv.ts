@@ -21,16 +21,11 @@ export function createTempEnv(backend?: ResolvedBackend): TempEnv {
   cpSync(FIXTURE_DIR, repoDir, { recursive: true });
 
   // Override state.root to the isolated phaxHome so the test never touches ~/.phax.
-  // Also patch agent.backend when a non-default backend is requested.
   const phaxConfigPath = join(repoDir, "phax.json");
   const config = JSON.parse(readFileSync(phaxConfigPath, "utf8")) as {
     state: { root: string };
-    agent: { backend: string };
   };
   config.state.root = phaxHome;
-  if (backend) {
-    config.agent.backend = backend.id;
-  }
   writeFileSync(phaxConfigPath, JSON.stringify(config, null, 2));
 
   // Substitute **Recommended model:** lines in plan.md when a backend is selected,

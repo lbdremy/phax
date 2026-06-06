@@ -21,7 +21,6 @@ const resolvedConfig: ResolvedConfig = {
   stateRoot,
   repoRoot: "/fake-repo",
   editorCommand: "zed",
-  backend: "claude-code-cli",
   maxFixAttempts: 1,
   extractPlanModel: "claude-haiku-4-5-20251001",
   extractPlanEffort: "low" as const,
@@ -41,7 +40,6 @@ const rawPlan = {
     shortName: "my-run",
     title: "My Run",
     branch: "feature/my-run",
-    backend: "claude-code-cli",
   },
   phases: [
     {

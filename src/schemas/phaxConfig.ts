@@ -44,7 +44,6 @@ export const PhaxConfigSchema = Schema.Struct({
   ),
   agent: Schema.optional(
     Schema.Struct({
-      backend: Schema.Literal("claude-code-cli"),
       maxFixAttempts: Schema.optional(Schema.Int.pipe(Schema.between(1, 10))),
       extractPlan: Schema.optional(ExtractPlanConfigSchema),
     }),
@@ -71,7 +70,6 @@ export interface ResolvedConfig {
   readonly stateRoot: string;
   readonly repoRoot: string;
   readonly editorCommand: string;
-  readonly backend: "claude-code-cli";
   readonly maxFixAttempts: number;
   readonly extractPlanModel: string;
   readonly extractPlanEffort: Effort;

@@ -144,7 +144,6 @@ describe("inspectResume", () => {
         shortName: "test-run",
         title: "Test run",
         branch: "ai/test-run",
-        backend: "claude-code",
       },
       phases: [
         {
@@ -198,7 +197,6 @@ describe("inspectResume", () => {
         shortName: "test-run",
         title: "Test run",
         branch: "ai/test-run",
-        backend: "claude-code",
       },
       phases: [makePlanPhase("phase-01"), makePlanPhase("phase-02"), makePlanPhase("phase-03")],
     };

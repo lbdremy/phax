@@ -5,7 +5,6 @@
   "state": { "root": "~/.phax" },
   "editor": { "command": "zed" },
   "agent": {
-    "backend": "claude-code-cli",
     "maxFixAttempts": 1
   },
   "security": {
