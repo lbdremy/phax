@@ -457,6 +457,22 @@ describe("adaptCleanup", () => {
 
 // ─── adaptHandoffGenerate ─────────────────────────────────────────────────────
 
+const handoffLayers = () => {
+  const fakeBackend = makeFakeBackend();
+  const fakeFs = makeFakeFileSystem();
+  const fakeGit = makeFakeGit();
+  const fakeShell = makeFakeShell();
+
+  const layer = Layer.mergeAll(
+    fakeBackend.layer,
+    fakeFs.layer,
+    fakeGit.layer,
+    fakeShell.layer,
+    NoopSystemTelemetryLayer,
+  );
+  return { fakeBackend, fakeFs, fakeGit, fakeShell, layer };
+};
+
 describe("adaptHandoffGenerate", () => {
   const handoffOpts: GenerateHandoffOptions = {
     sessionId: "sess-abc" as never,
@@ -485,22 +501,6 @@ describe("adaptHandoffGenerate", () => {
     createdAt: "2026-05-21T00:00:00.000Z",
     updatedAt: "2026-05-21T00:00:00.000Z",
   });
-
-  const handoffLayers = () => {
-    const fakeBackend = makeFakeBackend();
-    const fakeFs = makeFakeFileSystem();
-    const fakeGit = makeFakeGit();
-    const fakeShell = makeFakeShell();
-
-    const layer = Layer.mergeAll(
-      fakeBackend.layer,
-      fakeFs.layer,
-      fakeGit.layer,
-      fakeShell.layer,
-      NoopSystemTelemetryLayer,
-    );
-    return { fakeBackend, fakeFs, fakeGit, fakeShell, layer };
-  };
 
   it("valid handoff file → HandoffValidated", async () => {
     const { fakeBackend, fakeFs, layer } = handoffLayers();

@@ -190,18 +190,18 @@ describe("hasVibeErroredResultEvent", () => {
   });
 });
 
-describe("findVibeSessionId", () => {
-  async function makeSessionDir(
-    root: string,
-    name: string,
-    meta: Record<string, unknown>,
-  ): Promise<string> {
-    const dir = join(root, "logs", "session", name);
-    await mkdir(dir, { recursive: true });
-    await writeFile(join(dir, "meta.json"), JSON.stringify(meta), "utf8");
-    return dir;
-  }
+async function makeSessionDir(
+  root: string,
+  name: string,
+  meta: Record<string, unknown>,
+): Promise<string> {
+  const dir = join(root, "logs", "session", name);
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, "meta.json"), JSON.stringify(meta), "utf8");
+  return dir;
+}
 
+describe("findVibeSessionId", () => {
   it("returns the session id whose working_directory matches cwd", async () => {
     const vibeHome = await mkdtemp(join(tmpdir(), "vibe-home-"));
     const cwd = "/tmp/project-a";
