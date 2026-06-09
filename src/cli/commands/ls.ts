@@ -2,6 +2,7 @@ import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { readRegistry } from "../../app/registry.js";
+import { resolveRunByShortName, findCurrentPhase } from "../../app/resolveRunInfo.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { Lock } from "../../ports/lock.js";
@@ -28,17 +29,62 @@ interface LsRow {
   lockState: LockState;
 }
 
-function filterEntries(entries: readonly RegistryEntry[], opts: LsOptions): RegistryEntry[] {
-  const hasFilter = opts.active ?? opts.failed ?? opts.reviewOpen ?? opts.archived;
-  if (!hasFilter) return [...entries];
+/**
+ * A registry entry reconciled against its authoritative `run-status.json`.
+ *
+ * The global registry is only an index of which runs exist; it is written at
+ * creation and refreshed at just two transitions (`review_open`, `archived`).
+ * The per-run `run-status.json` is the source of truth for state, gate profile,
+ * and phase progress — so we read it here rather than trusting the stale index.
+ * When the run folder is gone (archived runs are moved out of `runs/`) we fall
+ * back to the registry values, where the recorded state is already correct.
+ */
+function reconcileEntry(entry: RegistryEntry, stateRoot: string): LsRow {
+  const fallback: LsRow = {
+    shortName: entry.shortName,
+    state: entry.state,
+    branch: entry.branch,
+    currentPhase: "-",
+    gateProfile: "-",
+    updatedAt: formatTimestamp(entry.updatedAt),
+    lockState: "none",
+  };
 
-  return entries.filter((e) => {
-    if (opts.active && (e.state === "created" || e.state === "running")) return true;
-    if (opts.failed && e.state === "failed") return true;
-    if (opts.reviewOpen && e.state === "review_open") return true;
-    if (opts.archived && e.state === "archived") return true;
-    return false;
-  });
+  const shortNameResult = decodeShortName(entry.shortName);
+  if (Either.isLeft(shortNameResult)) return fallback;
+
+  const infoResult = resolveRunByShortName(shortNameResult.right, stateRoot);
+  if (Either.isLeft(infoResult)) return fallback;
+
+  const info = infoResult.right;
+  const total = info.planPhases.length || entry.phasesCount;
+  const current = findCurrentPhase(info.phaseStatuses);
+  const reached = current ?? info.phaseStatuses.toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
+
+  return {
+    shortName: entry.shortName,
+    state: info.runState,
+    branch: info.branch !== "(unknown)" ? info.branch : entry.branch,
+    currentPhase: reached ? `${reached.phaseIndex + 1}/${total}` : "-",
+    gateProfile: info.gateProfileId ?? "-",
+    updatedAt: formatTimestamp(info.updatedAt),
+    lockState: "none",
+  };
+}
+
+function matchesFilter(state: string, opts: LsOptions): boolean {
+  const hasFilter = opts.active || opts.failed || opts.reviewOpen || opts.archived;
+  if (!hasFilter) return true;
+
+  if (opts.active && (state === "created" || state === "running")) return true;
+  if (opts.failed && state === "failed") return true;
+  if (opts.reviewOpen && state === "review_open") return true;
+  if (opts.archived && state === "archived") return true;
+  return false;
+}
+
+function formatTimestamp(iso: string): string {
+  return iso.slice(0, 16).replace("T", " ");
 }
 
 function pad(s: string, width: number): string {
@@ -93,14 +139,17 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
     return 1;
   }
 
-  const registry = registryResult.right;
-  const filtered = filterEntries(registry.runs, opts);
+  // Reconcile every entry against its run-status.json first, then filter on the
+  // authoritative state so `--review-open` and friends see the real states.
+  const reconciled = registryResult.right.runs
+    .map((entry) => ({ entry, row: reconcileEntry(entry, stateRoot) }))
+    .filter(({ row }) => matchesFilter(row.state, opts));
 
   const lockLayer = Layer.merge(NodeFileSystemLayer, makeNodeLockLayer(stateRoot));
 
   const rows: LsRow[] = await Promise.all(
-    filtered.map(async (entry) => {
-      const shortNameResult = decodeShortName(entry.shortName);
+    reconciled.map(async ({ row }) => {
+      const shortNameResult = decodeShortName(row.shortName);
       let lockState: LockState = "none";
 
       if (Either.isRight(shortNameResult)) {
@@ -117,27 +166,14 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
         }
       }
 
-      const phaseLabel =
-        entry.currentPhaseIndex !== undefined
-          ? `phase-${String(entry.currentPhaseIndex + 1).padStart(2, "0")}`
-          : "-";
-
-      return {
-        shortName: entry.shortName,
-        state: entry.state,
-        branch: entry.branch,
-        currentPhase: phaseLabel,
-        gateProfile: entry.gateProfileId ?? "-",
-        updatedAt: entry.updatedAt.slice(0, 16).replace("T", " "),
-        lockState,
-      };
+      return { ...row, lockState };
     }),
   );
 
   if (opts.json) {
     out.log(
       JSON.stringify(
-        rows.map((r, i) => ({ ...r, archivePath: filtered[i]?.archivePath })),
+        rows.map((r, i) => ({ ...r, archivePath: reconciled[i]?.entry.archivePath })),
         null,
         2,
       ),
