@@ -1,6 +1,6 @@
 # phax
 
-`phax` drives Claude Code through isolated, gated phases. Each phase gets its own Git worktree, a same-session fix loop, and a kept-open final phase for human review.
+`phax` drives an AI coding agent — Claude Code, Mistral Vibe, or OpenAI Codex — through isolated, gated phases. Each phase gets its own Git worktree, a same-session fix loop, and a kept-open final phase for human review. Provider selection is handled by the [model-routing layer](#multi-provider-model-routing); Claude Code is the default and the terminal fallback.
 
 ## Install
 
@@ -8,7 +8,13 @@
 pnpm add -g phax        # or install locally in your repo
 ```
 
-Requirements: Node ≥ 20, `claude` CLI on `$PATH` (Claude Code).
+Requirements: Node ≥ 20, and at least one provider CLI on `$PATH`:
+
+- `claude` — Claude Code (default, and the terminal fallback provider)
+- `vibe` — Mistral Vibe (optional)
+- `codex` — OpenAI Codex (optional)
+
+Most setups want `claude` installed even when routing prefers another provider, because phax falls back to Claude Code when the preferred provider is unavailable or cannot satisfy the active security posture.
 
 ## Configure
 
@@ -20,7 +26,9 @@ Add a `phax.json` at your repo root:
   "project": { "name": "my-project", "type": "single-package" },
   "state": { "root": "~/.phax" },
   "editor": { "command": "zed" },
-  "agent": { "backend": "claude-code-cli", "maxFixAttempts": 1 },
+  "agent": { "maxFixAttempts": 1 },
+  "security": { "profile": "secure" },
+  "fileReconciliation": { "mode": "report_only" },
   "commands": {
     "setup": ["pnpm install"],
     "cleanup": ["rm -rf node_modules"]
@@ -32,6 +40,8 @@ Add a `phax.json` at your repo root:
 }
 ```
 
+Provider routing is **not** configured here — it lives in the global `~/.phax/` config (see [Multi-provider model routing](#multi-provider-model-routing)). The optional `security.profile` (`secure` \| `unsafe` \| `isolated`, default `secure`) sets the default security posture for runs; see [Security modes](#security-modes). The optional `fileReconciliation.mode` (`report_only` \| `warn`, default `report_only`) controls how per-phase file reconciliation reports deviations from the plan; see [Run](#run).
+
 Validate it before running:
 
 ```bash
@@ -40,7 +50,9 @@ phax validate --config phax.json --plan phax-plan.json
 
 ## Write a plan
 
-Write `plan.md` — a Markdown document with one `## phase-NN — <title>  {#phase-NN-<slug>}` section per phase. Each section must include an objective, instructions, and a commit subject. See `examples/plan.md` for a worked example and `.skills/phax-planning.md` for the full template contract.
+Author `plan.md` with the [`phax-planning`](.skills/phax-planning.md) skill — it is the source of truth for the plan format that `phax extract-plan` consumes. The skill defines the per-phase template contract (heading + `{#phase-NN-<slug>}` anchor, recommended model/effort, the three planned-file lists, gate-profile verification, commit subject/body) and the planning doctrine (plan outside-in, implement inside-out, verify outside-in). Point your agent at that skill when drafting or reviewing a plan; don't hand-roll the format.
+
+In short: `plan.md` is a Markdown document with one `## phase-NN — <title>  {#phase-NN-<slug>}` section per phase, each carrying an objective, detailed instructions, planned-file lists, a gate-profile verification step, and a commit subject/body. See `examples/plan.md` for a worked example and [`.skills/phax-planning.md`](.skills/phax-planning.md) for the full template contract.
 
 ## Extract the plan
 
@@ -48,7 +60,7 @@ Write `plan.md` — a Markdown document with one `## phase-NN — <title>  {#pha
 phax extract-plan --plan-md plan.md --out phax-plan.json
 ```
 
-This calls Claude Code headlessly with the `phax-plan.json` JSON Schema, validates the structured output, and writes the plan atomically. Add `--force` to overwrite an existing file.
+This invokes the configured extraction agent headlessly with the `phax-plan.json` JSON Schema, validates the structured output, and writes the plan atomically. Add `--force` to overwrite an existing file.
 
 ## Run
 
@@ -60,16 +72,18 @@ phax run --profile fast                         # override gate profile
 phax run --allow-dirty                          # skip clean-tree guard
 phax run --workspace packages/api              # workspace-scoped gate commands (monorepo)
 phax run --provider-priority mistral-vibe,claude-code  # override provider priority for this run
+phax run --security unsafe                      # override the security mode for this run
 ```
 
 Each phase:
 
 1. Creates a Git worktree at `~/.phax/worktrees/<short-name>/phase-NN/` on its own branch `<run.branch>--phase-NN`.
 2. Runs `commands.setup` inside the worktree.
-3. Builds a prompt from the plan and the previous phase's handoff, sends it to Claude Code.
-4. Runs the gate profile; on failure, resumes the same Claude session once and retries.
-5. After passing gates, resumes Claude to produce `phase-handoff.md`.
+3. Builds a prompt from the plan and the previous phase's handoff, sends it to the selected provider's agent (resolved by the routing layer; see [Multi-provider model routing](#multi-provider-model-routing)).
+4. Runs the gate profile; on failure, resumes the same agent session once and retries.
+5. After passing gates, resumes the agent to produce `phase-handoff.md`.
 6. Commits with the planned message. If the worktree is clean (no changes), the run stops with a non-zero exit and writes `resume-instructions.md` — use `phax resume` to continue from the next phase.
+7. Reconciles the files actually touched against the phase's planned files, writing `file-reconciliation.{json,md}` to the phase folder. Deviations (unplanned creates/edits, missing planned changes) are injected into the next phase's prompt so the agent sees how the prior phase diverged from its plan; with `fileReconciliation.mode: "warn"` they are also logged (default `report_only` only records them).
 
 Each phase gets its own branch (`<run.branch>--phase-01`, `<run.branch>--phase-02`, …), chained: phase-01 branches off `<run.branch>`, phase-N branches off the previous phase's branch. The base `<run.branch>` stays at the run-start commit. The final phase's branch carries the full commit chain and is the ref to review, merge, or push.
 
@@ -80,7 +94,7 @@ The final phase stays open for review. A `review-handoff.md` is written to the r
 ## Review loop
 
 ```bash
-phax enter <short-name>   # resume the final Claude session
+phax enter <short-name>   # resume the final agent session
 phax shell <short-name>   # open $SHELL in the final worktree
 phax path  <short-name>   # print the worktree path (script-friendly)
 phax open  <short-name>   # open the worktree in the configured editor
@@ -135,14 +149,26 @@ phax agent setup mistral-vibe --install-model-aliases  # install PHAX Vibe alias
 
 The default `providerPriority` is `["mistral-vibe", "codex-cli", "claude-code"]` (the spec §12 multi-provider table). On a clean install, mistral-vibe and codex-cli are `enabled: false` in the default provider config, so all phases run through Claude Code as before. Enabling them via `phax agent setup providers` (or editing `~/.phax/providers.json`) activates the richer routing. See [`docs/model-routing.md`](docs/model-routing.md) for the full resolution pipeline, tier table, relationship semantics, and worked examples.
 
+## Security modes
+
+Every run executes under a security posture, set by `security.profile` in `phax.json` and overridable per run with `--security`:
+
+| Mode       | Behavior                                                                                              |
+| ---------- | ----------------------------------------------------------------------------------------------------- |
+| `secure`   | **Default.** Provider-native sandboxing — filesystem jailed to the worktree, restricted network, MCP disabled. |
+| `unsafe`   | Host-unrestricted: full filesystem/network access. Prints a warning. Use only for trusted plans.      |
+| `isolated` | External-sandbox mode — planned, not yet available (the CLI rejects it today).                         |
+
+Provider capability matters under `secure`: Claude Code and Codex have strong filesystem jails and run natively, while Mistral Vibe has only a **partial** jail. In strict `secure` mode a partial-jail provider cannot satisfy the policy, so routing skips it and falls back to Claude Code; the applied posture (including any downgrade) is recorded in each phase's `security.json` and the final report.
+
 ## Testing
 
 ```bash
-pnpm test               # unit + integration — fast, no network, no Claude Code
-pnpm test:e2e:real      # opt-in real E2E — requires claude CLI + auth, costs tokens
+pnpm test               # unit + integration — fast, no network, no provider CLIs
+pnpm test:e2e:real      # opt-in real E2E — drives the installed provider CLIs, costs tokens
 ```
 
-The E2E suite skips automatically unless `PHAX_E2E_RUN=1` is set, so it never runs by accident. See [`docs/e2e-testing.md`](docs/e2e-testing.md) for prerequisites, isolation model, and how to read failure artifacts.
+The E2E suite skips automatically unless `PHAX_E2E_RUN=1` is set, so it never runs by accident. It runs one real-flow suite per provider (Claude Code, Mistral Vibe, Codex), each forcing its provider with `--provider-priority` and gated on that provider's CLI being installed — so only the providers you have set up actually run. See [`docs/e2e-testing.md`](docs/e2e-testing.md) for prerequisites, isolation model, and how to read failure artifacts.
 
 ## Debugging
 
@@ -201,7 +227,7 @@ phax unlock <short-name> --force  # remove any lock
 | 2    | Gate failure (after fix loop exhausted)       |
 | 3    | Lock conflict                                 |
 | 4    | Unsafe git state (dirty worktree)             |
-| 5    | Claude invocation error                       |
+| 5    | Agent invocation error (Claude, Vibe, or Codex) |
 | 6    | Handoff generation failed                     |
 | 8    | Rate limit or usage limit hit (resumable)     |
 | 9    | Phase produced no changes (resumable)         |
@@ -223,7 +249,7 @@ phax unlock <short-name> --force  # remove any lock
 
 **Gate failure loop** — increase `maxFixAttempts` in `phax.json`, or reduce gate scope. Check `~/.phax/runs/<short-name>/phase-NN/checks-attempt-01.log` for details.
 
-**Missing `phase-handoff.md` sections** — the phase transitioned to `handoff_failed`. Check the phase status file and resume the Claude session with `phax enter`.
+**Missing `phase-handoff.md` sections** — the phase transitioned to `handoff_failed`. Check the phase status file and resume the agent session with `phax enter`.
 
 **Format conflicts** — run `pnpm format`, do not add lint exceptions. **Knip failures** — remove the dead code or wire it into an entry point, do not add `ignoreDependencies` entries casually.
 

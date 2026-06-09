@@ -61,10 +61,16 @@ function mapReasoningEffort(effort: string): string {
 // Centralized secure-mode Codex flag set. Runbook 04b will validate which of
 // these the installed `codex` CLI actually enforces; corrections feed back
 // here. Today's surface:
-//   --sandbox workspace-write
+//   -c sandbox_mode="workspace-write"
 //       Restricts subprocess writes to the workspace + writable_roots and (with
 //       network_access=false) blocks subprocess network. Replaces the
 //       --dangerously-bypass-approvals-and-sandbox vector used in unsafe mode.
+//       Uses the `-c` config-override form rather than the `-s/--sandbox` flag
+//       because `codex exec resume` (verified 0.136.0) does NOT accept
+//       `--sandbox` — passing it makes clap reject the whole vector ("unexpected
+//       argument '--sandbox'") and the secure handoff resume exits with code 2.
+//       The `sandbox_mode` config key is accepted by both `codex exec` and
+//       `codex exec resume` and is verified recognized under `--strict-config`.
 //   -c approval_policy="never"
 //       Non-interactive approval that does NOT silently escape the sandbox: a
 //       sandbox denial fails the action instead of escalating to host-level
@@ -109,8 +115,8 @@ function buildCodexSecurityFlags(security: SecurityPolicy): string[] {
   const networkAccess = security.network.profile !== "provider-only";
 
   return [
-    "--sandbox",
-    "workspace-write",
+    "-c",
+    `sandbox_mode="workspace-write"`,
     "-c",
     `approval_policy="never"`,
     "-c",

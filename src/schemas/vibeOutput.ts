@@ -1,5 +1,5 @@
 import { Either, Schema } from "effect";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -97,7 +97,25 @@ export interface FindVibeSessionOptions {
  * persists one in `<VIBE_HOME>/logs/session/session_<ts>_<short>/meta.json`.
  * We pick the most recent meta whose `environment.working_directory` matches
  * `cwd` and whose containing directory's mtime is at or after `sinceMs`.
+ *
+ * The path match is symlink-robust: vibe records the canonicalized working
+ * directory (e.g. macOS resolves `/var/...` → `/private/var/...`), while phax
+ * passes the cwd as given. Comparing both the raw and `realpath`-resolved forms
+ * keeps the match correct when `state.root` lives under a symlinked path.
  */
+async function resolveReal(path: string): Promise<string> {
+  try {
+    return await realpath(path);
+  } catch {
+    return path;
+  }
+}
+
+async function sameDirectory(a: string, b: string): Promise<boolean> {
+  if (a === b) return true;
+  return (await resolveReal(a)) === (await resolveReal(b));
+}
+
 export async function findVibeSessionId(
   options: FindVibeSessionOptions,
 ): Promise<string | undefined> {
@@ -137,7 +155,9 @@ export async function findVibeSessionId(
     const decoded = decodeVibeSessionMeta(metaParsed);
     if (Either.isLeft(decoded)) continue;
     const meta = decoded.right;
-    if (meta.environment?.working_directory !== options.cwd) continue;
+    const workingDir = meta.environment?.working_directory;
+    if (workingDir === undefined) continue;
+    if (!(await sameDirectory(workingDir, options.cwd))) continue;
     if (best === undefined || dirStat.mtimeMs > best.mtimeMs) {
       best = { sessionId: meta.session_id, mtimeMs: dirStat.mtimeMs };
     }

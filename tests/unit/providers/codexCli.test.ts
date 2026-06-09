@@ -92,12 +92,13 @@ describe("buildCodexArgs — unsafe mode", () => {
 });
 
 describe("buildCodexArgs — secure mode", () => {
-  it("drops danger-full-access in favor of --sandbox workspace-write", () => {
+  it('drops danger-full-access in favor of sandbox_mode="workspace-write"', () => {
     const args = buildCodexArgs(baseEntry, baseOptions(securePolicy));
     expect(args).not.toContain("--dangerously-bypass-approvals-and-sandbox");
-    const idx = args.indexOf("--sandbox");
-    expect(idx).toBeGreaterThanOrEqual(0);
-    expect(args[idx + 1]).toBe("workspace-write");
+    // The `-s/--sandbox` flag is rejected by `codex exec resume`; use the
+    // config-override form which both `exec` and `exec resume` accept.
+    expect(args).not.toContain("--sandbox");
+    expect(args).toContain(`sandbox_mode="workspace-write"`);
   });
 
   it('sets approval_policy="never" so sandbox denials do not silently escape', () => {
@@ -142,16 +143,17 @@ describe("buildCodexArgs — secure mode", () => {
     expect(args.slice(0, 3)).toEqual(["exec", "resume", "session-xyz"]);
     expect(args).not.toContain("-C");
     expect(args).not.toContain("--dangerously-bypass-approvals-and-sandbox");
-    const idx = args.indexOf("--sandbox");
-    expect(args[idx + 1]).toBe("workspace-write");
+    // `codex exec resume` rejects `--sandbox`; the sandbox must be set via the
+    // config-override form or the resume exits with code 2.
+    expect(args).not.toContain("--sandbox");
+    expect(args).toContain(`sandbox_mode="workspace-write"`);
     expect(args).toContain("sandbox_workspace_write.network_access=false");
   });
 
   it("isolated mode follows the secure branch for type totality (CLI gates it earlier)", () => {
     const args = buildCodexArgs(baseEntry, baseOptions({ ...securePolicy, mode: "isolated" }));
     expect(args).not.toContain("--dangerously-bypass-approvals-and-sandbox");
-    const idx = args.indexOf("--sandbox");
-    expect(args[idx + 1]).toBe("workspace-write");
+    expect(args).toContain(`sandbox_mode="workspace-write"`);
   });
 });
 
