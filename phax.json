@@ -17,8 +17,9 @@
     "cleanup": ["rm -rf node_modules"]
   },
   "gateProfiles": {
-    "fast": ["pnpm typecheck", "pnpm test:unit"],
+    "fast": ["pnpm format", "pnpm typecheck", "pnpm test:unit"],
     "full": [
+      "pnpm format",
       "pnpm typecheck",
       "pnpm lint",
       "pnpm format:check",
