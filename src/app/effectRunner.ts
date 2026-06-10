@@ -172,6 +172,7 @@ export function run(
       return writeResumeInstructions({
         runPath: ctx.runPath,
         shortName: ctx.shortName,
+        kind: cmd.ctx.kind,
         reason: cmd.ctx.reason,
         resetAt: cmd.ctx.resetAt,
         phaseId: cmd.ctx.phaseId,

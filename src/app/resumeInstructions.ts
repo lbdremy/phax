@@ -6,6 +6,7 @@ export interface ResumeInstructionsInput {
   /** The run folder (`~/.phax/runs/<short>`). */
   readonly runPath: string;
   readonly shortName: string;
+  readonly kind?: "rate_limit" | "usage_limit" | "no_changes" | "gates_exhausted" | undefined;
   /** Why the run stopped, e.g. "Rate limit" or "Usage limit". */
   readonly reason: string;
   /** Best-effort reset time parsed from the limit message, if any. */
@@ -20,7 +21,48 @@ export interface ResumeInstructionsInput {
   readonly rawMessage?: string | undefined;
 }
 
-function buildResumeInstructions(input: ResumeInstructionsInput): string {
+function buildGateExhaustionResumeInstructions(input: ResumeInstructionsInput): string {
+  const phaseId = input.phaseId ?? "(unknown)";
+  return [
+    `# Resume Instructions: ${input.shortName}`,
+    "",
+    "This run paused because the gate failed after exhausting the configured",
+    "maxFixAttempts fix attempts.",
+    "",
+    "## Why it stopped",
+    "",
+    `- **Reason:** ${input.reason}`,
+    `- **Current phase:** ${phaseId}`,
+    `- **Worktree:** ${input.worktreePath ?? "(not captured)"}`,
+    `- **Claude session:** ${input.sessionId ?? "(not captured)"}`,
+    "",
+    "## Resume the run",
+    "",
+    "Fix the gate by hand in the worktree, then resume the run:",
+    "",
+    "```bash",
+    `phax resume ${input.shortName} --yes`,
+    "```",
+    "",
+    "On resume, phax re-runs the gate before invoking any fix agent. If the gate",
+    "passes, the phase commits with no agent invocation.",
+    "",
+    "## Lost session",
+    "",
+    "If the Claude session was lost, recover the phase before resuming:",
+    "",
+    "```bash",
+    `phax reset-phase ${input.shortName} ${phaseId}`,
+    "```",
+    "",
+  ].join("\n");
+}
+
+export function buildResumeInstructions(input: ResumeInstructionsInput): string {
+  if (input.kind === "gates_exhausted") {
+    return buildGateExhaustionResumeInstructions(input);
+  }
+
   const phaseId = input.phaseId ?? "(unknown)";
   const lines: string[] = [
     `# Resume Instructions: ${input.shortName}`,

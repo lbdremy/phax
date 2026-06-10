@@ -2,9 +2,15 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Effect, Either, Layer } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { inspectResume } from "../../src/app/resume.js";
+import { buildResumeInstructions } from "../../src/app/resumeInstructions.js";
+import { run as runEffectCommand } from "../../src/app/effectRunner.js";
+import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeShell } from "../../src/infra/fakes/shell.js";
+import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 
 function unwrap<T>(e: Either.Either<T, unknown>): T {
   if (Either.isLeft(e)) throw new Error("decode failed");
@@ -231,5 +237,66 @@ describe("inspectResume", () => {
     expect(result.right.nextPhaseId).toBe("phase-03");
     expect(result.right.nextPhaseIndex).toBe(2);
     expect(result.right.skippedPhaseIds).toEqual(["phase-01", "phase-02"]);
+  });
+});
+
+describe("resume instructions", () => {
+  it("renders gate-exhaustion instructions without a reset time", () => {
+    const markdown = buildResumeInstructions({
+      runPath: "/state/runs/test-run",
+      shortName: "test-run",
+      kind: "gates_exhausted",
+      reason: "Gate checks failed",
+      phaseId: "phase-01",
+      worktreePath: "/state/worktrees/test-run/phase-01",
+      sessionId: "claude-session-123",
+    });
+
+    expect(markdown).toContain("Gate checks failed");
+    expect(markdown).toContain("maxFixAttempts");
+    expect(markdown).toContain("Fix the gate by hand in the worktree");
+    expect(markdown).toContain("phax resume test-run --yes");
+    expect(markdown).toContain("re-runs the gate");
+    expect(markdown).toContain("commits with no agent invocation");
+    expect(markdown).toContain("phax reset-phase test-run phase-01");
+    expect(markdown).not.toContain("Reset time");
+  });
+
+  it("maps gates_exhausted WriteResumeInstructions through the effect runner", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const layer = Layer.mergeAll(
+      fakeFs.layer,
+      makeFakeGit().layer,
+      makeFakeShell().layer,
+      makeFakeSystemTelemetry().layer,
+    );
+
+    await Effect.runPromise(
+      runEffectCommand(
+        {
+          type: "WriteResumeInstructions",
+          ctx: {
+            kind: "gates_exhausted",
+            reason: "Gate checks failed",
+            phaseId: "phase-01",
+            worktreePath: "/state/worktrees/test-run/phase-01",
+            sessionId: "claude-session-123",
+          },
+        },
+        {
+          runPath: "/state/runs/test-run",
+          shortName: "test-run",
+          phaseFolderPath: "/state/runs/test-run/phase-01",
+          phaseId: "phase-01",
+        },
+      ).pipe(Effect.provide(layer)),
+    );
+
+    const markdown = fakeFs.impl.getFile("/state/runs/test-run/resume-instructions.md");
+    expect(markdown).toBeDefined();
+    expect(markdown).toContain("Gate checks failed");
+    expect(markdown).toContain("phax resume test-run --yes");
+    expect(markdown).toContain("phax reset-phase test-run phase-01");
+    expect(markdown).not.toContain("Reset time");
   });
 });
