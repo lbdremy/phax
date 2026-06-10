@@ -1,6 +1,7 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import { InvalidTransitionError } from "../../src/domain/errors.js";
+import { decodePhaseStatus, encodePhaseStatus } from "../../src/schemas/status.js";
 import {
   archiveRun,
   committedToCleanedUp,
@@ -8,6 +9,7 @@ import {
   completeRun,
   failRun,
   interruptRun,
+  isPhaseTerminal,
   openRunReview,
   pendingToSettingUp,
   rateLimitPhase,
@@ -19,6 +21,7 @@ import {
   skipPhase,
   startRun,
   stopRun,
+  TERMINAL_PHASE_STATES,
 } from "../../src/domain/state.js";
 
 function assertRight<T>(result: Either.Either<T, unknown>, expected: T): void {
@@ -160,6 +163,35 @@ describe("Run state transitions", () => {
 });
 
 describe("Phase state transitions", () => {
+  describe("gates_exhausted", () => {
+    it("is not terminal", () => {
+      expect(TERMINAL_PHASE_STATES.has("gates_exhausted")).toBe(false);
+      expect(isPhaseTerminal("gates_exhausted")).toBe(false);
+    });
+
+    it("round-trips persisted phase status", () => {
+      const status = {
+        version: 1,
+        phaseId: "phase-01",
+        phaseIndex: 0,
+        state: "gates_exhausted",
+        model: "claude-sonnet-4-6",
+        effort: "medium",
+        createdAt: "2026-06-10T08:00:00.000Z",
+        updatedAt: "2026-06-10T08:05:00.000Z",
+        branchName: "phax/gate-first-resume",
+      };
+
+      const result = decodePhaseStatus(status);
+
+      expect(Either.isRight(result)).toBe(true);
+      if (Either.isRight(result)) {
+        expect(result.right).toEqual(status);
+        expect(encodePhaseStatus(result.right)).toEqual(status);
+      }
+    });
+  });
+
   describe("pendingToSettingUp", () => {
     it("transitions pending → setting_up_worktree", () => {
       assertRight(pendingToSettingUp("pending"), "setting_up_worktree");

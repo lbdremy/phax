@@ -28,9 +28,9 @@ plan is scoped to the genuine gap.
    §9 and acceptance criteria **1–3** are already satisfied. `file-reconciliation.json`
    already holds the structured `ReconciliationResult`.
 2. **`review-handoff.md` already exists, but as a different document.** Today it
-   is a *resume / entry* doc (worktree path, `claude --resume`, conductor
+   is a _resume / entry_ doc (worktree path, `claude --resume`, conductor
    handoff, phase status table), produced via the `FinalReviewOpened →
-   OpenRunReview` effect in `src/app/effectRunner.ts` using
+OpenRunReview` effect in `src/app/effectRunner.ts` using
    `buildReviewHandoffMarkdown` (`src/app/reviewHandoff.ts`).
 3. **`final-report.md` already exists** — a run-level metadata report (phase
    table with model/effort/commit/duration, a Security section, per-phase
@@ -74,7 +74,7 @@ plan is scoped to the genuine gap.
   (`src/schemas/`), following the `decodeSecurityPosture` pattern in
   `src/app/finalReport.ts` and `.skills/validation-boundaries.md`.
 - **`run-status.json` is written only through the dispatcher/effect-runner**
-  (single-writer guard). This feature writes new *artifacts* (the two global
+  (single-writer guard). This feature writes new _artifacts_ (the two global
   files + the rewritten review-handoff); it does not add fields to
   `run-status.json`.
 
@@ -106,8 +106,8 @@ later phases can read it safely at the filesystem boundary.
 - Keep the field **required** (no optional). There is no migration path for
   pre-existing on-disk runs; this is acceptable per the project rule.
 - Add `PhaseFileReconciliation` (the persisted interface = `ReconciliationResult`
-  + `phaseId`) to `src/domain/reconciliation/types.ts` if a shared TS type is
-  convenient; the schema is the source of truth for decoding.
+  - `phaseId`) to `src/domain/reconciliation/types.ts` if a shared TS type is
+    convenient; the schema is the source of truth for decoding.
 
 ### Planned files to create
 
@@ -192,22 +192,18 @@ with the spec's statuses and a review-attention level, plus a markdown renderer.
     `planned: boolean`, `unplanned: boolean`, `missing: boolean`,
     `extraTouch: boolean`, `attention: "ok" | "review"`.
   - `GlobalFileStatus = "matched" | "missing" | "unplanned" | "extra-touch" |
-    "partially-matched" | "deleted" | "renamed" | "unknown"`.
+"partially-matched" | "deleted" | "renamed" | "unknown"`.
   - `GlobalFileReconciliation`: `files: GlobalFileEntry[]` (sorted by path),
     plus convenience slices `unplanned`, `missing`, `attentionPoints`
     (entries with `attention === "review"`).
 - `aggregateGlobalReconciliation(perPhase: readonly PhaseFileReconciliation[]):
-  GlobalFileReconciliation`:
-  - Derive, per phase, each file's facts from the persisted fields:
-    - planned (this phase) = `createdAsPlanned ∪ missingPlannedCreate ∪
-      editedAsPlanned ∪ missingPlannedEdit`.
-    - touched (this phase) = `createdAsPlanned ∪ editedAsPlanned ∪
-      unplannedCreated ∪ unplannedEdited ∪ optionalTouched ∪ deletions ∪
-      rename targets`.
-    - expected action: `create` if in a planned-create list, `edit` if in a
-      planned-edit list.
-    - actual action: from which set it appears in (added/modified/deleted/
-      renamed). Track rename `from → to`.
+GlobalFileReconciliation`:
+  - Derive, per phase, each file's facts from the persisted fields: - planned (this phase) = `createdAsPlanned ∪ missingPlannedCreate ∪
+editedAsPlanned ∪ missingPlannedEdit`. - touched (this phase) = `createdAsPlanned ∪ editedAsPlanned ∪
+unplannedCreated ∪ unplannedEdited ∪ optionalTouched ∪ deletions ∪
+rename targets`. - expected action: `create` if in a planned-create list, `edit` if in a
+    planned-edit list. - actual action: from which set it appears in (added/modified/deleted/
+    renamed). Track rename `from → to`.
   - Dedup by `path` across phases into one `GlobalFileEntry`, unioning
     `plannedInPhases`, `touchedInPhases`, `expectedActions`, `actualActions`.
   - Status precedence (document it in a comment and a test):
@@ -226,7 +222,7 @@ with the spec's statuses and a review-attention level, plus a markdown renderer.
     status.
 - `renderGlobalReconciliationMarkdown(global: GlobalFileReconciliation): string`
   producing the spec §5 table (`| File | Planned in | Touched in | Status |
-  Notes |`) with deterministic ordering; render `—` for empty phase lists.
+Notes |`) with deterministic ordering; render `—` for empty phase lists.
 
 ### Planned files to create
 
@@ -329,7 +325,7 @@ diagnostics and an `allowPartial` mode.
     output / model as needed).
 - Write `global-file-reconciliation.json` (the aggregated model, deterministic
   key order) and `global-file-reconciliation.md` (`renderGlobalReconciliationMarkdown`
-  + optional partial banner) via `fs.writeAtomic`.
+  - optional partial banner) via `fs.writeAtomic`.
 - Emit an `artifact.generated` telemetry event for each written file, matching
   the existing pattern in `reconcilePhaseFiles.ts`
   (`makeArtifactGeneratedTelemetryEvent`).
@@ -524,7 +520,7 @@ registry flips to `review_open`; if generation fails, the run does not enter
      writes `global-file-reconciliation.{md,json}`, `review-handoff.md`, and
      `final-report.md`),
   2. **then** calls `setRunStatus(stateRoot, shortName, { state: "review_open" })`.
-  The status flip must be the last side effect on the success path.
+     The status flip must be the last side effect on the success path.
 - Remove the now-redundant `WriteFinalReport` effect (final-report is written by
   `generateReviewHandoff`): drop it from the emitted effects in
   `src/domain/reducer.ts` (`FinalReviewOpened` case), from the union in
@@ -619,7 +615,7 @@ regeneration of the global reconciliation and review handoff for a run in
 ### Detailed instructions
 
 - Create `src/cli/commands/reviewHandoff.ts` exporting `runReviewHandoff(shortName,
-  opts, output)` following the existing command-handler style (see
+opts, output)` following the existing command-handler style (see
   `src/cli/commands/archive.ts`). It must:
   - resolve the run via the registry (`resolveRunByShortName`);
   - require the run state to be `review_open` — otherwise print a clear
