@@ -89,7 +89,7 @@ function refusalMessageForRunState(shortName: string, runState: RunStatus["state
     case "created":
       return `Run "${shortName}" has not been started yet and cannot be resumed.`;
     case "failed":
-      return `Run "${shortName}" failed and cannot be resumed. Create a new run to try again.`;
+      return `Run "${shortName}" failed and cannot be resumed directly. Try \`phax reset-phase ${shortName}\` to recover the failed phase before creating a new run.`;
     default:
       return `Run "${shortName}" cannot be resumed from state "${runState}".`;
   }

@@ -109,6 +109,35 @@ describe("inspectResume", () => {
     expect(result.left.reason).toBe("failed");
     expect(result.left.message).toContain("test-run");
     expect(result.left.message).toContain("failed");
+    expect(result.left.message).toContain("phax reset-phase test-run");
+    expect(result.left.message).toContain("before creating a new run");
+  });
+
+  it("allows interrupted gates_exhausted runs and selects the exhausted phase", () => {
+    const worktreePath = join(stateRoot, "worktrees", "test-run", "phase-01");
+    mkdirSync(worktreePath, { recursive: true });
+    writeFileSync(
+      join(runPath, "run-status.json"),
+      JSON.stringify(
+        makeRunStatus("interrupted", {
+          stoppedReason: "gates_exhausted",
+          lastError: "Gate failed: pnpm test",
+        }),
+      ),
+    );
+    writeFileSync(
+      join(runPath, "phase-01", "status.json"),
+      JSON.stringify({ ...makePhaseStatus("gates_exhausted"), worktreePath }),
+    );
+
+    const result = inspectResume(shortName, stateRoot);
+
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    expect(result.right.fromState).toBe("interrupted");
+    expect(result.right.nextPhaseId).toBe("phase-01");
+    expect(result.right.nextPhaseIndex).toBe(0);
+    expect(result.right.worktreePath).toBe(worktreePath);
   });
 
   it("refuses runs in review_open state with reason=review_open", () => {
