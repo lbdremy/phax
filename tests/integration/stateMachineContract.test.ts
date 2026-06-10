@@ -5,8 +5,16 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
-import { decodeShortName } from "../../src/domain/branded.js";
+import {
+  decodeClaudeSessionId,
+  decodePhaseId,
+  decodeRunId,
+  decodeShortName,
+  decodeWorktreePath,
+} from "../../src/domain/branded.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
+import { interpret } from "../../src/domain/reducer.js";
+import type { PhaxState } from "../../src/domain/state.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
@@ -27,6 +35,10 @@ const HANDOFF_CONTENT = [
 ].join("\n");
 
 const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const domainRunId = Either.getOrThrow(decodeRunId("run-1"));
+const domainPhaseId = Either.getOrThrow(decodePhaseId("phase-01"));
+const domainSessionId = Either.getOrThrow(decodeClaudeSessionId("session-1"));
+const domainWorktreePath = Either.getOrThrow(decodeWorktreePath("/tmp/wt"));
 
 const rawPlan = {
   version: 1,
@@ -54,6 +66,49 @@ describe("State Machine Contract", () => {
     const phase01Worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
     await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
     await writeFile(join(phase01Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+  });
+
+  it("contracts gate exhaustion pause and resume lift", () => {
+    const state: PhaxState = {
+      run: "running",
+      phase: { state: "gates_failed", attempt: 3 },
+    };
+    const exhausted = interpret(state, {
+      eventId: "evt-exhausted",
+      occurredAt: "2026-05-20T12:00:00Z",
+      run: domainRunId,
+      phase: domainPhaseId,
+      type: "FixAttemptsExhausted",
+      attempt: 3,
+      phaseId: domainPhaseId,
+      worktreePath: domainWorktreePath,
+      sessionId: domainSessionId,
+      command: "pnpm test",
+    });
+
+    expect(exhausted.kind).toBe("Handled");
+    if (exhausted.kind !== "Handled") return;
+    expect(exhausted.nextState).toEqual({
+      run: "interrupted",
+      phase: { state: "gates_exhausted", attempt: 3 },
+    });
+    expect(exhausted.effects.map((effect) => effect.type)).toEqual([
+      "PersistState",
+      "WriteResumeInstructions",
+      "EmitTrace",
+      "EmitTrace",
+    ]);
+
+    const resumed = interpret(exhausted.nextState, {
+      eventId: "evt-resume",
+      occurredAt: "2026-05-20T12:01:00Z",
+      run: domainRunId,
+      type: "RunResumeRequested",
+    });
+
+    expect(resumed.kind).toBe("Handled");
+    if (resumed.kind !== "Handled") return;
+    expect(resumed.nextState).toEqual({ run: "running", phase: { state: "running" } });
   });
 
   afterEach(async () => {

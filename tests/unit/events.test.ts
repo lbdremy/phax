@@ -65,7 +65,16 @@ const samples = {
   },
   FixStarted: { ...base, type: "FixStarted", phase: phaseId, attempt: 1 },
   FixCompleted: { ...base, type: "FixCompleted", phase: phaseId, sessionId },
-  FixAttemptsExhausted: { ...base, type: "FixAttemptsExhausted", phase: phaseId },
+  FixAttemptsExhausted: {
+    ...base,
+    type: "FixAttemptsExhausted",
+    phase: phaseId,
+    attempt: 3,
+    phaseId,
+    worktreePath,
+    sessionId,
+    command: "pnpm test",
+  },
   HandoffRequested: { ...base, type: "HandoffRequested", phase: phaseId },
   HandoffValidated: { ...base, type: "HandoffValidated", phase: phaseId },
   HandoffMissing: {
@@ -103,7 +112,6 @@ function visit(event: PhaxEvent): string {
     case "FinalReviewOpened":
     case "RunCompleted":
     case "AgentInvocationStarted":
-    case "FixAttemptsExhausted":
     case "HandoffRequested":
     case "HandoffValidated":
     case "CleanupStarted":
@@ -124,6 +132,8 @@ function visit(event: PhaxEvent): string {
       return `${event.type}:${event.attempt}`;
     case "GateFailed":
       return `${event.type}:${event.command}:${event.exitCode}:${event.attempt}`;
+    case "FixAttemptsExhausted":
+      return `${event.type}:${event.command}:${event.attempt}:${event.sessionId}`;
     case "HandoffMissing":
       return `${event.type}:${event.missingSections.join(",")}`;
     case "CommitCreated":

@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { ClaudeSessionId, PhaseId, RunId } from "../domain/branded.js";
+import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "../domain/branded.js";
 import {
   AgentInvocationError,
   type AgentSessionIdMissingError,
@@ -221,6 +221,11 @@ export function runGatesWithFixLoop(
         const exhaustedEvent: PhaxEvent = {
           ...eventBase(),
           type: "FixAttemptsExhausted",
+          attempt,
+          phaseId: phaseId as PhaseId,
+          worktreePath: cwd as WorktreePath,
+          sessionId: currentSessionId,
+          command: error.command,
         };
         yield* dispatch(exhaustedEvent, dispatchCtx);
         return yield* Effect.fail(error);

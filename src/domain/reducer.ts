@@ -55,6 +55,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "rate_limited":
           return handled({ run: "running", phase: { state: "running" } });
         case "interrupted":
+          if (state.phase.state === "gates_exhausted") {
+            return handled({ run: "running", phase: { state: "running" } });
+          }
           return handled({ run: "running", phase: state.phase });
         case "running":
           return ignored("run is already running");
@@ -400,10 +403,47 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "running": {
           const ps = state.phase.state;
           if (ps === "gates_failed" || ps === "fixing") {
-            return handled({
-              run: "running",
-              phase: { state: "failed", cause: "fix attempts exhausted" },
-            });
+            return handled(
+              {
+                run: "interrupted",
+                phase: { state: "gates_exhausted", attempt: event.attempt },
+              },
+              [
+                {
+                  type: "PersistState",
+                  patch: {
+                    run: {
+                      stoppedReason: "gates_exhausted",
+                      lastError: `Gate failed: ${event.command}`,
+                    },
+                  },
+                },
+                {
+                  type: "WriteResumeInstructions",
+                  ctx: {
+                    reason: "Gate checks failed",
+                    kind: "gates_exhausted",
+                    phaseId: event.phaseId,
+                    worktreePath: event.worktreePath,
+                    sessionId: event.sessionId,
+                  },
+                },
+                {
+                  type: "EmitTrace",
+                  name: "gate.attempts_exhausted",
+                  status: "failed",
+                  boundary: "gate",
+                  details: { phaseId: event.phaseId, attempt: event.attempt },
+                },
+                {
+                  type: "EmitTrace",
+                  name: "resume.available",
+                  status: "info",
+                  boundary: "resume-instructions.md",
+                  details: { resumeCommand: `phax resume ${event.run}` },
+                },
+              ],
+            );
           }
           return unexpected(`fix attempts exhausted while phase is ${ps}`);
         }

@@ -90,7 +90,16 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
   },
   FixStarted: { ...base, type: "FixStarted", phase: phaseId, attempt: 1 },
   FixCompleted: { ...base, type: "FixCompleted", phase: phaseId, sessionId },
-  FixAttemptsExhausted: { ...base, type: "FixAttemptsExhausted", phase: phaseId },
+  FixAttemptsExhausted: {
+    ...base,
+    type: "FixAttemptsExhausted",
+    phase: phaseId,
+    attempt: 3,
+    phaseId,
+    worktreePath,
+    sessionId,
+    command: "pnpm test",
+  },
   HandoffRequested: { ...base, type: "HandoffRequested", phase: phaseId },
   HandoffValidated: { ...base, type: "HandoffValidated", phase: phaseId },
   HandoffMissing: {
@@ -177,7 +186,7 @@ describe("interpret — run lifecycle", () => {
     expect(d.nextState).toEqual({ run: "running", phase: { state: "running" } });
   });
 
-  it("RunResumeRequested on interrupted preserves the phase substate", () => {
+  it("RunResumeRequested on interrupted preserves non-exhausted phase substates", () => {
     const state: PhaxState = {
       run: "interrupted",
       phase: { state: "gates_failed", attempt: 2 },
@@ -188,6 +197,20 @@ describe("interpret — run lifecycle", () => {
     expect(d.nextState).toEqual({
       run: "running",
       phase: { state: "gates_failed", attempt: 2 },
+    });
+  });
+
+  it("RunResumeRequested on interrupted gates_exhausted lifts the phase to running", () => {
+    const state: PhaxState = {
+      run: "interrupted",
+      phase: { state: "gates_exhausted", attempt: 3 },
+    };
+    const d = interpret(state, sampleEvents.RunResumeRequested);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({
+      run: "running",
+      phase: { state: "running" },
     });
   });
 
@@ -293,7 +316,7 @@ describe("interpret — phase lifecycle within running", () => {
     expect(d.nextState).toEqual({ run: "running", phase: { state: "running" } });
   });
 
-  it("FixAttemptsExhausted from gates_failed → phase.failed", () => {
+  it("FixAttemptsExhausted from gates_failed → interrupted/gates_exhausted with resume effects", () => {
     const state: PhaxState = {
       run: "running",
       phase: { state: "gates_failed", attempt: 3 },
@@ -302,8 +325,45 @@ describe("interpret — phase lifecycle within running", () => {
     expect(d.kind).toBe("Handled");
     if (d.kind !== "Handled") return;
     expect(d.nextState).toEqual({
+      run: "interrupted",
+      phase: { state: "gates_exhausted", attempt: 3 },
+    });
+    expect(d.effects.map((effect) => effect.type)).toEqual([
+      "PersistState",
+      "WriteResumeInstructions",
+      "EmitTrace",
+      "EmitTrace",
+    ]);
+    const persistEffect = d.effects.find((e) => e.type === "PersistState");
+    expect(persistEffect).toBeDefined();
+    if (persistEffect?.type === "PersistState") {
+      expect(persistEffect.patch.run?.stoppedReason).toBe("gates_exhausted");
+      expect(persistEffect.patch.run?.lastError).toBe("Gate failed: pnpm test");
+    }
+    const resumeEffect = d.effects.find((e) => e.type === "WriteResumeInstructions");
+    expect(resumeEffect).toBeDefined();
+    if (resumeEffect?.type === "WriteResumeInstructions") {
+      expect(resumeEffect.ctx).toMatchObject({
+        reason: "Gate checks failed",
+        kind: "gates_exhausted",
+        phaseId,
+        worktreePath,
+        sessionId,
+      });
+    }
+  });
+
+  it("FixAttemptsExhausted from fixing → interrupted/gates_exhausted", () => {
+    const state: PhaxState = {
       run: "running",
-      phase: { state: "failed", cause: "fix attempts exhausted" },
+      phase: { state: "fixing", attempt: 3 },
+    };
+    const d = interpret(state, sampleEvents.FixAttemptsExhausted);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({
+      run: "interrupted",
+      phase: { state: "gates_exhausted", attempt: 3 },
     });
   });
 

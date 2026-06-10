@@ -156,7 +156,7 @@ describe("runGatesWithFixLoop", () => {
     }
 
     // After max attempts the loop dispatches FixAttemptsExhausted at least once
-    // and lands the phase in `failed`.
+    // and parks the run for a resumable gate-exhaustion pause.
     const transitionEvents = fakeTelemetry.impl
       .events()
       .filter((e) => e.type === "state.transition")
@@ -166,7 +166,16 @@ describe("runGatesWithFixLoop", () => {
     const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as {
       state: string;
     };
-    expect(persisted.state).toBe("failed");
+    expect(persisted.state).toBe("gates_exhausted");
+
+    const persistedRun = JSON.parse(fakeFs.impl.getFile(`${runPath}/run-status.json`)!) as {
+      state: string;
+      stoppedReason?: string;
+      lastError?: string;
+    };
+    expect(persistedRun.state).toBe("interrupted");
+    expect(persistedRun.stoppedReason).toBe("gates_exhausted");
+    expect(persistedRun.lastError).toBe("Gate failed: pnpm test");
   });
 
   it("includes gate output in the fix prompt sent to resumeAgentSession", async () => {

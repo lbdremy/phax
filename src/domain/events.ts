@@ -97,6 +97,11 @@ export interface FixCompleted extends PhaxEventBase {
 
 export interface FixAttemptsExhausted extends PhaxEventBase {
   readonly type: "FixAttemptsExhausted";
+  readonly attempt: number;
+  readonly phaseId: PhaseId;
+  readonly worktreePath: WorktreePath;
+  readonly sessionId: ClaudeSessionId;
+  readonly command: string;
 }
 
 export interface HandoffRequested extends PhaxEventBase {
