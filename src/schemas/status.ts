@@ -18,6 +18,7 @@ const PhaseStateSchema = Schema.Union(
   Schema.Literal("setting_up_worktree"),
   Schema.Literal("running"),
   Schema.Literal("gates_failed"),
+  Schema.Literal("gates_exhausted"),
   Schema.Literal("fixing"),
   Schema.Literal("failed"),
   Schema.Literal("passed"),

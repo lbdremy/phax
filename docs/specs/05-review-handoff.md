@@ -176,12 +176,12 @@ unknown
 Example table:
 
 ```md
-| File | Planned in | Touched in | Status | Notes |
-|---|---|---|---|---|
-| src/run.ts | phase-01 | phase-01, phase-03 | extra-touch | touched again later |
-| src/codex.ts | phase-02 | phase-02 | matched | expected |
-| README.md | phase-04 | — | missing | planned but not touched |
-| src/tmp.ts | — | phase-03 | unplanned | justified in phase handoff |
+| File         | Planned in | Touched in         | Status      | Notes                      |
+| ------------ | ---------- | ------------------ | ----------- | -------------------------- |
+| src/run.ts   | phase-01   | phase-01, phase-03 | extra-touch | touched again later        |
+| src/codex.ts | phase-02   | phase-02           | matched     | expected                   |
+| README.md    | phase-04   | —                  | missing     | planned but not touched    |
+| src/tmp.ts   | —          | phase-03           | unplanned   | justified in phase handoff |
 ```
 
 ---
