@@ -427,6 +427,7 @@ export function executePlan(
         effort: resolution.selected.thinking ?? phase.effort,
         cwd: worktreePath as string,
         security: securityPolicy,
+        gateCommands,
         outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
         phaseFolderPath,
       };

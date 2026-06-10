@@ -17,6 +17,12 @@ export interface AgentRunOptions {
   readonly effort: string;
   readonly cwd: string;
   readonly security: SecurityPolicy;
+  /**
+   * Gate commands for this phase (resolved gate profile). In secure mode the
+   * provider allowlists these as sandboxed Bash so the agent can run — and fix —
+   * the gates it is instructed to verify. Absent/empty means no Bash is granted.
+   */
+  readonly gateCommands?: readonly string[] | undefined;
   readonly outputJsonlPath?: string | undefined;
   readonly phaseFolderPath?: string | undefined;
 }

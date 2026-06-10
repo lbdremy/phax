@@ -88,10 +88,11 @@ PHAX applies the strongest available provider-native controls for each provider:
 
 **Claude Code** (`claude-code`):
 
-- Secure mode enables the sandbox with `--sandbox` flags
-- Filesystem restricted to configured paths
+- Secure mode runs headless with `--permission-mode acceptEdits` (edits auto-approved within the working dirs, denied outside)
+- Filesystem restricted to configured paths via the worktree cwd + `--add-dir`
 - Network allowlist enforced
-- MCP disabled or allowlisted
+- MCP disabled or allowlisted via `--strict-mcp-config`
+- Shell is denied by default; only the phase's gate commands are allowlisted (see [Shell command execution](#shell-command-execution))
 
 **Codex CLI** (`codex-cli`):
 
@@ -99,6 +100,7 @@ PHAX applies the strongest available provider-native controls for each provider:
 - Writable roots limited to worktree + state root + configured paths
 - Network access governed by allowlist
 - Non-escaping approval mode
+- Shell runs inside the OS sandbox — any command is permitted but confined (see [Shell command execution](#shell-command-execution))
 
 **Mistral Vibe** (`mistral-vibe`):
 
@@ -106,6 +108,32 @@ PHAX applies the strongest available provider-native controls for each provider:
 - Network controls are unsupported
 - When secure mode is requested, Vibe is skipped in strict routing unless it's the terminal fallback
 - Marked as "partially secured" with appropriate warnings
+- Shell tool calls are auto-approved, with no per-command allowlist (see [Shell command execution](#shell-command-execution))
+
+### Shell command execution
+
+The phase prompt and the gate fix-loop both instruct the agent to run the
+phase's **gate commands** (the resolved gate profile, e.g. `pnpm typecheck`,
+`pnpm test`) to verify — and fix — its own work. How that shell access is
+constrained differs by provider, because each provider exposes a different
+native control surface. The granularity differs, but in every secure-mode case
+the commands run **confined to the worktree**:
+
+| Provider       | Shell model in secure mode                                                                                                                                                                                      |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `claude-code`  | **Per-command allowlist.** Bash is denied by default; phax allowlists exactly the gate commands (`--allowedTools "Bash(<cmd>:*)"`). Every other shell command is denied.                                        |
+| `codex-cli`    | **OS-sandboxed execution.** Any command may run, but the `workspace-write` sandbox confines writes to the writable roots and the network profile gates egress. There is no per-command allowlist surface.       |
+| `mistral-vibe` | **Approval-policy only.** The `auto-approve` agent permits shell tool calls with no per-command allowlist; isolation rests on the partial filesystem jail (already reflected by the `partial-filesystem` mark). |
+
+Notes:
+
+- Claude's allowlist is **exact**: a `pnpm format:check` gate permits
+  `pnpm format:check`, not `pnpm format`. If a phase needs a sibling command
+  (such as a formatter's write variant), add it as its own gate entry.
+- Codex and Vibe permit broader command execution than Claude, but this is **not**
+  a filesystem-isolation downgrade — codex keeps a strong OS sandbox, and Vibe's
+  weaker isolation is already surfaced via its security mark. For that reason the
+  broader shell surface is documented here rather than emitted as a separate mark.
 
 ## Security Artifacts
 

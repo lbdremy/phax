@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildArgs } from "../../../src/infra/providers/claudeCode.js";
+import { buildArgs, gateCommandAllowRules } from "../../../src/infra/providers/claudeCode.js";
 import { SecurityEnforcementError } from "../../../src/domain/errors.js";
 import type { AgentRunOptions } from "../../../src/ports/backend.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
@@ -78,11 +78,26 @@ describe("buildArgs — secure mode", () => {
     expect(addedDirs).toEqual(["/home/me/.phax"]);
   });
 
-  it("emits --disallowed-tools Bash to forbid unsandboxed shell execution", () => {
+  it("emits --disallowed-tools Bash when the phase has no gate commands to allowlist", () => {
     const args = buildArgs(baseOptions(securePolicy));
     const idx = args.indexOf("--disallowed-tools");
     expect(idx).toBeGreaterThanOrEqual(0);
     expect(args[idx + 1]).toBe("Bash");
+    expect(args).not.toContain("--allowedTools");
+  });
+
+  it("allowlists gate commands as sandboxed Bash instead of a blanket deny", () => {
+    const args = buildArgs({
+      ...baseOptions(securePolicy),
+      gateCommands: ["pnpm format:check", "pnpm typecheck", "pnpm test"],
+    });
+    expect(args).not.toContain("--disallowed-tools");
+    const idx = args.indexOf("--allowedTools");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    // Exact commands only — `pnpm format:check` is NOT widened to `pnpm format`.
+    expect(args[idx + 1]).toBe(
+      "Bash(pnpm format:check:*),Bash(pnpm typecheck:*),Bash(pnpm test:*)",
+    );
   });
 
   it("emits --strict-mcp-config when mcp.mode is disabled and no --mcp-config", () => {
@@ -119,6 +134,34 @@ describe("buildArgs — secure mode", () => {
     const args = buildArgs(baseOptions({ ...securePolicy, mode: "isolated" }));
     expect(args).not.toContain("bypassPermissions");
     expect(args).toContain("--strict-mcp-config");
+  });
+});
+
+describe("gateCommandAllowRules", () => {
+  it("allows each gate command by its exact token prefix (no family widening)", () => {
+    expect(gateCommandAllowRules(["pnpm format:check"])).toEqual(["Bash(pnpm format:check:*)"]);
+    expect(gateCommandAllowRules(["pnpm test:unit"])).toEqual(["Bash(pnpm test:unit:*)"]);
+    expect(gateCommandAllowRules(["tsc --noEmit"])).toEqual(["Bash(tsc --noEmit:*)"]);
+  });
+
+  it("normalizes internal whitespace", () => {
+    expect(gateCommandAllowRules(["  pnpm   format:check  "])).toEqual([
+      "Bash(pnpm format:check:*)",
+    ]);
+  });
+
+  it("de-duplicates identical commands but keeps distinct siblings", () => {
+    expect(gateCommandAllowRules(["pnpm format:check", "pnpm format:check"])).toEqual([
+      "Bash(pnpm format:check:*)",
+    ]);
+    expect(gateCommandAllowRules(["pnpm format:check", "pnpm format"])).toEqual([
+      "Bash(pnpm format:check:*)",
+      "Bash(pnpm format:*)",
+    ]);
+  });
+
+  it("returns an empty list for no commands", () => {
+    expect(gateCommandAllowRules([])).toEqual([]);
   });
 });
 
