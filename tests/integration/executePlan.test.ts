@@ -7,6 +7,7 @@ import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName } from "../../src/domain/branded.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
+import { AgentSessionIdMissingError, GateAttemptsExhaustedError } from "../../src/domain/errors.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
@@ -60,6 +61,115 @@ const rawPlan = {
     },
   ],
 } as const;
+
+const singlePhaseRawPlan = {
+  version: 1,
+  run: {
+    shortName: "my-run",
+    title: "My Run",
+    branch: "ai/my-run",
+  },
+  phases: [
+    {
+      id: "phase-01",
+      title: "First Phase",
+      model: "claude-sonnet-4-6",
+      effort: "low" as const,
+      planMarkdownAnchor: "#phase-01-first",
+      plannedFilesToCreate: [],
+      plannedFilesToEdit: [],
+      optionalFilesToEdit: [],
+      commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
+    },
+  ],
+} as const;
+
+function makeConfig(stateRoot: string, maxFixAttempts = 1): ResolvedConfig {
+  return {
+    raw: {
+      version: 1,
+      project: { name: "test-project", type: "single-package" },
+      state: { root: stateRoot },
+      gateProfiles: { full: ["pnpm test"] },
+      commands: { setup: ["true"], cleanup: ["true"] },
+    },
+    stateRoot,
+    repoRoot: stateRoot,
+    editorCommand: "echo",
+    maxFixAttempts,
+    extractPlanModel: "claude-haiku-4-5-20251001",
+    extractPlanEffort: "low" as const,
+    fileReconciliationMode: "report_only" as const,
+
+    security: {
+      profile: "unsafe",
+      filesystem: { allowRead: [], allowWrite: [] },
+      network: { profile: "provider-only", allowDomains: [] },
+      mcp: { mode: "disabled", allow: [] },
+    },
+  };
+}
+
+async function seedGatesExhaustedPhase(opts: {
+  runPath: string;
+  worktreePath: string;
+  claudeSessionId?: string | undefined;
+  latestAttempt?: number | undefined;
+}) {
+  const now = "2026-06-10T00:00:00.000Z";
+  const phaseFolderPath = join(opts.runPath, "phase-01");
+  await mkdir(phaseFolderPath, { recursive: true });
+  await mkdir(join(opts.worktreePath, ".phax-context"), { recursive: true });
+
+  const rawRunStatus = JSON.parse(
+    await readFile(join(opts.runPath, "run-status.json"), "utf8"),
+  ) as Record<string, unknown>;
+  await writeFile(
+    join(opts.runPath, "run-status.json"),
+    JSON.stringify(
+      {
+        ...rawRunStatus,
+        state: "interrupted",
+        currentPhaseIndex: 0,
+        gateProfileId: "full",
+        stoppedReason: "gates_exhausted",
+        lastError: "Gate failed: pnpm test",
+        updatedAt: now,
+      },
+      null,
+      2,
+    ),
+  );
+
+  await writeFile(
+    join(phaseFolderPath, "status.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        phaseId: "phase-01",
+        phaseIndex: 0,
+        state: "gates_exhausted",
+        model: "claude-sonnet-4-6",
+        effort: "low",
+        branchName: "ai/my-run--phase-01",
+        worktreePath: opts.worktreePath,
+        ...(opts.claudeSessionId !== undefined ? { claudeSessionId: opts.claudeSessionId } : {}),
+        createdAt: now,
+        updatedAt: now,
+      },
+      null,
+      2,
+    ),
+  );
+
+  const latestAttempt = opts.latestAttempt ?? 3;
+  await writeFile(
+    join(phaseFolderPath, `checks-attempt-${String(latestAttempt).padStart(2, "0")}.log`),
+    "previous failed gate log",
+  );
+
+  return { phaseFolderPath };
+}
 
 describe("executePlan — happy-path 2-phase run", () => {
   let stateRoot: string;
@@ -190,15 +300,17 @@ describe("executePlan — happy-path 2-phase run", () => {
 
     const phase01Status = JSON.parse(
       await readFile(join(runPath, "phase-01", "status.json"), "utf8"),
-    ) as { state: string; worktreePath?: string; commitHash?: string };
+    ) as { state: string; worktreePath?: string; commitHash?: string; claudeSessionId?: string };
     expect(phase01Status.state).toBe("cleaned_up");
     expect(phase01Status.worktreePath).toBe(phase01WorktreePath);
+    expect(phase01Status.claudeSessionId).toBe("sess-01");
     expect(phase01Status.commitHash).toBe("deadbeef12345678");
 
     const phase02Status = JSON.parse(
       await readFile(join(runPath, "phase-02", "status.json"), "utf8"),
-    ) as { state: string };
+    ) as { state: string; claudeSessionId?: string };
     expect(phase02Status.state).toBe("review_open");
+    expect(phase02Status.claudeSessionId).toBe("sess-02");
 
     const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
       state: string;
@@ -323,5 +435,226 @@ describe("executePlan — happy-path 2-phase run", () => {
       expect(result.right.finalPhaseId).toBe("phase-02");
       expect(result.right.finalWorktreePath).toBe(phase02WorktreePath);
     }
+  });
+});
+
+describe("executePlan — resume from gates_exhausted", () => {
+  let stateRoot: string;
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-test-"));
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+  });
+
+  it("re-runs gates first and commits without invoking a fresh implementation agent", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
+    const config = makeConfig(stateRoot);
+    const phaseWorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.enqueueWorktreeIsClean(phaseWorktreePath, false);
+
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("pnpm test", { exitCode: 0, stdout: "ok\n", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "feedface\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.setAutoHandoffContent(HANDOFF_CONTENT);
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-existing-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+    const { phaseFolderPath } = await seedGatesExhaustedPhase({
+      runPath,
+      worktreePath: phaseWorktreePath,
+      claudeSessionId: "sess-existing",
+      latestAttempt: 3,
+    });
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    expect(fakeBackend.impl.runCalls).toHaveLength(0);
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
+    expect(fakeBackend.impl.resumeCalls[0]?.sessionId).toBe("sess-existing");
+    expect(fakeGit.impl.calls.some((call) => call.method === "addWorktree")).toBe(false);
+    expect(await readFile(join(phaseFolderPath, "checks-attempt-03.log"), "utf8")).toBe(
+      "previous failed gate log",
+    );
+    expect(await readFile(join(phaseFolderPath, "checks-attempt-04.log"), "utf8")).toContain(
+      "exit 0",
+    );
+    const commitCall = fakeGit.impl.calls.find((call) => call.method === "commit");
+    expect(commitCall?.method === "commit" ? commitCall.body : "").toContain(
+      "checks-attempt-04.log",
+    );
+
+    const phaseStatus = JSON.parse(
+      await readFile(join(phaseFolderPath, "status.json"), "utf8"),
+    ) as { state: string; commitHash?: string };
+    expect(phaseStatus.state).toBe("review_open");
+    expect(phaseStatus.commitHash).toBe("feedface");
+  });
+
+  it("keeps the run interrupted and resumable when resumed gates re-exhaust", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
+    const config = makeConfig(stateRoot, 1);
+    const phaseWorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const fakeGit = makeFakeGit();
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("pnpm test", {
+      exitCode: 1,
+      stdout: "",
+      stderr: "still failing\n",
+    });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-after-fix" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+    const { phaseFolderPath } = await seedGatesExhaustedPhase({
+      runPath,
+      worktreePath: phaseWorktreePath,
+      claudeSessionId: "sess-existing",
+      latestAttempt: 3,
+    });
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      expect(result.left.attempt).toBe(5);
+    }
+    expect(fakeBackend.impl.runCalls).toHaveLength(0);
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
+
+    const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
+      state: string;
+      stoppedReason?: string;
+    };
+    expect(runStatus.state).toBe("interrupted");
+    expect(runStatus.stoppedReason).toBe("gates_exhausted");
+
+    const phaseStatus = JSON.parse(
+      await readFile(join(phaseFolderPath, "status.json"), "utf8"),
+    ) as { state: string };
+    expect(phaseStatus.state).toBe("gates_exhausted");
+  });
+
+  it("fails loudly toward reset-phase when the persisted session id is missing", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
+    const config = makeConfig(stateRoot);
+    const phaseWorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const fakeGit = makeFakeGit();
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("pnpm test", { exitCode: 0, stdout: "ok\n", stderr: "" });
+    const fakeBackend = makeFakeBackend();
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+    await seedGatesExhaustedPhase({
+      runPath,
+      worktreePath: phaseWorktreePath,
+      latestAttempt: 3,
+    });
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(AgentSessionIdMissingError);
+      expect(result.left.message).toContain("phax reset-phase my-run");
+    }
+    expect(fakeBackend.impl.runCalls).toHaveLength(0);
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
   });
 });
