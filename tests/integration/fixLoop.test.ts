@@ -1,7 +1,7 @@
 import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { runGatesWithFixLoop } from "../../src/app/fixLoop.js";
-import { GateFailedError } from "../../src/domain/errors.js";
+import { GateAttemptsExhaustedError } from "../../src/domain/errors.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
@@ -40,6 +40,7 @@ const runStatusJson = JSON.stringify({
 const baseOpts = {
   commands: ["pnpm test"],
   cwd,
+  worktreePath: cwd,
   phaseFolderPath,
   sessionId,
   agentOptions: {
@@ -59,6 +60,14 @@ function makeResumeResult(newSessionId = "sess-fixed") {
   return {
     sessionId: newSessionId as ClaudeSessionId,
     outputPath: `${phaseFolderPath}/fix-attempt-01.jsonl`,
+    finalText: "Fixed.",
+  };
+}
+
+function makeResumeResultForAttempt(attempt: number, newSessionId = `sess-fixed-${attempt}`) {
+  return {
+    sessionId: newSessionId as ClaudeSessionId,
+    outputPath: `${phaseFolderPath}/fix-attempt-${String(attempt).padStart(2, "0")}.jsonl`,
     finalText: "Fixed.",
   };
 }
@@ -139,7 +148,7 @@ describe("runGatesWithFixLoop", () => {
     expect(gateReport!.stderrExcerpt).toBe("test failure");
   });
 
-  it("fails with GateFailedError and dispatches FixAttemptsExhausted after all attempts fail", async () => {
+  it("fails with GateAttemptsExhaustedError and dispatches FixAttemptsExhausted after all attempts fail", async () => {
     const { layer, fakeFs, fakeShell, fakeBackend, fakeTelemetry } = makeLayers();
 
     seedStatusFiles(fakeFs);
@@ -152,7 +161,10 @@ describe("runGatesWithFixLoop", () => {
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(GateFailedError);
+      expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      expect(result.left.attempt).toBe(2);
+      expect(result.left.command).toBe("pnpm test");
+      expect(result.left.logPath).toContain("checks-attempt-02");
     }
 
     // After max attempts the loop dispatches FixAttemptsExhausted at least once
@@ -176,6 +188,61 @@ describe("runGatesWithFixLoop", () => {
     expect(persistedRun.state).toBe("interrupted");
     expect(persistedRun.stoppedReason).toBe("gates_exhausted");
     expect(persistedRun.lastError).toBe("Gate failed: pnpm test");
+  });
+
+  it("starts from a supplied attempt and passes without invoking the fix agent", async () => {
+    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+    const oldAttemptLog = "previous attempt log";
+
+    seedStatusFiles(fakeFs);
+    fakeFs.impl.setFile(`${phaseFolderPath}/checks-attempt-01.log`, oldAttemptLog);
+    fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
+
+    const outcome = await Effect.runPromise(
+      runGatesWithFixLoop({ ...baseOpts, startAttempt: 3 }).pipe(Effect.provide(layer)),
+    );
+
+    expect(outcome.attemptLogPath).toContain("checks-attempt-03");
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
+    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-01.log`)).toBe(oldAttemptLog);
+    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-03.log`)).toContain("exit 0");
+  });
+
+  it("uses a fresh fix budget when startAttempt is greater than one", async () => {
+    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+
+    seedStatusFiles(fakeFs);
+    fakeBackend.impl.addResumeResponse(makeResumeResultForAttempt(3, "sess-after-fix-3"));
+    fakeBackend.impl.addResumeResponse(makeResumeResultForAttempt(4, "sess-after-fix-4"));
+    fakeShell.impl.setDefaultResponse({ exitCode: 1, stdout: "", stderr: "still fails" });
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        runGatesWithFixLoop({ ...baseOpts, startAttempt: 3, maxFixAttempts: 2 }).pipe(
+          Effect.provide(layer),
+        ),
+      ),
+    );
+
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(2);
+    expect(fakeBackend.impl.resumeCalls[0]?.options.outputJsonlPath).toContain(
+      "fix-attempt-03.jsonl",
+    );
+    expect(fakeBackend.impl.resumeCalls[1]?.options.outputJsonlPath).toContain(
+      "fix-attempt-04.jsonl",
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      expect(result.left.attempt).toBe(5);
+      expect(result.left.logPath).toContain("checks-attempt-05.log");
+    }
+
+    const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as {
+      state: string;
+    };
+    expect(persisted.state).toBe("gates_exhausted");
   });
 
   it("includes gate output in the fix prompt sent to resumeAgentSession", async () => {

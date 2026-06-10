@@ -7,6 +7,7 @@ import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
   AgentSessionIdMissingError,
+  GateAttemptsExhaustedError,
   GateFailedError,
   PhaseHadNoChangesError,
   RateLimitError,
@@ -98,6 +99,7 @@ export type ExecutePlanError =
   | SetupCommandFailedError
   | AgentInvocationError
   | AgentSessionIdMissingError
+  | GateAttemptsExhaustedError
   | GateFailedError
   | HandoffValidationError
   | ArchiveBlockedByDirtyWorktreeError
@@ -484,6 +486,7 @@ export function executePlan(
       yield* runGatesWithFixLoop({
         commands: gateCommands,
         cwd: worktreePath as string,
+        worktreePath: worktreePath as string,
         phaseFolderPath,
         sessionId,
         agentOptions,
