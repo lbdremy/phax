@@ -17,6 +17,7 @@ export type PhaseState =
   | "setting_up_worktree"
   | "running"
   | "gates_failed"
+  | "gates_exhausted"
   | "fixing"
   | "failed"
   | "passed"
@@ -37,6 +38,7 @@ export type PhaseSubState =
   | { readonly state: "setting_up_worktree" }
   | { readonly state: "running" }
   | { readonly state: "gates_failed"; readonly attempt: number }
+  | { readonly state: "gates_exhausted"; readonly attempt: number }
   | { readonly state: "fixing"; readonly attempt: number }
   | { readonly state: "passed" }
   | { readonly state: "committed"; readonly hash: string }

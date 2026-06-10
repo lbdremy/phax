@@ -8,6 +8,7 @@ import {
   completeRun,
   failRun,
   interruptRun,
+  isPhaseTerminal,
   openRunReview,
   pendingToSettingUp,
   rateLimitPhase,
@@ -19,7 +20,9 @@ import {
   skipPhase,
   startRun,
   stopRun,
+  TERMINAL_PHASE_STATES,
 } from "../../src/domain/state.js";
+import { decodePhaseStatus } from "../../src/schemas/status.js";
 
 function assertRight<T>(result: Either.Either<T, unknown>, expected: T): void {
   expect(Either.isRight(result)).toBe(true);
@@ -241,5 +244,34 @@ describe("Phase state transitions", () => {
     it.each(["pending", "running", "fixing", "passed"])("rejects transition from %s", (state) => {
       assertLeft(rateLimitedToRunning(state as Parameters<typeof rateLimitedToRunning>[0]));
     });
+  });
+});
+
+describe("gates_exhausted phase state", () => {
+  it("is not in TERMINAL_PHASE_STATES", () => {
+    expect(TERMINAL_PHASE_STATES.has("gates_exhausted")).toBe(false);
+  });
+
+  it("isPhaseTerminal returns false for gates_exhausted", () => {
+    expect(isPhaseTerminal("gates_exhausted")).toBe(false);
+  });
+
+  it("decodePhaseStatus round-trips a status with state gates_exhausted", () => {
+    const raw = {
+      version: 1,
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      state: "gates_exhausted",
+      model: "claude-sonnet-4-6",
+      effort: "medium",
+      createdAt: "2026-06-10T00:00:00.000Z",
+      updatedAt: "2026-06-10T00:01:00.000Z",
+      branchName: "phax/plan-12--phase-01",
+    };
+    const result = decodePhaseStatus(raw);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.state).toBe("gates_exhausted");
+    }
   });
 });

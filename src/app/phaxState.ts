@@ -11,6 +11,8 @@ export function phaseSubStateFromStatus(status: PhaseStatus): PhaseSubState {
       return { state: "running" };
     case "gates_failed":
       return { state: "gates_failed", attempt: 0 };
+    case "gates_exhausted":
+      return { state: "gates_exhausted", attempt: 0 };
     case "fixing":
       return { state: "fixing", attempt: 0 };
     case "passed":
