@@ -13,9 +13,10 @@ import { dispatch } from "./dispatcher.js";
 /**
  * Open final review by dispatching `FinalReviewOpened` through the state
  * machine. The reducer transitions the run and final phase to `review_open`
- * and emits `OpenRunReview` + `WriteFinalReport` effect commands; the effect
- * runner writes `review-handoff.md`, updates the registry, and writes
- * `final-report.md`.
+ * and emits a single `OpenRunReview` effect; the effect runner runs
+ * `generateReviewHandoff` (which writes `review-handoff.md`, `final-report.md`,
+ * and the global reconciliation artifacts) and only then flips the registry to
+ * `review_open`. A generation failure leaves the run in its prior state.
  */
 export function openFinalReview(
   info: RunReviewInfo,

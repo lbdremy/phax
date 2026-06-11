@@ -141,7 +141,6 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
           if (ps === "committed" || ps === "cleaned_up" || ps === "skipped") {
             return handled({ run: "review_open", phase: { state: "review_open" } }, [
               { type: "OpenRunReview", info: event.info },
-              { type: "WriteFinalReport", info: event.info },
             ]);
           }
           return unexpected(`final review opened while phase is ${ps}`);

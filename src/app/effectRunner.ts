@@ -195,9 +195,7 @@ export function run(
         yield* fs.rename(cmd.from, cmd.to);
       });
     case "OpenRunReview":
-      // allowPartial: true here because pre-committed phases may lack file-reconciliation.json.
-      // Phase-05 switches to allowPartial: false after ensuring all phases produce the artifact.
-      return generateReviewHandoff(cmd.info, { allowPartial: true }).pipe(
+      return generateReviewHandoff(cmd.info, { allowPartial: false }).pipe(
         Effect.catchTag("ReviewHandoffArtifactMissingError", (e) =>
           Effect.fail(new FsError({ message: e.message })),
         ),
@@ -205,9 +203,5 @@ export function run(
           setRunStatus(cmd.info.stateRoot, cmd.info.shortName, { state: "review_open" }),
         ),
       );
-    case "WriteFinalReport":
-      // No-op: final-report.md is written by generateReviewHandoff in OpenRunReview.
-      // Phase-05 removes this effect from the domain.
-      return Effect.void;
   }
 }

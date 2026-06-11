@@ -346,6 +346,27 @@ describe("executePlan — per-phase branch regression", () => {
       }),
     );
     await writeFile(
+      join(phase01FolderPath, "file-reconciliation.json"),
+      JSON.stringify({
+        phaseId: "phase-01",
+        createdAsPlanned: [],
+        editedAsPlanned: [],
+        missingPlannedCreate: [],
+        missingPlannedEdit: [],
+        unplannedCreated: [],
+        unplannedEdited: [],
+        optionalTouched: [],
+        deletions: [],
+        renames: [],
+        hasDeviations: false,
+      }),
+    );
+    await writeFile(
+      join(phase01FolderPath, "file-reconciliation.md"),
+      "## File Reconciliation\n\nNo deviations.",
+    );
+    await writeFile(join(phase01FolderPath, "phase-handoff.md"), HANDOFF_CONTENT);
+    await writeFile(
       join(runPath, "run-status.json"),
       JSON.stringify({
         version: 1,
