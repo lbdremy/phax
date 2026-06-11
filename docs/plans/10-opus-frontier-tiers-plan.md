@@ -52,18 +52,18 @@ artifact's terms are mapped onto PHAX's existing vocabulary
 
 ### Target mapping (strict, from the artifact `equivalence_table`)
 
-| Tier             | `claude-code`          | `codex-cli` (gpt-5.5) | relationship  | Artifact source (patch where split)         |
-| ---------------- | ---------------------- | --------------------- | ------------- | ------------------------------------------- |
-| `frontier-low`   | `claude-opus/low`      | `openai-gpt/high`     | `equivalent`  | opus/low → approximate                       |
-| `frontier-medium`| `claude-opus/medium`   | `openai-gpt/xhigh`    | `equivalent`  | opus/medium → approximate (high-xhigh→xhigh) |
-| `frontier-high`  | `claude-opus/high`     | `openai-gpt/xhigh`    | `equivalent`  | opus/high patch → approximate                |
-| `frontier-xhigh` | `claude-opus/xhigh`    | `openai-gpt/xhigh`    | `equivalent`  | opus/xhigh patch → approximate               |
-| `frontier-max`   | `claude-opus/max`      | `openai-gpt/xhigh`    | `downgrade`   | opus/max patch → downgrade                   |
-| `frontier-ultra` | `claude-opus/ultracode`| *(none)*              | —             | opus/ultracode patch → no_default_equivalent |
+| Tier              | `claude-code`           | `codex-cli` (gpt-5.5) | relationship | Artifact source (patch where split)          |
+| ----------------- | ----------------------- | --------------------- | ------------ | -------------------------------------------- |
+| `frontier-low`    | `claude-opus/low`       | `openai-gpt/high`     | `equivalent` | opus/low → approximate                       |
+| `frontier-medium` | `claude-opus/medium`    | `openai-gpt/xhigh`    | `equivalent` | opus/medium → approximate (high-xhigh→xhigh) |
+| `frontier-high`   | `claude-opus/high`      | `openai-gpt/xhigh`    | `equivalent` | opus/high patch → approximate                |
+| `frontier-xhigh`  | `claude-opus/xhigh`     | `openai-gpt/xhigh`    | `equivalent` | opus/xhigh patch → approximate               |
+| `frontier-max`    | `claude-opus/max`       | `openai-gpt/xhigh`    | `downgrade`  | opus/max patch → downgrade                   |
+| `frontier-ultra`  | `claude-opus/ultracode` | _(none)_              | —            | opus/ultracode patch → no_default_equivalent |
 
 **Mistral is excluded from the entire Opus band**, unchanged from today. Even
 though the artifact's `equivalence_table` lists `mistral-medium/max` as a
-*downgrade* reference at opus/low and opus/medium, the artifact's own
+_downgrade_ reference at opus/low and opus/medium, the artifact's own
 `phase_routing` policy sets `keep_mistral_out_of_opus_tier: true` for every
 phase — so no `mistral-vibe` entry is added to any frontier tier. This is both
 faithful to the artifact's routing policy and conservative.
@@ -124,22 +124,16 @@ files must change together to keep the repo compiling.
   eleven-literal set so a config decodes iff it matches the union.
 - `src/domain/routing/defaults.ts`:
   - In `DEFAULT_MODEL_ROUTING.tiers`, remove the `frontier`, `max`, `ultra`
-    blocks and add the six new tier blocks exactly per the target mapping:
-    - `frontier-low`: `claude-code { family: "claude-opus", effort: "low" }`;
-      `codex-cli { family: "openai-gpt", thinking: "high" }` (no `relationship`
-      → classified `equivalent` by cross-family default).
-    - `frontier-medium`: `claude-code { family: "claude-opus", effort: "medium" }`;
-      `codex-cli { family: "openai-gpt", thinking: "xhigh" }` (`equivalent`).
-    - `frontier-high`: `claude-code { family: "claude-opus", effort: "high" }`;
-      `codex-cli { family: "openai-gpt", thinking: "xhigh" }` (`equivalent`).
-    - `frontier-xhigh`: `claude-code { family: "claude-opus", effort: "xhigh" }`;
-      `codex-cli { family: "openai-gpt", thinking: "xhigh" }` (`equivalent`).
-    - `frontier-max`: `claude-code { family: "claude-opus", effort: "max" }`;
-      `codex-cli { family: "openai-gpt", thinking: "xhigh", relationship:
-      "downgrade" }`.
-    - `frontier-ultra`: `claude-code { family: "claude-opus", effort:
-      "ultracode" }` only (no codex peer — artifact patch =
-      no_default_equivalent; matches today's `ultra`).
+    blocks and add the six new tier blocks exactly per the target mapping: - `frontier-low`: `claude-code { family: "claude-opus", effort: "low" }`;
+    `codex-cli { family: "openai-gpt", thinking: "high" }` (no `relationship`
+    → classified `equivalent` by cross-family default). - `frontier-medium`: `claude-code { family: "claude-opus", effort: "medium" }`;
+    `codex-cli { family: "openai-gpt", thinking: "xhigh" }` (`equivalent`). - `frontier-high`: `claude-code { family: "claude-opus", effort: "high" }`;
+    `codex-cli { family: "openai-gpt", thinking: "xhigh" }` (`equivalent`). - `frontier-xhigh`: `claude-code { family: "claude-opus", effort: "xhigh" }`;
+    `codex-cli { family: "openai-gpt", thinking: "xhigh" }` (`equivalent`). - `frontier-max`: `claude-code { family: "claude-opus", effort: "max" }`;
+    `codex-cli { family: "openai-gpt", thinking: "xhigh", relationship:
+"downgrade" }`. - `frontier-ultra`: `claude-code { family: "claude-opus", effort:
+"ultracode" }` only (no codex peer — artifact patch =
+    no_default_equivalent; matches today's `ultra`).
   - In `normalization["claude-opus"]`, remap each effort to its own tier:
     `low → "frontier-low"`, `medium → "frontier-medium"`,
     `high → "frontier-high"`, `xhigh → "frontier-xhigh"`,
@@ -147,7 +141,7 @@ files must change together to keep the repo compiling.
   - In `normalization["openai-gpt"]`, change `xhigh: "frontier"` to
     `xhigh: "frontier-high"` (the frontier rung whose codex entry is gpt/xhigh).
   - Leave all other tiers, `families`, `providerPriority`, `defaultTier:
-    "standard"`, `allowDowngrade`, and `requestedModelNormalization` unchanged.
+"standard"`, `allowDowngrade`, and `requestedModelNormalization` unchanged.
     Do **not** add any `mistral-vibe` entry to any frontier tier.
 - Do not introduce new providers, families, variants, relationship literals, or
   phase-type fields.
@@ -183,10 +177,11 @@ set and the type union must stay identical or a valid default fails to decode.
 
 Domain + schema + integration → unit/integration tests. Test-first (stable
 contract / critical behaviour):
+
 - `decodeModelRouting(DEFAULT_MODEL_ROUTING)` succeeds (default-validity guard).
 - Each Opus effort resolves to its own tier with the right `claude-code`
   concrete model and effort: `opus/low → frontier-low` … `opus/ultracode →
-  frontier-ultra`.
+frontier-ultra`.
 - With `codex-cli` enabled and ahead of `claude-code` in priority, the
   codex relationship matches the strict mapping: `equivalent` at
   opus/low–xhigh (gpt `high` at low, gpt `xhigh` at medium–xhigh), `downgrade`

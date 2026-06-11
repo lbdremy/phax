@@ -29,7 +29,10 @@ import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName } from "../../src/domain/branded.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
-import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
+import {
+  DEFAULT_MODEL_ROUTING,
+  DEFAULT_PROVIDER_CONFIG,
+} from "../../src/domain/routing/defaults.js";
 import type { NonEmptyArray } from "../../src/domain/routing/priorityOverride.js";
 import type { ProviderId } from "../../src/domain/routing/types.js";
 import type { SecurityMode } from "../../src/domain/security/types.js";
@@ -107,14 +110,34 @@ interface ProviderTraceCase {
 
 const CASES: readonly ProviderTraceCase[] = [
   // claude-code, strong jail, runs natively under strict secure.
-  { name: "claude-code-secure", providerPriority: ["claude-code"], enable: "claude-code", securityMode: "secure" },
+  {
+    name: "claude-code-secure",
+    providerPriority: ["claude-code"],
+    enable: "claude-code",
+    securityMode: "secure",
+  },
   // codex-cli, strong jail; must resolve to codex-cli/openai-gpt (not fall back).
-  { name: "codex-cli-secure", providerPriority: ["codex-cli", "claude-code"], enable: "codex-cli", securityMode: "secure" },
+  {
+    name: "codex-cli-secure",
+    providerPriority: ["codex-cli", "claude-code"],
+    enable: "codex-cli",
+    securityMode: "secure",
+  },
   // mistral-vibe in unsafe mode runs natively (the mode the e2e uses for vibe).
-  { name: "mistral-vibe-unsafe", providerPriority: ["mistral-vibe", "claude-code"], enable: "mistral-vibe", securityMode: "unsafe" },
+  {
+    name: "mistral-vibe-unsafe",
+    providerPriority: ["mistral-vibe", "claude-code"],
+    enable: "mistral-vibe",
+    securityMode: "unsafe",
+  },
   // mistral-vibe under strict secure: partial jail can't satisfy the policy, so
   // routing skips it and downgrades to claude-code (recorded as skippedForSecurity).
-  { name: "mistral-vibe-secure-downgrade", providerPriority: ["mistral-vibe", "claude-code"], enable: "mistral-vibe", securityMode: "secure" },
+  {
+    name: "mistral-vibe-secure-downgrade",
+    providerPriority: ["mistral-vibe", "claude-code"],
+    enable: "mistral-vibe",
+    securityMode: "secure",
+  },
 ];
 
 describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () => {
@@ -230,7 +253,9 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
           `"${field}"`,
         );
       }
-      expect(serialized, "snapshot must not contain raw Unix timestamps").not.toMatch(/\b\d{13,}\b/);
+      expect(serialized, "snapshot must not contain raw Unix timestamps").not.toMatch(
+        /\b\d{13,}\b/,
+      );
 
       // Pin the per-provider projection. A future routing/security change that
       // alters provider selection or posture must update this baseline with

@@ -30,7 +30,7 @@ const f1: ModelFamily = "claude-sonnet" satisfies SchemaModelFamily;
 const t1: ThinkingLevel = "medium" satisfies SchemaThinkingLevel;
 const t1u: ThinkingLevel = "ultracode" satisfies SchemaThinkingLevel;
 const r1: RoutingTier = "standard" satisfies SchemaRoutingTier;
-const r1u: RoutingTier = "ultra" satisfies SchemaRoutingTier;
+const r1u: RoutingTier = "frontier-ultra" satisfies SchemaRoutingTier;
 const rel1: Relationship = "exact" satisfies SchemaRelationship;
 
 // domain → schema literal samples
@@ -39,7 +39,7 @@ const f2: SchemaModelFamily = "claude-sonnet" satisfies ModelFamily;
 const t2: SchemaThinkingLevel = "medium" satisfies ThinkingLevel;
 const t2u: SchemaThinkingLevel = "ultracode" satisfies ThinkingLevel;
 const r2: SchemaRoutingTier = "standard" satisfies RoutingTier;
-const r2u: SchemaRoutingTier = "ultra" satisfies RoutingTier;
+const r2u: SchemaRoutingTier = "frontier-ultra" satisfies RoutingTier;
 const rel2: SchemaRelationship = "exact" satisfies Relationship;
 
 // Exhaustiveness: assigning the full union both ways forces the compiler to

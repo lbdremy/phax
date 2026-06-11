@@ -153,11 +153,11 @@ The default `providerPriority` is `["mistral-vibe", "codex-cli", "claude-code"]`
 
 Every run executes under a security posture, set by `security.profile` in `phax.json` and overridable per run with `--security`:
 
-| Mode       | Behavior                                                                                              |
-| ---------- | ----------------------------------------------------------------------------------------------------- |
+| Mode       | Behavior                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------- |
 | `secure`   | **Default.** Provider-native sandboxing — filesystem jailed to the worktree, restricted network, MCP disabled. |
-| `unsafe`   | Host-unrestricted: full filesystem/network access. Prints a warning. Use only for trusted plans.      |
-| `isolated` | External-sandbox mode — planned, not yet available (the CLI rejects it today).                         |
+| `unsafe`   | Host-unrestricted: full filesystem/network access. Prints a warning. Use only for trusted plans.               |
+| `isolated` | External-sandbox mode — planned, not yet available (the CLI rejects it today).                                 |
 
 Provider capability matters under `secure`: Claude Code and Codex have strong filesystem jails and run natively, while Mistral Vibe has only a **partial** jail. In strict `secure` mode a partial-jail provider cannot satisfy the policy, so routing skips it and falls back to Claude Code; the applied posture (including any downgrade) is recorded in each phase's `security.json` and the final report.
 
@@ -220,17 +220,17 @@ phax unlock <short-name> --force  # remove any lock
 
 ## Exit codes
 
-| Code | Meaning                                       |
-| ---- | --------------------------------------------- |
-| 0    | Success                                       |
-| 1    | Validation error, config error, or plan error |
-| 2    | Gate failure (after fix loop exhausted)       |
-| 3    | Lock conflict                                 |
-| 4    | Unsafe git state (dirty worktree)             |
+| Code | Meaning                                         |
+| ---- | ----------------------------------------------- |
+| 0    | Success                                         |
+| 1    | Validation error, config error, or plan error   |
+| 2    | Gate failure (after fix loop exhausted)         |
+| 3    | Lock conflict                                   |
+| 4    | Unsafe git state (dirty worktree)               |
 | 5    | Agent invocation error (Claude, Vibe, or Codex) |
-| 6    | Handoff generation failed                     |
-| 8    | Rate limit or usage limit hit (resumable)     |
-| 9    | Phase produced no changes (resumable)         |
+| 6    | Handoff generation failed                       |
+| 8    | Rate limit or usage limit hit (resumable)       |
+| 9    | Phase produced no changes (resumable)           |
 
 ## Environment variables
 
