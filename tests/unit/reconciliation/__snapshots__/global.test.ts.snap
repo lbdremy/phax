@@ -1,0 +1,13 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderGlobalReconciliationMarkdown > renders a snapshot for a mixed run 1`] = `
+"## Global File Reconciliation
+
+| File | Planned in | Touched in | Status | Notes |
+| --- | --- | --- | --- | --- |
+| src/existing.ts | phase-02 | phase-02 | matched | — |
+| src/new.ts | phase-01 | phase-01 | matched | — |
+| src/renamed.ts | — | phase-02 | renamed | renamed in: phase-02 |
+| src/skipped.ts | phase-01 | — | missing | not touched in: phase-01 |
+| src/surprise.ts | — | phase-01 | unplanned | unplanned in: phase-01 |"
+`;
