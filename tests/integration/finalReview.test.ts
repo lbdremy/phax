@@ -8,6 +8,7 @@ import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { RunReviewInfo } from "../../src/app/resolveRunInfo.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import type { BranchName } from "../../src/domain/branded.js";
+import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
 
 const stateRoot = "/fake-state";
 const shortName = "my-run";
@@ -64,6 +65,24 @@ function makePhaseStatusJson(state: string): string {
   return JSON.stringify({ ...phaseStatus, state });
 }
 
+function makePhaseReconciliationJson(): string {
+  return JSON.stringify(
+    encodePhaseFileReconciliation({
+      phaseId: "phase-01",
+      createdAsPlanned: [],
+      editedAsPlanned: [],
+      missingPlannedCreate: [],
+      missingPlannedEdit: [],
+      unplannedCreated: [],
+      unplannedEdited: [],
+      optionalTouched: [],
+      deletions: [],
+      renames: [],
+      hasDeviations: false,
+    }),
+  );
+}
+
 function setupLayers() {
   const fs = makeFakeFileSystem();
   const layers = Layer.mergeAll(
@@ -75,11 +94,21 @@ function setupLayers() {
   return { impl: fs.impl, layers };
 }
 
+function setupRequiredFiles(impl: ReturnType<typeof makeFakeFileSystem>["impl"], state: string) {
+  impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson(state));
+  impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
+  impl.setFile(`${runPath}/phase-01/file-reconciliation.json`, makePhaseReconciliationJson());
+  impl.setFile(
+    `${runPath}/phase-01/file-reconciliation.md`,
+    "## File Reconciliation\n\nNo deviations.",
+  );
+  impl.setFile(`${runPath}/phase-01/phase-handoff.md`, "## Phase Handoff\n\nAll done.");
+}
+
 describe("openFinalReview", () => {
   it("writes review-handoff.md to the run path", async () => {
     const { impl, layers } = setupLayers();
-    impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
-    impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
+    setupRequiredFiles(impl, "running");
 
     await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
@@ -89,8 +118,7 @@ describe("openFinalReview", () => {
 
   it("review-handoff.md contains run id, short name, and branch", async () => {
     const { impl, layers } = setupLayers();
-    impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
-    impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
+    setupRequiredFiles(impl, "running");
 
     await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
@@ -100,36 +128,46 @@ describe("openFinalReview", () => {
     expect(handoff).toContain("feature/my-run");
   });
 
-  it("review-handoff.md contains the entry commands", async () => {
+  it("review-handoff.md does NOT contain the entry commands (they are in final-report.md)", async () => {
     const { impl, layers } = setupLayers();
-    impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
-    impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
+    setupRequiredFiles(impl, "running");
 
     await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
     const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
-    expect(handoff).toContain("phax enter my-run");
-    expect(handoff).toContain("phax shell my-run");
-    expect(handoff).toContain("phax path my-run");
-    expect(handoff).toContain("phax archive my-run");
+    expect(handoff).not.toContain("phax enter my-run");
+    expect(handoff).not.toContain("phax shell my-run");
+    expect(handoff).not.toContain("phax archive my-run");
   });
 
-  it("review-handoff.md contains the session id and resume snippet", async () => {
+  it("final-report.md contains the entry commands", async () => {
     const { impl, layers } = setupLayers();
-    impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
-    impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
+    setupRequiredFiles(impl, "running");
 
     await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
-    const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
-    expect(handoff).toContain("sess-abc123");
-    expect(handoff).toContain("claude --resume sess-abc123");
+    const report = impl.getFile(`${runPath}/final-report.md`)!;
+    expect(report).toBeDefined();
+    expect(report).toContain("phax enter my-run");
+    expect(report).toContain("phax shell my-run");
+    expect(report).toContain("phax path my-run");
+    expect(report).toContain("phax archive my-run");
+  });
+
+  it("final-report.md contains the session id and resume snippet", async () => {
+    const { impl, layers } = setupLayers();
+    setupRequiredFiles(impl, "running");
+
+    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
+
+    const report = impl.getFile(`${runPath}/final-report.md`)!;
+    expect(report).toContain("sess-abc123");
+    expect(report).toContain("claude --resume sess-abc123");
   });
 
   it("transitions run-status.json to review_open", async () => {
     const { impl, layers } = setupLayers();
-    impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
-    impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
+    setupRequiredFiles(impl, "running");
 
     await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
@@ -140,8 +178,7 @@ describe("openFinalReview", () => {
 
   it("transitions phase status to review_open", async () => {
     const { impl, layers } = setupLayers();
-    impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
-    impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
+    setupRequiredFiles(impl, "running");
 
     await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
@@ -150,23 +187,31 @@ describe("openFinalReview", () => {
     expect(parsed.state).toBe("review_open");
   });
 
-  it("includes the Conductor handoff section", async () => {
+  it("final-report.md includes the Conductor handoff section", async () => {
     const { impl, layers } = setupLayers();
-    impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
-    impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
+    setupRequiredFiles(impl, "running");
+
+    await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
+
+    const report = impl.getFile(`${runPath}/final-report.md`)!;
+    expect(report).toContain("Conductor Handoff");
+    expect(report).toContain("feature/my-run");
+    expect(report).toContain("/fake/worktrees/my-run/phase-01");
+  });
+
+  it("review-handoff.md contains global file reconciliation section", async () => {
+    const { impl, layers } = setupLayers();
+    setupRequiredFiles(impl, "running");
 
     await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 
     const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
-    expect(handoff).toContain("Conductor Handoff");
-    expect(handoff).toContain("feature/my-run");
-    expect(handoff).toContain("/fake/worktrees/my-run/phase-01");
+    expect(handoff).toContain("Global File Reconciliation");
   });
 
   it("matches the review-handoff.md snapshot", async () => {
     const { impl, layers } = setupLayers();
-    impl.setFile(`${runPath}/run-status.json`, makeRunStatusJson("running"));
-    impl.setFile(`${runPath}/phase-01/status.json`, makePhaseStatusJson("committed"));
+    setupRequiredFiles(impl, "running");
 
     await Effect.runPromise(openFinalReview(runReviewInfo).pipe(Effect.provide(layers)));
 

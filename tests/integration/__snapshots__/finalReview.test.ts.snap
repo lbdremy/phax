@@ -1,71 +1,49 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`openFinalReview > matches the review-handoff.md snapshot 1`] = `
-"# Review Handoff: my-run
+"# Run Review Handoff
 
-## Run Information
+## Run summary
 
-- **Run ID**: my-run-1234567890
 - **Short Name**: my-run
+- **Run ID**: my-run-1234567890
 - **Base Branch**: feature/my-run
-- **Final Phase Branch (review here)**: \`feature/my-run--phase-01\`
+- **Final Phase Branch**: \`feature/my-run--phase-01\`
 - **Gate Profile**: fast
+- **Phases**: 1/1 passed
+- See [final-report.md](final-report.md) for security details and entry/resume instructions.
 
-## Final Phase
+## Global File Reconciliation
 
-- **Phase ID**: phase-01
-- **Title**: First Phase
-- **Worktree Path**: /fake/worktrees/my-run/phase-01
-- **Claude Session ID**: sess-abc123
+| File | Planned in | Touched in | Status | Notes |
+| --- | --- | --- | --- | --- |
 
-## Entry Commands
+## Global unplanned changes
 
-\`\`\`bash
-# Resume the Claude session interactively
-phax enter my-run
+_None._
 
-# Open a shell in the final worktree
-phax shell my-run
+## Global missing planned changes
 
-# Print the worktree path (for scripting)
-phax path my-run
+_None._
 
-# Open in editor
-phax open my-run
-\`\`\`
+## Global review attention points
 
-## Resume Claude Session Manually
+_No attention points._
 
-\`\`\`bash
-cd /fake/worktrees/my-run/phase-01
-claude --resume sess-abc123
-\`\`\`
+## Phase details
 
-## Conductor Handoff
+### phase-01 — First Phase
 
-Base Branch: \`feature/my-run\`
-Final Phase Branch: \`feature/my-run--phase-01\`
-Worktree: \`/fake/worktrees/my-run/phase-01\`
+#### File reconciliation
 
-The full commit chain is on \`feature/my-run--phase-01\` (\`feature/my-run\` stays at the run-start commit).
-Open the worktree directory in Conductor or point a new workspace at branch \`feature/my-run--phase-01\`.
+## File Reconciliation
 
-## Completed Phases
+No deviations.
 
-| Phase | Title | Status | Commit |
-|-------|-------|--------|--------|
-| phase-01 | First Phase | committed | (none) |
+#### Phase handoff
 
-## Final Gates Status
+## Phase Handoff
 
-Gate profile \`fast\` was used for this run.
-
-## Archive Instructions
-
-When you are done reviewing, finalize this run:
-
-\`\`\`bash
-phax archive my-run
-\`\`\`
+All done.
 "
 `;

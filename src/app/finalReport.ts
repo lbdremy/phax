@@ -57,6 +57,55 @@ function formatSecurityPosture(posture: SecurityPosture): string {
 `;
 }
 
+function buildEntrySection(info: RunReviewInfo): string {
+  const resumeSnippet =
+    info.claudeSessionId !== undefined
+      ? `cd ${info.worktreePath}\nclaude --resume ${info.claudeSessionId}`
+      : `cd ${info.worktreePath}\n# no session id captured`;
+
+  return `## Entry & Resume
+
+### Entry Commands
+
+\`\`\`bash
+# Resume the Claude session interactively
+phax enter ${info.shortName}
+
+# Open a shell in the final worktree
+phax shell ${info.shortName}
+
+# Print the worktree path (for scripting)
+phax path ${info.shortName}
+
+# Open in editor
+phax open ${info.shortName}
+\`\`\`
+
+### Resume Claude Session Manually
+
+\`\`\`bash
+${resumeSnippet}
+\`\`\`
+
+### Conductor Handoff
+
+Base Branch: \`${info.branch}\`
+Final Phase Branch: \`${info.finalPhaseBranch}\`
+Worktree: \`${info.worktreePath}\`
+
+The full commit chain is on \`${info.finalPhaseBranch}\` (\`${info.branch}\` stays at the run-start commit).
+Open the worktree directory in Conductor or point a new workspace at branch \`${info.finalPhaseBranch}\`.
+
+### Archive Instructions
+
+When you are done reviewing, finalize this run:
+
+\`\`\`bash
+phax archive ${info.shortName}
+\`\`\`
+`;
+}
+
 function buildFinalReportMarkdown(info: RunReviewInfo): string {
   const passed = info.phaseStatuses.filter(isPhaseSuccessful).length;
   const failed = info.phaseStatuses.filter((p) => p.state === "failed").length;
@@ -114,6 +163,8 @@ function buildFinalReportMarkdown(info: RunReviewInfo): string {
 - **Total Phases**: ${total}
 - **Passed**: ${passed}
 - **Failed**: ${failed}
+
+${buildEntrySection(info)}
 
 ## Phase Details
 
