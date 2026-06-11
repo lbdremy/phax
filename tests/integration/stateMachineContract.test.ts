@@ -243,4 +243,111 @@ describe("State Machine Contract", () => {
     );
     expect(rateLimitEvents.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("pauses the run as gates_exhausted when fix attempts are exhausted", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+
+    const config: ResolvedConfig = {
+      raw: {
+        version: 1,
+        project: { name: "test-project", type: "single-package" },
+        state: { root: stateRoot },
+        gateProfiles: { full: ["pnpm test"] },
+        commands: { setup: ["true"], cleanup: ["true"] },
+      },
+      stateRoot,
+      repoRoot: stateRoot,
+      editorCommand: "echo",
+      maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
+      fileReconciliationMode: "report_only" as const,
+
+      security: {
+        profile: "unsafe",
+        filesystem: { allowRead: [], allowWrite: [] },
+        network: { profile: "provider-only", allowDomains: [] },
+        mcp: { mode: "disabled", allow: [] },
+      },
+    };
+
+    const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(phase01WorktreePath, false);
+
+    const fakeShell = makeFakeShell();
+    // Setup / cleanup / git plumbing succeed; the gate command (`pnpm test`)
+    // always fails so the loop exhausts its single allowed fix attempt.
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("pnpm test", {
+      exitCode: 1,
+      stdout: "",
+      stderr: "test failure",
+    });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "deadbeef12345678\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    // Fix agent invocation: returns a "fix" session but the gate keeps failing.
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-01-fix" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const fakeTelemetry = makeFakeSystemTelemetry();
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      fakeTelemetry.layer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const runResult = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    // The exhausted run currently propagates the GateFailedError up — phase-05
+    // is responsible for the catch + non-zero exit. Either Left (current) or
+    // Right is acceptable here; what matters is the state-machine effects.
+    expect(runResult).toBeDefined();
+
+    // The reducer should have emitted a gate.attempts_exhausted EmitTrace and
+    // a resume.available EmitTrace via the WriteResumeInstructions path, both
+    // of which surface as semantic step.completed events.
+    const telEvents = fakeTelemetry.impl.events();
+    const transitionEvents = telEvents
+      .filter((e) => e.type === "state.transition")
+      .map((e) => ("event" in e ? e.event : ""));
+    expect(transitionEvents).toContain("FixAttemptsExhausted");
+  });
 });

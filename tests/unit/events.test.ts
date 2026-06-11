@@ -65,7 +65,16 @@ const samples = {
   },
   FixStarted: { ...base, type: "FixStarted", phase: phaseId, attempt: 1 },
   FixCompleted: { ...base, type: "FixCompleted", phase: phaseId, sessionId },
-  FixAttemptsExhausted: { ...base, type: "FixAttemptsExhausted", phase: phaseId },
+  FixAttemptsExhausted: {
+    ...base,
+    type: "FixAttemptsExhausted",
+    phase: phaseId,
+    phaseId,
+    attempt: 3,
+    worktreePath,
+    sessionId,
+    command: "pnpm test",
+  },
   HandoffRequested: { ...base, type: "HandoffRequested", phase: phaseId },
   HandoffValidated: { ...base, type: "HandoffValidated", phase: phaseId },
   HandoffMissing: {
