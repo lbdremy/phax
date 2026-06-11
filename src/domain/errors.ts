@@ -119,3 +119,11 @@ export class InvalidTransitionError extends Data.TaggedError("InvalidTransitionE
     return `Invalid ${this.entity} state transition: ${this.from} → ${this.to}`;
   }
 }
+
+export class ReviewHandoffArtifactMissingError extends Data.TaggedError(
+  "ReviewHandoffArtifactMissingError",
+)<{
+  message: string;
+  missingPhases: readonly string[];
+  missingPaths: readonly string[];
+}> {}
