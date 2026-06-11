@@ -1,8 +1,16 @@
 import { Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import type { BranchName, PhaseId, RunId, ShortName, WorktreePath } from "../domain/branded.js";
-import { decodeBranchName, decodePhaseId } from "../domain/branded.js";
+import type {
+  BranchName,
+  ClaudeSessionId,
+  PhaseId,
+  RunId,
+  ShortName,
+  WorktreePath,
+} from "../domain/branded.js";
+import { decodeBranchName, decodePhaseId, decodeWorktreePath } from "../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
@@ -66,6 +74,32 @@ function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
 
 function isNoChangesError(e: unknown): e is PhaseHadNoChangesError {
   return e instanceof PhaseHadNoChangesError;
+}
+
+function isGateAttemptsExhaustedError(e: unknown): e is GateAttemptsExhaustedError {
+  return e instanceof GateAttemptsExhaustedError;
+}
+
+// Highest NN suffix on `checks-attempt-NN.log` in the phase folder, or 0 if none.
+// On resume from gate exhaustion we use this to continue numbering attempt
+// artifacts, so prior `checks-attempt-NN.log` / `fix-attempt-NN.jsonl` files are
+// never clobbered.
+function maxAttemptIndexInPhaseFolder(phaseFolderPath: string): number {
+  let entries: string[];
+  try {
+    entries = readdirSync(phaseFolderPath);
+  } catch {
+    return 0;
+  }
+  let max = 0;
+  for (const entry of entries) {
+    const match = /^checks-attempt-(\d{2})\.log$/.exec(entry);
+    if (match) {
+      const n = Number(match[1]);
+      if (Number.isFinite(n) && n > max) max = n;
+    }
+  }
+  return max;
 }
 
 export interface ExecutePlanOptions {
@@ -222,13 +256,39 @@ export function executePlan(
       }
     }
 
+    // Capture the resumed phase's persisted PhaseStatus BEFORE dispatching
+    // RunResumeRequested — that dispatch lifts a gates_exhausted phase to
+    // `running`, so reading after the dispatch would lose the marker we need to
+    // take the gate-first re-entry path below.
+    const resumePhase = plan.phases[startIndex];
+    const resumePhaseFolderPath = resumePhase ? join(runPath, resumePhase.id) : undefined;
+    const resumePhaseId = resumePhase?.id;
+    let resumeFromGate = false;
+    let resumeSessionId: string | undefined;
+    let resumeWorktreePath: string | undefined;
+    let resumeAttempt = 0;
+    if (resumePhase !== undefined) {
+      const infoResult = resolveRunByShortName(shortName, config.stateRoot);
+      if (Either.isRight(infoResult)) {
+        const phaseStatus = infoResult.right.phaseStatuses.find(
+          (p) => p.phaseId === resumePhase.id,
+        );
+        if (phaseStatus?.state === "gates_exhausted") {
+          resumeFromGate = true;
+          resumeSessionId = phaseStatus.claudeSessionId;
+          resumeWorktreePath = phaseStatus.worktreePath;
+          resumeAttempt =
+            resumePhaseFolderPath !== undefined
+              ? maxAttemptIndexInPhaseFolder(resumePhaseFolderPath)
+              : 0;
+        }
+      }
+    }
+
     // Lift a rate-limited run+phase back to running. On a fresh run the reducer
     // returns Ignored (run already running) and produces no writes; on resume
     // it transitions both the run and the in-flight phase to `running` so the
     // forward dispatches below treat the resumed phase as a normal new phase.
-    const resumePhase = plan.phases[startIndex];
-    const resumePhaseFolderPath = resumePhase ? join(runPath, resumePhase.id) : undefined;
-    const resumePhaseId = resumePhase?.id;
     yield* dispatch(
       { ...eventBase(resumePhaseId), type: "RunResumeRequested" },
       dispatchCtx(resumePhaseFolderPath, resumePhaseId),
@@ -245,6 +305,7 @@ export function executePlan(
       const phase = plan.phases[i];
       if (phase === undefined) continue;
       const isFinal = i === plan.phases.length - 1;
+      const isResumeFromGate = i === startIndex && resumeFromGate;
 
       // Resolve the phase branch before creating the phase folder so the
       // initial status.json can include branchName (required by the schema).
@@ -258,231 +319,333 @@ export function executePlan(
           }),
         );
       }
-      // Each phase gets its own branch (<run.branch>--<phaseId>) so multiple
-      // worktrees can coexist — git refuses to check out one branch in two
-      // worktrees simultaneously.
-      const phaseBranch = yield* preparePhaseBranch(
-        branch,
-        phaseIdResult.right,
-        previousPhaseBranch,
-        config.repoRoot,
-      );
 
-      const phaseFolderPath = yield* createPhaseFolder(runPath, phase, i, phaseBranch);
-      currentPhaseId = phase.id;
-      currentPhaseFolderPath = phaseFolderPath;
-      currentWorktreePath = undefined;
-      currentSessionId = undefined;
+      let phaseBranch: BranchName;
+      let phaseFolderPath: string;
+      let worktreePath: WorktreePath;
+      let sessionId: ClaudeSessionId;
+      let agentOptions: AgentRunOptions;
 
+      if (isResumeFromGate) {
+        // Resume-from-gate: the worktree, branch, prompt, model-resolution,
+        // security posture, and Claude session were all written on the original
+        // attempt. Re-enter the gate loop using the captured session — never
+        // start a blind fix session if the session id is missing.
+        if (resumeSessionId === undefined) {
+          return yield* Effect.fail(
+            new AgentSessionIdMissingError({
+              message: `Cannot resume phase "${phase.id}" of run "${shortName}": no Claude session id is recorded on disk. Use \`phax reset-phase ${shortName}\` to start a new session for this phase.`,
+              outputPath: resumePhaseFolderPath ?? "",
+            }),
+          );
+        }
+        if (resumeWorktreePath === undefined || !existsSync(resumeWorktreePath)) {
+          return yield* Effect.fail(
+            new WorktreeCreationError({
+              message: `Cannot resume phase "${phase.id}" of run "${shortName}": worktree "${resumeWorktreePath ?? "<unknown>"}" no longer exists`,
+              branch,
+              path: resumeWorktreePath ?? "",
+            }),
+          );
+        }
+        const phaseBranchStr = `${plan.run.branch}--${phase.id}`;
+        const phaseBranchResult = decodeBranchName(phaseBranchStr);
+        if (Either.isLeft(phaseBranchResult)) {
+          return yield* Effect.fail(
+            new UnsafeGitStateError({
+              message: `Invalid phase branch "${phaseBranchStr}"`,
+              repoPath: config.repoRoot,
+            }),
+          );
+        }
+        phaseBranch = phaseBranchResult.right;
+        phaseFolderPath = join(runPath, phase.id);
+        const worktreePathResult = decodeWorktreePath(resumeWorktreePath);
+        if (Either.isLeft(worktreePathResult)) {
+          return yield* Effect.fail(
+            new WorktreeCreationError({
+              message: `Invalid worktree path "${resumeWorktreePath}"`,
+              branch: phaseBranch,
+              path: resumeWorktreePath,
+            }),
+          );
+        }
+        worktreePath = worktreePathResult.right;
+        sessionId = resumeSessionId as ClaudeSessionId;
+        currentPhaseId = phase.id;
+        currentPhaseFolderPath = phaseFolderPath;
+        currentWorktreePath = worktreePath as string;
+        currentSessionId = sessionId as string;
+
+        const securityPolicy = resolveSecurityPolicy({
+          mode: securityMode,
+          worktreePath: worktreePath as string,
+          config: config.security,
+        });
+        const securityFilter: SecurityFilter = (provider) => {
+          if (securityMode !== "secure") return { allowed: true };
+          const evaluation = evaluateProviderSecurity(provider, securityPolicy);
+          return evaluation.satisfiesStrict
+            ? { allowed: true }
+            : {
+                allowed: false,
+                reason: evaluation.marks.length
+                  ? `cannot satisfy strict secure mode (${evaluation.marks.join(", ")})`
+                  : "cannot satisfy strict secure mode",
+              };
+        };
+        const resolution = resolveModel(
+          { model: phase.model, effort: phase.effort },
+          routing,
+          providerConfig,
+          securityFilter,
+        );
+        agentOptions = {
+          provider: resolution.selected.provider,
+          model: resolution.selected.concreteModel,
+          effort: resolution.selected.thinking ?? phase.effort,
+          cwd: worktreePath as string,
+          security: securityPolicy,
+          gateCommands,
+          outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
+          phaseFolderPath,
+        };
+      } else {
+        // Each phase gets its own branch (<run.branch>--<phaseId>) so multiple
+        // worktrees can coexist — git refuses to check out one branch in two
+        // worktrees simultaneously.
+        phaseBranch = yield* preparePhaseBranch(
+          branch,
+          phaseIdResult.right,
+          previousPhaseBranch,
+          config.repoRoot,
+        );
+
+        phaseFolderPath = yield* createPhaseFolder(runPath, phase, i, phaseBranch);
+        currentPhaseId = phase.id;
+        currentPhaseFolderPath = phaseFolderPath;
+        currentWorktreePath = undefined;
+        currentSessionId = undefined;
+
+        const ctx = dispatchCtx(phaseFolderPath, phase.id);
+
+        // pending → setting_up_worktree (Ignored on a resumed phase already in
+        // setting_up_worktree/running; Rejected if the phase is past pending in
+        // an unexpected way).
+        yield* dispatch(
+          {
+            ...eventBase(phase.id),
+            type: "PhaseStartRequested",
+            phaseId: phase.id as PhaseId,
+          },
+          ctx,
+        );
+        worktreePath = yield* createPhaseWorktree(
+          shortName,
+          phaseIdResult.right,
+          phaseBranch,
+          config.stateRoot,
+          config.repoRoot,
+        );
+
+        currentWorktreePath = worktreePath as string;
+        yield* recordPhaseWorktreeAndBranch(phaseFolderPath, worktreePath, phaseBranch);
+        yield* telemetry.recordEvent(
+          makeAdapterCallSucceededTelemetryEvent({
+            runId,
+            operationId: phase.id,
+            adapter: "git",
+            operation: "worktree.create",
+          }),
+        );
+
+        // setting_up_worktree → running (Ignored on a resumed phase already
+        // running).
+        yield* dispatch(
+          { ...eventBase(phase.id), type: "WorktreeCreated", path: worktreePath },
+          ctx,
+        );
+
+        yield* setupPhase({ worktreePath, phaseFolderPath, setupCommands });
+
+        const previousHandoff = yield* readPreviousHandoff(runPath, plan.phases, i);
+        const previousReconciliation = yield* readPreviousReconciliation(runPath, plan.phases, i);
+
+        const promptGateCommands = config.raw.gateProfiles[gateProfileId]?.flat(1) ?? [];
+        const promptText = buildPhasePrompt({
+          planMd,
+          planJson: plan,
+          currentPhase: phase,
+          previousHandoff,
+          previousReconciliation,
+          gateCommands: promptGateCommands,
+        });
+
+        const fs = yield* FileSystem;
+        yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);
+
+        // The resolved policy is provider-independent (filesystem/network/mcp
+        // come from config + worktree, not the provider), so compute it once
+        // and reuse it for both the routing security filter and the selected
+        // run.
+        const securityPolicy = resolveSecurityPolicy({
+          mode: securityMode,
+          worktreePath: worktreePath as string,
+          config: config.security,
+        });
+        const securityFilter: SecurityFilter = (provider) => {
+          if (securityMode !== "secure") {
+            return { allowed: true };
+          }
+          const evaluation = evaluateProviderSecurity(provider, securityPolicy);
+          return evaluation.satisfiesStrict
+            ? { allowed: true }
+            : {
+                allowed: false,
+                reason: evaluation.marks.length
+                  ? `cannot satisfy strict secure mode (${evaluation.marks.join(", ")})`
+                  : "cannot satisfy strict secure mode",
+              };
+        };
+
+        const resolution = resolveModel(
+          { model: phase.model, effort: phase.effort },
+          routing,
+          providerConfig,
+          securityFilter,
+        );
+
+        yield* telemetry.recordEvent(
+          makeModelResolvedTelemetryEvent({
+            runId,
+            operationId: phase.id,
+            requestedFamily: resolution.requested.family,
+            requestedEffort: resolution.requested.effort,
+            normalizedTier: resolution.normalizedTier,
+            selectedProvider: resolution.selected.provider,
+            selectedFamily: resolution.selected.family,
+            selectedConcreteModel: resolution.selected.concreteModel,
+            ...(resolution.selected.thinking !== undefined
+              ? { selectedThinking: resolution.selected.thinking }
+              : {}),
+            relationship: resolution.relationship,
+            reason: resolution.reason,
+          }),
+        );
+
+        yield* fs.writeAtomic(
+          join(phaseFolderPath, "model-resolution.json"),
+          JSON.stringify(resolution, null, 2),
+        );
+
+        // Build and write security posture artifact
+        const evaluation = evaluateProviderSecurity(resolution.selected.provider, securityPolicy);
+        const securityPosture: SecurityPosture = {
+          version: 1,
+          mode: securityPolicy.mode,
+          provider: resolution.selected.provider,
+          sandboxEnabled: securityPolicy.mode === "secure",
+          filesystem: {
+            allowRead: securityPolicy.filesystem.allowRead,
+            allowWrite: securityPolicy.filesystem.allowWrite,
+          },
+          network: {
+            profile: securityPolicy.network.profile,
+          },
+          mcp: {
+            mode: securityPolicy.mcp.mode,
+            allow: securityPolicy.mcp.allow,
+          },
+          downgraded: evaluation.downgraded,
+          marks: evaluation.marks,
+          providerSkippedForSecurity: resolution.skippedForSecurity ?? [],
+        };
+        yield* fs.writeAtomic(
+          join(phaseFolderPath, "security.json"),
+          JSON.stringify(encodeSecurityPosture(securityPosture), null, 2),
+        );
+
+        // Emit security.policy.applied telemetry event
+        yield* telemetry.recordEvent(
+          makeSecurityPolicyAppliedTelemetryEvent({
+            runId,
+            operationId: phase.id,
+            mode: securityPosture.mode,
+            provider: securityPosture.provider,
+            sandboxEnabled: securityPosture.sandboxEnabled,
+            networkProfile: securityPosture.network.profile,
+            mcpMode: securityPosture.mcp.mode,
+            downgraded: securityPosture.downgraded,
+            skippedForSecurity: securityPosture.providerSkippedForSecurity,
+          }),
+        );
+
+        agentOptions = {
+          provider: resolution.selected.provider,
+          model: resolution.selected.concreteModel,
+          effort: resolution.selected.thinking ?? phase.effort,
+          cwd: worktreePath as string,
+          security: securityPolicy,
+          gateCommands,
+          outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
+          phaseFolderPath,
+        };
+
+        const backend = yield* Backend;
+        const resolvedProvider = resolution.selected.provider;
+        yield* telemetry.recordEvent(
+          makeAdapterCallStartedTelemetryEvent({
+            runId,
+            operationId: phase.id,
+            adapter: resolvedProvider,
+            operation: "agent.run",
+          }),
+        );
+        const agentResult = yield* telemetry.withOperation(
+          `phax.${resolvedProvider}.agent.run`,
+          { "phax.phase.id": phase.id },
+          backend.runAgent(promptText, agentOptions).pipe(
+            Effect.tapError((e) =>
+              e instanceof AgentInvocationError
+                ? telemetry.recordError(
+                    reportAgentFailure(e, {
+                      runId,
+                      operationId: phase.id,
+                      adapter: resolvedProvider,
+                      operation: "agent.run",
+                    }),
+                  )
+                : Effect.void,
+            ),
+          ),
+        );
+        sessionId = agentResult.sessionId;
+        currentSessionId = sessionId as string;
+        yield* telemetry.recordEvent(
+          makeAdapterCallSucceededTelemetryEvent({
+            runId,
+            operationId: phase.id,
+            adapter: resolvedProvider,
+            operation: "agent.run",
+          }),
+        );
+        yield* telemetry.recordEvent(
+          makeArtifactGeneratedTelemetryEvent({
+            runId,
+            operationId: phase.id,
+            artifact: "claude-session-id",
+            path: sessionId as string,
+          }),
+        );
+      }
+
+      // `ctx` is used by the FinalReviewOpened dispatch later in the loop.
       const ctx = dispatchCtx(phaseFolderPath, phase.id);
 
-      // pending → setting_up_worktree (Ignored on a resumed phase already in
-      // setting_up_worktree/running; Rejected if the phase is past pending in
-      // an unexpected way).
-      yield* dispatch(
-        {
-          ...eventBase(phase.id),
-          type: "PhaseStartRequested",
-          phaseId: phase.id as PhaseId,
-        },
-        ctx,
-      );
-      const worktreePath = yield* createPhaseWorktree(
-        shortName,
-        phaseIdResult.right,
-        phaseBranch,
-        config.stateRoot,
-        config.repoRoot,
-      );
-
-      currentWorktreePath = worktreePath as string;
-      yield* recordPhaseWorktreeAndBranch(phaseFolderPath, worktreePath, phaseBranch);
-      yield* telemetry.recordEvent(
-        makeAdapterCallSucceededTelemetryEvent({
-          runId,
-          operationId: phase.id,
-          adapter: "git",
-          operation: "worktree.create",
-        }),
-      );
-
-      // setting_up_worktree → running (Ignored on a resumed phase already
-      // running).
-      yield* dispatch({ ...eventBase(phase.id), type: "WorktreeCreated", path: worktreePath }, ctx);
-
-      yield* setupPhase({ worktreePath, phaseFolderPath, setupCommands });
-
-      const previousHandoff = yield* readPreviousHandoff(runPath, plan.phases, i);
-      const previousReconciliation = yield* readPreviousReconciliation(runPath, plan.phases, i);
-
-      const promptGateCommands = config.raw.gateProfiles[gateProfileId]?.flat(1) ?? [];
-      const promptText = buildPhasePrompt({
-        planMd,
-        planJson: plan,
-        currentPhase: phase,
-        previousHandoff,
-        previousReconciliation,
-        gateCommands: promptGateCommands,
-      });
-
-      const fs = yield* FileSystem;
-      yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);
-
-      // The resolved policy is provider-independent (filesystem/network/mcp come
-      // from config + worktree, not the provider), so compute it once and reuse
-      // it for both the routing security filter and the selected run.
-      const securityPolicy = resolveSecurityPolicy({
-        mode: securityMode,
-        worktreePath: worktreePath as string,
-        config: config.security,
-      });
-      const securityFilter: SecurityFilter = (provider) => {
-        if (securityMode !== "secure") {
-          return { allowed: true };
-        }
-        const evaluation = evaluateProviderSecurity(provider, securityPolicy);
-        return evaluation.satisfiesStrict
-          ? { allowed: true }
-          : {
-              allowed: false,
-              reason: evaluation.marks.length
-                ? `cannot satisfy strict secure mode (${evaluation.marks.join(", ")})`
-                : "cannot satisfy strict secure mode",
-            };
-      };
-
-      const resolution = resolveModel(
-        { model: phase.model, effort: phase.effort },
-        routing,
-        providerConfig,
-        securityFilter,
-      );
-
-      yield* telemetry.recordEvent(
-        makeModelResolvedTelemetryEvent({
-          runId,
-          operationId: phase.id,
-          requestedFamily: resolution.requested.family,
-          requestedEffort: resolution.requested.effort,
-          normalizedTier: resolution.normalizedTier,
-          selectedProvider: resolution.selected.provider,
-          selectedFamily: resolution.selected.family,
-          selectedConcreteModel: resolution.selected.concreteModel,
-          ...(resolution.selected.thinking !== undefined
-            ? { selectedThinking: resolution.selected.thinking }
-            : {}),
-          relationship: resolution.relationship,
-          reason: resolution.reason,
-        }),
-      );
-
-      yield* fs.writeAtomic(
-        join(phaseFolderPath, "model-resolution.json"),
-        JSON.stringify(resolution, null, 2),
-      );
-
-      // Build and write security posture artifact
-      const evaluation = evaluateProviderSecurity(resolution.selected.provider, securityPolicy);
-      const securityPosture: SecurityPosture = {
-        version: 1,
-        mode: securityPolicy.mode,
-        provider: resolution.selected.provider,
-        sandboxEnabled: securityPolicy.mode === "secure",
-        filesystem: {
-          allowRead: securityPolicy.filesystem.allowRead,
-          allowWrite: securityPolicy.filesystem.allowWrite,
-        },
-        network: {
-          profile: securityPolicy.network.profile,
-        },
-        mcp: {
-          mode: securityPolicy.mcp.mode,
-          allow: securityPolicy.mcp.allow,
-        },
-        downgraded: evaluation.downgraded,
-        marks: evaluation.marks,
-        providerSkippedForSecurity: resolution.skippedForSecurity ?? [],
-      };
-      yield* fs.writeAtomic(
-        join(phaseFolderPath, "security.json"),
-        JSON.stringify(encodeSecurityPosture(securityPosture), null, 2),
-      );
-
-      // Emit security.policy.applied telemetry event
-      yield* telemetry.recordEvent(
-        makeSecurityPolicyAppliedTelemetryEvent({
-          runId,
-          operationId: phase.id,
-          mode: securityPosture.mode,
-          provider: securityPosture.provider,
-          sandboxEnabled: securityPosture.sandboxEnabled,
-          networkProfile: securityPosture.network.profile,
-          mcpMode: securityPosture.mcp.mode,
-          downgraded: securityPosture.downgraded,
-          skippedForSecurity: securityPosture.providerSkippedForSecurity,
-        }),
-      );
-
-      const agentOptions: AgentRunOptions = {
-        provider: resolution.selected.provider,
-        model: resolution.selected.concreteModel,
-        effort: resolution.selected.thinking ?? phase.effort,
-        cwd: worktreePath as string,
-        security: securityPolicy,
-        gateCommands,
-        outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
-        phaseFolderPath,
-      };
-
-      const backend = yield* Backend;
-      const resolvedProvider = resolution.selected.provider;
-      yield* telemetry.recordEvent(
-        makeAdapterCallStartedTelemetryEvent({
-          runId,
-          operationId: phase.id,
-          adapter: resolvedProvider,
-          operation: "agent.run",
-        }),
-      );
-      const agentResult = yield* telemetry.withOperation(
-        `phax.${resolvedProvider}.agent.run`,
-        { "phax.phase.id": phase.id },
-        backend.runAgent(promptText, agentOptions).pipe(
-          Effect.tapError((e) =>
-            e instanceof AgentInvocationError
-              ? telemetry.recordError(
-                  reportAgentFailure(e, {
-                    runId,
-                    operationId: phase.id,
-                    adapter: resolvedProvider,
-                    operation: "agent.run",
-                  }),
-                )
-              : Effect.void,
-          ),
-        ),
-      );
-      const sessionId = agentResult.sessionId;
-      currentSessionId = sessionId as string;
-      yield* telemetry.recordEvent(
-        makeAdapterCallSucceededTelemetryEvent({
-          runId,
-          operationId: phase.id,
-          adapter: resolvedProvider,
-          operation: "agent.run",
-        }),
-      );
-      yield* telemetry.recordEvent(
-        makeArtifactGeneratedTelemetryEvent({
-          runId,
-          operationId: phase.id,
-          artifact: "claude-session-id",
-          path: sessionId as string,
-        }),
-      );
-
       // running → passed transition is dispatched inside fixLoop on the
-      // gate-success branch via dispatch(GatePassed).
+      // gate-success branch via dispatch(GatePassed). On resume-from-gate the
+      // loop starts at `resumeAttempt + 1` with a fresh fix budget so prior
+      // attempt artifacts are preserved.
       yield* runGatesWithFixLoop({
         commands: gateCommands,
         cwd: worktreePath as string,
@@ -493,6 +656,9 @@ export function executePlan(
         run: shortName as string,
         phaseId: phase.id,
         runPath,
+        ...(isResumeFromGate
+          ? { startAttempt: resumeAttempt + 1, worktreePath: worktreePath as string }
+          : {}),
       });
 
       yield* telemetry.recordEvent(
@@ -636,8 +802,18 @@ export function executePlan(
         return yield* Effect.fail(e);
       }),
     ),
+    // Gate exhaustion pauses the run instead of failing it: FixAttemptsExhausted
+    // was dispatched inside the fix loop (which performed the pause transition
+    // and wrote resume-instructions.md), so we just re-raise here to ensure a
+    // non-zero exit code. The run is already in `interrupted` state with phase
+    // `gates_exhausted`, ready for `phax resume`.
+    Effect.catchIf(isGateAttemptsExhaustedError, (e) =>
+      Effect.gen(function* () {
+        return yield* Effect.fail(e);
+      }),
+    ),
     Effect.tapError((e) =>
-      isRateLimitError(e) || isNoChangesError(e)
+      isRateLimitError(e) || isNoChangesError(e) || isGateAttemptsExhaustedError(e)
         ? Effect.void
         : dispatch(
             { ...eventBase(currentPhaseId), type: "RunFailed", cause: e },

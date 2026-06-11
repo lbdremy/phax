@@ -7,6 +7,7 @@ import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName } from "../../src/domain/branded.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
+import { AgentSessionIdMissingError, GateAttemptsExhaustedError } from "../../src/domain/errors.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
@@ -323,5 +324,322 @@ describe("executePlan — happy-path 2-phase run", () => {
       expect(result.right.finalPhaseId).toBe("phase-02");
       expect(result.right.finalWorktreePath).toBe(phase02WorktreePath);
     }
+  });
+});
+
+describe("executePlan — resume from gates_exhausted", () => {
+  let stateRoot: string;
+  const singlePhaseRawPlan = {
+    version: 1,
+    run: {
+      shortName: "my-run",
+      title: "My Run",
+      branch: "ai/my-run",
+    },
+    phases: [
+      {
+        id: "phase-01",
+        title: "First Phase",
+        model: "claude-sonnet-4-6",
+        effort: "low" as const,
+        planMarkdownAnchor: "#phase-01-first",
+        plannedFilesToCreate: [],
+        plannedFilesToEdit: [],
+        optionalFilesToEdit: [],
+        commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
+      },
+    ],
+  } as const;
+
+  const baseConfig = (): ResolvedConfig => ({
+    raw: {
+      version: 1,
+      project: { name: "test-project", type: "single-package" },
+      state: { root: stateRoot },
+      gateProfiles: { full: ["true"] },
+      commands: { setup: ["true"], cleanup: ["true"] },
+    },
+    stateRoot,
+    repoRoot: stateRoot,
+    editorCommand: "echo",
+    maxFixAttempts: 1,
+    extractPlanModel: "claude-haiku-4-5-20251001",
+    extractPlanEffort: "low" as const,
+    fileReconciliationMode: "report_only" as const,
+    security: {
+      profile: "unsafe",
+      filesystem: { allowRead: [], allowWrite: [] },
+      network: { profile: "provider-only", allowDomains: [] },
+      mcp: { mode: "disabled", allow: [] },
+    },
+  });
+
+  // Seed a run that is paused in `interrupted` with phase-01 in `gates_exhausted`,
+  // mirroring the on-disk shape the reducer / dispatcher would leave behind after
+  // FixAttemptsExhausted.
+  async function seedGatesExhaustedRun(opts: {
+    runPath: string;
+    worktreePath: string;
+    claudeSessionId?: string | undefined;
+  }): Promise<void> {
+    const now = new Date().toISOString();
+    const runStatus = {
+      version: 1,
+      shortName: "my-run",
+      runId: "my-run-2026-06-11",
+      state: "interrupted",
+      createdAt: now,
+      updatedAt: now,
+      phasesCount: 1,
+      currentPhaseIndex: 0,
+      gateProfileId: "full",
+      stoppedReason: "gates_exhausted",
+      lastError: "Gate failed: true",
+    };
+    await writeFile(join(opts.runPath, "run-status.json"), JSON.stringify(runStatus, null, 2));
+
+    const phaseFolder = join(opts.runPath, "phase-01");
+    await mkdir(phaseFolder, { recursive: true });
+    const phaseStatus: Record<string, unknown> = {
+      version: 1,
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      state: "gates_exhausted",
+      model: "claude-sonnet-4-6",
+      effort: "low",
+      createdAt: now,
+      updatedAt: now,
+      branchName: "ai/my-run--phase-01",
+      worktreePath: opts.worktreePath,
+    };
+    if (opts.claudeSessionId !== undefined) {
+      phaseStatus.claudeSessionId = opts.claudeSessionId;
+    }
+    await writeFile(join(phaseFolder, "status.json"), JSON.stringify(phaseStatus, null, 2));
+
+    // Simulate that one gate attempt (and one fix) already ran before the
+    // budget was exhausted. The resume path must continue numbering past these.
+    await writeFile(join(phaseFolder, "checks-attempt-01.log"), "gate failed\n");
+    await writeFile(join(phaseFolder, "fix-attempt-01.jsonl"), "");
+  }
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-test-"));
+    const worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await mkdir(join(worktree, ".phax-context"), { recursive: true });
+    await writeFile(join(worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+  });
+
+  it("re-enters the gate loop without invoking the implementation agent when the human's fix made the gate pass", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
+    const config = baseConfig();
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
+
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "feedface12345678\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    // Only the post-gate handoff resume should be needed.
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-01-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+    await seedGatesExhaustedRun({
+      runPath,
+      worktreePath,
+      claudeSessionId: "sess-original-abc",
+    });
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    // The implementation agent must NOT be invoked on a gate-first resume.
+    expect(fakeBackend.impl.runCalls).toHaveLength(0);
+    // No fix attempts were needed because the human-applied fix made the gate pass.
+    const resumeCallsForFixes = fakeBackend.impl.resumeCalls.filter((c) =>
+      c.options.outputJsonlPath?.includes("fix-attempt-"),
+    );
+    expect(resumeCallsForFixes).toHaveLength(0);
+
+    const phaseStatus = JSON.parse(
+      await readFile(join(runPath, "phase-01", "status.json"), "utf8"),
+    ) as { state: string };
+    expect(phaseStatus.state).toBe("review_open");
+    // Prior attempt artifacts must not be clobbered by the resume.
+    await expect(
+      access(join(runPath, "phase-01", "checks-attempt-01.log")),
+    ).resolves.toBeUndefined();
+  });
+
+  it("pauses the run again (does not fail it) when the gate keeps failing on resume", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
+    const config = baseConfig();
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+
+    const fakeShell = makeFakeShell();
+    // Gate command keeps failing on the resumed gate loop.
+    fakeShell.impl.setResponse("true", { exitCode: 1, stdout: "", stderr: "boom" });
+
+    const fakeBackend = makeFakeBackend();
+    // The fresh fix budget = maxFixAttempts = 1 → one fix call before exhaustion.
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-fixed-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+    await seedGatesExhaustedRun({
+      runPath,
+      worktreePath,
+      claudeSessionId: "sess-original-abc",
+    });
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    }
+    // No implementation-agent call ever happens on a gate-first resume.
+    expect(fakeBackend.impl.runCalls).toHaveLength(0);
+    // The resume must re-park the run as `interrupted` with phase
+    // `gates_exhausted`, not drive it to terminal `failed`.
+    const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
+      state: string;
+      stoppedReason?: string;
+    };
+    expect(runStatus.state).toBe("interrupted");
+    expect(runStatus.stoppedReason).toBe("gates_exhausted");
+    const phaseStatus = JSON.parse(
+      await readFile(join(runPath, "phase-01", "status.json"), "utf8"),
+    ) as { state: string };
+    expect(phaseStatus.state).toBe("gates_exhausted");
+    // The resume started at attempt 2, so the original attempt 01 log is intact
+    // and a fresh attempt 02 log was written.
+    await expect(
+      access(join(runPath, "phase-01", "checks-attempt-02.log")),
+    ).resolves.toBeUndefined();
+  });
+
+  it("fails loudly with a reset-phase-directing error when the persisted Claude session id is missing", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
+    const config = baseConfig();
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    const fakeShell = makeFakeShell();
+    const fakeBackend = makeFakeBackend();
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+    await seedGatesExhaustedRun({
+      runPath,
+      worktreePath,
+      claudeSessionId: undefined,
+    });
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(AgentSessionIdMissingError);
+      expect((result.left as AgentSessionIdMissingError).message).toContain("phax reset-phase");
+    }
+    // The implementation agent must not be started blindly when the session is lost.
+    expect(fakeBackend.impl.runCalls).toHaveLength(0);
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
   });
 });
