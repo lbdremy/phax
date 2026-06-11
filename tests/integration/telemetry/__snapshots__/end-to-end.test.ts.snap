@@ -146,5 +146,15 @@ exports[`executePlan — semantic telemetry end-to-end > emits the expected sema
     "stateBefore": "running:committed",
     "type": "state.transition",
   },
+  {
+    "artifact": "global-file-reconciliation",
+    "path": "global-file-reconciliation.json",
+    "type": "artifact.generated",
+  },
+  {
+    "artifact": "global-file-reconciliation",
+    "path": "global-file-reconciliation.md",
+    "type": "artifact.generated",
+  },
 ]
 `;

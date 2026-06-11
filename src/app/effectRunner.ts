@@ -8,7 +8,7 @@ import {
   makeAdapterCallFailedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
 } from "../domain/telemetry/events.js";
-import { FileSystem, type FsError } from "../ports/fs.js";
+import { FileSystem, FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
@@ -20,8 +20,7 @@ import {
 } from "../schemas/status.js";
 import { setRunStatus } from "./registry.js";
 import { writeResumeInstructions } from "./resumeInstructions.js";
-import { buildReviewHandoffMarkdown } from "./reviewHandoff.js";
-import { writeFinalReport } from "./finalReport.js";
+import { generateReviewHandoff } from "./reviewHandoff.js";
 
 export interface EffectRunnerContext {
   readonly runPath: string;
@@ -196,13 +195,19 @@ export function run(
         yield* fs.rename(cmd.from, cmd.to);
       });
     case "OpenRunReview":
-      return Effect.gen(function* () {
-        const fs = yield* FileSystem;
-        const content = buildReviewHandoffMarkdown(cmd.info);
-        yield* fs.writeAtomic(join(cmd.info.runPath, "review-handoff.md"), content);
-        yield* setRunStatus(cmd.info.stateRoot, cmd.info.shortName, { state: "review_open" });
-      });
+      // allowPartial: true here because pre-committed phases may lack file-reconciliation.json.
+      // Phase-05 switches to allowPartial: false after ensuring all phases produce the artifact.
+      return generateReviewHandoff(cmd.info, { allowPartial: true }).pipe(
+        Effect.catchTag("ReviewHandoffArtifactMissingError", (e) =>
+          Effect.fail(new FsError({ message: e.message })),
+        ),
+        Effect.andThen(() =>
+          setRunStatus(cmd.info.stateRoot, cmd.info.shortName, { state: "review_open" }),
+        ),
+      );
     case "WriteFinalReport":
-      return writeFinalReport(cmd.info);
+      // No-op: final-report.md is written by generateReviewHandoff in OpenRunReview.
+      // Phase-05 removes this effect from the domain.
+      return Effect.void;
   }
 }

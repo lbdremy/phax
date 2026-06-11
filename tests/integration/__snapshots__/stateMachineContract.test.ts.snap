@@ -146,5 +146,15 @@ exports[`State Machine Contract > snapshots the ordered semantic trace for a hap
     "stateBefore": "running:committed",
     "type": "state.transition",
   },
+  {
+    "artifact": "global-file-reconciliation",
+    "path": "global-file-reconciliation.json",
+    "type": "artifact.generated",
+  },
+  {
+    "artifact": "global-file-reconciliation",
+    "path": "global-file-reconciliation.md",
+    "type": "artifact.generated",
+  },
 ]
 `;
