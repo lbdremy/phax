@@ -7,6 +7,7 @@ import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
   AgentSessionIdMissingError,
+  GateAttemptsExhaustedError,
   GateFailedError,
   PhaseHadNoChangesError,
   RateLimitError,
@@ -99,6 +100,7 @@ export type ExecutePlanError =
   | AgentInvocationError
   | AgentSessionIdMissingError
   | GateFailedError
+  | GateAttemptsExhaustedError
   | HandoffValidationError
   | ArchiveBlockedByDirtyWorktreeError
   | RegistryCorruptionError
