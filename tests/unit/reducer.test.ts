@@ -90,7 +90,16 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
   },
   FixStarted: { ...base, type: "FixStarted", phase: phaseId, attempt: 1 },
   FixCompleted: { ...base, type: "FixCompleted", phase: phaseId, sessionId },
-  FixAttemptsExhausted: { ...base, type: "FixAttemptsExhausted", phase: phaseId },
+  FixAttemptsExhausted: {
+    ...base,
+    type: "FixAttemptsExhausted",
+    phase: phaseId,
+    phaseId,
+    attempt: 3,
+    worktreePath,
+    sessionId,
+    command: "pnpm test",
+  },
   HandoffRequested: { ...base, type: "HandoffRequested", phase: phaseId },
   HandoffValidated: { ...base, type: "HandoffValidated", phase: phaseId },
   HandoffMissing: {
@@ -293,7 +302,7 @@ describe("interpret — phase lifecycle within running", () => {
     expect(d.nextState).toEqual({ run: "running", phase: { state: "running" } });
   });
 
-  it("FixAttemptsExhausted from gates_failed → phase.failed", () => {
+  it("FixAttemptsExhausted from gates_failed pauses the run as interrupted/gates_exhausted", () => {
     const state: PhaxState = {
       run: "running",
       phase: { state: "gates_failed", attempt: 3 },
@@ -302,9 +311,84 @@ describe("interpret — phase lifecycle within running", () => {
     expect(d.kind).toBe("Handled");
     if (d.kind !== "Handled") return;
     expect(d.nextState).toEqual({
-      run: "running",
-      phase: { state: "failed", cause: "fix attempts exhausted" },
+      run: "interrupted",
+      phase: { state: "gates_exhausted", attempt: 3 },
     });
+  });
+
+  it("FixAttemptsExhausted from fixing pauses the run as interrupted/gates_exhausted", () => {
+    const state: PhaxState = {
+      run: "running",
+      phase: { state: "fixing", attempt: 3 },
+    };
+    const d = interpret(state, sampleEvents.FixAttemptsExhausted);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({
+      run: "interrupted",
+      phase: { state: "gates_exhausted", attempt: 3 },
+    });
+  });
+
+  it("FixAttemptsExhausted emits PersistState with stoppedReason=gates_exhausted", () => {
+    const state: PhaxState = {
+      run: "running",
+      phase: { state: "gates_failed", attempt: 3 },
+    };
+    const d = interpret(state, sampleEvents.FixAttemptsExhausted);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    const persistEffect = d.effects.find((e) => e.type === "PersistState");
+    expect(persistEffect).toBeDefined();
+    if (persistEffect?.type === "PersistState") {
+      expect(persistEffect.patch.run?.stoppedReason).toBe("gates_exhausted");
+      expect(persistEffect.patch.run?.lastError).toBe("Gate failed: pnpm test");
+    }
+  });
+
+  it("FixAttemptsExhausted emits WriteResumeInstructions with kind=gates_exhausted", () => {
+    const state: PhaxState = {
+      run: "running",
+      phase: { state: "gates_failed", attempt: 3 },
+    };
+    const d = interpret(state, sampleEvents.FixAttemptsExhausted);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    const resumeEffect = d.effects.find((e) => e.type === "WriteResumeInstructions");
+    expect(resumeEffect).toBeDefined();
+    if (resumeEffect?.type === "WriteResumeInstructions") {
+      expect(resumeEffect.ctx.kind).toBe("gates_exhausted");
+      expect(resumeEffect.ctx.reason).toBe("Gate checks failed");
+      expect(resumeEffect.ctx.phaseId).toBe(phaseId);
+      expect(resumeEffect.ctx.worktreePath).toBe(worktreePath);
+      expect(resumeEffect.ctx.sessionId).toBe(sessionId);
+    }
+  });
+
+  it("FixAttemptsExhausted emits gate.attempts_exhausted and resume.available traces", () => {
+    const state: PhaxState = {
+      run: "running",
+      phase: { state: "gates_failed", attempt: 3 },
+    };
+    const d = interpret(state, sampleEvents.FixAttemptsExhausted);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    const traceNames = d.effects
+      .filter((e) => e.type === "EmitTrace")
+      .map((e) => (e.type === "EmitTrace" ? e.name : ""));
+    expect(traceNames).toContain("gate.attempts_exhausted");
+    expect(traceNames).toContain("resume.available");
+  });
+
+  it("RunResumeRequested on interrupted/gates_exhausted lifts to running/running", () => {
+    const state: PhaxState = {
+      run: "interrupted",
+      phase: { state: "gates_exhausted", attempt: 3 },
+    };
+    const d = interpret(state, sampleEvents.RunResumeRequested);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({ run: "running", phase: { state: "running" } });
   });
 
   it("CommitCreated transitions passed → committed and records hash", () => {
