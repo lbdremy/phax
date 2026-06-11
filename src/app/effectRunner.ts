@@ -173,11 +173,12 @@ export function run(
         runPath: ctx.runPath,
         shortName: ctx.shortName,
         reason: cmd.ctx.reason,
-        resetAt: cmd.ctx.resetAt,
+        kind: cmd.ctx.kind,
+        resetAt: cmd.ctx.kind === "gates_exhausted" ? undefined : cmd.ctx.resetAt,
         phaseId: cmd.ctx.phaseId,
         worktreePath: cmd.ctx.worktreePath,
         sessionId: cmd.ctx.sessionId,
-        rawMessage: cmd.ctx.rawMessage,
+        rawMessage: cmd.ctx.kind === "gates_exhausted" ? undefined : cmd.ctx.rawMessage,
       }).pipe(Effect.asVoid);
     case "RunCleanupShell":
       return runCleanupShell(cmd);
