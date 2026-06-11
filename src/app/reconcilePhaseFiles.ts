@@ -8,6 +8,7 @@ import { makeArtifactGeneratedTelemetryEvent } from "../domain/telemetry/events.
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
+import { encodePhaseFileReconciliation } from "../schemas/reconciliation.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 
 export interface ReconcilePhaseFilesOptions {
@@ -58,9 +59,10 @@ export function reconcilePhaseFiles(
       );
     }
 
+    const persisted = encodePhaseFileReconciliation({ ...result, phaseId: opts.phase.id });
     yield* fs.writeAtomic(
       join(opts.phaseFolderPath, "file-reconciliation.json"),
-      JSON.stringify(result, null, 2),
+      JSON.stringify(persisted, null, 2),
     );
     yield* fs.writeAtomic(join(opts.phaseFolderPath, "file-reconciliation.md"), markdown);
 
