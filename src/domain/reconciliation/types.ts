@@ -24,3 +24,7 @@ export interface ReconciliationResult {
   readonly renames: readonly { from: string; to: string }[];
   readonly hasDeviations: boolean;
 }
+
+export interface PhaseFileReconciliation extends ReconciliationResult {
+  readonly phaseId: string;
+}

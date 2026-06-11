@@ -7,7 +7,7 @@ import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName } from "../../src/domain/branded.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
-import type { ReconciliationResult } from "../../src/domain/reconciliation/types.js";
+import type { PhaseFileReconciliation } from "../../src/domain/reconciliation/types.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
@@ -161,7 +161,8 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
     const jsonPath = join(runPath, "phase-01", "file-reconciliation.json");
     const mdPath = join(runPath, "phase-01", "file-reconciliation.md");
 
-    const jsonContent = JSON.parse(await readFile(jsonPath, "utf8")) as ReconciliationResult;
+    const jsonContent = JSON.parse(await readFile(jsonPath, "utf8")) as PhaseFileReconciliation;
+    expect(jsonContent.phaseId).toBe("phase-01");
     expect(jsonContent.createdAsPlanned).toEqual(["src/new-file.ts"]);
     expect(jsonContent.editedAsPlanned).toEqual(["src/existing.ts"]);
     expect(jsonContent.missingPlannedCreate).toEqual([]);
@@ -270,7 +271,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
 
     const jsonContent = JSON.parse(
       await readFile(join(runPath, "phase-01", "file-reconciliation.json"), "utf8"),
-    ) as ReconciliationResult;
+    ) as PhaseFileReconciliation;
     expect(jsonContent.hasDeviations).toBe(false);
 
     const mdContent = await readFile(join(runPath, "phase-01", "file-reconciliation.md"), "utf8");
