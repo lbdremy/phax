@@ -8,6 +8,8 @@ export interface ResumeInstructionsInput {
   readonly shortName: string;
   /** Why the run stopped, e.g. "Rate limit" or "Usage limit". */
   readonly reason: string;
+  /** Discriminates the pause kind; determines which body is rendered. */
+  readonly kind?: string | undefined;
   /** Best-effort reset time parsed from the limit message, if any. */
   readonly resetAt?: string | undefined;
   /** The phase that was in flight when the limit was hit. */
@@ -20,7 +22,50 @@ export interface ResumeInstructionsInput {
   readonly rawMessage?: string | undefined;
 }
 
-function buildResumeInstructions(input: ResumeInstructionsInput): string {
+function buildGateExhaustionInstructions(input: ResumeInstructionsInput): string {
+  const phaseId = input.phaseId ?? "(unknown)";
+  const lines: string[] = [
+    `# Resume Instructions: ${input.shortName}`,
+    "",
+    "This run paused because its gate checks failed after exhausting all fix attempts.",
+    "Fix the gate manually in the worktree, then resume — the gate is re-run first on",
+    "resume, and if it passes the phase commits with no fresh agent invocation.",
+    "",
+    "## Why it stopped",
+    "",
+    `- **Reason:** ${input.reason}`,
+    `- **Current phase:** ${phaseId}`,
+    `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
+    `- **Claude session:** ${input.sessionId ?? "(not captured)"}`,
+    "",
+    "## Fix the gate manually",
+    "",
+    "Navigate to the worktree and fix whatever caused the gate to fail:",
+    "",
+    "```bash",
+    `cd ${input.worktreePath ?? "<worktree-path>"}`,
+    "# fix the failing gate, then:",
+    "```",
+    "",
+    "## Resume the run",
+    "",
+    "```bash",
+    `phax resume ${input.shortName} --yes`,
+    "```",
+    "",
+    "## If the Claude session was lost",
+    "",
+    "If the session ID is missing or the session context is gone, use:",
+    "",
+    "```bash",
+    `phax reset-phase ${input.shortName} ${phaseId}`,
+    "```",
+    "",
+  ];
+  return lines.join("\n");
+}
+
+function buildRateLimitInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
   const lines: string[] = [
     `# Resume Instructions: ${input.shortName}`,
@@ -55,6 +100,13 @@ function buildResumeInstructions(input: ResumeInstructionsInput): string {
   }
 
   return lines.join("\n");
+}
+
+export function buildResumeInstructions(input: ResumeInstructionsInput): string {
+  if (input.kind === "gates_exhausted") {
+    return buildGateExhaustionInstructions(input);
+  }
+  return buildRateLimitInstructions(input);
 }
 
 /**

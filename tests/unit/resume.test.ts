@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Either } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { inspectResume } from "../../src/app/resume.js";
+import { buildResumeInstructions } from "../../src/app/resumeInstructions.js";
 
 function unwrap<T>(e: Either.Either<T, unknown>): T {
   if (Either.isLeft(e)) throw new Error("decode failed");
@@ -54,6 +55,49 @@ function makePlanPhase(id: string) {
     commit: { subject: `feat: ${id}`, body: `${id} body` },
   };
 }
+
+describe("buildResumeInstructions", () => {
+  const base = {
+    runPath: "/runs/my-run",
+    shortName: "my-run",
+    reason: "Gate checks failed",
+    kind: "gates_exhausted" as const,
+    phaseId: "phase-03",
+    worktreePath: "/worktrees/my-run--phase-03",
+    sessionId: "sess-abc123",
+  };
+
+  it("gate-exhaustion body mentions re-running the gate and phax resume", () => {
+    const md = buildResumeInstructions(base);
+    expect(md).toContain("gate");
+    expect(md).toContain("phax resume my-run");
+  });
+
+  it("gate-exhaustion body mentions phax reset-phase", () => {
+    const md = buildResumeInstructions(base);
+    expect(md).toContain("phax reset-phase my-run phase-03");
+  });
+
+  it("gate-exhaustion body does not include a reset time", () => {
+    const md = buildResumeInstructions(base);
+    expect(md).not.toContain("Reset time");
+    expect(md).not.toContain("retry later");
+  });
+
+  it("rate-limit body is unchanged (no regression)", () => {
+    const md = buildResumeInstructions({
+      runPath: "/runs/my-run",
+      shortName: "my-run",
+      reason: "Rate limit",
+      kind: "rate_limit",
+      resetAt: "2026-06-12T00:00:00Z",
+      phaseId: "phase-01",
+    });
+    expect(md).toContain("Reset time");
+    expect(md).toContain("2026-06-12T00:00:00Z");
+    expect(md).not.toContain("phax reset-phase");
+  });
+});
 
 describe("inspectResume", () => {
   let stateRoot: string;
