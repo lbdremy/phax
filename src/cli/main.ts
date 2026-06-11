@@ -12,6 +12,7 @@ import { runPath, runPathLast } from "./commands/path.js";
 import { runOpen, runOpenLast } from "./commands/open.js";
 import { runLs } from "./commands/ls.js";
 import { runArchive, runArchiveLast } from "./commands/archive.js";
+import { runReviewHandoff } from "./commands/reviewHandoff.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
 import { registerResumeCommand } from "./commands/resumeRegister.js";
@@ -235,6 +236,15 @@ program
       process.exit(exitCode);
     },
   );
+
+program
+  .command("review-handoff <short-name>")
+  .description("Regenerate review-handoff.md and global file reconciliation for a review_open run")
+  .option("--allow-partial", "Generate a partial document when some phase artifacts are missing")
+  .action(async (shortName: string, opts: { allowPartial?: boolean }) => {
+    const exitCode = await runReviewHandoff(shortName, opts, consoleOutput);
+    process.exit(exitCode);
+  });
 
 registerResumeCommand(program, runResume, consoleOutput, globalTraceOpts);
 registerAgentCommand(program, consoleOutput);
