@@ -131,6 +131,27 @@ describe("executePlan — resume from startIndex: 1", () => {
         commitHash: "aabbccdd11223344",
       }),
     );
+    await writeFile(
+      join(phase01FolderPath, "file-reconciliation.json"),
+      JSON.stringify({
+        phaseId: "phase-01",
+        createdAsPlanned: [],
+        editedAsPlanned: [],
+        missingPlannedCreate: [],
+        missingPlannedEdit: [],
+        unplannedCreated: [],
+        unplannedEdited: [],
+        optionalTouched: [],
+        deletions: [],
+        renames: [],
+        hasDeviations: false,
+      }),
+    );
+    await writeFile(
+      join(phase01FolderPath, "file-reconciliation.md"),
+      "## File Reconciliation\n\nNo deviations.",
+    );
+    await writeFile(join(phase01FolderPath, "phase-handoff.md"), HANDOFF_CONTENT);
 
     // Advance run-status to "running" (as it would be after the run started).
     await writeFile(
@@ -281,6 +302,27 @@ describe("executePlan — resume from startIndex: 1", () => {
         commitHash: "aabbccdd",
       }),
     );
+    await writeFile(
+      join(phase01FolderPath, "file-reconciliation.json"),
+      JSON.stringify({
+        phaseId: "phase-01",
+        createdAsPlanned: [],
+        editedAsPlanned: [],
+        missingPlannedCreate: [],
+        missingPlannedEdit: [],
+        unplannedCreated: [],
+        unplannedEdited: [],
+        optionalTouched: [],
+        deletions: [],
+        renames: [],
+        hasDeviations: false,
+      }),
+    );
+    await writeFile(
+      join(phase01FolderPath, "file-reconciliation.md"),
+      "## File Reconciliation\n\nNo deviations.",
+    );
+    await writeFile(join(phase01FolderPath, "phase-handoff.md"), HANDOFF_CONTENT);
 
     await writeFile(
       join(runPath, "run-status.json"),

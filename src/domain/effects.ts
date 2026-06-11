@@ -53,11 +53,6 @@ export interface OpenRunReview {
   readonly info: RunReviewInfo;
 }
 
-export interface WriteFinalReport {
-  readonly type: "WriteFinalReport";
-  readonly info: RunReviewInfo;
-}
-
 export interface MoveRunToArchive {
   readonly type: "MoveRunToArchive";
   readonly from: string;
@@ -76,7 +71,6 @@ export type PhaxCommand =
   | RunCleanupShell
   | WriteAtomic
   | OpenRunReview
-  | WriteFinalReport
   | MoveRunToArchive
   | RecordCommitMetadata;
 

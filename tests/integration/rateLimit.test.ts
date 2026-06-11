@@ -259,6 +259,27 @@ describe("executePlan — rate-limit detection and resume", () => {
         commitHash: "aabbccdd11223344",
       }),
     );
+    await writeFile(
+      join(phase01FolderPath, "file-reconciliation.json"),
+      JSON.stringify({
+        phaseId: "phase-01",
+        createdAsPlanned: [],
+        editedAsPlanned: [],
+        missingPlannedCreate: [],
+        missingPlannedEdit: [],
+        unplannedCreated: [],
+        unplannedEdited: [],
+        optionalTouched: [],
+        deletions: [],
+        renames: [],
+        hasDeviations: false,
+      }),
+    );
+    await writeFile(
+      join(phase01FolderPath, "file-reconciliation.md"),
+      "## File Reconciliation\n\nNo deviations.",
+    );
+    await writeFile(join(phase01FolderPath, "phase-handoff.md"), HANDOFF_CONTENT);
 
     // phase-02 was in flight when the rate limit hit — folder + worktree preserved.
     const phase02FolderPath = join(runPath, "phase-02");
