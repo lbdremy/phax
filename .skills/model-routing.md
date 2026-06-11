@@ -43,7 +43,7 @@ src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
 
 **Same-family preservation**: effort never changes model family for Claude families. A `claude-sonnet / low` request resolved to `claude-code` stays Sonnet (not Haiku). A same-family switch (e.g. Sonnet → Haiku) requires an explicit `relationship: "downgrade"` entry **and** `allowDowngrade: true`. The `resolveModel` function enforces this invariant regardless of the user-edited routing table.
 
-**`ultracode` is Opus-only**: `claude-opus / ultracode` resolves through the `ultra` tier. No Mistral/OpenAI equivalent exists — it is never silently downgraded when `allowDowngrade: false`.
+**`ultracode` is Opus-only**: `claude-opus / ultracode` resolves through the `frontier-ultra` tier. No Mistral/OpenAI equivalent exists — it is never silently downgraded when `allowDowngrade: false`.
 
 **Telemetry never fails a run**: the `agent.model.resolved` event is emitted via `telemetry.recordEvent` and errors are swallowed.
 
@@ -74,16 +74,19 @@ src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
 
 ## Routing tiers
 
-| Tier          | Typical use                                  |
-| ------------- | -------------------------------------------- |
-| `cheap`       | Haiku-class, no thinking                     |
-| `fast`        | Sonnet/low — fast path, stays Sonnet         |
-| `standard`    | Sonnet/medium — default                      |
-| `strong`      | Sonnet/high                                  |
-| `very_strong` | Sonnet/max or codex/high                     |
-| `frontier`    | Opus/medium or codex/xhigh fallback          |
-| `max`         | Opus/max                                     |
-| `ultra`       | Opus/ultracode only — no Mistral/OpenAI peer |
+| Tier              | Typical use                                  |
+| ----------------- | -------------------------------------------- |
+| `cheap`           | Haiku-class, no thinking                     |
+| `fast`            | Sonnet/low — fast path, stays Sonnet         |
+| `standard`        | Sonnet/medium — default                      |
+| `strong`          | Sonnet/high                                  |
+| `very_strong`     | Sonnet/max or codex/high                     |
+| `frontier-low`    | Opus/low; codex gpt/high (`equivalent`)      |
+| `frontier-medium` | Opus/medium; codex gpt/xhigh (`equivalent`)  |
+| `frontier-high`   | Opus/high; codex gpt/xhigh (`equivalent`)    |
+| `frontier-xhigh`  | Opus/xhigh; codex gpt/xhigh (`equivalent`)   |
+| `frontier-max`    | Opus/max; codex gpt/xhigh (`downgrade`)      |
+| `frontier-ultra`  | Opus/ultracode only — no Mistral/OpenAI peer |
 
 ## Adding a new provider
 
@@ -117,11 +120,15 @@ Valid ids: `claude-code`, `mistral-vibe`, `codex-cli`. The list is parsed by `pa
 
 ## Worked examples (spec §15)
 
-| Request        | Priority           | allowDowngrade | Result                                                            |
-| -------------- | ------------------ | -------------- | ----------------------------------------------------------------- |
-| sonnet/medium  | mistral-vibe first | —              | mistral-vibe, `phax-mistral-medium-3.5-medium`, `equivalent`      |
-| sonnet/high    | codex-cli first    | —              | codex-cli, `gpt-5.5`, effort `medium`, `equivalent`               |
-| sonnet/low     | claude-code        | —              | claude-code, `claude-sonnet` (NOT haiku — same-family preserved)  |
-| opus/medium    | codex-cli          | true           | codex-cli, effort `xhigh`, `fallback`                             |
-| opus/high      | codex-cli          | false          | claude-code, `claude-opus`, `exact`                               |
-| opus/ultracode | any                | false          | claude-code, `claude-opus`, `ultra` tier (no equivalent anywhere) |
+| Request        | Priority           | allowDowngrade | Result                                                                         |
+| -------------- | ------------------ | -------------- | ------------------------------------------------------------------------------ |
+| sonnet/medium  | mistral-vibe first | —              | mistral-vibe, `phax-mistral-medium-3.5-medium`, `equivalent`                   |
+| sonnet/high    | codex-cli first    | —              | codex-cli, `gpt-5.5`, effort `medium`, `equivalent`                            |
+| sonnet/low     | claude-code        | —              | claude-code, `claude-sonnet` (NOT haiku — same-family preserved)               |
+| opus/low       | codex-cli first    | true           | codex-cli, `gpt-5.5`, effort `high`, `equivalent` (tier `frontier-low`)        |
+| opus/medium    | codex-cli first    | true           | codex-cli, `gpt-5.5`, effort `xhigh`, `equivalent` (tier `frontier-medium`)    |
+| opus/high      | codex-cli first    | true           | codex-cli, `gpt-5.5`, effort `xhigh`, `equivalent` (tier `frontier-high`)      |
+| opus/xhigh     | codex-cli first    | true           | codex-cli, `gpt-5.5`, effort `xhigh`, `equivalent` (tier `frontier-xhigh`)     |
+| opus/max       | codex-cli first    | true           | codex-cli, `gpt-5.5`, effort `xhigh`, `downgrade` (tier `frontier-max`)        |
+| opus/max       | codex-cli first    | false          | claude-code, `claude-opus`, `exact` (`downgrade` skipped)                      |
+| opus/ultracode | any                | false          | claude-code, `claude-opus/ultracode`, `frontier-ultra` tier (no peer anywhere) |
