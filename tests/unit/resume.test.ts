@@ -147,6 +147,7 @@ describe("inspectResume", () => {
     expect(result.left.reason).toBe("failed");
     expect(result.left.message).toContain("test-run");
     expect(result.left.message).toContain("failed");
+    expect(result.left.message).toContain("phax reset-phase test-run");
   });
 
   it("refuses runs in review_open state with reason=review_open", () => {
