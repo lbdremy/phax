@@ -116,14 +116,14 @@ describe("criterion 8 — claude-sonnet/low never resolves to claude-haiku", () 
 });
 
 describe("criterion 9 — claude-opus/low never resolves to claude-sonnet without explicit downgrade", () => {
-  it("claude-only resolution preserves Opus for opus/low even when frontier entry pins effort=medium", () => {
+  it("claude-only resolution preserves Opus for opus/low and routes to its own frontier-low tier", () => {
     const result = resolveModel(
       { model: "claude-opus-4-8", effort: "low" },
       claudeOnly,
       DEFAULT_PROVIDER_CONFIG,
     );
 
-    expect(result.normalizedTier).toBe("frontier");
+    expect(result.normalizedTier).toBe("frontier-low");
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-opus");
     expect(result.selected.family).not.toBe("claude-sonnet");
@@ -132,13 +132,13 @@ describe("criterion 9 — claude-opus/low never resolves to claude-sonnet withou
     expect(result.relationship).toBe("exact");
   });
 
-  it("forces back to Opus when a user pins claude-sonnet on the frontier tier (no explicit downgrade)", () => {
+  it("forces back to Opus when a user pins claude-sonnet on the frontier-low tier (no explicit downgrade)", () => {
     const userRouting: ModelRouting = {
       ...claudeOnly,
       allowDowngrade: true,
       tiers: {
         ...claudeOnly.tiers,
-        frontier: { "claude-code": { family: "claude-sonnet", effort: "max" } },
+        "frontier-low": { "claude-code": { family: "claude-sonnet", effort: "max" } },
       },
     };
 
@@ -159,7 +159,7 @@ describe("criterion 9 — claude-opus/low never resolves to claude-sonnet withou
       allowDowngrade: false,
       tiers: {
         ...claudeOnly.tiers,
-        frontier: {
+        "frontier-low": {
           "claude-code": { family: "claude-sonnet", effort: "max", relationship: "downgrade" },
         },
       },
@@ -180,7 +180,7 @@ describe("criterion 9 — claude-opus/low never resolves to claude-sonnet withou
       allowDowngrade: true,
       tiers: {
         ...claudeOnly.tiers,
-        frontier: {
+        "frontier-low": {
           "claude-code": { family: "claude-sonnet", effort: "max", relationship: "downgrade" },
         },
       },
@@ -198,14 +198,14 @@ describe("criterion 9 — claude-opus/low never resolves to claude-sonnet withou
 });
 
 describe("criterion 10 — claude-opus/ultracode has no default equivalent and prefers Claude Opus", () => {
-  it("resolves to claude-code/claude-opus/ultracode on the ultra tier with mistral priority enabled", () => {
+  it("resolves to claude-code/claude-opus/ultracode on the frontier-ultra tier with mistral priority enabled", () => {
     const result = resolveModel(
       { model: "claude-opus-4-8", effort: "ultracode" },
       mistralPriority,
       allEnabledProviderConfig,
     );
 
-    expect(result.normalizedTier).toBe("ultra");
+    expect(result.normalizedTier).toBe("frontier-ultra");
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-opus");
     expect(result.selected.thinking).toBe("ultracode");
@@ -226,7 +226,7 @@ describe("criterion 10 — claude-opus/ultracode has no default equivalent and p
     expect(result.selected.family).not.toBe("openai-gpt");
   });
 
-  it("ultra tier resolves the same way with codex priority", () => {
+  it("frontier-ultra tier resolves the same way with codex priority", () => {
     const codexPriority: ModelRouting = {
       ...DEFAULT_MODEL_ROUTING,
       providerPriority: ["codex-cli", "claude-code"],
@@ -238,7 +238,7 @@ describe("criterion 10 — claude-opus/ultracode has no default equivalent and p
       allEnabledProviderConfig,
     );
 
-    expect(result.normalizedTier).toBe("ultra");
+    expect(result.normalizedTier).toBe("frontier-ultra");
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-opus");
     expect(result.selected.thinking).toBe("ultracode");
@@ -271,15 +271,15 @@ describe("effort clamping — out-of-set requests for claude-code", () => {
   });
 });
 
-describe("ultra tier resolution", () => {
-  it("ultra tier with claude-code only resolves to opus/ultracode", () => {
+describe("frontier-ultra tier resolution", () => {
+  it("frontier-ultra tier with claude-code only resolves to opus/ultracode", () => {
     const result = resolveModel(
       { model: "opus", effort: "ultracode" },
       claudeOnly,
       DEFAULT_PROVIDER_CONFIG,
     );
 
-    expect(result.normalizedTier).toBe("ultra");
+    expect(result.normalizedTier).toBe("frontier-ultra");
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-opus");
     expect(result.selected.thinking).toBe("ultracode");
@@ -291,8 +291,8 @@ describe("ultra tier resolution", () => {
       allowDowngrade: true,
       tiers: {
         ...mistralPriority.tiers,
-        ultra: {
-          ...mistralPriority.tiers["ultra"]!,
+        "frontier-ultra": {
+          ...mistralPriority.tiers["frontier-ultra"]!,
           "mistral-vibe": {
             family: "mistral-medium",
             thinking: "max",
@@ -318,8 +318,8 @@ describe("ultra tier resolution", () => {
       allowDowngrade: false,
       tiers: {
         ...mistralPriority.tiers,
-        ultra: {
-          ...mistralPriority.tiers["ultra"]!,
+        "frontier-ultra": {
+          ...mistralPriority.tiers["frontier-ultra"]!,
           "mistral-vibe": {
             family: "mistral-medium",
             thinking: "max",

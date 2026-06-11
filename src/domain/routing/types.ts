@@ -40,9 +40,12 @@ export type RoutingTier =
   | "standard"
   | "strong"
   | "very_strong"
-  | "frontier"
-  | "max"
-  | "ultra";
+  | "frontier-low"
+  | "frontier-medium"
+  | "frontier-high"
+  | "frontier-xhigh"
+  | "frontier-max"
+  | "frontier-ultra";
 
 export type Relationship = "exact" | "equivalent" | "fallback" | "downgrade" | "no_equivalent";
 

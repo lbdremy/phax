@@ -37,15 +37,27 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
       "mistral-vibe": { family: "mistral-medium", thinking: "max" },
       "codex-cli": { family: "openai-gpt", thinking: "high" },
     },
-    frontier: {
-      "claude-code": { family: "claude-opus", effort: "medium" },
-      "codex-cli": { family: "openai-gpt", thinking: "xhigh", relationship: "fallback" },
+    "frontier-low": {
+      "claude-code": { family: "claude-opus", effort: "low" },
+      "codex-cli": { family: "openai-gpt", thinking: "high" },
     },
-    max: {
+    "frontier-medium": {
+      "claude-code": { family: "claude-opus", effort: "medium" },
+      "codex-cli": { family: "openai-gpt", thinking: "xhigh" },
+    },
+    "frontier-high": {
+      "claude-code": { family: "claude-opus", effort: "high" },
+      "codex-cli": { family: "openai-gpt", thinking: "xhigh" },
+    },
+    "frontier-xhigh": {
+      "claude-code": { family: "claude-opus", effort: "xhigh" },
+      "codex-cli": { family: "openai-gpt", thinking: "xhigh" },
+    },
+    "frontier-max": {
       "claude-code": { family: "claude-opus", effort: "max" },
       "codex-cli": { family: "openai-gpt", thinking: "xhigh", relationship: "downgrade" },
     },
-    ultra: {
+    "frontier-ultra": {
       "claude-code": { family: "claude-opus", effort: "ultracode" },
     },
   },
@@ -58,12 +70,12 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
       max: "very_strong",
     },
     "claude-opus": {
-      low: "frontier",
-      medium: "frontier",
-      high: "max",
-      xhigh: "max",
-      max: "max",
-      ultracode: "ultra",
+      low: "frontier-low",
+      medium: "frontier-medium",
+      high: "frontier-high",
+      xhigh: "frontier-xhigh",
+      max: "frontier-max",
+      ultracode: "frontier-ultra",
     },
     "mistral-medium": {
       off: "cheap",
@@ -72,7 +84,12 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
       high: "strong",
       max: "very_strong",
     },
-    "openai-gpt": { low: "standard", medium: "strong", high: "very_strong", xhigh: "frontier" },
+    "openai-gpt": {
+      low: "standard",
+      medium: "strong",
+      high: "very_strong",
+      xhigh: "frontier-high",
+    },
   },
   requestedModelNormalization: {
     "claude-haiku-4-5-20251001": "claude-haiku",

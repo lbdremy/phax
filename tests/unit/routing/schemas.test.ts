@@ -1,5 +1,6 @@
 import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_MODEL_ROUTING } from "../../../src/domain/routing/defaults.js";
 import {
   ModelFamilySchema,
   ProviderIdSchema,
@@ -58,11 +59,11 @@ const validModelRouting = {
     very_strong: {
       "claude-code": { family: "claude-sonnet", effort: "xhigh" },
     },
-    frontier: {
+    "frontier-medium": {
       "claude-code": { family: "claude-opus" },
-      "codex-cli": { family: "openai-gpt", thinking: "xhigh", relationship: "fallback" },
+      "codex-cli": { family: "openai-gpt", thinking: "xhigh", relationship: "equivalent" },
     },
-    max: {
+    "frontier-max": {
       "claude-code": { family: "claude-opus", effort: "max" },
       "codex-cli": { family: "openai-gpt", thinking: "max", relationship: "downgrade" },
     },
@@ -75,14 +76,14 @@ const validModelRouting = {
       medium: "standard",
       high: "strong",
       xhigh: "very_strong",
-      max: "frontier",
+      max: "frontier-medium",
     },
     "claude-opus": {
       low: "strong",
-      medium: "frontier",
-      high: "max",
-      xhigh: "max",
-      max: "max",
+      medium: "frontier-medium",
+      high: "frontier-max",
+      xhigh: "frontier-max",
+      max: "frontier-max",
     },
     "mistral-medium": { defaultTier: "standard" },
     "openai-gpt": { defaultTier: "standard" },
@@ -187,9 +188,12 @@ describe("literal schemas", () => {
       "standard",
       "strong",
       "very_strong",
-      "frontier",
-      "max",
-      "ultra",
+      "frontier-low",
+      "frontier-medium",
+      "frontier-high",
+      "frontier-xhigh",
+      "frontier-max",
+      "frontier-ultra",
     ];
     for (const t of tiers) {
       expect(Either.isRight(decodeRoutingTier(t))).toBe(true);
@@ -198,6 +202,12 @@ describe("literal schemas", () => {
 
   it("RoutingTierSchema rejects an invalid tier", () => {
     expect(Either.isLeft(decodeRoutingTier("ultraviolet"))).toBe(true);
+  });
+
+  it("RoutingTierSchema rejects the removed legacy tier literals", () => {
+    for (const legacy of ["frontier", "max", "ultra"]) {
+      expect(Either.isLeft(decodeRoutingTier(legacy))).toBe(true);
+    }
   });
 
   it("RelationshipSchema accepts all valid relationships", () => {
@@ -215,6 +225,21 @@ describe("literal schemas", () => {
 describe("ModelRoutingSchema", () => {
   it("decodes the spec §12 example", () => {
     expect(Either.isRight(decodeModelRouting(validModelRouting))).toBe(true);
+  });
+
+  it("decodes the shipped DEFAULT_MODEL_ROUTING", () => {
+    expect(Either.isRight(decodeModelRouting(DEFAULT_MODEL_ROUTING))).toBe(true);
+  });
+
+  it("rejects a normalization map using a removed legacy tier literal", () => {
+    const result = decodeModelRouting({
+      ...validModelRouting,
+      normalization: {
+        ...validModelRouting.normalization,
+        "claude-opus": { low: "frontier", medium: "frontier", max: "max" },
+      },
+    });
+    expect(Either.isLeft(result)).toBe(true);
   });
 
   it("rejects unknown top-level keys", () => {

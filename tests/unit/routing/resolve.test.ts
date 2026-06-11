@@ -64,32 +64,32 @@ describe("resolveModel — spec §15 examples", () => {
     expect(result.relationship).toBe("equivalent");
   });
 
-  it("Example 3: opus/medium with mistral priority + allowDowngrade=true → codex-cli/openai-gpt/xhigh (fallback)", () => {
+  it("Example 3: opus/medium with mistral priority + allowDowngrade=true → codex-cli/openai-gpt/xhigh (equivalent)", () => {
     const result = resolveModel(
       { model: "claude-opus-4-8", effort: "medium" },
       { ...mistralPriority, allowDowngrade: true },
       allEnabledProviderConfig,
     );
 
-    expect(result.normalizedTier).toBe("frontier");
+    expect(result.normalizedTier).toBe("frontier-medium");
     expect(result.selected.provider).toBe("codex-cli");
     expect(result.selected.family).toBe("openai-gpt");
     expect(result.selected.thinking).toBe("xhigh");
-    expect(result.relationship).toBe("fallback");
+    expect(result.relationship).toBe("equivalent");
   });
 
-  it("Example 4a: opus/high with mistral priority + allowDowngrade=true → codex-cli (downgrade)", () => {
+  it("Example 4a: opus/high with mistral priority + allowDowngrade=true → codex-cli (equivalent)", () => {
     const result = resolveModel(
       { model: "claude-opus-4-8", effort: "high" },
       { ...mistralPriority, allowDowngrade: true },
       allEnabledProviderConfig,
     );
 
-    expect(result.normalizedTier).toBe("max");
+    expect(result.normalizedTier).toBe("frontier-high");
     expect(result.selected.provider).toBe("codex-cli");
     expect(result.selected.family).toBe("openai-gpt");
     expect(result.selected.thinking).toBe("xhigh");
-    expect(result.relationship).toBe("downgrade");
+    expect(result.relationship).toBe("equivalent");
   });
 
   it("Example 4b: opus/high with mistral priority + allowDowngrade=false → claude-code/claude-opus (no silent downgrade)", () => {
@@ -99,10 +99,52 @@ describe("resolveModel — spec §15 examples", () => {
       DEFAULT_PROVIDER_CONFIG,
     );
 
-    expect(result.normalizedTier).toBe("max");
+    expect(result.normalizedTier).toBe("frontier-high");
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-opus");
     expect(result.selected.concreteModel).toBe("claude-opus-4-8");
+  });
+
+  it("Example 5: opus/max with codex priority + allowDowngrade=true → codex-cli/openai-gpt/xhigh (downgrade)", () => {
+    const result = resolveModel(
+      { model: "claude-opus-4-8", effort: "max" },
+      { ...codexPriority, allowDowngrade: true },
+      allEnabledProviderConfig,
+    );
+
+    expect(result.normalizedTier).toBe("frontier-max");
+    expect(result.selected.provider).toBe("codex-cli");
+    expect(result.selected.family).toBe("openai-gpt");
+    expect(result.selected.thinking).toBe("xhigh");
+    expect(result.relationship).toBe("downgrade");
+  });
+
+  it("Example 6: opus/low with codex priority + allowDowngrade=true → codex-cli/openai-gpt/high (equivalent)", () => {
+    const result = resolveModel(
+      { model: "claude-opus-4-8", effort: "low" },
+      { ...codexPriority, allowDowngrade: true },
+      allEnabledProviderConfig,
+    );
+
+    expect(result.normalizedTier).toBe("frontier-low");
+    expect(result.selected.provider).toBe("codex-cli");
+    expect(result.selected.family).toBe("openai-gpt");
+    expect(result.selected.thinking).toBe("high");
+    expect(result.relationship).toBe("equivalent");
+  });
+
+  it("Example 7: opus/ultracode has no codex peer; resolves to claude-code/claude-opus/ultracode", () => {
+    const result = resolveModel(
+      { model: "claude-opus-4-8", effort: "ultracode" },
+      { ...codexPriority, allowDowngrade: true },
+      allEnabledProviderConfig,
+    );
+
+    expect(result.normalizedTier).toBe("frontier-ultra");
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-opus");
+    expect(result.selected.thinking).toBe("ultracode");
+    expect(result.relationship).toBe("exact");
   });
 });
 
@@ -232,6 +274,32 @@ describe("resolveModel — additional behavior", () => {
     expect(result.reason).toMatch(/mistral-vibe/);
     expect(result.reason).toMatch(/standard/);
     expect(result.reason).toMatch(/equivalent/);
+  });
+
+  it("each Opus effort routes to its own frontier-* tier with claude-code", () => {
+    const cases = [
+      { effort: "low", tier: "frontier-low" },
+      { effort: "medium", tier: "frontier-medium" },
+      { effort: "high", tier: "frontier-high" },
+      { effort: "xhigh", tier: "frontier-xhigh" },
+      { effort: "max", tier: "frontier-max" },
+      { effort: "ultracode", tier: "frontier-ultra" },
+    ] as const;
+
+    for (const { effort, tier } of cases) {
+      const result = resolveModel(
+        { model: "claude-opus-4-8", effort },
+        claudeOnly,
+        DEFAULT_PROVIDER_CONFIG,
+      );
+
+      expect(result.normalizedTier).toBe(tier);
+      expect(result.selected.provider).toBe("claude-code");
+      expect(result.selected.family).toBe("claude-opus");
+      expect(result.selected.thinking).toBe(effort);
+      expect(result.selected.concreteModel).toBe("claude-opus-4-8");
+      expect(result.relationship).toBe("exact");
+    }
   });
 
   it("omits skippedForSecurity when no securityFilter is supplied", () => {
