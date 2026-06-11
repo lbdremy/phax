@@ -5,6 +5,7 @@ import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "../domain/br
 import {
   AgentInvocationError,
   type AgentSessionIdMissingError,
+  GateAttemptsExhaustedError,
   GateFailedError,
   type RateLimitError,
   type RegistryCorruptionError,
@@ -67,13 +68,18 @@ export interface RunGatesWithFixLoopOptions {
   readonly phaseId: string;
   /** Run folder; the dispatcher reads run-status.json from here. */
   readonly runPath: string;
+  /** Attempt index to start from (default 1). Resume passes the next index so
+   *  prior attempt artifacts are never clobbered. */
+  readonly startAttempt?: number;
+  /** Canonical worktree path emitted in FixAttemptsExhausted (defaults to cwd). */
+  readonly worktreePath?: string;
 }
 
 export function runGatesWithFixLoop(
   opts: RunGatesWithFixLoopOptions,
 ): Effect.Effect<
   GateOutcome,
-  | GateFailedError
+  | GateAttemptsExhaustedError
   | FsError
   | ShellError
   | GitError
@@ -97,6 +103,8 @@ export function runGatesWithFixLoop(
     phaseId,
     runPath,
   } = opts;
+  const startAttempt = opts.startAttempt ?? 1;
+  const resolvedWorktreePath = opts.worktreePath ?? cwd;
 
   const dispatchCtx = {
     runPath,
@@ -121,9 +129,10 @@ export function runGatesWithFixLoop(
   function loop(
     attempt: number,
     currentSessionId: ClaudeSessionId,
+    fixesUsed: number,
   ): Effect.Effect<
     GateOutcome,
-    | GateFailedError
+    | GateAttemptsExhaustedError
     | FsError
     | ShellError
     | GitError
@@ -217,18 +226,26 @@ export function runGatesWithFixLoop(
       };
       yield* dispatch(gateFailedEvent, dispatchCtx);
 
-      if (attempt > maxFixAttempts) {
+      if (fixesUsed >= maxFixAttempts) {
         const exhaustedEvent: PhaxEvent = {
           ...eventBase(),
           type: "FixAttemptsExhausted",
           attempt,
           phaseId: phaseId as PhaseId,
-          worktreePath: cwd as WorktreePath,
+          worktreePath: resolvedWorktreePath as WorktreePath,
           sessionId: currentSessionId,
           command: error.command,
         };
         yield* dispatch(exhaustedEvent, dispatchCtx);
-        return yield* Effect.fail(error);
+        return yield* Effect.fail(
+          new GateAttemptsExhaustedError({
+            message: `Gate attempts exhausted: ${error.command} (exit ${error.exitCode}) after ${maxFixAttempts} fix attempt(s)`,
+            command: error.command,
+            exitCode: error.exitCode,
+            logPath: error.logPath,
+            attempt,
+          }),
+        );
       }
 
       const fixStartedEvent: PhaxEvent = {
@@ -288,9 +305,9 @@ export function runGatesWithFixLoop(
         }),
       );
 
-      return yield* loop(attempt + 1, fixResult.sessionId);
+      return yield* loop(attempt + 1, fixResult.sessionId, fixesUsed + 1);
     });
   }
 
-  return loop(1, sessionId);
+  return loop(startAttempt, sessionId, 0);
 }

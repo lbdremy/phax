@@ -64,6 +64,14 @@ export class GateFailedError extends Data.TaggedError("GateFailedError")<{
   stderrExcerpt?: string;
 }> {}
 
+export class GateAttemptsExhaustedError extends Data.TaggedError("GateAttemptsExhaustedError")<{
+  message: string;
+  command: string;
+  exitCode: number;
+  logPath: string;
+  attempt: number;
+}> {}
+
 export class FixAttemptFailedError extends Data.TaggedError("FixAttemptFailedError")<{
   message: string;
   attempt: number;

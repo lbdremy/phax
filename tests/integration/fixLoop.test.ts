@@ -1,7 +1,7 @@
 import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { runGatesWithFixLoop } from "../../src/app/fixLoop.js";
-import { GateFailedError } from "../../src/domain/errors.js";
+import { GateAttemptsExhaustedError } from "../../src/domain/errors.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
@@ -139,7 +139,7 @@ describe("runGatesWithFixLoop", () => {
     expect(gateReport!.stderrExcerpt).toBe("test failure");
   });
 
-  it("fails with GateFailedError and dispatches FixAttemptsExhausted after all attempts fail", async () => {
+  it("fails with GateAttemptsExhaustedError and dispatches FixAttemptsExhausted after all attempts fail", async () => {
     const { layer, fakeFs, fakeShell, fakeBackend, fakeTelemetry } = makeLayers();
 
     seedStatusFiles(fakeFs);
@@ -152,7 +152,10 @@ describe("runGatesWithFixLoop", () => {
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(GateFailedError);
+      expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      const err = result.left as GateAttemptsExhaustedError;
+      expect(err.command).toBe("pnpm test");
+      expect(err.attempt).toBe(2);
     }
 
     // After max attempts the loop dispatches FixAttemptsExhausted at least once
@@ -203,5 +206,66 @@ describe("runGatesWithFixLoop", () => {
     );
 
     expect(fakeBackend.impl.resumeCalls[0]?.sessionId).toBe(sessionId);
+  });
+
+  it("startAttempt > 1: gate passes on first re-run without invoking fix agent or clobbering prior artifacts", async () => {
+    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+    fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
+    seedStatusFiles(fakeFs);
+
+    const outcome = await Effect.runPromise(
+      runGatesWithFixLoop({ ...baseOpts, startAttempt: 3 }).pipe(Effect.provide(layer)),
+    );
+
+    expect(outcome.attemptLogPath).toContain("checks-attempt-03");
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
+    // Prior attempt artifacts not written
+    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-01.log`)).toBeUndefined();
+    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-02.log`)).toBeUndefined();
+  });
+
+  it("startAttempt > 1: grants a fresh maxFixAttempts budget and fails with GateAttemptsExhaustedError", async () => {
+    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+
+    seedStatusFiles(fakeFs);
+    fakeBackend.impl.addResumeResponse(makeResumeResult("sess-resume-fix"));
+    fakeShell.impl.setDefaultResponse({ exitCode: 1, stdout: "", stderr: "still fails" });
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        runGatesWithFixLoop({ ...baseOpts, startAttempt: 3 }).pipe(Effect.provide(layer)),
+      ),
+    );
+
+    // maxFixAttempts=1: one gate at attempt 3 fails → one fix → gate at attempt 4 fails → exhausted
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      const err = result.left as GateAttemptsExhaustedError;
+      expect(err.attempt).toBe(4); // 3 + 1 fix attempt
+    }
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
+    // Artifacts numbered from startAttempt, not from 1
+    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-01.log`)).toBeUndefined();
+    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-03.log`)).toBeDefined();
+  });
+
+  it("regression: startAttempt=1 produces checks-attempt-01 on success and attempt-02 after one fix", async () => {
+    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+
+    seedStatusFiles(fakeFs);
+    fakeBackend.impl.addResumeResponse(makeResumeResult());
+    fakeShell.impl.enqueue(
+      { exitCode: 1, stdout: "", stderr: "fail once" },
+      { exitCode: 0, stdout: "ok", stderr: "" },
+    );
+
+    const outcome = await Effect.runPromise(
+      runGatesWithFixLoop({ ...baseOpts, startAttempt: 1 }).pipe(Effect.provide(layer)),
+    );
+
+    expect(outcome.attemptLogPath).toContain("checks-attempt-02");
+    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-01.log`)).toBeDefined();
+    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-02.log`)).toBeDefined();
   });
 });

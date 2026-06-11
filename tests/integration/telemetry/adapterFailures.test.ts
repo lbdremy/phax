@@ -2,7 +2,7 @@ import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import type { BranchName, PhaseId, RunId, WorktreePath } from "../../../src/domain/branded.js";
 import type { PhaxEventBase } from "../../../src/domain/events.js";
-import { AgentInvocationError, GateFailedError } from "../../../src/domain/errors.js";
+import { AgentInvocationError, GateAttemptsExhaustedError } from "../../../src/domain/errors.js";
 import { Backend } from "../../../src/ports/backend.js";
 import { SystemTelemetry } from "../../../src/ports/systemTelemetry.js";
 import { makeFakeBackend } from "../../../src/infra/fakes/backend.js";
@@ -97,7 +97,7 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(GateFailedError);
+      expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
     }
 
     const errors = telImpl.errors();
