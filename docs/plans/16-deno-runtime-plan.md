@@ -1,4 +1,4 @@
-# 16 — Deno Runtime and Distribution — Plan
+# Deno Runtime and Distribution — Plan
 
 Implements `docs/specs/06-deno-runtime.md`.
 
