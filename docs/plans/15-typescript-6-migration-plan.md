@@ -123,6 +123,6 @@ chore(deps): upgrade to TypeScript 6
 Bump typescript to ^6.0.3 and @types/node to ^25.9.3, and set
 compilerOptions.types to ["node"] in the base tsconfig. TypeScript 6.0 no longer
 auto-includes @types packages, so the explicit types entry is required for Node
-globals and node:* module resolution; the build and test tsconfigs inherit it via
+globals and node:\* module resolution; the build and test tsconfigs inherit it via
 extends. No source changes. This aligns the project's authoritative type-check
 with the TypeScript version Deno bundles, unblocking the Deno runtime work.

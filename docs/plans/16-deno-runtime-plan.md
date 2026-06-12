@@ -21,10 +21,10 @@ These were settled with the spec owner before planning and constrain every phase
    TypeScript.** A verified spike (Deno 2.8.3) confirmed that
    `deno compile --allow-run=<list>` gates `node:child_process` spawns, survives
    compilation, and surfaces a clean `'error'` event (`Requires run access to
-   "<bin>"…`) on the async `spawn` path phax already uses — so the existing
+"<bin>"…`) on the async `spawn` path phax already uses — so the existing
    `ShellError` path reports denials. **No runtime allowlist-checking code is
    written.** The executable allowlist is the baked `--allow-run` list; command
-   *arguments* stay dynamic from `phax.json`. Spec acceptance criterion 10
+   _arguments_ stay dynamic from `phax.json`. Spec acceptance criterion 10
    ("validate configured commands before execution") is satisfied by Deno's
    permission denial, not a bespoke validator.
 3. **npm = prepare only.** The release workflow version-matches the wrapper to the
@@ -32,7 +32,7 @@ These were settled with the spec owner before planning and constrain every phase
 4. **Deno is now installed locally**, so Deno-specific phases are mechanically
    gate-verifiable (a `deno:smoke` gate runs the CLI under Deno).
 5. **Out of scope (spec owner):** Windows targets, `phax run/resume
-   --start-after` (acceptance criteria 18–19), and any runtime command-allowlist
+--start-after` (acceptance criteria 18–19), and any runtime command-allowlist
    validator. Acceptance criterion 11 (record launched commands) is treated as
    already covered by existing run telemetry and is not re-implemented here.
 
@@ -64,14 +64,14 @@ that resolution and execution work end to end.
 
 ## Phase overview
 
-| Phase | Outcome |
-| ----- | ------- |
-| phase-01 | `deno.json` + the CLI runs under Deno; `deno:smoke` added to the `full` gate |
+| Phase    | Outcome                                                                                  |
+| -------- | ---------------------------------------------------------------------------------------- |
+| phase-01 | `deno.json` + the CLI runs under Deno; `deno:smoke` added to the `full` gate             |
 | phase-02 | `deno compile` produces a permission-posture binary + a host-build script with checksums |
-| phase-03 | npm wrapper package that resolves the correct platform binary (unit-tested) |
-| phase-04 | CI workflow (`.github/workflows/ci.yml`) |
-| phase-05 | Release workflow on `v*` tags (binaries, checksums, GH Release, npm prepare) |
-| phase-06 | README + spec docs for install, posture, and the provider-CLI caveat |
+| phase-03 | npm wrapper package that resolves the correct platform binary (unit-tested)              |
+| phase-04 | CI workflow (`.github/workflows/ci.yml`)                                                 |
+| phase-05 | Release workflow on `v*` tags (binaries, checksums, GH Release, npm prepare)             |
+| phase-06 | README + spec docs for install, posture, and the provider-CLI caveat                     |
 
 ---
 
@@ -256,7 +256,8 @@ the wrapper in phase-03 (shared constant).
 
 Host `compile` task → confirm `dist/bin/phax --version` → factor the
 target/name mapping into a shared constant → `build-binaries.ts` for all targets
-+ checksums → smoke gate.
+
+- checksums → smoke gate.
 
 ### Excluded scope
 
@@ -577,7 +578,7 @@ ci: add tag-triggered release workflow with checksums and npm prepare
 
 ### Commit body
 
-Add a release workflow that runs on v* tags: it builds the four platform binaries
+Add a release workflow that runs on v\* tags: it builds the four platform binaries
 with SHA-256 checksums, creates the GitHub Release and uploads the artifacts, and
 prepares the npm wrapper by version-matching it to the tag and running npm publish
 --dry-run (no live publish, no NPM_TOKEN). A pure versionFromTag helper and

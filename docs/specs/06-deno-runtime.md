@@ -16,14 +16,14 @@ PHAX should be implemented and distributed as a single CLI application.
 
 Deno is considered as the runtime and build foundation because it provides:
 
-* native TypeScript execution;
-* explicit runtime permissions;
-* filesystem permission control;
-* network denial by default when configured;
-* restricted subprocess execution by executable name;
-* single-binary compilation through `deno compile`;
-* practical cross-platform distribution;
-* a straightforward path to GitHub Releases and npm wrapper distribution.
+- native TypeScript execution;
+- explicit runtime permissions;
+- filesystem permission control;
+- network denial by default when configured;
+- restricted subprocess execution by executable name;
+- single-binary compilation through `deno compile`;
+- practical cross-platform distribution;
+- a straightforward path to GitHub Releases and npm wrapper distribution.
 
 The goal is not to split PHAX into separate products or runtime zones.
 
