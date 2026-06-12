@@ -24,6 +24,8 @@ export interface GitOps {
   worktreeIsClean(path: WorktreePath): Effect.Effect<boolean, GitError>;
   pruneWorktrees(repo: string): Effect.Effect<void, GitError>;
   diffNameStatus(path: WorktreePath): Effect.Effect<readonly NameStatusEntry[], GitError>;
+  remoteExists(remote: string, repo: string): Effect.Effect<boolean, GitError>;
+  pushBranch(branch: BranchName, remote: string, repo: string): Effect.Effect<void, GitError>;
 }
 
 export class Git extends Context.Tag("phax/Git")<Git, GitOps>() {}
