@@ -16,6 +16,8 @@ import { runReviewHandoff } from "./commands/reviewHandoff.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
 import { registerResumeCommand } from "./commands/resumeRegister.js";
+import { runResetPhase } from "./commands/resetPhase.js";
+import { registerResetPhaseCommand } from "./commands/resetPhaseRegister.js";
 import { registerAgentCommand } from "./commands/agent.js";
 import { registerSecurityCommand } from "./commands/security.js";
 
@@ -247,6 +249,7 @@ program
   });
 
 registerResumeCommand(program, runResume, consoleOutput, globalTraceOpts);
+registerResetPhaseCommand(program, runResetPhase, consoleOutput, globalTraceOpts);
 registerAgentCommand(program, consoleOutput);
 registerSecurityCommand(program, consoleOutput, globalTraceOpts);
 
