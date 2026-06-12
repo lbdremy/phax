@@ -14,7 +14,9 @@ export type GitCall =
   | { method: "commit"; repo: string; subject: string; body: string }
   | { method: "worktreeIsClean"; path: string }
   | { method: "pruneWorktrees"; repo: string }
-  | { method: "diffNameStatus"; path: string };
+  | { method: "diffNameStatus"; path: string }
+  | { method: "remoteExists"; remote: string; repo: string }
+  | { method: "pushBranch"; branch: string; remote: string; repo: string };
 
 export class FakeGitImpl implements GitOps {
   readonly calls: GitCall[] = [];
@@ -59,7 +61,18 @@ export class FakeGitImpl implements GitOps {
     this.diffNameStatusQueue.set(path, entries);
   }
 
+  readonly existingRemotes = new Set<string>();
+  readonly pushedBranches = new Set<string>();
   private nextAddWorktreeError: string | undefined;
+  private nextPushBranchError: string | undefined;
+
+  addExistingRemote(remote: string): void {
+    this.existingRemotes.add(remote);
+  }
+
+  failNextPushBranch(stderr: string): void {
+    this.nextPushBranchError = stderr;
+  }
 
   failNextWorktreeAdd(stderr: string): void {
     this.nextAddWorktreeError = stderr;
@@ -150,6 +163,31 @@ export class FakeGitImpl implements GitOps {
   diffNameStatus(path: WorktreePath): Effect.Effect<readonly NameStatusEntry[], GitError> {
     this.calls.push({ method: "diffNameStatus", path: path as string });
     return Effect.succeed(this.diffNameStatusQueue.get(path as string) ?? []);
+  }
+
+  remoteExists(remote: string, repo: string): Effect.Effect<boolean, GitError> {
+    this.calls.push({ method: "remoteExists", remote, repo });
+    return Effect.succeed(this.existingRemotes.has(remote));
+  }
+
+  pushBranch(branch: BranchName, remote: string, repo: string): Effect.Effect<void, GitError> {
+    this.calls.push({ method: "pushBranch", branch, remote, repo });
+    if (this.nextPushBranchError !== undefined) {
+      const stderr = this.nextPushBranchError;
+      this.nextPushBranchError = undefined;
+      return Effect.fail(
+        new GitError({
+          message: `git push failed: ${stderr}`,
+          command: `git push --set-upstream ${remote} ${branch}`,
+          args: ["push", "--set-upstream", remote, branch],
+          stderr,
+          stderrExcerpt: stderr,
+          exitCode: 1,
+        }),
+      );
+    }
+    this.pushedBranches.add(branch as string);
+    return Effect.void;
   }
 }
 

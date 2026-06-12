@@ -124,3 +124,72 @@ describe("NodeGitLayer.diffNameStatus", () => {
     }
   });
 });
+
+describe("NodeGitLayer.remoteExists and pushBranch", () => {
+  let repoDir: string;
+  let bareRemoteDir: string;
+
+  beforeEach(async () => {
+    repoDir = mkdtempSync(join(tmpdir(), "phax-git-push-test-"));
+    bareRemoteDir = mkdtempSync(join(tmpdir(), "phax-git-push-remote-"));
+
+    execSync("git init --bare", { cwd: bareRemoteDir, stdio: "pipe" });
+
+    runGit("init", repoDir);
+    runGit("config --local user.email test@phax.test", repoDir);
+    runGit("config --local user.name 'phax test'", repoDir);
+    runGit(`remote add origin ${bareRemoteDir}`, repoDir);
+
+    await writeFile(join(repoDir, "README.md"), "# test\n");
+    runGit("add .", repoDir);
+    runGit("commit -m 'chore: initial'", repoDir);
+  });
+
+  afterEach(async () => {
+    await rm(repoDir, { recursive: true, force: true });
+    await rm(bareRemoteDir, { recursive: true, force: true });
+  });
+
+  it("remoteExists returns true for a configured remote", async () => {
+    const result = await Effect.runPromise(
+      Effect.flatMap(Git, (git) => git.remoteExists("origin", repoDir)).pipe(
+        Effect.provide(NodeGitLayer),
+      ),
+    );
+    expect(result).toBe(true);
+  });
+
+  it("remoteExists returns false for an unknown remote", async () => {
+    const result = await Effect.runPromise(
+      Effect.flatMap(Git, (git) => git.remoteExists("upstream", repoDir)).pipe(
+        Effect.provide(NodeGitLayer),
+      ),
+    );
+    expect(result).toBe(false);
+  });
+
+  it("pushBranch pushes the branch to the remote successfully", async () => {
+    await Effect.runPromise(
+      Effect.flatMap(Git, (git) => git.pushBranch("main" as BranchName, "origin", repoDir)).pipe(
+        Effect.provide(NodeGitLayer),
+      ),
+    );
+
+    const refs = execSync("git branch", { cwd: bareRemoteDir, stdio: "pipe" }).toString();
+    expect(refs).toContain("main");
+  });
+
+  it("pushBranch is idempotent — re-push of an up-to-date branch succeeds", async () => {
+    await Effect.runPromise(
+      Effect.flatMap(Git, (git) => git.pushBranch("main" as BranchName, "origin", repoDir)).pipe(
+        Effect.provide(NodeGitLayer),
+      ),
+    );
+
+    await Effect.runPromise(
+      Effect.flatMap(Git, (git) => git.pushBranch("main" as BranchName, "origin", repoDir)).pipe(
+        Effect.provide(NodeGitLayer),
+      ),
+    );
+  });
+});

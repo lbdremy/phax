@@ -40,7 +40,7 @@ describe("provider dispatcher", () => {
     // If it succeeded (claude installed + valid run), that also confirms correct routing.
     // Either way, the test passes — the guard is never entered.
     expect(true).toBe(true);
-  });
+  }, 30_000);
 
   it("mistral-vibe routes to the Vibe adapter, not the 'not yet wired' guard", async () => {
     const result = await runWithProvider({

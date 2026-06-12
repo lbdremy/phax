@@ -117,6 +117,14 @@ export const NodeGitLayer = Layer.succeed(Git, {
     gitRun(["diff", "--name-status", "HEAD^", "HEAD"], path as string).pipe(
       Effect.map(({ stdout }) => parseNameStatus(stdout)),
     ),
+
+  remoteExists: (remote, repo) =>
+    gitRunAllowFail(["remote", "get-url", remote], repo).pipe(
+      Effect.map(({ exitCode }) => exitCode === 0),
+    ),
+
+  pushBranch: (branch, remote, repo) =>
+    gitRun(["push", "--set-upstream", remote, branch], repo).pipe(Effect.asVoid),
 });
 
 export function makeNodeGitLayer(): Layer.Layer<Git> {
