@@ -13,6 +13,7 @@ import { runOpen, runOpenLast } from "./commands/open.js";
 import { runLs } from "./commands/ls.js";
 import { runArchive, runArchiveLast } from "./commands/archive.js";
 import { runReviewHandoff } from "./commands/reviewHandoff.js";
+import { runPublishPr } from "./commands/publishPr.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
 import { registerResumeCommand } from "./commands/resumeRegister.js";
@@ -245,6 +246,14 @@ program
   .option("--allow-partial", "Generate a partial document when some phase artifacts are missing")
   .action(async (shortName: string, opts: { allowPartial?: boolean }) => {
     const exitCode = await runReviewHandoff(shortName, opts, consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("publish-pr <short-name>")
+  .description("Push the final branch and create (or reuse) a GitHub PR for a review_open run")
+  .action(async (shortName: string) => {
+    const exitCode = await runPublishPr(shortName, globalTraceOpts(), consoleOutput);
     process.exit(exitCode);
   });
 
