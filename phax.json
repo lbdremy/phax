@@ -12,6 +12,14 @@
       "allowWrite": ["~/.phax"]
     }
   },
+  "publish": {
+    "enabled": true,
+    "remote": "origin",
+    "provider": "github",
+    "pushBranch": true,
+    "createPullRequest": true,
+    "baseBranch": "main"
+  },
   "commands": {
     "setup": ["pnpm install"],
     "cleanup": ["rm -rf node_modules"]
