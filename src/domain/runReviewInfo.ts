@@ -6,6 +6,7 @@ export interface RunReviewInfo {
   readonly runId: string;
   readonly runState: string;
   readonly branch: string;
+  readonly runTitle: string | undefined;
   readonly finalPhaseBranch: BranchName;
   readonly stateRoot: string;
   readonly runPath: string;

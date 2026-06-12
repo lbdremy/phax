@@ -1,5 +1,5 @@
-type PushStatus = "not_attempted" | "pushed" | "failed";
-type PrStatus = "not_attempted" | "created" | "exists" | "failed";
+export type PushStatus = "not_attempted" | "pushed" | "failed";
+export type PrStatus = "not_attempted" | "created" | "exists" | "failed";
 type ProviderId = "github";
 
 export interface PublicationRecord {

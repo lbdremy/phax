@@ -65,6 +65,7 @@ function loadRunReviewInfo(
   const plan = Either.isRight(planResult) ? planResult.right : undefined;
 
   const branch = plan?.run.branch ?? "(unknown)";
+  const runTitle = plan?.run.title;
   const planPhases = plan?.phases.map((p) => ({ id: p.id, title: p.title })) ?? [];
 
   const phaseStatuses: PhaseStatus[] = [];
@@ -103,6 +104,7 @@ function loadRunReviewInfo(
     runId: runStatus.runId,
     runState: runStatus.state,
     branch,
+    runTitle,
     finalPhaseBranch,
     stateRoot,
     runPath,
