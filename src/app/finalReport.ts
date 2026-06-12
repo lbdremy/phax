@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { isPhaseTerminal } from "../domain/state.js";
+import type { PublicationRecord } from "../domain/publish/types.js";
 import type { RunReviewInfo } from "./resolveRunInfo.js";
 import type { PhaseStatus } from "../schemas/status.js";
 import { decodeSecurityPosture, type SecurityPosture } from "../schemas/securityPosture.js";
@@ -106,7 +107,53 @@ phax archive ${info.shortName}
 `;
 }
 
-function buildFinalReportMarkdown(info: RunReviewInfo): string {
+export function renderPublicationSection(record: PublicationRecord): string {
+  const lines: string[] = ["## Pull request", ""];
+
+  lines.push(`- **Provider**: ${record.provider}`);
+  lines.push(`- **Remote**: ${record.remote}`);
+  lines.push(`- **Branch**: \`${record.remote}/${record.branch}\``);
+  if (record.baseBranch !== undefined) {
+    lines.push(`- **Base branch**: \`${record.baseBranch}\``);
+  }
+  lines.push(`- **Push status**: ${record.pushStatus}`);
+  lines.push(`- **PR status**: ${record.prStatus}`);
+
+  if (record.pullRequestUrl !== undefined) {
+    lines.push(`- **Pull request URL**: ${record.pullRequestUrl}`);
+  }
+
+  const succeeded =
+    record.prStatus === "created" ||
+    record.prStatus === "exists" ||
+    (record.pushStatus === "pushed" && record.prStatus === "not_attempted");
+
+  if (succeeded && record.failureReason === undefined) {
+    lines.push("");
+    if (record.prStatus === "created") {
+      lines.push("Pull request created successfully.");
+    } else if (record.prStatus === "exists") {
+      lines.push("Pull request already existed; reused without creating a duplicate.");
+    } else {
+      lines.push("Branch pushed; PR creation was disabled.");
+    }
+  } else {
+    lines.push("");
+    if (record.failureReason !== undefined) {
+      lines.push(`**Publication failed**: ${record.failureReason}`);
+      lines.push("");
+    }
+    lines.push("Re-run publication once the issue is resolved:");
+    lines.push("");
+    lines.push("```bash");
+    lines.push("phax publish-pr <short-name>");
+    lines.push("```");
+  }
+
+  return lines.join("\n") + "\n";
+}
+
+function buildFinalReportMarkdown(info: RunReviewInfo, publication?: PublicationRecord): string {
   const passed = info.phaseStatuses.filter(isPhaseSuccessful).length;
   const failed = info.phaseStatuses.filter((p) => p.state === "failed").length;
   const total = info.phaseStatuses.length;
@@ -150,6 +197,9 @@ function buildFinalReportMarkdown(info: RunReviewInfo): string {
     ? securityPostures.map((p) => formatSecurityPosture(p)).join("")
     : "| (no security data) | | | | | | | | | | | |\n";
 
+  const publicationSection =
+    publication !== undefined ? `\n${renderPublicationSection(publication)}` : "";
+
   return `# Final Report: ${info.shortName}
 
 ## Run Summary
@@ -183,13 +233,16 @@ ${securityRows}
 ## Per-Phase Artifacts
 
 ${artifactLinks}
-`;
+${publicationSection}`;
 }
 
-export function writeFinalReport(info: RunReviewInfo): Effect.Effect<void, FsError, FileSystem> {
+export function writeFinalReport(
+  info: RunReviewInfo,
+  publication?: PublicationRecord,
+): Effect.Effect<void, FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const content = buildFinalReportMarkdown(info);
+    const content = buildFinalReportMarkdown(info, publication);
     yield* fs.writeAtomic(join(info.runPath, "final-report.md"), content);
   });
 }
