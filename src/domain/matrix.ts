@@ -36,6 +36,7 @@ export const phaxDispositionMatrix = {
     CleanupCompleted: "Unexpected",
     PhaseHadNoChanges: "Unexpected",
     RateLimitDetected: "Unexpected",
+    PhaseResetRequested: "Rejected",
   },
   running: {
     RunStarted: "Rejected",
@@ -63,6 +64,7 @@ export const phaxDispositionMatrix = {
     CleanupCompleted: "Unexpected",
     PhaseHadNoChanges: "Unexpected",
     RateLimitDetected: "Handled",
+    PhaseResetRequested: "Rejected",
   },
   rate_limited: {
     RunStarted: "Rejected",
@@ -90,6 +92,7 @@ export const phaxDispositionMatrix = {
     CleanupCompleted: "Stale",
     PhaseHadNoChanges: "Unexpected",
     RateLimitDetected: "Ignored",
+    PhaseResetRequested: "Rejected",
   },
   interrupted: {
     RunStarted: "Rejected",
@@ -117,6 +120,7 @@ export const phaxDispositionMatrix = {
     CleanupCompleted: "Stale",
     PhaseHadNoChanges: "Stale",
     RateLimitDetected: "Ignored",
+    PhaseResetRequested: "Rejected",
   },
   review_open: {
     RunStarted: "Rejected",
@@ -144,6 +148,7 @@ export const phaxDispositionMatrix = {
     CleanupCompleted: "Unexpected",
     PhaseHadNoChanges: "Unexpected",
     RateLimitDetected: "Stale",
+    PhaseResetRequested: "Rejected",
   },
   failed: {
     RunStarted: "Rejected",
@@ -171,6 +176,7 @@ export const phaxDispositionMatrix = {
     CleanupCompleted: "Stale",
     PhaseHadNoChanges: "Stale",
     RateLimitDetected: "Stale",
+    PhaseResetRequested: "Handled",
   },
   completed: {
     RunStarted: "Rejected",
@@ -198,6 +204,7 @@ export const phaxDispositionMatrix = {
     CleanupCompleted: "Stale",
     PhaseHadNoChanges: "Stale",
     RateLimitDetected: "Stale",
+    PhaseResetRequested: "Rejected",
   },
   stopped: {
     RunStarted: "Rejected",
@@ -225,6 +232,7 @@ export const phaxDispositionMatrix = {
     CleanupCompleted: "Stale",
     PhaseHadNoChanges: "Stale",
     RateLimitDetected: "Stale",
+    PhaseResetRequested: "Rejected",
   },
   archived: {
     RunStarted: "Rejected",
@@ -252,5 +260,6 @@ export const phaxDispositionMatrix = {
     CleanupCompleted: "Stale",
     PhaseHadNoChanges: "Stale",
     RateLimitDetected: "Stale",
+    PhaseResetRequested: "Rejected",
   },
 } as const satisfies EventDispositionMatrix<PhaxStateName, PhaxEventType>;

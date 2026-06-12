@@ -150,6 +150,12 @@ export interface RateLimitDetected extends PhaxEventBase {
   readonly sessionId?: ClaudeSessionId | undefined;
 }
 
+// Operator command: reset a stuck phase so the run becomes resumable.
+export interface PhaseResetRequested extends PhaxEventBase {
+  readonly type: "PhaseResetRequested";
+  readonly phaseId: PhaseId;
+}
+
 export type PhaxEvent =
   | RunStarted
   | RunResumeRequested
@@ -175,6 +181,7 @@ export type PhaxEvent =
   | CleanupStarted
   | CleanupCompleted
   | PhaseHadNoChanges
-  | RateLimitDetected;
+  | RateLimitDetected
+  | PhaseResetRequested;
 
 export type PhaxEventType = PhaxEvent["type"];
