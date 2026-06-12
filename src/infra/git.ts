@@ -84,6 +84,9 @@ export const NodeGitLayer = Layer.succeed(Git, {
       Effect.map(({ stdout, exitCode }) => exitCode === 0 && parseBranchExistsOutput(stdout)),
     ),
 
+  deleteBranch: (name, force, repo) =>
+    gitRun(["branch", force ? "-D" : "-d", name], repo).pipe(Effect.asVoid),
+
   addWorktree: (branch, path, repo) =>
     gitRun(["worktree", "add", path, branch], repo).pipe(Effect.asVoid),
 

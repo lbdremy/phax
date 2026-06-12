@@ -4,10 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
-import { Git } from "../../src/ports/git.js";
-import type { WorktreePath } from "../../src/domain/branded.js";
+import { Git, GitError } from "../../src/ports/git.js";
+import type { BranchName, WorktreePath } from "../../src/domain/branded.js";
 
 function runGit(args: string, cwd: string): void {
   execSync(`git ${args}`, { cwd, stdio: "pipe" });
@@ -94,5 +94,33 @@ describe("NodeGitLayer.diffNameStatus", () => {
     expect(renamed).toBeDefined();
     expect(renamed?.path).toBe("new-name.ts");
     expect(renamed?.oldPath).toBe("old-name.ts");
+  });
+
+  it("deletes a branch when forced", async () => {
+    runGit("branch phase-test", repoDir);
+
+    await Effect.runPromise(
+      Effect.flatMap(Git, (git) =>
+        git.deleteBranch("phase-test" as BranchName, true, repoDir),
+      ).pipe(Effect.provide(NodeGitLayer)),
+    );
+
+    expect(() => runGit("rev-parse --verify --quiet phase-test", repoDir)).toThrow();
+  });
+
+  it("returns GitError when deleting a missing branch without force", async () => {
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.flatMap(Git, (git) =>
+          git.deleteBranch("missing-branch" as BranchName, false, repoDir),
+        ).pipe(Effect.provide(NodeGitLayer)),
+      ),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(GitError);
+      expect(result.left.command).toBe("git branch -d missing-branch");
+    }
   });
 });
