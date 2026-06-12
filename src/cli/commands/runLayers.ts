@@ -3,6 +3,7 @@ import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import { NodeGitLayer } from "../../infra/git.js";
+import { NodeGitHubLayer } from "../../infra/github.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { NodeShellLayer } from "../../infra/shell.js";
 import {
@@ -12,6 +13,7 @@ import {
 import { Backend } from "../../ports/backend.js";
 import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
+import { GitHub } from "../../ports/github.js";
 import { Lock } from "../../ports/lock.js";
 import { Shell } from "../../ports/shell.js";
 import type { OutputPort } from "../../ports/output.js";
@@ -35,7 +37,7 @@ import {
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 
 export function provideRunLayers<A, E>(
-  effect: Effect.Effect<A, E, Backend | FileSystem | Git | Shell | Lock | SystemTelemetry>,
+  effect: Effect.Effect<A, E, Backend | FileSystem | Git | GitHub | Shell | Lock | SystemTelemetry>,
   config: ResolvedConfig,
   systemTelemetryLayer: Layer.Layer<SystemTelemetry>,
   providerConfig: ProviderConfig,
@@ -44,6 +46,7 @@ export function provideRunLayers<A, E>(
     Effect.provide(makeNodeBackendLayer(providerConfig)),
     Effect.provide(NodeFileSystemLayer),
     Effect.provide(NodeGitLayer),
+    Effect.provide(NodeGitHubLayer),
     Effect.provide(NodeShellLayer),
     Effect.provide(makeNodeLockLayer(config.stateRoot)),
     Effect.provide(systemTelemetryLayer),

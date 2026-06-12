@@ -257,6 +257,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
             routing,
             providerConfig,
             securityMode: effectiveSecurityMode,
+            verbose: opts.verbose,
           }),
         ),
       ),

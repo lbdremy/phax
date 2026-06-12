@@ -30,8 +30,10 @@ import type { PhaxEvent, PhaxEventBase } from "../domain/events.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
+import { GitHub } from "../ports/github.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
+import { publishRun } from "./publishRun.js";
 import {
   makeAdapterCallStartedTelemetryEvent,
   makeAdapterCallSucceededTelemetryEvent,
@@ -116,6 +118,7 @@ export interface ExecutePlanOptions {
   readonly routing?: ModelRouting | undefined;
   readonly providerConfig?: ProviderConfig | undefined;
   readonly securityMode?: SecurityMode | undefined;
+  readonly verbose?: boolean | undefined;
 }
 
 export interface ExecutePlanResult {
@@ -148,7 +151,7 @@ export function executePlan(
 ): Effect.Effect<
   ExecutePlanResult,
   ExecutePlanError,
-  Backend | FileSystem | Git | Shell | SystemTelemetry
+  Backend | FileSystem | Git | GitHub | Shell | SystemTelemetry
 > {
   const {
     shortName,
@@ -737,6 +740,16 @@ export function executePlan(
           },
           ctx,
         );
+
+        // Auto-publish: push the final branch and create a PR when configured.
+        // Publication failure is non-fatal — the run stays in review_open and
+        // failure details are recorded in publication.json / final-report.md.
+        if (config.publish?.enabled) {
+          yield* publishRun(infoResult.right, config.publish, {
+            repoRoot: config.repoRoot,
+            ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}),
+          }).pipe(Effect.catchAll(() => Effect.void));
+        }
       } else {
         // cleanupPhase dispatches CleanupStarted/CleanupCompleted internally.
         yield* cleanupPhase({
