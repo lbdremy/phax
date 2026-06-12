@@ -56,7 +56,12 @@ const PURE_DOMAIN_FORBIDDEN = [
   /\bfrom\s+["'].*\/infra\//,
 ];
 
-const PURE_DOMAIN_DIRS = ["domain/routing", "domain/reconciliation", "domain/security"];
+const PURE_DOMAIN_DIRS = [
+  "domain/routing",
+  "domain/reconciliation",
+  "domain/security",
+  "domain/publish",
+];
 
 describe("architectural guard: routing domain purity", () => {
   const routingDomainRoot = join(srcRoot, "domain", "routing");
@@ -109,6 +114,28 @@ describe("architectural guard: security domain purity", () => {
     const violations: string[] = [];
 
     for (const absPath of listTsFiles(securityDomainRoot)) {
+      const rel = relative(repoRoot, absPath).split("\\").join("/");
+      const content = readFileSync(absPath, "utf8");
+
+      for (const pattern of PURE_DOMAIN_FORBIDDEN) {
+        if (pattern.test(content)) {
+          violations.push(`${rel}: matches ${pattern}`);
+          break;
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+});
+
+describe("architectural guard: publish domain purity", () => {
+  const publishDomainRoot = join(srcRoot, "domain", "publish");
+
+  it("src/domain/publish/ imports no Effect, @opentelemetry, FileSystem port, or infra modules", () => {
+    const violations: string[] = [];
+
+    for (const absPath of listTsFiles(publishDomainRoot)) {
       const rel = relative(repoRoot, absPath).split("\\").join("/");
       const content = readFileSync(absPath, "utf8");
 
