@@ -10,6 +10,7 @@ import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { AgentSessionIdMissingError, GateAttemptsExhaustedError } from "../../src/domain/errors.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
@@ -641,5 +642,280 @@ describe("executePlan — resume from gates_exhausted", () => {
     // The implementation agent must not be started blindly when the session is lost.
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
     expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
+  });
+});
+
+const autoPublishRawPlan = {
+  version: 1,
+  run: {
+    shortName: "my-run",
+    title: "My Run",
+    branch: "ai/my-run",
+  },
+  phases: [
+    {
+      id: "phase-01",
+      title: "Final Phase",
+      model: "claude-sonnet-4-6",
+      effort: "low" as const,
+      planMarkdownAnchor: "#phase-01-final",
+      plannedFilesToCreate: [],
+      plannedFilesToEdit: [],
+      optionalFilesToEdit: [],
+      commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
+    },
+  ],
+} as const;
+
+function makePublishConfig(enabled: boolean): ResolvedConfig["publish"] {
+  return {
+    enabled,
+    remote: "origin",
+    provider: "github",
+    pushBranch: true,
+    createPullRequest: true,
+  };
+}
+
+function makePublishBaseConfig(
+  stateRootPath: string,
+  publish: ResolvedConfig["publish"],
+): ResolvedConfig {
+  return {
+    raw: {
+      version: 1,
+      project: { name: "test-project", type: "single-package" },
+      state: { root: stateRootPath },
+      gateProfiles: { full: ["true"] },
+      commands: { setup: ["true"], cleanup: ["true"] },
+    },
+    stateRoot: stateRootPath,
+    repoRoot: stateRootPath,
+    editorCommand: "echo",
+    maxFixAttempts: 1,
+    extractPlanModel: "claude-haiku-4-5-20251001",
+    extractPlanEffort: "low" as const,
+    fileReconciliationMode: "report_only" as const,
+    security: {
+      profile: "unsafe",
+      filesystem: { allowRead: [], allowWrite: [] },
+      network: { profile: "provider-only", allowDomains: [] },
+      mcp: { mode: "disabled", allow: [] },
+    },
+    publish,
+  };
+}
+
+describe("executePlan — auto-publish after final review", () => {
+  let stateRoot: string;
+
+  function makeFakesForSinglePhase(worktreePath: string) {
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
+    fakeGit.impl.addExistingRemote("origin");
+
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "deadbeef12345678\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-01-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    return { fakeGit, fakeShell, fakeBackend };
+  }
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-publish-test-"));
+    const worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await mkdir(join(worktree, ".phax-context"), { recursive: true });
+    await writeFile(join(worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+  });
+
+  it("publishes PR and writes publication.json when publish.enabled", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(autoPublishRawPlan));
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const config = makePublishBaseConfig(stateRoot, makePublishConfig(true));
+
+    const { fakeGit, fakeShell, fakeBackend } = makeFakesForSinglePhase(worktreePath);
+    const fakeGitHub = makeFakeGitHub();
+    fakeGitHub.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/42");
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      fakeGitHub.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+
+    const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
+      state: string;
+    };
+    expect(runStatus.state).toBe("review_open");
+
+    const publication = JSON.parse(await readFile(join(runPath, "publication.json"), "utf8")) as {
+      prStatus: string;
+      pullRequestUrl: string;
+    };
+    expect(publication.prStatus).toBe("created");
+    expect(publication.pullRequestUrl).toBe("https://github.com/owner/repo/pull/42");
+
+    const finalReport = await readFile(join(runPath, "final-report.md"), "utf8");
+    expect(finalReport).toContain("https://github.com/owner/repo/pull/42");
+
+    const createCall = fakeGitHub.impl.calls.find((c) => c.method === "createPullRequest");
+    expect(createCall).toBeDefined();
+  });
+
+  it("run stays review_open when gh is unavailable (non-fatal failure)", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(autoPublishRawPlan));
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const config = makePublishBaseConfig(stateRoot, makePublishConfig(true));
+
+    const { fakeGit, fakeShell, fakeBackend } = makeFakesForSinglePhase(worktreePath);
+    const fakeGitHub = makeFakeGitHub();
+    fakeGitHub.impl.setAvailable(false);
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      fakeGitHub.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    // Run must succeed even though publication failed
+    expect(Either.isRight(result)).toBe(true);
+
+    const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
+      state: string;
+    };
+    expect(runStatus.state).toBe("review_open");
+
+    const publication = JSON.parse(await readFile(join(runPath, "publication.json"), "utf8")) as {
+      pushStatus: string;
+      prStatus: string;
+      failureReason: string;
+    };
+    expect(publication.pushStatus).toBe("not_attempted");
+    expect(publication.prStatus).toBe("not_attempted");
+    expect(publication.failureReason).toContain("gh");
+
+    const createCall = fakeGitHub.impl.calls.find((c) => c.method === "createPullRequest");
+    expect(createCall).toBeUndefined();
+  });
+
+  it("no publication side effects when publish.enabled is false", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(autoPublishRawPlan));
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const config = makePublishBaseConfig(stateRoot, makePublishConfig(false));
+
+    const { fakeGit, fakeShell, fakeBackend } = makeFakesForSinglePhase(worktreePath);
+    const fakeGitHub = makeFakeGitHub();
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      fakeGitHub.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+
+    const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
+      state: string;
+    };
+    expect(runStatus.state).toBe("review_open");
+
+    // No publication.json should be written
+    await expect(readFile(join(runPath, "publication.json"), "utf8")).rejects.toThrow();
+
+    // No GitHub calls should have been made
+    expect(fakeGitHub.impl.calls).toHaveLength(0);
   });
 });

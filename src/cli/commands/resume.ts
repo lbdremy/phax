@@ -178,6 +178,7 @@ export async function runResume(
         startIndex: decision.nextPhaseIndex,
         routing,
         providerConfig,
+        verbose: opts.verbose,
       }),
     );
 
