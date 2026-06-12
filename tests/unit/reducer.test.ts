@@ -127,6 +127,12 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     kind: "rate_limit",
     cause: rateLimitError,
   },
+  PhaseResetRequested: {
+    ...base,
+    type: "PhaseResetRequested",
+    phase: phaseId,
+    phaseId,
+  },
 };
 
 /** Canonical PhaxState per run-state name — used by the matrix consistency walker. */
@@ -551,5 +557,87 @@ describe("interpret — stale signals on terminal runs", () => {
   it("late-delivered phase events on a failed run are Stale, not Unexpected", () => {
     const d = interpret(representativeState.failed, sampleEvents.GatePassed);
     expect(d.kind).toBe("Stale");
+  });
+});
+
+describe("interpret — PhaseResetRequested", () => {
+  it("failed run × PhaseResetRequested → interrupted / pending", () => {
+    const d = interpret(representativeState.failed, sampleEvents.PhaseResetRequested);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({ run: "interrupted", phase: { state: "pending" } });
+  });
+
+  it("failed run × PhaseResetRequested emits PersistState with stoppedReason=phase_reset", () => {
+    const d = interpret(representativeState.failed, sampleEvents.PhaseResetRequested);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    const persistEffect = d.effects.find((e) => e.type === "PersistState");
+    expect(persistEffect).toBeDefined();
+    if (persistEffect?.type === "PersistState") {
+      expect(persistEffect.patch.run?.stoppedReason).toBe("phase_reset");
+    }
+  });
+
+  it("running + phase=gates_failed × PhaseResetRequested → interrupted / pending", () => {
+    const state: PhaxState = { run: "running", phase: { state: "gates_failed", attempt: 2 } };
+    const d = interpret(state, sampleEvents.PhaseResetRequested);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({ run: "interrupted", phase: { state: "pending" } });
+  });
+
+  it("running + phase=handoff_failed × PhaseResetRequested → interrupted / pending", () => {
+    const state: PhaxState = {
+      run: "running",
+      phase: { state: "handoff_failed", missing: ["## Summary"] },
+    };
+    const d = interpret(state, sampleEvents.PhaseResetRequested);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({ run: "interrupted", phase: { state: "pending" } });
+  });
+
+  it("interrupted + phase=gates_exhausted × PhaseResetRequested → interrupted / pending", () => {
+    const state: PhaxState = {
+      run: "interrupted",
+      phase: { state: "gates_exhausted", attempt: 3 },
+    };
+    const d = interpret(state, sampleEvents.PhaseResetRequested);
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({ run: "interrupted", phase: { state: "pending" } });
+  });
+
+  it("running + phase=committed × PhaseResetRequested is Rejected", () => {
+    const state: PhaxState = { run: "running", phase: { state: "committed", hash: "abc" } };
+    const d = interpret(state, sampleEvents.PhaseResetRequested);
+    expect(d.kind).toBe("Rejected");
+  });
+
+  it("running + phase=passed × PhaseResetRequested is Rejected", () => {
+    const state: PhaxState = { run: "running", phase: { state: "passed" } };
+    const d = interpret(state, sampleEvents.PhaseResetRequested);
+    expect(d.kind).toBe("Rejected");
+  });
+
+  it("running + phase=running × PhaseResetRequested is Rejected (in-flight)", () => {
+    const d = interpret(representativeState.running, sampleEvents.PhaseResetRequested);
+    expect(d.kind).toBe("Rejected");
+  });
+
+  it("completed × PhaseResetRequested is Rejected", () => {
+    const d = interpret(representativeState.completed, sampleEvents.PhaseResetRequested);
+    expect(d.kind).toBe("Rejected");
+  });
+
+  it("archived × PhaseResetRequested is Rejected", () => {
+    const d = interpret(representativeState.archived, sampleEvents.PhaseResetRequested);
+    expect(d.kind).toBe("Rejected");
+  });
+
+  it("interrupted + phase=running × PhaseResetRequested is Rejected", () => {
+    const d = interpret(representativeState.interrupted, sampleEvents.PhaseResetRequested);
+    expect(d.kind).toBe("Rejected");
   });
 });

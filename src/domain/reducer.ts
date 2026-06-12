@@ -726,5 +726,42 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
           return stale(`rate limit on ${state.run} run`);
       }
       return assertNever(state);
+
+    case "PhaseResetRequested": {
+      const resetResult = handled({ run: "interrupted", phase: { state: "pending" } }, [
+        {
+          type: "PersistState",
+          patch: {
+            run: { stoppedReason: "phase_reset" },
+          },
+        },
+      ]);
+      switch (state.run) {
+        case "failed":
+          return resetResult;
+        case "running": {
+          const ps = state.phase.state;
+          if (ps === "gates_exhausted" || ps === "gates_failed" || ps === "handoff_failed") {
+            return resetResult;
+          }
+          return rejected(`cannot reset phase while it is ${ps}`);
+        }
+        case "interrupted": {
+          const ps = state.phase.state;
+          if (ps === "gates_exhausted") {
+            return resetResult;
+          }
+          return rejected(`cannot reset phase while it is ${ps}`);
+        }
+        case "created":
+        case "rate_limited":
+        case "review_open":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return rejected(`cannot reset phase while run is ${state.run}`);
+      }
+      return assertNever(state);
+    }
   }
 }
