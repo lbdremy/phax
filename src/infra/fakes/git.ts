@@ -8,6 +8,7 @@ export type GitCall =
   | { method: "currentBranch"; repo: string }
   | { method: "createBranch"; branch: string; from: string; repo: string }
   | { method: "branchExists"; branch: string; repo: string }
+  | { method: "deleteBranch"; name: string; force: boolean; repo: string }
   | { method: "addWorktree"; branch: string; path: string; repo: string }
   | { method: "removeWorktree"; path: string; force: boolean; repo: string }
   | { method: "commit"; repo: string; subject: string; body: string }
@@ -23,6 +24,7 @@ export class FakeGitImpl implements GitOps {
   isCleanDefault = true;
   activeBranch: BranchName = "main" as BranchName;
   readonly existingBranches = new Set<string>();
+  readonly deletedBranches: { name: string; force: boolean; repo: string }[] = [];
   /** Tracks which branches are currently checked out in a worktree.
    * Maps branch → worktree path; used to simulate git's "already checked out" error. */
   readonly checkedOutBranches = new Map<string, string>();
@@ -82,6 +84,14 @@ export class FakeGitImpl implements GitOps {
   branchExists(branch: BranchName, repo: string): Effect.Effect<boolean, GitError> {
     this.calls.push({ method: "branchExists", branch, repo });
     return Effect.succeed(this.existingBranches.has(branch));
+  }
+
+  deleteBranch(name: BranchName, force: boolean, repo: string): Effect.Effect<void, GitError> {
+    this.calls.push({ method: "deleteBranch", name, force, repo });
+    this.deletedBranches.push({ name, force, repo });
+    this.existingBranches.delete(name);
+    this.checkedOutBranches.delete(name);
+    return Effect.void;
   }
 
   addWorktree(branch: BranchName, path: WorktreePath, repo: string): Effect.Effect<void, GitError> {
