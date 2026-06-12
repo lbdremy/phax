@@ -542,6 +542,7 @@ it only fails the effect for unexpected I/O errors.
 
 Integration tests with the `Git`/`GitHub`/`FileSystem` fakes (domain↔app with
 fake ports), modeled on `tests/integration/reviewHandoff.test.ts`:
+
 - happy path: pushes, no existing PR → creates PR, writes `publication.json`
   with `prStatus: "created"` + URL, appends the PR section to `final-report.md`,
   verbose lines emitted;
@@ -552,7 +553,7 @@ fake ports), modeled on `tests/integration/reviewHandoff.test.ts`:
   written with the failure reason, `final-report.md` shows the manual fallback,
   effect does **not** fail;
 - `enabled: false` → `disabled`, no side effects.
-Write the happy-path and idempotency tests before implementation.
+  Write the happy-path and idempotency tests before implementation.
 
 ### Implementation order
 

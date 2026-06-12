@@ -1,6 +1,40 @@
 import { Schema } from "effect";
 import { SecurityConfigSchema, type ResolvedSecurityConfig } from "./securityConfig.js";
 
+export const PublishConfigSchema = Schema.Struct({
+  enabled: Schema.Boolean,
+  remote: Schema.optional(Schema.NonEmptyString),
+  provider: Schema.optional(Schema.Literal("github")),
+  pushBranch: Schema.optional(Schema.Boolean),
+  createPullRequest: Schema.optional(Schema.Boolean),
+  baseBranch: Schema.optional(Schema.NonEmptyString),
+  title: Schema.optional(Schema.NonEmptyString),
+});
+
+export type PublishConfig = Schema.Schema.Type<typeof PublishConfigSchema>;
+
+export interface ResolvedPublishConfig {
+  readonly enabled: boolean;
+  readonly remote: string;
+  readonly provider: "github";
+  readonly pushBranch: boolean;
+  readonly createPullRequest: boolean;
+  readonly baseBranch?: string;
+  readonly title?: string;
+}
+
+export function resolvePublishConfig(raw: PublishConfig | undefined): ResolvedPublishConfig {
+  return {
+    enabled: raw?.enabled ?? false,
+    remote: raw?.remote ?? "origin",
+    provider: raw?.provider ?? "github",
+    pushBranch: raw?.pushBranch ?? true,
+    createPullRequest: raw?.createPullRequest ?? true,
+    ...(raw?.baseBranch !== undefined ? { baseBranch: raw.baseBranch } : {}),
+    ...(raw?.title !== undefined ? { title: raw.title } : {}),
+  };
+}
+
 const NonEmptyCommandArray = Schema.NonEmptyArray(Schema.NonEmptyString);
 
 const GateProfilesSchema = Schema.Record({
@@ -56,6 +90,7 @@ export const PhaxConfigSchema = Schema.Struct({
   ),
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   security: Schema.optional(SecurityConfigSchema),
+  publish: Schema.optional(PublishConfigSchema),
   gateProfiles: GateProfilesSchema,
   workspaces: Schema.optional(Schema.Array(WorkspaceSchema)),
 });
@@ -75,6 +110,7 @@ export interface ResolvedConfig {
   readonly extractPlanEffort: Effort;
   readonly fileReconciliationMode: "report_only" | "warn";
   readonly security: ResolvedSecurityConfig;
+  readonly publish: ResolvedPublishConfig;
 }
 
 export type { ResolvedSecurityConfig };

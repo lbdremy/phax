@@ -8,6 +8,7 @@ import {
   type ResolvedConfig,
   decodePhaxConfig,
   DEFAULT_EXTRACT_MODEL,
+  resolvePublishConfig,
 } from "../schemas/phaxConfig.js";
 import { resolveSecurityConfig, DEFAULT_SECURITY_PROFILE } from "../schemas/securityConfig.js";
 import { formatParseError } from "../schemas/formatError.js";
@@ -165,6 +166,7 @@ export function loadConfig(
     extractPlanEffort: config.agent?.extractPlan?.effort ?? "low",
     fileReconciliationMode: config.fileReconciliation?.mode ?? "report_only",
     security: resolvedSecurity,
+    publish: resolvePublishConfig(config.publish),
   };
 
   return Either.right(resolved);
