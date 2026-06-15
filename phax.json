@@ -11,7 +11,7 @@
     "filesystem": {
       "allowWrite": ["~/.phax"]
     },
-    "agentCommands": ["deno"]
+    "agentCommands": ["deno", "ctx7"]
   },
   "publish": {
     "enabled": true,
