@@ -42,6 +42,10 @@ informational for the executing agent.
 | Verification             | `### Verification` (names the `phax.json` gate profile) | no         |
 | Expected handoff content | `### Expected handoff content`                          | no         |
 
+The run-level field `requiredCommands` (extracted from `## Required commands` in
+the plan preamble) is **not** per-phase — it applies to the whole run. See
+[Required commands declaration](#required-commands-declaration).
+
 The three planned-file arrays are **required**: the section must be present even
 when it is empty (write `- (none)` for an empty list). They back the end-of-phase
 file reconciliation. This is the format defined by
@@ -204,6 +208,82 @@ Plans prefer Claude-oriented naming because Claude is the routing reference scal
 | `openai-gpt`     | `low` \| `medium` \| `high` \| `xhigh`                         |
 
 The superset across all families: `none | off | low | medium | high | xhigh | max | ultracode`. Per-family validity is enforced by the routing layer — the plan schema accepts the full superset.
+
+## Required commands declaration
+
+Every plan must include a top-level `## Required commands` section that lists the
+shell commands the plan needs the agent to be able to run. The section must
+appear in the plan before the first phase heading.
+
+```markdown
+## Required commands
+
+- deno fmt
+- deno lint
+```
+
+Write `- (none)` when the plan introduces no new commands. The extraction model
+reads this section and emits `run.requiredCommands` in `phax-plan.json`. The
+preflight check in `phax run` fails the run early — before any agent spawns —
+if any required command is absent from the frozen effective set (security config
+∪ gate commands).
+
+### When to declare required commands
+
+Declare a required command whenever a phase introduces a tool, runtime, package
+manager, or CLI that was **not already in use** in the repository. Examples:
+Deno, Bun, pnpm, Vitest, Playwright, ESLint, Biome, Cargo, Docker, `gh`, `az`,
+`terraform`. If you are not sure whether the command is already allowed, declare
+it — the preflight will confirm coverage.
+
+Do **not** declare commands that are always available in the execution environment
+(e.g. `git`, standard POSIX shell builtins) unless a phase actually calls them
+as agent tasks.
+
+### Broad vs narrow allowances
+
+A _broad_ allowance is a single token (e.g. `deno`). It covers any sub-command
+(`deno fmt`, `deno lint`, `deno run …`) via the token-prefix rule.
+
+A _narrow_ allowance is a command with sub-commands or arguments
+(e.g. `deno fmt`). It is more precise but may be degraded to `enforcement:
+"none"` by providers that cannot enforce per-command precision (codex, vibe).
+Degraded entries are recorded in `security.json` with a `command-precision` mark
+but do **not** block the run.
+
+Prefer narrow allowances when you want to constrain the agent precisely.
+Prefer broad allowances when you need the agent to run many sub-commands of the
+same tool.
+
+### Required PHAX security configuration changes
+
+When the plan declares new required commands, add a `## Required PHAX security
+configuration changes` section in the plan so the developer knows to update
+`phax.json` before running:
+
+```markdown
+## Required PHAX security configuration changes
+
+This plan requires the following commands to be added to
+`security.agentCommands` in `phax.json` before running:
+
+- `deno fmt`
+- `deno lint`
+
+Without this configuration the preflight check will fail before any agent
+spawns.
+```
+
+Omit this section if the plan's `## Required commands` is `(none)`.
+
+### `requiredCommands` as a run-level extracted field
+
+`requiredCommands` is a **run-level** field (not per-phase). It is extracted from
+the `## Required commands` section into `phax-plan.json` as
+`run.requiredCommands`. The preflight checks it against the full frozen set once,
+before any phase begins. A command is "covered" by a configured allowance if an
+exact normalised match exists or a configured broad allowance (single token)
+is a token-prefix of the required command (`deno` covers `deno fmt`).
 
 ## Planning constraints
 
