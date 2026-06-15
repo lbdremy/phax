@@ -34,6 +34,55 @@ const HANDOFF_CONTENT = [
 
 const shortName = Either.getOrThrow(decodeShortName("my-run"));
 
+// Seed a run that is paused in `interrupted` with phase-01 in `gates_exhausted`,
+// mirroring the on-disk shape the reducer / dispatcher would leave behind after
+// FixAttemptsExhausted.
+async function seedGatesExhaustedRun(opts: {
+  runPath: string;
+  worktreePath: string;
+  claudeSessionId?: string | undefined;
+}): Promise<void> {
+  const now = new Date().toISOString();
+  const runStatus = {
+    version: 1,
+    shortName: "my-run",
+    runId: "my-run-2026-06-11",
+    state: "interrupted",
+    createdAt: now,
+    updatedAt: now,
+    phasesCount: 1,
+    currentPhaseIndex: 0,
+    gateProfileId: "full",
+    stoppedReason: "gates_exhausted",
+    lastError: "Gate failed: true",
+  };
+  await writeFile(join(opts.runPath, "run-status.json"), JSON.stringify(runStatus, null, 2));
+
+  const phaseFolder = join(opts.runPath, "phase-01");
+  await mkdir(phaseFolder, { recursive: true });
+  const phaseStatus: Record<string, unknown> = {
+    version: 1,
+    phaseId: "phase-01",
+    phaseIndex: 0,
+    state: "gates_exhausted",
+    model: "claude-sonnet-4-6",
+    effort: "low",
+    createdAt: now,
+    updatedAt: now,
+    branchName: "ai/my-run--phase-01",
+    worktreePath: opts.worktreePath,
+  };
+  if (opts.claudeSessionId !== undefined) {
+    phaseStatus.claudeSessionId = opts.claudeSessionId;
+  }
+  await writeFile(join(phaseFolder, "status.json"), JSON.stringify(phaseStatus, null, 2));
+
+  // Simulate that one gate attempt (and one fix) already ran before the
+  // budget was exhausted. The resume path must continue numbering past these.
+  await writeFile(join(phaseFolder, "checks-attempt-01.log"), "gate failed\n");
+  await writeFile(join(phaseFolder, "fix-attempt-01.jsonl"), "");
+}
+
 const rawPlan = {
   version: 1,
   run: {
@@ -384,55 +433,6 @@ describe("executePlan — resume from gates_exhausted", () => {
     },
   });
 
-  // Seed a run that is paused in `interrupted` with phase-01 in `gates_exhausted`,
-  // mirroring the on-disk shape the reducer / dispatcher would leave behind after
-  // FixAttemptsExhausted.
-  async function seedGatesExhaustedRun(opts: {
-    runPath: string;
-    worktreePath: string;
-    claudeSessionId?: string | undefined;
-  }): Promise<void> {
-    const now = new Date().toISOString();
-    const runStatus = {
-      version: 1,
-      shortName: "my-run",
-      runId: "my-run-2026-06-11",
-      state: "interrupted",
-      createdAt: now,
-      updatedAt: now,
-      phasesCount: 1,
-      currentPhaseIndex: 0,
-      gateProfileId: "full",
-      stoppedReason: "gates_exhausted",
-      lastError: "Gate failed: true",
-    };
-    await writeFile(join(opts.runPath, "run-status.json"), JSON.stringify(runStatus, null, 2));
-
-    const phaseFolder = join(opts.runPath, "phase-01");
-    await mkdir(phaseFolder, { recursive: true });
-    const phaseStatus: Record<string, unknown> = {
-      version: 1,
-      phaseId: "phase-01",
-      phaseIndex: 0,
-      state: "gates_exhausted",
-      model: "claude-sonnet-4-6",
-      effort: "low",
-      createdAt: now,
-      updatedAt: now,
-      branchName: "ai/my-run--phase-01",
-      worktreePath: opts.worktreePath,
-    };
-    if (opts.claudeSessionId !== undefined) {
-      phaseStatus.claudeSessionId = opts.claudeSessionId;
-    }
-    await writeFile(join(phaseFolder, "status.json"), JSON.stringify(phaseStatus, null, 2));
-
-    // Simulate that one gate attempt (and one fix) already ran before the
-    // budget was exhausted. The resume path must continue numbering past these.
-    await writeFile(join(phaseFolder, "checks-attempt-01.log"), "gate failed\n");
-    await writeFile(join(phaseFolder, "fix-attempt-01.jsonl"), "");
-  }
-
   beforeEach(async () => {
     stateRoot = await mkdtemp(join(tmpdir(), "phax-test-"));
     const worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
@@ -717,38 +717,38 @@ function makePublishBaseConfig(
   };
 }
 
+function makeFakesForSinglePhase(worktreePath: string) {
+  const fakeGit = makeFakeGit();
+  fakeGit.impl.setRepoIsClean(true);
+  fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
+  fakeGit.impl.addExistingRemote("origin");
+
+  const fakeShell = makeFakeShell();
+  fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+  fakeShell.impl.setResponse("git rev-parse HEAD", {
+    exitCode: 0,
+    stdout: "deadbeef12345678\n",
+    stderr: "",
+  });
+  fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+  const fakeBackend = makeFakeBackend();
+  fakeBackend.impl.addRunResponse({
+    sessionId: "sess-01" as ClaudeSessionId,
+    outputPath: "",
+    finalText: "",
+  });
+  fakeBackend.impl.addResumeResponse({
+    sessionId: "sess-01-handoff" as ClaudeSessionId,
+    outputPath: "",
+    finalText: "",
+  });
+
+  return { fakeGit, fakeShell, fakeBackend };
+}
+
 describe("executePlan — auto-publish after final review", () => {
   let stateRoot: string;
-
-  function makeFakesForSinglePhase(worktreePath: string) {
-    const fakeGit = makeFakeGit();
-    fakeGit.impl.setRepoIsClean(true);
-    fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
-    fakeGit.impl.addExistingRemote("origin");
-
-    const fakeShell = makeFakeShell();
-    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "deadbeef12345678\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
-
-    const fakeBackend = makeFakeBackend();
-    fakeBackend.impl.addRunResponse({
-      sessionId: "sess-01" as ClaudeSessionId,
-      outputPath: "",
-      finalText: "",
-    });
-    fakeBackend.impl.addResumeResponse({
-      sessionId: "sess-01-handoff" as ClaudeSessionId,
-      outputPath: "",
-      finalText: "",
-    });
-
-    return { fakeGit, fakeShell, fakeBackend };
-  }
 
   beforeEach(async () => {
     stateRoot = await mkdtemp(join(tmpdir(), "phax-publish-test-"));

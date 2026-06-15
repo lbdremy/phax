@@ -15,5 +15,6 @@
     "@effect/platform-node",
     "@opentelemetry/semantic-conventions"
   ],
-  "ignoreFiles": ["tests/e2e/fixtures/**"]
+  "ignoreFiles": ["tests/e2e/fixtures/**"],
+  "ignoreBinaries": ["claude", "gh"]
 }
