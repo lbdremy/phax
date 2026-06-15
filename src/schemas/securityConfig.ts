@@ -29,6 +29,7 @@ export const SecurityConfigSchema = Schema.Struct({
   filesystem: Schema.optional(FilesystemConfigSchema),
   network: Schema.optional(NetworkConfigSchema),
   mcp: Schema.optional(McpConfigSchema),
+  agentCommands: Schema.optional(Schema.Array(Schema.NonEmptyString)),
 });
 
 export type SecurityConfig = Schema.Schema.Type<typeof SecurityConfigSchema>;
@@ -48,6 +49,7 @@ export interface ResolvedSecurityConfig {
     readonly mode: McpMode;
     readonly allow: readonly string[];
   };
+  readonly agentCommands: readonly string[];
 }
 
 export function resolveSecurityConfig(
@@ -67,5 +69,6 @@ export function resolveSecurityConfig(
       mode: raw?.mcp?.mode ?? "disabled",
       allow: raw?.mcp?.allow ?? [],
     },
+    agentCommands: raw?.agentCommands ?? [],
   };
 }

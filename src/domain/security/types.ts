@@ -10,5 +10,6 @@ export interface SecurityPolicy {
   };
   readonly network: { readonly profile: NetworkProfile };
   readonly mcp: { readonly mode: McpMode; readonly allow: readonly string[] };
+  readonly agentCommands: readonly string[];
   readonly failClosed: boolean;
 }

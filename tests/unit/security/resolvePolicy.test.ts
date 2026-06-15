@@ -7,6 +7,7 @@ const baseSecureConfig: ResolvedSecurityConfig = {
   filesystem: { allowRead: [], allowWrite: [] },
   network: { profile: "provider-only" },
   mcp: { mode: "disabled", allow: [] },
+  agentCommands: [],
 };
 
 const devAllowlistConfig: ResolvedSecurityConfig = {
@@ -14,6 +15,7 @@ const devAllowlistConfig: ResolvedSecurityConfig = {
   filesystem: { allowRead: ["/extra/read"], allowWrite: ["/extra/write"] },
   network: { profile: "dev-allowlist" },
   mcp: { mode: "allowlist", allow: ["my-mcp"] },
+  agentCommands: [],
 };
 
 describe("resolveSecurityPolicy — unsafe mode", () => {
@@ -178,5 +180,43 @@ describe("resolveSecurityPolicy — secure mode, dev-allowlist network", () => {
     });
     expect(policy.mcp.mode).toBe("allowlist");
     expect(policy.mcp.allow).toEqual(["my-mcp"]);
+  });
+});
+
+describe("resolveSecurityPolicy — agentCommands carriage", () => {
+  it("defaults to empty array when config has no agentCommands", () => {
+    const policy = resolveSecurityPolicy({
+      mode: "secure",
+      worktreePath: "/repo/worktree",
+      config: baseSecureConfig,
+    });
+    expect(policy.agentCommands).toEqual([]);
+  });
+
+  it("carries agentCommands through secure branch, order preserved", () => {
+    const policy = resolveSecurityPolicy({
+      mode: "secure",
+      worktreePath: "/repo/worktree",
+      config: { ...baseSecureConfig, agentCommands: ["deno fmt", "deno lint"] },
+    });
+    expect(policy.agentCommands).toEqual(["deno fmt", "deno lint"]);
+  });
+
+  it("carries agentCommands through unsafe branch", () => {
+    const policy = resolveSecurityPolicy({
+      mode: "unsafe",
+      worktreePath: "/repo/worktree",
+      config: { ...baseSecureConfig, agentCommands: ["deno fmt"] },
+    });
+    expect(policy.agentCommands).toEqual(["deno fmt"]);
+  });
+
+  it("defaults to empty array in unsafe branch when config has no agentCommands", () => {
+    const policy = resolveSecurityPolicy({
+      mode: "unsafe",
+      worktreePath: "/repo/worktree",
+      config: baseSecureConfig,
+    });
+    expect(policy.agentCommands).toEqual([]);
   });
 });
