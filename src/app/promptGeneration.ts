@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../schemas/phaxPlan.js";
+import { HANDOFF_GUIDANCE_LINES, REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
 
 export interface BuildPhasePromptOptions {
   readonly planMd: string;
@@ -96,15 +97,9 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "",
     "`phase-handoff.md` must contain exactly these four sections in order (phax validates them):",
     "",
-    "## What was delivered",
+    ...REQUIRED_HANDOFF_SECTIONS,
     "",
-    "## Key decisions and why",
-    "",
-    "## Exact locations (file paths and exported names)",
-    "",
-    "## What the next phase needs to know",
-    "",
-    "Consult `.skills/phax-phase-handoff.md` for guidance on what to write in each section.",
+    ...HANDOFF_GUIDANCE_LINES,
     "Keep it 150–400 words. No session transcript summaries.",
     "",
     "The handoff must be concise but sufficient for the next phase to start in a fresh Claude Code session using only:",

@@ -51,29 +51,3 @@ describe("phax-planning.md skill", () => {
     expect(content).toContain("openai-gpt");
   });
 });
-
-describe("phax-phase-handoff.md skill", () => {
-  const content = readSkill("phax-phase-handoff.md");
-
-  it("exists and is non-empty", () => {
-    expect(content.length).toBeGreaterThan(0);
-  });
-
-  it("has required structural headings", () => {
-    expect(content).toContain("## Required sections");
-    expect(content).toContain("## What to write in each section");
-    expect(content).toContain("## Tone and length");
-    expect(content).toContain("## Anti-patterns");
-  });
-
-  it("declares all four required section headings", () => {
-    expect(content).toContain("## What was delivered");
-    expect(content).toContain("## Key decisions and why");
-    expect(content).toContain("## Exact locations (file paths and exported names)");
-    expect(content).toContain("## What the next phase needs to know");
-  });
-
-  it("mentions handoff_failed consequence", () => {
-    expect(content).toContain("handoff_failed");
-  });
-});
