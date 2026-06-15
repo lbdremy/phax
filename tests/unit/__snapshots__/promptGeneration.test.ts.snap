@@ -118,14 +118,30 @@ At the end, produce two Markdown artifacts inside \`.phax-context/\`:
 \`phase-handoff.md\` must contain exactly these four sections in order (phax validates them):
 
 ## What was delivered
-
 ## Key decisions and why
-
 ## Exact locations (file paths and exported names)
-
 ## What the next phase needs to know
 
-Consult \`.skills/phax-phase-handoff.md\` for guidance on what to write in each section.
+### What was delivered
+One sentence per significant artifact: what exists now that did not before.
+Name files and exported symbols. Do not summarise the phase objective — the reader already has \`plan.md\`.
+
+### Key decisions and why
+List only decisions a future reader would find surprising or that constrain the next phase.
+Include the reason. Omit decisions the code makes obvious.
+
+### Exact locations (file paths and exported names)
+A flat list of every file and symbol the next phase imports, e.g.:
+  src/ports/fs.ts  — FileSystem port (ReadFileSystem, WriteFileSystem)
+
+### What the next phase needs to know
+Facts not derivable from reading the code: invariants, known gaps, ordering constraints,
+deliberate non-implementations, and workarounds that look odd but are intentional.
+If phax flagged file-plan deviations, explain each one here.
+
+Tone: short sentences, bullet lists, 150–400 words total.
+No transcript summaries — write decisions and facts only.
+Never say 'I implemented X' — state what exists.
 Keep it 150–400 words. No session transcript summaries.
 
 The handoff must be concise but sufficient for the next phase to start in a fresh Claude Code session using only:

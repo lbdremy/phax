@@ -18,13 +18,7 @@ import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { dispatch } from "./dispatcher.js";
-
-const REQUIRED_HANDOFF_SECTIONS = [
-  "## What was delivered",
-  "## Key decisions and why",
-  "## Exact locations (file paths and exported names)",
-  "## What the next phase needs to know",
-];
+import { HANDOFF_GUIDANCE_LINES, REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
 
 function buildHandoffPrompt(): string {
   return [
@@ -32,10 +26,11 @@ function buildHandoffPrompt(): string {
     "",
     "Gates have passed. Now write `.phax-context/phase-handoff.md` (the `.phax-context/` folder is gitignored phax metadata — do not write at the worktree root).",
     "",
-    "Consult `.skills/phax-phase-handoff.md` for the expected format.",
-    "",
     "The file must include these four sections in order:",
     ...REQUIRED_HANDOFF_SECTIONS.map((s) => `- \`${s}\``),
+    "",
+    "Guidance for each section:",
+    ...HANDOFF_GUIDANCE_LINES,
     "",
     "Be concise and precise. Focus on what the next phase needs to know.",
     "Do not repeat the phase instructions — only what was actually done and decided.",
@@ -51,7 +46,7 @@ function validateHandoffSections(content: string): string[] {
 export class HandoffValidationError extends Error {
   readonly _tag = "HandoffValidationError";
   constructor(
-    readonly missingSections: string[],
+    readonly missingSections: readonly string[],
     readonly worktreePath: string,
   ) {
     super(`phase-handoff.md is missing required sections: ${missingSections.join(", ")}`);
