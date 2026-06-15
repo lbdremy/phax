@@ -36,7 +36,8 @@
       "pnpm test",
       "pnpm audit:architecture",
       "pnpm build",
-      "pnpm deno:smoke"
+      "pnpm deno:smoke",
+      "pnpm deno:smoke-binary"
     ]
   }
 }
