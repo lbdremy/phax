@@ -5,6 +5,10 @@
   "bin": {
     "phax": "./dist/cli/main.js"
   },
+  "files": [
+    "dist",
+    ".claude/skills/phax-planning"
+  ],
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
