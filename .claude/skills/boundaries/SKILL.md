@@ -1,3 +1,8 @@
+---
+name: boundaries
+description: Respect the PHAX four-layer architecture (cli → app → domain ← ports ← infra) when adding or moving code.
+---
+
 # Architectural boundaries
 
 ## The four-layer rule

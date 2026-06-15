@@ -2,17 +2,23 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const SKILLS_DIR = join(import.meta.dirname, "../../.skills");
+const SKILLS_DIR = join(import.meta.dirname, "../../.claude/skills");
 
 function readSkill(name: string): string {
   return readFileSync(join(SKILLS_DIR, name), "utf-8");
 }
 
-describe("phax-planning.md skill", () => {
-  const content = readSkill("phax-planning.md");
+describe("phax-planning skill", () => {
+  const content = readSkill("phax-planning/SKILL.md");
 
   it("exists and is non-empty", () => {
     expect(content.length).toBeGreaterThan(0);
+  });
+
+  it("has YAML frontmatter with name and description", () => {
+    expect(content).toMatch(/^---\n/);
+    expect(content).toContain("name: phax-planning");
+    expect(content).toMatch(/description: .+/);
   });
 
   it("has required headings", () => {

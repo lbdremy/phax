@@ -1,3 +1,8 @@
+---
+name: effect-services
+description: Route all side-effecting operations (filesystem, shell, git, clock) through port interfaces in src/ports/ using Effect dependency injection.
+---
+
 # Effect services
 
 ## The rule

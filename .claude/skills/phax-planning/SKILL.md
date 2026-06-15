@@ -1,3 +1,8 @@
+---
+name: phax-planning
+description: Write or review a plan.md that `phax extract-plan` will turn into phax-plan.json — phase structure, required fields, model/effort, commit metadata.
+---
+
 # phax planning skill
 
 Use this skill when you are asked to write or review a `plan.md` that will be

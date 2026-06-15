@@ -1,3 +1,8 @@
+---
+name: state-machines
+description: Transition RunState and PhaseState only through the explicit functions in src/domain/state.ts — never mutate state-bearing fields directly.
+---
+
 # State machines
 
 ## The rule

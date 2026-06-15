@@ -1,3 +1,8 @@
+---
+name: model-routing
+description: Extend the routing layer, add provider adapters, change the resolution algorithm, or add new model families/tiers in src/domain/routing/.
+---
+
 # model-routing skill
 
 Use this skill when extending the routing layer, adding provider adapters, changing the resolution algorithm, or adding new model families / tiers.

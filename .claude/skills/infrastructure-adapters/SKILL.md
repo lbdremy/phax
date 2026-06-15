@@ -1,3 +1,8 @@
+---
+name: infrastructure-adapters
+description: Implement infrastructure adapters in src/infra/ behind port interfaces in src/ports/ — the only place side effects are allowed.
+---
+
 # Infrastructure adapters
 
 ## The rule
