@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Gate
+        run: |
+          pnpm typecheck
+          pnpm test
+          pnpm lint
+          pnpm format:check
+          pnpm knip
+          pnpm build
+          pnpm audit:architecture
+          pnpm deno:smoke
+
+      - name: Build release binaries
+        run: pnpm deno:build-binaries
+
+      - name: Prepare npm wrapper
+        run: deno run --allow-read --allow-write scripts/prepare-npm.ts "${{ github.ref_name }}"
+
+      - name: Verify wrapper version matches tag
+        run: |
+          TAG_VERSION="${{ github.ref_name }}"
+          TAG_VERSION="${TAG_VERSION#v}"
+          PKG_VERSION="$(node -e "console.log(require('./npm/package.json').version)")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Version mismatch: tag=${TAG_VERSION}, npm/package.json=${PKG_VERSION}"
+            exit 1
+          fi
+
+      - name: npm publish (dry run)
+        working-directory: npm
+        run: npm publish --dry-run
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/release/phax-darwin-arm64
+            dist/release/phax-darwin-arm64.sha256
+            dist/release/phax-darwin-x64
+            dist/release/phax-darwin-x64.sha256
+            dist/release/phax-linux-x64
+            dist/release/phax-linux-x64.sha256
+            dist/release/phax-linux-arm64
+            dist/release/phax-linux-arm64.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
