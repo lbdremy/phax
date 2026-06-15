@@ -109,6 +109,7 @@ describe("executePlan — happy-path 2-phase run", () => {
         filesystem: { allowRead: [], allowWrite: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
       },
     };
 
@@ -250,6 +251,7 @@ describe("executePlan — happy-path 2-phase run", () => {
         filesystem: { allowRead: [], allowWrite: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
       },
     };
 
@@ -374,6 +376,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       filesystem: { allowRead: [], allowWrite: [] },
       network: { profile: "provider-only", allowDomains: [] },
       mcp: { mode: "disabled", allow: [] },
+      agentCommands: [],
     },
   });
 
@@ -704,6 +707,7 @@ function makePublishBaseConfig(
       filesystem: { allowRead: [], allowWrite: [] },
       network: { profile: "provider-only", allowDomains: [] },
       mcp: { mode: "disabled", allow: [] },
+      agentCommands: [],
     },
     publish,
   };

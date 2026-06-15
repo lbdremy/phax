@@ -88,6 +88,7 @@ function makeConfig(stateRoot: string): ResolvedConfig {
       filesystem: { allowRead: [], allowWrite: [] },
       network: { profile: "provider-only", allowDomains: [] },
       mcp: { mode: "disabled", allow: [] },
+      agentCommands: [],
     },
   };
 }

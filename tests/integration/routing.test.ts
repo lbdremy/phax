@@ -129,6 +129,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
         filesystem: { allowRead: [], allowWrite: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
       },
     };
 

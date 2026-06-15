@@ -54,6 +54,7 @@ import { resolveModel } from "../domain/routing/resolve.js";
 import type { SecurityFilter } from "../domain/routing/types.js";
 import type { SecurityMode } from "../domain/security/types.js";
 import { evaluateProviderSecurity } from "../domain/security/capabilities.js";
+import { computeFrozenAgentCommands } from "../domain/security/agentCommands.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
@@ -543,6 +544,18 @@ export function executePlan(
 
         // Build and write security posture artifact
         const evaluation = evaluateProviderSecurity(resolution.selected.provider, securityPolicy);
+        const frozenResult = computeFrozenAgentCommands({
+          configCommands: securityPolicy.agentCommands,
+          gateCommands,
+          requiredCommands: plan.run.requiredCommands,
+          provider: resolution.selected.provider,
+        });
+        const postureMarks: Array<"partial-filesystem" | "mcp-unenforced" | "command-precision"> = [
+          ...evaluation.marks,
+        ];
+        if (frozenResult.degraded) {
+          postureMarks.push("command-precision");
+        }
         const securityPosture: SecurityPosture = {
           version: 1,
           mode: securityPolicy.mode,
@@ -560,7 +573,8 @@ export function executePlan(
             allow: securityPolicy.mcp.allow,
           },
           downgraded: evaluation.downgraded,
-          marks: evaluation.marks,
+          marks: postureMarks,
+          agentCommands: frozenResult.records,
           providerSkippedForSecurity: resolution.skippedForSecurity ?? [],
         };
         yield* fs.writeAtomic(

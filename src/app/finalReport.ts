@@ -183,19 +183,32 @@ function buildFinalReportMarkdown(info: RunReviewInfo, publication?: Publication
     .join("\n\n");
 
   // Build Security section from security.json artifacts
-  const securityPostures = info.phaseStatuses
-    .map((p) => tryReadSecurityPosture(info.runPath, p.phaseId))
-    .filter((p): p is SecurityPosture => p !== null);
+  const securityPosturePairs = info.phaseStatuses
+    .map((p) => ({ phaseId: p.phaseId, posture: tryReadSecurityPosture(info.runPath, p.phaseId) }))
+    .filter((pair): pair is { phaseId: string; posture: SecurityPosture } => pair.posture !== null);
 
-  const hasSecurityData = securityPostures.length > 0;
+  const hasSecurityData = securityPosturePairs.length > 0;
   const runSecurityMode =
-    hasSecurityData && securityPostures.length === info.phaseStatuses.length
-      ? securityPostures[0]?.mode
+    hasSecurityData && securityPosturePairs.length === info.phaseStatuses.length
+      ? securityPosturePairs[0]?.posture.mode
       : "(mixed)";
 
   const securityRows = hasSecurityData
-    ? securityPostures.map((p) => formatSecurityPosture(p)).join("")
+    ? securityPosturePairs.map((pair) => formatSecurityPosture(pair.posture)).join("")
     : "| (no security data) | | | | | | | | | | | |\n";
+
+  const agentCommandsSection = securityPosturePairs
+    .filter((pair) => pair.posture.agentCommands.length > 0)
+    .map((pair) => {
+      const rows = pair.posture.agentCommands
+        .map(
+          (r) =>
+            `| \`${r.command}\` | ${r.source} | ${r.explicit} | ${r.requiredByPlan} | ${r.enforcement} | ${r.degraded} |`,
+        )
+        .join("\n");
+      return `### ${pair.phaseId}\n\n| Command | Source | Explicit | Required | Enforcement | Degraded |\n|---------|--------|----------|----------|-------------|----------|\n${rows}`;
+    })
+    .join("\n\n");
 
   const publicationSection =
     publication !== undefined ? `\n${renderPublicationSection(publication)}` : "";
@@ -229,7 +242,7 @@ ${phaseRows}
 | Phase | Provider | Sandbox | Network Profile | MCP Mode | Allow Read | Allow Write | MCP Allow | Downgraded | Marks | Skipped for Security |
 |-------|----------|---------|----------------|----------|------------|-------------|-----------|------------|-------|---------------------|
 ${securityRows}
-
+${agentCommandsSection.length > 0 ? `\n### Agent Commands\n\n${agentCommandsSection}\n` : ""}
 ## Per-Phase Artifacts
 
 ${artifactLinks}
