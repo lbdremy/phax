@@ -20,6 +20,7 @@ export function resolveSecurityPolicy(input: ResolvePolicyInput): SecurityPolicy
       filesystem: { allowRead: [], allowWrite: [] },
       network: { profile: config.network.profile },
       mcp: { mode: config.mcp.mode, allow: [] },
+      agentCommands: config.agentCommands,
       failClosed: false,
     };
   }
@@ -49,6 +50,7 @@ export function resolveSecurityPolicy(input: ResolvePolicyInput): SecurityPolicy
     filesystem: { allowRead, allowWrite },
     network: { profile: config.network.profile },
     mcp: { mode: config.mcp.mode, allow: config.mcp.allow },
+    agentCommands: config.agentCommands,
     failClosed: true,
   };
 }
