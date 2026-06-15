@@ -1,3 +1,8 @@
+---
+name: observability
+description: Wire OpenTelemetry through the SystemTelemetry port — domain produces semantic spans, infra transports them — never bypass the port in app/ or cli/.
+---
+
 # Observability doctrine
 
 > Core principle: OpenTelemetry transports and correlates. The system produces the meaning. Snapshots capture the meaning, not the transport.

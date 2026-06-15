@@ -1,3 +1,8 @@
+---
+name: cli-view-layer
+description: Keep CLI command files thin — parse args, call one app/ use case, render via OutputPort — no business logic in src/cli/commands/.
+---
+
 # CLI view layer
 
 ## The rule

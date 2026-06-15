@@ -59,17 +59,17 @@ describe("PHAX_TELEMETRY_001 — domain isolation", () => {
 
       if (OTEL_IMPORT_STMT.test(content)) {
         violations.push(
-          `${rel}: imports @opentelemetry/* (PHAX_TELEMETRY_001) — see .skills/observability.md`,
+          `${rel}: imports @opentelemetry/* (PHAX_TELEMETRY_001) — see .claude/skills/observability/SKILL.md`,
         );
       }
       if (INFRA_TELEMETRY_IMPORT_STMT.test(content)) {
         violations.push(
-          `${rel}: imports infra/telemetry (PHAX_TELEMETRY_001) — see .skills/observability.md`,
+          `${rel}: imports infra/telemetry (PHAX_TELEMETRY_001) — see .claude/skills/observability/SKILL.md`,
         );
       }
       if (SYSTEM_TELEMETRY_PORT_IMPORT_STMT.test(content)) {
         violations.push(
-          `${rel}: imports SystemTelemetry port (PHAX_TELEMETRY_001) — see .skills/observability.md`,
+          `${rel}: imports SystemTelemetry port (PHAX_TELEMETRY_001) — see .claude/skills/observability/SKILL.md`,
         );
       }
     }
@@ -99,7 +99,7 @@ describe("PHAX_TELEMETRY_002 — OTel confinement", () => {
       const content = readFileSync(absPath, "utf8");
       if (OTEL_IMPORT_STMT.test(content)) {
         violations.push(
-          `${rel}: imports @opentelemetry/* but is not in the allowlist (PHAX_TELEMETRY_002) — see .skills/observability.md`,
+          `${rel}: imports @opentelemetry/* but is not in the allowlist (PHAX_TELEMETRY_002) — see .claude/skills/observability/SKILL.md`,
         );
       }
     }
@@ -132,12 +132,12 @@ describe("PHAX_TELEMETRY_003 — application layer port-only access", () => {
 
       if (OTEL_IMPORT_STMT.test(content)) {
         violations.push(
-          `${rel}: imports @opentelemetry/* (PHAX_TELEMETRY_003) — use SystemTelemetry port — see .skills/observability.md`,
+          `${rel}: imports @opentelemetry/* (PHAX_TELEMETRY_003) — use SystemTelemetry port — see .claude/skills/observability/SKILL.md`,
         );
       }
       if (INFRA_TELEMETRY_IMPORT_STMT.test(content)) {
         violations.push(
-          `${rel}: imports infra/telemetry directly (PHAX_TELEMETRY_003) — use SystemTelemetry port — see .skills/observability.md`,
+          `${rel}: imports infra/telemetry directly (PHAX_TELEMETRY_003) — use SystemTelemetry port — see .claude/skills/observability/SKILL.md`,
         );
       }
     }
@@ -155,12 +155,12 @@ describe("PHAX_TELEMETRY_003 — application layer port-only access", () => {
 
       if (OTEL_IMPORT_STMT.test(content)) {
         violations.push(
-          `${rel}: imports @opentelemetry/* (PHAX_TELEMETRY_003) — CLI must not bypass the telemetry factory — see .skills/observability.md`,
+          `${rel}: imports @opentelemetry/* (PHAX_TELEMETRY_003) — CLI must not bypass the telemetry factory — see .claude/skills/observability/SKILL.md`,
         );
       }
       if (INFRA_TELEMETRY_OTEL_IMPORT_STMT.test(content)) {
         violations.push(
-          `${rel}: imports infra/telemetry/openTelemetry directly (PHAX_TELEMETRY_003) — always go through makeSystemTelemetryLayer — see .skills/observability.md`,
+          `${rel}: imports infra/telemetry/openTelemetry directly (PHAX_TELEMETRY_003) — always go through makeSystemTelemetryLayer — see .claude/skills/observability/SKILL.md`,
         );
       }
     }
@@ -184,14 +184,14 @@ describe("PHAX_TELEMETRY_004 — snapshot projection purity", () => {
       for (const field of UNSTABLE_FIELDS) {
         if (content.includes(field)) {
           violations.push(
-            `${rel}: snapshot contains unstable field "${field}" (PHAX_TELEMETRY_004) — snapshots must project only semantic fields — see .skills/observability.md`,
+            `${rel}: snapshot contains unstable field "${field}" (PHAX_TELEMETRY_004) — snapshots must project only semantic fields — see .claude/skills/observability/SKILL.md`,
           );
         }
       }
 
       if (UNIX_TIMESTAMP_RE.test(content)) {
         violations.push(
-          `${rel}: snapshot contains a 13+ digit number (likely a Unix ms timestamp) (PHAX_TELEMETRY_004) — snapshots must project only semantic fields — see .skills/observability.md`,
+          `${rel}: snapshot contains a 13+ digit number (likely a Unix ms timestamp) (PHAX_TELEMETRY_004) — snapshots must project only semantic fields — see .claude/skills/observability/SKILL.md`,
         );
       }
     }

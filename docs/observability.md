@@ -99,10 +99,10 @@ Four `PHAX_TELEMETRY_*` rules in `tests/unit/architecturalGuards.telemetry.test.
 | `PHAX_TELEMETRY_003` | `src/app/` has no infra/telemetry imports; `src/cli/` has no direct OTel adapter imports |
 | `PHAX_TELEMETRY_004` | Snapshot files contain no transport fields or raw Unix timestamps                        |
 
-Each guard failure message includes the rule id and a pointer to `.skills/observability.md` for remediation steps.
+Each guard failure message includes the rule id and a pointer to `.claude/skills/observability/SKILL.md` for remediation steps.
 
 ## Further reading
 
-- Correction guide for agents and reviewers: [`.skills/observability.md`](../.skills/observability.md)
+- Correction guide for agents and reviewers: [`.claude/skills/observability/SKILL.md`](../.claude/skills/observability/SKILL.md)
 - Doctrine source: `.context/attachments/rK8ZI3/pasted_text_2026-05-25_14-05-46.txt`
 - E2E snapshot baseline: `tests/e2e/__snapshots__/semanticTrace.test.ts.snap`

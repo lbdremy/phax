@@ -1,3 +1,8 @@
+---
+name: validation-boundaries
+description: Decode every external input (files, env vars, CLI args, API responses) through an Effect Schema before it crosses into the domain.
+---
+
 # Validation boundaries
 
 ## The rule
