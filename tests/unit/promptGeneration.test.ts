@@ -23,6 +23,7 @@ const samplePlan: PhaxPlan = {
     shortName: "my-run",
     title: "My Run",
     branch: "feature/my-run",
+    requiredCommands: [],
   },
   phases: [samplePhase],
 };

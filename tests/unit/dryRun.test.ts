@@ -10,6 +10,7 @@ const minimalPlan: PhaxPlan = {
     shortName: "test-run",
     title: "Test Run",
     branch: "feat/test",
+    requiredCommands: [],
   },
   phases: [
     {

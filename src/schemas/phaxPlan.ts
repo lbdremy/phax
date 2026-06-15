@@ -37,6 +37,7 @@ export const ExtractedPhaxPlanSchema = Schema.Struct({
     // `extractPlanCore` (see `slugifyShortName`).
     shortName: Schema.NonEmptyString,
     title: Schema.NonEmptyString,
+    requiredCommands: Schema.Array(Schema.String),
   }),
   phases: Schema.NonEmptyArray(PhaseSchema),
 });
@@ -48,6 +49,7 @@ export const PhaxPlanSchema = Schema.Struct({
     shortName: Schema.NonEmptyString,
     title: Schema.NonEmptyString,
     branch: Schema.NonEmptyString,
+    requiredCommands: Schema.Array(Schema.String),
   }),
   phases: Schema.NonEmptyArray(PhaseSchema),
 });

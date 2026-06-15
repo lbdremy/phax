@@ -30,7 +30,7 @@ const shortName = Either.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
-  run: { shortName: "my-run", title: "My Run", branch: "ai/my-run" },
+  run: { shortName: "my-run", title: "My Run", branch: "ai/my-run", requiredCommands: [] },
   phases: [
     {
       id: "phase-01",
