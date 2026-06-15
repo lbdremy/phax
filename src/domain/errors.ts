@@ -132,3 +132,7 @@ export class ReviewHandoffArtifactMissingError extends Data.TaggedError(
   missingPhases: readonly string[];
   missingPaths: readonly string[];
 }> {}
+
+export class SkillInstallError extends Data.TaggedError("SkillInstallError")<{
+  message: string;
+}> {}
