@@ -1,7 +1,8 @@
+import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
-import { decodeShortName } from "../../domain/branded.js";
+import { decodeShortName, type ShortName } from "../../domain/branded.js";
 import { RateLimitError, UsageLimitError } from "../../domain/errors.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { buildDryRunReport, formatDryRunReport } from "../../app/dryRun.js";
@@ -21,6 +22,7 @@ import type { SecurityMode } from "../../domain/security/types.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
+import type { PhaxPlan } from "../../schemas/phaxPlan.js";
 import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
 
 export interface RunCommandOptions {
@@ -48,6 +50,20 @@ function pickGateProfileId(config: ResolvedConfig, profileOpt: string | undefine
 
   const keys = Object.keys(profiles);
   return keys[0] ?? null;
+}
+
+// A run folder is keyed by shortName, so a duplicate slug would overwrite a
+// prior run. Bump with a numeric suffix until the folder is free, trimming the
+// base when needed so the result stays within the 64-char ShortName bound.
+function ensureUniqueShortName(stateRoot: string, base: ShortName): ShortName {
+  const runsDir = join(stateRoot, "runs");
+  if (!existsSync(join(runsDir, base))) return base;
+  for (let n = 2; ; n++) {
+    const suffix = `-${n}`;
+    const trimmed = base.slice(0, 64 - suffix.length).replace(/-+$/g, "");
+    const candidate = `${trimmed}${suffix}` as ShortName;
+    if (!existsSync(join(runsDir, candidate))) return candidate;
+  }
 }
 
 const VALID_SECURITY_MODES: SecurityMode[] = ["secure", "unsafe", "isolated"];
@@ -196,7 +212,6 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     );
     return 2;
   }
-  const shortName = shortNameResult.right;
 
   if (opts.dryRun) {
     out.log(
@@ -211,6 +226,17 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
       ),
     );
     return 0;
+  }
+
+  // The slug may already name an existing run; bump it so we never clobber a
+  // prior run's folder (createRunFolder mkdirp's `runs/<shortName>`).
+  const shortName = ensureUniqueShortName(config.stateRoot, shortNameResult.right);
+  const runPlan: PhaxPlan =
+    shortName === shortNameResult.right
+      ? plan
+      : { ...plan, run: { ...plan.run, shortName, branch: `phax/${shortName}` } };
+  if (shortName !== shortNameResult.right) {
+    out.warn(`Run "${shortNameResult.right}" already exists; using "${shortName}" instead.`);
   }
 
   const routingResult = await Effect.runPromise(
@@ -241,11 +267,11 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   try {
     const program = withRunLock(
       shortName,
-      createRunFolder(shortName, planMd, plan, config).pipe(
+      createRunFolder(shortName, planMd, runPlan, config).pipe(
         Effect.flatMap(({ runPath, runId }) =>
           executePlan({
             shortName,
-            plan,
+            plan: runPlan,
             planMd,
             config,
             gateProfileId,

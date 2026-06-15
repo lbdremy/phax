@@ -21,7 +21,7 @@ import {
   SecurityEnforcementError,
   UsageLimitError,
 } from "../domain/errors.js";
-import { decodeShortName } from "../domain/branded.js";
+import { decodeShortName, slugifyShortName } from "../domain/branded.js";
 import { formatParseError } from "../schemas/formatError.js";
 
 const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
@@ -206,11 +206,19 @@ export function extractPlanCore(
         result: "success",
       }),
     );
+    // The model is asked for a shortName but routinely returns prose (often the
+    // plan title), which fails the strict ShortName brand downstream. Slugify it
+    // ourselves rather than trust the model, falling back to the title.
+    const shortName =
+      slugifyShortName(decoded.right.run.shortName) ||
+      slugifyShortName(decoded.right.run.title) ||
+      "run";
     const plan: PhaxPlan = {
       ...decoded.right,
       run: {
         ...decoded.right.run,
-        branch: `phax/${decoded.right.run.shortName}`,
+        shortName,
+        branch: `phax/${shortName}`,
       },
     };
 

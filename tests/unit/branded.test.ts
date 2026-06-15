@@ -9,6 +9,7 @@ import {
   decodeShortName,
   decodeWorkspaceId,
   decodeWorktreePath,
+  slugifyShortName,
 } from "../../src/domain/branded.js";
 
 describe("decodeShortName", () => {
@@ -53,6 +54,50 @@ describe("decodeShortName", () => {
     expect(Either.isLeft(decodeShortName(123))).toBe(true);
     expect(Either.isLeft(decodeShortName(null))).toBe(true);
     expect(Either.isLeft(decodeShortName(undefined))).toBe(true);
+  });
+});
+
+describe("slugifyShortName", () => {
+  it("slugifies prose the model returns instead of a slug", () => {
+    expect(slugifyShortName("Deno Runtime and Distribution")).toBe("deno-runtime-and-distribution");
+  });
+
+  it("produces output that always passes the ShortName brand", () => {
+    for (const raw of [
+      "Deno Runtime and Distribution",
+      "16 Deno Runtime",
+      "  Trailing & symbols!!  ",
+      "Café Münster",
+      "multi   space\tand_underscores",
+    ]) {
+      const slug = slugifyShortName(raw);
+      expect(slug.length).toBeGreaterThan(0);
+      expect(Either.isRight(decodeShortName(slug))).toBe(true);
+    }
+  });
+
+  it("strips leading non-letters so the brand's ^[a-z] holds", () => {
+    expect(slugifyShortName("16-deno-runtime")).toBe("deno-runtime");
+    expect(slugifyShortName("123")).toBe("");
+  });
+
+  it("collapses runs of non-alphanumerics into single hyphens", () => {
+    expect(slugifyShortName("a -- b__c")).toBe("a-b-c");
+  });
+
+  it("strips diacritics", () => {
+    expect(slugifyShortName("Café Münster")).toBe("cafe-munster");
+  });
+
+  it("trims to 64 chars with no trailing hyphen", () => {
+    const slug = slugifyShortName("a ".repeat(50));
+    expect(slug.length).toBeLessThanOrEqual(64);
+    expect(slug.endsWith("-")).toBe(false);
+  });
+
+  it("returns empty string when nothing usable remains", () => {
+    expect(slugifyShortName("!!! 123 ???")).toBe("");
+    expect(slugifyShortName("")).toBe("");
   });
 });
 

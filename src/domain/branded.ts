@@ -12,6 +12,24 @@ const ShortNameSchema = Schema.String.pipe(
 export const decodeShortName = (u: unknown): Either.Either<ShortName, ParseError> =>
   Schema.decodeUnknownEither(ShortNameSchema)(u);
 
+/**
+ * Normalize arbitrary text into a valid ShortName slug. The model is asked for a
+ * shortName but routinely returns prose (often the plan title), so we never
+ * trust it: lowercase, strip diacritics, collapse non-alphanumerics into single
+ * hyphens, drop any leading non-letters (the brand requires `^[a-z]`), and trim
+ * to 64 chars. Returns "" when nothing usable remains so callers can fall back.
+ */
+export function slugifyShortName(raw: string): string {
+  return raw
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^[^a-z]+/, "")
+    .slice(0, 64)
+    .replace(/-+$/g, "");
+}
+
 export type RunId = string & Brand.Brand<"RunId">;
 const RunIdSchema = Schema.String.pipe(Schema.minLength(1), Schema.brand("RunId"));
 export const decodeRunId = (u: unknown): Either.Either<RunId, ParseError> =>

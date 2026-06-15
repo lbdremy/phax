@@ -20,6 +20,7 @@
     "format:check": "oxfmt --check .",
     "knip": "knip",
     "audit:architecture": "vitest run tests/unit/architecturalGuards.test.ts",
+    "check:full": "npm run typecheck && npm run test:unit && npm run test:integration && npm run test:type && npm run lint && npm run format:check && npm run audit:architecture && npm run knip",
     "test:e2e:real": "vitest run --config vitest.e2e.config.ts"
   },
   "dependencies": {

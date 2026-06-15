@@ -32,6 +32,9 @@ const PhaseSchema = Schema.Struct({
 export const ExtractedPhaxPlanSchema = Schema.Struct({
   version: Schema.Literal(1),
   run: Schema.Struct({
+    // Loose on purpose: the model is unreliable at emitting a valid slug, so we
+    // accept any non-empty string here and slugify it ourselves in
+    // `extractPlanCore` (see `slugifyShortName`).
     shortName: Schema.NonEmptyString,
     title: Schema.NonEmptyString,
   }),
