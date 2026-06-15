@@ -7,7 +7,11 @@ import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName } from "../../src/domain/branded.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
-import { AgentSessionIdMissingError, GateAttemptsExhaustedError } from "../../src/domain/errors.js";
+import {
+  AgentSessionIdMissingError,
+  GateAttemptsExhaustedError,
+  SecurityPreflightError,
+} from "../../src/domain/errors.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
@@ -924,5 +928,235 @@ describe("executePlan — auto-publish after final review", () => {
 
     // No GitHub calls should have been made
     expect(fakeGitHub.impl.calls).toHaveLength(0);
+  });
+});
+
+describe("executePlan — security preflight", () => {
+  let stateRoot: string;
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-preflight-test-"));
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+  });
+
+  it("fails with SecurityPreflightError before any agent runs when required command is missing", async () => {
+    const rawPlanWithRequired = {
+      version: 1,
+      run: {
+        shortName: "my-run",
+        title: "My Run",
+        branch: "ai/my-run",
+        requiredCommands: ["deno fmt"],
+      },
+      phases: [
+        {
+          id: "phase-01",
+          title: "First Phase",
+          model: "claude-sonnet-4-6",
+          effort: "low" as const,
+          planMarkdownAnchor: "#phase-01",
+          plannedFilesToCreate: [],
+          plannedFilesToEdit: [],
+          optionalFilesToEdit: [],
+          commit: { subject: "feat: add thing", body: "Adds the thing." },
+        },
+      ],
+    } as const;
+
+    const plan = Either.getOrThrow(decodePhaxPlan(rawPlanWithRequired));
+
+    const config: ResolvedConfig = {
+      raw: {
+        version: 1,
+        project: { name: "test-project", type: "single-package" },
+        state: { root: stateRoot },
+        gateProfiles: { full: ["pnpm test"] },
+        commands: { setup: [], cleanup: [] },
+      },
+      stateRoot,
+      repoRoot: stateRoot,
+      editorCommand: "echo",
+      maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
+      fileReconciliationMode: "report_only" as const,
+      security: {
+        profile: "unsafe",
+        filesystem: { allowRead: [], allowWrite: [] },
+        network: { profile: "provider-only", allowDomains: [] },
+        mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
+      },
+    };
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    const fakeShell = makeFakeShell();
+    const fakeBackend = makeFakeBackend();
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(SecurityPreflightError);
+      const err = result.left as SecurityPreflightError;
+      expect(err.missing).toContain("deno fmt");
+    }
+
+    // No agent should have been spawned
+    expect(fakeBackend.impl.runCalls).toHaveLength(0);
+  });
+
+  it("proceeds normally when all required commands are covered by config", async () => {
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await mkdir(join(worktreePath, ".phax-context"), { recursive: true });
+    await writeFile(
+      join(worktreePath, ".phax-context", "phase-handoff.md"),
+      [
+        "## What was delivered",
+        "Done.",
+        "## Key decisions and why",
+        "None.",
+        "## Exact locations (file paths and exported names)",
+        "None.",
+        "## What the next phase needs to know",
+        "Nothing.",
+      ].join("\n"),
+    );
+
+    const rawPlanWithCoveredRequired = {
+      version: 1,
+      run: {
+        shortName: "my-run",
+        title: "My Run",
+        branch: "ai/my-run",
+        requiredCommands: ["deno fmt"],
+      },
+      phases: [
+        {
+          id: "phase-01",
+          title: "First Phase",
+          model: "claude-sonnet-4-6",
+          effort: "low" as const,
+          planMarkdownAnchor: "#phase-01",
+          plannedFilesToCreate: [],
+          plannedFilesToEdit: [],
+          optionalFilesToEdit: [],
+          commit: { subject: "feat: add thing", body: "Adds the thing." },
+        },
+      ],
+    } as const;
+
+    const plan = Either.getOrThrow(decodePhaxPlan(rawPlanWithCoveredRequired));
+
+    const config: ResolvedConfig = {
+      raw: {
+        version: 1,
+        project: { name: "test-project", type: "single-package" },
+        state: { root: stateRoot },
+        gateProfiles: { full: ["true"] },
+        commands: { setup: [], cleanup: [] },
+      },
+      stateRoot,
+      repoRoot: stateRoot,
+      editorCommand: "echo",
+      maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
+      fileReconciliationMode: "report_only" as const,
+      security: {
+        profile: "unsafe",
+        filesystem: { allowRead: [], allowWrite: [] },
+        network: { profile: "provider-only", allowDomains: [] },
+        mcp: { mode: "disabled", allow: [] },
+        agentCommands: ["deno fmt"],
+      },
+    };
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "cafebabe\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-01-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      makeFakeGitHub().layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    // Agent ran once
+    expect(fakeBackend.impl.runCalls).toHaveLength(1);
   });
 });

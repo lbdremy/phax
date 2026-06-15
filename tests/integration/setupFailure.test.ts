@@ -75,6 +75,7 @@ describe("executePlan — setup command failure", () => {
         filesystem: { allowRead: [], allowWrite: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
       },
     };
 
@@ -142,6 +143,7 @@ describe("executePlan — setup command failure", () => {
         filesystem: { allowRead: [], allowWrite: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
       },
     };
 
@@ -209,6 +211,7 @@ describe("executePlan — setup command failure", () => {
         filesystem: { allowRead: [], allowWrite: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
       },
     };
 

@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { resolveGateProfile } from "./gates.js";
+import { checkRequiredCommands } from "../domain/security/agentCommands.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { SecurityMode } from "../domain/security/types.js";
@@ -23,6 +24,9 @@ export interface DryRunReport {
   readonly setupCommands: readonly string[];
   readonly cleanupCommands: readonly string[];
   readonly gateCommands: readonly string[];
+  readonly agentCommands: readonly string[];
+  readonly requiredCommands: readonly string[];
+  readonly uncoveredRequiredCommands: readonly string[];
   readonly phases: readonly DryRunPhase[];
   readonly runPath: string;
   readonly providerPriorityOverride?: readonly string[];
@@ -40,6 +44,14 @@ export function buildDryRunReport(
 
   // Use the passed securityMode if provided, otherwise fall back to config
   const effectiveSecurityMode = securityMode ?? config.security.profile;
+
+  const agentCommands = config.security.agentCommands;
+  const requiredCommands = plan.run.requiredCommands;
+  const { missing: uncoveredRequiredCommands } = checkRequiredCommands({
+    requiredCommands,
+    configCommands: agentCommands,
+    gateCommands,
+  });
 
   const worktreesRoot = join(config.stateRoot, "worktrees", plan.run.shortName);
   const phases: DryRunPhase[] = plan.phases.map((p, i) => ({
@@ -61,6 +73,9 @@ export function buildDryRunReport(
     setupCommands: config.raw.commands?.setup ?? [],
     cleanupCommands: config.raw.commands?.cleanup ?? [],
     gateCommands,
+    agentCommands,
+    requiredCommands,
+    uncoveredRequiredCommands,
     phases,
     runPath: join(config.stateRoot, "runs", plan.run.shortName),
     ...(providerPriorityOverride !== undefined ? { providerPriorityOverride } : {}),
@@ -94,6 +109,32 @@ export function formatDryRunReport(report: DryRunReport): string {
   lines.push("Gate commands:");
   for (const cmd of report.gateCommands) {
     lines.push(`  $ ${cmd}`);
+  }
+  lines.push("");
+
+  lines.push("Agent commands (security.agentCommands):");
+  if (report.agentCommands.length > 0) {
+    for (const cmd of report.agentCommands) {
+      lines.push(`  ${cmd}`);
+    }
+  } else {
+    lines.push("  (none)");
+  }
+  lines.push("");
+
+  lines.push("Required commands (plan.run.requiredCommands):");
+  if (report.requiredCommands.length > 0) {
+    for (const cmd of report.requiredCommands) {
+      const covered = !report.uncoveredRequiredCommands.includes(cmd);
+      lines.push(`  ${covered ? "✓" : "✗"} ${cmd}`);
+    }
+    if (report.uncoveredRequiredCommands.length > 0) {
+      lines.push(
+        `  ⚠  Preflight will fail: ${report.uncoveredRequiredCommands.length} required command(s) not covered.`,
+      );
+    }
+  } else {
+    lines.push("  (none)");
   }
   lines.push("");
 

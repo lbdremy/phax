@@ -120,6 +120,11 @@ export class InvalidTransitionError extends Data.TaggedError("InvalidTransitionE
   }
 }
 
+export class SecurityPreflightError extends Data.TaggedError("SecurityPreflightError")<{
+  message: string;
+  missing: readonly string[];
+}> {}
+
 export class ReviewHandoffArtifactMissingError extends Data.TaggedError(
   "ReviewHandoffArtifactMissingError",
 )<{
