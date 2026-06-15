@@ -97,6 +97,7 @@ describe("executePlan — resume from startIndex: 1", () => {
         filesystem: { allowRead: [], allowWrite: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
       },
     };
 
@@ -270,6 +271,7 @@ describe("executePlan — resume from startIndex: 1", () => {
         filesystem: { allowRead: [], allowWrite: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
       },
     };
 

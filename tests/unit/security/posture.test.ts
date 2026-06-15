@@ -24,6 +24,7 @@ const baseSecurePosture = {
   },
   downgraded: false,
   marks: [] as const,
+  agentCommands: [] as const,
   providerSkippedForSecurity: [],
 };
 
@@ -45,6 +46,7 @@ const unsafePosture = {
   },
   downgraded: false,
   marks: [] as const,
+  agentCommands: [] as const,
   providerSkippedForSecurity: [],
 };
 
@@ -66,6 +68,7 @@ const downgradedVibePosture = {
   },
   downgraded: true,
   marks: ["partial-filesystem", "mcp-unenforced"] as const,
+  agentCommands: [] as const,
   providerSkippedForSecurity: [],
 };
 
@@ -87,6 +90,7 @@ const withSkippedProviders = {
   },
   downgraded: false,
   marks: [] as const,
+  agentCommands: [] as const,
   providerSkippedForSecurity: [
     { provider: "mistral-vibe" as const, reason: "cannot satisfy strict secure mode" },
   ],
@@ -257,6 +261,173 @@ describe("SecurityPostureSchema", () => {
       expect(Either.isRight(decoded)).toBe(true);
       if (Either.isRight(decoded)) {
         expect(decoded.right).toEqual(withSkippedProviders);
+      }
+    });
+  });
+
+  describe("agentCommands field", () => {
+    it("accepts posture with populated agentCommands", () => {
+      const posture = {
+        ...baseSecurePosture,
+        agentCommands: [
+          {
+            command: "deno fmt",
+            source: "config" as const,
+            explicit: true,
+            requiredByPlan: true,
+            enforcement: "prefix" as const,
+            degraded: false,
+          },
+          {
+            command: "git status",
+            source: "gate" as const,
+            explicit: false,
+            requiredByPlan: false,
+            enforcement: "prefix" as const,
+            degraded: false,
+          },
+        ],
+      };
+      const result = decodeSecurityPosture(posture);
+      expect(Either.isRight(result)).toBe(true);
+      if (Either.isRight(result)) {
+        expect(result.right.agentCommands).toHaveLength(2);
+        expect(result.right.agentCommands[0].command).toBe("deno fmt");
+        expect(result.right.agentCommands[0].source).toBe("config");
+        expect(result.right.agentCommands[0].explicit).toBe(true);
+        expect(result.right.agentCommands[0].requiredByPlan).toBe(true);
+        expect(result.right.agentCommands[0].enforcement).toBe("prefix");
+        expect(result.right.agentCommands[0].degraded).toBe(false);
+      }
+    });
+
+    it("accepts agentCommands with degraded=true and none enforcement", () => {
+      const posture = {
+        ...baseSecurePosture,
+        provider: "codex-cli" as const,
+        agentCommands: [
+          {
+            command: "deno fmt",
+            source: "config" as const,
+            explicit: true,
+            requiredByPlan: false,
+            enforcement: "none" as const,
+            degraded: true,
+          },
+        ],
+      };
+      const result = decodeSecurityPosture(posture);
+      expect(Either.isRight(result)).toBe(true);
+      if (Either.isRight(result)) {
+        expect(result.right.agentCommands[0].degraded).toBe(true);
+        expect(result.right.agentCommands[0].enforcement).toBe("none");
+      }
+    });
+
+    it("rejects posture missing agentCommands field", () => {
+      const invalid = {
+        version: 1,
+        mode: "secure" as const,
+        provider: "claude-code" as const,
+        sandboxEnabled: true,
+        filesystem: { allowRead: ["/worktree"], allowWrite: ["/worktree"] },
+        network: { profile: "provider-only" as const },
+        mcp: { mode: "disabled" as const, allow: [] },
+        downgraded: false,
+        marks: [] as const,
+        providerSkippedForSecurity: [],
+        // agentCommands intentionally omitted
+      };
+      const result = decodeSecurityPosture(invalid);
+      expect(Either.isLeft(result)).toBe(true);
+    });
+
+    it("rejects agentCommands entry with empty command string", () => {
+      const posture = {
+        ...baseSecurePosture,
+        agentCommands: [
+          {
+            command: "",
+            source: "config" as const,
+            explicit: true,
+            requiredByPlan: false,
+            enforcement: "prefix" as const,
+            degraded: false,
+          },
+        ],
+      };
+      const result = decodeSecurityPosture(posture);
+      expect(Either.isLeft(result)).toBe(true);
+    });
+
+    it("round-trips posture with agentCommands", () => {
+      const posture = {
+        ...baseSecurePosture,
+        agentCommands: [
+          {
+            command: "deno fmt",
+            source: "config" as const,
+            explicit: true,
+            requiredByPlan: true,
+            enforcement: "prefix" as const,
+            degraded: false,
+          },
+        ],
+      };
+      const encoded = encodeSecurityPosture(posture);
+      const decoded = decodeSecurityPosture(encoded);
+      expect(Either.isRight(decoded)).toBe(true);
+      if (Either.isRight(decoded)) {
+        expect(decoded.right).toEqual(posture);
+      }
+    });
+  });
+
+  describe("command-precision mark", () => {
+    it("accepts command-precision in marks", () => {
+      const posture = {
+        ...baseSecurePosture,
+        marks: ["command-precision"] as const,
+      };
+      const result = decodeSecurityPosture(posture);
+      expect(Either.isRight(result)).toBe(true);
+      if (Either.isRight(result)) {
+        expect(result.right.marks).toContain("command-precision");
+      }
+    });
+
+    it("accepts all three marks together", () => {
+      const posture = {
+        ...baseSecurePosture,
+        marks: ["partial-filesystem", "mcp-unenforced", "command-precision"] as const,
+      };
+      const result = decodeSecurityPosture(posture);
+      expect(Either.isRight(result)).toBe(true);
+      if (Either.isRight(result)) {
+        expect(result.right.marks).toHaveLength(3);
+      }
+    });
+
+    it("round-trips posture with command-precision mark", () => {
+      const posture = {
+        ...baseSecurePosture,
+        marks: ["command-precision"] as const,
+        agentCommands: [
+          {
+            command: "deno fmt",
+            source: "config" as const,
+            explicit: true,
+            requiredByPlan: false,
+            enforcement: "none" as const,
+            degraded: true,
+          },
+        ],
+      };
+      const encoded = encodeSecurityPosture(posture);
+      const decoded = decodeSecurityPosture(encoded);
+      expect(Either.isRight(decoded)).toBe(true);
+      if (Either.isRight(decoded)) {
+        expect(decoded.right.marks).toContain("command-precision");
       }
     });
   });

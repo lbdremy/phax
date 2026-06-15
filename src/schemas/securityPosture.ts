@@ -19,7 +19,17 @@ export const SecurityPostureSchema = Schema.Struct({
     allow: Schema.Array(Schema.NonEmptyString),
   }),
   downgraded: Schema.Boolean,
-  marks: Schema.Array(Schema.Literal("partial-filesystem", "mcp-unenforced")),
+  marks: Schema.Array(Schema.Literal("partial-filesystem", "mcp-unenforced", "command-precision")),
+  agentCommands: Schema.Array(
+    Schema.Struct({
+      command: Schema.NonEmptyString,
+      source: Schema.Literal("config", "gate"),
+      explicit: Schema.Boolean,
+      requiredByPlan: Schema.Boolean,
+      enforcement: Schema.Literal("exact", "prefix", "executable", "none"),
+      degraded: Schema.Boolean,
+    }),
+  ),
   providerSkippedForSecurity: Schema.Array(
     Schema.Struct({
       provider: ProviderIdSchema,
