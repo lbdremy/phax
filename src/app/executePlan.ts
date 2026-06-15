@@ -404,13 +404,19 @@ export function executePlan(
           providerConfig,
           securityFilter,
         );
+        const resumeFrozenResult = computeFrozenAgentCommands({
+          configCommands: securityPolicy.agentCommands,
+          gateCommands,
+          requiredCommands: plan.run.requiredCommands,
+          provider: resolution.selected.provider,
+        });
         agentOptions = {
           provider: resolution.selected.provider,
           model: resolution.selected.concreteModel,
           effort: resolution.selected.thinking ?? phase.effort,
           cwd: worktreePath as string,
           security: securityPolicy,
-          gateCommands,
+          agentCommands: resumeFrozenResult.records.map((r) => r.command),
           outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
           phaseFolderPath,
         };
@@ -603,7 +609,7 @@ export function executePlan(
           effort: resolution.selected.thinking ?? phase.effort,
           cwd: worktreePath as string,
           security: securityPolicy,
-          gateCommands,
+          agentCommands: frozenResult.records.map((r) => r.command),
           outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
           phaseFolderPath,
         };

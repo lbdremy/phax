@@ -91,6 +91,9 @@ function mapReasoningEffort(effort: string): string {
 //       network.profile maps here (04b confirmed no provider enforces domains).
 //
 // Not yet expressible via Codex CLI flags (tracked in 04b):
+//   - Per-command allowlist: Codex provides no command-level restriction flag.
+//     The frozen agentCommands set (config ∪ gates) is recorded in security.json
+//     with enforcement: "none"; the sandbox boundary is the effective constraint.
 //   - MCP scoping: codex configures MCP via [mcp_servers.*] tables in
 //     ~/.codex/config.toml. There is no single-flag disable that PHAX can rely
 //     on across versions. The resolved mcp policy is carried on SecurityPolicy

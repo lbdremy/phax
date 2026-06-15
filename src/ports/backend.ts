@@ -18,11 +18,13 @@ export interface AgentRunOptions {
   readonly cwd: string;
   readonly security: SecurityPolicy;
   /**
-   * Gate commands for this phase (resolved gate profile). In secure mode the
-   * provider allowlists these as sandboxed Bash so the agent can run — and fix —
-   * the gates it is instructed to verify. Absent/empty means no Bash is granted.
+   * The frozen effective agent commands for this phase (config ∪ gate commands,
+   * computed before the agent spawns). In secure mode the claude provider
+   * allowlists these as sandboxed Bash so the agent can run the commands it
+   * needs. Absent/empty means no Bash is granted (claude) or sandbox-only
+   * (codex/vibe). Recorded in security.json regardless of provider.
    */
-  readonly gateCommands?: readonly string[] | undefined;
+  readonly agentCommands?: readonly string[] | undefined;
   readonly outputJsonlPath?: string | undefined;
   readonly phaseFolderPath?: string | undefined;
 }

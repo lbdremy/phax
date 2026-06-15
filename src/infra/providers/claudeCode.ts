@@ -104,17 +104,13 @@ function spawnClaude(
 //   --add-dir <path>           (one per writable path outside cwd; cwd is
 //                              implicit, so worktree pass-through happens via
 //                              the spawn cwd)
-//   --allowedTools Bash(...)   (one prefix rule per gate command; spec §8 says
-//                              "Bash commands should run sandboxed", not that
-//                              the agent has no shell at all. Both the phase
-//                              prompt and the fix prompt tell the agent to run
-//                              the gate commands to verify its work, so the
-//                              gates must be runnable. Granting only the exact
-//                              gate commands keeps every other shell command
-//                              denied: under acceptEdits the headless
-//                              --print session has no approver, so any Bash not
-//                              matched here auto-denies. When a phase has no gate
-//                              commands we fall back to --disallowed-tools Bash.)
+//   --allowedTools Bash(...)   (one prefix rule per frozen agentCommand; the
+//                              set is config ∪ gate commands, computed before
+//                              the agent spawns and recorded in security.json.
+//                              Under acceptEdits the headless --print session
+//                              has no approver, so any Bash not matched here
+//                              auto-denies. When the frozen set is empty we
+//                              fall back to --disallowed-tools Bash.)
 //   --disallowed-tools Bash    (full shell deny — only when there are no gate
 //                              commands to allowlist)
 //   --strict-mcp-config        (no MCP servers loaded unless explicitly given
@@ -128,15 +124,14 @@ function spawnClaude(
 // (WebFetch/WebSearch) require approval and Bash is disallowed, so secure runs
 // have no unsanctioned network path. Only network.profile is carried.
 /**
- * Translate the phase's gate commands into Claude `--allowedTools` Bash rules.
+ * Translate the frozen agentCommands set into Claude `--allowedTools` Bash rules.
  *
- * Each gate command is allowed by its exact token prefix using Claude's
+ * Each command is allowed by its exact token prefix using Claude's
  * `Bash(<prefix>:*)` wildcard, which matches the command itself plus any
  * trailing arguments. The prefix is the full normalized command — we do NOT
- * widen it to a script "family": a `pnpm format:check` gate allows
- * `pnpm format:check`, not `pnpm format`. This keeps the grant to exactly the
- * commands phax runs as gates (least privilege); if a phase needs a sibling
- * command (e.g. the formatter's write variant) it must be its own gate entry.
+ * widen it to a script "family": a `pnpm format:check` entry allows
+ * `pnpm format:check`, not `pnpm format`. This keeps the grant minimal;
+ * commands from both config and gates are handled identically here.
  * Rules are de-duplicated and order-stable.
  */
 export function gateCommandAllowRules(commands: readonly string[]): string[] {
@@ -152,7 +147,7 @@ export function gateCommandAllowRules(commands: readonly string[]): string[] {
 function buildSecureClaudeFlags(
   security: SecurityPolicy,
   cwd: string,
-  gateCommands: readonly string[],
+  agentCommands: readonly string[],
 ): string[] {
   const addDirs = security.filesystem.allowWrite
     .filter((p) => p !== cwd)
@@ -168,11 +163,11 @@ function buildSecureClaudeFlags(
     }
   }
 
-  // Allowlist the gate commands as sandboxed Bash so the agent can run and fix
-  // them; everything else stays denied. With no gate commands, fall back to a
-  // full Bash deny (disallowed-tools takes precedence over allowedTools, so the
-  // two are mutually exclusive).
-  const allowRules = gateCommandAllowRules(gateCommands);
+  // Allowlist the frozen agentCommands set (config ∪ gates) as sandboxed Bash
+  // so the agent can run the commands it needs; everything else stays denied.
+  // With no commands, fall back to a full Bash deny (disallowed-tools takes
+  // precedence over allowedTools, so the two are mutually exclusive).
+  const allowRules = gateCommandAllowRules(agentCommands);
   const shellFlags =
     allowRules.length > 0
       ? ["--allowedTools", allowRules.join(",")]
@@ -204,7 +199,7 @@ export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): s
         mode: options.security.mode,
       });
     }
-    return buildSecureClaudeFlags(options.security, options.cwd, options.gateCommands ?? []);
+    return buildSecureClaudeFlags(options.security, options.cwd, options.agentCommands ?? []);
   })();
 
   const args = [...common, ...modeFlags, "--model", options.model, "--effort", options.effort];
