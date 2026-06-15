@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type {
   CapabilitySupport,
+  CommandEnforcement,
   JailStrength,
   SecurityMark,
 } from "../../../src/domain/security/capabilities.js";
@@ -15,9 +16,11 @@ import type { SecurityPolicy } from "../../../src/domain/security/types.js";
 const filesystemJailSample: JailStrength = "strong";
 const capabilitySupportSample: CapabilitySupport = "supported";
 const markSample: SecurityMark = "partial-filesystem";
+const commandEnforcementSample: CommandEnforcement = "prefix";
 void filesystemJailSample;
 void capabilitySupportSample;
 void markSample;
+void commandEnforcementSample;
 
 const securePolicy: SecurityPolicy = {
   mode: "secure",
@@ -52,6 +55,18 @@ describe("PROVIDER_SECURITY_CAPABILITIES", () => {
     const cap = PROVIDER_SECURITY_CAPABILITIES["mistral-vibe"];
     expect(cap.filesystemJail).toBe("partial");
     expect(cap.mcpAllowlist).toBe("supported");
+  });
+
+  it("claude-code has prefix command enforcement", () => {
+    expect(PROVIDER_SECURITY_CAPABILITIES["claude-code"].commandEnforcement).toBe("prefix");
+  });
+
+  it("codex-cli has none command enforcement", () => {
+    expect(PROVIDER_SECURITY_CAPABILITIES["codex-cli"].commandEnforcement).toBe("none");
+  });
+
+  it("mistral-vibe has none command enforcement", () => {
+    expect(PROVIDER_SECURITY_CAPABILITIES["mistral-vibe"].commandEnforcement).toBe("none");
   });
 });
 
@@ -159,5 +174,21 @@ describe("evaluateProviderSecurity — secure mode, network profile interaction"
     const result = evaluateProviderSecurity("mistral-vibe", openNetworkPolicy);
     expect(result.satisfiesStrict).toBe(false);
     expect(result.marks).toContain("partial-filesystem");
+  });
+});
+
+describe("evaluateProviderSecurity — commandEnforcement does not affect strictness", () => {
+  it("codex-cli (commandEnforcement:none) still satisfies strict in secure mode", () => {
+    const result = evaluateProviderSecurity("codex-cli", securePolicy);
+    expect(result.satisfiesStrict).toBe(true);
+    expect(result.downgraded).toBe(false);
+  });
+
+  it("mistral-vibe strictness is driven by filesystemJail, not commandEnforcement", () => {
+    const result = evaluateProviderSecurity("mistral-vibe", securePolicy);
+    // downgraded because of partial filesystem jail, not commandEnforcement
+    expect(result.satisfiesStrict).toBe(false);
+    expect(result.marks).toContain("partial-filesystem");
+    expect(result.marks).not.toContain("command-precision");
   });
 });

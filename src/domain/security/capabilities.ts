@@ -3,24 +3,29 @@ import type { SecurityPolicy } from "./types.js";
 
 export type JailStrength = "strong" | "partial" | "none";
 export type CapabilitySupport = "supported" | "unsupported";
+export type CommandEnforcement = "exact" | "prefix" | "executable" | "none";
 
 export interface ProviderSecurityCapability {
   readonly filesystemJail: JailStrength;
   readonly mcpAllowlist: CapabilitySupport;
+  readonly commandEnforcement: CommandEnforcement;
 }
 
 export const PROVIDER_SECURITY_CAPABILITIES: Record<ProviderId, ProviderSecurityCapability> = {
   "claude-code": {
     filesystemJail: "strong",
     mcpAllowlist: "supported",
+    commandEnforcement: "prefix",
   },
   "codex-cli": {
     filesystemJail: "strong",
     mcpAllowlist: "supported",
+    commandEnforcement: "none",
   },
   "mistral-vibe": {
     filesystemJail: "partial",
     mcpAllowlist: "supported",
+    commandEnforcement: "none",
   },
 };
 
