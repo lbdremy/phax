@@ -1,0 +1,20 @@
+{
+  "name": "phax",
+  "version": "0.1.0",
+  "description": "Deterministic local CLI that drives Claude Code through isolated, gated phases",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lbdremy/phax.git"
+  },
+  "bin": {
+    "phax": "./bin/phax.cjs"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}
