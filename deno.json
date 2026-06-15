@@ -1,0 +1,17 @@
+{
+  "nodeModulesDir": "auto",
+  "compilerOptions": {
+    "strict": true,
+    "lib": ["deno.window", "ES2023"]
+  },
+  "fmt": {
+    "exclude": ["**/*"]
+  },
+  "lint": {
+    "exclude": ["**/*"]
+  },
+  "tasks": {
+    "dev": "deno run --sloppy-imports --allow-read --allow-write --allow-env --allow-sys --allow-run=git,claude,codex,vibe,node,npm,pnpm,bun,deno,mise,rm,sh,bash,zsh,zed,code,vim,nano src/cli/main.ts",
+    "check": "deno check --sloppy-imports src/cli/main.ts"
+  }
+}

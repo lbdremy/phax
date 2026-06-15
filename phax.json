@@ -35,7 +35,8 @@
       "pnpm knip",
       "pnpm test",
       "pnpm audit:architecture",
-      "pnpm build"
+      "pnpm build",
+      "pnpm deno:smoke"
     ]
   }
 }
