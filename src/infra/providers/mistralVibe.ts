@@ -61,6 +61,9 @@ interface SpawnResult {
 //       mode drops it so only the explicit workdir + add-dir set is allowed.
 //
 // Not yet expressible via Vibe CLI flags (tracked in runbook 04b):
+//   - Per-command allowlist: Vibe provides no command-level restriction flag.
+//     The frozen agentCommands set (config ∪ gates) is recorded in security.json
+//     with enforcement: "none"; the approval policy is the effective constraint.
 //   - Tool-level restriction beyond the agent's approval policy.
 //   - Network allowlist: not supported by vibe — the partial-secured marking
 //     and VIBE_PARTIAL_SECURED_MESSAGE surface this; the resolved domains

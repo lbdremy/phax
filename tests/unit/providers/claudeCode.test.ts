@@ -86,10 +86,10 @@ describe("buildArgs — secure mode", () => {
     expect(args).not.toContain("--allowedTools");
   });
 
-  it("allowlists gate commands as sandboxed Bash instead of a blanket deny", () => {
+  it("allowlists agentCommands (config ∪ gates) as sandboxed Bash instead of a blanket deny", () => {
     const args = buildArgs({
       ...baseOptions(securePolicy),
-      gateCommands: ["pnpm format:check", "pnpm typecheck", "pnpm test"],
+      agentCommands: ["pnpm format:check", "pnpm typecheck", "pnpm test"],
     });
     expect(args).not.toContain("--disallowed-tools");
     const idx = args.indexOf("--allowedTools");
@@ -98,6 +98,17 @@ describe("buildArgs — secure mode", () => {
     expect(args[idx + 1]).toBe(
       "Bash(pnpm format:check:*),Bash(pnpm typecheck:*),Bash(pnpm test:*)",
     );
+  });
+
+  it("allowlists an explicit non-gate command (config-only) via the same Bash prefix rule", () => {
+    const args = buildArgs({
+      ...baseOptions(securePolicy),
+      agentCommands: ["deno fmt"],
+    });
+    expect(args).not.toContain("--disallowed-tools");
+    const idx = args.indexOf("--allowedTools");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe("Bash(deno fmt:*)");
   });
 
   it("emits --strict-mcp-config when mcp.mode is disabled and no --mcp-config", () => {
