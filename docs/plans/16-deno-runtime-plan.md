@@ -73,6 +73,38 @@ that resolution and execution work end to end.
 | phase-05 | Release workflow on `v*` tags (binaries, checksums, GH Release, npm prepare)             |
 | phase-06 | README + spec docs for install, posture, and the provider-CLI caveat                     |
 
+## Required commands
+
+This plan introduces the **Deno runtime**, which is not otherwise used in the
+repository. The executing agent must run `deno` directly while building and
+smoke-testing phases 01–02 — `deno task` / `deno run` (phase-01 `dev` and
+`check`), `deno check` (resolution probe), and `deno compile` (phase-02 host and
+cross-target binaries). A single broad `deno` allowance is used deliberately:
+the phases drive many sub-commands of the same tool, and the token-prefix rule
+covers them all (`deno` covers `deno compile`, `deno check`, …).
+
+- deno
+
+Everything else the phases need is already covered by the frozen effective set:
+the new gate entries (`pnpm deno:smoke`, `pnpm deno:smoke-binary`) are `pnpm`
+scripts, and `pnpm` is already present via the existing `gateProfiles`. The
+`npm publish --dry-run`, `gh`, and `git` invocations introduced by phases 04–05
+run inside the CI/release **workflows**, not as agent commands, so they are not
+declared here.
+
+## Required PHAX security configuration changes
+
+This plan requires the following command to be added to `security.agentCommands`
+in `phax.json` before running:
+
+- `deno`
+
+The repository's current `phax.json` has no `security.agentCommands` array, so
+one must be added (a broad `"deno"` entry). Without this configuration the
+`phax run` preflight check will fail before any agent spawns, because `deno` is
+covered by neither the security config nor the existing gate-profile commands
+(which are all `pnpm` scripts).
+
 ---
 
 ## phase-01 — Deno runtime config and run-under-Deno parity {#phase-01-deno-config}

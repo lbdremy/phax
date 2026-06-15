@@ -10,7 +10,8 @@
   "security": {
     "filesystem": {
       "allowWrite": ["~/.phax"]
-    }
+    },
+    "agentCommands": ["deno"]
   },
   "publish": {
     "enabled": true,
