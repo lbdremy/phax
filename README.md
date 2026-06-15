@@ -4,11 +4,52 @@
 
 ## Install
 
+**Via npm (recommended)** — the wrapper resolves and downloads the correct platform binary on first run:
+
 ```bash
-pnpm add -g phax        # or install locally in your repo
+npm install -g phax
+# or without installing:
+npx phax
 ```
 
-Requirements: Node ≥ 20, and at least one provider CLI on `$PATH`:
+**Direct binary download** — grab the binary and checksum for your platform from
+[GitHub Releases](https://github.com/lbdremy/phax/releases):
+
+```bash
+# Example: macOS Apple Silicon
+curl -LO https://github.com/lbdremy/phax/releases/latest/download/phax-darwin-arm64
+curl -LO https://github.com/lbdremy/phax/releases/latest/download/phax-darwin-arm64.sha256
+sha256sum --check phax-darwin-arm64.sha256
+chmod +x phax-darwin-arm64
+sudo mv phax-darwin-arm64 /usr/local/bin/phax
+```
+
+Available targets: `phax-darwin-arm64`, `phax-darwin-x64`, `phax-linux-x64`, `phax-linux-arm64`.
+
+## Runtime permission posture
+
+The distributed `phax` binary is compiled with an explicit Deno permission set:
+
+| Permission            | Status          | Notes                                                                                                                                                  |
+| --------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Filesystem read/write | **allowed**     | Required to manage run state, worktrees, locks, and artifacts                                                                                          |
+| Network               | **denied**      | phax itself makes no network calls                                                                                                                     |
+| Environment           | **allowed**     | Required so subprocesses can resolve executables via `PATH`                                                                                            |
+| Subprocess execution  | **allowlisted** | Restricted to: `git`, `claude`, `codex`, `vibe`, `node`, `npm`, `pnpm`, `bun`, `deno`, `mise`, `rm`, `sh`, `bash`, `zsh`, `zed`, `code`, `vim`, `nano` |
+
+**Important:** Deno's permissions sandbox _phax_, not the provider CLIs it
+launches. Once phax spawns `claude`, `codex`, or `vibe`, those processes run with
+their own provider-native permissions and are not constrained by phax's Deno
+permission set. Provider-level security (filesystem jail, network restrictions,
+tool allowlists) comes from the provider's own sandbox — see
+[Security modes](#security-modes) and the
+[Security notes](#security-notes) section.
+
+Executables outside the baked allowlist (e.g. a custom shell or editor) will
+cause a clean permission denial from Deno when phax tries to spawn them. A custom
+build with an extended `--allow-run` list is required to use them.
+
+Requirements: at least one provider CLI on `$PATH`:
 
 - `claude` — Claude Code (default, and the terminal fallback provider)
 - `vibe` — Mistral Vibe (optional)
@@ -90,6 +131,13 @@ Each phase gets its own branch (`<run.branch>--phase-01`, `<run.branch>--phase-0
 Worktrees from every phase persist on disk for the lifetime of the run and are available for inspection until `phax archive` is run.
 
 The final phase stays open for review. A `review-handoff.md` is written to the run folder showing the final phase branch as the review target.
+
+**macOS sleep prevention** — long-running `phax run` sessions can be wrapped with
+`caffeinate` to prevent macOS from sleeping while phax executes:
+
+```bash
+caffeinate -ims phax run my-run
+```
 
 ## Review loop
 
