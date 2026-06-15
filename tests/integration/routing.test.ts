@@ -42,6 +42,7 @@ const rawPlan = {
     shortName: "routing-test",
     title: "Routing Test",
     branch: "ai/routing-test",
+    requiredCommands: [],
   },
   phases: [
     {

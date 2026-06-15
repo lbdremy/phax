@@ -45,6 +45,7 @@ const rawPlan = {
     shortName: "my-run",
     title: "My Run",
     branch: "ai/my-run",
+    requiredCommands: [],
   },
   phases: [
     {

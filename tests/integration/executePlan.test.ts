@@ -36,6 +36,7 @@ const rawPlan = {
     shortName: "my-run",
     title: "My Run",
     branch: "ai/my-run",
+    requiredCommands: [],
   },
   phases: [
     {
@@ -336,6 +337,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       shortName: "my-run",
       title: "My Run",
       branch: "ai/my-run",
+      requiredCommands: [],
     },
     phases: [
       {
@@ -651,6 +653,7 @@ const autoPublishRawPlan = {
     shortName: "my-run",
     title: "My Run",
     branch: "ai/my-run",
+    requiredCommands: [],
   },
   phases: [
     {

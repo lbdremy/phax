@@ -189,6 +189,7 @@ describe("inspectResume", () => {
         shortName: "test-run",
         title: "Test run",
         branch: "ai/test-run",
+        requiredCommands: [],
       },
       phases: [
         {
@@ -242,6 +243,7 @@ describe("inspectResume", () => {
         shortName: "test-run",
         title: "Test run",
         branch: "ai/test-run",
+        requiredCommands: [],
       },
       phases: [makePlanPhase("phase-01"), makePlanPhase("phase-02"), makePlanPhase("phase-03")],
     };

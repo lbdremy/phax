@@ -35,6 +35,7 @@ const rawPlan = {
     shortName: "recon-run",
     title: "Reconciliation Run",
     branch: "ai/recon-run",
+    requiredCommands: [],
   },
   phases: [
     {

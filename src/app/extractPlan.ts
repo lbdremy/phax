@@ -68,6 +68,7 @@ function buildExtractReport(plan: PhaxPlan, detectedAnchors: string[], warnings:
     `- Anchors detected in plan.md: ${detectedAnchors.length}${detectedAnchors.length ? ` (${detectedAnchors.join(", ")})` : ""}`,
     `- Phases extracted: ${plan.phases.length}`,
     `- Run short name: ${plan.run.shortName}`,
+    `- Required commands: ${plan.run.requiredCommands.length}${plan.run.requiredCommands.length ? ` (${plan.run.requiredCommands.join(", ")})` : ""}`,
     `- Schema validation: passed`,
     "",
   ];
@@ -219,6 +220,7 @@ export function extractPlanCore(
         ...decoded.right.run,
         shortName,
         branch: `phax/${shortName}`,
+        requiredCommands: decoded.right.run.requiredCommands,
       },
     };
 
