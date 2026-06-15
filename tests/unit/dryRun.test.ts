@@ -40,6 +40,7 @@ const minimalConfig: ResolvedConfig = {
     filesystem: { allowRead: [], allowWrite: [] },
     network: { profile: "provider-only", allowDomains: [] },
     mcp: { mode: "disabled", allow: [] },
+    agentCommands: [],
   },
 };
 
@@ -90,5 +91,48 @@ describe("buildDryRunReport / formatDryRunReport", () => {
     const report = buildDryRunReport(minimalPlan, minimalConfig, undefined, undefined, "unsafe");
     const output = formatDryRunReport(report);
     expect(output).toContain("Security:     unsafe");
+  });
+
+  it("includes empty agentCommands and requiredCommands in report", () => {
+    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    expect(report.agentCommands).toEqual([]);
+    expect(report.requiredCommands).toEqual([]);
+    expect(report.uncoveredRequiredCommands).toEqual([]);
+  });
+
+  it("renders (none) for empty agentCommands and requiredCommands", () => {
+    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    const output = formatDryRunReport(report);
+    expect(output).toContain("Agent commands (security.agentCommands):");
+    expect(output).toContain("Required commands (plan.run.requiredCommands):");
+  });
+
+  it("reports uncovered required commands and preflight warning", () => {
+    const planWithRequired: PhaxPlan = {
+      ...minimalPlan,
+      run: { ...minimalPlan.run, requiredCommands: ["deno fmt"] },
+    };
+    const report = buildDryRunReport(planWithRequired, minimalConfig);
+    expect(report.requiredCommands).toEqual(["deno fmt"]);
+    expect(report.uncoveredRequiredCommands).toEqual(["deno fmt"]);
+    const output = formatDryRunReport(report);
+    expect(output).toContain("✗ deno fmt");
+    expect(output).toContain("Preflight will fail");
+  });
+
+  it("marks covered required commands with a check", () => {
+    const planWithRequired: PhaxPlan = {
+      ...minimalPlan,
+      run: { ...minimalPlan.run, requiredCommands: ["pnpm test"] },
+    };
+    const configWithAgentCmd = {
+      ...minimalConfig,
+      security: { ...minimalConfig.security, agentCommands: ["pnpm test"] },
+    };
+    const report = buildDryRunReport(planWithRequired, configWithAgentCmd as typeof minimalConfig);
+    expect(report.uncoveredRequiredCommands).toEqual([]);
+    const output = formatDryRunReport(report);
+    expect(output).toContain("✓ pnpm test");
+    expect(output).not.toContain("Preflight will fail");
   });
 });

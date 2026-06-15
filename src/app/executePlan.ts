@@ -21,6 +21,7 @@ import {
   RateLimitError,
   RegistryCorruptionError,
   SecurityEnforcementError,
+  SecurityPreflightError,
   SetupCommandFailedError,
   UnsafeGitStateError,
   UsageLimitError,
@@ -54,7 +55,10 @@ import { resolveModel } from "../domain/routing/resolve.js";
 import type { SecurityFilter } from "../domain/routing/types.js";
 import type { SecurityMode } from "../domain/security/types.js";
 import { evaluateProviderSecurity } from "../domain/security/capabilities.js";
-import { computeFrozenAgentCommands } from "../domain/security/agentCommands.js";
+import {
+  checkRequiredCommands,
+  computeFrozenAgentCommands,
+} from "../domain/security/agentCommands.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
@@ -145,6 +149,7 @@ export type ExecutePlanError =
   | RateLimitError
   | UsageLimitError
   | SecurityEnforcementError
+  | SecurityPreflightError
   | PhaseHadNoChangesError;
 
 export function executePlan(
@@ -216,6 +221,26 @@ export function executePlan(
         new UnsafeGitStateError({
           message: err instanceof Error ? err.message : String(err),
           repoPath: config.repoRoot,
+        }),
+      );
+    }
+
+    // Preflight: verify all plan-required commands are covered by the frozen set
+    // before any git branch, worktree, or agent work begins.
+    const preflightResult = checkRequiredCommands({
+      requiredCommands: plan.run.requiredCommands,
+      configCommands: config.security.agentCommands,
+      gateCommands,
+    });
+    if (preflightResult.missing.length > 0) {
+      return yield* Effect.fail(
+        new SecurityPreflightError({
+          message: [
+            `Security preflight failed: the plan requires ${preflightResult.missing.length} command(s) not covered by the frozen set.`,
+            `Missing: ${preflightResult.missing.map((c) => `"${c}"`).join(", ")}`,
+            `Add the missing commands to security.agentCommands in phax.json before running.`,
+          ].join("\n"),
+          missing: preflightResult.missing,
         }),
       );
     }
@@ -561,6 +586,9 @@ export function executePlan(
         ];
         if (frozenResult.degraded) {
           postureMarks.push("command-precision");
+          process.stderr.write(
+            `[phax] Warning: phase "${phase.id}" — command-precision enforcement is degraded for provider "${resolution.selected.provider}". Narrow allowances are not enforceable at command level (enforcement: none). See security.json for details.\n`,
+          );
         }
         const securityPosture: SecurityPosture = {
           version: 1,
