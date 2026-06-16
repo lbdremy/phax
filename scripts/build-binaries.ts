@@ -20,7 +20,7 @@ const COMPILE_FLAGS = [
   "--allow-write",
   "--allow-env",
   "--allow-sys",
-  "--allow-run=git,claude,codex,vibe,node,npm,pnpm,bun,deno,mise,rm,sh,bash,zsh,zed,code,vim,nano",
+  "--allow-run",
 ] as const;
 
 const ENTRYPOINT = "src/cli/main.ts";

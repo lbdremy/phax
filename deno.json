@@ -11,8 +11,8 @@
     "exclude": ["**/*"]
   },
   "tasks": {
-    "dev": "deno run --sloppy-imports --allow-read --allow-write --allow-env --allow-sys --allow-run=git,claude,codex,vibe,node,npm,pnpm,bun,deno,mise,rm,sh,bash,zsh,zed,code,vim,nano src/cli/main.ts",
+    "dev": "deno run --sloppy-imports --allow-read --allow-write --allow-env --allow-sys --allow-run src/cli/main.ts",
     "check": "deno check --sloppy-imports src/cli/main.ts",
-    "compile": "deno compile --no-check --sloppy-imports --allow-read --allow-write --allow-env --allow-sys --allow-run=git,claude,codex,vibe,node,npm,pnpm,bun,deno,mise,rm,sh,bash,zsh,zed,code,vim,nano --output dist/bin/phax src/cli/main.ts"
+    "compile": "deno compile --no-check --sloppy-imports --allow-read --allow-write --allow-env --allow-sys --allow-run --output dist/bin/phax src/cli/main.ts"
   }
 }

@@ -10,11 +10,7 @@ import {
   type RunReviewInfo,
 } from "../../app/resolveRunInfo.js";
 
-async function openRun(
-  info: RunReviewInfo,
-  editorCommand: string,
-  out: OutputPort,
-): Promise<number> {
+async function openRun(info: RunReviewInfo, out: OutputPort): Promise<number> {
   if (!info.worktreePath) {
     out.error(`No worktree path found for run "${info.shortName}".`);
     return 1;
@@ -23,15 +19,15 @@ async function openRun(
   const effect = Effect.gen(function* () {
     const editor = yield* Editor;
     yield* editor.open(info.worktreePath);
-  }).pipe(Effect.provide(makeNodeEditorLayer(editorCommand)));
+  }).pipe(Effect.provide(makeNodeEditorLayer()));
 
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
-    out.error(`Failed to open editor: ${result.left.message}`);
+    out.error(`Failed to open worktree: ${result.left.message}`);
     return 1;
   }
 
-  out.log(`Opened ${info.worktreePath} in ${editorCommand}`);
+  out.log(`Opened ${info.worktreePath}`);
   return 0;
 }
 
@@ -41,7 +37,7 @@ export async function runOpen(shortNameArg: string, out: OutputPort): Promise<nu
     out.error(`Config error: ${configResult.left.message}`);
     return 1;
   }
-  const { stateRoot, editorCommand } = configResult.right;
+  const { stateRoot } = configResult.right;
 
   const shortNameResult = decodeShortName(shortNameArg);
   if (Either.isLeft(shortNameResult)) {
@@ -55,7 +51,7 @@ export async function runOpen(shortNameArg: string, out: OutputPort): Promise<nu
     return 1;
   }
 
-  return openRun(infoResult.right, editorCommand, out);
+  return openRun(infoResult.right, out);
 }
 
 export async function runOpenLast(out: OutputPort): Promise<number> {
@@ -64,7 +60,7 @@ export async function runOpenLast(out: OutputPort): Promise<number> {
     out.error(`Config error: ${configResult.left.message}`);
     return 1;
   }
-  const { stateRoot, editorCommand } = configResult.right;
+  const { stateRoot } = configResult.right;
 
   const infoResult = resolveLastReviewOpenRun(stateRoot);
   if (Either.isLeft(infoResult)) {
@@ -72,5 +68,5 @@ export async function runOpenLast(out: OutputPort): Promise<number> {
     return 1;
   }
 
-  return openRun(infoResult.right, editorCommand, out);
+  return openRun(infoResult.right, out);
 }

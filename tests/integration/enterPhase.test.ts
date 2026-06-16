@@ -135,7 +135,6 @@ describe("runEnterPhase", () => {
       Either.right({
         stateRoot,
         repoRoot: stateRoot,
-        editorCommand: "echo",
         maxFixAttempts: 3,
         extractPlanModel: "claude-haiku-4-5-20251001",
         extractPlanEffort: "low" as const,

@@ -35,7 +35,7 @@ The distributed `phax` binary is compiled with an explicit Deno permission set:
 | Filesystem read/write | **allowed**     | Required to manage run state, worktrees, locks, and artifacts                                                                                          |
 | Network               | **denied**      | phax itself makes no network calls                                                                                                                     |
 | Environment           | **allowed**     | Required so subprocesses can resolve executables via `PATH`                                                                                            |
-| Subprocess execution  | **allowlisted** | Restricted to: `git`, `claude`, `codex`, `vibe`, `node`, `npm`, `pnpm`, `bun`, `deno`, `mise`, `rm`, `sh`, `bash`, `zsh`, `zed`, `code`, `vim`, `nano` |
+| Subprocess execution  | **unrestricted** | phax may spawn any executable; security comes from the provider-native jail and structured argv invocation, not an executable allowlist |
 
 **Important:** Deno's permissions sandbox _phax_, not the provider CLIs it
 launches. Once phax spawns `claude`, `codex`, or `vibe`, those processes run with
@@ -45,9 +45,7 @@ tool allowlists) comes from the provider's own sandbox — see
 [Security modes](#security-modes) and the
 [Security notes](#security-notes) section.
 
-Executables outside the baked allowlist (e.g. a custom shell or editor) will
-cause a clean permission denial from Deno when phax tries to spawn them. A custom
-build with an extended `--allow-run` list is required to use them.
+`phax open` uses the OS opener (`open` on macOS, `xdg-open` on Linux) so no editor binary needs to be installed or configured. The meaningful security boundaries are the provider-native jail (filesystem, network, tool restrictions) and phax's structured argv invocation — phax never interpolates user input into shell strings.
 
 Requirements: at least one provider CLI on `$PATH`:
 
@@ -66,7 +64,6 @@ Add a `phax.json` at your repo root:
   "version": 1,
   "project": { "name": "my-project", "type": "single-package" },
   "state": { "root": "~/.phax" },
-  "editor": { "command": "zed" },
   "agent": { "maxFixAttempts": 1 },
   "security": { "profile": "secure" },
   "fileReconciliation": { "mode": "report_only" },

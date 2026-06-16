@@ -160,7 +160,6 @@ export function loadConfig(
     raw: config,
     stateRoot: expandTilde(config.state.root),
     repoRoot: gitRoot,
-    editorCommand: config.editor?.command ?? "zed",
     maxFixAttempts: config.agent?.maxFixAttempts ?? 1,
     extractPlanModel: config.agent?.extractPlan?.model ?? DEFAULT_EXTRACT_MODEL,
     extractPlanEffort: config.agent?.extractPlan?.effort ?? "low",
