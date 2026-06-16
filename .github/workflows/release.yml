@@ -14,6 +14,7 @@ jobs:
 
     permissions:
       contents: write
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +27,7 @@ jobs:
         with:
           node-version: "24"
           cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
 
       - uses: denoland/setup-deno@v2
         with:
@@ -67,9 +69,9 @@ jobs:
             exit 1
           fi
 
-      - name: npm publish (dry run)
+      - name: npm publish
         working-directory: npm
-        run: npm publish --dry-run --access public
+        run: npm publish --access public --provenance
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
