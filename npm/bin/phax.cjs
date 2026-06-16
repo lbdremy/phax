@@ -16,6 +16,8 @@ const BINARY_NAMES = {
 
 const GITHUB_REPO = "lbdremy/phax";
 const VERSION = require("../package.json").version;
+const UPDATE_CACHE = path.join(os.homedir(), ".phax", "bin", ".update-check.json");
+const UPDATE_INTERVAL_MS = 24 * 60 * 60 * 1000; // once per day
 
 function getBinaryName(platform, arch) {
   const name = BINARY_NAMES[platform] && BINARY_NAMES[platform][arch];
@@ -79,6 +81,52 @@ function download(url, dest) {
   });
 }
 
+// Reads cached latest version synchronously — no network on the hot path.
+function readUpdateCache() {
+  try {
+    return JSON.parse(fs.readFileSync(UPDATE_CACHE, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// Fire-and-forget background refresh of the update cache.
+function refreshUpdateCache() {
+  const req = https.get(
+    `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+    { headers: { "User-Agent": `phax/${VERSION}` } },
+    (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        try {
+          const latest = JSON.parse(data).tag_name.replace(/^v/, "");
+          fs.mkdirSync(path.dirname(UPDATE_CACHE), { recursive: true });
+          fs.writeFileSync(UPDATE_CACHE, JSON.stringify({ latest, checkedAt: Date.now() }));
+        } catch {}
+      });
+    },
+  );
+  req.on("error", () => {});
+}
+
+function checkForUpdate() {
+  const cache = readUpdateCache();
+
+  // Trigger a background refresh if cache is missing or stale.
+  if (!cache || Date.now() - cache.checkedAt > UPDATE_INTERVAL_MS) {
+    refreshUpdateCache();
+  }
+
+  // Show notice if the cached latest differs from current version.
+  if (cache && cache.latest && cache.latest !== VERSION) {
+    process.stderr.write(
+      `\nphax: update available v${VERSION} → v${cache.latest}\n` +
+        `  to update: npm update -g @lbdremy/phax\n\n`,
+    );
+  }
+}
+
 async function main() {
   const platform = process.platform;
   const arch = process.arch;
@@ -92,6 +140,8 @@ async function main() {
     await download(url, binPath);
     fs.chmodSync(binPath, 0o755);
   }
+
+  checkForUpdate();
 
   const result = spawnSync(binPath, process.argv.slice(2), { stdio: "inherit" });
   process.exit(result.status ?? 1);
