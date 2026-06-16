@@ -30,7 +30,8 @@
     "deno:check": "deno check src/cli/main.ts",
     "deno:compile": "deno task compile",
     "deno:build-binaries": "deno run --allow-read --allow-write --allow-run --allow-env scripts/build-binaries.ts",
-    "deno:smoke-binary": "sh scripts/smoke-binary.sh"
+    "deno:smoke-binary": "sh scripts/smoke-binary.sh",
+    "release": "bash scripts/release.sh"
   },
   "dependencies": {
     "@effect/platform": "^0.96.0",
