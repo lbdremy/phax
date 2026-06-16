@@ -63,7 +63,7 @@ jobs:
 
       - name: npm publish (dry run)
         working-directory: npm
-        run: npm publish --dry-run
+        run: npm publish --dry-run --access public
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

@@ -1,5 +1,5 @@
 {
-  "name": "phax",
+  "name": "@lbdremy/phax",
   "version": "0.1.0",
   "description": "Deterministic local CLI that drives Claude Code through isolated, gated phases",
   "license": "MIT",
