@@ -133,9 +133,9 @@ describe("NodeGitLayer.remoteExists and pushBranch", () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-git-push-test-"));
     bareRemoteDir = mkdtempSync(join(tmpdir(), "phax-git-push-remote-"));
 
-    execSync("git init --bare", { cwd: bareRemoteDir, stdio: "pipe" });
+    execSync("git init --bare -b main", { cwd: bareRemoteDir, stdio: "pipe" });
 
-    runGit("init", repoDir);
+    runGit("init -b main", repoDir);
     runGit("config --local user.email test@phax.test", repoDir);
     runGit("config --local user.name 'phax test'", repoDir);
     runGit(`remote add origin ${bareRemoteDir}`, repoDir);
