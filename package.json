@@ -26,10 +26,10 @@
     "audit:architecture": "vitest run tests/unit/architecturalGuards.test.ts",
     "check:full": "npm run typecheck && npm run test:unit && npm run test:integration && npm run test:type && npm run lint && npm run format:check && npm run audit:architecture && npm run knip",
     "test:e2e:real": "vitest run --config vitest.e2e.config.ts",
-    "deno:smoke": "deno run --sloppy-imports --allow-read --allow-env --allow-sys --allow-run=git src/cli/main.ts --version",
+    "deno:smoke": "deno run --sloppy-imports --allow-read --allow-env --allow-sys --allow-run src/cli/main.ts --version",
     "deno:check": "deno check src/cli/main.ts",
     "deno:compile": "deno task compile",
-    "deno:build-binaries": "deno run --allow-read --allow-write --allow-run=deno --allow-env scripts/build-binaries.ts",
+    "deno:build-binaries": "deno run --allow-read --allow-write --allow-run --allow-env scripts/build-binaries.ts",
     "deno:smoke-binary": "sh scripts/smoke-binary.sh"
   },
   "dependencies": {

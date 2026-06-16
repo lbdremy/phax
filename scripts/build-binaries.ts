@@ -15,6 +15,7 @@ export const RELEASE_TARGETS = [
 ] as const;
 
 const COMPILE_FLAGS = [
+  "--no-check",
   "--sloppy-imports",
   "--allow-read",
   "--allow-write",
