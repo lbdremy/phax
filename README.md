@@ -30,11 +30,11 @@ Available targets: `phax-darwin-arm64`, `phax-darwin-x64`, `phax-linux-x64`, `ph
 
 The distributed `phax` binary is compiled with an explicit Deno permission set:
 
-| Permission            | Status          | Notes                                                                                                                                                  |
-| --------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Filesystem read/write | **allowed**     | Required to manage run state, worktrees, locks, and artifacts                                                                                          |
-| Network               | **denied**      | phax itself makes no network calls                                                                                                                     |
-| Environment           | **allowed**     | Required so subprocesses can resolve executables via `PATH`                                                                                            |
+| Permission            | Status           | Notes                                                                                                                                   |
+| --------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Filesystem read/write | **allowed**      | Required to manage run state, worktrees, locks, and artifacts                                                                           |
+| Network               | **denied**       | phax itself makes no network calls                                                                                                      |
+| Environment           | **allowed**      | Required so subprocesses can resolve executables via `PATH`                                                                             |
 | Subprocess execution  | **unrestricted** | phax may spawn any executable; security comes from the provider-native jail and structured argv invocation, not an executable allowlist |
 
 **Important:** Deno's permissions sandbox _phax_, not the provider CLIs it
