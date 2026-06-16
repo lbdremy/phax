@@ -51,6 +51,23 @@ The `release.yml` workflow triggers automatically on the pushed tag. It:
 - The GitHub Release page lists all four binaries and their `.sha256` files
 - `npm/package.json` version matches the tag (transiently updated during the workflow, not committed back)
 
+## macOS Gatekeeper
+
+macOS binaries are not yet code-signed or notarized. Users who download the binary directly will be blocked by Gatekeeper on first run. The workaround:
+
+```bash
+xattr -dr com.apple.quarantine /usr/local/bin/phax
+```
+
+The permanent fix requires an Apple Developer account ($99/year):
+
+1. Obtain a **Developer ID Application** certificate from the Apple Developer portal
+2. Sign: `codesign --sign "Developer ID Application: ..." --options runtime phax-darwin-*`
+3. Notarize: `xcrun notarytool submit phax-darwin-*.zip --apple-id ... --team-id ... --password ...`
+4. Staple: `xcrun stapler staple phax-darwin-*`
+
+This should be added to the release workflow once an Apple Developer account is available.
+
 ## Deleting and re-pushing a tag
 
 If the release workflow fails and you need to retag the same version:

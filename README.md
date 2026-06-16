@@ -22,7 +22,11 @@ curl -LO https://github.com/lbdremy/phax/releases/latest/download/phax-darwin-ar
 sha256sum --check phax-darwin-arm64.sha256
 chmod +x phax-darwin-arm64
 sudo mv phax-darwin-arm64 /usr/local/bin/phax
+# macOS: remove the quarantine attribute added by the browser/curl
+xattr -dr com.apple.quarantine /usr/local/bin/phax
 ```
+
+> **macOS Gatekeeper note:** binaries are not yet code-signed or notarized. Without the `xattr` step above, macOS will block the binary on first run. Go to System Settings → Privacy & Security to allow it, or run the `xattr` command.
 
 Available targets: `phax-darwin-arm64`, `phax-darwin-x64`, `phax-linux-x64`, `phax-linux-arm64`.
 

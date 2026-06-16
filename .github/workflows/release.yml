@@ -46,6 +46,12 @@ jobs:
           pnpm deno:smoke
 
       - name: Build release binaries
+        # TODO: macOS binaries are not code-signed or notarized. Gatekeeper will
+        # block them on first run until the user approves in System Settings.
+        # Fix: obtain an Apple Developer account, sign with codesign --sign
+        # "Developer ID Application: ...", notarize with notarytool, and staple
+        # the ticket. Until then, document xattr -dr com.apple.quarantine <binary>
+        # as the workaround for direct downloads.
         run: pnpm deno:build-binaries
 
       - name: Prepare npm wrapper
