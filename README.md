@@ -7,9 +7,9 @@
 **Via npm (recommended)** — the wrapper resolves and downloads the correct platform binary on first run:
 
 ```bash
-npm install -g phax
+npm install -g @lbdremy/phax
 # or without installing:
-npx phax
+npx @lbdremy/phax
 ```
 
 **Direct binary download** — grab the binary and checksum for your platform from
