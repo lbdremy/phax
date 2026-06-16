@@ -30,6 +30,14 @@ xattr -dr com.apple.quarantine /usr/local/bin/phax
 
 Available targets: `phax-darwin-arm64`, `phax-darwin-x64`, `phax-linux-x64`, `phax-linux-arm64`.
 
+> **Binary size note:** the compiled binary is ~385MB, larger than the ~85MB of npm
+> dependencies it ships. This is expected for `deno compile` with npm packages today: Deno
+> snapshots the packages into a V8 heap image and bundles all format variants (CJS + ESM)
+> that packages like `effect` ship, which inflates the output ~3–4x. Deno's npm
+> tree-shaking is improving but not there yet. The npm wrapper downloads the binary once
+> and caches it per version at `~/.phax/bin/<version>/`, so the cost is a one-time download
+> per upgrade and subsequent runs are instant.
+
 ## Runtime permission posture
 
 The distributed `phax` binary is compiled with an explicit Deno permission set:
