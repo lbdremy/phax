@@ -53,9 +53,6 @@
     "vitest": "^2.1.0"
   },
   "engines": {
-    "node": ">=22"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["@parcel/watcher", "esbuild", "msgpackr-extract"]
+    "node": ">=24"
   }
 }
