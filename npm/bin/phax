@@ -35,7 +35,7 @@ function getReleaseUrl(version, platform, arch) {
 }
 
 function getCachePath(name) {
-  return path.join(os.homedir(), ".phax", "bin", name);
+  return path.join(os.homedir(), ".phax", "bin", VERSION, name);
 }
 
 function download(url, dest) {
