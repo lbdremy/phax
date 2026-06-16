@@ -27,7 +27,6 @@ jobs:
         with:
           node-version: "24"
           cache: "pnpm"
-          registry-url: "https://registry.npmjs.org"
 
       - uses: denoland/setup-deno@v2
         with:
