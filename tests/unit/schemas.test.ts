@@ -19,7 +19,6 @@ describe("decodePhaxConfig", () => {
   it("accepts a full config with all optional fields", () => {
     const full = {
       ...validConfig,
-      editor: { command: "zed" },
       agent: { maxFixAttempts: 1 },
       commands: { setup: ["pnpm install"], cleanup: ["rm -rf node_modules"] },
       gateProfiles: { fast: ["pnpm test"], full: ["pnpm test", "pnpm lint"] },

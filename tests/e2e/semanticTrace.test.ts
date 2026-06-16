@@ -90,7 +90,6 @@ describe.skipIf(!shouldRun)("E2E semantic trace — happy-path snapshot", () => 
       },
       stateRoot,
       repoRoot: stateRoot,
-      editorCommand: "echo",
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,

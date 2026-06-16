@@ -17,7 +17,6 @@ function makeConfig(overrides?: Partial<ResolvedConfig["raw"]>): ResolvedConfig 
     raw,
     stateRoot: "/home/user/.phax",
     repoRoot: "/home/user/repo",
-    editorCommand: "zed",
     maxFixAttempts: 1,
     extractPlanModel: "claude-haiku-4-5-20251001",
     extractPlanEffort: "low" as const,

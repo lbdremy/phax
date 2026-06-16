@@ -36,7 +36,6 @@ function makeConfig(publishEnabled: boolean): ResolvedConfig {
     raw: {} as ResolvedConfig["raw"],
     stateRoot: "/fake-state",
     repoRoot: "/fake-repo",
-    editorCommand: "code",
     maxFixAttempts: 3,
     extractPlanModel: "claude-haiku-4-5-20251001",
     extractPlanEffort: "low",

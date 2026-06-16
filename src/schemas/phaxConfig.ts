@@ -71,11 +71,6 @@ export const PhaxConfigSchema = Schema.Struct({
   state: Schema.Struct({
     root: Schema.NonEmptyString,
   }),
-  editor: Schema.optional(
-    Schema.Struct({
-      command: Schema.NonEmptyString,
-    }),
-  ),
   agent: Schema.optional(
     Schema.Struct({
       maxFixAttempts: Schema.optional(Schema.Int.pipe(Schema.between(1, 10))),
@@ -104,7 +99,6 @@ export interface ResolvedConfig {
   readonly raw: PhaxConfig;
   readonly stateRoot: string;
   readonly repoRoot: string;
-  readonly editorCommand: string;
   readonly maxFixAttempts: number;
   readonly extractPlanModel: string;
   readonly extractPlanEffort: Effort;
