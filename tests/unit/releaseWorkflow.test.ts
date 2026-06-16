@@ -32,9 +32,11 @@ describe("release workflow invariants", () => {
     expect(workflow).toContain("npm publish --access public --provenance");
   });
 
-  it("uses GITHUB_TOKEN only (no NPM_TOKEN)", () => {
+  it("uses GITHUB_TOKEN only (no NPM_TOKEN, no NODE_AUTH_TOKEN, no registry-url)", () => {
     expect(workflow).toContain("GITHUB_TOKEN");
     expect(workflow).not.toContain("NPM_TOKEN");
+    expect(workflow).not.toContain("NODE_AUTH_TOKEN");
+    expect(workflow).not.toContain("registry-url");
   });
 });
 
