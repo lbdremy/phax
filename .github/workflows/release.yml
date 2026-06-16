@@ -28,6 +28,9 @@ jobs:
           node-version: "24"
           cache: "pnpm"
 
+      - name: Upgrade npm to support stage publish
+        run: npm install -g npm@11.16.0
+
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
@@ -68,16 +71,9 @@ jobs:
             exit 1
           fi
 
-      - name: Debug OIDC token claims
-        run: |
-          TOKEN=$(curl -fsSL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm" | jq -r '.value')
-          echo "=== OIDC token payload ==="
-          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq .
-
-      - name: npm publish
+      - name: npm stage publish
         working-directory: npm
-        run: npm publish --access public --provenance
+        run: npm stage publish --access public --provenance
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

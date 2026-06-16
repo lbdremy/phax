@@ -28,8 +28,8 @@ describe("release workflow invariants", () => {
     expect(workflow).toContain("softprops/action-gh-release");
   });
 
-  it("runs npm publish with provenance", () => {
-    expect(workflow).toContain("npm publish --access public --provenance");
+  it("runs npm stage publish with provenance", () => {
+    expect(workflow).toContain("npm stage publish --access public --provenance");
   });
 
   it("uses GITHUB_TOKEN only (no NPM_TOKEN, no NODE_AUTH_TOKEN, no registry-url)", () => {
