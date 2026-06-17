@@ -8,7 +8,7 @@ PHAX supports three security modes:
 
 | Mode       | Description                                                                                                                                                                                         |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `secure`   | Strongest available provider-native sandboxing. Filesystem access limited to worktree and state root, network restricted to provider API domains, MCP disabled by default. **This is the default.** |
+| `secure`   | Strongest available provider-native sandboxing. Filesystem access limited to worktree and state root, network governed by the `network.profile` (enforced only where the provider supports it — see Provider Capabilities), MCP disabled by default. **This is the default.** |
 | `unsafe`   | Host-unrestricted access (legacy behavior). Use with caution.                                                                                                                                       |
 | `isolated` | Planned external sandbox mode. Not yet available.                                                                                                                                                   |
 
@@ -51,9 +51,15 @@ Add a `security` block to your `phax.json`:
 
 ### Network Profiles
 
-- **`provider-only`**: Only the provider's API domain is allowed (e.g., `api.anthropic.com` for Claude Code)
-- **`dev-allowlist`**: Provider API domain plus any configured `allowDomains`
-- **`open`**: No network restrictions (not recommended)
+The profile expresses *intent*; enforcement depends on the provider (see
+[Provider Capabilities](#provider-capabilities)). No provider applies per-domain filtering;
+Codex is the only one that enforces a hard on/off egress boundary.
+
+- **`provider-only`**: Most conservative. Under Codex this disables subprocess network
+  entirely; under Claude/Mistral it is recorded but not enforced as a domain filter.
+- **`dev-allowlist`**: Provider API domain plus any configured `allowDomains`, recorded in
+  the policy. Under Codex this enables egress; no provider filters to the listed domains.
+- **`open`**: No network restrictions (not recommended).
 
 ### MCP Modes
 
@@ -78,11 +84,19 @@ The CLI flag takes precedence over the configuration file.
 
 PHAX applies the strongest available provider-native controls for each provider:
 
-| Provider       | Filesystem Jail | Network Allowlist | MCP Allowlist |
-| -------------- | --------------- | ----------------- | ------------- |
-| `claude-code`  | Strong          | Supported         | Supported     |
-| `codex-cli`    | Strong          | Supported         | Supported     |
-| `mistral-vibe` | Partial         | Unsupported       | Supported     |
+| Provider       | Filesystem Jail | Network control                | MCP Allowlist |
+| -------------- | --------------- | ------------------------------ | ------------- |
+| `claude-code`  | Strong          | None enforced (profile recorded) | Supported   |
+| `codex-cli`    | Strong          | On/off (sandbox egress toggle)   | Supported   |
+| `mistral-vibe` | Partial         | None                             | Supported   |
+
+**No provider enforces a domain allowlist.** `network.allowDomains` and the
+`dev-allowlist` profile are carried into the policy and recorded in `security.json`, but no
+provider applies per-domain filtering today. The only enforced network control is Codex's
+sandbox egress toggle: under `provider-only`, Codex sets `network_access=false`, blocking
+subprocess network entirely; `dev-allowlist`/`open` set it to `true`. Claude Code has no
+native domain-allowlist flag — only `network.profile` is carried — and Mistral Vibe has no
+network control at all.
 
 ### Provider-Specific Behavior
 
@@ -90,7 +104,7 @@ PHAX applies the strongest available provider-native controls for each provider:
 
 - Secure mode runs headless with `--permission-mode acceptEdits` (edits auto-approved within the working dirs, denied outside)
 - Filesystem restricted to configured paths via the worktree cwd + `--add-dir`
-- Network allowlist enforced
+- No native domain-allowlist flag; `network.profile` is recorded but not enforced as a per-domain filter
 - MCP disabled or allowlisted via `--strict-mcp-config`
 - Shell is denied by default; only the phase's gate commands are allowlisted (see [Shell command execution](#shell-command-execution))
 
@@ -98,7 +112,7 @@ PHAX applies the strongest available provider-native controls for each provider:
 
 - Secure mode uses workspace-write sandbox
 - Writable roots limited to worktree + state root + configured paths
-- Network access governed by allowlist
+- Network egress toggled on/off by `network.profile` (`provider-only` → off); no domain allowlist
 - Non-escaping approval mode
 - Shell runs inside the OS sandbox — any command is permitted but confined (see [Shell command execution](#shell-command-execution))
 

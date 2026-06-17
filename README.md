@@ -212,11 +212,11 @@ Every run executes under a security posture, set by `security.profile` in `phax.
 
 | Mode       | Behavior                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------- |
-| `secure`   | **Default.** Provider-native sandboxing — filesystem jailed to the worktree, restricted network, MCP disabled. |
+| `secure`   | **Default.** Provider-native sandboxing — filesystem jailed to the worktree, network governed by `network.profile` (enforced only where the provider supports it), MCP disabled. |
 | `unsafe`   | Host-unrestricted: full filesystem/network access. Prints a warning. Use only for trusted plans.               |
 | `isolated` | External-sandbox mode — planned, not yet available (the CLI rejects it today).                                 |
 
-Provider capability matters under `secure`: Claude Code and Codex have strong filesystem jails and run natively, while Mistral Vibe has only a **partial** jail. In strict `secure` mode a partial-jail provider cannot satisfy the policy, so routing skips it and falls back to Claude Code; the applied posture (including any downgrade) is recorded in each phase's `security.json` and the final report.
+Provider capability matters under `secure`: Claude Code and Codex have strong filesystem jails and run natively, while Mistral Vibe has only a **partial** jail. In strict `secure` mode a partial-jail provider cannot satisfy the policy, so routing skips it and falls back to Claude Code; the applied posture (including any downgrade) is recorded in each phase's `security.json` and the final report. Network controls differ too: no provider enforces a domain allowlist, and Codex is the only one with a hard egress toggle (`provider-only` disables subprocess network); for Claude and Vibe the `network.profile` is recorded but not enforced as a domain filter.
 
 Shell access for the agent (used to run and fix the phase's gate commands) is also constrained per provider, at different granularities — Claude allowlists exactly the gate commands, while Codex and Vibe rely on their sandbox/approval models. See [Shell command execution](docs/security.md#shell-command-execution) in the security docs for the details.
 
