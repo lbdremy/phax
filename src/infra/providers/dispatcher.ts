@@ -10,7 +10,7 @@ import {
 import type { FsError } from "../../ports/fs.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import { runClaudeAgent, runClaudeCompletion } from "./claudeCode.js";
-import { runCodexAgent } from "./codexCli.js";
+import { runCodexAgent, runCodexCompletion } from "./codexCli.js";
 import { runVibeAgent } from "./mistralVibe.js";
 
 type RunAgentError =
@@ -77,11 +77,13 @@ export function makeNodeBackendLayer(providerConfig: ProviderConfig): Layer.Laye
         return runClaudeCompletion(prompt, options);
       }
       if (options.provider === "codex-cli") {
-        return Effect.fail(
-          new AgentInvocationError({
-            message: "sealed completion is not yet supported for codex-cli",
-          }),
-        );
+        const entry = providerConfig.providers["codex-cli"];
+        if (!entry) {
+          return Effect.fail(
+            new AgentInvocationError({ message: "codex-cli not found in provider config" }),
+          );
+        }
+        return runCodexCompletion(prompt, options, entry);
       }
       if (options.provider === "mistral-vibe") {
         return Effect.fail(

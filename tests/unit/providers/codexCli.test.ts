@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildCodexArgs } from "../../../src/infra/providers/codexCli.js";
+import { buildCodexArgs, buildCodexCompletionArgs } from "../../../src/infra/providers/codexCli.js";
 import { SecurityEnforcementError } from "../../../src/domain/errors.js";
-import type { AgentRunOptions } from "../../../src/ports/backend.js";
+import type { AgentRunOptions, CompletionOptions } from "../../../src/ports/backend.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
 import {
   findCodexResultEvent,
@@ -222,6 +222,68 @@ describe("findCodexResultEvent", () => {
       }),
     ];
     expect(findCodexResultEvent(lines)).toEqual({ sessionId: "tid-x", finalText: "" });
+  });
+});
+
+const completionOptions = (effort = "medium"): CompletionOptions => ({
+  provider: "codex-cli",
+  model: "gpt-5.5",
+  effort,
+  cwd: "/tmp/phax-extract-abc123",
+});
+
+describe("buildCodexCompletionArgs — sealed completion", () => {
+  it('sets sandbox_mode="read-only" (no filesystem writes allowed)', () => {
+    const args = buildCodexCompletionArgs(baseEntry, completionOptions());
+    expect(args).toContain(`sandbox_mode="read-only"`);
+  });
+
+  it('sets approval_policy="never"', () => {
+    const args = buildCodexCompletionArgs(baseEntry, completionOptions());
+    expect(args).toContain(`approval_policy="never"`);
+  });
+
+  it("disables network access", () => {
+    const args = buildCodexCompletionArgs(baseEntry, completionOptions());
+    expect(args).toContain("sandbox_workspace_write.network_access=false");
+  });
+
+  it("does not emit --dangerously-bypass-approvals-and-sandbox", () => {
+    const args = buildCodexCompletionArgs(baseEntry, completionOptions());
+    expect(args).not.toContain("--dangerously-bypass-approvals-and-sandbox");
+  });
+
+  it("does not emit writable_roots", () => {
+    const args = buildCodexCompletionArgs(baseEntry, completionOptions());
+    expect(args.some((a) => a.startsWith("sandbox_workspace_write.writable_roots="))).toBe(false);
+  });
+
+  it("uses exec -C <cwd> (not resume)", () => {
+    const args = buildCodexCompletionArgs(baseEntry, completionOptions());
+    expect(args.slice(0, 3)).toEqual(["exec", "-C", "/tmp/phax-extract-abc123"]);
+  });
+
+  it("includes --json and --skip-git-repo-check", () => {
+    const args = buildCodexCompletionArgs(baseEntry, completionOptions());
+    expect(args).toContain("--json");
+    expect(args).toContain("--skip-git-repo-check");
+  });
+
+  it("resolves model from families entry", () => {
+    const args = buildCodexCompletionArgs(baseEntry, completionOptions());
+    expect(args).toContain("-m");
+    expect(args[args.indexOf("-m") + 1]).toBe("gpt-5.5");
+  });
+
+  it("maps effort to model_reasoning_effort", () => {
+    const args = buildCodexCompletionArgs(baseEntry, completionOptions("high"));
+    expect(args).toContain(`model_reasoning_effort="high"`);
+  });
+
+  it("falls back to options.model when families entry absent", () => {
+    const noFamiliesEntry = { executable: "codex" };
+    const args = buildCodexCompletionArgs(noFamiliesEntry, completionOptions());
+    expect(args[args.indexOf("-m") + 1]).toBe("gpt-5.5");
   });
 });
 
