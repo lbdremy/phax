@@ -748,6 +748,99 @@ describe("executePlan — resume from gates_exhausted", () => {
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
     expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
   });
+
+  it("uses the locked binding provider/model on resume, ignoring routing config", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
+    const config = baseConfig();
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    // Dirty worktree so commitPhase proceeds after the gate passes.
+    fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
+
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "feedface12345678\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    // One handoff-generation resume call expected (gate passes immediately).
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-01-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+    await seedGatesExhaustedRun({
+      runPath,
+      worktreePath,
+      claudeSessionId: "sess-original-abc",
+    });
+
+    // Seed an agent-binding.json binding the phase to "codex-cli".
+    // Default routing would select "claude-code" — the binding must win.
+    const phaseFolder = join(runPath, "phase-01");
+    const binding = {
+      version: 1,
+      shortName: "my-run",
+      runId: "my-run-2026-06-11",
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      phaseName: "First Phase",
+      provider: "codex-cli",
+      adapter: "codex",
+      model: "codex-mini-latest",
+      effort: "low",
+      sessionId: "sess-original-abc",
+      sessionHandle: null,
+      worktreePath,
+      cwd: worktreePath,
+      launchedAt: new Date().toISOString(),
+      lockSource: "routing_at_phase_start",
+      status: "running",
+    };
+    await writeFile(join(phaseFolder, "agent-binding.json"), JSON.stringify(binding, null, 2));
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    // The implementation agent must not run on a gate-first resume.
+    expect(fakeBackend.impl.runCalls).toHaveLength(0);
+    // The bound provider/model must be used in the gate loop, not routing's "claude-code".
+    expect(fakeBackend.impl.resumeCalls.length).toBeGreaterThan(0);
+    expect(fakeBackend.impl.resumeCalls[0].options.provider).toBe("codex-cli");
+    expect(fakeBackend.impl.resumeCalls[0].options.model).toBe("codex-mini-latest");
+  });
 });
 
 const autoPublishRawPlan = {
