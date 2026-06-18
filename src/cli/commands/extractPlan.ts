@@ -49,7 +49,6 @@ export async function runExtractPlan(
     force: opts.force ?? false,
     model,
     effort,
-    cwd: process.cwd(),
   }).pipe(
     Effect.provide(makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG)),
     Effect.provide(NodeFileSystemLayer),

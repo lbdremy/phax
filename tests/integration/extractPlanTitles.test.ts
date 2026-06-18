@@ -3,8 +3,6 @@ import { Effect, Either, Layer } from "effect";
 import { extractPlanCore } from "../../src/app/extractPlan.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
-import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
-import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { PlanValidationError } from "../../src/domain/errors.js";
 
 // The model emits everything except `title`; phax derives titles from headings.
@@ -28,23 +26,17 @@ function extractedJson(phases: ReadonlyArray<{ id: string; anchor: string }>): s
 function run(planMd: string, finalText: string) {
   const fakeFs = makeFakeFileSystem();
   const fakeBackend = makeFakeBackend();
-  const fakeTelemetry = makeFakeSystemTelemetry();
 
   fakeFs.impl.setFile("/repo/plan.md", planMd);
-  fakeBackend.impl.addRunResponse({
-    sessionId: "sess-1" as ClaudeSessionId,
-    outputPath: "/repo/out.json",
-    finalText,
-  });
+  fakeBackend.impl.addCompletionResponse({ finalText });
 
-  const layer = Layer.mergeAll(fakeFs.layer, fakeBackend.layer, fakeTelemetry.layer);
+  const layer = Layer.mergeAll(fakeFs.layer, fakeBackend.layer);
   return Effect.runPromise(
     Effect.either(
       extractPlanCore({
         planMdPath: "/repo/plan.md",
         model: "claude-sonnet-4-6",
         effort: "low",
-        cwd: "/repo",
       }).pipe(Effect.provide(layer)),
     ),
   );
