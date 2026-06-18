@@ -21,7 +21,6 @@ const baseBinding: PhaseAgentBinding = {
   worktreePath: "/tmp/worktree",
   cwd: "/tmp/worktree",
   launchedAt: "2026-06-18T00:00:00.000Z",
-  lockSource: "routing_at_phase_start",
   status: "running",
 };
 

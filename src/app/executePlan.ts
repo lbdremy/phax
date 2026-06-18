@@ -652,7 +652,6 @@ export function executePlan(
               worktreePath: worktreePath as string,
               cwd: worktreePath as string,
               launchedAt: new Date().toISOString(),
-              lockSource: "routing_at_phase_start",
               status: "launching",
             }),
           catch: (err) =>

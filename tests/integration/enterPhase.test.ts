@@ -96,7 +96,6 @@ async function writeAgentBindingFixture(
       worktreePath: opts.worktreePath,
       cwd: opts.worktreePath,
       launchedAt: now,
-      lockSource: "routing_at_phase_start",
       status: "running",
     }),
   );

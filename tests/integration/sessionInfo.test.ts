@@ -237,7 +237,6 @@ describe("runSessionInfo", () => {
       worktreePath,
       cwd: worktreePath,
       launchedAt: now,
-      lockSource: "routing_at_phase_start",
       status: "running",
     });
 
@@ -251,9 +250,6 @@ describe("runSessionInfo", () => {
     expect(lines.some((l) => l.includes("Provider:") && l.includes("codex-cli"))).toBe(true);
     expect(lines.some((l) => l.includes("Adapter:") && l.includes("codex"))).toBe(true);
     expect(lines.some((l) => l.includes("Model:") && l.includes("gpt-4o"))).toBe(true);
-    expect(
-      lines.some((l) => l.includes("Lock source:") && l.includes("routing_at_phase_start")),
-    ).toBe(true);
     expect(lines.some((l) => l.includes("Session ID:") && l.includes("codex-sess-xyz"))).toBe(true);
     // codex has no interactive resume: the suggestion must NOT point at enter-phase,
     // even though a session id is present.
@@ -286,7 +282,6 @@ describe("runSessionInfo", () => {
       worktreePath,
       cwd: worktreePath,
       launchedAt: now,
-      lockSource: "routing_at_phase_start",
       status: "running",
     });
 
@@ -349,7 +344,6 @@ describe("runSessionInfo", () => {
       worktreePath,
       cwd: worktreePath,
       launchedAt: now,
-      lockSource: "routing_at_phase_start",
       status: "completed",
     });
 
@@ -386,7 +380,6 @@ describe("runSessionInfo", () => {
       worktreePath,
       cwd: worktreePath,
       launchedAt: now,
-      lockSource: "routing_at_phase_start",
       status: "awaiting_manual_review",
     });
 
@@ -425,7 +418,6 @@ describe("runSessionInfo", () => {
       worktreePath,
       cwd: worktreePath,
       launchedAt: now,
-      lockSource: "routing_at_phase_start",
       status: "failed",
     });
 
@@ -462,7 +454,6 @@ describe("runSessionInfo", () => {
       worktreePath,
       cwd: worktreePath,
       launchedAt: now,
-      lockSource: "routing_at_phase_start",
       status: "archived",
     });
 
@@ -499,7 +490,6 @@ describe("runSessionInfo", () => {
       worktreePath,
       cwd: worktreePath,
       launchedAt: now,
-      lockSource: "routing_at_phase_start",
       status: "running",
     };
     await writeAgentBindingFile(phaseFolderPath, bindingObj);

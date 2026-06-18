@@ -70,7 +70,6 @@ export async function runSessionInfo(
     out.log(`Session handle:   ${binding.sessionHandle ?? "(none)"}`);
     out.log(`Worktree:         ${binding.worktreePath}`);
     out.log(`Launched:         ${binding.launchedAt}`);
-    out.log(`Lock source:      ${binding.lockSource}`);
     out.log(`Binding status:   ${binding.status}`);
     if (!resumeSupported && "unsupported" in invocation) {
       out.log(`Resume:           ${invocation.unsupported}`);
