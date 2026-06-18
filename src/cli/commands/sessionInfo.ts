@@ -6,7 +6,7 @@ import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunByShortName, findCurrentPhase } from "../../app/resolveRunInfo.js";
 import { readAgentBinding } from "../../app/agentBinding.js";
-import { getSessionAdapter } from "../../infra/sessionAdapters/index.js";
+import { getSessionAdapter } from "../../domain/session/index.js";
 import { canResume } from "../../app/resume.js";
 import { composePhaxState } from "../../app/phaxState.js";
 import type { RunStatus } from "../../schemas/status.js";

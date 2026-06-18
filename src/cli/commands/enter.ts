@@ -1,11 +1,13 @@
-import { Either } from "effect";
+import { Effect, Either } from "effect";
 import { join } from "node:path";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunByShortName } from "../../app/resolveRunInfo.js";
 import { readAgentBinding } from "../../app/agentBinding.js";
-import { getSessionAdapter, spawnInteractive } from "../../infra/sessionAdapters/index.js";
+import { getSessionAdapter } from "../../domain/session/index.js";
+import { makeNodeSessionLayer } from "../../infra/session.js";
+import { Session } from "../../ports/session.js";
 
 export async function runEnter(shortNameArg: string, out: OutputPort): Promise<number> {
   const configResult = loadConfig(process.cwd());
@@ -43,5 +45,17 @@ export async function runEnter(shortNameArg: string, out: OutputPort): Promise<n
     return 1;
   }
 
-  return spawnInteractive(invocation, out);
+  out.log(`Entering ${invocation.executable} session in ${invocation.cwd}`);
+
+  const effect = Effect.gen(function* () {
+    const s = yield* Session;
+    return yield* s.resume(invocation);
+  }).pipe(Effect.provide(makeNodeSessionLayer()));
+
+  const result = await Effect.runPromise(Effect.either(effect));
+  if (Either.isLeft(result)) {
+    out.error(`Failed to launch ${invocation.executable}: ${result.left.message}`);
+    return 1;
+  }
+  return result.right;
 }

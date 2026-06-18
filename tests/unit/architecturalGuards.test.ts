@@ -227,13 +227,7 @@ describe("architectural guard: infra must not import from app", () => {
 // imports. Importing infra behaviour (getSessionAdapter, spawnInteractive, …)
 // bypasses the port abstraction and is forbidden.
 
-// Known violations introduced in the agent-binding run (plan 11). Remove each
-// entry once plan 15 phase-01 moves the dispatch logic into src/domain/session/.
-const CLI_INFRA_LOGIC_ALLOWLIST: ReadonlySet<string> = new Set([
-  "src/cli/commands/enter.ts",
-  "src/cli/commands/enterPhase.ts",
-  "src/cli/commands/sessionInfo.ts",
-]);
+const CLI_INFRA_LOGIC_ALLOWLIST: ReadonlySet<string> = new Set([]);
 
 // Matches a complete import statement that pulls from an infra path.
 // Group 1: optional "type " keyword (type-only whole import)
@@ -288,19 +282,9 @@ describe("architectural guard: cli may import only layer composition from infra"
     },
   );
 
-  it(
-    "cli→infra logic allowlist entries are kept honest by still importing from " +
-      "src/infra/sessionAdapters/",
-    () => {
-      for (const rel of CLI_INFRA_LOGIC_ALLOWLIST) {
-        const content = readFileSync(join(repoRoot, rel), "utf8");
-        expect(
-          /from\s+["'][^"']*\/infra\/sessionAdapters\//.test(content),
-          `${rel} no longer imports from infra/sessionAdapters/ — remove it from CLI_INFRA_LOGIC_ALLOWLIST`,
-        ).toBe(true);
-      }
-    },
-  );
+  it("cli→infra logic allowlist is empty after phase-01 moved dispatch to domain/session", () => {
+    expect(CLI_INFRA_LOGIC_ALLOWLIST.size).toBe(0);
+  });
 });
 
 // ── Direct Node I/O outside ports/infra ──────────────────────────────────────
