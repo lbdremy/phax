@@ -303,6 +303,83 @@ describe("architectural guard: cli may import only layer composition from infra"
   );
 });
 
+// ── Direct Node I/O outside ports/infra ──────────────────────────────────────
+// All filesystem and process I/O must go through a port interface. Importing
+// node:fs, node:fs/promises, node:child_process, or node:os directly in
+// domain/ or cli/ bypasses that abstraction.
+//
+// src/domain/** is enforced strictly — it is already clean.
+//
+// src/cli/** has a documented allowlist of known violators captured at the end
+// of the phase-02 run. These are candidates for future migration through the
+// FileSystem port.
+//
+// src/app/** is deliberately excluded from this guard. Eight app/ files
+// currently import node:fs directly (agentBinding, executePlan, loadConfig,
+// loadPlan, resolveRunInfo, resume, finalReport, initProject). Routing all of
+// those through the FileSystem port is a separate, larger refactor; adding a
+// guard against the current tree would be vacuous until that refactor lands.
+//
+// src/infra/** and src/ports/** are unscanned — infra is where I/O is allowed,
+// and ports declare it.
+
+const DIRECT_NODE_IO = /\bfrom\s+["'](node:fs|node:fs\/promises|node:child_process|node:os)["']/;
+
+// Known cli/ violators. Remove an entry once the file is migrated to the
+// FileSystem port.
+const CLI_DIRECT_IO_ALLOWLIST: ReadonlySet<string> = new Set([
+  "src/cli/commands/resume.ts",
+  "src/cli/commands/run.ts",
+  "src/cli/commands/sessionInfo.ts",
+  "src/cli/commands/shell.ts",
+  "src/cli/commands/skills.ts",
+  "src/cli/interruptHandler.ts",
+]);
+
+describe("architectural guard: no direct Node I/O outside ports/infra", () => {
+  it("src/domain/**/*.ts never imports node:fs, node:fs/promises, node:child_process, or node:os", () => {
+    const violations: string[] = [];
+    const domainRoot = join(srcRoot, "domain");
+
+    for (const absPath of listTsFiles(domainRoot)) {
+      const rel = relative(repoRoot, absPath).split("\\").join("/");
+      const content = readFileSync(absPath, "utf8");
+      if (DIRECT_NODE_IO.test(content)) {
+        violations.push(rel);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("src/cli/**/*.ts imports no direct Node I/O (except documented allowlist)", () => {
+    const violations: string[] = [];
+    const cliRoot = join(srcRoot, "cli");
+
+    for (const absPath of listTsFiles(cliRoot)) {
+      const rel = relative(repoRoot, absPath).split("\\").join("/");
+      if (CLI_DIRECT_IO_ALLOWLIST.has(rel)) continue;
+
+      const content = readFileSync(absPath, "utf8");
+      if (DIRECT_NODE_IO.test(content)) {
+        violations.push(rel);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("cli direct-I/O allowlist entries are kept honest by still actually importing a Node I/O module", () => {
+    for (const rel of CLI_DIRECT_IO_ALLOWLIST) {
+      const content = readFileSync(join(repoRoot, rel), "utf8");
+      expect(
+        DIRECT_NODE_IO.test(content),
+        `${rel} no longer imports a direct Node I/O module — remove it from CLI_DIRECT_IO_ALLOWLIST`,
+      ).toBe(true);
+    }
+  });
+});
+
 describe("architectural guard: single status writer", () => {
   it("only the dispatcher, runner, and documented metadata writers encode status JSON", () => {
     const violations: string[] = [];
