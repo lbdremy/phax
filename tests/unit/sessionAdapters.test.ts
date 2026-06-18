@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { claudeSessionAdapter } from "../../src/infra/sessionAdapters/claude.js";
-import { codexSessionAdapter } from "../../src/infra/sessionAdapters/codex.js";
-import { mistralSessionAdapter } from "../../src/infra/sessionAdapters/mistral.js";
-import { getSessionAdapter } from "../../src/infra/sessionAdapters/index.js";
+import { claudeSessionAdapter } from "../../src/domain/session/claude.js";
+import { codexSessionAdapter } from "../../src/domain/session/codex.js";
+import { mistralSessionAdapter } from "../../src/domain/session/mistral.js";
+import { getSessionAdapter } from "../../src/domain/session/index.js";
 import type { PhaseAgentBinding } from "../../src/schemas/phaseAgentBinding.js";
 
 const baseBinding: PhaseAgentBinding = {
