@@ -326,6 +326,156 @@ describe("runSessionInfo", () => {
     expect(lines.some((l) => l.includes("--debug"))).toBe(true);
   });
 
+  it("displays completed binding status", async () => {
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await buildFakeRunFolder(stateRoot, "review_open", [
+      { id: "phase-01", index: 0, state: "review_open", worktreePath },
+    ]);
+
+    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    await writeAgentBindingFile(phaseFolderPath, {
+      version: 1,
+      shortName: "my-run",
+      runId: "run-abc",
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      phaseName: "My Phase",
+      provider: "claude-code",
+      adapter: "claude",
+      model: "claude-sonnet-4-6",
+      effort: "medium",
+      sessionId: "sess-done",
+      sessionHandle: null,
+      worktreePath,
+      cwd: worktreePath,
+      launchedAt: now,
+      lockSource: "routing_at_phase_start",
+      status: "completed",
+    });
+
+    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
+    const lines: string[] = [];
+    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+
+    const exitCode = await runSessionInfo("my-run", out);
+
+    expect(exitCode).toBe(0);
+    expect(lines.some((l) => l.includes("Binding status:") && l.includes("completed"))).toBe(true);
+  });
+
+  it("displays awaiting_manual_review binding status", async () => {
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await buildFakeRunFolder(stateRoot, "review_open", [
+      { id: "phase-01", index: 0, state: "review_open", worktreePath },
+    ]);
+
+    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    await writeAgentBindingFile(phaseFolderPath, {
+      version: 1,
+      shortName: "my-run",
+      runId: "run-abc",
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      phaseName: "My Phase",
+      provider: "claude-code",
+      adapter: "claude",
+      model: "claude-sonnet-4-6",
+      effort: "medium",
+      sessionId: "sess-review",
+      sessionHandle: null,
+      worktreePath,
+      cwd: worktreePath,
+      launchedAt: now,
+      lockSource: "routing_at_phase_start",
+      status: "awaiting_manual_review",
+    });
+
+    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
+    const lines: string[] = [];
+    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+
+    const exitCode = await runSessionInfo("my-run", out);
+
+    expect(exitCode).toBe(0);
+    expect(
+      lines.some((l) => l.includes("Binding status:") && l.includes("awaiting_manual_review")),
+    ).toBe(true);
+  });
+
+  it("displays failed binding status", async () => {
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await buildFakeRunFolder(stateRoot, "review_open", [
+      { id: "phase-01", index: 0, state: "review_open", worktreePath },
+    ]);
+
+    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    await writeAgentBindingFile(phaseFolderPath, {
+      version: 1,
+      shortName: "my-run",
+      runId: "run-abc",
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      phaseName: "My Phase",
+      provider: "claude-code",
+      adapter: "claude",
+      model: "claude-sonnet-4-6",
+      effort: "medium",
+      sessionId: "sess-fail",
+      sessionHandle: null,
+      worktreePath,
+      cwd: worktreePath,
+      launchedAt: now,
+      lockSource: "routing_at_phase_start",
+      status: "failed",
+    });
+
+    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
+    const lines: string[] = [];
+    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+
+    const exitCode = await runSessionInfo("my-run", out);
+
+    expect(exitCode).toBe(0);
+    expect(lines.some((l) => l.includes("Binding status:") && l.includes("failed"))).toBe(true);
+  });
+
+  it("displays archived binding status", async () => {
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await buildFakeRunFolder(stateRoot, "review_open", [
+      { id: "phase-01", index: 0, state: "review_open", worktreePath },
+    ]);
+
+    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    await writeAgentBindingFile(phaseFolderPath, {
+      version: 1,
+      shortName: "my-run",
+      runId: "run-abc",
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      phaseName: "My Phase",
+      provider: "claude-code",
+      adapter: "claude",
+      model: "claude-sonnet-4-6",
+      effort: "medium",
+      sessionId: "sess-arc",
+      sessionHandle: null,
+      worktreePath,
+      cwd: worktreePath,
+      launchedAt: now,
+      lockSource: "routing_at_phase_start",
+      status: "archived",
+    });
+
+    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
+    const lines: string[] = [];
+    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+
+    const exitCode = await runSessionInfo("my-run", out);
+
+    expect(exitCode).toBe(0);
+    expect(lines.some((l) => l.includes("Binding status:") && l.includes("archived"))).toBe(true);
+  });
+
   it("dumps raw metadata with --debug flag", async () => {
     const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
     await buildFakeRunFolder(stateRoot, "review_open", [

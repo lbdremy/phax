@@ -74,7 +74,12 @@ import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRunByShortName } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
 import { createPhaseWorktree, preparePhaseBranch, prepareRunBranch } from "./worktree.js";
-import { writeAgentBinding, patchAgentBindingSession, readAgentBinding } from "./agentBinding.js";
+import {
+  writeAgentBinding,
+  patchAgentBindingSession,
+  patchAgentBindingStatus,
+  readAgentBinding,
+} from "./agentBinding.js";
 import { providerToAdapter } from "../domain/providerAdapter.js";
 
 function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
@@ -823,6 +828,9 @@ export function executePlan(
           },
           ctx,
         );
+        yield* Effect.promise(() =>
+          patchAgentBindingStatus(phaseFolderPath, "awaiting_manual_review"),
+        );
 
         // Auto-publish: push the final branch and create a PR when configured.
         // Publication failure is non-fatal — the run stays in review_open and
@@ -834,6 +842,7 @@ export function executePlan(
           }).pipe(Effect.catchAll(() => Effect.void));
         }
       } else {
+        yield* Effect.promise(() => patchAgentBindingStatus(phaseFolderPath, "completed"));
         // cleanupPhase dispatches CleanupStarted/CleanupCompleted internally.
         yield* cleanupPhase({
           worktreePath,
@@ -911,10 +920,17 @@ export function executePlan(
     Effect.tapError((e) =>
       isRateLimitError(e) || isNoChangesError(e) || isGateAttemptsExhaustedError(e)
         ? Effect.void
-        : dispatch(
-            { ...eventBase(currentPhaseId), type: "RunFailed", cause: e },
-            dispatchCtx(currentPhaseFolderPath, currentPhaseId),
-          ).pipe(Effect.catchAll(() => Effect.void)),
+        : Effect.gen(function* () {
+            if (currentPhaseFolderPath !== undefined) {
+              yield* Effect.promise(() =>
+                patchAgentBindingStatus(currentPhaseFolderPath!, "failed"),
+              );
+            }
+            yield* dispatch(
+              { ...eventBase(currentPhaseId), type: "RunFailed", cause: e },
+              dispatchCtx(currentPhaseFolderPath, currentPhaseId),
+            );
+          }).pipe(Effect.catchAll(() => Effect.void)),
     ),
   );
 }

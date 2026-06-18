@@ -53,6 +53,23 @@ export async function patchAgentBindingSession(
   }
 }
 
+export async function patchAgentBindingStatus(
+  phaseFolderPath: string,
+  status: PhaseAgentBinding["status"],
+): Promise<void> {
+  const filePath = join(phaseFolderPath, "agent-binding.json");
+  try {
+    const text = await readFile(filePath, "utf8");
+    const decoded = decodePhaseAgentBinding(JSON.parse(text) as unknown);
+    if (Either.isRight(decoded)) {
+      const updated: PhaseAgentBinding = { ...decoded.right, status };
+      await writeAtomic(filePath, JSON.stringify(encodePhaseAgentBinding(updated), null, 2));
+    }
+  } catch {
+    // Absent or malformed binding — no-op
+  }
+}
+
 export async function readAgentBinding(
   phaseFolderPath: string,
 ): Promise<Either.Either<PhaseAgentBinding, string>> {
