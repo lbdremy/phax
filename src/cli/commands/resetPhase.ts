@@ -7,6 +7,7 @@ import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeShellLayer } from "../../infra/shell.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
+import { reportConfigError } from "./reportConfigError.js";
 
 export interface ResetPhaseCommandOptions {
   yes?: boolean;
@@ -36,7 +37,7 @@ export async function runResetPhase(
 ): Promise<number> {
   const configResult = loadConfig(process.cwd());
   if (Either.isLeft(configResult)) {
-    out.error(`Config error: ${configResult.left.message}`);
+    reportConfigError(configResult.left, out);
     return 1;
   }
   const config = configResult.right;

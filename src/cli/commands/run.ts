@@ -24,6 +24,7 @@ import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHa
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../schemas/phaxPlan.js";
 import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
+import { reportConfigError } from "./reportConfigError.js";
 
 export interface RunCommandOptions {
   shortName?: string;
@@ -111,7 +112,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
 
   const configResult = loadConfig(cwd);
   if (Either.isLeft(configResult)) {
-    out.error(`Config error: ${configResult.left.message}`);
+    reportConfigError(configResult.left, out);
     return 2;
   }
   const config = configResult.right;
