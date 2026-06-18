@@ -106,8 +106,9 @@ program
 program
   .command("session-info <short-name>")
   .description("Print session diagnostics for a run (state, phase, worktree, session id)")
-  .action(async (shortName: string) => {
-    const exitCode = await runSessionInfo(shortName, consoleOutput);
+  .option("--debug", "Dump raw binding and model-resolution metadata")
+  .action(async (shortName: string, opts: { debug?: boolean }) => {
+    const exitCode = await runSessionInfo(shortName, consoleOutput, opts);
     process.exit(exitCode);
   });
 

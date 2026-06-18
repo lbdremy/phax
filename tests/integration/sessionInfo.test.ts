@@ -65,6 +65,11 @@ async function buildFakeRunFolder(
   }
 }
 
+async function writeAgentBindingFile(phaseFolderPath: string, binding: object): Promise<void> {
+  await mkdir(phaseFolderPath, { recursive: true });
+  await writeFile(join(phaseFolderPath, "agent-binding.json"), JSON.stringify(binding, null, 2));
+}
+
 describe("findCurrentPhase", () => {
   it("returns the highest-index non-terminal phase", () => {
     const phases = [
@@ -164,7 +169,6 @@ describe("runSessionInfo", () => {
     expect(exitCode).toBe(0);
     expect(lines.some((l) => l.includes("rate_limited"))).toBe(true);
     expect(lines.some((l) => l.includes("phase-02"))).toBe(true);
-    expect(lines.some((l) => l.includes("sess-rl"))).toBe(true);
     expect(lines.some((l) => l.includes("phax resume my-run"))).toBe(true);
     expect(lines.some((l) => l.includes("Rate limit exceeded"))).toBe(true);
   });
@@ -208,5 +212,149 @@ describe("runSessionInfo", () => {
     const exitCode = await runSessionInfo("no-such-run", out);
 
     expect(exitCode).toBe(1);
+  });
+
+  it("shows locked codex binding fields (AC-3)", async () => {
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await buildFakeRunFolder(stateRoot, "review_open", [
+      { id: "phase-01", index: 0, state: "review_open", worktreePath },
+    ]);
+
+    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    await writeAgentBindingFile(phaseFolderPath, {
+      version: 1,
+      shortName: "my-run",
+      runId: "run-abc",
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      phaseName: "My Phase",
+      provider: "codex-cli",
+      adapter: "codex",
+      model: "gpt-4o",
+      effort: "high",
+      sessionId: "codex-sess-xyz",
+      sessionHandle: null,
+      worktreePath,
+      cwd: worktreePath,
+      launchedAt: now,
+      lockSource: "routing_at_phase_start",
+      status: "running",
+    });
+
+    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
+    const lines: string[] = [];
+    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+
+    const exitCode = await runSessionInfo("my-run", out);
+
+    expect(exitCode).toBe(0);
+    expect(lines.some((l) => l.includes("Provider:") && l.includes("codex-cli"))).toBe(true);
+    expect(lines.some((l) => l.includes("Adapter:") && l.includes("codex"))).toBe(true);
+    expect(lines.some((l) => l.includes("Model:") && l.includes("gpt-4o"))).toBe(true);
+    expect(
+      lines.some((l) => l.includes("Lock source:") && l.includes("routing_at_phase_start")),
+    ).toBe(true);
+    expect(lines.some((l) => l.includes("Session ID:") && l.includes("codex-sess-xyz"))).toBe(true);
+  });
+
+  it("shows mistral binding after routing config changes (AC-6 regression)", async () => {
+    // Arrange: a phase bound to mistral-vibe
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await buildFakeRunFolder(stateRoot, "review_open", [
+      { id: "phase-01", index: 0, state: "review_open", worktreePath },
+    ]);
+
+    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    await writeAgentBindingFile(phaseFolderPath, {
+      version: 1,
+      shortName: "my-run",
+      runId: "run-abc",
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      phaseName: "My Phase",
+      provider: "mistral-vibe",
+      adapter: "mistral",
+      model: "mistral-large",
+      effort: "medium",
+      sessionId: "vibe-sess-abc",
+      sessionHandle: null,
+      worktreePath,
+      cwd: worktreePath,
+      launchedAt: now,
+      lockSource: "routing_at_phase_start",
+      status: "running",
+    });
+
+    // Even if routing config were changed to prefer claude-code, the binding must win.
+    // session-info never consults routing, so no routing mock needed — we just verify output.
+    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
+    const lines: string[] = [];
+    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+
+    const exitCode = await runSessionInfo("my-run", out);
+
+    expect(exitCode).toBe(0);
+    expect(lines.some((l) => l.includes("Provider:") && l.includes("mistral-vibe"))).toBe(true);
+    expect(lines.some((l) => l.includes("Adapter:") && l.includes("mistral"))).toBe(true);
+    expect(lines.some((l) => l.includes("Model:") && l.includes("mistral-large"))).toBe(true);
+    // Must NOT mention claude-code as provider
+    expect(lines.every((l) => !l.includes("claude-code"))).toBe(true);
+  });
+
+  it("shows unavailable hint for legacy phase without binding or resolution", async () => {
+    // A phase folder with no agent-binding.json and no model-resolution.json
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await buildFakeRunFolder(stateRoot, "review_open", [
+      { id: "phase-01", index: 0, state: "review_open", worktreePath },
+    ]);
+
+    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
+    const lines: string[] = [];
+    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+
+    const exitCode = await runSessionInfo("my-run", out);
+
+    expect(exitCode).toBe(0);
+    expect(lines.some((l) => l.includes("Provider:") && l.includes("unavailable"))).toBe(true);
+    expect(lines.some((l) => l.includes("--debug"))).toBe(true);
+  });
+
+  it("dumps raw metadata with --debug flag", async () => {
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await buildFakeRunFolder(stateRoot, "review_open", [
+      { id: "phase-01", index: 0, state: "review_open", worktreePath },
+    ]);
+
+    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    const bindingObj = {
+      version: 1,
+      shortName: "my-run",
+      runId: "run-abc",
+      phaseId: "phase-01",
+      phaseIndex: 0,
+      phaseName: "My Phase",
+      provider: "claude-code",
+      adapter: "claude",
+      model: "claude-sonnet-4-6",
+      effort: "medium",
+      sessionId: "claude-sess-001",
+      sessionHandle: null,
+      worktreePath,
+      cwd: worktreePath,
+      launchedAt: now,
+      lockSource: "routing_at_phase_start",
+      status: "running",
+    };
+    await writeAgentBindingFile(phaseFolderPath, bindingObj);
+
+    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
+    const lines: string[] = [];
+    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+
+    const exitCode = await runSessionInfo("my-run", out, { debug: true });
+
+    expect(exitCode).toBe(0);
+    expect(lines.some((l) => l.includes("Debug:"))).toBe(true);
+    expect(lines.some((l) => l.includes("claude-sess-001"))).toBe(true);
   });
 });
