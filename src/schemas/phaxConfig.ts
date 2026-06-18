@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { JSONSchema, Schema } from "effect";
 import { SecurityConfigSchema, type ResolvedSecurityConfig } from "./securityConfig.js";
 
 export const PublishConfigSchema = Schema.Struct({
@@ -112,3 +112,7 @@ export type { ResolvedSecurityConfig };
 export const decodePhaxConfig = Schema.decodeUnknownEither(PhaxConfigSchema, {
   onExcessProperty: "error",
 });
+
+export function getPhaxConfigJsonSchema(): object {
+  return JSONSchema.make(PhaxConfigSchema);
+}
