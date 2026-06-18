@@ -427,6 +427,121 @@ describe("executePlan — happy-path 2-phase run", () => {
     }
   });
 
+  it("app-layer patch is the sole owner of the launching→running binding transition", async () => {
+    // Regression: executePlan.patchAgentBindingSession (called after backend.runAgent
+    // returns) is the only writer of the launching → running transition.
+    // persistSessionId (called by real providers during streaming) no longer patches
+    // agent-binding.json. This test would fail if the patchAgentBindingSession call
+    // were removed from executePlan, proving the app-layer owns binding mutations.
+    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+
+    const config: ResolvedConfig = {
+      raw: {
+        version: 1,
+        project: { name: "test-project", type: "single-package" },
+        state: { root: stateRoot },
+        gateProfiles: { full: ["true"] },
+        commands: { setup: ["true"], cleanup: ["true"] },
+      },
+      stateRoot,
+      repoRoot: stateRoot,
+      maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
+      fileReconciliationMode: "report_only" as const,
+      security: {
+        profile: "unsafe",
+        filesystem: { allowRead: [], allowWrite: [] },
+        network: { profile: "provider-only", allowDomains: [] },
+        mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
+      },
+    };
+
+    const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const phase02WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-02");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(phase01WorktreePath, false, true);
+    fakeGit.impl.enqueueWorktreeIsClean(phase02WorktreePath, false);
+
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "aabbcc\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-p1" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-p2" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-p1-h" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-p2-h" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+
+    const p1Binding = await readAgentBinding(join(runPath, "phase-01"));
+    expect(Either.isRight(p1Binding)).toBe(true);
+    if (Either.isRight(p1Binding)) {
+      expect(p1Binding.right.status).toBe("running");
+      expect(p1Binding.right.sessionId).toBe("sess-p1");
+    }
+
+    const p2Binding = await readAgentBinding(join(runPath, "phase-02"));
+    expect(Either.isRight(p2Binding)).toBe(true);
+    if (Either.isRight(p2Binding)) {
+      expect(p2Binding.right.status).toBe("running");
+      expect(p2Binding.right.sessionId).toBe("sess-p2");
+    }
+  });
+
   it("writes agent-binding.json with status launching before agent runs (pre-agent write guarantee)", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
 

@@ -698,9 +698,9 @@ export function executePlan(
         );
         sessionId = agentResult.sessionId;
         currentSessionId = sessionId as string;
-        // Patch the binding with the captured session id. The real providers also
-        // patch via persistSessionId; this call covers the fake-backend test path
-        // and acts as belt-and-suspenders for production.
+        // Sole owner of the launching → running binding transition. persistSessionId
+        // (called by real providers during streaming) writes session-id.txt and
+        // patches status.json only; it no longer touches agent-binding.json.
         yield* Effect.promise(() =>
           patchAgentBindingSession(phaseFolderPath, {
             sessionId: sessionId as string,
