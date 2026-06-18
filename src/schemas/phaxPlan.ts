@@ -11,6 +11,26 @@ const EffortSchema = Schema.Literal(
   "ultracode",
 );
 
+// What the model is asked to emit per phase. `title` is deliberately absent: it
+// is derived deterministically from the plan.md heading (see `extractPlanCore`),
+// not round-tripped through the model's JSON. A `"` in a title would otherwise
+// derail the model into malformed output, which the strict `onExcessProperty`
+// decode rejects — keeping the trip-wire but removing the failure mode.
+const ExtractedPhaseSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
+  model: Schema.NonEmptyString,
+  effort: EffortSchema,
+  planMarkdownAnchor: Schema.NonEmptyString,
+  plannedFilesToCreate: Schema.Array(Schema.String),
+  plannedFilesToEdit: Schema.Array(Schema.String),
+  optionalFilesToEdit: Schema.Array(Schema.String),
+  commit: Schema.Struct({
+    subject: Schema.NonEmptyString,
+    body: Schema.NonEmptyString,
+  }),
+});
+
+// The persisted phase: the extracted fields plus the heading-derived `title`.
 const PhaseSchema = Schema.Struct({
   id: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
   title: Schema.NonEmptyString,
@@ -39,7 +59,7 @@ export const ExtractedPhaxPlanSchema = Schema.Struct({
     title: Schema.NonEmptyString,
     requiredCommands: Schema.Array(Schema.String),
   }),
-  phases: Schema.NonEmptyArray(PhaseSchema),
+  phases: Schema.NonEmptyArray(ExtractedPhaseSchema),
 });
 
 // The full persisted plan, after phax merges in the deterministic fields.

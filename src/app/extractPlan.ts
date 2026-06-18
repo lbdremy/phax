@@ -1,4 +1,4 @@
-import { Effect, Either, Schema } from "effect";
+import { Array as Arr, Effect, Either, Schema } from "effect";
 import { dirname, join } from "node:path";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { resolveSecurityConfig } from "../schemas/securityConfig.js";
@@ -27,6 +27,23 @@ import { formatParseError } from "../schemas/formatError.js";
 const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
 });
+
+// Derive each phase title from its plan.md heading rather than asking the model
+// to round-trip it through JSON. A `"` in a title would otherwise derail the
+// extraction model into malformed output. Matches `## phase-NN — <title> {#...}`
+// (em/en-dash or hyphen). JSON.stringify on write escapes any quotes safely, so
+// titles keep their original text.
+function parsePhaseTitles(planMd: string): Map<string, string> {
+  const titles = new Map<string, string>();
+  const re = /^##\s+(phase-\d{2})\s*[—–-]\s*(.+?)\s*\{#[^}]*\}\s*$/gim;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(planMd)) !== null) {
+    const id = m[1]!.toLowerCase();
+    const title = m[2]!.trim();
+    if (title.length > 0) titles.set(id, title);
+  }
+  return titles;
+}
 
 function detectPhaseAnchors(planMd: string): string[] {
   const matches = planMd.match(/##\s+phase-\d{2}/gi) ?? [];
@@ -207,6 +224,33 @@ export function extractPlanCore(
         result: "success",
       }),
     );
+    // Titles are derived from headings, not extracted from the model. Fail
+    // loudly if a phase has no matching `## <phase-id> — <title> {#anchor}`
+    // heading rather than persisting a phase with an empty title.
+    const phaseTitles = parsePhaseTitles(planMd);
+    const missingTitle = decoded.right.phases.filter((p) => {
+      const t = phaseTitles.get(p.id);
+      return t === undefined || t.length === 0;
+    });
+    if (missingTitle.length > 0) {
+      yield* telemetry.recordEvent(
+        makeStepCompletedTelemetryEvent({
+          runId: extractRunId,
+          step: "contract.validate",
+          result: "failure",
+        }),
+      );
+      return yield* Effect.fail(
+        new PlanValidationError({
+          message: `Could not derive a title from plan.md for: ${missingTitle.map((p) => p.id).join(", ")}. Each phase needs a "## <phase-id> — <title> {#anchor}" heading.`,
+        }),
+      );
+    }
+    const phasesWithTitles = Arr.map(decoded.right.phases, (p) => ({
+      ...p,
+      title: phaseTitles.get(p.id) as string,
+    }));
+
     // The model is asked for a shortName but routinely returns prose (often the
     // plan title), which fails the strict ShortName brand downstream. Slugify it
     // ourselves rather than trust the model, falling back to the title.
@@ -215,13 +259,14 @@ export function extractPlanCore(
       slugifyShortName(decoded.right.run.title) ||
       "run";
     const plan: PhaxPlan = {
-      ...decoded.right,
+      version: decoded.right.version,
       run: {
         ...decoded.right.run,
         shortName,
         branch: `phax/${shortName}`,
         requiredCommands: decoded.right.run.requiredCommands,
       },
+      phases: phasesWithTitles,
     };
 
     const detectedAnchors = detectPhaseAnchors(planMd);

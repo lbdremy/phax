@@ -10,9 +10,9 @@ const decodePhaxPlan = Schema.decodeUnknownEither(PhaxPlanSchema, {
   onExcessProperty: "error",
 });
 
-const basePhase = {
+// The model-facing phase has no `title` — it is derived from the plan heading.
+const baseExtractedPhase = {
   id: "phase-01",
-  title: "First Phase",
   model: "claude-sonnet-4-6",
   effort: "low",
   planMarkdownAnchor: "#phase-01-first",
@@ -21,6 +21,29 @@ const basePhase = {
   optionalFilesToEdit: [],
   commit: { subject: "feat: do thing", body: "Does the thing." },
 };
+
+// The persisted phase carries the heading-derived `title`.
+const basePersistedPhase = { ...baseExtractedPhase, title: "First Phase" };
+
+describe("ExtractedPhaxPlanSchema — title is not extracted", () => {
+  it("decodes a phase that omits title", () => {
+    const result = decodeExtracted({
+      version: 1,
+      run: { shortName: "my-run", title: "My Run", requiredCommands: [] },
+      phases: [baseExtractedPhase],
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("rejects a phase that includes title (excess property)", () => {
+    const result = decodeExtracted({
+      version: 1,
+      run: { shortName: "my-run", title: "My Run", requiredCommands: [] },
+      phases: [{ ...baseExtractedPhase, title: "Should Not Be Here" }],
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+});
 
 describe("ExtractedPhaxPlanSchema — requiredCommands", () => {
   it("decodes successfully when requiredCommands is present and non-empty", () => {
@@ -31,7 +54,7 @@ describe("ExtractedPhaxPlanSchema — requiredCommands", () => {
         title: "My Run",
         requiredCommands: ["deno fmt", "deno lint"],
       },
-      phases: [basePhase],
+      phases: [baseExtractedPhase],
     });
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
@@ -47,7 +70,7 @@ describe("ExtractedPhaxPlanSchema — requiredCommands", () => {
         title: "My Run",
         requiredCommands: [],
       },
-      phases: [basePhase],
+      phases: [baseExtractedPhase],
     });
     expect(Either.isRight(result)).toBe(true);
   });
@@ -59,7 +82,7 @@ describe("ExtractedPhaxPlanSchema — requiredCommands", () => {
         shortName: "my-run",
         title: "My Run",
       },
-      phases: [basePhase],
+      phases: [baseExtractedPhase],
     });
     expect(Either.isLeft(result)).toBe(true);
   });
@@ -75,7 +98,7 @@ describe("PhaxPlanSchema — requiredCommands", () => {
         branch: "phax/my-run",
         requiredCommands: ["pnpm test"],
       },
-      phases: [basePhase],
+      phases: [basePersistedPhase],
     });
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
@@ -91,7 +114,7 @@ describe("PhaxPlanSchema — requiredCommands", () => {
         title: "My Run",
         branch: "phax/my-run",
       },
-      phases: [basePhase],
+      phases: [basePersistedPhase],
     });
     expect(Either.isLeft(result)).toBe(true);
   });
