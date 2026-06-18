@@ -1,13 +1,10 @@
 import { Array as Arr, Effect, Either, Schema } from "effect";
 import { dirname, join } from "node:path";
-import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
-import { resolveSecurityConfig } from "../schemas/securityConfig.js";
+import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
 import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Lock } from "../ports/lock.js";
-import { SystemTelemetry } from "../ports/systemTelemetry.js";
-import type { RunId } from "../domain/branded.js";
-import { makeStepCompletedTelemetryEvent } from "../domain/telemetry/events.js";
 import {
   ExtractedPhaxPlanSchema,
   getExtractedPlanJsonSchema,
@@ -18,7 +15,6 @@ import {
   LockConflictError,
   PlanValidationError,
   RateLimitError,
-  SecurityEnforcementError,
   UsageLimitError,
 } from "../domain/errors.js";
 import { decodeShortName, slugifyShortName } from "../domain/branded.js";
@@ -115,9 +111,6 @@ export interface ExtractPlanCoreOptions {
   readonly planMdPath: string;
   readonly model: string;
   readonly effort: string;
-  readonly cwd: string;
-  // `branch` is filled in deterministically by phax — never asked of the model.
-  // It is derived from shortName as `phax/<shortName>` (the namespace phax owns).
 }
 
 export interface ExtractPlanCoreResult {
@@ -132,7 +125,6 @@ export type ExtractPlanCoreError =
   | AgentInvocationError
   | RateLimitError
   | UsageLimitError
-  | SecurityEnforcementError
   | FsError;
 
 /**
@@ -142,16 +134,10 @@ export type ExtractPlanCoreError =
  */
 export function extractPlanCore(
   opts: ExtractPlanCoreOptions,
-): Effect.Effect<
-  ExtractPlanCoreResult,
-  ExtractPlanCoreError,
-  Backend | FileSystem | SystemTelemetry
-> {
+): Effect.Effect<ExtractPlanCoreResult, ExtractPlanCoreError, Backend | FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const backend = yield* Backend;
-    const telemetry = yield* SystemTelemetry;
-    const extractRunId = "extract-plan" as unknown as RunId;
 
     const planMd = yield* fs.readText(opts.planMdPath).pipe(
       Effect.mapError(
@@ -166,34 +152,23 @@ export function extractPlanCore(
     const jsonSchema = getExtractedPlanJsonSchema();
     const prompt = buildExtractionPrompt(planMd, jsonSchema);
 
-    // TODO(security): jail extraction stricter than phase execution — the
-    // extraction agent needs only the prompt to produce the plan JSON, so it
-    // should run read-only against the repo and with provider-API-only network.
-    // For now we use a host/unsafe policy so behavior matches today.
-    const extractionSecurity = resolveSecurityPolicy({
-      mode: "unsafe",
-      worktreePath: opts.cwd,
-      config: resolveSecurityConfig(undefined, "unsafe"),
-    });
-    const runResult = yield* backend.runAgent(prompt, {
-      provider: "claude-code",
-      model: opts.model,
-      effort: opts.effort,
-      cwd: opts.cwd,
-      security: extractionSecurity,
-    });
+    const tempDir = join(tmpdir(), "phax-extract-" + randomUUID());
+    const runResult = yield* Effect.acquireUseRelease(
+      fs.mkdirp(tempDir).pipe(Effect.as(tempDir)),
+      (dir) =>
+        backend.complete(prompt, {
+          provider: "claude-code",
+          model: opts.model,
+          effort: opts.effort,
+          cwd: dir,
+        }),
+      (dir) => fs.remove(dir).pipe(Effect.orElse(() => Effect.void)),
+    );
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(stripJsonCodeFence(runResult.finalText));
     } catch {
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId: extractRunId,
-          step: "contract.validate",
-          result: "failure",
-        }),
-      );
       return yield* Effect.fail(
         new PlanValidationError({
           message: `Claude returned non-JSON output. Raw response: ${runResult.finalText.slice(0, 300)}`,
@@ -204,26 +179,13 @@ export function extractPlanCore(
     // Local schema validation is mandatory regardless of which model produced the output (spec §6).
     const decoded = decodeExtractedPlan(parsed);
     if (Either.isLeft(decoded)) {
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId: extractRunId,
-          step: "contract.validate",
-          result: "failure",
-        }),
-      );
       return yield* Effect.fail(
         new PlanValidationError({
           message: `Extracted JSON failed schema validation:\n${formatParseError(decoded.left)}`,
         }),
       );
     }
-    yield* telemetry.recordEvent(
-      makeStepCompletedTelemetryEvent({
-        runId: extractRunId,
-        step: "contract.validate",
-        result: "success",
-      }),
-    );
+
     // Titles are derived from headings, not extracted from the model. Fail
     // loudly if a phase has no matching `## <phase-id> — <title> {#anchor}`
     // heading rather than persisting a phase with an empty title.
@@ -233,13 +195,6 @@ export function extractPlanCore(
       return t === undefined || t.length === 0;
     });
     if (missingTitle.length > 0) {
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId: extractRunId,
-          step: "contract.validate",
-          result: "failure",
-        }),
-      );
       return yield* Effect.fail(
         new PlanValidationError({
           message: `Could not derive a title from plan.md for: ${missingTitle.map((p) => p.id).join(", ")}. Each phase needs a "## <phase-id> — <title> {#anchor}" heading.`,
@@ -312,11 +267,7 @@ export type ExtractPlanError = ExtractPlanCoreError | LockConflictError;
  */
 export function extractPlan(
   opts: ExtractPlanOptions,
-): Effect.Effect<
-  ExtractPlanResult,
-  ExtractPlanError,
-  Backend | FileSystem | Lock | SystemTelemetry
-> {
+): Effect.Effect<ExtractPlanResult, ExtractPlanError, Backend | FileSystem | Lock> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const lock = yield* Lock;
