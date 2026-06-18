@@ -74,7 +74,7 @@ import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRunByShortName } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
 import { createPhaseWorktree, preparePhaseBranch, prepareRunBranch } from "./worktree.js";
-import { writeAgentBinding, patchAgentBindingSession } from "./agentBinding.js";
+import { writeAgentBinding, patchAgentBindingSession, readAgentBinding } from "./agentBinding.js";
 import { providerToAdapter } from "../domain/providerAdapter.js";
 
 function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
@@ -425,28 +425,51 @@ export function executePlan(
                   : "cannot satisfy strict secure mode",
               };
         };
-        const resolution = resolveModel(
-          { model: phase.model, effort: phase.effort },
-          routing,
-          providerConfig,
-          securityFilter,
-        );
-        const resumeFrozenResult = computeFrozenAgentCommands({
-          configCommands: securityPolicy.agentCommands,
-          gateCommands,
-          requiredCommands: plan.run.requiredCommands,
-          provider: resolution.selected.provider,
-        });
-        agentOptions = {
-          provider: resolution.selected.provider,
-          model: resolution.selected.concreteModel,
-          effort: resolution.selected.thinking ?? phase.effort,
-          cwd: worktreePath as string,
-          security: securityPolicy,
-          agentCommands: resumeFrozenResult.records.map((r) => r.command),
-          outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
-          phaseFolderPath,
-        };
+        const bindingEither = yield* Effect.promise(() => readAgentBinding(phaseFolderPath));
+        if (Either.isRight(bindingEither)) {
+          // Binding present: use locked provider/model/effort — never re-route.
+          const binding = bindingEither.right;
+          const resumeFrozenResult = computeFrozenAgentCommands({
+            configCommands: securityPolicy.agentCommands,
+            gateCommands,
+            requiredCommands: plan.run.requiredCommands,
+            provider: binding.provider,
+          });
+          agentOptions = {
+            provider: binding.provider,
+            model: binding.model,
+            effort: binding.effort,
+            cwd: worktreePath as string,
+            security: securityPolicy,
+            agentCommands: resumeFrozenResult.records.map((r) => r.command),
+            outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
+            phaseFolderPath,
+          };
+        } else {
+          // No binding (legacy run): fall back to router.
+          const resolution = resolveModel(
+            { model: phase.model, effort: phase.effort },
+            routing,
+            providerConfig,
+            securityFilter,
+          );
+          const resumeFrozenResult = computeFrozenAgentCommands({
+            configCommands: securityPolicy.agentCommands,
+            gateCommands,
+            requiredCommands: plan.run.requiredCommands,
+            provider: resolution.selected.provider,
+          });
+          agentOptions = {
+            provider: resolution.selected.provider,
+            model: resolution.selected.concreteModel,
+            effort: resolution.selected.thinking ?? phase.effort,
+            cwd: worktreePath as string,
+            security: securityPolicy,
+            agentCommands: resumeFrozenResult.records.map((r) => r.command),
+            outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
+            phaseFolderPath,
+          };
+        }
       } else {
         // Each phase gets its own branch (<run.branch>--<phaseId>) so multiple
         // worktrees can coexist — git refuses to check out one branch in two
