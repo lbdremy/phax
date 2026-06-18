@@ -9,7 +9,7 @@ import {
 } from "../../domain/errors.js";
 import type { FsError } from "../../ports/fs.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
-import { runClaudeAgent } from "./claudeCode.js";
+import { runClaudeAgent, runClaudeCompletion } from "./claudeCode.js";
 import { runCodexAgent } from "./codexCli.js";
 import { runVibeAgent } from "./mistralVibe.js";
 
@@ -63,6 +63,31 @@ export function makeNodeBackendLayer(providerConfig: ProviderConfig): Layer.Laye
                 ? new AgentInvocationError({ message: e.message })
                 : e,
           ),
+        );
+      }
+      return Effect.fail(
+        new AgentInvocationError({
+          message: `Provider "${options.provider}" is not yet wired in the dispatcher (config: ${JSON.stringify(Object.keys(providerConfig.providers))})`,
+        }),
+      );
+    },
+
+    complete: (prompt, options) => {
+      if (options.provider === "claude-code") {
+        return runClaudeCompletion(prompt, options);
+      }
+      if (options.provider === "codex-cli") {
+        return Effect.fail(
+          new AgentInvocationError({
+            message: "sealed completion is not yet supported for codex-cli",
+          }),
+        );
+      }
+      if (options.provider === "mistral-vibe") {
+        return Effect.fail(
+          new AgentInvocationError({
+            message: "sealed completion is not yet supported for mistral-vibe",
+          }),
         );
       }
       return Effect.fail(

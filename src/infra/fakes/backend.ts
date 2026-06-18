@@ -8,6 +8,8 @@ import {
   type BackendOps,
   type AgentRunOptions,
   type AgentRunResult,
+  type CompletionOptions,
+  type CompletionResult,
 } from "../../ports/backend.js";
 
 interface RateLimitKnob {
@@ -22,11 +24,14 @@ export class FakeBackendImpl implements BackendOps {
     prompt: string;
     options: AgentRunOptions;
   }> = [];
+  readonly completeCalls: Array<{ prompt: string; options: CompletionOptions }> = [];
 
   readonly runResponses: AgentRunResult[] = [];
   readonly resumeResponses: AgentRunResult[] = [];
+  readonly completeResponses: CompletionResult[] = [];
   runIdx = 0;
   resumeIdx = 0;
+  completeIdx = 0;
 
   /** When set, the `runAgent` call at this 0-based index fails with a limit error. */
   private rateLimitAtRunIndex: number | undefined;
@@ -34,6 +39,10 @@ export class FakeBackendImpl implements BackendOps {
 
   /** When set, the next `resumeAgentSession` call fails with a limit error. */
   private resumeRateLimitKnob: RateLimitKnob | undefined;
+
+  /** When set, the `complete` call at this 0-based index fails with a limit error. */
+  private rateLimitAtCompleteIndex: number | undefined;
+  private completeRateLimitKnob: RateLimitKnob | undefined;
 
   /**
    * When set, each `resumeAgentSession` call writes this content to
@@ -54,6 +63,10 @@ export class FakeBackendImpl implements BackendOps {
     this.resumeResponses.push(result);
   }
 
+  addCompletionResponse(result: CompletionResult): void {
+    this.completeResponses.push(result);
+  }
+
   /** Simulate a rate/usage-limit failure on the `runAgent` call for a chosen phase. */
   failRunWithRateLimit(runIndex: number, knob: RateLimitKnob): void {
     this.rateLimitAtRunIndex = runIndex;
@@ -65,6 +78,12 @@ export class FakeBackendImpl implements BackendOps {
     this.resumeRateLimitKnob = knob;
   }
 
+  /** Simulate a rate/usage-limit failure on the `complete` call at a chosen index. */
+  failCompleteWithRateLimit(completeIndex: number, knob: RateLimitKnob): void {
+    this.rateLimitAtCompleteIndex = completeIndex;
+    this.completeRateLimitKnob = knob;
+  }
+
   private limitError(knob?: RateLimitKnob): RateLimitError | UsageLimitError {
     const k = knob ?? this.rateLimitKnob;
     const fields = {
@@ -74,6 +93,25 @@ export class FakeBackendImpl implements BackendOps {
     return k?.kind === "usage_limit"
       ? new UsageLimitError({ message: "FakeBackend: usage limit reached.", ...fields })
       : new RateLimitError({ message: "FakeBackend: rate limit hit.", ...fields });
+  }
+
+  complete(
+    prompt: string,
+    options: CompletionOptions,
+  ): Effect.Effect<CompletionResult, AgentInvocationError | RateLimitError | UsageLimitError> {
+    const callIndex = this.completeIdx;
+    this.completeCalls.push({ prompt, options });
+    if (this.rateLimitAtCompleteIndex === callIndex) {
+      this.completeIdx++;
+      return Effect.fail(this.limitError(this.completeRateLimitKnob));
+    }
+    const result = this.completeResponses[this.completeIdx++];
+    if (result === undefined) {
+      return Effect.fail(
+        new AgentInvocationError({ message: "FakeBackend: no more complete responses queued" }),
+      );
+    }
+    return Effect.succeed(result);
   }
 
   runAgent(

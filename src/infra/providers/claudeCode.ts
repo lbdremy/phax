@@ -3,7 +3,12 @@ import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { AgentRunOptions, AgentRunResult } from "../../ports/backend.js";
+import type {
+  AgentRunOptions,
+  AgentRunResult,
+  CompletionOptions,
+  CompletionResult,
+} from "../../ports/backend.js";
 import { FsError } from "../../ports/fs.js";
 import {
   AgentInvocationError,
@@ -226,6 +231,86 @@ function rateLimitErrorFor(
         message: "Claude Code stopped: rate limit hit.",
         ...fields,
       });
+}
+
+/**
+ * Build the sealed argument set for a tool-less model completion call.
+ *
+ * Security guarantees that are intrinsic to this arg set (not configurable):
+ *   --permission-mode default  → any tool attempt auto-denies in headless --print
+ *   --allowedTools ""          → empty allowlist (nothing explicitly permitted)
+ *   --disallowed-tools Bash,WebFetch,WebSearch → explicit deny for high-risk tools
+ *   --strict-mcp-config        → no MCP servers loaded
+ *   no --add-dir               → no writable paths granted
+ */
+export function buildCompletionArgs(options: CompletionOptions): string[] {
+  return [
+    "--print",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--permission-mode",
+    "default",
+    "--allowedTools",
+    "",
+    "--disallowed-tools",
+    "Bash,WebFetch,WebSearch",
+    "--strict-mcp-config",
+    "--model",
+    options.model,
+    "--effort",
+    options.effort,
+  ];
+}
+
+export function runClaudeCompletion(
+  prompt: string,
+  options: CompletionOptions,
+): Effect.Effect<
+  CompletionResult,
+  AgentInvocationError | RateLimitError | UsageLimitError | FsError
+> {
+  const args = buildCompletionArgs(options);
+  return Effect.gen(function* () {
+    const { lines, exitCode, stderr } = yield* Effect.tryPromise({
+      try: () => spawnClaude(args, prompt, undefined, options.cwd),
+      catch: (err): AgentInvocationError =>
+        new AgentInvocationError({
+          message: err instanceof Error ? err.message : String(err),
+          argv: ["claude", ...args],
+        }),
+    });
+
+    if (exitCode !== 0 || hasErroredResultEvent(lines)) {
+      const classification = classifyRateLimit(stderr, lines);
+      if (classification !== undefined) {
+        return yield* Effect.fail(rateLimitErrorFor(classification));
+      }
+    }
+
+    if (exitCode !== 0) {
+      return yield* Effect.fail(
+        new AgentInvocationError({
+          message: `claude exited with code ${exitCode}`,
+          exitCode,
+          ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
+          argv: ["claude", ...args],
+        }),
+      );
+    }
+
+    const found = findResultEvent(lines);
+    if (!found) {
+      return yield* Effect.fail(
+        new AgentInvocationError({
+          message: "No result event found in claude completion output",
+          argv: ["claude", ...args],
+        }),
+      );
+    }
+
+    return { finalText: found.finalText };
+  });
 }
 
 export function runClaudeAgent(

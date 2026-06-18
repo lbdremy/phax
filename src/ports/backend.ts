@@ -11,6 +11,17 @@ import type { ProviderId } from "../domain/routing/types.js";
 import type { SecurityPolicy } from "../domain/security/types.js";
 import type { FsError } from "./fs.js";
 
+export interface CompletionOptions {
+  readonly provider: ProviderId;
+  readonly model: string;
+  readonly effort: string;
+  readonly cwd: string;
+}
+
+export interface CompletionResult {
+  readonly finalText: string;
+}
+
 export interface AgentRunOptions {
   readonly provider: ProviderId;
   readonly model: string;
@@ -56,6 +67,14 @@ export interface BackendOps {
     | UsageLimitError
     | SecurityEnforcementError
     | FsError
+  >;
+
+  complete(
+    prompt: string,
+    options: CompletionOptions,
+  ): Effect.Effect<
+    CompletionResult,
+    AgentInvocationError | RateLimitError | UsageLimitError | FsError
   >;
 }
 
