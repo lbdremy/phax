@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { getPhaxConfigJsonSchema } from "../schemas/phaxConfig.js";
+import { locatePhaxConfig } from "./loadConfig.js";
 
 export type InitResult =
   | { kind: "already_initialized"; configPath: string }
@@ -18,6 +19,14 @@ export function writeConfigSchemaFile(targetPath: string): { changed: boolean } 
   }
   writeFileSync(targetPath, serialized, "utf8");
   return { changed: true };
+}
+
+export function upgradeConfigSchema(cwd: string): UpgradeResult {
+  const configPath = locatePhaxConfig(cwd);
+  if (!configPath) return { kind: "no_config" };
+  const schemaPath = join(dirname(configPath), "phax.schema.json");
+  const { changed } = writeConfigSchemaFile(schemaPath);
+  return changed ? { kind: "updated", schemaPath } : { kind: "current", schemaPath };
 }
 
 export function initProject(input: { cwd: string; force?: boolean }): InitResult {
