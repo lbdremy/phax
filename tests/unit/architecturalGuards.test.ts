@@ -185,9 +185,7 @@ describe("architectural guard: provider spawn boundary", () => {
 // src/infra/**/*.ts must not import from src/app/ — that inverts the
 // dependency arrow (app → ports ← infra).
 
-// Known violation introduced in the agent-binding run (plan 11). Remove this
-// entry once plan 15 phase-02 moves the import out of sessionWriter.
-const INFRA_APP_ALLOWLIST: ReadonlySet<string> = new Set(["src/infra/providers/sessionWriter.ts"]);
+const INFRA_APP_ALLOWLIST: ReadonlySet<string> = new Set([]);
 
 const INFRA_APP_IMPORT = /from\s+["'][^"']*\/app\//;
 
