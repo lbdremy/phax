@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { randomBytes } from "node:crypto";
 import type { ClaudeSessionId } from "../../domain/branded.js";
 import { decodePhaseStatus, encodePhaseStatus } from "../../schemas/status.js";
+import { patchAgentBindingSession } from "../../app/agentBinding.js";
 
 async function writeAtomic(filePath: string, content: string): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true });
@@ -42,4 +43,6 @@ export async function persistSessionId(
   } catch {
     // Status file absent or malformed — session-id.txt already written, continue.
   }
+
+  await patchAgentBindingSession(phaseFolderPath, { sessionId, status: "running" });
 }
