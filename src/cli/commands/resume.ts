@@ -21,6 +21,7 @@ import type { ProviderId } from "../../domain/routing/types.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
+import { reportConfigError } from "./reportConfigError.js";
 
 export interface ResumeCommandOptions {
   yes?: boolean;
@@ -36,7 +37,7 @@ export async function runResume(
 ): Promise<number> {
   const configResult = loadConfig(process.cwd());
   if (Either.isLeft(configResult)) {
-    out.error(`Config error: ${configResult.left.message}`);
+    reportConfigError(configResult.left, out);
     return 1;
   }
   const config = configResult.right;
