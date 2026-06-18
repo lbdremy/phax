@@ -1,9 +1,12 @@
 import { Either } from "effect";
+import { join } from "node:path";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { resolvePhaseInfo } from "../../app/resolveRunInfo.js";
-import { spawnClaudeResume } from "./enter.js";
+import { readAgentBinding } from "../../app/agentBinding.js";
+import { inferLegacyBinding } from "../../app/inferLegacyBinding.js";
+import { getSessionAdapter, spawnInteractive } from "../../infra/sessionAdapters/index.js";
 
 export async function runEnterPhase(
   shortNameArg: string,
@@ -29,23 +32,36 @@ export async function runEnterPhase(
     return 1;
   }
 
-  const { phaseStatus } = infoResult.right;
+  const info = infoResult.right;
+  const phaseFolderPath = join(info.runPath, phaseId);
+  const phaseName = info.planPhases.find((p) => p.id === phaseId)?.title ?? phaseId;
 
-  if (!phaseStatus.claudeSessionId) {
-    out.error(
-      `No Claude session ID found for phase "${phaseId}" of run "${shortNameArg}". ` +
-        `The phase may not have started yet (state: ${phaseStatus.state}).`,
-    );
+  const bindingResult = await readAgentBinding(phaseFolderPath);
+
+  let binding;
+  if (Either.isRight(bindingResult)) {
+    binding = bindingResult.right;
+  } else {
+    const inferResult = await inferLegacyBinding(phaseFolderPath, {
+      shortName: info.shortName,
+      runId: info.runId,
+      phaseName,
+    });
+    if (Either.isLeft(inferResult)) {
+      out.error(
+        `Cannot enter this phase because it was launched before phase agent bindings were introduced ` +
+          `and inference failed: ${inferResult.left}`,
+      );
+      return 1;
+    }
+    binding = inferResult.right;
+  }
+
+  const invocation = getSessionAdapter(binding.provider).buildResumeInvocation(binding);
+  if ("unsupported" in invocation) {
+    out.error(invocation.unsupported);
     return 1;
   }
 
-  if (!phaseStatus.worktreePath) {
-    out.error(
-      `No worktree path found for phase "${phaseId}" of run "${shortNameArg}". ` +
-        `The phase may not have been set up yet (state: ${phaseStatus.state}).`,
-    );
-    return 1;
-  }
-
-  return spawnClaudeResume(phaseStatus.claudeSessionId, phaseStatus.worktreePath, out);
+  return spawnInteractive(invocation, out);
 }

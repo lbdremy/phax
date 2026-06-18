@@ -3,8 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Either } from "effect";
-import { decodeShortName } from "../../src/domain/branded.js";
-import { resolvePhaseInfo } from "../../src/app/resolveRunInfo.js";
 
 vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(() => ({ status: 0, error: undefined })),
@@ -15,7 +13,6 @@ vi.mock("../../src/app/loadConfig.js", () => ({
 }));
 
 const now = new Date().toISOString();
-const SHORT_NAME = Either.getOrThrow(decodeShortName("my-run"));
 
 async function buildFakeRunFolder(
   stateRoot: string,
@@ -26,7 +23,7 @@ async function buildFakeRunFolder(
     sessionId?: string;
     worktreePath?: string;
   }>,
-  runState = "rate_limited",
+  runState = "review_open",
 ): Promise<string> {
   const runPath = join(stateRoot, "runs", "my-run");
   await mkdir(runPath, { recursive: true });
@@ -76,6 +73,7 @@ async function writeAgentBindingFixture(
     adapter: string;
     sessionId: string | null;
     worktreePath: string;
+    phaseId?: string;
   },
 ): Promise<void> {
   await writeFile(
@@ -84,7 +82,7 @@ async function writeAgentBindingFixture(
       version: 1,
       shortName: "my-run",
       runId: "run-123",
-      phaseId: "phase-01",
+      phaseId: opts.phaseId ?? "phase-01",
       phaseIndex: 0,
       phaseName: "Test Phase",
       provider: opts.provider,
@@ -118,66 +116,11 @@ async function writeModelResolutionFixture(
   );
 }
 
-describe("resolvePhaseInfo", () => {
+describe("runEnter", () => {
   let stateRoot: string;
 
   beforeEach(async () => {
-    stateRoot = await mkdtemp(join(tmpdir(), "phax-enterphase-test-"));
-  });
-
-  afterEach(async () => {
-    await rm(stateRoot, { recursive: true, force: true });
-  });
-
-  it("returns the correct PhaseStatus for the requested phase", async () => {
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
-    await buildFakeRunFolder(stateRoot, [
-      {
-        id: "phase-01",
-        index: 0,
-        state: "rate_limited",
-        sessionId: "sess-abc",
-        worktreePath,
-      },
-      {
-        id: "phase-02",
-        index: 1,
-        state: "pending",
-      },
-    ]);
-
-    const result = resolvePhaseInfo(SHORT_NAME, "phase-01", stateRoot);
-    expect(Either.isRight(result)).toBe(true);
-    const info = Either.getOrThrow(result);
-    expect(info.phaseStatus.phaseId).toBe("phase-01");
-    expect(info.phaseStatus.state).toBe("rate_limited");
-    expect(info.phaseStatus.claudeSessionId).toBe("sess-abc");
-    expect(info.phaseStatus.worktreePath).toBe(worktreePath);
-    expect(info.runState).toBe("rate_limited");
-    expect(info.shortName).toBe("my-run");
-  });
-
-  it("returns Left when phaseId does not exist", async () => {
-    await buildFakeRunFolder(stateRoot, [{ id: "phase-01", index: 0, state: "committed" }]);
-
-    const result = resolvePhaseInfo(SHORT_NAME, "phase-99", stateRoot);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toContain("phase-99");
-    }
-  });
-
-  it("returns Left when run folder does not exist", async () => {
-    const result = resolvePhaseInfo(SHORT_NAME, "phase-01", stateRoot);
-    expect(Either.isLeft(result)).toBe(true);
-  });
-});
-
-describe("runEnterPhase", () => {
-  let stateRoot: string;
-
-  beforeEach(async () => {
-    stateRoot = await mkdtemp(join(tmpdir(), "phax-enterphase-test-"));
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-enter-test-"));
 
     const { loadConfig } = await import("../../src/app/loadConfig.js");
     vi.mocked(loadConfig).mockReturnValue(
@@ -216,34 +159,35 @@ describe("runEnterPhase", () => {
     const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
 
     const runPath = await buildFakeRunFolder(stateRoot, [
-      { id: "phase-01", index: 0, state: "rate_limited", sessionId: "sess-xyz", worktreePath },
+      { id: "phase-01", index: 0, state: "review_open", sessionId: "sess-enter", worktreePath },
     ]);
     const phaseDir = join(runPath, "phase-01");
     await writeAgentBindingFixture(phaseDir, {
       provider: "claude-code",
       adapter: "claude",
-      sessionId: "sess-xyz",
+      sessionId: "sess-enter",
       worktreePath,
+      phaseId: "phase-01",
     });
 
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
+    const { runEnter } = await import("../../src/cli/commands/enter.js");
     const logs: string[] = [];
     const out = { log: (m: string) => logs.push(m), error: (m: string) => logs.push(`ERR: ${m}`) };
 
-    const exitCode = await runEnterPhase("my-run", "phase-01", out);
+    const exitCode = await runEnter("my-run", out);
 
     expect(exitCode).toBe(0);
-    expect(spawnSync).toHaveBeenCalledWith("claude", ["--resume", "sess-xyz"], {
+    expect(spawnSync).toHaveBeenCalledWith("claude", ["--resume", "sess-enter"], {
       cwd: worktreePath,
       stdio: "inherit",
     });
   });
 
-  it("returns 1 with unsupported message for codex binding", async () => {
+  it("returns 1 with unsupported message for codex binding (AC-2: no Claude assumption)", async () => {
     const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
 
     const runPath = await buildFakeRunFolder(stateRoot, [
-      { id: "phase-01", index: 0, state: "rate_limited", worktreePath },
+      { id: "phase-01", index: 0, state: "review_open", worktreePath },
     ]);
     const phaseDir = join(runPath, "phase-01");
     await writeAgentBindingFixture(phaseDir, {
@@ -251,13 +195,14 @@ describe("runEnterPhase", () => {
       adapter: "codex",
       sessionId: "sess-codex",
       worktreePath,
+      phaseId: "phase-01",
     });
 
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
+    const { runEnter } = await import("../../src/cli/commands/enter.js");
     const errors: string[] = [];
     const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
 
-    const exitCode = await runEnterPhase("my-run", "phase-01", out);
+    const exitCode = await runEnter("my-run", out);
 
     expect(exitCode).toBe(1);
     expect(errors.some((e) => e.toLowerCase().includes("codex"))).toBe(true);
@@ -268,38 +213,38 @@ describe("runEnterPhase", () => {
     const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
 
     const runPath = await buildFakeRunFolder(stateRoot, [
-      { id: "phase-01", index: 0, state: "rate_limited", sessionId: "sess-legacy", worktreePath },
+      { id: "phase-01", index: 0, state: "review_open", sessionId: "sess-old", worktreePath },
     ]);
     const phaseDir = join(runPath, "phase-01");
     // No agent-binding.json — exercises legacy inference
     await writeModelResolutionFixture(phaseDir, "claude-code");
 
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
+    const { runEnter } = await import("../../src/cli/commands/enter.js");
     const logs: string[] = [];
     const out = { log: (m: string) => logs.push(m), error: (m: string) => logs.push(`ERR: ${m}`) };
 
-    const exitCode = await runEnterPhase("my-run", "phase-01", out);
+    const exitCode = await runEnter("my-run", out);
 
     expect(exitCode).toBe(0);
-    expect(spawnSync).toHaveBeenCalledWith("claude", ["--resume", "sess-legacy"], {
+    expect(spawnSync).toHaveBeenCalledWith("claude", ["--resume", "sess-old"], {
       cwd: worktreePath,
       stdio: "inherit",
     });
   });
 
-  it("returns 1 with FR-10 error when no binding and no model-resolution.json", async () => {
+  it("returns 1 with FR-10 error when no binding and no artifacts (AC-7)", async () => {
     const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
 
     await buildFakeRunFolder(stateRoot, [
-      { id: "phase-01", index: 0, state: "rate_limited", sessionId: "sess-xyz", worktreePath },
+      { id: "phase-01", index: 0, state: "review_open", sessionId: "sess-xyz", worktreePath },
     ]);
     // No agent-binding.json, no model-resolution.json
 
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
+    const { runEnter } = await import("../../src/cli/commands/enter.js");
     const errors: string[] = [];
     const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
 
-    const exitCode = await runEnterPhase("my-run", "phase-01", out);
+    const exitCode = await runEnter("my-run", out);
 
     expect(exitCode).toBe(1);
     expect(errors.some((e) => e.includes("before phase agent bindings were introduced"))).toBe(
@@ -307,16 +252,14 @@ describe("runEnterPhase", () => {
     );
   });
 
-  it("returns 1 with an error when phase does not exist", async () => {
-    await buildFakeRunFolder(stateRoot, [{ id: "phase-01", index: 0, state: "committed" }]);
-
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
+  it("returns 1 when run not found", async () => {
+    const { runEnter } = await import("../../src/cli/commands/enter.js");
     const errors: string[] = [];
     const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
 
-    const exitCode = await runEnterPhase("my-run", "phase-99", out);
+    const exitCode = await runEnter("no-such-run", out);
 
     expect(exitCode).toBe(1);
-    expect(errors.some((e) => e.includes("phase-99"))).toBe(true);
+    expect(errors.some((e) => e.includes("no-such-run"))).toBe(true);
   });
 });

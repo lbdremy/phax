@@ -4,7 +4,7 @@ import { setupInterruptHandlers } from "./interruptHandler.js";
 import { runValidate } from "./commands/validate.js";
 import { runUnlock } from "./commands/unlock.js";
 import { runExtractPlan } from "./commands/extractPlan.js";
-import { runEnter, runEnterLast } from "./commands/enter.js";
+import { runEnter } from "./commands/enter.js";
 import { runEnterPhase } from "./commands/enterPhase.js";
 import { runSessionInfo } from "./commands/sessionInfo.js";
 import { runShell, runShellLast } from "./commands/shell.js";
@@ -89,23 +89,15 @@ program
 
 program
   .command("enter <short-name>")
-  .description("Resume the final Claude session interactively")
+  .description("Resume the final phase's agent session interactively")
   .action(async (shortName: string) => {
     const exitCode = await runEnter(shortName, consoleOutput);
     process.exit(exitCode);
   });
 
 program
-  .command("enter-last")
-  .description("Resume the most recent review_open run's Claude session interactively")
-  .action(async () => {
-    const exitCode = await runEnterLast(consoleOutput);
-    process.exit(exitCode);
-  });
-
-program
   .command("enter-phase <short-name> <phase-id>")
-  .description("Resume a specific phase's Claude session interactively")
+  .description("Resume a specific phase's agent session interactively")
   .action(async (shortName: string, phaseId: string) => {
     const exitCode = await runEnterPhase(shortName, phaseId, consoleOutput);
     process.exit(exitCode);
