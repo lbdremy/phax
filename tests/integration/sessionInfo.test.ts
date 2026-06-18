@@ -255,6 +255,11 @@ describe("runSessionInfo", () => {
       lines.some((l) => l.includes("Lock source:") && l.includes("routing_at_phase_start")),
     ).toBe(true);
     expect(lines.some((l) => l.includes("Session ID:") && l.includes("codex-sess-xyz"))).toBe(true);
+    // codex has no interactive resume: the suggestion must NOT point at enter-phase,
+    // even though a session id is present.
+    expect(lines.some((l) => l.includes("Suggested enter:") && l.includes("enter-phase"))).toBe(
+      false,
+    );
   });
 
   it("shows mistral binding after routing config changes (AC-6 regression)", async () => {
@@ -301,8 +306,8 @@ describe("runSessionInfo", () => {
     expect(lines.every((l) => !l.includes("claude-code"))).toBe(true);
   });
 
-  it("shows unavailable hint for legacy phase without binding or resolution", async () => {
-    // A phase folder with no agent-binding.json and no model-resolution.json
+  it("shows a no-binding hint when agent-binding.json is absent", async () => {
+    // A phase folder with no agent-binding.json — no legacy inference.
     const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
     await buildFakeRunFolder(stateRoot, "review_open", [
       { id: "phase-01", index: 0, state: "review_open", worktreePath },
@@ -315,7 +320,9 @@ describe("runSessionInfo", () => {
     const exitCode = await runSessionInfo("my-run", out);
 
     expect(exitCode).toBe(0);
-    expect(lines.some((l) => l.includes("Provider:") && l.includes("unavailable"))).toBe(true);
+    expect(
+      lines.some((l) => l.includes("Provider:") && l.includes("no agent binding recorded")),
+    ).toBe(true);
     expect(lines.some((l) => l.includes("--debug"))).toBe(true);
   });
 

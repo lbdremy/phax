@@ -78,6 +78,30 @@ async function seedGatesExhaustedRun(opts: {
   }
   await writeFile(join(phaseFolder, "status.json"), JSON.stringify(phaseStatus, null, 2));
 
+  // A real gates_exhausted run always has an agent-binding.json (written at
+  // phase launch). Resume reads the locked binding and never re-routes, so seed
+  // it here. Tests that exercise a different provider overwrite this afterward.
+  const binding = {
+    version: 1,
+    shortName: "my-run",
+    runId: "my-run-2026-06-11",
+    phaseId: "phase-01",
+    phaseIndex: 0,
+    phaseName: "First Phase",
+    provider: "claude-code",
+    adapter: "claude",
+    model: "claude-sonnet-4-6",
+    effort: "low",
+    sessionId: opts.claudeSessionId ?? null,
+    sessionHandle: null,
+    worktreePath: opts.worktreePath,
+    cwd: opts.worktreePath,
+    launchedAt: now,
+    lockSource: "routing_at_phase_start",
+    status: "running",
+  };
+  await writeFile(join(phaseFolder, "agent-binding.json"), JSON.stringify(binding, null, 2));
+
   // Simulate that one gate attempt (and one fix) already ran before the
   // budget was exhausted. The resume path must continue numbering past these.
   await writeFile(join(phaseFolder, "checks-attempt-01.log"), "gate failed\n");

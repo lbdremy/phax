@@ -5,7 +5,6 @@ import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunByShortName } from "../../app/resolveRunInfo.js";
 import { readAgentBinding } from "../../app/agentBinding.js";
-import { inferLegacyBinding } from "../../app/inferLegacyBinding.js";
 import { getSessionAdapter, spawnInteractive } from "../../infra/sessionAdapters/index.js";
 
 export async function runEnter(shortNameArg: string, out: OutputPort): Promise<number> {
@@ -30,28 +29,13 @@ export async function runEnter(shortNameArg: string, out: OutputPort): Promise<n
 
   const info = infoResult.right;
   const phaseFolderPath = join(stateRoot, "runs", info.shortName, info.finalPhaseId);
-  const phaseName = info.finalPhaseTitle;
 
   const bindingResult = await readAgentBinding(phaseFolderPath);
-
-  let binding;
-  if (Either.isRight(bindingResult)) {
-    binding = bindingResult.right;
-  } else {
-    const inferResult = await inferLegacyBinding(phaseFolderPath, {
-      shortName: info.shortName,
-      runId: info.runId,
-      phaseName,
-    });
-    if (Either.isLeft(inferResult)) {
-      out.error(
-        `Cannot enter this phase because it was launched before phase agent bindings were introduced ` +
-          `and inference failed: ${inferResult.left}`,
-      );
-      return 1;
-    }
-    binding = inferResult.right;
+  if (Either.isLeft(bindingResult)) {
+    out.error(`No agent binding found for run "${info.shortName}": ${bindingResult.left}`);
+    return 1;
   }
+  const binding = bindingResult.right;
 
   const invocation = getSessionAdapter(binding.provider).buildResumeInvocation(binding);
   if ("unsupported" in invocation) {

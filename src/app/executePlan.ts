@@ -413,63 +413,36 @@ export function executePlan(
           worktreePath: worktreePath as string,
           config: config.security,
         });
-        const securityFilter: SecurityFilter = (provider) => {
-          if (securityMode !== "secure") return { allowed: true };
-          const evaluation = evaluateProviderSecurity(provider, securityPolicy);
-          return evaluation.satisfiesStrict
-            ? { allowed: true }
-            : {
-                allowed: false,
-                reason: evaluation.marks.length
-                  ? `cannot satisfy strict secure mode (${evaluation.marks.join(", ")})`
-                  : "cannot satisfy strict secure mode",
-              };
-        };
+        // A binding is always written at phase launch, so on resume it must be
+        // present. Use the locked provider/model/effort — never re-route. An
+        // absent binding means the run state is corrupt (or predates the
+        // feature, which is unsupported pre-public): fail loudly, don't reroute.
         const bindingEither = yield* Effect.promise(() => readAgentBinding(phaseFolderPath));
-        if (Either.isRight(bindingEither)) {
-          // Binding present: use locked provider/model/effort — never re-route.
-          const binding = bindingEither.right;
-          const resumeFrozenResult = computeFrozenAgentCommands({
-            configCommands: securityPolicy.agentCommands,
-            gateCommands,
-            requiredCommands: plan.run.requiredCommands,
-            provider: binding.provider,
-          });
-          agentOptions = {
-            provider: binding.provider,
-            model: binding.model,
-            effort: binding.effort,
-            cwd: worktreePath as string,
-            security: securityPolicy,
-            agentCommands: resumeFrozenResult.records.map((r) => r.command),
-            outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
-            phaseFolderPath,
-          };
-        } else {
-          // No binding (legacy run): fall back to router.
-          const resolution = resolveModel(
-            { model: phase.model, effort: phase.effort },
-            routing,
-            providerConfig,
-            securityFilter,
+        if (Either.isLeft(bindingEither)) {
+          return yield* Effect.fail(
+            new RegistryCorruptionError({
+              message: `Cannot resume phase "${phase.id}" of run "${shortName}": agent-binding.json is missing or unreadable (${bindingEither.left}).`,
+              registryPath: join(phaseFolderPath, "agent-binding.json"),
+            }),
           );
-          const resumeFrozenResult = computeFrozenAgentCommands({
-            configCommands: securityPolicy.agentCommands,
-            gateCommands,
-            requiredCommands: plan.run.requiredCommands,
-            provider: resolution.selected.provider,
-          });
-          agentOptions = {
-            provider: resolution.selected.provider,
-            model: resolution.selected.concreteModel,
-            effort: resolution.selected.thinking ?? phase.effort,
-            cwd: worktreePath as string,
-            security: securityPolicy,
-            agentCommands: resumeFrozenResult.records.map((r) => r.command),
-            outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
-            phaseFolderPath,
-          };
         }
+        const binding = bindingEither.right;
+        const resumeFrozenResult = computeFrozenAgentCommands({
+          configCommands: securityPolicy.agentCommands,
+          gateCommands,
+          requiredCommands: plan.run.requiredCommands,
+          provider: binding.provider,
+        });
+        agentOptions = {
+          provider: binding.provider,
+          model: binding.model,
+          effort: binding.effort,
+          cwd: worktreePath as string,
+          security: securityPolicy,
+          agentCommands: resumeFrozenResult.records.map((r) => r.command),
+          outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
+          phaseFolderPath,
+        };
       } else {
         // Each phase gets its own branch (<run.branch>--<phaseId>) so multiple
         // worktrees can coexist — git refuses to check out one branch in two

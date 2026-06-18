@@ -100,22 +100,6 @@ async function writeAgentBindingFixture(
   );
 }
 
-async function writeModelResolutionFixture(
-  phaseDir: string,
-  provider = "claude-code",
-): Promise<void> {
-  await writeFile(
-    join(phaseDir, "model-resolution.json"),
-    JSON.stringify({
-      selected: {
-        provider,
-        concreteModel: "claude-sonnet-4-6",
-        thinking: "low",
-      },
-    }),
-  );
-}
-
 describe("runEnter", () => {
   let stateRoot: string;
 
@@ -208,37 +192,13 @@ describe("runEnter", () => {
     expect(errors.some((e) => e.toLowerCase().includes("codex"))).toBe(true);
   });
 
-  it("infers legacy binding and dispatches claude when model-resolution.json present", async () => {
-    const { spawnSync } = await import("node:child_process");
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
-
-    const runPath = await buildFakeRunFolder(stateRoot, [
-      { id: "phase-01", index: 0, state: "review_open", sessionId: "sess-old", worktreePath },
-    ]);
-    const phaseDir = join(runPath, "phase-01");
-    // No agent-binding.json — exercises legacy inference
-    await writeModelResolutionFixture(phaseDir, "claude-code");
-
-    const { runEnter } = await import("../../src/cli/commands/enter.js");
-    const logs: string[] = [];
-    const out = { log: (m: string) => logs.push(m), error: (m: string) => logs.push(`ERR: ${m}`) };
-
-    const exitCode = await runEnter("my-run", out);
-
-    expect(exitCode).toBe(0);
-    expect(spawnSync).toHaveBeenCalledWith("claude", ["--resume", "sess-old"], {
-      cwd: worktreePath,
-      stdio: "inherit",
-    });
-  });
-
-  it("returns 1 with FR-10 error when no binding and no artifacts (AC-7)", async () => {
+  it("returns 1 with a no-binding error when agent-binding.json is absent", async () => {
     const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
 
     await buildFakeRunFolder(stateRoot, [
       { id: "phase-01", index: 0, state: "review_open", sessionId: "sess-xyz", worktreePath },
     ]);
-    // No agent-binding.json, no model-resolution.json
+    // No agent-binding.json — binding is required, no legacy inference.
 
     const { runEnter } = await import("../../src/cli/commands/enter.js");
     const errors: string[] = [];
@@ -247,9 +207,7 @@ describe("runEnter", () => {
     const exitCode = await runEnter("my-run", out);
 
     expect(exitCode).toBe(1);
-    expect(errors.some((e) => e.includes("before phase agent bindings were introduced"))).toBe(
-      true,
-    );
+    expect(errors.some((e) => e.includes("No agent binding found"))).toBe(true);
   });
 
   it("returns 1 when run not found", async () => {
