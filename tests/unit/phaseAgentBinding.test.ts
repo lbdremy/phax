@@ -22,7 +22,6 @@ const validBinding: PhaseAgentBinding = {
   worktreePath: "/home/user/.phax/worktrees/agent-binding/phase-01",
   cwd: "/home/user/.phax/worktrees/agent-binding/phase-01",
   launchedAt: "2026-06-18T00:00:00.000Z",
-  lockSource: "routing_at_phase_start",
   status: "running",
 };
 
@@ -53,11 +52,6 @@ describe("decodePhaseAgentBinding", () => {
 
   it("rejects an unknown adapter", () => {
     const binding = { ...validBinding, adapter: "openai" };
-    expect(Either.isLeft(decodePhaseAgentBinding(binding))).toBe(true);
-  });
-
-  it("rejects an unknown lockSource", () => {
-    const binding = { ...validBinding, lockSource: "auto_detected" };
     expect(Either.isLeft(decodePhaseAgentBinding(binding))).toBe(true);
   });
 

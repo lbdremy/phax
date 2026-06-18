@@ -97,7 +97,6 @@ async function seedGatesExhaustedRun(opts: {
     worktreePath: opts.worktreePath,
     cwd: opts.worktreePath,
     launchedAt: now,
-    lockSource: "routing_at_phase_start",
     status: "running",
   };
   await writeFile(join(phaseFolder, "agent-binding.json"), JSON.stringify(binding, null, 2));
@@ -308,7 +307,6 @@ describe("executePlan — happy-path 2-phase run", () => {
       expect(phase01Binding.right.model).toBe("claude-sonnet-4-6");
       expect(phase01Binding.right.sessionId).toBe("sess-01");
       expect(phase01Binding.right.status).toBe("completed");
-      expect(phase01Binding.right.lockSource).toBe("routing_at_phase_start");
       expect(phase01Binding.right.phaseId).toBe("phase-01");
     }
 
@@ -616,7 +614,6 @@ describe("executePlan — happy-path 2-phase run", () => {
       expect(binding.right.status).toBe("failed");
       expect(binding.right.sessionId).toBeNull();
       expect(binding.right.provider).toBe("claude-code");
-      expect(binding.right.lockSource).toBe("routing_at_phase_start");
     }
   });
 });
@@ -1131,7 +1128,6 @@ describe("executePlan — resume from gates_exhausted", () => {
       worktreePath,
       cwd: worktreePath,
       launchedAt: new Date().toISOString(),
-      lockSource: "routing_at_phase_start",
       status: "running",
     };
     await writeFile(join(phaseFolder, "agent-binding.json"), JSON.stringify(binding, null, 2));

@@ -12,12 +12,6 @@ const AdapterSchema = Schema.Union(
   Schema.Literal("mistral"),
 );
 
-const LockSourceSchema = Schema.Union(
-  Schema.Literal("routing_at_phase_start"),
-  Schema.Literal("manual_override"),
-  Schema.Literal("legacy_inferred"),
-);
-
 const BindingStatusSchema = Schema.Union(
   Schema.Literal("launching"),
   Schema.Literal("running"),
@@ -43,7 +37,6 @@ export const PhaseAgentBindingSchema = Schema.Struct({
   worktreePath: Schema.NonEmptyString,
   cwd: Schema.NonEmptyString,
   launchedAt: Schema.NonEmptyString,
-  lockSource: LockSourceSchema,
   status: BindingStatusSchema,
 });
 
