@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildArgs, gateCommandAllowRules } from "../../../src/infra/providers/claudeCode.js";
+import {
+  buildArgs,
+  buildCompletionArgs,
+  gateCommandAllowRules,
+} from "../../../src/infra/providers/claudeCode.js";
 import { SecurityEnforcementError } from "../../../src/domain/errors.js";
-import type { AgentRunOptions } from "../../../src/ports/backend.js";
+import type { AgentRunOptions, CompletionOptions } from "../../../src/ports/backend.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
 
 const unsafePolicy: SecurityPolicy = {
@@ -173,6 +177,67 @@ describe("gateCommandAllowRules", () => {
 
   it("returns an empty list for no commands", () => {
     expect(gateCommandAllowRules([])).toEqual([]);
+  });
+});
+
+const completionOptions: CompletionOptions = {
+  provider: "claude-code",
+  model: "claude-sonnet-4-6",
+  effort: "high",
+  cwd: "/tmp/phax-extract-abc123",
+};
+
+describe("buildCompletionArgs — sealed completion", () => {
+  it("emits --permission-mode default (not bypassPermissions, not acceptEdits)", () => {
+    const args = buildCompletionArgs(completionOptions);
+    expect(args).not.toContain("bypassPermissions");
+    expect(args).not.toContain("acceptEdits");
+    const idx = args.indexOf("--permission-mode");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe("default");
+  });
+
+  it("emits an empty --allowedTools (nothing explicitly permitted)", () => {
+    const args = buildCompletionArgs(completionOptions);
+    const idx = args.indexOf("--allowedTools");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe("");
+  });
+
+  it("emits --disallowed-tools Bash,WebFetch,WebSearch", () => {
+    const args = buildCompletionArgs(completionOptions);
+    const idx = args.indexOf("--disallowed-tools");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe("Bash,WebFetch,WebSearch");
+  });
+
+  it("emits --strict-mcp-config with no --mcp-config", () => {
+    const args = buildCompletionArgs(completionOptions);
+    expect(args).toContain("--strict-mcp-config");
+    expect(args).not.toContain("--mcp-config");
+  });
+
+  it("does not emit --add-dir", () => {
+    const args = buildCompletionArgs(completionOptions);
+    expect(args).not.toContain("--add-dir");
+  });
+
+  it("emits --model and --effort from options", () => {
+    const args = buildCompletionArgs(completionOptions);
+    const modelIdx = args.indexOf("--model");
+    expect(modelIdx).toBeGreaterThanOrEqual(0);
+    expect(args[modelIdx + 1]).toBe("claude-sonnet-4-6");
+    const effortIdx = args.indexOf("--effort");
+    expect(effortIdx).toBeGreaterThanOrEqual(0);
+    expect(args[effortIdx + 1]).toBe("high");
+  });
+
+  it("includes --print --output-format stream-json --verbose", () => {
+    const args = buildCompletionArgs(completionOptions);
+    expect(args).toContain("--print");
+    expect(args).toContain("--output-format");
+    expect(args[args.indexOf("--output-format") + 1]).toBe("stream-json");
+    expect(args).toContain("--verbose");
   });
 });
 
