@@ -3,7 +3,12 @@ import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { AgentRunOptions, AgentRunResult } from "../../ports/backend.js";
+import type {
+  AgentRunOptions,
+  AgentRunResult,
+  CompletionOptions,
+  CompletionResult,
+} from "../../ports/backend.js";
 import { FsError } from "../../ports/fs.js";
 import {
   AgentInvocationError,
@@ -214,6 +219,74 @@ function rateLimitErrorFor(classification: {
   return classification.kind === "usage_limit"
     ? new UsageLimitError({ message: "Codex stopped: usage limit reached.", ...fields })
     : new RateLimitError({ message: "Codex stopped: rate limit hit.", ...fields });
+}
+
+export function buildCodexCompletionArgs(
+  entry: CodexProviderEntry,
+  options: CompletionOptions,
+): string[] {
+  const model = entry.families?.["openai-gpt"]?.model ?? options.model;
+  return [
+    "exec",
+    "-C",
+    options.cwd,
+    "--json",
+    "--skip-git-repo-check",
+    "-c",
+    `sandbox_mode="read-only"`,
+    "-c",
+    `approval_policy="never"`,
+    "-c",
+    `sandbox_workspace_write.network_access=false`,
+    "-m",
+    model,
+    "-c",
+    `model_reasoning_effort="${mapReasoningEffort(options.effort)}"`,
+  ];
+}
+
+export function runCodexCompletion(
+  prompt: string,
+  options: CompletionOptions,
+  entry: CodexProviderEntry,
+): Effect.Effect<
+  CompletionResult,
+  AgentInvocationError | RateLimitError | UsageLimitError | FsError
+> {
+  const args = buildCodexCompletionArgs(entry, options);
+  const argv = [entry.executable, ...args];
+
+  return Effect.gen(function* () {
+    const { lines, exitCode, stderr } = yield* Effect.tryPromise({
+      try: () => spawnCodex(entry, args, prompt, undefined, options.cwd),
+      catch: (err): AgentInvocationError =>
+        new AgentInvocationError({
+          message: err instanceof Error ? err.message : String(err),
+          argv,
+        }),
+    });
+
+    if (exitCode !== 0 || hasCodexErroredResultEvent(lines)) {
+      const classification = classifyRateLimit(stderr, lines);
+      if (classification !== undefined) {
+        return yield* Effect.fail(rateLimitErrorFor(classification));
+      }
+    }
+
+    if (exitCode !== 0) {
+      return yield* Effect.fail(
+        new AgentInvocationError({
+          message: `codex exited with code ${exitCode}`,
+          exitCode,
+          ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
+          argv,
+        }),
+      );
+    }
+
+    const found = findCodexResultEvent(lines);
+    return { finalText: found?.finalText ?? "" };
+  });
 }
 
 export function runCodexAgent(
