@@ -1,9 +1,8 @@
 {
-  "$schema": "https://phax.dev/schema/phax.schema.json",
+  "$schema": "./phax.schema.json",
   "version": 1,
   "project": { "name": "phax", "type": "single-package" },
   "state": { "root": "~/.phax" },
-  "editor": { "command": "zed" },
   "agent": {
     "maxFixAttempts": 1
   },
@@ -11,7 +10,7 @@
     "filesystem": {
       "allowWrite": ["~/.phax"]
     },
-    "agentCommands": ["deno", "ctx7"]
+    "agentCommands": ["deno", "ctx7", "usage"]
   },
   "publish": {
     "enabled": true,

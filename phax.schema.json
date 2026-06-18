@@ -1,0 +1,303 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    },
+    "Int": {
+      "type": "integer",
+      "description": "an integer",
+      "title": "int"
+    }
+  },
+  "type": "object",
+  "required": [
+    "version",
+    "project",
+    "state",
+    "gateProfiles"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "number",
+      "enum": [
+        1
+      ]
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "single-package",
+            "monorepo"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "state": {
+      "type": "object",
+      "required": [
+        "root"
+      ],
+      "properties": {
+        "root": {
+          "$ref": "#/$defs/NonEmptyString"
+        }
+      },
+      "additionalProperties": false
+    },
+    "agent": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "maxFixAttempts": {
+          "$ref": "#/$defs/Int",
+          "description": "a number between 1 and 10",
+          "title": "between(1, 10)",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "extractPlan": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "model": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "effort": {
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "commands": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "setup": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "cleanup": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "fileReconciliation": {
+      "type": "object",
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "report_only",
+            "warn"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "security": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "profile": {
+          "type": "string",
+          "enum": [
+            "secure",
+            "unsafe",
+            "isolated"
+          ]
+        },
+        "filesystem": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "allowRead": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            },
+            "allowWrite": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "network": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "profile": {
+              "type": "string",
+              "enum": [
+                "provider-only",
+                "dev-allowlist",
+                "open"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "mcp": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "disabled",
+                "local-only",
+                "allowlist",
+                "provider-default"
+              ]
+            },
+            "allow": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "agentCommands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "publish": {
+      "type": "object",
+      "required": [
+        "enabled"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "remote": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "provider": {
+          "type": "string",
+          "enum": [
+            "github"
+          ]
+        },
+        "pushBranch": {
+          "type": "boolean"
+        },
+        "createPullRequest": {
+          "type": "boolean"
+        },
+        "baseBranch": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "title": {
+          "$ref": "#/$defs/NonEmptyString"
+        }
+      },
+      "additionalProperties": false
+    },
+    "gateProfiles": {
+      "type": "object",
+      "required": [],
+      "properties": {},
+      "patternProperties": {
+        "": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        }
+      },
+      "propertyNames": {
+        "$ref": "#/$defs/NonEmptyString"
+      }
+    },
+    "workspaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "path"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "name": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "path": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "gateProfiles": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "patternProperties": {
+              "": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/$defs/NonEmptyString"
+                }
+              }
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
