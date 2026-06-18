@@ -15,6 +15,7 @@ import {
 } from "../domain/errors.js";
 import type { RunId, ShortName, WorktreePath } from "../domain/branded.js";
 import { resolveRunByShortName } from "./resolveRunInfo.js";
+import { patchAgentBindingStatus } from "./agentBinding.js";
 import { setRunStatus } from "./registry.js";
 import { dispatch } from "./dispatcher.js";
 
@@ -78,6 +79,15 @@ export function archive(
             }),
           );
         }
+      }
+    }
+
+    // Patch each phase binding to 'archived' before the folder is moved.
+    // No-op when a phase has no binding (patchAgentBindingStatus catches internally).
+    if (Either.isRight(infoResult)) {
+      for (const phaseStatus of infoResult.right.phaseStatuses) {
+        const phaseFolderPath = join(runPath, phaseStatus.phaseId);
+        yield* Effect.promise(() => patchAgentBindingStatus(phaseFolderPath, "archived"));
       }
     }
 

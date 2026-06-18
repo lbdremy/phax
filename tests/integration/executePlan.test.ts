@@ -307,7 +307,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       expect(phase01Binding.right.adapter).toBe("claude");
       expect(phase01Binding.right.model).toBe("claude-sonnet-4-6");
       expect(phase01Binding.right.sessionId).toBe("sess-01");
-      expect(phase01Binding.right.status).toBe("running");
+      expect(phase01Binding.right.status).toBe("completed");
       expect(phase01Binding.right.lockSource).toBe("routing_at_phase_start");
       expect(phase01Binding.right.phaseId).toBe("phase-01");
     }
@@ -316,7 +316,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     expect(Either.isRight(phase02Binding)).toBe(true);
     if (Either.isRight(phase02Binding)) {
       expect(phase02Binding.right.sessionId).toBe("sess-02");
-      expect(phase02Binding.right.status).toBe("running");
+      expect(phase02Binding.right.status).toBe("awaiting_manual_review");
       expect(phase02Binding.right.phaseId).toBe("phase-02");
     }
 
@@ -530,14 +530,14 @@ describe("executePlan — happy-path 2-phase run", () => {
     const p1Binding = await readAgentBinding(join(runPath, "phase-01"));
     expect(Either.isRight(p1Binding)).toBe(true);
     if (Either.isRight(p1Binding)) {
-      expect(p1Binding.right.status).toBe("running");
+      expect(p1Binding.right.status).toBe("completed");
       expect(p1Binding.right.sessionId).toBe("sess-p1");
     }
 
     const p2Binding = await readAgentBinding(join(runPath, "phase-02"));
     expect(Either.isRight(p2Binding)).toBe(true);
     if (Either.isRight(p2Binding)) {
-      expect(p2Binding.right.status).toBe("running");
+      expect(p2Binding.right.status).toBe("awaiting_manual_review");
       expect(p2Binding.right.sessionId).toBe("sess-p2");
     }
   });
@@ -607,15 +607,195 @@ describe("executePlan — happy-path 2-phase run", () => {
     // Run must fail because the backend has no responses.
     expect(Either.isLeft(result)).toBe(true);
 
-    // agent-binding.json must exist with status "launching" and sessionId null —
-    // proving it was written before the agent invocation.
+    // agent-binding.json must exist with sessionId null — proving it was written
+    // before the agent invocation. Status is 'failed' because tapError patches it
+    // after the agent invocation fails.
     const binding = await readAgentBinding(join(runPath, "phase-01"));
     expect(Either.isRight(binding)).toBe(true);
     if (Either.isRight(binding)) {
-      expect(binding.right.status).toBe("launching");
+      expect(binding.right.status).toBe("failed");
       expect(binding.right.sessionId).toBeNull();
       expect(binding.right.provider).toBe("claude-code");
       expect(binding.right.lockSource).toBe("routing_at_phase_start");
+    }
+  });
+});
+
+function makeStatusTestConfig(root: string): ResolvedConfig {
+  return {
+    raw: {
+      version: 1,
+      project: { name: "test-project", type: "single-package" },
+      state: { root },
+      gateProfiles: { full: ["true"] },
+      commands: { setup: ["true"], cleanup: ["true"] },
+    },
+    stateRoot: root,
+    repoRoot: root,
+    maxFixAttempts: 1,
+    extractPlanModel: "claude-haiku-4-5-20251001",
+    extractPlanEffort: "low" as const,
+    fileReconciliationMode: "report_only" as const,
+    security: {
+      profile: "unsafe",
+      filesystem: { allowRead: [], allowWrite: [] },
+      network: { profile: "provider-only", allowDomains: [] },
+      mcp: { mode: "disabled", allow: [] },
+      agentCommands: [],
+    },
+  };
+}
+
+describe("executePlan — binding status lifecycle", () => {
+  let stateRoot: string;
+
+  const singlePhaseRawPlanStatus = {
+    version: 1,
+    run: {
+      shortName: "my-run",
+      title: "My Run",
+      branch: "ai/my-run",
+      requiredCommands: [],
+    },
+    phases: [
+      {
+        id: "phase-01",
+        title: "First Phase",
+        model: "claude-sonnet-4-6",
+        effort: "low" as const,
+        planMarkdownAnchor: "#phase-01-first",
+        plannedFilesToCreate: [],
+        plannedFilesToEdit: [],
+        optionalFilesToEdit: [],
+        commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
+      },
+    ],
+  } as const;
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-status-test-"));
+    const worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await mkdir(join(worktree, ".phax-context"), { recursive: true });
+    await writeFile(join(worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+  });
+
+  it("sets binding status to awaiting_manual_review for the single (final) phase on success", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlanStatus));
+    const config = makeStatusTestConfig(stateRoot);
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
+
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "deadbeef12345678\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-01-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+
+    const binding = await readAgentBinding(join(runPath, "phase-01"));
+    expect(Either.isRight(binding)).toBe(true);
+    if (Either.isRight(binding)) {
+      expect(binding.right.status).toBe("awaiting_manual_review");
+      expect(binding.right.sessionId).toBe("sess-01");
+    }
+  });
+
+  it("sets binding status to failed when the agent invocation fails", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlanStatus));
+    const config = makeStatusTestConfig(stateRoot);
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    // No responses queued: the first runAgent call will fail with AgentInvocationError.
+    const fakeBackend = makeFakeBackend();
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+
+    const binding = await readAgentBinding(join(runPath, "phase-01"));
+    expect(Either.isRight(binding)).toBe(true);
+    if (Either.isRight(binding)) {
+      expect(binding.right.status).toBe("failed");
     }
   });
 });
