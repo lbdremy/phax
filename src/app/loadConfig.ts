@@ -81,6 +81,12 @@ function validateUniqueWorkspaceIds(
   return undefined;
 }
 
+export function locatePhaxConfig(cwd: string): string | undefined {
+  const gitRoot = findGitRoot(cwd);
+  if (!gitRoot) return undefined;
+  return findPhaxConfig(cwd, gitRoot);
+}
+
 export type LoadConfigError = ConfigValidationError;
 
 export function loadConfig(

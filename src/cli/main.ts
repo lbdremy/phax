@@ -23,6 +23,7 @@ import { registerAgentCommand } from "./commands/agent.js";
 import { registerSecurityCommand } from "./commands/security.js";
 import { registerSkillsCommand } from "./commands/skills.js";
 import { runInit } from "./commands/init.js";
+import { registerSchemaCommand } from "./commands/schema.js";
 
 setupInterruptHandlers();
 
@@ -273,6 +274,7 @@ registerResetPhaseCommand(program, runResetPhase, consoleOutput, globalTraceOpts
 registerAgentCommand(program, consoleOutput);
 registerSecurityCommand(program, consoleOutput, globalTraceOpts);
 registerSkillsCommand(program, consoleOutput);
+registerSchemaCommand(program, consoleOutput);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   consoleOutput.error(`Unexpected error: ${String(err)}`);

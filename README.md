@@ -107,6 +107,16 @@ Validate it before running:
 phax validate --config phax.json --plan phax-plan.json
 ```
 
+## Schema upgrade
+
+After upgrading phax, regenerate `phax.schema.json` to match the new binary's config contract:
+
+```bash
+phax schema upgrade
+```
+
+This rewrites `phax.schema.json` next to the nearest `phax.json` and reports whether the file changed or was already current. It never modifies `phax.json`.
+
 ## Write a plan
 
 Author `plan.md` with the [`phax-planning`](.claude/skills/phax-planning/SKILL.md) skill — it is the source of truth for the plan format that `phax extract-plan` consumes. The skill defines the per-phase template contract (heading + `{#phase-NN-<slug>}` anchor, recommended model/effort, the three planned-file lists, gate-profile verification, commit subject/body) and the planning doctrine (plan outside-in, implement inside-out, verify outside-in). Point your agent at that skill when drafting or reviewing a plan; don't hand-roll the format.
