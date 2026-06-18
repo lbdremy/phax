@@ -29,7 +29,7 @@ import {
 } from "../domain/errors.js";
 import type { PhaxEvent, PhaxEventBase } from "../domain/events.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
-import { FileSystem, type FsError } from "../ports/fs.js";
+import { FileSystem, FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { GitHub } from "../ports/github.js";
 import { Shell, type ShellError } from "../ports/shell.js";
@@ -74,6 +74,8 @@ import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRunByShortName } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
 import { createPhaseWorktree, preparePhaseBranch, prepareRunBranch } from "./worktree.js";
+import { writeAgentBinding, patchAgentBindingSession } from "./agentBinding.js";
+import { providerToAdapter } from "../domain/providerAdapter.js";
 
 function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
   return e instanceof RateLimitError || e instanceof UsageLimitError;
@@ -631,6 +633,34 @@ export function executePlan(
           }),
         );
 
+        yield* Effect.tryPromise({
+          try: () =>
+            writeAgentBinding(phaseFolderPath, {
+              version: 1,
+              shortName: shortName as string,
+              runId: runId as string,
+              phaseId: phase.id,
+              phaseIndex: i,
+              phaseName: phase.title,
+              provider: resolution.selected.provider,
+              adapter: providerToAdapter(resolution.selected.provider),
+              model: resolution.selected.concreteModel,
+              effort: resolution.selected.thinking ?? phase.effort,
+              sessionId: null,
+              sessionHandle: null,
+              worktreePath: worktreePath as string,
+              cwd: worktreePath as string,
+              launchedAt: new Date().toISOString(),
+              lockSource: "routing_at_phase_start",
+              status: "launching",
+            }),
+          catch: (err) =>
+            new FsError({
+              message: `Failed to write agent-binding.json: ${err instanceof Error ? err.message : String(err)}`,
+              cause: err,
+            }),
+        });
+
         agentOptions = {
           provider: resolution.selected.provider,
           model: resolution.selected.concreteModel,
@@ -672,6 +702,15 @@ export function executePlan(
         );
         sessionId = agentResult.sessionId;
         currentSessionId = sessionId as string;
+        // Patch the binding with the captured session id. The real providers also
+        // patch via persistSessionId; this call covers the fake-backend test path
+        // and acts as belt-and-suspenders for production.
+        yield* Effect.promise(() =>
+          patchAgentBindingSession(phaseFolderPath, {
+            sessionId: sessionId as string,
+            status: "running",
+          }),
+        );
         yield* telemetry.recordEvent(
           makeAdapterCallSucceededTelemetryEvent({
             runId,

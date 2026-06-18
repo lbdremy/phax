@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
+import { readAgentBinding } from "../../src/app/agentBinding.js";
 import { decodeShortName } from "../../src/domain/branded.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import {
@@ -274,6 +275,27 @@ describe("executePlan — happy-path 2-phase run", () => {
     const entry = registry.runs.find((r) => r.shortName === "my-run");
     expect(entry?.state).toBe("review_open");
 
+    // agent-binding.json must exist in each phase folder with correct locked provider/model.
+    const phase01Binding = await readAgentBinding(join(runPath, "phase-01"));
+    expect(Either.isRight(phase01Binding)).toBe(true);
+    if (Either.isRight(phase01Binding)) {
+      expect(phase01Binding.right.provider).toBe("claude-code");
+      expect(phase01Binding.right.adapter).toBe("claude");
+      expect(phase01Binding.right.model).toBe("claude-sonnet-4-6");
+      expect(phase01Binding.right.sessionId).toBe("sess-01");
+      expect(phase01Binding.right.status).toBe("running");
+      expect(phase01Binding.right.lockSource).toBe("routing_at_phase_start");
+      expect(phase01Binding.right.phaseId).toBe("phase-01");
+    }
+
+    const phase02Binding = await readAgentBinding(join(runPath, "phase-02"));
+    expect(Either.isRight(phase02Binding)).toBe(true);
+    if (Either.isRight(phase02Binding)) {
+      expect(phase02Binding.right.sessionId).toBe("sess-02");
+      expect(phase02Binding.right.status).toBe("running");
+      expect(phase02Binding.right.phaseId).toBe("phase-02");
+    }
+
     // Cleanup must not remove intermediate-phase worktrees — they persist until archive.
     await expect(access(phase01WorktreePath)).resolves.toBeUndefined();
     await expect(access(phase02WorktreePath)).resolves.toBeUndefined();
@@ -378,6 +400,83 @@ describe("executePlan — happy-path 2-phase run", () => {
       expect(result.right.committedPhases).toEqual(["phase-01", "phase-02"]);
       expect(result.right.finalPhaseId).toBe("phase-02");
       expect(result.right.finalWorktreePath).toBe(phase02WorktreePath);
+    }
+  });
+
+  it("writes agent-binding.json with status launching before agent runs (pre-agent write guarantee)", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+
+    const config: ResolvedConfig = {
+      raw: {
+        version: 1,
+        project: { name: "test-project", type: "single-package" },
+        state: { root: stateRoot },
+        gateProfiles: { full: ["true"] },
+        commands: { setup: ["true"], cleanup: ["true"] },
+      },
+      stateRoot,
+      repoRoot: stateRoot,
+      maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
+      fileReconciliationMode: "report_only" as const,
+      security: {
+        profile: "unsafe",
+        filesystem: { allowRead: [], allowWrite: [] },
+        network: { profile: "provider-only", allowDomains: [] },
+        mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
+      },
+    };
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+
+    // No responses queued: the first runAgent call will fail with AgentInvocationError.
+    const fakeBackend = makeFakeBackend();
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    // Run must fail because the backend has no responses.
+    expect(Either.isLeft(result)).toBe(true);
+
+    // agent-binding.json must exist with status "launching" and sessionId null —
+    // proving it was written before the agent invocation.
+    const binding = await readAgentBinding(join(runPath, "phase-01"));
+    expect(Either.isRight(binding)).toBe(true);
+    if (Either.isRight(binding)) {
+      expect(binding.right.status).toBe("launching");
+      expect(binding.right.sessionId).toBeNull();
+      expect(binding.right.provider).toBe("claude-code");
+      expect(binding.right.lockSource).toBe("routing_at_phase_start");
     }
   });
 });
