@@ -14,47 +14,32 @@
     }
   },
   "type": "object",
-  "required": [
-    "version",
-    "project",
-    "state",
-    "gateProfiles"
-  ],
+  "required": ["version", "project", "state", "gateProfiles"],
   "properties": {
     "$schema": {
       "type": "string"
     },
     "version": {
       "type": "number",
-      "enum": [
-        1
-      ]
+      "enum": [1]
     },
     "project": {
       "type": "object",
-      "required": [
-        "name",
-        "type"
-      ],
+      "required": ["name", "type"],
       "properties": {
         "name": {
           "$ref": "#/$defs/NonEmptyString"
         },
         "type": {
           "type": "string",
-          "enum": [
-            "single-package",
-            "monorepo"
-          ]
+          "enum": ["single-package", "monorepo"]
         }
       },
       "additionalProperties": false
     },
     "state": {
       "type": "object",
-      "required": [
-        "root"
-      ],
+      "required": ["root"],
       "properties": {
         "root": {
           "$ref": "#/$defs/NonEmptyString"
@@ -82,11 +67,7 @@
             },
             "effort": {
               "type": "string",
-              "enum": [
-                "low",
-                "medium",
-                "high"
-              ]
+              "enum": ["low", "medium", "high"]
             }
           },
           "additionalProperties": false
@@ -117,16 +98,11 @@
     },
     "fileReconciliation": {
       "type": "object",
-      "required": [
-        "mode"
-      ],
+      "required": ["mode"],
       "properties": {
         "mode": {
           "type": "string",
-          "enum": [
-            "report_only",
-            "warn"
-          ]
+          "enum": ["report_only", "warn"]
         }
       },
       "additionalProperties": false
@@ -137,11 +113,7 @@
       "properties": {
         "profile": {
           "type": "string",
-          "enum": [
-            "secure",
-            "unsafe",
-            "isolated"
-          ]
+          "enum": ["secure", "unsafe", "isolated"]
         },
         "filesystem": {
           "type": "object",
@@ -168,11 +140,7 @@
           "properties": {
             "profile": {
               "type": "string",
-              "enum": [
-                "provider-only",
-                "dev-allowlist",
-                "open"
-              ]
+              "enum": ["provider-only", "dev-allowlist", "open"]
             }
           },
           "additionalProperties": false
@@ -183,12 +151,7 @@
           "properties": {
             "mode": {
               "type": "string",
-              "enum": [
-                "disabled",
-                "local-only",
-                "allowlist",
-                "provider-default"
-              ]
+              "enum": ["disabled", "local-only", "allowlist", "provider-default"]
             },
             "allow": {
               "type": "array",
@@ -210,9 +173,7 @@
     },
     "publish": {
       "type": "object",
-      "required": [
-        "enabled"
-      ],
+      "required": ["enabled"],
       "properties": {
         "enabled": {
           "type": "boolean"
@@ -222,9 +183,7 @@
         },
         "provider": {
           "type": "string",
-          "enum": [
-            "github"
-          ]
+          "enum": ["github"]
         },
         "pushBranch": {
           "type": "boolean"
@@ -262,11 +221,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "id",
-          "name",
-          "path"
-        ],
+        "required": ["id", "name", "path"],
         "properties": {
           "id": {
             "$ref": "#/$defs/NonEmptyString"
