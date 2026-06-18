@@ -181,6 +181,128 @@ describe("architectural guard: provider spawn boundary", () => {
   });
 });
 
+// ── Infra → app import direction ─────────────────────────────────────────────
+// src/infra/**/*.ts must not import from src/app/ — that inverts the
+// dependency arrow (app → ports ← infra).
+
+// Known violation introduced in the agent-binding run (plan 11). Remove this
+// entry once plan 15 phase-02 moves the import out of sessionWriter.
+const INFRA_APP_ALLOWLIST: ReadonlySet<string> = new Set(["src/infra/providers/sessionWriter.ts"]);
+
+const INFRA_APP_IMPORT = /from\s+["'][^"']*\/app\//;
+
+describe("architectural guard: infra must not import from app", () => {
+  const infraRoot = join(srcRoot, "infra");
+
+  it("src/infra/**/*.ts does not import from src/app/ (except documented allowlist)", () => {
+    const violations: string[] = [];
+
+    for (const absPath of listTsFiles(infraRoot)) {
+      const rel = relative(repoRoot, absPath).split("\\").join("/");
+      if (INFRA_APP_ALLOWLIST.has(rel)) continue;
+
+      const content = readFileSync(absPath, "utf8");
+      if (INFRA_APP_IMPORT.test(content)) {
+        violations.push(rel);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("infra→app allowlist entries are kept honest by still actually importing from app/", () => {
+    for (const rel of INFRA_APP_ALLOWLIST) {
+      const content = readFileSync(join(repoRoot, rel), "utf8");
+      expect(
+        INFRA_APP_IMPORT.test(content),
+        `${rel} no longer imports from app/ — remove it from INFRA_APP_ALLOWLIST`,
+      ).toBe(true);
+    }
+  });
+});
+
+// ── CLI → infra import direction ──────────────────────────────────────────────
+// src/cli/**/*.ts may only import layer-composition symbols from src/infra/
+// (identifiers containing "Layer", e.g. NodeFileSystemLayer) or type-only
+// imports. Importing infra behaviour (getSessionAdapter, spawnInteractive, …)
+// bypasses the port abstraction and is forbidden.
+
+// Known violations introduced in the agent-binding run (plan 11). Remove each
+// entry once plan 15 phase-01 moves the dispatch logic into src/domain/session/.
+const CLI_INFRA_LOGIC_ALLOWLIST: ReadonlySet<string> = new Set([
+  "src/cli/commands/enter.ts",
+  "src/cli/commands/enterPhase.ts",
+  "src/cli/commands/sessionInfo.ts",
+]);
+
+// Matches a complete import statement that pulls from an infra path.
+// Group 1: optional "type " keyword (type-only whole import)
+// Group 2: the brace-enclosed binding list
+// Group 3: the module specifier
+const CLI_INFRA_IMPORT_RE =
+  /import\s+(type\s+)?\{([^}]*)\}\s+from\s+["']([^"']*\/infra\/[^"']*)["']/g;
+
+function hasNonLayerBinding(bindingList: string): boolean {
+  return bindingList
+    .split(",")
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .some((binding) => {
+      // inline type keyword: `import { type Foo }` — always fine
+      if (binding.startsWith("type ")) return false;
+      // binding alias: `Foo as bar` — check the exported name (Foo)
+      const exported = binding.split(/\s+as\s+/)[0].trim();
+      return !exported.includes("Layer");
+    });
+}
+
+describe("architectural guard: cli may import only layer composition from infra", () => {
+  const cliRoot = join(srcRoot, "cli");
+
+  it(
+    "src/cli/**/*.ts imports from src/infra/ only layer symbols or type imports " +
+      "(except documented allowlist)",
+    () => {
+      const violations: string[] = [];
+
+      for (const absPath of listTsFiles(cliRoot)) {
+        const rel = relative(repoRoot, absPath).split("\\").join("/");
+        if (CLI_INFRA_LOGIC_ALLOWLIST.has(rel)) continue;
+
+        const content = readFileSync(absPath, "utf8");
+        CLI_INFRA_IMPORT_RE.lastIndex = 0;
+
+        let match: RegExpExecArray | null;
+        while ((match = CLI_INFRA_IMPORT_RE.exec(content)) !== null) {
+          const isTypeOnlyImport = Boolean(match[1]);
+          if (isTypeOnlyImport) continue;
+
+          const bindingList = match[2];
+          if (hasNonLayerBinding(bindingList)) {
+            violations.push(`${rel}: ${match[0].trim()}`);
+          }
+        }
+      }
+
+      expect(violations).toEqual([]);
+    },
+  );
+
+  it(
+    "cli→infra logic allowlist entries are kept honest by still importing from " +
+      "src/infra/sessionAdapters/",
+    () => {
+      for (const rel of CLI_INFRA_LOGIC_ALLOWLIST) {
+        const content = readFileSync(join(repoRoot, rel), "utf8");
+        expect(
+          /from\s+["'][^"']*\/infra\/sessionAdapters\//.test(content),
+          `${rel} no longer imports from infra/sessionAdapters/ — remove it from CLI_INFRA_LOGIC_ALLOWLIST`,
+        ).toBe(true);
+      }
+    },
+  );
+});
+
 describe("architectural guard: single status writer", () => {
   it("only the dispatcher, runner, and documented metadata writers encode status JSON", () => {
     const violations: string[] = [];
