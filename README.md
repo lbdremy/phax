@@ -69,7 +69,16 @@ Most setups want `claude` installed even when routing prefers another provider, 
 
 ## Configure
 
-Add a `phax.json` at your repo root:
+Run `phax init` to create a minimal `phax.json` and a local `phax.schema.json` in the current directory:
+
+```bash
+phax init           # create phax.json + phax.schema.json
+phax init --force   # overwrite an existing phax.json
+```
+
+`phax.schema.json` is a JSON Schema generated from the installed binary's config contract — wire it up as `"$schema": "./phax.schema.json"` for editor validation. After upgrading phax, run `phax schema upgrade` to regenerate it (see [Schema upgrade](#schema-upgrade)).
+
+Or add a `phax.json` manually at your repo root:
 
 ```json
 {

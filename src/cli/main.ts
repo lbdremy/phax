@@ -22,6 +22,7 @@ import { registerResetPhaseCommand } from "./commands/resetPhaseRegister.js";
 import { registerAgentCommand } from "./commands/agent.js";
 import { registerSecurityCommand } from "./commands/security.js";
 import { registerSkillsCommand } from "./commands/skills.js";
+import { runInit } from "./commands/init.js";
 
 setupInterruptHandlers();
 
@@ -255,6 +256,15 @@ program
   .description("Push the final branch and create (or reuse) a GitHub PR for a review_open run")
   .action(async (shortName: string) => {
     const exitCode = await runPublishPr(shortName, globalTraceOpts(), consoleOutput);
+    process.exit(exitCode);
+  });
+
+program
+  .command("init")
+  .description("Create phax.json and phax.schema.json in the current directory")
+  .option("--force", "Overwrite an existing phax.json")
+  .action((opts: { force?: boolean }) => {
+    const exitCode = runInit(opts, consoleOutput);
     process.exit(exitCode);
   });
 
