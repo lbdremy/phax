@@ -2,6 +2,20 @@
 
 ## Status
 
+**Implemented** — all phases (01–06) are complete as of the `phax/deno-runtime-2` branch.
+
+### Acceptance criteria status
+
+| # | Criterion | Status |
+|---|-----------|--------|
+| 1–9 | Core CLI, Deno build/compile, FS/network/env/subprocess posture | ✅ Implemented |
+| 10 | Validate configured commands before execution | ✅ Satisfied by Deno's permission denial — no bespoke validator needed |
+| 11 | Record launched commands in logs/traces | ✅ Satisfied by existing run telemetry |
+| 12 | Do not imply Deno permissions sandbox provider CLIs | ✅ Documented in README and this spec |
+| 13–17 | GitHub Releases, npm wrapper, CI/release workflows, checksums, version match | ✅ Implemented |
+| 18–19 | `phax run/resume --start-after` | ❌ Out of scope — not implemented |
+| 20 | README documents `caffeinate -ims` | ✅ Documented |
+
 This document specifies the updated Deno runtime direction for PHAX.
 
 It replaces the earlier Deno runtime spec.
