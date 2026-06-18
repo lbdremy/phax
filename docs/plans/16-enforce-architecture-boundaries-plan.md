@@ -148,7 +148,7 @@ checks so they must be cleared when plan 15 removes them.
 
 ---
 
-## phase-02 — Guard "all I/O goes through a port" {#phase-02-io-through-ports-guard}
+## phase-02 — Guard the all-I/O-through-a-port rule {#phase-02-io-through-ports-guard}
 
 **Recommended model:** claude-sonnet-4-6
 **Recommended effort:** low
