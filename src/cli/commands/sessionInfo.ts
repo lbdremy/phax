@@ -6,7 +6,7 @@ import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunByShortName, findCurrentPhase } from "../../app/resolveRunInfo.js";
 import { readAgentBinding } from "../../app/agentBinding.js";
-import { inferLegacyBinding } from "../../app/inferLegacyBinding.js";
+import { getSessionAdapter } from "../../infra/sessionAdapters/index.js";
 import { canResume } from "../../app/resume.js";
 import { composePhaxState } from "../../app/phaxState.js";
 import type { RunStatus } from "../../schemas/status.js";
@@ -53,27 +53,16 @@ export async function runSessionInfo(
   const bindingResult = await readAgentBinding(phaseFolderPath);
 
   let binding: PhaseAgentBinding | undefined;
-  let bindingSource: "locked" | "inferred" | "unavailable" = "unavailable";
-
   if (Either.isRight(bindingResult)) {
     binding = bindingResult.right;
-    bindingSource = "locked";
-  } else {
-    const inferResult = await inferLegacyBinding(phaseFolderPath, {
-      shortName: info.shortName,
-      runId: info.runId,
-      phaseName,
-    });
-    if (Either.isRight(inferResult)) {
-      binding = inferResult.right;
-      bindingSource = "inferred";
-    }
   }
 
+  let resumeSupported = false;
   if (binding) {
-    out.log(
-      `Provider:         ${binding.provider}${bindingSource === "inferred" ? " (inferred)" : ""}`,
-    );
+    const invocation = getSessionAdapter(binding.provider).buildResumeInvocation(binding);
+    resumeSupported = !("unsupported" in invocation);
+
+    out.log(`Provider:         ${binding.provider}`);
     out.log(`Adapter:          ${binding.adapter}`);
     out.log(`Model:            ${binding.model}`);
     out.log(`Effort:           ${binding.effort}`);
@@ -83,21 +72,20 @@ export async function runSessionInfo(
     out.log(`Launched:         ${binding.launchedAt}`);
     out.log(`Lock source:      ${binding.lockSource}`);
     out.log(`Binding status:   ${binding.status}`);
+    if (!resumeSupported && "unsupported" in invocation) {
+      out.log(`Resume:           ${invocation.unsupported}`);
+    }
   } else {
-    const legacyWorktree = currentPhase?.worktreePath ?? (info.worktreePath || "(none)");
-    const legacySession = currentPhase?.claudeSessionId ?? info.claudeSessionId ?? "(none)";
     out.log(
-      `Provider:         (unavailable — run \`phax session-info ${info.shortName} --debug\` for available metadata)`,
+      `Provider:         (no agent binding recorded — run \`phax session-info ${info.shortName} --debug\` for raw metadata)`,
     );
-    out.log(`Worktree:         ${legacyWorktree}`);
-    out.log(`Session ID:       ${legacySession}`);
   }
 
   out.log(
     `Suggested enter:  ${
-      binding?.sessionId
+      resumeSupported
         ? `phax enter-phase ${info.shortName} ${finalPhaseId}`
-        : "(no session available)"
+        : "(interactive resume not available for this provider/session)"
     }`,
   );
 
