@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { join } from "node:path";
+import { type KeepAwakePlatform, type NextStep, buildWhatsNext } from "../domain/whatsNext.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 
 export interface ResumeInstructionsInput {
@@ -20,10 +21,36 @@ export interface ResumeInstructionsInput {
   readonly sessionId?: string | undefined;
   /** The raw limit message from Claude Code, for context. */
   readonly rawMessage?: string | undefined;
+  /** Current wall time — injected so the builder stays pure/testable. */
+  readonly now: Date;
+  /** Host platform — injected so the builder stays pure/testable. */
+  readonly platform: KeepAwakePlatform;
+}
+
+function stepsToMarkdown(steps: readonly NextStep[]): string[] {
+  const lines: string[] = [];
+  for (const step of steps) {
+    lines.push(`## ${step.title}`, "");
+    if (step.detail) {
+      for (const d of step.detail) {
+        lines.push(d);
+      }
+      lines.push("");
+    }
+    if (step.command !== undefined) {
+      lines.push("```bash", step.command, "```", "");
+    }
+  }
+  return lines;
 }
 
 function buildGateExhaustionInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
+  const wn = buildWhatsNext(
+    { kind: "gates_exhausted", shortName: input.shortName, phaseId: input.phaseId },
+    input.now,
+  );
+
   const lines: string[] = [
     `# Resume Instructions: ${input.shortName}`,
     "",
@@ -38,35 +65,24 @@ function buildGateExhaustionInstructions(input: ResumeInstructionsInput): string
     `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
     `- **Claude session:** ${input.sessionId ?? "(not captured)"}`,
     "",
-    "## Fix the gate manually",
-    "",
-    "Navigate to the worktree and fix whatever caused the gate to fail:",
-    "",
-    "```bash",
-    `cd ${input.worktreePath ?? "<worktree-path>"}`,
-    "# fix the failing gate, then:",
-    "```",
-    "",
-    "## Resume the run",
-    "",
-    "```bash",
-    `phax resume ${input.shortName} --yes`,
-    "```",
-    "",
-    "## If the Claude session was lost",
-    "",
-    "If the session ID is missing or the session context is gone, use:",
-    "",
-    "```bash",
-    `phax reset-phase ${input.shortName} ${phaseId}`,
-    "```",
-    "",
+    ...stepsToMarkdown(wn.steps),
   ];
   return lines.join("\n");
 }
 
 function buildRateLimitInstructions(input: ResumeInstructionsInput): string {
   const phaseId = input.phaseId ?? "(unknown)";
+  const wn = buildWhatsNext(
+    {
+      kind: "limit",
+      shortName: input.shortName,
+      resetAt: input.resetAt,
+      phaseId: input.phaseId,
+      platform: input.platform,
+    },
+    input.now,
+  );
+
   const lines: string[] = [
     `# Resume Instructions: ${input.shortName}`,
     "",
@@ -81,18 +97,7 @@ function buildRateLimitInstructions(input: ResumeInstructionsInput): string {
     `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
     `- **Claude session:** ${input.sessionId ?? "(not captured)"}`,
     "",
-    "## Resume the run",
-    "",
-    "```bash",
-    `phax resume ${input.shortName} --yes`,
-    "```",
-    "",
-    "## Enter the phase session interactively",
-    "",
-    "```bash",
-    `phax enter-phase ${input.shortName} ${phaseId}`,
-    "```",
-    "",
+    ...stepsToMarkdown(wn.steps),
   ];
 
   if (input.rawMessage !== undefined && input.rawMessage.trim().length > 0) {
