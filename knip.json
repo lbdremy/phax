@@ -16,5 +16,5 @@
     "@opentelemetry/semantic-conventions"
   ],
   "ignoreFiles": ["tests/e2e/fixtures/**"],
-  "ignoreBinaries": ["claude", "gh"]
+  "ignoreBinaries": ["claude", "gh", "usage"]
 }
