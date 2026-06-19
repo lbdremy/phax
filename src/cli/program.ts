@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { consoleOutput } from "../ports/output.js";
+import { handleUsageFlag, readPackageVersion } from "./commands/usage.js";
 import { runValidate } from "./commands/validate.js";
 import { runUnlock } from "./commands/unlock.js";
 import { runExtractPlan } from "./commands/extractPlan.js";
@@ -30,9 +31,23 @@ export function buildProgram(): Command {
   program
     .name("phax")
     .description("Drive Claude Code through isolated, gated phases")
-    .version("0.1.0")
+    .version(readPackageVersion())
     .option("--verbose", "Print human-readable progress and system events")
-    .option("--trace", "Write structured JSONL trace events to the run folder");
+    .option("--trace", "Write structured JSONL trace events to the run folder")
+    .option("--usage", "Print the phax.usage.kdl CLI spec and exit")
+    .option(
+      "--usage-format <format>",
+      "Format for --usage output: kdl (default, no external dependency) or json (requires the usage CLI)",
+      "kdl",
+    );
+
+  program.hook("preAction", () => {
+    const opts = program.opts<{ usage?: boolean; usageFormat?: string }>();
+    if (opts.usage === true) {
+      handleUsageFlag(opts.usageFormat ?? "kdl");
+      process.exit(0);
+    }
+  });
 
   function globalTraceOpts(): { verbose?: boolean; trace?: boolean } {
     const g = program.opts<{ verbose?: boolean; trace?: boolean }>();
