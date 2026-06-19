@@ -67,7 +67,6 @@ export function buildSystemTelemetryLayer(
     output: out,
     verbose: opts.verbose === true,
     ...(opts.trace === true ? { tracePath } : {}),
-    otelEnabled: process.env["PHAX_OTEL"] === "1",
     runId,
   };
   return makeSystemTelemetryLayer(input).pipe(Layer.provide(NodeFileSystemLayer));
