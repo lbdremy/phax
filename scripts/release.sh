@@ -29,8 +29,12 @@ echo "bumping to ${VERSION}"
 npm pkg set version="${VERSION}"
 (cd npm && npm pkg set version="${VERSION}")
 
+echo "regenerating usage spec and CLI docs"
+pnpm gen:usage-spec
+pnpm docs:cli
+
 echo "committing"
-git add package.json npm/package.json
+git add package.json npm/package.json phax.usage.kdl docs/cli/reference.md README.md
 git commit -m "chore: release v${VERSION}"
 
 echo "tagging"

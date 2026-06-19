@@ -356,8 +356,9 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax run [FLAGS] [short-name]` — Extract a plan from plan.md and run all phases, or preview with --dry-run
 - `phax review-handoff [--allow-partial] <short-name>` — Regenerate review-handoff.md and global file reconciliation for a review_open run
 - `phax publish-pr <short-name>` — Push the final branch and create (or reuse) a GitHub PR for a review_open run
-- `phax report [--no-gist] [short-name]` — Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)
 - `phax init [--force]` — Create phax.json and phax.schema.json in the current directory
+- `phax report [--no-gist] [short-name]` — Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)
+- `phax completions <shell>` — Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.
 - `phax resume [FLAGS] <short-name>` — Resume a run from its next pending phase
 - `phax reset-phase [FLAGS] <short-name> [phase-id]` — Reset a stuck or failed phase so phax resume re-runs it from scratch
 - `phax agent <SUBCOMMAND>` — Inspect and manage model routing and provider configuration
@@ -373,6 +374,5 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax skills install <--target <target>> [--scope <scope>]` — Install the phax-planning skill into an agent's native skill directory
 - `phax schema <SUBCOMMAND>` — Manage the local phax.schema.json
 - `phax schema upgrade` — Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json
-- `phax completions <shell>` — Emits a completion script for the requested shell to stdout. Redirect the output
 
 <!-- END GENERATED CLI REFERENCE -->

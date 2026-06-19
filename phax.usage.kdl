@@ -6,7 +6,7 @@
 
 name "phax"
 bin "phax"
-version "0.1.2"
+version "0.1.3"
 license "Apache-2.0"
 min_usage_version "1.0.0"
 
@@ -17,6 +17,16 @@ flag "--verbose" {
 flag "--trace" {
     global #true
     help "Write structured JSONL trace events to the run folder"
+}
+flag "--usage" {
+    global #true
+    help "Print the phax.usage.kdl CLI spec and exit"
+}
+flag "--usage-format" {
+    global #true
+    arg "<format>"
+    default "kdl"
+    help "Format for --usage output: kdl (default, no external dependency) or json (requires the usage CLI)"
 }
 
 cmd "validate" {
@@ -172,6 +182,13 @@ cmd "publish-pr" {
     arg "<short-name>"
 }
 
+cmd "init" {
+    help "Create phax.json and phax.schema.json in the current directory"
+    flag "--force" {
+        help "Overwrite an existing phax.json"
+    }
+}
+
 cmd "report" {
     help "Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)"
     arg "[short-name]"
@@ -180,11 +197,9 @@ cmd "report" {
     }
 }
 
-cmd "init" {
-    help "Create phax.json and phax.schema.json in the current directory"
-    flag "--force" {
-        help "Overwrite an existing phax.json"
-    }
+cmd "completions" {
+    help "Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI."
+    arg "<shell>"
 }
 
 cmd "resume" {
@@ -319,22 +334,5 @@ cmd "schema" {
 
     cmd "upgrade" {
         help "Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json"
-    }
-}
-
-cmd "completions" {
-    help "Generate a shell completion script from the phax.usage.kdl spec. Requires the usage CLI."
-    long_help "Emits a completion script for the requested shell to stdout. Redirect the output\nto your shell's completions directory. The external `usage` CLI is required;\ninstall it with: brew install jdx/tap/usage\n\nSupported shells: zsh, bash, fish, nu, powershell."
-    arg "<shell>" {
-        help "Shell to generate completions for (zsh, bash, fish, nu, powershell)"
-    }
-    example "phax completions zsh > ~/.zsh/completions/_phax" {
-        help "Generate and install zsh completions"
-    }
-    example "phax completions bash > /usr/local/etc/bash_completion.d/phax" {
-        help "Generate and install bash completions"
-    }
-    example "phax completions fish > ~/.config/fish/completions/phax.fish" {
-        help "Generate and install fish completions"
     }
 }
