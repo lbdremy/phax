@@ -70,6 +70,7 @@ export class GateAttemptsExhaustedError extends Data.TaggedError("GateAttemptsEx
   exitCode: number;
   logPath: string;
   attempt: number;
+  phaseId: string;
 }> {}
 
 export class FixAttemptFailedError extends Data.TaggedError("FixAttemptFailedError")<{

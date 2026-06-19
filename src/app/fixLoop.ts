@@ -244,6 +244,7 @@ export function runGatesWithFixLoop(
             exitCode: error.exitCode,
             logPath: error.logPath,
             attempt,
+            phaseId: phaseId as string,
           }),
         );
       }
