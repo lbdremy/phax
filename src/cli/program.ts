@@ -24,6 +24,7 @@ import { registerSecurityCommand } from "./commands/security.js";
 import { registerSkillsCommand } from "./commands/skills.js";
 import { runInit } from "./commands/init.js";
 import { registerSchemaCommand } from "./commands/schema.js";
+import { runCompletions } from "./commands/completions.js";
 
 export function buildProgram(): Command {
   const program = new Command();
@@ -242,6 +243,15 @@ export function buildProgram(): Command {
     .action((opts: { force?: boolean }) => {
       const exitCode = runInit(opts, consoleOutput);
       process.exit(exitCode);
+    });
+
+  program
+    .command("completions <shell>")
+    .description(
+      "Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.",
+    )
+    .action((shell: string) => {
+      runCompletions(shell);
     });
 
   registerResumeCommand(program, runResume, consoleOutput, globalTraceOpts);
