@@ -12,20 +12,22 @@ selection is handled by the model-routing layer; Claude Code is the default and 
 
 ## Commands
 
-Use the package scripts — don't reach for raw tool invocations.
+This repo uses **pnpm** (see the `packageManager` field in `package.json`); CI and the
+phax gate profiles both invoke `pnpm`. Don't use `npm`/`yarn` or commit a
+`package-lock.json`. Use the package scripts — don't reach for raw tool invocations.
 
-- `npm run check:full` — the real pre-merge gate (typecheck + unit + integration + type
+- `pnpm check:full` — the real pre-merge gate (typecheck + unit + integration + type
   tests + lint + format check + architecture audit + knip). Run this before considering
   work done.
-- `npm run dev` — run the CLI from source (`tsx src/cli/main.ts`).
-- `npm run build` — compile to `dist/`.
-- `npm run test:unit` / `test:integration` / `test:e2e:real` — test tiers (e2e hits real
+- `pnpm dev` — run the CLI from source (`tsx src/cli/main.ts`).
+- `pnpm build` — compile to `dist/`.
+- `pnpm test:unit` / `test:integration` / `test:e2e:real` — test tiers (e2e hits real
   provider CLIs; run deliberately).
-- `npm run test:type` — type-level tests (`tsconfig.test.json`).
-- `npm run audit:architecture` — enforces the layer boundaries below as a test.
-- `npm run lint` / `lint:fix` — **oxlint** (not eslint).
-- `npm run format` / `format:check` — **oxfmt** (not prettier).
-- `npm run knip` — dead-code / unused-dependency check.
+- `pnpm test:type` — type-level tests (`tsconfig.test.json`).
+- `pnpm audit:architecture` — enforces the layer boundaries below as a test.
+- `pnpm lint` / `lint:fix` — **oxlint** (not eslint).
+- `pnpm format` / `format:check` — **oxfmt** (not prettier).
+- `pnpm knip` — dead-code / unused-dependency check.
 
 ## Architecture
 

@@ -1,7 +1,8 @@
 {
   "name": "phax",
   "version": "0.1.2",
-  "description": "Deterministic local CLI that drives Claude Code through isolated, gated phases",
+  "packageManager": "pnpm@10.15.1",
+  "description": "Deterministic local CLI that drives AI Coding agent through isolated, gated phases",
   "bin": {
     "phax": "./dist/cli/main.js"
   },
