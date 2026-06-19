@@ -25,6 +25,7 @@ import { registerSkillsCommand } from "./commands/skills.js";
 import { runInit } from "./commands/init.js";
 import { registerSchemaCommand } from "./commands/schema.js";
 import { runCompletions } from "./commands/completions.js";
+import { runReport } from "./commands/report.js";
 
 export function buildProgram(): Command {
   const program = new Command();
@@ -249,6 +250,17 @@ export function buildProgram(): Command {
     .option("--force", "Overwrite an existing phax.json")
     .action((opts: { force?: boolean }) => {
       const exitCode = runInit(opts, consoleOutput);
+      process.exit(exitCode);
+    });
+
+  program
+    .command("report [short-name]")
+    .description(
+      "Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)",
+    )
+    .option("--no-gist", "Inline the full log in the issue body instead of creating a secret gist")
+    .action(async (shortName: string | undefined, opts: { noGist?: boolean }) => {
+      const exitCode = await runReport(shortName, opts, consoleOutput);
       process.exit(exitCode);
     });
 
