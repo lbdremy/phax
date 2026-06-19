@@ -25,6 +25,8 @@ import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../schemas/phaxPlan.js";
 import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
+import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
+import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 
 export interface RunCommandOptions {
   shortName?: string;
@@ -117,6 +119,13 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   }
   const config = configResult.right;
 
+  const telemetryConfigResult = loadTelemetryConfig();
+  if (Either.isLeft(telemetryConfigResult)) {
+    reportConfigError(telemetryConfigResult.left, out);
+    return 2;
+  }
+  const telemetryEnabled = telemetryConfigResult.right.enabled;
+
   // Resolve effective security mode: CLI flag overrides config
   const effectiveSecurityMode = resolveSecurityMode(opts.security, config.security.profile);
   if (effectiveSecurityMode === null) {
@@ -170,12 +179,14 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   // We don't yet know the shortName (it comes out of extraction), so use a
   // placeholder telemetry layer for the extract step, then rebuild under the
   // real run folder for execute.
-  const extractTelemetryLayer = buildSystemTelemetryLayer(
-    opts,
-    join(config.stateRoot, "extract-semantic.jsonl"),
-    out,
-    "extract-plan" as unknown as import("../../domain/branded.js").RunId,
-  );
+  const extractTelemetryLayer = telemetryEnabled
+    ? buildSystemTelemetryLayer(
+        opts,
+        join(config.stateRoot, "extract-semantic.jsonl"),
+        out,
+        "extract-plan" as unknown as import("../../domain/branded.js").RunId,
+      )
+    : NoopSystemTelemetryLayer;
 
   const extracted = await Effect.runPromise(
     Effect.either(
@@ -256,12 +267,14 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
 
   const runFolder = join(config.stateRoot, "runs", shortName);
   const semanticJsonlPath = join(runFolder, "semantic.jsonl");
-  const telemetryLayer = buildSystemTelemetryLayer(
-    opts,
-    semanticJsonlPath,
-    out,
-    shortName as unknown as import("../../domain/branded.js").RunId,
-  );
+  const telemetryLayer = telemetryEnabled
+    ? buildSystemTelemetryLayer(
+        opts,
+        semanticJsonlPath,
+        out,
+        shortName as unknown as import("../../domain/branded.js").RunId,
+      )
+    : NoopSystemTelemetryLayer;
 
   setRunInterruptContext(shortName, config.stateRoot);
   try {

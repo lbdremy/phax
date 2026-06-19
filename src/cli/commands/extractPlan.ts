@@ -8,6 +8,8 @@ import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { buildSystemTelemetryLayer } from "./runLayers.js";
+import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
+import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 
 export interface ExtractPlanCliOptions {
   planMd: string;
@@ -36,12 +38,21 @@ export async function runExtractPlan(
   const model = opts.model ?? config.extractPlanModel;
   const effort = opts.effort ?? config.extractPlanEffort;
 
-  const telemetryLayer = buildSystemTelemetryLayer(
-    opts,
-    join(dirname(outPath), "semantic.jsonl"),
-    out,
-    "extract-plan" as unknown as import("../../domain/branded.js").RunId,
-  );
+  const telemetryConfigResult = loadTelemetryConfig();
+  if (Either.isLeft(telemetryConfigResult)) {
+    out.error(`Config error: ${telemetryConfigResult.left.message}`);
+    return 1;
+  }
+  const telemetryEnabled = telemetryConfigResult.right.enabled;
+
+  const telemetryLayer = telemetryEnabled
+    ? buildSystemTelemetryLayer(
+        opts,
+        join(dirname(outPath), "semantic.jsonl"),
+        out,
+        "extract-plan" as unknown as import("../../domain/branded.js").RunId,
+      )
+    : NoopSystemTelemetryLayer;
 
   const effect = extractPlan({
     planMdPath,
