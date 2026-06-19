@@ -3,7 +3,13 @@ import { join } from "node:path";
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeRunId, decodeShortName } from "../../domain/branded.js";
-import { PhaseHadNoChangesError, RateLimitError, UsageLimitError } from "../../domain/errors.js";
+import {
+  GateAttemptsExhaustedError,
+  PhaseHadNoChangesError,
+  RateLimitError,
+  UsageLimitError,
+} from "../../domain/errors.js";
+import { buildWhatsNext, renderWhatsNext } from "../../domain/whatsNext.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { loadPlan } from "../../app/loadPlan.js";
 import { inspectResume } from "../../app/resume.js";
@@ -20,7 +26,12 @@ import type { NonEmptyArray } from "../../domain/routing/priorityOverride.js";
 import type { ProviderId } from "../../domain/routing/types.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
-import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
+import {
+  buildSystemTelemetryLayer,
+  exitCodeForError,
+  provideRunLayers,
+  toKeepAwakePlatform,
+} from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
@@ -74,6 +85,7 @@ export async function runResume(
     const refusal = decisionResult.left;
     if (refusal.reason === "review_open") {
       out.warn(refusal.message);
+      out.warn(renderWhatsNext(buildWhatsNext({ kind: "review_open", shortName }, new Date())));
       return 0;
     }
     out.error(refusal.message);
@@ -202,25 +214,54 @@ export async function runResume(
       const err = result.left;
       if (err instanceof RateLimitError || err instanceof UsageLimitError) {
         out.warn(`Run "${shortName}" paused again: ${err.message}`);
-        out.log(
-          `See ${join(runPath, "resume-instructions.md")} — resume with \`phax resume ${shortName} --yes\` once the limit clears.`,
+        out.warn(
+          renderWhatsNext(
+            buildWhatsNext(
+              {
+                kind: "limit",
+                shortName,
+                resetAt: err.resetAt,
+                phaseId: err.phaseId,
+                platform: toKeepAwakePlatform(process.platform),
+              },
+              new Date(),
+            ),
+          ),
         );
+        out.warn(`See ${join(runPath, "resume-instructions.md")} for details.`);
+        return exitCodeForError(err);
+      }
+      if (err instanceof GateAttemptsExhaustedError) {
+        out.warn(`Run "${shortName}" gates exhausted: ${err.message}`);
+        out.warn(
+          renderWhatsNext(
+            buildWhatsNext(
+              { kind: "gates_exhausted", shortName, phaseId: err.phaseId },
+              new Date(),
+            ),
+          ),
+        );
+        out.warn(`See ${join(runPath, "resume-instructions.md")} for details.`);
         return exitCodeForError(err);
       }
       if (err instanceof PhaseHadNoChangesError) {
         out.warn(`Run "${shortName}" paused: phase ${err.phaseId} produced no changes.`);
-        out.log(
-          `See ${join(runPath, "resume-instructions.md")} — resume with \`phax resume ${shortName} --yes\` to continue with the next phase.`,
+        out.warn(
+          renderWhatsNext(
+            buildWhatsNext(
+              { kind: "phase_no_changes", shortName, phaseId: err.phaseId },
+              new Date(),
+            ),
+          ),
         );
+        out.warn(`See ${join(runPath, "resume-instructions.md")} for details.`);
         return exitCodeForError(err);
       }
       out.error(`phax resume failed: ${err instanceof Error ? err.message : String(err)}`);
       return exitCodeForError(err);
     }
 
-    out.log(
-      `Run "${shortName}" reached review_open. Use \`phax enter ${shortName}\` or \`phax archive ${shortName}\` when done.`,
-    );
+    out.warn(renderWhatsNext(buildWhatsNext({ kind: "review_open", shortName }, new Date())));
     return 0;
   } finally {
     clearRunInterruptContext();
