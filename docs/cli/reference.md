@@ -471,3 +471,33 @@ Manage the local phax.schema.json
 - **Usage**: `phax schema upgrade`
 
 Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json
+
+## `phax completions`
+
+- **Usage**: `phax completions <shell>`
+
+Emits a completion script for the requested shell to stdout. Redirect the output
+to your shell's completions directory. The external `usage` CLI is required;
+install it with: brew install jdx/tap/usage
+
+Supported shells: zsh, bash, fish, nu, powershell.
+
+### Arguments
+
+#### `<shell>`
+
+Shell to generate completions for (zsh, bash, fish, nu, powershell)
+
+### Examples
+
+```
+phax completions zsh > ~/.zsh/completions/_phax
+```
+
+```
+phax completions bash > /usr/local/etc/bash_completion.d/phax
+```
+
+```
+phax completions fish > ~/.config/fish/completions/phax.fish
+```

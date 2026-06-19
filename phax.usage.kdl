@@ -313,3 +313,20 @@ cmd "schema" {
         help "Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json"
     }
 }
+
+cmd "completions" {
+    help "Generate a shell completion script from the phax.usage.kdl spec. Requires the usage CLI."
+    long_help "Emits a completion script for the requested shell to stdout. Redirect the output\nto your shell's completions directory. The external `usage` CLI is required;\ninstall it with: brew install jdx/tap/usage\n\nSupported shells: zsh, bash, fish, nu, powershell."
+    arg "<shell>" {
+        help "Shell to generate completions for (zsh, bash, fish, nu, powershell)"
+    }
+    example "phax completions zsh > ~/.zsh/completions/_phax" {
+        help "Generate and install zsh completions"
+    }
+    example "phax completions bash > /usr/local/etc/bash_completion.d/phax" {
+        help "Generate and install bash completions"
+    }
+    example "phax completions fish > ~/.config/fish/completions/phax.fish" {
+        help "Generate and install fish completions"
+    }
+}

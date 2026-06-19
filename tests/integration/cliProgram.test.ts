@@ -23,6 +23,7 @@ const TOP_LEVEL_COMMANDS = [
   "security",
   "skills",
   "schema",
+  "completions",
 ] as const;
 
 describe("buildProgram", () => {

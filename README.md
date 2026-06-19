@@ -372,5 +372,6 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax skills install <--target <target>> [--scope <scope>]` — Install the phax-planning skill into an agent's native skill directory
 - `phax schema <SUBCOMMAND>` — Manage the local phax.schema.json
 - `phax schema upgrade` — Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json
+- `phax completions <shell>` — Emits a completion script for the requested shell to stdout. Redirect the output
 
 <!-- END GENERATED CLI REFERENCE -->
