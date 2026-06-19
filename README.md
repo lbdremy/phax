@@ -335,3 +335,42 @@ See [`docs/state-machine.md`](docs/state-machine.md) for:
 ## Security notes
 
 `phax` never interpolates user-controlled data (branch names, workspace paths, plan fields) into shell command strings. All git and shell invocations pass arguments as separate `argv` tokens. Gate commands from `phax.json` are treated as opaque pre-validated arrays, not shell strings.
+
+## CLI command reference
+
+<!-- BEGIN GENERATED CLI REFERENCE -->
+
+Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
+
+- `phax validate [--config <path>] [--plan <path>]` — Validate phax.json and phax-plan.json without any side effects
+- `phax unlock [--force] <short-name>` — Remove a stale run lock; use --force to remove any lock
+- `phax extract-plan <FLAGS>` — Extract phax-plan.json from a plan.md by calling Claude Code headlessly
+- `phax enter <short-name>` — Resume the final phase's agent session interactively
+- `phax enter-phase <short-name> <phase-id>` — Resume a specific phase's agent session interactively
+- `phax session-info [--debug] <short-name>` — Print session diagnostics for a run (state, phase, worktree, session id)
+- `phax shell <short-name>` — Open a shell in the final worktree
+- `phax path <short-name>` — Print the final worktree path (script-friendly, one line)
+- `phax open <short-name>` — Open the final worktree in the configured editor
+- `phax ls [FLAGS]` — List runs from the registry
+- `phax archive [--force] <short-name>` — Archive a completed or review_open run
+- `phax run [FLAGS] [short-name]` — Extract a plan from plan.md and run all phases, or preview with --dry-run
+- `phax review-handoff [--allow-partial] <short-name>` — Regenerate review-handoff.md and global file reconciliation for a review_open run
+- `phax publish-pr <short-name>` — Push the final branch and create (or reuse) a GitHub PR for a review_open run
+- `phax init [--force]` — Create phax.json and phax.schema.json in the current directory
+- `phax resume [FLAGS] <short-name>` — Resume a run from its next pending phase
+- `phax reset-phase [FLAGS] <short-name> [phase-id]` — Reset a stuck or failed phase so phax resume re-runs it from scratch
+- `phax agent <SUBCOMMAND>` — Inspect and manage model routing and provider configuration
+- `phax agent models` — Print the routing table and provider priority
+- `phax agent resolve <FLAGS>` — Show how a model+effort request resolves to a provider and concrete model
+- `phax agent probe` — Check which provider executables are available on PATH; never throws on an unavailable provider
+- `phax agent setup <SUBCOMMAND>` — Set up provider integrations
+- `phax agent setup mistral-vibe [--dry-run] [--install-model-aliases]` — Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml (append-only, atomic)
+- `phax agent setup providers [FLAGS]` — Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)
+- `phax security [--verbose] [--trace] <SUBCOMMAND>` — Security-related commands
+- `phax security status [--verbose] [--trace]` — Show provider security capabilities and availability
+- `phax skills <SUBCOMMAND>` — Manage PHAX skills
+- `phax skills install <--target <target>> [--scope <scope>]` — Install the phax-planning skill into an agent's native skill directory
+- `phax schema <SUBCOMMAND>` — Manage the local phax.schema.json
+- `phax schema upgrade` — Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json
+
+<!-- END GENERATED CLI REFERENCE -->
