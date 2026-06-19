@@ -33,6 +33,13 @@ export function buildProgram(): Command {
     .name("phax")
     .description("Drive Claude Code through isolated, gated phases")
     .version(readPackageVersion())
+    .showSuggestionAfterError(true)
+    .configureOutput({
+      outputError(str, write) {
+        write(str);
+        write("Run `phax --help` for usage.\n");
+      },
+    })
     .option("--verbose", "Print human-readable progress and system events")
     .option("--trace", "Write structured JSONL trace events to the run folder")
     .option("--usage", "Print the phax.usage.kdl CLI spec and exit")
