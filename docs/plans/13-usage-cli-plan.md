@@ -22,10 +22,11 @@ question and carries more risk than a hand-authored spec gated by a parity test.
   This dependency is documented explicitly.
 - **Command surface:** the canonical list is the **live Commander tree** of the
   current codebase (see Phase 01 inventory), not the spec's illustrative minimum.
-  `phax init` is **out of scope** here — no `init` command exists yet; it is
-  introduced by `docs/specs/10-init-command.md`. When that lands, its author adds
-  the `init` command to `phax.usage.kdl` in the same PR (the parity gate enforces
-  this automatically).
+  This includes `init`, the nested `agent`, `security`, `skills`, and `schema`
+  families, and excludes the `*-last` commands (`shell-last`, `path-last`,
+  `open-last`, `archive-last`), which are removed before this plan runs. Whatever
+  the live tree contains at authoring time is what the KDL must cover; the parity
+  gate enforces this automatically.
 
 ## Required commands
 
@@ -39,15 +40,10 @@ declared here. The `man`/manpage path is deferred (see Excluded scope) so no
 
 ## Required PHAX security configuration changes
 
-This plan requires the following command to be added to `security.agentCommands`
-in `phax.json` before running:
-
-- `usage`
-
-The current `phax.json` has `"agentCommands": ["deno"]`; it must become
-`["deno", "usage"]`. Without this, the preflight check fails before any agent
-spawns, and phases that run `usage` (spec lint, doc generation, completions,
-parity tests) cannot execute.
+None. `usage` is already present in `security.agentCommands` in `phax.json`
+(current value: `["deno", "ctx7", "usage"]`), so the phases that shell out to the
+`usage` CLI (spec lint, doc generation, completions, parity tests) pass the
+preflight check as-is.
 
 ## Architecture overview
 
@@ -67,8 +63,8 @@ parity tests) cannot execute.
   the command tree without executing it.
 
 All new validation is implemented as vitest tests so the existing `full` gate
-profile (`pnpm test`) verifies them mechanically — no new gate commands are
-invented.
+profile in `phax.json` (which runs `pnpm test`) verifies them mechanically — no
+new gate commands are invented.
 
 ---
 
@@ -85,10 +81,10 @@ and a written source-of-truth for authoring the Usage spec.
 ### Detailed instructions
 
 - Create `src/cli/program.ts` exporting `buildProgram(): Command` that contains
-  all command registration currently in `src/cli/main.ts` (lines 27–263),
-  including the dynamic registrations (`registerResumeCommand`,
-  `registerResetPhaseCommand`, `registerAgentCommand`, `registerSecurityCommand`)
-  and the `globalTraceOpts` helper. `buildProgram` must **not** call
+  all command registration currently in `src/cli/main.ts`, including the dynamic
+  registrations (`registerResumeCommand`, `registerResetPhaseCommand`,
+  `registerAgentCommand`, `registerSecurityCommand`, `registerSkillsCommand`,
+  `registerSchemaCommand`) and the `globalTraceOpts` helper. `buildProgram` must **not** call
   `parseAsync`, `process.exit`, or `setupInterruptHandlers`; it only constructs
   and returns the configured `Command`. Keep all command names, aliases,
   arguments, options, defaults, and descriptions byte-identical — this is a
@@ -103,13 +99,15 @@ and a written source-of-truth for authoring the Usage spec.
   surface (command name, args, flags + defaults, one-line description) versus the
   intended Usage contract coverage. Walk the live tree by importing
   `buildProgram()` in a throwaway local check if helpful, but the committed file
-  is hand-authored prose/table. Explicitly note: nested `agent` and `security`
-  subcommands; the `*-last` family; and that `init` is **absent** and deferred to
-  spec 10.
+  is hand-authored prose/table. Explicitly note the nested `agent`, `security`,
+  `skills`, and `schema` subcommand families, and the top-level `init` command.
+  The `*-last` commands are removed before this plan runs, so they should not
+  appear in the inventory.
 - Add `tests/integration/cliProgram.test.ts` that calls `buildProgram()` and
   asserts the set of top-level command names matches the known surface (a frozen
-  list in the test), and that `agent` and `security` expose their documented
-  subcommands. This is the mechanical guard against accidental command loss.
+  list in the test), and that `agent`, `security`, `skills`, and `schema` expose
+  their documented subcommands. This is the mechanical guard against accidental
+  command loss.
 
 ### Planned files to create
 
@@ -196,28 +194,28 @@ default, example, and metadata field, and add a test that lints it with the
   [Usage spec format](https://usage.jdx.dev/spec/). Use the live surface from
   phase-01's `docs/cli/inventory.md` and `buildProgram()` as the authoritative
   list — cover **all** public commands, not just the spec's illustrative minimum:
-  `validate`, `unlock`, `extract-plan`, `enter`, `enter-last`, `enter-phase`,
-  `session-info`, `shell`, `shell-last`, `path`, `path-last`, `open`,
-  `open-last`, `ls`, `archive`, `archive-last`, `run`, `review-handoff`,
-  `publish-pr`, `resume`, `reset-phase`, and the nested `agent` (`models`,
-  `resolve`, `probe`, `setup …`, `providers`, …) and `security` (`status`)
-  command families. Confirm the exact nested subcommands against the source while
-  authoring.
+  `validate`, `unlock`, `extract-plan`, `enter`, `enter-phase`, `session-info`,
+  `shell`, `path`, `open`, `ls`, `archive`, `run`, `review-handoff`,
+  `publish-pr`, `init`, `resume`, `reset-phase`, and the nested `agent` (`models`,
+  `resolve`, `probe`, `setup …`, `providers`, …), `security` (`status`),
+  `skills` (`install`), and `schema` (`upgrade`) command families. Confirm the
+  exact nested subcommands and flags against the source while authoring. The
+  `*-last` commands are removed before this plan runs, so do not author them.
 - Include top-level metadata: CLI name `phax`, bin `phax`, version, license (if
   present in package.json), author/project name, and `min_usage_version`.
 - For each command provide: a one-sentence purpose, arguments, flags with
   defaults where meaningful, long help for the commands that need context
-  (`run`, `resume`, `init`-equivalents that exist, session/enter family,
+  (`run`, `resume`, `init`, session/enter family,
   delayed execution via `--startAfter` if/when present), and at least one
   example. Honor the per-command documentation details in spec §"Required
   command documentation details" (e.g. `run` duration formats, `ls` status
   filters `--active|--failed|--review-open|--archived|--json`, `archive --force`,
   side-effect warnings for worktree/session/scheduled-run/file-affecting
   commands).
-- Do **not** add commands that do not exist in the runtime (no `init`, no
-  `completions` yet — `completions` is added to the KDL in phase-05, `--usage`
-  metadata in phase-03). Keeping the KDL aligned to the runtime is what the
-  parity gate enforces later.
+- Do **not** add commands that do not exist in the runtime (no `completions` yet
+  — `completions` is added to the KDL in phase-05, `--usage` metadata in
+  phase-03; and no `*-last` commands, which are removed before this plan runs).
+  Keeping the KDL aligned to the runtime is what the parity gate enforces later.
 - Match the accessibility requirements (spec §"Accessibility requirements"):
   short purpose statements, concrete examples, explicit side effects, no
   unexplained internal vocabulary, no terse descriptions for commands with
@@ -362,8 +360,8 @@ Version: package.json `version` is the single source; KDL metadata and
 
 CLI surface → integration test (`tests/integration/usageOutput.test.ts`) driving
 `buildProgram()` with `--usage`. Write the KDL-path assertions before wiring; the
-JSON error path is a guard test. Packaging is verified by the `full` gate's
-`pnpm build` plus the resolver test.
+JSON error path is a guard test. Packaging is verified by `pnpm build` plus
+the resolver test.
 
 ### Implementation order
 
@@ -716,9 +714,13 @@ help command, and never print a stack trace by default.
   existing top-level `.catch` (with `Unexpected error: …`) for genuinely
   unexpected failures only. Use Commander's error configuration / `exitOverride`
   as needed, preserving correct non-zero exit codes.
-- Match the two worked examples in the spec (unknown command `phax resum` →
-  suggest `phax resume`; invalid `--startAfter` value → expected-duration
-  message), adapting to the actual flags present in the codebase.
+- Match the spirit of the spec's worked examples, but adapt to the flags that
+  actually exist in the codebase. The unknown-command example holds as-is
+  (`phax resum` → suggest `phax resume`). The spec's `--startAfter` example does
+  **not** apply — that flag does not exist on any current command — so use a real
+  invalid-choice case instead, e.g. `phax run --security bogus` (valid choices
+  `secure|unsafe|isolated`) or an invalid `phax completions <shell>` value, and
+  assert the message lists the valid choices.
 - Add `tests/integration/cliErrors.test.ts` asserting: unknown command yields a
   suggestion + help pointer + non-zero exit and no stack trace; unknown flag and
   invalid choice yield readable messages; a valid command still runs.
