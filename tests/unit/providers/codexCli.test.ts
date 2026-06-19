@@ -243,9 +243,13 @@ describe("buildCodexCompletionArgs — sealed completion", () => {
     expect(args).toContain(`approval_policy="never"`);
   });
 
-  it("disables network access", () => {
+  it("seals network via read-only mode without an inert workspace-write override", () => {
+    // read-only denies subprocess network outright; the
+    // `sandbox_workspace_write.*` table only applies in workspace-write mode, so
+    // emitting `network_access=false` here would be a misleading no-op.
     const args = buildCodexCompletionArgs(baseEntry, completionOptions());
-    expect(args).toContain("sandbox_workspace_write.network_access=false");
+    expect(args).toContain(`sandbox_mode="read-only"`);
+    expect(args.some((a) => a.startsWith("sandbox_workspace_write.network_access"))).toBe(false);
   });
 
   it("does not emit --dangerously-bypass-approvals-and-sandbox", () => {

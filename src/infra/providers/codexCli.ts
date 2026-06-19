@@ -226,6 +226,12 @@ export function buildCodexCompletionArgs(
   options: CompletionOptions,
 ): string[] {
   const model = entry.families?.["openai-gpt"]?.model ?? options.model;
+  // `sandbox_mode="read-only"` is the network seal: it grants no write sandbox
+  // and denies subprocess network outright. The `sandbox_workspace_write.*`
+  // config table (including `network_access`) only takes effect in
+  // `workspace-write` mode, so we do NOT emit a `network_access=false` override
+  // here — it would be a no-op under read-only and misleadingly imply a write
+  // sandbox is in play.
   return [
     "exec",
     "-C",
@@ -236,8 +242,6 @@ export function buildCodexCompletionArgs(
     `sandbox_mode="read-only"`,
     "-c",
     `approval_policy="never"`,
-    "-c",
-    `sandbox_workspace_write.network_access=false`,
     "-m",
     model,
     "-c",
