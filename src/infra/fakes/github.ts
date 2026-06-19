@@ -15,7 +15,9 @@ export type GitHubCall =
       title: string;
       bodyFile: string;
       repo: string;
-    };
+    }
+  | { method: "createIssue"; repo: string; title: string; bodyFile: string }
+  | { method: "createGist"; description: string; file: string; public: boolean };
 
 export class FakeGitHubImpl implements GitHubOps {
   readonly calls: GitHubCall[] = [];
@@ -26,7 +28,11 @@ export class FakeGitHubImpl implements GitHubOps {
   configuredDefaultBranch = "main";
   readonly existingPrs = new Map<string, string>();
   createdPrUrl = "https://github.com/owner/repo/pull/1";
+  createdIssueUrl = "https://github.com/owner/repo/issues/1";
+  createdGistUrl = "https://gist.github.com/owner/abc123";
   private nextCreatePrError: string | undefined;
+  private nextCreateIssueError: string | undefined;
+  private nextCreateGistError: string | undefined;
 
   setAvailable(value: boolean): void {
     this.available = value;
@@ -54,6 +60,22 @@ export class FakeGitHubImpl implements GitHubOps {
 
   failNextCreatePr(stderr: string): void {
     this.nextCreatePrError = stderr;
+  }
+
+  setCreatedIssueUrl(url: string): void {
+    this.createdIssueUrl = url;
+  }
+
+  setCreatedGistUrl(url: string): void {
+    this.createdGistUrl = url;
+  }
+
+  failNextCreateIssue(stderr: string): void {
+    this.nextCreateIssueError = stderr;
+  }
+
+  failNextCreateGist(stderr: string): void {
+    this.nextCreateGistError = stderr;
   }
 
   isAvailable(): Effect.Effect<boolean, GitHubError> {
@@ -112,6 +134,58 @@ export class FakeGitHubImpl implements GitHubOps {
       );
     }
     return Effect.succeed(this.createdPrUrl);
+  }
+
+  createIssue(input: {
+    repo: string;
+    title: string;
+    bodyFile: string;
+  }): Effect.Effect<string, GitHubError> {
+    this.calls.push({
+      method: "createIssue",
+      repo: input.repo,
+      title: input.title,
+      bodyFile: input.bodyFile,
+    });
+    if (this.nextCreateIssueError !== undefined) {
+      const stderr = this.nextCreateIssueError;
+      this.nextCreateIssueError = undefined;
+      return Effect.fail(
+        new GitHubError({
+          message: `gh issue create failed: ${stderr}`,
+          command: "gh issue create",
+          stderr,
+          exitCode: 1,
+        }),
+      );
+    }
+    return Effect.succeed(this.createdIssueUrl);
+  }
+
+  createGist(input: {
+    description: string;
+    file: string;
+    public: boolean;
+  }): Effect.Effect<string, GitHubError> {
+    this.calls.push({
+      method: "createGist",
+      description: input.description,
+      file: input.file,
+      public: input.public,
+    });
+    if (this.nextCreateGistError !== undefined) {
+      const stderr = this.nextCreateGistError;
+      this.nextCreateGistError = undefined;
+      return Effect.fail(
+        new GitHubError({
+          message: `gh gist create failed: ${stderr}`,
+          command: "gh gist create",
+          stderr,
+          exitCode: 1,
+        }),
+      );
+    }
+    return Effect.succeed(this.createdGistUrl);
   }
 }
 

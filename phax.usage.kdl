@@ -172,6 +172,14 @@ cmd "publish-pr" {
     arg "<short-name>"
 }
 
+cmd "report" {
+    help "Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)"
+    arg "[short-name]"
+    flag "--no-gist" {
+        help "Inline the full log in the issue body instead of creating a secret gist"
+    }
+}
+
 cmd "init" {
     help "Create phax.json and phax.schema.json in the current directory"
     flag "--force" {

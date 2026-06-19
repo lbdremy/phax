@@ -25,6 +25,16 @@ export interface GitHubOps {
     bodyFile: string;
     repo: string;
   }): Effect.Effect<string, GitHubError>;
+  createIssue(input: {
+    repo: string;
+    title: string;
+    bodyFile: string;
+  }): Effect.Effect<string, GitHubError>;
+  createGist(input: {
+    description: string;
+    file: string;
+    public: boolean;
+  }): Effect.Effect<string, GitHubError>;
 }
 
 export class GitHub extends Context.Tag("phax/GitHub")<GitHub, GitHubOps>() {}

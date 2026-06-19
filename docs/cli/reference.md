@@ -258,6 +258,22 @@ Push the final branch and create (or reuse) a GitHub PR for a review_open run
 
 #### `<short-name>`
 
+## `phax report`
+
+- **Usage**: `phax report [--no-gist] [short-name]`
+
+Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)
+
+### Arguments
+
+#### `[short-name]`
+
+### Flags
+
+#### `--no-gist`
+
+Inline the full log in the issue body instead of creating a secret gist
+
 ## `phax init`
 
 - **Usage**: `phax init [--force]`

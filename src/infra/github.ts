@@ -83,6 +83,19 @@ export const NodeGitHubLayer = Layer.succeed(GitHub, {
       ["pr", "create", "--head", branch, "--base", base, "--title", title, "--body-file", bodyFile],
       repo,
     ).pipe(Effect.map(({ stdout }) => stdout.trim())),
+
+  createIssue: ({ repo, title, bodyFile }) =>
+    ghRun(["issue", "create", "--title", title, "--body-file", bodyFile], repo).pipe(
+      Effect.map(({ stdout }) => stdout.trim()),
+    ),
+
+  createGist: ({ description, file, public: isPublic }) =>
+    ghRun(
+      isPublic
+        ? ["gist", "create", file, "--description", description, "--public"]
+        : ["gist", "create", file, "--description", description],
+      process.cwd(),
+    ).pipe(Effect.map(({ stdout }) => stdout.trim())),
 });
 
 export function makeNodeGitHubLayer(): Layer.Layer<GitHub> {
