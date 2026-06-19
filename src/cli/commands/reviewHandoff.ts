@@ -6,7 +6,13 @@ import { resolveRunByShortName } from "../../app/resolveRunInfo.js";
 import { generateReviewHandoff } from "../../app/reviewHandoff.js";
 import { ReviewHandoffArtifactMissingError } from "../../domain/errors.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
+import { makeGlobalTelemetryJournalLayer } from "../../infra/telemetry/globalJournal.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
+import {
+  loadTelemetryConfig,
+  TELEMETRY_CONFIG_PATH,
+  PHAX_HOME_DIR,
+} from "../../app/loadTelemetryConfig.js";
 
 export interface ReviewHandoffCommandOptions {
   allowPartial?: boolean;
@@ -15,7 +21,13 @@ export interface ReviewHandoffCommandOptions {
 function buildLayer(): Layer.Layer<
   import("../../ports/fs.js").FileSystem | import("../../ports/systemTelemetry.js").SystemTelemetry
 > {
-  return Layer.mergeAll(NodeFileSystemLayer, NoopSystemTelemetryLayer);
+  const telemetryConfig = loadTelemetryConfig(TELEMETRY_CONFIG_PATH);
+  const telemetryEnabled = Either.isRight(telemetryConfig) ? telemetryConfig.right.enabled : true;
+  const telemetryLayer = telemetryEnabled
+    ? makeGlobalTelemetryJournalLayer(PHAX_HOME_DIR).pipe(Layer.provide(NodeFileSystemLayer))
+    : NoopSystemTelemetryLayer;
+
+  return Layer.mergeAll(NodeFileSystemLayer, telemetryLayer);
 }
 
 export async function runReviewHandoff(

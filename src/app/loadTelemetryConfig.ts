@@ -6,7 +6,8 @@ import { ConfigValidationError } from "../domain/errors.js";
 import { decodeTelemetryConfig, type TelemetryConfig } from "../schemas/telemetryConfig.js";
 import { formatParseError } from "../schemas/formatError.js";
 
-export const TELEMETRY_CONFIG_PATH = join(homedir(), ".phax", "telemetry.json");
+export const PHAX_HOME_DIR = join(homedir(), ".phax");
+export const TELEMETRY_CONFIG_PATH = join(PHAX_HOME_DIR, "telemetry.json");
 
 const DEFAULT_TELEMETRY_CONFIG: TelemetryConfig = { enabled: true };
 const DEFAULT_TELEMETRY_CONFIG_JSON = JSON.stringify(DEFAULT_TELEMETRY_CONFIG, null, 2) + "\n";
