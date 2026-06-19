@@ -12,6 +12,7 @@ import { FileSystem, FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
+import type { KeepAwakePlatform } from "../domain/whatsNext.js";
 import {
   decodePhaseStatus,
   decodeRunStatus,
@@ -167,7 +168,10 @@ export function run(
           yield* telemetry.recordEvent(semanticEvent);
         }
       });
-    case "WriteResumeInstructions":
+    case "WriteResumeInstructions": {
+      const rawPlatform = process.platform;
+      const platform: KeepAwakePlatform =
+        rawPlatform === "darwin" ? "darwin" : rawPlatform === "linux" ? "linux" : "other";
       return writeResumeInstructions({
         runPath: ctx.runPath,
         shortName: ctx.shortName,
@@ -178,7 +182,10 @@ export function run(
         worktreePath: cmd.ctx.worktreePath,
         sessionId: cmd.ctx.sessionId,
         rawMessage: cmd.ctx.kind === "gates_exhausted" ? undefined : cmd.ctx.rawMessage,
+        now: new Date(),
+        platform,
       }).pipe(Effect.asVoid);
+    }
     case "RunCleanupShell":
       return runCleanupShell(cmd);
     case "WriteAtomic":

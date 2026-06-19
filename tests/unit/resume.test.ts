@@ -65,6 +65,8 @@ describe("buildResumeInstructions", () => {
     phaseId: "phase-03",
     worktreePath: "/worktrees/my-run--phase-03",
     sessionId: "sess-abc123",
+    now: new Date("2026-06-19T12:00:00.000Z"),
+    platform: "other" as const,
   };
 
   it("gate-exhaustion body mentions re-running the gate and phax resume", () => {
@@ -92,6 +94,8 @@ describe("buildResumeInstructions", () => {
       kind: "rate_limit",
       resetAt: "2026-06-12T00:00:00Z",
       phaseId: "phase-01",
+      now: new Date("2026-06-19T12:00:00.000Z"),
+      platform: "other",
     });
     expect(md).toContain("Reset time");
     expect(md).toContain("2026-06-12T00:00:00Z");
