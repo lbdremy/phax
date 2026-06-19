@@ -1,20 +1,20 @@
 # phax Observability
 
-> OpenTelemetry transports and correlates. The system produces the meaning. Snapshots capture the meaning, not the transport.
+> The JSON-Lines file is the transport. The system produces the meaning. Snapshots capture the meaning, not the transport.
 
 ## Architecture
 
-The observability stack is split into three layers so the semantic record is independent of the transport envelope:
+The observability stack is split into three layers so the semantic record is independent of the transport:
 
 ```
-src/domain/telemetry/         ← pure semantic types (NO Effect, NO OTel, NO IO)
+src/domain/telemetry/         ← pure semantic types (NO Effect, NO IO)
         │
 src/ports/systemTelemetry.ts  ← SystemTelemetry Effect service (the app calls this)
         │
-src/infra/telemetry/          ← implementations: in-memory, JSON file, OTel, composite
+src/infra/telemetry/          ← implementations: in-memory, JSON file, composite
 ```
 
-Application code only calls `SystemTelemetry`. The OTel envelope is wired at the composition root (`src/cli/`) and is invisible to the domain and application layers.
+Application code only calls `SystemTelemetry`. The JSON-file sink is wired at the composition root (`src/cli/`) and is invisible to the domain and application layers.
 
 ## Port surface (`src/ports/systemTelemetry.ts`)
 
@@ -31,27 +31,25 @@ The error channel of every method is `never` — telemetry must never fail a run
 
 ## Implementations (`src/infra/telemetry/`)
 
-| File               | Purpose                                                                                                         |
-| ------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `inMemory.ts`      | Collects events in-process; used in tests via `getSemanticTraceSnapshot()`                                      |
-| `jsonFile.ts`      | Appends one JSON line per event to a configurable path; IO errors swallowed                                     |
-| `openTelemetry.ts` | Maps semantic events onto OTel spans / events / metrics; the **only** file allowed to import `@opentelemetry/*` |
-| `composite.ts`     | Fans out one logical call to multiple implementations; inner failures are swallowed                             |
-| `layer.ts`         | Factory (`makeSystemTelemetryLayer`) — called by the CLI to compose the live layer from runtime flags           |
+| File          | Purpose                                                                                              |
+| ------------- | ---------------------------------------------------------------------------------------------------- |
+| `inMemory.ts` | Collects events in-process; used in tests via `getSemanticTraceSnapshot()`                           |
+| `jsonFile.ts` | Appends one JSON line per event to a configurable path; IO errors swallowed                          |
+| `composite.ts`| Fans out one logical call to multiple implementations; inner failures are swallowed                  |
+| `layer.ts`    | Factory (`makeSystemTelemetryLayer`) — called by the CLI to compose the live layer from runtime flags|
 
 Fake for tests: `src/infra/fakes/systemTelemetry.ts` → `makeFakeSystemTelemetry()`.
 
-## CLI flags and env vars
+## CLI flags
 
-| Flag / Variable  | Default | Effect                                                               |
-| ---------------- | ------- | -------------------------------------------------------------------- |
-| `--verbose`      | off     | Prints each semantic event to the terminal as it occurs              |
-| `--trace <path>` | off     | Writes one JSON line per semantic event to `<path>` (JSONL format)   |
-| `PHAX_OTEL=1`    | off     | Enables the OpenTelemetry adapter; requires a running OTLP collector |
+| Flag / Variable  | Default | Effect                                                             |
+| ---------------- | ------- | ------------------------------------------------------------------ |
+| `--verbose`      | off     | Prints each semantic event to the terminal as it occurs            |
+| `--trace <path>` | off     | Writes one JSON line per semantic event to `<path>` (JSONL format) |
 
 Recommended on-disk trace path: `~/.phax/runs/<short-name>/semantic.jsonl`.
 
-All three can be combined. With no flags set the behaviour is identical to `NoopSystemTelemetryLayer` except for the always-on in-memory side channel used by diagnostic tooling.
+Both can be combined. With no flags set the behaviour is identical to `NoopSystemTelemetryLayer` except for the always-on in-memory side channel used by diagnostic tooling.
 
 ## Snapshot rule
 
@@ -95,7 +93,7 @@ Four `PHAX_TELEMETRY_*` rules in `tests/unit/architecturalGuards.telemetry.test.
 | Rule                 | What it checks                                                                           |
 | -------------------- | ---------------------------------------------------------------------------------------- |
 | `PHAX_TELEMETRY_001` | `src/domain/` has no forbidden imports (port, infra/telemetry, OTel)                     |
-| `PHAX_TELEMETRY_002` | Only `src/infra/telemetry/openTelemetry.ts` and its test import `@opentelemetry/*`       |
+| `PHAX_TELEMETRY_002` | No file imports `@opentelemetry/*` (OTel adapter removed)                                |
 | `PHAX_TELEMETRY_003` | `src/app/` has no infra/telemetry imports; `src/cli/` has no direct OTel adapter imports |
 | `PHAX_TELEMETRY_004` | Snapshot files contain no transport fields or raw Unix timestamps                        |
 

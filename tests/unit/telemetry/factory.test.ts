@@ -49,7 +49,6 @@ describe("makeSystemTelemetryLayer", () => {
       const { layer } = buildWithFakeFs({
         output: out,
         verbose: false,
-        otelEnabled: false,
         runId,
       });
 
@@ -64,7 +63,6 @@ describe("makeSystemTelemetryLayer", () => {
       const { layer } = buildWithFakeFs({
         output: out,
         verbose: false,
-        otelEnabled: false,
         runId,
       });
 
@@ -80,7 +78,6 @@ describe("makeSystemTelemetryLayer", () => {
       const { layer } = buildWithFakeFs({
         output: out,
         verbose: true,
-        otelEnabled: false,
         runId,
       });
 
@@ -111,7 +108,6 @@ describe("makeSystemTelemetryLayer", () => {
       const { layer, fs } = buildWithFakeFs({
         output: out,
         verbose: true,
-        otelEnabled: false,
         runId,
       });
 
@@ -129,7 +125,6 @@ describe("makeSystemTelemetryLayer", () => {
         output: out,
         verbose: false,
         tracePath,
-        otelEnabled: false,
         runId,
       });
 
@@ -149,7 +144,6 @@ describe("makeSystemTelemetryLayer", () => {
         output: out,
         verbose: false,
         tracePath,
-        otelEnabled: false,
         runId,
       });
 
@@ -174,23 +168,6 @@ describe("makeSystemTelemetryLayer", () => {
         step: "step-a",
         result: "success",
       });
-    });
-  });
-
-  describe("otelEnabled: true", () => {
-    it("resolves without error when OTel is enabled", async () => {
-      const { out } = makeTestOutput();
-      const { layer } = buildWithFakeFs({
-        output: out,
-        verbose: false,
-        otelEnabled: true,
-        runId,
-      });
-
-      const event = makeStepStartedTelemetryEvent({ runId, step: "otel-test" });
-      await expect(
-        runWith(layer, SystemTelemetry.pipe(Effect.flatMap((t) => t.recordEvent(event)))),
-      ).resolves.toBeUndefined();
     });
   });
 });

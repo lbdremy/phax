@@ -12,14 +12,12 @@ import {
 } from "../../ports/systemTelemetry.js";
 import { InMemoryTelemetry } from "./inMemory.js";
 import { makeJsonFileTelemetryOps } from "./jsonFile.js";
-import { makeOpenTelemetrySystemTelemetryLayer } from "./openTelemetry.js";
 import { makeCompositeOps } from "./composite.js";
 
 export interface TelemetryFactoryInput {
   readonly output: OutputPort;
   readonly verbose: boolean;
   readonly tracePath?: string;
-  readonly otelEnabled: boolean;
   readonly runId: RunId;
 }
 
@@ -94,7 +92,7 @@ const makeVerboseRendererOps = (output: OutputPort): SystemTelemetryOps => ({
  * Build a SystemTelemetry layer from CLI flags and env vars.
  *
  * Composition order (leftmost = outermost scope in withOperation):
- *   OTel (opt-in) > Verbose (opt-in) > JsonFile (opt-in) > InMemory (always)
+ *   Verbose (opt-in) > JsonFile (opt-in) > InMemory (always)
  *
  * The in-memory adapter is always included as an internal side channel; it is
  * not exposed by default — callers that need it should use `makeFakeSystemTelemetry`
@@ -122,20 +120,6 @@ export const makeSystemTelemetryLayer = (
       // Verbose renderer when verbose flag is on.
       if (input.verbose) {
         ops.push(makeVerboseRendererOps(input.output));
-      }
-
-      // OpenTelemetry when otelEnabled flag is on.
-      // phax.run.id goes into resourceAttributes so every span carries it.
-      if (input.otelEnabled) {
-        const otelOps = yield* Effect.provide(
-          SystemTelemetry,
-          makeOpenTelemetrySystemTelemetryLayer({
-            tracerName: "phax",
-            meterName: "phax",
-            resourceAttributes: { "phax.run.id": input.runId },
-          }),
-        );
-        ops.push(otelOps);
       }
 
       return makeCompositeOps(ops);

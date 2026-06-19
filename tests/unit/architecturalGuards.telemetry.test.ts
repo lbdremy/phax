@@ -79,42 +79,23 @@ describe("PHAX_TELEMETRY_001 — domain isolation", () => {
 });
 
 describe("PHAX_TELEMETRY_002 — OTel confinement", () => {
-  // Only these two files are permitted to import @opentelemetry/*:
-  // - the single OTel adapter: src/infra/telemetry/openTelemetry.ts
-  // - its unit test: tests/unit/telemetry/openTelemetry.test.ts
-  const OTEL_ALLOWLIST: ReadonlySet<string> = new Set([
-    "src/infra/telemetry/openTelemetry.ts",
-    "tests/unit/telemetry/openTelemetry.test.ts",
-  ]);
-
-  it("only src/infra/telemetry/openTelemetry.ts and its unit test may import @opentelemetry/*", () => {
+  // The OTel adapter has been removed; no file in the repo may import @opentelemetry/*.
+  it("no file imports @opentelemetry/*", () => {
     const testsRoot = join(repoRoot, "tests");
     const violations: string[] = [];
 
     const allFiles = [...listTsFiles(srcRoot), ...listTsFiles(testsRoot)];
     for (const absPath of allFiles) {
       const rel = relative(repoRoot, absPath).split("\\").join("/");
-      if (OTEL_ALLOWLIST.has(rel)) continue;
-
       const content = readFileSync(absPath, "utf8");
       if (OTEL_IMPORT_STMT.test(content)) {
         violations.push(
-          `${rel}: imports @opentelemetry/* but is not in the allowlist (PHAX_TELEMETRY_002) — see .claude/skills/observability/SKILL.md`,
+          `${rel}: imports @opentelemetry/* (PHAX_TELEMETRY_002) — OTel adapter has been removed — see .claude/skills/observability/SKILL.md`,
         );
       }
     }
 
     expect(violations).toEqual([]);
-  });
-
-  it("the allowed files actually still import @opentelemetry/* (allowlist stays honest)", () => {
-    for (const rel of OTEL_ALLOWLIST) {
-      const content = readFileSync(join(repoRoot, rel), "utf8");
-      expect(
-        OTEL_IMPORT_STMT.test(content),
-        `${rel} no longer imports @opentelemetry/* — remove it from OTEL_ALLOWLIST`,
-      ).toBe(true);
-    }
   });
 });
 

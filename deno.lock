@@ -3,11 +3,6 @@
   "specifiers": {
     "npm:@effect/platform-node@0.106": "0.106.0_@effect+cluster@0.58.2__@effect+platform@0.96.1___effect@3.21.3__@effect+rpc@0.75.1___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+sql@0.51.1___@effect+experimental@0.60.0____@effect+platform@0.96.1_____effect@3.21.3____effect@3.21.3___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+workflow@0.18.2___@effect+experimental@0.60.0____@effect+platform@0.96.1_____effect@3.21.3____effect@3.21.3___@effect+platform@0.96.1____effect@3.21.3___@effect+rpc@0.75.1____@effect+platform@0.96.1_____effect@3.21.3____effect@3.21.3___effect@3.21.3__effect@3.21.3__@effect+experimental@0.60.0___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3_@effect+platform@0.96.1__effect@3.21.3_@effect+rpc@0.75.1__@effect+platform@0.96.1___effect@3.21.3__effect@3.21.3_@effect+sql@0.51.1__@effect+experimental@0.60.0___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+platform@0.96.1___effect@3.21.3__effect@3.21.3_effect@3.21.3_@effect+experimental@0.60.0__@effect+platform@0.96.1___effect@3.21.3__effect@3.21.3_@effect+workflow@0.18.2__@effect+experimental@0.60.0___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+platform@0.96.1___effect@3.21.3__@effect+rpc@0.75.1___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__effect@3.21.3",
     "npm:@effect/platform@0.96": "0.96.1_effect@3.21.3",
-    "npm:@opentelemetry/api@^1.9.1": "1.9.1",
-    "npm:@opentelemetry/resources@^2.7.1": "2.8.0_@opentelemetry+api@1.9.1",
-    "npm:@opentelemetry/sdk-metrics@^2.7.1": "2.8.0_@opentelemetry+api@1.9.1",
-    "npm:@opentelemetry/sdk-trace-base@^2.7.1": "2.8.0_@opentelemetry+api@1.9.1",
-    "npm:@opentelemetry/semantic-conventions@^1.41.1": "1.41.1",
     "npm:@types/node@^25.9.3": "25.9.3",
     "npm:commander@12": "12.1.0",
     "npm:effect@^3.14.0": "3.21.3",
@@ -404,44 +399,6 @@
         "@emnapi/runtime",
         "@tybys/wasm-util"
       ]
-    },
-    "@opentelemetry/api@1.9.1": {
-      "integrity": "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="
-    },
-    "@opentelemetry/core@2.8.0_@opentelemetry+api@1.9.1": {
-      "integrity": "sha512-hd1Lfh8p545nNz+jq1Ejfz+Mn1hyLuxYn1YzTfFNrxr8urEWMNQLPf1Th8kjOH+HxwawCrtgBp8JpBUR4ZSgww==",
-      "dependencies": [
-        "@opentelemetry/api",
-        "@opentelemetry/semantic-conventions"
-      ]
-    },
-    "@opentelemetry/resources@2.8.0_@opentelemetry+api@1.9.1": {
-      "integrity": "sha512-qmXQ27ilDbUK/vGMqwL8D4/rhn76C+sherM4wTbjlfknR8Nvfc/hCxjRJPhkzZzUsPiNg16SA31NxMabwttRjg==",
-      "dependencies": [
-        "@opentelemetry/api",
-        "@opentelemetry/core",
-        "@opentelemetry/semantic-conventions"
-      ]
-    },
-    "@opentelemetry/sdk-metrics@2.8.0_@opentelemetry+api@1.9.1": {
-      "integrity": "sha512-UDBGaj6W0Rgy5rTTaoxs8gVGF/aGkAKyjurJv7se6wjRxJu7FoquTLT/vt54DZfo4crbprYfhX/SOK9+BPw1qg==",
-      "dependencies": [
-        "@opentelemetry/api",
-        "@opentelemetry/core",
-        "@opentelemetry/resources"
-      ]
-    },
-    "@opentelemetry/sdk-trace-base@2.8.0_@opentelemetry+api@1.9.1": {
-      "integrity": "sha512-mhU4jp+vW0mGbFRd+GeXHvmfA4aDqWjBjLC3pE5XMpLs0IE2ryYb019Ts2AQrOq67gaTF25D91+fgvEHDZEnuQ==",
-      "dependencies": [
-        "@opentelemetry/api",
-        "@opentelemetry/core",
-        "@opentelemetry/resources",
-        "@opentelemetry/semantic-conventions"
-      ]
-    },
-    "@opentelemetry/semantic-conventions@1.41.1": {
-      "integrity": "sha512-/UhIkaZgPutTFmQ7RnIJGgDXZmtEJ7Dvi86xNTFWcnRxVRNk/aotsqDJYeEvDP+FSMB2SdW+pQzNMcWP0rwuNA=="
     },
     "@oxc-parser/binding-android-arm-eabi@0.133.0": {
       "integrity": "sha512-l/44caGse+VpnY9gx0yvvc5QnnG3yG1FO3KZgYvNL1GZrfK86zIwAOgGEVlxDyRymzrU/KHiblPFpevKOmJmUA==",
@@ -1699,11 +1656,6 @@
       "dependencies": [
         "npm:@effect/platform-node@0.106",
         "npm:@effect/platform@0.96",
-        "npm:@opentelemetry/api@^1.9.1",
-        "npm:@opentelemetry/resources@^2.7.1",
-        "npm:@opentelemetry/sdk-metrics@^2.7.1",
-        "npm:@opentelemetry/sdk-trace-base@^2.7.1",
-        "npm:@opentelemetry/semantic-conventions@^1.41.1",
         "npm:@types/node@^25.9.3",
         "npm:commander@12",
         "npm:effect@^3.14.0",
