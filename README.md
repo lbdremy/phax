@@ -176,15 +176,6 @@ phax path  <short-name>   # print the worktree path (script-friendly)
 phax open  <short-name>   # open the worktree in the configured editor
 ```
 
-Append `-last` to any command to target the most recent `review_open` run:
-
-```bash
-phax enter-last
-phax shell-last
-phax path-last
-phax open-last
-```
-
 ## List runs
 
 ```bash
@@ -207,7 +198,6 @@ Then runs `git worktree prune` to drop stale admin records. Nothing is destructi
 
 ```bash
 phax archive <short-name>       # requires review_open or completed
-phax archive-last               # most recent review_open run
 phax archive <short-name> --force  # allow uncommitted changes in final worktree
 ```
 

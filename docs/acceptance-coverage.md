@@ -21,9 +21,9 @@ Items marked with ✓ are exercised end-to-end by `phax run` integration tests
 | 13  | Commit each phase with the planned message                 | 09         | ✓                |
 | 14  | Remove non-final worktrees after commit                    | 09         | ✓                |
 | 15  | Keep final phase worktree open by default                  | 10         | ✓                |
-| 16  | `phax enter` / `enter-last` — resume final Claude session  | 10         |                  |
+| 16  | `phax enter` — resume final Claude session                 | 10         |                  |
 | 17  | `phax ls` with status filters and JSON output              | 11         |                  |
-| 18  | `phax archive` / `archive-last` — safe finalization        | 11         |                  |
+| 18  | `phax archive` — safe finalization                         | 11         |                  |
 | 19  | Final report + `review-handoff.md`                         | 10, 12     | ✓                |
 | 20  | No silent failure — all errors surface with diagnostics    | 08, 12     | ✓                |
 | 21  | No dirty-worktree overwrite without explicit flag          | 04         |                  |

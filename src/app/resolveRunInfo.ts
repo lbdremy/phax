@@ -6,7 +6,6 @@ import { decodeBranchName } from "../domain/branded.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { decodeRunStatus, decodePhaseStatus, type PhaseStatus } from "../schemas/status.js";
 import { decodePhaxPlan } from "../schemas/phaxPlan.js";
-import { decodeRegistry } from "../schemas/registry.js";
 
 export type { RunReviewInfo };
 
@@ -126,66 +125,6 @@ export function resolveRunByShortName(
   stateRoot: string,
 ): Either.Either<RunReviewInfo, string> {
   return loadRunReviewInfo(join(stateRoot, "runs", shortName), stateRoot);
-}
-
-export function resolveLastReviewOpenRun(stateRoot: string): Either.Either<RunReviewInfo, string> {
-  const registryPath = join(stateRoot, "registry.json");
-  if (existsSync(registryPath)) {
-    let raw: unknown;
-    try {
-      raw = JSON.parse(readFileSync(registryPath, "utf8")) as unknown;
-    } catch {
-      raw = undefined;
-    }
-    if (raw !== undefined) {
-      const decoded = decodeRegistry(raw);
-      if (Either.isRight(decoded)) {
-        const reviewOpenEntries = decoded.right.runs
-          .filter((r) => r.state === "review_open")
-          .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-        for (const entry of reviewOpenEntries) {
-          const info = loadRunReviewInfo(join(stateRoot, "runs", entry.shortName), stateRoot);
-          if (Either.isRight(info)) return info;
-        }
-        if (reviewOpenEntries.length > 0) {
-          return Either.left("review_open run found in registry but its run folder is missing");
-        }
-        return Either.left("No review_open runs found");
-      }
-    }
-  }
-
-  // Fall back to filesystem scan when no registry exists
-  const runsDir = join(stateRoot, "runs");
-  if (!existsSync(runsDir)) {
-    return Either.left(`No runs directory at "${runsDir}"`);
-  }
-
-  let entries: string[];
-  try {
-    entries = readdirSync(runsDir);
-  } catch {
-    return Either.left(`Failed to read runs directory at "${runsDir}"`);
-  }
-
-  const candidates: RunReviewInfo[] = [];
-  for (const entry of entries) {
-    const info = loadRunReviewInfo(join(runsDir, entry), stateRoot);
-    if (Either.isRight(info) && info.right.runState === "review_open") {
-      candidates.push(info.right);
-    }
-  }
-
-  if (candidates.length === 0) {
-    return Either.left("No review_open runs found");
-  }
-
-  const sortedCandidates = candidates.toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const first = sortedCandidates[0];
-  if (first === undefined) {
-    return Either.left("No review_open runs found");
-  }
-  return Either.right(first);
 }
 
 export function resolvePhaseInfo(
