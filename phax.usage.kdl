@@ -1,0 +1,315 @@
+// Generated from the Commander.js program tree — do not edit by hand.
+// Regenerate with: pnpm gen:usage-spec
+//
+// Commander (src/cli/) is the source of truth for commands, flags, and
+// arguments. phax.usage.kdl is a derived shareable CLI contract.
+
+name "phax"
+bin "phax"
+version "0.1.2"
+license "Apache-2.0"
+min_usage_version "1.0.0"
+
+flag "--verbose" {
+    global #true
+    help "Print human-readable progress and system events"
+}
+flag "--trace" {
+    global #true
+    help "Write structured JSONL trace events to the run folder"
+}
+
+cmd "validate" {
+    help "Validate phax.json and phax-plan.json without any side effects"
+    flag "--config" {
+        arg "<path>"
+        default "phax.json"
+        help "Path to phax.json"
+    }
+    flag "--plan" {
+        arg "<path>"
+        default "phax-plan.json"
+        help "Path to phax-plan.json"
+    }
+}
+
+cmd "unlock" {
+    help "Remove a stale run lock; use --force to remove any lock"
+    arg "<short-name>"
+    flag "--force" {
+        help "Remove the lock regardless of staleness"
+    }
+}
+
+cmd "extract-plan" {
+    help "Extract phax-plan.json from a plan.md by calling Claude Code headlessly"
+    flag "--plan-md" {
+        arg "<path>"
+        required #true
+        help "Path to the plan.md file to extract from"
+    }
+    flag "--out" {
+        arg "<path>"
+        required #true
+        help "Output path for phax-plan.json"
+    }
+    flag "--force" {
+        help "Overwrite existing output file (blocked if the run is actively locked)"
+    }
+    flag "--model" {
+        arg "<model>"
+        help "Claude model to use (overrides phax.json agent.extractPlan.model)"
+    }
+    flag "--effort" {
+        arg "<effort>"
+        help "Effort level (low|medium|high, overrides phax.json agent.extractPlan.effort)"
+    }
+}
+
+cmd "enter" {
+    help "Resume the final phase's agent session interactively"
+    arg "<short-name>"
+}
+
+cmd "enter-phase" {
+    help "Resume a specific phase's agent session interactively"
+    arg "<short-name>"
+    arg "<phase-id>"
+}
+
+cmd "session-info" {
+    help "Print session diagnostics for a run (state, phase, worktree, session id)"
+    arg "<short-name>"
+    flag "--debug" {
+        help "Dump raw binding and model-resolution metadata"
+    }
+}
+
+cmd "shell" {
+    help "Open a shell in the final worktree"
+    arg "<short-name>"
+}
+
+cmd "path" {
+    help "Print the final worktree path (script-friendly, one line)"
+    arg "<short-name>"
+}
+
+cmd "open" {
+    help "Open the final worktree in the configured editor"
+    arg "<short-name>"
+}
+
+cmd "ls" {
+    help "List runs from the registry"
+    flag "--active" {
+        help "Show only active runs (created or running)"
+    }
+    flag "--failed" {
+        help "Show only failed runs"
+    }
+    flag "--review-open" {
+        help "Show only review_open runs"
+    }
+    flag "--archived" {
+        help "Show only archived runs"
+    }
+    flag "--json" {
+        help "Output as JSON"
+    }
+}
+
+cmd "archive" {
+    help "Archive a completed or review_open run"
+    arg "<short-name>"
+    flag "--force" {
+        help "Archive even if the final worktree has uncommitted changes"
+    }
+}
+
+cmd "run" {
+    help "Extract a plan from plan.md and run all phases, or preview with --dry-run"
+    arg "[short-name]"
+    flag "--plan-md" {
+        arg "<path>"
+        default "plan.md"
+        help "Path to plan.md"
+    }
+    flag "--profile" {
+        arg "<profile>"
+        help "Gate profile to use (overrides config default)"
+    }
+    flag "--workspace" {
+        arg "<id>"
+        help "Workspace id (monorepo)"
+    }
+    flag "--allow-dirty" {
+        help "Allow starting when the working tree is dirty"
+    }
+    flag "--provider-priority" {
+        arg "<list>"
+        help "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)"
+    }
+    flag "--dry-run" {
+        help "Preview only — extracts the plan but performs no run actions"
+    }
+    flag "--security" {
+        arg "<mode>"
+        help "Security mode override (secure|unsafe|isolated, overrides config default)"
+    }
+}
+
+cmd "review-handoff" {
+    help "Regenerate review-handoff.md and global file reconciliation for a review_open run"
+    arg "<short-name>"
+    flag "--allow-partial" {
+        help "Generate a partial document when some phase artifacts are missing"
+    }
+}
+
+cmd "publish-pr" {
+    help "Push the final branch and create (or reuse) a GitHub PR for a review_open run"
+    arg "<short-name>"
+}
+
+cmd "init" {
+    help "Create phax.json and phax.schema.json in the current directory"
+    flag "--force" {
+        help "Overwrite an existing phax.json"
+    }
+}
+
+cmd "resume" {
+    help "Resume a run from its next pending phase"
+    arg "<short-name>"
+    flag "--yes -y" {
+        help "Proceed without confirmation"
+    }
+    flag "--verbose" {
+        help "Print human-readable progress and system events"
+    }
+    flag "--trace" {
+        help "Write structured JSONL trace events to the run folder"
+    }
+    flag "--provider-priority" {
+        arg "<list>"
+        help "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)"
+    }
+}
+
+cmd "reset-phase" {
+    help "Reset a stuck or failed phase so phax resume re-runs it from scratch"
+    arg "<short-name>"
+    arg "[phase-id]"
+    flag "--yes -y" {
+        help "Proceed without confirmation (removes the worktree and branch)"
+    }
+    flag "--verbose" {
+        help "Print human-readable progress and system events"
+    }
+    flag "--trace" {
+        help "Write structured JSONL trace events to the run folder"
+    }
+}
+
+cmd "agent" {
+    help "Inspect and manage model routing and provider configuration"
+
+    cmd "models" {
+        help "Print the routing table and provider priority"
+    }
+
+    cmd "resolve" {
+        help "Show how a model+effort request resolves to a provider and concrete model"
+        flag "--model" {
+            arg "<id>"
+            required #true
+            help "Requested model id (e.g. claude-sonnet-4-6)"
+        }
+        flag "--effort" {
+            arg "<level>"
+            required #true
+            help "Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode)"
+        }
+        flag "--json" {
+            help "Output the resolution as JSON"
+        }
+    }
+
+    cmd "probe" {
+        help "Check which provider executables are available on PATH; never throws on an unavailable provider"
+    }
+
+    cmd "setup" {
+        help "Set up provider integrations"
+
+        cmd "mistral-vibe" {
+            help "Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml (append-only, atomic)"
+            flag "--dry-run" {
+                help "Preview what would be appended without writing anything"
+            }
+            flag "--install-model-aliases" {
+                help "Actually append the missing aliases and write the backup"
+            }
+        }
+
+        cmd "providers" {
+            help "Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)"
+            flag "--write" {
+                help "Persist the reconciled config (writes a timestamped backup first)"
+            }
+            flag "--prune" {
+                help "Also disable providers whose executable is unavailable"
+            }
+            flag "--with-routing" {
+                help "Scaffold ~/.phax/model-routing.json from defaults when absent (never overwrites)"
+            }
+        }
+    }
+}
+
+cmd "security" {
+    help "Security-related commands"
+    flag "--verbose" {
+        help "Print human-readable progress and system events"
+    }
+    flag "--trace" {
+        help "Write structured JSONL trace events to the run folder"
+    }
+
+    cmd "status" {
+        help "Show provider security capabilities and availability"
+        flag "--verbose" {
+            help "Print human-readable progress and system events"
+        }
+        flag "--trace" {
+            help "Write structured JSONL trace events to the run folder"
+        }
+    }
+}
+
+cmd "skills" {
+    help "Manage PHAX skills"
+
+    cmd "install" {
+        help "Install the phax-planning skill into an agent's native skill directory"
+        flag "--target" {
+            arg "<target>"
+            required #true
+            help "Agent target (claude|codex|agent)"
+        }
+        flag "--scope" {
+            arg "<scope>"
+            default "project"
+            help "Installation scope (project|user)"
+        }
+    }
+}
+
+cmd "schema" {
+    help "Manage the local phax.schema.json"
+
+    cmd "upgrade" {
+        help "Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json"
+    }
+}
