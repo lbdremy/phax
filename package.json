@@ -8,6 +8,7 @@
   },
   "files": [
     "dist",
+    "phax.usage.kdl",
     ".claude/skills/phax-planning"
   ],
   "type": "module",

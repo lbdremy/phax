@@ -315,6 +315,7 @@ const CLI_DIRECT_IO_ALLOWLIST: ReadonlySet<string> = new Set([
   "src/cli/commands/sessionInfo.ts",
   "src/cli/commands/shell.ts",
   "src/cli/commands/skills.ts",
+  "src/cli/commands/usage.ts",
   "src/cli/interruptHandler.ts",
 ]);
 
