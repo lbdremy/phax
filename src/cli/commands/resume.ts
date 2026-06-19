@@ -22,6 +22,8 @@ import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
+import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
+import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 
 export interface ResumeCommandOptions {
   yes?: boolean;
@@ -42,6 +44,13 @@ export async function runResume(
   }
   const config = configResult.right;
   const { stateRoot } = config;
+
+  const telemetryConfigResult = loadTelemetryConfig();
+  if (Either.isLeft(telemetryConfigResult)) {
+    reportConfigError(telemetryConfigResult.left, out);
+    return 1;
+  }
+  const telemetryEnabled = telemetryConfigResult.right.enabled;
 
   const shortNameResult = decodeShortName(shortNameArg);
   if (Either.isLeft(shortNameResult)) {
@@ -155,12 +164,14 @@ export async function runResume(
       ? applyProviderPriorityOverride(loadedRouting ?? DEFAULT_MODEL_ROUTING, priorityOverride)
       : loadedRouting;
 
-  const telemetryLayer = buildSystemTelemetryLayer(
-    opts,
-    join(runPath, "semantic.jsonl"),
-    out,
-    shortName as unknown as import("../../domain/branded.js").RunId,
-  );
+  const telemetryLayer = telemetryEnabled
+    ? buildSystemTelemetryLayer(
+        opts,
+        join(runPath, "semantic.jsonl"),
+        out,
+        shortName as unknown as import("../../domain/branded.js").RunId,
+      )
+    : NoopSystemTelemetryLayer;
 
   setRunInterruptContext(shortName, stateRoot);
   try {
