@@ -11,22 +11,24 @@ The CLI currently exposes a `-last` variant for several commands:
 
 | Command       | Resolver fn        | Status in this effort                       |
 | ------------- | ------------------ | ------------------------------------------- |
-| `enter-last`  | `runEnterLast`     | Removed by plan 11 (`11-lock-agent-binding-phase-plan.md`, phase-05) |
+| `enter-last`  | `runEnterLast`     | Already removed by plan 11 (`11-lock-agent-binding-phase-plan.md`, phase-05) — merged |
 | `shell-last`  | `runShellLast`     | **Removed here**                            |
 | `path-last`   | `runPathLast`      | **Removed here**                            |
 | `open-last`   | `runOpenLast`      | **Removed here**                            |
 | `archive-last`| `runArchiveLast`   | **Removed here**                            |
 
-This plan removes the four siblings. `enter-last` is removed by plan 11; this
-plan does not duplicate that code removal but does own the shared documentation
-and the cleanup of the now-orphaned `resolveLastReviewOpenRun` helper (see the
-conditional-removal note below), so the doc/help surface ends up coherent
-regardless of which plan merges first.
+This plan removes the four siblings. `enter-last` and `runEnterLast` are **already
+gone** — plan 11 has merged (verified: no `enter-last`/`runEnterLast` references
+remain in `src/`, and `enter.ts` exports only `runEnter`). This plan owns the
+shared documentation cleanup and the removal of the now-orphaned
+`resolveLastReviewOpenRun` helper.
 
-All four siblings share the resolver `resolveLastReviewOpenRun`
-(`src/app/resolveRunInfo.ts`). Once every `*Last` command — the four here plus
-`enter-last` from plan 11 — is gone, that export has no consumers and must be
-removed too, or `knip` (part of the `full` gate) fails on the dead export.
+All four remaining siblings share the resolver `resolveLastReviewOpenRun`
+(`src/app/resolveRunInfo.ts`). Because `enter-last` is already removed, those four
+are its **only** remaining consumers — once they are deleted, the export has zero
+consumers and **must** be removed too, or `knip` (part of the `full` gate) fails
+on the dead export. (The earlier conditional "remove or retain" branch no longer
+applies: retention was only possible while plan 11 was unmerged.)
 
 ## Required commands
 
@@ -63,9 +65,9 @@ references, leaving the named-target commands untouched.
 - `src/cli/main.ts`: remove the four `program.command("…-last")…` blocks
   (`shell-last`, `path-last`, `open-last`, `archive-last`). Update the four
   `import { runX, runXLast } from …` lines to import only the named-target
-  function (`runShell`, `runPath`, `runOpen`, `runArchive`). Leave the
-  `enter-last` import/block alone — plan 11 owns it (if plan 11 is already
-  merged, that import will read `runEnter` only, which is fine).
+  function (`runShell`, `runPath`, `runOpen`, `runArchive`). There is no
+  `enter-last` import or block to touch — plan 11 already removed it, and the
+  `enter` import already reads `runEnter` only.
 - `src/cli/commands/shell.ts`: delete `runShellLast`; drop
   `resolveLastReviewOpenRun` from its import (keep `resolveRunByShortName` and
   whatever `runShell` uses).
@@ -74,25 +76,32 @@ references, leaving the named-target commands untouched.
   `{ resolveRunByShortName }`.
 - `src/cli/commands/open.ts`: delete `runOpenLast`; drop `resolveLastReviewOpenRun`
   from its import.
-- `src/cli/commands/archive.ts`: delete `runArchiveLast`; drop
-  `resolveLastReviewOpenRun` from its import.
-- `src/app/resolveRunInfo.ts` — **conditional removal**: after the deletions
-  above, grep the source tree for `resolveLastReviewOpenRun`. If the only
-  remaining occurrence is its own definition (i.e. `enter-last`/`runEnterLast`
-  is already gone via plan 11), delete the `resolveLastReviewOpenRun` function
-  and its `export`. If `runEnterLast` still references it (plan 11 not yet
-  merged), leave the helper in place and record this in the handoff — `knip`
-  will pass either way (it flags only genuinely-unused exports). Do not change
-  `resolveRunByShortName` or any other resolver.
-- `README.md`: remove the `phax shell-last`, `phax path-last`, `phax open-last`
-  lines (and `phax enter-last` if still listed) from the command listing around
-  lines 106–109, and the `phax archive-last` line around line 134. Keep the
-  named-target command lines.
-- `docs/acceptance-coverage.md`: update the table rows that name `-last`
-  variants — row 18 (`phax archive` / `archive-last`) should drop the
-  `archive-last` mention; if row 16 still reads `enter` / `enter-last`, drop the
-  `enter-last` mention there too. The underlying acceptance (resume / archive of
-  the relevant run) is still covered by the named-target command.
+- `src/cli/commands/archive.ts`: delete `runArchiveLast`; `resolveLastReviewOpenRun`
+  is the *only* symbol imported from `resolveRunInfo.js` here (`runArchive` does
+  not use `resolveRunByShortName`), so remove the entire
+  `import { resolveLastReviewOpenRun } from "../../app/resolveRunInfo.js";` line
+  rather than leaving an empty import.
+- `src/app/resolveRunInfo.ts` — **remove the orphaned helper**: after the four
+  deletions above, `resolveLastReviewOpenRun` has no remaining consumers (its
+  only references were the four siblings; `enter-last`/`runEnterLast` is already
+  gone). Delete the `resolveLastReviewOpenRun` function and its `export`. First
+  confirm with a grep — `grep -rn "resolveLastReviewOpenRun" src/ tests/` should
+  show only the definition line in `resolveRunInfo.ts`; record that result in the
+  handoff. Do not change `resolveRunByShortName` or any other resolver.
+- `README.md`: remove the entire `-last` block in the "Review loop" section —
+  the intro sentence (`Append \`-last\` to any command to target the most recent
+  review_open run:`) and the fenced code listing of `phax enter-last`,
+  `phax shell-last`, `phax path-last`, `phax open-last` (currently around lines
+  179–186). Note that this block still lists `phax enter-last`, a stale entry
+  plan 11 left behind; removing the whole block clears it. Also remove the
+  `phax archive-last` line in the "Archive" section (currently around line 210).
+  Keep all named-target command lines (`phax shell <short-name>`, etc.).
+- `docs/acceptance-coverage.md`: update the two table rows that name `-last`
+  variants (currently around lines 24 and 26). The `phax archive` / `archive-last`
+  row should drop the `archive-last` mention; the `phax enter` / `enter-last` row
+  should drop the `enter-last` mention (that command is already gone). The
+  underlying acceptance (resume / archive of the relevant run) is still covered by
+  the named-target command.
 
 ### Planned files to create
 
@@ -105,17 +114,18 @@ references, leaving the named-target commands untouched.
 - `src/cli/commands/path.ts`
 - `src/cli/commands/open.ts`
 - `src/cli/commands/archive.ts`
+- `src/app/resolveRunInfo.ts`
 - `README.md`
 - `docs/acceptance-coverage.md`
 
 ### Optional files that may be edited
 
-- `src/app/resolveRunInfo.ts`
+- (none)
 
 ### Boundary contracts
 
 This phase crosses no architectural boundary — it removes CLI registration and
-command handlers, and (conditionally) one orphaned application-layer helper. The
+command handlers, plus one now-orphaned application-layer helper. The
 named-target commands (`shell`, `path`, `open`, `archive`, `enter`) keep their
 existing signatures and behavior.
 
@@ -131,7 +141,7 @@ coverage.
 ### Implementation order
 
 Remove command blocks + imports in `main.ts` → delete `run*Last` functions and
-trim per-command imports → conditionally remove `resolveLastReviewOpenRun` →
+trim per-command imports → remove the orphaned `resolveLastReviewOpenRun` →
 update `README.md` and `docs/acceptance-coverage.md` → run the gate.
 
 ### Excluded scope
@@ -150,11 +160,12 @@ update `README.md` and `docs/acceptance-coverage.md` → run the gate.
 
 - Confirmation that `shell-last`, `path-last`, `open-last`, and `archive-last`
   (commands and `run*Last` functions) are removed.
-- Whether `resolveLastReviewOpenRun` was removed or retained, and the grep
-  result that justified the decision.
-- The living-doc lines updated in `README.md` and `docs/acceptance-coverage.md`.
-- Any deviation from the planned file lists, with the reason (e.g. retaining
-  `resolveRunInfo.ts` unchanged because `enter-last` was still present).
+- Confirmation that `resolveLastReviewOpenRun` was removed, with the
+  `grep -rn "resolveLastReviewOpenRun" src/ tests/` result (before deletion,
+  only the definition line plus the four siblings) that justified it.
+- The living-doc edits in `README.md` (the removed `-last` block and
+  `archive-last` line) and `docs/acceptance-coverage.md`.
+- Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
@@ -166,5 +177,5 @@ Remove the shell-last, path-last, open-last, and archive-last convenience
 commands and their handlers, plus the now-unused resolveLastReviewOpenRun
 helper, to trim CLI-surface noise. The named-target commands cover the same need
 explicitly. README and acceptance-coverage docs updated; no behavior change to
-the remaining commands. (enter-last is removed separately in the locked
+the remaining commands. (enter-last was already removed separately in the locked
 agent-binding work.)
