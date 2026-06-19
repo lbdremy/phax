@@ -2,6 +2,7 @@ import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import type { BranchName, PhaseId, RunId, WorktreePath } from "../../src/domain/branded.js";
 import type { PhaxEventBase } from "../../src/domain/events.js";
+import type { ReconciliationResult } from "../../src/domain/reconciliation/types.js";
 import {
   AgentInvocationError,
   PhaseHadNoChangesError,
@@ -473,6 +474,19 @@ const handoffLayers = () => {
   return { fakeBackend, fakeFs, fakeGit, fakeShell, layer };
 };
 
+const noDeviationReconciliation: ReconciliationResult = {
+  createdAsPlanned: [],
+  editedAsPlanned: [],
+  missingPlannedCreate: [],
+  missingPlannedEdit: [],
+  unplannedCreated: [],
+  unplannedEdited: [],
+  optionalTouched: [],
+  deletions: [],
+  renames: [],
+  hasDeviations: false,
+};
+
 describe("adaptHandoffGenerate", () => {
   const handoffOpts: GenerateHandoffOptions = {
     sessionId: "sess-abc" as never,
@@ -487,6 +501,7 @@ describe("adaptHandoffGenerate", () => {
     runPath,
     shortName: "my-run",
     phaseId: phaseId as string,
+    reconciliation: noDeviationReconciliation,
   };
 
   // For HandoffMissing dispatch the reducer needs the phase in `passed`.

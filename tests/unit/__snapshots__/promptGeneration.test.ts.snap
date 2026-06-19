@@ -137,7 +137,7 @@ A flat list of every file and symbol the next phase imports, e.g.:
 ### What the next phase needs to know
 Facts not derivable from reading the code: invariants, known gaps, ordering constraints,
 deliberate non-implementations, and workarounds that look odd but are intentional.
-If phax flagged file-plan deviations, explain each one here.
+If the file-plan deviation report above lists any deviations, justify each one here.
 
 Tone: short sentences, bullet lists, 150–400 words total.
 No transcript summaries — write decisions and facts only.

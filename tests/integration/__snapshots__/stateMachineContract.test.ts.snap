@@ -110,17 +110,6 @@ exports[`State Machine Contract > snapshots the ordered semantic trace for a hap
     "type": "state.transition",
   },
   {
-    "operationId": "phase-01",
-    "step": "handoff.generate",
-    "type": "step.started",
-  },
-  {
-    "operationId": "phase-01",
-    "result": "success",
-    "step": "handoff.generate",
-    "type": "step.completed",
-  },
-  {
     "dispatcher": "dispatch",
     "event": "CommitCreated",
     "stateAfter": "running:committed",
@@ -138,6 +127,17 @@ exports[`State Machine Contract > snapshots the ordered semantic trace for a hap
     "operationId": "phase-01",
     "path": "phase-01/file-reconciliation.md",
     "type": "artifact.generated",
+  },
+  {
+    "operationId": "phase-01",
+    "step": "handoff.generate",
+    "type": "step.started",
+  },
+  {
+    "operationId": "phase-01",
+    "result": "success",
+    "step": "handoff.generate",
+    "type": "step.completed",
   },
   {
     "dispatcher": "dispatch",

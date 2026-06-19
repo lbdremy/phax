@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId } from "../domain/branded.js";
+import type { ReconciliationResult } from "../domain/reconciliation/types.js";
 import {
   type AgentInvocationError,
   type AgentSessionIdMissingError,
@@ -20,7 +21,32 @@ import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { dispatch } from "./dispatcher.js";
 import { HANDOFF_GUIDANCE_LINES, REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
 
-function buildHandoffPrompt(): string {
+function buildDeviationBlock(result: ReconciliationResult): string {
+  if (!result.hasDeviations) {
+    return "phax found no file-plan deviations for this phase.";
+  }
+
+  const lines: string[] = [
+    "phax compared the files you changed against this phase's plan and found these deviations.",
+    "Justify each one under `## What the next phase needs to know`:",
+    "",
+  ];
+  if (result.unplannedCreated.length > 0) {
+    lines.push(`Unplanned files created: ${result.unplannedCreated.join(", ")}`);
+  }
+  if (result.unplannedEdited.length > 0) {
+    lines.push(`Unplanned files edited: ${result.unplannedEdited.join(", ")}`);
+  }
+  if (result.missingPlannedCreate.length > 0) {
+    lines.push(`Planned to create but not created: ${result.missingPlannedCreate.join(", ")}`);
+  }
+  if (result.missingPlannedEdit.length > 0) {
+    lines.push(`Planned to edit but not edited: ${result.missingPlannedEdit.join(", ")}`);
+  }
+  return lines.join("\n");
+}
+
+function buildHandoffPrompt(reconciliation: ReconciliationResult): string {
   return [
     "# Generate phase handoff",
     "",
@@ -35,7 +61,9 @@ function buildHandoffPrompt(): string {
     "Be concise and precise. Focus on what the next phase needs to know.",
     "Do not repeat the phase instructions — only what was actually done and decided.",
     "Do not summarise the session transcript — write facts and decisions only.",
-    'If phax reported file-plan deviations (planned files not touched or unplanned files changed), explain each deviation under "## What the next phase needs to know".',
+    "",
+    "File-plan deviation report:",
+    buildDeviationBlock(reconciliation),
   ].join("\n");
 }
 
@@ -64,6 +92,8 @@ export interface GenerateHandoffOptions {
   readonly shortName: string;
   /** Current phase id, for dispatch context and event base. */
   readonly phaseId: string;
+  /** Reconciliation result computed after commit, injected into the handoff prompt. */
+  readonly reconciliation: ReconciliationResult;
 }
 
 export function generatePhaseHandoff(
@@ -83,14 +113,22 @@ export function generatePhaseHandoff(
   | RegistryCorruptionError,
   FileSystem | Backend | Git | Shell | SystemTelemetry
 > {
-  const { sessionId, agentOptions, phaseFolderPath, worktreePath, runPath, shortName, phaseId } =
-    opts;
+  const {
+    sessionId,
+    agentOptions,
+    phaseFolderPath,
+    worktreePath,
+    runPath,
+    shortName,
+    phaseId,
+    reconciliation,
+  } = opts;
 
   return Effect.gen(function* () {
     const backend = yield* Backend;
     const fs = yield* FileSystem;
 
-    const handoffPrompt = buildHandoffPrompt();
+    const handoffPrompt = buildHandoffPrompt(reconciliation);
 
     yield* backend.resumeAgentSession(sessionId, handoffPrompt, {
       ...agentOptions,
