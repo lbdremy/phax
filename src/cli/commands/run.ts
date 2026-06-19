@@ -9,7 +9,7 @@ import {
   RateLimitError,
   UsageLimitError,
 } from "../../domain/errors.js";
-import { buildWhatsNext, renderWhatsNext } from "../../domain/whatsNext.js";
+import { buildWhatsNext, renderWhatsNext, toKeepAwakePlatform } from "../../domain/whatsNext.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { buildDryRunReport, formatDryRunReport } from "../../app/dryRun.js";
 import { extractPlanCore } from "../../app/extractPlan.js";
@@ -29,12 +29,7 @@ import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../schemas/phaxPlan.js";
-import {
-  buildSystemTelemetryLayer,
-  exitCodeForError,
-  provideRunLayers,
-  toKeepAwakePlatform,
-} from "./runLayers.js";
+import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";

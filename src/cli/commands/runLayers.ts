@@ -19,7 +19,6 @@ import { Shell } from "../../ports/shell.js";
 import type { OutputPort } from "../../ports/output.js";
 import { SystemTelemetry } from "../../ports/systemTelemetry.js";
 import type { RunId } from "../../domain/branded.js";
-import type { KeepAwakePlatform } from "../../domain/whatsNext.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
@@ -71,11 +70,6 @@ export function buildSystemTelemetryLayer(
     runId,
   };
   return makeSystemTelemetryLayer(input).pipe(Layer.provide(NodeFileSystemLayer));
-}
-
-export function toKeepAwakePlatform(platform: string): KeepAwakePlatform {
-  if (platform === "darwin" || platform === "linux") return platform;
-  return "other";
 }
 
 export function exitCodeForError(err: unknown): number {
