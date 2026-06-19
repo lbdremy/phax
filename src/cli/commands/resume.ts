@@ -9,7 +9,7 @@ import {
   RateLimitError,
   UsageLimitError,
 } from "../../domain/errors.js";
-import { buildWhatsNext, renderWhatsNext } from "../../domain/whatsNext.js";
+import { buildWhatsNext, renderWhatsNext, toKeepAwakePlatform } from "../../domain/whatsNext.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { loadPlan } from "../../app/loadPlan.js";
 import { inspectResume } from "../../app/resume.js";
@@ -26,12 +26,7 @@ import type { NonEmptyArray } from "../../domain/routing/priorityOverride.js";
 import type { ProviderId } from "../../domain/routing/types.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
-import {
-  buildSystemTelemetryLayer,
-  exitCodeForError,
-  provideRunLayers,
-  toKeepAwakePlatform,
-} from "./runLayers.js";
+import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";

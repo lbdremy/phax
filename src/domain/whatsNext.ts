@@ -11,6 +11,12 @@ export interface WhatsNext {
 
 export type KeepAwakePlatform = "darwin" | "linux" | "other";
 
+/** Map a raw `process.platform` string to the keep-awake platform the builder understands. */
+export function toKeepAwakePlatform(platform: string): KeepAwakePlatform {
+  if (platform === "darwin" || platform === "linux") return platform;
+  return "other";
+}
+
 export type WhatsNextScenario =
   | {
       readonly kind: "limit";

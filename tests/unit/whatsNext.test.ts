@@ -5,6 +5,7 @@ import {
   renderWhatsNext,
   resumeWhenClearCommand,
   secondsUntil,
+  toKeepAwakePlatform,
 } from "../../src/domain/whatsNext.js";
 
 const NOW = new Date("2026-06-19T12:00:00.000Z");
@@ -34,6 +35,19 @@ describe("secondsUntil", () => {
     const slightly = new Date(NOW.getTime() + 500); // 0.5s ahead of NOW
     // future is exactly 500ms ahead: diff=500ms, ceil(0.5)=1
     expect(secondsUntil(slightly.toISOString(), NOW)).toBe(1);
+  });
+});
+
+describe("toKeepAwakePlatform", () => {
+  it("maps darwin and linux through unchanged", () => {
+    expect(toKeepAwakePlatform("darwin")).toBe("darwin");
+    expect(toKeepAwakePlatform("linux")).toBe("linux");
+  });
+
+  it("maps any other platform to 'other'", () => {
+    expect(toKeepAwakePlatform("win32")).toBe("other");
+    expect(toKeepAwakePlatform("freebsd")).toBe("other");
+    expect(toKeepAwakePlatform("")).toBe("other");
   });
 });
 
