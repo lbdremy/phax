@@ -2,7 +2,7 @@ import { Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
-import { resolveRunByShortName, resolveLastReviewOpenRun } from "../../app/resolveRunInfo.js";
+import { resolveRunByShortName } from "../../app/resolveRunInfo.js";
 
 export function runPath(shortNameArg: string, out: OutputPort): number {
   const configResult = loadConfig(process.cwd());
@@ -27,30 +27,6 @@ export function runPath(shortNameArg: string, out: OutputPort): number {
   const { worktreePath } = infoResult.right;
   if (!worktreePath) {
     out.error(`No worktree path found for run "${shortNameArg}".`);
-    return 1;
-  }
-
-  out.log(worktreePath);
-  return 0;
-}
-
-export function runPathLast(out: OutputPort): number {
-  const configResult = loadConfig(process.cwd());
-  if (Either.isLeft(configResult)) {
-    out.error(`Config error: ${configResult.left.message}`);
-    return 1;
-  }
-  const { stateRoot } = configResult.right;
-
-  const infoResult = resolveLastReviewOpenRun(stateRoot);
-  if (Either.isLeft(infoResult)) {
-    out.error(`Could not find a review_open run: ${infoResult.left}`);
-    return 1;
-  }
-
-  const { worktreePath } = infoResult.right;
-  if (!worktreePath) {
-    out.error("No worktree path found for the last review_open run.");
     return 1;
   }
 

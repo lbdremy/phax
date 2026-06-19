@@ -7,11 +7,11 @@ import { runExtractPlan } from "./commands/extractPlan.js";
 import { runEnter } from "./commands/enter.js";
 import { runEnterPhase } from "./commands/enterPhase.js";
 import { runSessionInfo } from "./commands/sessionInfo.js";
-import { runShell, runShellLast } from "./commands/shell.js";
-import { runPath, runPathLast } from "./commands/path.js";
-import { runOpen, runOpenLast } from "./commands/open.js";
+import { runShell } from "./commands/shell.js";
+import { runPath } from "./commands/path.js";
+import { runOpen } from "./commands/open.js";
 import { runLs } from "./commands/ls.js";
-import { runArchive, runArchiveLast } from "./commands/archive.js";
+import { runArchive } from "./commands/archive.js";
 import { runReviewHandoff } from "./commands/reviewHandoff.js";
 import { runPublishPr } from "./commands/publishPr.js";
 import { runRun } from "./commands/run.js";
@@ -121,14 +121,6 @@ program
   });
 
 program
-  .command("shell-last")
-  .description("Open a shell in the most recent review_open run's final worktree")
-  .action(async () => {
-    const exitCode = await runShellLast(consoleOutput);
-    process.exit(exitCode);
-  });
-
-program
   .command("path <short-name>")
   .description("Print the final worktree path (script-friendly, one line)")
   .action((shortName: string) => {
@@ -137,26 +129,10 @@ program
   });
 
 program
-  .command("path-last")
-  .description("Print the final worktree path of the most recent review_open run")
-  .action(() => {
-    const exitCode = runPathLast(consoleOutput);
-    process.exit(exitCode);
-  });
-
-program
   .command("open <short-name>")
   .description("Open the final worktree in the configured editor")
   .action(async (shortName: string) => {
     const exitCode = await runOpen(shortName, consoleOutput);
-    process.exit(exitCode);
-  });
-
-program
-  .command("open-last")
-  .description("Open the most recent review_open run's final worktree in the editor")
-  .action(async () => {
-    const exitCode = await runOpenLast(consoleOutput);
     process.exit(exitCode);
   });
 
@@ -187,15 +163,6 @@ program
   .option("--force", "Archive even if the final worktree has uncommitted changes")
   .action(async (shortName: string, opts: { force?: boolean }) => {
     const exitCode = await runArchive(shortName, opts, consoleOutput);
-    process.exit(exitCode);
-  });
-
-program
-  .command("archive-last")
-  .description("Archive the most recent review_open run")
-  .option("--force", "Archive even if the final worktree has uncommitted changes")
-  .action(async (opts: { force?: boolean }) => {
-    const exitCode = await runArchiveLast(opts, consoleOutput);
     process.exit(exitCode);
   });
 
