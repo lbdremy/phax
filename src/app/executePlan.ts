@@ -751,27 +751,6 @@ export function executePlan(
           : {}),
       });
 
-      yield* telemetry.recordEvent(
-        makeStepStartedTelemetryEvent({ runId, operationId: phase.id, step: "handoff.generate" }),
-      );
-      yield* generatePhaseHandoff({
-        sessionId,
-        agentOptions,
-        phaseFolderPath,
-        worktreePath: worktreePath as string,
-        runPath,
-        shortName: shortName as string,
-        phaseId: phase.id,
-      });
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: phase.id,
-          step: "handoff.generate",
-          result: "success",
-        }),
-      );
-
       // commitPhase dispatches CommitCreated internally.
       yield* commitPhase({
         phase,
@@ -795,13 +774,36 @@ export function executePlan(
         }),
       );
 
-      yield* reconcilePhaseFiles({
+      // Reconcile after commit so diffNameStatus diffs HEAD^ against HEAD.
+      const reconciliation = yield* reconcilePhaseFiles({
         phase,
         worktreePath,
         phaseFolderPath,
         runId: runId as string,
         fileReconciliationMode: config.fileReconciliationMode,
       });
+
+      yield* telemetry.recordEvent(
+        makeStepStartedTelemetryEvent({ runId, operationId: phase.id, step: "handoff.generate" }),
+      );
+      yield* generatePhaseHandoff({
+        sessionId,
+        agentOptions,
+        phaseFolderPath,
+        worktreePath: worktreePath as string,
+        runPath,
+        shortName: shortName as string,
+        phaseId: phase.id,
+        reconciliation,
+      });
+      yield* telemetry.recordEvent(
+        makeStepCompletedTelemetryEvent({
+          runId,
+          operationId: phase.id,
+          step: "handoff.generate",
+          result: "success",
+        }),
+      );
 
       if (isFinal) {
         finalWorktreePath = worktreePath;

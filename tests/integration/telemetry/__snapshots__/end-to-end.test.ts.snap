@@ -110,17 +110,6 @@ exports[`executePlan — semantic telemetry end-to-end > emits the expected sema
     "type": "state.transition",
   },
   {
-    "operationId": "phase-01",
-    "step": "handoff.generate",
-    "type": "step.started",
-  },
-  {
-    "operationId": "phase-01",
-    "result": "success",
-    "step": "handoff.generate",
-    "type": "step.completed",
-  },
-  {
     "dispatcher": "dispatch",
     "event": "CommitCreated",
     "stateAfter": "running:committed",
@@ -138,6 +127,17 @@ exports[`executePlan — semantic telemetry end-to-end > emits the expected sema
     "operationId": "phase-01",
     "path": "phase-01/file-reconciliation.md",
     "type": "artifact.generated",
+  },
+  {
+    "operationId": "phase-01",
+    "step": "handoff.generate",
+    "type": "step.started",
+  },
+  {
+    "operationId": "phase-01",
+    "result": "success",
+    "step": "handoff.generate",
+    "type": "step.completed",
   },
   {
     "dispatcher": "dispatch",

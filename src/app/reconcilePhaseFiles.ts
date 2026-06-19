@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { RunId, WorktreePath } from "../domain/branded.js";
 import { reconcile } from "../domain/reconciliation/reconcile.js";
 import { renderReconciliationMarkdown } from "../domain/reconciliation/render.js";
-import type { PlannedFiles } from "../domain/reconciliation/types.js";
+import type { PlannedFiles, ReconciliationResult } from "../domain/reconciliation/types.js";
 import { makeArtifactGeneratedTelemetryEvent } from "../domain/telemetry/events.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
@@ -21,7 +21,7 @@ export interface ReconcilePhaseFilesOptions {
 
 export function reconcilePhaseFiles(
   opts: ReconcilePhaseFilesOptions,
-): Effect.Effect<void, GitError | FsError, Git | FileSystem | SystemTelemetry> {
+): Effect.Effect<ReconciliationResult, GitError | FsError, Git | FileSystem | SystemTelemetry> {
   return Effect.gen(function* () {
     const git = yield* Git;
     const fs = yield* FileSystem;
@@ -74,5 +74,7 @@ export function reconcilePhaseFiles(
         path: join(opts.phase.id, "file-reconciliation.md"),
       }),
     );
+
+    return result;
   });
 }
