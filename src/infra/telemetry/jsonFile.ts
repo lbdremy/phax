@@ -15,12 +15,17 @@ const swallowError = (
   eff: Effect.Effect<void, unknown, never>,
 ): Effect.Effect<void, never, never> => Effect.catchAll(eff, () => Effect.void);
 
-export const makeJsonFileTelemetryOps = (path: string, fs: FileSystemOps): SystemTelemetryOps =>
-  makeOps(path, fs);
+export const makeJsonFileTelemetryOps = (
+  path: string,
+  fs: FileSystemOps,
+  now: () => number = () => Date.now(),
+): SystemTelemetryOps => makeOps(path, fs, now);
 
-const makeOps = (path: string, fs: FileSystemOps): SystemTelemetryOps => {
-  const appendJson = (record: unknown): Effect.Effect<void, never, never> =>
-    swallowError(fs.appendLine(path, JSON.stringify(record)));
+const makeOps = (path: string, fs: FileSystemOps, now: () => number): SystemTelemetryOps => {
+  const appendJson = (record: unknown): Effect.Effect<void, never, never> => {
+    const ts = new Date(now()).toISOString();
+    return swallowError(fs.appendLine(path, JSON.stringify({ ts, ...(record as object) })));
+  };
 
   return {
     withOperation<A, E, R>(
@@ -29,14 +34,37 @@ const makeOps = (path: string, fs: FileSystemOps): SystemTelemetryOps => {
       operation: Effect.Effect<A, E, R>,
     ): Effect.Effect<A, E, R> {
       return Effect.acquireUseRelease(
-        appendJson({ kind: "step.started", step: name }),
+        Effect.flatMap(Effect.sync(now), (start) =>
+          Effect.map(
+            swallowError(
+              fs.appendLine(
+                path,
+                JSON.stringify({
+                  ts: new Date(start).toISOString(),
+                  kind: "step.started",
+                  step: name,
+                }),
+              ),
+            ),
+            () => start,
+          ),
+        ),
         () => operation,
-        (_, exit) =>
-          appendJson({
-            kind: "step.completed",
-            step: name,
-            result: Exit.isSuccess(exit) ? "success" : "failure",
-          }),
+        (start, exit) => {
+          const end = now();
+          return swallowError(
+            fs.appendLine(
+              path,
+              JSON.stringify({
+                ts: new Date(end).toISOString(),
+                kind: "step.completed",
+                step: name,
+                result: Exit.isSuccess(exit) ? "success" : "failure",
+                durationMs: end - start,
+              }),
+            ),
+          );
+        },
       );
     },
 
@@ -78,8 +106,9 @@ const makeOps = (path: string, fs: FileSystemOps): SystemTelemetryOps => {
 
 export const makeJsonFileSystemTelemetryLayer = (
   path: string,
+  now: () => number = () => Date.now(),
 ): Layer.Layer<SystemTelemetry, never, FileSystem> =>
   Layer.effect(
     SystemTelemetry,
-    Effect.map(FileSystem, (fs) => makeOps(path, fs)),
+    Effect.map(FileSystem, (fs) => makeOps(path, fs, now)),
   );
