@@ -1,6 +1,6 @@
 {
   "name": "@lbdremy/phax",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Deterministic local CLI that drives Claude Code through isolated, gated phases",
   "license": "MIT",
   "repository": {
