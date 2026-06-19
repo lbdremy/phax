@@ -7,7 +7,13 @@ import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { NodeShellLayer } from "../../infra/shell.js";
+import { makeGlobalTelemetryJournalLayer } from "../../infra/telemetry/globalJournal.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
+import {
+  loadTelemetryConfig,
+  TELEMETRY_CONFIG_PATH,
+  PHAX_HOME_DIR,
+} from "../../app/loadTelemetryConfig.js";
 
 export interface ArchiveCommandOptions {
   force?: boolean;
@@ -22,12 +28,18 @@ function buildLayer(
   | import("../../ports/shell.js").Shell
   | import("../../ports/systemTelemetry.js").SystemTelemetry
 > {
+  const telemetryConfig = loadTelemetryConfig(TELEMETRY_CONFIG_PATH);
+  const telemetryEnabled = Either.isRight(telemetryConfig) ? telemetryConfig.right.enabled : true;
+  const telemetryLayer = telemetryEnabled
+    ? makeGlobalTelemetryJournalLayer(PHAX_HOME_DIR).pipe(Layer.provide(NodeFileSystemLayer))
+    : NoopSystemTelemetryLayer;
+
   return Layer.mergeAll(
     NodeFileSystemLayer,
     makeNodeGitLayer(),
     makeNodeLockLayer(stateRoot),
     NodeShellLayer,
-    NoopSystemTelemetryLayer,
+    telemetryLayer,
   );
 }
 

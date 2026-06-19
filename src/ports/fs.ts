@@ -13,6 +13,7 @@ export interface FileSystemOps {
   exists(path: string): Effect.Effect<boolean, FsError>;
   remove(path: string): Effect.Effect<void, FsError>;
   rename(from: string, to: string): Effect.Effect<void, FsError>;
+  list(path: string): Effect.Effect<readonly string[], FsError>;
 }
 
 export class FileSystem extends Context.Tag("phax/FileSystem")<FileSystem, FileSystemOps>() {}

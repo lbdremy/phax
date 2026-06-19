@@ -62,6 +62,30 @@ export class FakeFileSystemImpl implements FileSystemOps {
     return Effect.void;
   }
 
+  list(path: string): Effect.Effect<readonly string[], FsError> {
+    const normalizedPath = path.endsWith("/") ? path.slice(0, -1) : path;
+    if (!this.dirs.has(normalizedPath) && !this.files.has(normalizedPath)) {
+      return Effect.fail(new FsError({ message: `ENOENT: no such directory: ${path}` }));
+    }
+    const prefix = normalizedPath + "/";
+    const names = new Set<string>();
+    for (const filePath of this.files.keys()) {
+      if (filePath.startsWith(prefix)) {
+        const rest = filePath.slice(prefix.length);
+        const segment = rest.split("/")[0];
+        if (segment !== undefined) names.add(segment);
+      }
+    }
+    for (const dir of this.dirs) {
+      if (dir.startsWith(prefix)) {
+        const rest = dir.slice(prefix.length);
+        const segment = rest.split("/")[0];
+        if (segment !== undefined && !rest.includes("/")) names.add(segment);
+      }
+    }
+    return Effect.succeed(Array.from(names).toSorted());
+  }
+
   rename(from: string, to: string): Effect.Effect<void, FsError> {
     const fromPrefix = from + "/";
 

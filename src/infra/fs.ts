@@ -7,6 +7,7 @@ import {
   rename as nodeRename,
   readFile,
   appendFile,
+  readdir,
 } from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomBytes } from "node:crypto";
@@ -79,6 +80,12 @@ export const NodeFileSystemLayer = Layer.succeed(FileSystem, {
   rename: (from, to) =>
     Effect.tryPromise({
       try: () => nodeRename(from, to),
+      catch: wrapFsError,
+    }),
+
+  list: (path) =>
+    Effect.tryPromise({
+      try: () => readdir(path),
       catch: wrapFsError,
     }),
 });
