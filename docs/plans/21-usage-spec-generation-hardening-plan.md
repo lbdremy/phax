@@ -46,6 +46,22 @@ repo (generator header, KDL header) already describes the spec correctly as
 generated/derived, so no repo narrative rewrite is needed beyond the small docs
 note in phase-01.
 
+A third gap surfaced after the spec shipped, this one at runtime in the release
+build rather than in the gates:
+
+3. **`--usage` is broken in the single-file binaries.** Both
+   `src/cli/commands/usage.ts` and `src/cli/commands/completions.ts` resolve
+   `phax.usage.kdl` from disk via a path derived from `import.meta.url` and then
+   `readFileSync` it (or hand its path to the `usage` CLI). The release artifacts
+   are produced by `deno compile` (`scripts/build-binaries.ts`,
+   `deno task compile`), which bundles the **module graph** but not arbitrary data
+   files. `phax.usage.kdl` is therefore absent on disk inside the binary, so
+   `phax --usage` and `phax completions` fail there. (`phax --version` survives
+   only because deno auto-embeds `package.json`.) A generated artifact that
+   downstream tooling consumes via the shipped CLI must travel *inside* the
+   binary, not beside it. Phase-05 closes this by making the spec part of the
+   module graph.
+
 ## Required commands
 
 - usage
@@ -62,6 +78,7 @@ required**. The preflight check will confirm coverage before any agent spawns.
 2. `phase-02` — Argument and root help in the Commander layer and generator.
 3. `phase-03` — Command long help and examples as code-owned metadata.
 4. `phase-04` — Enforce an info-clean spec and reframe the parity gate as a drift guard.
+5. `phase-05` — Embed the generated spec so `--usage` works in single-file binaries.
 
 ---
 
@@ -462,3 +479,164 @@ failures so a new argument or command without help cannot regress the now
 info-clean spec, and correct the parity test's header comment to describe its
 real role as a name-level drift guard over the generated spec rather than an
 independent contract check.
+
+---
+
+## phase-05 — Embed the generated spec so `--usage` works in single-file binaries {#phase-05-embed-spec}
+
+**Recommended model:** claude-sonnet-4-6
+**Recommended effort:** medium
+
+Make the generated CLI spec travel *inside* the `deno compile` binary so
+`phax --usage` and `phax completions` work in the release artifacts. Today both
+commands read `phax.usage.kdl` from disk via an `import.meta.url`-derived path;
+`deno compile` bundles only the module graph, so the file is absent in the binary
+and both commands fail. Embed the spec as a TypeScript constant (part of the
+module graph) and serve from it, materializing a temp file only where the
+external `usage` CLI insists on a path.
+
+### Detailed instructions
+
+- Extend the phase-01 generator (`scripts/generate-usage-spec.ts`, which by then
+  exposes the pure `generateUsageSpec()`) so its runner *also* writes
+  `src/cli/generated/usageSpec.ts` containing
+  `export const USAGE_SPEC_KDL = <JSON.stringify of generateUsageSpec()>;` with a
+  "do not edit by hand — regenerate with `pnpm gen:usage-spec`" header. The
+  committed `phax.usage.kdl` continues to be written unchanged. Use
+  `JSON.stringify` for the literal so all escaping is correct. The file is a
+  generated artifact and is excluded from lint/format (see the next bullet), so
+  the generator does not need to emit oxfmt/oxlint-clean output.
+- Exclude the generated directory from the linter and formatter: add
+  `"src/cli/generated/"` to `ignorePatterns` in `.oxlintrc.json` and to
+  `ignorePatterns` in `.oxfmtrc.json` (matching the existing `dist/` / `coverage/`
+  entries). This keeps `pnpm lint` and `pnpm format:check` green without the
+  generator having to produce formatter-stable output, and removes any risk of
+  oxfmt rewriting the embedded string and drifting from `pnpm gen:usage-spec`.
+  Note `typecheck` (tsc) and `knip` still cover the file — it is real TypeScript
+  imported by `src/cli/usageSpec.ts`.
+- Add `src/cli/usageSpec.ts` exporting a `withSpecFile<T>(fn: (specPath: string)
+  => T): T` helper that writes `USAGE_SPEC_KDL` to a fresh temp dir
+  (`mkdtempSync` under `os.tmpdir()`), invokes the synchronous `fn` with the path,
+  and removes the temp dir in a `finally`. This serves the json + completions
+  paths, which shell out to the external `usage` CLI and require a file path.
+- Update `src/cli/commands/usage.ts`: for `--usage` (kdl) write `USAGE_SPEC_KDL`
+  to stdout directly — delete `resolveSpecPath`, the `existsSync` check, and the
+  `readFileSync` of the spec. For `--usage-format json`, wrap the existing
+  `spawnSync("usage", ["generate", "json", "-f", specPath], …)` in
+  `withSpecFile(...)`. Keep `readPackageVersion()` as-is (deno embeds
+  `package.json`, so `--version` already works). Preserve all current error
+  messages and exit codes.
+- Update `src/cli/commands/completions.ts`: wrap its
+  `spawnSync("usage", ["generate", "completion", shell, "phax", "-f", specPath],
+  …)` in `withSpecFile(...)` and delete its own `resolveSpecPath` /`existsSync`
+  block and the now-unused `node:fs` / `node:path` / `node:url` imports (it keeps
+  `node:child_process`).
+- Add `src/cli/usageSpec.ts` to `CLI_DIRECT_IO_ALLOWLIST` in
+  `tests/unit/architecturalGuards.test.ts` (it imports `node:fs` and `node:os`).
+  Both `usage.ts` and `completions.ts` stay in the allowlist and keep importing a
+  Node I/O module, so the "kept honest" assertions still hold.
+- Extend the phase-01 drift gate (`tests/integration/usageSpecDrift.test.ts`)
+  with an assertion that the embedded constant matches the committed spec —
+  `import { USAGE_SPEC_KDL }` and assert it is byte-identical to
+  `generateUsageSpec()` / `phax.usage.kdl`. This is the hardening piece: it fails
+  the gate if someone edits the CLI or the spec without regenerating the embed,
+  so the binary can never serve a stale or missing spec.
+- Extend `scripts/smoke-binary.sh` to additionally assert `./dist/bin/phax
+  --usage` exits 0 and prints a non-empty spec (e.g. greps for `name "phax"`).
+  This is the real proof the fix works in a compiled binary, since the `full`
+  gate runs under tsx where the file exists on disk.
+- Run `pnpm gen:usage-spec` to produce `src/cli/generated/usageSpec.ts`, then
+  `pnpm format` and `pnpm check:full`; keep the phase-01 drift gate, the parity
+  gate, and the lint gate green.
+
+### Planned files to create
+
+- `src/cli/generated/usageSpec.ts`
+- `src/cli/usageSpec.ts`
+
+### Planned files to edit
+
+- `scripts/generate-usage-spec.ts`
+- `src/cli/commands/usage.ts`
+- `src/cli/commands/completions.ts`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/integration/usageSpecDrift.test.ts`
+- `scripts/smoke-binary.sh`
+- `.oxlintrc.json`
+- `.oxfmtrc.json`
+
+### Optional files that may be edited
+
+- (none)
+
+### Boundary contracts
+
+Generator → embedded module → CLI commands: `generateUsageSpec()` is the single
+projection of `buildProgram()` into Usage KDL text (phase-01). Phase-05 adds a
+second sink for that exact text — `src/cli/generated/usageSpec.ts`'s
+`USAGE_SPEC_KDL` — which `usage.ts` and `completions.ts` consume in place of a
+disk read. The stable contract is "the committed `phax.usage.kdl`, the embedded
+`USAGE_SPEC_KDL` constant, and `generateUsageSpec()` output are byte-identical,"
+enforced by the drift gate.
+
+### Test strategy
+
+- CLI contract / build-tooling layer → integration: extend
+  `tests/integration/usageSpecDrift.test.ts` to assert the embedded constant
+  equals the committed spec (write this assertion before wiring the generator so
+  it is red until the embed exists).
+- Architecture layer → unit: the existing `tests/unit/architecturalGuards.test.ts`
+  enforces the allowlist; the new helper must be added to keep it green.
+- Binary smoke (real artifact) → `scripts/smoke-binary.sh` exercises a compiled
+  `deno` binary; extend it to cover `--usage`. Run manually / in the release
+  workflow, not in the `full` gate.
+
+### Implementation order
+
+1. Add the embedded-constant assertion to the drift test (red).
+2. Teach the generator runner to emit `src/cli/generated/usageSpec.ts`; run
+   `pnpm gen:usage-spec` to create it (drift test green).
+3. Add `src/cli/usageSpec.ts` and allowlist it in the architecture guard.
+4. Rewire `usage.ts` and `completions.ts` onto the constant + `withSpecFile`.
+5. Extend `scripts/smoke-binary.sh`; verify with `pnpm deno:smoke-binary`.
+
+### Excluded scope
+
+- Any change to command/flag/argument definitions or the emitted spec *content*
+  (phases 02–03) — phase-05 changes only where the spec is read from at runtime.
+- Switching the binary build to `deno compile --include` (the considered
+  alternative); phase-05 deliberately embeds in the module graph so npm dist and
+  the binary share one code path.
+- Routing `usage.ts` / `completions.ts` I/O through the FileSystem port (a broader
+  refactor tracked by the CLI direct-I/O allowlist).
+
+### Verification
+
+- The project's configured `full` gate profile in `phax.json` (drift, parity, and
+  lint gates plus the architecture guard).
+- Manual: `pnpm deno:smoke-binary` confirms `--usage` works in a compiled binary.
+
+### Expected handoff content
+
+- The module path of the embedded constant (`src/cli/generated/usageSpec.ts`) and
+  the `withSpecFile` helper (`src/cli/usageSpec.ts`) with its signature.
+- Confirmation that the committed `phax.usage.kdl` bytes are unchanged and that
+  `USAGE_SPEC_KDL` is byte-identical to it (drift gate green).
+- Confirmation that `scripts/smoke-binary.sh` now asserts `--usage` in a compiled
+  binary and that `pnpm deno:smoke-binary` passes.
+- The architecture-guard allowlist entry added and why.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+fix(cli): embed the usage spec so --usage works in single-file binaries
+
+### Commit body
+
+Emit src/cli/generated/usageSpec.ts (USAGE_SPEC_KDL) from the spec generator and
+serve `phax --usage` and `phax completions` from the embedded constant instead of
+reading phax.usage.kdl from disk, with a withSpecFile helper materializing a temp
+file only for the external usage CLI. deno compile bundles the module graph but
+not data files, so the on-disk spec was absent in the release binaries; embedding
+it fixes --usage there. Adds an embedded-vs-committed drift assertion and a
+binary smoke check for --usage.
