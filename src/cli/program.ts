@@ -14,6 +14,7 @@ import { runLs } from "./commands/ls.js";
 import { runArchive } from "./commands/archive.js";
 import { runReviewHandoff } from "./commands/reviewHandoff.js";
 import { runPublishPr } from "./commands/publishPr.js";
+import { runReviewCompliance } from "./commands/reviewCompliance.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
 import { registerResumeCommand } from "./commands/resumeRegister.js";
@@ -241,6 +242,14 @@ export function buildProgram(): Command {
     .description("Push the final branch and create (or reuse) a GitHub PR for a review_open run")
     .action(async (shortName: string) => {
       const exitCode = await runPublishPr(shortName, globalTraceOpts(), consoleOutput);
+      process.exit(exitCode);
+    });
+
+  program
+    .command("review-compliance <short-name>")
+    .description("Run a non-mutating plan-compliance review for a review_open run")
+    .action(async (shortName: string) => {
+      const exitCode = await runReviewCompliance(shortName, {}, consoleOutput);
       process.exit(exitCode);
     });
 

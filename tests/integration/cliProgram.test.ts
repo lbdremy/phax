@@ -16,6 +16,7 @@ const TOP_LEVEL_COMMANDS = [
   "run",
   "review-handoff",
   "publish-pr",
+  "review-compliance",
   "init",
   "resume",
   "reset-phase",
