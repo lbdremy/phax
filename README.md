@@ -356,6 +356,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax run [FLAGS] [short-name]` — Extract a plan from plan.md and run all phases, or preview with --dry-run
 - `phax review-handoff [--allow-partial] <short-name>` — Regenerate review-handoff.md and global file reconciliation for a review_open run
 - `phax publish-pr <short-name>` — Push the final branch and create (or reuse) a GitHub PR for a review_open run
+- `phax review-compliance <short-name>` — Run a non-mutating plan-compliance review for a review_open run
 - `phax init [--force]` — Create phax.json and phax.schema.json in the current directory
 - `phax report [--no-gist] [short-name]` — Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)
 - `phax completions <shell>` — Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.

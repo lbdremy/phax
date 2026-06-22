@@ -182,6 +182,11 @@ cmd "publish-pr" {
     arg "<short-name>"
 }
 
+cmd "review-compliance" {
+    help "Run a non-mutating plan-compliance review for a review_open run"
+    arg "<short-name>"
+}
+
 cmd "init" {
     help "Create phax.json and phax.schema.json in the current directory"
     flag "--force" {

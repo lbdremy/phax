@@ -268,6 +268,16 @@ Push the final branch and create (or reuse) a GitHub PR for a review_open run
 
 #### `<short-name>`
 
+## `phax review-compliance`
+
+- **Usage**: `phax review-compliance <short-name>`
+
+Run a non-mutating plan-compliance review for a review_open run
+
+### Arguments
+
+#### `<short-name>`
+
 ## `phax init`
 
 - **Usage**: `phax init [--force]`
