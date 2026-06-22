@@ -57,6 +57,32 @@ const ExtractPlanConfigSchema = Schema.Struct({
   effort: Schema.optional(EffortLiteral),
 });
 
+export const ComplianceReviewConfigSchema = Schema.Struct({
+  enabled: Schema.Boolean,
+  model: Schema.optional(Schema.NonEmptyString),
+  effort: Schema.optional(EffortLiteral),
+});
+
+export type ComplianceReviewConfig = Schema.Schema.Type<typeof ComplianceReviewConfigSchema>;
+
+export interface ResolvedComplianceReviewConfig {
+  readonly enabled: boolean;
+  readonly model: string;
+  readonly effort: Effort;
+}
+
+export const DEFAULT_COMPLIANCE_REVIEW_MODEL = "claude-sonnet-4-6";
+
+export function resolveComplianceReviewConfig(
+  raw: ComplianceReviewConfig | undefined,
+): ResolvedComplianceReviewConfig {
+  return {
+    enabled: raw?.enabled ?? false,
+    model: raw?.model ?? DEFAULT_COMPLIANCE_REVIEW_MODEL,
+    effort: raw?.effort ?? "medium",
+  };
+}
+
 const FileReconciliationConfigSchema = Schema.Struct({
   mode: Schema.Literal("report_only", "warn"),
 });
@@ -86,6 +112,11 @@ export const PhaxConfigSchema = Schema.Struct({
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
+  review: Schema.optional(
+    Schema.Struct({
+      compliance: Schema.optional(ComplianceReviewConfigSchema),
+    }),
+  ),
   gateProfiles: GateProfilesSchema,
   workspaces: Schema.optional(Schema.Array(WorkspaceSchema)),
 });
@@ -105,6 +136,7 @@ export interface ResolvedConfig {
   readonly fileReconciliationMode: "report_only" | "warn";
   readonly security: ResolvedSecurityConfig;
   readonly publish: ResolvedPublishConfig;
+  readonly complianceReview: ResolvedComplianceReviewConfig;
 }
 
 export type { ResolvedSecurityConfig };
