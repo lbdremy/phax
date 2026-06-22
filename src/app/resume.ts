@@ -8,6 +8,7 @@ import type { PhaxState } from "../domain/state.js";
 import type { RunStatus, PhaseStatus } from "../schemas/status.js";
 import { resolveRunByShortName, findCurrentPhase } from "./resolveRunInfo.js";
 import { composePhaxState } from "./phaxState.js";
+import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 
 export type ResumeRefusalReason =
   | RunStatus["state"]
@@ -105,18 +106,10 @@ export function canResume(state: PhaxState): boolean {
   return disposition.kind === "Handled" || disposition.kind === "Ignored";
 }
 
-export function inspectResume(
-  shortName: ShortName,
-  stateRoot: string,
+export function inspectResumeFromInfo(
+  info: RunReviewInfo,
 ): Either.Either<ResumeDecision, ResumeRefusal> {
-  const infoResult = resolveRunByShortName(shortName, stateRoot);
-  if (Either.isLeft(infoResult)) {
-    return Either.left({
-      reason: "run_not_found",
-      message: `Run "${shortName}" not found: ${infoResult.left}`,
-    });
-  }
-  const info = infoResult.right;
+  const { shortName } = info;
 
   const currentPhase = findCurrentPhase(info.phaseStatuses);
   const state = composePhaxState(info.runState as RunStatus["state"], info.lastError, currentPhase);
@@ -162,4 +155,18 @@ export function inspectResume(
     worktreePath: nextPhase.worktreePath,
     skippedPhaseIds,
   });
+}
+
+export function inspectResume(
+  shortName: ShortName,
+  stateRoot: string,
+): Either.Either<ResumeDecision, ResumeRefusal> {
+  const infoResult = resolveRunByShortName(shortName, stateRoot);
+  if (Either.isLeft(infoResult)) {
+    return Either.left({
+      reason: "run_not_found",
+      message: `Run "${shortName}" not found: ${infoResult.left}`,
+    });
+  }
+  return inspectResumeFromInfo(infoResult.right);
 }
