@@ -297,4 +297,40 @@ describe("publishRun", () => {
     expect(result.record?.prStatus).toBe("not_attempted");
     expect(github.impl.calls.some((c) => c.method === "createPullRequest")).toBe(false);
   });
+
+  it("includes compliance section in PR body when compliance-review.md exists", async () => {
+    const { fs, git, github, layers } = setupLayers();
+    seedSuccessPreconditions({ fs, git });
+    github.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/42");
+
+    const complianceMd = "## Verdict\n\nconformant\n\nAll phases passed.";
+    fs.impl.setFile(`${runPath}/compliance-review.md`, complianceMd);
+
+    await Effect.runPromise(
+      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
+        Effect.provide(layers),
+      ),
+    );
+
+    const prBodyFile = fs.impl.getFile(`${runPath}/pr-body.md`);
+    expect(prBodyFile).toBeDefined();
+    expect(prBodyFile).toContain("## Plan compliance review");
+    expect(prBodyFile).toContain(complianceMd);
+  });
+
+  it("PR body is unchanged when compliance-review.md is absent", async () => {
+    const { fs, git, github, layers } = setupLayers();
+    seedSuccessPreconditions({ fs, git });
+    github.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/42");
+
+    await Effect.runPromise(
+      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
+        Effect.provide(layers),
+      ),
+    );
+
+    const prBodyFile = fs.impl.getFile(`${runPath}/pr-body.md`);
+    expect(prBodyFile).toBeDefined();
+    expect(prBodyFile).not.toContain("## Plan compliance review");
+  });
 });

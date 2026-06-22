@@ -37,6 +37,7 @@ export interface PublishRunOpts {
 }
 
 const REVIEW_HANDOFF_FILENAME = "review-handoff.md";
+const COMPLIANCE_REVIEW_FILENAME = "compliance-review.md";
 const PUBLICATION_FILENAME = "publication.json";
 const PR_BODY_FILENAME = "pr-body.md";
 
@@ -365,9 +366,16 @@ export function publishRun(
       shortName: info.shortName,
     });
 
+    const complianceReviewPath = join(info.runPath, COMPLIANCE_REVIEW_FILENAME);
+    const complianceReadResult = yield* Effect.either(fs.readText(complianceReviewPath));
+    const complianceReviewMd = Either.isRight(complianceReadResult)
+      ? complianceReadResult.right
+      : undefined;
+
     const built = buildPrBody({
       reviewHandoffMd: handoffReadResult.right,
       branch: branchString,
+      ...(complianceReviewMd !== undefined ? { complianceReviewMd } : {}),
     });
 
     const bodyFile = join(info.runPath, PR_BODY_FILENAME);

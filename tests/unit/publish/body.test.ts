@@ -75,4 +75,45 @@ describe("buildPrBody", () => {
     });
     expect(truncated).toBe(false);
   });
+
+  it("appends compliance section under its own heading when complianceReviewMd is provided", () => {
+    const { body, truncated } = buildPrBody({
+      reviewHandoffMd: "## Handoff\n\nSome content.",
+      branch: "phax/my-run",
+      complianceReviewMd: "## Verdict\n\nconformant",
+    });
+    expect(truncated).toBe(false);
+    expect(body).toContain("## Handoff\n\nSome content.");
+    expect(body).toContain("## Plan compliance review");
+    expect(body).toContain("## Verdict\n\nconformant");
+    const handoffIndex = body.indexOf("## Handoff");
+    const complianceIndex = body.indexOf("## Plan compliance review");
+    expect(complianceIndex).toBeGreaterThan(handoffIndex);
+  });
+
+  it("body without complianceReviewMd reproduces today's body", () => {
+    const handoff = "## Summary\n\nReview content.";
+    const withCompliance = buildPrBody({
+      reviewHandoffMd: handoff,
+      branch: "main",
+      complianceReviewMd: undefined,
+    });
+    const withoutCompliance = buildPrBody({ reviewHandoffMd: handoff, branch: "main" });
+    expect(withCompliance.body).toBe(withoutCompliance.body);
+    expect(withCompliance.truncated).toBe(withoutCompliance.truncated);
+  });
+
+  it("truncation respects maxBytes when compliance section pushes body over the limit", () => {
+    const maxBytes = 400;
+    const handoff = "h".repeat(200);
+    const compliance = "c".repeat(2000);
+    const { body, truncated } = buildPrBody({
+      reviewHandoffMd: handoff,
+      branch: "phax/my-run",
+      complianceReviewMd: compliance,
+      maxBytes,
+    });
+    expect(truncated).toBe(true);
+    expect(Buffer.byteLength(body, "utf8")).toBeLessThanOrEqual(maxBytes);
+  });
 });
