@@ -1,6 +1,6 @@
 {
   "name": "phax",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Deterministic local CLI that drives AI Coding agent through isolated, gated phases",
   "license": "Apache-2.0",
   "bin": {
