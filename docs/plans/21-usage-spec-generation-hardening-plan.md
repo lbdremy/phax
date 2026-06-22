@@ -29,8 +29,8 @@ Under that model the review surfaced two real gaps:
 
 2. **The generated spec is structurally thin.** Because Commander did not carry
    the metadata and the generator did not emit it, the spec has no argument help
-   (15 `missing-arg-help` lint infos), no root command help (1 `missing-cmd-help`
-   info), no per-command long help, and only 3 incidental `example` nodes. The
+   (18 `missing-arg-help` lint infos), no root command help (1 `missing-cmd-help`
+   info), no per-command long help, and zero `example` nodes. The
    original plan called for argument help, long help on the documentation-heavy
    commands, and at least one example per command. To deliver that *under the
    code-as-source-of-truth model*, the metadata must be added in the Commander
@@ -188,19 +188,29 @@ derivation.
 
 Give every positional argument a description in the Commander definitions and
 emit the program's own description as the spec's root help, then teach the
-generator to project both. This closes all 16 `usage lint` info messages with the
+generator to project both. This closes all 19 `usage lint` info messages with the
 code remaining the source of truth.
 
 ### Detailed instructions
 
-- In `src/cli/program.ts`, add a concise description to every `.argument()` /
-  `.addArgument()` call that currently lacks one (the 15 `missing-arg-help`
-  cases: `short-name` on `unlock`, `enter`, `enter-phase`, `session-info`,
-  `shell`, `path`, `open`, `archive`, `run`, `review-handoff`, `publish-pr`,
-  `resume`, `reset-phase`, and `phase-id` on `enter-phase` and `reset-phase`).
-  Use Commander's argument-description support (e.g. `.argument("<short-name>",
-  "Run short name, e.g. usage-cli")`). Keep them short and consistent; identical
-  argument names should get identical descriptions.
+- Add a concise description to every positional argument that currently lacks
+  one (the 18 `missing-arg-help` cases): `short-name` on `unlock`, `enter`,
+  `enter-phase`, `session-info`, `shell`, `path`, `open`, `archive`, `run`,
+  `review-handoff`, `publish-pr`, `review-compliance`, `report`, `resume`,
+  `reset-phase`; `phase-id` on `enter-phase` and `reset-phase`; and `shell` on
+  `completions`. Keep them short and consistent; identical argument names get
+  identical descriptions.
+- Note the current code shape: there are **no** `.argument()` calls — every
+  positional is declared inline in the command string (e.g.
+  `.command("unlock <short-name>")`). Add descriptions with Commander's
+  argument-description map on `.description()` (e.g.
+  `.description("…", { "short-name": "Run short name, e.g. usage-cli" })`), or
+  convert the inline positionals to `.argument("<short-name>", "…")`. Prefer the
+  `.description()` map form to avoid restructuring the command definitions.
+- Most commands live in `src/cli/program.ts`, but `resume` and `reset-phase`
+  are defined in `src/cli/commands/resumeRegister.ts` and
+  `src/cli/commands/resetPhaseRegister.ts` — add their argument descriptions
+  there.
 - Teach `scripts/generate-usage-spec.ts` `emitArg` to emit argument help when
   present, as `arg "<name>" { help "<description>" }` per the
   [Usage spec format](https://usage.jdx.dev/spec/). Confirm the exact KDL shape
@@ -221,6 +231,8 @@ code remaining the source of truth.
 ### Planned files to edit
 
 - `src/cli/program.ts`
+- `src/cli/commands/resumeRegister.ts`
+- `src/cli/commands/resetPhaseRegister.ts`
 - `scripts/generate-usage-spec.ts`
 - `phax.usage.kdl`
 
@@ -275,7 +287,7 @@ feat(cli): add argument and root help to the generated Usage spec
 Add descriptions to every positional CLI argument in the Commander program and
 emit the program description as the spec's root help, then teach the generator to
 project argument help and root help into phax.usage.kdl. Regenerates the spec and
-closes all 16 usage-lint info messages, with code remaining the source of truth.
+closes all 19 usage-lint info messages, with code remaining the source of truth.
 
 ---
 
@@ -297,13 +309,21 @@ hand-editing the derived spec.
   the documentation-heavy commands the original plan called out: `run`, `resume`,
   `init`, the `enter` / `enter-phase` / `session-info` / `shell` / `path` /
   `open` session family, `ls` (status filters `--active|--failed|--review-open|
-  --archived|--json`), and `archive` (`--force`). Each example must be a real,
-  runnable invocation; long help must state side effects explicitly (worktree /
-  session / file-affecting / scheduled-run commands).
+  --archived|--json`), and `archive` (`--force`). Also cover the two commands
+  added since the original plan, both with notable side effects:
+  `publish-pr` / `report` (push a branch, open a GitHub PR/issue, create a gist)
+  and `review-compliance` (run a non-mutating plan-compliance review). Each
+  example must be a real, runnable invocation; long help must state side effects
+  explicitly (worktree / session / file-affecting / network / scheduled-run
+  commands).
 - Wire `cliDocs` into `src/cli/program.ts` so the runtime `--help` surfaces the
   examples and long help (e.g. via `command.addHelpText("after", …)` and/or
   command long-description). The same metadata feeds the generator — keep
-  `cliDocs.ts` the single source so `--help` and the spec never disagree.
+  `cliDocs.ts` the single source so `--help` and the spec never disagree. Apply
+  the wiring by iterating `program.commands` by command path after all
+  registrations (including `registerResumeCommand` / `registerResetPhaseCommand`)
+  rather than editing each command site, so commands defined in the
+  `*Register.ts` files are covered without touching those files.
 - Teach `scripts/generate-usage-spec.ts` to emit `long_help "<text>"` and one
   `example "<cmd>"` node per example for commands present in `cliDocs`, following
   the [Usage spec format](https://usage.jdx.dev/spec/). Confirm exact KDL shapes
