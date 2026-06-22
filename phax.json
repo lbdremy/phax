@@ -12,6 +12,7 @@
     },
     "agentCommands": ["deno", "ctx7", "usage"]
   },
+  "review": { "compliance": { "enabled": true } },
   "publish": {
     "enabled": true,
     "remote": "origin",
