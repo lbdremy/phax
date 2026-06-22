@@ -9,6 +9,7 @@ import {
   decodePhaxConfig,
   DEFAULT_EXTRACT_MODEL,
   resolvePublishConfig,
+  resolveComplianceReviewConfig,
 } from "../schemas/phaxConfig.js";
 import { resolveSecurityConfig, DEFAULT_SECURITY_PROFILE } from "../schemas/securityConfig.js";
 import { formatParseError } from "../schemas/formatError.js";
@@ -172,6 +173,7 @@ export function loadConfig(
     fileReconciliationMode: config.fileReconciliation?.mode ?? "report_only",
     security: resolvedSecurity,
     publish: resolvePublishConfig(config.publish),
+    complianceReview: resolveComplianceReviewConfig(config.review?.compliance),
   };
 
   return Either.right(resolved);
