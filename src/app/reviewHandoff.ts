@@ -2,6 +2,7 @@ import { Effect, Either } from "effect";
 import { join } from "node:path";
 import { ReviewHandoffArtifactMissingError } from "../domain/errors.js";
 import type { GlobalFileReconciliation } from "../domain/reconciliation/global.js";
+import { findUnexplainedDeviations } from "../domain/reconciliation/explained.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
@@ -17,6 +18,31 @@ interface PhaseContent {
   readonly title: string;
   readonly fileReconciliationMd: string;
   readonly phaseHandoffMd: string;
+}
+
+function buildUnexplainedSection(
+  global: GlobalFileReconciliation,
+  phases: readonly PhaseContent[],
+): string {
+  const phaseHandoffs = new Map(phases.map((p) => [p.phaseId, p.phaseHandoffMd]));
+  const unexplained: string[] = [];
+
+  for (const entry of global.unplanned) {
+    const combined = entry.touchedInPhases.map((pid) => phaseHandoffs.get(pid) ?? "").join("\n");
+    if (findUnexplainedDeviations([entry.path], combined).length > 0) {
+      unexplained.push(entry.path);
+    }
+  }
+
+  for (const entry of global.missing) {
+    const combined = entry.plannedInPhases.map((pid) => phaseHandoffs.get(pid) ?? "").join("\n");
+    if (findUnexplainedDeviations([entry.path], combined).length > 0) {
+      unexplained.push(entry.path);
+    }
+  }
+
+  if (unexplained.length === 0) return "_None._";
+  return unexplained.map((p) => `- \`${p}\``).join("\n");
 }
 
 function buildAttentionSection(global: GlobalFileReconciliation): string {
@@ -89,6 +115,10 @@ ${missingSection}
 ## Global review attention points
 
 ${buildAttentionSection(global)}
+
+## Deviations not explained in any handoff
+
+${buildUnexplainedSection(global, phases)}
 
 ## Phase details
 
