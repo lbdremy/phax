@@ -59,7 +59,7 @@ export function createRunFolder(
       runId,
       state: "created",
       branch: plan.run.branch,
-      projectName: config.raw.project.name,
+      projectName: config.namespace,
       phasesCount: plan.phases.length,
       createdAt: now,
       updatedAt: now,

@@ -11,7 +11,7 @@ describe("getPhaxConfigJsonSchema", () => {
     const schema = getPhaxConfigJsonSchema() as Record<string, unknown>;
     const properties = schema["properties"] as Record<string, unknown>;
     expect(properties["version"]).toBeDefined();
-    expect(properties["project"]).toBeDefined();
+    expect(properties["name"]).toBeDefined();
     expect(properties["state"]).toBeDefined();
     expect(properties["gateProfiles"]).toBeDefined();
   });
@@ -20,7 +20,7 @@ describe("getPhaxConfigJsonSchema", () => {
     const schema = getPhaxConfigJsonSchema() as Record<string, unknown>;
     const required = schema["required"] as string[];
     expect(Array.isArray(required)).toBe(true);
-    for (const field of ["version", "project", "state", "gateProfiles"]) {
+    for (const field of ["version", "name", "state", "gateProfiles"]) {
       expect(required).toContain(field);
     }
   });

@@ -4,6 +4,7 @@ import {
   decodeBranchName,
   decodeClaudeSessionId,
   decodeGateProfileId,
+  decodeNamespace,
   decodePhaseId,
   decodeRunId,
   decodeShortName,
@@ -11,6 +12,61 @@ import {
   decodeWorktreePath,
   slugifyShortName,
 } from "../../src/domain/branded.js";
+
+describe("decodeNamespace", () => {
+  it("accepts valid slug names", () => {
+    expect(Either.isRight(decodeNamespace("my-project"))).toBe(true);
+    expect(Either.isRight(decodeNamespace("phax"))).toBe(true);
+    expect(Either.isRight(decodeNamespace("louloupapers"))).toBe(true);
+    expect(Either.isRight(decodeNamespace("a1-b2"))).toBe(true);
+  });
+
+  it("preserves the value on success", () => {
+    const result = decodeNamespace("my-project");
+    if (Either.isRight(result)) {
+      expect(result.right).toBe("my-project");
+    }
+  });
+
+  it("rejects a name containing a dot", () => {
+    expect(Either.isLeft(decodeNamespace("my.project"))).toBe(true);
+  });
+
+  it("rejects a name with spaces", () => {
+    expect(Either.isLeft(decodeNamespace("my project"))).toBe(true);
+  });
+
+  it("rejects uppercase characters", () => {
+    expect(Either.isLeft(decodeNamespace("MyProject"))).toBe(true);
+    expect(Either.isLeft(decodeNamespace("MY-PROJECT"))).toBe(true);
+  });
+
+  it("rejects a name starting with a digit", () => {
+    expect(Either.isLeft(decodeNamespace("1project"))).toBe(true);
+  });
+
+  it("rejects an empty string", () => {
+    expect(Either.isLeft(decodeNamespace(""))).toBe(true);
+  });
+
+  it("rejects a string longer than 64 characters", () => {
+    expect(Either.isLeft(decodeNamespace("a".repeat(65)))).toBe(true);
+  });
+
+  it("accepts a 64-character name", () => {
+    expect(Either.isRight(decodeNamespace("a" + "b".repeat(63)))).toBe(true);
+  });
+
+  it("rejects underscores", () => {
+    expect(Either.isLeft(decodeNamespace("my_project"))).toBe(true);
+  });
+
+  it("rejects non-string input", () => {
+    expect(Either.isLeft(decodeNamespace(123))).toBe(true);
+    expect(Either.isLeft(decodeNamespace(null))).toBe(true);
+    expect(Either.isLeft(decodeNamespace(undefined))).toBe(true);
+  });
+});
 
 describe("decodeShortName", () => {
   it("accepts a lowercase-start alphanumeric-with-dashes name", () => {

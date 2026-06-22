@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "project": { "name": "hello-world", "type": "single-package" },
+  "name": "hello-world",
   "state": { "root": "~/.phax" },
   "editor": { "command": "zed" },
   "agent": { "backend": "claude-code-cli", "maxFixAttempts": 1 },

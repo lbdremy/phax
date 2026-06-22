@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "project": { "name": "e2e-fixture", "type": "single-package" },
+  "name": "e2e-fixture",
   "state": { "root": "~/.phax" },
   "agent": {
     "maxFixAttempts": 1,

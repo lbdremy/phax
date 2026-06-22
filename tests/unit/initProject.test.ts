@@ -33,14 +33,14 @@ describe("initProject", () => {
     expect(Either.isRight(decoded)).toBe(true);
   });
 
-  it("writes $schema and project.name as basename(cwd)", () => {
+  it("writes $schema and name as basename(cwd)", () => {
     const result = initProject({ cwd: tmpDir });
     expect(result.kind).toBe("created");
     if (result.kind !== "created") return;
 
     const raw = JSON.parse(readFileSync(result.configPath, "utf8"));
     expect(raw.$schema).toBe("./phax.schema.json");
-    expect(raw.project.name).toBe(basename(tmpDir));
+    expect(raw.name).toBe(basename(tmpDir));
   });
 
   it("returns already_initialized on second call without force", () => {
@@ -70,7 +70,7 @@ describe("initProject", () => {
     expect(raw.version).toBe(1);
   });
 
-  it("uses 'project' as project.name when basename is empty", () => {
+  it("uses 'project' as name when basename is empty", () => {
     // Simulate an empty basename by using the root — but we can't do that safely,
     // so instead we test the fallback indirectly via the exported function logic
     // by passing a path ending with a separator. We can't easily test this without
@@ -79,7 +79,7 @@ describe("initProject", () => {
     expect(result.kind).toBe("created");
     if (result.kind !== "created") return;
     const raw = JSON.parse(readFileSync(result.configPath, "utf8"));
-    expect(raw.project.name).toBeTruthy();
+    expect(raw.name).toBeTruthy();
   });
 });
 

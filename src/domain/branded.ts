@@ -2,6 +2,16 @@ import { Brand, Either, ParseResult, Schema } from "effect";
 
 type ParseError = ParseResult.ParseError;
 
+export type Namespace = string & Brand.Brand<"Namespace">;
+const NamespaceSchema = Schema.String.pipe(
+  Schema.minLength(1),
+  Schema.maxLength(64),
+  Schema.pattern(/^[a-z][a-z0-9-]*$/),
+  Schema.brand("Namespace"),
+);
+export const decodeNamespace = (u: unknown): Either.Either<Namespace, ParseError> =>
+  Schema.decodeUnknownEither(NamespaceSchema)(u);
+
 export type ShortName = string & Brand.Brand<"ShortName">;
 const ShortNameSchema = Schema.String.pipe(
   Schema.minLength(1),

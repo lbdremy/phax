@@ -166,6 +166,7 @@ describe("runEnterPhase", () => {
     vi.mocked(loadConfig).mockReturnValue(
       Either.right({
         stateRoot,
+        namespace: "test",
         repoRoot: stateRoot,
         maxFixAttempts: 3,
         extractPlanModel: "claude-haiku-4-5-20251001",

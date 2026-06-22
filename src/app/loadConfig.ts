@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { execSync } from "node:child_process";
 import { Either } from "effect";
 import { ConfigValidationError } from "../domain/errors.js";
+import { decodeNamespace } from "../domain/branded.js";
 import {
   type ResolvedConfig,
   decodePhaxConfig,
@@ -13,6 +14,21 @@ import {
 } from "../schemas/phaxConfig.js";
 import { resolveSecurityConfig, DEFAULT_SECURITY_PROFILE } from "../schemas/securityConfig.js";
 import { formatParseError } from "../schemas/formatError.js";
+
+const MISSING_NAME_MESSAGE = `PHAX project name is missing in phax.json. Add a name field, for example: name: "louloupapers".`;
+
+function validateNameField(raw: unknown): ConfigValidationError | undefined {
+  const obj = raw as Record<string, unknown>;
+  const name = obj?.name;
+  if (typeof name !== "string" || name === "") {
+    return new ConfigValidationError({ message: MISSING_NAME_MESSAGE, path: "name" });
+  }
+  const result = decodeNamespace(name);
+  if (Either.isLeft(result)) {
+    return new ConfigValidationError({ message: MISSING_NAME_MESSAGE, path: "name" });
+  }
+  return undefined;
+}
 
 function findGitRoot(startDir: string): string | undefined {
   try {
@@ -123,6 +139,9 @@ export function loadConfig(
     );
   }
 
+  const nameError = validateNameField(raw);
+  if (nameError) return Either.left(nameError);
+
   const decoded = decodePhaxConfig(raw);
   if (Either.isLeft(decoded)) {
     return Either.left(
@@ -165,6 +184,7 @@ export function loadConfig(
 
   const resolved: ResolvedConfig = {
     raw: config,
+    namespace: config.name,
     stateRoot: expandTilde(config.state.root),
     repoRoot: gitRoot,
     maxFixAttempts: config.agent?.maxFixAttempts ?? 1,

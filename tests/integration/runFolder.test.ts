@@ -19,6 +19,7 @@ const resolvedConfig: ResolvedConfig = {
     gateProfiles: { fast: ["pnpm test"] },
   },
   stateRoot,
+  namespace: "test-project",
   repoRoot: "/fake-repo",
   maxFixAttempts: 1,
   extractPlanModel: "claude-haiku-4-5-20251001",

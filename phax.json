@@ -1,7 +1,7 @@
 {
   "$schema": "./phax.schema.json",
   "version": 1,
-  "project": { "name": "phax", "type": "single-package" },
+  "name": "phax",
   "state": { "root": "~/.phax" },
   "agent": {
     "maxFixAttempts": 1

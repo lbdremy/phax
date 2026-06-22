@@ -19,7 +19,7 @@ export function runValidate(opts: ValidateOptions, out: OutputPort): number {
     }
     return 1;
   }
-  out.log(`✓ phax.json is valid (project: ${configResult.right.raw.project.name})`);
+  out.log(`✓ phax.json is valid (project: ${configResult.right.namespace})`);
 
   const planResult = loadPlan(opts.plan);
   if (Either.isLeft(planResult)) {

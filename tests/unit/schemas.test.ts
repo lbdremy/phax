@@ -6,7 +6,7 @@ import { decodePhaseStatus, decodeRunStatus } from "../../src/schemas/status.js"
 
 const validConfig = {
   version: 1,
-  project: { name: "my-project", type: "single-package" },
+  name: "my-project",
   state: { root: "~/.phax" },
   gateProfiles: { fast: ["pnpm test"] },
 } as const;
@@ -40,13 +40,13 @@ describe("decodePhaxConfig", () => {
     expect(Either.isLeft(decodePhaxConfig({ ...validConfig, unknown: "field" }))).toBe(true);
   });
 
-  it("rejects a config missing the required project field", () => {
-    const { project: _, ...noProject } = validConfig;
-    expect(Either.isLeft(decodePhaxConfig(noProject))).toBe(true);
+  it("rejects a config missing the required name field", () => {
+    const { name: _, ...noName } = validConfig;
+    expect(Either.isLeft(decodePhaxConfig(noName))).toBe(true);
   });
 
-  it("rejects a config with invalid project type", () => {
-    const bad = { ...validConfig, project: { name: "x", type: "invalid-type" } };
+  it("rejects a config with a leftover project struct as an excess property", () => {
+    const bad = { ...validConfig, project: { name: "x", type: "single-package" } };
     expect(Either.isLeft(decodePhaxConfig(bad))).toBe(true);
   });
 

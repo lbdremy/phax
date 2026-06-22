@@ -90,10 +90,7 @@ const FileReconciliationConfigSchema = Schema.Struct({
 export const PhaxConfigSchema = Schema.Struct({
   $schema: Schema.optional(Schema.String),
   version: Schema.Literal(1),
-  project: Schema.Struct({
-    name: Schema.NonEmptyString,
-    type: Schema.Literal("single-package", "monorepo"),
-  }),
+  name: Schema.NonEmptyString,
   state: Schema.Struct({
     root: Schema.NonEmptyString,
   }),
@@ -128,6 +125,7 @@ export const DEFAULT_EXTRACT_MODEL = "claude-haiku-4-5-20251001";
 
 export interface ResolvedConfig {
   readonly raw: PhaxConfig;
+  readonly namespace: string;
   readonly stateRoot: string;
   readonly repoRoot: string;
   readonly maxFixAttempts: number;
