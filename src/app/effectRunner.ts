@@ -205,7 +205,9 @@ export function run(
           Effect.fail(new FsError({ message: e.message })),
         ),
         Effect.andThen(() =>
-          setRunStatus(cmd.info.stateRoot, cmd.info.shortName, { state: "review_open" }),
+          setRunStatus(cmd.info.stateRoot, cmd.info.namespace, cmd.info.shortName, {
+            state: "review_open",
+          }),
         ),
       );
   }

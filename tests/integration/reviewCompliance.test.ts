@@ -18,6 +18,7 @@ const phaxContextPath = `${worktreePath}/.phax-context`;
 
 function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
   return {
+    namespace: "test-project",
     shortName,
     runId: "test-run-999",
     runState: "review_open",

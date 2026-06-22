@@ -2,6 +2,7 @@ import type { BranchName } from "./branded.js";
 import type { PhaseStatus } from "../schemas/status.js";
 
 export interface RunReviewInfo {
+  readonly namespace: string;
   readonly shortName: string;
   readonly runId: string;
   readonly runState: string;

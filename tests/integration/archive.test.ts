@@ -16,6 +16,7 @@ const runPath = join(stateRoot, "runs", shortName);
 
 const runStatusBase = {
   version: 1,
+  namespace: "fake-project",
   shortName,
   runId: "my-run-2026-05-27",
   createdAt: "2026-05-27T00:00:00.000Z",
@@ -43,6 +44,7 @@ function seedFs(opts: {
       version: 1,
       runs: [
         {
+          namespace: "fake-project",
           shortName,
           runId: runStatusBase.runId,
           state: opts.runState,

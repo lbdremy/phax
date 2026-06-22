@@ -36,6 +36,7 @@ const rateLimitError = new RateLimitError({
 });
 
 const sampleReviewInfo: RunReviewInfo = {
+  namespace: "test-project",
   shortName: "run-1",
   runId: "run-1",
   runState: "running",

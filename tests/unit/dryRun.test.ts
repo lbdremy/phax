@@ -25,11 +25,13 @@ const minimalPlan: PhaxPlan = {
 
 const minimalConfig: ResolvedConfig = {
   stateRoot: "/home/user/.phax",
+  namespace: "test-project",
   extractPlanModel: "claude-sonnet-4-6",
   extractPlanEffort: "medium",
   raw: {
     version: 1,
-    project: { name: "test-project" },
+    name: "test-project",
+    state: { root: "/home/user/.phax" },
     agent: { extractPlan: { model: "claude-sonnet-4-6", effort: "medium" } },
     gateProfiles: {
       full: ["pnpm test"],
@@ -42,9 +44,31 @@ const minimalConfig: ResolvedConfig = {
     mcp: { mode: "disabled", allow: [] },
     agentCommands: [],
   },
+  repoRoot: "/home/user/project",
+  maxFixAttempts: 1,
+  fileReconciliationMode: "report_only",
+  publish: {
+    enabled: false,
+    remote: "origin",
+    provider: "github",
+    pushBranch: true,
+    createPullRequest: true,
+  },
+  complianceReview: { enabled: false, model: "claude-sonnet-4-6", effort: "medium" },
 };
 
 describe("buildDryRunReport / formatDryRunReport", () => {
+  it("report includes qualifiedName composed from namespace and shortName", () => {
+    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    expect(report.qualifiedName).toBe("test-project.test-run");
+  });
+
+  it("formatted output shows the qualified name as the run identity", () => {
+    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    const output = formatDryRunReport(report);
+    expect(output).toContain("Dry run: test-project.test-run");
+  });
+
   it("does not include Priority line when providerPriorityOverride is absent", () => {
     const report = buildDryRunReport(minimalPlan, minimalConfig);
     expect(report.providerPriorityOverride).toBeUndefined();

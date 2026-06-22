@@ -99,6 +99,7 @@ function loadRunReviewInfo(
   const finalPhaseBranch = finalPhaseBranchResult.right;
 
   return Either.right({
+    namespace: runStatus.namespace,
     shortName: runStatus.shortName,
     runId: runStatus.runId,
     runState: runStatus.state,

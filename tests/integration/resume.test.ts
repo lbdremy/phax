@@ -160,6 +160,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       join(runPath, "run-status.json"),
       JSON.stringify({
         version: 1,
+        namespace: "test-project",
         shortName: "my-run",
         runId,
         state: "running",
@@ -331,6 +332,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       join(runPath, "run-status.json"),
       JSON.stringify({
         version: 1,
+        namespace: "test-project",
         shortName: "my-run",
         runId,
         state: "running",

@@ -31,6 +31,7 @@ async function buildFakeRunFolder(
     join(runPath, "run-status.json"),
     JSON.stringify({
       version: 1,
+      namespace: "test",
       shortName: "my-run",
       runId: "run-abc",
       state: runState,

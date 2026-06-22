@@ -18,6 +18,7 @@ const now = new Date().toISOString();
 function makeRunStatus(state: string, extra: Record<string, unknown> = {}): object {
   return {
     version: 1,
+    namespace: "test-project",
     shortName: "test-run",
     runId: "test-run-123",
     state,

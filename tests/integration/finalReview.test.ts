@@ -30,6 +30,7 @@ const phaseStatus: PhaseStatus = {
 };
 
 const runReviewInfo: RunReviewInfo = {
+  namespace: "test-project",
   shortName,
   runId: "my-run-1234567890",
   runState: "running",
@@ -52,6 +53,7 @@ const runReviewInfo: RunReviewInfo = {
 function makeRunStatusJson(state: string): string {
   return JSON.stringify({
     version: 1,
+    namespace: "test-project",
     shortName,
     runId: "my-run-1234567890",
     state,

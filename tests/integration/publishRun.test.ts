@@ -18,6 +18,7 @@ const now = "2026-06-12T12:00:00.000Z";
 
 function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
   return {
+    namespace: "test-project",
     shortName,
     runId: "test-run-999",
     runState: "review_open",

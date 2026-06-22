@@ -32,6 +32,7 @@ function makePhaseStatus(phaseId: string, phaseIndex: number): PhaseStatus {
 function makeRunReviewInfo(phaseIds: readonly string[]): RunReviewInfo {
   const phaseStatuses = phaseIds.map((id, idx) => makePhaseStatus(id, idx));
   return {
+    namespace: "test-project",
     shortName,
     runId: "test-run-999",
     runState: "running",

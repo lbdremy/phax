@@ -28,6 +28,7 @@ const phaseStatusJson = JSON.stringify({
 
 const runStatusJson = JSON.stringify({
   version: 1,
+  namespace: "test-project",
   shortName: "my-run",
   runId: "my-run-2026-05-22",
   state: "running",

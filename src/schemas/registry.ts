@@ -13,6 +13,7 @@ const RunStateSchema = Schema.Union(
 );
 
 export const RegistryEntrySchema = Schema.Struct({
+  namespace: Schema.NonEmptyString,
   shortName: Schema.NonEmptyString,
   runId: Schema.NonEmptyString,
   state: RunStateSchema,

@@ -1,8 +1,10 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName, type ShortName } from "../../domain/branded.js";
+import { runKey } from "../../domain/runRef.js";
+import { decodeRegistry } from "../../schemas/registry.js";
 import {
   GateAttemptsExhaustedError,
   PhaseHadNoChangesError,
@@ -61,17 +63,32 @@ function pickGateProfileId(config: ResolvedConfig, profileOpt: string | undefine
   return keys[0] ?? null;
 }
 
-// A run folder is keyed by shortName, so a duplicate slug would overwrite a
-// prior run. Bump with a numeric suffix until the folder is free, trimming the
-// base when needed so the result stays within the 64-char ShortName bound.
-function ensureUniqueShortName(stateRoot: string, base: ShortName): ShortName {
+function readRegistrySync(stateRoot: string) {
+  try {
+    const raw = JSON.parse(readFileSync(join(stateRoot, "registry.json"), "utf8")) as unknown;
+    const decoded = decodeRegistry(raw);
+    return Either.isRight(decoded) ? decoded.right : { version: 1 as const, runs: [] };
+  } catch {
+    return { version: 1 as const, runs: [] };
+  }
+}
+
+// Collision detection is scoped to the namespace via the registry (covering
+// archived runs) and additionally guards against any existing bare folder.
+function ensureUniqueShortName(stateRoot: string, namespace: string, base: ShortName): ShortName {
+  const registry = readRegistrySync(stateRoot);
   const runsDir = join(stateRoot, "runs");
-  if (!existsSync(join(runsDir, base))) return base;
+
+  const nameUsed = (name: string): boolean =>
+    registry.runs.some((r) => r.namespace === namespace && r.shortName === name) ||
+    existsSync(join(runsDir, name));
+
+  if (!nameUsed(base)) return base;
   for (let n = 2; ; n++) {
     const suffix = `-${n}`;
     const trimmed = base.slice(0, 64 - suffix.length).replace(/-+$/g, "");
     const candidate = `${trimmed}${suffix}` as ShortName;
-    if (!existsSync(join(runsDir, candidate))) return candidate;
+    if (!nameUsed(candidate)) return candidate;
   }
 }
 
@@ -245,15 +262,20 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     return 0;
   }
 
-  // The slug may already name an existing run; bump it so we never clobber a
-  // prior run's folder (createRunFolder mkdirp's `runs/<shortName>`).
-  const shortName = ensureUniqueShortName(config.stateRoot, shortNameResult.right);
+  const namespace = config.namespace;
+
+  // The slug may already name an existing run (in this namespace); bump it so
+  // we never clobber a prior run. Uniqueness is scoped to the namespace via the
+  // registry (covering archived runs), plus a bare-folder check for the interim.
+  const shortName = ensureUniqueShortName(config.stateRoot, namespace, shortNameResult.right);
   const runPlan: PhaxPlan =
     shortName === shortNameResult.right
       ? plan
       : { ...plan, run: { ...plan.run, shortName, branch: `phax/${shortName}` } };
   if (shortName !== shortNameResult.right) {
-    out.warn(`Run "${shortNameResult.right}" already exists; using "${shortName}" instead.`);
+    out.warn(
+      `Run "${runKey(namespace, shortNameResult.right)}" already exists; using "${runKey(namespace, shortName)}" instead.`,
+    );
   }
 
   const routingResult = await Effect.runPromise(
@@ -314,8 +336,9 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
 
     if (Either.isLeft(result)) {
       const err = result.left;
+      const qualName = runKey(namespace, shortName);
       if (err instanceof RateLimitError || err instanceof UsageLimitError) {
-        out.warn(`Run "${shortName}" paused: ${err.message}`);
+        out.warn(`Run "${qualName}" paused: ${err.message}`);
         out.warn(
           renderWhatsNext(
             buildWhatsNext(
@@ -334,7 +357,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         return exitCodeForError(err);
       }
       if (err instanceof GateAttemptsExhaustedError) {
-        out.warn(`Run "${shortName}" gates exhausted: ${err.message}`);
+        out.warn(`Run "${qualName}" gates exhausted: ${err.message}`);
         out.warn(
           renderWhatsNext(
             buildWhatsNext(
@@ -347,7 +370,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         return exitCodeForError(err);
       }
       if (err instanceof PhaseHadNoChangesError) {
-        out.warn(`Run "${shortName}" paused: phase ${err.phaseId} produced no changes.`);
+        out.warn(`Run "${qualName}" paused: phase ${err.phaseId} produced no changes.`);
         out.warn(
           renderWhatsNext(
             buildWhatsNext(
