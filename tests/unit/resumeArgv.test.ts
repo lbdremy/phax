@@ -82,4 +82,16 @@ describe("resume subcommand argv parsing", () => {
     expect(spy).toHaveBeenCalledOnce();
     expect(spy.mock.calls[0][1]).toMatchObject({ providerPriority: "codex-cli,claude-code" });
   });
+
+  it("passes a bare short name as-is", async () => {
+    const spy = await parseAndCapture(["resume", "my-run"]);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy.mock.calls[0][0]).toBe("my-run");
+  });
+
+  it("passes a qualified name as-is", async () => {
+    const spy = await parseAndCapture(["resume", "mynamespace.my-run"]);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy.mock.calls[0][0]).toBe("mynamespace.my-run");
+  });
 });

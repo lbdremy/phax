@@ -10,9 +10,11 @@ import {
   UsageLimitError,
 } from "../../domain/errors.js";
 import { buildWhatsNext, renderWhatsNext, toKeepAwakePlatform } from "../../domain/whatsNext.js";
+import { runKey } from "../../domain/runRef.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { loadPlan } from "../../app/loadPlan.js";
-import { inspectResume } from "../../app/resume.js";
+import { inspectResumeFromInfo } from "../../app/resume.js";
+import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { decodeRunStatus } from "../../schemas/status.js";
 import { executePlan } from "../../app/executePlan.js";
 import { withRunLock } from "../../app/lock.js";
@@ -39,7 +41,7 @@ export interface ResumeCommandOptions {
 }
 
 export async function runResume(
-  shortNameArg: string,
+  runRefArg: string,
   opts: ResumeCommandOptions,
   out: OutputPort,
 ): Promise<number> {
@@ -58,9 +60,18 @@ export async function runResume(
   }
   const telemetryEnabled = telemetryConfigResult.right.enabled;
 
-  const shortNameResult = decodeShortName(shortNameArg);
+  const resolvedResult = resolveRunRef(runRefArg, config, stateRoot);
+  if (Either.isLeft(resolvedResult)) {
+    out.error(resolvedResult.left.message);
+    return 1;
+  }
+  const { namespace, info } = resolvedResult.right;
+  const shortNameStr = resolvedResult.right.shortName;
+  const qualifiedName = runKey(namespace, shortNameStr);
+  // Safe: resolveRunRef already validated the shortName via decodeShortName.
+  const shortNameResult = decodeShortName(shortNameStr);
   if (Either.isLeft(shortNameResult)) {
-    out.error(`Invalid short name "${shortNameArg}": must match ^[a-z][a-z0-9-]*$ (1–64 chars)`);
+    out.error(`Internal error: resolved shortName "${shortNameStr}" is invalid.`);
     return 1;
   }
   const shortName = shortNameResult.right;
@@ -75,7 +86,7 @@ export async function runResume(
     priorityOverride = parsed.value;
   }
 
-  const decisionResult = inspectResume(shortName, stateRoot);
+  const decisionResult = inspectResumeFromInfo(info);
   if (Either.isLeft(decisionResult)) {
     const refusal = decisionResult.left;
     if (refusal.reason === "review_open") {
@@ -92,7 +103,7 @@ export async function runResume(
     out.log(`  Skipping ${skippedId} (produced no changes).`);
   }
   out.log(
-    `Run "${decision.shortName}" (state: ${decision.fromState}) — would resume from phase ${decision.nextPhaseIndex + 1}: ${decision.nextPhaseId}`,
+    `Run "${qualifiedName}" (state: ${decision.fromState}) — would resume from phase ${decision.nextPhaseIndex + 1}: ${decision.nextPhaseId}`,
   );
 
   if (!opts.yes) {
@@ -208,7 +219,7 @@ export async function runResume(
     if (Either.isLeft(result)) {
       const err = result.left;
       if (err instanceof RateLimitError || err instanceof UsageLimitError) {
-        out.warn(`Run "${shortName}" paused again: ${err.message}`);
+        out.warn(`Run "${qualifiedName}" paused again: ${err.message}`);
         out.warn(
           renderWhatsNext(
             buildWhatsNext(
@@ -227,7 +238,7 @@ export async function runResume(
         return exitCodeForError(err);
       }
       if (err instanceof GateAttemptsExhaustedError) {
-        out.warn(`Run "${shortName}" gates exhausted: ${err.message}`);
+        out.warn(`Run "${qualifiedName}" gates exhausted: ${err.message}`);
         out.warn(
           renderWhatsNext(
             buildWhatsNext(
@@ -240,7 +251,7 @@ export async function runResume(
         return exitCodeForError(err);
       }
       if (err instanceof PhaseHadNoChangesError) {
-        out.warn(`Run "${shortName}" paused: phase ${err.phaseId} produced no changes.`);
+        out.warn(`Run "${qualifiedName}" paused: phase ${err.phaseId} produced no changes.`);
         out.warn(
           renderWhatsNext(
             buildWhatsNext(
