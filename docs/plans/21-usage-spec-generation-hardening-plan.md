@@ -79,6 +79,7 @@ required**. The preflight check will confirm coverage before any agent spawns.
 3. `phase-03` — Command long help and examples as code-owned metadata.
 4. `phase-04` — Enforce an info-clean spec and reframe the parity gate as a drift guard.
 5. `phase-05` — Embed the generated spec so `--usage` works in single-file binaries.
+6. `phase-06` — Dynamic shell completion of run short-names via a usage completer.
 
 ---
 
@@ -674,3 +675,141 @@ not data files, so the on-disk spec was absent in the release binaries; embeddin
 it fixes --usage there. Adds an embedded-vs-committed drift assertion and a
 binary smoke check for --usage, and documents shell completions (and that
 --usage/completions work from the binary) in the README.
+
+---
+
+## phase-06 — Dynamic shell completion of run short-names via a usage completer {#phase-06-short-name-completers}
+
+**Recommended model:** claude-sonnet-4-6
+**Recommended effort:** medium
+
+Make Tab complete actual run short-names (not just commands and flags) for every
+command that takes one. The `usage` spec supports dynamic completers
+(`complete "<arg-name>" run="<shell command>"`) keyed by argument *name*, so a
+single declaration covers every command with a `<short-name>` / `[short-name]`
+positional (`enter`, `enter-phase`, `session-info`, `shell`, `path`, `open`,
+`archive`, `run`, `review-handoff`, `publish-pr`, `review-compliance`, `report`,
+`resume`, `reset-phase`). Author the completer as code-owned metadata and teach
+the generator to emit it — never hand-edit the KDL — sourced from a fast,
+machine-readable `phax ls` mode.
+
+### Detailed instructions
+
+- Add a completion-friendly output to `ls`: a `--complete` flag on the `ls`
+  command (give it a short help string, e.g. "Print run short-names for shell
+  completion") that prints one `short-name:state` line per run and nothing else
+  (no table, no lock-status computation — completion must be fast). Reuse the
+  existing `runLs` reconciliation; gate the output format on the new flag.
+  `state` becomes the candidate description (the completer sets
+  `descriptions=#true`, which splits each line on `:`). Run short-names are
+  kebab-case slugs and never contain `:`, so the split is unambiguous.
+- Add `src/cli/cliCompleters.ts`: a typed, code-owned map from argument name to
+  its completer, e.g.
+  `{ "short-name": { run: "phax ls --complete", descriptions: true } }`. This is
+  the single source of truth for completers, mirroring the `cliDocs.ts` pattern
+  from phase-03.
+- Teach `scripts/generate-usage-spec.ts` to emit a top-level
+  `complete "<name>" run="<cmd>" descriptions=#true` node for each entry in
+  `cliCompleters`, following the [Usage spec format](https://usage.jdx.dev/spec/)
+  (`complete` reference). Confirm the exact KDL shape with `usage lint`.
+- Regenerate with `pnpm gen:usage-spec` (which, per phase-05, rewrites both
+  `phax.usage.kdl` and the embedded `src/cli/generated/usageSpec.ts`) and
+  `pnpm docs:cli`. Keep the phase-01 drift gate, the embedded-spec drift
+  assertion (phase-05), the docs drift gate, the parity gate, and `usage lint`
+  all green. The new `ls --complete` flag is introspected by the parity gate
+  automatically; ensure it carries help so the spec stays info-clean (phase-04).
+- Update the README "Shell completions" section (added in phase-05) to note that,
+  once installed, Tab now completes run short-names for commands like
+  `phax enter` / `phax resume`, and that completion invokes `phax ls` at Tab-time
+  (so it reflects live runs).
+
+### Planned files to create
+
+- `src/cli/cliCompleters.ts`
+- `tests/integration/usageSpecCompleters.test.ts`
+
+### Planned files to edit
+
+- `src/cli/program.ts`
+- `src/cli/commands/ls.ts`
+- `scripts/generate-usage-spec.ts`
+- `phax.usage.kdl`
+- `src/cli/generated/usageSpec.ts`
+- `docs/cli/reference.md`
+- `README.md`
+
+### Optional files that may be edited
+
+- `tests/integration/usageParity.test.ts` (only if the `--complete` flag needs an
+  allowlist entry or a framing note)
+
+### Boundary contracts
+
+`cliCompleters` → generator → spec → `usage` runtime: argument-name-keyed
+completer commands are authored once in code and projected 1:1 into top-level
+`complete` nodes. The runtime contract is "`phax ls --complete` prints
+newline-delimited `short-name:state` candidates"; the `usage` CLI invokes it at
+Tab-time. The stable shape is the `{ run, descriptions }` completer record and
+the `short-name:state` line format.
+
+### Test strategy
+
+- CLI contract layer → `tests/integration/usageSpecCompleters.test.ts`
+  (integration): assert the generated spec contains
+  `complete "short-name" run="phax ls --complete"` with `descriptions=#true`
+  (write before wiring the generator so it is red), and assert
+  `phax ls --complete` (spawned via tsx) prints `short-name:state` lines and no
+  table chrome. Use the existing run-fixture/registry harness used by other
+  `ls`/integration tests.
+- Drift, parity, and lint are covered by the existing gates; regeneration keeps
+  them green.
+
+### Implementation order
+
+1. Add `ls --complete` output and its test assertion (red → green).
+2. Add `cliCompleters.ts`; add the spec-emission assertion (red).
+3. Teach the generator to emit `complete` nodes; regenerate spec + embed + docs
+   (drive the spec assertion green; keep all gates green).
+4. Update the README "Shell completions" section.
+
+### Excluded scope
+
+- Context-sensitive `phase-id` completion (completing a phase id *for the chosen
+  run*) — it needs a "list phases for run X" source and `{{words[PREV]}}`
+  templating; track as a follow-up.
+- Static value `choices` for other args/flags (`completions <shell>`,
+  `--security`, `--usage-format`, `--profile`) — same generator machinery, but
+  out of scope here; follow-up.
+- Per-command filtering of candidates (e.g. only `review_open` runs for `resume`)
+  — the global, arg-name-keyed completer lists all runs; refine later if needed.
+
+### Verification
+
+- The project's configured `full` gate profile in `phax.json` (spec-completer
+  test, drift gates, parity, lint).
+- Manual: install the completion script (per the README), then confirm
+  `phax enter <TAB>` offers live run short-names, and `phax ls --complete` prints
+  `short-name:state` lines.
+
+### Expected handoff content
+
+- The `cliCompleters.ts` module path and its exported record shape.
+- The exact KDL shape emitted for `complete` nodes and the `ls --complete` line
+  format.
+- Confirmation that the spec, embedded constant, and docs were regenerated and
+  that drift, parity, and lint gates pass.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+feat(cli): complete run short-names via a usage spec completer
+
+### Commit body
+
+Add a code-owned completer map (src/cli/cliCompleters.ts) and teach the spec
+generator to emit usage `complete` nodes, so shell completion offers live run
+short-names for every command that takes one. Add a fast `phax ls --complete`
+output as the completion source, regenerate phax.usage.kdl, the embedded spec
+constant, and the CLI docs, and document short-name completion in the README.
+Covered by an integration test asserting the completer node and the ls --complete
+output.
