@@ -28,7 +28,7 @@ async function buildFakeRunFolder(
   }>,
   runState = "rate_limited",
 ): Promise<string> {
-  const runPath = join(stateRoot, "runs", "my-run");
+  const runPath = join(stateRoot, "runs", "test.my-run");
   await mkdir(runPath, { recursive: true });
 
   await writeFile(
@@ -130,7 +130,7 @@ describe("resolvePhaseInfo", () => {
       },
     ]);
 
-    const result = resolvePhaseInfo(SHORT_NAME, "phase-01", stateRoot);
+    const result = resolvePhaseInfo("test", SHORT_NAME, "phase-01", stateRoot);
     expect(Either.isRight(result)).toBe(true);
     const info = Either.getOrThrow(result);
     expect(info.phaseStatus.phaseId).toBe("phase-01");
@@ -144,7 +144,7 @@ describe("resolvePhaseInfo", () => {
   it("returns Left when phaseId does not exist", async () => {
     await buildFakeRunFolder(stateRoot, [{ id: "phase-01", index: 0, state: "committed" }]);
 
-    const result = resolvePhaseInfo(SHORT_NAME, "phase-99", stateRoot);
+    const result = resolvePhaseInfo("test", SHORT_NAME, "phase-99", stateRoot);
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
       expect(result.left).toContain("phase-99");
@@ -152,7 +152,7 @@ describe("resolvePhaseInfo", () => {
   });
 
   it("returns Left when run folder does not exist", async () => {
-    const result = resolvePhaseInfo(SHORT_NAME, "phase-01", stateRoot);
+    const result = resolvePhaseInfo("test", SHORT_NAME, "phase-01", stateRoot);
     expect(Either.isLeft(result)).toBe(true);
   });
 });

@@ -7,6 +7,7 @@ import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { decodeRunStatus, decodePhaseStatus, type PhaseStatus } from "../schemas/status.js";
 import { decodePhaxPlan } from "../schemas/phaxPlan.js";
 import { decodeRegistry } from "../schemas/registry.js";
+import { runKey } from "../domain/runRef.js";
 
 export type { RunReviewInfo };
 
@@ -122,11 +123,12 @@ function loadRunReviewInfo(
   });
 }
 
-export function resolveRunByShortName(
+export function resolveRun(
+  namespace: string,
   shortName: ShortName,
   stateRoot: string,
 ): Either.Either<RunReviewInfo, string> {
-  return loadRunReviewInfo(join(stateRoot, "runs", shortName), stateRoot);
+  return loadRunReviewInfo(join(stateRoot, "runs", runKey(namespace, shortName)), stateRoot);
 }
 
 export function resolveLastReviewOpenRun(
@@ -160,15 +162,16 @@ export function resolveLastReviewOpenRun(
     return Either.left(`No review_open runs found in namespace "${namespace}".`);
   }
 
-  return resolveRunByShortName(entry.shortName as ShortName, stateRoot);
+  return resolveRun(entry.namespace, entry.shortName as ShortName, stateRoot);
 }
 
 export function resolvePhaseInfo(
+  namespace: string,
   shortName: ShortName,
   phaseId: string,
   stateRoot: string,
 ): Either.Either<PhaseInfo, string> {
-  const runPath = join(stateRoot, "runs", shortName);
+  const runPath = join(stateRoot, "runs", runKey(namespace, shortName));
   const infoResult = loadRunReviewInfo(runPath, stateRoot);
   if (Either.isLeft(infoResult)) return Either.left(infoResult.left);
   const info = infoResult.right;

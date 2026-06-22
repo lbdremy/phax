@@ -12,7 +12,9 @@ import type { ShortName } from "../../src/domain/branded.js";
 const stateRoot = "/fake-state";
 const repoRoot = "/fake-repo";
 const shortName = "my-run" as ShortName;
-const runPath = join(stateRoot, "runs", shortName);
+const namespace = "fake-project";
+const qualifiedKey = `${namespace}.${shortName}`;
+const runPath = join(stateRoot, "runs", qualifiedKey);
 
 const runStatusBase = {
   version: 1,
@@ -59,7 +61,7 @@ function seedFs(opts: {
   );
 
   if (opts.withWorktrees) {
-    const worktreesDir = join(stateRoot, "worktrees", shortName);
+    const worktreesDir = join(stateRoot, "worktrees", qualifiedKey);
     fakeFs.impl.addDir(worktreesDir);
     fakeFs.impl.addDir(join(worktreesDir, "phase-01"));
     fakeFs.impl.setFile(join(worktreesDir, "phase-01", "README.md"), "# phase-01 worktree\n");
@@ -83,7 +85,7 @@ function makeLayers(seed: ReturnType<typeof seedFs>) {
   // which is unrelated to the worktrees/ directory; but keep this accurate for
   // when a test seeds both and reads the phase-01 worktree path via resolveRunInfo.
   if (seed.withWorktrees && !seed.worktreeDirty) {
-    fakeGit.impl.setCleanWorktree(join(stateRoot, "worktrees", shortName, "phase-01"), true);
+    fakeGit.impl.setCleanWorktree(join(stateRoot, "worktrees", qualifiedKey, "phase-01"), true);
   }
 
   const layer = Layer.mergeAll(
@@ -107,7 +109,7 @@ describe("archive — umbrella layout", () => {
     const { layer, fakeGit } = makeLayers(seed);
 
     await Effect.runPromise(
-      archive(shortName, stateRoot, repoRoot, {}).pipe(Effect.provide(layer)),
+      archive(namespace, shortName, stateRoot, repoRoot, {}).pipe(Effect.provide(layer)),
     );
 
     // Source run folder must be gone
@@ -115,7 +117,7 @@ describe("archive — umbrella layout", () => {
 
     // run-status.json must appear under archive/{short}/runs/
     const archivedRunStatus = fakeFs.impl.getFile(
-      join(stateRoot, "archive", shortName, "runs", "run-status.json"),
+      join(stateRoot, "archive", qualifiedKey, "runs", "run-status.json"),
     );
     expect(archivedRunStatus).toBeDefined();
     const parsed = JSON.parse(archivedRunStatus!) as { state: string };
@@ -133,27 +135,27 @@ describe("archive — umbrella layout", () => {
     const { layer, fakeGit } = makeLayers(seed);
 
     await Effect.runPromise(
-      archive(shortName, stateRoot, repoRoot, {}).pipe(Effect.provide(layer)),
+      archive(namespace, shortName, stateRoot, repoRoot, {}).pipe(Effect.provide(layer)),
     );
 
-    // run-status.json under archive/{short}/runs/
+    // run-status.json under archive/{qualified}/runs/
     const archivedRunStatus = fakeFs.impl.getFile(
-      join(stateRoot, "archive", shortName, "runs", "run-status.json"),
+      join(stateRoot, "archive", qualifiedKey, "runs", "run-status.json"),
     );
     expect(archivedRunStatus).toBeDefined();
     const parsed = JSON.parse(archivedRunStatus!) as { state: string };
     expect(parsed.state).toBe("archived");
 
-    // worktree file moved to archive/{short}/worktrees/phase-01/README.md
+    // worktree file moved to archive/{qualified}/worktrees/phase-01/README.md
     const archivedWorktreeFile = fakeFs.impl.getFile(
-      join(stateRoot, "archive", shortName, "worktrees", "phase-01", "README.md"),
+      join(stateRoot, "archive", qualifiedKey, "worktrees", "phase-01", "README.md"),
     );
     expect(archivedWorktreeFile).toBeDefined();
     expect(archivedWorktreeFile).toContain("phase-01 worktree");
 
     // Source worktrees dir must be gone
     const sourceWorktreeFile = fakeFs.impl.getFile(
-      join(stateRoot, "worktrees", shortName, "phase-01", "README.md"),
+      join(stateRoot, "worktrees", qualifiedKey, "phase-01", "README.md"),
     );
     expect(sourceWorktreeFile).toBeUndefined();
 
@@ -169,7 +171,7 @@ describe("archive — umbrella layout", () => {
     const { layer } = makeLayers(seed);
 
     await Effect.runPromise(
-      archive(shortName, stateRoot, repoRoot, {}).pipe(Effect.provide(layer)),
+      archive(namespace, shortName, stateRoot, repoRoot, {}).pipe(Effect.provide(layer)),
     );
 
     const raw = fakeFs.impl.getFile(join(stateRoot, "registry.json"));
@@ -177,8 +179,8 @@ describe("archive — umbrella layout", () => {
     const registry = JSON.parse(raw!) as { runs: Array<{ archivePath?: string }> };
     expect(registry.runs).toHaveLength(1);
     const entry = registry.runs[0];
-    // archivePath should be the umbrella: archive/{short}, not archive/{short}/runs
-    expect(entry?.archivePath).toBe(join(stateRoot, "archive", shortName));
+    // archivePath should be the umbrella: archive/{qualified}, not archive/{qualified}/runs
+    expect(entry?.archivePath).toBe(join(stateRoot, "archive", qualifiedKey));
     expect(entry?.archivePath).not.toContain("/runs");
   });
 

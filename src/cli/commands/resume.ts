@@ -111,7 +111,7 @@ export async function runResume(
     return 0;
   }
 
-  const runPath = join(stateRoot, "runs", shortName);
+  const runPath = join(stateRoot, "runs", runKey(namespace, shortName));
   const planPath = join(runPath, "phax-plan.json");
   const planMdPath = join(runPath, "plan.md");
 
@@ -191,12 +191,13 @@ export async function runResume(
       )
     : NoopSystemTelemetryLayer;
 
-  setRunInterruptContext(shortName, stateRoot);
+  setRunInterruptContext(shortName, namespace, stateRoot);
   try {
     const program = withRunLock(
       shortName,
       executePlan({
         shortName,
+        namespace,
         plan,
         planMd,
         config,

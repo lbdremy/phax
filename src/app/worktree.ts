@@ -5,6 +5,7 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import type { BranchName, PhaseId, ShortName, WorktreePath } from "../domain/branded.js";
 import { decodeBranchName, decodeWorktreePath } from "../domain/branded.js";
 import { UnsafeGitStateError, WorktreeCreationError } from "../domain/errors.js";
+import { runKey } from "../domain/runRef.js";
 
 /**
  * Ensure a per-phase branch exists, creating it from `fromBranch` if absent.
@@ -130,6 +131,7 @@ function ensurePhaxContextIgnored(worktreePath: string): Effect.Effect<void, FsE
 }
 
 export function createPhaseWorktree(
+  namespace: string,
   shortName: ShortName,
   phaseId: PhaseId,
   branch: BranchName,
@@ -140,7 +142,7 @@ export function createPhaseWorktree(
     const git = yield* Git;
     const fs = yield* FileSystem;
 
-    const worktreeDir = join(stateRoot, "worktrees", shortName, phaseId);
+    const worktreeDir = join(stateRoot, "worktrees", runKey(namespace, shortName), phaseId);
     const pathResult = decodeWorktreePath(worktreeDir);
     if (Either.isLeft(pathResult)) {
       return yield* Effect.fail(

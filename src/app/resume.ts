@@ -6,7 +6,7 @@ import { interpret } from "../domain/reducer.js";
 import { TERMINAL_PHASE_STATES } from "../domain/state.js";
 import type { PhaxState } from "../domain/state.js";
 import type { RunStatus, PhaseStatus } from "../schemas/status.js";
-import { resolveRunByShortName, findCurrentPhase } from "./resolveRunInfo.js";
+import { resolveRun, findCurrentPhase } from "./resolveRunInfo.js";
 import { composePhaxState } from "./phaxState.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 
@@ -158,10 +158,11 @@ export function inspectResumeFromInfo(
 }
 
 export function inspectResume(
+  namespace: string,
   shortName: ShortName,
   stateRoot: string,
 ): Either.Either<ResumeDecision, ResumeRefusal> {
-  const infoResult = resolveRunByShortName(shortName, stateRoot);
+  const infoResult = resolveRun(namespace, shortName, stateRoot);
   if (Either.isLeft(infoResult)) {
     return Either.left({
       reason: "run_not_found",

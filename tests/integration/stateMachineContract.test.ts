@@ -51,7 +51,7 @@ describe("State Machine Contract", () => {
 
   beforeEach(async () => {
     stateRoot = await mkdtemp(join(tmpdir(), "phax-contract-test-"));
-    const phase01Worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const phase01Worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
     await writeFile(join(phase01Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
   });
@@ -88,7 +88,7 @@ describe("State Machine Contract", () => {
       },
     };
 
-    const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -133,6 +133,7 @@ describe("State Machine Contract", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -180,7 +181,7 @@ describe("State Machine Contract", () => {
       },
     };
 
-    const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -220,6 +221,7 @@ describe("State Machine Contract", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -274,7 +276,7 @@ describe("State Machine Contract", () => {
       },
     };
 
-    const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -327,6 +329,7 @@ describe("State Machine Contract", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,

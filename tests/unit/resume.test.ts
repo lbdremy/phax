@@ -110,7 +110,7 @@ describe("inspectResume", () => {
 
   beforeEach(() => {
     stateRoot = mkdtempSync(join(tmpdir(), "phax-resume-test-"));
-    runPath = join(stateRoot, "runs", "test-run");
+    runPath = join(stateRoot, "runs", "test-project.test-run");
     mkdirSync(runPath, { recursive: true });
     mkdirSync(join(runPath, "phase-01"), { recursive: true });
   });
@@ -126,7 +126,7 @@ describe("inspectResume", () => {
       JSON.stringify(makePhaseStatus("pending")),
     );
 
-    const result = inspectResume(shortName, stateRoot);
+    const result = inspectResume("test-project", shortName, stateRoot);
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isRight(result)) throw new Error("expected refusal");
@@ -145,7 +145,7 @@ describe("inspectResume", () => {
       JSON.stringify(makePhaseStatus("failed")),
     );
 
-    const result = inspectResume(shortName, stateRoot);
+    const result = inspectResume("test-project", shortName, stateRoot);
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isRight(result)) throw new Error("expected refusal");
@@ -162,7 +162,7 @@ describe("inspectResume", () => {
       JSON.stringify(makePhaseStatus("review_open")),
     );
 
-    const result = inspectResume(shortName, stateRoot);
+    const result = inspectResume("test-project", shortName, stateRoot);
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isRight(result)) throw new Error("expected refusal");
@@ -177,7 +177,7 @@ describe("inspectResume", () => {
       JSON.stringify(makePhaseStatus("rate_limited")),
     );
 
-    const result = inspectResume(shortName, stateRoot);
+    const result = inspectResume("test-project", shortName, stateRoot);
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isLeft(result)) throw new Error("expected decision");
@@ -232,7 +232,7 @@ describe("inspectResume", () => {
       JSON.stringify({ ...makePhaseStatus("skipped"), phaseId: "phase-01", phaseIndex: 0 }),
     );
 
-    const result = inspectResume(shortName, stateRoot);
+    const result = inspectResume("test-project", shortName, stateRoot);
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
@@ -276,7 +276,7 @@ describe("inspectResume", () => {
     writeFileSync(join(runPath, "phase-02", "status.json"), makeSkippedStatus("phase-02", 1));
     // phase-03 folder does not exist
 
-    const result = inspectResume(shortName, stateRoot);
+    const result = inspectResume("test-project", shortName, stateRoot);
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);

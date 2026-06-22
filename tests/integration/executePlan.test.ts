@@ -151,8 +151,8 @@ describe("executePlan — happy-path 2-phase run", () => {
     // Pre-create worktree directories so generatePhaseHandoff can find the handoff files.
     // FakeGit's addWorktree does not create real directories; we create them here to simulate
     // the agent having written .phax-context/phase-handoff.md in the worktree.
-    const phase01Worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
-    const phase02Worktree = join(stateRoot, "worktrees", "my-run", "phase-02");
+    const phase01Worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+    const phase02Worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-02");
     await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
     await mkdir(join(phase02Worktree, ".phax-context"), { recursive: true });
     await writeFile(join(phase01Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
@@ -191,8 +191,8 @@ describe("executePlan — happy-path 2-phase run", () => {
       },
     };
 
-    const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
-    const phase02WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-02");
+    const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+    const phase02WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-02");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -248,6 +248,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -353,8 +354,8 @@ describe("executePlan — happy-path 2-phase run", () => {
       },
     };
 
-    const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
-    const phase02WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-02");
+    const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+    const phase02WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-02");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -408,6 +409,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -460,8 +462,8 @@ describe("executePlan — happy-path 2-phase run", () => {
       },
     };
 
-    const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
-    const phase02WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-02");
+    const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+    const phase02WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-02");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -515,6 +517,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -595,6 +598,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -677,7 +681,7 @@ describe("executePlan — binding status lifecycle", () => {
 
   beforeEach(async () => {
     stateRoot = await mkdtemp(join(tmpdir(), "phax-status-test-"));
-    const worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(worktree, ".phax-context"), { recursive: true });
     await writeFile(join(worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
   });
@@ -689,7 +693,7 @@ describe("executePlan — binding status lifecycle", () => {
   it("sets binding status to awaiting_manual_review for the single (final) phase on success", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlanStatus));
     const config = makeStatusTestConfig(stateRoot);
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -732,6 +736,7 @@ describe("executePlan — binding status lifecycle", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -781,6 +786,7 @@ describe("executePlan — binding status lifecycle", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -834,7 +840,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
 
   beforeEach(async () => {
     stateRoot = await mkdtemp(join(tmpdir(), "phax-deviation-test-"));
-    const worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(worktree, ".phax-context"), { recursive: true });
     await writeFile(join(worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
   });
@@ -846,7 +852,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
   it("injects the named deviating files into the handoff prompt passed to the backend", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(deviationRawPlan));
     const config = makeStatusTestConfig(stateRoot);
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -896,6 +902,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -932,7 +939,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
   it("renders the no-deviation line when the commit matches the plan exactly", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(deviationRawPlan));
     const config = makeStatusTestConfig(stateRoot);
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -980,6 +987,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -1056,7 +1064,7 @@ describe("executePlan — resume from gates_exhausted", () => {
 
   beforeEach(async () => {
     stateRoot = await mkdtemp(join(tmpdir(), "phax-test-"));
-    const worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(worktree, ".phax-context"), { recursive: true });
     await writeFile(join(worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
   });
@@ -1068,7 +1076,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   it("re-enters the gate loop without invoking the implementation agent when the human's fix made the gate pass", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
     const config = baseConfig();
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -1112,6 +1120,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -1146,7 +1155,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   it("pauses the run again (does not fail it) when the gate keeps failing on resume", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
     const config = baseConfig();
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -1184,6 +1193,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -1224,7 +1234,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   it("fails loudly with a reset-phase-directing error when the persisted Claude session id is missing", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
     const config = baseConfig();
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -1252,6 +1262,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -1277,7 +1288,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   it("uses the locked binding provider/model on resume, ignoring routing config", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
     const config = baseConfig();
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -1345,6 +1356,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -1465,7 +1477,7 @@ describe("executePlan — auto-publish after final review", () => {
 
   beforeEach(async () => {
     stateRoot = await mkdtemp(join(tmpdir(), "phax-publish-test-"));
-    const worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(worktree, ".phax-context"), { recursive: true });
     await writeFile(join(worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
   });
@@ -1476,7 +1488,7 @@ describe("executePlan — auto-publish after final review", () => {
 
   it("publishes PR and writes publication.json when publish.enabled", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(autoPublishRawPlan));
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     const config = makePublishBaseConfig(stateRoot, makePublishConfig(true));
 
     const { fakeGit, fakeShell, fakeBackend } = makeFakesForSinglePhase(worktreePath);
@@ -1500,6 +1512,7 @@ describe("executePlan — auto-publish after final review", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -1535,7 +1548,7 @@ describe("executePlan — auto-publish after final review", () => {
 
   it("run stays review_open when gh is unavailable (non-fatal failure)", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(autoPublishRawPlan));
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     const config = makePublishBaseConfig(stateRoot, makePublishConfig(true));
 
     const { fakeGit, fakeShell, fakeBackend } = makeFakesForSinglePhase(worktreePath);
@@ -1559,6 +1572,7 @@ describe("executePlan — auto-publish after final review", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -1594,7 +1608,7 @@ describe("executePlan — auto-publish after final review", () => {
 
   it("no publication side effects when publish.enabled is false", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(autoPublishRawPlan));
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     const config = makePublishBaseConfig(stateRoot, makePublishConfig(false));
 
     const { fakeGit, fakeShell, fakeBackend } = makeFakesForSinglePhase(worktreePath);
@@ -1617,6 +1631,7 @@ describe("executePlan — auto-publish after final review", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -1726,6 +1741,7 @@ describe("executePlan — security preflight", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -1750,7 +1766,7 @@ describe("executePlan — security preflight", () => {
   });
 
   it("proceeds normally when all required commands are covered by config", async () => {
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(worktreePath, ".phax-context"), { recursive: true });
     await writeFile(
       join(worktreePath, ".phax-context", "phase-handoff.md"),
@@ -1856,6 +1872,7 @@ describe("executePlan — security preflight", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,

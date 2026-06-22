@@ -72,7 +72,7 @@ import { readPreviousHandoff, readPreviousReconciliation } from "./handoffInject
 import { createPhaseFolder } from "./phaseFolder.js";
 import { recordPhaseWorktreeAndBranch } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
-import { resolveRunByShortName } from "./resolveRunInfo.js";
+import { resolveRun } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
 import { createPhaseWorktree, preparePhaseBranch, prepareRunBranch } from "./worktree.js";
 import {
@@ -119,6 +119,7 @@ function maxAttemptIndexInPhaseFolder(phaseFolderPath: string): number {
 
 export interface ExecutePlanOptions {
   readonly shortName: ShortName;
+  readonly namespace: string;
   readonly plan: PhaxPlan;
   readonly planMd: string;
   readonly config: ResolvedConfig;
@@ -169,6 +170,7 @@ export function executePlan(
 > {
   const {
     shortName,
+    namespace,
     plan,
     planMd,
     config,
@@ -305,7 +307,7 @@ export function executePlan(
     let resumeWorktreePath: string | undefined;
     let resumeAttempt = 0;
     if (resumePhase !== undefined) {
-      const infoResult = resolveRunByShortName(shortName, config.stateRoot);
+      const infoResult = resolveRun(namespace, shortName, config.stateRoot);
       if (Either.isRight(infoResult)) {
         const phaseStatus = infoResult.right.phaseStatuses.find(
           (p) => p.phaseId === resumePhase.id,
@@ -480,6 +482,7 @@ export function executePlan(
           ctx,
         );
         worktreePath = yield* createPhaseWorktree(
+          namespace,
           shortName,
           phaseIdResult.right,
           phaseBranch,
@@ -810,7 +813,7 @@ export function executePlan(
         finalWorktreePath = worktreePath;
         finalPhaseId = phase.id;
 
-        const infoResult = resolveRunByShortName(shortName, config.stateRoot);
+        const infoResult = resolveRun(namespace, shortName, config.stateRoot);
         if (Either.isLeft(infoResult)) {
           return yield* Effect.fail(
             new RegistryCorruptionError({

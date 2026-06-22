@@ -7,6 +7,7 @@ import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import { type RunStatus } from "../schemas/status.js";
 import { upsertRun } from "./registry.js";
 import { RegistryCorruptionError } from "../domain/errors.js";
+import { runKey } from "../domain/runRef.js";
 
 function makeRunId(shortName: ShortName): RunId {
   return `${shortName}-${Date.now()}` as RunId;
@@ -31,7 +32,8 @@ export function createRunFolder(
     const fs = yield* FileSystem;
 
     const runId = makeRunId(shortName);
-    const runPath = join(config.stateRoot, "runs", shortName);
+    const namespace = config.namespace;
+    const runPath = join(config.stateRoot, "runs", runKey(namespace, shortName));
 
     yield* fs.mkdirp(runPath);
 
@@ -42,7 +44,6 @@ export function createRunFolder(
     yield* fs.writeAtomic(join(runPath, "phax.json"), JSON.stringify(config.raw, null, 2));
 
     const now = nowIso();
-    const namespace = config.namespace;
     const runStatus: RunStatus = {
       version: 1,
       namespace,

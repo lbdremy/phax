@@ -101,7 +101,7 @@ function writeRun(
   shortName: string,
   runState = "running",
 ): void {
-  const runPath = join(stateRoot, "runs", shortName);
+  const runPath = join(stateRoot, "runs", `${namespace}.${shortName}`);
   mkdirSync(join(runPath, "phase-01"), { recursive: true });
   writeFileSync(
     join(runPath, "run-status.json"),

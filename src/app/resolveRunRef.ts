@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import { parseRunRef, runKey } from "../domain/runRef.js";
-import { resolveRunByShortName } from "./resolveRunInfo.js";
+import { resolveRun } from "./resolveRunInfo.js";
 import { decodeRegistry, type Registry } from "../schemas/registry.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import type { ShortName } from "../domain/branded.js";
@@ -78,7 +78,7 @@ export function resolveRunRef(
 
     // Inside a project: resolve against current namespace
     const namespace = config.namespace;
-    const infoResult = resolveRunByShortName(ref.shortName as ShortName, stateRoot);
+    const infoResult = resolveRun(namespace, ref.shortName as ShortName, stateRoot);
     if (Either.isLeft(infoResult)) {
       return Either.left({
         variant: "not-found",
@@ -113,7 +113,7 @@ export function resolveRunRef(
     });
   }
 
-  const infoResult = resolveRunByShortName(shortName as ShortName, stateRoot);
+  const infoResult = resolveRun(namespace, shortName as ShortName, stateRoot);
   if (Either.isLeft(infoResult)) {
     return Either.left({
       variant: "unresolvable-qualified",

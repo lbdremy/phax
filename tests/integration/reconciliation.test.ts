@@ -57,7 +57,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
 
   beforeEach(async () => {
     stateRoot = await mkdtemp(join(tmpdir(), "phax-recon-test-"));
-    const phase01Worktree = join(stateRoot, "worktrees", "recon-run", "phase-01");
+    const phase01Worktree = join(stateRoot, "worktrees", "test-project.recon-run", "phase-01");
     await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
     const { writeFile } = await import("node:fs/promises");
     await writeFile(join(phase01Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
@@ -95,7 +95,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       },
     };
 
-    const phase01WorktreePath = join(stateRoot, "worktrees", "recon-run", "phase-01");
+    const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.recon-run", "phase-01");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -146,6 +146,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# Recon Plan",
           config,
@@ -210,7 +211,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       },
     };
 
-    const phase01WorktreePath = join(stateRoot, "worktrees", "recon-run", "phase-01");
+    const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.recon-run", "phase-01");
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -258,6 +259,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# Recon Plan",
           config,

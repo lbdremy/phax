@@ -17,7 +17,7 @@ import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { decodeRunStatus, type PhaseStatus, type RunStatus } from "../schemas/status.js";
 import { dispatch } from "./dispatcher.js";
 import { composePhaxState } from "./phaxState.js";
-import { resolveRunByShortName } from "./resolveRunInfo.js";
+import { resolveRun } from "./resolveRunInfo.js";
 
 export class ResetPhaseError extends Data.TaggedError("ResetPhaseError")<{
   readonly reason:
@@ -29,6 +29,7 @@ export class ResetPhaseError extends Data.TaggedError("ResetPhaseError")<{
 }> {}
 
 export interface ResetPhaseOptions {
+  readonly namespace: string;
   readonly shortName: ShortName;
   readonly phaseId?: string | undefined;
   readonly stateRoot: string;
@@ -74,7 +75,7 @@ export function resetPhase(
     const fs = yield* FileSystem;
     const git = yield* Git;
 
-    const infoResult = resolveRunByShortName(opts.shortName, opts.stateRoot);
+    const infoResult = resolveRun(opts.namespace, opts.shortName, opts.stateRoot);
     if (Either.isLeft(infoResult)) {
       return yield* Effect.fail(
         new ResetPhaseError({

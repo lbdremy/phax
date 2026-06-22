@@ -12,6 +12,7 @@ import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 
 const SHORT_NAME = "my-run";
+const NAMESPACE = "test-project";
 
 function nowIso(): string {
   return "2026-06-12T00:00:00.000Z";
@@ -32,7 +33,7 @@ async function seedRun(
     }>;
   },
 ): Promise<{ runPath: string }> {
-  const runPath = join(stateRoot, "runs", SHORT_NAME);
+  const runPath = join(stateRoot, "runs", `${NAMESPACE}.${SHORT_NAME}`);
   await mkdir(runPath, { recursive: true });
   const runStatus: Record<string, unknown> = {
     version: 1,
@@ -86,7 +87,7 @@ describe("resetPhase", () => {
   });
 
   it("archives the phase folder, removes the worktree, deletes the branch, and flips the run to interrupted", async () => {
-    const worktreePath = join(stateRoot, "worktrees", SHORT_NAME, "phase-02");
+    const worktreePath = join(stateRoot, "worktrees", `${NAMESPACE}.${SHORT_NAME}`, "phase-02");
     const branchName = "ai/my-run--phase-02";
     const { runPath } = await seedRun(stateRoot, {
       runState: "failed",
@@ -96,7 +97,7 @@ describe("resetPhase", () => {
           id: "phase-01",
           index: 0,
           state: "committed",
-          worktreePath: join(stateRoot, "worktrees", SHORT_NAME, "phase-01"),
+          worktreePath: join(stateRoot, "worktrees", `${NAMESPACE}.${SHORT_NAME}`, "phase-01"),
           branchName: "ai/my-run--phase-01",
           commitHash: "aabbccdd",
         },
@@ -123,6 +124,7 @@ describe("resetPhase", () => {
       Effect.either(
         resetPhase({
           shortName: shortName(),
+          namespace: NAMESPACE,
           stateRoot,
           repoRoot: stateRoot,
         }).pipe(Effect.provide(layers)),
@@ -171,14 +173,14 @@ describe("resetPhase", () => {
           id: "phase-01",
           index: 0,
           state: "gates_exhausted",
-          worktreePath: join(stateRoot, "worktrees", SHORT_NAME, "phase-01"),
+          worktreePath: join(stateRoot, "worktrees", `${NAMESPACE}.${SHORT_NAME}`, "phase-01"),
           branchName: "ai/my-run--phase-01",
         },
         {
           id: "phase-02",
           index: 1,
           state: "committed",
-          worktreePath: join(stateRoot, "worktrees", SHORT_NAME, "phase-02"),
+          worktreePath: join(stateRoot, "worktrees", `${NAMESPACE}.${SHORT_NAME}`, "phase-02"),
           branchName: "ai/my-run--phase-02",
           commitHash: "aabbccdd",
         },
@@ -197,6 +199,7 @@ describe("resetPhase", () => {
       Effect.either(
         resetPhase({
           shortName: shortName(),
+          namespace: NAMESPACE,
           phaseId: "phase-01",
           stateRoot,
           repoRoot: stateRoot,
@@ -222,7 +225,7 @@ describe("resetPhase", () => {
           id: "phase-01",
           index: 0,
           state: "running",
-          worktreePath: join(stateRoot, "worktrees", SHORT_NAME, "phase-01"),
+          worktreePath: join(stateRoot, "worktrees", `${NAMESPACE}.${SHORT_NAME}`, "phase-01"),
           branchName: "ai/my-run--phase-01",
         },
       ],
@@ -240,6 +243,7 @@ describe("resetPhase", () => {
       Effect.either(
         resetPhase({
           shortName: shortName(),
+          namespace: NAMESPACE,
           stateRoot,
           repoRoot: stateRoot,
         }).pipe(Effect.provide(layers)),
@@ -253,7 +257,7 @@ describe("resetPhase", () => {
   });
 
   it("is tolerant of an already-missing worktree and branch", async () => {
-    const worktreePath = join(stateRoot, "worktrees", SHORT_NAME, "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", `${NAMESPACE}.${SHORT_NAME}`, "phase-01");
     const branchName = "ai/my-run--phase-01";
     const { runPath } = await seedRun(stateRoot, {
       runState: "failed",
@@ -283,6 +287,7 @@ describe("resetPhase", () => {
       Effect.either(
         resetPhase({
           shortName: shortName(),
+          namespace: NAMESPACE,
           stateRoot,
           repoRoot: stateRoot,
         }).pipe(Effect.provide(layers)),
@@ -316,6 +321,7 @@ describe("resetPhase", () => {
       Effect.either(
         resetPhase({
           shortName: shortName(),
+          namespace: NAMESPACE,
           stateRoot,
           repoRoot: stateRoot,
         }).pipe(Effect.provide(layers)),

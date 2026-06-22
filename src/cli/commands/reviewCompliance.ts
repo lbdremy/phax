@@ -2,7 +2,7 @@ import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
-import { resolveRunByShortName } from "../../app/resolveRunInfo.js";
+import { resolveRun } from "../../app/resolveRunInfo.js";
 import { reviewCompliance } from "../../app/reviewCompliance.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
@@ -44,7 +44,7 @@ export async function runReviewCompliance(
   }
   const shortName = shortNameResult.right;
 
-  const infoResult = resolveRunByShortName(shortName, config.stateRoot);
+  const infoResult = resolveRun(config.namespace, shortName, config.stateRoot);
   if (Either.isLeft(infoResult)) {
     out.error(`Could not resolve run "${shortName}": ${infoResult.left}`);
     return 1;

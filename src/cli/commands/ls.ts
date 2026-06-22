@@ -2,7 +2,7 @@ import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { readRegistry } from "../../app/registry.js";
-import { resolveRunByShortName, findCurrentPhase } from "../../app/resolveRunInfo.js";
+import { resolveRun, findCurrentPhase } from "../../app/resolveRunInfo.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { Lock } from "../../ports/lock.js";
@@ -53,7 +53,7 @@ function reconcileEntry(entry: RegistryEntry, stateRoot: string): LsRow {
   const shortNameResult = decodeShortName(entry.shortName);
   if (Either.isLeft(shortNameResult)) return fallback;
 
-  const infoResult = resolveRunByShortName(shortNameResult.right, stateRoot);
+  const infoResult = resolveRun(entry.namespace, shortNameResult.right, stateRoot);
   if (Either.isLeft(infoResult)) return fallback;
 
   const info = infoResult.right;

@@ -47,6 +47,7 @@ function buildLayer(
 }
 
 async function archiveRun(
+  namespace: string,
   shortNameStr: string,
   qualifiedName: string,
   stateRoot: string,
@@ -62,7 +63,7 @@ async function archiveRun(
   }
   const shortName = shortNameResult.right;
 
-  const effect = archive(shortName, stateRoot, repoRoot, opts).pipe(
+  const effect = archive(namespace, shortName, stateRoot, repoRoot, opts).pipe(
     Effect.provide(buildLayer(stateRoot)),
   );
 
@@ -100,7 +101,7 @@ export async function runArchive(
     out.log(`Target: ${qualifiedName}`);
   }
 
-  return archiveRun(shortName, qualifiedName, stateRoot, repoRoot, opts, out);
+  return archiveRun(namespace, shortName, qualifiedName, stateRoot, repoRoot, opts, out);
 }
 
 export async function runArchiveLast(
@@ -123,5 +124,5 @@ export async function runArchiveLast(
   const qualifiedName = runKey(namespace, info.shortName);
   out.log(`Archiving last run for ${namespace}: ${qualifiedName}`);
 
-  return archiveRun(info.shortName, qualifiedName, stateRoot, repoRoot, opts, out);
+  return archiveRun(namespace, info.shortName, qualifiedName, stateRoot, repoRoot, opts, out);
 }

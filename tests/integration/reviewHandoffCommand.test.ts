@@ -82,7 +82,7 @@ describe("runReviewHandoff command", () => {
   beforeEach(async () => {
     repoRoot = await mkdtemp(join(tmpdir(), "phax-cmd-test-"));
     stateRoot = join(repoRoot, ".phax-state");
-    runPath = join(stateRoot, "runs", SHORT_NAME);
+    runPath = join(stateRoot, "runs", `test.${SHORT_NAME}`);
 
     // Make a git repo so loadConfig can find a git root
     execSync("git init -q", { cwd: repoRoot });
