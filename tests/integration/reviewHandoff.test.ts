@@ -221,6 +221,65 @@ describe("generateReviewHandoff", () => {
     expect(handoff).toContain(phaseHandoffContent);
   });
 
+  it("review-handoff.md includes Deviations not explained section", async () => {
+    const { impl, layers } = setupLayers();
+    const info = makeRunReviewInfo(["phase-01"]);
+    setupPhaseFiles(impl, "phase-01", makeEmptyReconciliationJson("phase-01"));
+
+    await Effect.runPromise(
+      generateReviewHandoff(info, { allowPartial: false }).pipe(Effect.provide(layers)),
+    );
+
+    const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
+    expect(handoff).toContain("Deviations not explained in any handoff");
+  });
+
+  it("unexplained deviation is listed when handoff does not mention the path", async () => {
+    const { impl, layers } = setupLayers();
+    const info = makeRunReviewInfo(["phase-01"]);
+    // phase-01 has unplanned file; handoff does NOT mention it
+    setupPhaseFiles(
+      impl,
+      "phase-01",
+      makeReconciliationJsonWithDeviation("phase-01"),
+      undefined,
+      "## What the next phase needs to know\n\nAll good, no special deviations.",
+    );
+
+    await Effect.runPromise(
+      generateReviewHandoff(info, { allowPartial: false }).pipe(Effect.provide(layers)),
+    );
+
+    const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
+    expect(handoff).toContain("src/unplanned.ts");
+    expect(handoff).toContain("src/missing-edit.ts");
+  });
+
+  it("explained deviation is not listed when handoff mentions the path", async () => {
+    const { impl, layers } = setupLayers();
+    const info = makeRunReviewInfo(["phase-01"]);
+    // phase-01 has unplanned file; handoff DOES mention both deviating paths
+    setupPhaseFiles(
+      impl,
+      "phase-01",
+      makeReconciliationJsonWithDeviation("phase-01"),
+      undefined,
+      "## What the next phase needs to know\n\nsrc/unplanned.ts was added for X. src/missing-edit.ts was skipped because Y.",
+    );
+
+    await Effect.runPromise(
+      generateReviewHandoff(info, { allowPartial: false }).pipe(Effect.provide(layers)),
+    );
+
+    const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
+    // Section exists but lists None
+    expect(handoff).toContain("Deviations not explained in any handoff");
+    // The paths are mentioned in the per-phase section (verbatim handoff), but not in the unexplained list
+    const unexplainedSection = handoff.split("## Deviations not explained in any handoff")[1]!;
+    const beforeNextSection = unexplainedSection.split("##")[0]!;
+    expect(beforeNextSection).toContain("_None._");
+  });
+
   it("with two phases and a deviation, attention points reference the deviating phase", async () => {
     const { impl, layers } = setupLayers();
     const info = makeRunReviewInfo(["phase-01", "phase-02"]);

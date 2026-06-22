@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId } from "../domain/branded.js";
+import { deviationPaths, findUnexplainedDeviations } from "../domain/reconciliation/explained.js";
 import type { ReconciliationResult } from "../domain/reconciliation/types.js";
 import {
   type AgentInvocationError,
@@ -170,6 +171,13 @@ export function generatePhaseHandoff(
     if (missingSections.length > 0) {
       yield* dispatchHandoffMissing(missingSections);
       return yield* Effect.fail(new HandoffValidationError(missingSections, worktreePath));
+    }
+
+    const unexplained = findUnexplainedDeviations(deviationPaths(reconciliation), content);
+    if (unexplained.length > 0) {
+      yield* Effect.logWarning(
+        `[phax] Handoff for ${phaseId} did not explain file-plan deviations: ${unexplained.join(", ")}`,
+      );
     }
 
     // Persist a copy in the phax run folder so later phases (via handoffInjection)
