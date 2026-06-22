@@ -18,6 +18,7 @@ export interface GenerateGlobalReconciliationOpts {
   readonly phaseIds: readonly string[];
   readonly allowPartial: boolean;
   readonly runId: string;
+  readonly qualifiedRunName: string;
 }
 
 export function generateGlobalReconciliation(
@@ -78,7 +79,7 @@ export function generateGlobalReconciliation(
 
     const jsonContent = JSON.stringify(global, null, 2);
 
-    let mdContent = renderGlobalReconciliationMarkdown(global);
+    let mdContent = renderGlobalReconciliationMarkdown(global, opts.qualifiedRunName);
     if (missingPhases.length > 0) {
       mdContent = `> PARTIAL — missing reconciliation for: ${missingPhases.join(", ")}\n\n${mdContent}`;
     }

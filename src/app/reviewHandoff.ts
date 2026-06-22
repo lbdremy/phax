@@ -4,6 +4,7 @@ import { ReviewHandoffArtifactMissingError } from "../domain/errors.js";
 import type { GlobalFileReconciliation } from "../domain/reconciliation/global.js";
 import { findUnexplainedDeviations } from "../domain/reconciliation/explained.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
+import { runKey } from "../domain/runRef.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { writeFinalReport } from "./finalReport.js";
@@ -142,6 +143,7 @@ export function generateReviewHandoff(
       phaseIds,
       allowPartial: opts.allowPartial,
       runId: info.runId,
+      qualifiedRunName: runKey(info.namespace, info.shortName),
     });
 
     const globalMd = yield* fs.readText(join(info.runPath, "global-file-reconciliation.md"));
