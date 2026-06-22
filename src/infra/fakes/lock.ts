@@ -1,28 +1,27 @@
 import { Effect, Layer } from "effect";
-import type { ShortName } from "../../domain/branded.js";
 import { LockConflictError } from "../../domain/errors.js";
 import { Lock, type LockOps, type LockStatus } from "../../ports/lock.js";
 
 export class FakeLockImpl implements LockOps {
   readonly statuses = new Map<string, LockStatus>();
 
-  setStatus(shortName: string, status: LockStatus): void {
-    this.statuses.set(shortName, status);
+  setStatus(key: string, status: LockStatus): void {
+    this.statuses.set(key, status);
   }
 
-  acquire(shortName: ShortName): Effect.Effect<void, LockConflictError> {
-    const current = this.statuses.get(shortName) ?? { kind: "none" };
+  acquire(key: string): Effect.Effect<void, LockConflictError> {
+    const current = this.statuses.get(key) ?? { kind: "none" };
     if (current.kind === "active") {
       return Effect.fail(
         new LockConflictError({
-          message: `Run "${shortName}" is locked by pid ${current.pid}`,
-          shortName,
-          lockPath: `/fake/locks/${shortName}.lock`,
+          message: `Run "${key}" is locked by pid ${current.pid}`,
+          shortName: key,
+          lockPath: `/fake/locks/${key}.lock`,
           lockingPid: current.pid,
         }),
       );
     }
-    this.statuses.set(shortName, {
+    this.statuses.set(key, {
       kind: "active",
       pid: process.pid,
       updatedAt: new Date().toISOString(),
@@ -30,17 +29,17 @@ export class FakeLockImpl implements LockOps {
     return Effect.void;
   }
 
-  renew(_shortName: ShortName): Effect.Effect<void> {
+  renew(_key: string): Effect.Effect<void> {
     return Effect.void;
   }
 
-  release(shortName: ShortName): Effect.Effect<void> {
-    this.statuses.set(shortName, { kind: "none" });
+  release(key: string): Effect.Effect<void> {
+    this.statuses.set(key, { kind: "none" });
     return Effect.void;
   }
 
-  status(shortName: ShortName): Effect.Effect<LockStatus> {
-    return Effect.succeed(this.statuses.get(shortName) ?? { kind: "none" });
+  status(key: string): Effect.Effect<LockStatus> {
+    return Effect.succeed(this.statuses.get(key) ?? { kind: "none" });
   }
 }
 

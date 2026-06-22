@@ -1,16 +1,17 @@
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { Lock } from "../../ports/lock.js";
-import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
+import { resolveRunRef } from "../../app/resolveRunRef.js";
+import { runKey } from "../../domain/runRef.js";
 
 export interface UnlockOptions {
   force?: boolean | undefined;
 }
 
 export async function runUnlock(
-  shortNameArg: string,
+  runRef: string,
   opts: UnlockOptions,
   out: OutputPort,
 ): Promise<number> {
@@ -19,14 +20,16 @@ export async function runUnlock(
     out.error(`Config error: ${configResult.left.message}`);
     return 1;
   }
-  const { stateRoot } = configResult.right;
+  const config = configResult.right;
+  const { stateRoot } = config;
 
-  const shortNameResult = decodeShortName(shortNameArg);
-  if (Either.isLeft(shortNameResult)) {
-    out.error(`Invalid short name "${shortNameArg}": must match ^[a-z][a-z0-9-]*$ (1–64 chars)`);
+  const resolveResult = resolveRunRef(runRef, config, stateRoot);
+  if (Either.isLeft(resolveResult)) {
+    out.error(resolveResult.left.message);
     return 1;
   }
-  const shortName = shortNameResult.right;
+  const { namespace, shortName } = resolveResult.right;
+  const qualifiedKey = runKey(namespace, shortName);
 
   type Outcome =
     | { action: "none" }
@@ -37,18 +40,18 @@ export async function runUnlock(
     const lock = yield* Lock;
 
     if (opts.force) {
-      yield* lock.release(shortName);
+      yield* lock.release(qualifiedKey);
       return { action: "removed", reason: "forced" } satisfies Outcome;
     }
 
-    const lockStatus = yield* lock.status(shortName);
+    const lockStatus = yield* lock.status(qualifiedKey);
     if (lockStatus.kind === "none") {
       return { action: "none" } satisfies Outcome;
     }
     if (lockStatus.kind === "active") {
       return { action: "blocked", pid: lockStatus.pid } satisfies Outcome;
     }
-    yield* lock.release(shortName);
+    yield* lock.release(qualifiedKey);
     return { action: "removed", reason: lockStatus.reason } satisfies Outcome;
   }).pipe(Effect.provide(makeNodeLockLayer(stateRoot)));
 
@@ -61,20 +64,20 @@ export async function runUnlock(
 
   const outcome = result.right;
   if (outcome.action === "none") {
-    out.log(`No lock found for "${shortName}".`);
+    out.log(`No lock found for "${qualifiedKey}".`);
     return 0;
   }
   if (outcome.action === "blocked") {
     out.error(
-      `Lock for "${shortName}" is held by pid ${outcome.pid}. Use --force to remove it anyway.`,
+      `Lock for "${qualifiedKey}" is held by pid ${outcome.pid}. Use --force to remove it anyway.`,
     );
     return 1;
   }
   if (outcome.reason === "forced") {
-    out.log(`Lock for "${shortName}" forcibly removed.`);
+    out.log(`Lock for "${qualifiedKey}" forcibly removed.`);
   } else {
     const why = outcome.reason === "pid_dead" ? "process no longer running" : "lock expired";
-    out.log(`Stale lock for "${shortName}" removed (${why}).`);
+    out.log(`Stale lock for "${qualifiedKey}" removed (${why}).`);
   }
   return 0;
 }

@@ -8,6 +8,7 @@ import { makeNodeLockLayer } from "../../infra/lock.js";
 import { Lock } from "../../ports/lock.js";
 import type { RegistryEntry } from "../../schemas/registry.js";
 import { decodeShortName } from "../../domain/branded.js";
+import { runKey } from "../../domain/runRef.js";
 
 export interface LsOptions {
   active?: boolean;
@@ -148,14 +149,15 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
   const lockLayer = Layer.merge(NodeFileSystemLayer, makeNodeLockLayer(stateRoot));
 
   const rows: LsRow[] = await Promise.all(
-    reconciled.map(async ({ row }) => {
+    reconciled.map(async ({ entry, row }) => {
       const shortNameResult = decodeShortName(row.shortName);
       let lockState: LockState = "none";
 
       if (Either.isRight(shortNameResult)) {
+        const qualifiedKey = runKey(entry.namespace, shortNameResult.right);
         const lockEffect = Effect.gen(function* () {
           const lock = yield* Lock;
-          return yield* lock.status(shortNameResult.right);
+          return yield* lock.status(qualifiedKey);
         }).pipe(Effect.provide(lockLayer));
 
         const lockResult = await Effect.runPromise(Effect.either(lockEffect));
