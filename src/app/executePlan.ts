@@ -35,6 +35,7 @@ import { GitHub } from "../ports/github.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { publishRun } from "./publishRun.js";
+import { reviewCompliance } from "./reviewCompliance.js";
 import {
   makeAdapterCallStartedTelemetryEvent,
   makeAdapterCallSucceededTelemetryEvent,
@@ -832,6 +833,43 @@ export function executePlan(
         yield* Effect.promise(() =>
           patchAgentBindingStatus(phaseFolderPath, "awaiting_manual_review"),
         );
+
+        // Auto-compliance review: runs before publish so the verdict can land in
+        // the PR body. Review failure is non-fatal — the run stays in review_open.
+        if (config.complianceReview?.enabled) {
+          const reviewPolicy = resolveSecurityPolicy({
+            mode: securityMode,
+            worktreePath: infoResult.right.worktreePath,
+            config: config.security,
+          });
+          const reviewSecurityFilter: SecurityFilter = (provider) => {
+            if (securityMode !== "secure") {
+              return { allowed: true };
+            }
+            const evaluation = evaluateProviderSecurity(provider, reviewPolicy);
+            return evaluation.satisfiesStrict
+              ? { allowed: true }
+              : {
+                  allowed: false,
+                  reason: evaluation.marks.length
+                    ? `cannot satisfy strict secure mode (${evaluation.marks.join(", ")})`
+                    : "cannot satisfy strict secure mode",
+                };
+          };
+          const reviewResolution = resolveModel(
+            { model: config.complianceReview.model, effort: config.complianceReview.effort },
+            routing,
+            providerConfig,
+            reviewSecurityFilter,
+          );
+          yield* reviewCompliance(
+            infoResult.right,
+            config.complianceReview,
+            reviewResolution,
+            { mode: securityMode, config: config.security },
+            opts.verbose !== undefined ? { verbose: opts.verbose } : {},
+          ).pipe(Effect.catchAll(() => Effect.void));
+        }
 
         // Auto-publish: push the final branch and create a PR when configured.
         // Publication failure is non-fatal — the run stays in review_open and
