@@ -1,9 +1,10 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
 import type { OutputPort } from "../../ports/output.js";
-import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
-import { resolvePhaseInfo } from "../../app/resolveRunInfo.js";
+import { resolveRunRef } from "../../app/resolveRunRef.js";
+import { runKey } from "../../domain/runRef.js";
+import { effectiveStateRoot } from "../../app/projectContext.js";
 import { readAgentBinding } from "../../app/agentBinding.js";
 import { getSessionAdapter } from "../../domain/session/index.js";
 import { makeNodeSessionLayer } from "../../infra/session.js";
@@ -15,31 +16,32 @@ export async function runEnterPhase(
   out: OutputPort,
 ): Promise<number> {
   const configResult = loadConfig(process.cwd());
-  if (Either.isLeft(configResult)) {
-    out.error(`Config error: ${configResult.left.message}`);
+  const config = Either.isRight(configResult) ? configResult.right : undefined;
+  const stateRoot = effectiveStateRoot(config);
+
+  const resolveResult = resolveRunRef(shortNameArg, config, stateRoot);
+  if (Either.isLeft(resolveResult)) {
+    out.error(resolveResult.left.message);
     return 1;
   }
-  const { stateRoot } = configResult.right;
+  const { namespace, shortName, info, crossProject } = resolveResult.right;
+  const qualifiedName = runKey(namespace, shortName);
+  if (crossProject) {
+    out.log(`Target: ${qualifiedName}`);
+  }
 
-  const shortNameResult = decodeShortName(shortNameArg);
-  if (Either.isLeft(shortNameResult)) {
-    out.error(`Invalid short name "${shortNameArg}": must match ^[a-z][a-z0-9-]*$ (1–64 chars)`);
+  const phaseStatus = info.phaseStatuses.find((p) => p.phaseId === phaseId);
+  if (!phaseStatus) {
+    out.error(`Phase "${phaseId}" not found in run "${qualifiedName}"`);
     return 1;
   }
 
-  const infoResult = resolvePhaseInfo(shortNameResult.right, phaseId, stateRoot);
-  if (Either.isLeft(infoResult)) {
-    out.error(`Could not resolve phase "${phaseId}" of run "${shortNameArg}": ${infoResult.left}`);
-    return 1;
-  }
-
-  const info = infoResult.right;
   const phaseFolderPath = join(info.runPath, phaseId);
 
   const bindingResult = await readAgentBinding(phaseFolderPath);
   if (Either.isLeft(bindingResult)) {
     out.error(
-      `No agent binding found for phase "${phaseId}" of run "${info.shortName}": ${bindingResult.left}`,
+      `No agent binding found for phase "${phaseId}" of run "${qualifiedName}": ${bindingResult.left}`,
     );
     return 1;
   }

@@ -2,6 +2,8 @@ import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
+import { resolveRunRef } from "../../app/resolveRunRef.js";
+import { runKey } from "../../domain/runRef.js";
 import { resetPhase } from "../../app/resetPhase.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { NodeGitLayer } from "../../infra/git.js";
@@ -49,9 +51,21 @@ export async function runResetPhase(
   }
   const config = configResult.right;
 
-  const shortNameResult = decodeShortName(shortNameArg);
+  const resolveResult = resolveRunRef(shortNameArg, config, config.stateRoot);
+  if (Either.isLeft(resolveResult)) {
+    out.error(resolveResult.left.message);
+    return 1;
+  }
+  const { namespace, shortName: shortNameStr, crossProject } = resolveResult.right;
+  const qualifiedName = runKey(namespace, shortNameStr);
+  if (crossProject) {
+    out.log(`Target: ${qualifiedName}`);
+  }
+
+  // Safe: resolveRunRef already validated the shortName via parseRunRef.
+  const shortNameResult = decodeShortName(shortNameStr);
   if (Either.isLeft(shortNameResult)) {
-    out.error(`Invalid short name "${shortNameArg}": must match ^[a-z][a-z0-9-]*$ (1–64 chars)`);
+    out.error(`Internal error: resolved shortName "${shortNameStr}" is invalid.`);
     return 1;
   }
   const shortName = shortNameResult.right;
@@ -59,7 +73,7 @@ export async function runResetPhase(
   if (!opts.yes) {
     const phaseHint = phaseIdArg !== undefined ? ` "${phaseIdArg}"` : "";
     out.log(
-      `Would reset phase${phaseHint} of run "${shortNameArg}". ` +
+      `Would reset phase${phaseHint} of run "${qualifiedName}". ` +
         `This archives the phase folder and removes its worktree and branch. ` +
         `Pass --yes to proceed.`,
     );
@@ -81,7 +95,7 @@ export async function runResetPhase(
   }
 
   const r = result.right;
-  out.log(`Phase "${r.phaseId}" of run "${r.shortName}" has been reset.`);
+  out.log(`Phase "${r.phaseId}" of run "${qualifiedName}" has been reset.`);
   if (r.archivedPath !== undefined) {
     out.log(`  Artifacts archived to: ${r.archivedPath}`);
   }
@@ -91,6 +105,6 @@ export async function runResetPhase(
   if (r.branchDeleted) {
     out.log(`  Branch deleted.`);
   }
-  out.log(`Run is now resumable. Use \`phax resume ${shortNameArg} --yes\` to re-run the phase.`);
+  out.log(`Run is now resumable. Use \`phax resume ${qualifiedName} --yes\` to re-run the phase.`);
   return 0;
 }

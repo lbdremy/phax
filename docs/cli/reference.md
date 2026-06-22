@@ -98,6 +98,12 @@ Resume the final phase's agent session interactively
 
 #### `<short-name>`
 
+## `phax enter-last`
+
+- **Usage**: `phax enter-last`
+
+Resume the final phase's session for the last review_open run in this project
+
 ## `phax enter-phase`
 
 - **Usage**: `phax enter-phase <short-name> <phase-id>`
@@ -136,6 +142,12 @@ Open a shell in the final worktree
 
 #### `<short-name>`
 
+## `phax shell-last`
+
+- **Usage**: `phax shell-last`
+
+Open a shell in the final worktree for the last review_open run in this project
+
 ## `phax path`
 
 - **Usage**: `phax path <short-name>`
@@ -146,6 +158,12 @@ Print the final worktree path (script-friendly, one line)
 
 #### `<short-name>`
 
+## `phax path-last`
+
+- **Usage**: `phax path-last`
+
+Print the final worktree path for the last review_open run in this project
+
 ## `phax open`
 
 - **Usage**: `phax open <short-name>`
@@ -155,6 +173,12 @@ Open the final worktree in the configured editor
 ### Arguments
 
 #### `<short-name>`
+
+## `phax open-last`
+
+- **Usage**: `phax open-last`
+
+Open the final worktree in the configured editor for the last review_open run in this project
 
 ## `phax ls`
 
@@ -193,6 +217,18 @@ Archive a completed or review_open run
 ### Arguments
 
 #### `<short-name>`
+
+### Flags
+
+#### `--force`
+
+Archive even if the final worktree has uncommitted changes
+
+## `phax archive-last`
+
+- **Usage**: `phax archive-last [--force]`
+
+Archive the last review_open run in this project
 
 ### Flags
 

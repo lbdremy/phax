@@ -1,14 +1,21 @@
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
-import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
+import { resolveRunRef } from "../../app/resolveRunRef.js";
+import { resolveLastReviewOpenRun } from "../../app/resolveRunInfo.js";
+import type { RunReviewInfo } from "../../app/resolveRunInfo.js";
+import { runKey } from "../../domain/runRef.js";
+import { effectiveStateRoot } from "../../app/projectContext.js";
 import { makeNodeEditorLayer } from "../../infra/editor.js";
 import { Editor } from "../../ports/editor.js";
-import { resolveRunByShortName, type RunReviewInfo } from "../../app/resolveRunInfo.js";
 
-async function openRun(info: RunReviewInfo, out: OutputPort): Promise<number> {
+async function openRun(
+  info: RunReviewInfo,
+  qualifiedName: string,
+  out: OutputPort,
+): Promise<number> {
   if (!info.worktreePath) {
-    out.error(`No worktree path found for run "${info.shortName}".`);
+    out.error(`No worktree path found for run "${qualifiedName}".`);
     return 1;
   }
 
@@ -29,23 +36,40 @@ async function openRun(info: RunReviewInfo, out: OutputPort): Promise<number> {
 
 export async function runOpen(shortNameArg: string, out: OutputPort): Promise<number> {
   const configResult = loadConfig(process.cwd());
+  const config = Either.isRight(configResult) ? configResult.right : undefined;
+  const stateRoot = effectiveStateRoot(config);
+
+  const resolveResult = resolveRunRef(shortNameArg, config, stateRoot);
+  if (Either.isLeft(resolveResult)) {
+    out.error(resolveResult.left.message);
+    return 1;
+  }
+  const { namespace, shortName, info, crossProject } = resolveResult.right;
+  const qualifiedName = runKey(namespace, shortName);
+  if (crossProject) {
+    out.log(`Target: ${qualifiedName}`);
+  }
+
+  return openRun(info, qualifiedName, out);
+}
+
+export async function runOpenLast(out: OutputPort): Promise<number> {
+  const configResult = loadConfig(process.cwd());
   if (Either.isLeft(configResult)) {
     out.error(`Config error: ${configResult.left.message}`);
     return 1;
   }
-  const { stateRoot } = configResult.right;
+  const config = configResult.right;
+  const { stateRoot, namespace } = config;
 
-  const shortNameResult = decodeShortName(shortNameArg);
-  if (Either.isLeft(shortNameResult)) {
-    out.error(`Invalid short name "${shortNameArg}": must match ^[a-z][a-z0-9-]*$ (1–64 chars)`);
+  const resolveResult = resolveLastReviewOpenRun(namespace, stateRoot);
+  if (Either.isLeft(resolveResult)) {
+    out.error(resolveResult.left);
     return 1;
   }
+  const info = resolveResult.right;
+  const qualifiedName = runKey(namespace, info.shortName);
+  out.log(`Entering last run for ${namespace}: ${qualifiedName}`);
 
-  const infoResult = resolveRunByShortName(shortNameResult.right, stateRoot);
-  if (Either.isLeft(infoResult)) {
-    out.error(`Could not resolve run "${shortNameArg}": ${infoResult.left}`);
-    return 1;
-  }
-
-  return openRun(infoResult.right, out);
+  return openRun(info, qualifiedName, out);
 }

@@ -2,9 +2,12 @@ import { Either } from "effect";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { OutputPort } from "../../ports/output.js";
-import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
-import { resolveRunByShortName, findCurrentPhase } from "../../app/resolveRunInfo.js";
+import { resolveLastReviewOpenRun, findCurrentPhase } from "../../app/resolveRunInfo.js";
+import type { RunReviewInfo } from "../../app/resolveRunInfo.js";
+import { resolveRunRef } from "../../app/resolveRunRef.js";
+import { runKey } from "../../domain/runRef.js";
+import { effectiveStateRoot } from "../../app/projectContext.js";
 import { readAgentBinding } from "../../app/agentBinding.js";
 import { getSessionAdapter } from "../../domain/session/index.js";
 import { canResume } from "../../app/resume.js";
@@ -12,38 +15,19 @@ import { composePhaxState } from "../../app/phaxState.js";
 import type { RunStatus } from "../../schemas/status.js";
 import type { PhaseAgentBinding } from "../../schemas/phaseAgentBinding.js";
 
-export async function runSessionInfo(
-  shortNameArg: string,
+async function printSessionInfo(
+  info: RunReviewInfo,
+  qualifiedName: string,
   out: OutputPort,
-  opts: { debug?: boolean } = {},
+  opts: { debug?: boolean },
 ): Promise<number> {
-  const configResult = loadConfig(process.cwd());
-  if (Either.isLeft(configResult)) {
-    out.error(`Config error: ${configResult.left.message}`);
-    return 1;
-  }
-  const { stateRoot } = configResult.right;
-
-  const shortNameResult = decodeShortName(shortNameArg);
-  if (Either.isLeft(shortNameResult)) {
-    out.error(`Invalid short name "${shortNameArg}": must match ^[a-z][a-z0-9-]*$ (1–64 chars)`);
-    return 1;
-  }
-
-  const infoResult = resolveRunByShortName(shortNameResult.right, stateRoot);
-  if (Either.isLeft(infoResult)) {
-    out.error(`Could not resolve run "${shortNameArg}": ${infoResult.left}`);
-    return 1;
-  }
-
-  const info = infoResult.right;
   const currentPhase = findCurrentPhase(info.phaseStatuses);
 
-  out.log(`Run:              ${info.shortName} (${info.runId})`);
+  out.log(`Run:              ${qualifiedName} (${info.runId})`);
   out.log(`Status:           ${info.runState}`);
 
   const finalPhaseId = currentPhase?.phaseId ?? info.finalPhaseId;
-  const phaseFolderPath = join(stateRoot, "runs", info.shortName, finalPhaseId);
+  const phaseFolderPath = join(info.runPath, finalPhaseId);
   const phasePlan = info.planPhases.find((p) => p.id === finalPhaseId);
   const phaseName = phasePlan?.title ?? info.finalPhaseTitle;
   const phaseState = currentPhase?.state ?? "review_open";
@@ -76,14 +60,14 @@ export async function runSessionInfo(
     }
   } else {
     out.log(
-      `Provider:         (no agent binding recorded — run \`phax session-info ${info.shortName} --debug\` for raw metadata)`,
+      `Provider:         (no agent binding recorded — run \`phax session-info ${qualifiedName} --debug\` for raw metadata)`,
     );
   }
 
   out.log(
     `Suggested enter:  ${
       resumeSupported
-        ? `phax enter-phase ${info.shortName} ${finalPhaseId}`
+        ? `phax enter-phase ${qualifiedName} ${finalPhaseId}`
         : "(interactive resume not available for this provider/session)"
     }`,
   );
@@ -96,7 +80,7 @@ export async function runSessionInfo(
   out.log(
     `Suggested resume: ${
       canResume(runState)
-        ? `phax resume ${info.shortName}`
+        ? `phax resume ${qualifiedName}`
         : "(run is not resumable from this state)"
     }`,
   );
@@ -126,4 +110,27 @@ export async function runSessionInfo(
   }
 
   return 0;
+}
+
+export async function runSessionInfo(
+  shortNameArg: string,
+  out: OutputPort,
+  opts: { debug?: boolean } = {},
+): Promise<number> {
+  const configResult = loadConfig(process.cwd());
+  const config = Either.isRight(configResult) ? configResult.right : undefined;
+  const stateRoot = effectiveStateRoot(config);
+
+  const resolveResult = resolveRunRef(shortNameArg, config, stateRoot);
+  if (Either.isLeft(resolveResult)) {
+    out.error(resolveResult.left.message);
+    return 1;
+  }
+  const { namespace, shortName, info, crossProject } = resolveResult.right;
+  const qualifiedName = runKey(namespace, shortName);
+  if (crossProject) {
+    out.log(`Target: ${qualifiedName}`);
+  }
+
+  return printSessionInfo(info, qualifiedName, out, opts);
 }

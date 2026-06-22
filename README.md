@@ -346,13 +346,18 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax unlock [--force] <short-name>` — Remove a stale run lock; use --force to remove any lock
 - `phax extract-plan <FLAGS>` — Extract phax-plan.json from a plan.md by calling Claude Code headlessly
 - `phax enter <short-name>` — Resume the final phase's agent session interactively
+- `phax enter-last` — Resume the final phase's session for the last review_open run in this project
 - `phax enter-phase <short-name> <phase-id>` — Resume a specific phase's agent session interactively
 - `phax session-info [--debug] <short-name>` — Print session diagnostics for a run (state, phase, worktree, session id)
 - `phax shell <short-name>` — Open a shell in the final worktree
+- `phax shell-last` — Open a shell in the final worktree for the last review_open run in this project
 - `phax path <short-name>` — Print the final worktree path (script-friendly, one line)
+- `phax path-last` — Print the final worktree path for the last review_open run in this project
 - `phax open <short-name>` — Open the final worktree in the configured editor
+- `phax open-last` — Open the final worktree in the configured editor for the last review_open run in this project
 - `phax ls [FLAGS]` — List runs from the registry
 - `phax archive [--force] <short-name>` — Archive a completed or review_open run
+- `phax archive-last [--force]` — Archive the last review_open run in this project
 - `phax run [FLAGS] [short-name]` — Extract a plan from plan.md and run all phases, or preview with --dry-run
 - `phax review-handoff [--allow-partial] <short-name>` — Regenerate review-handoff.md and global file reconciliation for a review_open run
 - `phax publish-pr <short-name>` — Push the final branch and create (or reuse) a GitHub PR for a review_open run

@@ -171,7 +171,7 @@ describe("runSessionInfo", () => {
     expect(exitCode).toBe(0);
     expect(lines.some((l) => l.includes("rate_limited"))).toBe(true);
     expect(lines.some((l) => l.includes("phase-02"))).toBe(true);
-    expect(lines.some((l) => l.includes("phax resume my-run"))).toBe(true);
+    expect(lines.some((l) => l.includes("phax resume test.my-run"))).toBe(true);
     expect(lines.some((l) => l.includes("Rate limit exceeded"))).toBe(true);
   });
 
@@ -203,7 +203,7 @@ describe("runSessionInfo", () => {
     const exitCode = await runSessionInfo("INVALID NAME", out);
 
     expect(exitCode).toBe(1);
-    expect(errors.some((e) => e.includes("Invalid short name"))).toBe(true);
+    expect(errors.some((e) => e.includes("not a valid run short name"))).toBe(true);
   });
 
   it("returns 1 when run does not exist", async () => {
