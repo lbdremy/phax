@@ -46,21 +46,28 @@ repo (generator header, KDL header) already describes the spec correctly as
 generated/derived, so no repo narrative rewrite is needed beyond the small docs
 note in phase-01.
 
-A third gap surfaced after the spec shipped, this one at runtime in the release
-build rather than in the gates:
+Two related gaps surfaced after the spec shipped, both in the release build
+rather than in the gates:
 
-3. **`--usage` is broken in the single-file binaries.** Both
-   `src/cli/commands/usage.ts` and `src/cli/commands/completions.ts` resolve
-   `phax.usage.kdl` from disk via a path derived from `import.meta.url` and then
-   `readFileSync` it (or hand its path to the `usage` CLI). The release artifacts
-   are produced by `deno compile` (`scripts/build-binaries.ts`,
-   `deno task compile`), which bundles the **module graph** but not arbitrary data
-   files. `phax.usage.kdl` is therefore absent on disk inside the binary, so
-   `phax --usage` and `phax completions` fail there. (`phax --version` survives
-   only because deno auto-embeds `package.json`.) A generated artifact that
-   downstream tooling consumes via the shipped CLI must travel *inside* the
-   binary, not beside it. Phase-05 closes this by making the spec part of the
-   module graph.
+3. **The single-file binaries are ~360 MB, and `--usage` is broken in them.**
+   The release artifacts are produced by `deno compile`
+   (`scripts/build-binaries.ts`, `deno task compile`) pointed at the raw source.
+   `deno compile` does **not** tree-shake: it embeds the *files* of every module
+   reachable from the entrypoint into the binary's virtual filesystem. Because the
+   Effect packages ship large amounts of redundant files (CJS + ESM + `.d.ts` +
+   source maps + hundreds of small internal modules), this vacuums ~274 MB of
+   `node_modules` into each binary (~360 MB total) for ~1.5 MB of actually-reached
+   code — so the bloat is the un-tree-shaken bundle, not Effect's runtime cost.
+   Separately, `src/cli/commands/usage.ts` and `src/cli/commands/completions.ts`
+   resolve `phax.usage.kdl` from disk via a path derived from `import.meta.url`;
+   `deno compile` embeds only the module graph, not arbitrary data files, so the
+   spec is absent inside the binary and `phax --usage` / `phax completions` fail
+   there. (`phax --version` survives only because deno auto-embeds
+   `package.json`.) Phase-05 closes both gaps at once: bundle the CLI with esbuild
+   first (tree-shaken to ~1.5 MB) so the compiled binary drops to the ~74 MB
+   Deno-runtime floor, and embed the runtime-read data files with
+   `deno compile --include` so `--usage`, `completions`, `--version`, and
+   `skills install` all work inside the binary with no source changes.
 
 ## Required commands
 
@@ -78,7 +85,7 @@ required**. The preflight check will confirm coverage before any agent spawns.
 2. `phase-02` — Argument and root help in the Commander layer and generator.
 3. `phase-03` — Command long help and examples as code-owned metadata.
 4. `phase-04` — Enforce an info-clean spec and reframe the parity gate as a drift guard.
-5. `phase-05` — Embed the generated spec so `--usage` works in single-file binaries.
+5. `phase-05` — Shrink the single-file binaries (esbuild bundle) and make `--usage` work in them.
 6. `phase-06` — Dynamic shell completion of run short-names via a usage completer.
 
 ---
@@ -503,69 +510,76 @@ independent contract check.
 
 ---
 
-## phase-05 — Embed the generated spec so `--usage` works in single-file binaries {#phase-05-embed-spec}
+## phase-05 — Shrink the single-file binaries and make `--usage` work in them {#phase-05-embed-spec}
 
 **Recommended model:** claude-sonnet-4-6
 **Recommended effort:** medium
 
-Make the generated CLI spec travel *inside* the `deno compile` binary so
-`phax --usage` and `phax completions` work in the release artifacts. Today both
-commands read `phax.usage.kdl` from disk via an `import.meta.url`-derived path;
-`deno compile` bundles only the module graph, so the file is absent in the binary
-and both commands fail. Embed the spec as a TypeScript constant (part of the
-module graph) and serve from it, materializing a temp file only where the
-external `usage` CLI insists on a path.
+Cut the `deno compile` artifacts from ~360 MB to the ~74 MB Deno-runtime floor by
+bundling the CLI with esbuild before compiling, and make the runtime-read data
+files (`phax.usage.kdl`, `package.json`, `.claude/skills`) travel *inside* the
+binary via `deno compile --include`, so `phax --usage`, `phax completions`,
+`phax --version`, and `phax skills install` all work in the release artifacts
+with no source changes.
 
 ### Detailed instructions
 
-- Extend the phase-01 generator (`scripts/generate-usage-spec.ts`, which by then
-  exposes the pure `generateUsageSpec()`) so its runner *also* writes
-  `src/cli/generated/usageSpec.ts` containing
-  `export const USAGE_SPEC_KDL = <JSON.stringify of generateUsageSpec()>;` with a
-  "do not edit by hand — regenerate with `pnpm gen:usage-spec`" header. The
-  committed `phax.usage.kdl` continues to be written unchanged. Use
-  `JSON.stringify` for the literal so all escaping is correct. The file is a
-  generated artifact and is excluded from lint/format (see the next bullet), so
-  the generator does not need to emit oxfmt/oxlint-clean output.
-- Exclude the generated directory from the linter and formatter: add
-  `"src/cli/generated/"` to `ignorePatterns` in `.oxlintrc.json` and to
-  `ignorePatterns` in `.oxfmtrc.json` (matching the existing `dist/` / `coverage/`
-  entries). This keeps `pnpm lint` and `pnpm format:check` green without the
-  generator having to produce formatter-stable output, and removes any risk of
-  oxfmt rewriting the embedded string and drifting from `pnpm gen:usage-spec`.
-  Note `typecheck` (tsc) and `knip` still cover the file — it is real TypeScript
-  imported by `src/cli/usageSpec.ts`.
-- Add `src/cli/usageSpec.ts` exporting a `withSpecFile<T>(fn: (specPath: string)
-  => T): T` helper that writes `USAGE_SPEC_KDL` to a fresh temp dir
-  (`mkdtempSync` under `os.tmpdir()`), invokes the synchronous `fn` with the path,
-  and removes the temp dir in a `finally`. This serves the json + completions
-  paths, which shell out to the external `usage` CLI and require a file path.
-- Update `src/cli/commands/usage.ts`: for `--usage` (kdl) write `USAGE_SPEC_KDL`
-  to stdout directly — delete `resolveSpecPath`, the `existsSync` check, and the
-  `readFileSync` of the spec. For `--usage-format json`, wrap the existing
-  `spawnSync("usage", ["generate", "json", "-f", specPath], …)` in
-  `withSpecFile(...)`. Keep `readPackageVersion()` as-is (deno embeds
-  `package.json`, so `--version` already works). Preserve all current error
-  messages and exit codes.
-- Update `src/cli/commands/completions.ts`: wrap its
-  `spawnSync("usage", ["generate", "completion", shell, "phax", "-f", specPath],
-  …)` in `withSpecFile(...)` and delete its own `resolveSpecPath` /`existsSync`
-  block and the now-unused `node:fs` / `node:path` / `node:url` imports (it keeps
-  `node:child_process`).
-- Add `src/cli/usageSpec.ts` to `CLI_DIRECT_IO_ALLOWLIST` in
-  `tests/unit/architecturalGuards.test.ts` (it imports `node:fs` and `node:os`).
-  Both `usage.ts` and `completions.ts` stay in the allowlist and keep importing a
-  Node I/O module, so the "kept honest" assertions still hold.
-- Extend the phase-01 drift gate (`tests/integration/usageSpecDrift.test.ts`)
-  with an assertion that the embedded constant matches the committed spec —
-  `import { USAGE_SPEC_KDL }` and assert it is byte-identical to
-  `generateUsageSpec()` / `phax.usage.kdl`. This is the hardening piece: it fails
-  the gate if someone edits the CLI or the spec without regenerating the embed,
-  so the binary can never serve a stale or missing spec.
+- Diagnosis to preserve in code comments: `deno compile` does not tree-shake —
+  pointed at `src/cli/main.ts` it embeds the *files* of every reachable module
+  (~274 MB of `node_modules`) for ~1.5 MB of actually-used code. Bundling with
+  esbuild first collapses the embedded files to the reachable, tree-shaken set;
+  `--include` then adds back the three data files the CLI reads at runtime. This
+  was validated empirically (362 MB → 74 MB; `--version` and `--usage` both work
+  in the bundled binary).
+- Add `esbuild` to `devDependencies` in `package.json` (it is currently only a
+  transitive dependency) and refresh `pnpm-lock.yaml` with `pnpm install`. Pin a
+  recent version (e.g. `^0.28.0`).
+- Add `esbuild` to `ignoreDependencies` in `knip.json`: the Deno build script
+  spawns the `node_modules/.bin/esbuild` binary rather than importing the
+  package, so knip cannot trace the usage and would otherwise flag it as an
+  unused dependency in the `full` gate.
+- Rewrite `scripts/build-binaries.ts` to bundle once, then compile per target:
+  - **Bundle step:** spawn `node_modules/.bin/esbuild src/cli/main.ts --bundle
+    --platform=node --format=esm --target=node20 --outfile=<BUNDLE_PATH>
+    --banner:js=<createRequire banner>`. The banner is required because CommonJS
+    deps (commander) call `require("node:events")`, which an ESM bundle has no
+    `require` for:
+    `import{createRequire as __cr}from"node:module";const require=__cr(import.meta.url);`.
+    The bundle is platform-independent, so it is produced once and reused for
+    every target.
+  - **Bundle path depth is load-bearing.** Emit the bundle exactly three
+    directories deep (e.g. `dist/release/bundle/phax.mjs`). The CLI resolves
+    `package.json`, `phax.usage.kdl`, and `.claude/skills` via `import.meta.url`
+    joined with `../../../`; at that depth those paths resolve to the compiled
+    binary's VFS root, which is exactly where `--include` drops the data files.
+    Flattening the bundle would break `--version` / `--usage` / `skills` in the
+    binary. State this constraint in a comment in the script.
+  - **Compile step:** `deno compile --no-check --allow-read --allow-write
+    --allow-env --allow-sys --allow-run --include package.json --include
+    phax.usage.kdl --include .claude/skills --target <triple> --output <out>
+    <BUNDLE_PATH>`. Drop `--sloppy-imports` — the bundle needs no import
+    rewriting. Keep `RELEASE_TARGETS`, the SHA-256 sidecar writing, and the
+    `import.meta.main` cross-compile loop; factor the bundle step so it runs once
+    before the per-target loop.
+  - Add a `--host` mode (no `--target`, `--output dist/bin/phax`) so
+    `deno task compile` and the smoke script build a host binary through the same
+    bundle-then-compile path.
+- Update the `compile` task in `deno.json` to route through the script's host
+  mode: `deno run --allow-read --allow-write --allow-run --allow-env
+  scripts/build-binaries.ts --host` (replacing the direct
+  `deno compile … src/cli/main.ts`). This keeps `pnpm deno:compile`,
+  `deno task compile`, and the smoke script on the small-binary path.
 - Extend `scripts/smoke-binary.sh` to additionally assert `./dist/bin/phax
-  --usage` exits 0 and prints a non-empty spec (e.g. greps for `name "phax"`).
-  This is the real proof the fix works in a compiled binary, since the `full`
-  gate runs under tsx where the file exists on disk.
+  --usage` exits 0 and prints a non-empty spec (grep for `name "phax"`), and to
+  fail if the binary is larger than a sane bound (e.g. 150 MB) so a regression to
+  the un-bundled path is caught on a real artifact. Keep the existing `--version`
+  check.
+- Do **not** change `src/cli/commands/usage.ts` or
+  `src/cli/commands/completions.ts`: their existing `import.meta.url`-relative
+  disk reads work unchanged once `--include` places the files at the matching VFS
+  location. No embedded constant, no `withSpecFile` helper, no generated module,
+  and no architecture-guard allowlist change are needed — this is the key
+  simplification over the previously-planned module-graph embedding.
 - Document shell completions in the README (hand-written prose, outside the
   generated `BEGIN/END GENERATED CLI REFERENCE` block). Add a short "Shell
   completions" section that: states `phax completions <shell>` supports `zsh`,
@@ -578,25 +592,22 @@ external `usage` CLI insists on a path.
   notes that `phax --usage` and `phax completions` now work from the release
   binary as well as from source. Keep it consistent with the phase-01 note that
   `phax.usage.kdl` is the generated spec these features derive from.
-- Run `pnpm gen:usage-spec` to produce `src/cli/generated/usageSpec.ts`, then
-  `pnpm format` and `pnpm check:full`; keep the phase-01 drift gate, the parity
-  gate, and the lint gate green.
+- Run `pnpm check:full` (knip stays green with the new devDep + ignore entry),
+  then `pnpm deno:smoke-binary` to prove `--version` and `--usage` work in a
+  compiled binary and the size dropped.
 
 ### Planned files to create
 
-- `src/cli/generated/usageSpec.ts`
-- `src/cli/usageSpec.ts`
+- (none)
 
 ### Planned files to edit
 
-- `scripts/generate-usage-spec.ts`
-- `src/cli/commands/usage.ts`
-- `src/cli/commands/completions.ts`
-- `tests/unit/architecturalGuards.test.ts`
-- `tests/integration/usageSpecDrift.test.ts`
+- `scripts/build-binaries.ts`
 - `scripts/smoke-binary.sh`
-- `.oxlintrc.json`
-- `.oxfmtrc.json`
+- `deno.json`
+- `package.json`
+- `pnpm-lock.yaml`
+- `knip.json`
 - `README.md`
 
 ### Optional files that may be edited
@@ -605,76 +616,82 @@ external `usage` CLI insists on a path.
 
 ### Boundary contracts
 
-Generator → embedded module → CLI commands: `generateUsageSpec()` is the single
-projection of `buildProgram()` into Usage KDL text (phase-01). Phase-05 adds a
-second sink for that exact text — `src/cli/generated/usageSpec.ts`'s
-`USAGE_SPEC_KDL` — which `usage.ts` and `completions.ts` consume in place of a
-disk read. The stable contract is "the committed `phax.usage.kdl`, the embedded
-`USAGE_SPEC_KDL` constant, and `generateUsageSpec()` output are byte-identical,"
-enforced by the drift gate.
+CLI runtime file resolution → binary VFS layout: the CLI resolves `package.json`,
+`phax.usage.kdl`, and `.claude/skills` via `import.meta.url` joined with
+`../../../`. The build emits the esbuild bundle three directories deep and
+`--include`s those files so they land at the matching VFS path. The stable
+contract is "the bundle's directory depth equals the `../../../` the CLI walks,
+and every runtime-read data file is in the `--include` list." The binary smoke
+test enforces this on a real artifact; it is the one thing that breaks silently
+if either side drifts.
 
 ### Test strategy
 
-- CLI contract / build-tooling layer → integration: extend
-  `tests/integration/usageSpecDrift.test.ts` to assert the embedded constant
-  equals the committed spec (write this assertion before wiring the generator so
-  it is red until the embed exists).
-- Architecture layer → unit: the existing `tests/unit/architecturalGuards.test.ts`
-  enforces the allowlist; the new helper must be added to keep it green.
-- Binary smoke (real artifact) → `scripts/smoke-binary.sh` exercises a compiled
-  `deno` binary; extend it to cover `--usage`. Run manually / in the release
-  workflow, not in the `full` gate.
+- Build-tooling / CLI artifact layer → binary smoke (real artifact):
+  `scripts/smoke-binary.sh`, run via `pnpm deno:smoke-binary`, asserts
+  `--version`, `--usage` (non-empty spec), and the size bound in a compiled
+  binary. This is the real verification for the phase, since the `full` gate runs
+  under tsx where the data files exist on disk and so cannot catch the binary-only
+  breakage.
+- Dead-code layer → `knip` (in `full`) covers the new `esbuild` devDependency
+  declaration and its ignore entry.
 
 ### Implementation order
 
-1. Add the embedded-constant assertion to the drift test (red).
-2. Teach the generator runner to emit `src/cli/generated/usageSpec.ts`; run
-   `pnpm gen:usage-spec` to create it (drift test green).
-3. Add `src/cli/usageSpec.ts` and allowlist it in the architecture guard.
-4. Rewire `usage.ts` and `completions.ts` onto the constant + `withSpecFile`.
-5. Extend `scripts/smoke-binary.sh`; verify with `pnpm deno:smoke-binary`.
+1. Add `esbuild` to devDependencies and `knip.json` ignore; run `pnpm install`.
+2. Rewrite `scripts/build-binaries.ts` (bundle + `--include` + `--host`) and
+   point the `deno.json` `compile` task at the host mode.
+3. Extend `scripts/smoke-binary.sh`; run `pnpm deno:smoke-binary` to confirm the
+   size dropped and `--version` / `--usage` work in the binary.
+4. Add the README "Shell completions" section.
 
 ### Excluded scope
 
-- Any change to command/flag/argument definitions or the emitted spec *content*
-  (phases 02–03) — phase-05 changes only where the spec is read from at runtime.
-- Switching the binary build to `deno compile --include` (the considered
-  alternative); phase-05 deliberately embeds in the module graph so npm dist and
-  the binary share one code path.
+- Any change to command/flag/argument definitions or the emitted spec content
+  (phases 02–03) — phase-05 changes only the build pipeline and where data files
+  travel.
+- Embedding the spec as a module-graph TypeScript constant (`src/cli/generated/`,
+  `src/cli/usageSpec.ts`, `withSpecFile`): the previously-planned approach,
+  deliberately superseded by `deno compile --include`, which needs no source
+  changes and reuses the existing disk-read code path in both the npm dist and the
+  binary.
 - Routing `usage.ts` / `completions.ts` I/O through the FileSystem port (a broader
   refactor tracked by the CLI direct-I/O allowlist).
 
 ### Verification
 
-- The project's configured `full` gate profile in `phax.json` (drift, parity, and
-  lint gates plus the architecture guard).
-- Manual: `pnpm deno:smoke-binary` confirms `--usage` works in a compiled binary.
+- The project's configured `full` gate profile in `phax.json` (knip in particular,
+  for the new devDependency).
+- Manual: `pnpm deno:smoke-binary` confirms the binary is small (~74 MB) and that
+  `--version` and `--usage` both work inside it.
 
 ### Expected handoff content
 
-- The module path of the embedded constant (`src/cli/generated/usageSpec.ts`) and
-  the `withSpecFile` helper (`src/cli/usageSpec.ts`) with its signature.
-- Confirmation that the committed `phax.usage.kdl` bytes are unchanged and that
-  `USAGE_SPEC_KDL` is byte-identical to it (drift gate green).
-- Confirmation that `scripts/smoke-binary.sh` now asserts `--usage` in a compiled
-  binary and that `pnpm deno:smoke-binary` passes.
-- The architecture-guard allowlist entry added and why.
+- The bundle path and its directory depth, and why the depth must equal the CLI's
+  `../../../` resolution.
+- The full `deno compile --include` flag set used and the esbuild flags + banner.
+- Confirmation that no files under `src/cli/` were changed.
+- The measured binary size before and after (expected ~360 MB → ~74 MB).
+- The `esbuild` devDependency version added and the `knip.json` ignore entry.
 - Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
-fix(cli): embed the usage spec so --usage works in single-file binaries
+fix(build): bundle the CLI so single-file binaries are small and --usage works
 
 ### Commit body
 
-Emit src/cli/generated/usageSpec.ts (USAGE_SPEC_KDL) from the spec generator and
-serve `phax --usage` and `phax completions` from the embedded constant instead of
-reading phax.usage.kdl from disk, with a withSpecFile helper materializing a temp
-file only for the external usage CLI. deno compile bundles the module graph but
-not data files, so the on-disk spec was absent in the release binaries; embedding
-it fixes --usage there. Adds an embedded-vs-committed drift assertion and a
-binary smoke check for --usage, and documents shell completions (and that
---usage/completions work from the binary) in the README.
+deno compile does not tree-shake, so pointing it at the raw source embedded
+~274 MB of node_modules into each binary (~360 MB) and still left phax.usage.kdl
+absent, breaking --usage. Bundle the CLI with esbuild first (tree-shaken to
+~1.5 MB) and deno compile --include package.json / phax.usage.kdl / .claude/skills,
+dropping the artifacts to the ~74 MB Deno-runtime floor and making --usage,
+completions, --version, and skills install work inside the binary with no source
+changes. The bundle is emitted three directories deep so the CLI's import.meta
+relative reads resolve to the VFS root where --include drops the files. Adds
+esbuild as a devDependency (knip-ignored, spawned not imported), routes
+deno task compile through the bundle path, and extends the binary smoke test to
+assert --usage and a size bound.
 
 ---
 
@@ -712,12 +729,13 @@ machine-readable `phax ls` mode.
   `complete "<name>" run="<cmd>" descriptions=#true` node for each entry in
   `cliCompleters`, following the [Usage spec format](https://usage.jdx.dev/spec/)
   (`complete` reference). Confirm the exact KDL shape with `usage lint`.
-- Regenerate with `pnpm gen:usage-spec` (which, per phase-05, rewrites both
-  `phax.usage.kdl` and the embedded `src/cli/generated/usageSpec.ts`) and
-  `pnpm docs:cli`. Keep the phase-01 drift gate, the embedded-spec drift
-  assertion (phase-05), the docs drift gate, the parity gate, and `usage lint`
-  all green. The new `ls --complete` flag is introspected by the parity gate
-  automatically; ensure it carries help so the spec stays info-clean (phase-04).
+- Regenerate with `pnpm gen:usage-spec` (which rewrites `phax.usage.kdl`) and
+  `pnpm docs:cli`. The release binary picks up the regenerated spec automatically
+  on the next build, since phase-05 embeds `phax.usage.kdl` via
+  `deno compile --include` rather than a committed constant. Keep the phase-01
+  drift gate, the docs drift gate, the parity gate, and `usage lint` all green.
+  The new `ls --complete` flag is introspected by the parity gate automatically;
+  ensure it carries help so the spec stays info-clean (phase-04).
 - Update the README "Shell completions" section (added in phase-05) to note that,
   once installed, Tab now completes run short-names for commands like
   `phax enter` / `phax resume`, and that completion invokes `phax ls` at Tab-time
@@ -734,7 +752,6 @@ machine-readable `phax ls` mode.
 - `src/cli/commands/ls.ts`
 - `scripts/generate-usage-spec.ts`
 - `phax.usage.kdl`
-- `src/cli/generated/usageSpec.ts`
 - `docs/cli/reference.md`
 - `README.md`
 
@@ -796,8 +813,8 @@ the `short-name:state` line format.
 - The `cliCompleters.ts` module path and its exported record shape.
 - The exact KDL shape emitted for `complete` nodes and the `ls --complete` line
   format.
-- Confirmation that the spec, embedded constant, and docs were regenerated and
-  that drift, parity, and lint gates pass.
+- Confirmation that the spec and docs were regenerated and that drift, parity,
+  and lint gates pass.
 - Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
