@@ -91,7 +91,7 @@ describe("runReviewHandoff command", () => {
       join(repoRoot, "phax.json"),
       JSON.stringify({
         version: 1,
-        project: { name: "test", type: "single-package" },
+        name: "test",
         state: { root: stateRoot },
         gateProfiles: { fast: ["pnpm test"] },
       }),

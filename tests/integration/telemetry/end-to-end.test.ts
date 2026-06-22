@@ -72,6 +72,7 @@ describe("executePlan — semantic telemetry end-to-end", () => {
         commands: { setup: ["true"], cleanup: ["true"] },
       },
       stateRoot,
+      namespace: "test-project",
       repoRoot: stateRoot,
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",

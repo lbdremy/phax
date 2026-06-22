@@ -76,6 +76,7 @@ function makeConfig(stateRoot: string): ResolvedConfig {
       commands: { setup: ["true"] },
     },
     stateRoot,
+    namespace: "test-project",
     repoRoot: stateRoot,
     maxFixAttempts: 1,
     extractPlanModel: "claude-haiku-4-5-20251001",

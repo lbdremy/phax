@@ -14,7 +14,7 @@ const decodeComplianceReviewConfig = Schema.decodeUnknownEither(ComplianceReview
 
 const minimalValidPhaxConfig = {
   version: 1,
-  project: { name: "test", type: "single-package" },
+  name: "test",
   state: { root: ".phax" },
   gateProfiles: { full: ["pnpm test"] },
 } as const;

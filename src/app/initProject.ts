@@ -43,7 +43,7 @@ export function initProject(input: { cwd: string; force?: boolean }): InitResult
   const config = {
     $schema: schemaReference,
     version: 1,
-    project: { name, type: "single-package" },
+    name,
     state: { root: "~/.phax" },
     gateProfiles: {
       fast: ["echo 'replace with your gate commands in phax.json'"],

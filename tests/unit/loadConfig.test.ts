@@ -10,7 +10,7 @@ import { DEFAULT_SECURITY_PROFILE } from "../../src/schemas/securityConfig.js";
 
 const baseConfig = {
   version: 1,
-  project: { name: "test", type: "single-package" },
+  name: "test",
   state: { root: "~/.phax" },
   gateProfiles: { fast: ["pnpm test"] },
 };
@@ -29,6 +29,73 @@ afterEach(() => {
 function writePhaxJson(config: object): void {
   writeFileSync(join(repoDir, "phax.json"), JSON.stringify(config));
 }
+
+describe("loadConfig namespace resolution", () => {
+  it("exposes namespace from top-level name field", () => {
+    writePhaxJson(baseConfig);
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.namespace).toBe("test");
+    }
+  });
+
+  it("returns ConfigValidationError with path 'name' when name is missing", () => {
+    const { name: _, ...noName } = baseConfig;
+    writePhaxJson(noName);
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.path).toBe("name");
+    }
+  });
+
+  it("returns ConfigValidationError with path 'name' when name is empty", () => {
+    writePhaxJson({ ...baseConfig, name: "" });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.path).toBe("name");
+    }
+  });
+
+  it("returns ConfigValidationError with path 'name' when name contains a dot", () => {
+    writePhaxJson({ ...baseConfig, name: "my.project" });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.path).toBe("name");
+    }
+  });
+
+  it("returns ConfigValidationError with path 'name' when name has uppercase", () => {
+    writePhaxJson({ ...baseConfig, name: "MyProject" });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.path).toBe("name");
+    }
+  });
+
+  it("returns ConfigValidationError with path 'name' when name starts with a digit", () => {
+    writePhaxJson({ ...baseConfig, name: "1project" });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.path).toBe("name");
+    }
+  });
+
+  it("includes the spec error message when name is missing", () => {
+    const { name: _, ...noName } = baseConfig;
+    writePhaxJson(noName);
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toContain("PHAX project name is missing");
+    }
+  });
+});
 
 describe("loadConfig extractPlan resolution", () => {
   it("defaults to DEFAULT_EXTRACT_MODEL and low effort when no extractPlan config", () => {

@@ -66,7 +66,7 @@ export function buildDryRunReport(
   return {
     shortName: plan.run.shortName,
     branch: plan.run.branch,
-    projectName: config.raw.project.name,
+    projectName: config.namespace,
     stateRoot: config.stateRoot,
     gateProfileId: profileId,
     securityMode: effectiveSecurityMode,

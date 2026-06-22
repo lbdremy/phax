@@ -117,6 +117,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
         commands: { setup: ["true"], cleanup: [] },
       },
       stateRoot,
+      namespace: "routing-test",
       repoRoot: stateRoot,
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
