@@ -314,6 +314,7 @@ describe("executePlan — rate-limit detection and resume", () => {
       join(runPath, "run-status.json"),
       JSON.stringify({
         version: 1,
+        namespace: "test-project",
         shortName: "my-run",
         runId,
         state: "rate_limited",

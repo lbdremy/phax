@@ -34,6 +34,7 @@ function makeOutput() {
 function makeConfig(publishEnabled: boolean): ResolvedConfig {
   return {
     raw: {} as ResolvedConfig["raw"],
+    namespace: "test-project",
     stateRoot: "/fake-state",
     repoRoot: "/fake-repo",
     maxFixAttempts: 3,
@@ -48,11 +49,13 @@ function makeConfig(publishEnabled: boolean): ResolvedConfig {
       pushBranch: true,
       createPullRequest: true,
     },
+    complianceReview: { enabled: false, model: "claude-sonnet-4-6", effort: "medium" },
   };
 }
 
 function makeInfo(): RunReviewInfo {
   return {
+    namespace: "test-project",
     shortName: FAKE_SHORT_NAME,
     runId: "run-999",
     runState: "review_open",

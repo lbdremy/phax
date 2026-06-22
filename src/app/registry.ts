@@ -57,7 +57,9 @@ export function upsertRun(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const registry = yield* readRegistry(stateRoot);
-    const idx = registry.runs.findIndex((r) => r.shortName === entry.shortName);
+    const idx = registry.runs.findIndex(
+      (r) => r.namespace === entry.namespace && r.shortName === entry.shortName,
+    );
     const runs =
       idx === -1 ? [...registry.runs, entry] : registry.runs.map((r, i) => (i === idx ? entry : r));
     yield* fs.writeAtomic(
@@ -69,13 +71,16 @@ export function upsertRun(
 
 export function setRunStatus(
   stateRoot: string,
+  namespace: string,
   shortName: string,
   update: Partial<RegistryEntry>,
 ): Effect.Effect<void, FsError | RegistryCorruptionError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const registry = yield* readRegistry(stateRoot);
-    const idx = registry.runs.findIndex((r) => r.shortName === shortName);
+    const idx = registry.runs.findIndex(
+      (r) => r.namespace === namespace && r.shortName === shortName,
+    );
     if (idx === -1) return;
     const current = registry.runs[idx]!;
     const updated: RegistryEntry = {

@@ -8,6 +8,7 @@ import type { RegistryEntry } from "../../src/schemas/registry.js";
 const stateRoot = "/fake-state";
 
 const makeEntry = (shortName: string, overrides?: Partial<RegistryEntry>): RegistryEntry => ({
+  namespace: "test-project",
   shortName,
   runId: `${shortName}-123`,
   state: "created",
@@ -151,7 +152,9 @@ describe("setRunStatus", () => {
     );
 
     await Effect.runPromise(
-      setRunStatus(stateRoot, "my-run", { state: "running" }).pipe(Effect.provide(layer)),
+      setRunStatus(stateRoot, "test-project", "my-run", { state: "running" }).pipe(
+        Effect.provide(layer),
+      ),
     );
 
     const raw = impl.getFile(`${stateRoot}/registry.json`);
@@ -167,7 +170,27 @@ describe("setRunStatus", () => {
     );
 
     await Effect.runPromise(
-      setRunStatus(stateRoot, "nonexistent", { state: "failed" }).pipe(Effect.provide(layer)),
+      setRunStatus(stateRoot, "test-project", "nonexistent", { state: "failed" }).pipe(
+        Effect.provide(layer),
+      ),
+    );
+
+    const raw = impl.getFile(`${stateRoot}/registry.json`);
+    const parsed = JSON.parse(raw!) as { runs: Array<{ state: string }> };
+    expect(parsed.runs[0]?.state).toBe("created");
+  });
+
+  it("is a no-op when the namespace does not match", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile(
+      `${stateRoot}/registry.json`,
+      JSON.stringify({ version: 1, runs: [makeEntry("my-run", { state: "created" })] }),
+    );
+
+    await Effect.runPromise(
+      setRunStatus(stateRoot, "other-project", "my-run", { state: "running" }).pipe(
+        Effect.provide(layer),
+      ),
     );
 
     const raw = impl.getFile(`${stateRoot}/registry.json`);
@@ -186,7 +209,7 @@ describe("setRunStatus", () => {
     );
 
     await Effect.runPromise(
-      setRunStatus(stateRoot, "my-run", {
+      setRunStatus(stateRoot, "test-project", "my-run", {
         state: "archived",
         archivePath: "/fake-state/archive/my-run",
       }).pipe(Effect.provide(layer)),

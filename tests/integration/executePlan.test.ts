@@ -46,6 +46,7 @@ async function seedGatesExhaustedRun(opts: {
   const now = new Date().toISOString();
   const runStatus = {
     version: 1,
+    namespace: "test-project",
     shortName: "my-run",
     runId: "my-run-2026-06-11",
     state: "interrupted",

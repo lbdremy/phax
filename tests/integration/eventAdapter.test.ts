@@ -34,6 +34,7 @@ const phaseFolderPath = `${runPath}/phase-01`;
 
 const runStatusSeed = JSON.stringify({
   version: 1,
+  namespace: "test-project",
   shortName: "my-run",
   runId: "my-run-2026-05-21",
   state: "running",

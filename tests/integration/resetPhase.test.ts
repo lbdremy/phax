@@ -36,6 +36,7 @@ async function seedRun(
   await mkdir(runPath, { recursive: true });
   const runStatus: Record<string, unknown> = {
     version: 1,
+    namespace: "test-project",
     shortName: SHORT_NAME,
     runId: `${SHORT_NAME}-2026-06-12`,
     state: opts.runState,

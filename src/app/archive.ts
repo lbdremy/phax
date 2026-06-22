@@ -18,6 +18,7 @@ import { resolveRunByShortName } from "./resolveRunInfo.js";
 import { patchAgentBindingStatus } from "./agentBinding.js";
 import { setRunStatus } from "./registry.js";
 import { dispatch } from "./dispatcher.js";
+import { decodeRunStatus } from "../schemas/status.js";
 
 export interface ArchiveOptions {
   force?: boolean;
@@ -61,6 +62,24 @@ export function archive(
     // 2. Find the final worktree path from phase statuses
     const runPath = join(stateRoot, "runs", shortName);
     const infoResult = yield* Effect.sync(() => resolveRunByShortName(shortName, stateRoot));
+
+    // Resolve namespace before dispatch (which moves the run folder).
+    // Use infoResult when available (production); otherwise fall back to the
+    // FileSystem port so the fake fs works in tests too.
+    let namespace: string | undefined;
+    if (Either.isRight(infoResult)) {
+      namespace = infoResult.right.namespace;
+    } else {
+      namespace = yield* fs.readText(join(runPath, "run-status.json")).pipe(
+        Effect.map((text) => {
+          const raw = JSON.parse(text) as unknown;
+          const decoded = decodeRunStatus(raw);
+          return Either.isRight(decoded) ? decoded.right.namespace : undefined;
+        }),
+        Effect.catchAll(() => Effect.succeed(undefined as string | undefined)),
+      );
+    }
+
     const worktreePath =
       Either.isRight(infoResult) && infoResult.right.worktreePath
         ? (infoResult.right.worktreePath as WorktreePath)
@@ -139,9 +158,11 @@ export function archive(
     // 6. Update registry index (run-status.json is already written by the
     //    dispatcher above; this call only refreshes the central registry.json).
     //    archivePath points at the umbrella directory, not the runs subfolder.
-    yield* setRunStatus(stateRoot, shortName, {
-      state: "archived",
-      archivePath,
-    });
+    if (namespace !== undefined) {
+      yield* setRunStatus(stateRoot, namespace, shortName as string, {
+        state: "archived",
+        archivePath,
+      });
+    }
   });
 }

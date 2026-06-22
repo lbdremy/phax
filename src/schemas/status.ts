@@ -44,6 +44,7 @@ const EffortSchema = Schema.Union(
 
 export const RunStatusSchema = Schema.Struct({
   version: Schema.Literal(1),
+  namespace: Schema.NonEmptyString,
   shortName: Schema.NonEmptyString,
   runId: Schema.NonEmptyString,
   state: RunStateSchema,

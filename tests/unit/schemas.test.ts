@@ -2,6 +2,7 @@ import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { decodeRegistry } from "../../src/schemas/registry.js";
 import { decodePhaseStatus, decodeRunStatus } from "../../src/schemas/status.js";
 
 const validConfig = {
@@ -238,6 +239,7 @@ const now = new Date().toISOString();
 describe("decodeRunStatus", () => {
   const validRunStatus = {
     version: 1,
+    namespace: "my-project",
     shortName: "my-run",
     runId: "my-run-123",
     state: "created",
@@ -248,6 +250,11 @@ describe("decodeRunStatus", () => {
 
   it("accepts a valid run status", () => {
     expect(Either.isRight(decodeRunStatus(validRunStatus))).toBe(true);
+  });
+
+  it("rejects a run status missing namespace", () => {
+    const { namespace: _, ...noNamespace } = validRunStatus;
+    expect(Either.isLeft(decodeRunStatus(noNamespace))).toBe(true);
   });
 
   it("accepts an optional gateProfileId", () => {
@@ -302,5 +309,30 @@ describe("decodePhaseStatus", () => {
   it("rejects an invalid effort", () => {
     const bad = { ...validPhaseStatus, effort: "extreme" };
     expect(Either.isLeft(decodePhaseStatus(bad))).toBe(true);
+  });
+});
+
+describe("decodeRegistry", () => {
+  const validEntry = {
+    namespace: "my-project",
+    shortName: "my-run",
+    runId: "my-run-123",
+    state: "created",
+    branch: "phax/my-run",
+    projectName: "my-project",
+    phasesCount: 1,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  it("accepts a valid registry with namespace on each entry", () => {
+    const registry = { version: 1, runs: [validEntry] };
+    expect(Either.isRight(decodeRegistry(registry))).toBe(true);
+  });
+
+  it("rejects a registry entry missing namespace", () => {
+    const { namespace: _, ...noNamespace } = validEntry;
+    const registry = { version: 1, runs: [noNamespace] };
+    expect(Either.isLeft(decodeRegistry(registry))).toBe(true);
   });
 });

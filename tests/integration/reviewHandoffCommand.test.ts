@@ -29,6 +29,7 @@ const NOW = "2024-01-01T00:00:00.000Z";
 function makeRunStatusJson(state: string): string {
   return JSON.stringify({
     version: 1,
+    namespace: "test",
     shortName: SHORT_NAME,
     runId: RUN_ID,
     state,

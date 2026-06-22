@@ -373,6 +373,7 @@ describe("executePlan — per-phase branch regression", () => {
       join(runPath, "run-status.json"),
       JSON.stringify({
         version: 1,
+        namespace: "test-project",
         shortName: "my-run",
         runId,
         state: "running",

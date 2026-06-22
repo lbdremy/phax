@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { resolveGateProfile } from "./gates.js";
 import { checkRequiredCommands } from "../domain/security/agentCommands.js";
+import { runKey } from "../domain/runRef.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { SecurityMode } from "../domain/security/types.js";
@@ -16,6 +17,7 @@ export interface DryRunPhase {
 
 export interface DryRunReport {
   readonly shortName: string;
+  readonly qualifiedName: string;
   readonly branch: string;
   readonly projectName: string;
   readonly stateRoot: string;
@@ -65,6 +67,7 @@ export function buildDryRunReport(
 
   return {
     shortName: plan.run.shortName,
+    qualifiedName: runKey(config.namespace, plan.run.shortName),
     branch: plan.run.branch,
     projectName: config.namespace,
     stateRoot: config.stateRoot,
@@ -85,7 +88,7 @@ export function buildDryRunReport(
 export function formatDryRunReport(report: DryRunReport): string {
   const lines: string[] = [];
 
-  lines.push(`Dry run: ${report.shortName}`);
+  lines.push(`Dry run: ${report.qualifiedName}`);
   lines.push(`  Branch:       ${report.branch}`);
   lines.push(`  Project:      ${report.projectName}`);
   lines.push(`  Gate profile: ${report.gateProfileId}`);

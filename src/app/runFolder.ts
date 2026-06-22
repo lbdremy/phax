@@ -42,8 +42,10 @@ export function createRunFolder(
     yield* fs.writeAtomic(join(runPath, "phax.json"), JSON.stringify(config.raw, null, 2));
 
     const now = nowIso();
+    const namespace = config.namespace;
     const runStatus: RunStatus = {
       version: 1,
+      namespace,
       shortName,
       runId,
       state: "created",
@@ -55,6 +57,7 @@ export function createRunFolder(
     yield* fs.writeAtomic(join(runPath, "run-status.json"), JSON.stringify(runStatus, null, 2));
 
     yield* upsertRun(config.stateRoot, {
+      namespace,
       shortName,
       runId,
       state: "created",
