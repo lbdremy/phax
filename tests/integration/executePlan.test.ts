@@ -797,6 +797,208 @@ describe("executePlan — binding status lifecycle", () => {
   });
 });
 
+describe("executePlan — handoff prompt deviation injection", () => {
+  let stateRoot: string;
+
+  // phase-01 plans one create and one edit; the actual commit (seeded via the
+  // fake git diff below) touches neither and instead changes two other files.
+  // That divergence is exactly what reconciliation must surface in the handoff.
+  const deviationRawPlan = {
+    version: 1,
+    run: {
+      shortName: "my-run",
+      title: "My Run",
+      branch: "ai/my-run",
+      requiredCommands: [],
+    },
+    phases: [
+      {
+        id: "phase-01",
+        title: "First Phase",
+        model: "claude-sonnet-4-6",
+        effort: "low" as const,
+        planMarkdownAnchor: "#phase-01-first",
+        plannedFilesToCreate: ["src/planned-new.ts"],
+        plannedFilesToEdit: ["src/planned-edit.ts"],
+        optionalFilesToEdit: [],
+        commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
+      },
+    ],
+  } as const;
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-deviation-test-"));
+    const worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
+    await mkdir(join(worktree, ".phax-context"), { recursive: true });
+    await writeFile(join(worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+  });
+
+  it("injects the named deviating files into the handoff prompt passed to the backend", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(deviationRawPlan));
+    const config = makeStatusTestConfig(stateRoot);
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
+    // The committed diff diverges from the plan: an unplanned file edited, an
+    // unplanned file created, and neither planned file touched. reconcilePhaseFiles
+    // diffs HEAD^..HEAD via git.diffNameStatus, so this drives the deviations.
+    fakeGit.impl.enqueueDiffNameStatus(worktreePath, [
+      { status: "modified", path: "src/unplanned-edit.ts" },
+      { status: "added", path: "src/unplanned-new.ts" },
+    ]);
+
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "deadbeef12345678\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-01-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+
+    // The handoff is produced by resuming the agent session; find that resume by
+    // its output path. The reorder (commit -> reconcile -> handoff) means the
+    // reconciliation result is available, so the prompt must carry the concrete,
+    // named deviation list rather than the old vague conditional.
+    const handoffResume = fakeBackend.impl.resumeCalls.find((c) =>
+      c.options.outputJsonlPath?.includes("handoff-generation.jsonl"),
+    );
+    expect(handoffResume).toBeDefined();
+    const prompt = handoffResume?.prompt ?? "";
+    expect(prompt).toContain("File-plan deviation report:");
+    expect(prompt).toContain(
+      "phax compared the files you changed against this phase's plan and found these deviations.",
+    );
+    expect(prompt).toContain("Unplanned files edited: src/unplanned-edit.ts");
+    expect(prompt).toContain("Unplanned files created: src/unplanned-new.ts");
+    expect(prompt).toContain("Planned to create but not created: src/planned-new.ts");
+    expect(prompt).toContain("Planned to edit but not edited: src/planned-edit.ts");
+  });
+
+  it("renders the no-deviation line when the commit matches the plan exactly", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(deviationRawPlan));
+    const config = makeStatusTestConfig(stateRoot);
+    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
+    // Commit matches the plan exactly: the planned create and edit, nothing else.
+    fakeGit.impl.enqueueDiffNameStatus(worktreePath, [
+      { status: "added", path: "src/planned-new.ts" },
+      { status: "modified", path: "src/planned-edit.ts" },
+    ]);
+
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "deadbeef12345678\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-01-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+
+    const handoffResume = fakeBackend.impl.resumeCalls.find((c) =>
+      c.options.outputJsonlPath?.includes("handoff-generation.jsonl"),
+    );
+    expect(handoffResume).toBeDefined();
+    const prompt = handoffResume?.prompt ?? "";
+    expect(prompt).toContain("phax found no file-plan deviations for this phase.");
+    expect(prompt).not.toContain("Unplanned files");
+    expect(prompt).not.toContain("Planned to create but not created");
+  });
+});
+
 describe("executePlan — resume from gates_exhausted", () => {
   let stateRoot: string;
   const singlePhaseRawPlan = {
