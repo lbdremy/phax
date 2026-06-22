@@ -55,7 +55,11 @@ export function buildDryRunReport(
     gateCommands,
   });
 
-  const worktreesRoot = join(config.stateRoot, "worktrees", plan.run.shortName);
+  const worktreesRoot = join(
+    config.stateRoot,
+    "worktrees",
+    runKey(config.namespace, plan.run.shortName),
+  );
   const phases: DryRunPhase[] = plan.phases.map((p, i) => ({
     index: i,
     id: p.id,
@@ -80,7 +84,7 @@ export function buildDryRunReport(
     requiredCommands,
     uncoveredRequiredCommands,
     phases,
-    runPath: join(config.stateRoot, "runs", plan.run.shortName),
+    runPath: join(config.stateRoot, "runs", runKey(config.namespace, plan.run.shortName)),
     ...(providerPriorityOverride !== undefined ? { providerPriorityOverride } : {}),
   };
 }

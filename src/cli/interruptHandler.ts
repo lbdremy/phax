@@ -2,16 +2,22 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Either } from "effect";
 import { decodeRunStatus } from "../schemas/status.js";
+import { runKey } from "../domain/runRef.js";
 
 interface RunInterruptContext {
+  readonly namespace: string;
   readonly shortName: string;
   readonly stateRoot: string;
 }
 
 let activeRunContext: RunInterruptContext | undefined;
 
-export function setRunInterruptContext(shortName: string, stateRoot: string): void {
-  activeRunContext = { shortName, stateRoot };
+export function setRunInterruptContext(
+  shortName: string,
+  namespace: string,
+  stateRoot: string,
+): void {
+  activeRunContext = { namespace, shortName, stateRoot };
 }
 
 export function clearRunInterruptContext(): void {
@@ -24,7 +30,12 @@ export function clearRunInterruptContext(): void {
 // fs API. The architectural guard test allows this file to import the status
 // schemas for the same reason.
 function syncWriteInterruptedState(ctx: RunInterruptContext): void {
-  const statusPath = join(ctx.stateRoot, "runs", ctx.shortName, "run-status.json");
+  const statusPath = join(
+    ctx.stateRoot,
+    "runs",
+    runKey(ctx.namespace, ctx.shortName),
+    "run-status.json",
+  );
   if (!existsSync(statusPath)) return;
   try {
     const raw = JSON.parse(readFileSync(statusPath, "utf8")) as unknown;

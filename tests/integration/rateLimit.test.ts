@@ -137,6 +137,7 @@ describe("executePlan — rate-limit detection and resume", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -204,6 +205,7 @@ describe("executePlan — rate-limit detection and resume", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -257,7 +259,7 @@ describe("executePlan — rate-limit detection and resume", () => {
         branchName: "ai/my-run--phase-01",
         createdAt: now,
         updatedAt: now,
-        worktreePath: join(stateRoot, "worktrees", "my-run", "phase-01"),
+        worktreePath: join(stateRoot, "worktrees", "test-project.my-run", "phase-01"),
         commitHash: "aabbccdd11223344",
       }),
     );
@@ -285,7 +287,7 @@ describe("executePlan — rate-limit detection and resume", () => {
 
     // phase-02 was in flight when the rate limit hit — folder + worktree preserved.
     const phase02FolderPath = join(runPath, "phase-02");
-    const phase02WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-02");
+    const phase02WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-02");
     await mkdir(phase02FolderPath, { recursive: true });
     await mkdir(join(phase02WorktreePath, ".phax-context"), { recursive: true });
     await writeFile(
@@ -328,7 +330,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     );
 
     // `phax resume` resolves the next resumable phase from the rate-limited run.
-    const decision = inspectResume(shortName, stateRoot);
+    const decision = inspectResume("test-project", shortName, stateRoot);
     expect(Either.isRight(decision)).toBe(true);
     if (Either.isLeft(decision)) throw new Error("expected resumable run");
     expect(decision.right.fromState).toBe("rate_limited");
@@ -371,6 +373,7 @@ describe("executePlan — rate-limit detection and resume", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,

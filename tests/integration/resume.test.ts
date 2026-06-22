@@ -129,7 +129,7 @@ describe("executePlan — resume from startIndex: 1", () => {
         branchName: "ai/my-run--phase-01",
         createdAt: now,
         updatedAt: now,
-        worktreePath: join(stateRoot, "worktrees", "my-run", "phase-01"),
+        worktreePath: join(stateRoot, "worktrees", "test-project.my-run", "phase-01"),
         commitHash: "aabbccdd11223344",
       }),
     );
@@ -172,7 +172,7 @@ describe("executePlan — resume from startIndex: 1", () => {
     );
 
     // Pre-create phase-02 worktree directory with the handoff file the agent would produce.
-    const phase02WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-02");
+    const phase02WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-02");
     await mkdir(join(phase02WorktreePath, ".phax-context"), { recursive: true });
     await writeFile(
       join(phase02WorktreePath, ".phax-context", "phase-handoff.md"),
@@ -216,6 +216,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,
@@ -302,7 +303,7 @@ describe("executePlan — resume from startIndex: 1", () => {
         branchName: "ai/my-run--phase-01",
         createdAt: now,
         updatedAt: now,
-        worktreePath: join(stateRoot, "worktrees", "my-run", "phase-01"),
+        worktreePath: join(stateRoot, "worktrees", "test-project.my-run", "phase-01"),
         commitHash: "aabbccdd",
       }),
     );
@@ -343,7 +344,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       }),
     );
 
-    const phase02WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-02");
+    const phase02WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-02");
     await mkdir(join(phase02WorktreePath, ".phax-context"), { recursive: true });
     await writeFile(
       join(phase02WorktreePath, ".phax-context", "phase-handoff.md"),
@@ -389,6 +390,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "test-project",
           plan,
           planMd: "# My Plan",
           config,

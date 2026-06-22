@@ -96,7 +96,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
 
   beforeEach(async () => {
     stateRoot = await mkdtemp(join(tmpdir(), "phax-routing-test-"));
-    const worktree = join(stateRoot, "worktrees", "routing-test", "phase-01");
+    const worktree = join(stateRoot, "worktrees", "routing-test.routing-test", "phase-01");
     await mkdir(join(worktree, ".phax-context"), { recursive: true });
     await writeFile(join(worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
   });
@@ -133,7 +133,12 @@ describe("executePlan routing — mistral-vibe priority", () => {
       },
     };
 
-    const phase01WorktreePath = join(stateRoot, "worktrees", "routing-test", "phase-01");
+    const phase01WorktreePath = join(
+      stateRoot,
+      "worktrees",
+      "routing-test.routing-test",
+      "phase-01",
+    );
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
@@ -186,6 +191,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
       Effect.either(
         executePlan({
           shortName,
+          namespace: "routing-test",
           plan,
           planMd: "# Routing Test",
           config,

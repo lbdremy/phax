@@ -24,7 +24,7 @@ async function buildFakeRunFolder(
   }>,
   extra: { stoppedReason?: string; lastError?: string } = {},
 ): Promise<void> {
-  const runPath = join(stateRoot, "runs", "my-run");
+  const runPath = join(stateRoot, "runs", "test.my-run");
   await mkdir(runPath, { recursive: true });
 
   await writeFile(
@@ -148,7 +148,7 @@ describe("runSessionInfo", () => {
   });
 
   it("prints run and phase info for a rate_limited run", async () => {
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-02");
+    const worktreePath = join(stateRoot, "worktrees", "test.my-run", "phase-02");
     await buildFakeRunFolder(
       stateRoot,
       "rate_limited",
@@ -176,7 +176,7 @@ describe("runSessionInfo", () => {
   });
 
   it("prints 'not resumable' for a review_open run", async () => {
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test.my-run", "phase-01");
     await buildFakeRunFolder(stateRoot, "review_open", [
       { id: "phase-01", index: 0, state: "review_open", sessionId: "sess-ro", worktreePath },
     ]);
@@ -217,12 +217,12 @@ describe("runSessionInfo", () => {
   });
 
   it("shows locked codex binding fields (AC-3)", async () => {
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test.my-run", "phase-01");
     await buildFakeRunFolder(stateRoot, "review_open", [
       { id: "phase-01", index: 0, state: "review_open", worktreePath },
     ]);
 
-    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    const phaseFolderPath = join(stateRoot, "runs", "test.my-run", "phase-01");
     await writeAgentBindingFile(phaseFolderPath, {
       version: 1,
       shortName: "my-run",
@@ -262,12 +262,12 @@ describe("runSessionInfo", () => {
 
   it("shows mistral binding after routing config changes (AC-6 regression)", async () => {
     // Arrange: a phase bound to mistral-vibe
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test.my-run", "phase-01");
     await buildFakeRunFolder(stateRoot, "review_open", [
       { id: "phase-01", index: 0, state: "review_open", worktreePath },
     ]);
 
-    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    const phaseFolderPath = join(stateRoot, "runs", "test.my-run", "phase-01");
     await writeAgentBindingFile(phaseFolderPath, {
       version: 1,
       shortName: "my-run",
@@ -305,7 +305,7 @@ describe("runSessionInfo", () => {
 
   it("shows a no-binding hint when agent-binding.json is absent", async () => {
     // A phase folder with no agent-binding.json — no legacy inference.
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test.my-run", "phase-01");
     await buildFakeRunFolder(stateRoot, "review_open", [
       { id: "phase-01", index: 0, state: "review_open", worktreePath },
     ]);
@@ -324,12 +324,12 @@ describe("runSessionInfo", () => {
   });
 
   it("displays completed binding status", async () => {
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test.my-run", "phase-01");
     await buildFakeRunFolder(stateRoot, "review_open", [
       { id: "phase-01", index: 0, state: "review_open", worktreePath },
     ]);
 
-    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    const phaseFolderPath = join(stateRoot, "runs", "test.my-run", "phase-01");
     await writeAgentBindingFile(phaseFolderPath, {
       version: 1,
       shortName: "my-run",
@@ -360,12 +360,12 @@ describe("runSessionInfo", () => {
   });
 
   it("displays awaiting_manual_review binding status", async () => {
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test.my-run", "phase-01");
     await buildFakeRunFolder(stateRoot, "review_open", [
       { id: "phase-01", index: 0, state: "review_open", worktreePath },
     ]);
 
-    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    const phaseFolderPath = join(stateRoot, "runs", "test.my-run", "phase-01");
     await writeAgentBindingFile(phaseFolderPath, {
       version: 1,
       shortName: "my-run",
@@ -398,12 +398,12 @@ describe("runSessionInfo", () => {
   });
 
   it("displays failed binding status", async () => {
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test.my-run", "phase-01");
     await buildFakeRunFolder(stateRoot, "review_open", [
       { id: "phase-01", index: 0, state: "review_open", worktreePath },
     ]);
 
-    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    const phaseFolderPath = join(stateRoot, "runs", "test.my-run", "phase-01");
     await writeAgentBindingFile(phaseFolderPath, {
       version: 1,
       shortName: "my-run",
@@ -434,12 +434,12 @@ describe("runSessionInfo", () => {
   });
 
   it("displays archived binding status", async () => {
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test.my-run", "phase-01");
     await buildFakeRunFolder(stateRoot, "review_open", [
       { id: "phase-01", index: 0, state: "review_open", worktreePath },
     ]);
 
-    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    const phaseFolderPath = join(stateRoot, "runs", "test.my-run", "phase-01");
     await writeAgentBindingFile(phaseFolderPath, {
       version: 1,
       shortName: "my-run",
@@ -470,12 +470,12 @@ describe("runSessionInfo", () => {
   });
 
   it("dumps raw metadata with --debug flag", async () => {
-    const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const worktreePath = join(stateRoot, "worktrees", "test.my-run", "phase-01");
     await buildFakeRunFolder(stateRoot, "review_open", [
       { id: "phase-01", index: 0, state: "review_open", worktreePath },
     ]);
 
-    const phaseFolderPath = join(stateRoot, "runs", "my-run", "phase-01");
+    const phaseFolderPath = join(stateRoot, "runs", "test.my-run", "phase-01");
     const bindingObj = {
       version: 1,
       shortName: "my-run",

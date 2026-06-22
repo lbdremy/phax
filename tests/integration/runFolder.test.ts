@@ -79,7 +79,7 @@ describe("createRunFolder", () => {
       createRunFolder(shortName, "# My Plan", plan, resolvedConfig).pipe(Effect.provide(layer)),
     );
 
-    const runPath = `${stateRoot}/runs/my-run`;
+    const runPath = `${stateRoot}/runs/test-project.my-run`;
     expect(impl.getFile(`${runPath}/plan.md`)).toBe("# My Plan");
     expect(impl.getFile(`${runPath}/phax-plan.json`)).toBeDefined();
     expect(impl.getFile(`${runPath}/phax.json`)).toBeDefined();
@@ -94,7 +94,7 @@ describe("createRunFolder", () => {
       createRunFolder(shortName, "# Plan", plan, resolvedConfig).pipe(Effect.provide(layer)),
     );
 
-    const raw = impl.getFile(`${stateRoot}/runs/my-run/run-status.json`);
+    const raw = impl.getFile(`${stateRoot}/runs/test-project.my-run/run-status.json`);
     expect(raw).toBeDefined();
     const decoded = decodeRunStatus(JSON.parse(raw!));
     expect(Either.isRight(decoded)).toBe(true);
@@ -113,7 +113,7 @@ describe("createRunFolder", () => {
       createRunFolder(shortName, "# Plan", plan, resolvedConfig).pipe(Effect.provide(layer)),
     );
 
-    const raw = impl.getFile(`${stateRoot}/runs/my-run/phax-plan.json`);
+    const raw = impl.getFile(`${stateRoot}/runs/test-project.my-run/phax-plan.json`);
     const parsed = JSON.parse(raw!) as unknown;
     const decoded = decodePhaxPlan(parsed);
     expect(Either.isRight(decoded)).toBe(true);
@@ -149,7 +149,7 @@ describe("createRunFolder", () => {
       createRunFolder(shortName, "# Plan", plan, resolvedConfig).pipe(Effect.provide(layer)),
     );
 
-    expect(result.runPath).toBe(`${stateRoot}/runs/my-run`);
+    expect(result.runPath).toBe(`${stateRoot}/runs/test-project.my-run`);
     expect(result.runId).toMatch(/^my-run-\d+$/);
   });
 });

@@ -81,6 +81,7 @@ export async function runResetPhase(
   }
 
   const effect = resetPhase({
+    namespace,
     shortName,
     phaseId: phaseIdArg,
     stateRoot: config.stateRoot,

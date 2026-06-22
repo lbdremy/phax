@@ -293,7 +293,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     routing = applyProviderPriorityOverride(routing, priorityOverride);
   }
 
-  const runFolder = join(config.stateRoot, "runs", shortName);
+  const runFolder = join(config.stateRoot, "runs", runKey(namespace, shortName));
   const semanticJsonlPath = join(runFolder, "semantic.jsonl");
   const telemetryLayer = telemetryEnabled
     ? buildSystemTelemetryLayer(
@@ -304,7 +304,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
       )
     : NoopSystemTelemetryLayer;
 
-  setRunInterruptContext(shortName, config.stateRoot);
+  setRunInterruptContext(shortName, namespace, config.stateRoot);
   try {
     const program = withRunLock(
       shortName,
@@ -312,6 +312,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         Effect.flatMap(({ runPath, runId }) =>
           executePlan({
             shortName,
+            namespace,
             plan: runPlan,
             planMd,
             config,

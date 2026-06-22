@@ -25,7 +25,7 @@ async function buildFakeRunFolder(
   }>,
   runState = "review_open",
 ): Promise<string> {
-  const runPath = join(stateRoot, "runs", "my-run");
+  const runPath = join(stateRoot, "runs", "test.my-run");
   await mkdir(runPath, { recursive: true });
 
   await writeFile(

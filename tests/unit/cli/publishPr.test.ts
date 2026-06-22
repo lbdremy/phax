@@ -12,8 +12,8 @@ vi.mock("../../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
 }));
 
-vi.mock("../../../src/app/resolveRunInfo.js", () => ({
-  resolveRunByShortName: vi.fn(),
+vi.mock("../../../src/app/resolveRunRef.js", () => ({
+  resolveRunRef: vi.fn(),
 }));
 
 vi.mock("../../../src/app/publishRun.js", () => ({
@@ -106,6 +106,14 @@ describe("runPublishPr", () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(Either.right(makeConfig(true)));
 
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    resolveRunRef.mockReturnValue(
+      Either.left({
+        message: '"INVALID NAME!" is not a valid run short name.',
+        variant: "not-found" as const,
+      }),
+    );
+
     const { out, errors } = makeOutput();
     const code = await runPublishPr("INVALID NAME!", {}, out);
     expect(code).toBe(1);
@@ -116,8 +124,8 @@ describe("runPublishPr", () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(Either.right(makeConfig(true)));
 
-    const { resolveRunByShortName } = vi.mocked(await import("../../../src/app/resolveRunInfo.js"));
-    resolveRunByShortName.mockReturnValue(Either.left("run not found"));
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    resolveRunRef.mockReturnValue(Either.left({ message: "run not found", variant: "not-found" }));
 
     const { out, errors } = makeOutput();
     const code = await runPublishPr(FAKE_SHORT_NAME, {}, out);
@@ -129,8 +137,15 @@ describe("runPublishPr", () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(Either.right(makeConfig(true)));
 
-    const { resolveRunByShortName } = vi.mocked(await import("../../../src/app/resolveRunInfo.js"));
-    resolveRunByShortName.mockReturnValue(Either.right({ ...makeInfo(), runState: "running" }));
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    resolveRunRef.mockReturnValue(
+      Either.right({
+        namespace: "test-project",
+        shortName: FAKE_SHORT_NAME,
+        info: { ...makeInfo(), runState: "running" },
+        crossProject: false,
+      }),
+    );
 
     const { out, errors } = makeOutput();
     const code = await runPublishPr(FAKE_SHORT_NAME, {}, out);
@@ -142,8 +157,15 @@ describe("runPublishPr", () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(Either.right(makeConfig(true)));
 
-    const { resolveRunByShortName } = vi.mocked(await import("../../../src/app/resolveRunInfo.js"));
-    resolveRunByShortName.mockReturnValue(Either.right(makeInfo()));
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    resolveRunRef.mockReturnValue(
+      Either.right({
+        namespace: "test-project",
+        shortName: FAKE_SHORT_NAME,
+        info: makeInfo(),
+        crossProject: false,
+      }),
+    );
 
     const { publishRun } = vi.mocked(await import("../../../src/app/publishRun.js"));
     publishRun.mockReturnValue(Effect.succeed({ kind: "published", prUrl: FAKE_PR_URL }));
@@ -158,8 +180,15 @@ describe("runPublishPr", () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(Either.right(makeConfig(true)));
 
-    const { resolveRunByShortName } = vi.mocked(await import("../../../src/app/resolveRunInfo.js"));
-    resolveRunByShortName.mockReturnValue(Either.right(makeInfo()));
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    resolveRunRef.mockReturnValue(
+      Either.right({
+        namespace: "test-project",
+        shortName: FAKE_SHORT_NAME,
+        info: makeInfo(),
+        crossProject: false,
+      }),
+    );
 
     const { publishRun } = vi.mocked(await import("../../../src/app/publishRun.js"));
     publishRun.mockReturnValue(

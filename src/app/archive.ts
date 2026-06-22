@@ -14,17 +14,18 @@ import {
   SetupCommandFailedError,
 } from "../domain/errors.js";
 import type { RunId, ShortName, WorktreePath } from "../domain/branded.js";
-import { resolveRunByShortName } from "./resolveRunInfo.js";
+import { resolveRun } from "./resolveRunInfo.js";
 import { patchAgentBindingStatus } from "./agentBinding.js";
 import { setRunStatus } from "./registry.js";
 import { dispatch } from "./dispatcher.js";
-import { decodeRunStatus } from "../schemas/status.js";
+import { runKey } from "../domain/runRef.js";
 
 export interface ArchiveOptions {
   force?: boolean;
 }
 
 export function archive(
+  namespace: string,
   shortName: ShortName,
   stateRoot: string,
   repoRoot: string,
@@ -51,7 +52,7 @@ export function archive(
     if (lockStatus.kind === "active") {
       return yield* Effect.fail(
         new LockConflictError({
-          message: `Run "${shortName}" is locked by pid ${lockStatus.pid}. Release the lock first or use phax unlock.`,
+          message: `Run "${runKey(namespace, shortName)}" is locked by pid ${lockStatus.pid}. Release the lock first or use phax unlock.`,
           shortName,
           lockPath: join(stateRoot, "locks", `${shortName}.lock`),
           lockingPid: lockStatus.pid,
@@ -60,25 +61,8 @@ export function archive(
     }
 
     // 2. Find the final worktree path from phase statuses
-    const runPath = join(stateRoot, "runs", shortName);
-    const infoResult = yield* Effect.sync(() => resolveRunByShortName(shortName, stateRoot));
-
-    // Resolve namespace before dispatch (which moves the run folder).
-    // Use infoResult when available (production); otherwise fall back to the
-    // FileSystem port so the fake fs works in tests too.
-    let namespace: string | undefined;
-    if (Either.isRight(infoResult)) {
-      namespace = infoResult.right.namespace;
-    } else {
-      namespace = yield* fs.readText(join(runPath, "run-status.json")).pipe(
-        Effect.map((text) => {
-          const raw = JSON.parse(text) as unknown;
-          const decoded = decodeRunStatus(raw);
-          return Either.isRight(decoded) ? decoded.right.namespace : undefined;
-        }),
-        Effect.catchAll(() => Effect.succeed(undefined as string | undefined)),
-      );
-    }
+    const runPath = join(stateRoot, "runs", runKey(namespace, shortName));
+    const infoResult = yield* Effect.sync(() => resolveRun(namespace, shortName, stateRoot));
 
     const worktreePath =
       Either.isRight(infoResult) && infoResult.right.worktreePath
@@ -119,9 +103,9 @@ export function archive(
     //    Both the run folder and the worktrees folder land under a single
     //    umbrella so a user can move the entire archive entry as one unit and
     //    the archivePath registry field stays unambiguous.
-    const archivePath = join(stateRoot, "archive", shortName);
+    const archivePath = join(stateRoot, "archive", runKey(namespace, shortName));
     const runsTo = join(archivePath, "runs");
-    const worktreesFrom = join(stateRoot, "worktrees", shortName);
+    const worktreesFrom = join(stateRoot, "worktrees", runKey(namespace, shortName));
     const worktreesTo = join(archivePath, "worktrees");
 
     // Only include the worktrees pair when the source directory exists.
@@ -158,11 +142,9 @@ export function archive(
     // 6. Update registry index (run-status.json is already written by the
     //    dispatcher above; this call only refreshes the central registry.json).
     //    archivePath points at the umbrella directory, not the runs subfolder.
-    if (namespace !== undefined) {
-      yield* setRunStatus(stateRoot, namespace, shortName as string, {
-        state: "archived",
-        archivePath,
-      });
-    }
+    yield* setRunStatus(stateRoot, namespace, shortName as string, {
+      state: "archived",
+      archivePath,
+    });
   });
 }
