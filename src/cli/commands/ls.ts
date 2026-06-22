@@ -21,6 +21,7 @@ export interface LsOptions {
 type LockState = "none" | "active" | "stale";
 
 interface LsRow {
+  namespace: string;
   shortName: string;
   state: string;
   branch: string;
@@ -42,6 +43,7 @@ interface LsRow {
  */
 function reconcileEntry(entry: RegistryEntry, stateRoot: string): LsRow {
   const fallback: LsRow = {
+    namespace: entry.namespace,
     shortName: entry.shortName,
     state: entry.state,
     branch: entry.branch,
@@ -63,6 +65,7 @@ function reconcileEntry(entry: RegistryEntry, stateRoot: string): LsRow {
   const reached = current ?? info.phaseStatuses.toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
 
   return {
+    namespace: entry.namespace,
     shortName: entry.shortName,
     state: info.runState,
     branch: info.branch !== "(unknown)" ? info.branch : entry.branch,
@@ -92,6 +95,11 @@ function pad(s: string, width: number): string {
   return s.length >= width ? s : s + " ".repeat(width - s.length);
 }
 
+function getDisplayValue(row: LsRow, header: keyof LsRow): string {
+  if (header === "shortName") return runKey(row.namespace, row.shortName);
+  return String(row[header]);
+}
+
 function formatTable(rows: LsRow[]): string {
   if (rows.length === 0) return "(no runs)";
 
@@ -105,6 +113,7 @@ function formatTable(rows: LsRow[]): string {
     "lockState",
   ];
   const labels: Record<keyof LsRow, string> = {
+    namespace: "NAMESPACE",
     shortName: "NAME",
     state: "STATE",
     branch: "BRANCH",
@@ -115,12 +124,14 @@ function formatTable(rows: LsRow[]): string {
   };
 
   const widths = headers.map((h) =>
-    Math.max(labels[h].length, ...rows.map((r) => String(r[h]).length)),
+    Math.max(labels[h].length, ...rows.map((r) => getDisplayValue(r, h).length)),
   );
 
   const header = headers.map((h, i) => pad(labels[h], widths[i]!)).join("  ");
   const separator = widths.map((w) => "-".repeat(w)).join("  ");
-  const rowLines = rows.map((r) => headers.map((h, i) => pad(String(r[h]), widths[i]!)).join("  "));
+  const rowLines = rows.map((r) =>
+    headers.map((h, i) => pad(getDisplayValue(r, h), widths[i]!)).join("  "),
+  );
 
   return [header, separator, ...rowLines].join("\n");
 }
@@ -175,7 +186,11 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
   if (opts.json) {
     out.log(
       JSON.stringify(
-        rows.map((r, i) => ({ ...r, archivePath: reconciled[i]?.entry.archivePath })),
+        rows.map((r, i) => ({
+          ...r,
+          archivePath: reconciled[i]?.entry.archivePath,
+          qualifiedName: runKey(r.namespace, r.shortName),
+        })),
         null,
         2,
       ),
