@@ -6,6 +6,7 @@ import { decodeBranchName } from "../domain/branded.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { decodeRunStatus, decodePhaseStatus, type PhaseStatus } from "../schemas/status.js";
 import { decodePhaxPlan } from "../schemas/phaxPlan.js";
+import { decodeRegistry } from "../schemas/registry.js";
 
 export type { RunReviewInfo };
 
@@ -126,6 +127,40 @@ export function resolveRunByShortName(
   stateRoot: string,
 ): Either.Either<RunReviewInfo, string> {
   return loadRunReviewInfo(join(stateRoot, "runs", shortName), stateRoot);
+}
+
+export function resolveLastReviewOpenRun(
+  namespace: string,
+  stateRoot: string,
+): Either.Either<RunReviewInfo, string> {
+  const registryPath = join(stateRoot, "registry.json");
+  if (!existsSync(registryPath)) {
+    return Either.left(`No runs found — registry does not exist at "${stateRoot}".`);
+  }
+
+  let rawRegistry: unknown;
+  try {
+    rawRegistry = JSON.parse(readFileSync(registryPath, "utf8")) as unknown;
+  } catch {
+    return Either.left("Failed to read registry.");
+  }
+
+  const decoded = decodeRegistry(rawRegistry);
+  if (Either.isLeft(decoded)) {
+    return Either.left("Registry is corrupted.");
+  }
+  const registry = decoded.right;
+
+  const candidates = registry.runs
+    .filter((r) => r.namespace === namespace && r.state === "review_open")
+    .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  const entry = candidates[0];
+  if (entry === undefined) {
+    return Either.left(`No review_open runs found in namespace "${namespace}".`);
+  }
+
+  return resolveRunByShortName(entry.shortName as ShortName, stateRoot);
 }
 
 export function resolvePhaseInfo(

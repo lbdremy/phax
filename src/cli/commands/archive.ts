@@ -2,6 +2,9 @@ import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
+import { resolveRunRef } from "../../app/resolveRunRef.js";
+import { resolveLastReviewOpenRun } from "../../app/resolveRunInfo.js";
+import { runKey } from "../../domain/runRef.js";
 import { archive } from "../../app/archive.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
@@ -43,21 +46,18 @@ function buildLayer(
   );
 }
 
-export async function runArchive(
-  shortNameArg: string,
+async function archiveRun(
+  shortNameStr: string,
+  qualifiedName: string,
+  stateRoot: string,
+  repoRoot: string,
   opts: ArchiveCommandOptions,
   out: OutputPort,
 ): Promise<number> {
-  const configResult = loadConfig(process.cwd());
-  if (Either.isLeft(configResult)) {
-    out.error(`Config error: ${configResult.left.message}`);
-    return 1;
-  }
-  const { stateRoot, repoRoot } = configResult.right;
-
-  const shortNameResult = decodeShortName(shortNameArg);
+  // Safe: resolveRunRef / resolveLastReviewOpenRun already validated the shortName.
+  const shortNameResult = decodeShortName(shortNameStr);
   if (Either.isLeft(shortNameResult)) {
-    out.error(`Invalid short name "${shortNameArg}": must match ^[a-z][a-z0-9-]*$ (1–64 chars)`);
+    out.error(`Internal error: resolved shortName "${shortNameStr}" is invalid.`);
     return 1;
   }
   const shortName = shortNameResult.right;
@@ -72,6 +72,56 @@ export async function runArchive(
     return 1;
   }
 
-  out.log(`Run "${shortName}" archived successfully.`);
+  out.log(`Run "${qualifiedName}" archived successfully.`);
   return 0;
+}
+
+export async function runArchive(
+  shortNameArg: string,
+  opts: ArchiveCommandOptions,
+  out: OutputPort,
+): Promise<number> {
+  const configResult = loadConfig(process.cwd());
+  if (Either.isLeft(configResult)) {
+    out.error(`Config error: ${configResult.left.message}`);
+    return 1;
+  }
+  const { stateRoot, repoRoot } = configResult.right;
+  const config = configResult.right;
+
+  const resolveResult = resolveRunRef(shortNameArg, config, stateRoot);
+  if (Either.isLeft(resolveResult)) {
+    out.error(resolveResult.left.message);
+    return 1;
+  }
+  const { namespace, shortName, crossProject } = resolveResult.right;
+  const qualifiedName = runKey(namespace, shortName);
+  if (crossProject) {
+    out.log(`Target: ${qualifiedName}`);
+  }
+
+  return archiveRun(shortName, qualifiedName, stateRoot, repoRoot, opts, out);
+}
+
+export async function runArchiveLast(
+  opts: ArchiveCommandOptions,
+  out: OutputPort,
+): Promise<number> {
+  const configResult = loadConfig(process.cwd());
+  if (Either.isLeft(configResult)) {
+    out.error(`Config error: ${configResult.left.message}`);
+    return 1;
+  }
+  const { stateRoot, repoRoot, namespace } = configResult.right;
+
+  const resolveResult = resolveLastReviewOpenRun(namespace, stateRoot);
+  if (Either.isLeft(resolveResult)) {
+    out.error(resolveResult.left);
+    return 1;
+  }
+  const info = resolveResult.right;
+  const qualifiedName = runKey(namespace, info.shortName);
+  out.log(`Archiving last run for ${namespace}: ${qualifiedName}`);
+
+  return archiveRun(info.shortName, qualifiedName, stateRoot, repoRoot, opts, out);
 }

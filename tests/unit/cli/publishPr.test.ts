@@ -109,7 +109,7 @@ describe("runPublishPr", () => {
     const { out, errors } = makeOutput();
     const code = await runPublishPr("INVALID NAME!", {}, out);
     expect(code).toBe(1);
-    expect(errors.join("")).toContain("Invalid short name");
+    expect(errors.join("")).toContain("not a valid run short name");
   });
 
   it("returns 1 when run cannot be resolved", async () => {
@@ -122,7 +122,7 @@ describe("runPublishPr", () => {
     const { out, errors } = makeOutput();
     const code = await runPublishPr(FAKE_SHORT_NAME, {}, out);
     expect(code).toBe(1);
-    expect(errors.join("")).toContain("Could not resolve run");
+    expect(errors.join("")).toContain("not found");
   });
 
   it("returns 1 when run is not in review_open state", async () => {
@@ -171,6 +171,6 @@ describe("runPublishPr", () => {
     expect(code).toBe(1);
     const errText = errors.join("");
     expect(errText).toContain("gh not available");
-    expect(errText).toContain(`phax publish-pr ${FAKE_SHORT_NAME}`);
+    expect(errText).toContain(`phax publish-pr`);
   });
 });

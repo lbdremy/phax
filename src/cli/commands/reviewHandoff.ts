@@ -1,8 +1,8 @@
 import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
-import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
-import { resolveRunByShortName } from "../../app/resolveRunInfo.js";
+import { resolveRunRef } from "../../app/resolveRunRef.js";
+import { runKey } from "../../domain/runRef.js";
 import { generateReviewHandoff } from "../../app/reviewHandoff.js";
 import { ReviewHandoffArtifactMissingError } from "../../domain/errors.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
@@ -40,25 +40,23 @@ export async function runReviewHandoff(
     out.error(`Config error: ${configResult.left.message}`);
     return 1;
   }
-  const { stateRoot } = configResult.right;
+  const config = configResult.right;
+  const { stateRoot } = config;
 
-  const shortNameResult = decodeShortName(shortNameArg);
-  if (Either.isLeft(shortNameResult)) {
-    out.error(`Invalid short name "${shortNameArg}": must match ^[a-z][a-z0-9-]*$ (1–64 chars)`);
+  const resolveResult = resolveRunRef(shortNameArg, config, stateRoot);
+  if (Either.isLeft(resolveResult)) {
+    out.error(resolveResult.left.message);
     return 1;
   }
-  const shortName = shortNameResult.right;
-
-  const infoResult = resolveRunByShortName(shortName, stateRoot);
-  if (Either.isLeft(infoResult)) {
-    out.error(`Could not resolve run "${shortName}": ${infoResult.left}`);
-    return 1;
+  const { namespace, shortName, info, crossProject } = resolveResult.right;
+  const qualifiedName = runKey(namespace, shortName);
+  if (crossProject) {
+    out.log(`Target: ${qualifiedName}`);
   }
-  const info = infoResult.right;
 
   if (info.runState !== "review_open") {
     out.error(
-      `Run "${shortName}" is in state "${info.runState}", not "review_open". ` +
+      `Run "${qualifiedName}" is in state "${info.runState}", not "review_open". ` +
         `The review-handoff command only operates on runs in review_open state.`,
     );
     return 1;
@@ -83,7 +81,7 @@ export async function runReviewHandoff(
   }
 
   out.log(
-    `Review handoff regenerated for run "${shortName}". See ${info.runPath}/review-handoff.md`,
+    `Review handoff regenerated for run "${qualifiedName}". See ${info.runPath}/review-handoff.md`,
   );
   return 0;
 }

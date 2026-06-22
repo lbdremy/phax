@@ -81,6 +81,10 @@ cmd "enter" {
     arg "<short-name>"
 }
 
+cmd "enter-last" {
+    help "Resume the final phase's session for the last review_open run in this project"
+}
+
 cmd "enter-phase" {
     help "Resume a specific phase's agent session interactively"
     arg "<short-name>"
@@ -100,14 +104,26 @@ cmd "shell" {
     arg "<short-name>"
 }
 
+cmd "shell-last" {
+    help "Open a shell in the final worktree for the last review_open run in this project"
+}
+
 cmd "path" {
     help "Print the final worktree path (script-friendly, one line)"
     arg "<short-name>"
 }
 
+cmd "path-last" {
+    help "Print the final worktree path for the last review_open run in this project"
+}
+
 cmd "open" {
     help "Open the final worktree in the configured editor"
     arg "<short-name>"
+}
+
+cmd "open-last" {
+    help "Open the final worktree in the configured editor for the last review_open run in this project"
 }
 
 cmd "ls" {
@@ -132,6 +148,13 @@ cmd "ls" {
 cmd "archive" {
     help "Archive a completed or review_open run"
     arg "<short-name>"
+    flag "--force" {
+        help "Archive even if the final worktree has uncommitted changes"
+    }
+}
+
+cmd "archive-last" {
+    help "Archive the last review_open run in this project"
     flag "--force" {
         help "Archive even if the final worktree has uncommitted changes"
     }
