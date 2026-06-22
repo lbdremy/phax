@@ -194,7 +194,7 @@ export async function runResume(
   setRunInterruptContext(shortName, namespace, stateRoot);
   try {
     const program = withRunLock(
-      shortName,
+      runKey(namespace, shortName),
       executePlan({
         shortName,
         namespace,

@@ -2,14 +2,13 @@ import { Effect, Either, Layer } from "effect";
 import { open as nodeOpen, readFile, rm, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { Lock, decodeLockFile, type LockFile, type LockStatus } from "../ports/lock.js";
-import type { ShortName } from "../domain/branded.js";
 import { LockConflictError } from "../domain/errors.js";
 import { FsError } from "../ports/fs.js";
 
 const DEFAULT_STALE_THRESHOLD_MS = 30 * 60 * 1000;
 
-function lockFilePath(stateRoot: string, shortName: ShortName): string {
-  return join(stateRoot, "locks", `${shortName}.lock`);
+function lockFilePath(stateRoot: string, key: string): string {
+  return join(stateRoot, "locks", `${key}.lock`);
 }
 
 function isPidRunning(pid: number): boolean {
@@ -69,13 +68,13 @@ export function makeNodeLockLayer(
   staleThresholdMs: number = DEFAULT_STALE_THRESHOLD_MS,
 ): Layer.Layer<Lock> {
   return Layer.succeed(Lock, {
-    acquire: (shortName) => {
-      const path = lockFilePath(stateRoot, shortName);
+    acquire: (key) => {
+      const path = lockFilePath(stateRoot, key);
       return Effect.tryPromise({
         try: async () => {
           await mkdir(dirname(path), { recursive: true });
           const newLock: LockFile = {
-            shortName,
+            runKey: key,
             pid: process.pid,
             status: "active",
             createdAt: nowIso(),
@@ -90,8 +89,8 @@ export function makeNodeLockLayer(
             const existing = await readLockFile(path);
             if (!existing) {
               throw new LockConflictError({
-                message: `Run "${shortName}" is locked (unreadable lock file)`,
-                shortName,
+                message: `Run "${key}" is locked (unreadable lock file)`,
+                shortName: key,
                 lockPath: path,
                 lockingPid: -1,
               });
@@ -100,8 +99,8 @@ export function makeNodeLockLayer(
             const lockStatus = classifyLock(existing, staleThresholdMs);
             if (lockStatus.kind === "active") {
               throw new LockConflictError({
-                message: `Run "${shortName}" is locked by pid ${existing.pid}`,
-                shortName,
+                message: `Run "${key}" is locked by pid ${existing.pid}`,
+                shortName: key,
                 lockPath: path,
                 lockingPid: existing.pid,
               });
@@ -115,8 +114,8 @@ export function makeNodeLockLayer(
               const retryCode = (retryErr as NodeJS.ErrnoException).code;
               if (retryCode === "EEXIST") {
                 throw new LockConflictError({
-                  message: `Run "${shortName}" was locked by another process during stale-lock cleanup`,
-                  shortName,
+                  message: `Run "${key}" was locked by another process during stale-lock cleanup`,
+                  shortName: key,
                   lockPath: path,
                   lockingPid: -1,
                 });
@@ -132,8 +131,8 @@ export function makeNodeLockLayer(
       });
     },
 
-    renew: (shortName) => {
-      const path = lockFilePath(stateRoot, shortName);
+    renew: (key) => {
+      const path = lockFilePath(stateRoot, key);
       return Effect.tryPromise({
         try: async () => {
           const existing = await readLockFile(path);
@@ -146,16 +145,16 @@ export function makeNodeLockLayer(
       });
     },
 
-    release: (shortName) => {
-      const path = lockFilePath(stateRoot, shortName);
+    release: (key) => {
+      const path = lockFilePath(stateRoot, key);
       return Effect.tryPromise({
         try: () => rm(path, { force: true }),
         catch: wrapFsError,
       });
     },
 
-    status: (shortName) => {
-      const path = lockFilePath(stateRoot, shortName);
+    status: (key) => {
+      const path = lockFilePath(stateRoot, key);
       return Effect.tryPromise({
         try: async (): Promise<LockStatus> => {
           const existing = await readLockFile(path);

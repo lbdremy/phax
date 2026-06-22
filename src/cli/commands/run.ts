@@ -307,7 +307,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   setRunInterruptContext(shortName, namespace, config.stateRoot);
   try {
     const program = withRunLock(
-      shortName,
+      runKey(namespace, shortName),
       createRunFolder(shortName, planMd, runPlan, config).pipe(
         Effect.flatMap(({ runPath, runId }) =>
           executePlan({

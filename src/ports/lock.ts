@@ -1,10 +1,9 @@
 import { Context, Effect, Schema } from "effect";
-import type { ShortName } from "../domain/branded.js";
 import type { FsError } from "./fs.js";
 import type { LockConflictError } from "../domain/errors.js";
 
 export const LockFileSchema = Schema.Struct({
-  shortName: Schema.NonEmptyString,
+  runKey: Schema.NonEmptyString,
   pid: Schema.Int,
   status: Schema.Literal("active"),
   createdAt: Schema.NonEmptyString,
@@ -21,10 +20,10 @@ export type LockStatus =
   | { readonly kind: "stale"; readonly pid: number; readonly reason: "pid_dead" | "expired" };
 
 export interface LockOps {
-  acquire(shortName: ShortName): Effect.Effect<void, LockConflictError | FsError>;
-  renew(shortName: ShortName): Effect.Effect<void, FsError>;
-  release(shortName: ShortName): Effect.Effect<void, FsError>;
-  status(shortName: ShortName): Effect.Effect<LockStatus, FsError>;
+  acquire(key: string): Effect.Effect<void, LockConflictError | FsError>;
+  renew(key: string): Effect.Effect<void, FsError>;
+  release(key: string): Effect.Effect<void, FsError>;
+  status(key: string): Effect.Effect<LockStatus, FsError>;
 }
 
 export class Lock extends Context.Tag("phax/Lock")<Lock, LockOps>() {}

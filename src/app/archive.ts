@@ -48,13 +48,14 @@ export function archive(
     const lock = yield* Lock;
 
     // 1. Refuse when lock is active
-    const lockStatus = yield* lock.status(shortName);
+    const qualifiedKey = runKey(namespace, shortName);
+    const lockStatus = yield* lock.status(qualifiedKey);
     if (lockStatus.kind === "active") {
       return yield* Effect.fail(
         new LockConflictError({
-          message: `Run "${runKey(namespace, shortName)}" is locked by pid ${lockStatus.pid}. Release the lock first or use phax unlock.`,
-          shortName,
-          lockPath: join(stateRoot, "locks", `${shortName}.lock`),
+          message: `Run "${qualifiedKey}" is locked by pid ${lockStatus.pid}. Release the lock first or use phax unlock.`,
+          shortName: qualifiedKey,
+          lockPath: join(stateRoot, "locks", `${qualifiedKey}.lock`),
           lockingPid: lockStatus.pid,
         }),
       );
