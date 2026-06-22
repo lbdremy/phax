@@ -56,6 +56,19 @@ flips land last (phases 06–07) when the namespace is available everywhere. The
 resolver returns the **located run info**, so CLI commands call it once (phase-05)
 and are not re-touched when the folder key flips (phase-06).
 
+### Config-field decision — top-level `name`, drop `project`
+
+The project namespace lives in `phax.json` as a **required** top-level `name`
+field (slug-validated). The existing `project` struct is **removed**: `project.name`
+becomes `name`, and `project.type` (`"single-package" | "monorepo"`) is deleted as
+dead config (no readers outside tests; monorepo behavior comes from `workspaces[]`).
+`name` is the single project identity — it composes qualified run names and doubles
+as the human-readable identity shown in output, so there is no separate display
+field. "Namespace" remains the internal concept/brand name; `name` is just how the
+value is spelled in the config. Because `name` is required, a config without it
+fails at validation (spec §5.4 message, `path: "name"`) — there is no separate
+command-level missing-namespace gate.
+
 ### Schema decision — in-place, no version bump
 
 PHAX is not public yet, so the persisted schemas are updated **in place**:
@@ -111,31 +124,46 @@ profiles.
 **Recommended model:** claude-sonnet-4-6
 **Recommended effort:** medium
 
-Add a validated `namespace` slug to the `phax.json` schema and surface it on
+Replace the nested `project` struct in `phax.json` with a single **required**
+top-level `name` slug that is the project namespace, and surface it on
 `ResolvedConfig`, so later phases have a single source of truth for project
-identity. `loadConfig` still succeeds when the field is absent — only commands
-that need a project identity fail, and that gate is added in phase-03 — but when
-present the value must be a valid slug.
+identity. The value is the canonical project identity (it composes qualified run
+names and is the human-readable identity shown in output); there is no separate
+display name. `loadConfig` fails with a clear validation error when `name` is
+absent, empty, or malformed.
 
 ### Detailed instructions
 
 - Add a `Namespace` branded type in `src/domain/branded.ts` mirroring the
   `ShortName` slug rules: `^[a-z][a-z0-9-]*$`, length 1–64, brand `"Namespace"`,
   with `decodeNamespace`. The shape must exclude `.` so qualified names split
-  unambiguously.
-- Extend `PhaxConfigSchema` in `src/schemas/phaxConfig.ts` with an **optional**
-  top-level `namespace` field typed as a non-empty string. (Optional at the
-  schema layer so existing configs still parse; the "required for run" gate is a
-  command-level check added in phase-03, matching spec §5.4 / §6.8 which only
-  fail commands that need a project identity.) Validate the slug shape with the
-  same pattern as the brand and produce a clear `ConfigValidationError` when it
-  is present but malformed (e.g. contains `.`, spaces, or uppercase), with
-  `path: "namespace"`.
-- Add `readonly namespace: string | undefined` to `ResolvedConfig` and populate
-  it in `loadConfig` from `config.namespace`. Do not infer it from the folder
-  name, git remote, `project.name`, or plan name (spec §5.1).
-- Keep `onExcessProperty: "error"` behavior intact — the new field must be a
-  recognized property.
+  unambiguously. ("Namespace" stays the internal concept/brand name; `name` is
+  only how the value is spelled in `phax.json`.)
+- In `src/schemas/phaxConfig.ts`, **remove the `project` struct entirely** — both
+  `project.name` and `project.type`. `project.type` (`"single-package" |
+  "monorepo"`) is dead config with no readers outside tests (monorepo behavior is
+  driven by `workspaces[]`, not `project.type`), and `project.name` is replaced by
+  the new field.
+- Add a **required** top-level `name` field typed as a non-empty string, validated
+  against the same slug pattern as the `Namespace` brand. Produce a clear
+  `ConfigValidationError` with `path: "name"` when it is missing, empty, or
+  malformed (e.g. contains `.`, spaces, or uppercase). The recommended message
+  (spec §5.4) is: `PHAX project name is missing in phax.json. Add a name field,
+  for example: name: "louloupapers".`
+- Add `readonly namespace: string` (required, not `undefined`) to `ResolvedConfig`
+  and populate it in `loadConfig` from `config.raw.name`. Do not infer it from the
+  folder name, git remote, package name, or plan name (spec §5.1).
+- Migrate the three display readers that currently read `config.raw.project.name`
+  to read the namespace instead, since `project` no longer exists:
+  `src/cli/commands/validate.ts` (the "project: …" success line),
+  `src/app/dryRun.ts` (`projectName`), and `src/app/runFolder.ts` (`projectName`
+  written into the registry entry). They read `config.raw.name` (or
+  `config.namespace`), which is now a guaranteed string.
+- Update the bundled configs to the new shape — replace `"project": { "name": …,
+  "type": … }` with a top-level `"name": …` in `phax.json` and
+  `examples/hello-world/phax.json`.
+- Keep `onExcessProperty: "error"` behavior intact — `name` must be a recognized
+  property and the now-removed `project` must be rejected as excess.
 
 ### Planned files to create
 
@@ -146,39 +174,48 @@ present the value must be a valid slug.
 - `src/domain/branded.ts`
 - `src/schemas/phaxConfig.ts`
 - `src/app/loadConfig.ts`
+- `src/cli/commands/validate.ts`
+- `src/app/dryRun.ts`
+- `src/app/runFolder.ts`
+- `phax.json`
+- `examples/hello-world/phax.json`
 - `tests/unit/branded.test.ts`
 - `tests/unit/loadConfig.test.ts`
+- `tests/unit/schemas.test.ts`
 
 ### Optional files that may be edited
 
-- `tests/unit/schemas.test.ts`
-- `examples/hello-world/phax.json`
-- `phax.json`
+- `tests/unit/dryRun.test.ts`
+- `tests/unit/runFolder.test.ts`
 
 ### Boundary contracts
 
 Producer: `phax.json` config file → `ResolvedConfig.namespace`. Consumer: later
-phases that stamp/resolve runs. The stable shape is `namespace: string |
-undefined` on `ResolvedConfig` plus a `Namespace` brand for validated values.
+phases that stamp/resolve runs. The stable shape is a required `namespace: string`
+on `ResolvedConfig` (sourced from the top-level `name` field) plus a `Namespace`
+brand for validated values.
 
 ### Test strategy
 
 - Unit (write before implementation): `decodeNamespace` accepts valid slugs and
   rejects `.`, spaces, uppercase, leading digits, and over-length values
   (`tests/unit/branded.test.ts`).
-- Unit (write before implementation): `loadConfig` exposes `namespace` when set,
-  returns `undefined` when absent, and returns a `ConfigValidationError` with
-  `path: "namespace"` when the value is a malformed slug
+- Unit (write before implementation): `loadConfig` exposes `namespace` from the
+  top-level `name`, and returns a `ConfigValidationError` with `path: "name"`
+  when `name` is missing, empty, or a malformed slug
   (`tests/unit/loadConfig.test.ts`).
+- Unit (`tests/unit/schemas.test.ts`): the config decodes with a top-level `name`
+  and rejects a leftover `project` struct as an excess property.
 
 ### Implementation order
 
-Brand → schema field + validation → `ResolvedConfig` surfacing → tests.
+Brand → schema (remove `project`, add required `name`) + validation →
+`ResolvedConfig` surfacing → display-reader migration → bundled configs → tests.
 
 ### Excluded scope
 
-- The "missing namespace fails the command" gate (phase-03).
 - Any qualified-name parsing/formatting (phase-02).
+- Registry/run-status namespace persistence and run-creation keying (phase-03).
 
 ### Verification
 
@@ -187,22 +224,27 @@ Brand → schema field + validation → `ResolvedConfig` surfacing → tests.
 ### Expected handoff content
 
 - The `Namespace` brand export name (`decodeNamespace`) and slug rule.
-- The exact `ResolvedConfig` field name (`namespace: string | undefined`) and
-  that `loadConfig` does not fail when it is absent.
-- Whether `phax.json` / the example config gained a `namespace` value, and any
-  deviation from the planned file lists with the reason.
+- The exact `ResolvedConfig` field name and type (`namespace: string`, required),
+  that it is sourced from the top-level `name`, and the `path: "name"` validation
+  error for a missing/malformed value.
+- That the `project` struct (name + type) was removed and which display readers
+  now source the namespace, plus any deviation from the planned file lists with
+  the reason.
 
 ### Commit subject
 
-feat(config): add validated project namespace field to phax.json
+feat(config): replace project struct with a required top-level name
 
 ### Commit body
 
-Add an optional, slug-validated `namespace` field to the phax.json schema and
-surface it as `ResolvedConfig.namespace`. Introduce a `Namespace` branded type
-matching the short-name slug rules so qualified run names can split on `.`
-unambiguously. loadConfig still succeeds when the field is absent; command-level
-enforcement lands in a later phase. Covered by brand and loadConfig unit tests.
+Replace the nested `project` struct (`project.name` + the dead `project.type`)
+with a single required, slug-validated top-level `name` field that is the project
+namespace, and surface it as the required `ResolvedConfig.namespace`. Introduce a
+`Namespace` branded type matching the short-name slug rules so qualified run names
+can split on `.` unambiguously. Migrate the display readers (validate, dryRun,
+runFolder) and the bundled configs to the new shape. loadConfig fails with a
+clear `path: "name"` validation error when the field is absent or malformed.
+Covered by brand and loadConfig unit tests.
 
 ---
 
@@ -211,10 +253,11 @@ enforcement lands in a later phase. Covered by brand and loadConfig unit tests.
 **Recommended model:** claude-sonnet-4-6
 **Recommended effort:** medium
 
-Add the pure functions that compose, parse, and key qualified run names, plus
-helpers that turn a `ResolvedConfig` into a required namespace (or the spec's
-error) and that resolve the effective state root even outside a project. These
-are the building blocks every later phase consumes.
+Add the pure functions that compose, parse, and key qualified run names, plus a
+helper that resolves the effective state root even outside a project. These are
+the building blocks every later phase consumes. (No `requireNamespace` gate is
+needed: `name` is required by the schema, so `ResolvedConfig.namespace` is always
+present whenever a config loaded — callers read it directly.)
 
 ### Detailed instructions
 
@@ -236,17 +279,15 @@ are the building blocks every later phase consumes.
     string }>` — the inverse of `runKey` for reading folder names, requiring both
     parts present.
 - Create `src/app/projectContext.ts` with:
-  - `requireNamespace(config: ResolvedConfig): Either<ConfigValidationError,
-    string>` returning the namespace or the spec §5.4 error message
-    (`PHAX project namespace is missing in phax.json. Add a namespace field, for
-    example: namespace: "louloupapers".`). Reuse `ConfigValidationError` with
-    `path: "namespace"`.
   - `effectiveStateRoot(config: ResolvedConfig | undefined): string` — returns
     `config.stateRoot` when in a project, else the default `~/.phax` (expanded).
     This lets qualified references resolve outside a project (spec §6.9 / Example
     5) by reading the global registry. Document that a custom per-project
     `state.root` outside its repo is best-effort, matching the spec's "enough
     metadata to locate the run safely."
+  - The current project's namespace is just `config.namespace` (always present
+    when a config loaded), so no dedicated accessor is required; consumers read the
+    field directly.
 - Keep these modules free of IO except `projectContext`, which only reads the
   resolved config object and (for the default root) the home directory.
 
@@ -268,10 +309,10 @@ are the building blocks every later phase consumes.
 ### Boundary contracts
 
 Producer: `src/domain/runRef.ts` (pure parse/format/key) and
-`src/app/projectContext.ts` (`requireNamespace`, `effectiveStateRoot`).
+`src/app/projectContext.ts` (`effectiveStateRoot`).
 Consumers: phases 03–08. Stable shapes: `runKey(ns, short) -> string`,
-`parseRunRef(string) -> Either<string, RunRef>`, `requireNamespace(config) ->
-Either<error, string>`, `effectiveStateRoot(config?) -> string`.
+`parseRunRef(string) -> Either<string, RunRef>`,
+`effectiveStateRoot(config?) -> string`.
 
 ### Test strategy
 
@@ -282,8 +323,6 @@ Either<error, string>`, `effectiveStateRoot(config?) -> string`.
   - rejects `"a.b.c"`, `"Foo.bar"`, `".bar"`, `"foo."`, empty input.
   - `parseRunKey` round-trips `runKey` output and rejects unqualified keys.
 - Unit (write before implementation, `tests/unit/projectContext.test.ts`):
-  - `requireNamespace` returns the value when present and the exact spec §5.4
-    message (asserted on substring) when absent.
   - `effectiveStateRoot` returns the config root when present and the default when
     config is `undefined`.
 
@@ -303,8 +342,7 @@ Either<error, string>`, `effectiveStateRoot(config?) -> string`.
 ### Expected handoff content
 
 - Exact module paths and exported signatures: `runKey`, `formatQualifiedName`,
-  `parseRunRef`, `parseRunKey`, `RunRef`, `requireNamespace`,
-  `effectiveStateRoot`.
+  `parseRunRef`, `parseRunKey`, `RunRef`, `effectiveStateRoot`.
 - The separator choice (`.`) and the "split on first dot" rule.
 - Any deviation from the planned file lists, with the reason.
 
@@ -315,11 +353,11 @@ feat(domain): add qualified run-name model and project-context helpers
 ### Commit body
 
 Add pure helpers to compose (`runKey`), parse (`parseRunRef`, `parseRunKey`), and
-format qualified run names `<namespace>.<shortName>`, plus a `requireNamespace`
-project-context helper that returns the spec's missing-namespace error and an
-`effectiveStateRoot` helper so qualified references can resolve outside a project.
-Covered by unit tests for parsing edge cases, the error message, and the default
-state root.
+format qualified run names `<namespace>.<shortName>`, plus an `effectiveStateRoot`
+helper so qualified references can resolve outside a project. The current
+project's namespace is read directly from `ResolvedConfig.namespace` (required),
+so no missing-namespace gate is needed here. Covered by unit tests for parsing
+edge cases and the default state root.
 
 ---
 
@@ -356,12 +394,14 @@ in phase-06); creation never overwrites an existing folder.
   consumer (the status writer below, the resolver in phase-04, and the qualified
   display in phases 04–05) reads the namespace from.
 - `src/cli/commands/run.ts`:
-  - After `loadConfig`, call `requireNamespace(config)`; on the error path print
-    the spec §5.4 message and exit non-zero **before** any extraction or run
-    creation (spec §6.8 / Example 7). When `loadConfig` itself fails (not a PHAX
-    repo), keep the existing config-error path but make its message actionable
-    ("run from a PHAX repository") per spec §6.7 / Example 6.
-  - Pass the namespace into `createRunFolder`.
+  - The missing-namespace case is already handled at config load: `name` is a
+    required schema field, so `loadConfig` fails with the spec §5.4 `path: "name"`
+    message when it is absent or malformed — surface that error before any
+    extraction or run creation (spec §6.8 / Example 7). When `loadConfig` fails
+    because there is no PHAX config at all (not a PHAX repo), keep the existing
+    config-error path but make its message actionable ("run from a PHAX
+    repository") per spec §6.7 / Example 6.
+  - Read the namespace from `config.namespace` and pass it into `createRunFolder`.
   - Replace `ensureUniqueShortName` so collision detection is **scoped to the
     namespace via the registry** (so it also covers archived runs whose folders
     have moved — spec §6.12), and additionally never reuses an existing bare run
@@ -425,9 +465,10 @@ or `phax run` fails fast.
 - Unit (`tests/unit/schemas.test.ts`): decode of `RegistryEntry` / `RunStatus`
   requires `namespace` and rejects a blob without it.
 - Unit (write before implementation, `tests/unit/runArgv.test.ts` /
-  `tests/unit/cli/run.test.ts`): missing namespace → fast failure with the spec
-  message and no run folder created; namespace-scoped uniqueness bumps within a
-  namespace and never overwrites an existing folder; run output is qualified.
+  `tests/unit/cli/run.test.ts`): a config missing `name` fails before any run
+  folder is created (the failure surfaces from config validation, asserted on the
+  spec §5.4 message); namespace-scoped uniqueness bumps within a namespace and
+  never overwrites an existing folder; run output is qualified.
 - Unit (`tests/unit/dryRun.test.ts`): dry-run output shows the qualified name.
 
 ### Implementation order
@@ -453,8 +494,9 @@ stamping → `run` gate + uniqueness + output → other `setRunStatus` callers
   `createRunFolder` signature changes.
 - That every `setRunStatus` caller (`archive`, `effectRunner`) now passes the
   namespace, and where each reads it from (`cmd.info.namespace` for effectRunner).
-- The `phax run` failure message + exit code for missing namespace and for
-  not-a-PHAX-project, and the registry-scoped + no-overwrite uniqueness rule.
+- The `phax run` behavior + exit code for a config missing `name` (surfaced from
+  config validation) and for not-a-PHAX-project, and the registry-scoped +
+  no-overwrite uniqueness rule.
 - Which optional status-writer files were actually touched, and any deviation
   from the planned file lists with the reason.
 
@@ -467,8 +509,9 @@ feat(run): require and persist a project namespace for every run
 Add a required `namespace` to registry entries and run-status in place (version
 stays 1, no upgrader — pre-public), surface it on `RunReviewInfo`, key the
 registry index by (namespace, shortName), and stamp the namespace at creation
-(including the `effectRunner` review_open transition). `phax run` now fails fast with
-the spec message outside a PHAX project or without a namespace, scopes short-name
+(including the `effectRunner` review_open transition). `phax run` reads the
+namespace from config (missing `name` is rejected at config validation, outside a
+PHAX project the existing config-error path applies), scopes short-name
 uniqueness to the namespace via the registry (covering archived runs) while never
 overwriting an existing folder, and prints qualified run names. Covered by
 registry, schema, run-argv, and dry-run unit tests.
@@ -495,10 +538,11 @@ themselves (keeping them untouched when the folder key flips in phase-06).
   `effectiveStateRoot`, returns the located run
   (`{ namespace, shortName, info: RunReviewInfo }`) or a typed refusal:
   - Parse the argument with `parseRunRef` (phase-02).
-  - **Unqualified inside a project**: combine with `requireNamespace(config)` →
+  - **Unqualified inside a project**: combine the short name with the current
+    project namespace (`config.namespace`, always present when a config loaded) →
     resolve `(ns, short)` (spec §6.3, Example 1/2). Do not search other
     namespaces.
-  - **Unqualified outside a project** (no config / no namespace): refuse with the
+  - **Unqualified outside a project** (no config loaded): refuse with the
     ambiguity variant, listing matching qualified candidates from the registry
     (spec §8 "clear ambiguity errors", Example 4).
   - **Qualified** (in or out of a project): resolve the exact `(ns, short)` via the
@@ -977,9 +1021,12 @@ name straight into a resume-like command.
     the primary `NAME` column the qualified name `runKey(namespace, shortName)`
     (spec §6.6, Example 3). Optionally keep separate `NAMESPACE` / short-name
     columns, but the qualified name must be present and copyable.
-  - Show the project identity column from the registry entry's `projectName`
-    (already persisted). A repository **path** column is best-effort and out of
-    scope unless already available — omit gracefully (spec §6.6 "when available").
+  - Note: with the single top-level `name`, the registry's `projectName` now equals
+    the namespace, so it is the same value as the qualified name's prefix. Do not
+    add a redundant separate project-identity column duplicating the namespace; the
+    `NAMESPACE` column (or the qualified-name prefix) already conveys it. A
+    repository **path** column is best-effort and out of scope unless already
+    available — omit gracefully (spec §6.6 "when available").
   - In `--json` output, add `namespace` and a `qualifiedName` field so scripts get
     the canonical identity.
 - Update the global reconciliation output

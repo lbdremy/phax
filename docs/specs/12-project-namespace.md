@@ -50,6 +50,8 @@ When PHAX is not able to infer the current project context, the user must provid
 ### Project namespace
 
 A stable user-facing name representing the PHAX project/repository that owns a run.
+It is configured by the top-level `name` field in `phax.json` (see §5). "Project
+namespace" is the concept; `name` is how that value is spelled in the config.
 
 Examples:
 
@@ -82,23 +84,33 @@ The separator should be `.` unless implementation constraints require another se
 
 The project namespace must be defined in the PHAX project configuration file.
 
-Recommended field:
+Field:
 
-`namespace`
+`name`
 
 Example:
 
-`namespace: "louloupapers"`
+`name: "louloupapers"`
 
 The config value is the source of truth for the project namespace.
 
 PHAX must not rely only on the repository folder name, Git remote name, package name, or plan name to identify the namespace once the project is configured.
 
-### 5.2 `phax.json` must support a namespace field
+### 5.2 `phax.json` carries the namespace as a top-level `name`
 
-If the current PHAX config schema does not already contain a namespace-like field, the schema must be extended with one.
+The PHAX config schema currently nests project identity under a `project` struct
+(`project.name` plus a `project.type` of `"single-package" | "monorepo"`). That
+struct is **replaced** by a single top-level `name` field that is the project
+namespace.
 
-This field should be considered part of the project identity, not an optional display label.
+- `project.name` becomes the top-level `name`.
+- `project.type` is removed entirely — it is dead config with no readers in the
+  codebase, and monorepo behavior is driven by the separate `workspaces[]` field,
+  not by `project.type`.
+
+`name` is the project identity, not an optional display label, and it doubles as
+the human-readable identity shown in command output (there is no separate display
+name).
 
 ### 5.3 Namespace value requirements
 
@@ -121,11 +133,13 @@ Examples of valid namespace values:
 
 ### 5.4 Missing namespace behavior
 
-If PHAX is run inside a repository that has a PHAX config file but no namespace field, commands that need a project identity must fail early with a clear message.
+`name` is a required field. If `phax.json` exists but has no `name` (or it is
+empty or malformed), configuration validation must reject the file early, before
+any run metadata is created, with a clear message that names the field.
 
 Recommended message:
 
-`PHAX project namespace is missing in phax.json. Add a namespace field, for example: namespace: "louloupapers".`
+`PHAX project name is missing in phax.json. Add a name field, for example: name: "louloupapers".`
 
 PHAX should not silently infer a namespace from the folder name for normal command execution.
 
@@ -213,7 +227,7 @@ Example output shape:
 
 `louloupapers.fixbug   running   phase 2/5   /path/to/louloupapers`
 
-If `phax ls` uses a table, the table may also include separate `namespace` and `short name` columns, but it must still expose a copyable qualified name.
+If `phax ls` uses a table, the table may also include separate project `name` and `short name` columns, but it must still expose a copyable qualified name.
 
 Recommended columns:
 
@@ -329,7 +343,7 @@ Current directory belongs to the `louloupapers` PHAX project.
 
 Config contains:
 
-`namespace: "louloupapers"`
+`name: "louloupapers"`
 
 Command:
 
@@ -433,7 +447,7 @@ It explains that new runs must be launched from a PHAX repository.
 
 ### Example 7 — Missing namespace in config
 
-Current directory belongs to a PHAX repository, but `phax.json` has no namespace field.
+Current directory belongs to a PHAX repository, but `phax.json` has no `name` field.
 
 Command:
 
@@ -443,7 +457,7 @@ Expected behavior:
 
 PHAX fails before creating the run.
 
-It explains that `phax.json` must define a namespace.
+It explains that `phax.json` must define a `name`.
 
 ## 8. User experience requirements
 
@@ -491,8 +505,8 @@ Existing runs that do not yet have a namespace should be handled safely.
 
 Recommended functional behavior:
 
-- if the original repository path is known and its `phax.json` contains a namespace, PHAX assigns that namespace to the legacy run;
-- if the original repository path is known but the config has no namespace, PHAX reports that the run cannot be fully qualified until the project config is updated;
+- if the original repository path is known and its `phax.json` contains a `name`, PHAX assigns that namespace to the legacy run;
+- if the original repository path is known but the config has no `name`, PHAX reports that the run cannot be fully qualified until the project config is updated;
 - if the original repository path is unknown, PHAX marks the run as legacy/unscoped;
 - unscoped legacy runs must not be silently mixed with namespaced runs;
 - listings should make legacy/unscoped runs visible so the user can understand why they require special handling.
@@ -553,7 +567,7 @@ Given the user is outside a PHAX project, when they run `phax run`, PHAX fails b
 
 ### Missing namespace protection
 
-Given the user is inside a PHAX project whose config has no namespace field, when they run `phax run`, PHAX fails before creating any run metadata and explains that the namespace must be added to `phax.json`.
+Given the user is inside a PHAX project whose config has no `name` field, when they run `phax run`, PHAX fails before creating any run metadata and explains that a `name` must be added to `phax.json`.
 
 ### Last-run scoping
 
