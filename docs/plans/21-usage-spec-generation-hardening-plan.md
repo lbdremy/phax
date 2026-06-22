@@ -565,6 +565,18 @@ external `usage` CLI insists on a path.
   --usage` exits 0 and prints a non-empty spec (e.g. greps for `name "phax"`).
   This is the real proof the fix works in a compiled binary, since the `full`
   gate runs under tsx where the file exists on disk.
+- Document shell completions in the README (hand-written prose, outside the
+  generated `BEGIN/END GENERATED CLI REFERENCE` block). Add a short "Shell
+  completions" section that: states `phax completions <shell>` supports `zsh`,
+  `bash`, `fish`, `nu`, `powershell`; calls out the `usage` CLI as a prerequisite
+  (`brew install jdx/tap/usage`) needed both to generate the script and at
+  Tab-time, because the generated script calls back into `usage complete-word`;
+  gives the per-shell install one-liners (zsh → a `_phax` file on `$fpath`;
+  bash → `source <(phax completions bash)`; fish →
+  `~/.config/fish/completions/phax.fish`; nu/powershell → profile sourcing); and
+  notes that `phax --usage` and `phax completions` now work from the release
+  binary as well as from source. Keep it consistent with the phase-01 note that
+  `phax.usage.kdl` is the generated spec these features derive from.
 - Run `pnpm gen:usage-spec` to produce `src/cli/generated/usageSpec.ts`, then
   `pnpm format` and `pnpm check:full`; keep the phase-01 drift gate, the parity
   gate, and the lint gate green.
@@ -584,6 +596,7 @@ external `usage` CLI insists on a path.
 - `scripts/smoke-binary.sh`
 - `.oxlintrc.json`
 - `.oxfmtrc.json`
+- `README.md`
 
 ### Optional files that may be edited
 
@@ -659,4 +672,5 @@ reading phax.usage.kdl from disk, with a withSpecFile helper materializing a tem
 file only for the external usage CLI. deno compile bundles the module graph but
 not data files, so the on-disk spec was absent in the release binaries; embedding
 it fixes --usage there. Adds an embedded-vs-committed drift assertion and a
-binary smoke check for --usage.
+binary smoke check for --usage, and documents shell completions (and that
+--usage/completions work from the binary) in the README.
