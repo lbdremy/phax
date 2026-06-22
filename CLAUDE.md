@@ -76,3 +76,9 @@ These load on demand. Reach for the matching one before editing that area:
   API, cross-check against `package.json`; installed versions may differ from training data.
 - No back-compat shims in persisted schemas: new fields are required, not optional.
 - Prefer explicit per-variant enums over a permissive superset.
+
+## Git
+
+- When the user asks to commit doc-only changes (files under `docs/`) or pure text
+  files (e.g. `CLAUDE.md`, `README.md`) while on `main`, commit directly on `main` —
+  do not create a branch first. The branch-first rule still applies to code changes.
