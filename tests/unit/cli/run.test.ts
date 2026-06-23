@@ -245,3 +245,104 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
     expect(allOutput).toMatch(/acme\.\w/);
   });
 });
+
+async function setupSuccessRun(executePlanResult: Record<string, unknown> = {}) {
+  const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+  loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+
+  const { loadTelemetryConfig } = vi.mocked(
+    await import("../../../src/app/loadTelemetryConfig.js"),
+  );
+  loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+
+  const { extractPlanCore } = vi.mocked(await import("../../../src/app/extractPlan.js"));
+  extractPlanCore.mockReturnValue(
+    Effect.succeed({ plan: makePlan("fixbug"), planMd: "# Plan", warnings: [] }),
+  );
+
+  const { loadModelRouting, loadProviderConfig } = vi.mocked(
+    await import("../../../src/app/loadRouting.js"),
+  );
+  loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
+  loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
+
+  const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
+  createRunFolder.mockReturnValue(
+    Effect.succeed({ runPath: "/fake-state/runs/acme.fixbug", runId: "r1" as RunId }),
+  );
+
+  const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
+  executePlan.mockReturnValue(Effect.succeed(executePlanResult));
+}
+
+describe("runRun — success recap output", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("prints a summary line on stdout with phase count", async () => {
+    await setupSuccessRun({ committedPhases: ["phase-01", "phase-02"], finalPhaseId: "phase-02" });
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, lines } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(code).toBe(0);
+    const stdout = lines.join("\n");
+    expect(stdout).toContain("2 phase(s)");
+    expect(stdout).toContain("reached review");
+  });
+
+  it("includes final-report.md pointer on stdout", async () => {
+    await setupSuccessRun({ committedPhases: ["phase-01"], finalPhaseId: "phase-01" });
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, lines } = makeOutput();
+    await runRun({ plan: "plan.md" }, out);
+
+    expect(lines.join("\n")).toContain("final-report.md");
+  });
+
+  it("recap includes phax open, shell, enter, archive steps", async () => {
+    await setupSuccessRun({ committedPhases: ["phase-01"], finalPhaseId: "phase-01" });
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, warnings } = makeOutput();
+    await runRun({ plan: "plan.md" }, out);
+
+    const recapText = warnings.join("\n");
+    expect(recapText).toContain("phax open fixbug");
+    expect(recapText).toContain("phax shell fixbug");
+    expect(recapText).toContain("phax enter fixbug");
+    expect(recapText).toContain("phax archive fixbug");
+  });
+
+  it("shows publish-pr command when prUrl is absent", async () => {
+    await setupSuccessRun({ committedPhases: ["phase-01"], finalPhaseId: "phase-01" });
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, warnings } = makeOutput();
+    await runRun({ plan: "plan.md" }, out);
+
+    const recapText = warnings.join("\n");
+    expect(recapText).toContain("phax publish-pr fixbug");
+    expect(recapText).not.toContain("View the pull request");
+  });
+
+  it("shows PR URL when prUrl is present", async () => {
+    await setupSuccessRun({
+      committedPhases: ["phase-01"],
+      finalPhaseId: "phase-01",
+      prUrl: "https://github.com/acme/repo/pull/42",
+    });
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, warnings } = makeOutput();
+    await runRun({ plan: "plan.md" }, out);
+
+    const recapText = warnings.join("\n");
+    expect(recapText).toContain("https://github.com/acme/repo/pull/42");
+    expect(recapText).toContain("View the pull request");
+    expect(recapText).not.toContain("phax publish-pr");
+  });
+});

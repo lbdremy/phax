@@ -58,6 +58,10 @@ export function setupInterruptHandlers(): void {
     const ctx = activeRunContext;
     if (ctx !== undefined) {
       syncWriteInterruptedState(ctx);
+      const name = runKey(ctx.namespace, ctx.shortName);
+      process.stderr.write(
+        `\nRun "${name}" interrupted — state saved. Resume with: phax resume ${ctx.shortName} --yes\n`,
+      );
     }
     process.exit(130);
   };
