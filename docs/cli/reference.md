@@ -2,7 +2,7 @@
 # `phax`
 - **version**: 0.1.7
 
-Drive Claude Code through isolated, gated phases
+Drive AI Coding agent through isolated, gated phases
 
 
 - **Usage**: `phax [FLAGS] <SUBCOMMAND>`
@@ -97,7 +97,7 @@ Effort level (low|medium|high, overrides phax.json agent.extractPlan.effort)
 
 - **Usage**: `phax enter <short-name>`
 
-Attaches to the kept-open Claude Code session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.
+Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.
 
 ### Arguments
 
@@ -143,7 +143,7 @@ phax enter-phase usage-cli phase-02
 
 - **Usage**: `phax session-info [--debug] <short-name>`
 
-Prints diagnostic information about a run: its current state, active phase, worktree path, and Claude Code session id. Read-only — no side effects.
+Prints diagnostic information about a run: its current state, active phase, worktree path, and agent session id. Read-only — no side effects.
 
 ### Arguments
 

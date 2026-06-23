@@ -34,7 +34,7 @@ export function buildProgram(): Command {
 
   program
     .name("phax")
-    .description("Drive Claude Code through isolated, gated phases")
+    .description("Drive AI Coding agent through isolated, gated phases")
     .version(readPackageVersion())
     .showSuggestionAfterError(true)
     .configureOutput({
