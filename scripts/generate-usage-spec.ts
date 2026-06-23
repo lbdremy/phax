@@ -7,6 +7,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import type { Command, Option, Argument } from "commander";
 import { buildProgram } from "../src/cli/program.js";
 import { cliDocs } from "../src/cli/cliDocs.js";
+import { cliCompleters } from "../src/cli/cliCompleters.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../..");
 const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
@@ -123,6 +124,15 @@ export function generateUsageSpec(): string {
   for (const opt of program.options) {
     if (isAutoAdded(opt)) continue;
     lines.push(emitFlag(opt, "", true));
+  }
+  lines.push(``);
+
+  // Dynamic argument completers — one top-level `complete` node per entry.
+  // The `usage` CLI invokes the `run` command at Tab-time to produce candidates.
+  // `descriptions=#true` tells it to split each line on `:` for name:description.
+  for (const [argName, completer] of Object.entries(cliCompleters)) {
+    const descPart = completer.descriptions ? ` descriptions=#true` : "";
+    lines.push(`complete "${esc(argName)}" run="${esc(completer.run)}"${descPart}`);
   }
   lines.push(``);
 

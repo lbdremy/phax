@@ -16,6 +16,7 @@ export interface LsOptions {
   reviewOpen?: boolean;
   archived?: boolean;
   json?: boolean;
+  complete?: boolean;
 }
 
 type LockState = "none" | "active" | "stale";
@@ -156,6 +157,16 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
   const reconciled = registryResult.right.runs
     .map((entry) => ({ entry, row: reconcileEntry(entry, stateRoot) }))
     .filter(({ row }) => matchesFilter(row.state, opts));
+
+  if (opts.complete) {
+    // Fast path for shell completion: one `short-name:state` line per run,
+    // no lock-status computation. The `usage` CLI splits on `:` when
+    // `descriptions=#true` is set, using the right-hand part as a description.
+    for (const { row } of reconciled) {
+      out.log(`${row.shortName}:${row.state}`);
+    }
+    return 0;
+  }
 
   const lockLayer = Layer.merge(NodeFileSystemLayer, makeNodeLockLayer(stateRoot));
 

@@ -380,6 +380,8 @@ phax completions powershell >> $PROFILE
 
 `phax --usage` and `phax completions` work from the release binary as well as from source. Both commands read `phax.usage.kdl`, which is embedded in the binary at build time via `deno compile --include`.
 
+Once the completion script is installed, Tab also completes run short-names for commands that take one (`phax enter`, `phax resume`, `phax archive`, and others). Candidates are fetched live from `phax ls --complete`, so they reflect the actual runs in your registry at Tab-time.
+
 ## CLI command reference
 
 <!-- BEGIN GENERATED CLI REFERENCE -->

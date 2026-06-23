@@ -271,6 +271,10 @@ Show only archived runs
 
 Output as JSON
 
+#### `--complete`
+
+Print run short-names for shell completion
+
 ### Examples
 
 ```
