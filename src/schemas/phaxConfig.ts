@@ -91,9 +91,11 @@ export const PhaxConfigSchema = Schema.Struct({
   $schema: Schema.optional(Schema.String),
   version: Schema.Literal(1),
   name: Schema.NonEmptyString,
-  state: Schema.Struct({
-    root: Schema.NonEmptyString,
-  }),
+  state: Schema.optional(
+    Schema.Struct({
+      root: Schema.NonEmptyString,
+    }),
+  ),
   agent: Schema.optional(
     Schema.Struct({
       maxFixAttempts: Schema.optional(Schema.Int.pipe(Schema.between(1, 10))),
@@ -145,4 +147,44 @@ export const decodePhaxConfig = Schema.decodeUnknownEither(PhaxConfigSchema, {
 
 export function getPhaxConfigJsonSchema(): object {
   return JSONSchema.make(PhaxConfigSchema);
+}
+
+export const PhaxUserOverlaySchema = Schema.Struct({
+  state: Schema.optional(
+    Schema.Struct({
+      root: Schema.NonEmptyString,
+    }),
+  ),
+  agent: Schema.optional(
+    Schema.Struct({
+      maxFixAttempts: Schema.optional(Schema.Int.pipe(Schema.between(1, 10))),
+      extractPlan: Schema.optional(ExtractPlanConfigSchema),
+    }),
+  ),
+  commands: Schema.optional(
+    Schema.Struct({
+      setup: Schema.optional(NonEmptyCommandArray),
+      cleanup: Schema.optional(NonEmptyCommandArray),
+    }),
+  ),
+  fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
+  security: Schema.optional(SecurityConfigSchema),
+  publish: Schema.optional(PublishConfigSchema),
+  review: Schema.optional(
+    Schema.Struct({
+      compliance: Schema.optional(ComplianceReviewConfigSchema),
+    }),
+  ),
+  gateProfiles: Schema.optional(GateProfilesSchema),
+  workspaces: Schema.optional(Schema.Array(WorkspaceSchema)),
+});
+
+export type PhaxUserOverlay = Schema.Schema.Type<typeof PhaxUserOverlaySchema>;
+
+export const decodePhaxUserOverlay = Schema.decodeUnknownEither(PhaxUserOverlaySchema, {
+  onExcessProperty: "error",
+});
+
+export function getPhaxUserOverlayJsonSchema(): object {
+  return JSONSchema.make(PhaxUserOverlaySchema);
 }
