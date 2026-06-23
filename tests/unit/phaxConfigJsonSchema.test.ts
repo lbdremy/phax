@@ -20,8 +20,9 @@ describe("getPhaxConfigJsonSchema", () => {
     const schema = getPhaxConfigJsonSchema() as Record<string, unknown>;
     const required = schema["required"] as string[];
     expect(Array.isArray(required)).toBe(true);
-    for (const field of ["version", "name", "state", "gateProfiles"]) {
+    for (const field of ["version", "name", "gateProfiles"]) {
       expect(required).toContain(field);
     }
+    expect(required).not.toContain("state");
   });
 });

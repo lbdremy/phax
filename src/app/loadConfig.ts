@@ -185,7 +185,7 @@ export function loadConfig(
   const resolved: ResolvedConfig = {
     raw: config,
     namespace: config.name,
-    stateRoot: expandTilde(config.state.root),
+    stateRoot: expandTilde(config.state?.root ?? "~/.phax"),
     repoRoot: gitRoot,
     maxFixAttempts: config.agent?.maxFixAttempts ?? 1,
     extractPlanModel: config.agent?.extractPlan?.model ?? DEFAULT_EXTRACT_MODEL,
