@@ -12,12 +12,11 @@ export interface CliDocEntry {
 export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
   run: {
     longHelp:
-      "Extracts a plan from plan.md (or --plan-md), creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/.",
+      "Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/.",
     examples: [
-      "phax run",
-      "phax run my-feature",
-      "phax run --dry-run",
-      "phax run my-feature --profile ci",
+      "phax run --plan plan.md",
+      "phax run my-feature --plan plan.md",
+      "phax run --plan plan.md --dry-run",
     ],
   },
 

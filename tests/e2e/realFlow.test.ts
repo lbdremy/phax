@@ -40,7 +40,7 @@ for (const provider of E2E_PROVIDERS) {
         const result = runCli(
           [
             "run",
-            "--plan-md",
+            "--plan",
             "plan.md",
             "--provider-priority",
             provider.id,

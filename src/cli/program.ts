@@ -248,9 +248,7 @@ export function buildProgram(): Command {
     .command("run")
     .description("Extract a plan from plan.md and run all phases, or preview with --dry-run")
     .argument("[short-name]", "Run short name, e.g. usage-cli")
-    .option("--plan-md <path>", "Path to plan.md", "plan.md")
-    .option("--profile <profile>", "Gate profile to use (overrides config default)")
-    .option("--workspace <id>", "Workspace id (monorepo)")
+    .requiredOption("--plan <path>", "Path to the plan.md file to extract from")
     .option("--allow-dirty", "Allow starting when the working tree is dirty")
     .option(
       "--provider-priority <list>",
@@ -265,9 +263,7 @@ export function buildProgram(): Command {
       async (
         shortName: string | undefined,
         opts: {
-          planMd?: string;
-          profile?: string;
-          workspace?: string;
+          plan: string;
           allowDirty?: boolean;
           providerPriority?: string;
           dryRun?: boolean;
