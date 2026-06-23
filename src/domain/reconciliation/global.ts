@@ -6,6 +6,7 @@ export type GlobalFileStatus =
   | "unplanned"
   | "extra-touch"
   | "partially-matched"
+  | "action-mismatch"
   | "deleted"
   | "renamed"
   | "unknown";
@@ -53,12 +54,13 @@ function getAcc(map: Map<string, Accumulator>, path: string): Accumulator {
 }
 
 // Status precedence (highest to lowest):
-// renamed > deleted > unplanned > missing > extra-touch > partially-matched > matched > unknown
+// renamed > deleted > unplanned > missing > action-mismatch > extra-touch > partially-matched > matched > unknown
 function deriveStatus(
   isPlanned: boolean,
   isTouched: boolean,
   plannedInPhases: readonly string[],
   touchedInPhases: readonly string[],
+  expectedActions: ReadonlySet<string>,
   actualActions: ReadonlySet<string>,
 ): GlobalFileStatus {
   if (actualActions.has("renamed")) return "renamed";
@@ -72,6 +74,16 @@ function deriveStatus(
     const touchedSet = new Set(touchedInPhases);
     const allPlannedTouched = plannedInPhases.every((p) => touchedSet.has(p));
     const allTouchedPlanned = touchedInPhases.every((p) => plannedSet.has(p));
+
+    // action-mismatch: every planned phase was touched, but no (create→added) or (edit→modified)
+    // pair aligns. Only applies when the same phase is both planned and touched (allPlannedTouched),
+    // so cross-phase combinations (missing in one, unplanned in another) still resolve to unknown.
+    if (allPlannedTouched) {
+      const hasAligned =
+        (expectedActions.has("create") && actualActions.has("added")) ||
+        (expectedActions.has("edit") && actualActions.has("modified"));
+      if (!hasAligned) return "action-mismatch";
+    }
 
     if (allPlannedTouched && allTouchedPlanned) return "matched";
     // extra-touch: all planned phases touched, plus additional phases
@@ -119,6 +131,22 @@ export function aggregateGlobalReconciliation(
       const acc = getAcc(accMap, f);
       acc.plannedInPhases.add(phaseId);
       acc.expectedActions.add("edit");
+    }
+
+    for (const f of phase.createdButPlannedEdit) {
+      const acc = getAcc(accMap, f);
+      acc.plannedInPhases.add(phaseId);
+      acc.touchedInPhases.add(phaseId);
+      acc.expectedActions.add("edit");
+      acc.actualActions.add("added");
+    }
+
+    for (const f of phase.editedButPlannedCreate) {
+      const acc = getAcc(accMap, f);
+      acc.plannedInPhases.add(phaseId);
+      acc.touchedInPhases.add(phaseId);
+      acc.expectedActions.add("create");
+      acc.actualActions.add("modified");
     }
 
     for (const f of phase.unplannedCreated) {
@@ -174,6 +202,7 @@ export function aggregateGlobalReconciliation(
       isTouched,
       plannedInPhases,
       touchedInPhases,
+      acc.expectedActions,
       acc.actualActions,
     );
 
@@ -237,6 +266,8 @@ function deriveNotes(entry: GlobalFileEntry): string {
       return `extra touch in: ${entry.touchedInPhases.filter((p) => !entry.plannedInPhases.includes(p)).join(", ")}`;
     case "partially-matched":
       return `not touched in: ${entry.plannedInPhases.filter((p) => !entry.touchedInPhases.includes(p)).join(", ")}`;
+    case "action-mismatch":
+      return `action mismatch: planned ${entry.expectedActions.join(", ")}, got ${entry.actualActions.join(", ")}`;
     case "deleted":
       return `deleted in: ${entry.touchedInPhases.join(", ")}`;
     case "renamed":

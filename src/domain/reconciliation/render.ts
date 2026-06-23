@@ -13,8 +13,13 @@ export function renderReconciliationMarkdown(
   if (planned.create.length > 0) {
     lines.push("### Planned to create");
     for (const f of planned.create) {
-      const checked = result.createdAsPlanned.includes(f);
-      lines.push(`- [${checked ? "x" : " "}] ${f}`);
+      if (result.createdAsPlanned.includes(f)) {
+        lines.push(`- [x] ${f}`);
+      } else if (result.editedButPlannedCreate.includes(f)) {
+        lines.push(`- [x] ${f} _(modified though planned as create)_`);
+      } else {
+        lines.push(`- [ ] ${f}`);
+      }
     }
     lines.push("");
   }
@@ -23,8 +28,13 @@ export function renderReconciliationMarkdown(
   if (planned.edit.length > 0) {
     lines.push("### Planned to edit");
     for (const f of planned.edit) {
-      const checked = result.editedAsPlanned.includes(f);
-      lines.push(`- [${checked ? "x" : " "}] ${f}`);
+      if (result.editedAsPlanned.includes(f)) {
+        lines.push(`- [x] ${f}`);
+      } else if (result.createdButPlannedEdit.includes(f)) {
+        lines.push(`- [x] ${f} _(created though planned as edit)_`);
+      } else {
+        lines.push(`- [ ] ${f}`);
+      }
     }
     lines.push("");
   }

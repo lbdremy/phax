@@ -11,6 +11,8 @@ function makeResult(overrides: Partial<ReconciliationResult> = {}): Reconciliati
     editedAsPlanned: [],
     missingPlannedCreate: [],
     missingPlannedEdit: [],
+    createdButPlannedEdit: [],
+    editedButPlannedCreate: [],
     unplannedCreated: [],
     unplannedEdited: [],
     optionalTouched: [],

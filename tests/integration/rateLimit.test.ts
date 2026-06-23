@@ -271,6 +271,8 @@ describe("executePlan — rate-limit detection and resume", () => {
         editedAsPlanned: [],
         missingPlannedCreate: [],
         missingPlannedEdit: [],
+        createdButPlannedEdit: [],
+        editedButPlannedCreate: [],
         unplannedCreated: [],
         unplannedEdited: [],
         optionalTouched: [],

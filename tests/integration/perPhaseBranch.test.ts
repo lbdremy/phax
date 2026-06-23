@@ -357,6 +357,8 @@ describe("executePlan — per-phase branch regression", () => {
         editedAsPlanned: [],
         missingPlannedCreate: [],
         missingPlannedEdit: [],
+        createdButPlannedEdit: [],
+        editedButPlannedCreate: [],
         unplannedCreated: [],
         unplannedEdited: [],
         optionalTouched: [],

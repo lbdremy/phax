@@ -121,6 +121,8 @@ describe("reconcile", () => {
     expect(result.hasDeviations).toBe(false);
     expect(result.createdAsPlanned).toEqual([]);
     expect(result.editedAsPlanned).toEqual([]);
+    expect(result.createdButPlannedEdit).toEqual([]);
+    expect(result.editedButPlannedCreate).toEqual([]);
   });
 
   it("preserves input order for stable output", () => {
@@ -131,5 +133,56 @@ describe("reconcile", () => {
     const p: PlannedFiles = { create: ["src/z.ts", "src/a.ts"], edit: [], optional: [] };
     const result = reconcile(p, entries);
     expect(result.createdAsPlanned).toEqual(["src/z.ts", "src/a.ts"]);
+  });
+
+  describe("action mismatch tolerance", () => {
+    it("planned-to-edit file that was created → createdButPlannedEdit, not missingPlannedEdit", () => {
+      const entries: NameStatusEntry[] = [
+        { status: "added", path: "src/new.ts" },
+        { status: "added", path: "src/other.ts" },
+        { status: "added", path: "src/existing.ts" }, // planned-to-edit but actually created
+      ];
+      const result = reconcile(planned, entries);
+      expect(result.createdButPlannedEdit).toEqual(["src/existing.ts"]);
+      expect(result.missingPlannedEdit).toEqual([]);
+      expect(result.editedAsPlanned).toEqual([]);
+      expect(result.hasDeviations).toBe(false);
+    });
+
+    it("planned-to-create file that was modified → editedButPlannedCreate, not missingPlannedCreate", () => {
+      const entries: NameStatusEntry[] = [
+        { status: "modified", path: "src/new.ts" }, // planned-to-create but actually modified
+        { status: "added", path: "src/other.ts" },
+        { status: "modified", path: "src/existing.ts" },
+      ];
+      const result = reconcile(planned, entries);
+      expect(result.editedButPlannedCreate).toEqual(["src/new.ts"]);
+      expect(result.missingPlannedCreate).toEqual([]);
+      expect(result.createdAsPlanned).toEqual(["src/other.ts"]);
+      expect(result.hasDeviations).toBe(false);
+    });
+
+    it("a truly untouched planned file still appears in missingPlanned*", () => {
+      const entries: NameStatusEntry[] = [
+        // src/other.ts and src/existing.ts not touched at all
+        { status: "added", path: "src/new.ts" },
+      ];
+      const result = reconcile(planned, entries);
+      expect(result.missingPlannedCreate).toEqual(["src/other.ts"]);
+      expect(result.missingPlannedEdit).toEqual(["src/existing.ts"]);
+      expect(result.createdButPlannedEdit).toEqual([]);
+      expect(result.editedButPlannedCreate).toEqual([]);
+      expect(result.hasDeviations).toBe(true);
+    });
+
+    it("action mismatch alone does not set hasDeviations", () => {
+      const entries: NameStatusEntry[] = [
+        { status: "added", path: "src/new.ts" },
+        { status: "added", path: "src/other.ts" },
+        { status: "added", path: "src/existing.ts" }, // mismatch only
+      ];
+      const result = reconcile(planned, entries);
+      expect(result.hasDeviations).toBe(false);
+    });
   });
 });
