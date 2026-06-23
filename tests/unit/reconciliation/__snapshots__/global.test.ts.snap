@@ -3,6 +3,8 @@
 exports[`renderGlobalReconciliationMarkdown > renders a snapshot for a mixed run 1`] = `
 "## Global File Reconciliation
 
+**Run**: acme.fixbug
+
 | File | Planned in | Touched in | Status | Notes |
 | --- | --- | --- | --- | --- |
 | src/existing.ts | phase-02 | phase-02 | matched | — |

@@ -325,15 +325,26 @@ describe("aggregateGlobalReconciliation", () => {
 
 describe("renderGlobalReconciliationMarkdown", () => {
   it("renders the header row", () => {
-    const result = renderGlobalReconciliationMarkdown(aggregateGlobalReconciliation([]));
+    const result = renderGlobalReconciliationMarkdown(
+      aggregateGlobalReconciliation([]),
+      "acme.fixbug",
+    );
     expect(result).toContain("| File | Planned in | Touched in | Status | Notes |");
+  });
+
+  it("always renders the Run header", () => {
+    const result = renderGlobalReconciliationMarkdown(
+      aggregateGlobalReconciliation([]),
+      "acme.fixbug",
+    );
+    expect(result).toContain("**Run**: acme.fixbug");
   });
 
   it("renders a matched file with — for notes", () => {
     const global = aggregateGlobalReconciliation([
       { ...emptyPhase("phase-01"), createdAsPlanned: ["src/foo.ts"] },
     ]);
-    const md = renderGlobalReconciliationMarkdown(global);
+    const md = renderGlobalReconciliationMarkdown(global, "acme.fixbug");
     expect(md).toContain("src/foo.ts");
     expect(md).toContain("phase-01");
     expect(md).toContain("matched");
@@ -343,7 +354,7 @@ describe("renderGlobalReconciliationMarkdown", () => {
     const global = aggregateGlobalReconciliation([
       { ...emptyPhase("phase-01"), missingPlannedCreate: ["src/missing.ts"] },
     ]);
-    const md = renderGlobalReconciliationMarkdown(global);
+    const md = renderGlobalReconciliationMarkdown(global, "acme.fixbug");
     // touchedInPhases is empty → render —
     const row = md.split("\n").find((l) => l.includes("src/missing.ts"))!;
     expect(row).toBeDefined();
@@ -356,7 +367,7 @@ describe("renderGlobalReconciliationMarkdown", () => {
       { ...emptyPhase("phase-01"), editedAsPlanned: ["src/multi.ts"] },
       { ...emptyPhase("phase-02"), editedAsPlanned: ["src/multi.ts"] },
     ]);
-    const md = renderGlobalReconciliationMarkdown(global);
+    const md = renderGlobalReconciliationMarkdown(global, "acme.fixbug");
     expect(md).toContain("phase-01, phase-02");
   });
 
@@ -367,7 +378,7 @@ describe("renderGlobalReconciliationMarkdown", () => {
         createdAsPlanned: ["src/z.ts", "src/a.ts"],
       },
     ]);
-    const md = renderGlobalReconciliationMarkdown(global);
+    const md = renderGlobalReconciliationMarkdown(global, "acme.fixbug");
     const lines = md.split("\n").filter((l) => l.includes("src/"));
     expect(lines[0]).toContain("src/a.ts");
     expect(lines[1]).toContain("src/z.ts");
@@ -387,7 +398,10 @@ describe("renderGlobalReconciliationMarkdown", () => {
         renames: [{ from: "src/old.ts", to: "src/renamed.ts" }],
       },
     ];
-    const md = renderGlobalReconciliationMarkdown(aggregateGlobalReconciliation(phases));
+    const md = renderGlobalReconciliationMarkdown(
+      aggregateGlobalReconciliation(phases),
+      "acme.fixbug",
+    );
     expect(md).toContain("matched");
     expect(md).toContain("missing");
     expect(md).toContain("unplanned");
