@@ -135,6 +135,14 @@ describe("reviewCompliance", () => {
 
     fs.impl.setFile(`${runPath}/plan.md`, fakePlanMd);
     fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, fakeReconciliationMd);
+    fs.impl.setFile(
+      `${runPath}/phase-01/phase-handoff.md`,
+      "## What was delivered\nPhase 01 done.\n",
+    );
+    fs.impl.setFile(
+      `${runPath}/phase-02/phase-handoff.md`,
+      "## What was delivered\nPhase 02 done.\n",
+    );
     backend.impl.addRunResponse(fakeSessionResult);
 
     // Pre-seed the agent's output files (simulating what the agent would write into .phax-context/)
@@ -357,5 +365,73 @@ describe("reviewCompliance", () => {
 
     expect(backend.impl.runCalls).toHaveLength(1);
     expect(backend.impl.resumeCalls).toHaveLength(0);
+  });
+
+  it("inlines phase handoff content into the prompt passed to the backend", async () => {
+    const fs = makeFakeFileSystem();
+    const backend = makeFakeBackend();
+
+    fs.impl.setFile(`${runPath}/plan.md`, fakePlanMd);
+    fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, fakeReconciliationMd);
+    fs.impl.setFile(
+      `${runPath}/phase-01/phase-handoff.md`,
+      "## What was delivered\nPhase 01 artifact.\n",
+    );
+    fs.impl.setFile(
+      `${runPath}/phase-02/phase-handoff.md`,
+      "## What was delivered\nPhase 02 artifact.\n",
+    );
+    backend.impl.addRunResponse(fakeSessionResult);
+    fs.impl.setFile(
+      `${phaxContextPath}/compliance-review.md`,
+      "# Compliance Review\n\nConformant.\n",
+    );
+    fs.impl.setFile(`${phaxContextPath}/compliance-review.json`, validComplianceJson);
+
+    const layers = setupLayers(backend, fs);
+
+    await Effect.runPromise(
+      reviewCompliance(makeInfo(), enabledConfig(), fakeResolution, fakeSecurity, {}).pipe(
+        Effect.provide(layers),
+      ),
+    );
+
+    const prompt = backend.impl.runCalls[0]!.prompt;
+    expect(prompt).toContain("Phase 01 artifact.");
+    expect(prompt).toContain("Phase 02 artifact.");
+    expect(prompt).toContain("### Phase phase-01 handoff");
+    expect(prompt).toContain("### Phase phase-02 handoff");
+  });
+
+  it("uses unavailable marker and still succeeds when a phase handoff file is missing", async () => {
+    const fs = makeFakeFileSystem();
+    const backend = makeFakeBackend();
+
+    fs.impl.setFile(`${runPath}/plan.md`, fakePlanMd);
+    fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, fakeReconciliationMd);
+    // Only phase-01 handoff is present; phase-02 is missing
+    fs.impl.setFile(
+      `${runPath}/phase-01/phase-handoff.md`,
+      "## What was delivered\nPhase 01 done.\n",
+    );
+    backend.impl.addRunResponse(fakeSessionResult);
+    fs.impl.setFile(
+      `${phaxContextPath}/compliance-review.md`,
+      "# Compliance Review\n\nConformant.\n",
+    );
+    fs.impl.setFile(`${phaxContextPath}/compliance-review.json`, validComplianceJson);
+
+    const layers = setupLayers(backend, fs);
+
+    const result = await Effect.runPromise(
+      reviewCompliance(makeInfo(), enabledConfig(), fakeResolution, fakeSecurity, {}).pipe(
+        Effect.provide(layers),
+      ),
+    );
+
+    expect(result.kind).toBe("generated");
+    const prompt = backend.impl.runCalls[0]!.prompt;
+    expect(prompt).toContain("Phase 01 done.");
+    expect(prompt).toContain("phase-handoff.md unavailable for phase-02");
   });
 });
