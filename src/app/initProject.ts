@@ -1,19 +1,25 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { getPhaxConfigJsonSchema } from "../schemas/phaxConfig.js";
+import { getPhaxConfigJsonSchema, getPhaxUserOverlayJsonSchema } from "../schemas/phaxConfig.js";
 import { locatePhaxConfig } from "./loadConfig.js";
 
 export type InitResult =
   | { kind: "already_initialized"; configPath: string }
-  | { kind: "created"; configPath: string; schemaPath: string; schemaReference: string };
+  | {
+      kind: "created";
+      configPath: string;
+      schemaPath: string;
+      userSchemaPath: string;
+      schemaReference: string;
+    };
 
 export type UpgradeResult =
   | { kind: "no_config" }
-  | { kind: "updated"; schemaPath: string }
-  | { kind: "current"; schemaPath: string };
+  | { kind: "updated"; schemaPath: string; userSchemaPath: string }
+  | { kind: "current"; schemaPath: string; userSchemaPath: string };
 
-export function writeConfigSchemaFile(targetPath: string): { changed: boolean } {
-  const serialized = JSON.stringify(getPhaxConfigJsonSchema(), null, 2) + "\n";
+function writeSchemaFile(targetPath: string, getSchema: () => object): { changed: boolean } {
+  const serialized = JSON.stringify(getSchema(), null, 2) + "\n";
   if (existsSync(targetPath) && readFileSync(targetPath, "utf8") === serialized) {
     return { changed: false };
   }
@@ -21,18 +27,28 @@ export function writeConfigSchemaFile(targetPath: string): { changed: boolean } 
   return { changed: true };
 }
 
+export function writeConfigSchemaFile(targetPath: string): { changed: boolean } {
+  return writeSchemaFile(targetPath, getPhaxConfigJsonSchema);
+}
+
 export function upgradeConfigSchema(cwd: string): UpgradeResult {
   const configPath = locatePhaxConfig(cwd);
   if (!configPath) return { kind: "no_config" };
-  const schemaPath = join(dirname(configPath), "phax.schema.json");
-  const { changed } = writeConfigSchemaFile(schemaPath);
-  return changed ? { kind: "updated", schemaPath } : { kind: "current", schemaPath };
+  const dir = dirname(configPath);
+  const schemaPath = join(dir, "phax.schema.json");
+  const userSchemaPath = join(dir, "phax.user.schema.json");
+  const projectChanged = writeConfigSchemaFile(schemaPath).changed;
+  const userChanged = writeSchemaFile(userSchemaPath, getPhaxUserOverlayJsonSchema).changed;
+  return projectChanged || userChanged
+    ? { kind: "updated", schemaPath, userSchemaPath }
+    : { kind: "current", schemaPath, userSchemaPath };
 }
 
 export function initProject(input: { cwd: string; force?: boolean }): InitResult {
   const { cwd, force } = input;
   const configPath = join(cwd, "phax.json");
   const schemaPath = join(cwd, "phax.schema.json");
+  const userSchemaPath = join(cwd, "phax.user.schema.json");
   const schemaReference = "./phax.schema.json";
 
   if (existsSync(configPath) && !force) {
@@ -44,7 +60,6 @@ export function initProject(input: { cwd: string; force?: boolean }): InitResult
     $schema: schemaReference,
     version: 1,
     name,
-    state: { root: "~/.phax" },
     gateProfiles: {
       fast: ["echo 'replace with your gate commands in phax.json'"],
     },
@@ -52,6 +67,7 @@ export function initProject(input: { cwd: string; force?: boolean }): InitResult
 
   writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
   writeConfigSchemaFile(schemaPath);
+  writeSchemaFile(userSchemaPath, getPhaxUserOverlayJsonSchema);
 
-  return { kind: "created", configPath, schemaPath, schemaReference };
+  return { kind: "created", configPath, schemaPath, userSchemaPath, schemaReference };
 }

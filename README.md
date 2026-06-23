@@ -85,8 +85,6 @@ Or add a `phax.json` manually at your repo root:
   "$schema": "./phax.schema.json",
   "version": 1,
   "name": "my-project",
-  "state": { "root": "~/.phax" },
-  "agent": { "maxFixAttempts": 1 },
   "security": { "profile": "secure" },
   "fileReconciliation": { "mode": "report_only" },
   "review": { "compliance": { "enabled": true } },
@@ -110,6 +108,23 @@ Validate it before running:
 phax validate --config phax.json --plan phax-plan.json
 ```
 
+## Configuration layers
+
+phax resolves configuration from four layers, least-to-most specific (most personal wins):
+
+| Layer                   | File                           | Purpose                                                 |
+| ----------------------- | ------------------------------ | ------------------------------------------------------- |
+| Built-in defaults       | —                              | `~/.phax` state root, `maxFixAttempts: 1`, etc.         |
+| Project config          | `phax.json` (committed)        | Team baseline: gate profiles, identity, security grants |
+| Global user config      | `~/.phax/config.json`          | Machine-wide preferences: model, state root, MCP mode   |
+| Per-project user config | `phax.local.json` (gitignored) | This user × this repo overrides                         |
+
+**Scalars** — the highest present layer wins (e.g. `state.root`, `agent.maxFixAttempts`, `security.profile`).
+
+**Allowlists** — union across all layers, so user layers can only _add_ to the project's security baseline, never silently remove it. This applies to `security.filesystem.allowRead`, `security.filesystem.allowWrite`, `security.agentCommands`, `security.mcp.allow`, and `gateProfiles` (union by key; the higher layer's command array wins for a shared key).
+
+`phax.local.json` is gitignored — it is the right place for per-developer preferences like model selection or trust overrides that should not be committed. `~/.phax/config.json` is for preferences that apply to all repos on your machine. A JSON Schema for both user layers is generated alongside `phax.schema.json` as `phax.user.schema.json`.
+
 ## Schema upgrade
 
 After upgrading phax, regenerate `phax.schema.json` to match the new binary's config contract:
@@ -118,7 +133,7 @@ After upgrading phax, regenerate `phax.schema.json` to match the new binary's co
 phax schema upgrade
 ```
 
-This rewrites `phax.schema.json` next to the nearest `phax.json` and reports whether the file changed or was already current. It never modifies `phax.json`.
+This rewrites `phax.schema.json` and `phax.user.schema.json` next to the nearest `phax.json` and reports whether the files changed or were already current. It never modifies `phax.json`.
 
 ## Write a plan
 

@@ -10,9 +10,11 @@ export function runSchemaUpgrade(out: OutputPort): number {
       return 1;
     case "updated":
       out.log(`Updated ${result.schemaPath}`);
+      out.log(`Updated ${result.userSchemaPath}`);
       return 0;
     case "current":
       out.log(`${result.schemaPath} is already up to date`);
+      out.log(`${result.userSchemaPath} is already up to date`);
       return 0;
   }
 }

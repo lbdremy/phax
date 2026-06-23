@@ -3,6 +3,7 @@ dist/
 coverage/
 *.tsbuildinfo
 .phax-context/
+phax.local.json
 
 # Use pnpm, not npm — never commit npm lockfiles
 package-lock.json
