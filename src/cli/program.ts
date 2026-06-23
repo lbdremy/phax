@@ -78,8 +78,9 @@ export function buildProgram(): Command {
     });
 
   program
-    .command("unlock <short-name>")
+    .command("unlock")
     .description("Remove a stale run lock; use --force to remove any lock")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
     .option("--force", "Remove the lock regardless of staleness")
     .action(async (shortName: string, opts: { force?: boolean }) => {
       const exitCode = await runUnlock(shortName, opts, consoleOutput);
@@ -111,8 +112,9 @@ export function buildProgram(): Command {
     );
 
   program
-    .command("enter <short-name>")
+    .command("enter")
     .description("Resume the final phase's agent session interactively")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
     .action(async (shortName: string) => {
       const exitCode = await runEnter(shortName, consoleOutput);
       process.exit(exitCode);
@@ -127,16 +129,19 @@ export function buildProgram(): Command {
     });
 
   program
-    .command("enter-phase <short-name> <phase-id>")
+    .command("enter-phase")
     .description("Resume a specific phase's agent session interactively")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
+    .argument("<phase-id>", "Phase identifier, e.g. phase-02")
     .action(async (shortName: string, phaseId: string) => {
       const exitCode = await runEnterPhase(shortName, phaseId, consoleOutput);
       process.exit(exitCode);
     });
 
   program
-    .command("session-info <short-name>")
+    .command("session-info")
     .description("Print session diagnostics for a run (state, phase, worktree, session id)")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
     .option("--debug", "Dump raw binding and model-resolution metadata")
     .action(async (shortName: string, opts: { debug?: boolean }) => {
       const exitCode = await runSessionInfo(shortName, consoleOutput, opts);
@@ -144,8 +149,9 @@ export function buildProgram(): Command {
     });
 
   program
-    .command("shell <short-name>")
+    .command("shell")
     .description("Open a shell in the final worktree")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
     .action(async (shortName: string) => {
       const exitCode = await runShell(shortName, consoleOutput);
       process.exit(exitCode);
@@ -160,8 +166,9 @@ export function buildProgram(): Command {
     });
 
   program
-    .command("path <short-name>")
+    .command("path")
     .description("Print the final worktree path (script-friendly, one line)")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
     .action((shortName: string) => {
       const exitCode = runPath(shortName, consoleOutput);
       process.exit(exitCode);
@@ -176,8 +183,9 @@ export function buildProgram(): Command {
     });
 
   program
-    .command("open <short-name>")
+    .command("open")
     .description("Open the final worktree in the configured editor")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
     .action(async (shortName: string) => {
       const exitCode = await runOpen(shortName, consoleOutput);
       process.exit(exitCode);
@@ -215,8 +223,9 @@ export function buildProgram(): Command {
     );
 
   program
-    .command("archive <short-name>")
+    .command("archive")
     .description("Archive a completed or review_open run")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
     .option("--force", "Archive even if the final worktree has uncommitted changes")
     .action(async (shortName: string, opts: { force?: boolean }) => {
       const exitCode = await runArchive(shortName, opts, consoleOutput);
@@ -233,8 +242,9 @@ export function buildProgram(): Command {
     });
 
   program
-    .command("run [short-name]")
+    .command("run")
     .description("Extract a plan from plan.md and run all phases, or preview with --dry-run")
+    .argument("[short-name]", "Run short name, e.g. usage-cli")
     .option("--plan-md <path>", "Path to plan.md", "plan.md")
     .option("--profile <profile>", "Gate profile to use (overrides config default)")
     .option("--workspace <id>", "Workspace id (monorepo)")
@@ -270,10 +280,11 @@ export function buildProgram(): Command {
     );
 
   program
-    .command("review-handoff <short-name>")
+    .command("review-handoff")
     .description(
       "Regenerate review-handoff.md and global file reconciliation for a review_open run",
     )
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
     .option("--allow-partial", "Generate a partial document when some phase artifacts are missing")
     .action(async (shortName: string, opts: { allowPartial?: boolean }) => {
       const exitCode = await runReviewHandoff(shortName, opts, consoleOutput);
@@ -281,16 +292,18 @@ export function buildProgram(): Command {
     });
 
   program
-    .command("publish-pr <short-name>")
+    .command("publish-pr")
     .description("Push the final branch and create (or reuse) a GitHub PR for a review_open run")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
     .action(async (shortName: string) => {
       const exitCode = await runPublishPr(shortName, globalTraceOpts(), consoleOutput);
       process.exit(exitCode);
     });
 
   program
-    .command("review-compliance <short-name>")
+    .command("review-compliance")
     .description("Run a non-mutating plan-compliance review for a review_open run")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
     .action(async (shortName: string) => {
       const exitCode = await runReviewCompliance(shortName, globalTraceOpts(), consoleOutput);
       process.exit(exitCode);
@@ -306,10 +319,11 @@ export function buildProgram(): Command {
     });
 
   program
-    .command("report [short-name]")
+    .command("report")
     .description(
       "Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)",
     )
+    .argument("[short-name]", "Run short name, e.g. usage-cli")
     .option("--no-gist", "Inline the full log in the issue body instead of creating a secret gist")
     .action(async (shortName: string | undefined, opts: { noGist?: boolean }) => {
       const exitCode = await runReport(shortName, opts, consoleOutput);
@@ -317,10 +331,11 @@ export function buildProgram(): Command {
     });
 
   program
-    .command("completions <shell>")
+    .command("completions")
     .description(
       "Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.",
     )
+    .argument("<shell>", "Shell to generate completions for (zsh, bash, fish, nu, powershell)")
     .action((shell: string) => {
       runCompletions(shell);
     });

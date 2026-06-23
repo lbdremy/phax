@@ -9,6 +9,7 @@ bin "phax"
 version "0.1.7"
 license "Apache-2.0"
 min_usage_version "1.0.0"
+about "Drive Claude Code through isolated, gated phases"
 
 flag "--verbose" {
     global #true
@@ -45,7 +46,9 @@ cmd "validate" {
 
 cmd "unlock" {
     help "Remove a stale run lock; use --force to remove any lock"
-    arg "<short-name>"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
     flag "--force" {
         help "Remove the lock regardless of staleness"
     }
@@ -78,7 +81,9 @@ cmd "extract-plan" {
 
 cmd "enter" {
     help "Resume the final phase's agent session interactively"
-    arg "<short-name>"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
 }
 
 cmd "enter-last" {
@@ -87,13 +92,19 @@ cmd "enter-last" {
 
 cmd "enter-phase" {
     help "Resume a specific phase's agent session interactively"
-    arg "<short-name>"
-    arg "<phase-id>"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+    arg "<phase-id>" {
+        help "Phase identifier, e.g. phase-02"
+    }
 }
 
 cmd "session-info" {
     help "Print session diagnostics for a run (state, phase, worktree, session id)"
-    arg "<short-name>"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
     flag "--debug" {
         help "Dump raw binding and model-resolution metadata"
     }
@@ -101,7 +112,9 @@ cmd "session-info" {
 
 cmd "shell" {
     help "Open a shell in the final worktree"
-    arg "<short-name>"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
 }
 
 cmd "shell-last" {
@@ -110,7 +123,9 @@ cmd "shell-last" {
 
 cmd "path" {
     help "Print the final worktree path (script-friendly, one line)"
-    arg "<short-name>"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
 }
 
 cmd "path-last" {
@@ -119,7 +134,9 @@ cmd "path-last" {
 
 cmd "open" {
     help "Open the final worktree in the configured editor"
-    arg "<short-name>"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
 }
 
 cmd "open-last" {
@@ -147,7 +164,9 @@ cmd "ls" {
 
 cmd "archive" {
     help "Archive a completed or review_open run"
-    arg "<short-name>"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
     flag "--force" {
         help "Archive even if the final worktree has uncommitted changes"
     }
@@ -162,7 +181,9 @@ cmd "archive-last" {
 
 cmd "run" {
     help "Extract a plan from plan.md and run all phases, or preview with --dry-run"
-    arg "[short-name]"
+    arg "[short-name]" {
+        help "Run short name, e.g. usage-cli"
+    }
     flag "--plan-md" {
         arg "<path>"
         default "plan.md"
@@ -194,7 +215,9 @@ cmd "run" {
 
 cmd "review-handoff" {
     help "Regenerate review-handoff.md and global file reconciliation for a review_open run"
-    arg "<short-name>"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
     flag "--allow-partial" {
         help "Generate a partial document when some phase artifacts are missing"
     }
@@ -202,12 +225,16 @@ cmd "review-handoff" {
 
 cmd "publish-pr" {
     help "Push the final branch and create (or reuse) a GitHub PR for a review_open run"
-    arg "<short-name>"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
 }
 
 cmd "review-compliance" {
     help "Run a non-mutating plan-compliance review for a review_open run"
-    arg "<short-name>"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
 }
 
 cmd "init" {
@@ -219,7 +246,9 @@ cmd "init" {
 
 cmd "report" {
     help "Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)"
-    arg "[short-name]"
+    arg "[short-name]" {
+        help "Run short name, e.g. usage-cli"
+    }
     flag "--no-gist" {
         help "Inline the full log in the issue body instead of creating a secret gist"
     }
@@ -227,12 +256,16 @@ cmd "report" {
 
 cmd "completions" {
     help "Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI."
-    arg "<shell>"
+    arg "<shell>" {
+        help "Shell to generate completions for (zsh, bash, fish, nu, powershell)"
+    }
 }
 
 cmd "resume" {
     help "Resume a run from its next pending phase"
-    arg "<short-name>"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
     flag "--yes -y" {
         help "Proceed without confirmation"
     }
@@ -250,8 +283,12 @@ cmd "resume" {
 
 cmd "reset-phase" {
     help "Reset a stuck or failed phase so phax resume re-runs it from scratch"
-    arg "<short-name>"
-    arg "[phase-id]"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+    arg "[phase-id]" {
+        help "Phase identifier to reset, e.g. phase-02; defaults to the stuck phase"
+    }
     flag "--yes -y" {
         help "Proceed without confirmation (removes the worktree and branch)"
     }

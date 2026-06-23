@@ -52,6 +52,13 @@ function emitFlag(option: Option, indent: string, isGlobal: boolean): string {
 
 function emitArg(arg: Argument, indent: string): string {
   const name = arg.required ? `<${arg.name()}>` : `[${arg.name()}]`;
+  if (arg.description) {
+    return [
+      `${indent}arg "${name}" {`,
+      `${indent}    help "${esc(arg.description)}"`,
+      `${indent}}`,
+    ].join("\n");
+  }
   return `${indent}arg "${name}"`;
 }
 
@@ -96,6 +103,10 @@ export function generateUsageSpec(): string {
   ];
   if (pkg.license) lines.push(`license "${esc(pkg.license)}"`);
   lines.push(`min_usage_version "1.0.0"`);
+  // The root command description is emitted as `about` (the valid top-level key
+  // for binary-level text in usage KDL 3.x). `help` is not a valid top-level key.
+  const rootHelp = program.description();
+  if (rootHelp) lines.push(`about "${esc(rootHelp)}"`);
   lines.push(``);
 
   // Root-level options become global flags in the spec.

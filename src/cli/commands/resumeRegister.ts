@@ -9,8 +9,9 @@ export function registerResumeCommand(
   getGlobalTraceOpts: () => { verbose?: boolean; trace?: boolean },
 ): void {
   program
-    .command("resume <short-name>")
+    .command("resume")
     .description("Resume a run from its next pending phase")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
     .option("-y, --yes", "Proceed without confirmation")
     .option("--verbose", "Print human-readable progress and system events")
     .option("--trace", "Write structured JSONL trace events to the run folder")
