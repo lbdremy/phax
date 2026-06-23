@@ -35,7 +35,7 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   enter: {
     longHelp:
-      "Attaches to the kept-open Claude Code session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.",
+      "Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.",
     examples: ["phax enter usage-cli"],
   },
 
@@ -47,7 +47,7 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   "session-info": {
     longHelp:
-      "Prints diagnostic information about a run: its current state, active phase, worktree path, and Claude Code session id. Read-only — no side effects.",
+      "Prints diagnostic information about a run: its current state, active phase, worktree path, and agent session id. Read-only — no side effects.",
     examples: ["phax session-info usage-cli", "phax session-info usage-cli --debug"],
   },
 

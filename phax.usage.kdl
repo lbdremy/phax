@@ -9,7 +9,7 @@ bin "phax"
 version "0.1.7"
 license "Apache-2.0"
 min_usage_version "1.0.0"
-about "Drive Claude Code through isolated, gated phases"
+about "Drive AI Coding agent through isolated, gated phases"
 
 flag "--verbose" {
     global #true
@@ -83,7 +83,7 @@ cmd "extract-plan" {
 
 cmd "enter" {
     help "Resume the final phase's agent session interactively"
-    long_help "Attaches to the kept-open Claude Code session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively."
+    long_help "Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively."
     example "phax enter usage-cli"
     arg "<short-name>" {
         help "Run short name, e.g. usage-cli"
@@ -108,7 +108,7 @@ cmd "enter-phase" {
 
 cmd "session-info" {
     help "Print session diagnostics for a run (state, phase, worktree, session id)"
-    long_help "Prints diagnostic information about a run: its current state, active phase, worktree path, and Claude Code session id. Read-only — no side effects."
+    long_help "Prints diagnostic information about a run: its current state, active phase, worktree path, and agent session id. Read-only — no side effects."
     example "phax session-info usage-cli"
     example "phax session-info usage-cli --debug"
     arg "<short-name>" {

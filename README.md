@@ -391,10 +391,10 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax validate [--config <path>] [--plan <path>]` — Validate phax.json and phax-plan.json without any side effects
 - `phax unlock [--force] <short-name>` — Remove a stale run lock; use --force to remove any lock
 - `phax extract-plan <FLAGS>` — Extract phax-plan.json from a plan.md by calling Claude Code headlessly
-- `phax enter <short-name>` — Attaches to the kept-open Claude Code session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.
+- `phax enter <short-name>` — Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.
 - `phax enter-last` — Resume the final phase's session for the last review_open run in this project
 - `phax enter-phase <short-name> <phase-id>` — Attaches to the agent session for a specific phase worktree. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main.
-- `phax session-info [--debug] <short-name>` — Prints diagnostic information about a run: its current state, active phase, worktree path, and Claude Code session id. Read-only — no side effects.
+- `phax session-info [--debug] <short-name>` — Prints diagnostic information about a run: its current state, active phase, worktree path, and agent session id. Read-only — no side effects.
 - `phax shell <short-name>` — Opens an interactive shell in the final worktree. Useful for manually inspecting files, running tests, or executing commands outside the agent session.
 - `phax shell-last` — Open a shell in the final worktree for the last review_open run in this project
 - `phax path <short-name>` — Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools.
