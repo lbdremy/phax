@@ -9,8 +9,10 @@ export function registerResetPhaseCommand(
   getGlobalTraceOpts: () => { verbose?: boolean; trace?: boolean },
 ): void {
   program
-    .command("reset-phase <short-name> [phase-id]")
+    .command("reset-phase")
     .description("Reset a stuck or failed phase so phax resume re-runs it from scratch")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
+    .argument("[phase-id]", "Phase identifier to reset, e.g. phase-02; defaults to the stuck phase")
     .option("-y, --yes", "Proceed without confirmation (removes the worktree and branch)")
     .option("--verbose", "Print human-readable progress and system events")
     .option("--trace", "Write structured JSONL trace events to the run folder")

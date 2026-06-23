@@ -2,6 +2,9 @@
 # `phax`
 - **version**: 0.1.7
 
+Drive Claude Code through isolated, gated phases
+
+
 - **Usage**: `phax [FLAGS] <SUBCOMMAND>`
 
 ## Global Flags
@@ -54,6 +57,8 @@ Remove a stale run lock; use --force to remove any lock
 
 #### `<short-name>`
 
+Run short name, e.g. usage-cli
+
 ### Flags
 
 #### `--force`
@@ -98,6 +103,8 @@ Resume the final phase's agent session interactively
 
 #### `<short-name>`
 
+Run short name, e.g. usage-cli
+
 ## `phax enter-last`
 
 - **Usage**: `phax enter-last`
@@ -114,7 +121,11 @@ Resume a specific phase's agent session interactively
 
 #### `<short-name>`
 
+Run short name, e.g. usage-cli
+
 #### `<phase-id>`
+
+Phase identifier, e.g. phase-02
 
 ## `phax session-info`
 
@@ -125,6 +136,8 @@ Print session diagnostics for a run (state, phase, worktree, session id)
 ### Arguments
 
 #### `<short-name>`
+
+Run short name, e.g. usage-cli
 
 ### Flags
 
@@ -142,6 +155,8 @@ Open a shell in the final worktree
 
 #### `<short-name>`
 
+Run short name, e.g. usage-cli
+
 ## `phax shell-last`
 
 - **Usage**: `phax shell-last`
@@ -158,6 +173,8 @@ Print the final worktree path (script-friendly, one line)
 
 #### `<short-name>`
 
+Run short name, e.g. usage-cli
+
 ## `phax path-last`
 
 - **Usage**: `phax path-last`
@@ -173,6 +190,8 @@ Open the final worktree in the configured editor
 ### Arguments
 
 #### `<short-name>`
+
+Run short name, e.g. usage-cli
 
 ## `phax open-last`
 
@@ -218,6 +237,8 @@ Archive a completed or review_open run
 
 #### `<short-name>`
 
+Run short name, e.g. usage-cli
+
 ### Flags
 
 #### `--force`
@@ -245,6 +266,8 @@ Extract a plan from plan.md and run all phases, or preview with --dry-run
 ### Arguments
 
 #### `[short-name]`
+
+Run short name, e.g. usage-cli
 
 ### Flags
 
@@ -288,6 +311,8 @@ Regenerate review-handoff.md and global file reconciliation for a review_open ru
 
 #### `<short-name>`
 
+Run short name, e.g. usage-cli
+
 ### Flags
 
 #### `--allow-partial`
@@ -304,6 +329,8 @@ Push the final branch and create (or reuse) a GitHub PR for a review_open run
 
 #### `<short-name>`
 
+Run short name, e.g. usage-cli
+
 ## `phax review-compliance`
 
 - **Usage**: `phax review-compliance <short-name>`
@@ -313,6 +340,8 @@ Run a non-mutating plan-compliance review for a review_open run
 ### Arguments
 
 #### `<short-name>`
+
+Run short name, e.g. usage-cli
 
 ## `phax init`
 
@@ -336,6 +365,8 @@ Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily jou
 
 #### `[short-name]`
 
+Run short name, e.g. usage-cli
+
 ### Flags
 
 #### `--no-gist`
@@ -352,6 +383,8 @@ Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires t
 
 #### `<shell>`
 
+Shell to generate completions for (zsh, bash, fish, nu, powershell)
+
 ## `phax resume`
 
 - **Usage**: `phax resume [FLAGS] <short-name>`
@@ -361,6 +394,8 @@ Resume a run from its next pending phase
 ### Arguments
 
 #### `<short-name>`
+
+Run short name, e.g. usage-cli
 
 ### Flags
 
@@ -390,7 +425,11 @@ Reset a stuck or failed phase so phax resume re-runs it from scratch
 
 #### `<short-name>`
 
+Run short name, e.g. usage-cli
+
 #### `[phase-id]`
+
+Phase identifier to reset, e.g. phase-02; defaults to the stuck phase
 
 ### Flags
 
