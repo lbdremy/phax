@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { consoleOutput } from "../ports/output.js";
+import { cliDocs } from "./cliDocs.js";
 import { handleUsageFlag, readPackageVersion } from "./commands/usage.js";
 import { runValidate } from "./commands/validate.js";
 import { runUnlock } from "./commands/unlock.js";
@@ -347,5 +348,27 @@ export function buildProgram(): Command {
   registerSkillsCommand(program, consoleOutput);
   registerSchemaCommand(program, consoleOutput);
 
+  // Wire long help and examples into the runtime --help output after all
+  // registrations so commands from *Register.ts files are covered without
+  // touching those files.
+  for (const cmd of program.commands) applyCliDocs(cmd, "");
+
   return program;
+}
+
+// Applied after all command registrations; iterates by path so nested commands
+// work too. Kept at module scope so it is not recreated on every buildProgram call.
+function applyCliDocs(cmd: Command, parentPath: string): void {
+  const cmdPath = parentPath ? `${parentPath} ${cmd.name()}` : cmd.name();
+  const entry = cliDocs[cmdPath];
+  if (entry) {
+    const parts: string[] = [];
+    if (entry.longHelp) parts.push("\n" + entry.longHelp);
+    if (entry.examples.length > 0) {
+      parts.push("\nExamples:");
+      parts.push(...entry.examples.map((e) => `  ${e}`));
+    }
+    if (parts.length > 0) cmd.addHelpText("after", parts.join("\n"));
+  }
+  for (const sub of cmd.commands) applyCliDocs(sub, cmdPath);
 }
