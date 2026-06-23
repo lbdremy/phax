@@ -17,7 +17,7 @@ Commander surface as of phase-01. Used as authoritative source for authoring `ph
 | `open` | `<short-name>` | — | Open the final worktree in the configured editor |
 | `ls` | — | `--active`, `--failed`, `--review-open`, `--archived`, `--json` | List runs from the registry |
 | `archive` | `<short-name>` | `--force` | Archive a completed or review_open run |
-| `run` | `[short-name]` | `--plan-md <path>` (default: `plan.md`), `--profile <profile>`, `--workspace <id>`, `--allow-dirty`, `--provider-priority <list>`, `--dry-run`, `--security <mode>` | Extract a plan from plan.md and run all phases, or preview with --dry-run |
+| `run` | `[short-name]` | `--plan <path>` (required), `--allow-dirty`, `--provider-priority <list>`, `--dry-run`, `--security <mode>` | Extract a plan from plan.md and run all phases, or preview with --dry-run |
 | `review-handoff` | `<short-name>` | `--allow-partial` | Regenerate review-handoff.md and global file reconciliation for a review_open run |
 | `publish-pr` | `<short-name>` | — | Push the final branch and create (or reuse) a GitHub PR for a review_open run |
 | `init` | — | `--force` | Create phax.json and phax.schema.json in the current directory |

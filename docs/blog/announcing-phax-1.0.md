@@ -162,7 +162,7 @@ reality drifted from the plan you signed off on.
 Only then do you point `phax run` at it:
 
 ```bash
-phax run --plan-md plan.md           # extracts the plan, runs every phase, leaves a run to review
+phax run --plan plan.md              # extracts the plan, runs every phase, leaves a run to review
 ```
 
 That's the whole happy path: in normal use, `run` is the command you reach for.

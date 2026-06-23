@@ -207,26 +207,17 @@ cmd "archive-last" {
 
 cmd "run" {
     help "Extract a plan from plan.md and run all phases, or preview with --dry-run"
-    long_help "Extracts a plan from plan.md (or --plan-md), creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/."
-    example "phax run"
-    example "phax run my-feature"
-    example "phax run --dry-run"
-    example "phax run my-feature --profile ci"
+    long_help "Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/."
+    example "phax run --plan plan.md"
+    example "phax run my-feature --plan plan.md"
+    example "phax run --plan plan.md --dry-run"
     arg "[short-name]" {
         help "Run short name, e.g. usage-cli"
     }
-    flag "--plan-md" {
+    flag "--plan" {
         arg "<path>"
-        default "plan.md"
-        help "Path to plan.md"
-    }
-    flag "--profile" {
-        arg "<profile>"
-        help "Gate profile to use (overrides config default)"
-    }
-    flag "--workspace" {
-        arg "<id>"
-        help "Workspace id (monorepo)"
+        required #true
+        help "Path to the plan.md file to extract from"
     }
     flag "--allow-dirty" {
         help "Allow starting when the working tree is dirty"

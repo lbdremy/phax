@@ -35,9 +35,7 @@ describe("run subcommand argv parsing", () => {
     }
 
     p.command("run [short-name]")
-      .option("--plan-md <path>", "Path to plan.md")
-      .option("--profile <profile>", "Gate profile to use")
-      .option("--workspace <id>", "Workspace id")
+      .option("--plan <path>", "Path to the plan.md file to extract from")
       .option("--allow-dirty", "Allow starting when the working tree is dirty")
       .option(
         "--provider-priority <list>",
@@ -52,9 +50,7 @@ describe("run subcommand argv parsing", () => {
         async (
           shortName: string | undefined,
           opts: {
-            planMd?: string;
-            profile?: string;
-            workspace?: string;
+            plan?: string;
             allowDirty?: boolean;
             providerPriority?: string;
             dryRun?: boolean;

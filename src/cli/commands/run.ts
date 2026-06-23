@@ -38,10 +38,8 @@ import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 
 export interface RunCommandOptions {
   shortName?: string;
-  planMd?: string;
+  plan: string;
   dryRun?: boolean;
-  profile?: string;
-  workspace?: string;
   allowDirty?: boolean;
   providerPriority?: string;
   security?: string;
@@ -49,12 +47,8 @@ export interface RunCommandOptions {
   trace?: boolean;
 }
 
-function pickGateProfileId(config: ResolvedConfig, profileOpt: string | undefined): string | null {
+function pickGateProfileId(config: ResolvedConfig): string | null {
   const profiles = config.raw.gateProfiles;
-
-  if (profileOpt !== undefined) {
-    return profileOpt in profiles ? profileOpt : null;
-  }
 
   if ("full" in profiles) return "full";
   if ("fast" in profiles) return "fast";
@@ -125,7 +119,7 @@ function printUnsafeWarning(out: OutputPort): void {
 
 export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<number> {
   const cwd = process.cwd();
-  const planMdPath = resolve(cwd, opts.planMd ?? "plan.md");
+  const planMdPath = resolve(cwd, opts.plan);
 
   const configResult = loadConfig(cwd);
   if (Either.isLeft(configResult)) {
@@ -161,15 +155,9 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     printUnsafeWarning(out);
   }
 
-  const gateProfileId = pickGateProfileId(config, opts.profile);
+  const gateProfileId = pickGateProfileId(config);
   if (gateProfileId === null) {
-    if (opts.profile !== undefined) {
-      out.error(
-        `Gate profile "${opts.profile}" not found in phax.json. Available: ${Object.keys(config.raw.gateProfiles).join(", ")}`,
-      );
-    } else {
-      out.error("No gate profiles configured in phax.json");
-    }
+    out.error("No gate profiles configured in phax.json");
     return 2;
   }
 
@@ -245,7 +233,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
         buildDryRunReport(
           plan,
           config,
-          opts.profile,
+          gateProfileId,
           priorityOverride !== undefined ? [...priorityOverride] : undefined,
           effectiveSecurityMode,
         ),
@@ -310,7 +298,6 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
             planMd,
             config,
             gateProfileId,
-            workspaceId: opts.workspace,
             allowDirty: opts.allowDirty ?? false,
             runPath,
             runId,

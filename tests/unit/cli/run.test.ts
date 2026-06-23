@@ -126,7 +126,7 @@ describe("runRun — AP2(a): config missing name fails before run folder creatio
 
     const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, errors } = makeOutput();
-    const code = await runRun({}, out);
+    const code = await runRun({ plan: "plan.md" }, out);
 
     expect(code).toBe(2);
     expect(createRunFolder).not.toHaveBeenCalled();
@@ -146,7 +146,7 @@ describe("runRun — AP2(a): config missing name fails before run folder creatio
 
     const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, errors } = makeOutput();
-    await runRun({}, out);
+    await runRun({ plan: "plan.md" }, out);
 
     // reportConfigError prints both the message and the path
     expect(errors.join("\n")).toContain("name");
@@ -188,7 +188,7 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
 
     const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines } = makeOutput();
-    const code = await runRun({ planMd: "plan.md" }, out);
+    const code = await runRun({ plan: "plan.md" }, out);
 
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain("acme.fixbug");
@@ -237,7 +237,7 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
 
     const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines } = makeOutput();
-    const code = await runRun({ planMd: "plan.md" }, out);
+    const code = await runRun({ plan: "plan.md" }, out);
 
     expect(code).toBe(0);
     // The qualified name log line always appears (whether bumped or not)

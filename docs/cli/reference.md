@@ -333,9 +333,9 @@ Archive even if the final worktree has uncommitted changes
 
 ## `phax run`
 
-- **Usage**: `phax run [FLAGS] [short-name]`
+- **Usage**: `phax run <FLAGS> [short-name]`
 
-Extracts a plan from plan.md (or --plan-md), creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.
+Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.
 
 Side effects: creates worktrees, commits files, writes to ~/.phax/runs/.
 
@@ -347,19 +347,9 @@ Run short name, e.g. usage-cli
 
 ### Flags
 
-#### `--plan-md <path>`
+#### `--plan <path>`
 
-Path to plan.md
-
-**Default:** `plan.md`
-
-#### `--profile <profile>`
-
-Gate profile to use (overrides config default)
-
-#### `--workspace <id>`
-
-Workspace id (monorepo)
+Path to the plan.md file to extract from
 
 #### `--allow-dirty`
 
@@ -380,19 +370,15 @@ Security mode override (secure|unsafe|isolated, overrides config default)
 ### Examples
 
 ```
-phax run
+phax run --plan plan.md
 ```
 
 ```
-phax run my-feature
+phax run my-feature --plan plan.md
 ```
 
 ```
-phax run --dry-run
-```
-
-```
-phax run my-feature --profile ci
+phax run --plan plan.md --dry-run
 ```
 
 ## `phax review-handoff`

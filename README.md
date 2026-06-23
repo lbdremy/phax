@@ -134,14 +134,12 @@ This invokes the configured extraction agent headlessly with the `phax-plan.json
 ## Run
 
 ```bash
-phax run                                        # full execution (reads plan.md + phax-plan.json)
-phax run --plan-md plan.md --plan plan.json     # explicit paths
-phax run --dry-run                              # preview only — zero side effects
-phax run --profile fast                         # override gate profile
-phax run --allow-dirty                          # skip clean-tree guard
-phax run --workspace packages/api              # workspace-scoped gate commands (monorepo)
-phax run --provider-priority mistral-vibe,claude-code  # override provider priority for this run
-phax run --security unsafe                      # override the security mode for this run
+phax run --plan plan.md                         # full execution (extracts plan.md, runs every phase)
+phax run my-feature --plan plan.md              # set the run short name explicitly
+phax run --plan plan.md --dry-run               # preview only — zero side effects
+phax run --plan plan.md --allow-dirty           # skip clean-tree guard
+phax run --plan plan.md --provider-priority mistral-vibe,claude-code  # override provider priority for this run
+phax run --plan plan.md --security unsafe       # override the security mode for this run
 ```
 
 Each phase:
@@ -404,7 +402,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax ls [FLAGS]` — Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (awaiting human review), or --archived. Use --json for machine-readable output.
 - `phax archive [--force] <short-name>` — Archives a run by removing its worktrees and marking it archived in the registry. Without --force, fails when the final worktree has uncommitted changes.
 - `phax archive-last [--force]` — Archive the last review_open run in this project
-- `phax run [FLAGS] [short-name]` — Extracts a plan from plan.md (or --plan-md), creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.
+- `phax run <FLAGS> [short-name]` — Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.
 - `phax review-handoff [--allow-partial] <short-name>` — Regenerate review-handoff.md and global file reconciliation for a review_open run
 - `phax publish-pr <short-name>` — Pushes the final worktree branch to the GitHub remote and creates a pull request, or reuses an existing PR for the same branch. Requires a GitHub remote and gh CLI authentication.
 - `phax review-compliance <short-name>` — Runs a non-mutating plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. Does not modify the worktree, registry, or any files.
