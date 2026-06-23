@@ -41,7 +41,7 @@ export function runCompletions(shell: string): void {
     if (isNotFound) {
       process.stderr.write(
         "Error: The `usage` CLI is required to generate shell completions but was not found on PATH.\n" +
-          "Install it with: brew install jdx/tap/usage\n" +
+          "Install it with: brew install usage\n" +
           "See https://usage.jdx.dev/cli/ for other install options.\n",
       );
       process.exit(1);

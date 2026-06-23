@@ -351,7 +351,7 @@ The integration gate `tests/integration/usageSpecDrift.test.ts` asserts the comm
 **Prerequisite:** the [`usage` CLI](https://usage.jdx.dev/cli/) must be installed — it is needed both to generate the script and at Tab-time (the generated script calls back into `usage complete-word`):
 
 ```bash
-brew install jdx/tap/usage
+brew install usage
 ```
 
 **Per-shell install:**
