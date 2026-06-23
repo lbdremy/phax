@@ -1,6 +1,10 @@
 # phax
 
-`phax` drives an AI coding agent — Claude Code, Mistral Vibe, or OpenAI Codex — through isolated, gated phases. Each phase gets its own Git worktree, a same-session fix loop, and a kept-open final phase for human review. Provider selection is handled by the [model-routing layer](#multi-provider-model-routing); Claude Code is the default and the terminal fallback.
+`phax` is a **deterministic orchestrator** for AI coding agents: you give it a plan, and it executes that plan as a sequence of isolated, gated phases. The orchestration itself is plain code — phase sequencing, gates, retries, and state transitions are all deterministic — so the only non-deterministic part is the agent working _inside_ each phase.
+
+Because every phase declares the files it expects to create or edit, phax makes each run **reviewable**: it reconciles the plan against what actually changed and surfaces every deviation — planned-but-not-done, done-but-not-planned, deleted, renamed — which the agent must justify in its handoff. Instead of landing on a pull request full of touched files with no idea what was intended, you get a review that's already framed, phase by phase and across the whole run.
+
+Each phase runs in its own Git worktree, must pass its gates before the next one starts, and has a same-session fix loop for repairing gate failures; the final phase is kept open for human review. The agent itself is interchangeable — Claude Code, Mistral Vibe, or OpenAI Codex — selected by the [model-routing layer](#multi-provider-model-routing), with Claude Code as the default and terminal fallback.
 
 ## Install
 
