@@ -30,13 +30,13 @@ xattr -dr com.apple.quarantine /usr/local/bin/phax
 
 Available targets: `phax-darwin-arm64`, `phax-darwin-x64`, `phax-linux-x64`, `phax-linux-arm64`.
 
-> **Binary size note:** the compiled binary is ~385MB, larger than the ~85MB of npm
-> dependencies it ships. This is expected for `deno compile` with npm packages today: Deno
-> snapshots the packages into a V8 heap image and bundles all format variants (CJS + ESM)
-> that packages like `effect` ship, which inflates the output ~3–4x. Deno's npm
-> tree-shaking is improving but not there yet. The npm wrapper downloads the binary once
-> and caches it per version at `~/.phax/bin/<version>/`, so the cost is a one-time download
-> per upgrade and subsequent runs are instant.
+> **Binary size note:** the compiled binary is ~74 MB. The release build bundles the CLI
+> with esbuild first (tree-shaken to ~1.5 MB of actually-used code) and then runs
+> `deno compile --include` to embed the three runtime-read data files
+> (`package.json`, `phax.usage.kdl`, `.claude/skills`). This avoids the un-bundled
+> path which would embed ~274 MB of `node_modules` files (~360 MB total). The npm
+> wrapper downloads the binary once and caches it per version at
+> `~/.phax/bin/<version>/`, so the cost is a one-time download per upgrade.
 
 ## Runtime permission posture
 
@@ -345,6 +345,40 @@ pnpm gen:usage-spec
 ```
 
 The integration gate `tests/integration/usageSpecDrift.test.ts` asserts the committed file is byte-identical to the generator output, so a CLI change without regenerating the spec will fail the gate. Downstream tooling (`phax --usage`, shell completions, `docs/cli/reference.md`, and external consumers such as a generated client library or editor integration) all derive from this spec.
+
+## Shell completions
+
+`phax` ships a generated shell completion script via `phax completions <shell>`. Supported shells: `zsh`, `bash`, `fish`, `nu`, `powershell`.
+
+**Prerequisite:** the [`usage` CLI](https://usage.jdx.dev/cli/) must be installed — it is needed both to generate the script and at Tab-time (the generated script calls back into `usage complete-word`):
+
+```bash
+brew install jdx/tap/usage
+```
+
+**Per-shell install:**
+
+```bash
+# zsh — write a _phax completion file onto $fpath
+phax completions zsh > "${fpath[1]}/_phax"
+
+# bash
+source <(phax completions bash)
+# or add to ~/.bashrc:
+echo 'source <(phax completions bash)' >> ~/.bashrc
+
+# fish
+phax completions fish > ~/.config/fish/completions/phax.fish
+
+# nushell — add to your nu config
+phax completions nu | save --force ~/.config/nushell/completions/phax.nu
+# source it in env.nu or config.nu
+
+# powershell
+phax completions powershell >> $PROFILE
+```
+
+`phax --usage` and `phax completions` work from the release binary as well as from source. Both commands read `phax.usage.kdl`, which is embedded in the binary at build time via `deno compile --include`.
 
 ## CLI command reference
 
