@@ -7,16 +7,36 @@ edit it by hand. This plan turns `init` into a guided wizard — like `npm init`
 that prompts for the required fields and the key opt-in toggles, pre-filling
 sensible defaults detected from the surrounding project.
 
-## Prerequisite — plan 12 lands first
+## Prerequisites — plans 12 and 22 land first
 
-This plan assumes **plan 12 (`docs/plans/12-project-namespace-plan.md`) has
-already merged**. After plan 12 the config shape is: a **required top-level
-`name`** field (slug-validated via the `Namespace` brand, `^[a-z][a-z0-9-]*$`),
-and the `project` struct is **removed** — `project.name` became `name` and
+This plan assumes **plan 12 (`docs/plans/12-project-namespace-plan.md`) and
+plan 22 (`docs/plans/22-config-user-project-split-plan.md`) have already
+merged**. Every reference below targets the post-12 **and** post-22 shape. If
+either has not landed when you start, stop — the schema this wizard writes will
+not match.
+
+After plan 12 the config shape is: a **required top-level `name`** field
+(slug-validated via the `Namespace` brand, `^[a-z][a-z0-9-]*$`), and the
+`project` struct is **removed** — `project.name` became `name` and
 `project.type` (`single-package`/`monorepo`) is **deleted** (monorepo behaviour
-comes from `workspaces[]`). Every reference below targets that post-12 shape.
-If plan 12 has not landed when you start, stop — the schema this wizard writes
-will not match.
+comes from `workspaces[]`).
+
+After plan 22 the configuration is split into layers and the wizard targets the
+committed **project** file only:
+
+- The project `phax.json`'s `state` block is now **optional** and is **no longer
+  written** into generated config — the state root defaults to `~/.phax` in the
+  resolver / user layer. `buildPhaxConfig` must therefore omit `state` entirely
+  (writing it would re-introduce exactly what plan 22 removed).
+- Schema emission now produces **two** files: `phax.schema.json` (project) and
+  `phax.user.schema.json` (the user-overlay layer). `writeConfigSchemaFile` /
+  `upgradeConfigSchema` were extended by plan 22 to emit both; the wizard reuses
+  that and writes both.
+- User layers (`~/.phax/config.json`, `phax.local.json`) are **not** scaffolded
+  by `init` — the wizard only prompts for project-baseline settings (`name`,
+  gate commands, `review.compliance`, `publish`) and writes the committed
+  project file. Per-developer overrides (state root, `agent.*`, `security.mcp`)
+  keep their defaults and are added by hand to a user layer later.
 
 ## Design decisions (resolved during planning)
 
@@ -55,9 +75,11 @@ stop before phase-01 — they shape every phase.
   explicit `interactive: boolean`; the CLI computes it from `process.stdin.isTTY`
   and the `--yes` flag. When non-interactive, the wizard writes a config built
   from detected defaults with toggles off — no prompts, never hangs in CI.
-- **The legacy schema-writing helpers stay.** `writeConfigSchemaFile` and
-  `upgradeConfigSchema` (used by the `schema` command) are left untouched. The
-  new wizard reuses the same serialization for `phax.schema.json`.
+- **The schema-writing helpers stay (as extended by plan 22).**
+  `writeConfigSchemaFile` and `upgradeConfigSchema` (used by the `schema`
+  command) keep their plan-22 behavior of emitting both `phax.schema.json` and
+  `phax.user.schema.json`. The new wizard reuses the same serialization and
+  likewise writes both schema files.
 
 ## Required commands
 
@@ -290,7 +312,8 @@ interactive init wizard in a later phase.
 **Recommended effort:** high
 
 Add the Effect-based wizard that ties prompts, detection, and config assembly
-together, and writes `phax.json` + `phax.schema.json` through ports. Both an
+together, and writes `phax.json` + both schema files (`phax.schema.json` and
+`phax.user.schema.json`) through ports. Both an
 interactive path (prompts) and a non-interactive path (detected defaults, no
 prompts) are produced from one code path.
 
@@ -299,13 +322,14 @@ prompts) are produced from one code path.
 - Create `src/domain/init/buildConfig.ts` with a pure
   `buildPhaxConfig(answers): PhaxConfig` that assembles a valid `PhaxConfig`
   object from resolved answers: `version: 1`, `$schema: "./phax.schema.json"`,
-  top-level `name` (the slug — no `project` struct, no `type`),
-  `state { root: "~/.phax" }`, a `gateProfiles` map built from the chosen gate
-  commands (profile name `fast`; if no commands were chosen, fall back to the
-  existing placeholder `echo` so the profile stays non-empty), and
-  only-when-enabled `review.compliance` / `publish` blocks (omit them entirely
-  when toggled off so schema defaults apply). The result must satisfy the
-  post-12 `PhaxConfigSchema`.
+  top-level `name` (the slug — no `project` struct, no `type`), a `gateProfiles`
+  map built from the chosen gate commands (profile name `fast`; if no commands
+  were chosen, fall back to the existing placeholder `echo` so the profile stays
+  non-empty), and only-when-enabled `review.compliance` / `publish` blocks (omit
+  them entirely when toggled off so schema defaults apply). Do **not** write a
+  `state` block — after plan 22 it is optional and the state root defaults in the
+  resolver / user layer. The result must satisfy the post-22 `PhaxConfigSchema`
+  (in which `state` is optional).
 - Create `src/app/initWizard.ts` exporting
   `runInitWizard(input: { cwd: string; force?: boolean; interactive: boolean }): Effect.Effect<InitResult, PromptCancelled, Prompt | FileSystem>`:
   - Resolve `configPath`/`schemaPath` under `cwd`.
@@ -331,14 +355,17 @@ prompts) are produced from one code path.
   - **Non-interactive path:** skip all prompts; use detected defaults, all
     recommended gate commands selected, toggles off.
   - Build the config via `buildPhaxConfig`, serialize, and write `phax.json`
-    (via `FileSystem.writeAtomic`) and `phax.schema.json` (reuse the same
-    serialization as `writeConfigSchemaFile` from `src/app/initProject.ts`,
-    written via the port). Return `{ kind: "created", … }`.
+    (via `FileSystem.writeAtomic`) plus **both** schema files — `phax.schema.json`
+    and `phax.user.schema.json` — reusing the same serialization as
+    `writeConfigSchemaFile` from `src/app/initProject.ts` (as extended by plan
+    22), written via the port. Return `{ kind: "created", … }`.
   - A `PromptCancelled` propagates out of the Effect so the CLI can print a
     clean "aborted" message (phase-04).
 - Leave `src/app/initProject.ts`'s `writeConfigSchemaFile` / `upgradeConfigSchema`
-  in place; if helpful, export a pure `serializeConfigSchema()` from it and reuse
-  it in the wizard (edit allowed for that extraction only).
+  in place (with their plan-22 behavior of emitting both the project and
+  user-overlay schemas); if helpful, export pure serialization helpers for both
+  schema files from it and reuse them in the wizard (edit allowed for that
+  extraction only).
 
 ### Planned files to create
 
@@ -366,15 +393,17 @@ returns a value satisfying `PhaxConfigSchema`.
 ### Test strategy
 
 - Domain → unit (`tests/unit/buildConfig.test.ts`, written first): top-level
-  `name` written (no `project`/`type` keys); toggles off → no `review`/`publish`
-  keys; toggles on → correct blocks; gate commands → `fast` profile; empty
-  selection → placeholder fallback; output decodes cleanly through
-  `decodePhaxConfig`.
+  `name` written (no `project`/`type` keys); **no `state` key written**; toggles
+  off → no `review`/`publish` keys; toggles on → correct blocks; gate commands →
+  `fast` profile; empty selection → placeholder fallback; output decodes cleanly
+  through `decodePhaxConfig`.
 - Application command → integration with fake ports (`tests/integration/initWizard.test.ts`):
   drive `runInitWizard` with `makeFakePrompt(scriptedAnswers)` and the fake
   FileSystem; assert the written `phax.json` content for both an interactive run
-  and a non-interactive run, the `already_initialized` path, and that a scripted
-  cancel surfaces `PromptCancelled` and writes nothing.
+  and a non-interactive run (including the absence of a `state` block), that
+  **both** `phax.schema.json` and `phax.user.schema.json` are written, the
+  `already_initialized` path, and that a scripted cancel surfaces
+  `PromptCancelled` and writes nothing.
 
 ### Implementation order
 
@@ -407,10 +436,10 @@ feat(init): add interactive init wizard orchestration
 Add an Effect-based init wizard that reads package.json via the FileSystem port,
 prompts via the Prompt port for the top-level name slug (validated via the
 Namespace brand), gate commands, and the compliance-review / publish toggles,
-then assembles and writes phax.json +
-phax.schema.json. A non-interactive path reuses the same code with detected
-defaults and no prompts. Covered by domain unit tests and fake-port integration
-tests.
+then assembles and writes phax.json (no state block, per plan 22) plus both
+phax.schema.json and phax.user.schema.json. A non-interactive path reuses the
+same code with detected defaults and no prompts. Covered by domain unit tests
+and fake-port integration tests.
 
 ## phase-04 — CLI wiring, TTY/--yes handling, and docs {#phase-04-cli-wiring}
 
@@ -467,10 +496,10 @@ provides layers, calls one use case, and renders.
 
 - CLI → integration smoke (`tests/integration/initCommand.test.ts`): run the
   command non-interactively (`--yes`) in a temp dir with a fixture
-  `package.json`; assert exit code, the created `phax.json`/`phax.schema.json`,
-  the top-level `name` slug derived from the fixture, and that gate commands were
-  detected. Cover `--force` reconfigure and the "already initialized"
-  non-interactive path.
+  `package.json`; assert exit code, the created `phax.json` (with no `state`
+  block) and both `phax.schema.json` and `phax.user.schema.json`, the top-level
+  `name` slug derived from the fixture, and that gate commands were detected.
+  Cover `--force` reconfigure and the "already initialized" non-interactive path.
 - The clack TTY path is not driven in tests; the non-interactive path exercises
   the full wiring.
 

@@ -52,9 +52,10 @@ Merge semantics:
 
 Field allocation:
 
-- Project-only (identity): `$schema`, `version`, `project.*`.
+- Project-only (identity): `$schema`, `version`, `name`.
 - Project baseline, user-overridable: `gateProfiles`, `commands.*`,
-  `workspaces`, `fileReconciliation.mode`, `security.*`, `publish.*`.
+  `workspaces`, `fileReconciliation.mode`, `security.*`, `publish.*`,
+  `review.compliance.*`.
 - User layers (and a built-in default): `state.root` (default `~/.phax`),
   `agent.maxFixAttempts`, `agent.extractPlan.*`, `security.mcp.mode`.
 
@@ -93,12 +94,13 @@ must keep working.
   - Make the top-level `state` field optional in `PhaxConfigSchema` (it remains a
     valid, low-precedence project default but is no longer required).
   - Add `PhaxUserOverlaySchema`: a struct where every overridable field is
-    optional and the project-identity fields (`version`, `project`) and `$schema`
+    optional and the project-identity fields (`version`, `name`) and `$schema`
     are **absent** (an overlay must not redeclare repo identity). Cover `state`,
-    `agent`, `commands`, `fileReconciliation`, `security`, `publish`,
+    `agent`, `commands`, `fileReconciliation`, `security`, `publish`, `review`,
     `gateProfiles`, and `workspaces` — reusing the existing sub-schemas
     (`PublishConfigSchema`, `SecurityConfigSchema`, `GateProfilesSchema`,
-    `WorkspaceSchema`, `ExtractPlanConfigSchema`, `FileReconciliationConfigSchema`).
+    `WorkspaceSchema`, `ExtractPlanConfigSchema`, `FileReconciliationConfigSchema`,
+    `ComplianceReviewConfigSchema`).
   - Export `type PhaxUserOverlay`, `decodePhaxUserOverlay` (with
     `onExcessProperty: "error"`, matching `decodePhaxConfig`), and
     `getPhaxUserOverlayJsonSchema()` (via `JSONSchema.make`).
@@ -137,7 +139,7 @@ universe, excluding identity fields, decoded strictly."
 
 - Unit (schema layer): `decodePhaxUserOverlay` accepts an empty object, accepts
   partial overlays (e.g. only `state.root`, only `security.profile`), and
-  rejects an overlay carrying `version`/`project`/`$schema` or any excess
+  rejects an overlay carrying `version`/`name`/`$schema` or any excess
   property. Write these before implementation — the overlay's accepted surface is
   a stable contract.
 - Keep `tests/unit/loadConfig.test.ts` green; adjust only if the optional-state
@@ -199,7 +201,9 @@ before it is wired into the loader.
 - Scalar fields override: `state.root` (default `~/.phax` when no layer sets it),
   `agent.maxFixAttempts`, `agent.extractPlan.model`, `agent.extractPlan.effort`,
   `security.profile`, `security.network.profile`, `security.mcp.mode`,
-  `fileReconciliation.mode`, and each `publish.*` scalar.
+  `fileReconciliation.mode`, each `publish.*` scalar, and
+  `review.compliance.enabled` / `review.compliance.model` /
+  `review.compliance.effort`.
 - Allowlists union (concatenate then de-duplicate, preserving first-seen order):
   `security.filesystem.allowRead`, `security.filesystem.allowWrite`,
   `security.agentCommands`, `security.mcp.allow`.
