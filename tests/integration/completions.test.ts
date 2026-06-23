@@ -52,6 +52,8 @@ describe("phax completions", () => {
     const result = runCli(["completions", "zsh"]);
     expect(result.status, `stderr: ${result.stderr}`).toBe(0);
     expect(result.stdout.length).toBeGreaterThan(0);
+    // Contract: zsh completions must start with a #compdef or _phax marker.
+    expect(result.stdout).toMatch(/#compdef phax|_phax/);
   });
 
   it("produces a non-empty completion script for bash when usage is available", () => {

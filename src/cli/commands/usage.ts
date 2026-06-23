@@ -1,7 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { readUsageSpec } from "./usageSpec.js";
 
 export function readPackageVersion(): string {
   // Resolve 2 levels up from src/cli/commands/ (dev) or dist/cli/commands/ (installed)
@@ -9,12 +10,6 @@ export function readPackageVersion(): string {
   const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "../../../package.json");
   const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { version: string };
   return pkg.version;
-}
-
-function resolveSpecPath(): string {
-  // Walk up 3 levels: commands/ → cli/ → src|dist/ → package root.
-  // Works in both dev layout (src/cli/commands/) and installed layout (dist/cli/commands/).
-  return join(dirname(fileURLToPath(import.meta.url)), "../../../phax.usage.kdl");
 }
 
 export function handleUsageFlag(format: string): void {
@@ -25,18 +20,19 @@ export function handleUsageFlag(format: string): void {
     process.exit(1);
   }
 
-  const specPath = resolveSpecPath();
-  if (!existsSync(specPath)) {
+  const spec = readUsageSpec();
+  if (!spec.found) {
     process.stderr.write(
-      `Error: phax.usage.kdl not found at ${specPath}\n` +
+      `Error: phax.usage.kdl not found at ${spec.path}\n` +
         "If running from source, regenerate it with: pnpm gen:usage-spec\n",
     );
     process.exit(1);
   }
 
   if (format === "json") {
-    const result = spawnSync("usage", ["generate", "json", "-f", specPath], {
+    const result = spawnSync("usage", ["generate", "json", "-f", "-"], {
       encoding: "utf8",
+      input: spec.content,
       env: { ...process.env },
     });
 
@@ -69,6 +65,5 @@ export function handleUsageFlag(format: string): void {
   }
 
   // format === "kdl"
-  const kdl = readFileSync(specPath, "utf8");
-  process.stdout.write(kdl);
+  process.stdout.write(spec.content);
 }
