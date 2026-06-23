@@ -100,7 +100,15 @@ must keep working.
     `gateProfiles`, and `workspaces` — reusing the existing sub-schemas
     (`PublishConfigSchema`, `SecurityConfigSchema`, `GateProfilesSchema`,
     `WorkspaceSchema`, `ExtractPlanConfigSchema`, `FileReconciliationConfigSchema`,
-    `ComplianceReviewConfigSchema`).
+    `ComplianceReviewConfigSchema`). Note that `GateProfilesSchema`,
+    `WorkspaceSchema`, `ExtractPlanConfigSchema`, and
+    `FileReconciliationConfigSchema` are currently **private `const`s** in
+    `phaxConfig.ts`; since `PhaxUserOverlaySchema` lives in the same module they
+    are directly reusable — do **not** export them just for this. There is no
+    named sub-schema for `state` or `agent` (both are inline structs), so the
+    overlay redeclares them inline: `state` as an optional `{ root }` struct, and
+    `agent` as an optional struct with `maxFixAttempts` plus a reused
+    `ExtractPlanConfigSchema` for `extractPlan`.
   - Export `type PhaxUserOverlay`, `decodePhaxUserOverlay` (with
     `onExcessProperty: "error"`, matching `decodePhaxConfig`), and
     `getPhaxUserOverlayJsonSchema()` (via `JSONSchema.make`).
@@ -304,8 +312,11 @@ Absent user files are treated as empty overlays.
     consistent with how an invalid `phax.json` is handled.
   - Call `mergeConfigLayers({ project, globalUser, localUser })` and run the
     existing workspace validations (`validateUniqueWorkspaceIds`,
-    `validateWorkspacePaths`) and the `resolveSecurityConfig` /
-    `resolvePublishConfig` resolution on the **merged** config.
+    `validateWorkspacePaths`) and the full resolution — `resolveSecurityConfig`,
+    `resolvePublishConfig`, **and `resolveComplianceReviewConfig`** (it already
+    runs on `config.review?.compliance`; since `review.compliance.*` is
+    user-overridable, it must read from the **merged** config, not the project
+    file) — on the **merged** config.
   - The `stateRoot` is now taken from the merged config's `state.root` (still
     falling back to `~/.phax`).
 - Keep `locatePhaxConfig` returning the project file path only; add a small
@@ -392,13 +403,19 @@ to the new shape, and document the layering.
     `getPhaxUserOverlayJsonSchema()`. Keep the existing byte-identical no-op
     behavior. `upgradeConfigSchema`'s result should report both files (or remain
     `updated`/`current` based on whether either changed — keep it simple and
-    deterministic).
+    deterministic). This requires changing the **result shapes** so the CLI can
+    render both paths without holding logic: extend `UpgradeResult` (and, where
+    relevant, `InitResult`) to carry the user-schema path (e.g. add
+    `userSchemaPath` to the `updated`/`current`/`created` variants). The thin
+    `schema.ts` command must only read these fields, not derive paths itself.
 - `src/cli/commands/schema.ts`: surface the user-schema file in the `upgrade`
   command's success output so developers know it exists.
 - `.gitignore`: add `phax.local.json`.
 - Migrate the repo's own `phax.json`: remove the `state` block and the
   `agent.maxFixAttempts` entry (its value `1` equals the built-in default).
-  Keep `security.filesystem.allowWrite: ["~/.phax"]` — it is a deliberate
+  Since `maxFixAttempts` is the only key under `agent`, remove the **entire
+  `agent` block** — do not leave an empty `"agent": {}`. Keep
+  `security.filesystem.allowWrite: ["~/.phax"]` — it is a deliberate
   project-specific grant for phax debugging itself. Regenerate `phax.schema.json`
   and add `phax.user.schema.json`.
 - Update `README.md` with a short "Configuration layers" section describing the
