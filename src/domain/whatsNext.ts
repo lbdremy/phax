@@ -38,6 +38,8 @@ export type WhatsNextScenario =
   | {
       readonly kind: "review_open";
       readonly shortName: string;
+      readonly prUrl?: string | undefined;
+      readonly phaseCount?: number | undefined;
     };
 
 export const RESUME_BUFFER_SECONDS = 60;
@@ -144,11 +146,30 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
       };
     }
     case "review_open": {
+      const headline =
+        scenario.phaseCount !== undefined
+          ? `The run reached review — ${scenario.phaseCount} phase(s) complete.`
+          : "The run reached review — all phases are complete.";
+      const prStep: NextStep =
+        scenario.prUrl !== undefined
+          ? { title: "View the pull request", detail: [scenario.prUrl] }
+          : { title: "Publish a pull request", command: `phax publish-pr ${scenario.shortName}` };
       return {
-        headline: "The run reached review — all phases are complete.",
+        headline,
         steps: [
-          { title: "Open the review worktree", command: `phax open ${scenario.shortName}` },
-          { title: "Publish a pull request", command: `phax publish-pr ${scenario.shortName}` },
+          prStep,
+          {
+            title: "Open the review worktree in your editor",
+            command: `phax open ${scenario.shortName}`,
+          },
+          {
+            title: "Open a shell in the review worktree",
+            command: `phax shell ${scenario.shortName}`,
+          },
+          {
+            title: "Resume the agent session on the final phase",
+            command: `phax enter ${scenario.shortName}`,
+          },
           { title: "Archive the run", command: `phax archive ${scenario.shortName}` },
         ],
       };
