@@ -357,7 +357,8 @@ brew install usage
 **Per-shell install:**
 
 ```bash
-# zsh — write a _phax completion file onto $fpath
+# zsh (default shell on macOS) — write a _phax completion onto your $fpath.
+# If you already have a completions dir on $fpath, just drop the file in:
 phax completions zsh > "${fpath[1]}/_phax"
 
 # bash
@@ -375,6 +376,27 @@ phax completions nu | save --force ~/.config/nushell/completions/phax.nu
 # powershell
 phax completions powershell >> $PROFILE
 ```
+
+**zsh on macOS, from scratch** — if you don't already have a completions directory on `$fpath`, set one up once:
+
+```zsh
+# 1. Create a directory for personal completions and put the _phax file in it.
+mkdir -p ~/.zsh/completions
+phax completions zsh > ~/.zsh/completions/_phax
+
+# 2. Make zsh load it (add to ~/.zshrc). Skip the compinit line if your setup
+#    already runs it — frameworks like oh-my-zsh do.
+cat >> ~/.zshrc <<'RC'
+fpath=(~/.zsh/completions $fpath)
+autoload -Uz compinit && compinit
+RC
+
+# 3. Reload your shell, then Tab-complete:
+exec zsh
+phax <Tab>
+```
+
+After this, `phax <Tab>` lists subcommands and `phax enter <Tab>` completes run short-names live from your registry.
 
 `phax --usage` and `phax completions` work from the release binary as well as from source. Both commands read `phax.usage.kdl`, which is embedded in the binary at build time via `deno compile --include`.
 
