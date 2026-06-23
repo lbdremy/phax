@@ -82,12 +82,15 @@ Or add a `phax.json` manually at your repo root:
 
 ```json
 {
+  "$schema": "./phax.schema.json",
   "version": 1,
-  "project": { "name": "my-project", "type": "single-package" },
+  "name": "my-project",
   "state": { "root": "~/.phax" },
   "agent": { "maxFixAttempts": 1 },
   "security": { "profile": "secure" },
   "fileReconciliation": { "mode": "report_only" },
+  "review": { "compliance": { "enabled": true } },
+  "publish": { "enabled": true, "remote": "origin", "baseBranch": "main" },
   "commands": {
     "setup": ["pnpm install"],
     "cleanup": ["rm -rf node_modules"]
@@ -99,7 +102,7 @@ Or add a `phax.json` manually at your repo root:
 }
 ```
 
-Provider routing is **not** configured here — it lives in the global `~/.phax/` config (see [Multi-provider model routing](#multi-provider-model-routing)). The optional `security.profile` (`secure` \| `unsafe` \| `isolated`, default `secure`) sets the default security posture for runs; see [Security modes](#security-modes). The optional `fileReconciliation.mode` (`report_only` \| `warn`, default `report_only`) controls how per-phase file reconciliation reports deviations from the plan; see [Run](#run).
+The top-level `name` is the run namespace — run short-names are scoped under it. Provider routing is **not** configured here — it lives in the global `~/.phax/` config (see [Multi-provider model routing](#multi-provider-model-routing)). The optional `security.profile` (`secure` \| `unsafe` \| `isolated`, default `secure`) sets the default security posture for runs; see [Security modes](#security-modes). The optional `fileReconciliation.mode` (`report_only` \| `warn`, default `report_only`) controls how per-phase file reconciliation reports deviations from the plan; see [Run](#run). The optional `review.compliance` and `publish` blocks turn on an automatic plan-compliance review and a pushed pull request when each run reaches review; see [Compliance review & publishing](#compliance-review--publishing).
 
 Validate it before running:
 
@@ -156,13 +159,20 @@ Each phase gets its own branch (`<run.branch>--phase-01`, `<run.branch>--phase-0
 
 Worktrees from every phase persist on disk for the lifetime of the run and are available for inspection until `phax archive` is run.
 
-The final phase stays open for review. A `review-handoff.md` is written to the run folder showing the final phase branch as the review target.
+The final phase stays open for review. A `review-handoff.md` is written to the run folder showing the final phase branch as the review target. When the run reaches review, two optional steps run automatically if enabled in `phax.json` (both are non-fatal — the run stays `review_open` if they fail):
+
+1. **Compliance review** (`review.compliance.enabled`) — a non-mutating plan-compliance pass writes its verdict to the run folder, so it can land in the PR body.
+2. **Publish** (`publish.enabled`) — pushes the final phase branch to the configured remote and opens (or reuses) a pull request; details are recorded in `publication.json`.
+
+See [Compliance review & publishing](#compliance-review--publishing).
+
+When `phax run` finishes (or is interrupted), it prints an end-of-run recap to the terminal summarizing the run state, the review target branch, any published PR URL, and the next command to run.
 
 **macOS sleep prevention** — long-running `phax run` sessions can be wrapped with
 `caffeinate` to prevent macOS from sleeping while phax executes:
 
 ```bash
-caffeinate -ims phax run my-run
+caffeinate -ims phax run --plan plan.md
 ```
 
 ## Review loop
@@ -173,6 +183,19 @@ phax shell <short-name>   # open $SHELL in the final worktree
 phax path  <short-name>   # print the worktree path (script-friendly)
 phax open  <short-name>   # open the worktree in the configured editor
 ```
+
+## Compliance review & publishing
+
+Both steps run automatically at the end of a run when enabled (see [Run](#run)), and can also be invoked on their own against a `review_open` run:
+
+```bash
+phax review-compliance <short-name>   # non-mutating plan-compliance review of the agent's work
+phax publish-pr <short-name>          # push the final branch and open (or reuse) a PR
+```
+
+`phax review-compliance` re-invokes the AI agent with the run's handoff artifacts and the original plan and writes a verdict; it never touches the worktree, registry, or any files. Configure its model/effort under `review.compliance` in `phax.json` (default model `claude-sonnet-4-6`, effort `medium`).
+
+`phax publish-pr` pushes the final worktree branch to the GitHub remote and creates a pull request, reusing an existing PR for the same branch if one exists. It requires a GitHub remote and an authenticated `gh` CLI. Configure the remote, base branch, and title under `publish` in `phax.json`.
 
 ## List runs
 
@@ -238,30 +261,29 @@ The E2E suite skips automatically unless `PHAX_E2E_RUN=1` is set, so it never ru
 
 ## Debugging
 
-Add `--verbose` to any `run` or `resume` command to print semantic events (state transitions, adapter calls, gate results) to the terminal:
+Add `--verbose` to any command to print semantic events (state transitions, adapter calls, gate results) to the terminal:
 
 ```bash
-phax run --verbose
+phax run --plan plan.md --verbose
 phax resume <short-name> --verbose
 ```
 
-Add `--trace <path>` to write one JSON line per semantic event to a file:
+Add `--trace` to also write one JSON line per semantic event to `semantic.jsonl` in the run folder (`~/.phax/runs/<short-name>/`):
 
 ```bash
-phax run --trace ~/.phax/runs/<short-name>/semantic.jsonl
+phax run --plan plan.md --trace
 ```
 
-Both flags can be combined. Set `PHAX_OTEL=1` to also export traces to a local OTLP collector. See [`docs/observability.md`](docs/observability.md) for the full observability architecture and [`docs/extract-plan-model.md`](docs/extract-plan-model.md) for how to configure the model used by `extract-plan`.
+Both flags can be combined. See [`docs/observability.md`](docs/observability.md) for the full observability architecture and [`docs/extract-plan-model.md`](docs/extract-plan-model.md) for how to configure the model used by `extract-plan`.
 
 ## Observability
 
-phax emits structured semantic telemetry through the `SystemTelemetry` port — state transitions, adapter calls, gate results, and artifacts. Three output modes:
+phax emits structured semantic telemetry through the `SystemTelemetry` port — state transitions, adapter calls, gate results, and artifacts. Telemetry is on by default and recorded to a per-run journal; toggle it globally with `"enabled": false` in `~/.phax/telemetry.json`. Two opt-in flags surface it live:
 
-| Flag / Variable  | Effect                                              |
-| ---------------- | --------------------------------------------------- |
-| `--verbose`      | Print semantic events to the terminal               |
-| `--trace <path>` | Write semantic events as JSONL to `<path>`          |
-| `PHAX_OTEL=1`    | Export to an OTLP collector (OTel traces + metrics) |
+| Flag        | Effect                                                               |
+| ----------- | -------------------------------------------------------------------- |
+| `--verbose` | Print semantic events to the terminal                                |
+| `--trace`   | Write semantic events as JSONL to `semantic.jsonl` in the run folder |
 
 See [`docs/observability.md`](docs/observability.md) for architecture details, the snapshot rule, and the adapter-boundary failure contract.
 
@@ -300,12 +322,11 @@ phax unlock <short-name> --force  # remove any lock
 
 ## Environment variables
 
-| Variable          | Purpose                                                        |
-| ----------------- | -------------------------------------------------------------- |
-| `PHAX_STATE_ROOT` | Override `state.root` from `phax.json`                         |
-| `PHAX_CLAUDE_BIN` | Path to the `claude` executable (default: `claude` on `$PATH`) |
-| `PHAX_NO_COLOR`   | Disable ANSI color output                                      |
-| `PHAX_OTEL`       | Set to `1` to enable the OpenTelemetry adapter                 |
+phax has no runtime-configuration env vars — the state root, telemetry, and security posture are all set in `phax.json` (and `~/.phax/telemetry.json`), not via the environment. The one variable phax honors gates the opt-in real E2E suite:
+
+| Variable       | Purpose                                                              |
+| -------------- | ------------------------------------------------------------------- |
+| `PHAX_E2E_RUN` | Set to `1` to enable the real E2E suite (`pnpm test:e2e:real`)       |
 
 ## Troubleshooting
 
