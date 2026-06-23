@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeRunId, decodeShortName } from "../../domain/branded.js";
+import { decodePublication } from "../../schemas/publication.js";
 import {
   GateAttemptsExhaustedError,
   PhaseHadNoChangesError,
@@ -91,7 +92,26 @@ export async function runResume(
     const refusal = decisionResult.left;
     if (refusal.reason === "review_open") {
       out.warn(refusal.message);
-      out.warn(renderWhatsNext(buildWhatsNext({ kind: "review_open", shortName }, new Date())));
+      const phaseCount = info.phaseStatuses.filter(
+        (p) => p.state !== "failed" && p.state !== "skipped",
+      ).length;
+      let prUrl: string | undefined;
+      try {
+        const pubRaw = JSON.parse(
+          readFileSync(join(info.runPath, "publication.json"), "utf8"),
+        ) as unknown;
+        const pubResult = decodePublication(pubRaw);
+        if (Either.isRight(pubResult) && pubResult.right.pullRequestUrl !== undefined) {
+          prUrl = pubResult.right.pullRequestUrl;
+        }
+      } catch {
+        // no publication.json or unreadable — leave prUrl undefined
+      }
+      out.warn(
+        renderWhatsNext(
+          buildWhatsNext({ kind: "review_open", shortName, prUrl, phaseCount }, new Date()),
+        ),
+      );
       return 0;
     }
     out.error(refusal.message);
