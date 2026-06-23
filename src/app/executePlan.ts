@@ -139,6 +139,7 @@ export interface ExecutePlanResult {
   readonly committedPhases: readonly string[];
   readonly finalPhaseId: string;
   readonly finalWorktreePath: WorktreePath;
+  readonly prUrl?: string;
 }
 
 export type ExecutePlanError =
@@ -339,6 +340,7 @@ export function executePlan(
     const committedPhases: string[] = [];
     let finalWorktreePath: WorktreePath | undefined;
     let finalPhaseId: string | undefined;
+    let publishedPrUrl: string | undefined;
 
     for (let i = startIndex; i < plan.phases.length; i++) {
       const phase = plan.phases[i];
@@ -878,10 +880,13 @@ export function executePlan(
         // Publication failure is non-fatal — the run stays in review_open and
         // failure details are recorded in publication.json / final-report.md.
         if (config.publish?.enabled) {
-          yield* publishRun(infoResult.right, config.publish, {
+          const publicationResult = yield* publishRun(infoResult.right, config.publish, {
             repoRoot: config.repoRoot,
             ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}),
-          }).pipe(Effect.catchAll(() => Effect.void));
+          }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
+          if (publicationResult?.kind === "published" && publicationResult.prUrl !== undefined) {
+            publishedPrUrl = publicationResult.prUrl;
+          }
         }
       } else {
         yield* Effect.promise(() => patchAgentBindingStatus(phaseFolderPath, "completed"));
@@ -915,6 +920,7 @@ export function executePlan(
       committedPhases,
       finalPhaseId,
       finalWorktreePath,
+      ...(publishedPrUrl !== undefined ? { prUrl: publishedPrUrl } : {}),
     };
   });
 
