@@ -204,15 +204,13 @@ export function aggregateGlobalReconciliation(
 
 export function renderGlobalReconciliationMarkdown(
   global: GlobalFileReconciliation,
-  qualifiedRunName?: string,
+  qualifiedRunName: string,
 ): string {
   const lines: string[] = [];
 
   lines.push("## Global File Reconciliation");
-  if (qualifiedRunName) {
-    lines.push("");
-    lines.push(`**Run**: ${qualifiedRunName}`);
-  }
+  lines.push("");
+  lines.push(`**Run**: ${qualifiedRunName}`);
   lines.push("");
   lines.push("| File | Planned in | Touched in | Status | Notes |");
   lines.push("| --- | --- | --- | --- | --- |");
