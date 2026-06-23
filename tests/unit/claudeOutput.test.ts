@@ -3,6 +3,7 @@ import {
   classifyRateLimit,
   findResultEvent,
   hasErroredResultEvent,
+  normalizeResetAt,
 } from "../../src/schemas/claudeOutput.js";
 
 function resultLine(opts: { isError: boolean; result?: string }): string {
@@ -52,12 +53,69 @@ describe("classifyRateLimit", () => {
   it("extracts a reset time when the message reports one", () => {
     const result = classifyRateLimit("rate limit exceeded, resets at 2026-05-16T12:00:00Z", []);
     expect(result?.kind).toBe("rate_limit");
-    expect(result?.resetAt).toContain("2026-05-16T12:00:00Z");
+    expect(result?.resetAt).toBe("2026-05-16T12:00:00.000Z");
   });
 
   it("leaves resetAt undefined when no reset time is reported", () => {
     const result = classifyRateLimit("rate limit exceeded", []);
     expect(result?.resetAt).toBeUndefined();
+  });
+
+  it("leaves resetAt undefined when reset message contains a non-date word", () => {
+    const result = classifyRateLimit("usage limit reached, reset date", []);
+    expect(result?.kind).toBe("usage_limit");
+    expect(result?.resetAt).toBeUndefined();
+  });
+
+  it("extracts epoch seconds from the Claude Code pipe format", () => {
+    const epochSeconds = 1719835200;
+    const result = classifyRateLimit(`usage limit reached|${epochSeconds}`, []);
+    expect(result?.kind).toBe("usage_limit");
+    expect(result?.resetAt).toBe(new Date(epochSeconds * 1000).toISOString());
+  });
+
+  it("extracts epoch milliseconds from the pipe format", () => {
+    const epochMs = 1719835200000;
+    const result = classifyRateLimit(`usage limit reached|${epochMs}`, []);
+    expect(result?.kind).toBe("usage_limit");
+    expect(result?.resetAt).toBe(new Date(epochMs).toISOString());
+  });
+});
+
+describe("normalizeResetAt", () => {
+  it("returns undefined for empty string", () => {
+    expect(normalizeResetAt("")).toBeUndefined();
+  });
+
+  it("returns undefined for whitespace-only string", () => {
+    expect(normalizeResetAt("   ")).toBeUndefined();
+  });
+
+  it("returns undefined for non-date word", () => {
+    expect(normalizeResetAt("date")).toBeUndefined();
+  });
+
+  it("returns undefined for vague words", () => {
+    expect(normalizeResetAt("soon")).toBeUndefined();
+    expect(normalizeResetAt("later")).toBeUndefined();
+  });
+
+  it("normalizes an ISO timestamp to ISO string", () => {
+    expect(normalizeResetAt("2026-05-16T12:00:00Z")).toBe("2026-05-16T12:00:00.000Z");
+  });
+
+  it("normalizes a 10-digit Unix epoch (seconds)", () => {
+    const epoch = 1719835200;
+    expect(normalizeResetAt(String(epoch))).toBe(new Date(epoch * 1000).toISOString());
+  });
+
+  it("normalizes a 13-digit Unix epoch (milliseconds)", () => {
+    const epochMs = 1719835200000;
+    expect(normalizeResetAt(String(epochMs))).toBe(new Date(epochMs).toISOString());
+  });
+
+  it("returns undefined for a partial epoch (9 digits)", () => {
+    expect(normalizeResetAt("171983520")).toBeUndefined();
   });
 });
 

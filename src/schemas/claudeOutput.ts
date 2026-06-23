@@ -73,13 +73,43 @@ const RESET_PATTERNS: readonly RegExp[] = [
   /reset(?:s|ting)?(?: at| on)?[:\s]+([^\n".]+)/i,
   /try again (?:at|after|in)[:\s]+([^\n".]+)/i,
   /available again[:\s]+([^\n".]+)/i,
+  // Claude Code emits `usage limit reached|<epoch>` — capture the digit run
+  /\|(\d{10,13})\b/,
 ];
+
+/**
+ * Normalize a raw reset-time candidate to an ISO-8601 instant, or return
+ * `undefined` if the candidate is not a recognizable date/epoch.
+ */
+export function normalizeResetAt(raw: string): string | undefined {
+  const s = raw.trim();
+  if (!s) return undefined;
+
+  // Bare Unix epoch seconds (exactly 10 digits)
+  if (/^\d{10}$/.test(s)) {
+    return new Date(parseInt(s, 10) * 1000).toISOString();
+  }
+
+  // Bare Unix epoch milliseconds (exactly 13 digits)
+  if (/^\d{13}$/.test(s)) {
+    return new Date(parseInt(s, 10)).toISOString();
+  }
+
+  // Any string Date.parse recognises (ISO, RFC, locale dates from providers)
+  const ts = Date.parse(s);
+  if (isFinite(ts)) return new Date(ts).toISOString();
+
+  return undefined;
+}
 
 function extractResetAt(haystack: string): string | undefined {
   for (const pattern of RESET_PATTERNS) {
     const match = haystack.match(pattern);
     const captured = match?.[1]?.trim();
-    if (captured) return captured;
+    if (captured) {
+      const normalized = normalizeResetAt(captured);
+      if (normalized !== undefined) return normalized;
+    }
   }
   return undefined;
 }
