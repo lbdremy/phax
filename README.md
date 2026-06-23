@@ -324,9 +324,9 @@ phax unlock <short-name> --force  # remove any lock
 
 phax has no runtime-configuration env vars — the state root, telemetry, and security posture are all set in `phax.json` (and `~/.phax/telemetry.json`), not via the environment. The one variable phax honors gates the opt-in real E2E suite:
 
-| Variable       | Purpose                                                              |
-| -------------- | ------------------------------------------------------------------- |
-| `PHAX_E2E_RUN` | Set to `1` to enable the real E2E suite (`pnpm test:e2e:real`)       |
+| Variable       | Purpose                                                        |
+| -------------- | -------------------------------------------------------------- |
+| `PHAX_E2E_RUN` | Set to `1` to enable the real E2E suite (`pnpm test:e2e:real`) |
 
 ## Troubleshooting
 
