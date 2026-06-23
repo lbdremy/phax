@@ -17,6 +17,8 @@ export interface ReconciliationResult {
   readonly editedAsPlanned: readonly string[];
   readonly missingPlannedCreate: readonly string[];
   readonly missingPlannedEdit: readonly string[];
+  readonly createdButPlannedEdit: readonly string[];
+  readonly editedButPlannedCreate: readonly string[];
   readonly unplannedCreated: readonly string[];
   readonly unplannedEdited: readonly string[];
   readonly optionalTouched: readonly string[];

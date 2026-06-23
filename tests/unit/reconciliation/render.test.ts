@@ -18,6 +18,8 @@ describe("renderReconciliationMarkdown", () => {
       editedAsPlanned: ["src/existing.ts"],
       missingPlannedCreate: [],
       missingPlannedEdit: [],
+      createdButPlannedEdit: [],
+      editedButPlannedCreate: [],
       unplannedCreated: [],
       unplannedEdited: [],
       optionalTouched: [],
@@ -35,6 +37,8 @@ describe("renderReconciliationMarkdown", () => {
       editedAsPlanned: ["src/existing.ts"],
       missingPlannedCreate: ["src/other.ts"],
       missingPlannedEdit: [],
+      createdButPlannedEdit: [],
+      editedButPlannedCreate: [],
       unplannedCreated: [],
       unplannedEdited: [],
       optionalTouched: [],
@@ -54,6 +58,8 @@ describe("renderReconciliationMarkdown", () => {
       editedAsPlanned: [],
       missingPlannedCreate: [],
       missingPlannedEdit: [],
+      createdButPlannedEdit: [],
+      editedButPlannedCreate: [],
       unplannedCreated: ["src/surprise.ts"],
       unplannedEdited: [],
       optionalTouched: [],
@@ -73,6 +79,8 @@ describe("renderReconciliationMarkdown", () => {
       editedAsPlanned: [],
       missingPlannedCreate: [],
       missingPlannedEdit: [],
+      createdButPlannedEdit: [],
+      editedButPlannedCreate: [],
       unplannedCreated: [],
       unplannedEdited: ["src/extra.ts"],
       optionalTouched: [],
@@ -92,6 +100,8 @@ describe("renderReconciliationMarkdown", () => {
       editedAsPlanned: [],
       missingPlannedCreate: [],
       missingPlannedEdit: [],
+      createdButPlannedEdit: [],
+      editedButPlannedCreate: [],
       unplannedCreated: [],
       unplannedEdited: [],
       optionalTouched: ["src/maybe.ts"],
@@ -109,6 +119,8 @@ describe("renderReconciliationMarkdown", () => {
       editedAsPlanned: ["src/existing.ts"],
       missingPlannedCreate: [],
       missingPlannedEdit: [],
+      createdButPlannedEdit: [],
+      editedButPlannedCreate: [],
       unplannedCreated: [],
       unplannedEdited: [],
       optionalTouched: [],
@@ -126,6 +138,8 @@ describe("renderReconciliationMarkdown", () => {
       editedAsPlanned: [],
       missingPlannedCreate: ["src/new.ts"],
       missingPlannedEdit: [],
+      createdButPlannedEdit: [],
+      editedButPlannedCreate: [],
       unplannedCreated: [],
       unplannedEdited: [],
       optionalTouched: [],
@@ -135,5 +149,45 @@ describe("renderReconciliationMarkdown", () => {
     };
     const md = renderReconciliationMarkdown(result, planned);
     expect(md.toLowerCase()).toContain("deviation");
+  });
+
+  it("renders a planned-to-edit file that was created as checked with action note", () => {
+    const result: ReconciliationResult = {
+      createdAsPlanned: ["src/new.ts", "src/other.ts"],
+      editedAsPlanned: [],
+      missingPlannedCreate: [],
+      missingPlannedEdit: [],
+      createdButPlannedEdit: ["src/existing.ts"],
+      editedButPlannedCreate: [],
+      unplannedCreated: [],
+      unplannedEdited: [],
+      optionalTouched: [],
+      deletions: [],
+      renames: [],
+      hasDeviations: false,
+    };
+    const md = renderReconciliationMarkdown(result, planned);
+    expect(md).toContain("[x] src/existing.ts");
+    expect(md).toContain("created though planned as edit");
+  });
+
+  it("renders a planned-to-create file that was modified as checked with action note", () => {
+    const result: ReconciliationResult = {
+      createdAsPlanned: ["src/other.ts"],
+      editedAsPlanned: ["src/existing.ts"],
+      missingPlannedCreate: [],
+      missingPlannedEdit: [],
+      createdButPlannedEdit: [],
+      editedButPlannedCreate: ["src/new.ts"],
+      unplannedCreated: [],
+      unplannedEdited: [],
+      optionalTouched: [],
+      deletions: [],
+      renames: [],
+      hasDeviations: false,
+    };
+    const md = renderReconciliationMarkdown(result, planned);
+    expect(md).toContain("[x] src/new.ts");
+    expect(md).toContain("modified though planned as create");
   });
 });

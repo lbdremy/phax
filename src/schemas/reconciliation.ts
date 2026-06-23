@@ -6,6 +6,8 @@ export const PhaseFileReconciliationSchema = Schema.Struct({
   editedAsPlanned: Schema.Array(Schema.String),
   missingPlannedCreate: Schema.Array(Schema.String),
   missingPlannedEdit: Schema.Array(Schema.String),
+  createdButPlannedEdit: Schema.Array(Schema.String),
+  editedButPlannedCreate: Schema.Array(Schema.String),
   unplannedCreated: Schema.Array(Schema.String),
   unplannedEdited: Schema.Array(Schema.String),
   optionalTouched: Schema.Array(Schema.String),

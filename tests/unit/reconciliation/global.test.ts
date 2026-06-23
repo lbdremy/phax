@@ -19,6 +19,8 @@ const emptyPhase = (phaseId: string): PhaseFileReconciliation => ({
   editedAsPlanned: [],
   missingPlannedCreate: [],
   missingPlannedEdit: [],
+  createdButPlannedEdit: [],
+  editedButPlannedCreate: [],
   unplannedCreated: [],
   unplannedEdited: [],
   optionalTouched: [],
@@ -167,6 +169,53 @@ describe("aggregateGlobalReconciliation", () => {
       expect(entry.plannedInPhases).toEqual(["phase-01"]);
       expect(entry.touchedInPhases).toEqual(["phase-01", "phase-02", "phase-03"]);
       expect(entry.attention).toBe("review");
+    });
+  });
+
+  describe("status: action-mismatch", () => {
+    it("createdButPlannedEdit → action-mismatch (touched, not missing)", () => {
+      const phases: PhaseFileReconciliation[] = [
+        { ...emptyPhase("phase-01"), createdButPlannedEdit: ["src/test.ts"] },
+      ];
+      const result = aggregateGlobalReconciliation(phases);
+      const entry = result.files.find((e) => e.path === "src/test.ts")!;
+      expect(entry.status).toBe("action-mismatch");
+      expect(entry.missing).toBe(false);
+      expect(entry.planned).toBe(true);
+      expect(entry.touchedInPhases).toEqual(["phase-01"]);
+      expect(entry.expectedActions).toContain("edit");
+      expect(entry.actualActions).toContain("added");
+    });
+
+    it("editedButPlannedCreate → action-mismatch (touched, not missing)", () => {
+      const phases: PhaseFileReconciliation[] = [
+        { ...emptyPhase("phase-01"), editedButPlannedCreate: ["src/test.ts"] },
+      ];
+      const result = aggregateGlobalReconciliation(phases);
+      const entry = result.files.find((e) => e.path === "src/test.ts")!;
+      expect(entry.status).toBe("action-mismatch");
+      expect(entry.missing).toBe(false);
+      expect(entry.planned).toBe(true);
+      expect(entry.touchedInPhases).toEqual(["phase-01"]);
+      expect(entry.expectedActions).toContain("create");
+      expect(entry.actualActions).toContain("modified");
+    });
+
+    it("action-mismatch file does not appear in the missing slice", () => {
+      const phases: PhaseFileReconciliation[] = [
+        { ...emptyPhase("phase-01"), createdButPlannedEdit: ["src/test.ts"] },
+      ];
+      const result = aggregateGlobalReconciliation(phases);
+      expect(result.missing).toHaveLength(0);
+    });
+
+    it("action-mismatch file appears in attentionPoints", () => {
+      const phases: PhaseFileReconciliation[] = [
+        { ...emptyPhase("phase-01"), createdButPlannedEdit: ["src/test.ts"] },
+      ];
+      const result = aggregateGlobalReconciliation(phases);
+      expect(result.attentionPoints).toHaveLength(1);
+      expect(result.attentionPoints[0].path).toBe("src/test.ts");
     });
   });
 
@@ -369,6 +418,15 @@ describe("renderGlobalReconciliationMarkdown", () => {
     ]);
     const md = renderGlobalReconciliationMarkdown(global, "acme.fixbug");
     expect(md).toContain("phase-01, phase-02");
+  });
+
+  it("renders action-mismatch status and note", () => {
+    const global = aggregateGlobalReconciliation([
+      { ...emptyPhase("phase-01"), createdButPlannedEdit: ["tests/lock.test.ts"] },
+    ]);
+    const md = renderGlobalReconciliationMarkdown(global, "acme.fixbug");
+    expect(md).toContain("action-mismatch");
+    expect(md).toContain("action mismatch: planned edit, got added");
   });
 
   it("produces deterministic output (sorted by path)", () => {

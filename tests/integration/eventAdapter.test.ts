@@ -480,6 +480,8 @@ const noDeviationReconciliation: ReconciliationResult = {
   editedAsPlanned: [],
   missingPlannedCreate: [],
   missingPlannedEdit: [],
+  createdButPlannedEdit: [],
+  editedButPlannedCreate: [],
   unplannedCreated: [],
   unplannedEdited: [],
   optionalTouched: [],

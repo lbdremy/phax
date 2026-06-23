@@ -11,6 +11,8 @@ const validPersistedRecon = {
   editedAsPlanned: ["src/bar.ts"],
   missingPlannedCreate: [],
   missingPlannedEdit: [],
+  createdButPlannedEdit: [],
+  editedButPlannedCreate: [],
   unplannedCreated: [],
   unplannedEdited: [],
   optionalTouched: [],

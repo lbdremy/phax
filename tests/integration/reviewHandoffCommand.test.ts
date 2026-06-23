@@ -63,6 +63,8 @@ function makePhaseReconJson(phaseId: string): string {
       editedAsPlanned: [],
       missingPlannedCreate: [],
       missingPlannedEdit: [],
+      createdButPlannedEdit: [],
+      editedButPlannedCreate: [],
       unplannedCreated: [],
       unplannedEdited: [],
       optionalTouched: [],

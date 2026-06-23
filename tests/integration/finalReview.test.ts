@@ -75,6 +75,8 @@ function makePhaseReconciliationJson(): string {
       editedAsPlanned: [],
       missingPlannedCreate: [],
       missingPlannedEdit: [],
+      createdButPlannedEdit: [],
+      editedButPlannedCreate: [],
       unplannedCreated: [],
       unplannedEdited: [],
       optionalTouched: [],
