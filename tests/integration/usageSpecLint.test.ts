@@ -12,7 +12,7 @@ describe("phax.usage.kdl", () => {
     expect(existsSync(specPath), `phax.usage.kdl not found at ${specPath}`).toBe(true);
   });
 
-  it("lints clean with the usage CLI (warnings treated as errors)", () => {
+  it("lints clean with the usage CLI (warnings and infos treated as errors)", () => {
     const result = spawnSync("usage", ["lint", "-W", specPath], {
       encoding: "utf8",
       env: { ...process.env },
@@ -36,12 +36,27 @@ describe("phax.usage.kdl", () => {
 
     expect(result.status, `usage lint failed (exit ${result.status}):\n${output}`).toBe(0);
 
-    // Belt-and-suspenders: also check for warning lines in the text output.
+    // Belt-and-suspenders: also check for warning/info lines in the text output.
     // -W already makes the exit code non-zero on warnings, but this gives a
     // clearer failure message if a future usage CLI version changes that behaviour.
+    // Infos are treated as errors here because every command and argument must
+    // carry help text; a missing-*-help info means metadata was omitted.
+    //
+    // One permanent exception: the root `cmd phax` carries no top-level `help`
+    // node — Commander's program description is not emitted as root help — so
+    // `usage lint` always reports exactly one `missing-cmd-help` info for it.
+    // All other infos (new argument or command without help) are failures.
     const hasWarnLines = /^warn\b/m.test(output);
     expect(hasWarnLines, `usage lint reported warnings (treated as errors):\n${output}`).toBe(
       false,
     );
+    const infoLines = output.match(/^info\b.*/gm) ?? [];
+    const unexpectedInfos = infoLines.filter(
+      (line) => !line.includes("[missing-cmd-help]") || !line.includes("cmd phax"),
+    );
+    expect(
+      unexpectedInfos,
+      `usage lint reported unexpected infos (treated as errors):\n${unexpectedInfos.join("\n")}`,
+    ).toEqual([]);
   });
 });

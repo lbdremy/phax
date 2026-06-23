@@ -98,6 +98,15 @@ function flattenTree(root: CommandNode, path: string, out: Map<string, FlatNode>
 
 // ── Parity suite ─────────────────────────────────────────────────────────────────────────────
 //
+// This gate is a name-level drift guard over the generated spec, not an independent
+// hand-authored contract.  phax.usage.kdl is derived from the same Commander tree that
+// this test introspects via buildProgram() + extractCommandTree().  When the spec is up
+// to date (i.e. `pnpm gen:usage-spec` was run after any CLI change) these four tests
+// trivially pass.  When the committed spec is stale they catch the mismatch at the
+// command/flag-name level and tell the author to regenerate.  The byte-equality drift
+// gate (usageSpecDrift.test.ts) is the primary freshness guard; this gate provides a
+// second, human-readable signal and enforces the COMMANDER_ONLY_FLAGS allowlist.
+//
 // Both trees are loaded once at describe level. If the `usage` CLI is not installed,
 // loadUsageJson() throws an actionable error here and all tests in the suite fail with it.
 // This is intentional: `usage` is a declared required command for this project.
