@@ -367,7 +367,18 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
       return exitCodeForError(err);
     }
 
-    out.warn(renderWhatsNext(buildWhatsNext({ kind: "review_open", shortName }, new Date())));
+    const execResult = result.right;
+    const phaseCount = execResult.committedPhases?.length;
+    const prUrl = execResult.prUrl;
+    const qualName = runKey(namespace, shortName);
+    const phaseCountStr = phaseCount !== undefined ? `${phaseCount} phase(s)` : "all phases";
+    out.log(`Run "${qualName}" reached review — ${phaseCountStr} complete.`);
+    out.warn(
+      renderWhatsNext(
+        buildWhatsNext({ kind: "review_open", shortName, prUrl, phaseCount }, new Date()),
+      ),
+    );
+    out.log(`See ${join(runFolder, "final-report.md")} for details.`);
     return 0;
   } finally {
     clearRunInterruptContext();

@@ -268,7 +268,15 @@ export async function runResume(
       return exitCodeForError(err);
     }
 
-    out.warn(renderWhatsNext(buildWhatsNext({ kind: "review_open", shortName }, new Date())));
+    const execResult = result.right;
+    const phaseCount = execResult.committedPhases?.length;
+    const prUrl = execResult.prUrl;
+    out.warn(
+      renderWhatsNext(
+        buildWhatsNext({ kind: "review_open", shortName, prUrl, phaseCount }, new Date()),
+      ),
+    );
+    out.log(`See ${join(runPath, "final-report.md")} for details.`);
     return 0;
   } finally {
     clearRunInterruptContext();
