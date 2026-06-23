@@ -132,6 +132,18 @@ export function reviewCompliance(
       return { kind: "failed", failureReason: reason } satisfies ComplianceReviewResult;
     }
 
+    const phaseHandoffs: Array<{ phaseId: string; handoffMd: string }> = [];
+    for (const phase of info.planPhases) {
+      const handoffPath = join(info.runPath, phase.id, "phase-handoff.md");
+      const handoffResult = yield* Effect.either(fs.readText(handoffPath));
+      phaseHandoffs.push({
+        phaseId: phase.id,
+        handoffMd: Either.isRight(handoffResult)
+          ? handoffResult.right
+          : `> phase-handoff.md unavailable for ${phase.id}`,
+      });
+    }
+
     const phaxContextPath = join(info.worktreePath, ".phax-context");
     yield* fs.mkdirp(phaxContextPath);
 
@@ -142,6 +154,7 @@ export function reviewCompliance(
       planMd: planReadResult.right,
       reconciliationMd: reconciliationReadResult.right,
       phases: info.planPhases,
+      phaseHandoffs,
       worktreePath: info.worktreePath,
       mdArtifactPath: agentMdPath,
       jsonArtifactPath: agentJsonPath,

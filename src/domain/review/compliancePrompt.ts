@@ -5,6 +5,7 @@ export interface BuildCompliancePromptInput {
   readonly planMd: string;
   readonly reconciliationMd: string;
   readonly phases: ReadonlyArray<{ id: string; title: string }>;
+  readonly phaseHandoffs: ReadonlyArray<{ phaseId: string; handoffMd: string }>;
   readonly worktreePath: string;
   readonly mdArtifactPath: string;
   readonly jsonArtifactPath: string;
@@ -32,8 +33,24 @@ const COMPLIANCE_REVIEW_JSON_SHAPE = `{
 }`;
 
 export function buildCompliancePrompt(input: BuildCompliancePromptInput): string {
-  const { planMd, reconciliationMd, phases, worktreePath, mdArtifactPath, jsonArtifactPath } =
-    input;
+  const {
+    planMd,
+    reconciliationMd,
+    phases,
+    phaseHandoffs,
+    worktreePath,
+    mdArtifactPath,
+    jsonArtifactPath,
+  } = input;
+
+  const phaseHandoffsSection =
+    phaseHandoffs.length === 0
+      ? ""
+      : [
+          "## Phase handoffs",
+          "",
+          ...phaseHandoffs.flatMap((h) => [`### Phase ${h.phaseId} handoff`, "", h.handoffMd, ""]),
+        ].join("\n");
 
   const perPhaseInstructions = phases
     .map(
@@ -46,7 +63,7 @@ export function buildCompliancePrompt(input: BuildCompliancePromptInput): string
         `- **tests**: Are the promised tests from "Test strategy" present at the stated layer?\n` +
         `- **boundaries**: Were the declared "Boundary contracts" respected?\n` +
         `- **commit**: Does the actual commit subject/body match the planned commit?\n` +
-        `- **handoff**: Does phase-handoff.md cover the required handoff content?`,
+        `- **handoff**: Does the inlined phase-handoff.md for this phase, shown above, cover the required handoff content?`,
     )
     .join("\n\n");
 
@@ -81,6 +98,8 @@ export function buildCompliancePrompt(input: BuildCompliancePromptInput): string
     "## Global file reconciliation (authoritative — do not recompute)",
     "",
     reconciliationMd,
+    "",
+    phaseHandoffsSection,
     "",
     "## Per-phase review instructions",
     "",

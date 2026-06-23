@@ -12,6 +12,10 @@ const baseInput = {
     { id: "phase-01", title: "Setup" },
     { id: "phase-02", title: "Core logic" },
   ],
+  phaseHandoffs: [
+    { phaseId: "phase-01", handoffMd: "## What was delivered\nSetup complete.\n" },
+    { phaseId: "phase-02", handoffMd: "## What was delivered\nCore logic done.\n" },
+  ],
   worktreePath: "/home/user/.phax/worktrees/my-run/phase-02",
   mdArtifactPath: "/home/user/.phax/worktrees/my-run/phase-02/.phax-context/compliance-review.md",
   jsonArtifactPath:
@@ -99,6 +103,38 @@ describe("buildCompliancePrompt", () => {
     const a = buildCompliancePrompt(baseInput);
     const b = buildCompliancePrompt(baseInput);
     expect(a).toBe(b);
+  });
+
+  it("includes each phase's handoffMd text verbatim", () => {
+    const prompt = buildCompliancePrompt(baseInput);
+    expect(prompt).toContain("Setup complete.");
+    expect(prompt).toContain("Core logic done.");
+  });
+
+  it("includes a per-phase handoff heading for each supplied phase", () => {
+    const prompt = buildCompliancePrompt(baseInput);
+    expect(prompt).toContain("### Phase phase-01 handoff");
+    expect(prompt).toContain("### Phase phase-02 handoff");
+  });
+
+  it("handoff dimension instruction references the inlined handoff, not a disk path", () => {
+    const prompt = buildCompliancePrompt(baseInput);
+    expect(prompt).toContain("inlined phase-handoff.md for this phase");
+    expect(prompt).not.toMatch(/locate.*file.*disk/i);
+  });
+
+  it("places the Phase handoffs section after reconciliation and before per-phase instructions", () => {
+    const prompt = buildCompliancePrompt(baseInput);
+    const reconcPos = prompt.indexOf("## Global file reconciliation");
+    const handoffsPos = prompt.indexOf("## Phase handoffs");
+    const perPhasePos = prompt.indexOf("## Per-phase review instructions");
+    expect(reconcPos).toBeLessThan(handoffsPos);
+    expect(handoffsPos).toBeLessThan(perPhasePos);
+  });
+
+  it("handles empty phaseHandoffs without emitting a Phase handoffs section header", () => {
+    const prompt = buildCompliancePrompt({ ...baseInput, phaseHandoffs: [] });
+    expect(prompt).not.toContain("## Phase handoffs");
   });
 });
 
