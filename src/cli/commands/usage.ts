@@ -47,7 +47,7 @@ export function handleUsageFlag(format: string): void {
       if (isNotFound) {
         process.stderr.write(
           "Error: The `usage` CLI is required for --usage-format json but was not found on PATH.\n" +
-            "Install it with: brew install jdx/tap/usage\n" +
+            "Install it with: brew install usage\n" +
             "See https://usage.jdx.dev/cli/ for other install options.\n" +
             "Tip: Run `phax --usage` (without --usage-format) for the KDL format, which has no external dependency.\n",
         );
