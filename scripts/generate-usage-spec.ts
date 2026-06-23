@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import type { Command, Option, Argument } from "commander";
 import { buildProgram } from "../src/cli/program.js";
+import { cliDocs } from "../src/cli/cliDocs.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../..");
 const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
@@ -15,7 +16,7 @@ const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as 
 };
 
 function esc(s: string): string {
-  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
 }
 
 // Extract the value placeholder from a flag definition string.
@@ -62,12 +63,21 @@ function emitArg(arg: Argument, indent: string): string {
   return `${indent}arg "${name}"`;
 }
 
-function emitCommand(cmd: Command, indent: string): string[] {
+function emitCommand(cmd: Command, indent: string, parentPath = ""): string[] {
+  const cmdPath = parentPath ? `${parentPath} ${cmd.name()}` : cmd.name();
   const lines: string[] = [`${indent}cmd "${cmd.name()}" {`];
   const inner = `${indent}    `;
 
   const desc = cmd.description();
   if (desc) lines.push(`${inner}help "${esc(desc)}"`);
+
+  const docs = cliDocs[cmdPath];
+  if (docs?.longHelp) lines.push(`${inner}long_help "${esc(docs.longHelp)}"`);
+  if (docs?.examples) {
+    for (const ex of docs.examples) {
+      lines.push(`${inner}example "${esc(ex)}"`);
+    }
+  }
 
   for (const arg of cmd.registeredArguments) {
     lines.push(emitArg(arg, inner));
@@ -80,7 +90,7 @@ function emitCommand(cmd: Command, indent: string): string[] {
 
   for (const sub of cmd.commands) {
     lines.push("");
-    lines.push(...emitCommand(sub, inner));
+    lines.push(...emitCommand(sub, inner, cmdPath));
   }
 
   lines.push(`${indent}}`);

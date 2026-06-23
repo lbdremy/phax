@@ -355,27 +355,27 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax validate [--config <path>] [--plan <path>]` — Validate phax.json and phax-plan.json without any side effects
 - `phax unlock [--force] <short-name>` — Remove a stale run lock; use --force to remove any lock
 - `phax extract-plan <FLAGS>` — Extract phax-plan.json from a plan.md by calling Claude Code headlessly
-- `phax enter <short-name>` — Resume the final phase's agent session interactively
+- `phax enter <short-name>` — Attaches to the kept-open Claude Code session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.
 - `phax enter-last` — Resume the final phase's session for the last review_open run in this project
-- `phax enter-phase <short-name> <phase-id>` — Resume a specific phase's agent session interactively
-- `phax session-info [--debug] <short-name>` — Print session diagnostics for a run (state, phase, worktree, session id)
-- `phax shell <short-name>` — Open a shell in the final worktree
+- `phax enter-phase <short-name> <phase-id>` — Attaches to the agent session for a specific phase worktree. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main.
+- `phax session-info [--debug] <short-name>` — Prints diagnostic information about a run: its current state, active phase, worktree path, and Claude Code session id. Read-only — no side effects.
+- `phax shell <short-name>` — Opens an interactive shell in the final worktree. Useful for manually inspecting files, running tests, or executing commands outside the agent session.
 - `phax shell-last` — Open a shell in the final worktree for the last review_open run in this project
-- `phax path <short-name>` — Print the final worktree path (script-friendly, one line)
+- `phax path <short-name>` — Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools.
 - `phax path-last` — Print the final worktree path for the last review_open run in this project
-- `phax open <short-name>` — Open the final worktree in the configured editor
+- `phax open <short-name>` — Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument.
 - `phax open-last` — Open the final worktree in the configured editor for the last review_open run in this project
-- `phax ls [FLAGS]` — List runs from the registry
-- `phax archive [--force] <short-name>` — Archive a completed or review_open run
+- `phax ls [FLAGS]` — Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (awaiting human review), or --archived. Use --json for machine-readable output.
+- `phax archive [--force] <short-name>` — Archives a run by removing its worktrees and marking it archived in the registry. Without --force, fails when the final worktree has uncommitted changes.
 - `phax archive-last [--force]` — Archive the last review_open run in this project
-- `phax run [FLAGS] [short-name]` — Extract a plan from plan.md and run all phases, or preview with --dry-run
+- `phax run [FLAGS] [short-name]` — Extracts a plan from plan.md (or --plan-md), creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.
 - `phax review-handoff [--allow-partial] <short-name>` — Regenerate review-handoff.md and global file reconciliation for a review_open run
-- `phax publish-pr <short-name>` — Push the final branch and create (or reuse) a GitHub PR for a review_open run
-- `phax review-compliance <short-name>` — Run a non-mutating plan-compliance review for a review_open run
-- `phax init [--force]` — Create phax.json and phax.schema.json in the current directory
-- `phax report [--no-gist] [short-name]` — Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)
+- `phax publish-pr <short-name>` — Pushes the final worktree branch to the GitHub remote and creates a pull request, or reuses an existing PR for the same branch. Requires a GitHub remote and gh CLI authentication.
+- `phax review-compliance <short-name>` — Runs a non-mutating plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. Does not modify the worktree, registry, or any files.
+- `phax init [--force]` — Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service.
+- `phax report [--no-gist] [short-name]` — Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.
 - `phax completions <shell>` — Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.
-- `phax resume [FLAGS] <short-name>` — Resume a run from its next pending phase
+- `phax resume [FLAGS] <short-name>` — Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Prompts for confirmation before proceeding unless --yes is set.
 - `phax reset-phase [FLAGS] <short-name> [phase-id]` — Reset a stuck or failed phase so phax resume re-runs it from scratch
 - `phax agent <SUBCOMMAND>` — Inspect and manage model routing and provider configuration
 - `phax agent models` — Print the routing table and provider priority
