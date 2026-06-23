@@ -1,15 +1,8 @@
-import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { readUsageSpec } from "./usageSpec.js";
 
 const VALID_SHELLS = ["zsh", "bash", "fish", "nu", "powershell"] as const;
 type Shell = (typeof VALID_SHELLS)[number];
-
-function resolveSpecPath(): string {
-  // Walk up 3 levels: commands/ → cli/ → src|dist/ → package root.
-  return join(dirname(fileURLToPath(import.meta.url)), "../../../phax.usage.kdl");
-}
 
 export function runCompletions(shell: string): void {
   if (!VALID_SHELLS.includes(shell as Shell)) {
@@ -20,17 +13,18 @@ export function runCompletions(shell: string): void {
     process.exit(1);
   }
 
-  const specPath = resolveSpecPath();
-  if (!existsSync(specPath)) {
+  const spec = readUsageSpec();
+  if (!spec.found) {
     process.stderr.write(
-      `Error: phax.usage.kdl not found at ${specPath}\n` +
+      `Error: phax.usage.kdl not found at ${spec.path}\n` +
         "If running from source, ensure the spec exists at the repo root.\n",
     );
     process.exit(1);
   }
 
-  const result = spawnSync("usage", ["generate", "completion", shell, "phax", "-f", specPath], {
+  const result = spawnSync("usage", ["generate", "completion", shell, "phax", "-f", "-"], {
     encoding: "utf8",
+    input: spec.content,
     env: { ...process.env },
   });
 
