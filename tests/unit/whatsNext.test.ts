@@ -185,12 +185,53 @@ describe("buildWhatsNext", () => {
   });
 
   describe("review_open scenario", () => {
-    it("produces open, publish-pr, and archive steps", () => {
+    it("without prUrl: first step is publish-pr command", () => {
+      const wn = buildWhatsNext({ kind: "review_open", shortName: "proj" }, NOW);
+      expect(wn.steps[0]?.title).toContain("Publish a pull request");
+      expect(wn.steps[0]?.command).toContain("phax publish-pr proj");
+    });
+
+    it("with prUrl: first step shows URL in detail with no command", () => {
+      const wn = buildWhatsNext(
+        { kind: "review_open", shortName: "proj", prUrl: "https://github.com/org/repo/pull/1" },
+        NOW,
+      );
+      expect(wn.steps[0]?.title).toContain("View the pull request");
+      expect(wn.steps[0]?.detail).toContain("https://github.com/org/repo/pull/1");
+      expect(wn.steps[0]?.command).toBeUndefined();
+    });
+
+    it("steps appear in order: PR, open, shell, enter, archive", () => {
+      const wn = buildWhatsNext({ kind: "review_open", shortName: "proj" }, NOW);
+      expect(wn.steps).toHaveLength(5);
+      expect(wn.steps[0]?.command).toContain("phax publish-pr proj");
+      expect(wn.steps[1]?.command).toContain("phax open proj");
+      expect(wn.steps[2]?.command).toContain("phax shell proj");
+      expect(wn.steps[3]?.command).toContain("phax enter proj");
+      expect(wn.steps[4]?.command).toContain("phax archive proj");
+    });
+
+    it("always includes open, shell, enter, and archive steps", () => {
+      const wn = buildWhatsNext(
+        { kind: "review_open", shortName: "proj", prUrl: "https://github.com/org/repo/pull/1" },
+        NOW,
+      );
+      const commands = wn.steps.map((s) => s.command);
+      expect(commands).toContain("phax open proj");
+      expect(commands).toContain("phax shell proj");
+      expect(commands).toContain("phax enter proj");
+      expect(commands).toContain("phax archive proj");
+    });
+
+    it("headline includes phaseCount when provided", () => {
+      const wn = buildWhatsNext({ kind: "review_open", shortName: "proj", phaseCount: 3 }, NOW);
+      expect(wn.headline).toContain("3 phase(s) complete");
+    });
+
+    it("headline falls back to generic wording when phaseCount is absent", () => {
       const wn = buildWhatsNext({ kind: "review_open", shortName: "proj" }, NOW);
       expect(wn.headline).toContain("review");
-      expect(wn.steps[0]?.command).toContain("phax open proj");
-      expect(wn.steps[1]?.command).toContain("phax publish-pr proj");
-      expect(wn.steps[2]?.command).toContain("phax archive proj");
+      expect(wn.headline).toContain("complete");
     });
   });
 });
