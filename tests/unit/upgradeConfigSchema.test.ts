@@ -22,28 +22,43 @@ describe("upgradeConfigSchema", () => {
     expect(result.kind).toBe("no_config");
   });
 
-  it("returns updated and writes phax.schema.json when phax.json exists but no schema", () => {
+  it("returns updated and writes both schema files when phax.json exists but no schemas", () => {
     writeFileSync(join(repoDir, "phax.json"), JSON.stringify({ version: 1 }));
     const result = upgradeConfigSchema(repoDir);
     expect(result.kind).toBe("updated");
     if (result.kind === "updated") {
       expect(result.schemaPath).toBe(join(repoDir, "phax.schema.json"));
+      expect(result.userSchemaPath).toBe(join(repoDir, "phax.user.schema.json"));
     }
     const written = readFileSync(join(repoDir, "phax.schema.json"), "utf8");
     expect(written.length).toBeGreaterThan(0);
+    const userWritten = readFileSync(join(repoDir, "phax.user.schema.json"), "utf8");
+    expect(userWritten.length).toBeGreaterThan(0);
   });
 
-  it("returns current on a second call when schema is already up to date", () => {
+  it("returns current on a second call when both schemas are already up to date", () => {
     writeFileSync(join(repoDir, "phax.json"), JSON.stringify({ version: 1 }));
     upgradeConfigSchema(repoDir);
     const result = upgradeConfigSchema(repoDir);
     expect(result.kind).toBe("current");
+    if (result.kind === "current") {
+      expect(result.schemaPath).toBe(join(repoDir, "phax.schema.json"));
+      expect(result.userSchemaPath).toBe(join(repoDir, "phax.user.schema.json"));
+    }
   });
 
-  it("returns updated after the schema file is mutated", () => {
+  it("returns updated after the project schema file is mutated", () => {
     writeFileSync(join(repoDir, "phax.json"), JSON.stringify({ version: 1 }));
     upgradeConfigSchema(repoDir);
     writeFileSync(join(repoDir, "phax.schema.json"), "stale content");
+    const result = upgradeConfigSchema(repoDir);
+    expect(result.kind).toBe("updated");
+  });
+
+  it("returns updated after the user schema file is mutated", () => {
+    writeFileSync(join(repoDir, "phax.json"), JSON.stringify({ version: 1 }));
+    upgradeConfigSchema(repoDir);
+    writeFileSync(join(repoDir, "phax.user.schema.json"), "stale content");
     const result = upgradeConfigSchema(repoDir);
     expect(result.kind).toBe("updated");
   });

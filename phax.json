@@ -2,10 +2,6 @@
   "$schema": "./phax.schema.json",
   "version": 1,
   "name": "phax",
-  "state": { "root": "~/.phax" },
-  "agent": {
-    "maxFixAttempts": 1
-  },
   "security": {
     "filesystem": {
       "allowWrite": ["~/.phax"]

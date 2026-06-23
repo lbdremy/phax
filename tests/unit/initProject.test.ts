@@ -26,6 +26,7 @@ describe("initProject", () => {
 
     expect(result.configPath).toBe(join(tmpDir, "phax.json"));
     expect(result.schemaPath).toBe(join(tmpDir, "phax.schema.json"));
+    expect(result.userSchemaPath).toBe(join(tmpDir, "phax.user.schema.json"));
     expect(result.schemaReference).toBe("./phax.schema.json");
 
     const raw = JSON.parse(readFileSync(result.configPath, "utf8"));
@@ -41,6 +42,38 @@ describe("initProject", () => {
     const raw = JSON.parse(readFileSync(result.configPath, "utf8"));
     expect(raw.$schema).toBe("./phax.schema.json");
     expect(raw.name).toBe(basename(tmpDir));
+  });
+
+  it("does not include state in the generated config", () => {
+    const result = initProject({ cwd: tmpDir });
+    expect(result.kind).toBe("created");
+    if (result.kind !== "created") return;
+
+    const raw = JSON.parse(readFileSync(result.configPath, "utf8"));
+    expect(raw.state).toBeUndefined();
+  });
+
+  it("does not include agent in the generated config", () => {
+    const result = initProject({ cwd: tmpDir });
+    expect(result.kind).toBe("created");
+    if (result.kind !== "created") return;
+
+    const raw = JSON.parse(readFileSync(result.configPath, "utf8"));
+    expect(raw.agent).toBeUndefined();
+  });
+
+  it("writes phax.user.schema.json alongside phax.schema.json", () => {
+    const result = initProject({ cwd: tmpDir });
+    expect(result.kind).toBe("created");
+    if (result.kind !== "created") return;
+
+    const userSchema = JSON.parse(readFileSync(result.userSchemaPath, "utf8"));
+    expect(userSchema).toBeDefined();
+    // User schema must not require version or name (identity fields excluded)
+    const required: string[] =
+      ((userSchema as Record<string, unknown>)["required"] as string[]) ?? [];
+    expect(required).not.toContain("version");
+    expect(required).not.toContain("name");
   });
 
   it("returns already_initialized on second call without force", () => {
