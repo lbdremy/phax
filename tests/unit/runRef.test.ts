@@ -1,6 +1,13 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
-import { runKey, formatQualifiedName, parseRunRef, parseRunKey } from "../../src/domain/runRef.js";
+import {
+  runKey,
+  formatQualifiedName,
+  parseRunRef,
+  parseRunKey,
+  nextAvailableShortName,
+} from "../../src/domain/runRef.js";
+import type { ShortName } from "../../src/domain/branded.js";
 
 describe("runKey", () => {
   it("joins namespace and shortName with a single dot", () => {
@@ -78,6 +85,56 @@ describe("parseRunRef", () => {
   it("rejects a valid namespace but invalid short name via dot", () => {
     const result = parseRunRef("good.Bad");
     expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+function sn(s: string): ShortName {
+  return s as ShortName;
+}
+
+describe("nextAvailableShortName", () => {
+  it("returns base when not used", () => {
+    const result = nextAvailableShortName(sn("fixbug"), () => false);
+    expect(result).toBe("fixbug");
+  });
+
+  it("bumps to -2 when base is used", () => {
+    const used = new Set(["fixbug"]);
+    const result = nextAvailableShortName(sn("fixbug"), (n) => used.has(n));
+    expect(result).toBe("fixbug-2");
+  });
+
+  it("bumps to -3 when base and -2 are used", () => {
+    const used = new Set(["fixbug", "fixbug-2"]);
+    const result = nextAvailableShortName(sn("fixbug"), (n) => used.has(n));
+    expect(result).toBe("fixbug-3");
+  });
+
+  it("never returns a name the predicate marks as used", () => {
+    const used = new Set(["fixbug", "fixbug-2", "fixbug-3", "fixbug-4"]);
+    const result = nextAvailableShortName(sn("fixbug"), (n) => used.has(n));
+    expect(result).toBe("fixbug-5");
+    expect(used.has(result)).toBe(false);
+  });
+
+  it("two predicates scoped to different namespaces keep the same base independently", () => {
+    // Namespace "alpha" has "fixbug" taken; namespace "beta" does not.
+    const alphaUsed = new Set(["fixbug"]);
+    const betaUsed = new Set<string>();
+
+    const alphaResult = nextAvailableShortName(sn("fixbug"), (n) => alphaUsed.has(n));
+    const betaResult = nextAvailableShortName(sn("fixbug"), (n) => betaUsed.has(n));
+
+    expect(alphaResult).toBe("fixbug-2");
+    expect(betaResult).toBe("fixbug"); // beta's namespace starts fresh
+  });
+
+  it("trims trailing dashes before appending suffix to stay within 64 chars", () => {
+    const longBase = ("a".repeat(62) + "--") as ShortName; // 64 chars with trailing dashes
+    const used = new Set([longBase]);
+    const result = nextAvailableShortName(longBase, (n) => used.has(n));
+    expect(result.length).toBeLessThanOrEqual(64);
+    expect(used.has(result)).toBe(false);
   });
 });
 

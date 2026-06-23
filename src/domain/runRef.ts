@@ -1,5 +1,5 @@
 import { Either } from "effect";
-import { decodeNamespace, decodeShortName } from "./branded.js";
+import { decodeNamespace, decodeShortName, type ShortName } from "./branded.js";
 
 export type RunRef = { namespace: string | undefined; shortName: string };
 
@@ -64,6 +64,19 @@ export function parseRunRef(input: string): Either.Either<RunRef, string> {
   }
 
   return Either.right({ namespace: nsResult.right, shortName: shortResult.right });
+}
+
+export function nextAvailableShortName(
+  base: ShortName,
+  isUsed: (name: string) => boolean,
+): ShortName {
+  if (!isUsed(base)) return base;
+  for (let n = 2; ; n++) {
+    const suffix = `-${n}`;
+    const trimmed = base.slice(0, 64 - suffix.length).replace(/-+$/g, "");
+    const candidate = `${trimmed}${suffix}` as ShortName;
+    if (!isUsed(candidate)) return candidate;
+  }
 }
 
 export function parseRunKey(

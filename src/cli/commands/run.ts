@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName, type ShortName } from "../../domain/branded.js";
-import { runKey } from "../../domain/runRef.js";
+import { runKey, nextAvailableShortName } from "../../domain/runRef.js";
 import { decodeRegistry } from "../../schemas/registry.js";
 import {
   GateAttemptsExhaustedError,
@@ -78,18 +78,10 @@ function readRegistrySync(stateRoot: string) {
 function ensureUniqueShortName(stateRoot: string, namespace: string, base: ShortName): ShortName {
   const registry = readRegistrySync(stateRoot);
   const runsDir = join(stateRoot, "runs");
-
-  const nameUsed = (name: string): boolean =>
+  const isUsed = (name: string): boolean =>
     registry.runs.some((r) => r.namespace === namespace && r.shortName === name) ||
     existsSync(join(runsDir, name));
-
-  if (!nameUsed(base)) return base;
-  for (let n = 2; ; n++) {
-    const suffix = `-${n}`;
-    const trimmed = base.slice(0, 64 - suffix.length).replace(/-+$/g, "");
-    const candidate = `${trimmed}${suffix}` as ShortName;
-    if (!nameUsed(candidate)) return candidate;
-  }
+  return nextAvailableShortName(base, isUsed);
 }
 
 const VALID_SECURITY_MODES: SecurityMode[] = ["secure", "unsafe", "isolated"];
@@ -277,6 +269,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
       `Run "${runKey(namespace, shortNameResult.right)}" already exists; using "${runKey(namespace, shortName)}" instead.`,
     );
   }
+  out.log(`Run: ${runKey(namespace, shortName)}`);
 
   const routingResult = await Effect.runPromise(
     Effect.either(
