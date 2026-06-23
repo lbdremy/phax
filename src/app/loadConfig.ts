@@ -5,9 +5,12 @@ import { execSync } from "node:child_process";
 import { Either } from "effect";
 import { ConfigValidationError } from "../domain/errors.js";
 import { decodeNamespace } from "../domain/branded.js";
+import { mergeConfigLayers } from "../domain/config/mergeLayers.js";
 import {
   type ResolvedConfig,
+  type PhaxUserOverlay,
   decodePhaxConfig,
+  decodePhaxUserOverlay,
   DEFAULT_EXTRACT_MODEL,
   resolvePublishConfig,
   resolveComplianceReviewConfig,
@@ -98,6 +101,39 @@ function validateUniqueWorkspaceIds(
   return undefined;
 }
 
+function localUserConfigPath(projectConfigPath: string): string {
+  return join(dirname(projectConfigPath), "phax.local.json");
+}
+
+function readUserOverlay(
+  filePath: string,
+): Either.Either<PhaxUserOverlay | undefined, ConfigValidationError> {
+  if (!existsSync(filePath)) {
+    return Either.right(undefined);
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(filePath, "utf8"));
+  } catch (err) {
+    return Either.left(
+      new ConfigValidationError({
+        message: `Failed to read or parse "${filePath}": ${String(err)}`,
+        path: filePath,
+      }),
+    );
+  }
+  const decoded = decodePhaxUserOverlay(raw);
+  if (Either.isLeft(decoded)) {
+    return Either.left(
+      new ConfigValidationError({
+        message: `Invalid user config at "${filePath}":\n${formatParseError(decoded.left)}`,
+        path: filePath,
+      }),
+    );
+  }
+  return Either.right(decoded.right);
+}
+
 export function locatePhaxConfig(cwd: string): string | undefined {
   const gitRoot = findGitRoot(cwd);
   if (!gitRoot) return undefined;
@@ -152,7 +188,23 @@ export function loadConfig(
     );
   }
 
-  const config = decoded.right;
+  const projectConfig = decoded.right;
+
+  const globalUserPath = join(homedir(), ".phax", "config.json");
+  const globalUserResult = readUserOverlay(globalUserPath);
+  if (Either.isLeft(globalUserResult)) return Either.left(globalUserResult.left);
+  const globalUser = globalUserResult.right;
+
+  const localUserPath = localUserConfigPath(configPath);
+  const localUserResult = readUserOverlay(localUserPath);
+  if (Either.isLeft(localUserResult)) return Either.left(localUserResult.left);
+  const localUser = localUserResult.right;
+
+  const config = mergeConfigLayers({
+    project: projectConfig,
+    ...(globalUser !== undefined ? { globalUser } : {}),
+    ...(localUser !== undefined ? { localUser } : {}),
+  });
 
   const dupError = validateUniqueWorkspaceIds(config);
   if (dupError) return Either.left(dupError);
