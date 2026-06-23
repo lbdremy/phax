@@ -336,6 +336,16 @@ See [`docs/state-machine.md`](docs/state-machine.md) for:
 
 `phax` never interpolates user-controlled data (branch names, workspace paths, plan fields) into shell command strings. All git and shell invocations pass arguments as separate `argv` tokens. Gate commands from `phax.json` are treated as opaque pre-validated arrays, not shell strings.
 
+## CLI specification (`phax.usage.kdl`)
+
+`phax.usage.kdl` is a machine-readable CLI contract generated from the Commander.js program in `src/cli/`. It is a derived artifact — Commander is the source of truth — and must be regenerated after any change to a command, flag, or argument:
+
+```bash
+pnpm gen:usage-spec
+```
+
+The integration gate `tests/integration/usageSpecDrift.test.ts` asserts the committed file is byte-identical to the generator output, so a CLI change without regenerating the spec will fail the gate. Downstream tooling (`phax --usage`, shell completions, `docs/cli/reference.md`, and external consumers such as a generated client library or editor integration) all derive from this spec.
+
 ## CLI command reference
 
 <!-- BEGIN GENERATED CLI REFERENCE -->
