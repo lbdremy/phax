@@ -80,7 +80,7 @@ function emitCommand(cmd: Command, indent: string): string[] {
   return lines;
 }
 
-function generate(): string {
+export function generateUsageSpec(): string {
   const program = buildProgram();
 
   const lines: string[] = [
@@ -114,7 +114,7 @@ function generate(): string {
   return lines.join("\n");
 }
 
-const output = generate();
+const output = generateUsageSpec();
 const outPath = join(repoRoot, "phax.usage.kdl");
 writeFileSync(outPath, output, "utf8");
 console.log(`Written: ${outPath}`);
