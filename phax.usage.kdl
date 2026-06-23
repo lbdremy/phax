@@ -30,6 +30,8 @@ flag "--usage-format" {
     help "Format for --usage output: kdl (default, no external dependency) or json (requires the usage CLI)"
 }
 
+complete "short-name" run="phax ls --complete" descriptions=#true
+
 cmd "validate" {
     help "Validate phax.json and phax-plan.json without any side effects"
     flag "--config" {
@@ -177,6 +179,9 @@ cmd "ls" {
     }
     flag "--json" {
         help "Output as JSON"
+    }
+    flag "--complete" {
+        help "Print run short-names for shell completion"
     }
 }
 

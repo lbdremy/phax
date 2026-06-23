@@ -210,6 +210,7 @@ export function buildProgram(): Command {
     .option("--review-open", "Show only review_open runs")
     .option("--archived", "Show only archived runs")
     .option("--json", "Output as JSON")
+    .option("--complete", "Print run short-names for shell completion")
     .action(
       async (opts: {
         active?: boolean;
@@ -217,6 +218,7 @@ export function buildProgram(): Command {
         reviewOpen?: boolean;
         archived?: boolean;
         json?: boolean;
+        complete?: boolean;
       }) => {
         const exitCode = await runLs(opts, consoleOutput);
         process.exit(exitCode);
