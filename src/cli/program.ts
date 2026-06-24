@@ -70,10 +70,11 @@ export function buildProgram(): Command {
 
   program
     .command("validate")
-    .description("Validate phax.json and phax-plan.json without any side effects")
-    .option("--config <path>", "Path to phax.json", "phax.json")
-    .option("--plan <path>", "Path to phax-plan.json", "phax-plan.json")
-    .action((opts: { config: string; plan: string }) => {
+    .description(
+      "Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json",
+    )
+    .option("--plan <path>", "Also validate a phax-plan.json at this path")
+    .action((opts: { plan?: string }) => {
       const exitCode = runValidate(opts, consoleOutput);
       process.exit(exitCode);
     });

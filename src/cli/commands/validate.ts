@@ -1,11 +1,10 @@
 import { Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
-import { loadConfig } from "../../app/loadConfig.js";
+import { loadConfig, describeConfigSources } from "../../app/loadConfig.js";
 import { loadPlan } from "../../app/loadPlan.js";
 
 export interface ValidateOptions {
-  config: string;
-  plan: string;
+  plan?: string;
 }
 
 export function runValidate(opts: ValidateOptions, out: OutputPort): number {
@@ -19,18 +18,27 @@ export function runValidate(opts: ValidateOptions, out: OutputPort): number {
     }
     return 1;
   }
-  out.log(`✓ phax.json is valid (project: ${configResult.right.namespace})`);
+  out.log(`✓ config is valid (project: ${configResult.right.namespace})`);
 
-  const planResult = loadPlan(opts.plan);
-  if (Either.isLeft(planResult)) {
-    out.error(`Plan validation failed: ${planResult.left.message}`);
-    if (planResult.left.path) {
-      out.error(`  at: ${planResult.left.path}`);
-    }
-    return 1;
+  const sources = describeConfigSources(cwd);
+  if (sources !== undefined) {
+    out.log(`  project: ${sources.project}`);
+    out.log(`  local:   ${sources.localOverlay ?? "(none)"}`);
+    out.log(`  global:  ${sources.globalOverlay ?? "(none)"}`);
   }
-  const plan = planResult.right;
-  out.log(`✓ ${opts.plan} is valid (run: ${plan.run.shortName}, ${plan.phases.length} phase(s))`);
+
+  if (opts.plan !== undefined) {
+    const planResult = loadPlan(opts.plan);
+    if (Either.isLeft(planResult)) {
+      out.error(`Plan validation failed: ${planResult.left.message}`);
+      if (planResult.left.path) {
+        out.error(`  at: ${planResult.left.path}`);
+      }
+      return 1;
+    }
+    const plan = planResult.right;
+    out.log(`✓ ${opts.plan} is valid (run: ${plan.run.shortName}, ${plan.phases.length} phase(s))`);
+  }
 
   return 0;
 }

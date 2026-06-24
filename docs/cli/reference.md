@@ -29,23 +29,15 @@ Format for --usage output: kdl (default, no external dependency) or json (requir
 
 ## `phax validate`
 
-- **Usage**: `phax validate [--config <path>] [--plan <path>]`
+- **Usage**: `phax validate [--plan <path>]`
 
-Validate phax.json and phax-plan.json without any side effects
+Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json
 
 ### Flags
 
-#### `--config <path>`
-
-Path to phax.json
-
-**Default:** `phax.json`
-
 #### `--plan <path>`
 
-Path to phax-plan.json
-
-**Default:** `phax-plan.json`
+Also validate a phax-plan.json at this path
 
 ## `phax unlock`
 
