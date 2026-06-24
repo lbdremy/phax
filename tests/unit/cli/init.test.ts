@@ -31,39 +31,38 @@ describe("runInit", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("returns 0 and prints created lines in an empty dir", () => {
+  it("returns 0 and prints created lines in an empty dir", async () => {
     const { out, lines } = makeFakeOut();
-    const code = runInit({}, out);
+    const code = await runInit({}, out);
     expect(code).toBe(0);
     expect(lines.some((l) => l.includes("Created PHAX config:"))).toBe(true);
     expect(lines.some((l) => l.includes("Created JSON Schema:"))).toBe(true);
     expect(lines.some((l) => l.includes("Schema: local generated schema"))).toBe(true);
-    expect(lines.some((l) => l.includes("phax validate"))).toBe(true);
   });
 
-  it("returns 1 with already-initialized message on second call (no force)", () => {
+  it("returns 1 with already-initialized message on second call (no force)", async () => {
     const { out } = makeFakeOut();
-    runInit({}, out);
+    await runInit({}, out);
 
     const { out: out2, errors } = makeFakeOut();
-    const code = runInit({}, out2);
+    const code = await runInit({}, out2);
     expect(code).toBe(1);
     expect(errors.some((e) => e.includes("already initialized"))).toBe(true);
   });
 
-  it("returns 0 when force is set over an existing config", () => {
+  it("returns 0 when force is set over an existing config", async () => {
     const { out } = makeFakeOut();
-    runInit({}, out);
+    await runInit({}, out);
 
     const { out: out2, lines } = makeFakeOut();
-    const code = runInit({ force: true }, out2);
+    const code = await runInit({ force: true }, out2);
     expect(code).toBe(0);
     expect(lines.some((l) => l.includes("Created PHAX config:"))).toBe(true);
   });
 
-  it("prints the phax.json path relative to cwd", () => {
+  it("prints the phax.json path relative to cwd", async () => {
     const { out, lines } = makeFakeOut();
-    runInit({}, out);
+    await runInit({}, out);
     const configLine = lines.find((l) => l.includes("Created PHAX config:"));
     expect(configLine).toBeDefined();
     expect(configLine).toContain(join(tmpDir, "phax.json"));

@@ -441,7 +441,7 @@ phax review-compliance usage-cli
 
 ## `phax init`
 
-- **Usage**: `phax init [--force]`
+- **Usage**: `phax init [--force] [--yes]`
 
 Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service.
 
@@ -449,7 +449,11 @@ Creates phax.json and phax.schema.json in the current directory. Use --force to 
 
 #### `--force`
 
-Overwrite an existing phax.json
+Overwrite and reconfigure an existing phax.json
+
+#### `--yes`
+
+Accept detected defaults without prompting
 
 ### Examples
 

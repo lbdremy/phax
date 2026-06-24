@@ -73,12 +73,17 @@ Most setups want `claude` installed even when routing prefers another provider, 
 
 ## Configure
 
-Run `phax init` to create a minimal `phax.json` and a local `phax.schema.json` in the current directory:
+Run `phax init` to create `phax.json` and `phax.schema.json` in the current directory. When stdin is a TTY it launches an interactive wizard (like `npm init`) that prompts for the project slug, gate commands, and optional compliance/publish toggles:
 
 ```bash
-phax init           # create phax.json + phax.schema.json
-phax init --force   # overwrite an existing phax.json
+phax init           # interactive wizard (TTY) or non-interactive (detected defaults)
+phax init --yes     # non-interactive: accept detected defaults without prompting
+phax init --force   # reconfigure an existing phax.json (prompts again in a TTY)
 ```
+
+In a non-TTY environment (CI, pipes) `phax init` automatically falls back to detected defaults with all optional toggles off — it never hangs waiting for input.
+
+The wizard pre-fills the project slug from `package.json`'s `name` field (slugified), detects the package manager from the `packageManager` field, and suggests gate commands from existing scripts (`typecheck`, `lint`, `test:unit`, `format:check`, `build`). It writes `phax.json`, `phax.schema.json`, and `phax.user.schema.json`.
 
 `phax.schema.json` is a JSON Schema generated from the installed binary's config contract — wire it up as `"$schema": "./phax.schema.json"` for editor validation. After upgrading phax, run `phax schema upgrade` to regenerate it (see [Schema upgrade](#schema-upgrade)).
 
@@ -468,7 +473,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax review-handoff [--allow-partial] <short-name>` — Regenerate review-handoff.md and global file reconciliation for a review_open run
 - `phax publish-pr <short-name>` — Pushes the final worktree branch to the GitHub remote and creates a pull request, or reuses an existing PR for the same branch. Requires a GitHub remote and gh CLI authentication.
 - `phax review-compliance <short-name>` — Runs a non-mutating plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. Does not modify the worktree, registry, or any files.
-- `phax init [--force]` — Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service.
+- `phax init [--force] [--yes]` — Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service.
 - `phax report [--no-gist] [short-name]` — Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.
 - `phax completions <shell>` — Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.
 - `phax resume [FLAGS] <short-name>` — Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Prompts for confirmation before proceeding unless --yes is set.
