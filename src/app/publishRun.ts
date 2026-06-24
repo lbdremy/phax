@@ -20,6 +20,8 @@ import {
   makeArtifactGeneratedTelemetryEvent,
 } from "../domain/telemetry/events.js";
 import { writeFinalReport } from "./finalReport.js";
+import { loadReviewHandoffInputs } from "./loadReviewHandoffInputs.js";
+import { buildReviewHandoffContent } from "./reviewHandoff.js";
 
 export type PublicationResultKind = "disabled" | "published" | "failed";
 
@@ -349,15 +351,16 @@ export function publishRun(
       return { kind: "published", record, prUrl: existingUrl } satisfies PublicationResult;
     }
 
-    const handoffReadResult = yield* Effect.either(fs.readText(handoffPath));
-    if (Either.isLeft(handoffReadResult)) {
+    const loadResult = yield* Effect.either(loadReviewHandoffInputs(info));
+    if (Either.isLeft(loadResult)) {
       return yield* fail(
-        `Could not read review handoff: ${handoffReadResult.left.message}`,
+        `Could not load review handoff inputs: ${loadResult.left.message}`,
         pushStatus,
         "failed",
         { baseBranch },
       );
     }
+    const { global, globalMd, phaseContents } = loadResult.right;
 
     const title = selectPrTitle({
       ...(publish.title !== undefined ? { configuredTitle: publish.title } : {}),
@@ -372,10 +375,17 @@ export function publishRun(
       ? complianceReadResult.right
       : undefined;
 
+    const reviewHandoffMd = buildReviewHandoffContent(
+      info,
+      global,
+      globalMd,
+      phaseContents,
+      complianceReviewMd,
+    );
+
     const built = buildPrBody({
-      reviewHandoffMd: handoffReadResult.right,
+      reviewHandoffMd,
       branch: branchString,
-      ...(complianceReviewMd !== undefined ? { complianceReviewMd } : {}),
     });
 
     const bodyFile = join(info.runPath, PR_BODY_FILENAME);
