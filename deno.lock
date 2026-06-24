@@ -1,6 +1,7 @@
 {
   "version": "5",
   "specifiers": {
+    "npm:@clack/prompts@^1.6.0": "1.6.0",
     "npm:@effect/platform-node@0.106": "0.106.0_@effect+cluster@0.58.2__@effect+platform@0.96.1___effect@3.21.3__@effect+rpc@0.75.1___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+sql@0.51.1___@effect+experimental@0.60.0____@effect+platform@0.96.1_____effect@3.21.3____effect@3.21.3___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+workflow@0.18.2___@effect+experimental@0.60.0____@effect+platform@0.96.1_____effect@3.21.3____effect@3.21.3___@effect+platform@0.96.1____effect@3.21.3___@effect+rpc@0.75.1____@effect+platform@0.96.1_____effect@3.21.3____effect@3.21.3___effect@3.21.3__effect@3.21.3__@effect+experimental@0.60.0___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3_@effect+platform@0.96.1__effect@3.21.3_@effect+rpc@0.75.1__@effect+platform@0.96.1___effect@3.21.3__effect@3.21.3_@effect+sql@0.51.1__@effect+experimental@0.60.0___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+platform@0.96.1___effect@3.21.3__effect@3.21.3_effect@3.21.3_@effect+experimental@0.60.0__@effect+platform@0.96.1___effect@3.21.3__effect@3.21.3_@effect+workflow@0.18.2__@effect+experimental@0.60.0___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+platform@0.96.1___effect@3.21.3__@effect+rpc@0.75.1___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__effect@3.21.3",
     "npm:@effect/platform@0.96": "0.96.1_effect@3.21.3",
     "npm:@types/node@^25.9.3": "25.9.3",
@@ -15,6 +16,22 @@
     "npm:vitest@^2.1.0": "2.1.9_@types+node@25.9.3"
   },
   "npm": {
+    "@clack/core@1.4.2": {
+      "integrity": "sha512-0Ty/1Gfm+Kb07sXcuESjyKfwEhSy4Ns1AgeEisHb/bDY5fWme0tTeTkU14T1Gmcs17YIjB/teiDe4uaCghbYqQ==",
+      "dependencies": [
+        "fast-wrap-ansi",
+        "sisteransi"
+      ]
+    },
+    "@clack/prompts@1.6.0": {
+      "integrity": "sha512-EYlRokl8szrP9Z25qT5aepMdBjzBvHF9ZEhzIiUBc9guz/T31EqRgvD0QSgZcpE93xiwrr+OkB4nz0BZyF6fSA==",
+      "dependencies": [
+        "@clack/core",
+        "fast-string-width",
+        "fast-wrap-ansi",
+        "sisteransi"
+      ]
+    },
     "@effect/cluster@0.58.2_@effect+platform@0.96.1__effect@3.21.3_@effect+rpc@0.75.1__@effect+platform@0.96.1___effect@3.21.3__effect@3.21.3_@effect+sql@0.51.1__@effect+experimental@0.60.0___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+platform@0.96.1___effect@3.21.3__effect@3.21.3_@effect+workflow@0.18.2__@effect+experimental@0.60.0___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+platform@0.96.1___effect@3.21.3__@effect+rpc@0.75.1___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__effect@3.21.3_effect@3.21.3_@effect+experimental@0.60.0__@effect+platform@0.96.1___effect@3.21.3__effect@3.21.3": {
       "integrity": "sha512-oxQ3zUhXq0mJA7Y4TliALMP39Bx0LtAIxcqOW1Bdjh6uk+nG7kul/Puw80SwlcYGv3ul50SG+gvSRUTXB8d3JQ==",
       "dependencies": [
@@ -1208,6 +1225,21 @@
         "pure-rand"
       ]
     },
+    "fast-string-truncated-width@3.0.3": {
+      "integrity": "sha512-0jjjIEL6+0jag3l2XWWizO64/aZVtpiGE3t0Zgqxv0DPuxiMjvB3M24fCyhZUO4KomJQPj3LTSUnDP3GpdwC0g=="
+    },
+    "fast-string-width@3.0.2": {
+      "integrity": "sha512-gX8LrtNEI5hq8DVUfRQMbr5lpaS4nMIWV+7XEbXk2b8kiQIizgnlr12B4dA3ZEx3308ze0O4Q1R+cHts8kyUJg==",
+      "dependencies": [
+        "fast-string-truncated-width"
+      ]
+    },
+    "fast-wrap-ansi@0.2.2": {
+      "integrity": "sha512-7F2Fl+TjRSenLqlU3UjSH0iyqopqoZIu7eZVpEirP2g1GtWa2G/ecEmBdgz31+Mxr+ELclgg6sokpSFIQiZ02Q==",
+      "dependencies": [
+        "fast-string-width"
+      ]
+    },
     "fd-package-json@2.0.0": {
       "integrity": "sha512-jKmm9YtsNXN789RS/0mSzOC1NUq9mkVd65vbSSVsKdjGvYXBuE4oWe2QOEoFeRmJg+lPuZxpmrfFclNhoRMneQ==",
       "dependencies": [
@@ -1503,6 +1535,9 @@
     "siginfo@2.0.0": {
       "integrity": "sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g=="
     },
+    "sisteransi@1.0.5": {
+      "integrity": "sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg=="
+    },
     "smol-toml@1.6.1": {
       "integrity": "sha512-dWUG8F5sIIARXih1DTaQAX4SsiTXhInKf1buxdY9DIg4ZYPZK5nGM1VRIYmEbDbsHt7USo99xSLFu5Q1IqTmsg=="
     },
@@ -1655,6 +1690,7 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@clack/prompts@^1.6.0",
         "npm:@effect/platform-node@0.106",
         "npm:@effect/platform@0.96",
         "npm:@types/node@^25.9.3",

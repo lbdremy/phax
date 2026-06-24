@@ -38,6 +38,7 @@
     "release": "bash scripts/release.sh"
   },
   "dependencies": {
+    "@clack/prompts": "^1.6.0",
     "@effect/platform": "^0.96.0",
     "@effect/platform-node": "^0.106.0",
     "commander": "^12.0.0",
