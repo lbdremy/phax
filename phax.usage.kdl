@@ -269,7 +269,10 @@ cmd "init" {
     example "phax init"
     example "phax init --force"
     flag "--force" {
-        help "Overwrite an existing phax.json"
+        help "Overwrite and reconfigure an existing phax.json"
+    }
+    flag "--yes" {
+        help "Accept detected defaults without prompting"
     }
 }
 

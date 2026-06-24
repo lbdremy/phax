@@ -311,9 +311,10 @@ export function buildProgram(): Command {
   program
     .command("init")
     .description("Create phax.json and phax.schema.json in the current directory")
-    .option("--force", "Overwrite an existing phax.json")
-    .action((opts: { force?: boolean }) => {
-      const exitCode = runInit(opts, consoleOutput);
+    .option("--force", "Overwrite and reconfigure an existing phax.json")
+    .option("--yes", "Accept detected defaults without prompting")
+    .action(async (opts: { force?: boolean; yes?: boolean }) => {
+      const exitCode = await runInit(opts, consoleOutput);
       process.exit(exitCode);
     });
 
