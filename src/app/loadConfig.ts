@@ -134,6 +134,31 @@ function readUserOverlay(
   return Either.right(decoded.right);
 }
 
+export interface ConfigSources {
+  readonly project: string;
+  readonly localOverlay: string | undefined;
+  readonly globalOverlay: string | undefined;
+}
+
+/**
+ * Reports which config files loadConfig would read for a cwd, reusing the same
+ * discovery helpers and existence rules. Returns undefined when no git root or
+ * no phax.json is found (the same two conditions under which loadConfig returns Left).
+ */
+export function describeConfigSources(cwd: string = process.cwd()): ConfigSources | undefined {
+  const gitRoot = findGitRoot(cwd);
+  if (!gitRoot) return undefined;
+  const configPath = findPhaxConfig(cwd, gitRoot);
+  if (!configPath) return undefined;
+  const localPath = localUserConfigPath(configPath);
+  const globalPath = join(homedir(), ".phax", "config.json");
+  return {
+    project: configPath,
+    localOverlay: existsSync(localPath) ? localPath : undefined,
+    globalOverlay: existsSync(globalPath) ? globalPath : undefined,
+  };
+}
+
 export function locatePhaxConfig(cwd: string): string | undefined {
   const gitRoot = findGitRoot(cwd);
   if (!gitRoot) return undefined;

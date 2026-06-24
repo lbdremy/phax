@@ -1,10 +1,10 @@
 import { mkdtempSync, writeFileSync, rmSync, realpathSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
 import { Either } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { loadConfig } from "../../src/app/loadConfig.js";
+import { loadConfig, describeConfigSources } from "../../src/app/loadConfig.js";
 import { DEFAULT_EXTRACT_MODEL } from "../../src/schemas/phaxConfig.js";
 import { DEFAULT_SECURITY_PROFILE } from "../../src/schemas/securityConfig.js";
 
@@ -190,6 +190,48 @@ describe("loadConfig fileReconciliation resolution", () => {
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
       expect(result.right.fileReconciliationMode).toBe("report_only");
+    }
+  });
+});
+
+describe("describeConfigSources", () => {
+  it("returns undefined when no phax.json exists", () => {
+    const result = describeConfigSources(repoDir);
+    expect(result).toBeUndefined();
+  });
+
+  it("returns project path with undefined overlays when no overlays exist", () => {
+    writePhaxJson(baseConfig);
+    const result = describeConfigSources(repoDir);
+    expect(result).toBeDefined();
+    if (result) {
+      expect(result.project).toBe(join(repoDir, "phax.json"));
+      expect(result.localOverlay).toBeUndefined();
+      // globalOverlay may or may not exist depending on the test machine; we just check it's string or undefined
+      expect(typeof result.globalOverlay === "string" || result.globalOverlay === undefined).toBe(
+        true,
+      );
+    }
+  });
+
+  it("sets localOverlay when phax.local.json exists", () => {
+    writePhaxJson(baseConfig);
+    const localPath = join(repoDir, "phax.local.json");
+    writeFileSync(localPath, JSON.stringify({ version: 1 }));
+    const result = describeConfigSources(repoDir);
+    expect(result).toBeDefined();
+    if (result) {
+      expect(result.localOverlay).toBe(localPath);
+    }
+  });
+
+  it("returns undefined when not inside a git repo", () => {
+    const nonRepo = mkdtempSync(join(tmpdir(), "phax-no-git-"));
+    try {
+      const result = describeConfigSources(nonRepo);
+      expect(result).toBeUndefined();
+    } finally {
+      rmSync(nonRepo, { recursive: true, force: true });
     }
   });
 });
