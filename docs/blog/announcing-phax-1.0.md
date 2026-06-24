@@ -237,7 +237,7 @@ A few things that make phax feel like a finished tool rather than a clever scrip
 - **`phax init`** — one command to scaffold a minimal, valid, schema-backed `phax.json`. The
   `$schema` reference is real and versions with the release, so your editor gives you
   validation and completion that match the phax you actually installed.
-- **Project namespaces** — runs now belong to a project. `phax.json` carries a `namespace`,
+- **Project namespaces** — runs now belong to a project. `phax.json` carries a `name`,
   and runs are identified as `phax.remove-network-controls`, not a globally-ambiguous
   `remove-network-controls`. Inside a repo you still type the short name; phax resolves and
   *displays* the qualified one everywhere. Two projects can both have a
