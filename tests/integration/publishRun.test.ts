@@ -299,7 +299,7 @@ describe("publishRun", () => {
     expect(github.impl.calls.some((c) => c.method === "createPullRequest")).toBe(false);
   });
 
-  it("includes compliance section in PR body when compliance-review.md exists", async () => {
+  it("includes compliance section in PR body when compliance-review.md exists, before phase details", async () => {
     const { fs, git, github, layers } = setupLayers();
     seedSuccessPreconditions({ fs, git });
     github.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/42");
@@ -317,6 +317,10 @@ describe("publishRun", () => {
     expect(prBodyFile).toBeDefined();
     expect(prBodyFile).toContain("## Plan compliance review");
     expect(prBodyFile).toContain(complianceMd);
+    const complianceIdx = prBodyFile!.indexOf("## Plan compliance review");
+    const phaseDetailsIdx = prBodyFile!.indexOf("## Phase details");
+    expect(complianceIdx).toBeGreaterThanOrEqual(0);
+    expect(phaseDetailsIdx).toBeGreaterThan(complianceIdx);
   });
 
   it("PR body is unchanged when compliance-review.md is absent", async () => {

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect } from "effect";
 import { join } from "node:path";
 import { ReviewHandoffArtifactMissingError } from "../domain/errors.js";
 import type { GlobalFileReconciliation } from "../domain/reconciliation/global.js";
@@ -9,17 +9,13 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { writeFinalReport } from "./finalReport.js";
 import { generateGlobalReconciliation } from "./generateGlobalReconciliation.js";
+import { loadPhaseContents, type PhaseContent } from "./loadReviewHandoffInputs.js";
 
 export interface GenerateReviewHandoffOpts {
   readonly allowPartial: boolean;
 }
 
-export interface PhaseContent {
-  readonly phaseId: string;
-  readonly title: string;
-  readonly fileReconciliationMd: string;
-  readonly phaseHandoffMd: string;
-}
+export type { PhaseContent };
 
 const PLAN_COMPLIANCE_REVIEW_HEADING = "## Plan compliance review";
 
@@ -151,38 +147,7 @@ export function generateReviewHandoff(
 
     const globalMd = yield* fs.readText(join(info.runPath, "global-file-reconciliation.md"));
 
-    const missingPhases: string[] = [];
-    const missingPaths: string[] = [];
-    const phaseContents: PhaseContent[] = [];
-
-    for (const phaseId of phaseIds) {
-      const title = info.planPhases.find((p) => p.id === phaseId)?.title ?? phaseId;
-      const fileRecMdPath = join(info.runPath, phaseId, "file-reconciliation.md");
-      const phaseHandoffPath = join(info.runPath, phaseId, "phase-handoff.md");
-
-      const fileRecMdResult = yield* Effect.either(fs.readText(fileRecMdPath));
-      const phaseHandoffResult = yield* Effect.either(fs.readText(phaseHandoffPath));
-
-      if (Either.isLeft(fileRecMdResult)) {
-        missingPhases.push(phaseId);
-        missingPaths.push(fileRecMdPath);
-      }
-      if (Either.isLeft(phaseHandoffResult)) {
-        missingPhases.push(phaseId);
-        missingPaths.push(phaseHandoffPath);
-      }
-
-      phaseContents.push({
-        phaseId,
-        title,
-        fileReconciliationMd: Either.isRight(fileRecMdResult)
-          ? fileRecMdResult.right
-          : `> PARTIAL — file-reconciliation.md missing for ${phaseId}`,
-        phaseHandoffMd: Either.isRight(phaseHandoffResult)
-          ? phaseHandoffResult.right
-          : `> PARTIAL — phase-handoff.md missing for ${phaseId}`,
-      });
-    }
+    const { phaseContents, missingPhases, missingPaths } = yield* loadPhaseContents(info);
 
     if (missingPhases.length > 0 && !opts.allowPartial) {
       yield* Effect.fail(
