@@ -6,6 +6,30 @@ Because every phase declares the files it expects to create or edit, phax makes 
 
 Each phase runs in its own Git worktree, must pass its gates before the next one starts, and has a same-session fix loop for repairing gate failures; the final phase is kept open for human review. The agent itself is interchangeable — Claude Code, Mistral Vibe, or OpenAI Codex — selected by the [model-routing layer](#multi-provider-model-routing), with Claude Code as the default and terminal fallback.
 
+## Quickstart
+
+```bash
+#1. install the CLI
+npm install -g @lbdremy/phax
+
+# 1.1 Install phax-planning skill
+phax skills install --target claude
+# 1.1b Optional: install the phax-cli skill so your agent knows how to drive phax
+phax skills install phax-cli --target claude
+# 1.2 Install phax CLI auto completions (optional - you need usage CLI to be installed first)
+brew install usage
+echo 'source <(phax completions zsh)' >> ~/.zshrc
+
+# 2. Have any coding agent draft the plan (here: Claude Code). Point it at the
+#    phax-planning skill so the plan.md it writes matches the format phax expects:
+claude -p "Write plan.md for specs/<your spec> using the phax-planning skill."
+
+# 3. extract the plan + run every gated phase
+phax run --plan plan.md
+# 4. push the final branch and open the PR
+phax publish-pr <short-name>
+```
+
 ## Install
 
 **Via npm (recommended)** — the wrapper resolves and downloads the correct platform binary on first run:
@@ -490,7 +514,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax security [--verbose] [--trace] <SUBCOMMAND>` — Security-related commands
 - `phax security status [--verbose] [--trace]` — Show provider security capabilities and availability
 - `phax skills <SUBCOMMAND>` — Manage PHAX skills
-- `phax skills install <--target <target>> [--scope <scope>]` — Install the phax-planning skill into an agent's native skill directory
+- `phax skills install <--target <target>> [--scope <scope>] [skill]` — Install a bundled PHAX skill into an agent's native skill directory
 - `phax schema <SUBCOMMAND>` — Manage the local phax.schema.json
 - `phax schema upgrade` — Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json
 
