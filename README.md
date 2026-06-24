@@ -114,7 +114,9 @@ The top-level `name` is the run namespace — run short-names are scoped under i
 Validate it before running:
 
 ```bash
-phax validate --config phax.json --plan phax-plan.json
+phax validate
+# also validate a phax-plan.json:
+phax validate --plan phax-plan.json
 ```
 
 ## Configuration layers
@@ -453,7 +455,7 @@ Once the completion script is installed, Tab also completes run short-names for 
 
 Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 
-- `phax validate [--config <path>] [--plan <path>]` — Validate phax.json and phax-plan.json without any side effects
+- `phax validate [--plan <path>]` — Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json
 - `phax unlock [--force] <short-name>` — Remove a stale run lock; use --force to remove any lock
 - `phax extract-plan <FLAGS>` — Extract phax-plan.json from a plan.md by calling Claude Code headlessly
 - `phax enter <short-name>` — Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.

@@ -33,16 +33,10 @@ flag "--usage-format" {
 complete "short-name" run="phax ls --complete" descriptions=#true
 
 cmd "validate" {
-    help "Validate phax.json and phax-plan.json without any side effects"
-    flag "--config" {
-        arg "<path>"
-        default "phax.json"
-        help "Path to phax.json"
-    }
+    help "Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json"
     flag "--plan" {
         arg "<path>"
-        default "phax-plan.json"
-        help "Path to phax-plan.json"
+        help "Also validate a phax-plan.json at this path"
     }
 }
 
