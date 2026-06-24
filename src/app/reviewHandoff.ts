@@ -14,12 +14,14 @@ export interface GenerateReviewHandoffOpts {
   readonly allowPartial: boolean;
 }
 
-interface PhaseContent {
+export interface PhaseContent {
   readonly phaseId: string;
   readonly title: string;
   readonly fileReconciliationMd: string;
   readonly phaseHandoffMd: string;
 }
+
+const PLAN_COMPLIANCE_REVIEW_HEADING = "## Plan compliance review";
 
 function buildUnexplainedSection(
   global: GlobalFileReconciliation,
@@ -59,11 +61,12 @@ function buildAttentionSection(global: GlobalFileReconciliation): string {
     .join("\n");
 }
 
-function buildReviewHandoffContent(
+export function buildReviewHandoffContent(
   info: RunReviewInfo,
   global: GlobalFileReconciliation,
   globalMd: string,
   phases: readonly PhaseContent[],
+  complianceReviewMd?: string,
 ): string {
   const passed = info.phaseStatuses.filter(
     (p) => p.state !== "failed" && p.state !== "skipped",
@@ -120,7 +123,7 @@ ${buildAttentionSection(global)}
 ## Deviations not explained in any handoff
 
 ${buildUnexplainedSection(global, phases)}
-
+${complianceReviewMd !== undefined ? `\n${PLAN_COMPLIANCE_REVIEW_HEADING}\n\n${complianceReviewMd.trimEnd()}\n` : ""}
 ## Phase details
 
 ${phaseDetails}
