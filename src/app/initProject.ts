@@ -31,6 +31,14 @@ export function writeConfigSchemaFile(targetPath: string): { changed: boolean } 
   return writeSchemaFile(targetPath, getPhaxConfigJsonSchema);
 }
 
+export function serializePhaxConfigSchema(): string {
+  return JSON.stringify(getPhaxConfigJsonSchema(), null, 2) + "\n";
+}
+
+export function serializePhaxUserOverlaySchema(): string {
+  return JSON.stringify(getPhaxUserOverlayJsonSchema(), null, 2) + "\n";
+}
+
 export function upgradeConfigSchema(cwd: string): UpgradeResult {
   const configPath = locatePhaxConfig(cwd);
   if (!configPath) return { kind: "no_config" };
