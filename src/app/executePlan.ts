@@ -17,6 +17,7 @@ import {
   AgentSessionIdMissingError,
   GateAttemptsExhaustedError,
   GateFailedError,
+  HandoffPausedError,
   PhaseHadNoChangesError,
   RateLimitError,
   RegistryCorruptionError,
@@ -95,6 +96,10 @@ function isGateAttemptsExhaustedError(e: unknown): e is GateAttemptsExhaustedErr
   return e instanceof GateAttemptsExhaustedError;
 }
 
+function isHandoffPausedError(e: unknown): e is HandoffPausedError {
+  return e instanceof HandoffPausedError;
+}
+
 // Highest NN suffix on `checks-attempt-NN.log` in the phase folder, or 0 if none.
 // On resume from gate exhaustion we use this to continue numbering attempt
 // artifacts, so prior `checks-attempt-NN.log` / `fix-attempt-NN.jsonl` files are
@@ -154,6 +159,7 @@ export type ExecutePlanError =
   | GateFailedError
   | GateAttemptsExhaustedError
   | HandoffValidationError
+  | HandoffPausedError
   | ArchiveBlockedByDirtyWorktreeError
   | RegistryCorruptionError
   | RateLimitError
@@ -832,7 +838,62 @@ export function executePlan(
         shortName: shortName as string,
         phaseId: phase.id,
         reconciliation,
-      });
+      }).pipe(
+        Effect.catchTags({
+          HandoffValidationError: (e) =>
+            Effect.gen(function* () {
+              yield* dispatch(
+                {
+                  ...eventBase(phase.id),
+                  type: "HandoffMissing",
+                  missingSections: e.missingSections,
+                },
+                ctx,
+              );
+              yield* telemetry.recordEvent(
+                makeStepCompletedTelemetryEvent({
+                  runId,
+                  operationId: phase.id,
+                  step: "handoff.generate",
+                  result: "failure",
+                }),
+              );
+              return yield* Effect.fail(
+                new HandoffPausedError({
+                  message: `Phase "${phase.id}" handoff generation failed: missing sections [${e.missingSections.join(", ")}]`,
+                  phaseId: phase.id,
+                  cause: e,
+                }),
+              );
+            }),
+          AgentInvocationError: (e) =>
+            Effect.gen(function* () {
+              yield* dispatch(
+                {
+                  ...eventBase(phase.id),
+                  type: "HandoffMissing",
+                  missingSections: [],
+                },
+                ctx,
+              );
+              yield* telemetry.recordEvent(
+                makeStepCompletedTelemetryEvent({
+                  runId,
+                  operationId: phase.id,
+                  step: "handoff.generate",
+                  result: "failure",
+                }),
+              );
+              return yield* Effect.fail(
+                new HandoffPausedError({
+                  message: `Phase "${phase.id}" handoff generation failed: ${e.message}`,
+                  phaseId: phase.id,
+                  cause: e,
+                }),
+              );
+            }),
+        }),
+      );
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
           runId,
@@ -996,8 +1057,21 @@ export function executePlan(
         return yield* Effect.fail(e);
       }),
     ),
+    // A post-commit handoff failure pauses the run instead of failing it:
+    // HandoffMissing was dispatched at the catch site inside the phase loop
+    // (which performs the pause transition to interrupted+handoff_failed), so we
+    // just re-raise here. The run is already in `interrupted` state, ready for
+    // `phax resume` to re-run only the handoff.
+    Effect.catchIf(isHandoffPausedError, (e) =>
+      Effect.gen(function* () {
+        return yield* Effect.fail(e);
+      }),
+    ),
     Effect.tapError((e) =>
-      isRateLimitError(e) || isNoChangesError(e) || isGateAttemptsExhaustedError(e)
+      isRateLimitError(e) ||
+      isNoChangesError(e) ||
+      isGateAttemptsExhaustedError(e) ||
+      isHandoffPausedError(e)
         ? Effect.void
         : Effect.gen(function* () {
             if (currentPhaseFolderPath !== undefined) {
