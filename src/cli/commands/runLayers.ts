@@ -32,6 +32,7 @@ import {
   RateLimitError,
   RegistryCorruptionError,
   SecurityEnforcementError,
+  SecurityPreflightError,
   UnsafeGitStateError,
   UsageLimitError,
 } from "../../domain/errors.js";
@@ -83,7 +84,7 @@ export function exitCodeForError(err: unknown): number {
   if (err instanceof RateLimitError || err instanceof UsageLimitError) return 8;
   if (err instanceof PhaseHadNoChangesError) return 9;
   if (err instanceof RegistryCorruptionError) return 10;
-  if (err instanceof SecurityEnforcementError) return 11;
+  if (err instanceof SecurityEnforcementError || err instanceof SecurityPreflightError) return 11;
   return 1;
 }
 

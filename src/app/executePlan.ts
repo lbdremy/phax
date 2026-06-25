@@ -54,7 +54,7 @@ import type { ProviderConfig } from "../schemas/providerConfig.js";
 import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../domain/routing/defaults.js";
 import { resolveModel } from "../domain/routing/resolve.js";
 import type { SecurityFilter } from "../domain/routing/types.js";
-import type { SecurityMode } from "../domain/security/types.js";
+import type { McpMode, SecurityMode } from "../domain/security/types.js";
 import { evaluateProviderSecurity } from "../domain/security/capabilities.js";
 import {
   checkRequiredCommands,
@@ -162,6 +162,33 @@ export type ExecutePlanError =
   | SecurityPreflightError
   | PhaseHadNoChangesError;
 
+export function mcpAllowlistPreflight(mcp: {
+  readonly mode: McpMode;
+  readonly allow: readonly string[];
+}): Effect.Effect<void, SecurityPreflightError, FileSystem> {
+  if (mcp.mode !== "allowlist") return Effect.void;
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const missing: string[] = [];
+    for (const entry of mcp.allow) {
+      const ok = yield* fs.exists(entry).pipe(Effect.orElse(() => Effect.succeed(false)));
+      if (!ok) missing.push(entry);
+    }
+    if (missing.length > 0) {
+      return yield* Effect.fail(
+        new SecurityPreflightError({
+          message: [
+            `Security preflight failed: ${missing.length} mcp.allow ${missing.length === 1 ? "entry does" : "entries do"} not resolve to a readable file.`,
+            `Missing: ${missing.map((e) => `"${e}"`).join(", ")}`,
+            `mcp.allow entries must be paths to MCP server config files (not server names).`,
+          ].join("\n"),
+          missing,
+        }),
+      );
+    }
+  });
+}
+
 export function executePlan(
   opts: ExecutePlanOptions,
 ): Effect.Effect<
@@ -255,6 +282,10 @@ export function executePlan(
         }),
       );
     }
+
+    // Preflight: verify all mcp.allow entries resolve to readable files before
+    // any branch/worktree/agent work begins.
+    yield* mcpAllowlistPreflight(config.security.mcp);
 
     let branch;
     if (startIndex === 0) {

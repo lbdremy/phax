@@ -47,7 +47,7 @@ Add a `security` block to your `phax.json`:
 | `network.profile`       | `"provider-only"` \| `"dev-allowlist"` \| `"open"`                      | `"provider-only"` | Network restriction profile                               |
 | `network.allowDomains`  | `string[]`                                                              | `[]`              | Additional allowed domains (added to provider API domain) |
 | `mcp.mode`              | `"disabled"` \| `"local-only"` \| `"allowlist"` \| `"provider-default"` | `"disabled"`      | MCP access mode                                           |
-| `mcp.allow`             | `string[]`                                                              | `[]`              | Allowed MCP server names/patterns                         |
+| `mcp.allow`             | `string[]`                                                              | `[]`              | Paths to MCP server config files passed to the agent via `--mcp-config`. Name-based allowlisting (server names like `"nx-mcp"`) is not supported; phax validates that every entry resolves to a readable file before the run starts. |
 
 ### Network Profiles
 
@@ -65,7 +65,7 @@ Codex is the only one that enforces a hard on/off egress boundary.
 
 - **`disabled`**: MCP is disabled entirely
 - **`local-only`**: Only local MCP servers are allowed
-- **`allowlist`**: Only explicitly allowed MCP servers can be used
+- **`allowlist`**: Only MCP servers whose config files are listed in `mcp.allow` (as file paths) can be used
 - **`provider-default`**: Use the provider's default MCP behavior
 
 ## CLI Override
