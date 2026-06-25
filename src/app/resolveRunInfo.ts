@@ -89,7 +89,38 @@ function loadRunReviewInfo(
   const finalPhaseStatus = phaseStatuses.toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
 
   if (!finalPhaseStatus) {
-    return Either.left(`No phase statuses found at "${runPath}"`);
+    // No live phase-NN folders (e.g. all archived by reset-phase). Reconstruct
+    // run-level facts from the plan so resume can pick the run back up. Fail only
+    // when the plan is also unavailable, since there is nothing to derive from.
+    const lastPlanPhase = planPhases.at(-1);
+    if (!lastPlanPhase) {
+      return Either.left(`No phase statuses found at "${runPath}"`);
+    }
+    const finalPhaseBranchResult = decodeBranchName(`${branch}--${lastPlanPhase.id}`);
+    if (Either.isLeft(finalPhaseBranchResult)) {
+      return Either.left(`Cannot compute final phase branch for run at "${runPath}"`);
+    }
+    return Either.right({
+      namespace: runStatus.namespace,
+      shortName: runStatus.shortName,
+      runId: runStatus.runId,
+      runState: runStatus.state,
+      branch,
+      runTitle,
+      finalPhaseBranch: finalPhaseBranchResult.right,
+      stateRoot,
+      runPath,
+      finalPhaseId: lastPlanPhase.id,
+      finalPhaseTitle: lastPlanPhase.title,
+      worktreePath: "",
+      claudeSessionId: undefined,
+      gateProfileId: runStatus.gateProfileId,
+      phaseStatuses: [],
+      planPhases,
+      updatedAt: runStatus.updatedAt,
+      stoppedReason: runStatus.stoppedReason,
+      lastError: runStatus.lastError,
+    });
   }
 
   const finalPlanPhase = planPhases.find((p) => p.id === finalPhaseStatus.phaseId);
