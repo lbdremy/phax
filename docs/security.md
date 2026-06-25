@@ -31,7 +31,7 @@ Add a `security` block to your `phax.json`:
     },
     "mcp": {
       "mode": "disabled",
-      "allow": ["my-trusted-mcp"]
+      "allow": ["/path/to/mcp-server.json"]
     }
   }
 }
