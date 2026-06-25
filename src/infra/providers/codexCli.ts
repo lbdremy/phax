@@ -22,6 +22,7 @@ import type { SecurityPolicy } from "../../domain/security/types.js";
 import { classifyRateLimit } from "../../schemas/claudeOutput.js";
 import { findCodexResultEvent, hasCodexErroredResultEvent } from "../../schemas/codexOutput.js";
 import { persistSessionId } from "./sessionWriter.js";
+import { writeAgentErrorLog } from "./agentErrorLog.js";
 
 type CodexProviderEntry = {
   readonly executable: string;
@@ -321,11 +322,16 @@ export function runCodexAgent(
   return Effect.gen(function* () {
     const { lines, exitCode, stderr } = yield* Effect.tryPromise({
       try: () => spawnCodex(entry, args, prompt, options.outputJsonlPath, options.cwd),
-      catch: (err): AgentInvocationError =>
-        new AgentInvocationError({
+      catch: (err): AgentInvocationError => {
+        writeAgentErrorLog(options.phaseFolderPath, {
+          argv,
+          stderr: err instanceof Error ? err.message : String(err),
+        });
+        return new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
           argv,
-        }),
+        });
+      },
     });
 
     if (exitCode !== 0 || hasCodexErroredResultEvent(lines)) {
@@ -336,6 +342,7 @@ export function runCodexAgent(
     }
 
     if (exitCode !== 0) {
+      writeAgentErrorLog(options.phaseFolderPath, { argv, exitCode, stderr });
       return yield* Effect.fail(
         new AgentInvocationError({
           message: `codex exited with code ${exitCode}`,

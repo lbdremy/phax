@@ -26,6 +26,7 @@ import {
   type RateLimitClassification,
 } from "../../schemas/claudeOutput.js";
 import { persistSessionId } from "./sessionWriter.js";
+import { writeAgentErrorLog } from "./agentErrorLog.js";
 
 function wrapFsError(err: unknown): FsError {
   return new FsError({
@@ -338,11 +339,16 @@ export function runClaudeAgent(
   return Effect.gen(function* () {
     const { lines, exitCode, stderr } = yield* Effect.tryPromise({
       try: () => spawnClaude(args, prompt, options.outputJsonlPath, options.cwd),
-      catch: (err): AgentInvocationError =>
-        new AgentInvocationError({
+      catch: (err): AgentInvocationError => {
+        writeAgentErrorLog(options.phaseFolderPath, {
+          argv: ["claude", ...args],
+          stderr: err instanceof Error ? err.message : String(err),
+        });
+        return new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
           argv: ["claude", ...args],
-        }),
+        });
+      },
     });
 
     // Reclassify a failure as a rate/usage limit when the output carries one of
@@ -355,6 +361,7 @@ export function runClaudeAgent(
     }
 
     if (exitCode !== 0) {
+      writeAgentErrorLog(options.phaseFolderPath, { argv: ["claude", ...args], exitCode, stderr });
       return yield* Effect.fail(
         new AgentInvocationError({
           message: `claude exited with code ${exitCode}`,
