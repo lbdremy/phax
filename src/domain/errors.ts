@@ -94,6 +94,12 @@ export class PhaseHadNoChangesError extends Data.TaggedError("PhaseHadNoChangesE
   runPath: string;
 }> {}
 
+export class HandoffPausedError extends Data.TaggedError("HandoffPausedError")<{
+  message: string;
+  phaseId: string;
+  cause: unknown;
+}> {}
+
 export class RegistryCorruptionError extends Data.TaggedError("RegistryCorruptionError")<{
   message: string;
   registryPath: string;

@@ -531,6 +531,12 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
               phase: { state: "handoff_failed", missing: event.missingSections },
             });
           }
+          if (ps === "committed") {
+            return handled({
+              run: "interrupted",
+              phase: { state: "handoff_failed", missing: event.missingSections },
+            });
+          }
           return unexpected(`handoff missing while phase is ${ps}`);
         }
         case "rate_limited":
