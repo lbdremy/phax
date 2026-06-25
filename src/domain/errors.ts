@@ -35,6 +35,7 @@ export class AgentInvocationError extends Data.TaggedError("AgentInvocationError
   argv?: readonly string[];
   stderrExcerpt?: string;
   expected?: string;
+  phaseFolderPath?: string | undefined;
 }> {}
 
 export class AgentSessionIdMissingError extends Data.TaggedError("AgentSessionIdMissingError")<{

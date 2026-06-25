@@ -220,6 +220,7 @@ export function runVibeAgent(
         return new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
           argv,
+          phaseFolderPath: options.phaseFolderPath,
         });
       },
     });
@@ -239,6 +240,7 @@ export function runVibeAgent(
           exitCode,
           ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
           argv,
+          phaseFolderPath: options.phaseFolderPath,
         }),
       );
     }

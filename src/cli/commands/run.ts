@@ -6,6 +6,7 @@ import { decodeShortName, type ShortName } from "../../domain/branded.js";
 import { runKey, nextAvailableShortName } from "../../domain/runRef.js";
 import { decodeRegistry } from "../../schemas/registry.js";
 import {
+  AgentInvocationError,
   GateAttemptsExhaustedError,
   PhaseHadNoChangesError,
   RateLimitError,
@@ -31,7 +32,12 @@ import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../schemas/phaxPlan.js";
-import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
+import {
+  buildSystemTelemetryLayer,
+  exitCodeForError,
+  provideRunLayers,
+  renderAgentInvocationError,
+} from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
@@ -361,6 +367,12 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
           ),
         );
         out.warn(`See ${join(runFolder, "resume-instructions.md")} for details.`);
+        return exitCodeForError(err);
+      }
+      if (err instanceof AgentInvocationError) {
+        const { message, logHint } = renderAgentInvocationError(err);
+        out.error(`phax run failed: ${message}`);
+        if (logHint) out.warn(logHint);
         return exitCodeForError(err);
       }
       out.error(`phax run failed: ${err instanceof Error ? err.message : String(err)}`);
