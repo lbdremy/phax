@@ -9,12 +9,12 @@ import {
   SKILL_TARGETS,
   SKILL_SCOPES,
 } from "../../domain/skills/types.js";
-import { PHAX_PLANNING_SKILL } from "../../domain/skills/catalog.js";
+import { EXPOSED_SKILL_NAMES, findExposedSkill } from "../../domain/skills/catalog.js";
 import { installSkill } from "../../app/skills/installSkill.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 
 export async function runSkillsInstall(
-  opts: { target: string; scope?: string },
+  opts: { target: string; scope?: string | undefined; skill?: string | undefined },
   out: OutputPort,
 ): Promise<number> {
   const target = parseSkillTarget(opts.target);
@@ -30,38 +30,49 @@ export async function runSkillsInstall(
     return 2;
   }
 
+  // No skill named → install every bundled skill; a name → install just that one.
+  let skillNames: readonly string[];
+  if (opts.skill === undefined) {
+    skillNames = EXPOSED_SKILL_NAMES;
+  } else {
+    if (findExposedSkill(opts.skill) === null) {
+      out.error(`Unknown skill "${opts.skill}". Valid values: ${EXPOSED_SKILL_NAMES.join(", ")}`);
+      return 2;
+    }
+    skillNames = [opts.skill];
+  }
+
   const bundleRoot = join(import.meta.dirname, "../../..", ".claude", "skills");
   const projectRoot = process.cwd();
   const homeDir = homedir();
 
-  const result = await Effect.runPromise(
-    Effect.either(
-      installSkill({
-        skillName: PHAX_PLANNING_SKILL,
-        target,
-        scope,
-        projectRoot,
-        homeDir,
-        bundleRoot,
-      }),
-    ).pipe(Effect.provide(NodeFileSystemLayer)),
-  );
-
-  if (Either.isLeft(result)) {
-    out.error(result.left.message);
-    return 2;
-  }
-
-  const { destination, status } = result.right;
-  const displayStatus = status === "already-present" ? "already present" : status;
-
-  out.log("Installed PHAX planning skill.");
-  out.log("");
   out.log(`Target: ${target}`);
   out.log(`Scope: ${scope}`);
-  out.log(`Skill: ${PHAX_PLANNING_SKILL}`);
-  out.log(`Destination: ${destination}`);
-  out.log(`Status: ${displayStatus}`);
+  out.log("");
+
+  for (const skillName of skillNames) {
+    const result = await Effect.runPromise(
+      Effect.either(
+        installSkill({
+          skillName,
+          target,
+          scope,
+          projectRoot,
+          homeDir,
+          bundleRoot,
+        }),
+      ).pipe(Effect.provide(NodeFileSystemLayer)),
+    );
+
+    if (Either.isLeft(result)) {
+      out.error(result.left.message);
+      return 2;
+    }
+
+    const { destination, status } = result.right;
+    const displayStatus = status === "already-present" ? "already present" : status;
+    out.log(`${skillName}: ${displayStatus} (${destination})`);
+  }
 
   return 0;
 }
@@ -71,11 +82,15 @@ export function registerSkillsCommand(program: Command, out: OutputPort): void {
 
   skillsCmd
     .command("install")
-    .description("Install the phax-planning skill into an agent's native skill directory")
+    .description("Install bundled PHAX skills into an agent's native skill directory")
+    .argument(
+      "[skill]",
+      `Skill to install (${EXPOSED_SKILL_NAMES.join("|")}); installs all skills when omitted`,
+    )
     .requiredOption("--target <target>", `Agent target (${SKILL_TARGETS.join("|")})`)
     .option("--scope <scope>", `Installation scope (${SKILL_SCOPES.join("|")})`, "project")
-    .action(async (opts: { target: string; scope?: string }) => {
-      const exitCode = await runSkillsInstall(opts, out);
+    .action(async (skill: string | undefined, opts: { target: string; scope?: string }) => {
+      const exitCode = await runSkillsInstall({ ...opts, skill }, out);
       process.exit(exitCode);
     });
 }
