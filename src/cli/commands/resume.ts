@@ -5,6 +5,7 @@ import type { OutputPort } from "../../ports/output.js";
 import { decodeRunId, decodeShortName } from "../../domain/branded.js";
 import { decodePublication } from "../../schemas/publication.js";
 import {
+  AgentInvocationError,
   GateAttemptsExhaustedError,
   PhaseHadNoChangesError,
   RateLimitError,
@@ -29,7 +30,12 @@ import type { NonEmptyArray } from "../../domain/routing/priorityOverride.js";
 import type { ProviderId } from "../../domain/routing/types.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
-import { buildSystemTelemetryLayer, exitCodeForError, provideRunLayers } from "./runLayers.js";
+import {
+  buildSystemTelemetryLayer,
+  exitCodeForError,
+  provideRunLayers,
+  renderAgentInvocationError,
+} from "./runLayers.js";
 import { reportConfigError } from "./reportConfigError.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
@@ -282,6 +288,12 @@ export async function runResume(
           ),
         );
         out.warn(`See ${join(runPath, "resume-instructions.md")} for details.`);
+        return exitCodeForError(err);
+      }
+      if (err instanceof AgentInvocationError) {
+        const { message, logHint } = renderAgentInvocationError(err);
+        out.error(`phax resume failed: ${message}`);
+        if (logHint) out.warn(logHint);
         return exitCodeForError(err);
       }
       out.error(`phax resume failed: ${err instanceof Error ? err.message : String(err)}`);

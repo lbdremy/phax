@@ -2,6 +2,7 @@ import type { Disposition } from "./disposition.js";
 import type { PhaxCommand } from "./effects.js";
 import type { PhaxEvent } from "./events.js";
 import type { PhaxState } from "./state.js";
+import { AgentInvocationError } from "./errors.js";
 
 const handled = (
   nextState: PhaxState,
@@ -17,9 +18,17 @@ function assertNever(x: never): never {
   throw new Error(`Unhandled discriminator: ${JSON.stringify(x)}`);
 }
 
-function describeCause(cause: unknown): string {
+export function describeCause(cause: unknown): string {
   if (cause == null) return "unknown";
   if (typeof cause === "string") return cause;
+  if (cause instanceof AgentInvocationError) {
+    const raw = cause.stderrExcerpt ?? cause.stderr;
+    if (raw) {
+      const bounded = raw.slice(-500).trim();
+      if (bounded) return `${cause.message}: ${bounded}`;
+    }
+    return cause.message;
+  }
   if (cause instanceof Error) return cause.message;
   return String(cause);
 }

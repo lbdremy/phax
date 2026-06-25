@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { Effect, Layer } from "effect";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
@@ -84,4 +85,18 @@ export function exitCodeForError(err: unknown): number {
   if (err instanceof RegistryCorruptionError) return 10;
   if (err instanceof SecurityEnforcementError) return 11;
   return 1;
+}
+
+export function renderAgentInvocationError(err: AgentInvocationError): {
+  message: string;
+  logHint: string | undefined;
+} {
+  const raw = err.stderrExcerpt ?? err.stderr;
+  const bounded = raw ? raw.slice(-500).trim() : undefined;
+  const message = bounded ? `${err.message}: ${bounded}` : err.message;
+  const logHint =
+    err.phaseFolderPath !== undefined
+      ? `See ${join(err.phaseFolderPath, "agent-error.log")} for the full agent output.`
+      : undefined;
+  return { message, logHint };
 }

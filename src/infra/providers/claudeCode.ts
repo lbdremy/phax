@@ -347,6 +347,7 @@ export function runClaudeAgent(
         return new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
           argv: ["claude", ...args],
+          phaseFolderPath: options.phaseFolderPath,
         });
       },
     });
@@ -368,6 +369,7 @@ export function runClaudeAgent(
           exitCode,
           ...(stderr ? { stderr, stderrExcerpt: stderr } : {}),
           argv: ["claude", ...args],
+          phaseFolderPath: options.phaseFolderPath,
         }),
       );
     }
