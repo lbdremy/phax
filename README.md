@@ -12,10 +12,8 @@ Each phase runs in its own Git worktree, must pass its gates before the next one
 #1. install the CLI
 npm install -g @lbdremy/phax
 
-# 1.1 Install phax-planning skill
+# 1.1 Install the phax skills (phax-planning + phax-cli) into your agent
 phax skills install --target claude
-# 1.1b Optional: install the phax-cli skill so your agent knows how to drive phax
-phax skills install phax-cli --target claude
 # 1.2 Install phax CLI auto completions (optional - you need usage CLI to be installed first)
 brew install usage
 echo 'source <(phax completions zsh)' >> ~/.zshrc
@@ -514,7 +512,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax security [--verbose] [--trace] <SUBCOMMAND>` — Security-related commands
 - `phax security status [--verbose] [--trace]` — Show provider security capabilities and availability
 - `phax skills <SUBCOMMAND>` — Manage PHAX skills
-- `phax skills install <--target <target>> [--scope <scope>] [skill]` — Install a bundled PHAX skill into an agent's native skill directory
+- `phax skills install <--target <target>> [--scope <scope>] [skill]` — Install bundled PHAX skills into an agent's native skill directory
 - `phax schema <SUBCOMMAND>` — Manage the local phax.schema.json
 - `phax schema upgrade` — Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json
 

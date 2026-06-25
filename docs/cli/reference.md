@@ -695,9 +695,15 @@ Manage PHAX skills
 
 ## `phax skills install`
 
-- **Usage**: `phax skills install <--target <target>> [--scope <scope>]`
+- **Usage**: `phax skills install <--target <target>> [--scope <scope>] [skill]`
 
-Install the phax-planning skill into an agent's native skill directory
+Install bundled PHAX skills into an agent's native skill directory
+
+### Arguments
+
+#### `[skill]`
+
+Skill to install (phax-planning|phax-cli); installs all skills when omitted
 
 ### Flags
 

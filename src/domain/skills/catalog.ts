@@ -6,6 +6,7 @@ export interface ExposedSkill {
 }
 
 export const PHAX_PLANNING_SKILL = "phax-planning";
+export const PHAX_CLI_SKILL = "phax-cli";
 
 export const EXPOSED_SKILLS: readonly ExposedSkill[] = [
   {
@@ -14,7 +15,15 @@ export const EXPOSED_SKILLS: readonly ExposedSkill[] = [
     files: ["SKILL.md"],
     requiredFile: "SKILL.md",
   },
+  {
+    name: PHAX_CLI_SKILL,
+    sourceDir: "phax-cli",
+    files: ["SKILL.md"],
+    requiredFile: "SKILL.md",
+  },
 ];
+
+export const EXPOSED_SKILL_NAMES: readonly string[] = EXPOSED_SKILLS.map((s) => s.name);
 
 export function findExposedSkill(name: string): ExposedSkill | null {
   return EXPOSED_SKILLS.find((s) => s.name === name) ?? null;
