@@ -147,7 +147,12 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "running":
         case "interrupted": {
           const ps = state.phase.state;
-          if (ps === "committed" || ps === "cleaned_up" || ps === "skipped") {
+          if (
+            ps === "committed" ||
+            ps === "cleaned_up" ||
+            ps === "skipped" ||
+            ps === "handoff_failed"
+          ) {
             return handled({ run: "review_open", phase: { state: "review_open" } }, [
               { type: "OpenRunReview", info: event.info },
             ]);
@@ -537,6 +542,13 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
               phase: { state: "handoff_failed", missing: event.missingSections },
             });
           }
+          // A second handoff failure during resume-from-handoff: pause again.
+          if (ps === "handoff_failed") {
+            return handled({
+              run: "interrupted",
+              phase: { state: "handoff_failed", missing: event.missingSections },
+            });
+          }
           return unexpected(`handoff missing while phase is ${ps}`);
         }
         case "rate_limited":
@@ -585,7 +597,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
       switch (state.run) {
         case "running": {
           const ps = state.phase.state;
-          if (ps === "committed") {
+          if (ps === "committed" || ps === "handoff_failed") {
             return handled({ run: "running", phase: { state: "cleaning_up" } });
           }
           return unexpected(`cleanup started while phase is ${ps}`);

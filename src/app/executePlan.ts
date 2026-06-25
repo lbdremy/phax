@@ -70,6 +70,8 @@ import { recordGateProfileInRunStatus, resolveGateProfile } from "./gates.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
 import { readPreviousHandoff, readPreviousReconciliation } from "./handoffInjection.js";
+import type { ReconciliationResult } from "../domain/reconciliation/types.js";
+import { decodePhaseFileReconciliation } from "../schemas/reconciliation.js";
 import { createPhaseFolder } from "./phaseFolder.js";
 import { recordPhaseWorktreeAndBranch } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
@@ -341,6 +343,7 @@ export function executePlan(
     const resumePhaseFolderPath = resumePhase ? join(runPath, resumePhase.id) : undefined;
     const resumePhaseId = resumePhase?.id;
     let resumeFromGate = false;
+    let resumeFromHandoff = false;
     let resumeSessionId: string | undefined;
     let resumeWorktreePath: string | undefined;
     let resumeAttempt = 0;
@@ -358,6 +361,10 @@ export function executePlan(
             resumePhaseFolderPath !== undefined
               ? maxAttemptIndexInPhaseFolder(resumePhaseFolderPath)
               : 0;
+        } else if (phaseStatus?.state === "handoff_failed") {
+          resumeFromHandoff = true;
+          resumeSessionId = phaseStatus.claudeSessionId;
+          resumeWorktreePath = phaseStatus.worktreePath;
         }
       }
     }
@@ -384,6 +391,7 @@ export function executePlan(
       if (phase === undefined) continue;
       const isFinal = i === plan.phases.length - 1;
       const isResumeFromGate = i === startIndex && resumeFromGate;
+      const isResumeFromHandoff = i === startIndex && resumeFromHandoff;
 
       // Resolve the phase branch before creating the phase folder so the
       // initial status.json can include branchName (required by the schema).
@@ -404,11 +412,11 @@ export function executePlan(
       let sessionId: ClaudeSessionId;
       let agentOptions: AgentRunOptions;
 
-      if (isResumeFromGate) {
-        // Resume-from-gate: the worktree, branch, prompt, model-resolution,
+      if (isResumeFromGate || isResumeFromHandoff) {
+        // Resume-from-gate / resume-from-handoff: the worktree, branch, model-resolution,
         // security posture, and Claude session were all written on the original
-        // attempt. Re-enter the gate loop using the captured session — never
-        // start a blind fix session if the session id is missing.
+        // attempt. Re-enter at the appropriate step using the captured session — never
+        // start a blind fix/handoff session if the session id is missing.
         if (resumeSessionId === undefined) {
           return yield* Effect.fail(
             new AgentSessionIdMissingError({
@@ -775,56 +783,83 @@ export function executePlan(
       // `ctx` is used by the FinalReviewOpened dispatch later in the loop.
       const ctx = dispatchCtx(phaseFolderPath, phase.id);
 
-      // running → passed transition is dispatched inside fixLoop on the
-      // gate-success branch via dispatch(GatePassed). On resume-from-gate the
-      // loop starts at `resumeAttempt + 1` with a fresh fix budget so prior
-      // attempt artifacts are preserved.
-      yield* runGatesWithFixLoop({
-        commands: gateCommands,
-        cwd: worktreePath as string,
-        phaseFolderPath,
-        sessionId,
-        agentOptions,
-        maxFixAttempts: config.maxFixAttempts,
-        run: shortName as string,
-        phaseId: phase.id,
-        runPath,
-        ...(isResumeFromGate
-          ? { startAttempt: resumeAttempt + 1, worktreePath: worktreePath as string }
-          : {}),
-      });
+      if (!isResumeFromHandoff) {
+        // running → passed transition is dispatched inside fixLoop on the
+        // gate-success branch via dispatch(GatePassed). On resume-from-gate the
+        // loop starts at `resumeAttempt + 1` with a fresh fix budget so prior
+        // attempt artifacts are preserved.
+        yield* runGatesWithFixLoop({
+          commands: gateCommands,
+          cwd: worktreePath as string,
+          phaseFolderPath,
+          sessionId,
+          agentOptions,
+          maxFixAttempts: config.maxFixAttempts,
+          run: shortName as string,
+          phaseId: phase.id,
+          runPath,
+          ...(isResumeFromGate
+            ? { startAttempt: resumeAttempt + 1, worktreePath: worktreePath as string }
+            : {}),
+        });
 
-      // commitPhase dispatches CommitCreated internally.
-      yield* commitPhase({
-        phase,
-        worktreePath,
-        phaseFolderPath,
-        runId: runId as string,
-        shortName: shortName as string,
-        sessionId,
-        gateLogPath: join(phaseFolderPath, "checks-attempt-01.log"),
-        repoRoot: config.repoRoot,
-        runPath,
-      });
+        // commitPhase dispatches CommitCreated internally.
+        yield* commitPhase({
+          phase,
+          worktreePath,
+          phaseFolderPath,
+          runId: runId as string,
+          shortName: shortName as string,
+          sessionId,
+          gateLogPath: join(phaseFolderPath, "checks-attempt-01.log"),
+          repoRoot: config.repoRoot,
+          runPath,
+        });
 
-      committedPhases.push(phase.id);
-      yield* telemetry.recordEvent(
-        makeAdapterCallSucceededTelemetryEvent({
-          runId,
-          operationId: phase.id,
-          adapter: "git",
-          operation: "commit.create",
-        }),
-      );
+        committedPhases.push(phase.id);
+        yield* telemetry.recordEvent(
+          makeAdapterCallSucceededTelemetryEvent({
+            runId,
+            operationId: phase.id,
+            adapter: "git",
+            operation: "commit.create",
+          }),
+        );
+      }
 
-      // Reconcile after commit so diffNameStatus diffs HEAD^ against HEAD.
-      const reconciliation = yield* reconcilePhaseFiles({
-        phase,
-        worktreePath,
-        phaseFolderPath,
-        runId: runId as string,
-        fileReconciliationMode: config.fileReconciliationMode,
-      });
+      let reconciliation: ReconciliationResult;
+      if (isResumeFromHandoff) {
+        // The phase already committed; read the persisted reconciliation rather than
+        // re-diffing HEAD (the worktree is clean and the diff would be empty).
+        const fs = yield* FileSystem;
+        const reconRaw = yield* fs.readText(join(phaseFolderPath, "file-reconciliation.json"));
+        const reconDecoded = decodePhaseFileReconciliation(JSON.parse(reconRaw));
+        reconciliation = Either.isRight(reconDecoded)
+          ? reconDecoded.right
+          : {
+              createdAsPlanned: [],
+              editedAsPlanned: [],
+              missingPlannedCreate: [],
+              missingPlannedEdit: [],
+              createdButPlannedEdit: [],
+              editedButPlannedCreate: [],
+              unplannedCreated: [],
+              unplannedEdited: [],
+              optionalTouched: [],
+              deletions: [],
+              renames: [],
+              hasDeviations: false,
+            };
+      } else {
+        // Reconcile after commit so diffNameStatus diffs HEAD^ against HEAD.
+        reconciliation = yield* reconcilePhaseFiles({
+          phase,
+          worktreePath,
+          phaseFolderPath,
+          runId: runId as string,
+          fileReconciliationMode: config.fileReconciliationMode,
+        });
+      }
 
       yield* telemetry.recordEvent(
         makeStepStartedTelemetryEvent({ runId, operationId: phase.id, step: "handoff.generate" }),
