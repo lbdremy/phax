@@ -399,7 +399,9 @@ phax review-compliance usage-cli
 
 - **Usage**: `phax review-code [FLAGS] <short-name>`
 
-Open an interactive, pre-prompted code-review session for a review_open run
+Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.
+
+Side effects: writes a code-review prompt file under the worktree's .phax-context/ and a session record under the run directory; spawns a long-lived interactive AI agent session (network I/O).
 
 ### Arguments
 
@@ -420,6 +422,12 @@ Override the model, including on resume (default: review.code.model, else claude
 #### `--effort <effort>`
 
 Override the effort (low | medium | high), including on resume (default: review.code.effort, else high)
+
+### Examples
+
+```
+phax review-code usage-cli
+```
 
 ## `phax init`
 
