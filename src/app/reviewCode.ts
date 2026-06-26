@@ -253,22 +253,11 @@ export function prepareCodeReviewSession(
     });
 
     const phaxContextPath = join(worktreePath, PHAX_CONTEXT_DIR);
-    yield* fs.mkdirp(phaxContextPath);
-
     const promptFilePath = join(phaxContextPath, CODE_REVIEW_PROMPT_FILENAME);
-    yield* fs.writeAtomic(promptFilePath, promptContent);
-
-    yield* telemetry.recordEvent(
-      makeArtifactGeneratedTelemetryEvent({
-        runId,
-        operationId: info.shortName,
-        artifact: CODE_REVIEW_PROMPT_FILENAME,
-        path: promptFilePath,
-      }),
-    );
-
     const positionalPrompt = buildCodeReviewPositionalPrompt(promptFilePath);
 
+    // Resolve the invocation before writing anything: an unsupported provider
+    // must not leave a leaked prompt file on disk.
     const adapter = getSessionAdapter(provider);
     const invocation = adapter.buildReviewInvocation({
       worktreePath,
@@ -292,6 +281,18 @@ export function prepareCodeReviewSession(
         message: invocation.unsupported,
       } satisfies PrepareCodeReviewResult;
     }
+
+    yield* fs.mkdirp(phaxContextPath);
+    yield* fs.writeAtomic(promptFilePath, promptContent);
+
+    yield* telemetry.recordEvent(
+      makeArtifactGeneratedTelemetryEvent({
+        runId,
+        operationId: info.shortName,
+        artifact: CODE_REVIEW_PROMPT_FILENAME,
+        path: promptFilePath,
+      }),
+    );
 
     const sessionRecord: CodeReviewSession = {
       version: 1,
