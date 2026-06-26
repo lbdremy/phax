@@ -140,6 +140,16 @@ export interface PhaseHadNoChanges extends PhaxEventBase {
   readonly reason: string;
 }
 
+// Cross-cutting: the commit step failed after the gate passed.
+// Transitions run → interrupted while keeping phase → passed (resumable).
+export interface CommitFailed extends PhaxEventBase {
+  readonly type: "CommitFailed";
+  readonly phaseId: PhaseId;
+  readonly worktreePath: WorktreePath;
+  readonly sessionId: ClaudeSessionId;
+  readonly reason: string;
+}
+
 // Cross-cutting: affects both run and phase substate.
 export interface RateLimitDetected extends PhaxEventBase {
   readonly type: "RateLimitDetected";
@@ -178,6 +188,7 @@ export type PhaxEvent =
   | HandoffValidated
   | HandoffMissing
   | CommitCreated
+  | CommitFailed
   | CleanupStarted
   | CleanupCompleted
   | PhaseHadNoChanges

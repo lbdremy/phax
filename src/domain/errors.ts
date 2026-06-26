@@ -100,6 +100,12 @@ export class HandoffPausedError extends Data.TaggedError("HandoffPausedError")<{
   cause: unknown;
 }> {}
 
+export class CommitPausedError extends Data.TaggedError("CommitPausedError")<{
+  message: string;
+  phaseId: string;
+  cause: unknown;
+}> {}
+
 export class RegistryCorruptionError extends Data.TaggedError("RegistryCorruptionError")<{
   message: string;
   registryPath: string;

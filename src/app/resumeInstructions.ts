@@ -107,9 +107,38 @@ function buildRateLimitInstructions(input: ResumeInstructionsInput): string {
   return lines.join("\n");
 }
 
+function buildCommitFailedInstructions(input: ResumeInstructionsInput): string {
+  const phaseId = input.phaseId ?? "(unknown)";
+  const wn = buildWhatsNext(
+    { kind: "gates_exhausted", shortName: input.shortName, phaseId: input.phaseId },
+    input.now,
+  );
+
+  const lines: string[] = [
+    `# Resume Instructions: ${input.shortName}`,
+    "",
+    "This run paused because the commit step failed after the gate passed.",
+    "The gate is already satisfied — only the commit (and subsequent handoff/cleanup)",
+    "needs to be re-run. Fix the commit error in the worktree, then resume.",
+    "",
+    "## Why it stopped",
+    "",
+    `- **Reason:** ${input.reason}`,
+    `- **Current phase:** ${phaseId}`,
+    `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
+    `- **Claude session:** ${input.sessionId ?? "(not captured)"}`,
+    "",
+    ...stepsToMarkdown(wn.steps),
+  ];
+  return lines.join("\n");
+}
+
 export function buildResumeInstructions(input: ResumeInstructionsInput): string {
   if (input.kind === "gates_exhausted") {
     return buildGateExhaustionInstructions(input);
+  }
+  if (input.kind === "commit_failed") {
+    return buildCommitFailedInstructions(input);
   }
   return buildRateLimitInstructions(input);
 }
