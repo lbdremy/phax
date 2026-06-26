@@ -337,6 +337,8 @@ describe("prepareCodeReviewSession", () => {
 
     // No session record persisted
     expect(fs.impl.getFile(sessionRecordPath)).toBeUndefined();
+    // No prompt file leaked to the worktree on the unsupported path
+    expect(fs.impl.getFile(promptFilePath)).toBeUndefined();
   });
 
   it("missing agent binding: returns kind 'refused'", async () => {
