@@ -103,12 +103,6 @@ Run short name, e.g. usage-cli
 phax enter usage-cli
 ```
 
-## `phax enter-last`
-
-- **Usage**: `phax enter-last`
-
-Resume the final phase's session for the last review_open run in this project
-
 ## `phax enter-phase`
 
 - **Usage**: `phax enter-phase <short-name> <phase-id>`
@@ -177,12 +171,6 @@ Run short name, e.g. usage-cli
 phax shell usage-cli
 ```
 
-## `phax shell-last`
-
-- **Usage**: `phax shell-last`
-
-Open a shell in the final worktree for the last review_open run in this project
-
 ## `phax path`
 
 - **Usage**: `phax path <short-name>`
@@ -205,12 +193,6 @@ phax path usage-cli
 cd $(phax path usage-cli)
 ```
 
-## `phax path-last`
-
-- **Usage**: `phax path-last`
-
-Print the final worktree path for the last review_open run in this project
-
 ## `phax open`
 
 - **Usage**: `phax open <short-name>`
@@ -228,12 +210,6 @@ Run short name, e.g. usage-cli
 ```
 phax open usage-cli
 ```
-
-## `phax open-last`
-
-- **Usage**: `phax open-last`
-
-Open the final worktree in the configured editor for the last review_open run in this project
 
 ## `phax ls`
 
@@ -310,18 +286,6 @@ phax archive usage-cli
 ```
 phax archive usage-cli --force
 ```
-
-## `phax archive-last`
-
-- **Usage**: `phax archive-last [--force]`
-
-Archive the last review_open run in this project
-
-### Flags
-
-#### `--force`
-
-Archive even if the final worktree has uncommitted changes
 
 ## `phax run`
 

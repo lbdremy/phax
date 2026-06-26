@@ -5,14 +5,14 @@ import { handleUsageFlag, readPackageVersion } from "./commands/usage.js";
 import { runValidate } from "./commands/validate.js";
 import { runUnlock } from "./commands/unlock.js";
 import { runExtractPlan } from "./commands/extractPlan.js";
-import { runEnter, runEnterLast } from "./commands/enter.js";
+import { runEnter } from "./commands/enter.js";
 import { runEnterPhase } from "./commands/enterPhase.js";
 import { runSessionInfo } from "./commands/sessionInfo.js";
-import { runShell, runShellLast } from "./commands/shell.js";
-import { runPath, runPathLast } from "./commands/path.js";
-import { runOpen, runOpenLast } from "./commands/open.js";
+import { runShell } from "./commands/shell.js";
+import { runPath } from "./commands/path.js";
+import { runOpen } from "./commands/open.js";
 import { runLs } from "./commands/ls.js";
-import { runArchive, runArchiveLast } from "./commands/archive.js";
+import { runArchive } from "./commands/archive.js";
 import { runReviewHandoff } from "./commands/reviewHandoff.js";
 import { runPublishPr } from "./commands/publishPr.js";
 import { runReviewCompliance } from "./commands/reviewCompliance.js";
@@ -123,14 +123,6 @@ export function buildProgram(): Command {
     });
 
   program
-    .command("enter-last")
-    .description("Resume the final phase's session for the last review_open run in this project")
-    .action(async () => {
-      const exitCode = await runEnterLast(consoleOutput);
-      process.exit(exitCode);
-    });
-
-  program
     .command("enter-phase")
     .description("Resume a specific phase's agent session interactively")
     .argument("<short-name>", "Run short name, e.g. usage-cli")
@@ -160,14 +152,6 @@ export function buildProgram(): Command {
     });
 
   program
-    .command("shell-last")
-    .description("Open a shell in the final worktree for the last review_open run in this project")
-    .action(async () => {
-      const exitCode = await runShellLast(consoleOutput);
-      process.exit(exitCode);
-    });
-
-  program
     .command("path")
     .description("Print the final worktree path (script-friendly, one line)")
     .argument("<short-name>", "Run short name, e.g. usage-cli")
@@ -177,29 +161,11 @@ export function buildProgram(): Command {
     });
 
   program
-    .command("path-last")
-    .description("Print the final worktree path for the last review_open run in this project")
-    .action(() => {
-      const exitCode = runPathLast(consoleOutput);
-      process.exit(exitCode);
-    });
-
-  program
     .command("open")
     .description("Open the final worktree in the configured editor")
     .argument("<short-name>", "Run short name, e.g. usage-cli")
     .action(async (shortName: string) => {
       const exitCode = await runOpen(shortName, consoleOutput);
-      process.exit(exitCode);
-    });
-
-  program
-    .command("open-last")
-    .description(
-      "Open the final worktree in the configured editor for the last review_open run in this project",
-    )
-    .action(async () => {
-      const exitCode = await runOpenLast(consoleOutput);
       process.exit(exitCode);
     });
 
@@ -233,15 +199,6 @@ export function buildProgram(): Command {
     .option("--force", "Archive even if the final worktree has uncommitted changes")
     .action(async (shortName: string, opts: { force?: boolean }) => {
       const exitCode = await runArchive(shortName, opts, consoleOutput);
-      process.exit(exitCode);
-    });
-
-  program
-    .command("archive-last")
-    .description("Archive the last review_open run in this project")
-    .option("--force", "Archive even if the final worktree has uncommitted changes")
-    .action(async (opts: { force?: boolean }) => {
-      const exitCode = await runArchiveLast(opts, consoleOutput);
       process.exit(exitCode);
     });
 

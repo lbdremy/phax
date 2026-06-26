@@ -3,7 +3,6 @@ import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
-import { resolveLastReviewOpenRun } from "../../app/resolveRunInfo.js";
 import { runKey } from "../../domain/runRef.js";
 import { archive } from "../../app/archive.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
@@ -55,7 +54,7 @@ async function archiveRun(
   opts: ArchiveCommandOptions,
   out: OutputPort,
 ): Promise<number> {
-  // Safe: resolveRunRef / resolveLastReviewOpenRun already validated the shortName.
+  // Safe: resolveRunRef already validated the shortName.
   const shortNameResult = decodeShortName(shortNameStr);
   if (Either.isLeft(shortNameResult)) {
     out.error(`Internal error: resolved shortName "${shortNameStr}" is invalid.`);
@@ -102,27 +101,4 @@ export async function runArchive(
   }
 
   return archiveRun(namespace, shortName, qualifiedName, stateRoot, repoRoot, opts, out);
-}
-
-export async function runArchiveLast(
-  opts: ArchiveCommandOptions,
-  out: OutputPort,
-): Promise<number> {
-  const configResult = loadConfig(process.cwd());
-  if (Either.isLeft(configResult)) {
-    out.error(`Config error: ${configResult.left.message}`);
-    return 1;
-  }
-  const { stateRoot, repoRoot, namespace } = configResult.right;
-
-  const resolveResult = resolveLastReviewOpenRun(namespace, stateRoot);
-  if (Either.isLeft(resolveResult)) {
-    out.error(resolveResult.left);
-    return 1;
-  }
-  const info = resolveResult.right;
-  const qualifiedName = runKey(namespace, info.shortName);
-  out.log(`Archiving last run for ${namespace}: ${qualifiedName}`);
-
-  return archiveRun(namespace, info.shortName, qualifiedName, stateRoot, repoRoot, opts, out);
 }

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
-import { resolveLastReviewOpenRun, findCurrentPhase } from "../../app/resolveRunInfo.js";
+import { findCurrentPhase } from "../../app/resolveRunInfo.js";
 import type { RunReviewInfo } from "../../app/resolveRunInfo.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
