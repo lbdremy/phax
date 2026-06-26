@@ -9,8 +9,13 @@ export interface StatePatch {
 }
 
 export interface ResumeContext {
-  readonly reason: "Rate limit" | "Usage limit" | "No changes" | "Gate checks failed";
-  readonly kind: "rate_limit" | "usage_limit" | "no_changes" | "gates_exhausted";
+  readonly reason:
+    | "Rate limit"
+    | "Usage limit"
+    | "No changes"
+    | "Gate checks failed"
+    | "Commit failed";
+  readonly kind: "rate_limit" | "usage_limit" | "no_changes" | "gates_exhausted" | "commit_failed";
   readonly resetAt?: string | undefined;
   readonly phaseId?: string | undefined;
   readonly worktreePath?: string | undefined;

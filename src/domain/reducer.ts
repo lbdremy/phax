@@ -593,6 +593,61 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
       }
       return assertNever(state);
 
+    case "CommitFailed":
+      switch (state.run) {
+        case "running": {
+          const ps = state.phase.state;
+          if (ps === "passed") {
+            return handled({ run: "interrupted", phase: { state: "passed" } }, [
+              {
+                type: "PersistState",
+                patch: {
+                  run: { stoppedReason: "commit_failed", lastError: event.reason },
+                },
+              },
+              {
+                type: "WriteResumeInstructions",
+                ctx: {
+                  reason: "Commit failed",
+                  kind: "commit_failed",
+                  phaseId: event.phase,
+                  worktreePath: event.worktreePath as string,
+                  sessionId: event.sessionId as string,
+                },
+              },
+              {
+                type: "EmitTrace",
+                name: "commit.failed",
+                status: "failed",
+                boundary: "commit",
+                details: { phaseId: event.phase, reason: event.reason },
+              },
+              {
+                type: "EmitTrace",
+                name: "resume.available",
+                status: "info",
+                boundary: "resume-instructions.md",
+                details: { resumeCommand: `phax resume ${event.run}` },
+              },
+            ]);
+          }
+          return unexpected(`commit failed while phase is ${ps}`);
+        }
+        case "rate_limited":
+          return unexpected("commit failed while run is rate_limited");
+        case "interrupted":
+          return stale("commit failed on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`commit failed while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`commit failed on ${state.run} run`);
+      }
+      return assertNever(state);
+
     case "CleanupStarted":
       switch (state.run) {
         case "running": {

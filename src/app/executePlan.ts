@@ -15,6 +15,7 @@ import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
   AgentSessionIdMissingError,
+  CommitPausedError,
   GateAttemptsExhaustedError,
   GateFailedError,
   HandoffPausedError,
@@ -40,6 +41,7 @@ import { reviewCompliance } from "./reviewCompliance.js";
 import {
   makeAdapterCallStartedTelemetryEvent,
   makeAdapterCallSucceededTelemetryEvent,
+  makeAdapterCallFailedTelemetryEvent,
   makeArtifactGeneratedTelemetryEvent,
   makeModelResolvedTelemetryEvent,
   makeSecurityPolicyAppliedTelemetryEvent,
@@ -102,6 +104,10 @@ function isHandoffPausedError(e: unknown): e is HandoffPausedError {
   return e instanceof HandoffPausedError;
 }
 
+function isCommitPausedError(e: unknown): e is CommitPausedError {
+  return e instanceof CommitPausedError;
+}
+
 // Highest NN suffix on `checks-attempt-NN.log` in the phase folder, or 0 if none.
 // On resume from gate exhaustion we use this to continue numbering attempt
 // artifacts, so prior `checks-attempt-NN.log` / `fix-attempt-NN.jsonl` files are
@@ -162,6 +168,7 @@ export type ExecutePlanError =
   | GateAttemptsExhaustedError
   | HandoffValidationError
   | HandoffPausedError
+  | CommitPausedError
   | ArchiveBlockedByDirtyWorktreeError
   | RegistryCorruptionError
   | RateLimitError
@@ -804,6 +811,10 @@ export function executePlan(
         });
 
         // commitPhase dispatches CommitCreated internally.
+        // If the commit fails for a reason other than no-changes (e.g. a pre-commit
+        // hook rejection), dispatch CommitFailed to pause the run as `interrupted`
+        // with the phase left `passed`, then re-raise as CommitPausedError so the
+        // top-level guard skips RunFailed.
         yield* commitPhase({
           phase,
           worktreePath,
@@ -814,7 +825,44 @@ export function executePlan(
           gateLogPath: join(phaseFolderPath, "checks-attempt-01.log"),
           repoRoot: config.repoRoot,
           runPath,
-        });
+        }).pipe(
+          Effect.catchIf(
+            (e): e is Exclude<typeof e, PhaseHadNoChangesError> =>
+              !(e instanceof PhaseHadNoChangesError),
+            (e) =>
+              Effect.gen(function* () {
+                const reason = e instanceof Error ? e.message : String(e);
+                yield* dispatch(
+                  {
+                    ...eventBase(phase.id),
+                    type: "CommitFailed" as const,
+                    phaseId: phase.id as PhaseId,
+                    worktreePath,
+                    sessionId,
+                    reason,
+                  },
+                  ctx,
+                );
+                yield* telemetry.recordEvent(
+                  makeAdapterCallFailedTelemetryEvent({
+                    runId,
+                    operationId: phase.id,
+                    adapter: "git",
+                    operation: "commit.create",
+                    exitCode: 1,
+                    stderrExcerpt: reason.slice(0, 500),
+                  }),
+                );
+                return yield* Effect.fail(
+                  new CommitPausedError({
+                    message: `Commit step failed for phase "${phase.id}": ${reason}`,
+                    phaseId: phase.id,
+                    cause: e,
+                  }),
+                );
+              }),
+          ),
+        );
 
         committedPhases.push(phase.id);
         yield* telemetry.recordEvent(
@@ -1102,11 +1150,22 @@ export function executePlan(
         return yield* Effect.fail(e);
       }),
     ),
+    // A commit-step failure after a passed gate pauses the run instead of failing
+    // it: CommitFailed was dispatched at the catch site inside the phase loop
+    // (which performs the pause transition to interrupted+passed), so we just
+    // re-raise here. The run is already in `interrupted` state with phase `passed`,
+    // ready for `phax resume` to re-run commit → handoff → cleanup.
+    Effect.catchIf(isCommitPausedError, (e) =>
+      Effect.gen(function* () {
+        return yield* Effect.fail(e);
+      }),
+    ),
     Effect.tapError((e) =>
       isRateLimitError(e) ||
       isNoChangesError(e) ||
       isGateAttemptsExhaustedError(e) ||
-      isHandoffPausedError(e)
+      isHandoffPausedError(e) ||
+      isCommitPausedError(e)
         ? Effect.void
         : Effect.gen(function* () {
             if (currentPhaseFolderPath !== undefined) {
