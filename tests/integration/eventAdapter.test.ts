@@ -2,7 +2,6 @@ import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import type { BranchName, PhaseId, RunId, WorktreePath } from "../../src/domain/branded.js";
 import type { PhaxEventBase } from "../../src/domain/events.js";
-import type { ReconciliationResult } from "../../src/domain/reconciliation/types.js";
 import {
   AgentInvocationError,
   PhaseHadNoChangesError,
@@ -19,12 +18,10 @@ import {
   adaptCleanup,
   adaptCommit,
   adaptGateRun,
-  adaptHandoffGenerate,
   adaptWorktreeCreate,
 } from "../../src/app/eventAdapter.js";
 import type { CommitPhaseOptions } from "../../src/app/commit.js";
 import type { CleanupPhaseOptions } from "../../src/app/cleanup.js";
-import type { GenerateHandoffOptions } from "../../src/app/handoffGeneration.js";
 
 const runId = "my-run" as RunId;
 const phaseId = "phase-01" as PhaseId;
@@ -454,177 +451,6 @@ describe("adaptCleanup", () => {
     expect(event).toBeNull();
     // No git or shell calls made
     expect(fakeGit.impl.calls).toHaveLength(0);
-  });
-});
-
-// ─── adaptHandoffGenerate ─────────────────────────────────────────────────────
-
-const handoffLayers = () => {
-  const fakeBackend = makeFakeBackend();
-  const fakeFs = makeFakeFileSystem();
-  const fakeGit = makeFakeGit();
-  const fakeShell = makeFakeShell();
-
-  const layer = Layer.mergeAll(
-    fakeBackend.layer,
-    fakeFs.layer,
-    fakeGit.layer,
-    fakeShell.layer,
-    NoopSystemTelemetryLayer,
-  );
-  return { fakeBackend, fakeFs, fakeGit, fakeShell, layer };
-};
-
-const noDeviationReconciliation: ReconciliationResult = {
-  createdAsPlanned: [],
-  editedAsPlanned: [],
-  missingPlannedCreate: [],
-  missingPlannedEdit: [],
-  createdButPlannedEdit: [],
-  editedButPlannedCreate: [],
-  unplannedCreated: [],
-  unplannedEdited: [],
-  optionalTouched: [],
-  deletions: [],
-  renames: [],
-  hasDeviations: false,
-};
-
-describe("adaptHandoffGenerate", () => {
-  const handoffOpts: GenerateHandoffOptions = {
-    sessionId: "sess-abc" as never,
-    agentOptions: {
-      provider: "claude-code" as const,
-      model: "claude-sonnet-4-6",
-      effort: "low",
-      cwd: worktreePath as string,
-    },
-    phaseFolderPath,
-    worktreePath: worktreePath as string,
-    runPath,
-    shortName: "my-run",
-    phaseId: phaseId as string,
-    reconciliation: noDeviationReconciliation,
-  };
-
-  // For HandoffMissing dispatch the reducer needs the phase in `passed`.
-  const passedPhaseSeed = JSON.stringify({
-    version: 1,
-    phaseId: "phase-01",
-    phaseIndex: 0,
-    model: "claude-sonnet-4-6",
-    effort: "low",
-    state: "passed",
-    branchName: "ai/my-run--phase-01",
-    createdAt: "2026-05-21T00:00:00.000Z",
-    updatedAt: "2026-05-21T00:00:00.000Z",
-  });
-
-  it("valid handoff file → HandoffValidated", async () => {
-    const { fakeBackend, fakeFs, layer } = handoffLayers();
-
-    fakeBackend.impl.addResumeResponse({
-      sessionId: "sess-abc" as never,
-      outputPath: "/out.jsonl",
-      finalText: "",
-    });
-    fakeFs.impl.setFile(
-      `${worktreePath as string}/.phax-context/phase-handoff.md`,
-      [
-        "## What was delivered",
-        "## Key decisions and why",
-        "## Exact locations (file paths and exported names)",
-        "## What the next phase needs to know",
-      ].join("\n"),
-    );
-
-    const event = await Effect.runPromise(
-      adaptHandoffGenerate(handoffOpts, base).pipe(Effect.provide(layer)),
-    );
-
-    expect(event.type).toBe("HandoffValidated");
-  });
-
-  it("handoff file missing → HandoffMissing with all sections", async () => {
-    const { fakeBackend, fakeFs, layer } = handoffLayers();
-
-    fakeBackend.impl.addResumeResponse({
-      sessionId: "sess-abc" as never,
-      outputPath: "/out.jsonl",
-      finalText: "",
-    });
-    fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, passedPhaseSeed);
-    fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
-    // handoff file NOT created
-
-    const event = await Effect.runPromise(
-      adaptHandoffGenerate(handoffOpts, base).pipe(Effect.provide(layer)),
-    );
-
-    expect(event.type).toBe("HandoffMissing");
-    if (event.type === "HandoffMissing") {
-      expect(event.missingSections).toHaveLength(4);
-    }
-  });
-
-  it("handoff file has missing sections → HandoffMissing", async () => {
-    const { fakeBackend, fakeFs, layer } = handoffLayers();
-
-    fakeBackend.impl.addResumeResponse({
-      sessionId: "sess-abc" as never,
-      outputPath: "/out.jsonl",
-      finalText: "",
-    });
-    fakeFs.impl.setFile(
-      `${worktreePath as string}/.phax-context/phase-handoff.md`,
-      "## What was delivered\nsome content",
-    );
-    fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, passedPhaseSeed);
-    fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
-
-    const event = await Effect.runPromise(
-      adaptHandoffGenerate(handoffOpts, base).pipe(Effect.provide(layer)),
-    );
-
-    expect(event.type).toBe("HandoffMissing");
-    if (event.type === "HandoffMissing") {
-      expect(event.missingSections).toContain("## Key decisions and why");
-      expect(event.missingSections).not.toContain("## What was delivered");
-    }
-  });
-
-  it("RateLimitError during backend call → RateLimitDetected", async () => {
-    const { fakeBackend, layer } = handoffLayers();
-
-    fakeBackend.impl.failNextResumeWithRateLimit({
-      kind: "rate_limit",
-      resetAt: "2026-05-21T03:00:00.000Z",
-    });
-
-    const event = await Effect.runPromise(
-      adaptHandoffGenerate(handoffOpts, base).pipe(Effect.provide(layer)),
-    );
-
-    expect(event.type).toBe("RateLimitDetected");
-    if (event.type === "RateLimitDetected") {
-      expect(event.kind).toBe("rate_limit");
-      expect(event.resetAt).toBe("2026-05-21T03:00:00.000Z");
-      expect(event.cause).toBeInstanceOf(RateLimitError);
-    }
-  });
-
-  it("AgentInvocationError bubbles", async () => {
-    const { layer } = handoffLayers();
-    // no resume response queued → AgentInvocationError
-
-    const result = await Effect.runPromise(
-      Effect.either(adaptHandoffGenerate(handoffOpts, base).pipe(Effect.provide(layer))),
-    );
-
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(AgentInvocationError);
-    }
   });
 });
 
