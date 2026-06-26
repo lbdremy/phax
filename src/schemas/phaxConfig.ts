@@ -2,7 +2,7 @@ import { JSONSchema, Schema } from "effect";
 import { SecurityConfigSchema, type ResolvedSecurityConfig } from "./securityConfig.js";
 
 export const PublishConfigSchema = Schema.Struct({
-  enabled: Schema.Boolean,
+  auto: Schema.Boolean,
   remote: Schema.optional(Schema.NonEmptyString),
   provider: Schema.optional(Schema.Literal("github")),
   pushBranch: Schema.optional(Schema.Boolean),
@@ -14,7 +14,7 @@ export const PublishConfigSchema = Schema.Struct({
 export type PublishConfig = Schema.Schema.Type<typeof PublishConfigSchema>;
 
 export interface ResolvedPublishConfig {
-  readonly enabled: boolean;
+  readonly auto: boolean;
   readonly remote: string;
   readonly provider: "github";
   readonly pushBranch: boolean;
@@ -25,7 +25,7 @@ export interface ResolvedPublishConfig {
 
 export function resolvePublishConfig(raw: PublishConfig | undefined): ResolvedPublishConfig {
   return {
-    enabled: raw?.enabled ?? false,
+    auto: raw?.auto ?? false,
     remote: raw?.remote ?? "origin",
     provider: raw?.provider ?? "github",
     pushBranch: raw?.pushBranch ?? true,

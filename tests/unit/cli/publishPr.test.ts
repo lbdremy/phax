@@ -31,7 +31,7 @@ function makeOutput() {
   return { out, lines, errors };
 }
 
-function makeConfig(publishEnabled: boolean): ResolvedConfig {
+function makeConfig(publishAuto: boolean): ResolvedConfig {
   return {
     raw: {} as ResolvedConfig["raw"],
     namespace: "test-project",
@@ -43,7 +43,7 @@ function makeConfig(publishEnabled: boolean): ResolvedConfig {
     fileReconciliationMode: "report_only",
     security: { mode: "secure", enforcedGates: [], allowedPaths: [], blockedCommands: [] },
     publish: {
-      enabled: publishEnabled,
+      auto: publishAuto,
       remote: "origin",
       provider: "github",
       pushBranch: true,
@@ -92,7 +92,7 @@ describe("runPublishPr", () => {
     expect(errors.join("")).toContain("Config error");
   });
 
-  it("proceeds to publishRun even when publish.enabled is false", async () => {
+  it("proceeds to publishRun even when publish.auto is false", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(Either.right(makeConfig(false)));
 

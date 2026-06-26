@@ -68,7 +68,7 @@ function makeConfig(namespace = "acme") {
       mcp: { mode: "disabled" as const },
     },
     publish: {
-      enabled: false,
+      auto: false,
       remote: "origin",
       provider: "github" as const,
       pushBranch: true,

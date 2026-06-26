@@ -106,6 +106,8 @@ export function buildVibeArgs(
     entry.defaultAgent ?? "auto-approve",
     "--output",
     "streaming",
+    "--target",
+    options.model,
     ...securityFlags,
   ];
   if (resumeSessionId) {
@@ -159,15 +161,32 @@ function spawnVibe(
     });
 
     proc.on("close", (code) => {
+      clearTimeout(killTimer);
       if (stdoutBuf.trim()) lines.push(stdoutBuf);
       writeStream?.end();
       resolve({ lines, exitCode: code ?? 1, stderr: stderrBuf });
     });
 
     proc.on("error", (err) => {
+      clearTimeout(killTimer);
       writeStream?.end();
       reject(err);
     });
+
+    // Guard against a vibe binary that prints an error and hangs without
+    // exiting (e.g. when a required CLI flag is missing in the installed
+    // version). PHAX_VIBE_SPAWN_TIMEOUT_MS can be set to cap the wall-clock
+    // time; unset means no timeout (default for production runs).
+    const killAfterMs =
+      process.env["PHAX_VIBE_SPAWN_TIMEOUT_MS"] !== undefined
+        ? Number(process.env["PHAX_VIBE_SPAWN_TIMEOUT_MS"])
+        : undefined;
+    const killTimer =
+      killAfterMs !== undefined
+        ? setTimeout(() => {
+            proc.kill("SIGTERM");
+          }, killAfterMs)
+        : undefined;
   });
 }
 

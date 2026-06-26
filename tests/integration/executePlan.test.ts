@@ -1402,9 +1402,9 @@ const autoPublishRawPlan = {
   ],
 } as const;
 
-function makePublishConfig(enabled: boolean): ResolvedConfig["publish"] {
+function makePublishConfig(auto: boolean): ResolvedConfig["publish"] {
   return {
-    enabled,
+    auto,
     remote: "origin",
     provider: "github",
     pushBranch: true,
@@ -1486,7 +1486,7 @@ describe("executePlan — auto-publish after final review", () => {
     await rm(stateRoot, { recursive: true, force: true });
   });
 
-  it("publishes PR and writes publication.json when publish.enabled", async () => {
+  it("publishes PR and writes publication.json when publish.auto is true", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(autoPublishRawPlan));
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     const config = makePublishBaseConfig(stateRoot, makePublishConfig(true));
@@ -1606,7 +1606,7 @@ describe("executePlan — auto-publish after final review", () => {
     expect(createCall).toBeUndefined();
   });
 
-  it("no publication side effects when publish.enabled is false", async () => {
+  it("no publication side effects when publish.auto is false", async () => {
     const plan = Either.getOrThrow(decodePhaxPlan(autoPublishRawPlan));
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     const config = makePublishBaseConfig(stateRoot, makePublishConfig(false));

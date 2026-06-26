@@ -258,22 +258,22 @@ describe("mergeConfigLayers", () => {
   describe("publish: per-scalar override", () => {
     it("local publish fields override project", () => {
       const project = makeProject({
-        publish: { enabled: true, remote: "origin", provider: "github" },
+        publish: { auto: true, remote: "origin", provider: "github" },
       });
       const localUser = makeOverlay({
-        publish: { enabled: false, remote: "my-fork" },
+        publish: { auto: false, remote: "my-fork" },
       });
       const result = mergeConfigLayers({ project, localUser });
-      expect(result.publish?.enabled).toBe(false);
+      expect(result.publish?.auto).toBe(false);
       expect(result.publish?.remote).toBe("my-fork");
       expect(result.publish?.provider).toBe("github");
     });
 
-    it("enabled: false in user layer correctly overrides enabled: true in project", () => {
-      const project = makeProject({ publish: { enabled: true } });
-      const localUser = makeOverlay({ publish: { enabled: false } });
+    it("auto: false in user layer correctly overrides auto: true in project", () => {
+      const project = makeProject({ publish: { auto: true } });
+      const localUser = makeOverlay({ publish: { auto: false } });
       const result = mergeConfigLayers({ project, localUser });
-      expect(result.publish?.enabled).toBe(false);
+      expect(result.publish?.auto).toBe(false);
     });
   });
 

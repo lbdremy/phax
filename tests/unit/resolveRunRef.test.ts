@@ -69,7 +69,7 @@ function makeConfig(namespace: string, stateRoot: string): ResolvedConfig {
       failOn: "high",
     },
     publish: {
-      enabled: false,
+      auto: false,
       remote: "origin",
       provider: "github",
       pushBranch: true,

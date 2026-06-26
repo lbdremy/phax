@@ -214,7 +214,7 @@ describe("runInitWizard — interactive path", () => {
     await runWizard(fakeFs, fakePrompt, { interactive: true });
 
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
-    expect(config.publish?.enabled).toBe(true);
+    expect(config.publish?.auto).toBe(true);
     expect(config.publish?.pushBranch).toBe(true);
     expect(config.publish?.createPullRequest).toBe(false);
   });

@@ -43,7 +43,7 @@ function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
 
 function defaultConfig(overrides: Partial<ResolvedPublishConfig> = {}): ResolvedPublishConfig {
   return {
-    enabled: true,
+    auto: true,
     remote: "origin",
     provider: "github",
     pushBranch: true,
@@ -76,13 +76,13 @@ function seedSuccessPreconditions(args: {
 const constNow = () => now;
 
 describe("publishRun", () => {
-  it("attempts publication even when publish.enabled is false (flag no longer gates manual publish)", async () => {
+  it("attempts publication even when publish.auto is false (flag no longer gates manual publish)", async () => {
     const { fs, git, github, layers } = setupLayers();
     seedSuccessPreconditions({ fs, git });
     github.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/99");
 
     const result = await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig({ enabled: false }), {
+      publishRun(makeInfo(), defaultConfig({ auto: false }), {
         repoRoot,
         now: constNow,
       }).pipe(Effect.provide(layers)),
