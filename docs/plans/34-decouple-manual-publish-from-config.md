@@ -141,7 +141,7 @@ shrinks: `publishRun` now returns only `"published" | "failed"`, never
 
 ### Excluded scope
 
-- The `config.publish?.enabled` condition in `src/app/executePlan.ts:913` — left
+- The `config.publish?.enabled` condition in `src/app/executePlan.ts:1079` — left
   as `enabled` here and renamed in phase-02.
 - The `enabled` field on `PublicationRecord` / `publication.json`
   (`src/domain/publish/types.ts`, `src/schemas/publication.ts`) — unchanged.
@@ -194,7 +194,7 @@ Breaking change, no back-compat shim.
   to `publishAuto` and read `.auto` from each layer (line ~114), and write it back
   under the `auto` key wherever the merged `publish` block is assembled. Keep the
   per-field scalar-override semantics.
-- `src/app/executePlan.ts:913`: `if (config.publish?.enabled)` → `if (config.publish?.auto)`.
+- `src/app/executePlan.ts:1079`: `if (config.publish?.enabled)` → `if (config.publish?.auto)`.
 - `src/app/initWizard.ts`: rename the `publishEnabled` answer to `publishAuto`;
   reword the prompt (lines 114-115) to make the auto-only meaning explicit, e.g.
   "Automatically publish (push branch / create PR) when a run reaches review?".
