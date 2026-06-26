@@ -76,8 +76,10 @@ function seedSuccessPreconditions(args: {
 const constNow = () => now;
 
 describe("publishRun", () => {
-  it("returns disabled and writes no files when publish.enabled is false", async () => {
+  it("attempts publication even when publish.enabled is false (flag no longer gates manual publish)", async () => {
     const { fs, git, github, layers } = setupLayers();
+    seedSuccessPreconditions({ fs, git });
+    github.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/99");
 
     const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig({ enabled: false }), {
@@ -86,11 +88,9 @@ describe("publishRun", () => {
       }).pipe(Effect.provide(layers)),
     );
 
-    expect(result.kind).toBe("disabled");
-    expect(fs.impl.getFile(`${runPath}/publication.json`)).toBeUndefined();
-    expect(fs.impl.getFile(`${runPath}/final-report.md`)).toBeUndefined();
-    expect(git.impl.calls.length).toBe(0);
-    expect(github.impl.calls.length).toBe(0);
+    expect(result.kind).toBe("published");
+    expect(result.prUrl).toBe("https://github.com/owner/repo/pull/99");
+    expect(fs.impl.getFile(`${runPath}/publication.json`)).toBeDefined();
   });
 
   it("happy path: pushes, creates a PR, writes publication.json and final-report.md PR section", async () => {

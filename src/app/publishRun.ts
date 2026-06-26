@@ -23,7 +23,7 @@ import { writeFinalReport } from "./finalReport.js";
 import { loadReviewHandoffInputs } from "./loadReviewHandoffInputs.js";
 import { buildReviewHandoffContent } from "./reviewHandoff.js";
 
-export type PublicationResultKind = "disabled" | "published" | "failed";
+export type PublicationResultKind = "published" | "failed";
 
 export interface PublicationResult {
   readonly kind: PublicationResultKind;
@@ -59,10 +59,6 @@ export function publishRun(
   return Effect.gen(function* () {
     const verbose = opts.verbose ?? false;
     const now = opts.now ?? (() => new Date().toISOString());
-
-    if (!publish.enabled) {
-      return { kind: "disabled" } satisfies PublicationResult;
-    }
 
     const fs = yield* FileSystem;
     const git = yield* Git;
