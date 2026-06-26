@@ -38,14 +38,6 @@ export async function runPublishPr(
   }
   const config = configResult.right;
 
-  if (!config.publish.enabled) {
-    out.error(
-      `publish is not enabled in phax.json. ` +
-        `Add a "publish": { "enabled": true } block to phax.json to use this command.`,
-    );
-    return 1;
-  }
-
   const resolveResult = resolveRunRef(shortNameArg, config, config.stateRoot);
   if (Either.isLeft(resolveResult)) {
     out.error(resolveResult.left.message);
@@ -77,14 +69,6 @@ export async function runPublishPr(
   }
 
   const publication = result.right;
-
-  if (publication.kind === "disabled") {
-    out.error(
-      `publish is not enabled in phax.json. ` +
-        `Add a "publish": { "enabled": true } block to phax.json to use this command.`,
-    );
-    return 1;
-  }
 
   if (publication.kind === "failed") {
     out.error(

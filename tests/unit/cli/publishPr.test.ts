@@ -92,14 +92,27 @@ describe("runPublishPr", () => {
     expect(errors.join("")).toContain("Config error");
   });
 
-  it("returns 1 and error when publish is disabled in config", async () => {
+  it("proceeds to publishRun even when publish.enabled is false", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(Either.right(makeConfig(false)));
 
-    const { out, errors } = makeOutput();
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    resolveRunRef.mockReturnValue(
+      Either.right({
+        namespace: "test-project",
+        shortName: FAKE_SHORT_NAME,
+        info: makeInfo(),
+        crossProject: false,
+      }),
+    );
+
+    const { publishRun } = vi.mocked(await import("../../../src/app/publishRun.js"));
+    publishRun.mockReturnValue(Effect.succeed({ kind: "published", prUrl: FAKE_PR_URL }));
+
+    const { out, lines } = makeOutput();
     const code = await runPublishPr(FAKE_SHORT_NAME, {}, out);
-    expect(code).toBe(1);
-    expect(errors.join("")).toContain("publish is not enabled");
+    expect(code).toBe(0);
+    expect(lines.join("")).toContain(FAKE_PR_URL);
   });
 
   it("returns 1 when short name is invalid", async () => {
