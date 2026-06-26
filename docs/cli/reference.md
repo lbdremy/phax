@@ -395,6 +395,32 @@ Run short name, e.g. usage-cli
 phax review-compliance usage-cli
 ```
 
+## `phax review-code`
+
+- **Usage**: `phax review-code [FLAGS] <short-name>`
+
+Open an interactive, pre-prompted code-review session for a review_open run
+
+### Arguments
+
+#### `<short-name>`
+
+Run short name, e.g. usage-cli
+
+### Flags
+
+#### `--new-session`
+
+Start a fresh review session instead of resuming the existing one
+
+#### `--model <model>`
+
+Override the model, including on resume (default: review.code.model, else claude-opus-4-8)
+
+#### `--effort <effort>`
+
+Override the effort (low | medium | high), including on resume (default: review.code.effort, else high)
+
 ## `phax init`
 
 - **Usage**: `phax init [--force] [--yes]`
