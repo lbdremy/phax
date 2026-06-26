@@ -133,12 +133,40 @@ function buildCommitFailedInstructions(input: ResumeInstructionsInput): string {
   return lines.join("\n");
 }
 
+function buildCleanupFailedInstructions(input: ResumeInstructionsInput): string {
+  const phaseId = input.phaseId ?? "(unknown)";
+  const wn = buildWhatsNext(
+    { kind: "gates_exhausted", shortName: input.shortName, phaseId: input.phaseId },
+    input.now,
+  );
+
+  const lines: string[] = [
+    `# Resume Instructions: ${input.shortName}`,
+    "",
+    "This run paused because the cleanup step failed after the commit landed.",
+    "The commit is safe on its branch — only the cleanup (worktree removal) needs",
+    "to be re-run. Fix the cause, then resume.",
+    "",
+    "## Why it stopped",
+    "",
+    `- **Reason:** ${input.reason}`,
+    `- **Current phase:** ${phaseId}`,
+    `- **Worktree:** ${input.worktreePath ?? "(not yet created)"}`,
+    "",
+    ...stepsToMarkdown(wn.steps),
+  ];
+  return lines.join("\n");
+}
+
 export function buildResumeInstructions(input: ResumeInstructionsInput): string {
   if (input.kind === "gates_exhausted") {
     return buildGateExhaustionInstructions(input);
   }
   if (input.kind === "commit_failed") {
     return buildCommitFailedInstructions(input);
+  }
+  if (input.kind === "cleanup_failed") {
+    return buildCleanupFailedInstructions(input);
   }
   return buildRateLimitInstructions(input);
 }

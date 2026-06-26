@@ -106,6 +106,12 @@ export class CommitPausedError extends Data.TaggedError("CommitPausedError")<{
   cause: unknown;
 }> {}
 
+export class CleanupPausedError extends Data.TaggedError("CleanupPausedError")<{
+  message: string;
+  phaseId: string;
+  cause: unknown;
+}> {}
+
 export class RegistryCorruptionError extends Data.TaggedError("RegistryCorruptionError")<{
   message: string;
   registryPath: string;
