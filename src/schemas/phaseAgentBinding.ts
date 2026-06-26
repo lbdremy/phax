@@ -1,10 +1,5 @@
 import { Schema } from "effect";
-
-const ProviderIdSchema = Schema.Union(
-  Schema.Literal("claude-code"),
-  Schema.Literal("codex-cli"),
-  Schema.Literal("mistral-vibe"),
-);
+import { ProviderIdSchema } from "./providerId.js";
 
 const AdapterSchema = Schema.Union(
   Schema.Literal("claude"),
