@@ -2,34 +2,42 @@
 
 ## Overview
 
-Add a read-only `phax plans-overlap <plan...>` command that takes a list of
-`phax-plan.json` paths and reports, deterministically, which plans can be
-executed in parallel by phax without colliding when their branches merge back.
+Add a read-only `phax plans-overlap <plan.md...>` command that takes a list of
+`plan.md` paths and reports, deterministically, which plans can be executed in
+parallel by phax without colliding when their branches merge back.
 
-The signal is **file-level**: every phase in a `phax-plan.json` already declares
+The signal is **file-level**: every phase of an extracted `PhaxPlan` declares
 `plannedFilesToCreate`, `plannedFilesToEdit`, and `optionalFilesToEdit`
 (`src/schemas/phaxPlan.ts:40-42`), and these arrays are populated by the
-extractor today (verified against real run artifacts). The command unions each
-plan's phase file-sets into a per-plan **footprint**, intersects footprints
-pairwise, and turns the result into a conflict graph: two plans that share no
-file are parallel-safe; two plans that share a file are flagged with a severity.
-From that graph it reports the clean pairs, the largest fully-disjoint
-(parallel-safe) set, and a greedy "wave" schedule.
+extractor today (verified against real run artifacts). The command obtains each
+plan's structured form from a `plan.md` via the plan-38 extraction cache
+(`loadOrExtractPlan`), unions each plan's phase file-sets into a per-plan
+**footprint**, intersects footprints pairwise, and turns the result into a
+conflict graph: two plans that share no file are parallel-safe; two plans that
+share a file are flagged with a severity. From that graph it reports the clean
+pairs, the largest fully-disjoint (parallel-safe) set, and a greedy "wave"
+schedule.
 
 This is the deterministic version of the manual analysis a developer would
-otherwise do by hand across a batch of plans. It is **advisory and read-only** —
-it spawns no agent, runs no git, and mutates nothing.
+otherwise do by hand across a batch of plans. It is **read-only with respect to
+your plans** — it spawns no agent of its own and mutates nothing — though a cold
+cache miss may trigger one LLM extraction per uncached `plan.md` (see below).
 
-### Input is `phax-plan.json`, not `plan.md`
+### Input is `plan.md`, via the extraction cache (depends on plan 38)
 
-The structured, schema-validated file lists live in `phax-plan.json` (produced by
-`phax extract-plan`), not in the prose `plan.md`. The command therefore consumes
-`phax-plan.json` paths and decodes each through the existing
-`loadPlan`/`decodePhaxPlan` boundary (`src/app/loadPlan.ts`,
-`src/schemas/phaxPlan.ts:82`). To analyse a `plan.md`, the developer runs
-`phax extract-plan` first; the command's help and a clear decode error message
-point this out. This keeps the analysis deterministic and reuses the validated
-schema rather than re-parsing markdown.
+The structured, schema-validated file lists live in the extracted `PhaxPlan`, not
+in the prose `plan.md`. Rather than force the developer to run `phax extract-plan`
+first and pass `phax-plan.json` paths, the command accepts `plan.md` paths and
+obtains the structured plan through the **content-addressed extraction cache**
+introduced in plan 38 (`loadOrExtractPlan`, `src/app/loadOrExtractPlan.ts`): a
+cache hit (the md was already extracted by a prior `extract-plan`, `run`, or
+`plans-overlap`) returns instantly; a cold miss extracts once via the LLM and
+caches it. **This plan depends on plan 38 landing first.**
+
+Because a cold miss spends tokens, the command is still read-only with respect to
+your plans but may extract on a miss: it logs `extracting <plan.md> (cache miss)…`
+and supports `--no-extract` to fail fast on a miss instead (passing
+`noExtract: true` to the loader). On a hit it is instant and fully deterministic.
 
 ### What "conflict" means here (and its honest limits)
 
@@ -61,8 +69,8 @@ spec's path convention; a `:`-style name is not used elsewhere in the program.
 Layers `cli → app → domain`. The overlap computation is **pure domain** (mirrors
 `src/domain/reconciliation/`): it takes a minimal, schema-free input shape and
 returns a structured result plus a pure string renderer. The **app** use case
-loads each `phax-plan.json` via `loadPlan`, maps the decoded `PhaxPlan` into the
-domain input, and calls the engine. The **cli** command parses argv, calls the
+obtains each plan via `loadOrExtractPlan` (plan 38) from a `plan.md` path, maps
+the resulting `PhaxPlan` into the domain input, and calls the engine. The **cli** command parses argv, calls the
 use case, and prints the rendered report (or JSON) via `OutputPort` — no business
 logic. The domain stays independent of `src/schemas` (the app does the mapping),
 exactly as `reconciliation` defines its own `PlannedFiles` type rather than
@@ -94,8 +102,9 @@ pre-prompted AI session to help a developer adjust the **next plan** after a run
 has landed. It reuses the same landed-change facts as the `--landed` mode but,
 instead of printing a report, it **opens a session** (via the existing `Session`
 port, like `phax enter`) seeded with: the landed run's actual changes, the target
-`plan.md` content, and — when a `--plan-json` is supplied — the deterministic
-shared-file impact.
+`plan.md` content, and the deterministic shared-file impact (obtained by running
+the target `plan.md` through the same plan-38 extraction cache — no separate
+`--plan-json` flag is needed).
 
 The command is a **session-opener, not an editor**. It never mutates the plan
 itself. The pre-prompt instructs the agent to:
@@ -260,7 +269,7 @@ independent set → waves) with its unit test, then `render.ts` with its test.
 
 ### Excluded scope
 
-- Reading any file or decoding `phax-plan.json` (phase-02).
+- Reading any file or loading/extracting a plan (phase-02).
 - The CLI command, registration, and docs (phase-03).
 - Any severity-threshold/`--ignore` filtering — the engine reports all severities;
   consumers decide.
@@ -302,33 +311,33 @@ large-input guard.
 **Recommended model:** claude-sonnet-4-6
 **Recommended effort:** low
 
-Add the application use case that loads the given `phax-plan.json` paths, maps
-each decoded plan into the domain input, and returns the overlap result (or a
-clear load/decode error), so the CLI stays thin.
+Add the application use case that loads the given `plan.md` paths through the
+plan-38 extraction cache, maps each plan into the domain input, and returns the
+overlap result (or a clear load/extract error), so the CLI stays thin.
 
 ### Detailed instructions
 
 - Create `src/app/analyzePlanOverlap.ts` exporting
-  `analyzePlanOverlap(planPaths: readonly string[]): Either.Either<PlanOverlapResult, AnalyzePlanOverlapError>`:
-  - Define `AnalyzePlanOverlapError` as a tagged error (mirror
-    `PlanValidationError` usage in `loadPlan.ts`) carrying a `message`. Reuse
-    `PlanValidationError` for per-file load failures and aggregate them.
-  - Require at least two paths; if fewer, return a `Left` with a message that the
-    command compares two or more plans.
-  - For each path, call `loadPlan(path)` (`src/app/loadPlan.ts`). Collect every
-    `Left`; if any path failed, return a single `Left` whose message lists each
-    failing path and its decode error (so the user fixes all at once). The message
-    for a decode failure should hint that the input must be a `phax-plan.json`
-    (run `phax extract-plan` on a `plan.md` first).
-  - Map each decoded `PhaxPlan` to a `PlanInput`: `id = path`,
+  `analyzePlanOverlap(planMdPaths, opts): Effect.Effect<PlanOverlapResult, AnalyzePlanOverlapError, Backend | FileSystem>`,
+  where `opts: { model: string; effort: string; stateRoot: string; noExtract: boolean; nowIso: string }`
+  (the loader inputs the command resolves from config):
+  - Define `AnalyzePlanOverlapError` as a tagged error carrying a `message`.
+  - Require at least two paths; fewer fails with a message that the command
+    compares two or more plans.
+  - For each `plan.md` path, call
+    `loadOrExtractPlan({ planMdPath, model, effort, stateRoot, noExtract, nowIso })`
+    (plan 38, `src/app/loadOrExtractPlan.ts`). Collect failures; if any path
+    failed, fail once with a message listing each failing path and its error (so
+    the user fixes all at once). A `noExtract` miss surfaces as that path's error.
+  - Map each loaded `PhaxPlan` to a `PlanInput`: `id = path`,
     `label = `${plan.run.shortName} (${path})``,
     `phases = plan.phases.map(p => ({ create: p.plannedFilesToCreate, edit: p.plannedFilesToEdit, optional: p.optionalFilesToEdit }))`.
   - Guard against duplicate ids (same path passed twice) by de-duplicating on the
-    resolved path, or returning a clear error — pick one and document it.
-  - Call `computePlanOverlap(inputs)` and return `Right`.
-- Keep the use case synchronous and `Either`-returning, exactly like `loadPlan`
-  (which reads via `node:fs` directly); no `FileSystem` port or `Effect` is
-  introduced, consistent with the existing plan/config loaders.
+    resolved path, or failing with a clear error — pick one and document it.
+  - Call `computePlanOverlap(inputs)` and succeed with the result.
+- The use case is an `Effect` over `Backend | FileSystem` (the backend is touched
+  only on a cold cache miss). Factor the per-path "load-and-map to `PlanInput`"
+  into a shared helper so phase-04's `analyzeReadjustmentImpact` reuses it.
 
 ### Planned files to create
 
@@ -345,30 +354,32 @@ clear load/decode error), so the CLI stays thin.
 
 ### Boundary contracts
 
-Consumer/producer: the use case consumes a list of `phax-plan.json` paths, uses
-`loadPlan` (which owns decode/validation) to produce `PhaxPlan` values, maps them
-to the domain `PlanInput`, and produces a `PlanOverlapResult` for the CLI. It
-depends only on `loadPlan` and the phase-01 domain engine; it performs no
-rendering and spawns nothing.
+Consumer/producer: the use case consumes a list of `plan.md` paths, obtains each
+plan's structured form via `loadOrExtractPlan` (plan 38, which owns extraction +
+caching + decode), maps them to the domain `PlanInput`, and produces a
+`PlanOverlapResult` for the CLI. It depends on `loadOrExtractPlan` (hence the
+`Backend | FileSystem` ports, the backend only on a cold miss) and the phase-01
+domain engine; it performs no rendering and spawns no session.
 
 ### Test strategy
 
-Integration tests (write the core cases before implementation), writing temporary
-`phax-plan.json` fixtures to a temp dir (as the `extractPlan` integration tests
-do) and asserting the returned `PlanOverlapResult`:
+Integration tests (write the core cases before implementation) with a counting
+fake `Backend` + temp/fake `FileSystem`, writing temporary `plan.md` fixtures and
+asserting the returned `PlanOverlapResult`:
 
-- Two valid plans with disjoint footprints → `Right`, both in `cleanPairs`.
-- Two valid plans sharing a source file → `Right`, one edge of the expected
-  severity.
-- A non-existent path or a malformed/`onExcessProperty` JSON → `Left` whose
-  message names the offending path and mentions `phax extract-plan`.
-- Fewer than two paths → `Left` with the "two or more plans" message.
+- Two valid plans with disjoint footprints → both in `cleanPairs`.
+- Two valid plans sharing a source file → one edge of the expected severity.
+- A second call over already-cached mds does not invoke the backend (warm hit).
+- A non-existent or unextractable path → failure naming the offending path.
+- `noExtract: true` on an uncached md → failure without calling the backend.
+- Fewer than two paths → failure with the "two or more plans" message.
 - The label carries the run short name and the path.
 
 ### Implementation order
 
-Define the error and the load-and-aggregate loop, then the `PhaxPlan → PlanInput`
-mapping, then call the engine; write the fixture-based integration test alongside.
+Define the error and the load-and-aggregate loop (over `loadOrExtractPlan`), then
+the `PhaxPlan → PlanInput` mapping, then call the engine; write the fixture-based
+integration test alongside.
 
 ### Excluded scope
 
@@ -389,16 +400,17 @@ mapping, then call the engine; write the fixture-based integration test alongsid
 
 ### Commit subject
 
-feat(app): add analyzePlanOverlap use case over phax-plan.json paths
+feat(app): add analyzePlanOverlap use case over plan.md paths
 
 ### Commit body
 
-Add analyzePlanOverlap, which loads the given phax-plan.json paths via loadPlan,
-maps each decoded plan's phase file lists into the domain PlanInput, and returns
-the PlanOverlapResult or an aggregated load/decode error that points malformed
-inputs at phax extract-plan. Synchronous and Either-returning like the existing
-plan/config loaders; no new port. Covered by integration tests over temp plan
-fixtures for the disjoint, conflicting, malformed, and too-few-inputs cases.
+Add analyzePlanOverlap, which obtains each given plan.md's structured form via the
+plan-38 extraction cache (loadOrExtractPlan), maps each plan's phase file lists
+into the domain PlanInput, and returns the PlanOverlapResult or an aggregated
+load/extract error naming each offending path. An Effect over Backend|FileSystem
+(the backend only on a cold cache miss); honors noExtract. Covered by integration
+tests over temp plan fixtures for the disjoint, conflicting, warm-hit,
+unextractable, and too-few-inputs cases.
 
 ---
 
@@ -414,35 +426,43 @@ the derived CLI artifacts.
 ### Detailed instructions
 
 - Create `src/cli/commands/plansOverlap.ts` exporting
-  `runPlansOverlap(planPaths: string[], opts: { json?: boolean }, out: OutputPort): Promise<number>`
+  `runPlansOverlap(planMdPaths: string[], opts: { json?: boolean; noExtract?: boolean }, out: OutputPort): Promise<number>`
   (model on the thin command style of `src/cli/commands/reviewCompliance.ts`):
-  - Call `analyzePlanOverlap(planPaths)`. On `Left`, `out.error(left.message)` and
-    return `1`.
-  - On `Right`: when `opts.json`, `out.log(JSON.stringify(result, replacer))`
-    (convert the `Set` fields to arrays via a replacer or a small `toJSON` mapper);
-    otherwise `out.log(renderPlanOverlap(result))`. Return `0`.
-  - No business logic in the command — loading, mapping, and computation all live
-    below it.
+  - Load config (`loadConfig(process.cwd())`); on error print and return `1`. Read
+    `extractPlanModel`/`extractPlanEffort`/`stateRoot` from it for the loader.
+  - Build a `Backend | FileSystem` layer (the backend from `makeNodeBackendLayer`
+    as `reviewCompliance.ts` does, since a cold miss extracts) and run
+    `analyzePlanOverlap(planMdPaths, { model, effort, stateRoot, noExtract: opts.noExtract ?? false, nowIso: new Date().toISOString() })`.
+    Keep `new Date()` at the CLI edge.
+  - On failure, `out.error(message)` and return `1`. On success: when `opts.json`,
+    `out.log(JSON.stringify(result, replacer))` (convert the `Set` fields to arrays
+    via a replacer or a small `toJSON` mapper); otherwise
+    `out.log(renderPlanOverlap(result))`. Return `0`.
+  - No business logic in the command — loading/extraction, mapping, and
+    computation all live below it.
 - Register in `src/cli/program.ts` after the `review-compliance` command:
   ```ts
   program
     .command("plans-overlap")
     .description("Report which plans can run in parallel without merge conflict")
-    .argument("<plan...>", "Paths to two or more phax-plan.json files")
+    .argument("<plan...>", "Paths to two or more plan.md files")
     .option("--json", "Emit the overlap result as JSON instead of a report")
-    .action(async (plans: string[], opts: { json?: boolean }) => {
-      const exitCode = await runPlansOverlap(plans, opts, consoleOutput);
+    .option("--no-extract", "Fail on a cache miss instead of extracting the plan.md")
+    .action(async (plans: string[], opts: { json?: boolean; extract?: boolean }) => {
+      // commander maps --no-extract to opts.extract === false
+      const exitCode = await runPlansOverlap(plans, { json: opts.json, noExtract: opts.extract === false }, consoleOutput);
       process.exit(exitCode);
     });
   ```
   Add the matching `import { runPlansOverlap } from "./commands/plansOverlap.js";`.
 - Add a `"plans-overlap"` entry to `src/cli/cliDocs.ts` (the single source of
   truth the help output and the usage-spec generator both read): a `longHelp`
-  describing the read-only file-level analysis, that input is `phax-plan.json`
-  (run `phax extract-plan` on a `plan.md` first), and the
-  declared-not-guaranteed / file-level / regenerated-artifact caveats, plus a
-  "Side effects: none (read-only; spawns no agent, runs no git)." line; and
-  `examples: ["phax plans-overlap a/phax-plan.json b/phax-plan.json"]`.
+  describing the read-only file-level analysis, that input is `plan.md` paths
+  (obtained via the extraction cache; a cold miss extracts once, `--no-extract`
+  fails instead), and the declared-not-guaranteed / file-level /
+  regenerated-artifact caveats, plus a "Side effects: read-only with respect to
+  your plans; may run one LLM extraction per uncached plan.md." line; and
+  `examples: ["phax plans-overlap docs/plans/33-a.md docs/plans/35-b.md"]`.
 - Regenerate the derived artifacts, in order: `pnpm gen:usage-spec` (rewrites
   `phax.usage.kdl` from the Commander program + `cliDocs`), then `pnpm docs:cli`
   (rewrites `docs/cli/reference.md` and the README CLI section between the
@@ -482,20 +502,23 @@ program + `cliDocs` and must be regenerated, not hand-written; the
 ### Test strategy
 
 CLI/route layer integration test `tests/integration/plansOverlapCommand.test.ts`
-with a fake `OutputPort` (capture `log`/`error`) and temp `phax-plan.json`
-fixtures:
+with a fake `OutputPort` (capture `log`/`error`), a counting fake `Backend`, and
+temp `plan.md` fixtures:
 
 - Two disjoint plans → exit `0` and the captured report names both plans and the
   parallel-safe set.
 - Two conflicting plans → exit `0` and the report shows the shared file and
   severity.
-- A malformed/missing path → exit `1` and the error mentions the path.
+- A second invocation over the same mds does not call the backend (warm cache).
+- A missing/unextractable path → exit `1` and the error mentions the path.
+- `--no-extract` on an uncached md → exit `1` without calling the backend.
 - `--json` → exit `0` and the captured output parses as JSON with `edges` /
   `cleanPairs` / `waves` keys (Sets emitted as arrays).
 - Fewer than two paths → exit `1`.
 
 Extend `tests/integration/cliProgram.test.ts` to assert the `plans-overlap`
-command is registered with a variadic `<plan...>` argument and the `--json` flag.
+command is registered with a variadic `<plan...>` argument and the
+`--json` / `--no-extract` flags.
 `tests/integration/usageSpecDrift.test.ts` (in the `full` gate) verifies the
 regenerated `phax.usage.kdl` matches the program.
 
@@ -511,7 +534,8 @@ Command file → `cliDocs` entry → `program.ts` registration → regenerate
 - Hand-editing the generated artifacts (`phax.usage.kdl`,
   `docs/cli/reference.md`, README CLI section) instead of regenerating them.
 - Auto-orchestrating parallel runs from the result — this command only reports.
-- A severity-threshold filter flag — `--json` is the only option in this plan.
+- A severity-threshold filter flag — `--json` and `--no-extract` are the only
+  options in this plan.
 
 ### Verification
 
@@ -523,8 +547,8 @@ Command file → `cliDocs` entry → `program.ts` registration → regenerate
 ### Expected handoff content
 
 - The `runPlansOverlap` signature and `opts` shape, and the exit-code contract.
-- The registered command name, description, the `<plan...>` argument, the `--json`
-  flag, and the `cliDocs` key added.
+- The registered command name, description, the `<plan...>` argument, the
+  `--json` / `--no-extract` flags, and the `cliDocs` key added.
 - Confirmation that `phax.usage.kdl`, `docs/cli/reference.md`, and the README CLI
   section were regenerated (not hand-edited) via `pnpm gen:usage-spec` and
   `pnpm docs:cli`, and that `usageSpecDrift.test.ts` passes.
@@ -538,14 +562,15 @@ feat(cli): add plans-overlap command
 
 ### Commit body
 
-Add `phax plans-overlap <plan...>`, a read-only command that reports which of the
-given phax-plan.json files can run in parallel without merge conflict. It loads
-each plan via analyzePlanOverlap, prints the severity-graded conflict matrix, the
-clean pairs, the largest parallel-safe set, and a greedy wave schedule (or JSON
-with --json). Registers the command, documents it in cliDocs, and regenerates
-phax.usage.kdl, docs/cli/reference.md, and the README CLI section; updates the
-cliProgram command-set test. Covered by a command integration test over temp plan
-fixtures.
+Add `phax plans-overlap <plan.md...>`, a read-only command that reports which of
+the given plan.md files can run in parallel without merge conflict. It obtains
+each plan via analyzePlanOverlap (the plan-38 extraction cache; a cold miss
+extracts once, --no-extract fails instead), prints the severity-graded conflict
+matrix, the clean pairs, the largest parallel-safe set, and a greedy wave schedule
+(or JSON with --json). Registers the command, documents it in cliDocs, and
+regenerates phax.usage.kdl, docs/cli/reference.md, and the README CLI section;
+updates the cliProgram command-set test. Covered by a command integration test
+over temp plan fixtures.
 
 ---
 
@@ -595,31 +620,33 @@ negatives from undeclared touches.
   caveat that this is the run's *actual* changed files vs the others' *declared*
   footprints.
 - **App.** In `src/app/analyzePlanOverlap.ts`, add
-  `analyzeReadjustmentImpact(runPath: string, planPaths: readonly string[]): Either.Either<ReadjustmentImpactResult, AnalyzePlanOverlapError>`:
+  `analyzeReadjustmentImpact(runPath, planMdPaths, opts): Effect.Effect<ReadjustmentImpactResult, AnalyzePlanOverlapError, Backend | FileSystem>`,
+  with the same `opts` (`{ model; effort; stateRoot; noExtract; nowIso }`) as
+  `analyzePlanOverlap`:
   - Read `join(runPath, "global-file-reconciliation.json")` and decode via
-    `decodeGlobalFileReconciliation`. If the file is absent, return a `Left` whose
-    message explains the run has not produced a reconciliation yet (it must have
-    reached review); if it fails to decode, name the path.
+    `decodeGlobalFileReconciliation`. If the file is absent, fail with a message
+    explaining the run has not produced a reconciliation yet (it must have reached
+    review); if it fails to decode, name the path.
   - Derive the `LandedInput` from the decoded entries: `added` = paths whose
     `actualActions` include `"added"`, `modified` = those including `"modified"`,
     `deletedOrRenamed` = those including `"deleted"` or `"renamed"`. `label` = the
     run folder name.
-  - Load each plan path via `loadPlan` and map to `PlanInput`/`PlanFootprint` as in
-    `analyzePlanOverlap` (factor the per-path load-and-map into a shared helper so
-    both functions reuse it). Aggregate load failures the same way.
-  - Call `buildLandedFootprint` + `computeReadjustmentImpact` and return `Right`.
+  - Load each `plan.md` path via `loadOrExtractPlan` and map to
+    `PlanInput`/`PlanFootprint` using the **shared per-path helper** factored out
+    in phase-02. Aggregate failures the same way.
+  - Call `buildLandedFootprint` + `computeReadjustmentImpact` and succeed.
 - **CLI.** In `src/cli/commands/plansOverlap.ts`, accept `opts.landed?: string`.
-  When set: load config (`loadConfig(process.cwd())`), resolve the run via
-  `resolveRun`/`resolveRunRef` (as `reviewCompliance.ts` does) to get its
-  `runPath`, call `analyzeReadjustmentImpact(runPath, planPaths)`, and print
-  `renderReadjustmentImpact` (or JSON under `--json`). When `opts.landed` is absent,
-  keep the existing predicted-mode path unchanged. Resolution/config errors print
-  and return `1`.
+  When set: resolve the run via `resolveRun`/`resolveRunRef` (as
+  `reviewCompliance.ts` does) to get its `runPath`, then run
+  `analyzeReadjustmentImpact(runPath, planMdPaths, { model, effort, stateRoot, noExtract, nowIso })`
+  over the same `Backend | FileSystem` layer, and print `renderReadjustmentImpact`
+  (or JSON under `--json`). When `opts.landed` is absent, keep the predicted-mode
+  path unchanged. Resolution/config errors print and return `1`.
 - **Registration.** In `src/cli/program.ts`, add
   `.option("--landed <run>", "Report which of the given plans need re-adjustment after this run's actual changes")`
   to the `plans-overlap` command. Update the `src/cli/cliDocs.ts` entry's
   `longHelp` to describe both modes and add an example
-  `phax plans-overlap --landed my-feature other/phax-plan.json`.
+  `phax plans-overlap --landed my-feature docs/plans/40-other.md`.
 - **Regenerate** `phax.usage.kdl` (`pnpm gen:usage-spec`) then
   `docs/cli/reference.md` + README (`pnpm docs:cli`); do not hand-edit them.
 - Update `tests/integration/cliProgram.test.ts` to assert the `--landed` flag is
@@ -656,9 +683,10 @@ negatives from undeclared touches.
 
 Validation boundary: `src/schemas/globalReconciliation.ts` decodes the persisted
 `global-file-reconciliation.json` into a validated shape before it reaches the
-domain. Consumer/producer: the app reads that artifact + the remaining
-`phax-plan.json` files, derives a landed footprint and declared footprints, and
-the domain `computeReadjustmentImpact` produces the impact result the CLI renders.
+domain. Consumer/producer: the app reads that artifact + the remaining `plan.md`
+files (via `loadOrExtractPlan`), derives a landed footprint and declared
+footprints, and the domain `computeReadjustmentImpact` produces the impact result
+the CLI renders.
 The domain still imports nothing from `src/schemas` — `analyzeReadjustmentImpact`
 maps the decoded reconciliation into the schema-free `LandedInput`.
 
@@ -674,8 +702,9 @@ maps the decoded reconciliation into the schema-free `LandedInput`.
   `hard` for any plan that regenerates it; `impacted` ordered by descending
   severity.
 - Integration (`tests/integration/plansOverlapLanded.test.ts`): seed a temp run
-  folder with a `global-file-reconciliation.json` and temp `phax-plan.json`
-  fixtures; assert the command resolves the run, returns exit `0`, and the report
+  folder with a `global-file-reconciliation.json` and temp `plan.md` fixtures
+  (with a counting fake `Backend`); assert the command resolves the run, returns
+  exit `0`, and the report
   lists the impacted plans with the right shared files; a run folder lacking the
   reconciliation file → exit `1` with the explanatory message; `--json` emits a
   parseable object with `impacted` / `unaffected`.
@@ -773,7 +802,7 @@ deterministic impact.
         readonly modified: readonly string[];
         readonly deletedOrRenamed: readonly string[];
       };
-      readonly impact?: {                        // present only with --plan-json
+      readonly impact?: {                        // present when the target plan extracted cleanly
         readonly shared: ReadonlyArray<{ path: string; severity: string; reason: string }>;
         readonly severity: string;
       };
@@ -986,11 +1015,15 @@ spawns nothing and mutates no plan.
 ### Detailed instructions
 
 - Create `src/app/adjustPlan.ts` exporting `prepareAdjustPlanSession(opts)`:
-  - `opts`: `{ planPath: string; planMarkdown: string; runPath: string; runKey: string; provider: <provider literal>; cwd: string; planJsonPath?: string; newSession: boolean; nowIso: string; modelOverride?: string; effortOverride?: string; model: string; effort: string }`.
-    (The CLI resolves `runPath`/`provider`/`cwd` and reads `planMarkdown`; the use
-    case stays oblivious to argv and `Date`.)
-  - Returns `Effect.Effect<PrepareAdjustResult, FsError, FileSystem | SystemTelemetry>`
-    where `PrepareAdjustResult` is `{ kind: "ready"; invocation; mode: "new" | "resume" }`
+  - `opts`: `{ planPath: string; planMarkdown: string; runPath: string; runKey: string; provider: <provider literal>; cwd: string; extract: { model: string; effort: string; stateRoot: string }; newSession: boolean; nowIso: string; modelOverride?: string; effortOverride?: string; model: string; effort: string }`.
+    (The CLI resolves `runPath`/`provider`/`cwd` and reads `planMarkdown`; `extract`
+    holds the `extractPlanModel`/`extractPlanEffort`/`stateRoot` used to obtain the
+    target plan's footprint via the cache; the session `model`/`effort` drive the
+    invocation. The use case stays oblivious to argv and `Date`.)
+  - Returns `Effect.Effect<PrepareAdjustResult, FsError, FileSystem | SystemTelemetry | Backend>`
+    (`Backend` only because computing the precise impact may extract the target
+    plan on a cold cache miss) where `PrepareAdjustResult` is
+    `{ kind: "ready"; invocation; mode: "new" | "resume" }`
     or `{ kind: "unsupported"; message }` or `{ kind: "refused"; message }`.
   - Session-record + prompt-file dir: `join(runPath, "adjust-plan-sessions", slug(planPath))`;
     record at `…/session.json`, prompt at `…/${ADJUST_PLAN_PROMPT_FILENAME}`.
@@ -1008,9 +1041,12 @@ spawns nothing and mutates no plan.
        (`added`/`modified`/`deletedOrRenamed`) from the entries' `actualActions`.
        If the file is absent, return `refused` (the run has not produced a
        reconciliation; it must have reached review).
-    3. If `planJsonPath` is given, `loadPlan` it, build its footprint and the
-       landed footprint (`buildLandedFootprint`), run `computeReadjustmentImpact`
-       for that single plan, and set the prompt's `impact` block; otherwise omit it.
+    3. Obtain the target plan's footprint by `loadOrExtractPlan({ planMdPath: planPath, ...opts.extract, nowIso })`
+       (plan 38), build its footprint and the landed footprint
+       (`buildLandedFootprint`), run `computeReadjustmentImpact` for that single
+       plan, and set the prompt's `impact` block. If extraction fails (e.g. the
+       plan.md is mid-edit and not yet extractable), **omit** `impact` and proceed —
+       the agent still establishes drift from the plan markdown.
     4. Build the full prompt via `buildAdjustPlanPrompt({ planPath, planMarkdown, landedLabel: runKey, landedChanges, impact })`,
        ensure the session dir exists (`fs.mkdirp`), and `fs.writeAtomic` it to the
        prompt path.
@@ -1042,19 +1078,22 @@ spawns nothing and mutates no plan.
 ### Boundary contracts
 
 Consumer/producer: the use case consumes the landed `global-file-reconciliation.json`,
-the target `plan.md` text, an optional `phax-plan.json`, and the persisted session
-record; it produces the session record, the prompt file, and a `PrepareAdjustResult`
-invocation. Depends only on `FileSystem` + `SystemTelemetry` — no `Session`.
+the target `plan.md` text (and its cache-extracted footprint for the precise
+impact), and the persisted session record; it produces the session record, the
+prompt file, and a `PrepareAdjustResult` invocation. Depends on `FileSystem` +
+`SystemTelemetry` + `Backend` (the backend only on a cold extraction of the
+target plan) — no `Session`.
 
 ### Test strategy
 
 - Integration (core cases before implementation) with fake `FileSystem` +
-  `NoopSystemTelemetryLayer`, fixed `nowIso`:
-  - New session, no `planJsonPath`: reads the seeded reconciliation, writes the
-    prompt (assert it names the landed changes and the plan path), persists a
-    record, returns `mode: "new"` with claude `--session-id` argv and `cwd`.
-  - New session with `planJsonPath`: the written prompt includes the deterministic
-    impact (shared files/severity).
+  `NoopSystemTelemetryLayer` + a counting fake `Backend`, fixed `nowIso`:
+  - New session, target plan already cached: reads the seeded reconciliation,
+    writes the prompt (assert it names the landed changes, the plan path, and the
+    deterministic impact), persists a record, returns `mode: "new"` with claude
+    `--session-id` argv and `cwd`, without re-calling the backend.
+  - New session, target plan unextractable: the prompt is still written and the
+    `impact` block is omitted.
   - Resume (no overrides): existing record + `newSession:false` → `mode:"resume"`,
     `--resume`, no `--model`/`--effort`, `updatedAt` refreshed.
   - Missing `global-file-reconciliation.json` → `kind:"refused"`, no record written.
@@ -1089,8 +1128,9 @@ feat(app): add prepareAdjustPlanSession use case
 
 Add prepareAdjustPlanSession, which starts or resumes the adjust-plan interactive
 session: it reads the landed run's global-file-reconciliation.json and the target
-plan.md, optionally computes the deterministic impact from a phax-plan.json, writes
-the drift pre-prompt and a persisted session record under the run folder, and
+plan.md, computes the deterministic impact by extracting the target plan via the
+plan-38 cache (omitted if it cannot be extracted), writes the drift pre-prompt and
+a persisted session record under the run folder, and
 returns the provider invocation for the CLI to spawn. It mutates no plan and spawns
 nothing; the plan edit and commit happen interactively in the session after
 approval. Covered by integration tests over the new/resume/refused/unsupported
@@ -1112,7 +1152,7 @@ and document it in the usage spec.
 - Create `src/cli/commands/adjustPlan.ts` exporting
   `runAdjustPlan(planPathArg, opts, out): Promise<number>`, modeled on
   `src/cli/commands/enter.ts` (resolve/spawn) and `reviewCompliance.ts` (config):
-  - `opts: { landed: string; newSession?: boolean; planJson?: string; model?: string; effort?: string; verbose?: boolean }`.
+  - `opts: { landed: string; newSession?: boolean; model?: string; effort?: string; verbose?: boolean }`.
   - Load config; on error print and return 1. Require `opts.landed`; resolve that
     run via `resolveRun`/`resolveRunRef` to get its `runPath` and `runKey`; print
     and return 1 on failure. (The run need not be `review_open`, but it must have a
@@ -1122,10 +1162,11 @@ and document it in the usage spec.
   - Read the provider from the landed run's final-phase `agent-binding.json`
     (`readAgentBinding`, as `enter.ts` does); on missing binding, print and return 1.
   - Validate `--effort` against the config `EffortLiteral` (`low|medium|high`) if
-    given; compute effective `model`/`effort` (defaulting model to
+    given; compute effective session `model`/`effort` (defaulting model to
     `claude-opus-4-8` and effort to `high`, matching the review default rationale).
-  - Run `prepareAdjustPlanSession({ planPath: planPathArg, planMarkdown, runPath, runKey, provider, cwd: process.cwd(), planJsonPath: opts.planJson, newSession: opts.newSession ?? false, nowIso: new Date().toISOString(), modelOverride: opts.model, effortOverride: opts.effort, model, effort })`
-    over a `FileSystem` + `SystemTelemetry` layer. Keep `new Date()` at the CLI edge.
+  - Run `prepareAdjustPlanSession({ planPath: planPathArg, planMarkdown, runPath, runKey, provider, cwd: process.cwd(), extract: { model: config.extractPlanModel, effort: config.extractPlanEffort, stateRoot: config.stateRoot }, newSession: opts.newSession ?? false, nowIso: new Date().toISOString(), modelOverride: opts.model, effortOverride: opts.effort, model, effort })`
+    over a `Backend` + `FileSystem` + `SystemTelemetry` layer (the `Backend` is for
+    the target-plan extraction behind the impact). Keep `new Date()` at the CLI edge.
   - On `kind: "unsupported"` / `"refused"`: print the message, return 1.
   - On `kind: "ready"`: log `Starting plan adjustment session …` / `Resuming …` by
     `mode`, provide `makeNodeSessionLayer()`, call `Session.resume(invocation)`,
@@ -1137,7 +1178,6 @@ and document it in the usage spec.
     .description("Open an interactive session to adjust a plan after a landed run")
     .argument("<plan>", "Path to the plan.md to adjust")
     .requiredOption("--landed <run>", "The landed run whose actual changes drive the adjustment")
-    .option("--plan-json <path>", "Optional phax-plan.json for the target plan, to seed a precise impact")
     .option("--new-session", "Start a fresh adjustment session instead of resuming")
     .option("--model <model>", "Override the model (default: claude-opus-4-8)")
     .option("--effort <effort>", "Override the effort (low | medium | high)")
@@ -1161,8 +1201,7 @@ and document it in the usage spec.
   + README (`pnpm docs:cli`); do not hand-edit them.
 - Update `tests/integration/cliProgram.test.ts`: add `"adjust-plan"` to
   `TOP_LEVEL_COMMANDS` (the exact-length assertion requires it) and assert its
-  `<plan>` arg and `--landed`/`--plan-json`/`--new-session`/`--model`/`--effort`
-  flags.
+  `<plan>` arg and `--landed`/`--new-session`/`--model`/`--effort` flags.
 
 ### Planned files to create
 
@@ -1195,11 +1234,11 @@ happens inside the spawned session.
 ### Test strategy
 
 - Integration `tests/integration/adjustPlanCommand.test.ts` with fake `FileSystem`
-  + fake `Session`:
-  - A landed run with a reconciliation and a target plan.md → exit = the fake
-    session's code, and the fake `Session` received a claude `--session-id`
-    invocation with `cwd` the repo root.
-  - `--plan-json` provided → the written prompt (via fake fs) includes the impact.
+  + fake `Session` + a counting fake `Backend`:
+  - A landed run with a reconciliation and a target plan.md (already cached) → exit
+    = the fake session's code, and the fake `Session` received a claude
+    `--session-id` invocation with `cwd` the repo root; the written prompt (via
+    fake fs) includes the deterministic impact.
   - Re-invocation without `--new-session` → fake `Session` received `--resume`.
   - Missing `--landed` → Commander error / exit 1 without spawning.
   - Landed run lacking a reconciliation → exit 1 (`refused`) without spawning.
