@@ -84,10 +84,6 @@ cmd "enter" {
     }
 }
 
-cmd "enter-last" {
-    help "Resume the final phase's session for the last review_open run in this project"
-}
-
 cmd "enter-phase" {
     help "Resume a specific phase's agent session interactively"
     long_help "Attaches to the agent session for a specific phase worktree. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main."
@@ -122,10 +118,6 @@ cmd "shell" {
     }
 }
 
-cmd "shell-last" {
-    help "Open a shell in the final worktree for the last review_open run in this project"
-}
-
 cmd "path" {
     help "Print the final worktree path (script-friendly, one line)"
     long_help "Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools."
@@ -136,10 +128,6 @@ cmd "path" {
     }
 }
 
-cmd "path-last" {
-    help "Print the final worktree path for the last review_open run in this project"
-}
-
 cmd "open" {
     help "Open the final worktree in the configured editor"
     long_help "Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument."
@@ -147,10 +135,6 @@ cmd "open" {
     arg "<short-name>" {
         help "Run short name, e.g. usage-cli"
     }
-}
-
-cmd "open-last" {
-    help "Open the final worktree in the configured editor for the last review_open run in this project"
 }
 
 cmd "ls" {
@@ -187,13 +171,6 @@ cmd "archive" {
     arg "<short-name>" {
         help "Run short name, e.g. usage-cli"
     }
-    flag "--force" {
-        help "Archive even if the final worktree has uncommitted changes"
-    }
-}
-
-cmd "archive-last" {
-    help "Archive the last review_open run in this project"
     flag "--force" {
         help "Archive even if the final worktree has uncommitted changes"
     }
