@@ -351,6 +351,7 @@ export function executePlan(
     const resumePhaseId = resumePhase?.id;
     let resumeFromGate = false;
     let resumeFromHandoff = false;
+    let resumeFromCommit = false;
     let resumeSessionId: string | undefined;
     let resumeWorktreePath: string | undefined;
     let resumeAttempt = 0;
@@ -370,6 +371,10 @@ export function executePlan(
               : 0;
         } else if (phaseStatus?.state === "handoff_failed") {
           resumeFromHandoff = true;
+          resumeSessionId = phaseStatus.claudeSessionId;
+          resumeWorktreePath = phaseStatus.worktreePath;
+        } else if (phaseStatus?.state === "passed") {
+          resumeFromCommit = true;
           resumeSessionId = phaseStatus.claudeSessionId;
           resumeWorktreePath = phaseStatus.worktreePath;
         }
@@ -399,6 +404,7 @@ export function executePlan(
       const isFinal = i === plan.phases.length - 1;
       const isResumeFromGate = i === startIndex && resumeFromGate;
       const isResumeFromHandoff = i === startIndex && resumeFromHandoff;
+      const isResumeFromCommit = i === startIndex && resumeFromCommit;
 
       // Resolve the phase branch before creating the phase folder so the
       // initial status.json can include branchName (required by the schema).
@@ -419,7 +425,7 @@ export function executePlan(
       let sessionId: ClaudeSessionId;
       let agentOptions: AgentRunOptions;
 
-      if (isResumeFromGate || isResumeFromHandoff) {
+      if (isResumeFromGate || isResumeFromHandoff || isResumeFromCommit) {
         // Resume-from-gate / resume-from-handoff: the worktree, branch, model-resolution,
         // security posture, and Claude session were all written on the original
         // attempt. Re-enter at the appropriate step using the captured session — never
@@ -790,7 +796,7 @@ export function executePlan(
       // `ctx` is used by the FinalReviewOpened dispatch later in the loop.
       const ctx = dispatchCtx(phaseFolderPath, phase.id);
 
-      if (!isResumeFromHandoff) {
+      if (!isResumeFromHandoff && !isResumeFromCommit) {
         // running → passed transition is dispatched inside fixLoop on the
         // gate-success branch via dispatch(GatePassed). On resume-from-gate the
         // loop starts at `resumeAttempt + 1` with a fresh fix budget so prior
@@ -809,7 +815,9 @@ export function executePlan(
             ? { startAttempt: resumeAttempt + 1, worktreePath: worktreePath as string }
             : {}),
         });
+      }
 
+      if (!isResumeFromHandoff) {
         // commitPhase dispatches CommitCreated internally.
         // If the commit fails for a reason other than no-changes (e.g. a pre-commit
         // hook rejection), dispatch CommitFailed to pause the run as `interrupted`
