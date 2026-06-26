@@ -5,6 +5,7 @@ import type { GlobalFileReconciliation } from "../domain/reconciliation/global.j
 import { findUnexplainedDeviations } from "../domain/reconciliation/explained.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { runKey } from "../domain/runRef.js";
+import { isPhaseTerminal } from "../domain/state.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { writeFinalReport } from "./finalReport.js";
@@ -65,7 +66,7 @@ export function buildReviewHandoffContent(
   complianceReviewMd?: string,
 ): string {
   const passed = info.phaseStatuses.filter(
-    (p) => p.state !== "failed" && p.state !== "skipped",
+    (p) => isPhaseTerminal(p.state) && p.state !== "skipped",
   ).length;
   const total = info.phaseStatuses.length;
 

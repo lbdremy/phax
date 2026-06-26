@@ -6,8 +6,6 @@ import type {
   CommitCreated,
   GateFailed,
   GatePassed,
-  HandoffMissing,
-  HandoffValidated,
   PhaxEvent,
   PhaxEventBase,
   RateLimitDetected,
@@ -31,11 +29,6 @@ import { reportGitFailure } from "./telemetry/reportBuilders.js";
 import { cleanupPhase, type CleanupPhaseOptions } from "./cleanup.js";
 import { commitPhase, type CommitPhaseOptions } from "./commit.js";
 import { runGates } from "./gates.js";
-import {
-  generatePhaseHandoff,
-  HandoffValidationError,
-  type GenerateHandoffOptions,
-} from "./handoffGeneration.js";
 
 /**
  * Wraps an Effect so both the success and failure paths produce a PhaxEvent.
@@ -210,79 +203,6 @@ export function adaptCleanup(
   }
   return cleanupPhase(opts).pipe(
     Effect.map((): CleanupCompleted => ({ ...base, type: "CleanupCompleted" })),
-  );
-}
-
-export function adaptHandoffGenerate(
-  opts: GenerateHandoffOptions,
-  base: PhaxEventBase,
-): Effect.Effect<
-  HandoffValidated | HandoffMissing | RateLimitDetected,
-  | AgentInvocationError
-  | AgentSessionIdMissingError
-  | GitError
-  | ShellError
-  | FsError
-  | SecurityEnforcementError
-  | SetupCommandFailedError,
-  FileSystem | Backend | Git | Shell | SystemTelemetry
-> {
-  return generatePhaseHandoff(opts).pipe(
-    Effect.map((): HandoffValidated => ({ ...base, type: "HandoffValidated" })),
-    Effect.catchTag(
-      "RateLimitError",
-      (e): Effect.Effect<RateLimitDetected, never> =>
-        Effect.succeed({
-          ...base,
-          type: "RateLimitDetected",
-          kind: "rate_limit",
-          resetAt: e.resetAt,
-          cause: e,
-        }),
-    ),
-    Effect.catchTag(
-      "UsageLimitError",
-      (e): Effect.Effect<RateLimitDetected, never> =>
-        Effect.succeed({
-          ...base,
-          type: "RateLimitDetected",
-          kind: "usage_limit",
-          resetAt: e.resetAt,
-          cause: e,
-        }),
-    ),
-    Effect.catchAll(
-      (
-        e,
-      ): Effect.Effect<
-        HandoffMissing,
-        | AgentInvocationError
-        | AgentSessionIdMissingError
-        | GitError
-        | ShellError
-        | FsError
-        | SecurityEnforcementError
-        | SetupCommandFailedError
-      > => {
-        if (e instanceof HandoffValidationError) {
-          return Effect.succeed({
-            ...base,
-            type: "HandoffMissing",
-            missingSections: e.missingSections,
-          });
-        }
-        return Effect.fail(
-          e as
-            | AgentInvocationError
-            | AgentSessionIdMissingError
-            | GitError
-            | ShellError
-            | FsError
-            | SecurityEnforcementError
-            | SetupCommandFailedError,
-        );
-      },
-    ),
   );
 }
 
