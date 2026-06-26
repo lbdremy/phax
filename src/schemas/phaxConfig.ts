@@ -63,6 +63,13 @@ export const ComplianceReviewConfigSchema = Schema.Struct({
   effort: Schema.optional(EffortLiteral),
 });
 
+export const CodeReviewConfigSchema = Schema.Struct({
+  model: Schema.optional(Schema.NonEmptyString),
+  effort: Schema.optional(EffortLiteral),
+});
+
+export type CodeReviewConfig = Schema.Schema.Type<typeof CodeReviewConfigSchema>;
+
 export type ComplianceReviewConfig = Schema.Schema.Type<typeof ComplianceReviewConfigSchema>;
 
 export interface ResolvedComplianceReviewConfig {
@@ -114,6 +121,7 @@ export const PhaxConfigSchema = Schema.Struct({
   review: Schema.optional(
     Schema.Struct({
       compliance: Schema.optional(ComplianceReviewConfigSchema),
+      code: Schema.optional(CodeReviewConfigSchema),
     }),
   ),
   gateProfiles: GateProfilesSchema,
@@ -124,6 +132,22 @@ export type PhaxConfig = Schema.Schema.Type<typeof PhaxConfigSchema>;
 export type PhaxConfigWorkspace = Schema.Schema.Type<typeof WorkspaceSchema>;
 
 export const DEFAULT_EXTRACT_MODEL = "claude-haiku-4-5-20251001";
+
+export interface ResolvedCodeReviewConfig {
+  readonly model: string;
+  readonly effort: Effort;
+}
+
+export const DEFAULT_CODE_REVIEW_MODEL = "claude-opus-4-8";
+
+export function resolveCodeReviewConfig(
+  raw: CodeReviewConfig | undefined,
+): ResolvedCodeReviewConfig {
+  return {
+    model: raw?.model ?? DEFAULT_CODE_REVIEW_MODEL,
+    effort: raw?.effort ?? "high",
+  };
+}
 
 export interface ResolvedConfig {
   readonly raw: PhaxConfig;
@@ -137,6 +161,7 @@ export interface ResolvedConfig {
   readonly security: ResolvedSecurityConfig;
   readonly publish: ResolvedPublishConfig;
   readonly complianceReview: ResolvedComplianceReviewConfig;
+  readonly codeReview: ResolvedCodeReviewConfig;
 }
 
 export type { ResolvedSecurityConfig };
@@ -173,6 +198,7 @@ export const PhaxUserOverlaySchema = Schema.Struct({
   review: Schema.optional(
     Schema.Struct({
       compliance: Schema.optional(ComplianceReviewConfigSchema),
+      code: Schema.optional(CodeReviewConfigSchema),
     }),
   ),
   gateProfiles: Schema.optional(GateProfilesSchema),

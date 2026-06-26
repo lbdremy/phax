@@ -14,6 +14,7 @@ import {
   DEFAULT_EXTRACT_MODEL,
   resolvePublishConfig,
   resolveComplianceReviewConfig,
+  resolveCodeReviewConfig,
 } from "../schemas/phaxConfig.js";
 import { resolveSecurityConfig, DEFAULT_SECURITY_PROFILE } from "../schemas/securityConfig.js";
 import { formatParseError } from "../schemas/formatError.js";
@@ -271,6 +272,7 @@ export function loadConfig(
     security: resolvedSecurity,
     publish: resolvePublishConfig(config.publish),
     complianceReview: resolveComplianceReviewConfig(config.review?.compliance),
+    codeReview: resolveCodeReviewConfig(config.review?.code),
   };
 
   return Either.right(resolved);
