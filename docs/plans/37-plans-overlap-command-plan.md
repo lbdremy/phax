@@ -68,6 +68,24 @@ logic. The domain stays independent of `src/schemas` (the app does the mapping),
 exactly as `reconciliation` defines its own `PlannedFiles` type rather than
 importing schema types.
 
+### Two modes
+
+The same conflict graph answers two questions, so the command has two modes:
+
+- **Predicted (phases 01–03), declared-vs-declared.** `phax plans-overlap <plan...>`
+  intersects the *declared* footprints of all given plans to report which can run
+  in parallel.
+- **Confirmed (phase-04), actual-vs-declared.** `phax plans-overlap --landed <run> <plan...>`
+  takes a run that has already produced changes and reports which of the remaining
+  plans need re-adjustment because they touch a file the run *actually* changed.
+  The landed run's footprint is read from its persisted
+  `global-file-reconciliation.json` (the real `git` diff across its phases), not
+  from its declared plan — so it has no false negatives from a phase that touched a
+  file it never declared. Severity grades the *kind* of re-adjustment: `hard`
+  (regenerated artifact / structural) means regenerate or restructure, `medium`
+  (same source file) means rebase and re-verify the plan's line references, `soft`
+  (docs) means a trivial textual rebase.
+
 ## Required commands
 
 - pnpm gen:usage-spec
@@ -496,3 +514,188 @@ with --json). Registers the command, documents it in cliDocs, and regenerates
 phax.usage.kdl, docs/cli/reference.md, and the README CLI section; updates the
 cliProgram command-set test. Covered by a command integration test over temp plan
 fixtures.
+
+---
+
+## phase-04 — `--landed` re-adjustment impact mode {#phase-04-landed-impact}
+
+**Recommended model:** claude-sonnet-4-6
+**Recommended effort:** medium
+
+Add a `--landed <run>` mode to `plans-overlap` that reports which of the remaining
+plans need re-adjustment after a run has actually changed files. The landed run's
+footprint comes from its persisted `global-file-reconciliation.json` (the real git
+diff across its phases), giving an actual-vs-declared impact list with no false
+negatives from undeclared touches.
+
+### Detailed instructions
+
+- **Schema (boundary).** Add a decode schema for the persisted
+  `global-file-reconciliation.json` if one does not already exist — search first;
+  reuse it if it does. Create `src/schemas/globalReconciliation.ts` with a
+  `Schema.Struct` mirroring the domain `GlobalFileReconciliation` /
+  `GlobalFileEntry` shapes (`src/domain/reconciliation/global.ts`): `files` is an
+  array of entries with `path`, `touchedInPhases`, `actualActions`
+  (`"added" | "modified" | "deleted" | "renamed"`), and the boolean/status fields.
+  Export `decodeGlobalFileReconciliation` (`Schema.decodeUnknownEither`). Per the
+  validation-boundary rule, the persisted JSON must be decoded through a schema
+  before it enters the domain — do not `JSON.parse` it raw in the use case.
+- **Domain — landed footprint.** In `src/domain/planOverlap/compute.ts`, add
+  `buildLandedFootprint(input: LandedInput): PlanFootprint`, where `LandedInput`
+  (new type in `types.ts`) carries `{ id; label; added: readonly string[]; modified: readonly string[]; deletedOrRenamed: readonly string[] }`.
+  Map `added → create`, `modified → edit`, `deletedOrRenamed → edit` (a delete or
+  rename still "touches" the path for collision purposes) so the existing
+  `classifyShared` severity ladder applies unchanged (regenerated artifact and
+  create/edit clashes still grade as `hard`).
+- **Domain — impact.** Add
+  `computeReadjustmentImpact(landed: PlanFootprint, others: readonly PlanFootprint[]): ReadjustmentImpactResult`
+  to `compute.ts`. For each `other`, intersect `landed.all ∩ other.all`; emit an
+  `ImpactedPlan { id; label; shared: readonly SharedFile[]; severity }` (severity =
+  max over shared files) for every plan with a non-empty intersection; plans with
+  no intersection are reported as `unaffected` (ids only). `ReadjustmentImpactResult`
+  (new type in `types.ts`): `{ landedLabel: string; impacted: readonly ImpactedPlan[]; unaffected: readonly string[] }`,
+  with `impacted` ordered by descending severity then input order.
+- **Domain — render.** In `src/domain/planOverlap/render.ts`, add
+  `renderReadjustmentImpact(result: ReadjustmentImpactResult): string` — a pure
+  report naming the landed run, then for each impacted plan its shared files +
+  severity + the severity's meaning (regenerate/restructure, rebase + re-verify
+  line refs, trivial textual rebase), then the unaffected list, then a one-line
+  caveat that this is the run's *actual* changed files vs the others' *declared*
+  footprints.
+- **App.** In `src/app/analyzePlanOverlap.ts`, add
+  `analyzeReadjustmentImpact(runPath: string, planPaths: readonly string[]): Either.Either<ReadjustmentImpactResult, AnalyzePlanOverlapError>`:
+  - Read `join(runPath, "global-file-reconciliation.json")` and decode via
+    `decodeGlobalFileReconciliation`. If the file is absent, return a `Left` whose
+    message explains the run has not produced a reconciliation yet (it must have
+    reached review); if it fails to decode, name the path.
+  - Derive the `LandedInput` from the decoded entries: `added` = paths whose
+    `actualActions` include `"added"`, `modified` = those including `"modified"`,
+    `deletedOrRenamed` = those including `"deleted"` or `"renamed"`. `label` = the
+    run folder name.
+  - Load each plan path via `loadPlan` and map to `PlanInput`/`PlanFootprint` as in
+    `analyzePlanOverlap` (factor the per-path load-and-map into a shared helper so
+    both functions reuse it). Aggregate load failures the same way.
+  - Call `buildLandedFootprint` + `computeReadjustmentImpact` and return `Right`.
+- **CLI.** In `src/cli/commands/plansOverlap.ts`, accept `opts.landed?: string`.
+  When set: load config (`loadConfig(process.cwd())`), resolve the run via
+  `resolveRun`/`resolveRunRef` (as `reviewCompliance.ts` does) to get its
+  `runPath`, call `analyzeReadjustmentImpact(runPath, planPaths)`, and print
+  `renderReadjustmentImpact` (or JSON under `--json`). When `opts.landed` is absent,
+  keep the existing predicted-mode path unchanged. Resolution/config errors print
+  and return `1`.
+- **Registration.** In `src/cli/program.ts`, add
+  `.option("--landed <run>", "Report which of the given plans need re-adjustment after this run's actual changes")`
+  to the `plans-overlap` command. Update the `src/cli/cliDocs.ts` entry's
+  `longHelp` to describe both modes and add an example
+  `phax plans-overlap --landed my-feature other/phax-plan.json`.
+- **Regenerate** `phax.usage.kdl` (`pnpm gen:usage-spec`) then
+  `docs/cli/reference.md` + README (`pnpm docs:cli`); do not hand-edit them.
+- Update `tests/integration/cliProgram.test.ts` to assert the `--landed` flag is
+  registered (the command itself already counts in `TOP_LEVEL_COMMANDS` from
+  phase-03; no length change).
+
+### Planned files to create
+
+- `src/schemas/globalReconciliation.ts`
+- `tests/unit/globalReconciliation.test.ts`
+- `tests/unit/planOverlap/impact.test.ts`
+- `tests/integration/plansOverlapLanded.test.ts`
+
+### Planned files to edit
+
+- `src/domain/planOverlap/types.ts`
+- `src/domain/planOverlap/compute.ts`
+- `src/domain/planOverlap/render.ts`
+- `src/app/analyzePlanOverlap.ts`
+- `src/cli/commands/plansOverlap.ts`
+- `src/cli/program.ts`
+- `src/cli/cliDocs.ts`
+- `tests/integration/cliProgram.test.ts`
+- `phax.usage.kdl`
+- `docs/cli/reference.md`
+- `README.md`
+
+### Optional files that may be edited
+
+- `tests/integration/analyzePlanOverlap.test.ts`
+- `docs/cli/inventory.md`
+
+### Boundary contracts
+
+Validation boundary: `src/schemas/globalReconciliation.ts` decodes the persisted
+`global-file-reconciliation.json` into a validated shape before it reaches the
+domain. Consumer/producer: the app reads that artifact + the remaining
+`phax-plan.json` files, derives a landed footprint and declared footprints, and
+the domain `computeReadjustmentImpact` produces the impact result the CLI renders.
+The domain still imports nothing from `src/schemas` — `analyzeReadjustmentImpact`
+maps the decoded reconciliation into the schema-free `LandedInput`.
+
+### Test strategy
+
+- Schema unit test (`tests/unit/globalReconciliation.test.ts`, before
+  implementation): a representative `global-file-reconciliation.json` decodes; an
+  unknown field or missing required field fails.
+- Domain unit tests (`tests/unit/planOverlap/impact.test.ts`, before
+  implementation): a landed footprint sharing a `.ts` file with one of two plans →
+  that plan is `impacted` (`medium`), the other `unaffected`; a landed `added`
+  path that another plan also creates → `hard`; a landed `phax.usage.kdl` change →
+  `hard` for any plan that regenerates it; `impacted` ordered by descending
+  severity.
+- Integration (`tests/integration/plansOverlapLanded.test.ts`): seed a temp run
+  folder with a `global-file-reconciliation.json` and temp `phax-plan.json`
+  fixtures; assert the command resolves the run, returns exit `0`, and the report
+  lists the impacted plans with the right shared files; a run folder lacking the
+  reconciliation file → exit `1` with the explanatory message; `--json` emits a
+  parseable object with `impacted` / `unaffected`.
+- Extend `cliProgram.test.ts` for the `--landed` flag.
+
+### Implementation order
+
+Schema + its decode test → domain `LandedInput`/`buildLandedFootprint`/
+`computeReadjustmentImpact`/render + unit tests → app
+`analyzeReadjustmentImpact` (factoring the shared per-path loader) → CLI `--landed`
+branch and run resolution → registration + cliDocs → regenerate the derived
+artifacts → integration test → `full` gate.
+
+### Excluded scope
+
+- Auto-rebasing or auto-editing the impacted plans — this mode only reports.
+- Re-running reconciliation; it reads the already-persisted
+  `global-file-reconciliation.json` and never invokes git.
+- Hand-editing the generated artifacts instead of regenerating them.
+- Supporting a run that has not yet produced a reconciliation (reported as a clean
+  error, not handled).
+
+### Verification
+
+- The project's configured `full` gate profile in `phax.json` — notably
+  `pnpm test` (`cliProgram.test.ts`, `usageSpecDrift.test.ts`), `pnpm knip`,
+  `pnpm typecheck`, and the `usage`/spec-lint checks.
+
+### Expected handoff content
+
+- Whether a `global-file-reconciliation.json` decode schema already existed or was
+  added, and its exported decoder name.
+- The `LandedInput` shape, the `added/modified/deletedOrRenamed → create/edit`
+  mapping, and the `analyzeReadjustmentImpact` signature.
+- The `--landed` resolution path (config load → `resolveRun` → `runPath`) and the
+  error message when the reconciliation artifact is absent.
+- Confirmation the derived artifacts were regenerated and `usageSpecDrift.test.ts`
+  passes, and that `TOP_LEVEL_COMMANDS` did not change (only a flag was added).
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+feat(cli): add --landed re-adjustment impact mode to plans-overlap
+
+### Commit body
+
+Add `phax plans-overlap --landed <run> <plan...>`, which reports which of the
+given plans need re-adjustment after a run's actual changes. The landed run's
+footprint is read from its persisted global-file-reconciliation.json (the real git
+diff across phases) via a new decode schema, then intersected against the
+remaining plans' declared footprints and graded by severity, so the result is
+actual-vs-declared with no false negatives from undeclared touches. Adds the
+schema, the domain landed-footprint + impact computation and renderer, the
+analyzeReadjustmentImpact use case, and the CLI flag; regenerates the derived CLI
+artifacts. Covered by schema, domain, and command tests.
