@@ -97,4 +97,10 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
       "Runs a non-mutating plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. Does not modify the worktree, registry, or any files.\n\nSide effects: spawns a short-lived AI agent session (network I/O); no filesystem mutations.",
     examples: ["phax review-compliance usage-cli"],
   },
+
+  "review-code": {
+    longHelp:
+      "Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.\n\nSide effects: writes a code-review prompt file under the worktree's .phax-context/ and a session record under the run directory; spawns a long-lived interactive AI agent session (network I/O).",
+    examples: ["phax review-code usage-cli"],
+  },
 };
