@@ -15,6 +15,7 @@ import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
   AgentSessionIdMissingError,
+  CleanupPausedError,
   CommitPausedError,
   GateAttemptsExhaustedError,
   GateFailedError,
@@ -108,6 +109,10 @@ function isCommitPausedError(e: unknown): e is CommitPausedError {
   return e instanceof CommitPausedError;
 }
 
+function isCleanupPausedError(e: unknown): e is CleanupPausedError {
+  return e instanceof CleanupPausedError;
+}
+
 // Highest NN suffix on `checks-attempt-NN.log` in the phase folder, or 0 if none.
 // On resume from gate exhaustion we use this to continue numbering attempt
 // artifacts, so prior `checks-attempt-NN.log` / `fix-attempt-NN.jsonl` files are
@@ -169,6 +174,7 @@ export type ExecutePlanError =
   | HandoffValidationError
   | HandoffPausedError
   | CommitPausedError
+  | CleanupPausedError
   | ArchiveBlockedByDirtyWorktreeError
   | RegistryCorruptionError
   | RateLimitError
@@ -352,6 +358,7 @@ export function executePlan(
     let resumeFromGate = false;
     let resumeFromHandoff = false;
     let resumeFromCommit = false;
+    let resumeFromCleanup = false;
     let resumeSessionId: string | undefined;
     let resumeWorktreePath: string | undefined;
     let resumeAttempt = 0;
@@ -375,6 +382,10 @@ export function executePlan(
           resumeWorktreePath = phaseStatus.worktreePath;
         } else if (phaseStatus?.state === "passed") {
           resumeFromCommit = true;
+          resumeSessionId = phaseStatus.claudeSessionId;
+          resumeWorktreePath = phaseStatus.worktreePath;
+        } else if (phaseStatus?.state === "cleaning_up") {
+          resumeFromCleanup = true;
           resumeSessionId = phaseStatus.claudeSessionId;
           resumeWorktreePath = phaseStatus.worktreePath;
         }
@@ -405,6 +416,7 @@ export function executePlan(
       const isResumeFromGate = i === startIndex && resumeFromGate;
       const isResumeFromHandoff = i === startIndex && resumeFromHandoff;
       const isResumeFromCommit = i === startIndex && resumeFromCommit;
+      const isResumeFromCleanup = i === startIndex && resumeFromCleanup;
 
       // Resolve the phase branch before creating the phase folder so the
       // initial status.json can include branchName (required by the schema).
@@ -425,11 +437,11 @@ export function executePlan(
       let sessionId: ClaudeSessionId;
       let agentOptions: AgentRunOptions;
 
-      if (isResumeFromGate || isResumeFromHandoff || isResumeFromCommit) {
-        // Resume-from-gate / resume-from-handoff: the worktree, branch, model-resolution,
-        // security posture, and Claude session were all written on the original
-        // attempt. Re-enter at the appropriate step using the captured session — never
-        // start a blind fix/handoff session if the session id is missing.
+      if (isResumeFromGate || isResumeFromHandoff || isResumeFromCommit || isResumeFromCleanup) {
+        // Resume-from-gate / resume-from-handoff / resume-from-commit / resume-from-cleanup:
+        // the worktree, branch, model-resolution, security posture, and Claude session were
+        // all written on the original attempt. Re-enter at the appropriate step using the
+        // captured session — never start a blind fix/handoff session if the session id is missing.
         if (resumeSessionId === undefined) {
           return yield* Effect.fail(
             new AgentSessionIdMissingError({
@@ -796,7 +808,7 @@ export function executePlan(
       // `ctx` is used by the FinalReviewOpened dispatch later in the loop.
       const ctx = dispatchCtx(phaseFolderPath, phase.id);
 
-      if (!isResumeFromHandoff && !isResumeFromCommit) {
+      if (!isResumeFromHandoff && !isResumeFromCommit && !isResumeFromCleanup) {
         // running → passed transition is dispatched inside fixLoop on the
         // gate-success branch via dispatch(GatePassed). On resume-from-gate the
         // loop starts at `resumeAttempt + 1` with a fresh fix budget so prior
@@ -817,7 +829,7 @@ export function executePlan(
         });
       }
 
-      if (!isResumeFromHandoff) {
+      if (!isResumeFromHandoff && !isResumeFromCleanup) {
         // commitPhase dispatches CommitCreated internally.
         // If the commit fails for a reason other than no-changes (e.g. a pre-commit
         // hook rejection), dispatch CommitFailed to pause the run as `interrupted`
@@ -883,116 +895,118 @@ export function executePlan(
         );
       }
 
-      let reconciliation: ReconciliationResult;
-      if (isResumeFromHandoff) {
-        // The phase already committed; read the persisted reconciliation rather than
-        // re-diffing HEAD (the worktree is clean and the diff would be empty).
-        const fs = yield* FileSystem;
-        const reconRaw = yield* fs.readText(join(phaseFolderPath, "file-reconciliation.json"));
-        const reconDecoded = decodePhaseFileReconciliation(JSON.parse(reconRaw));
-        reconciliation = Either.isRight(reconDecoded)
-          ? reconDecoded.right
-          : {
-              createdAsPlanned: [],
-              editedAsPlanned: [],
-              missingPlannedCreate: [],
-              missingPlannedEdit: [],
-              createdButPlannedEdit: [],
-              editedButPlannedCreate: [],
-              unplannedCreated: [],
-              unplannedEdited: [],
-              optionalTouched: [],
-              deletions: [],
-              renames: [],
-              hasDeviations: false,
-            };
-      } else {
-        // Reconcile after commit so diffNameStatus diffs HEAD^ against HEAD.
-        reconciliation = yield* reconcilePhaseFiles({
-          phase,
-          worktreePath,
-          phaseFolderPath,
-          runId: runId as string,
-          fileReconciliationMode: config.fileReconciliationMode,
-        });
-      }
+      if (!isResumeFromCleanup) {
+        let reconciliation: ReconciliationResult;
+        if (isResumeFromHandoff) {
+          // The phase already committed; read the persisted reconciliation rather than
+          // re-diffing HEAD (the worktree is clean and the diff would be empty).
+          const fs = yield* FileSystem;
+          const reconRaw = yield* fs.readText(join(phaseFolderPath, "file-reconciliation.json"));
+          const reconDecoded = decodePhaseFileReconciliation(JSON.parse(reconRaw));
+          reconciliation = Either.isRight(reconDecoded)
+            ? reconDecoded.right
+            : {
+                createdAsPlanned: [],
+                editedAsPlanned: [],
+                missingPlannedCreate: [],
+                missingPlannedEdit: [],
+                createdButPlannedEdit: [],
+                editedButPlannedCreate: [],
+                unplannedCreated: [],
+                unplannedEdited: [],
+                optionalTouched: [],
+                deletions: [],
+                renames: [],
+                hasDeviations: false,
+              };
+        } else {
+          // Reconcile after commit so diffNameStatus diffs HEAD^ against HEAD.
+          reconciliation = yield* reconcilePhaseFiles({
+            phase,
+            worktreePath,
+            phaseFolderPath,
+            runId: runId as string,
+            fileReconciliationMode: config.fileReconciliationMode,
+          });
+        }
 
-      yield* telemetry.recordEvent(
-        makeStepStartedTelemetryEvent({ runId, operationId: phase.id, step: "handoff.generate" }),
-      );
-      yield* generatePhaseHandoff({
-        sessionId,
-        agentOptions,
-        phaseFolderPath,
-        worktreePath: worktreePath as string,
-        runPath,
-        shortName: shortName as string,
-        phaseId: phase.id,
-        reconciliation,
-      }).pipe(
-        Effect.catchTags({
-          HandoffValidationError: (e) =>
-            Effect.gen(function* () {
-              yield* dispatch(
-                {
-                  ...eventBase(phase.id),
-                  type: "HandoffMissing",
-                  missingSections: e.missingSections,
-                },
-                ctx,
-              );
-              yield* telemetry.recordEvent(
-                makeStepCompletedTelemetryEvent({
-                  runId,
-                  operationId: phase.id,
-                  step: "handoff.generate",
-                  result: "failure",
-                }),
-              );
-              return yield* Effect.fail(
-                new HandoffPausedError({
-                  message: `Phase "${phase.id}" handoff generation failed: missing sections [${e.missingSections.join(", ")}]`,
-                  phaseId: phase.id,
-                  cause: e,
-                }),
-              );
-            }),
-          AgentInvocationError: (e) =>
-            Effect.gen(function* () {
-              yield* dispatch(
-                {
-                  ...eventBase(phase.id),
-                  type: "HandoffMissing",
-                  missingSections: [],
-                },
-                ctx,
-              );
-              yield* telemetry.recordEvent(
-                makeStepCompletedTelemetryEvent({
-                  runId,
-                  operationId: phase.id,
-                  step: "handoff.generate",
-                  result: "failure",
-                }),
-              );
-              return yield* Effect.fail(
-                new HandoffPausedError({
-                  message: `Phase "${phase.id}" handoff generation failed: ${e.message}`,
-                  phaseId: phase.id,
-                  cause: e,
-                }),
-              );
-            }),
-        }),
-      );
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: phase.id,
-          step: "handoff.generate",
-          result: "success",
-        }),
-      );
+        yield* telemetry.recordEvent(
+          makeStepStartedTelemetryEvent({ runId, operationId: phase.id, step: "handoff.generate" }),
+        );
+        yield* generatePhaseHandoff({
+          sessionId,
+          agentOptions,
+          phaseFolderPath,
+          worktreePath: worktreePath as string,
+          runPath,
+          shortName: shortName as string,
+          phaseId: phase.id,
+          reconciliation,
+        }).pipe(
+          Effect.catchTags({
+            HandoffValidationError: (e) =>
+              Effect.gen(function* () {
+                yield* dispatch(
+                  {
+                    ...eventBase(phase.id),
+                    type: "HandoffMissing",
+                    missingSections: e.missingSections,
+                  },
+                  ctx,
+                );
+                yield* telemetry.recordEvent(
+                  makeStepCompletedTelemetryEvent({
+                    runId,
+                    operationId: phase.id,
+                    step: "handoff.generate",
+                    result: "failure",
+                  }),
+                );
+                return yield* Effect.fail(
+                  new HandoffPausedError({
+                    message: `Phase "${phase.id}" handoff generation failed: missing sections [${e.missingSections.join(", ")}]`,
+                    phaseId: phase.id,
+                    cause: e,
+                  }),
+                );
+              }),
+            AgentInvocationError: (e) =>
+              Effect.gen(function* () {
+                yield* dispatch(
+                  {
+                    ...eventBase(phase.id),
+                    type: "HandoffMissing",
+                    missingSections: [],
+                  },
+                  ctx,
+                );
+                yield* telemetry.recordEvent(
+                  makeStepCompletedTelemetryEvent({
+                    runId,
+                    operationId: phase.id,
+                    step: "handoff.generate",
+                    result: "failure",
+                  }),
+                );
+                return yield* Effect.fail(
+                  new HandoffPausedError({
+                    message: `Phase "${phase.id}" handoff generation failed: ${e.message}`,
+                    phaseId: phase.id,
+                    cause: e,
+                  }),
+                );
+              }),
+          }),
+        );
+        yield* telemetry.recordEvent(
+          makeStepCompletedTelemetryEvent({
+            runId,
+            operationId: phase.id,
+            step: "handoff.generate",
+            result: "success",
+          }),
+        );
+      }
 
       if (isFinal) {
         finalWorktreePath = worktreePath;
@@ -1074,6 +1088,9 @@ export function executePlan(
       } else {
         yield* Effect.promise(() => patchAgentBindingStatus(phaseFolderPath, "completed"));
         // cleanupPhase dispatches CleanupStarted/CleanupCompleted internally.
+        // If cleanup fails (dirty worktree, setup command failure, git error), dispatch
+        // CleanupFailed to pause the run as `interrupted` with the phase in `cleaning_up`,
+        // then re-raise as CleanupPausedError so the top-level guard skips RunFailed.
         yield* cleanupPhase({
           worktreePath,
           phaseFolderPath,
@@ -1083,7 +1100,30 @@ export function executePlan(
           runPath,
           shortName: shortName as string,
           phaseId: phase.id,
-        });
+        }).pipe(
+          Effect.catchAll((e) =>
+            Effect.gen(function* () {
+              const reason = e instanceof Error ? e.message : String(e);
+              yield* dispatch(
+                {
+                  ...eventBase(phase.id),
+                  type: "CleanupFailed" as const,
+                  phaseId: phase.id as PhaseId,
+                  worktreePath,
+                  reason,
+                },
+                ctx,
+              );
+              return yield* Effect.fail(
+                new CleanupPausedError({
+                  message: `Cleanup step failed for phase "${phase.id}": ${reason}`,
+                  phaseId: phase.id,
+                  cause: e,
+                }),
+              );
+            }),
+          ),
+        );
       }
 
       // Advance the chain: the next phase branches off this phase's branch.
@@ -1168,12 +1208,23 @@ export function executePlan(
         return yield* Effect.fail(e);
       }),
     ),
+    // A cleanup-step failure after the commit pauses the run instead of failing
+    // it: CleanupFailed was dispatched at the catch site inside the phase loop
+    // (which performs the pause transition to interrupted+cleaning_up), so we
+    // just re-raise here. The run is already in `interrupted` state with phase
+    // `cleaning_up`, ready for `phax resume` to re-run only cleanup.
+    Effect.catchIf(isCleanupPausedError, (e) =>
+      Effect.gen(function* () {
+        return yield* Effect.fail(e);
+      }),
+    ),
     Effect.tapError((e) =>
       isRateLimitError(e) ||
       isNoChangesError(e) ||
       isGateAttemptsExhaustedError(e) ||
       isHandoffPausedError(e) ||
-      isCommitPausedError(e)
+      isCommitPausedError(e) ||
+      isCleanupPausedError(e)
         ? Effect.void
         : Effect.gen(function* () {
             if (currentPhaseFolderPath !== undefined) {

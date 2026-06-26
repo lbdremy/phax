@@ -150,6 +150,15 @@ export interface CommitFailed extends PhaxEventBase {
   readonly reason: string;
 }
 
+// Cross-cutting: the cleanup step failed after the phase committed.
+// Transitions run → interrupted, phase → cleaning_up (resumable).
+export interface CleanupFailed extends PhaxEventBase {
+  readonly type: "CleanupFailed";
+  readonly phaseId: PhaseId;
+  readonly worktreePath: WorktreePath;
+  readonly reason: string;
+}
+
 // Cross-cutting: affects both run and phase substate.
 export interface RateLimitDetected extends PhaxEventBase {
   readonly type: "RateLimitDetected";
@@ -189,6 +198,7 @@ export type PhaxEvent =
   | HandoffMissing
   | CommitCreated
   | CommitFailed
+  | CleanupFailed
   | CleanupStarted
   | CleanupCompleted
   | PhaseHadNoChanges

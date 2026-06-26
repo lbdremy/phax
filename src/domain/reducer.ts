@@ -648,12 +648,71 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
       }
       return assertNever(state);
 
+    case "CleanupFailed":
+      switch (state.run) {
+        case "running": {
+          const ps = state.phase.state;
+          if (ps === "committed" || ps === "cleaning_up") {
+            return handled({ run: "interrupted", phase: { state: "cleaning_up" } }, [
+              {
+                type: "PersistState",
+                patch: {
+                  run: { stoppedReason: "cleanup_failed", lastError: event.reason },
+                },
+              },
+              {
+                type: "WriteResumeInstructions",
+                ctx: {
+                  reason: "Cleanup failed",
+                  kind: "cleanup_failed",
+                  phaseId: event.phase,
+                  worktreePath: event.worktreePath as string,
+                },
+              },
+              {
+                type: "EmitTrace",
+                name: "cleanup.failed",
+                status: "failed",
+                boundary: "cleanup",
+                details: { phaseId: event.phase, reason: event.reason },
+              },
+              {
+                type: "EmitTrace",
+                name: "resume.available",
+                status: "info",
+                boundary: "resume-instructions.md",
+                details: { resumeCommand: `phax resume ${event.run}` },
+              },
+            ]);
+          }
+          return unexpected(`cleanup failed while phase is ${ps}`);
+        }
+        case "rate_limited":
+          return stale("cleanup failed on rate-limited run");
+        case "interrupted":
+          return stale("cleanup failed on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`cleanup failed while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`cleanup failed on ${state.run} run`);
+      }
+      return assertNever(state);
+
     case "CleanupStarted":
       switch (state.run) {
         case "running": {
           const ps = state.phase.state;
           if (ps === "committed" || ps === "handoff_failed") {
             return handled({ run: "running", phase: { state: "cleaning_up" } });
+          }
+          // Idempotent on resume-from-cleanup: phase is already cleaning_up after
+          // RunResumeRequested lifts interrupted+cleaning_up → running+cleaning_up.
+          if (ps === "cleaning_up") {
+            return handled(state);
           }
           return unexpected(`cleanup started while phase is ${ps}`);
         }

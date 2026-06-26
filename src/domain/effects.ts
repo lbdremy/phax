@@ -14,8 +14,15 @@ export interface ResumeContext {
     | "Usage limit"
     | "No changes"
     | "Gate checks failed"
-    | "Commit failed";
-  readonly kind: "rate_limit" | "usage_limit" | "no_changes" | "gates_exhausted" | "commit_failed";
+    | "Commit failed"
+    | "Cleanup failed";
+  readonly kind:
+    | "rate_limit"
+    | "usage_limit"
+    | "no_changes"
+    | "gates_exhausted"
+    | "commit_failed"
+    | "cleanup_failed";
   readonly resetAt?: string | undefined;
   readonly phaseId?: string | undefined;
   readonly worktreePath?: string | undefined;
