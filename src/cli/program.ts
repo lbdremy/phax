@@ -16,6 +16,7 @@ import { runArchive } from "./commands/archive.js";
 import { runReviewHandoff } from "./commands/reviewHandoff.js";
 import { runPublishPr } from "./commands/publishPr.js";
 import { runReviewCompliance } from "./commands/reviewCompliance.js";
+import { runReviewCode } from "./commands/reviewCode.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
 import { registerResumeCommand } from "./commands/resumeRegister.js";
@@ -265,6 +266,33 @@ export function buildProgram(): Command {
       const exitCode = await runReviewCompliance(shortName, globalTraceOpts(), consoleOutput);
       process.exit(exitCode);
     });
+
+  program
+    .command("review-code")
+    .description("Open an interactive, pre-prompted code-review session for a review_open run")
+    .argument("<short-name>", "Run short name, e.g. usage-cli")
+    .option("--new-session", "Start a fresh review session instead of resuming the existing one")
+    .option(
+      "--model <model>",
+      "Override the model, including on resume (default: review.code.model, else claude-opus-4-8)",
+    )
+    .option(
+      "--effort <effort>",
+      "Override the effort (low | medium | high), including on resume (default: review.code.effort, else high)",
+    )
+    .action(
+      async (
+        shortName: string,
+        opts: { newSession?: boolean; model?: string; effort?: string },
+      ) => {
+        const exitCode = await runReviewCode(
+          shortName,
+          { ...opts, ...globalTraceOpts() },
+          consoleOutput,
+        );
+        process.exit(exitCode);
+      },
+    );
 
   program
     .command("init")

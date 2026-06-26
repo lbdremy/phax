@@ -17,6 +17,7 @@ const TOP_LEVEL_COMMANDS = [
   "review-handoff",
   "publish-pr",
   "review-compliance",
+  "review-code",
   "init",
   "resume",
   "reset-phase",
@@ -86,5 +87,19 @@ describe("buildProgram", () => {
     expect(schemaCmd).toBeDefined();
     const subs = schemaCmd!.commands.map((c) => c.name());
     expect(subs).toContain("upgrade");
+  });
+
+  it("review-code has <short-name> arg and --new-session, --model, --effort flags", () => {
+    const program = buildProgram();
+    const cmd = program.commands.find((c) => c.name() === "review-code");
+    expect(cmd).toBeDefined();
+
+    const argNames = cmd!.registeredArguments.map((a) => a.name());
+    expect(argNames).toContain("short-name");
+
+    const optionNames = cmd!.options.map((o) => o.long);
+    expect(optionNames).toContain("--new-session");
+    expect(optionNames).toContain("--model");
+    expect(optionNames).toContain("--effort");
   });
 });

@@ -234,6 +234,24 @@ cmd "review-compliance" {
     }
 }
 
+cmd "review-code" {
+    help "Open an interactive, pre-prompted code-review session for a review_open run"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+    flag "--new-session" {
+        help "Start a fresh review session instead of resuming the existing one"
+    }
+    flag "--model" {
+        arg "<model>"
+        help "Override the model, including on resume (default: review.code.model, else claude-opus-4-8)"
+    }
+    flag "--effort" {
+        arg "<effort>"
+        help "Override the effort (low | medium | high), including on resume (default: review.code.effort, else high)"
+    }
+}
+
 cmd "init" {
     help "Create phax.json and phax.schema.json in the current directory"
     long_help "Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service."
