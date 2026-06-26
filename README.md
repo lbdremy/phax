@@ -119,7 +119,7 @@ Or add a `phax.json` manually at your repo root:
   "security": { "profile": "secure" },
   "fileReconciliation": { "mode": "report_only" },
   "review": { "compliance": { "enabled": true } },
-  "publish": { "enabled": true, "remote": "origin", "baseBranch": "main" },
+  "publish": { "auto": true, "remote": "origin", "baseBranch": "main" },
   "commands": {
     "setup": ["pnpm install"],
     "cleanup": ["rm -rf node_modules"]
@@ -210,7 +210,7 @@ Worktrees from every phase persist on disk for the lifetime of the run and are a
 The final phase stays open for review. A `review-handoff.md` is written to the run folder showing the final phase branch as the review target. When the run reaches review, two optional steps run automatically if enabled in `phax.json` (both are non-fatal — the run stays `review_open` if they fail):
 
 1. **Compliance review** (`review.compliance.enabled`) — a non-mutating plan-compliance pass writes its verdict to the run folder, so it can land in the PR body.
-2. **Publish** (`publish.enabled`) — pushes the final phase branch to the configured remote and opens (or reuses) a pull request; details are recorded in `publication.json`.
+2. **Publish** (`publish.auto`) — pushes the final phase branch to the configured remote and opens (or reuses) a pull request; details are recorded in `publication.json`.
 
 See [Compliance review & publishing](#compliance-review--publishing).
 

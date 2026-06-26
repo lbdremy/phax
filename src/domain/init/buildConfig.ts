@@ -4,7 +4,7 @@ export type WizardAnswers = {
   readonly name: string;
   readonly gateCommands: ReadonlyArray<string>;
   readonly complianceEnabled: boolean;
-  readonly publishEnabled: boolean;
+  readonly publishAuto: boolean;
   readonly publishPushBranch: boolean;
   readonly publishCreatePr: boolean;
 };
@@ -21,10 +21,10 @@ export function buildPhaxConfig(answers: WizardAnswers): PhaxConfig {
     name: answers.name,
     gateProfiles: { fast: commandList },
     ...(answers.complianceEnabled ? { review: { compliance: { enabled: true } } } : {}),
-    ...(answers.publishEnabled
+    ...(answers.publishAuto
       ? {
           publish: {
-            enabled: true,
+            auto: true,
             pushBranch: answers.publishPushBranch,
             createPullRequest: answers.publishCreatePr,
           },

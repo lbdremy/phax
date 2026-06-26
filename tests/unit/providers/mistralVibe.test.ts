@@ -55,6 +55,8 @@ describe("buildVibeArgs — unsafe mode", () => {
       "auto-approve",
       "--output",
       "streaming",
+      "--target",
+      "mistral-large",
       "--trust",
       "--workdir",
       "/tmp/work",

@@ -55,7 +55,7 @@ function makeConfig(namespace = "myproject") {
       blockedCommands: [],
     },
     publish: {
-      enabled: false,
+      auto: false,
       remote: "origin",
       provider: "github" as const,
       pushBranch: true,

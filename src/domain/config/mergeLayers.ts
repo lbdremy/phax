@@ -105,13 +105,13 @@ export function mergeConfigLayers(input: {
     ...localUser?.gateProfiles,
   };
 
-  // publish: per-field scalar override (enabled is required when publish is present)
+  // publish: per-field scalar override (auto is required when publish is present)
   const hasPublish =
     project.publish !== undefined ||
     globalUser?.publish !== undefined ||
     localUser?.publish !== undefined;
-  const publishEnabled =
-    localUser?.publish?.enabled ?? globalUser?.publish?.enabled ?? project.publish?.enabled;
+  const publishAuto =
+    localUser?.publish?.auto ?? globalUser?.publish?.auto ?? project.publish?.auto;
   const publishRemote =
     localUser?.publish?.remote ?? globalUser?.publish?.remote ?? project.publish?.remote;
   const publishProvider =
@@ -215,10 +215,10 @@ export function mergeConfigLayers(input: {
           },
         }
       : {}),
-    ...(hasPublish && publishEnabled !== undefined
+    ...(hasPublish && publishAuto !== undefined
       ? {
           publish: {
-            enabled: publishEnabled,
+            auto: publishAuto,
             ...(publishRemote !== undefined ? { remote: publishRemote } : {}),
             ...(publishProvider !== undefined ? { provider: publishProvider } : {}),
             ...(publishPushBranch !== undefined ? { pushBranch: publishPushBranch } : {}),

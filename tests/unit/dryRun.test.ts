@@ -48,7 +48,7 @@ const minimalConfig: ResolvedConfig = {
   maxFixAttempts: 1,
   fileReconciliationMode: "report_only",
   publish: {
-    enabled: false,
+    auto: false,
     remote: "origin",
     provider: "github",
     pushBranch: true,

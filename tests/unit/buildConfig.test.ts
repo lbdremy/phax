@@ -7,7 +7,7 @@ const baseAnswers: WizardAnswers = {
   name: "my-project",
   gateCommands: ["pnpm typecheck", "pnpm test:unit"],
   complianceEnabled: false,
-  publishEnabled: false,
+  publishAuto: false,
   publishPushBranch: true,
   publishCreatePr: true,
 };
@@ -53,19 +53,19 @@ describe("buildPhaxConfig", () => {
     expect(config.review?.compliance?.enabled).toBe(true);
   });
 
-  it("omits publish when publish is disabled", () => {
-    const config = buildPhaxConfig({ ...baseAnswers, publishEnabled: false });
+  it("omits publish when publishAuto is false", () => {
+    const config = buildPhaxConfig({ ...baseAnswers, publishAuto: false });
     expect(config.publish).toBeUndefined();
   });
 
-  it("includes publish with correct toggles when publish is enabled", () => {
+  it("includes publish with correct toggles when publishAuto is true", () => {
     const config = buildPhaxConfig({
       ...baseAnswers,
-      publishEnabled: true,
+      publishAuto: true,
       publishPushBranch: true,
       publishCreatePr: false,
     });
-    expect(config.publish?.enabled).toBe(true);
+    expect(config.publish?.auto).toBe(true);
     expect(config.publish?.pushBranch).toBe(true);
     expect(config.publish?.createPullRequest).toBe(false);
   });
@@ -80,7 +80,7 @@ describe("buildPhaxConfig", () => {
     const config = buildPhaxConfig({
       ...baseAnswers,
       complianceEnabled: true,
-      publishEnabled: true,
+      publishAuto: true,
       publishPushBranch: true,
       publishCreatePr: true,
     });

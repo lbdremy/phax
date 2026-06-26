@@ -49,7 +49,7 @@ function makeConfig(namespace = "acme") {
       blockedCommands: [],
     },
     publish: {
-      enabled: false,
+      auto: false,
       remote: "origin",
       provider: "github" as const,
       pushBranch: true,

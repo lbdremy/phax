@@ -1076,7 +1076,7 @@ export function executePlan(
         // Auto-publish: push the final branch and create a PR when configured.
         // Publication failure is non-fatal — the run stays in review_open and
         // failure details are recorded in publication.json / final-report.md.
-        if (config.publish?.enabled) {
+        if (config.publish?.auto) {
           const publicationResult = yield* publishRun(infoResult.right, config.publish, {
             repoRoot: config.repoRoot,
             ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}),

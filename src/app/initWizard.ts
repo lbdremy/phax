@@ -111,14 +111,14 @@ export function runInitWizard(input: {
         initialValue: false,
       });
 
-      const publishEnabled = yield* prompt.confirm({
-        message: "Enable publish (push branch / create PR)?",
+      const publishAuto = yield* prompt.confirm({
+        message: "Automatically publish (push branch / create PR) when a run reaches review?",
         initialValue: false,
       });
 
       let publishPushBranch = true;
       let publishCreatePr = true;
-      if (publishEnabled) {
+      if (publishAuto) {
         publishPushBranch = yield* prompt.confirm({
           message: "Push branch after run?",
           initialValue: true,
@@ -133,7 +133,7 @@ export function runInitWizard(input: {
         name,
         gateCommands,
         complianceEnabled,
-        publishEnabled,
+        publishAuto,
         publishPushBranch,
         publishCreatePr,
       };
@@ -144,7 +144,7 @@ export function runInitWizard(input: {
         name: detectedName,
         gateCommands: suggestions.filter((s) => s.recommended).map((s) => s.command),
         complianceEnabled: false,
-        publishEnabled: false,
+        publishAuto: false,
         publishPushBranch: true,
         publishCreatePr: true,
       };

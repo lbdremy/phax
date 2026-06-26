@@ -21,7 +21,7 @@ const minimalValidPhaxConfig = {
 describe("PublishConfigSchema", () => {
   it("decodes a full publish config", () => {
     const result = decodePublishConfig({
-      enabled: true,
+      auto: true,
       remote: "upstream",
       provider: "github",
       pushBranch: false,
@@ -31,33 +31,38 @@ describe("PublishConfigSchema", () => {
     });
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
-      expect(result.right.enabled).toBe(true);
+      expect(result.right.auto).toBe(true);
       expect(result.right.remote).toBe("upstream");
       expect(result.right.baseBranch).toBe("main");
       expect(result.right.title).toBe("My PR");
     }
   });
 
-  it("decodes a minimal publish config (only enabled)", () => {
-    const result = decodePublishConfig({ enabled: false });
+  it("decodes a minimal publish config (only auto)", () => {
+    const result = decodePublishConfig({ auto: false });
     expect(Either.isRight(result)).toBe(true);
   });
 
   it("rejects a non-github provider", () => {
-    const result = decodePublishConfig({ enabled: true, provider: "gitlab" });
+    const result = decodePublishConfig({ auto: true, provider: "gitlab" });
     expect(Either.isLeft(result)).toBe(true);
   });
 
   it("rejects unknown keys", () => {
-    const result = decodePublishConfig({ enabled: true, unknownKey: "value" });
+    const result = decodePublishConfig({ auto: true, unknownKey: "value" });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("rejects publish block using legacy enabled key", () => {
+    const result = decodePublishConfig({ enabled: true });
     expect(Either.isLeft(result)).toBe(true);
   });
 });
 
 describe("resolvePublishConfig", () => {
-  it("returns disabled defaults when undefined", () => {
+  it("returns defaults when undefined", () => {
     const resolved = resolvePublishConfig(undefined);
-    expect(resolved.enabled).toBe(false);
+    expect(resolved.auto).toBe(false);
     expect(resolved.remote).toBe("origin");
     expect(resolved.provider).toBe("github");
     expect(resolved.pushBranch).toBe(true);
@@ -67,8 +72,8 @@ describe("resolvePublishConfig", () => {
   });
 
   it("applies defaults for missing optional fields", () => {
-    const resolved = resolvePublishConfig({ enabled: true });
-    expect(resolved.enabled).toBe(true);
+    const resolved = resolvePublishConfig({ auto: true });
+    expect(resolved.auto).toBe(true);
     expect(resolved.remote).toBe("origin");
     expect(resolved.provider).toBe("github");
     expect(resolved.pushBranch).toBe(true);
@@ -77,7 +82,7 @@ describe("resolvePublishConfig", () => {
 
   it("preserves all provided fields", () => {
     const resolved = resolvePublishConfig({
-      enabled: true,
+      auto: true,
       remote: "upstream",
       provider: "github",
       pushBranch: false,
@@ -97,11 +102,11 @@ describe("PhaxConfigSchema with publish block", () => {
   it("decodes phax.json with publish block present", () => {
     const result = decodePhaxConfig({
       ...minimalValidPhaxConfig,
-      publish: { enabled: true, remote: "origin" },
+      publish: { auto: true, remote: "origin" },
     });
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
-      expect(result.right.publish?.enabled).toBe(true);
+      expect(result.right.publish?.auto).toBe(true);
     }
   });
 
@@ -116,7 +121,7 @@ describe("PhaxConfigSchema with publish block", () => {
   it("rejects publish block with non-github provider", () => {
     const result = decodePhaxConfig({
       ...minimalValidPhaxConfig,
-      publish: { enabled: true, provider: "bitbucket" },
+      publish: { auto: true, provider: "bitbucket" },
     });
     expect(Either.isLeft(result)).toBe(true);
   });
@@ -124,7 +129,15 @@ describe("PhaxConfigSchema with publish block", () => {
   it("rejects publish block with unknown key", () => {
     const result = decodePhaxConfig({
       ...minimalValidPhaxConfig,
-      publish: { enabled: true, bogus: "value" },
+      publish: { auto: true, bogus: "value" },
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("rejects publish block using legacy enabled key", () => {
+    const result = decodePhaxConfig({
+      ...minimalValidPhaxConfig,
+      publish: { enabled: true },
     });
     expect(Either.isLeft(result)).toBe(true);
   });
