@@ -152,6 +152,117 @@ describe("mistralSessionAdapter", () => {
   });
 });
 
+describe("claudeSessionAdapter.buildReviewInvocation", () => {
+  it("new session: includes --session-id, model, effort, and positional prompt", () => {
+    const result = claudeSessionAdapter.buildReviewInvocation({
+      worktreePath: "/tmp/wt",
+      sessionId: "uuid-123",
+      initialPrompt: "Read the prompt file.",
+      model: "claude-opus-4-8",
+      effort: "high",
+    });
+    expect(result).toEqual({
+      executable: "claude",
+      args: [
+        "--session-id",
+        "uuid-123",
+        "--model",
+        "claude-opus-4-8",
+        "--effort",
+        "high",
+        "Read the prompt file.",
+      ],
+      cwd: "/tmp/wt",
+    });
+  });
+
+  it("new session without model/effort overrides: no --model or --effort flags", () => {
+    const result = claudeSessionAdapter.buildReviewInvocation({
+      worktreePath: "/tmp/wt",
+      sessionId: "uuid-123",
+      initialPrompt: "Read the prompt file.",
+    });
+    expect(result).toEqual({
+      executable: "claude",
+      args: ["--session-id", "uuid-123", "Read the prompt file."],
+      cwd: "/tmp/wt",
+    });
+  });
+
+  it("resume (initialPrompt null): uses --resume with no positional prompt", () => {
+    const result = claudeSessionAdapter.buildReviewInvocation({
+      worktreePath: "/tmp/wt",
+      sessionId: "uuid-456",
+      initialPrompt: null,
+    });
+    expect(result).toEqual({
+      executable: "claude",
+      args: ["--resume", "uuid-456"],
+      cwd: "/tmp/wt",
+    });
+  });
+
+  it("resume with model override: includes --model after --resume", () => {
+    const result = claudeSessionAdapter.buildReviewInvocation({
+      worktreePath: "/tmp/wt",
+      sessionId: "uuid-456",
+      initialPrompt: null,
+      model: "claude-sonnet-4-6",
+    });
+    expect(result).toEqual({
+      executable: "claude",
+      args: ["--resume", "uuid-456", "--model", "claude-sonnet-4-6"],
+      cwd: "/tmp/wt",
+    });
+  });
+});
+
+describe("codexSessionAdapter.buildReviewInvocation", () => {
+  it("new session: returns unsupported refusal", () => {
+    const result = codexSessionAdapter.buildReviewInvocation({
+      worktreePath: "/tmp/wt",
+      sessionId: "uuid-123",
+      initialPrompt: "Read the prompt file.",
+    });
+    expect("unsupported" in result).toBe(true);
+    if ("unsupported" in result) {
+      expect(result.unsupported.toLowerCase()).toContain("codex");
+    }
+  });
+
+  it("resume: returns unsupported refusal", () => {
+    const result = codexSessionAdapter.buildReviewInvocation({
+      worktreePath: "/tmp/wt",
+      sessionId: "uuid-123",
+      initialPrompt: null,
+    });
+    expect("unsupported" in result).toBe(true);
+  });
+});
+
+describe("mistralSessionAdapter.buildReviewInvocation", () => {
+  it("new session: returns unsupported refusal", () => {
+    const result = mistralSessionAdapter.buildReviewInvocation({
+      worktreePath: "/tmp/wt",
+      sessionId: "uuid-123",
+      initialPrompt: "Read the prompt file.",
+    });
+    expect("unsupported" in result).toBe(true);
+    if ("unsupported" in result) {
+      expect(result.unsupported.toLowerCase()).toContain("mistral");
+    }
+  });
+
+  it("resume: returns unsupported refusal", () => {
+    const result = mistralSessionAdapter.buildReviewInvocation({
+      worktreePath: "/tmp/wt",
+      sessionId: "uuid-123",
+      initialPrompt: null,
+    });
+    expect("unsupported" in result).toBe(true);
+  });
+});
+
 describe("getSessionAdapter (registry exhaustiveness)", () => {
   it("returns the claude adapter for claude-code", () => {
     expect(getSessionAdapter("claude-code")).toBe(claudeSessionAdapter);
