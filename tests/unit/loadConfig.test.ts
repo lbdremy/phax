@@ -5,7 +5,7 @@ import { execSync } from "node:child_process";
 import { Either } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig, describeConfigSources } from "../../src/app/loadConfig.js";
-import { DEFAULT_EXTRACT_MODEL } from "../../src/schemas/phaxConfig.js";
+import { DEFAULT_EXTRACT_MODEL, DEFAULT_CODE_REVIEW_MODEL } from "../../src/schemas/phaxConfig.js";
 import { DEFAULT_SECURITY_PROFILE } from "../../src/schemas/securityConfig.js";
 
 const baseConfig = {
@@ -296,5 +296,37 @@ describe("loadConfig security resolution", () => {
     writePhaxJson({ ...baseConfig, security: { profile: "super-safe" } });
     const result = loadConfig(repoDir);
     expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+describe("loadConfig codeReview defaults", () => {
+  it("defaults codeReview to claude-opus-4-8 and high effort when no review.code block", () => {
+    writePhaxJson(baseConfig);
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.codeReview.model).toBe(DEFAULT_CODE_REVIEW_MODEL);
+      expect(result.right.codeReview.effort).toBe("high");
+    }
+  });
+
+  it("honors review.code.model when set", () => {
+    writePhaxJson({ ...baseConfig, review: { code: { model: "claude-sonnet-4-6" } } });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.codeReview.model).toBe("claude-sonnet-4-6");
+      expect(result.right.codeReview.effort).toBe("high");
+    }
+  });
+
+  it("honors review.code.effort when set", () => {
+    writePhaxJson({ ...baseConfig, review: { code: { effort: "medium" } } });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.codeReview.model).toBe(DEFAULT_CODE_REVIEW_MODEL);
+      expect(result.right.codeReview.effort).toBe("medium");
+    }
   });
 });
