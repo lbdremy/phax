@@ -6,7 +6,14 @@
     "filesystem": {
       "allowWrite": ["~/.phax"]
     },
-    "agentCommands": ["deno", "ctx7", "usage", "pnpm gen:usage-spec", "pnpm docs:cli"]
+    "agentCommands": [
+      "deno",
+      "ctx7",
+      "usage",
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli",
+      "smolvm"
+    ]
   },
   "review": { "compliance": { "enabled": true } },
   "publish": {
