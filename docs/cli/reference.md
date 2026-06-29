@@ -487,6 +487,46 @@ phax plans-overlap docs/plans/33-a.md docs/plans/35-b.md
 phax plans-overlap --landed my-feature docs/plans/40-other.md
 ```
 
+## `phax adjust-plan`
+
+- **Usage**: `phax adjust-plan <FLAGS> <plan>`
+
+Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.
+
+Input: the path to the plan.md to adjust and --landed <run> (the run whose actual changes drive the adjustment). The landed run must have a global-file-reconciliation.json (i.e. it must have reached review). Re-invocation without --new-session resumes the same session; --new-session starts a fresh one.
+
+Side effects: spawns a long-lived interactive provider session (network I/O); the session may, after developer approval, edit and commit the plan.md.
+
+### Arguments
+
+#### `<plan>`
+
+Path to the plan.md to adjust
+
+### Flags
+
+#### `--landed <run>`
+
+The landed run whose actual changes drive the adjustment
+
+#### `--new-session`
+
+Start a fresh adjustment session instead of resuming
+
+#### `--model <model>`
+
+Override the model (default: claude-opus-4-8)
+
+#### `--effort <effort>`
+
+Override the effort (low | medium | high)
+
+### Examples
+
+```
+phax adjust-plan docs/plans/40-foo.md --landed my-feature
+```
+
 ## `phax init`
 
 - **Usage**: `phax init [--force] [--yes]`

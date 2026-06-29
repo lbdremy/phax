@@ -18,6 +18,7 @@ import { runPublishPr } from "./commands/publishPr.js";
 import { runReviewCompliance } from "./commands/reviewCompliance.js";
 import { runReviewCode } from "./commands/reviewCode.js";
 import { runPlansOverlap } from "./commands/plansOverlap.js";
+import { runAdjustPlan } from "./commands/adjustPlan.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
 import { registerResumeCommand } from "./commands/resumeRegister.js";
@@ -321,6 +322,28 @@ export function buildProgram(): Command {
       );
       process.exit(exitCode);
     });
+
+  program
+    .command("adjust-plan")
+    .description("Open an interactive session to adjust a plan after a landed run")
+    .argument("<plan>", "Path to the plan.md to adjust")
+    .requiredOption("--landed <run>", "The landed run whose actual changes drive the adjustment")
+    .option("--new-session", "Start a fresh adjustment session instead of resuming")
+    .option("--model <model>", "Override the model (default: claude-opus-4-8)")
+    .option("--effort <effort>", "Override the effort (low | medium | high)")
+    .action(
+      async (
+        plan: string,
+        opts: { landed: string; newSession?: boolean; model?: string; effort?: string },
+      ) => {
+        const exitCode = await runAdjustPlan(
+          plan,
+          { ...opts, ...globalTraceOpts() },
+          consoleOutput,
+        );
+        process.exit(exitCode);
+      },
+    );
 
   program
     .command("init")

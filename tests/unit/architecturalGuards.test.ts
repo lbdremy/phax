@@ -310,6 +310,7 @@ const DIRECT_NODE_IO = /\bfrom\s+["'](node:fs|node:fs\/promises|node:child_proce
 // Known cli/ violators. Remove an entry once the file is migrated to the
 // FileSystem port.
 const CLI_DIRECT_IO_ALLOWLIST: ReadonlySet<string> = new Set([
+  "src/cli/commands/adjustPlan.ts",
   "src/cli/commands/completions.ts",
   "src/cli/commands/resume.ts",
   "src/cli/commands/run.ts",

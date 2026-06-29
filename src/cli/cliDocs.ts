@@ -105,6 +105,12 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     examples: ["phax review-code usage-cli"],
   },
 
+  "adjust-plan": {
+    longHelp:
+      "Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.\n\nInput: the path to the plan.md to adjust and --landed <run> (the run whose actual changes drive the adjustment). The landed run must have a global-file-reconciliation.json (i.e. it must have reached review). Re-invocation without --new-session resumes the same session; --new-session starts a fresh one.\n\nSide effects: spawns a long-lived interactive provider session (network I/O); the session may, after developer approval, edit and commit the plan.md.",
+    examples: ["phax adjust-plan docs/plans/40-foo.md --landed my-feature"],
+  },
+
   "plans-overlap": {
     longHelp:
       "Two modes:\n\n(Predicted) Without --landed: reads each plan.md's structured form through the content-addressed extraction cache (a cold cache miss extracts once via LLM and caches the result; use --no-extract to fail on a miss instead). Unions each plan's declared phase file-sets into a per-plan footprint, intersects footprints pairwise, and reports the severity-graded conflict matrix, clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule.\n\n(Confirmed) With --landed <run>: takes a run that has already produced changes and reports which of the given plans need re-adjustment because they touch a file the run actually changed. The landed run's footprint is read from its persisted global-file-reconciliation.json (the real git diff across its phases), giving actual-vs-declared impact with no false negatives.\n\nCaveats: the predicted mode reflects declared file intentions, not what agents will actually touch. Conflicts are file-level, not hunk-level — two plans editing different regions of the same file are flagged even if git would auto-merge them. Regenerated artifacts (phax.usage.kdl, docs/cli/reference.md) are a hard-conflict class.\n\nSide effects: read-only with respect to your plans; may run one LLM extraction per uncached plan.md.",
