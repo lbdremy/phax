@@ -155,8 +155,8 @@ export function prepareCodeReviewSession(
     if (existingSession !== undefined) {
       // Resume branch
       const adapter = getSessionAdapter(provider);
-      const invocation = adapter.buildReviewInvocation({
-        worktreePath,
+      const invocation = adapter.buildPrePromptedInvocation({
+        cwd: worktreePath,
         sessionId: existingSession.sessionId,
         initialPrompt: null,
         ...(opts.modelOverride !== undefined ? { model: opts.modelOverride } : {}),
@@ -259,8 +259,8 @@ export function prepareCodeReviewSession(
     // Resolve the invocation before writing anything: an unsupported provider
     // must not leave a leaked prompt file on disk.
     const adapter = getSessionAdapter(provider);
-    const invocation = adapter.buildReviewInvocation({
-      worktreePath,
+    const invocation = adapter.buildPrePromptedInvocation({
+      cwd: worktreePath,
       sessionId,
       initialPrompt: positionalPrompt,
       model: config.model,

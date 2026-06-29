@@ -1,5 +1,5 @@
 import type { PhaseAgentBinding } from "../../schemas/phaseAgentBinding.js";
-import type { BuildReviewInvocationOpts, ResumeInvocation, SessionAdapter } from "./types.js";
+import type { PrePromptedInvocationOpts, ResumeInvocation, SessionAdapter } from "./types.js";
 
 // codex-cli has no confirmed interactive-resume invocation. The automated path
 // uses `codex exec resume <id>` (non-interactive). Until the interactive form
@@ -13,11 +13,11 @@ export const codexSessionAdapter: SessionAdapter = {
     };
   },
 
-  buildReviewInvocation(opts: BuildReviewInvocationOpts): ResumeInvocation {
+  buildPrePromptedInvocation(opts: PrePromptedInvocationOpts): ResumeInvocation {
     if (opts.initialPrompt !== null) {
       return {
         unsupported:
-          "codex-cli does not support a pre-prompted review-code session yet; run `phax enter <short-name>` instead.",
+          "codex-cli does not support a pre-prompted session yet; run `phax enter <short-name>` instead.",
       };
     }
     return {

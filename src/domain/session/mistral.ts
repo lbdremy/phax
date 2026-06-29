@@ -1,5 +1,5 @@
 import type { PhaseAgentBinding } from "../../schemas/phaseAgentBinding.js";
-import type { BuildReviewInvocationOpts, ResumeInvocation, SessionAdapter } from "./types.js";
+import type { PrePromptedInvocationOpts, ResumeInvocation, SessionAdapter } from "./types.js";
 
 // mistral-vibe (vibe CLI) has no confirmed interactive-resume invocation. The
 // automated path uses `vibe -p <prompt> --resume <id>` (non-interactive). Until
@@ -14,11 +14,11 @@ export const mistralSessionAdapter: SessionAdapter = {
     };
   },
 
-  buildReviewInvocation(opts: BuildReviewInvocationOpts): ResumeInvocation {
+  buildPrePromptedInvocation(opts: PrePromptedInvocationOpts): ResumeInvocation {
     if (opts.initialPrompt !== null) {
       return {
         unsupported:
-          "mistral-vibe does not support a pre-prompted review-code session yet; run `phax enter <short-name>` instead.",
+          "mistral-vibe does not support a pre-prompted session yet; run `phax enter <short-name>` instead.",
       };
     }
     return {
