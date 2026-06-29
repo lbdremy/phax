@@ -152,10 +152,10 @@ describe("mistralSessionAdapter", () => {
   });
 });
 
-describe("claudeSessionAdapter.buildReviewInvocation", () => {
+describe("claudeSessionAdapter.buildPrePromptedInvocation", () => {
   it("new session: includes --session-id, model, effort, and positional prompt", () => {
-    const result = claudeSessionAdapter.buildReviewInvocation({
-      worktreePath: "/tmp/wt",
+    const result = claudeSessionAdapter.buildPrePromptedInvocation({
+      cwd: "/tmp/wt",
       sessionId: "uuid-123",
       initialPrompt: "Read the prompt file.",
       model: "claude-opus-4-8",
@@ -177,8 +177,8 @@ describe("claudeSessionAdapter.buildReviewInvocation", () => {
   });
 
   it("new session without model/effort overrides: no --model or --effort flags", () => {
-    const result = claudeSessionAdapter.buildReviewInvocation({
-      worktreePath: "/tmp/wt",
+    const result = claudeSessionAdapter.buildPrePromptedInvocation({
+      cwd: "/tmp/wt",
       sessionId: "uuid-123",
       initialPrompt: "Read the prompt file.",
     });
@@ -190,8 +190,8 @@ describe("claudeSessionAdapter.buildReviewInvocation", () => {
   });
 
   it("resume (initialPrompt null): uses --resume with no positional prompt", () => {
-    const result = claudeSessionAdapter.buildReviewInvocation({
-      worktreePath: "/tmp/wt",
+    const result = claudeSessionAdapter.buildPrePromptedInvocation({
+      cwd: "/tmp/wt",
       sessionId: "uuid-456",
       initialPrompt: null,
     });
@@ -203,8 +203,8 @@ describe("claudeSessionAdapter.buildReviewInvocation", () => {
   });
 
   it("resume with model override: includes --model after --resume", () => {
-    const result = claudeSessionAdapter.buildReviewInvocation({
-      worktreePath: "/tmp/wt",
+    const result = claudeSessionAdapter.buildPrePromptedInvocation({
+      cwd: "/tmp/wt",
       sessionId: "uuid-456",
       initialPrompt: null,
       model: "claude-sonnet-4-6",
@@ -217,10 +217,10 @@ describe("claudeSessionAdapter.buildReviewInvocation", () => {
   });
 });
 
-describe("codexSessionAdapter.buildReviewInvocation", () => {
+describe("codexSessionAdapter.buildPrePromptedInvocation", () => {
   it("new session: returns unsupported refusal", () => {
-    const result = codexSessionAdapter.buildReviewInvocation({
-      worktreePath: "/tmp/wt",
+    const result = codexSessionAdapter.buildPrePromptedInvocation({
+      cwd: "/tmp/wt",
       sessionId: "uuid-123",
       initialPrompt: "Read the prompt file.",
     });
@@ -231,8 +231,8 @@ describe("codexSessionAdapter.buildReviewInvocation", () => {
   });
 
   it("resume: returns unsupported refusal", () => {
-    const result = codexSessionAdapter.buildReviewInvocation({
-      worktreePath: "/tmp/wt",
+    const result = codexSessionAdapter.buildPrePromptedInvocation({
+      cwd: "/tmp/wt",
       sessionId: "uuid-123",
       initialPrompt: null,
     });
@@ -240,10 +240,10 @@ describe("codexSessionAdapter.buildReviewInvocation", () => {
   });
 });
 
-describe("mistralSessionAdapter.buildReviewInvocation", () => {
+describe("mistralSessionAdapter.buildPrePromptedInvocation", () => {
   it("new session: returns unsupported refusal", () => {
-    const result = mistralSessionAdapter.buildReviewInvocation({
-      worktreePath: "/tmp/wt",
+    const result = mistralSessionAdapter.buildPrePromptedInvocation({
+      cwd: "/tmp/wt",
       sessionId: "uuid-123",
       initialPrompt: "Read the prompt file.",
     });
@@ -254,8 +254,8 @@ describe("mistralSessionAdapter.buildReviewInvocation", () => {
   });
 
   it("resume: returns unsupported refusal", () => {
-    const result = mistralSessionAdapter.buildReviewInvocation({
-      worktreePath: "/tmp/wt",
+    const result = mistralSessionAdapter.buildPrePromptedInvocation({
+      cwd: "/tmp/wt",
       sessionId: "uuid-123",
       initialPrompt: null,
     });

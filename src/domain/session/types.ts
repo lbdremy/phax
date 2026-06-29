@@ -4,8 +4,8 @@ export type ResumeInvocation =
   | { readonly executable: string; readonly args: readonly string[]; readonly cwd: string }
   | { readonly unsupported: string };
 
-export interface BuildReviewInvocationOpts {
-  readonly worktreePath: string;
+export interface PrePromptedInvocationOpts {
+  readonly cwd: string;
   readonly sessionId: string;
   readonly initialPrompt: string | null; // null => resume; string => start new
   readonly model?: string;
@@ -14,6 +14,6 @@ export interface BuildReviewInvocationOpts {
 
 export interface SessionAdapter {
   buildResumeInvocation(binding: PhaseAgentBinding): ResumeInvocation;
-  buildReviewInvocation(opts: BuildReviewInvocationOpts): ResumeInvocation;
+  buildPrePromptedInvocation(opts: PrePromptedInvocationOpts): ResumeInvocation;
   describe(binding: PhaseAgentBinding): string;
 }
