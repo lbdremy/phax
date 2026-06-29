@@ -86,6 +86,17 @@ phax is not trying to remove you from the loop. It's trying to give you a *good 
   leaves the last phase's session and worktree live, writes a `review-handoff.md` pointing
   at the branch to review, and waits. You drop in with `phax enter`, `phax shell`, or
   `phax open` and pick up exactly where the agent left off.
+- The review itself is **two pre-built passes you run on demand**, not a blank prompt you
+  have to compose. `phax review-compliance` spawns an *independent* reviewer that judges
+  only one thing — plan-vs-execution conformance — and emits a verdict per phase and for
+  the run as a whole: `conformant`, `conformant-with-deviations`, or `divergent`. It mutates
+  nothing; it just tells you whether the agent did what the plan said. Run it by hand, or set
+  `review.compliance.enabled` and let it run as a step of the run itself (more on that below).
+  Then `phax review-code`
+  drops you into a *pre-prompted, resumable* agent session in the final worktree, already
+  primed with the reconciliation and any compliance findings, so the code review starts from
+  context instead of from "so, what changed?" — you investigate, argue, and apply fixes right
+  there.
 
 Nothing is destroyed along the way. Even `phax archive` — the only command that touches the
 worktrees — *moves* them aside rather than deleting them. Every phase's working state is
@@ -175,10 +186,12 @@ whenever you come back — minutes or hours later — and never re-runs a phase 
 committed. The same holds for any clean mid-run stop: resume continues, it doesn't restart.
 
 Everything else is there when you want it, not on the critical path. `phax ls`, `phax enter`,
-`phax publish-pr`, and `phax archive` list, step into, ship, or shelve a run. And
-`phax extract-plan` exists on its own purely as a debugging aid — to check that your `plan.md`
-extracts into a clean `phax-plan.json` before you commit to a full run. You don't normally call
-it; `run` does the extraction for you.
+`phax publish-pr`, and `phax archive` list, step into, ship, or shelve a run;
+`phax review-compliance` and `phax review-code` are the two review passes from above, run on
+demand; and `phax plans-overlap` and `phax adjust-plan` come out when you're juggling more than
+one plan at a time. And `phax extract-plan` exists on its own purely as a debugging aid — to
+check that your `plan.md` extracts into a clean `phax-plan.json` before you commit to a full run.
+You don't normally call it; `run` does the extraction for you.
 
 The planning doctrine is short: **plan outside-in, implement inside-out, verify outside-in.**
 
@@ -224,11 +237,44 @@ And the loop closes where you already do your reviewing: **GitHub**. Turn on `pu
 `phax.json` and, when a run finishes, phax pushes the final phase branch and opens a pull
 request whose **description is the review document itself** — the plan-vs-actual
 reconciliation, the per-phase divergences, and the agent's reasons, all rendered into the PR
-body. (Too long for GitHub's size cap? It truncates gracefully and points to
-`review-handoff.md` on the branch.) You can also do it by hand or retry with
-`phax publish-pr <run>`. So the artifact you open in the morning isn't a naked diff — it's a
-PR that already tells you *what the plan was, what actually happened, and exactly where the
-two diverged and why.*
+body.
+
+And the conformance review folds into that same loop. Just as `publish.auto` opts a run into
+auto-publishing, `review.compliance.enabled` opts it into running the compliance review **as a
+step of the run** — automatically, right *before* the PR is opened — so the verdict lands in
+the PR body with no extra command. It's the same independent reviewer `phax review-compliance`
+runs by hand, just wired into the run, and its **verdict rides up front** in the description,
+before the phase-by-phase breakdown: whoever opens the PR reads `conformant` /
+`conformant-with-deviations` / `divergent` *before* a single line of diff, so they know where
+to spend their attention. (The review is non-fatal — if it fails, the run still lands in
+`review_open` and you can fall back to running it yourself.) Too long for GitHub's size cap? It
+truncates gracefully and points to `review-handoff.md` on the branch. You can also publish by
+hand or retry with `phax publish-pr <run>`. So the artifact you open in the morning isn't a
+naked diff — it's a PR that already tells you *whether the plan was honored, what the plan was,
+what actually happened, and exactly where the two diverged and why.*
+
+## More than one plan in flight
+
+The declared-file lists pay off a second time, pointed in the opposite direction. Once you're
+breaking work into plans, you start wanting to run *several*, and that raises a question phax
+can now answer deterministically: **which plans can run at the same time without colliding?**
+`phax plans-overlap` takes two or more `plan.md` files, unions each plan's declared phase
+file-sets into a footprint, and intersects them pairwise. Out comes a severity-graded conflict
+matrix, the clean pairs, the largest fully-disjoint set you can safely launch at once, and a
+greedy wave schedule. It's the same discipline the reconciliation leans on, aimed at
+*coordination* instead of review. (Conflicts are file-level, so two plans editing different
+regions of the same file still get flagged — better a false alarm than a surprise merge.)
+
+That's the *prediction*. The harder problem is **drift after the fact**: you land one plan and
+the others you wrote against the old tree go quietly stale — referencing files, line numbers,
+and decisions that just moved. `phax plans-overlap --landed <run>` answers the *confirmed*
+version of the question — it reads the run's **actual** Git diff (from the very same
+`global-file-reconciliation.json` the review used) and tells you which of your other plans now
+need re-adjustment, with no false negatives. And `phax adjust-plan <plan> --landed <run>` opens
+an interactive, pre-prompted session that walks the plan against what actually landed, proposes
+concrete edits, waits for your explicit approval, and only then rewrites and commits the plan.
+The same plan-vs-actual machinery that makes a single run reviewable also keeps a *backlog* of
+plans honest as the tree shifts underneath them.
 
 ## What 1.0 ships with
 
