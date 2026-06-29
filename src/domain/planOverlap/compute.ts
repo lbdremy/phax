@@ -1,11 +1,14 @@
 import { REGENERATED_ARTIFACTS } from "./generatedArtifacts.js";
 import type {
   ConflictSeverity,
+  ImpactedPlan,
+  LandedInput,
   OverlapEdge,
   PlanFileSets,
   PlanFootprint,
   PlanInput,
   PlanOverlapResult,
+  ReadjustmentImpactResult,
   SharedFile,
 } from "./types.js";
 
@@ -144,4 +147,42 @@ export function computePlanOverlap(inputs: readonly PlanInput[]): PlanOverlapRes
     waves,
     exhaustiveSearchSkipped,
   };
+}
+
+export function buildLandedFootprint(input: LandedInput): PlanFootprint {
+  const create = new Set<string>(input.added);
+  const edit = new Set<string>([...input.modified, ...input.deletedOrRenamed]);
+  const optional = new Set<string>();
+  const all = new Set<string>([...create, ...edit]);
+  return { id: input.id, label: input.label, create, edit, optional, all };
+}
+
+export function computeReadjustmentImpact(
+  landed: PlanFootprint,
+  others: readonly PlanFootprint[],
+): ReadjustmentImpactResult {
+  const impacted: ImpactedPlan[] = [];
+  const unaffected: string[] = [];
+
+  for (const other of others) {
+    const shared: SharedFile[] = [];
+    for (const path of landed.all) {
+      if (other.all.has(path)) {
+        shared.push(classifyShared(path, landed, other));
+      }
+    }
+    if (shared.length === 0) {
+      unaffected.push(other.id);
+    } else {
+      const severity = shared.reduce<ConflictSeverity>(
+        (acc, f) => maxSeverity(acc, f.severity),
+        "soft",
+      );
+      impacted.push({ id: other.id, label: other.label, shared, severity });
+    }
+  }
+
+  impacted.sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]);
+
+  return { landedLabel: landed.label, impacted, unaffected };
 }

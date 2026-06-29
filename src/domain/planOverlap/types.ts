@@ -42,3 +42,24 @@ export interface PlanOverlapResult {
   readonly waves: readonly (readonly string[])[];
   readonly exhaustiveSearchSkipped: boolean;
 }
+
+export interface LandedInput {
+  readonly id: string;
+  readonly label: string;
+  readonly added: readonly string[];
+  readonly modified: readonly string[];
+  readonly deletedOrRenamed: readonly string[];
+}
+
+export interface ImpactedPlan {
+  readonly id: string;
+  readonly label: string;
+  readonly shared: readonly SharedFile[];
+  readonly severity: ConflictSeverity;
+}
+
+export interface ReadjustmentImpactResult {
+  readonly landedLabel: string;
+  readonly impacted: readonly ImpactedPlan[];
+  readonly unaffected: readonly string[];
+}
