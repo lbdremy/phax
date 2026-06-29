@@ -1,6 +1,6 @@
 {
   "name": "@lbdremy/phax",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Deterministic local CLI that drives AI Coding agents through isolated, gated phases",
   "license": "Apache-2.0",
   "repository": {
