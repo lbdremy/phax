@@ -19,6 +19,7 @@ const TOP_LEVEL_COMMANDS = [
   "review-compliance",
   "review-code",
   "plans-overlap",
+  "adjust-plan",
   "init",
   "resume",
   "reset-phase",
@@ -99,6 +100,21 @@ describe("buildProgram", () => {
     expect(argNames).toContain("short-name");
 
     const optionNames = cmd!.options.map((o) => o.long);
+    expect(optionNames).toContain("--new-session");
+    expect(optionNames).toContain("--model");
+    expect(optionNames).toContain("--effort");
+  });
+
+  it("adjust-plan has <plan> arg and --landed, --new-session, --model, --effort flags", () => {
+    const program = buildProgram();
+    const cmd = program.commands.find((c) => c.name() === "adjust-plan");
+    expect(cmd).toBeDefined();
+
+    const argNames = cmd!.registeredArguments.map((a) => a.name());
+    expect(argNames).toContain("plan");
+
+    const optionNames = cmd!.options.map((o) => o.long);
+    expect(optionNames).toContain("--landed");
     expect(optionNames).toContain("--new-session");
     expect(optionNames).toContain("--model");
     expect(optionNames).toContain("--effort");
