@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Either, Schema } from "effect";
+import { Effect, Either, Schema } from "effect";
 import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -8,6 +8,7 @@ import { Lock } from "../ports/lock.js";
 import {
   ExtractedPhaxPlanSchema,
   getExtractedPlanJsonSchema,
+  type ExtractedPhaxPlan,
   type PhaxPlan,
 } from "../schemas/phaxPlan.js";
 import {
@@ -17,39 +18,13 @@ import {
   RateLimitError,
   UsageLimitError,
 } from "../domain/errors.js";
-import { decodeShortName, slugifyShortName } from "../domain/branded.js";
+import { decodeShortName } from "../domain/branded.js";
 import { formatParseError } from "../schemas/formatError.js";
+import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
 
 const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
 });
-
-// Derive each phase title from its plan.md heading rather than asking the model
-// to round-trip it through JSON. A `"` in a title would otherwise derail the
-// extraction model into malformed output. Matches `## phase-NN — <title> {#...}`
-// (em/en-dash or hyphen). JSON.stringify on write escapes any quotes safely, so
-// titles keep their original text.
-function parsePhaseTitles(planMd: string): Map<string, string> {
-  const titles = new Map<string, string>();
-  const re = /^##\s+(phase-\d{2})\s*[—–-]\s*(.+?)\s*\{#[^}]*\}\s*$/gim;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(planMd)) !== null) {
-    const id = m[1]!.toLowerCase();
-    const title = m[2]!.trim();
-    if (title.length > 0) titles.set(id, title);
-  }
-  return titles;
-}
-
-function detectPhaseAnchors(planMd: string): string[] {
-  const matches = planMd.match(/##\s+phase-\d{2}/gi) ?? [];
-  return matches
-    .map((m) => {
-      const id = m.match(/phase-\d{2}/i);
-      return id ? id[0].toLowerCase() : "";
-    })
-    .filter(Boolean);
-}
 
 function buildExtractionPrompt(planMd: string, jsonSchema: object): string {
   return [
@@ -128,26 +103,18 @@ export type ExtractPlanCoreError =
   | FsError;
 
 /**
- * Extract a PhaxPlan from a plan.md file via Claude. Performs no file writes —
- * callers persist the result wherever they want (cwd for `phax extract-plan`,
- * the run folder for `phax run`).
+ * The cacheable LLM step: takes the plan.md text, calls backend.complete in a
+ * throwaway temp dir, parses/validates the JSON response, and returns the
+ * validated ExtractedPhaxPlan. Does not read the md from disk — the caller
+ * supplies the text so the cache loader can pass a cached text without a path.
  */
-export function extractPlanCore(
-  opts: ExtractPlanCoreOptions,
-): Effect.Effect<ExtractPlanCoreResult, ExtractPlanCoreError, Backend | FileSystem> {
+export function extractPlanLlm(
+  planMd: string,
+  opts: { model: string; effort: string },
+): Effect.Effect<ExtractedPhaxPlan, ExtractPlanCoreError, Backend | FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const backend = yield* Backend;
-
-    const planMd = yield* fs.readText(opts.planMdPath).pipe(
-      Effect.mapError(
-        (e) =>
-          new PlanValidationError({
-            message: `Failed to read plan.md at "${opts.planMdPath}": ${e.message}`,
-            path: opts.planMdPath,
-          }),
-      ),
-    );
 
     const jsonSchema = getExtractedPlanJsonSchema();
     const prompt = buildExtractionPrompt(planMd, jsonSchema);
@@ -176,7 +143,6 @@ export function extractPlanCore(
       );
     }
 
-    // Local schema validation is mandatory regardless of which model produced the output (spec §6).
     const decoded = decodeExtractedPlan(parsed);
     if (Either.isLeft(decoded)) {
       return yield* Effect.fail(
@@ -186,62 +152,39 @@ export function extractPlanCore(
       );
     }
 
-    // Titles are derived from headings, not extracted from the model. Fail
-    // loudly if a phase has no matching `## <phase-id> — <title> {#anchor}`
-    // heading rather than persisting a phase with an empty title.
-    const phaseTitles = parsePhaseTitles(planMd);
-    const missingTitle = decoded.right.phases.filter((p) => {
-      const t = phaseTitles.get(p.id);
-      return t === undefined || t.length === 0;
-    });
-    if (missingTitle.length > 0) {
-      return yield* Effect.fail(
-        new PlanValidationError({
-          message: `Could not derive a title from plan.md for: ${missingTitle.map((p) => p.id).join(", ")}. Each phase needs a "## <phase-id> — <title> {#anchor}" heading.`,
-        }),
-      );
-    }
-    const phasesWithTitles = Arr.map(decoded.right.phases, (p) => ({
-      ...p,
-      title: phaseTitles.get(p.id) as string,
-    }));
+    return decoded.right;
+  });
+}
 
-    // The model is asked for a shortName but routinely returns prose (often the
-    // plan title), which fails the strict ShortName brand downstream. Slugify it
-    // ourselves rather than trust the model, falling back to the title.
-    const shortName =
-      slugifyShortName(decoded.right.run.shortName) ||
-      slugifyShortName(decoded.right.run.title) ||
-      "run";
-    const plan: PhaxPlan = {
-      version: decoded.right.version,
-      run: {
-        ...decoded.right.run,
-        shortName,
-        branch: `phax/${shortName}`,
-        requiredCommands: decoded.right.run.requiredCommands,
-      },
-      phases: phasesWithTitles,
-    };
+/**
+ * Extract a PhaxPlan from a plan.md file via Claude. Performs no file writes —
+ * callers persist the result wherever they want (cwd for `phax extract-plan`,
+ * the run folder for `phax run`).
+ */
+export function extractPlanCore(
+  opts: ExtractPlanCoreOptions,
+): Effect.Effect<ExtractPlanCoreResult, ExtractPlanCoreError, Backend | FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
 
-    const detectedAnchors = detectPhaseAnchors(planMd);
-    const warnings: string[] = [];
+    const planMd = yield* fs.readText(opts.planMdPath).pipe(
+      Effect.mapError(
+        (e) =>
+          new PlanValidationError({
+            message: `Failed to read plan.md at "${opts.planMdPath}": ${e.message}`,
+            path: opts.planMdPath,
+          }),
+      ),
+    );
 
-    if (detectedAnchors.length > 0 && plan.phases.length !== detectedAnchors.length) {
-      warnings.push(
-        `plan.md has ${detectedAnchors.length} detected phase anchor(s) but ${plan.phases.length} phase(s) were extracted.`,
-      );
+    const extracted = yield* extractPlanLlm(planMd, { model: opts.model, effort: opts.effort });
+
+    const finalized = finalizeExtractedPlan(extracted, planMd);
+    if (Either.isLeft(finalized)) {
+      return yield* Effect.fail(finalized.left);
     }
 
-    for (const phase of plan.phases) {
-      const anchorPhaseId = phase.planMarkdownAnchor.match(/phase-\d{2}/i)?.[0]?.toLowerCase();
-      if (anchorPhaseId && !detectedAnchors.includes(anchorPhaseId)) {
-        warnings.push(
-          `Phase "${phase.id}" references anchor "${phase.planMarkdownAnchor}" not found in plan.md.`,
-        );
-      }
-    }
-
+    const { plan, warnings, detectedAnchors } = finalized.right;
     return { plan, planMd, warnings, detectedAnchors };
   });
 }
