@@ -13,6 +13,7 @@ import {
   buildLandedFootprint,
   computeReadjustmentImpact,
 } from "../domain/planOverlap/compute.js";
+import { planInputFromPhaxPlan } from "../domain/planOverlap/fromPhaxPlan.js";
 import type { LandedInput } from "../domain/planOverlap/types.js";
 import { decodeGlobalFileReconciliation } from "../schemas/globalReconciliation.js";
 import { getSessionAdapter } from "../domain/session/index.js";
@@ -233,15 +234,7 @@ export function prepareAdjustPlanSession(
 
     if (Either.isRight(targetPlanResult)) {
       const { plan } = targetPlanResult.right;
-      const targetInput = {
-        id: opts.planPath,
-        label: opts.planPath,
-        phases: plan.phases.map((p) => ({
-          create: p.plannedFilesToCreate,
-          edit: p.plannedFilesToEdit,
-          optional: p.optionalFilesToEdit,
-        })),
-      };
+      const targetInput = planInputFromPhaxPlan(plan, opts.planPath, opts.planPath);
       const targetFootprint = buildFootprint(targetInput);
       const impactResult = computeReadjustmentImpact(landedFootprint, [targetFootprint]);
       if (impactResult.impacted.length > 0) {

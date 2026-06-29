@@ -2,13 +2,13 @@ import { Data, Effect, Either } from "effect";
 import { join } from "node:path";
 import { Backend } from "../ports/backend.js";
 import { FileSystem } from "../ports/fs.js";
-import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import {
   buildFootprint,
   buildLandedFootprint,
   computePlanOverlap,
   computeReadjustmentImpact,
 } from "../domain/planOverlap/compute.js";
+import { planInputFromPhaxPlan } from "../domain/planOverlap/fromPhaxPlan.js";
 import type {
   LandedInput,
   PlanInput,
@@ -30,18 +30,6 @@ export interface AnalyzePlanOverlapOptions {
   readonly nowIso: string;
 }
 
-function planToPlanInput(plan: PhaxPlan, path: string): PlanInput {
-  return {
-    id: path,
-    label: `${plan.run.shortName} (${path})`,
-    phases: plan.phases.map((p) => ({
-      create: p.plannedFilesToCreate,
-      edit: p.plannedFilesToEdit,
-      optional: p.optionalFilesToEdit,
-    })),
-  };
-}
-
 export function loadAndMapPlanInput(
   planMdPath: string,
   opts: AnalyzePlanOverlapOptions,
@@ -60,7 +48,9 @@ export function loadAndMapPlanInput(
           message: `Failed to load "${planMdPath}": ${"message" in e ? e.message : String(e)}`,
         }),
     ),
-    Effect.map(({ plan }) => planToPlanInput(plan, planMdPath)),
+    Effect.map(({ plan }) =>
+      planInputFromPhaxPlan(plan, planMdPath, `${plan.run.shortName} (${planMdPath})`),
+    ),
   );
 }
 
