@@ -52,9 +52,9 @@ the plan preamble) is **not** per-phase — it applies to the whole run. See
 [Required commands declaration](#required-commands-declaration).
 
 The three planned-file arrays are **required**: the section must be present even
-when it is empty (write `- (none)` for an empty list). They back the end-of-phase
-file reconciliation. The current extractor does not yet pull these three arrays
-into `phax-plan.json`, so include them now to keep plans forward-compatible.
+when it is empty (write `- (none)` for an empty list). `phax extract-plan` pulls
+all three into `phax-plan.json`, where they back the end-of-phase file
+reconciliation.
 
 ## Phase section structure
 
@@ -158,7 +158,7 @@ When a phase crosses an architectural boundary (page/cli/surface → view-model,
 view-model → application command, command → port, …), describe the contract in
 consumer/producer terms: who needs something, who provides it, and the stable
 shape between them. Be strict on the semantic need, adaptable on the exact
-interface shape. These are human-readable today (not extracted);. Omit the section for a phase that crosses no boundary.
+interface shape. These are not extracted (human-readable only). Omit the section for a phase that crosses no boundary.
 
 ## Test strategy (informational)
 
