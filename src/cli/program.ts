@@ -305,12 +305,17 @@ export function buildProgram(): Command {
     .argument("<plan...>", "Paths to two or more plan.md files")
     .option("--json", "Emit the overlap result as JSON instead of a report")
     .option("--no-extract", "Fail on a cache miss instead of extracting the plan.md")
-    .action(async (plans: string[], opts: { json?: true; extract?: boolean }) => {
+    .option(
+      "--landed <run>",
+      "Report which of the given plans need re-adjustment after this run's actual changes",
+    )
+    .action(async (plans: string[], opts: { json?: true; extract?: boolean; landed?: string }) => {
       const exitCode = await runPlansOverlap(
         plans,
         {
           ...(opts.json === true ? { json: true as const } : {}),
           ...(opts.extract === false ? { noExtract: true as const } : {}),
+          ...(opts.landed !== undefined ? { landed: opts.landed } : {}),
         },
         consoleOutput,
       );

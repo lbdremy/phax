@@ -104,7 +104,7 @@ describe("buildProgram", () => {
     expect(optionNames).toContain("--effort");
   });
 
-  it("plans-overlap has variadic <plan...> arg and --json, --no-extract flags", () => {
+  it("plans-overlap has variadic <plan...> arg and --json, --no-extract, --landed flags", () => {
     const program = buildProgram();
     const cmd = program.commands.find((c) => c.name() === "plans-overlap");
     expect(cmd).toBeDefined();
@@ -115,5 +115,6 @@ describe("buildProgram", () => {
     const optionNames = cmd!.options.map((o) => o.long);
     expect(optionNames).toContain("--json");
     expect(optionNames).toContain("--no-extract");
+    expect(optionNames).toContain("--landed");
   });
 });

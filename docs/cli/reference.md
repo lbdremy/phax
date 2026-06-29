@@ -445,11 +445,15 @@ phax review-code usage-cli
 
 ## `phax plans-overlap`
 
-- **Usage**: `phax plans-overlap [--json] [--no-extract] <plan>`
+- **Usage**: `phax plans-overlap [FLAGS] <plan>`
 
-Reads each plan.md's structured form through the content-addressed extraction cache (a cold cache miss extracts once via LLM and caches the result; use --no-extract to fail on a miss instead). Unions each plan's declared phase file-sets into a per-plan footprint, intersects footprints pairwise, and reports the severity-graded conflict matrix, clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule.
+Two modes:
 
-Caveats: the analysis reflects declared file intentions, not what agents will actually touch (phax reconciles declared vs actual after each phase). Conflicts are file-level, not hunk-level — two plans editing different regions of the same file are flagged even if git would auto-merge them. Regenerated artifacts (phax.usage.kdl, docs/cli/reference.md) are a hard-conflict class.
+(Predicted) Without --landed: reads each plan.md's structured form through the content-addressed extraction cache (a cold cache miss extracts once via LLM and caches the result; use --no-extract to fail on a miss instead). Unions each plan's declared phase file-sets into a per-plan footprint, intersects footprints pairwise, and reports the severity-graded conflict matrix, clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule.
+
+(Confirmed) With --landed <run>: takes a run that has already produced changes and reports which of the given plans need re-adjustment because they touch a file the run actually changed. The landed run's footprint is read from its persisted global-file-reconciliation.json (the real git diff across its phases), giving actual-vs-declared impact with no false negatives.
+
+Caveats: the predicted mode reflects declared file intentions, not what agents will actually touch. Conflicts are file-level, not hunk-level — two plans editing different regions of the same file are flagged even if git would auto-merge them. Regenerated artifacts (phax.usage.kdl, docs/cli/reference.md) are a hard-conflict class.
 
 Side effects: read-only with respect to your plans; may run one LLM extraction per uncached plan.md.
 
@@ -469,10 +473,18 @@ Emit the overlap result as JSON instead of a report
 
 Fail on a cache miss instead of extracting the plan.md
 
+#### `--landed <run>`
+
+Report which of the given plans need re-adjustment after this run's actual changes
+
 ### Examples
 
 ```
 phax plans-overlap docs/plans/33-a.md docs/plans/35-b.md
+```
+
+```
+phax plans-overlap --landed my-feature docs/plans/40-other.md
 ```
 
 ## `phax init`

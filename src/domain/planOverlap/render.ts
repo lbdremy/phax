@@ -1,4 +1,4 @@
-import type { PlanOverlapResult } from "./types.js";
+import type { PlanOverlapResult, ReadjustmentImpactResult } from "./types.js";
 
 export function renderPlanOverlap(result: PlanOverlapResult): string {
   const lines: string[] = [];
@@ -90,6 +90,55 @@ export function renderPlanOverlap(result: PlanOverlapResult): string {
     "  class: two plans that both regenerate them will collide on merge even when neither",
   );
   lines.push("  lists them as a manual edit.");
+
+  return lines.join("\n");
+}
+
+const SEVERITY_MEANING: Record<string, string> = {
+  hard: "regenerate/restructure — structural conflict requiring rework",
+  medium: "rebase + re-verify line references — source file hunk-overlap risk",
+  soft: "trivial textual rebase — prose or optional file",
+};
+
+export function renderReadjustmentImpact(result: ReadjustmentImpactResult): string {
+  const lines: string[] = [];
+
+  lines.push("=== Re-adjustment Impact Analysis ===");
+  lines.push("");
+  lines.push(`Landed run: ${result.landedLabel}`);
+  lines.push("");
+
+  if (result.impacted.length === 0) {
+    lines.push("No plans need re-adjustment.");
+  } else {
+    lines.push(`Impacted plans (${result.impacted.length}):`);
+    for (const plan of result.impacted) {
+      lines.push(`  ${plan.label} [${plan.severity}]`);
+      lines.push(`    Meaning: ${SEVERITY_MEANING[plan.severity] ?? plan.severity}`);
+      lines.push("    Shared files:");
+      for (const f of plan.shared) {
+        lines.push(`      ${f.path} [${f.severity}]: ${f.reason}`);
+      }
+    }
+  }
+
+  lines.push("");
+
+  if (result.unaffected.length === 0) {
+    lines.push("Unaffected plans: none");
+  } else {
+    lines.push(`Unaffected plans: ${result.unaffected.join(", ")}`);
+  }
+
+  lines.push("");
+  lines.push("---");
+  lines.push(
+    "Caveat: this compares the landed run's actual changed files against the remaining plans'",
+  );
+  lines.push(
+    "declared footprints. Actual changes have no false negatives; declared footprints may miss",
+  );
+  lines.push("files agents touch without declaring.");
 
   return lines.join("\n");
 }
