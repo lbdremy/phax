@@ -443,6 +443,38 @@ Override the effort (low | medium | high), including on resume (default: review.
 phax review-code usage-cli
 ```
 
+## `phax plans-overlap`
+
+- **Usage**: `phax plans-overlap [--json] [--no-extract] <plan>`
+
+Reads each plan.md's structured form through the content-addressed extraction cache (a cold cache miss extracts once via LLM and caches the result; use --no-extract to fail on a miss instead). Unions each plan's declared phase file-sets into a per-plan footprint, intersects footprints pairwise, and reports the severity-graded conflict matrix, clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule.
+
+Caveats: the analysis reflects declared file intentions, not what agents will actually touch (phax reconciles declared vs actual after each phase). Conflicts are file-level, not hunk-level — two plans editing different regions of the same file are flagged even if git would auto-merge them. Regenerated artifacts (phax.usage.kdl, docs/cli/reference.md) are a hard-conflict class.
+
+Side effects: read-only with respect to your plans; may run one LLM extraction per uncached plan.md.
+
+### Arguments
+
+#### `<plan>`
+
+Paths to two or more plan.md files
+
+### Flags
+
+#### `--json`
+
+Emit the overlap result as JSON instead of a report
+
+#### `--no-extract`
+
+Fail on a cache miss instead of extracting the plan.md
+
+### Examples
+
+```
+phax plans-overlap docs/plans/33-a.md docs/plans/35-b.md
+```
+
 ## `phax init`
 
 - **Usage**: `phax init [--force] [--yes]`

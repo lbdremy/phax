@@ -104,4 +104,10 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
       "Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.\n\nSide effects: writes a code-review prompt file under the worktree's .phax-context/ and a session record under the run directory; spawns a long-lived interactive AI agent session (network I/O).",
     examples: ["phax review-code usage-cli"],
   },
+
+  "plans-overlap": {
+    longHelp:
+      "Reads each plan.md's structured form through the content-addressed extraction cache (a cold cache miss extracts once via LLM and caches the result; use --no-extract to fail on a miss instead). Unions each plan's declared phase file-sets into a per-plan footprint, intersects footprints pairwise, and reports the severity-graded conflict matrix, clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule.\n\nCaveats: the analysis reflects declared file intentions, not what agents will actually touch (phax reconciles declared vs actual after each phase). Conflicts are file-level, not hunk-level — two plans editing different regions of the same file are flagged even if git would auto-merge them. Regenerated artifacts (phax.usage.kdl, docs/cli/reference.md) are a hard-conflict class.\n\nSide effects: read-only with respect to your plans; may run one LLM extraction per uncached plan.md.",
+    examples: ["phax plans-overlap docs/plans/33-a.md docs/plans/35-b.md"],
+  },
 };

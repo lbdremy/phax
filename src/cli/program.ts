@@ -17,6 +17,7 @@ import { runReviewHandoff } from "./commands/reviewHandoff.js";
 import { runPublishPr } from "./commands/publishPr.js";
 import { runReviewCompliance } from "./commands/reviewCompliance.js";
 import { runReviewCode } from "./commands/reviewCode.js";
+import { runPlansOverlap } from "./commands/plansOverlap.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
 import { registerResumeCommand } from "./commands/resumeRegister.js";
@@ -297,6 +298,24 @@ export function buildProgram(): Command {
         process.exit(exitCode);
       },
     );
+
+  program
+    .command("plans-overlap")
+    .description("Report which plans can run in parallel without merge conflict")
+    .argument("<plan...>", "Paths to two or more plan.md files")
+    .option("--json", "Emit the overlap result as JSON instead of a report")
+    .option("--no-extract", "Fail on a cache miss instead of extracting the plan.md")
+    .action(async (plans: string[], opts: { json?: true; extract?: boolean }) => {
+      const exitCode = await runPlansOverlap(
+        plans,
+        {
+          ...(opts.json === true ? { json: true as const } : {}),
+          ...(opts.extract === false ? { noExtract: true as const } : {}),
+        },
+        consoleOutput,
+      );
+      process.exit(exitCode);
+    });
 
   program
     .command("init")
