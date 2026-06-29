@@ -13,12 +13,16 @@ documents it.
 
 ---
 
+## Required commands
+
+- (none)
+
+---
+
 ## phase-01 — Add greet function {#phase-01-greet-function}
 
 **Recommended model:** claude-sonnet-4-6
 **Recommended effort:** low
-
-### Objective
 
 Create `src/greet.ts` with a single exported `greet(name: string): string`
 function that returns `"Hello, <name>!"`.
@@ -29,22 +33,35 @@ function that returns `"Hello, <name>!"`.
 - Export `greet(name: string): string`.
 - No side effects, no I/O.
 
-### Included scope
+### Planned files to create
 
-- `src/greet.ts`.
+- src/greet.ts
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- (none)
 
 ### Excluded scope
 
 - Tests (phase-02).
 - Documentation (phase-03).
 
-### Validation expectations
+### Verification
 
-`tsc --noEmit` passes. The function compiles under strict settings.
+- The project's configured `full` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- The exact path `src/greet.ts` and the `greet` function signature.
+- Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
-`feat(phase-01): add greet function`
+feat(phase-01): add greet function
 
 ### Commit body
 
@@ -57,8 +74,6 @@ Add a simple `greet` function that formats a greeting string given a name.
 **Recommended model:** claude-sonnet-4-6
 **Recommended effort:** low
 
-### Objective
-
 Add a Vitest unit test for the `greet` function.
 
 ### Detailed instructions
@@ -66,21 +81,34 @@ Add a Vitest unit test for the `greet` function.
 - Create `tests/greet.test.ts`.
 - Cover the happy path and an empty-string name.
 
-### Included scope
+### Planned files to create
 
-- `tests/greet.test.ts`.
+- tests/greet.test.ts
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- (none)
 
 ### Excluded scope
 
 - Documentation (phase-03).
 
-### Validation expectations
+### Verification
 
-`pnpm test` passes.
+- The project's configured `full` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- Confirmation that `pnpm test` passes with the new test file.
+- Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
-`test(phase-02): cover greet with vitest`
+test(phase-02): cover greet with vitest
 
 ### Commit body
 
@@ -93,8 +121,6 @@ Add unit tests for the `greet` function covering the happy path and edge cases.
 **Recommended model:** claude-sonnet-4-6
 **Recommended effort:** low
 
-### Objective
-
 Add a `README.md` that documents the `greet` function with an install and
 usage example.
 
@@ -103,21 +129,34 @@ usage example.
 - Create `README.md` at the repo root.
 - Show install and a usage snippet.
 
-### Included scope
+### Planned files to create
 
-- `README.md`.
+- README.md
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- (none)
 
 ### Excluded scope
 
 - Any code changes.
 
-### Validation expectations
+### Verification
 
-`README.md` renders without broken Markdown syntax.
+- The project's configured `full` gate profile in `phax.json`.
+
+### Expected handoff content
+
+- Confirmation that `README.md` renders without broken Markdown syntax.
+- Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
-`docs(phase-03): document greet function in README`
+docs(phase-03): document greet function in README
 
 ### Commit body
 
