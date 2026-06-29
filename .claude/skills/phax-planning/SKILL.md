@@ -53,10 +53,8 @@ the plan preamble) is **not** per-phase — it applies to the whole run. See
 
 The three planned-file arrays are **required**: the section must be present even
 when it is empty (write `- (none)` for an empty list). They back the end-of-phase
-file reconciliation. This is the format defined by
-`docs/specs/02-phax-planning-skill-update.md`; until that spec is implemented the
-current extractor does not yet pull these three arrays into `phax-plan.json`, so
-include them now to keep plans forward-compatible.
+file reconciliation. The current extractor does not yet pull these three arrays
+into `phax-plan.json`, so include them now to keep plans forward-compatible.
 
 ## Phase section structure
 
@@ -191,6 +189,31 @@ fixes, regressions); skip strict test-first for exploratory UI and scaffolding.
   behavior the core does not yet provide.
 - **Verify outside-in.** End by checking the user-visible behavior works end to
   end, then let the gates confirm it.
+
+## Spike and discovery plans
+
+phax is not only for feature work — it is a valid vehicle for spike / discovery /
+feasibility plans. A discovery plan succeeds when it delivers **either the answers, or
+the instrumentation to obtain them**. Hold the plan to that bar.
+
+Such work fits awkwardly into the default model (autonomous agent + mechanical gate)
+because a spike's value is in judgment, not in compiling code. Reconcile it like this:
+
+- **Split deterministic scaffolding from real-world signal.** The agent authors what it
+  can produce deterministically — harness scripts plus a findings-doc skeleton with
+  empty `## Results` / `## Verdict` sections. The actual run (booting a VM, hitting a
+  live API, observing a network block) happens out-of-band — a human or an e2e step —
+  and its output is pasted into the findings doc. A closing synthesis phase
+  rapatriates the judgment into a go/no-go.
+- **Use the `fast` gate profile, not `full`.** Spike artifacts (`spikes/`, docs) have no
+  architecture/knip/build surface to protect, so a passing `full` gate is misleading
+  "false green". `fast` is honest and `typecheck` still covers any TypeScript
+  scaffolding the spike produces. Gates passing trivially ("à vide") is acceptable for a
+  spike — the real signal lives in the findings doc, not the gate.
+- **State the execution-model caveat in the plan Overview.** A phase agent runs in a
+  worktree and cannot reliably self-verify real-world effects (a microVM escape, a live
+  egress block). Say so explicitly, so the synthesis reads as provisional until a real
+  run fills the Results sections.
 
 ## Model IDs
 
