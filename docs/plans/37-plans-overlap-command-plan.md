@@ -119,13 +119,15 @@ itself. The pre-prompt instructs the agent to:
    message.
 
 Re-invoking resumes the same session (a persisted session record) unless
-`--new-session` is passed. The session machinery is **self-contained in plan 37**
-(its own session-record schema, pre-prompt builder, and pre-prompted invocation
-on the `Session` port); the overlap with plan 36 (`review-code`) is noted for
-later consolidation but creates no ordering dependency. As with `review-code`,
-only Claude Code gets a working pre-prompted start in this plan (the deterministic
-`--session-id` resume design is Claude-specific); codex/mistral return a precise
-`unsupported` refusal.
+`--new-session` is passed. Plan 36 (`review-code`) has **already landed**, so this
+plan **builds on and consolidates** its session machinery rather than duplicating
+it: phase-06 generalizes plan 36's `buildReviewInvocation` into a shared
+`buildPrePromptedInvocation` (instead of adding a parallel method), phase-05 models
+`AdjustPlanSessionSchema` on the landed `codeReviewSession.ts` and reuses the shared
+`ProviderIdSchema`, and phases 07–08 mirror `reviewCode.ts`'s prepare-session use
+case and CLI command. As with `review-code`, only Claude Code gets a working
+pre-prompted start (the deterministic `--session-id` resume design is
+Claude-specific); codex/mistral return a precise `unsupported` refusal.
 
 ## Required commands
 
@@ -775,7 +777,9 @@ deterministic impact.
 
 ### Detailed instructions
 
-- Create `src/schemas/adjustPlanSession.ts` with a `Schema.Struct`
+- Model the schema on the already-landed `src/schemas/codeReviewSession.ts` (same
+  `Schema.Struct` + decode/encode shape and conventions). Create
+  `src/schemas/adjustPlanSession.ts` with a `Schema.Struct`
   `AdjustPlanSessionSchema` and `decodeAdjustPlanSession`
   (`Schema.decodeUnknownEither`, `onExcessProperty: "error"`) plus
   `encodeAdjustPlanSession` (`Schema.encodeSync`). Fields, all required (no
@@ -783,8 +787,9 @@ deterministic impact.
   - `version: Schema.Literal(1)`
   - `planPath: Schema.NonEmptyString` (the target `plan.md`, as given)
   - `landedRunKey: Schema.NonEmptyString` (the landed run's `namespace.shortName`)
-  - `provider`: the same provider literal union used in
-    `src/schemas/phaseAgentBinding.ts` (`"claude-code" | "codex-cli" | "mistral-vibe"`)
+  - `provider: ProviderIdSchema` (import from `src/schemas/providerId.js` — the
+    shared provider-literal union now used by `phaseAgentBinding.ts` and
+    `codeReviewSession.ts`; do **not** re-inline the `"claude-code" | "codex-cli" | "mistral-vibe"` union)
   - `sessionId: Schema.NonEmptyString`
   - `cwd: Schema.NonEmptyString` (repo root the session runs in)
   - `createdAt: Schema.NonEmptyString` / `updatedAt: Schema.NonEmptyString` (ISO)
@@ -900,38 +905,41 @@ decode and the with/without-impact prompt cases.
 
 ---
 
-## phase-06 — Pre-prompted session invocation in the session adapters {#phase-06-session-invocation}
+## phase-06 — Generalize the session adapter's pre-prompted invocation {#phase-06-session-invocation}
 
 **Recommended model:** claude-sonnet-4-6
 **Recommended effort:** low
 
-Teach the session adapters to build a pre-prompted interactive invocation — start
-a new session with a fixed id and an initial prompt, or resume an existing one.
+Plan 36 (`review-code`) has **already landed** a `buildReviewInvocation` on
+`SessionAdapter` that builds exactly the pre-prompted interactive invocation this
+plan needs — start a new session with a fixed id + an initial prompt, or resume an
+existing one, with optional `--model`/`--effort` (`src/domain/session/types.ts`,
+`claude.ts`, `codex.ts`, `mistral.ts`). Rather than add a second parallel method,
+**rename and generalize** the existing one so both `review-code` and `adjust-plan`
+share a single builder. After this phase the method is `buildPrePromptedInvocation`,
+which phase-07 already calls.
 
 ### Detailed instructions
 
-- Extend `src/domain/session/types.ts`: add to `SessionAdapter`:
-  ```ts
-  buildPrePromptedInvocation(opts: {
-    readonly cwd: string;
-    readonly sessionId: string;
-    readonly initialPrompt: string | null; // null => resume; string => start new
-    readonly model?: string;
-    readonly effort?: string;
-  }): ResumeInvocation;
-  ```
-  Reuse the existing `ResumeInvocation` union. (Generic name on purpose: plan 36's
-  `review-code` needs the same capability and can adopt this rather than adding a
-  parallel `buildReviewInvocation` — noted, not required here.)
-- Implement in `src/domain/session/claude.ts`, conditionally appending
-  `--model`/`--effort` when provided (mirror the headless arg-building in
-  `src/infra/providers/claudeCode.ts`):
-  - Resume (`initialPrompt === null`):
-    `{ executable: "claude", args: ["--resume", sessionId, ...(model ? ["--model", model] : []), ...(effort ? ["--effort", effort] : [])], cwd }`.
-  - New (`initialPrompt` is a string):
-    `{ executable: "claude", args: ["--session-id", sessionId, ...(model ? ["--model", model] : []), ...(effort ? ["--effort", effort] : []), initialPrompt], cwd }`.
-- Implement in `src/domain/session/codex.ts` and `src/domain/session/mistral.ts`:
-  return `{ unsupported: "<provider> does not support a pre-prompted interactive session yet; run `phax enter <short-name>` instead." }` for the **new** case; for the resume case, delegate to their existing `--resume` logic if they capture a session id, otherwise return an `unsupported` refusal consistent with `buildResumeInvocation`.
+- In `src/domain/session/types.ts`: rename `BuildReviewInvocationOpts` →
+  `PrePromptedInvocationOpts` and its `worktreePath` field → `cwd` (it is only ever
+  the spawn working directory — `adjust-plan` runs in the repo root, `review-code`
+  in a worktree); rename `SessionAdapter.buildReviewInvocation` →
+  `buildPrePromptedInvocation`. Keep `initialPrompt: string | null` (`null` ⇒
+  resume, string ⇒ start new), `model?`, `effort?`, and the `ResumeInvocation`
+  return type unchanged.
+- Apply the rename in the three adapters — `src/domain/session/claude.ts`,
+  `src/domain/session/codex.ts`, `src/domain/session/mistral.ts` — with **no
+  behavior change**: claude still emits `["--resume", sessionId, …]` on resume and
+  `["--session-id", sessionId, …, initialPrompt]` on a new session (conditionally
+  appending `--model`/`--effort`); codex/mistral keep returning their `unsupported`
+  refusal for the new case and their existing resume behavior.
+- Update the existing caller `src/app/reviewCode.ts`: both its resume and new
+  branches call `adapter.buildReviewInvocation({ worktreePath, … })` — change to
+  `adapter.buildPrePromptedInvocation({ cwd: worktreePath, … })`. No other change.
+- Grep the repo for `buildReviewInvocation` and `BuildReviewInvocationOpts` and
+  rename **every** occurrence, including `tests/unit/sessionAdapters.test.ts`; the
+  asserted argv stays identical.
 - Leave `buildResumeInvocation` and `describe` untouched.
 
 ### Planned files to create
@@ -944,36 +952,40 @@ a new session with a fixed id and an initial prompt, or resume an existing one.
 - `src/domain/session/claude.ts`
 - `src/domain/session/codex.ts`
 - `src/domain/session/mistral.ts`
+- `src/app/reviewCode.ts`
 - `tests/unit/sessionAdapters.test.ts`
 
 ### Optional files that may be edited
 
-- (none)
+- (none — but grep first; rename any other reference the search turns up)
 
 ### Boundary contracts
 
-Producer: each `SessionAdapter` now provides `buildPrePromptedInvocation`.
-Consumer: the phase-07 use case calls it via `getSessionAdapter(provider)`. Stable
-shape: the `ResumeInvocation` union — an `{ executable, args, cwd }` to spawn or an
-`{ unsupported }` refusal the use case turns into a clean error.
+Producer: each `SessionAdapter` exposes the renamed `buildPrePromptedInvocation`
+over `PrePromptedInvocationOpts`. Consumers: both `review-code` (already landed) and
+the phase-07 `adjust-plan` use case call it via `getSessionAdapter(provider)`.
+Stable shape: the `ResumeInvocation` union — an `{ executable, args, cwd }` to spawn
+or an `{ unsupported }` refusal the use case turns into a clean error.
 
 ### Test strategy
 
-- Unit (before implementation) in `tests/unit/sessionAdapters.test.ts`:
-  - claude new: asserts `--session-id <id>`, the `--model`/`--effort` flags when
-    provided, the positional prompt, and `cwd`.
-  - claude resume without overrides: `["--resume", <id>]`, no `--model`/`--effort`,
-    no positional prompt.
-  - claude resume with a model override: `--model <m>` follows `--resume <id>`.
-  - codex/mistral new: an `unsupported` refusal.
+- The existing `sessionAdapters.test.ts` cases are preserved verbatim except for
+  the renamed method/opts (same asserted argv): claude new asserts `--session-id
+  <id>`, the `--model`/`--effort` flags when provided, the positional prompt, and
+  `cwd`; claude resume without overrides asserts `["--resume", <id>]` with no
+  flags/prompt; claude resume with a model override; codex/mistral new return an
+  `unsupported` refusal.
+- The `full` gate proves `review-code` still builds and passes after the rename.
 
 ### Implementation order
 
-Interface in `types.ts`, then claude, then codex/mistral.
+Rename in `types.ts`, then the three adapters, then the `reviewCode.ts` caller,
+then the tests; run the gate to confirm no missed reference.
 
 ### Excluded scope
 
 - The prompt content (phase-05) and the use case / persistence (phase-07).
+- Any change to the claude/codex/mistral argv behavior — this is a rename only.
 - Full pre-prompted support for codex/mistral.
 
 ### Verification
@@ -982,23 +994,24 @@ Interface in `types.ts`, then claude, then codex/mistral.
 
 ### Expected handoff content
 
-- The final `buildPrePromptedInvocation` signature and the exact claude argv for
-  the new and resume cases (flag positions; resume emits `--model`/`--effort` only
-  when explicitly passed).
-- The exact `unsupported` message for codex/mistral.
+- Confirmation `buildReviewInvocation`/`BuildReviewInvocationOpts` were renamed to
+  `buildPrePromptedInvocation`/`PrePromptedInvocationOpts` (with `worktreePath` →
+  `cwd`) and that `src/app/reviewCode.ts` and all tests were updated.
+- The exact claude argv for the new and resume cases (unchanged by the rename).
 - Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
-feat(session): add buildPrePromptedInvocation to session adapters
+refactor(session): generalize buildReviewInvocation to buildPrePromptedInvocation
 
 ### Commit body
 
-Add SessionAdapter.buildPrePromptedInvocation so a use case can start a
-pre-prompted interactive session (claude --session-id … prompt) or resume one
-(claude --resume …), with optional --model/--effort. codex/mistral return an
-unsupported refusal for the pre-prompted start. Generic by design so review-code
-can adopt it later. Covered by unit tests for the claude argv and the refusals.
+Rename SessionAdapter.buildReviewInvocation to buildPrePromptedInvocation (and its
+opts' worktreePath field to cwd) so both review-code and the upcoming adjust-plan
+command share one pre-prompted interactive-session builder instead of two parallel
+methods. Pure rename across the three session adapters, the reviewCode use-case
+caller, and the session-adapter unit tests; the produced claude/codex/mistral argv
+is unchanged.
 
 ---
 
@@ -1014,7 +1027,12 @@ spawns nothing and mutates no plan.
 
 ### Detailed instructions
 
-- Create `src/app/adjustPlan.ts` exporting `prepareAdjustPlanSession(opts)`:
+- Model this use case on the already-landed `src/app/reviewCode.ts`
+  (`prepareCodeReviewSession`): the same `kind: "ready" | "unsupported" | "refused"`
+  result carrying a `mode: "new" | "resume"`, the same read-binding →
+  read-reconciliation → write-prompt → write-record structure, and the same
+  telemetry events. Create `src/app/adjustPlan.ts` exporting
+  `prepareAdjustPlanSession(opts)`:
   - `opts`: `{ planPath: string; planMarkdown: string; runPath: string; runKey: string; provider: <provider literal>; cwd: string; extract: { model: string; effort: string; stateRoot: string }; newSession: boolean; nowIso: string; modelOverride?: string; effortOverride?: string; model: string; effort: string }`.
     (The CLI resolves `runPath`/`provider`/`cwd` and reads `planMarkdown`; `extract`
     holds the `extractPlanModel`/`extractPlanEffort`/`stateRoot` used to obtain the
@@ -1057,7 +1075,7 @@ spawns nothing and mutates no plan.
     7. Persist the `AdjustPlanSession` record (`encodeAdjustPlanSession`,
        `fs.writeAtomic`) with `createdAt = updatedAt = nowIso`.
   - Emit `SystemTelemetry` step-started/step-completed and an artifact-generated
-    event for the prompt file, mirroring `reviewCompliance.ts`.
+    event for the prompt file, mirroring `reviewCode.ts` (`prepareCodeReviewSession`).
   - Do **not** spawn the session and do **not** edit the plan — the CLI owns the
     `Session` layer; the plan edit happens interactively inside the session after
     the developer approves.
@@ -1150,8 +1168,10 @@ and document it in the usage spec.
 ### Detailed instructions
 
 - Create `src/cli/commands/adjustPlan.ts` exporting
-  `runAdjustPlan(planPathArg, opts, out): Promise<number>`, modeled on
-  `src/cli/commands/enter.ts` (resolve/spawn) and `reviewCompliance.ts` (config):
+  `runAdjustPlan(planPathArg, opts, out): Promise<number>`, modeled on the
+  already-landed `src/cli/commands/reviewCode.ts` (config load → `--effort`
+  validation → `prepare…` use case → `ready | unsupported | refused` handling →
+  spawn via the `Session` port) and `enter.ts` (run resolution + spawn):
   - `opts: { landed: string; newSession?: boolean; model?: string; effort?: string; verbose?: boolean }`.
   - Load config; on error print and return 1. Require `opts.landed`; resolve that
     run via `resolveRun`/`resolveRunRef` to get its `runPath` and `runKey`; print
@@ -1193,10 +1213,10 @@ and document it in the usage spec.
   `--landed` is required, and the side effect (spawns an interactive provider CLI;
   the developer-driven session may, after approval, edit and commit the plan.md);
   and `examples: ["phax adjust-plan docs/plans/40-foo.md --landed my-feature"]`.
-- Add a fake `Session` layer at `src/infra/fakes/session.ts` (records the
-  invocation, returns a configurable exit code) and export it from
-  `src/infra/fakes/index.ts`, for the command test — **unless** it already exists
-  (e.g. plan 36 landed first); reuse it if so and note that in the handoff.
+- Reuse the fake `Session` layer at `src/infra/fakes/session.ts` — it **already
+  exists** (landed by plan 36: `makeFakeSession`/`FakeSessionImpl`, exported from
+  `src/infra/fakes/index.ts`) and records the invocation + returns a configurable
+  exit code. Do **not** recreate it; just import it for the command test.
 - Regenerate `phax.usage.kdl` (`pnpm gen:usage-spec`) then `docs/cli/reference.md`
   + README (`pnpm docs:cli`); do not hand-edit them.
 - Update `tests/integration/cliProgram.test.ts`: add `"adjust-plan"` to
@@ -1206,14 +1226,12 @@ and document it in the usage spec.
 ### Planned files to create
 
 - `src/cli/commands/adjustPlan.ts`
-- `src/infra/fakes/session.ts`
 - `tests/integration/adjustPlanCommand.test.ts`
 
 ### Planned files to edit
 
 - `src/cli/program.ts`
 - `src/cli/cliDocs.ts`
-- `src/infra/fakes/index.ts`
 - `tests/integration/cliProgram.test.ts`
 - `phax.usage.kdl`
 - `docs/cli/reference.md`
@@ -1271,7 +1289,7 @@ Command file → `cliDocs` entry → `program.ts` registration → fake `Session
   effort validation, the exit-code contract, and the `Session` layer provided.
 - The registered command name, the `<plan>` arg and all flags, the `cliDocs` entry,
   and the `phax.usage.kdl` block added.
-- Whether `src/infra/fakes/session.ts` was created or already existed.
+- Confirmation the existing `src/infra/fakes/session.ts` was reused (not recreated).
 - The updated `TOP_LEVEL_COMMANDS` list; confirmation the derived artifacts were
   regenerated and `usageSpecDrift.test.ts` passes.
 - Any deviation from the planned file lists, with the reason.
@@ -1288,5 +1306,5 @@ and an optional deterministic impact. The session establishes the drift, asks
 clarifying questions, proposes changes and waits for the developer's approval, and
 only then edits and commits the plan — all interactively within the session; the
 command itself mutates nothing. Re-invocation resumes; --new-session starts fresh.
-Registers the command, documents it in cliDocs/phax.usage.kdl, and adds a fake
-Session layer for the command test.
+Registers the command, documents it in cliDocs/phax.usage.kdl, and reuses the
+existing fake Session layer for the command test.
