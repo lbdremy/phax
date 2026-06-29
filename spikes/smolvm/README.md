@@ -80,5 +80,7 @@ findings doc and fill in the `## Verdict`.
 
 ## Synthesis
 
-Once all three probes have been run, the synthesis and go/no-go recommendation is in
-`docs/spikes/smolvm-isolation-findings.md`.
+The synthesis, per-probe verdicts, and go/no-go recommendation are in
+[`docs/spikes/smolvm-isolation-findings.md`](../../docs/spikes/smolvm-isolation-findings.md).
+The conclusion is **provisional**: it is conditional on the hard-coded-IP case in
+`02-network.sh` (case 3) blocking on the real run.
