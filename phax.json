@@ -6,11 +6,17 @@
     "filesystem": {
       "allowWrite": ["~/.phax"]
     },
-    "agentCommands": ["deno", "ctx7", "usage", "pnpm gen:usage-spec", "pnpm docs:cli"]
+    "agentCommands": [
+      "deno",
+      "ctx7",
+      "usage",
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ]
   },
   "review": { "compliance": { "enabled": true } },
   "publish": {
-    "enabled": true,
+    "auto": true,
     "remote": "origin",
     "provider": "github",
     "pushBranch": true,
