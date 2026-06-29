@@ -24,7 +24,9 @@ claude -p "Write plan.md for specs/<your spec> using the phax-planning skill."
 
 # 3. extract the plan + run every gated phase
 phax run --plan plan.md
-# 4. push the final branch and open the PR
+# 4. review the agent's work in a pre-prompted session (optional)
+phax review-code <short-name>
+# 5. push the final branch and open the PR
 phax publish-pr <short-name>
 ```
 
@@ -226,11 +228,14 @@ caffeinate -ims phax run --plan plan.md
 ## Review loop
 
 ```bash
-phax enter <short-name>   # resume the final agent session
-phax shell <short-name>   # open $SHELL in the final worktree
-phax path  <short-name>   # print the worktree path (script-friendly)
-phax open  <short-name>   # open the worktree in the configured editor
+phax review-code <short-name>   # interactive, pre-prompted code-review session in the worktree
+phax enter <short-name>         # resume the final agent session
+phax shell <short-name>         # open $SHELL in the final worktree
+phax path  <short-name>         # print the worktree path (script-friendly)
+phax open  <short-name>         # open the worktree in the configured editor
 ```
+
+`phax review-code` launches the AI agent in the final worktree already primed with a code-review prompt — seeded with the file reconciliation and, if present, the compliance findings — so the review starts from context instead of a blank prompt. The session is resumable: re-running resumes it, `--new-session` starts fresh. Override the model/effort with `--model`/`--effort` (defaults from `review.code`, else `claude-opus-4-8` at `high` effort). You take over the session to investigate, discuss, and apply fixes.
 
 ## Compliance review & publishing
 
@@ -244,6 +249,20 @@ phax publish-pr <short-name>          # push the final branch and open (or reuse
 `phax review-compliance` re-invokes the AI agent with the run's handoff artifacts and the original plan and writes a verdict; it never touches the worktree, registry, or any files. Configure its model/effort under `review.compliance` in `phax.json` (default model `claude-sonnet-4-6`, effort `medium`).
 
 `phax publish-pr` pushes the final worktree branch to the GitHub remote and creates a pull request, reusing an existing PR for the same branch if one exists. It requires a GitHub remote and an authenticated `gh` CLI. Configure the remote, base branch, and title under `publish` in `phax.json`.
+
+## Coordinating multiple plans
+
+When you have more than one plan in flight, these commands answer "can these run together?" and "did a landed run invalidate the others?" — using the same declared-file lists the per-phase reconciliation relies on.
+
+```bash
+phax plans-overlap docs/plans/33-a.md docs/plans/35-b.md   # predicted: which plans are parallel-safe
+phax plans-overlap --landed <run> docs/plans/40-other.md   # confirmed: which plans the run's real diff invalidates
+phax adjust-plan docs/plans/40-other.md --landed <run>     # interactively reconcile a plan against a landed run
+```
+
+`phax plans-overlap` reports which plans can run in parallel without a merge conflict. Without `--landed`, it reads each `plan.md` through the content-addressed extraction cache (a cold miss extracts once via the LLM and caches it; `--no-extract` fails on a miss instead), unions each plan's declared phase file-sets into a footprint, intersects them pairwise, and reports a severity-graded conflict matrix, the clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule. With `--landed <run>`, it reads that run's actual git diff from its persisted `global-file-reconciliation.json` and reports which of the given plans now need re-adjustment. Conflicts are file-level, not hunk-level, and `--json` emits the raw result.
+
+`phax adjust-plan <plan> --landed <run>` opens an interactive, pre-prompted session that reconciles a plan against what a landed run actually changed: it establishes which declared files, line references, and decisions are now invalidated, asks clarifying questions, proposes concrete edits, and — only after your explicit approval — edits and commits the plan. The landed run must have reached review (it needs a `global-file-reconciliation.json`). The session is resumable; `--new-session` starts fresh.
 
 ## List runs
 
