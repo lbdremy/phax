@@ -18,6 +18,7 @@ const TOP_LEVEL_COMMANDS = [
   "publish-pr",
   "review-compliance",
   "review-code",
+  "plans-overlap",
   "init",
   "resume",
   "reset-phase",
@@ -101,5 +102,18 @@ describe("buildProgram", () => {
     expect(optionNames).toContain("--new-session");
     expect(optionNames).toContain("--model");
     expect(optionNames).toContain("--effort");
+  });
+
+  it("plans-overlap has variadic <plan...> arg and --json, --no-extract flags", () => {
+    const program = buildProgram();
+    const cmd = program.commands.find((c) => c.name() === "plans-overlap");
+    expect(cmd).toBeDefined();
+
+    const argNames = cmd!.registeredArguments.map((a) => a.name());
+    expect(argNames).toContain("plan");
+
+    const optionNames = cmd!.options.map((o) => o.long);
+    expect(optionNames).toContain("--json");
+    expect(optionNames).toContain("--no-extract");
   });
 });
