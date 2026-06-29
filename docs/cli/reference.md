@@ -85,6 +85,10 @@ Claude model to use (overrides phax.json agent.extractPlan.model)
 
 Effort level (low|medium|high, overrides phax.json agent.extractPlan.effort)
 
+#### `--refresh`
+
+Re-extract even if a cached extraction exists (overwrites cache entry)
+
 ## `phax enter`
 
 - **Usage**: `phax enter <short-name>`
@@ -293,6 +297,8 @@ phax archive usage-cli --force
 
 Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.
 
+Extraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.
+
 Side effects: creates worktrees, commits files, writes to ~/.phax/runs/.
 
 ### Arguments
@@ -323,6 +329,10 @@ Preview only — extracts the plan but performs no run actions
 
 Security mode override (secure|unsafe|isolated, overrides config default)
 
+#### `--refresh`
+
+Re-extract the plan even if a cached extraction exists
+
 ### Examples
 
 ```
@@ -335,6 +345,10 @@ phax run my-feature --plan plan.md
 
 ```
 phax run --plan plan.md --dry-run
+```
+
+```
+phax run --plan plan.md --refresh
 ```
 
 ## `phax review-handoff`

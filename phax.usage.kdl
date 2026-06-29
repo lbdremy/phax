@@ -73,6 +73,9 @@ cmd "extract-plan" {
         arg "<effort>"
         help "Effort level (low|medium|high, overrides phax.json agent.extractPlan.effort)"
     }
+    flag "--refresh" {
+        help "Re-extract even if a cached extraction exists (overwrites cache entry)"
+    }
 }
 
 cmd "enter" {
@@ -178,10 +181,11 @@ cmd "archive" {
 
 cmd "run" {
     help "Extract a plan from plan.md and run all phases, or preview with --dry-run"
-    long_help "Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/."
+    long_help "Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.\n\nExtraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/."
     example "phax run --plan plan.md"
     example "phax run my-feature --plan plan.md"
     example "phax run --plan plan.md --dry-run"
+    example "phax run --plan plan.md --refresh"
     arg "[short-name]" {
         help "Run short name, e.g. usage-cli"
     }
@@ -203,6 +207,9 @@ cmd "run" {
     flag "--security" {
         arg "<mode>"
         help "Security mode override (secure|unsafe|isolated, overrides config default)"
+    }
+    flag "--refresh" {
+        help "Re-extract the plan even if a cached extraction exists"
     }
 }
 

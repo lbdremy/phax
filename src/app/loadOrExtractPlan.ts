@@ -21,6 +21,7 @@ export interface LoadOrExtractOptions {
 export interface LoadOrExtractResult {
   readonly plan: PhaxPlan;
   readonly warnings: string[];
+  readonly detectedAnchors: string[];
   readonly fromCache: boolean;
 }
 
@@ -40,8 +41,8 @@ export function loadOrExtractPlan(
         if (Either.isLeft(finalized)) {
           return yield* Effect.fail(finalized.left);
         }
-        const { plan, warnings } = finalized.right;
-        return { plan, warnings, fromCache: true };
+        const { plan, warnings, detectedAnchors } = finalized.right;
+        return { plan, warnings, detectedAnchors, fromCache: true };
       }
     }
 
@@ -70,7 +71,7 @@ export function loadOrExtractPlan(
       return yield* Effect.fail(finalized.left);
     }
 
-    const { plan, warnings } = finalized.right;
-    return { plan, warnings, fromCache: false };
+    const { plan, warnings, detectedAnchors } = finalized.right;
+    return { plan, warnings, detectedAnchors, fromCache: false };
   });
 }

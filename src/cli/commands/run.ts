@@ -15,7 +15,7 @@ import {
 import { buildWhatsNext, renderWhatsNext, toKeepAwakePlatform } from "../../domain/whatsNext.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { buildDryRunReport, formatDryRunReport } from "../../app/dryRun.js";
-import { extractPlanCore } from "../../app/extractPlan.js";
+import { loadOrExtractPlan } from "../../app/loadOrExtractPlan.js";
 import { createRunFolder } from "../../app/runFolder.js";
 import { executePlan } from "../../app/executePlan.js";
 import { withRunLock } from "../../app/lock.js";
@@ -49,6 +49,7 @@ export interface RunCommandOptions {
   allowDirty?: boolean;
   providerPriority?: string;
   security?: string;
+  refresh?: boolean;
   verbose?: boolean;
   trace?: boolean;
 }
@@ -177,12 +178,16 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     priorityOverride = parsed.value;
   }
 
-  // Extract plan.md → PhaxPlan via Claude. The result is never persisted in
-  // the user's repo — `createRunFolder` snapshots it under ~/.phax/runs/.
-  const extractEffect = extractPlanCore({
+  // Extract plan.md → PhaxPlan via Claude (or return from cache). The result
+  // is never persisted in the user's repo — `createRunFolder` snapshots it
+  // under ~/.phax/runs/.
+  const extractEffect = loadOrExtractPlan({
     planMdPath,
     model: config.extractPlanModel,
     effort: config.extractPlanEffort,
+    stateRoot: config.stateRoot,
+    nowIso: new Date().toISOString(),
+    refresh: opts.refresh,
   });
 
   // We don't yet know the shortName (it comes out of extraction), so use a
@@ -213,10 +218,14 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     return exitCodeForError(err);
   }
 
-  const { plan, planMd, warnings } = extracted.right;
+  const { plan, warnings, fromCache } = extracted.right;
+  if (fromCache) {
+    out.log("using cached extraction");
+  }
   for (const w of warnings) {
     out.warn(`extract warning: ${w}`);
   }
+  const planMd = readFileSync(planMdPath, "utf8");
 
   if (opts.shortName !== undefined && opts.shortName !== plan.run.shortName) {
     out.error(

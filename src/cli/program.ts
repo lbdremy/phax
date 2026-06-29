@@ -101,6 +101,7 @@ export function buildProgram(): Command {
       "--effort <effort>",
       "Effort level (low|medium|high, overrides phax.json agent.extractPlan.effort)",
     )
+    .option("--refresh", "Re-extract even if a cached extraction exists (overwrites cache entry)")
     .action(
       async (opts: {
         planMd: string;
@@ -108,6 +109,7 @@ export function buildProgram(): Command {
         force?: boolean;
         model?: string;
         effort?: string;
+        refresh?: boolean;
       }) => {
         const exitCode = await runExtractPlan({ ...opts, ...globalTraceOpts() }, consoleOutput);
         process.exit(exitCode);
@@ -218,6 +220,7 @@ export function buildProgram(): Command {
       "--security <mode>",
       "Security mode override (secure|unsafe|isolated, overrides config default)",
     )
+    .option("--refresh", "Re-extract the plan even if a cached extraction exists")
     .action(
       async (
         shortName: string | undefined,
@@ -226,6 +229,7 @@ export function buildProgram(): Command {
           allowDirty?: boolean;
           providerPriority?: string;
           dryRun?: boolean;
+          refresh?: boolean;
         },
       ) => {
         const merged = { ...opts, ...globalTraceOpts() };

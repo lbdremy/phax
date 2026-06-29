@@ -21,6 +21,7 @@ import {
 import { decodeShortName } from "../domain/branded.js";
 import { formatParseError } from "../schemas/formatError.js";
 import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
+import { loadOrExtractPlan } from "./loadOrExtractPlan.js";
 
 const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
@@ -192,6 +193,9 @@ export function extractPlanCore(
 export interface ExtractPlanOptions extends ExtractPlanCoreOptions {
   readonly outPath: string;
   readonly force: boolean;
+  readonly stateRoot: string;
+  readonly nowIso: string;
+  readonly refresh?: boolean;
 }
 
 export interface ExtractPlanResult {
@@ -250,7 +254,14 @@ export function extractPlan(
       }
     }
 
-    const { plan, warnings, detectedAnchors } = yield* extractPlanCore(opts);
+    const { plan, warnings, detectedAnchors } = yield* loadOrExtractPlan({
+      planMdPath: opts.planMdPath,
+      model: opts.model,
+      effort: opts.effort,
+      stateRoot: opts.stateRoot,
+      nowIso: opts.nowIso,
+      refresh: opts.refresh,
+    });
 
     yield* fs.writeAtomic(opts.outPath, JSON.stringify(plan, null, 2));
 

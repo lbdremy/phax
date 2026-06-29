@@ -10,7 +10,7 @@ import type { RunId } from "../../../src/domain/branded.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({ loadConfig: vi.fn() }));
 vi.mock("../../../src/app/loadTelemetryConfig.js", () => ({ loadTelemetryConfig: vi.fn() }));
-vi.mock("../../../src/app/extractPlan.js", () => ({ extractPlanCore: vi.fn() }));
+vi.mock("../../../src/app/loadOrExtractPlan.js", () => ({ loadOrExtractPlan: vi.fn() }));
 vi.mock("../../../src/app/runFolder.js", () => ({ createRunFolder: vi.fn() }));
 vi.mock("../../../src/app/executePlan.js", () => ({ executePlan: vi.fn() }));
 vi.mock("../../../src/app/lock.js", () => ({ withRunLock: vi.fn((_key, effect) => effect) }));
@@ -35,6 +35,17 @@ vi.mock("../../../src/ports/systemTelemetry.js", () => ({
   NoopSystemTelemetryLayer: {},
   SystemTelemetry: {},
 }));
+vi.mock("node:fs", async () => {
+  const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+  return {
+    ...actual,
+    existsSync: vi.fn(() => false),
+    readFileSync: vi.fn((path: string, _enc: string) => {
+      if (String(path).endsWith("registry.json")) throw new Error("ENOENT");
+      return "# Plan content";
+    }),
+  };
+});
 
 function makeOutput() {
   const lines: string[] = [];
@@ -167,9 +178,14 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
     );
     loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
 
-    const { extractPlanCore } = vi.mocked(await import("../../../src/app/extractPlan.js"));
-    extractPlanCore.mockReturnValue(
-      Effect.succeed({ plan: makePlan("fixbug"), planMd: "# Plan", warnings: [] }),
+    const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+    loadOrExtractPlan.mockReturnValue(
+      Effect.succeed({
+        plan: makePlan("fixbug"),
+        warnings: [],
+        detectedAnchors: [],
+        fromCache: false,
+      }),
     );
 
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
@@ -209,9 +225,14 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
     );
     loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
 
-    const { extractPlanCore } = vi.mocked(await import("../../../src/app/extractPlan.js"));
-    extractPlanCore.mockReturnValue(
-      Effect.succeed({ plan: makePlan("fixbug"), planMd: "# Plan", warnings: [] }),
+    const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+    loadOrExtractPlan.mockReturnValue(
+      Effect.succeed({
+        plan: makePlan("fixbug"),
+        warnings: [],
+        detectedAnchors: [],
+        fromCache: false,
+      }),
     );
 
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
@@ -255,9 +276,14 @@ async function setupSuccessRun(executePlanResult: Record<string, unknown> = {}) 
   );
   loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
 
-  const { extractPlanCore } = vi.mocked(await import("../../../src/app/extractPlan.js"));
-  extractPlanCore.mockReturnValue(
-    Effect.succeed({ plan: makePlan("fixbug"), planMd: "# Plan", warnings: [] }),
+  const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+  loadOrExtractPlan.mockReturnValue(
+    Effect.succeed({
+      plan: makePlan("fixbug"),
+      warnings: [],
+      detectedAnchors: [],
+      fromCache: false,
+    }),
   );
 
   const { loadModelRouting, loadProviderConfig } = vi.mocked(

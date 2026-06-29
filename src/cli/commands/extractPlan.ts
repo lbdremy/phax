@@ -17,6 +17,7 @@ export interface ExtractPlanCliOptions {
   force?: boolean | undefined;
   model?: string | undefined;
   effort?: string | undefined;
+  refresh?: boolean | undefined;
   verbose?: boolean | undefined;
   trace?: boolean | undefined;
 }
@@ -60,6 +61,9 @@ export async function runExtractPlan(
     force: opts.force ?? false,
     model,
     effort,
+    stateRoot: config.stateRoot,
+    nowIso: new Date().toISOString(),
+    ...(opts.refresh ? { refresh: true as const } : {}),
   }).pipe(
     Effect.provide(makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG)),
     Effect.provide(NodeFileSystemLayer),
