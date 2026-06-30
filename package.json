@@ -10,7 +10,8 @@
     "dist",
     "phax.usage.kdl",
     ".claude/skills/phax-planning",
-    ".claude/skills/phax-cli"
+    ".claude/skills/phax-cli",
+    ".claude/skills/phax-spec"
   ],
   "type": "module",
   "scripts": {

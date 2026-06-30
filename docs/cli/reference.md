@@ -799,7 +799,7 @@ Install bundled PHAX skills into an agent's native skill directory
 
 #### `[skill]`
 
-Skill to install (phax-planning|phax-cli); installs all skills when omitted
+Skill to install (phax-planning|phax-cli|phax-spec); installs all skills when omitted
 
 ### Flags
 

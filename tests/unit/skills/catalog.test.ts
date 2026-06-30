@@ -4,6 +4,7 @@ import {
   EXPOSED_SKILL_NAMES,
   PHAX_CLI_SKILL,
   PHAX_PLANNING_SKILL,
+  PHAX_SPEC_SKILL,
   findExposedSkill,
 } from "../../../src/domain/skills/catalog.js";
 import {
@@ -14,9 +15,9 @@ import {
 } from "../../../src/domain/skills/types.js";
 
 describe("EXPOSED_SKILLS", () => {
-  it("contains phax-planning and phax-cli", () => {
-    expect(EXPOSED_SKILLS).toHaveLength(2);
-    expect(EXPOSED_SKILLS.map((s) => s.name)).toEqual(["phax-planning", "phax-cli"]);
+  it("contains phax-planning, phax-cli and phax-spec", () => {
+    expect(EXPOSED_SKILLS).toHaveLength(3);
+    expect(EXPOSED_SKILLS.map((s) => s.name)).toEqual(["phax-planning", "phax-cli", "phax-spec"]);
   });
 
   it("every exposed skill ships SKILL.md as its required file", () => {
@@ -29,7 +30,8 @@ describe("EXPOSED_SKILLS", () => {
   it("PHAX constants match catalog entries", () => {
     expect(PHAX_PLANNING_SKILL).toBe("phax-planning");
     expect(PHAX_CLI_SKILL).toBe("phax-cli");
-    expect(EXPOSED_SKILL_NAMES).toEqual([PHAX_PLANNING_SKILL, PHAX_CLI_SKILL]);
+    expect(PHAX_SPEC_SKILL).toBe("phax-spec");
+    expect(EXPOSED_SKILL_NAMES).toEqual([PHAX_PLANNING_SKILL, PHAX_CLI_SKILL, PHAX_SPEC_SKILL]);
   });
 });
 
@@ -44,6 +46,12 @@ describe("findExposedSkill", () => {
     const skill = findExposedSkill("phax-cli");
     expect(skill).not.toBeNull();
     expect(skill?.name).toBe("phax-cli");
+  });
+
+  it("returns the skill for 'phax-spec'", () => {
+    const skill = findExposedSkill("phax-spec");
+    expect(skill).not.toBeNull();
+    expect(skill?.name).toBe("phax-spec");
   });
 
   it("returns null for an unknown name", () => {

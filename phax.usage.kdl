@@ -464,7 +464,7 @@ cmd "skills" {
     cmd "install" {
         help "Install bundled PHAX skills into an agent's native skill directory"
         arg "[skill]" {
-            help "Skill to install (phax-planning|phax-cli); installs all skills when omitted"
+            help "Skill to install (phax-planning|phax-cli|phax-spec); installs all skills when omitted"
         }
         flag "--target" {
             arg "<target>"

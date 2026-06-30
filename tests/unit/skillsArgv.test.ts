@@ -150,7 +150,7 @@ describe("runSkillsInstall validation", () => {
   });
 
   it("accepts exposed skill names without validation error", async () => {
-    for (const skill of ["phax-planning", "phax-cli"]) {
+    for (const skill of ["phax-planning", "phax-cli", "phax-spec"]) {
       const { out, errors } = captureOutput();
       // Will fail at installSkill (bundle not in cwd), but should pass validation
       const exitCode = await runSkillsInstall({ target: "claude", skill }, out);
@@ -170,5 +170,6 @@ describe("runSkillsInstall validation", () => {
     const joined = lines.join("\n");
     expect(joined).toContain("phax-planning:");
     expect(joined).toContain("phax-cli:");
+    expect(joined).toContain("phax-spec:");
   });
 });
