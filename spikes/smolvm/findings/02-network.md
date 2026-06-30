@@ -2,11 +2,11 @@
 
 ## Environment
 
-- smolvm version:
-- Host OS / arch:
+- smolvm version: 1.3.2
+- Host OS / arch: Darwin 25.5.0 / arm64 (Apple Silicon)
 - Guest arch: arm64 Linux (Alpine, via libkrun on Apple Silicon)
-- Date of run:
-- Operator:
+- Date of run: 2026-06-30
+- Operator: Claude Code (interactive review session, automated run)
 
 ## Procedure
 
@@ -83,19 +83,68 @@ The `## Verdict` must answer both:
 
 ## Results
 
-<!-- Paste the raw output of `sh spikes/smolvm/02-network.sh` here. Leave empty until run. -->
+> **Methodology note — script could not be run verbatim; two blocking issues found.**
+>
+> 1. **`apk add curl` cannot work under the allowlist.** `02-network.sh` installs curl
+>    at runtime, but `--allow-host example.com` blocks Alpine's package CDN, so curl
+>    never installs and *every* case would report code `000` (false "blocked") regardless
+>    of the real egress behaviour. Replaced with Alpine's built-in busybox `wget` (no
+>    install, no extra egress).
+> 2. **The image pull is itself subject to the allowlist.** `--allow-host` constrains the
+>    guest DNS resolver to allowed hosts only, so `smolvm machine run --image alpine
+>    --allow-host example.com` fails to resolve `index.docker.io` (`no such host`) and the
+>    pull dies before any case runs. To pull, the Docker registry + CDN hosts had to be
+>    added to the allowlist as well:
+>    `--allow-host index.docker.io auth.docker.io registry-1.docker.io
+>    production.cloudfront.docker.com docker.io`. This does **not** weaken the decisive
+>    case 3: httpbin's IP is still not on the allowlist.
+>
+> All five cases were run in a **single** boot (the original script uses five) with
+> `--timeout 90s`. IPs were resolved on the host immediately before the run.
+
+Host-resolved before boot: `example.com = 104.20.23.154` (Cloudflare), `httpbin.org = 52.70.185.220`.
+
+```
+[c1 allowed example.com by NAME ]  rc=0   → REACHABLE  (allowed egress works)
+[c2 blocked httpbin.org by NAME ]  rc=1   wget: bad address 'httpbin.org'
+                                          → BLOCKED at DNS (deny-by-default)
+[c3 blocked httpbin by RAW IP   ]  rc=1   wget: can't connect to remote host
+   *** DECISIVE ***                       (52.70.185.220): Connection refused
+                                          → BLOCKED at L4 (real egress boundary)
+[c4 allowed example.com RAW IP  ]  rc=1   wget: server returned error: HTTP/1.1 403 Forbidden
+                                          → REACHABLE (TCP connected; 403 is Cloudflare
+                                            app-layer for a host-less raw-IP request)
+[c5 ICMP ping example.com       ]  100% packet loss   → ICMP not forwarded (TCP/UDP only)
+```
 
 ## Verdict
 
-<!-- Fill in after results are captured. Format: PASS / FAIL / PARTIAL + one-line conclusion. -->
+**Status:** PASS — `--allow-host` is a real deny-by-default egress boundary. **GO signal.**
 
-**Status:** (not yet run)
+**Is egress deny-by-default?** **Yes.** A non-allowed host is unreachable both by name
+(c2: not even resolvable — DNS is itself restricted to allowed hosts) and by raw IP
+(c3: connection refused). Only the explicitly allowed host is reachable (c1).
 
-**Is egress deny-by-default?**
+**Is `--allow-host` a security boundary or DNS convenience?** **A real security boundary.**
+This is the decisive result: hard-coding the IP of a non-allowed host (c3) does **not**
+bypass the allowlist — the connection is refused at L4. `--allow-host` resolves the allowed
+hostname to its IP(s) at VM start and permits egress to those IPs only; everything else is
+dropped. An agent (or attacker code an agent runs) cannot escape by shipping an IP literal.
 
-**Is `--allow-host` a security boundary or DNS convenience?**
+**Conclusion:** smolvm's egress allowlist closes exactly the gap spec-14 identified as
+unenforceable at the provider-native layer. Enforcement is **IP-based** (c4: the allowed
+host's resolved IP is reachable by raw IP, returning an app-layer 403 rather than a
+connection refusal). Two consequences for a follow-up plan:
 
-**Conclusion:**
+- **Shared-CDN-IP caveat (real, must be designed around).** Because enforcement is by
+  resolved IP, allowlisting one host on a shared CDN address transitively permits any other
+  host served from that same IP. example.com sits on Cloudflare (104.20.23.154); any other
+  Cloudflare-fronted host on that IP would be reachable by raw IP. This is residual risk 2
+  in the synthesis, now **confirmed** rather than hypothetical.
+- **IP pinning at VM start.** Allowed hosts are resolved once at boot; long runs whose
+  allowed host rotates DNS could see egress break (or a stale IP stay allowed). Minor.
+
+ICMP is not forwarded (c5) — consistent with smolvm's TCP/UDP-only networking.
 
 ## Open questions
 

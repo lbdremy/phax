@@ -2,11 +2,11 @@
 
 ## Environment
 
-- smolvm version:
-- Host OS / arch:
+- smolvm version: 1.3.2
+- Host OS / arch: Darwin 25.5.0 / arm64 (Apple Silicon)
 - Guest arch: arm64 Linux (Alpine, via libkrun on Apple Silicon)
-- Date of run:
-- Operator:
+- Date of run: 2026-06-30
+- Operator: Claude Code (interactive review session, automated run)
 
 ## Procedure
 
@@ -62,15 +62,67 @@ If `:ro` is not supported or not enforced, record that as a finding — it const
 
 ## Results
 
-<!-- Paste the raw output of `sh spikes/smolvm/01-filesystem.sh` here. Leave empty until run. -->
+> **Methodology note — script could not be run verbatim.** `01-filesystem.sh` boots
+> `smolvm machine run --image alpine` **without `--net`**. On smolvm 1.3.2, an ephemeral
+> `machine run` re-pulls the image at every boot, and the pull requires network — so
+> without `--net` the very first boot fails at `pull image … network is unreachable`.
+> To get a real result the image was pre-baked once into a self-contained artifact
+> (`smolvm pack create -I alpine -o alpine.smolmachine`, which pulls under plain `--net`)
+> and every check below was run with `smolvm machine run --from alpine.smolmachine -v …`.
+> The filesystem boundary is identical to a live `--image alpine` boot (same Alpine
+> rootfs, same libkrun virtio-fs mount layer); only the image-acquisition path differs.
+> **Fix for the script:** add `--net` to the boots (needed only so the pull can run), or
+> document a pre-bake/pre-pull step. See also the network-probe finding — live pull is
+> impossible once an egress allowlist is applied, so a pre-baked image is mandatory.
+
+Raw output (one boot per check, `--from` artifact, `-v` mounts):
+
+```
+CHECK A: workspace round-trip + write-back
+  --- guest /workspace ---
+  -rw-r--r-- 1 root root 21 Jun 30 11:23 sentinel.txt
+  --- sentinel ---            spike-sentinel-73398
+  guest wrote writeback.txt
+  HOST-CHECK A: PASS write-back visible          → workspace mount round-trips both ways
+
+CHECK B: host HOME invisible
+  ls: /Users/remyloubradou: No such file or directory     → HOME-NOT-VISIBLE
+  cat: can't open '/Users/remyloubradou/.smolvm-probe-…'  → MARKER-NOT-VISIBLE
+
+CHECK C: host repo root invisible
+  ls: /Users/remyloubradou/.phax/.../phase-05: No such file or directory   → NOT-VISIBLE
+  cat: can't open '…/.smolvm-probe-…': No such file or directory           → NOT-VISIBLE
+
+CHECK D: /etc isolation, no macOS /Users
+  guest hostname: container
+  /etc/passwd: root:x:0:0:root:/root:/bin/sh   (Alpine default, not host)
+  ls /Users: No such file or directory          → no macOS path leak
+
+CHECK E: read-only mount (-v …:/workspace:ro)
+  /bin/sh: can't create /workspace/ro-test.txt: Read-only file system   → WRITE-REJECTED
+  HOST-CHECK E: PASS no write-through            → :ro enforced at hypervisor layer
+```
 
 ## Verdict
 
-<!-- Fill in after results are captured. Format: PASS / FAIL / PARTIAL + one-line conclusion. -->
+**Status:** PASS (all five checks) — run via pre-baked `--from` artifact, not live `--image` pull.
 
-**Status:** (not yet run)
+| Check | Result |
+| ----- | ------ |
+| A. Workspace mount round-trip + write-back | PASS — guest reads sentinel, host sees `writeback.txt` |
+| B. Host `$HOME` invisible | PASS — path and marker absent in guest |
+| C. Host repo root invisible | PASS — path and marker absent in guest |
+| D. Host `/etc` not leaking | PASS — Alpine `/etc`, hostname `container`, no `/Users` |
+| E. Read-only `:ro` mount enforced | PASS — guest write rejected with EROFS, no host write-through |
 
-**Conclusion:**
+**Conclusion:** smolvm gives a clean Linux-guest filesystem boundary. The host `$HOME`,
+the repo root, and macOS paths are simply absent from the guest rootfs — nothing leaks
+except the explicit `-v` mount. Crucially for `isolated` mode, **`:ro` is enforced at the
+hypervisor layer** (`Read-only file system`), so the worktree can be mounted read-only and
+`allowRead` can be distinguished from `allowWrite` at the VM boundary (this resolves
+residual risk 3 in the synthesis in the favourable direction). The one caveat is
+operational, not security: an ephemeral `--image` boot always re-pulls and the pull needs
+network, so a pre-baked image / `--from` artifact is required to boot offline.
 
 ## Open questions
 

@@ -2,11 +2,11 @@
 
 ## Environment
 
-- smolvm version:
-- Host OS / arch:
+- smolvm version: 1.3.2
+- Host OS / arch: Darwin 25.5.0 / arm64 (Apple Silicon)
 - Guest OS / arch: Linux arm64 (Alpine, via libkrun on Apple Silicon)
-- Date of run:
-- Operator:
+- Date of run: 2026-06-30 (partial — see status)
+- Operator: Claude Code (interactive review session, automated run)
 
 ## Procedure
 
@@ -80,27 +80,76 @@ Do not commit outputs that contain key values.
 
 ## Results
 
-<!-- Paste the raw output of `sh spikes/smolvm/03-agents.sh` here. Leave empty until run. -->
+> **Status: NOT RUN as a provider task probe — no API keys available in this environment.**
+> `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `MISTRAL_API_KEY` are all unset, so every
+> provider would `SKIP` at the key check and no real agent task can execute. The
+> per-provider table below is therefore left empty rather than fabricated. What *was*
+> established are the infrastructure facts that gate this probe — and they are decisive
+> enough to change the integration design (see synthesis). They were proven while running
+> probes 01 and 02 on the same smolvm 1.3.2 / Alpine setup.
+
+**Infrastructure findings (verified, key-independent):**
+
+1. **`apk add` / `npm install` in-guest cannot work under a provider-only allowlist.**
+   Step A allowlists only the provider API domain (e.g. `api.anthropic.com`). Installing
+   the CLI needs Alpine's package CDN and `registry.npmjs.org`, which are not on that
+   allowlist, so the install fails. (Directly observed for the Docker registry case in
+   probe 02: `--allow-host` restricts the guest DNS resolver, so any non-allowed host —
+   including package mirrors — returns `no such host`.) **A live-install harness is not
+   viable; the provider CLI must be present in a pre-baked image.** This confirms the
+   spike's residual-risk-7 hypothesis as fact.
+
+2. **A pre-baked image and `--allow-host` do not compose in smolvm 1.3.2.** `smolvm
+   machine run --from <artifact>` (the pre-baked path) **rejects** `--allow-host`:
+   `error: the argument '--from <PATH>' cannot be used with '--allow-host <HOSTNAME>'`.
+   The only way to apply a per-domain allowlist is an ephemeral `--image` boot, which
+   re-pulls the image under that same allowlist and therefore forces the Docker
+   registry + CDN hosts onto the allowlist too. **This is a new, material constraint the
+   synthesis's integration sketch did not anticipate** — see the synthesis update.
+
+3. **`@mistralai/vibe` does not exist on npm.** Verified: `npm info @mistralai/vibe`,
+   `mistral-vibe`, and `@mistralai/vibe-cli` all 404. The vibe install line in
+   `03-agents.sh` would fail at install. The real Vibe CLI distribution must be
+   identified before this provider can be probed.
+
+4. **Step B's `timeout` wrapper is broken on macOS.** `03-agents.sh:146` calls the
+   external `timeout` binary, which is absent on stock macOS (`gtimeout` not present
+   either, confirmed). It would return 127 and the `||` branch would *always* print
+   "CLI may be hanging/retrying", corrupting the denied-egress observation. **Fix:** use
+   smolvm's own `--timeout 60s` flag (it exists in 1.3.2) instead of the host `timeout`.
+
+5. **Credential exposure via argv (security).** `-e "${KEY_VAR}=${KEY_FOR_INJECT}"` places
+   the literal key on smolvm's command line, readable by any local process via `ps`.
+   Prefer an env-passthrough that does not materialise the value in argv. (The script is
+   otherwise careful: `set -eu` not `-eux`, value never echoed, `unset` after use.)
 
 ## Verdict
 
-<!-- Fill in after results are captured. Format: PASS / FAIL / PARTIAL + one-line conclusion. -->
+**Status:** BLOCKED / inconclusive — requires API keys *and* a reworked harness
+(pre-baked image with CLIs installed; provider-API + registry hosts allowlisted; busybox
+or pre-installed tooling instead of live `apk`/`npm`). The provider-task questions
+(install, task completion, write-back, denial UX) remain **unanswered** in this run.
 
-**Status:** (not yet run)
-
-**Per-provider results table**
+**Per-provider results table** — not run (no keys):
 
 | Provider | CLI installs in guest? | Completes task (hello.txt)? | Write-back to host? | Network allowlist respected (Step A)? | Denial UX (Step B): error / timeout / hang? |
 | -------- | ---------------------- | --------------------------- | ------------------- | ------------------------------------- | ------------------------------------------- |
-| claude   |                        |                             |                     |                                       |                                             |
-| codex    |                        |                             |                     |                                       |                                             |
-| vibe     |                        |                             |                     |                                       |                                             |
+| claude   | not run                | not run                     | not run             | not run                               | not run                                     |
+| codex    | not run                | not run                     | not run             | not run                               | not run                                     |
+| vibe     | not run (`@mistralai/vibe` 404) | not run            | not run             | not run                               | not run                                     |
 
-**Installation method confirmed** (npm package names, or alternative):
+**Installation method confirmed:** live `apk add nodejs npm && npm install -g …` is
+**not viable** under an egress allowlist — a pre-baked image is mandatory (finding 1).
 
-**Guest arch** (from `uname -m` inside guest):
+**Guest arch:** arm64 Linux (confirmed via probes 01/02 on the same setup).
 
-**Conclusion:**
+**Conclusion:** The agent-execution questions are not answerable without keys, but the
+surrounding infrastructure work changed the design picture: a pre-baked image is mandatory,
+and smolvm 1.3.2 will not apply `--allow-host` to a pre-baked (`--from`) run — so the
+follow-up plan must either (a) accept ephemeral `--image` boots that allowlist the registry
+alongside provider/MCP domains, or (b) check whether a newer smolvm lifts the
+`--from` + `--allow-host` restriction. Write-back and the `:ro` boundary are already proven
+in probe 01, so only the provider CLIs' own behaviour inside the sandbox remains open.
 
 ## Open questions
 
