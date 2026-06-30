@@ -39,9 +39,35 @@ set -eu
 IMAGE="alpine"
 TRIVIAL_PROMPT="Create a file called hello.txt in /workspace containing exactly one line: hello from smolvm"
 
-# Step B timeout: seconds to wait before declaring a hang.
-# This prevents the harness from blocking if the CLI loops on retries.
+# Step B timeout: seconds before declaring a hang. Enforced by smolvm's own --timeout flag
+# (NOT the host `timeout` binary, which is absent on macOS and would always report a false
+# hang). This prevents the harness from blocking if the CLI loops on retries.
 STEP_B_TIMEOUT=60
+
+# Step A installs the CLI live (apk + npm), so the package mirrors AND the Docker registry
+# must be on the allowlist alongside the provider API domain — otherwise the allowlist
+# blocks them and the install fails. Unquoted on use so each splits into --allow-host args.
+# (A production isolated mode would instead ship a PRE-BAKED image with the CLI already in
+# it; live install is shown here only to surface that requirement — see findings doc.)
+REGISTRY_ALLOW="--allow-host index.docker.io --allow-host auth.docker.io --allow-host registry-1.docker.io --allow-host registry.docker.io --allow-host production.cloudfront.docker.com --allow-host production.cloudflare.docker.com --allow-host docker.io"
+MIRROR_ALLOW="--allow-host dl-cdn.alpinelinux.org --allow-host registry.npmjs.org"
+
+# Step B boots with ZERO egress. smolvm cannot pull an image without network, so Step B
+# boots from a pre-baked artifact (`--from`) instead of `--image`. This is also the honest
+# shape of the finding: with no network the CLI cannot be installed live, so a real isolated
+# mode needs the CLI already in the image. The artifact is baked once and cached.
+CACHE_DIR="${SMOLVM_SPIKE_CACHE:-${TMPDIR:-/tmp}/smolvm-spike}"
+ARTIFACT_BIN="$CACHE_DIR/alpine.smolmachine"
+ARTIFACT="$ARTIFACT_BIN.smolmachine"   # `pack create` emits this .smolmachine sidecar; --from consumes it
+
+ensure_artifact() {
+  if [ -f "$ARTIFACT" ]; then
+    return 0
+  fi
+  mkdir -p "$CACHE_DIR"
+  printf 'Baking %s artifact for Step B (one-time; pulls under --net)...\n' "$IMAGE"
+  smolvm pack create -I "$IMAGE" -o "$ARTIFACT_BIN" --no-sign
+}
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 section() { printf '\n══ %s ══\n' "$1"; }
@@ -99,11 +125,10 @@ probe_provider() {
   eval "KEY_FOR_INJECT=\${${KEY_VAR}}"
 
   smolvm machine run --image "$IMAGE" \
-    --net --allow-host "$DOMAIN" \
+    --net --allow-host "$DOMAIN" $REGISTRY_ALLOW $MIRROR_ALLOW --timeout 180s \
     -v "$WORK_DIR:/workspace" \
     -e "${KEY_VAR}=${KEY_FOR_INJECT}" \
     -- /bin/sh -c "
-set -e
 echo '--- installing CLI in guest ---'
 $INSTALL
 echo '--- CLI version / confirm binary ---'
@@ -121,7 +146,7 @@ if [ -f /workspace/hello.txt ]; then
 else
   echo 'RESULT: hello.txt NOT CREATED'
 fi
-"
+" || printf 'STEP A: VM exited non-zero (see output above)\n'
 
   if [ -f "$WORK_DIR/hello.txt" ]; then
     printf 'HOST-SIDE CHECK: hello.txt visible on host — write-back confirmed\n'
@@ -131,31 +156,35 @@ fi
 
   unset KEY_FOR_INJECT
 
-  # ── STEP B: zero egress (no --net), observe denial UX ─────────────────────
-  step "STEP B — denied egress (no --net, ${STEP_B_TIMEOUT}s timeout)"
-  printf 'Flags: -e %s=<redacted>  (no --net — all egress blocked)\n' "$KEY_VAR"
+  # ── STEP B: zero egress, observe denial UX ────────────────────────────────
+  step "STEP B — denied egress (no --net, smolvm --timeout ${STEP_B_TIMEOUT}s)"
+  printf 'Flags: --from <baked artifact> -e %s=<redacted>  (no --net — all egress blocked)\n' "$KEY_VAR"
   printf 'Goal: capture how the CLI surfaces network loss (error / hang / retry)\n'
-  printf 'A timeout here means the CLI is silently retrying or hanging.\n'
+  printf 'Hitting the smolvm --timeout means the CLI is silently retrying or hanging.\n'
 
+  # Boot offline: with no network smolvm cannot pull, so Step B runs the pre-baked artifact.
+  # A bare Alpine artifact has no provider CLI (live install needs network), which is itself
+  # the finding — a real isolated mode must ship the CLI in the image.
+  ensure_artifact
   eval "KEY_FOR_INJECT=\${${KEY_VAR}}"
 
-  # Wrap the VM boot in a timeout so a hanging CLI does not block the harness.
   STEP_B_WORK="$BASE_WORK_DIR/${PNAME}-step-b"
   mkdir -p "$STEP_B_WORK"
 
-  timeout "$STEP_B_TIMEOUT" \
-    smolvm machine run --image "$IMAGE" \
+  # smolvm's own --timeout bounds the boot so a hanging CLI cannot block the harness
+  # (the host `timeout` binary is absent on macOS — do not use it).
+  smolvm machine run --from "$ARTIFACT" --timeout "${STEP_B_TIMEOUT}s" \
     -v "$STEP_B_WORK:/workspace" \
     -e "${KEY_VAR}=${KEY_FOR_INJECT}" \
     -- /bin/sh -c "
-set -e
-echo '--- installing CLI in guest (no net: may fail if apk needs internet) ---'
-$INSTALL 2>&1 || echo 'INSTALL FAILED (expected without --net)'
-echo '--- running task without network ---'
+echo '--- CLI present in guest? (no net, no live install possible) ---'
+command -v $PNAME >/dev/null 2>&1 && echo 'CLI present' \
+  || echo 'CLI ABSENT — no pre-baked image, so it cannot run offline (this is the finding)'
+echo '--- attempting task without network ---'
 $RUN_A 2>&1 || true
 echo 'CLI exited (exit captured above)'
-" && printf 'STEP B: VM exited within timeout\n' \
-  || printf 'STEP B: VM hit %ds timeout — CLI may be hanging/retrying\n' "$STEP_B_TIMEOUT"
+" && printf 'STEP B: VM exited within %ds\n' "$STEP_B_TIMEOUT" \
+  || printf 'STEP B: VM hit %ds smolvm --timeout — CLI may be hanging/retrying\n' "$STEP_B_TIMEOUT"
 
   unset KEY_FOR_INJECT
 
@@ -193,10 +222,13 @@ CODEX_RUN="printf '%s' '$TRIVIAL_PROMPT' | codex exec -C /workspace --skip-git-r
 #   --workdir                scope the agent's working directory
 #   --output streaming       JSONL streaming output (matches phax's invocation)
 #
-# NOTE: verify the npm package name before running.
-# Candidates: @mistralai/vibe  or  mistral-vibe  or a direct binary download.
-# The phax executable name is `vibe` (src/domain/routing/defaults.ts line ~117).
-VIBE_INSTALL="apk add --quiet --no-cache nodejs npm 2>/dev/null && npm install --quiet -g @mistralai/vibe 2>/dev/null"
+# NOTE: the npm package name is UNKNOWN. `@mistralai/vibe`, `mistral-vibe`, and
+# `@mistralai/vibe-cli` all 404 on npm (verified 2026-06-30). Find the real Vibe CLI
+# distribution from Mistral's docs and export VIBE_NPM_PKG=<pkg> before running, or this
+# provider's install will fail. The phax executable name is `vibe`
+# (src/domain/routing/defaults.ts:117).
+VIBE_NPM_PKG="${VIBE_NPM_PKG:-@mistralai/vibe}"
+VIBE_INSTALL="apk add --quiet --no-cache nodejs npm 2>/dev/null && npm install --quiet -g $VIBE_NPM_PKG 2>/dev/null"
 VIBE_RUN="vibe -p '$TRIVIAL_PROMPT' --agent auto-approve --workdir /workspace --output streaming 2>&1 || true"
 
 # ── Dispatch ────────────────────────────────────────────────────────────────────

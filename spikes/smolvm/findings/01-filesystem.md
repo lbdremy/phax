@@ -62,18 +62,18 @@ If `:ro` is not supported or not enforced, record that as a finding — it const
 
 ## Results
 
-> **Methodology note — script could not be run verbatim.** `01-filesystem.sh` boots
-> `smolvm machine run --image alpine` **without `--net`**. On smolvm 1.3.2, an ephemeral
-> `machine run` re-pulls the image at every boot, and the pull requires network — so
-> without `--net` the very first boot fails at `pull image … network is unreachable`.
-> To get a real result the image was pre-baked once into a self-contained artifact
-> (`smolvm pack create -I alpine -o alpine.smolmachine`, which pulls under plain `--net`)
-> and every check below was run with `smolvm machine run --from alpine.smolmachine -v …`.
-> The filesystem boundary is identical to a live `--image alpine` boot (same Alpine
-> rootfs, same libkrun virtio-fs mount layer); only the image-acquisition path differs.
-> **Fix for the script:** add `--net` to the boots (needed only so the pull can run), or
-> document a pre-bake/pre-pull step. See also the network-probe finding — live pull is
-> impossible once an egress allowlist is applied, so a pre-baked image is mandatory.
+> **Methodology note — how this was run (now built into the script).** The original
+> `01-filesystem.sh` booted `smolvm machine run --image alpine` **without `--net`**. On
+> smolvm 1.3.2 an ephemeral `machine run` re-pulls the image at every boot and the pull
+> requires network, so without `--net` the very first boot failed at `pull image … network
+> is unreachable`. The script now bakes the image once into a self-contained artifact
+> (`ensure_artifact` → `smolvm pack create -I alpine`, which pulls under plain `--net`,
+> cached between runs) and boots every check with `smolvm machine run --from <artifact> -v …`
+> — no network, no allowlist needed. The filesystem boundary is identical to a live
+> `--image alpine` boot (same Alpine rootfs, same libkrun virtio-fs mount layer); only the
+> image-acquisition path differs. This matters beyond the probe: live pull is impossible
+> once an egress allowlist is applied (see the network finding), so a pre-baked image is
+> mandatory for any real isolated mode.
 
 Raw output (one boot per check, `--from` artifact, `-v` mounts):
 

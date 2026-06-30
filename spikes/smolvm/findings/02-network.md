@@ -83,24 +83,23 @@ The `## Verdict` must answer both:
 
 ## Results
 
-> **Methodology note — script could not be run verbatim; two blocking issues found.**
+> **Methodology note — two blocking issues, now handled by the script.** The original
+> `02-network.sh` could not run as written, for two reasons now fixed in the script:
 >
-> 1. **`apk add curl` cannot work under the allowlist.** `02-network.sh` installs curl
->    at runtime, but `--allow-host example.com` blocks Alpine's package CDN, so curl
->    never installs and *every* case would report code `000` (false "blocked") regardless
->    of the real egress behaviour. Replaced with Alpine's built-in busybox `wget` (no
->    install, no extra egress).
+> 1. **`apk add curl` cannot work under the allowlist.** Installing curl at runtime needs
+>    Alpine's package CDN, which `--allow-host example.com` blocks — so curl never installs
+>    and *every* case would report a false "blocked" regardless of real egress behaviour.
+>    The script now uses Alpine's built-in busybox `wget` (no install, no extra egress) with
+>    a classifier that separates a real egress block from an app-layer HTTP error.
 > 2. **The image pull is itself subject to the allowlist.** `--allow-host` constrains the
 >    guest DNS resolver to allowed hosts only, so `smolvm machine run --image alpine
 >    --allow-host example.com` fails to resolve `index.docker.io` (`no such host`) and the
->    pull dies before any case runs. To pull, the Docker registry + CDN hosts had to be
->    added to the allowlist as well:
->    `--allow-host index.docker.io auth.docker.io registry-1.docker.io
->    production.cloudfront.docker.com docker.io`. This does **not** weaken the decisive
->    case 3: httpbin's IP is still not on the allowlist.
+>    pull dies before any case runs. The script now adds the Docker registry + CDN hosts to
+>    the allowlist (`REGISTRY_ALLOW`). This does **not** weaken the decisive case 3:
+>    httpbin's IP is still not on the allowlist.
 >
-> All five cases were run in a **single** boot (the original script uses five) with
-> `--timeout 90s`. IPs were resolved on the host immediately before the run.
+> All five cases run in a **single** boot with smolvm `--timeout`. IPs are resolved on the
+> host immediately before the run.
 
 Host-resolved before boot: `example.com = 104.20.23.154` (Cloudflare), `httpbin.org = 52.70.185.220`.
 

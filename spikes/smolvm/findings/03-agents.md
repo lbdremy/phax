@@ -112,11 +112,12 @@ Do not commit outputs that contain key values.
    `03-agents.sh` would fail at install. The real Vibe CLI distribution must be
    identified before this provider can be probed.
 
-4. **Step B's `timeout` wrapper is broken on macOS.** `03-agents.sh:146` calls the
-   external `timeout` binary, which is absent on stock macOS (`gtimeout` not present
-   either, confirmed). It would return 127 and the `||` branch would *always* print
-   "CLI may be hanging/retrying", corrupting the denied-egress observation. **Fix:** use
-   smolvm's own `--timeout 60s` flag (it exists in 1.3.2) instead of the host `timeout`.
+4. **Step B's `timeout` wrapper was broken on macOS (now fixed).** The original
+   `03-agents.sh` called the external `timeout` binary, absent on stock macOS (`gtimeout`
+   too, confirmed); it would return 127 and *always* print "CLI may be hanging/retrying",
+   corrupting the denied-egress observation. The script now uses smolvm's own `--timeout`
+   flag and boots Step B from a pre-baked `--from` artifact (a network-less VM cannot pull),
+   so it both runs offline and bounds any hang.
 
 5. **Credential exposure via argv (security).** `-e "${KEY_VAR}=${KEY_FOR_INJECT}"` places
    the literal key on smolvm's command line, readable by any local process via `ps`.

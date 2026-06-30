@@ -285,7 +285,10 @@ Case 3 blocked, so the GO path is active:
 5. Remove the stub rejection in `src/cli/commands/run.ts:152-158` only at the end of the
    implementation plan, gated on all of the above.
 
-The fix list for the probe scripts themselves (so a future re-run is verbatim) is recorded
-in the three findings docs: `01` needs `--net` for the pull (or a pre-bake step); `02` needs
-busybox `wget` instead of `apk add curl` and the registry hosts allowlisted; `03` needs the
-`--timeout` flag fix, the real Vibe package, and the argv-key-exposure mitigation.
+The probe scripts have since been fixed so a future re-run is verbatim: `01` bakes a
+`--from` artifact (no `--net` pull problem); `02` uses busybox `wget` and allowlists the
+registry hosts; `03` uses smolvm's `--timeout`, allowlists the package mirrors for Step A,
+and boots Step B offline from the artifact. Two items remain operator-supplied: real API
+keys, and the correct Vibe CLI distribution (`VIBE_NPM_PKG` — `@mistralai/vibe` 404s). The
+argv-key-exposure nit (residual risk 6) has no clean fix within smolvm's `-e KEY=VALUE` and
+is left documented.

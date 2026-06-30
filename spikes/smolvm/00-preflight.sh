@@ -17,7 +17,9 @@ fi
 printf '=== smolvm preflight ===\n\n'
 
 # Version
-printf '-- smolvm version --\n'
+# Note: use '%s\n' here — a format string beginning with "--" is parsed as an option
+# by some printf implementations (bash builtin), producing "invalid option".
+printf '%s\n' '-- smolvm version --'
 smolvm --version
 
 # Host architecture
