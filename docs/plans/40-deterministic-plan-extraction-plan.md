@@ -53,11 +53,44 @@ Key mdast facts the extractor relies on:
 
 ## Required commands
 
-- (none)
+- pnpm add
 
-Adding the mdast dependencies uses `pnpm add`, already covered by the existing
-`pnpm` allowance; the parser introduces no new runtime command the agent must
-invoke.
+The mdast dependencies are installed with `pnpm add` (`pnpm add
+mdast-util-from-markdown mdast-util-to-string` and `pnpm add -D @types/mdast`).
+`pnpm add` is **not** covered by the existing narrow `pnpm gen:usage-spec` /
+`pnpm docs:cli` allowances — those are exact-command grants, not a broad `pnpm`
+allowance — so it must be granted explicitly (see below). The parser introduces
+no new *runtime* command the agent must invoke.
+
+## Required PHAX security configuration changes
+
+This plan requires the following command to be added to `security.agentCommands`
+in `phax.json` before running:
+
+- `pnpm add`
+
+Without it the preflight check fails before any agent spawns. (On the first run
+of this plan this grant was missing, so the agent could not install the mdast
+dependencies and silently fell back to a hand-rolled tokenizer — a deviation
+that also introduced a commit-body parsing bug. The grant is now present in this
+repo's `phax.json`.)
+
+## Dependencies
+
+Phase-03 edits `.claude/skills/phax-planning/SKILL.md`, which is a **Claude-Code
+protected path**: under the secure `acceptEdits` permission mode the headless
+agent cannot write there, which is why the SKILL.md edit was skipped on the
+first run. Before re-running this plan, either:
+
+- land the protected-path approval-hook feature (see
+  `docs/plans/41-claude-protected-path-approval-hook-plan.md`) and add
+  `.claude/skills/` to `security.filesystem.allowWriteProtected` in `phax.json`,
+  so the agent is granted scoped permission to edit the planned `.claude/**`
+  file; or
+- apply the phase-03 SKILL.md edit manually as a follow-up.
+
+The non-protected `.agents/skills/phax-planning/SKILL.md` mirror can be edited by
+the agent without the hook.
 
 ---
 
@@ -313,12 +346,18 @@ parses without the LLM.
   `### Optional files that may be edited` to every phase, and write commit
   subjects as plain (unwrapped) conventional-commit lines. Keep the three-phase
   greet/test/document story.
-- Edit `.claude/skills/phax-planning/SKILL.md`: in "What phax expects", state
-  that `phax extract-plan` first parses a conforming `plan.md` deterministically
-  via an mdast tree and only falls back to the LLM when the deterministic parse
-  fails; document that `run.title` is the first `# ` H1 heading and `run.shortName`
-  is slugified from it; note that conforming exactly to the format keeps
-  extraction LLM-free, reproducible, and offline.
+- Edit the `phax-planning` skill (both mirrors —
+  `.agents/skills/phax-planning/SKILL.md` and
+  `.claude/skills/phax-planning/SKILL.md`): in "What phax expects", state that
+  `phax extract-plan` first parses a conforming `plan.md` deterministically via
+  an mdast tree and only falls back to the LLM when the deterministic parse
+  fails; document that `run.title` is the first `# ` H1 heading and
+  `run.shortName` is slugified from it; note that conforming exactly to the
+  format keeps extraction LLM-free, reproducible, and offline.
+  - `.claude/skills/...` is a protected path (see **Dependencies** above): only
+    edit it if the approval-hook feature is active and `phax.json` grants
+    `.claude/skills/`. Otherwise edit `.agents/skills/...` only and record the
+    `.claude` mirror as a manual follow-up in the handoff.
 - Add `tests/unit/examplePlanDeterministic.test.ts`: read
   `examples/hello-world/plan.md` from disk and assert
   `extractPlanDeterministic` returns `Either.right` with the expected phase ids,
@@ -332,11 +371,11 @@ parses without the LLM.
 ### Planned files to edit
 
 - `examples/hello-world/plan.md`
-- `.claude/skills/phax-planning/SKILL.md`
+- `.agents/skills/phax-planning/SKILL.md`
 
 ### Optional files that may be edited
 
-- (none)
+- `.claude/skills/phax-planning/SKILL.md`
 
 ### Boundary contracts
 
