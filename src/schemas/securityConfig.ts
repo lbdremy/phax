@@ -13,6 +13,7 @@ export const McpModeSchema = Schema.Literal(
 const FilesystemConfigSchema = Schema.Struct({
   allowRead: Schema.optional(Schema.Array(Schema.NonEmptyString)),
   allowWrite: Schema.optional(Schema.Array(Schema.NonEmptyString)),
+  allowWriteProtected: Schema.optional(Schema.Array(Schema.NonEmptyString)),
 });
 
 const NetworkConfigSchema = Schema.Struct({
@@ -41,6 +42,7 @@ export interface ResolvedSecurityConfig {
   readonly filesystem: {
     readonly allowRead: readonly string[];
     readonly allowWrite: readonly string[];
+    readonly allowWriteProtected: readonly string[];
   };
   readonly network: {
     readonly profile: NetworkProfile;
@@ -61,6 +63,7 @@ export function resolveSecurityConfig(
     filesystem: {
       allowRead: raw?.filesystem?.allowRead ?? [],
       allowWrite: raw?.filesystem?.allowWrite ?? [],
+      allowWriteProtected: raw?.filesystem?.allowWriteProtected ?? [],
     },
     network: {
       profile: raw?.network?.profile ?? "provider-only",

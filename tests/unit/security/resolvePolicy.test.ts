@@ -4,7 +4,7 @@ import type { ResolvedSecurityConfig } from "../../../src/schemas/securityConfig
 
 const baseSecureConfig: ResolvedSecurityConfig = {
   profile: "secure",
-  filesystem: { allowRead: [], allowWrite: [] },
+  filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
   network: { profile: "provider-only" },
   mcp: { mode: "disabled", allow: [] },
   agentCommands: [],
@@ -12,7 +12,7 @@ const baseSecureConfig: ResolvedSecurityConfig = {
 
 const devAllowlistConfig: ResolvedSecurityConfig = {
   profile: "secure",
-  filesystem: { allowRead: ["/extra/read"], allowWrite: ["/extra/write"] },
+  filesystem: { allowRead: ["/extra/read"], allowWrite: ["/extra/write"], allowWriteProtected: [] },
   network: { profile: "dev-allowlist" },
   mcp: { mode: "allowlist", allow: ["my-mcp"] },
   agentCommands: [],
@@ -79,7 +79,7 @@ describe("resolveSecurityPolicy — secure mode, provider-only network", () => {
       worktreePath: "/home/user/.phax/worktrees/run/phase-01",
       config: {
         ...baseSecureConfig,
-        filesystem: { allowRead: [], allowWrite: ["/home/user/.phax"] },
+        filesystem: { allowRead: [], allowWrite: ["/home/user/.phax"], allowWriteProtected: [] },
       },
     });
     expect(policy.filesystem.allowWrite).toContain("/home/user/.phax");
@@ -145,7 +145,7 @@ describe("resolveSecurityPolicy — secure mode, provider-only network", () => {
       worktreePath: "/shared",
       config: {
         ...baseSecureConfig,
-        filesystem: { allowRead: [], allowWrite: ["/shared"] },
+        filesystem: { allowRead: [], allowWrite: ["/shared"], allowWriteProtected: [] },
       },
     });
     const writeCount = policy.filesystem.allowWrite.filter((p) => p === "/shared").length;

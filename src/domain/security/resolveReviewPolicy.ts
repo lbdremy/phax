@@ -23,7 +23,9 @@ export function resolveReviewSecurityPolicy(input: ResolveReviewPolicyInput): Se
 
   return {
     mode,
-    filesystem: { allowRead, allowWrite },
+    // allowWriteProtected is always [] for the review phase — the reviewer has
+    // read-only access to the worktree and no protected-path grant is appropriate.
+    filesystem: { allowRead, allowWrite, allowWriteProtected: [] },
     // Override to tightest network and MCP settings — the reviewer has no legitimate
     // reason to reach external APIs beyond the provider CLI (which runs outside the sandbox).
     network: { profile: "provider-only" },

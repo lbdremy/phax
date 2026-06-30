@@ -17,7 +17,9 @@ export function resolveSecurityPolicy(input: ResolvePolicyInput): SecurityPolicy
   if (mode === "unsafe") {
     return {
       mode: "unsafe",
-      filesystem: { allowRead: [], allowWrite: [] },
+      // allowWriteProtected is a secure-mode concept; unsafe mode already
+      // drops the jail entirely, so the hook is never generated.
+      filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
       network: { profile: config.network.profile },
       mcp: { mode: config.mcp.mode, allow: [] },
       agentCommands: config.agentCommands,
@@ -47,7 +49,11 @@ export function resolveSecurityPolicy(input: ResolvePolicyInput): SecurityPolicy
   // network_access=false; broader profiles permit subprocess network.
   return {
     mode,
-    filesystem: { allowRead, allowWrite },
+    filesystem: {
+      allowRead,
+      allowWrite,
+      allowWriteProtected: config.filesystem.allowWriteProtected,
+    },
     network: { profile: config.network.profile },
     mcp: { mode: config.mcp.mode, allow: config.mcp.allow },
     agentCommands: config.agentCommands,
