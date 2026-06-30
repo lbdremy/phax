@@ -31,6 +31,7 @@ import { runInit } from "./commands/init.js";
 import { registerSchemaCommand } from "./commands/schema.js";
 import { runCompletions } from "./commands/completions.js";
 import { runReport } from "./commands/report.js";
+import { runApproveProtectedPath } from "./commands/approveProtectedPath.js";
 
 export function buildProgram(): Command {
   const program = new Command();
@@ -383,6 +384,16 @@ export function buildProgram(): Command {
   registerSecurityCommand(program, consoleOutput, globalTraceOpts);
   registerSkillsCommand(program, consoleOutput);
   registerSchemaCommand(program, consoleOutput);
+
+  // Hidden subcommand invoked by the generated Claude Code PreToolUse hook;
+  // not intended for direct user use.
+  const approveCmd = new Command("__approve-protected-path")
+    .description("Internal: Claude Code PreToolUse hook for protected-path approval")
+    .action(async () => {
+      const exitCode = await runApproveProtectedPath();
+      process.exit(exitCode);
+    });
+  program.addCommand(approveCmd, { hidden: true });
 
   // Wire long help and examples into the runtime --help output after all
   // registrations so commands from *Register.ts files are covered without

@@ -39,7 +39,10 @@ describe("buildProgram", () => {
 
   it("exposes the expected top-level commands", () => {
     const program = buildProgram();
-    const names = program.commands.map((c) => c.name());
+    // Only count visible commands; internal subcommands (__ prefix, e.g. __approve-protected-path)
+    // are excluded from the public surface check.
+    const visibleCommands = program.commands.filter((c) => !c.name().startsWith("__"));
+    const names = visibleCommands.map((c) => c.name());
     for (const name of TOP_LEVEL_COMMANDS) {
       expect(names, `expected top-level command '${name}'`).toContain(name);
     }
