@@ -26,6 +26,7 @@ const baseSecurePosture = {
   marks: [] as const,
   agentCommands: [] as const,
   providerSkippedForSecurity: [],
+  approvedProtectedPaths: [],
 };
 
 const unsafePosture = {
@@ -48,6 +49,7 @@ const unsafePosture = {
   marks: [] as const,
   agentCommands: [] as const,
   providerSkippedForSecurity: [],
+  approvedProtectedPaths: [],
 };
 
 const downgradedVibePosture = {
@@ -70,6 +72,7 @@ const downgradedVibePosture = {
   marks: ["partial-filesystem", "mcp-unenforced"] as const,
   agentCommands: [] as const,
   providerSkippedForSecurity: [],
+  approvedProtectedPaths: [],
 };
 
 const withSkippedProviders = {
@@ -94,6 +97,7 @@ const withSkippedProviders = {
   providerSkippedForSecurity: [
     { provider: "mistral-vibe" as const, reason: "cannot satisfy strict secure mode" },
   ],
+  approvedProtectedPaths: [],
 };
 
 describe("SecurityPostureSchema", () => {

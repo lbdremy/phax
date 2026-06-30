@@ -10,7 +10,7 @@ import type { SecurityPolicy } from "../../../src/domain/security/types.js";
 
 const unsafePolicy: SecurityPolicy = {
   mode: "unsafe",
-  filesystem: { allowRead: [], allowWrite: [] },
+  filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
   network: { profile: "open", allowDomains: [] },
   mcp: { mode: "provider-default", allow: [] },
   failClosed: false,
@@ -21,6 +21,7 @@ const securePolicy: SecurityPolicy = {
   filesystem: {
     allowRead: ["/tmp/work", "/home/me/.phax"],
     allowWrite: ["/tmp/work", "/home/me/.phax"],
+    allowWriteProtected: [],
   },
   network: { profile: "provider-only", allowDomains: ["api.anthropic.com"] },
   mcp: { mode: "disabled", allow: [] },
@@ -245,7 +246,7 @@ describe("buildArgs — secure mode fail-closed", () => {
   it("throws SecurityEnforcementError when secure policy has no writable paths", () => {
     const impossiblePolicy: SecurityPolicy = {
       ...securePolicy,
-      filesystem: { allowRead: [], allowWrite: [] },
+      filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
     };
     try {
       buildArgs(baseOptions(impossiblePolicy));

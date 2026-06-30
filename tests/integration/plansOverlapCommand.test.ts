@@ -24,7 +24,7 @@ function makeBaseConfig(stateRoot: string) {
     fileReconciliationMode: "report_only" as const,
     security: {
       profile: "unsafe" as const,
-      filesystem: { allowRead: [], allowWrite: [] },
+      filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
       network: { profile: "provider-only" as const, allowDomains: [] },
       mcp: { mode: "disabled" as const, allow: [] },
       agentCommands: [],

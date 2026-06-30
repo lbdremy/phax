@@ -175,7 +175,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
 
         security: {
           profile: testCase.securityMode,
-          filesystem: { allowRead: [], allowWrite: [] },
+          filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
           network: { profile: "provider-only", allowDomains: [] },
           mcp: { mode: "disabled", allow: [] },
         },

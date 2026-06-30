@@ -81,7 +81,7 @@ function makeConfig(stateRoot: string): ResolvedConfig {
     fileReconciliationMode: "report_only" as const,
     security: {
       profile: "unsafe",
-      filesystem: { allowRead: [], allowWrite: [] },
+      filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
       network: { profile: "provider-only", allowDomains: [] },
       mcp: { mode: "disabled", allow: [] },
       agentCommands: [],

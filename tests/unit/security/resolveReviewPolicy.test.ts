@@ -5,7 +5,7 @@ import type { ResolvedSecurityConfig } from "../../../src/schemas/securityConfig
 
 const baseConfig: ResolvedSecurityConfig = {
   profile: "secure",
-  filesystem: { allowRead: [], allowWrite: [] },
+  filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
   network: { profile: "provider-only" },
   mcp: { mode: "disabled", allow: [] },
   agentCommands: [],
@@ -38,7 +38,7 @@ describe("resolveReviewSecurityPolicy — allowWrite is only .phax-context", () 
       worktreePath,
       config: {
         ...baseConfig,
-        filesystem: { allowRead: [], allowWrite: ["/extra/path"] },
+        filesystem: { allowRead: [], allowWrite: ["/extra/path"], allowWriteProtected: [] },
       },
     });
     expect(policy.filesystem.allowWrite).not.toContain("/extra/path");
@@ -62,7 +62,7 @@ describe("resolveReviewSecurityPolicy — allowRead contains the worktree", () =
       worktreePath,
       config: {
         ...baseConfig,
-        filesystem: { allowRead: ["/extra/read"], allowWrite: [] },
+        filesystem: { allowRead: ["/extra/read"], allowWrite: [], allowWriteProtected: [] },
       },
     });
     expect(policy.filesystem.allowRead).toContain("/extra/read");

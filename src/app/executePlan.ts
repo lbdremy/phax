@@ -64,6 +64,7 @@ import {
   checkRequiredCommands,
   computeFrozenAgentCommands,
 } from "../domain/security/agentCommands.js";
+import { resolveProtectedApprovals } from "../domain/security/protectedPaths.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
@@ -513,6 +514,16 @@ export function executePlan(
           requiredCommands: plan.run.requiredCommands,
           provider: binding.provider,
         });
+        const resumePlannedPaths = [
+          ...phase.plannedFilesToCreate,
+          ...phase.plannedFilesToEdit,
+          ...phase.optionalFilesToEdit,
+        ];
+        const resumeProtectedApprovals = resolveProtectedApprovals({
+          plannedPaths: resumePlannedPaths,
+          allowWriteProtected: securityPolicy.filesystem.allowWriteProtected,
+          worktreeRoot: worktreePath as string,
+        });
         agentOptions = {
           provider: binding.provider,
           model: binding.model,
@@ -520,6 +531,7 @@ export function executePlan(
           cwd: worktreePath as string,
           security: securityPolicy,
           agentCommands: resumeFrozenResult.records.map((r) => r.command),
+          approvedProtectedPaths: resumeProtectedApprovals.approved,
           outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
           phaseFolderPath,
         };
@@ -607,6 +619,35 @@ export function executePlan(
           worktreePath: worktreePath as string,
           config: config.security,
         });
+
+        // Preflight: verify all declared protected paths are covered by the
+        // operator's allowWriteProtected opt-in before spawning the agent.
+        const phasePlannedPaths = [
+          ...phase.plannedFilesToCreate,
+          ...phase.plannedFilesToEdit,
+          ...phase.optionalFilesToEdit,
+        ];
+        const protectedApprovals = resolveProtectedApprovals({
+          plannedPaths: phasePlannedPaths,
+          allowWriteProtected: securityPolicy.filesystem.allowWriteProtected,
+          worktreeRoot: worktreePath as string,
+        });
+        // Protected paths only block in secure mode (that is where Claude Code's
+        // acceptEdits sandbox is active). In unsafe/isolated mode there is no
+        // jail to circumvent, so the hook is irrelevant and we skip the check.
+        if (securityPolicy.mode === "secure" && protectedApprovals.uncovered.length > 0) {
+          return yield* Effect.fail(
+            new SecurityPreflightError({
+              message: [
+                `Security preflight failed: phase "${phase.id}" declares ${protectedApprovals.uncovered.length} protected path(s) not covered by security.filesystem.allowWriteProtected in phax.json.`,
+                `Uncovered: ${protectedApprovals.uncovered.map((p) => `"${p}"`).join(", ")}`,
+                `Add a matching prefix to security.filesystem.allowWriteProtected in phax.json before running.`,
+              ].join("\n"),
+              missing: protectedApprovals.uncovered,
+            }),
+          );
+        }
+
         const securityFilter: SecurityFilter = (provider) => {
           if (securityMode !== "secure") {
             return { allowed: true };
@@ -689,6 +730,7 @@ export function executePlan(
           marks: postureMarks,
           agentCommands: frozenResult.records,
           providerSkippedForSecurity: resolution.skippedForSecurity ?? [],
+          approvedProtectedPaths: protectedApprovals.approved,
         };
         yield* fs.writeAtomic(
           join(phaseFolderPath, "security.json"),
@@ -744,6 +786,7 @@ export function executePlan(
           cwd: worktreePath as string,
           security: securityPolicy,
           agentCommands: frozenResult.records.map((r) => r.command),
+          approvedProtectedPaths: protectedApprovals.approved,
           outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
           phaseFolderPath,
         };

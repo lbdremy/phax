@@ -78,7 +78,7 @@ const fakeSecurity = {
   mode: "secure" as const,
   config: {
     profile: "secure",
-    filesystem: { allowRead: [], allowWrite: [] },
+    filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
     network: { profile: "provider-only" },
     mcp: { mode: "disabled", allow: [] },
     agentCommands: [],

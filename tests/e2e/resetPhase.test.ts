@@ -99,7 +99,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
       fileReconciliationMode: "report_only" as const,
       security: {
         profile: "unsafe",
-        filesystem: { allowRead: [], allowWrite: [] },
+        filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
       },
