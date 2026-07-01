@@ -21,12 +21,12 @@ Effort is normalized to an `EffortLevel` (superset: `none | off | low | medium |
 | Family           | Valid efforts                                                  |
 | ---------------- | -------------------------------------------------------------- |
 | `claude-haiku`   | `none`                                                         |
-| `claude-sonnet`  | `low` \| `medium` \| `high` \| `max`                           |
+| `claude-sonnet`  | `low` \| `medium` \| `high` \| `xhigh` \| `max`                |
 | `claude-opus`    | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
 | `mistral-medium` | `off` \| `low` \| `medium` \| `high` \| `max`                  |
 | `openai-gpt`     | `low` \| `medium` \| `high` \| `xhigh`                         |
 
-Plan phases prefer Claude-oriented naming (`low | medium | high | max`) because Claude is the routing reference scale.
+Plan phases prefer Claude-oriented naming (`low | medium | high | xhigh | max`) because Claude is the routing reference scale. `xhigh` on the Sonnet family requires a Sonnet model that supports it (Sonnet 5, the default `claude-sonnet` concrete model).
 
 ## PHAX routing tiers
 
@@ -38,6 +38,7 @@ Tiers represent capability levels independent of provider:
 | `fast`            | Sonnet/low — fast path, stays Sonnet         |
 | `standard`        | Sonnet/medium — default                      |
 | `strong`          | Sonnet/high or codex/medium                  |
+| `sonnet-xhigh`    | Sonnet/xhigh — best coding/agentic setting   |
 | `very_strong`     | Sonnet/max or codex/high                     |
 | `frontier-low`    | Opus/low; codex gpt/high (`equivalent`)      |
 | `frontier-medium` | Opus/medium; codex gpt/xhigh (`equivalent`)  |
@@ -60,6 +61,7 @@ The built-in defaults (`DEFAULT_MODEL_ROUTING`) implement the spec §12 multi-pr
   "tiers": { ... },
   "normalization": { ... },
   "requestedModelNormalization": {
+    "claude-sonnet-5": "claude-sonnet",
     "claude-sonnet-4-6": "claude-sonnet",
     "claude-opus-4-8": "claude-opus",
     "claude-haiku-4-5-20251001": "claude-haiku"
@@ -191,7 +193,7 @@ The flag replaces `routing.providerPriority` in memory for that invocation only.
 
 ```bash
 phax agent models                             # print routing table + provider priority
-phax agent resolve --model claude-sonnet-4-6 --effort medium [--json]
+phax agent resolve --model claude-sonnet-5 --effort medium [--json]
 phax agent probe                              # check provider executable availability
 phax agent setup mistral-vibe [--dry-run]     # list aliases that would be appended
 phax agent setup mistral-vibe --install-model-aliases  # append PHAX Vibe aliases

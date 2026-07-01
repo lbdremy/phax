@@ -307,7 +307,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     if (Either.isRight(phase01Binding)) {
       expect(phase01Binding.right.provider).toBe("claude-code");
       expect(phase01Binding.right.adapter).toBe("claude");
-      expect(phase01Binding.right.model).toBe("claude-sonnet-4-6");
+      expect(phase01Binding.right.model).toBe("claude-sonnet-5");
       expect(phase01Binding.right.sessionId).toBe("sess-01");
       expect(phase01Binding.right.status).toBe("completed");
       expect(phase01Binding.right.phaseId).toBe("phase-01");

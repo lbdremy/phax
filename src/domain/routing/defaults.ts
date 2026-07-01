@@ -32,6 +32,11 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
       "mistral-vibe": { family: "mistral-medium", thinking: "high" },
       "codex-cli": { family: "openai-gpt", thinking: "medium" },
     },
+    "sonnet-xhigh": {
+      "claude-code": { family: "claude-sonnet", effort: "xhigh" },
+      "mistral-vibe": { family: "mistral-medium", thinking: "max" },
+      "codex-cli": { family: "openai-gpt", thinking: "high" },
+    },
     very_strong: {
       "claude-code": { family: "claude-sonnet", effort: "max" },
       "mistral-vibe": { family: "mistral-medium", thinking: "max" },
@@ -67,6 +72,7 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
       low: "fast",
       medium: "standard",
       high: "strong",
+      xhigh: "sonnet-xhigh",
       max: "very_strong",
     },
     "claude-opus": {
@@ -93,6 +99,7 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
   },
   requestedModelNormalization: {
     "claude-haiku-4-5-20251001": "claude-haiku",
+    "claude-sonnet-5": "claude-sonnet",
     "claude-sonnet-4-6": "claude-sonnet",
     "claude-opus-4-8": "claude-opus",
     haiku: "claude-haiku",
@@ -108,7 +115,7 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
       executable: "claude",
       families: {
         "claude-haiku": { model: "claude-haiku-4-5-20251001" },
-        "claude-sonnet": { model: "claude-sonnet-4-6" },
+        "claude-sonnet": { model: "claude-sonnet-5" },
         "claude-opus": { model: "claude-opus-4-8" },
       },
     },

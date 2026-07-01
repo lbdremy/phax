@@ -78,7 +78,7 @@ export interface ResolvedComplianceReviewConfig {
   readonly effort: Effort;
 }
 
-export const DEFAULT_COMPLIANCE_REVIEW_MODEL = "claude-sonnet-4-6";
+export const DEFAULT_COMPLIANCE_REVIEW_MODEL = "claude-sonnet-5";
 
 export function resolveComplianceReviewConfig(
   raw: ComplianceReviewConfig | undefined,

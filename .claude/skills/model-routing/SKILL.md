@@ -59,7 +59,7 @@ src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
 | Family           | Valid efforts                                                  |
 | ---------------- | -------------------------------------------------------------- |
 | `claude-haiku`   | `none`                                                         |
-| `claude-sonnet`  | `low` \| `medium` \| `high` \| `max`                           |
+| `claude-sonnet`  | `low` \| `medium` \| `high` \| `xhigh` \| `max`                |
 | `claude-opus`    | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
 | `mistral-medium` | `off` \| `low` \| `medium` \| `high` \| `max`                  |
 | `openai-gpt`     | `low` \| `medium` \| `high` \| `xhigh`                         |
@@ -85,6 +85,7 @@ src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
 | `fast`            | Sonnet/low — fast path, stays Sonnet         |
 | `standard`        | Sonnet/medium — default                      |
 | `strong`          | Sonnet/high                                  |
+| `sonnet-xhigh`    | Sonnet/xhigh — best coding/agentic setting   |
 | `very_strong`     | Sonnet/max or codex/high                     |
 | `frontier-low`    | Opus/low; codex gpt/high (`equivalent`)      |
 | `frontier-medium` | Opus/medium; codex gpt/xhigh (`equivalent`)  |

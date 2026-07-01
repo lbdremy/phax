@@ -50,7 +50,7 @@ exports[`State Machine Contract > snapshots the ordered semantic trace for a hap
     "relationship": "exact",
     "requestedEffort": "low",
     "requestedFamily": "claude-sonnet",
-    "selectedConcreteModel": "claude-sonnet-4-6",
+    "selectedConcreteModel": "claude-sonnet-5",
     "selectedFamily": "claude-sonnet",
     "selectedProvider": "claude-code",
     "selectedThinking": "low",

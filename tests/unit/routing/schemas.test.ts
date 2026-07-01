@@ -187,6 +187,7 @@ describe("literal schemas", () => {
       "fast",
       "standard",
       "strong",
+      "sonnet-xhigh",
       "very_strong",
       "frontier-low",
       "frontier-medium",

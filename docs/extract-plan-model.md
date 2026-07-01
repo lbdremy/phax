@@ -15,7 +15,7 @@ Example `phax.json` override:
   "agent": {
     "backend": "claude-code-cli",
     "extractPlan": {
-      "model": "claude-sonnet-4-6",
+      "model": "claude-sonnet-5",
       "effort": "medium"
     }
   }
@@ -31,7 +31,7 @@ level is appropriate because extraction does not require deep reasoning.
 
 The built-in default is intentionally conservative. If extraction fails (bad JSON, schema
 mismatch) the run has not yet started — no worktree, no state has been committed — so
-retrying with a stronger model via `--model claude-sonnet-4-6 --effort medium` is cheap.
+retrying with a stronger model via `--model claude-sonnet-5 --effort medium` is cheap.
 
 ## Local validation policy
 

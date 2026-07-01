@@ -302,6 +302,33 @@ describe("resolveModel — additional behavior", () => {
     }
   });
 
+  it("resolves sonnet/xhigh to the sonnet-xhigh tier and claude-sonnet-5 (exact)", () => {
+    const result = resolveModel(
+      { model: "claude-sonnet-5", effort: "xhigh" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+
+    expect(result.requested.family).toBe("claude-sonnet");
+    expect(result.normalizedTier).toBe("sonnet-xhigh");
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.thinking).toBe("xhigh");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5");
+    expect(result.relationship).toBe("exact");
+  });
+
+  it("resolves the legacy claude-sonnet-4-6 alias to the claude-sonnet-5 concrete model", () => {
+    const result = resolveModel(
+      { model: "claude-sonnet-4-6", effort: "medium" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+
+    expect(result.requested.family).toBe("claude-sonnet");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5");
+  });
+
   it("omits skippedForSecurity when no securityFilter is supplied", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },

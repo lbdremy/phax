@@ -8,7 +8,7 @@ export type ModelFamily =
   | "openai-gpt";
 
 export type ClaudeHaikuEffort = "none";
-export type ClaudeSonnetEffort = "low" | "medium" | "high" | "max";
+export type ClaudeSonnetEffort = "low" | "medium" | "high" | "xhigh" | "max";
 export type ClaudeOpusEffort = "low" | "medium" | "high" | "xhigh" | "max" | "ultracode";
 export type MistralMediumEffort = "off" | "low" | "medium" | "high" | "max";
 export type OpenAiGptEffort = "low" | "medium" | "high" | "xhigh";
@@ -24,7 +24,7 @@ export type ThinkingLevel = EffortLevel;
 
 export const FAMILY_EFFORTS: Record<ModelFamily, readonly EffortLevel[]> = {
   "claude-haiku": ["none"],
-  "claude-sonnet": ["low", "medium", "high", "max"],
+  "claude-sonnet": ["low", "medium", "high", "xhigh", "max"],
   "claude-opus": ["low", "medium", "high", "xhigh", "max", "ultracode"],
   "mistral-medium": ["off", "low", "medium", "high", "max"],
   "openai-gpt": ["low", "medium", "high", "xhigh"],
@@ -39,6 +39,7 @@ export type RoutingTier =
   | "fast"
   | "standard"
   | "strong"
+  | "sonnet-xhigh"
   | "very_strong"
   | "frontier-low"
   | "frontier-medium"

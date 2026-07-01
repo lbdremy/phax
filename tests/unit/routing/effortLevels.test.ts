@@ -25,8 +25,8 @@ describe("FAMILY_EFFORTS", () => {
     expect(FAMILY_EFFORTS["claude-haiku"]).toEqual(expected);
   });
 
-  it("claude-sonnet supports low|medium|high|max", () => {
-    const expected: readonly ClaudeSonnetEffort[] = ["low", "medium", "high", "max"];
+  it("claude-sonnet supports low|medium|high|xhigh|max", () => {
+    const expected: readonly ClaudeSonnetEffort[] = ["low", "medium", "high", "xhigh", "max"];
     expect(FAMILY_EFFORTS["claude-sonnet"]).toEqual(expected);
   });
 
@@ -82,6 +82,7 @@ describe("isEffortSupported", () => {
     expect(isEffortSupported("claude-sonnet", "low")).toBe(true);
     expect(isEffortSupported("claude-sonnet", "medium")).toBe(true);
     expect(isEffortSupported("claude-sonnet", "high")).toBe(true);
+    expect(isEffortSupported("claude-sonnet", "xhigh")).toBe(true);
     expect(isEffortSupported("claude-sonnet", "max")).toBe(true);
     expect(isEffortSupported("claude-opus", "ultracode")).toBe(true);
     expect(isEffortSupported("claude-opus", "xhigh")).toBe(true);
@@ -97,7 +98,6 @@ describe("isEffortSupported", () => {
     expect(isEffortSupported("claude-haiku", "ultracode")).toBe(false);
     expect(isEffortSupported("claude-sonnet", "none")).toBe(false);
     expect(isEffortSupported("claude-sonnet", "ultracode")).toBe(false);
-    expect(isEffortSupported("claude-sonnet", "xhigh")).toBe(false);
     expect(isEffortSupported("claude-sonnet", "off")).toBe(false);
     expect(isEffortSupported("openai-gpt", "ultracode")).toBe(false);
     expect(isEffortSupported("openai-gpt", "none")).toBe(false);

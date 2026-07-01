@@ -50,7 +50,7 @@ exports[`executePlan — semantic telemetry end-to-end > emits the expected sema
     "relationship": "exact",
     "requestedEffort": "low",
     "requestedFamily": "claude-sonnet",
-    "selectedConcreteModel": "claude-sonnet-4-6",
+    "selectedConcreteModel": "claude-sonnet-5",
     "selectedFamily": "claude-sonnet",
     "selectedProvider": "claude-code",
     "selectedThinking": "low",

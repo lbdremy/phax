@@ -394,7 +394,7 @@ cmd "agent" {
         flag "--model" {
             arg "<id>"
             required #true
-            help "Requested model id (e.g. claude-sonnet-4-6)"
+            help "Requested model id (e.g. claude-sonnet-5)"
         }
         flag "--effort" {
             arg "<level>"

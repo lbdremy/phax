@@ -693,7 +693,7 @@ Show how a model+effort request resolves to a provider and concrete model
 
 #### `--model <id>`
 
-Requested model id (e.g. claude-sonnet-4-6)
+Requested model id (e.g. claude-sonnet-5)
 
 #### `--effort <level>`
 

@@ -219,9 +219,10 @@ because a spike's value is in judgment, not in compiling code. Reconcile it like
 
 Use exact model IDs:
 
-- `claude-sonnet-4-6` — default for most phases
-- `claude-opus-4-8` — reserve for deep reasoning (architecture audit, etc.)
+- `claude-sonnet-5` — default for most phases, including well-scoped implementation
+- `claude-opus-4-8` — reserve for long-horizon, ambiguous, or architecture-level work
 - `claude-haiku-4-5-20251001` — reserve for trivial tasks
+- `claude-sonnet-4-6` — legacy alias; still resolves to the Sonnet family (runs `claude-sonnet-5`), but prefer `claude-sonnet-5`
 
 ## Effort values
 
@@ -230,7 +231,7 @@ Plans prefer Claude-oriented naming because Claude is the routing reference scal
 | Family           | Valid efforts                                                  |
 | ---------------- | -------------------------------------------------------------- |
 | `claude-haiku`   | `none`                                                         |
-| `claude-sonnet`  | `low` \| `medium` \| `high` \| `max`                           |
+| `claude-sonnet`  | `low` \| `medium` \| `high` \| `xhigh` \| `max`                |
 | `claude-opus`    | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
 | `mistral-medium` | `off` \| `low` \| `medium` \| `high` \| `max`                  |
 | `openai-gpt`     | `low` \| `medium` \| `high` \| `xhigh`                         |
@@ -358,7 +359,7 @@ is a token-prefix of the required command (`deno` covers `deno fmt`).
 ```markdown
 ## phase-03 — Run folder model and atomic writes {#phase-03-run-folder}
 
-**Recommended model:** claude-sonnet-4-6
+**Recommended model:** claude-sonnet-5
 **Recommended effort:** low
 
 Introduce the run-folder model and atomic file writes so later phases have a

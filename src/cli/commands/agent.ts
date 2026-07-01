@@ -295,7 +295,7 @@ export function registerAgentCommand(program: Command, out: OutputPort): void {
   agentCmd
     .command("resolve")
     .description("Show how a model+effort request resolves to a provider and concrete model")
-    .requiredOption("--model <id>", "Requested model id (e.g. claude-sonnet-4-6)")
+    .requiredOption("--model <id>", "Requested model id (e.g. claude-sonnet-5)")
     .requiredOption(
       "--effort <level>",
       "Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode)",
