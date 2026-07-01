@@ -246,7 +246,7 @@ phax review-compliance <short-name>   # non-mutating plan-compliance review of t
 phax publish-pr <short-name>          # push the final branch and open (or reuse) a PR
 ```
 
-`phax review-compliance` re-invokes the AI agent with the run's handoff artifacts and the original plan and writes a verdict; it never touches the worktree, registry, or any files. Configure its model/effort under `review.compliance` in `phax.json` (default model `claude-sonnet-4-6`, effort `medium`).
+`phax review-compliance` re-invokes the AI agent with the run's handoff artifacts and the original plan and writes a verdict; it never touches the worktree, registry, or any files. Configure its model/effort under `review.compliance` in `phax.json` (default model `claude-sonnet-5`, effort `medium`).
 
 `phax publish-pr` pushes the final worktree branch to the GitHub remote and creates a pull request, reusing an existing PR for the same branch if one exists. It requires a GitHub remote and an authenticated `gh` CLI. Configure the remote, base branch, and title under `publish` in `phax.json`.
 
@@ -295,7 +295,7 @@ PHAX can route phase execution through Claude Code, Mistral Vibe, or OpenAI Code
 
 ```bash
 phax agent models                              # print routing table + provider priority
-phax agent resolve --model claude-sonnet-4-6 --effort medium [--json]
+phax agent resolve --model claude-sonnet-5 --effort medium [--json]
 phax agent probe                               # check provider executable availability
 phax agent setup mistral-vibe --dry-run        # preview Vibe alias installation
 phax agent setup mistral-vibe --install-model-aliases  # install PHAX Vibe aliases

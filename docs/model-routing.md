@@ -124,7 +124,7 @@ selected provider   ──providerCfg─▶  concrete model/alias
 
 ### Example 1 — sonnet/medium, mistral priority
 
-- Request: `claude-sonnet-4-6` / `medium`
+- Request: `claude-sonnet-5` / `medium`
 - Normalized: family `claude-sonnet`, tier `standard`
 - Priority: `mistral-vibe` first → entry `{ family: "mistral-medium", thinking: "medium", relationship: "equivalent" }`
 - Alias: `phax-mistral-medium-3.5-medium`
@@ -132,7 +132,7 @@ selected provider   ──providerCfg─▶  concrete model/alias
 
 ### Example 2 — sonnet/high, codex priority
 
-- Request: `claude-sonnet-4-6` / `high`
+- Request: `claude-sonnet-5` / `high`
 - Normalized: family `claude-sonnet`, tier `strong`
 - Priority: `codex-cli` first → entry `{ family: "openai-gpt", effort: "medium", relationship: "equivalent" }`
 - **Result**: `codex-cli`, `gpt-5.5`, effort `medium`, relationship `equivalent`
@@ -158,7 +158,7 @@ selected provider   ──providerCfg─▶  concrete model/alias
 
 ### Example 5 — sonnet/low, same-family preservation
 
-- Request: `claude-sonnet-4-6` / `low`
+- Request: `claude-sonnet-5` / `low`
 - Normalized: family `claude-sonnet`, tier `fast`
 - `tiers.fast.claude-code = { family: "claude-sonnet", effort: "low" }` — stays Sonnet
 - **Result**: `claude-code`, `claude-sonnet`, effort `low`, relationship `exact` (NOT claude-haiku)
