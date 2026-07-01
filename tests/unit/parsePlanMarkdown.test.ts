@@ -174,6 +174,43 @@ describe("extractPlanDeterministic", () => {
     expect(result.right.phases[0]!.commit.subject).toBe("feat(x): backtick subject");
   });
 
+  it("preserves the author's line wrapping in a commit body paragraph verbatim", () => {
+    const wrapped = [
+      "This is a commit body the author hard-wrapped",
+      "across three source",
+      "lines.",
+    ].join("\n");
+    const md = makePlan({ phases: [makePhase({ body: wrapped })] });
+    const result = extractPlanDeterministic(md);
+    expect(Either.isRight(result)).toBe(true);
+    if (!Either.isRight(result)) return;
+    expect(result.right.phases[0]!.commit.body).toBe(wrapped);
+  });
+
+  it("preserves blank-line paragraph breaks in a multi-paragraph commit body", () => {
+    const body = [
+      "First paragraph wrapped",
+      "over two lines.",
+      "",
+      "Second paragraph also",
+      "wrapped.",
+    ].join("\n");
+    const md = makePlan({ phases: [makePhase({ body })] });
+    const result = extractPlanDeterministic(md);
+    expect(Either.isRight(result)).toBe(true);
+    if (!Either.isRight(result)) return;
+    expect(result.right.phases[0]!.commit.body).toBe(body);
+  });
+
+  it("preserves list structure in a commit body", () => {
+    const body = ["Summary line.", "", "- first item", "- second item"].join("\n");
+    const md = makePlan({ phases: [makePhase({ body })] });
+    const result = extractPlanDeterministic(md);
+    expect(Either.isRight(result)).toBe(true);
+    if (!Either.isRight(result)) return;
+    expect(result.right.phases[0]!.commit.body).toBe(body);
+  });
+
   it("parses em-dash, en-dash, and hyphen heading separators", () => {
     for (const sep of ["—", "–", "-"]) {
       const md = makePlan({

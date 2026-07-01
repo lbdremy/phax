@@ -163,6 +163,10 @@ function extractCommitSubject(
   return Either.right(subject);
 }
 
+// Extract the commit body as a verbatim slice of the plan.md source, preserving
+// the author's line wrapping and paragraph/list structure. This keeps the body
+// deterministic and git-friendly (the author's ~72-80 column wraps carry into
+// the commit message) rather than folding paragraphs into single long lines.
 function extractCommitBody(
   planMd: string,
   block: RootContent[],
