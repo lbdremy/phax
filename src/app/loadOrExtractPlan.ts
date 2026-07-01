@@ -5,6 +5,7 @@ import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import { PlanValidationError } from "../domain/errors.js";
 import { planCacheKey, EXTRACTOR_VERSION } from "../domain/planCache/key.js";
 import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
+import { extractPlanDeterministic } from "../domain/plan/parsePlanMarkdown.js";
 import { extractPlanLlm, type ExtractPlanCoreError } from "./extractPlan.js";
 import { readCacheEntry, writeCacheEntry, planMdSha256 } from "./planCacheStore.js";
 
@@ -32,6 +33,21 @@ export function loadOrExtractPlan(
     const fs = yield* FileSystem;
 
     const planMd = yield* fs.readText(opts.planMdPath);
+
+    // Attempt deterministic extraction first: pure, instant, no cache access.
+    const deterministicResult = extractPlanDeterministic(planMd);
+    if (Either.isRight(deterministicResult)) {
+      const finalized = finalizeExtractedPlan(deterministicResult.right, planMd);
+      if (Either.isLeft(finalized)) {
+        return yield* Effect.fail(finalized.left);
+      }
+      const { plan, warnings, detectedAnchors } = finalized.right;
+      return { plan, warnings, detectedAnchors, fromCache: false };
+    }
+
+    // Deterministic parse failed; record the reason so it surfaces as a warning.
+    const fallbackWarning = `Deterministic extraction failed (${deterministicResult.left.message}); fell back to LLM.`;
+
     const key = planCacheKey(planMd, opts.model, opts.effort);
 
     if (!opts.refresh) {
@@ -42,7 +58,7 @@ export function loadOrExtractPlan(
           return yield* Effect.fail(finalized.left);
         }
         const { plan, warnings, detectedAnchors } = finalized.right;
-        return { plan, warnings, detectedAnchors, fromCache: true };
+        return { plan, warnings: [...warnings, fallbackWarning], detectedAnchors, fromCache: true };
       }
     }
 
@@ -72,6 +88,6 @@ export function loadOrExtractPlan(
     }
 
     const { plan, warnings, detectedAnchors } = finalized.right;
-    return { plan, warnings, detectedAnchors, fromCache: false };
+    return { plan, warnings: [...warnings, fallbackWarning], detectedAnchors, fromCache: false };
   });
 }
