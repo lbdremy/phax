@@ -122,7 +122,7 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
     expect(backend.completeCalls).toHaveLength(0);
     expect(result.right.fromCache).toBe(false);
     expect(result.right.plan.phases[0]!.id).toBe("phase-01");
-    expect(result.right.warnings).not.toContain(expect.stringMatching(/fell back to LLM/));
+    expect(result.right.warnings.some((w) => /fell back to LLM/.test(w))).toBe(false);
   });
 
   it("falls back to the LLM for a non-conforming plan and surfaces the fallback warning", async () => {
