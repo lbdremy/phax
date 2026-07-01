@@ -36,6 +36,7 @@ export const SecurityPostureSchema = Schema.Struct({
       reason: Schema.NonEmptyString,
     }),
   ),
+  approvedProtectedPaths: Schema.Array(Schema.String),
 });
 
 export type SecurityPosture = Schema.Schema.Type<typeof SecurityPostureSchema>;

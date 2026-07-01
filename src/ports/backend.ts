@@ -36,6 +36,14 @@ export interface AgentRunOptions {
    * (codex/vibe). Recorded in security.json regardless of provider.
    */
   readonly agentCommands?: readonly string[] | undefined;
+  /**
+   * Absolute paths of declared protected files the operator has opted into
+   * allowing the agent to write (resolved from the phase's planned-file lists
+   * and security.filesystem.allowWriteProtected in phax.json). Only consumed
+   * by the claude provider (PreToolUse hook); recorded in security.json for
+   * all providers. Absent or empty means no protected-path grant.
+   */
+  readonly approvedProtectedPaths?: readonly string[] | undefined;
   readonly outputJsonlPath?: string | undefined;
   readonly phaseFolderPath?: string | undefined;
 }

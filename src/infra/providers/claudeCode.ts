@@ -1,8 +1,8 @@
 import { Effect, Either } from "effect";
 import { spawn } from "node:child_process";
-import { createWriteStream } from "node:fs";
+import { createWriteStream, mkdirSync, writeFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import type {
   AgentRunOptions,
   AgentRunResult,
@@ -27,6 +27,7 @@ import {
 } from "../../schemas/claudeOutput.js";
 import { persistSessionId } from "./sessionWriter.js";
 import { writeAgentErrorLog } from "./agentErrorLog.js";
+import { buildProtectedPathHookSettings } from "./protectedPathHookSettings.js";
 
 function wrapFsError(err: unknown): FsError {
   return new FsError({
@@ -182,7 +183,11 @@ function buildSecureClaudeFlags(
   return ["--permission-mode", "acceptEdits", ...addDirs, ...shellFlags, ...mcpFlags];
 }
 
-export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): string[] {
+export function buildArgs(
+  options: AgentRunOptions,
+  resumeSessionId?: string,
+  settingsFilePath?: string,
+): string[] {
   // `claude` requires `--verbose` whenever `--print` is paired with
   // `--output-format=stream-json`; without it the CLI exits with code 1.
   const common = ["--print", "--output-format", "stream-json", "--verbose"];
@@ -208,7 +213,17 @@ export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): s
     return buildSecureClaudeFlags(options.security, options.cwd, options.agentCommands ?? []);
   })();
 
-  const args = [...common, ...modeFlags, "--model", options.model, "--effort", options.effort];
+  const settingsFlags = settingsFilePath !== undefined ? ["--settings", settingsFilePath] : [];
+
+  const args = [
+    ...common,
+    ...modeFlags,
+    ...settingsFlags,
+    "--model",
+    options.model,
+    "--effort",
+    options.effort,
+  ];
   if (resumeSessionId) {
     args.push("--resume", resumeSessionId);
   }
@@ -314,6 +329,36 @@ export function runClaudeCompletion(
   });
 }
 
+const HOOK_SUBCOMMAND = "__approve-protected-path";
+const SETTINGS_FILE_NAME = "claude-protected-approval.settings.json";
+
+/**
+ * Write the protected-path hook settings file for a phase and return its
+ * absolute path. Returns undefined when there are no approved paths or no
+ * phase folder. Uses sync I/O (like writeAgentErrorLog) — never throws.
+ */
+export function writeProtectedPathSettings(
+  phaseFolderPath: string | undefined,
+  approvedProtectedPaths: readonly string[] | undefined,
+): string | undefined {
+  if (!phaseFolderPath || !approvedProtectedPaths || approvedProtectedPaths.length === 0) {
+    return undefined;
+  }
+  try {
+    const settingsPath = join(phaseFolderPath, SETTINGS_FILE_NAME);
+    const settings = buildProtectedPathHookSettings(
+      approvedProtectedPaths,
+      `phax ${HOOK_SUBCOMMAND}`,
+    );
+    mkdirSync(dirname(settingsPath), { recursive: true });
+    writeFileSync(settingsPath, JSON.stringify(settings, null, 2), "utf8");
+    return settingsPath;
+  } catch {
+    // Never let a settings-write failure mask the underlying agent run.
+    return undefined;
+  }
+}
+
 export function runClaudeAgent(
   prompt: string,
   options: AgentRunOptions,
@@ -327,9 +372,13 @@ export function runClaudeAgent(
   | SecurityEnforcementError
   | FsError
 > {
+  const settingsFilePath = writeProtectedPathSettings(
+    options.phaseFolderPath,
+    options.approvedProtectedPaths,
+  );
   let args: string[];
   try {
-    args = buildArgs(options, resumeSessionId);
+    args = buildArgs(options, resumeSessionId, settingsFilePath);
   } catch (err) {
     if (err instanceof SecurityEnforcementError) {
       return Effect.fail(err);

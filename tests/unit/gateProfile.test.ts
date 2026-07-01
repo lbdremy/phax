@@ -24,7 +24,7 @@ function makeConfig(overrides?: Partial<ResolvedConfig["raw"]>): ResolvedConfig 
 
     security: {
       profile: "unsafe",
-      filesystem: { allowRead: [], allowWrite: [] },
+      filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
       network: { profile: "provider-only", allowDomains: [] },
       mcp: { mode: "disabled", allow: [] },
     },

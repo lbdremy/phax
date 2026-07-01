@@ -7,6 +7,12 @@ export interface CommandNode {
   subcommands: CommandNode[];
 }
 
+// Internal/hook subcommands use a __ prefix by convention and are excluded
+// from the public CLI surface (usage spec, help, parity gate).
+function isInternalCommand(cmd: Command): boolean {
+  return cmd.name().startsWith("__");
+}
+
 function walkCommand(cmd: Command): CommandNode {
   const flags = cmd.options
     .map((opt) => opt.long)
@@ -17,7 +23,7 @@ function walkCommand(cmd: Command): CommandNode {
   return {
     name: cmd.name(),
     flags,
-    subcommands: cmd.commands.map(walkCommand),
+    subcommands: cmd.commands.filter((sub) => !isInternalCommand(sub)).map(walkCommand),
   };
 }
 

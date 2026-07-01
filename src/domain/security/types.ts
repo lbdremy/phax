@@ -7,6 +7,7 @@ export interface SecurityPolicy {
   readonly filesystem: {
     readonly allowRead: readonly string[];
     readonly allowWrite: readonly string[];
+    readonly allowWriteProtected: readonly string[];
   };
   readonly network: { readonly profile: NetworkProfile };
   readonly mcp: { readonly mode: McpMode; readonly allow: readonly string[] };

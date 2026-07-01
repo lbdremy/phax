@@ -24,7 +24,7 @@ void commandEnforcementSample;
 
 const securePolicy: SecurityPolicy = {
   mode: "secure",
-  filesystem: { allowRead: ["/repo"], allowWrite: ["/repo"] },
+  filesystem: { allowRead: ["/repo"], allowWrite: ["/repo"], allowWriteProtected: [] },
   network: { profile: "provider-only" },
   mcp: { mode: "disabled", allow: [] },
   failClosed: true,
@@ -32,7 +32,7 @@ const securePolicy: SecurityPolicy = {
 
 const unsafePolicy: SecurityPolicy = {
   mode: "unsafe",
-  filesystem: { allowRead: [], allowWrite: [] },
+  filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
   network: { profile: "open" },
   mcp: { mode: "provider-default", allow: [] },
   failClosed: false,

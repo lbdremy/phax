@@ -64,6 +64,12 @@ function emitArg(arg: Argument, indent: string): string {
   return `${indent}arg "${name}"`;
 }
 
+// Internal/hook subcommands use a __ prefix by convention and are excluded
+// from the usage spec.
+function isInternalCommand(cmd: Command): boolean {
+  return cmd.name().startsWith("__");
+}
+
 function emitCommand(cmd: Command, indent: string, parentPath = ""): string[] {
   const cmdPath = parentPath ? `${parentPath} ${cmd.name()}` : cmd.name();
   const lines: string[] = [`${indent}cmd "${cmd.name()}" {`];
@@ -90,6 +96,7 @@ function emitCommand(cmd: Command, indent: string, parentPath = ""): string[] {
   }
 
   for (const sub of cmd.commands) {
+    if (isInternalCommand(sub)) continue;
     lines.push("");
     lines.push(...emitCommand(sub, inner, cmdPath));
   }
@@ -136,8 +143,9 @@ export function generateUsageSpec(): string {
   }
   lines.push(``);
 
-  // All top-level commands.
+  // All visible top-level commands (internal __ commands are excluded).
   for (const cmd of program.commands) {
+    if (isInternalCommand(cmd)) continue;
     lines.push(...emitCommand(cmd, ""));
     lines.push(``);
   }

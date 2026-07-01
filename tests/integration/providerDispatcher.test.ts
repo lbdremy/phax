@@ -12,7 +12,7 @@ const baseOptions: AgentRunOptions = {
   cwd: "/tmp",
   security: {
     mode: "unsafe",
-    filesystem: { allowRead: [], allowWrite: [] },
+    filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
     network: { profile: "open", allowDomains: [] },
     mcp: { mode: "provider-default", allow: [] },
     failClosed: false,

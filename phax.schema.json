@@ -119,6 +119,13 @@
               "items": {
                 "$ref": "#/$defs/NonEmptyString"
               }
+            },
+            "allowWriteProtected": {
+              "type": "array",
+              "description": "Protected path-prefixes (e.g. \".claude/skills/\") the operator opts into allowing a phase to edit via a scoped PreToolUse hook. A phase declaring a file under one of these prefixes receives a narrow edit grant; a declared protected file not covered by any prefix fails preflight.",
+              "items": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
             }
           },
           "additionalProperties": false

@@ -23,7 +23,7 @@ const sampleLines = readFileSync(join(fixtureDir, "codex-exec-sample.jsonl"), "u
 
 const unsafePolicy: SecurityPolicy = {
   mode: "unsafe",
-  filesystem: { allowRead: [], allowWrite: [] },
+  filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
   network: { profile: "open", allowDomains: [] },
   mcp: { mode: "provider-default", allow: [] },
   failClosed: false,
@@ -34,6 +34,7 @@ const securePolicy: SecurityPolicy = {
   filesystem: {
     allowRead: ["/tmp/work", "/home/me/.phax"],
     allowWrite: ["/tmp/work", "/home/me/.phax"],
+    allowWriteProtected: [],
   },
   network: { profile: "provider-only", allowDomains: ["api.openai.com"] },
   mcp: { mode: "disabled", allow: [] },
@@ -161,7 +162,7 @@ describe("buildCodexArgs — secure mode fail-closed", () => {
   it("throws SecurityEnforcementError when secure policy has no writable paths", () => {
     const impossiblePolicy: SecurityPolicy = {
       ...securePolicy,
-      filesystem: { allowRead: [], allowWrite: [] },
+      filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
     };
     try {
       buildCodexArgs(baseEntry, baseOptions(impossiblePolicy));

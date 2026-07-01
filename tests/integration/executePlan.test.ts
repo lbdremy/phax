@@ -184,7 +184,7 @@ describe("executePlan — happy-path 2-phase run", () => {
 
       security: {
         profile: "unsafe",
-        filesystem: { allowRead: [], allowWrite: [] },
+        filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
@@ -347,7 +347,7 @@ describe("executePlan — happy-path 2-phase run", () => {
 
       security: {
         profile: "unsafe",
-        filesystem: { allowRead: [], allowWrite: [] },
+        filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
@@ -455,7 +455,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       fileReconciliationMode: "report_only" as const,
       security: {
         profile: "unsafe",
-        filesystem: { allowRead: [], allowWrite: [] },
+        filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
@@ -567,7 +567,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       fileReconciliationMode: "report_only" as const,
       security: {
         profile: "unsafe",
-        filesystem: { allowRead: [], allowWrite: [] },
+        filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
@@ -645,7 +645,7 @@ function makeStatusTestConfig(root: string): ResolvedConfig {
     fileReconciliationMode: "report_only" as const,
     security: {
       profile: "unsafe",
-      filesystem: { allowRead: [], allowWrite: [] },
+      filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
       network: { profile: "provider-only", allowDomains: [] },
       mcp: { mode: "disabled", allow: [] },
       agentCommands: [],
@@ -1055,7 +1055,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     fileReconciliationMode: "report_only" as const,
     security: {
       profile: "unsafe",
-      filesystem: { allowRead: [], allowWrite: [] },
+      filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
       network: { profile: "provider-only", allowDomains: [] },
       mcp: { mode: "disabled", allow: [] },
       agentCommands: [],
@@ -1433,7 +1433,7 @@ function makePublishBaseConfig(
     fileReconciliationMode: "report_only" as const,
     security: {
       profile: "unsafe",
-      filesystem: { allowRead: [], allowWrite: [] },
+      filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
       network: { profile: "provider-only", allowDomains: [] },
       mcp: { mode: "disabled", allow: [] },
       agentCommands: [],
@@ -1713,7 +1713,7 @@ describe("executePlan — security preflight", () => {
       fileReconciliationMode: "report_only" as const,
       security: {
         profile: "unsafe",
-        filesystem: { allowRead: [], allowWrite: [] },
+        filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
@@ -1824,7 +1824,7 @@ describe("executePlan — security preflight", () => {
       fileReconciliationMode: "report_only" as const,
       security: {
         profile: "unsafe",
-        filesystem: { allowRead: [], allowWrite: [] },
+        filesystem: { allowRead: [], allowWrite: [], allowWriteProtected: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: ["deno fmt"],
