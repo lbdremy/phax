@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { binaryName, releaseAssetUrl } from "../../npm/lib/resolveBinary.ts";
+import { binaryName, checksumAssetUrl, releaseAssetUrl } from "../../npm/lib/resolveBinary.ts";
 
 describe("binaryName", () => {
   it.each([
@@ -40,5 +40,17 @@ describe("releaseAssetUrl", () => {
 
   it("throws for unsupported platform", () => {
     expect(() => releaseAssetUrl("0.1.0", "win32", "x64")).toThrow(/[Uu]nsupported/);
+  });
+});
+
+describe("checksumAssetUrl", () => {
+  it("appends .sha256 to the release asset url", () => {
+    const url = checksumAssetUrl("1.2.3", "darwin", "arm64");
+    expect(url).toBe(`${releaseAssetUrl("1.2.3", "darwin", "arm64")}.sha256`);
+    expect(url).toMatch(/\.sha256$/);
+  });
+
+  it("throws for unsupported platform", () => {
+    expect(() => checksumAssetUrl("0.1.0", "win32", "x64")).toThrow(/[Uu]nsupported/);
   });
 });
