@@ -1,6 +1,6 @@
 // Regenerates docs/cli/reference.md and updates the README CLI summary section.
 // Run with: pnpm docs:cli
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
@@ -70,7 +70,7 @@ function main(): void {
   const refPath = join(repoRoot, "docs/cli/reference.md");
   const readmePath = join(repoRoot, "README.md");
 
-  execSync(`usage generate markdown -f "${specPath}" --out-file "${refPath}"`, {
+  execFileSync("usage", ["generate", "markdown", "-f", specPath, "--out-file", refPath], {
     stdio: "inherit",
   });
   console.log(`Written: ${refPath}`);
