@@ -10,44 +10,15 @@ fed to `phax extract-plan`.
 
 ## What phax expects
 
-`phax extract-plan` turns your `plan.md` into `phax-plan.json` in two stages:
-
-1. **Deterministic first.** phax parses the Markdown structure directly (an
-   mdast tree) and pulls out every required field. This is instant, free, and
-   reproducible — no model call. It succeeds only when the plan follows the
-   exact structure this skill describes: the `## phase-NN — <Title> {#anchor}`
-   headings, the `**Recommended model:**` / `**Recommended effort:**` lines, the
-   three planned-file sections, and the commit subsections. Authoring plans to
-   this shape is what keeps extraction on the fast path.
-2. **LLM fallback.** If the deterministic parse fails for any reason (a missing
-   section, a malformed heading, prose where a list was expected), phax falls
-   back to passing your `plan.md` to Claude Code with the `phax-plan.json` JSON
-   Schema and asking it to return only structured JSON. A warning records why
-   the deterministic path was skipped, so a plan that silently drops off the
-   fast path is visible.
-
-Either way, extraction succeeds only when every required field is present and
-unambiguous, and it fails loudly when required data is missing — it never
-guesses.
+`phax extract-plan` passes your `plan.md` to Claude Code with the
+`phax-plan.json` JSON Schema and asks it to return only structured JSON. The
+extraction succeeds when every required field is present and unambiguous. It
+fails loudly when required data is missing — it never guesses.
 
 Each phase also declares the files it expects to touch. After a phase commits,
 phax reconciles those declarations against the actual git diff and asks the
 executing agent to explain any deviation in its handoff (see
 [End-of-phase file reconciliation](#end-of-phase-file-reconciliation)).
-
-## Run title and short name
-
-The plan's single top-level `# ` heading is the run title. `phax extract-plan`
-derives both extracted run-level fields from it:
-
-- `run.title` — the heading text verbatim.
-- `run.shortName` — the same text slugified (lowercase, hyphen-separated). The
-  short name is the run's identity: it names the run folder and the Git branch
-  (`phax/<shortName>`).
-
-Write exactly one `# ` heading per plan and keep it short and descriptive — a
-long title becomes a long branch slug. Do not add a separate name or namespace
-field; the top-level heading is the sole source of the run's identity.
 
 ## Per-phase field set
 
