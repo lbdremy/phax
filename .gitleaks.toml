@@ -1,0 +1,23 @@
+# gitleaks configuration for phax.
+# Used by scripts/security/secrets-scan.sh (and any bare `gitleaks detect`).
+# Extends the built-in ruleset and suppresses known, reviewed false positives.
+
+title = "phax gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Reviewed false positives"
+
+# Deterministic test fixtures — not real credentials.
+#   tests/integration/planCacheStore.test.ts: const KEY = "test-key-abc123"
+#   (a plan-cache lookup key, flagged by the generic-api-key rule).
+regexes = [
+  '''test-key-[A-Za-z0-9-]+''',
+]
+
+# The scanner's own pattern list would otherwise self-match.
+paths = [
+  '''scripts/security/secrets-scan\.sh''',
+]
