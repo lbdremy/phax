@@ -1,8 +1,9 @@
 import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
-import { decodeShortName } from "../../domain/branded.js";
 import { loadConfig } from "../../app/loadConfig.js";
-import { resolveRun } from "../../app/resolveRunInfo.js";
+import { resolveRunRef } from "../../app/resolveRunRef.js";
+import { runKey } from "../../domain/runRef.js";
+import { effectiveStateRoot } from "../../app/projectContext.js";
 import { reviewCompliance } from "../../app/reviewCompliance.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
@@ -37,19 +38,16 @@ export async function runReviewCompliance(
     return 1;
   }
 
-  const shortNameResult = decodeShortName(shortNameArg);
-  if (Either.isLeft(shortNameResult)) {
-    out.error(`Invalid short name "${shortNameArg}": must match ^[a-z][a-z0-9-]*$ (1–64 chars)`);
+  const stateRoot = effectiveStateRoot(config);
+  const resolveResult = resolveRunRef(shortNameArg, config, stateRoot);
+  if (Either.isLeft(resolveResult)) {
+    out.error(resolveResult.left.message);
     return 1;
   }
-  const shortName = shortNameResult.right;
-
-  const infoResult = resolveRun(config.namespace, shortName, config.stateRoot);
-  if (Either.isLeft(infoResult)) {
-    out.error(`Could not resolve run "${shortName}": ${infoResult.left}`);
-    return 1;
+  const { namespace, shortName, info, crossProject } = resolveResult.right;
+  if (crossProject) {
+    out.log(`Target: ${runKey(namespace, shortName)}`);
   }
-  const info = infoResult.right;
 
   if (info.runState !== "review_open") {
     out.error(
