@@ -64,3 +64,37 @@ jobs:
 
       - name: Deno compile (host binary)
         run: pnpm deno:compile
+
+  # Report-only security audit. Does not gate CI yet (FAIL_ON=none +
+  # continue-on-error); the report is uploaded as an artifact for review. Flip
+  # to blocking (drop the env override and continue-on-error) once the tree is
+  # clean — see docs/security.md "Keeping security high".
+  security-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Security audit (report-only)
+        run: pnpm audit:security
+        env:
+          FAIL_ON: none
+        continue-on-error: true
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-report
+          path: dist/security-audit/
+          if-no-files-found: warn
