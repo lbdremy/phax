@@ -13,10 +13,15 @@ mkdir -p "$AUDIT_OUT_DIR"
 
 head1 "Secret & credential scan"
 
+# Use the repo's gitleaks config (allowlists reviewed false positives) when present.
+GITLEAKS_CFG=()
+[[ -f "$REPO_ROOT/.gitleaks.toml" ]] && GITLEAKS_CFG=(--config "$REPO_ROOT/.gitleaks.toml")
+
 if have gitleaks; then
   info "Running gitleaks (working tree)"
   report="$AUDIT_OUT_DIR/gitleaks.json"
-  if gitleaks detect --no-banner --redact --report-format json --report-path "$report" \
+  if gitleaks detect --no-banner --redact ${GITLEAKS_CFG[@]+"${GITLEAKS_CFG[@]}"} \
+       --report-format json --report-path "$report" \
        --source "$REPO_ROOT" >/dev/null 2>&1; then
     ok "gitleaks: no secrets in working tree"
   else
@@ -25,7 +30,7 @@ if have gitleaks; then
   fi
   if [[ "${SCAN_HISTORY:-0}" == "1" ]]; then
     info "Running gitleaks (full history) — this can be slow"
-    gitleaks detect --no-banner --redact --report-format json \
+    gitleaks detect --no-banner --redact ${GITLEAKS_CFG[@]+"${GITLEAKS_CFG[@]}"} --report-format json \
       --report-path "$AUDIT_OUT_DIR/gitleaks-history.json" >/dev/null 2>&1 \
       && ok "gitleaks history: clean" \
       || finding high "gitleaks flagged secret(s) in git history" \
