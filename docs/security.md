@@ -235,6 +235,113 @@ When `secure` mode is active, providers that cannot satisfy strict security requ
 
 Skipped providers are recorded in `RoutingResolution.skippedForSecurity` and appear in the security artifact and final report.
 
+## Supply-chain and distribution security
+
+The controls above govern the *agent* PHAX runs. PHAX also hardens its own
+distribution and dependency surface:
+
+- **Verified binary installs.** The npm wrapper (`@lbdremy/phax`) downloads a
+  prebuilt binary from the matching GitHub release on first run. Before the
+  binary is made executable or run, the installer fetches the published
+  `<name>.sha256` sidecar, recomputes the download's SHA-256, and refuses to run
+  — deleting the file — on a fetch failure, malformed checksum, or mismatch. A
+  tampered, corrupted, or misdirected release asset can never be executed
+  silently (`npm/bin/phax`).
+- **Reproducible release checksums.** `scripts/build-binaries.ts` writes a
+  `sha256sum`-compatible `<name>.sha256` next to every release binary, and the
+  release workflow publishes both. `scripts/security/release-audit.sh`
+  re-verifies each binary against its sidecar.
+- **npm provenance.** The release job publishes with `npm publish --provenance`,
+  producing a signed build-provenance attestation that links the package to the
+  workflow run and source commit.
+- **No install-time code execution.** The npm wrapper defines no
+  `install`/`postinstall` lifecycle scripts; nothing runs on `npm install`
+  beyond fetching the verified binary on first invocation.
+- **Argument-safe subprocess calls.** Every subprocess PHAX spawns (git, gh, the
+  provider CLIs) uses `spawn`/`execFile` with an argv array — never a shell
+  string — so there is no shell-interpolation surface. External input is decoded
+  through an Effect Schema before it reaches the domain.
+
+## Auditing the codebase (`pnpm audit:security`)
+
+PHAX ships a reusable, dependency-free security-audit toolkit under
+`scripts/security/`:
+
+```bash
+pnpm audit:security          # deps + secrets + code + release
+pnpm audit:security code     # run a single check
+```
+
+Reports are written to `dist/security-audit/` (`report.md`, `findings.jsonl`,
+and any per-tool output). The process exit code is gated by `FAIL_ON`
+(`high` by default; `med` or `none` to widen/disable).
+
+| Check     | What it inspects                                                                                     |
+| --------- | ---------------------------------------------------------------------------------------------------- |
+| `deps`    | `pnpm audit` (production advisories), lockfile hygiene, optional SBOM                                 |
+| `secrets` | committed credentials — `gitleaks` if installed, else a built-in pattern scan                        |
+| `code`    | injection / unsafe-exec / architecture-boundary patterns; optional `semgrep` deep pass               |
+| `release` | npm publish surface, installer checksum verification, release-binary checksums, Actions pinning, provenance |
+
+Each check uses a professional scanner when present and falls back to a built-in
+check otherwise, so a fresh checkout can run the full audit with only `bash`,
+`git`, and `pnpm`. Install the optional scanners for deeper coverage:
+
+```bash
+brew install gitleaks semgrep osv-scanner syft
+```
+
+A reviewed false-positive allowlist for the secret scan lives in `.gitleaks.toml`.
+See `scripts/security/README.md` for the full toolkit reference.
+
+## Keeping security high
+
+- **Run the audit in CI.** Add a job that runs `pnpm audit:security` on pull
+  requests, plus a weekly schedule to catch newly disclosed advisories against
+  unchanged code. Install `gitleaks`/`osv-scanner`/`semgrep` in the runner for
+  full depth. Start report-only (`FAIL_ON=none`) and move to `FAIL_ON=high` once
+  the tree is clean, so a new CVE surfaces without blocking unrelated work.
+- **Keep dependencies fresh.** Enable Dependabot or Renovate for both `pnpm` and
+  GitHub Actions. Dev/build tooling (esbuild, vite, vitest) is the largest
+  advisory surface; upgrade it promptly and re-run `pnpm audit:security deps`.
+- **Complete the tracked hardening follow-ups** in `docs/plans/43-security-hardening-plan.md`:
+  pin GitHub Actions to commit SHAs, add `--` separators / tighten
+  `BranchNameSchema` in the git adapter, and convert `scripts/docs-cli.ts` to
+  `execFileSync`.
+- **Re-audit the release before publishing.** Run `pnpm deno:build-binaries`
+  then `pnpm audit:security release` to confirm the shipped binaries match their
+  checksums and the publish surface is clean.
+- **Rotate optional-tool coverage.** Periodically run with `SCAN_HISTORY=1` so
+  `gitleaks` sweeps the full git history, not just the working tree.
+
+### Example CI job
+
+Add to `.github/workflows/ci.yml` (report-only to start; drop
+`FAIL_ON`/`continue-on-error` once the tree is clean to make it blocking):
+
+```yaml
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+      - run: pnpm install
+      - name: Security audit
+        run: pnpm audit:security
+        env:
+          FAIL_ON: none   # report-only until the tree is clean, then make blocking
+        continue-on-error: true
+```
+
+The toolkit runs with only `bash`/`git`/`pnpm`. For deeper coverage, add steps
+that install `gitleaks`, `osv-scanner`, and `semgrep` before the audit (e.g.
+the `gitleaks/gitleaks-action`, the `google/osv-scanner-action`, or an asset
+download pinned by version) — the toolkit auto-detects and uses them.
+
 ## Best Practices
 
 1. **Default to secure**: The default `secure` mode provides the best available protection
@@ -243,3 +350,4 @@ Skipped providers are recorded in `RoutingResolution.skippedForSecurity` and app
 4. **Use dev-allowlist sparingly**: Prefer `provider-only` network profile
 5. **Verify provider capabilities**: Use `phax security status` to confirm your providers support the required controls
 6. **Avoid unsafe mode**: Only use `unsafe` for debugging or trusted local development
+7. **Audit before releasing**: Run `pnpm audit:security` (and the `release` check after building binaries) as part of the release checklist
