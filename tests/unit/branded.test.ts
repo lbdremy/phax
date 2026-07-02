@@ -199,8 +199,36 @@ describe("decodeBranchName", () => {
     expect(Either.isRight(decodeBranchName("feature/my-thing"))).toBe(true);
   });
 
+  it("accepts branch names with dots and slashes", () => {
+    expect(Either.isRight(decodeBranchName("release/1.2.3"))).toBe(true);
+    expect(Either.isRight(decodeBranchName("phax/plan-43--phase-01"))).toBe(true);
+  });
+
+  it("accepts a branch name with a dash in non-leading position", () => {
+    expect(Either.isRight(decodeBranchName("fix-bug"))).toBe(true);
+  });
+
   it("rejects empty string", () => {
     expect(Either.isLeft(decodeBranchName(""))).toBe(true);
+  });
+
+  it("rejects a leading dash (argument-injection vector)", () => {
+    expect(Either.isLeft(decodeBranchName("-x"))).toBe(true);
+    expect(Either.isLeft(decodeBranchName("--upload-pack=x"))).toBe(true);
+  });
+
+  it("rejects a leading space", () => {
+    expect(Either.isLeft(decodeBranchName(" name"))).toBe(true);
+  });
+
+  it("rejects whitespace anywhere in the name", () => {
+    expect(Either.isLeft(decodeBranchName("name with space"))).toBe(true);
+    expect(Either.isLeft(decodeBranchName("name\twith\ttab"))).toBe(true);
+  });
+
+  it("rejects control characters", () => {
+    expect(Either.isLeft(decodeBranchName("name\x00null"))).toBe(true);
+    expect(Either.isLeft(decodeBranchName("\x01start"))).toBe(true);
   });
 });
 

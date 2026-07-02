@@ -77,23 +77,24 @@ export const NodeGitLayer = Layer.succeed(Git, {
       }),
     ),
 
-  createBranch: (branch, from, repo) => gitRun(["branch", branch, from], repo).pipe(Effect.asVoid),
+  createBranch: (branch, from, repo) =>
+    gitRun(["branch", "--", branch, from], repo).pipe(Effect.asVoid),
 
   branchExists: (branch, repo) =>
-    gitRunAllowFail(["rev-parse", "--verify", "--quiet", branch], repo).pipe(
+    gitRunAllowFail(["rev-parse", "--verify", "--quiet", "--", branch], repo).pipe(
       Effect.map(({ stdout, exitCode }) => exitCode === 0 && parseBranchExistsOutput(stdout)),
     ),
 
   deleteBranch: (name, force, repo) =>
-    gitRun(["branch", force ? "-D" : "-d", name], repo).pipe(Effect.asVoid),
+    gitRun(["branch", force ? "-D" : "-d", "--", name], repo).pipe(Effect.asVoid),
 
   addWorktree: (branch, path, repo) =>
-    gitRun(["worktree", "add", path, branch], repo).pipe(Effect.asVoid),
+    gitRun(["worktree", "add", "--", path, branch], repo).pipe(Effect.asVoid),
 
   removeWorktree: (path, force, repo) => {
     const args: string[] = ["worktree", "remove"];
     if (force) args.push("--force");
-    args.push(path);
+    args.push("--", path);
     return gitRun(args, repo).pipe(Effect.asVoid);
   },
 
@@ -124,7 +125,7 @@ export const NodeGitLayer = Layer.succeed(Git, {
     ),
 
   pushBranch: (branch, remote, repo) =>
-    gitRun(["push", "--set-upstream", remote, branch], repo).pipe(Effect.asVoid),
+    gitRun(["push", "--set-upstream", remote, "--", branch], repo).pipe(Effect.asVoid),
 });
 
 export function makeNodeGitLayer(): Layer.Layer<Git> {
