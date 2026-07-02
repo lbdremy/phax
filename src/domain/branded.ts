@@ -32,7 +32,7 @@ export const decodeShortName = (u: unknown): Either.Either<ShortName, ParseError
 export function slugifyShortName(raw: string): string {
   return raw
     .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^[^a-z]+/, "")
@@ -50,8 +50,27 @@ const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/), Schema
 export const decodePhaseId = (u: unknown): Either.Either<PhaseId, ParseError> =>
   Schema.decodeUnknownEither(PhaseIdSchema)(u);
 
+function isSafeBranchName(s: string): boolean {
+  if (s.length === 0 || s[0] === "-") return false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    // Reject ASCII control characters (0x00-0x1f), space (0x20), and DEL (0x7f).
+    if (c <= 0x20 || c === 0x7f) return false;
+  }
+  return true;
+}
+
 export type BranchName = string & Brand.Brand<"BranchName">;
-export const BranchNameSchema = Schema.String.pipe(Schema.minLength(1), Schema.brand("BranchName"));
+// Rejects empty, leading `-` (arg-injection vector), and ASCII whitespace/controls.
+// Accepts all other chars including `/`, `.`, and `-` in non-leading position.
+export const BranchNameSchema = Schema.String.pipe(
+  Schema.minLength(1),
+  Schema.maxLength(255),
+  Schema.filter(isSafeBranchName, {
+    message: () => "branch name must not start with '-' or contain whitespace/control characters",
+  }),
+  Schema.brand("BranchName"),
+);
 export const decodeBranchName = (u: unknown): Either.Either<BranchName, ParseError> =>
   Schema.decodeUnknownEither(BranchNameSchema)(u);
 
