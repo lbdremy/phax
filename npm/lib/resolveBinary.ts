@@ -20,3 +20,9 @@ export function releaseAssetUrl(version: string, platform: string, arch: string)
   const name = binaryName(platform, arch);
   return `https://github.com/${GITHUB_REPO}/releases/download/v${version}/${name}`;
 }
+
+// The SHA-256 sidecar published alongside each binary; the installer fetches it
+// to verify the download before executing it.
+export function checksumAssetUrl(version: string, platform: string, arch: string): string {
+  return `${releaseAssetUrl(version, platform, arch)}.sha256`;
+}
