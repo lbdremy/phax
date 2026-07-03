@@ -123,6 +123,42 @@ describe("NodeGitLayer.diffNameStatus", () => {
       expect(result.left.command).toBe("git branch -d -- missing-branch");
     }
   });
+
+  // Regression: `git rev-parse` treats args after `--` as pathspecs, not revs,
+  // so passing `--` here made branchExists always report false for a real branch.
+  it("branchExists returns true for an existing branch", async () => {
+    runGit("branch phase-test", repoDir);
+
+    const result = await Effect.runPromise(
+      Effect.flatMap(Git, (git) => git.branchExists("phase-test" as BranchName, repoDir)).pipe(
+        Effect.provide(NodeGitLayer),
+      ),
+    );
+
+    expect(result).toBe(true);
+  });
+
+  it("branchExists returns true for a branch name containing slashes and dashes", async () => {
+    runGit("branch phax/plan-43--phase-03", repoDir);
+
+    const result = await Effect.runPromise(
+      Effect.flatMap(Git, (git) =>
+        git.branchExists("phax/plan-43--phase-03" as BranchName, repoDir),
+      ).pipe(Effect.provide(NodeGitLayer)),
+    );
+
+    expect(result).toBe(true);
+  });
+
+  it("branchExists returns false for a missing branch", async () => {
+    const result = await Effect.runPromise(
+      Effect.flatMap(Git, (git) => git.branchExists("does-not-exist" as BranchName, repoDir)).pipe(
+        Effect.provide(NodeGitLayer),
+      ),
+    );
+
+    expect(result).toBe(false);
+  });
 });
 
 describe("NodeGitLayer.remoteExists and pushBranch", () => {

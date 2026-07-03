@@ -80,8 +80,11 @@ export const NodeGitLayer = Layer.succeed(Git, {
   createBranch: (branch, from, repo) =>
     gitRun(["branch", "--", branch, from], repo).pipe(Effect.asVoid),
 
+  // No `--` here: for `git rev-parse`, `--` marks the start of pathspecs, so it
+  // would make the branch be resolved as a file path and always fail --verify.
+  // The BranchName schema (isSafeBranchName) already rejects leading-`-` inputs.
   branchExists: (branch, repo) =>
-    gitRunAllowFail(["rev-parse", "--verify", "--quiet", "--", branch], repo).pipe(
+    gitRunAllowFail(["rev-parse", "--verify", "--quiet", branch], repo).pipe(
       Effect.map(({ stdout, exitCode }) => exitCode === 0 && parseBranchExistsOutput(stdout)),
     ),
 
