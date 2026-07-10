@@ -1,6 +1,6 @@
 ---
 name: phax-spec
-description: Write or review a spec under docs/specs/ that the phax-planning skill will turn into a plan.md — functional behavior only, EARS requirements, testable acceptance criteria, lifecycle and traceability.
+description: Write or review a spec under docs/specs/ that the phax-planning skill will turn into a plan.md — functional behavior and consumption surface, EARS requirements, testable acceptance criteria, lifecycle and traceability.
 ---
 
 # phax spec skill
@@ -20,9 +20,12 @@ spec (this skill)  →  plan.md (phax-planning)  →  phax-plan.json (extract-pl
    what & why            how, decomposed              structured tasks                 executable enforcement
 ```
 
-A spec is **functional behavior only**: the _what_ and the _why_, never the _how_. Technology
-choices, file layout, module names, and phase decomposition belong to the plan, not the spec.
-If you find yourself naming functions or sketching code, you have left the spec layer.
+A spec is **functional behavior and consumption surface**: the _what_ and the _why_, never
+the _how_. Technology choices, file layout, module names, and phase decomposition belong to
+the plan, not the spec. The one part of the visible shape that DOES belong here is the
+**surface** — what the consumer sees and touches (commands, config keys, endpoints, screens);
+see the Surface section below. If you find yourself naming functions or sketching internals,
+you have left the spec layer.
 
 ## Lifecycle
 
@@ -51,7 +54,7 @@ Record the status in the header block (below) and keep it accurate.
 
 ## Canonical spec structure
 
-Start every spec with this header block, then the nine numbered sections. This is the shape
+Start every spec with this header block, then the ten numbered sections. This is the shape
 phax specs converge on; follow it so specs stop drifting.
 
 ```markdown
@@ -63,7 +66,7 @@ Date: YYYY-MM-DD
 
 Audience: implementation planning with <agent>
 
-Scope: functional behavior only
+Scope: functional behavior and consumption surface
 
 ## 1. Context
 
@@ -97,27 +100,39 @@ EARS statement (see EARS below). Behavior only — no technology, no file names,
 <EARS requirement, e.g.> WHEN the user submits an invalid config THE system SHALL reject it
 with an actionable message naming the offending field.
 
-## 6. Non-goals
+## 6. Surface
+
+<The consumption interface of the change, MATERIALIZED — show the artifact, never describe
+it in prose. Config: a before → after block with the real fields. API: the actual example
+request and response payloads. CLI: the invocation line and an output sketch. Visual UI:
+screens/states in text plus a committed design annex. Never internals (modules, functions,
+file layout). Mark each block or field **normative** (the name/shape IS the contract; tests
+verify it verbatim) or **indicative** (intent binds, the planner may adjust the final
+spelling) — an indicative sketch with real fields beats an accurate abstraction. Omit only
+if the change has no consumer-visible surface, and say so in one line.>
+
+## 7. Non-goals
 
 <What is explicitly NOT in scope. Bounds the agent's exploration and the plan's surface.
 A spec without Non-goals is unbounded — always write this section.>
 
-## 7. Acceptance criteria
+## 8. Acceptance criteria
 
 <Testable Given/When/Then criteria, one per meaningful behavior, each tracing back to a §5
-requirement. These are the seed of the E2E tests the plan will produce (see Traceability).>
+requirement. Name normative §6 surface elements verbatim in the criteria. These are the seed
+of the E2E tests the plan will produce (see Traceability).>
 
 ### <Criterion name>
 
 Given <precondition>, when <action>, then <observable outcome>. (refs §5.1)
 
-## 8. Open questions for implementation planning
+## 9. Open questions for implementation planning
 
 <Ambiguities you could not resolve, with a recommended default for each. This is the Clarify
 gate: surface every unknown here rather than letting the planner guess. Resolve or default
 each before marking the spec Approved.>
 
-## 9. Implementation-planning note
+## 10. Implementation-planning note
 
 <The handoff to phax-planning: what is settled, what is deliberately left open, and any
 constraint the plan must respect. Keep it to the contract — do not start planning here.>
@@ -145,12 +160,58 @@ Rules:
 SHALL reject it` — not `THE system SHALL call validateConfig()`.
 - Group related EARS requirements under a titled `### 5.N` subsection.
 
+## Surface — the consumption contract
+
+**Surface** is the consumption interface of the change: everything a consumer can see or
+touch once it ships. It is NOT the _how_ — it is the most observable part of the _what_.
+The "what, not how" rule bans **internals** (modules, functions, algorithms, file layout);
+it does not ban the surface. Without §6, the acceptance criteria quietly reference an
+interface nobody pinned ("when publish is invoked" — invoked _how_?), the planner invents
+it, and the `Draft → Approved` gate approves something vaguer than what ships — even though
+the surface is exactly the part a human is best placed to judge.
+
+What belongs in §6, by kind of change — and the form it must take:
+
+| Change ships as | Materialize as                                                            |
+| --------------- | ------------------------------------------------------------------------- |
+| CLI             | the invocation line(s) and an output sketch; config as a before → after block with real keys |
+| API             | example request and response payloads (error payload included), real field names |
+| UI              | screens/states/actions in text, plus the committed design annex           |
+| File format     | an example of the emitted/consumed file, at its user-visible location     |
+
+What never belongs: module paths, function names, internal interfaces, storage layout — an
+element earns its place in §6 only if a consumer can observe it from outside.
+
+Rules:
+
+- **Show, don't describe.** Every element appears as the artifact the consumer will see —
+  a config block with real field names, a real payload, a command line with its output
+  sketch. "The config gains a key (exact name indicative)" in prose, with no block, is the
+  vagueness this section exists to kill: write the sketch with real fields and mark it
+  indicative instead. When the change replaces an existing surface, show **before → after**,
+  quoting the current shape as it really is today.
+- **Mark every element normative or indicative.** Normative: the exact name/shape is the
+  contract — acceptance criteria cite it verbatim and tests verify it as written. Indicative:
+  the intent binds but the planner may adjust the final name/shape. This marking is the
+  guard against over-specification — freezing a flag name early is sometimes premature, but
+  that must be an explicit choice, never vagueness by omission.
+- **Visual UI: text carries structure, an annex carries design.** The section lists screens,
+  states, and actions in text; the visual design lives in a design artifact (image, wireframe,
+  Figma export) committed next to the spec and referenced from §6, with the same
+  normative/indicative marking. The annex is part of the spec — archived with it, spent fuel
+  like the rest.
+- **No surface, no section?** If the change genuinely has no consumer-visible surface (a pure
+  behavioral fix behind an existing interface), say so in one line rather than omitting the
+  section silently.
+
 ## Acceptance criteria and traceability
 
 Acceptance criteria are the contract made executable. Treat them as the **specification of the
 E2E tests** the plan will write.
 
-- Write each criterion in **Given / When / Then** form, against observable behavior.
+- Write each criterion in **Given / When / Then** form, against observable behavior. Where a
+  §6 surface element is normative, cite it verbatim (``when `phax publish` runs…``), not by
+  paraphrase ("when publish is invoked").
 - Every criterion **traces back** to a §5 requirement with a `(refs §5.N)` citation. Every §5
   requirement should be covered by at least one criterion — an uncovered requirement is either
   untestable (rewrite it) or unowned (add a criterion).
@@ -166,6 +227,9 @@ E2E tests** the plan will write.
 - **What, not how.** Functional requirements describe behavior. The moment a requirement names
   a function, a module, a library, or a phase order, it has crossed into the plan's territory —
   move it to the Implementation-planning note as a constraint, or drop it.
+- **The surface is what, not how.** Commands, config keys, endpoints, screens are the contract
+  the consumer touches — pin them in §6 (normative or indicative), never leave them for the
+  planner to invent. "No internals" and "no surface" are different rules; only the first holds.
 - **One feature, one spec, 1–3 pages.** Bounded scope is what makes approval meaningful and
   keeps the agent's exploration tight.
 - **Every behavior is gate- or test-verifiable.** If an acceptance criterion cannot be checked
@@ -187,7 +251,15 @@ E2E tests** the plan will write.
 - **Untestable acceptance criteria.** "The system should be fast/robust/intuitive" — restate
   as an observable, checkable outcome or cut it.
 - **Missing Non-goals.** An unbounded spec invites scope creep in the plan and the run.
-- **Unresolved ambiguity smuggled into §5.** Ambiguities go in §8 (Open questions) with a
+- **Unstated surface.** Acceptance criteria that say "when publish is invoked" against a §6
+  that never pinned the command: the planner ends up inventing the interface the human never
+  approved. Pin it in §6 — or mark it indicative, explicitly.
+- **Internals dressed as surface.** Module paths, function signatures, or internal interfaces
+  listed in §6. If a consumer cannot observe it from outside, it is not surface — cut it.
+- **Prose surface.** A §6 made of descriptions ("a registration exists, form indicative")
+  with no materialized block. Described-only surface is still unstated surface — the planner
+  ends up inventing the artifact anyway.
+- **Unresolved ambiguity smuggled into §5.** Ambiguities go in §9 (Open questions) with a
   recommended default — never hidden as a vague requirement.
 - **False confidence.** Matching a wrong spec satisfies no real requirement. The value is the
   thinking done while writing the spec, not the document itself — interrogate the problem.
@@ -200,11 +272,16 @@ When asked to review rather than write, check, in order:
 
 1. **Layer** — is anything in §5 actually _how_ (implementation)? Move or cut it.
 2. **EARS** — does every §5 requirement follow a pattern, atomically?
-3. **Coverage** — does every §5 requirement have an acceptance criterion, and does every
+3. **Surface** — is §6 present (or explicitly declared empty)? Is every element MATERIALIZED
+   (before → after config block, example payload, invocation + output sketch) rather than
+   described in prose, consumer-observable, and marked normative/indicative? Does a visual UI
+   reference a committed design annex? Do the acceptance criteria cite normative elements
+   verbatim?
+4. **Coverage** — does every §5 requirement have an acceptance criterion, and does every
    criterion `refs §`?
-4. **Bounds** — are Non-goals present and honest? Is the spec ≤ 3 pages?
-5. **Clarity gate** — are all §8 open questions resolved or defaulted before `Approved`?
-6. **Testability** — could an agent turn every acceptance criterion into a passing test
+5. **Bounds** — are Non-goals present and honest? Is the spec ≤ 3 pages?
+6. **Clarity gate** — are all §9 open questions resolved or defaulted before `Approved`?
+7. **Testability** — could an agent turn every acceptance criterion into a passing test
    without inventing intent the spec did not state?
 
 ## Example well-formed slice
@@ -218,7 +295,7 @@ Date: 2026-06-12
 
 Audience: implementation planning with Claude Code
 
-Scope: functional behavior only
+Scope: functional behavior and consumption surface
 
 ## 3. Product goal
 
@@ -243,20 +320,38 @@ body is the run review handoff.
 IF a pull request already exists for the run branch THEN the system SHALL update it rather than
 open a duplicate.
 
-## 7. Acceptance criteria
+## 6. Surface
+
+New command (normative):
+
+    phax publish <run-id>
+
+Refusal, on a red gate (exit code and named gate normative; wording indicative):
+
+    ✗ publish refused: gate "test" is red
+    $? = 1
+
+`phax.json`, before → after (key spelling indicative; presence of an enable switch normative
+per §5.2 WHERE clause):
+
+    "publish": { "auto": false }          →    "publish": { "auto": true }
+
+Pull request: body is the run review handoff (normative); title format indicative.
+
+## 8. Acceptance criteria
 
 ### Gates gate publishing
 
-Given a run with a red gate, when publish is invoked, then the system refuses and names the
-failing gate. (refs §5.1)
+Given a run with a red gate, when `phax publish <run-id>` runs, then it exits non-zero and
+names the failing gate. (refs §5.1)
 
 ### PR carries the handoff
 
-Given a completed green run with publishing enabled, when publish runs, then a pull request
-exists whose body is the run review handoff. (refs §5.2)
+Given a completed green run with publishing enabled, when `phax publish <run-id>` runs, then
+a pull request exists whose body is the run review handoff. (refs §5.2)
 
 ### Re-publish is idempotent
 
-Given a run already published, when publish runs again, then the existing pull request is
-updated and no duplicate is created. (refs §5.3)
+Given a run already published, when `phax publish <run-id>` runs again, then the existing
+pull request is updated and no duplicate is created. (refs §5.3)
 ```
