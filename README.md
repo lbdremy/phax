@@ -127,13 +127,27 @@ Or add a `phax.json` manually at your repo root:
     "cleanup": ["rm -rf node_modules"]
   },
   "gateProfiles": {
-    "fast": ["pnpm typecheck", "pnpm test:unit"],
-    "full": ["pnpm typecheck", "pnpm lint", "pnpm test", "pnpm build"]
+    "standard": [
+      { "command": "pnpm typecheck", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm lint", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm test", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm build", "surface": "product", "firing": "terminal" }
+    ]
   }
 }
 ```
 
 The top-level `name` is the run namespace — run short-names are scoped under it. Provider routing is **not** configured here — it lives in the global `~/.phax/` config (see [Multi-provider model routing](#multi-provider-model-routing)). The optional `security.profile` (`secure` \| `unsafe` \| `isolated`, default `secure`) sets the default security posture for runs; see [Security modes](#security-modes). The optional `fileReconciliation.mode` (`report_only` \| `warn`, default `report_only`) controls how per-phase file reconciliation reports deviations from the plan; see [Run](#run). The optional `review.compliance` and `publish` blocks turn on an automatic plan-compliance review and a pushed pull request when each run reaches review; see [Compliance review & publishing](#compliance-review--publishing).
+
+**Gate profiles** — `gateProfiles` maps a profile name to an ordered array of _attributed steps_. Each step carries three fields:
+
+| Field     | Type                            | Meaning                                                                                                   |
+| --------- | ------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `command` | non-empty string                | The shell command phax runs to verify work (e.g. `pnpm test`).                                            |
+| `surface` | non-empty string (free-text)    | A recorded label grouping steps by what they verify. Convention: `local`, `structural`, `product`.        |
+| `firing`  | `"every-phase"` \| `"terminal"` | When the step runs: `every-phase` runs at every phase gate; `terminal` runs only at the final phase gate. |
+
+A project defines one profile. The flat-array form (`["pnpm test", ...]`) and the former `fast`/`full` depth convention are **rejected** at validation — use attributed steps instead. At run end, phax reports the set of surfaces that were verified (at least one step of that surface passed).
 
 Validate it before running:
 
@@ -156,7 +170,7 @@ phax resolves configuration from four layers, least-to-most specific (most perso
 
 **Scalars** — the highest present layer wins (e.g. `state.root`, `agent.maxFixAttempts`, `security.profile`).
 
-**Allowlists** — union across all layers, so user layers can only _add_ to the project's security baseline, never silently remove it. This applies to `security.filesystem.allowRead`, `security.filesystem.allowWrite`, `security.agentCommands`, `security.mcp.allow`, and `gateProfiles` (union by key; the higher layer's command array wins for a shared key).
+**Allowlists** — union across all layers, so user layers can only _add_ to the project's security baseline, never silently remove it. This applies to `security.filesystem.allowRead`, `security.filesystem.allowWrite`, `security.agentCommands`, `security.mcp.allow`, and `gateProfiles` (union by key; the higher layer's step array wins for a shared key).
 
 `phax.local.json` is gitignored — it is the right place for per-developer preferences like model selection or trust overrides that should not be committed. `~/.phax/config.json` is for preferences that apply to all repos on your machine. A JSON Schema for both user layers is generated alongside `phax.schema.json` as `phax.user.schema.json`.
 

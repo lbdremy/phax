@@ -76,6 +76,12 @@ These load on demand. Reach for the matching one before editing that area:
   API, cross-check against `package.json`; installed versions may differ from training data.
 - No back-compat shims in persisted schemas: new fields are required, not optional.
 - Prefer explicit per-variant enums over a permissive superset.
+- Gate profiles are named sets of attributed steps `{ command, surface, firing }` —
+  not flat command arrays. `firing: "every-phase"` steps run at every phase gate;
+  `firing: "terminal"` steps run only at the final phase gate. `surface` is a
+  recorded label (convention: `local` / `structural` / `product`) and is never
+  branched on by phax. The old flat-array form and the `fast`/`full` depth
+  convention are rejected at validation.
 
 ## Git
 

@@ -128,8 +128,12 @@ network control at all.
 
 The phase prompt and the gate fix-loop both instruct the agent to run the
 phase's **gate commands** (the resolved gate profile, e.g. `pnpm typecheck`,
-`pnpm test`) to verify — and fix — its own work. How that shell access is
-constrained differs by provider, because each provider exposes a different
+`pnpm test`) to verify — and fix — its own work. Gate profiles are sets of
+attributed steps `{ command, surface, firing }`; the security preflight and
+Claude's allowlist are built from **every step's command regardless of firing**
+— `terminal` steps still execute at the final phase gate, so their commands must
+be in the frozen effective set from the start of the run. How that shell access
+is constrained differs by provider, because each provider exposes a different
 native control surface. The granularity differs, but in every secure-mode case
 the commands run **confined to the worktree**:
 
