@@ -14,7 +14,7 @@ const mistralFirst: ModelRouting = {
 };
 
 // All non-Claude providers enabled so the priority walk actually reaches them.
-const allEnabledProviderConfig: ProviderConfig = {
+const allEnabled: ProviderConfig = {
   providers: {
     ...DEFAULT_PROVIDER_CONFIG.providers,
     "mistral-vibe": { ...DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"]!, enabled: true },
@@ -28,11 +28,11 @@ const denyProviders =
     blocked.includes(provider) ? { allowed: false, reason } : { allowed: true };
 
 describe("resolveModel — security fallback", () => {
-  it("skips a non-strict provider to the next priority and records the reason", () => {
+  it("skips a filtered provider to the next priority and records the reason", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
       mistralFirst,
-      allEnabledProviderConfig,
+      allEnabled,
       denyProviders(["mistral-vibe"], "filesystem jail too weak"),
     );
 
@@ -45,11 +45,11 @@ describe("resolveModel — security fallback", () => {
     );
   });
 
-  it("falls through to terminal claude-code when every non-claude provider is filtered", () => {
+  it("falls through to terminal claude-code when every non-Claude provider is filtered", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
       mistralFirst,
-      allEnabledProviderConfig,
+      allEnabled,
       denyProviders(["mistral-vibe", "codex-cli"], "blocked"),
     );
 
@@ -66,7 +66,7 @@ describe("resolveModel — security fallback", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
       mistralFirst,
-      allEnabledProviderConfig,
+      allEnabled,
       (provider) => (provider === "mistral-vibe" ? { allowed: false } : { allowed: true }),
     );
 
@@ -76,7 +76,7 @@ describe("resolveModel — security fallback", () => {
     ]);
   });
 
-  it("still resolves to claude-code via the terminal fallback even if the priority-walk filter denies it", () => {
+  it("still resolves to claude-code via the terminal fallback even if the filter denies it", () => {
     const calls: ProviderId[] = [];
     const filter: SecurityFilter = (provider) => {
       calls.push(provider);
@@ -86,7 +86,7 @@ describe("resolveModel — security fallback", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
       mistralFirst,
-      allEnabledProviderConfig,
+      allEnabled,
       filter,
     );
 
@@ -103,7 +103,7 @@ describe("resolveModel — security fallback", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
       mistralFirst,
-      allEnabledProviderConfig,
+      allEnabled,
       () => ({ allowed: true }),
     );
 

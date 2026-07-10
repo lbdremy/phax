@@ -27,7 +27,6 @@ export interface SemanticTraceSnapshotEntry {
   // agent.model.resolved
   readonly requestedFamily?: string;
   readonly requestedEffort?: string;
-  readonly normalizedTier?: string;
   readonly selectedProvider?: string;
   readonly selectedFamily?: string;
   readonly selectedConcreteModel?: string;
@@ -91,7 +90,6 @@ export const projectEvent = (e: SemanticTelemetryEvent): SemanticTraceSnapshotEn
         ...opId,
         requestedFamily: e.requestedFamily,
         requestedEffort: e.requestedEffort,
-        normalizedTier: e.normalizedTier,
         selectedProvider: e.selectedProvider,
         selectedFamily: e.selectedFamily,
         selectedConcreteModel: e.selectedConcreteModel,

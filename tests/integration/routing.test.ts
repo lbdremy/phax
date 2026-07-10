@@ -225,7 +225,6 @@ describe("executePlan routing — mistral-vibe priority", () => {
       expect(resolvedEvent.selectedConcreteModel).toBe("phax-mistral-medium-3.5-medium");
       expect(resolvedEvent.relationship).toBe("equivalent");
       expect(resolvedEvent.requestedFamily).toBe("claude-sonnet");
-      expect(resolvedEvent.normalizedTier).toBe("standard");
     }
 
     // The model-resolution.json artifact should be written in the phase folder.

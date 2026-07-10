@@ -59,7 +59,6 @@ const disabledConfig: ResolvedComplianceReviewConfig = {
 
 const fakeResolution: RoutingResolution = {
   requested: { model: "claude-sonnet-4-6", family: "claude-sonnet", effort: "medium" },
-  normalizedTier: "standard",
   selected: {
     provider: "claude-code",
     family: "claude-sonnet",

@@ -11,13 +11,12 @@ const baseFields = {
   runId,
   requestedFamily: "claude-sonnet" as const,
   requestedEffort: "medium" as const,
-  normalizedTier: "standard" as const,
   selectedProvider: "mistral-vibe" as const,
   selectedFamily: "mistral-medium" as const,
   selectedConcreteModel: "phax-mistral-medium-3.5-medium",
   selectedThinking: "medium" as const,
   relationship: "equivalent" as const,
-  reason: "Provider priority selected mistral-vibe; claude-sonnet medium maps to standard tier.",
+  reason: "Provider priority selected mistral-vibe; translated via Claude hub.",
 };
 
 describe("makeModelResolvedTelemetryEvent", () => {
@@ -56,6 +55,11 @@ describe("makeModelResolvedTelemetryEvent", () => {
     };
     expect(Either.isLeft(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
+
+  it("schema accepts the new upgrade relation", () => {
+    const event = makeModelResolvedTelemetryEvent({ ...baseFields, relationship: "upgrade" });
+    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+  });
 });
 
 describe("projectEvent for agent.model.resolved", () => {
@@ -70,13 +74,17 @@ describe("projectEvent for agent.model.resolved", () => {
       type: "agent.model.resolved",
       requestedFamily: "claude-sonnet",
       requestedEffort: "medium",
-      normalizedTier: "standard",
       selectedProvider: "mistral-vibe",
       selectedFamily: "mistral-medium",
       selectedConcreteModel: "phax-mistral-medium-3.5-medium",
       selectedThinking: "medium",
       relationship: "equivalent",
     });
+  });
+
+  it("no longer projects the removed normalizedTier field", () => {
+    const entry = projectEvent(makeModelResolvedTelemetryEvent(baseFields));
+    expect("normalizedTier" in entry).toBe(false);
   });
 
   it("omits selectedThinking when absent", () => {

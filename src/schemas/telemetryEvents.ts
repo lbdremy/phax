@@ -3,7 +3,6 @@ import {
   ModelFamilySchema,
   ProviderIdSchema,
   RelationshipSchema,
-  RoutingTierSchema,
   ThinkingLevelSchema,
 } from "./modelRouting.js";
 import { NetworkProfileSchema, McpModeSchema } from "./securityConfig.js";
@@ -84,7 +83,6 @@ const ModelResolvedTelemetryEventSchema = Schema.Struct({
   operationId: Schema.optional(Schema.String),
   requestedFamily: ModelFamilySchema,
   requestedEffort: ThinkingLevelSchema,
-  normalizedTier: RoutingTierSchema,
   selectedProvider: ProviderIdSchema,
   selectedFamily: ModelFamilySchema,
   selectedConcreteModel: Schema.String.pipe(Schema.minLength(1)),

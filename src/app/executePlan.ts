@@ -635,7 +635,6 @@ export function executePlan(
             operationId: phase.id,
             requestedFamily: resolution.requested.family,
             requestedEffort: resolution.requested.effort,
-            normalizedTier: resolution.normalizedTier,
             selectedProvider: resolution.selected.provider,
             selectedFamily: resolution.selected.family,
             selectedConcreteModel: resolution.selected.concreteModel,

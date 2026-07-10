@@ -61,6 +61,23 @@ describe("loadModelRouting", () => {
     const err = await runFail(loadModelRouting().pipe(Effect.provide(layer)));
     expect(err).toBeInstanceOf(ConfigValidationError);
   });
+
+  it("rejects a legacy v1 config (tiers/normalization/defaultTier) with no shim", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    const legacyV1 = {
+      version: 1,
+      providerPriority: ["claude-code"],
+      allowDowngrade: true,
+      defaultTier: "standard",
+      families: { claude: ["claude-sonnet"] },
+      tiers: { standard: { "claude-code": { family: "claude-sonnet" } } },
+      normalization: { "claude-sonnet": { medium: "standard" } },
+      requestedModelNormalization: {},
+    };
+    impl.setFile(MODEL_ROUTING_PATH, JSON.stringify(legacyV1));
+    const err = await runFail(loadModelRouting().pipe(Effect.provide(layer)));
+    expect(err).toBeInstanceOf(ConfigValidationError);
+  });
 });
 
 describe("loadProviderConfig", () => {
