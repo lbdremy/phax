@@ -6,7 +6,7 @@ Date: 2026-07-03
 
 Audience: implementation planning with Claude Code
 
-Scope: functional behavior only
+Scope: functional behavior and consumption surface
 
 ## 1. Context
 
@@ -67,7 +67,42 @@ code of all phases so far.
 
 WHEN an external gate step reports any failing diagnostic THE system SHALL fail the phase gate.
 
-## 6. Non-goals
+## 6. Surface
+
+An external step registers as one more step in the gate profile (the Gate Profile spec's step
+object), its command being the external tool. That it registers through the profile is
+**normative**; whether a marker field distinguishes it from a built-in step is **indicative**:
+
+```json
+"gateProfiles": {
+  "standard": [
+    { "command": "pnpm typecheck",               "surface": "local",      "firing": "every-phase" },
+    { "command": "steme audit apps/web --json",  "surface": "structural", "firing": "every-phase" }
+  ]
+}
+```
+
+Today the fix loop consumes a built-in gate failure as command + exit code + log
+(`GateFailed { command, exitCode, logPath }`) and the fix agent reads the log. An external step
+additionally emits structured diagnostics — each a failure with a location and a repair pointer,
+per §9 default the same information shape the fix loop already consumes. The location + repair
+pointer content is **normative**; the exact field spellings **indicative**, pinned by planning:
+
+```json
+{ "diagnostics": [
+  { "rule": "TS_BOUNDARY_001",
+    "location": { "file": "apps/web/src/core/user.ts", "line": 12 },
+    "message": "core must not import web",
+    "repair": "skills/scope-boundaries.md" }
+] }
+```
+
+No new command or output form — external failures surface through the existing gate and fix-loop
+reporting unchanged.
+
+No visual UI — no design annex.
+
+## 7. Non-goals
 
 - The **content** of the audit — which rules exist, what they mean — is the external provider's
   concern, not phax's.
@@ -79,7 +114,7 @@ WHEN an external gate step reports any failing diagnostic THE system SHALL fail 
 - **Incremental** (changed-files-only) execution — a whole-worktree pass is acceptable.
 - The **orient/brief** channel and the **plan-completeness** advisory — separate specs.
 
-## 7. Acceptance criteria
+## 8. Acceptance criteria
 
 ### External audit feeds the fix loop
 
@@ -101,18 +136,18 @@ gate is red. (refs §5.4)
 Given no registered external gate step, when a phase gate runs, then the gate behaves as it does
 today with built-in steps only. (refs §5.1)
 
-## 8. Open questions for implementation planning
+## 9. Open questions for implementation planning
 
 - **Ordering of built-in vs external steps in one fix loop.** *Default:* run the built-in
   mechanical gate first, external steps after, within a single fix loop.
 - **Diagnostic shape the fix loop consumes.** *Default:* the same shape as a built-in gate failure
   (a location plus a repair pointer); the provider emits that shape.
 
-## 9. Implementation-planning note
+## 10. Implementation-planning note
 
 Settled: external steps run in every phase's gate, feed the existing fix loop, run against the
 cumulative worktree, and hard-fail on any diagnostic. Left open: step ordering and the exact
-diagnostic shape (§8). Depends on the **Gate Profile as Attributed Steps** spec, which defines the
+diagnostic shape (§9). Depends on the **Gate Profile as Attributed Steps** spec, which defines the
 profile model an external step registers into (and which removes the depth scalar). Constraint:
 **phax stays generic** — it encodes no audit semantics; the provider supplies all meaning.
 Follow-on: conditional scheduling of external diagnostics (invariant vs completion, plan-derived

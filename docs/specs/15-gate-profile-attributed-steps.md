@@ -6,7 +6,7 @@ Date: 2026-07-03
 
 Audience: implementation planning with Claude Code
 
-Scope: functional behavior only
+Scope: functional behavior and consumption surface
 
 ## 1. Context
 
@@ -87,7 +87,55 @@ its result.
 
 WHEN a run completes THE system SHALL report the set of surfaces that were verified during the run.
 
-## 6. Non-goals
+## 6. Surface
+
+(The consumption surface of this change — not the per-step surface dimension of §4.)
+
+Today, in `phax.json`, a profile is a flat command list and depth is the `fast` / `full`
+convention over profile names (phax prefers `full`, then `fast`, then the first key):
+
+```json
+"gateProfiles": {
+  "fast": ["pnpm typecheck", "pnpm test"],
+  "full": ["pnpm typecheck", "pnpm test", "pnpm lint", "pnpm build"]
+}
+```
+
+After, each step is an object carrying the two dimensions. The two dimensions and the
+`every-phase | terminal` firing values are **normative**; the exact key spellings **indicative**:
+
+```json
+"gateProfiles": {
+  "standard": [
+    { "command": "pnpm typecheck", "surface": "local",      "firing": "every-phase" },
+    { "command": "pnpm test",      "surface": "local",      "firing": "every-phase" },
+    { "command": "pnpm lint",      "surface": "local",      "firing": "every-phase" },
+    { "command": "pnpm build",     "surface": "product",    "firing": "terminal"    }
+  ]
+}
+```
+
+A profile entry still in the old flat-array form is rejected at validation naming the profile —
+no shim, per §9 default. **Normative.**
+
+Per-phase attribution record, readable after each phase gate (fields normative; format and
+location **indicative**):
+
+```json
+{ "phase": "phase-02",
+  "steps": [
+    { "command": "pnpm typecheck", "surface": "local", "result": "pass" },
+    { "command": "pnpm test",      "surface": "local", "result": "fail" }
+  ] }
+```
+
+Run-end summary names the verified surfaces (presence normative; rendering **indicative**):
+
+    surfaces verified: local, product
+
+No visual UI — no design annex.
+
+## 7. Non-goals
 
 - The **content** of any step — what a structural or product step actually checks — is the step's
   (or its provider's) concern.
@@ -99,7 +147,7 @@ WHEN a run completes THE system SHALL report the set of surfaces that were verif
   not phax's behavior.
 - Any **runtime/product execution** a product-surface step might require — out of scope.
 
-## 7. Acceptance criteria
+## 8. Acceptance criteria
 
 ### Profile is a named step set
 
@@ -127,7 +175,7 @@ surface, and each step's result. (refs §5.4)
 Given a completed run, when its summary is read, then it names the set of surfaces that were
 verified. (refs §5.5)
 
-## 8. Open questions for implementation planning
+## 9. Open questions for implementation planning
 
 - **Presets vs fully user-defined profiles.** phax may ship named default profiles or leave the
   selection entirely to the project. *Default:* profiles are user-defined; phax may ship one default
@@ -138,12 +186,12 @@ verified. (refs §5.5)
 - **Migration from the depth scalar.** *Default:* remove it with no shim (phax schema policy);
   existing configs that set a depth are rejected at validation, not silently mapped.
 
-## 9. Implementation-planning note
+## 10. Implementation-planning note
 
 Settled: a profile is a named set of steps; each step carries a **surface** (recorded, not
 behavioral) and a **firing** time (every-phase | terminal, behavioral); the depth scalar is removed;
 attribution is recorded per phase and surfaces are legible at run end. Left open: presets vs
-user-defined and the surface vocabulary (§8). Constraint: **phax stays generic** — firing is the
+user-defined and the surface vocabulary (§9). Constraint: **phax stays generic** — firing is the
 only dimension phax schedules on; surface is pure attribution. This spec defines the profile shape;
 **External Gate Steps** and **Gate Step Scheduling** fill it with external steps and per-diagnostic
 timing respectively. Per phax schema policy, the removed depth scalar leaves no shim.

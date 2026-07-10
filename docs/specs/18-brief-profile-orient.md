@@ -6,7 +6,7 @@ Date: 2026-07-03
 
 Audience: implementation planning with Claude Code
 
-Scope: functional behavior only
+Scope: functional behavior and consumption surface
 
 ## 1. Context
 
@@ -78,7 +78,51 @@ IF no orient provider is registered THEN THE system SHALL dispatch the phase pro
 WHEN a pull returns no orientation THE system SHALL record that a request was made and nothing was
 supplied.
 
-## 6. Non-goals
+## 6. Surface
+
+Registration — the operator registers one orient provider in `phax.json` (that it registers is
+normative; key spelling and command form **indicative**):
+
+```json
+"orient": { "command": "steme orient --json" }
+```
+
+Push — phax requests the index keyed by the phase's planned files and the provider returns rows.
+The four-field row minimum (id, title, severity, trigger) is **normative**; field spellings and
+transport **indicative**:
+
+```json
+{ "files": ["src/core/billing/invoice.ts", "src/webRpc/billing.ts"] }
+```
+
+```json
+{ "rows": [
+  { "id": "core-no-adapters",  "title": "core never imports adapters directly",
+    "severity": "error", "trigger": "src/core/**" },
+  { "id": "rpc-thin-surface",  "title": "webRpc stays a thin layer over capabilities",
+    "severity": "info",  "trigger": "src/webRpc/**" }
+] }
+```
+
+Woven into the phase prompt as an index only — row bodies never inline (**normative**; prompt
+wording indicative):
+
+    ## Orientation for this phase (expand a row before touching its files)
+    - [error] core-no-adapters — core never imports adapters directly
+    - [info]  rpc-thin-surface — webRpc stays a thin layer over capabilities
+
+Pull — from inside a phase the agent expands a row or asks about an arbitrary file. The two
+capabilities are **normative**; their concrete form (tool vs command, names below) **indicative**:
+
+    phax orient core-no-adapters          →  the row's full body
+    phax orient --file src/jobs/sync.ts   →  an index for that file
+
+A pull that returns nothing is recorded as demand-without-supply in the run's existing
+trajectory/telemetry stream (per §9 default; artifact shape **indicative**).
+
+No visual UI — no design annex.
+
+## 7. Non-goals
 
 - The **content** of the brief — which rows exist, how relevance is decided, what a row says — is
   the provider's concern (e.g. a doctrine runtime), not phax's.
@@ -86,7 +130,7 @@ supplied.
 - Any **gating** behavior — that belongs to the gate/fix-loop legs, not here.
 - Turning pulled orientation into enforcement — orientation never becomes a contract.
 
-## 7. Acceptance criteria
+## 8. Acceptance criteria
 
 ### Brief is woven from planned files
 
@@ -118,7 +162,7 @@ Given no registered orient provider, when a phase is dispatched, then the phase 
 Given a pull that returns nothing, when it completes, then phax records the demand-without-supply
 occurrence. (refs §5.6)
 
-## 8. Open questions for implementation planning
+## 9. Open questions for implementation planning
 
 - **Row schema minimum.** The required row fields (id, title, severity, trigger) may need one more
   to let the agent self-budget which bodies to read. *Default:* the four named fields; extend only
@@ -127,9 +171,9 @@ occurrence. (refs §5.6)
   *Default:* record them in the run's existing trajectory/telemetry stream; artifact shape left to
   the plan.
 
-## 9. Implementation-planning note
+## 10. Implementation-planning note
 
 Settled: push-on-dispatch, index-not-content, pull-on-demand, and the strictly advisory posture.
-Left open: the exact row schema and where fed-forward briefs/pulls are recorded (§8). Constraint:
+Left open: the exact row schema and where fed-forward briefs/pulls are recorded (§9). Constraint:
 **phax stays generic** — it defines the index row shape and the push/pull hooks; the provider fills
 them. phax learns nothing about the provider's domain vocabulary.

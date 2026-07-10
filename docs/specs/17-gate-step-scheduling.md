@@ -6,7 +6,7 @@ Date: 2026-07-03
 
 Audience: implementation planning with Claude Code
 
-Scope: functional behavior only
+Scope: functional behavior and consumption surface
 
 ## 1. Context
 
@@ -72,7 +72,42 @@ WHEN a completion diagnostic's scope token is closed THE system SHALL fail the p
 WHILE a completion diagnostic's scope token is open THE system SHALL record the diagnostic as
 pending and SHALL NOT fail the phase for it.
 
-## 6. Non-goals
+## 6. Surface
+
+The diagnostic of the External Gate Steps spec gains a class and, on completion diagnostics, a
+scope token. The two-class vocabulary (`invariant` | `completion`) and the token's opacity are
+**normative**; the exact field spellings **indicative**:
+
+```json
+{ "diagnostics": [
+  { "rule": "TS_BOUNDARY_001", "class": "invariant",
+    "location": { "file": "apps/web/src/core/user.ts", "line": 12 },
+    "message": "core must not import web",
+    "repair": "skills/scope-boundaries.md" },
+  { "rule": "REQUIRED_WIRING_002", "class": "completion", "scope": "billing",
+    "location": { "file": "apps/web/src/core/billing/invoice.ts", "line": 1 },
+    "message": "billing capability has no webhook handler yet",
+    "repair": "skills/required-wiring.md" }
+] }
+```
+
+Closed-scope supply — per §9 default the provider derives and supplies the closed set per phase
+(that phax receives closed tokens is normative; the channel's form **indicative**):
+
+```json
+{ "phase": "phase-03", "closedScopes": ["billing"] }
+```
+
+A pending completion diagnostic is visible in the phase gate's record as recorded-not-failing,
+distinct from a failure (presence normative; rendering **indicative**):
+
+    gate: green — 1 completion diagnostic pending (scope "billing" still open)
+
+No new command — scheduling acts inside the existing gate evaluation and reporting.
+
+No visual UI — no design annex.
+
+## 7. Non-goals
 
 - The **content** of the audit and the **mapping of files to scopes** — the provider's concern;
   phax tracks closure and enforces the pending/failing rule, it does not compute scopes.
@@ -81,7 +116,7 @@ pending and SHALL NOT fail the phase for it.
 - **Incremental** execution and **live / production trace** checks — out of scope.
 - Explicitly **deferring a scope to a future run** — noted as a future concern, not specified here.
 
-## 7. Acceptance criteria
+## 8. Acceptance criteria
 
 ### Invariant fails at every phase
 
@@ -103,7 +138,7 @@ when that phase gate runs, then phax fails the phase. (refs §5.2, §5.3)
 Given a completion diagnostic still pending before the terminal phase, when the terminal phase gate
 runs, then its scope is treated as closed and phax fails if the diagnostic persists. (refs §5.2, §5.3)
 
-## 8. Open questions for implementation planning
+## 9. Open questions for implementation planning
 
 - **How closure is supplied.** phax may compute closed scopes from a provider-supplied file→scope
   mapping over the plan's per-phase files, or receive a per-phase closed-set directly from the
@@ -112,10 +147,10 @@ runs, then its scope is treated as closed and phax fails if the diagnostic persi
 - **Explicit deferral of a scope to a future run.** *Default:* out of scope here — every scope the
   run opens is closed by the terminal phase.
 
-## 9. Implementation-planning note
+## 10. Implementation-planning note
 
 Settled: the invariant-always / completion-when-closed failing rule, pending for open scopes, and
-the terminal phase closing all scopes. Left open: the closure-supply mechanism (§8). Depends on the
+the terminal phase closing all scopes. Left open: the closure-supply mechanism (§9). Depends on the
 **External Gate Steps** spec. Constraint: **phax stays generic** — scope tokens are opaque and phax
 encodes no audit semantics (no "prohibition", "obligation", or "scope" meaning); the provider
 lowers its meaning onto phax's thin scheduling vocabulary.

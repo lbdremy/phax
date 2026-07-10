@@ -6,7 +6,7 @@ Date: 2026-07-03
 
 Audience: implementation planning with Claude Code
 
-Scope: functional behavior only
+Scope: functional behavior and consumption surface
 
 ## 1. Context
 
@@ -71,7 +71,44 @@ IF no plan auditor is registered THEN THE system SHALL proceed with planning unc
 THE system SHALL withhold from the plan auditor every plan field other than the ordered phases and
 their touched files.
 
-## 6. Non-goals
+## 6. Surface
+
+Registration — the operator registers one plan auditor in `phax.json` (that it registers is
+normative; key spelling and command form **indicative**):
+
+```json
+"planAuditor": { "command": "steme audit-plan --json" }
+```
+
+Projection — what the auditor receives, derived from `phax-plan.json`'s per-phase
+`plannedFilesToCreate` / `plannedFilesToEdit`. Ordered phases and their files, nothing else, is
+**normative** (§5.1, §5.5); field spellings **indicative**. Withheld (normative): `model`,
+`effort`, prompts and plan anchors, commit metadata:
+
+```json
+{ "phases": [
+  { "id": "phase-01", "files": ["src/core/billing/invoice.ts", "src/core/billing/ports.ts"] },
+  { "id": "phase-02", "files": ["src/webRpc/billing.ts"] }
+] }
+```
+
+Findings — returned by the auditor, surfaced to the planning agent in the planning session and
+persisted alongside the plan (per §9 defaults). The advisory posture is **normative**; field
+spellings, surfacing and artifact form **indicative**:
+
+```json
+{ "findings": [
+  { "message": "phase-01 opens a billing capability; no later phase touches src/webhooks/**",
+    "phases": ["phase-01"] }
+] }
+```
+
+No new command — the handoff fires at plan finalization inside the existing planning flow (per §9
+default).
+
+No visual UI — no design annex.
+
+## 7. Non-goals
 
 - The **content** of the check — what relationships exist, what counts as a hole — is the auditor's
   concern, not phax's.
@@ -81,7 +118,7 @@ their touched files.
   concern, not specified here.
 - Auditing anything **beyond the projection** (prompts, model choice, phase internals).
 
-## 7. Acceptance criteria
+## 8. Acceptance criteria
 
 ### Auditor receives only the projection
 
@@ -102,17 +139,17 @@ by them. (refs §5.3)
 
 Given no registered plan auditor, when a plan is drafted, then planning proceeds unchanged. (refs §5.4)
 
-## 8. Open questions for implementation planning
+## 9. Open questions for implementation planning
 
 - **When the handoff fires.** At plan finalization only, or also on plan edits. *Default:* on plan
   finalization, before the run starts.
 - **How findings are surfaced.** Inline in the planning session vs a written artifact the planner
   reads. *Default:* surface in the planning session; persist alongside the plan for traceability.
 
-## 9. Implementation-planning note
+## 10. Implementation-planning note
 
 Settled: the minimal projection, the strictly advisory and non-blocking posture, and transparent
-behavior when no auditor is registered. Left open: handoff timing and surfacing form (§8).
+behavior when no auditor is registered. Left open: handoff timing and surfacing form (§9).
 Constraint: **phax stays generic** — it exposes the plan projection and a findings channel; the
 auditor supplies all meaning. This channel must not acquire teeth; the hard completeness check
 remains the terminal gate defined in the gate step scheduling spec.
