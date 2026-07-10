@@ -20,6 +20,7 @@ import {
   GateAttemptsExhaustedError,
   GateFailedError,
   HandoffPausedError,
+  ModelPreflightError,
   PhaseHadNoChangesError,
   RateLimitError,
   RegistryCorruptionError,
@@ -56,6 +57,7 @@ import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { ModelRouting } from "../schemas/modelRouting.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
 import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../domain/routing/defaults.js";
+import { preflightPhaseModels } from "../domain/routing/preflight.js";
 import { resolveModel } from "../domain/routing/resolve.js";
 import type { SecurityFilter } from "../domain/routing/types.js";
 import type { McpMode, SecurityMode } from "../domain/security/types.js";
@@ -181,6 +183,7 @@ export type ExecutePlanError =
   | UsageLimitError
   | SecurityEnforcementError
   | SecurityPreflightError
+  | ModelPreflightError
   | PhaseHadNoChangesError;
 
 export function mcpAllowlistPreflight(mcp: {
@@ -307,6 +310,38 @@ export function executePlan(
     // Preflight: verify all mcp.allow entries resolve to readable files before
     // any branch/worktree/agent work begins.
     yield* mcpAllowlistPreflight(config.security.mcp);
+
+    // Preflight: validate every phase's model and effort against the catalog
+    // before any git branch, worktree, or agent work begins.
+    const modelPreflight = preflightPhaseModels(plan.phases, routing, providerConfig);
+    if (modelPreflight.failures.length > 0) {
+      const lines: string[] = [
+        `Model preflight failed: ${modelPreflight.failures.length} phase(s) have invalid model configuration.`,
+      ];
+      for (const failure of modelPreflight.failures) {
+        lines.push(`\n  ${failure.phaseId} (${failure.model}/${failure.effort}):`);
+        for (const reason of failure.reasons) {
+          lines.push(`    - ${reason}`);
+        }
+        if (failure.alternatives.length > 0) {
+          lines.push(`    Alternatives:`);
+          for (const alt of failure.alternatives) {
+            lines.push(`      ${alt.id} (${alt.family}): ${alt.efforts.join(", ")}`);
+          }
+        }
+      }
+      return yield* Effect.fail(
+        new ModelPreflightError({
+          message: lines.join("\n"),
+          failures: modelPreflight.failures.map((f) => ({
+            phaseId: f.phaseId,
+            model: f.model,
+            effort: f.effort,
+            reasons: f.reasons,
+          })),
+        }),
+      );
+    }
 
     let branch;
     if (startIndex === 0) {

@@ -145,6 +145,16 @@ export class SecurityPreflightError extends Data.TaggedError("SecurityPreflightE
   missing: readonly string[];
 }> {}
 
+export class ModelPreflightError extends Data.TaggedError("ModelPreflightError")<{
+  message: string;
+  failures: readonly {
+    readonly phaseId: string;
+    readonly model: string;
+    readonly effort: string;
+    readonly reasons: readonly string[];
+  }[];
+}> {}
+
 export class ReviewHandoffArtifactMissingError extends Data.TaggedError(
   "ReviewHandoffArtifactMissingError",
 )<{
