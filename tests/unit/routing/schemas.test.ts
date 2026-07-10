@@ -1,11 +1,13 @@
 import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MODEL_ROUTING } from "../../../src/domain/routing/defaults.js";
+import {
+  DEFAULT_MODEL_ROUTING,
+  DEFAULT_PROVIDER_CONFIG,
+} from "../../../src/domain/routing/defaults.js";
 import {
   ModelFamilySchema,
   ProviderIdSchema,
   RelationshipSchema,
-  RoutingTierSchema,
   ThinkingLevelSchema,
   decodeModelRouting,
 } from "../../../src/schemas/modelRouting.js";
@@ -16,82 +18,30 @@ import type {
   Relationship,
   RoutingRequest,
   RoutingResolution,
-  RoutingTier,
   ThinkingLevel,
 } from "../../../src/domain/routing/types.js";
 
 // Compile-time shape check: if fields are removed from the domain types, these
-// type aliases fail. Exhaustive satisfies checks live in tests/type/routing.ts
-// (phase-03 scope).
+// type aliases fail. Exhaustive `satisfies` checks live in tests/type/routing.ts.
 type CompileTimeRoutingRequest = RoutingRequest;
 type CompileTimeRoutingResolution = RoutingResolution;
 
 const decodeProviderId = Schema.decodeUnknownEither(ProviderIdSchema);
 const decodeModelFamily = Schema.decodeUnknownEither(ModelFamilySchema);
 const decodeThinkingLevel = Schema.decodeUnknownEither(ThinkingLevelSchema);
-const decodeRoutingTier = Schema.decodeUnknownEither(RoutingTierSchema);
 const decodeRelationship = Schema.decodeUnknownEither(RelationshipSchema);
 
 const validModelRouting = {
-  version: 1,
+  version: 2,
   providerPriority: ["claude-code"],
   allowDowngrade: false,
-  defaultTier: "standard",
-  families: {
-    "claude-haiku": ["claude-haiku"],
-    "claude-sonnet": ["claude-sonnet"],
-    "claude-opus": ["claude-opus"],
-    "mistral-medium": ["mistral-medium"],
-    "openai-gpt": ["openai-gpt"],
-  },
-  tiers: {
-    cheap: { "claude-code": { family: "claude-haiku" } },
-    fast: { "claude-code": { family: "claude-haiku" } },
-    standard: {
-      "claude-code": { family: "claude-sonnet" },
-      "mistral-vibe": { family: "mistral-medium", thinking: "medium", relationship: "equivalent" },
-      "codex-cli": { family: "openai-gpt", thinking: "medium", relationship: "equivalent" },
+  equivalence: {
+    "gpt-5.5": {
+      medium: { claude: "claude-sonnet-4-6", effort: "medium", relation: "equivalent" },
+      xhigh: { claude: "claude-opus-4-8", effort: "medium", relation: "equivalent" },
     },
-    strong: {
-      "claude-code": { family: "claude-sonnet", effort: "high" },
-      "codex-cli": { family: "openai-gpt", thinking: "medium", relationship: "equivalent" },
-    },
-    very_strong: {
-      "claude-code": { family: "claude-sonnet", effort: "xhigh" },
-    },
-    "frontier-medium": {
-      "claude-code": { family: "claude-opus" },
-      "codex-cli": { family: "openai-gpt", thinking: "xhigh", relationship: "equivalent" },
-    },
-    "frontier-max": {
-      "claude-code": { family: "claude-opus", effort: "max" },
-      "codex-cli": { family: "openai-gpt", thinking: "max", relationship: "downgrade" },
-    },
-  },
-  normalization: {
-    "claude-haiku": { defaultTier: "cheap" },
-    "claude-sonnet": {
-      off: "cheap",
-      low: "fast",
-      medium: "standard",
-      high: "strong",
-      xhigh: "very_strong",
-      max: "frontier-medium",
-    },
-    "claude-opus": {
-      low: "strong",
-      medium: "frontier-medium",
-      high: "frontier-max",
-      xhigh: "frontier-max",
-      max: "frontier-max",
-    },
-    "mistral-medium": { defaultTier: "standard" },
-    "openai-gpt": { defaultTier: "standard" },
   },
   requestedModelNormalization: {
-    "claude-haiku-4-5-20251001": "claude-haiku",
-    "claude-sonnet-4-6": "claude-sonnet",
-    "claude-opus-4-7": "claude-opus",
     haiku: "claude-haiku",
     sonnet: "claude-sonnet",
     opus: "claude-opus",
@@ -104,29 +54,35 @@ const validProviderConfig = {
       enabled: true,
       executable: "claude",
       families: {
-        "claude-haiku": { model: "claude-haiku-4-5-20251001" },
-        "claude-sonnet": { model: "claude-sonnet-4-6" },
-        "claude-opus": { model: "claude-opus-4-7" },
-      },
-    },
-    "mistral-vibe": {
-      enabled: false,
-      executable: "vibe",
-      modelEnvVar: "VIBE_ACTIVE_MODEL",
-      defaultAgent: "auto-approve",
-      aliases: {
-        "mistral-medium/off": "phax-mistral-medium-3.5-off",
-        "mistral-medium/low": "phax-mistral-medium-3.5-low",
-        "mistral-medium/medium": "phax-mistral-medium-3.5-medium",
-        "mistral-medium/high": "phax-mistral-medium-3.5-high",
-        "mistral-medium/max": "phax-mistral-medium-3.5-max",
+        "claude-sonnet": {
+          models: [
+            {
+              id: "claude-sonnet-4-6",
+              efforts: ["low", "medium", "high", "max"],
+              status: "active",
+            },
+          ],
+        },
+        "claude-opus": {
+          models: [
+            {
+              id: "claude-opus-4-8",
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
+              status: "active",
+            },
+          ],
+        },
       },
     },
     "codex-cli": {
       enabled: false,
       executable: "codex",
       families: {
-        "openai-gpt": { model: "gpt-5.5" },
+        "openai-gpt": {
+          models: [
+            { id: "gpt-5.5", efforts: ["low", "medium", "high", "xhigh"], status: "active" },
+          ],
+        },
       },
     },
   },
@@ -181,37 +137,15 @@ describe("literal schemas", () => {
     expect(Either.isLeft(decodeThinkingLevel("insane"))).toBe(true);
   });
 
-  it("RoutingTierSchema accepts all valid tiers", () => {
-    const tiers: RoutingTier[] = [
-      "cheap",
-      "fast",
-      "standard",
-      "strong",
-      "very_strong",
-      "frontier-low",
-      "frontier-medium",
-      "frontier-high",
-      "frontier-xhigh",
-      "frontier-max",
-      "frontier-ultra",
+  it("RelationshipSchema accepts every relation including upgrade", () => {
+    const rels: Relationship[] = [
+      "exact",
+      "equivalent",
+      "upgrade",
+      "fallback",
+      "downgrade",
+      "no_equivalent",
     ];
-    for (const t of tiers) {
-      expect(Either.isRight(decodeRoutingTier(t))).toBe(true);
-    }
-  });
-
-  it("RoutingTierSchema rejects an invalid tier", () => {
-    expect(Either.isLeft(decodeRoutingTier("ultraviolet"))).toBe(true);
-  });
-
-  it("RoutingTierSchema rejects the removed legacy tier literals", () => {
-    for (const legacy of ["frontier", "max", "ultra"]) {
-      expect(Either.isLeft(decodeRoutingTier(legacy))).toBe(true);
-    }
-  });
-
-  it("RelationshipSchema accepts all valid relationships", () => {
-    const rels: Relationship[] = ["exact", "equivalent", "fallback", "downgrade", "no_equivalent"];
     for (const r of rels) {
       expect(Either.isRight(decodeRelationship(r))).toBe(true);
     }
@@ -222,8 +156,8 @@ describe("literal schemas", () => {
   });
 });
 
-describe("ModelRoutingSchema", () => {
-  it("decodes the spec §12 example", () => {
+describe("ModelRoutingSchema (v2)", () => {
+  it("decodes a minimal valid v2 config", () => {
     expect(Either.isRight(decodeModelRouting(validModelRouting))).toBe(true);
   });
 
@@ -231,15 +165,26 @@ describe("ModelRoutingSchema", () => {
     expect(Either.isRight(decodeModelRouting(DEFAULT_MODEL_ROUTING))).toBe(true);
   });
 
-  it("rejects a normalization map using a removed legacy tier literal", () => {
-    const result = decodeModelRouting({
-      ...validModelRouting,
-      normalization: {
-        ...validModelRouting.normalization,
-        "claude-opus": { low: "frontier", medium: "frontier", max: "max" },
-      },
-    });
+  it("rejects a version-1 config outright (version literal is 2)", () => {
+    const result = decodeModelRouting({ ...validModelRouting, version: 1 });
     expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("rejects the legacy tier scale — tiers is not a recognized key", () => {
+    const legacy = {
+      ...validModelRouting,
+      tiers: { standard: { "claude-code": { family: "claude-sonnet" } } },
+    };
+    expect(Either.isLeft(decodeModelRouting(legacy))).toBe(true);
+  });
+
+  it("rejects the legacy normalization / defaultTier fields", () => {
+    const legacy = {
+      ...validModelRouting,
+      defaultTier: "standard",
+      normalization: { "claude-sonnet": { medium: "standard" } },
+    };
+    expect(Either.isLeft(decodeModelRouting(legacy))).toBe(true);
   });
 
   it("rejects unknown top-level keys", () => {
@@ -255,55 +200,6 @@ describe("ModelRoutingSchema", () => {
     expect(Either.isLeft(result)).toBe(true);
   });
 
-  it("rejects an invalid routing tier in defaultTier", () => {
-    const result = decodeModelRouting({ ...validModelRouting, defaultTier: "ultraviolet" });
-    expect(Either.isLeft(result)).toBe(true);
-  });
-
-  it("rejects an invalid thinking level in a tier entry", () => {
-    const result = decodeModelRouting({
-      ...validModelRouting,
-      tiers: {
-        ...validModelRouting.tiers,
-        standard: {
-          "claude-code": { family: "claude-sonnet", thinking: "insane" },
-        },
-      },
-    });
-    expect(Either.isLeft(result)).toBe(true);
-  });
-
-  it("rejects an invalid model family in a tier entry", () => {
-    const result = decodeModelRouting({
-      ...validModelRouting,
-      tiers: {
-        ...validModelRouting.tiers,
-        standard: {
-          "claude-code": { family: "gpt-unknown" },
-        },
-      },
-    });
-    expect(Either.isLeft(result)).toBe(true);
-  });
-
-  it("accepts a normalization entry with defaultTier", () => {
-    const result = decodeModelRouting({
-      ...validModelRouting,
-      normalization: { "claude-haiku": { defaultTier: "cheap" } },
-    });
-    expect(Either.isRight(result)).toBe(true);
-  });
-
-  it("accepts a normalization entry with per-effort map", () => {
-    const result = decodeModelRouting({
-      ...validModelRouting,
-      normalization: {
-        "claude-sonnet": { off: "cheap", low: "fast", medium: "standard", high: "strong" },
-      },
-    });
-    expect(Either.isRight(result)).toBe(true);
-  });
-
   it("rejects an invalid model family in requestedModelNormalization value", () => {
     const result = decodeModelRouting({
       ...validModelRouting,
@@ -311,9 +207,37 @@ describe("ModelRoutingSchema", () => {
     });
     expect(Either.isLeft(result)).toBe(true);
   });
+
+  it("rejects an equivalence edge with an invalid ThinkingLevel", () => {
+    const result = decodeModelRouting({
+      ...validModelRouting,
+      equivalence: {
+        "gpt-5.5": {
+          medium: { claude: "claude-sonnet-4-6", effort: "insane", relation: "equivalent" },
+        },
+      },
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("rejects an equivalence edge with an invalid relation", () => {
+    const result = decodeModelRouting({
+      ...validModelRouting,
+      equivalence: {
+        "gpt-5.5": {
+          medium: { claude: "claude-sonnet-4-6", effort: "medium", relation: "close-enough" },
+        },
+      },
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
 });
 
-describe("ProviderConfigSchema", () => {
+describe("ProviderConfigSchema (per-entry efforts)", () => {
+  it("decodes the shipped DEFAULT_PROVIDER_CONFIG", () => {
+    expect(Either.isRight(decodeProviderConfig(DEFAULT_PROVIDER_CONFIG))).toBe(true);
+  });
+
   it("decodes the spec §13 example", () => {
     expect(Either.isRight(decodeProviderConfig(validProviderConfig))).toBe(true);
   });
@@ -357,5 +281,63 @@ describe("ProviderConfigSchema", () => {
       },
     });
     expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("rejects a family entry with an empty models array", () => {
+    const result = decodeProviderConfig({
+      providers: {
+        "claude-code": {
+          enabled: true,
+          executable: "claude",
+          families: { "claude-sonnet": { models: [] } },
+        },
+      },
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("rejects a catalog entry with an unknown status", () => {
+    const result = decodeProviderConfig({
+      providers: {
+        "claude-code": {
+          enabled: true,
+          executable: "claude",
+          families: {
+            "claude-sonnet": {
+              models: [{ id: "claude-sonnet-4-6", efforts: ["low"], status: "retired" }],
+            },
+          },
+        },
+      },
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("accepts coexisting versions as distinct catalog entries", () => {
+    const result = decodeProviderConfig({
+      providers: {
+        "claude-code": {
+          enabled: true,
+          executable: "claude",
+          families: {
+            "claude-opus": {
+              models: [
+                {
+                  id: "claude-opus-4-8",
+                  efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
+                  status: "active",
+                },
+                {
+                  id: "claude-opus-4-7",
+                  efforts: ["low", "medium", "high", "xhigh", "max"],
+                  status: "deprecated",
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+    expect(Either.isRight(result)).toBe(true);
   });
 });

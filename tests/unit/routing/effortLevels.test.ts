@@ -1,37 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { FAMILY_EFFORTS, isEffortSupported } from "../../../src/domain/routing/types.js";
-import type {
-  ClaudeHaikuEffort,
-  ClaudeOpusEffort,
-  ClaudeSonnetEffort,
-  EffortLevel,
-  MistralMediumEffort,
-  ModelFamily,
-  OpenAiGptEffort,
-} from "../../../src/domain/routing/types.js";
+import { DEFAULT_PROVIDER_CONFIG } from "../../../src/domain/routing/defaults.js";
+import { effortsFor, entryFor } from "../../../src/domain/routing/catalog.js";
+import type { ThinkingLevel } from "../../../src/domain/routing/types.js";
 
-describe("FAMILY_EFFORTS", () => {
-  it("contains exactly the five model families", () => {
-    const families = Object.keys(FAMILY_EFFORTS).toSorted();
-    expect(families).toEqual(
-      (
-        ["claude-haiku", "claude-opus", "claude-sonnet", "mistral-medium", "openai-gpt"] as const
-      ).toSorted(),
-    );
+// Efforts are declared per catalog entry (per version), not per family. This
+// suite pins the default catalog's per-entry effort sets so a regression in
+// DEFAULT_PROVIDER_CONFIG surfaces here.
+
+describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
+  it("claude-haiku-4-5-20251001 supports only none", () => {
+    const expected: readonly ThinkingLevel[] = ["none"];
+    expect(effortsFor("claude-haiku-4-5-20251001", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
   });
 
-  it("claude-haiku supports only none", () => {
-    const expected: readonly ClaudeHaikuEffort[] = ["none"];
-    expect(FAMILY_EFFORTS["claude-haiku"]).toEqual(expected);
+  it("claude-sonnet-4-6 supports low|medium|high|max", () => {
+    const expected: readonly ThinkingLevel[] = ["low", "medium", "high", "max"];
+    expect(effortsFor("claude-sonnet-4-6", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
   });
 
-  it("claude-sonnet supports low|medium|high|max", () => {
-    const expected: readonly ClaudeSonnetEffort[] = ["low", "medium", "high", "max"];
-    expect(FAMILY_EFFORTS["claude-sonnet"]).toEqual(expected);
-  });
-
-  it("claude-opus supports low|medium|high|xhigh|max|ultracode", () => {
-    const expected: readonly ClaudeOpusEffort[] = [
+  it("claude-opus-4-8 supports low|medium|high|xhigh|max|ultracode", () => {
+    const expected: readonly ThinkingLevel[] = [
       "low",
       "medium",
       "high",
@@ -39,70 +27,43 @@ describe("FAMILY_EFFORTS", () => {
       "max",
       "ultracode",
     ];
-    expect(FAMILY_EFFORTS["claude-opus"]).toEqual(expected);
+    expect(effortsFor("claude-opus-4-8", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
   });
 
-  it("mistral-medium supports off|low|medium|high|max", () => {
-    const expected: readonly MistralMediumEffort[] = ["off", "low", "medium", "high", "max"];
-    expect(FAMILY_EFFORTS["mistral-medium"]).toEqual(expected);
+  it("gpt-5.5 supports low|medium|high|xhigh", () => {
+    const expected: readonly ThinkingLevel[] = ["low", "medium", "high", "xhigh"];
+    expect(effortsFor("gpt-5.5", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
   });
 
-  it("openai-gpt supports low|medium|high|xhigh", () => {
-    const expected: readonly OpenAiGptEffort[] = ["low", "medium", "high", "xhigh"];
-    expect(FAMILY_EFFORTS["openai-gpt"]).toEqual(expected);
-  });
-
-  it("every ModelFamily key is present", () => {
-    const families: ModelFamily[] = [
-      "claude-haiku",
-      "claude-sonnet",
-      "claude-opus",
-      "mistral-medium",
-      "openai-gpt",
+  it("every mistral alias entry advertises exactly one effort", () => {
+    const aliases = [
+      { id: "phax-mistral-medium-3.5-off", effort: "off" as const },
+      { id: "phax-mistral-medium-3.5-low", effort: "low" as const },
+      { id: "phax-mistral-medium-3.5-medium", effort: "medium" as const },
+      { id: "phax-mistral-medium-3.5-high", effort: "high" as const },
+      { id: "phax-mistral-medium-3.5-max", effort: "max" as const },
     ];
-    for (const f of families) {
-      expect(FAMILY_EFFORTS[f]).toBeDefined();
-      expect(FAMILY_EFFORTS[f].length).toBeGreaterThan(0);
+    for (const { id, effort } of aliases) {
+      const efforts = effortsFor(id, DEFAULT_PROVIDER_CONFIG);
+      expect(efforts).toEqual([effort]);
     }
   });
 
-  it("every value in each family list is a valid EffortLevel", () => {
-    for (const [, efforts] of Object.entries(FAMILY_EFFORTS)) {
-      for (const effort of efforts) {
-        const asEffortLevel: EffortLevel = effort;
-        expect(typeof asEffortLevel).toBe("string");
-      }
+  it("every catalog entry is marked status active", () => {
+    const ids = [
+      "claude-haiku-4-5-20251001",
+      "claude-sonnet-4-6",
+      "claude-opus-4-8",
+      "gpt-5.5",
+      "phax-mistral-medium-3.5-off",
+      "phax-mistral-medium-3.5-low",
+      "phax-mistral-medium-3.5-medium",
+      "phax-mistral-medium-3.5-high",
+      "phax-mistral-medium-3.5-max",
+    ];
+    for (const id of ids) {
+      const loc = entryFor(id, DEFAULT_PROVIDER_CONFIG);
+      expect(loc?.entry.status).toBe("active");
     }
-  });
-});
-
-describe("isEffortSupported", () => {
-  it("returns true for supported effort per family", () => {
-    expect(isEffortSupported("claude-haiku", "none")).toBe(true);
-    expect(isEffortSupported("claude-sonnet", "low")).toBe(true);
-    expect(isEffortSupported("claude-sonnet", "medium")).toBe(true);
-    expect(isEffortSupported("claude-sonnet", "high")).toBe(true);
-    expect(isEffortSupported("claude-sonnet", "max")).toBe(true);
-    expect(isEffortSupported("claude-opus", "ultracode")).toBe(true);
-    expect(isEffortSupported("claude-opus", "xhigh")).toBe(true);
-    expect(isEffortSupported("mistral-medium", "off")).toBe(true);
-    expect(isEffortSupported("mistral-medium", "max")).toBe(true);
-    expect(isEffortSupported("openai-gpt", "xhigh")).toBe(true);
-    expect(isEffortSupported("openai-gpt", "low")).toBe(true);
-  });
-
-  it("returns false for unsupported effort per family", () => {
-    expect(isEffortSupported("claude-haiku", "low")).toBe(false);
-    expect(isEffortSupported("claude-haiku", "high")).toBe(false);
-    expect(isEffortSupported("claude-haiku", "ultracode")).toBe(false);
-    expect(isEffortSupported("claude-sonnet", "none")).toBe(false);
-    expect(isEffortSupported("claude-sonnet", "ultracode")).toBe(false);
-    expect(isEffortSupported("claude-sonnet", "xhigh")).toBe(false);
-    expect(isEffortSupported("claude-sonnet", "off")).toBe(false);
-    expect(isEffortSupported("openai-gpt", "ultracode")).toBe(false);
-    expect(isEffortSupported("openai-gpt", "none")).toBe(false);
-    expect(isEffortSupported("openai-gpt", "off")).toBe(false);
-    expect(isEffortSupported("mistral-medium", "ultracode")).toBe(false);
-    expect(isEffortSupported("mistral-medium", "none")).toBe(false);
   });
 });

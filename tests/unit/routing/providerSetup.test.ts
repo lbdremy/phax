@@ -11,9 +11,27 @@ const BASE_CONFIG: ProviderConfig = {
       enabled: true,
       executable: "claude",
       families: {
-        "claude-haiku": { model: "claude-haiku-4-5-20251001" },
-        "claude-sonnet": { model: "claude-sonnet-4-6" },
-        "claude-opus": { model: "claude-opus-4-7" },
+        "claude-haiku": {
+          models: [{ id: "claude-haiku-4-5-20251001", efforts: ["none"], status: "active" }],
+        },
+        "claude-sonnet": {
+          models: [
+            {
+              id: "claude-sonnet-4-6",
+              efforts: ["low", "medium", "high", "max"],
+              status: "active",
+            },
+          ],
+        },
+        "claude-opus": {
+          models: [
+            {
+              id: "claude-opus-4-7",
+              efforts: ["low", "medium", "high", "xhigh", "max"],
+              status: "active",
+            },
+          ],
+        },
       },
     },
     "mistral-vibe": {
@@ -21,16 +39,22 @@ const BASE_CONFIG: ProviderConfig = {
       executable: "vibe",
       modelEnvVar: "VIBE_ACTIVE_MODEL",
       defaultAgent: "auto-approve",
-      aliases: {
-        "mistral-medium/off": "phax-mistral-medium-3.5-off",
-        "mistral-medium/medium": "phax-mistral-medium-3.5-medium",
+      families: {
+        "mistral-medium": {
+          models: [
+            { id: "phax-mistral-medium-3.5-off", efforts: ["off"], status: "active" },
+            { id: "phax-mistral-medium-3.5-medium", efforts: ["medium"], status: "active" },
+          ],
+        },
       },
     },
     "codex-cli": {
       enabled: false,
       executable: "codex",
       families: {
-        "openai-gpt": { model: "gpt-5.5" },
+        "openai-gpt": {
+          models: [{ id: "gpt-5.5", efforts: ["low", "medium", "high"], status: "active" }],
+        },
       },
     },
   },
@@ -74,11 +98,12 @@ describe("planProviderConfig", () => {
           executable: "/usr/local/bin/vibe",
           modelEnvVar: "CUSTOM_VAR",
           defaultAgent: "custom-agent",
-          aliases: {
-            "mistral-medium/off": "my-alias",
-          },
           families: {
-            "mistral-medium": { model: "mistral-medium-3.5" },
+            "mistral-medium": {
+              models: [
+                { id: "phax-mistral-medium-3.5-medium", efforts: ["medium"], status: "active" },
+              ],
+            },
           },
         },
       },
@@ -91,8 +116,11 @@ describe("planProviderConfig", () => {
     expect(entry.executable).toBe("/usr/local/bin/vibe");
     expect(entry.modelEnvVar).toBe("CUSTOM_VAR");
     expect(entry.defaultAgent).toBe("custom-agent");
-    expect(entry.aliases).toEqual({ "mistral-medium/off": "my-alias" });
-    expect(entry.families).toEqual({ "mistral-medium": { model: "mistral-medium-3.5" } });
+    expect(entry.families).toEqual({
+      "mistral-medium": {
+        models: [{ id: "phax-mistral-medium-3.5-medium", efforts: ["medium"], status: "active" }],
+      },
+    });
   });
 
   it("is idempotent — running the plan's config back through yields no changes", () => {

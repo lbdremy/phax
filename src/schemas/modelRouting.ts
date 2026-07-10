@@ -21,71 +21,41 @@ export const ThinkingLevelSchema = Schema.Literal(
   "ultracode",
 );
 
-export const RoutingTierSchema = Schema.Literal(
-  "cheap",
-  "fast",
-  "standard",
-  "strong",
-  "very_strong",
-  "frontier-low",
-  "frontier-medium",
-  "frontier-high",
-  "frontier-xhigh",
-  "frontier-max",
-  "frontier-ultra",
-);
-
 export const RelationshipSchema = Schema.Literal(
   "exact",
   "equivalent",
+  "upgrade",
   "fallback",
   "downgrade",
   "no_equivalent",
 );
 
-const TierEntrySchema = Schema.Struct({
-  family: ModelFamilySchema,
-  effort: Schema.optional(ThinkingLevelSchema),
-  thinking: Schema.optional(ThinkingLevelSchema),
-  relationship: Schema.optional(RelationshipSchema),
+// A single directed edge from a non-Claude ("spoke") catalog entry at a given
+// effort to a Claude ("hub") catalog entry at a given effort. The relation is
+// stated relative to the hub — hub→spoke translation uses it directly,
+// spoke→hub translation inverts it (downgrade ↔ upgrade).
+const EquivalenceEdgeSchema = Schema.Struct({
+  claude: Schema.NonEmptyString,
+  effort: ThinkingLevelSchema,
+  relation: RelationshipSchema,
 });
 
-const DefaultTierNormalizationSchema = Schema.Struct({
-  defaultTier: RoutingTierSchema,
+// The key is a ThinkingLevel string but the record is inherently partial —
+// spoke entries support only a subset of efforts. Modeling the key as
+// Schema.String keeps the decoded type Record-shaped without forcing every
+// effort to be present.
+const EquivalenceSpokeSchema = Schema.Record({
+  key: Schema.String,
+  value: EquivalenceEdgeSchema,
 });
-
-const PerEffortNormalizationSchema = Schema.Struct({
-  none: Schema.optional(RoutingTierSchema),
-  off: Schema.optional(RoutingTierSchema),
-  low: Schema.optional(RoutingTierSchema),
-  medium: Schema.optional(RoutingTierSchema),
-  high: Schema.optional(RoutingTierSchema),
-  xhigh: Schema.optional(RoutingTierSchema),
-  max: Schema.optional(RoutingTierSchema),
-  ultracode: Schema.optional(RoutingTierSchema),
-});
-
-const NormalizationEntrySchema = Schema.Union(
-  DefaultTierNormalizationSchema,
-  PerEffortNormalizationSchema,
-);
 
 export const ModelRoutingSchema = Schema.Struct({
-  version: Schema.Literal(1),
+  version: Schema.Literal(2),
   providerPriority: Schema.NonEmptyArray(ProviderIdSchema),
   allowDowngrade: Schema.Boolean,
-  defaultTier: RoutingTierSchema,
-  families: Schema.Record({ key: Schema.String, value: Schema.Array(ModelFamilySchema) }),
-  tiers: Schema.Record({
+  equivalence: Schema.Record({
     key: Schema.String,
-    value: Schema.Record({
-      key: Schema.String,
-      value: TierEntrySchema,
-    }),
-  }),
-  normalization: Schema.Record({
-    key: Schema.String,
-    value: NormalizationEntrySchema,
+    value: EquivalenceSpokeSchema,
   }),
   requestedModelNormalization: Schema.Record({
     key: Schema.String,

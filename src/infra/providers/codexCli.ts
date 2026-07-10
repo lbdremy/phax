@@ -21,13 +21,11 @@ import { decodeClaudeSessionId } from "../../domain/branded.js";
 import type { SecurityPolicy } from "../../domain/security/types.js";
 import { classifyRateLimit } from "../../schemas/claudeOutput.js";
 import { findCodexResultEvent, hasCodexErroredResultEvent } from "../../schemas/codexOutput.js";
+import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import { persistSessionId } from "./sessionWriter.js";
 import { writeAgentErrorLog } from "./agentErrorLog.js";
 
-type CodexProviderEntry = {
-  readonly executable: string;
-  readonly families?: Record<string, { readonly model: string }> | undefined;
-};
+type CodexProviderEntry = ProviderConfig["providers"][string];
 
 function wrapFsError(err: unknown): FsError {
   return new FsError({
@@ -140,7 +138,7 @@ export function buildCodexArgs(
   options: AgentRunOptions,
   resumeSessionId?: string,
 ): string[] {
-  const model = entry.families?.["openai-gpt"]?.model ?? options.model;
+  const model = entry.families?.["openai-gpt"]?.models?.[0]?.id ?? options.model;
   const securityFlags = buildCodexSecurityFlags(options.security);
   const commonFlags: string[] = [
     "--json",
@@ -226,7 +224,7 @@ export function buildCodexCompletionArgs(
   entry: CodexProviderEntry,
   options: CompletionOptions,
 ): string[] {
-  const model = entry.families?.["openai-gpt"]?.model ?? options.model;
+  const model = entry.families?.["openai-gpt"]?.models?.[0]?.id ?? options.model;
   // `sandbox_mode="read-only"` is the network seal: it grants no write sandbox
   // and denies subprocess network outright. The `sandbox_workspace_write.*`
   // config table (including `network_access`) only takes effect in

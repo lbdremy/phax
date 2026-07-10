@@ -46,15 +46,22 @@ function makeOutput() {
 }
 
 describe("runAgentModels", () => {
-  it("prints provider priority and tiers, exits 0", async () => {
+  it("prints provider priority and the catalog, exits 0", async () => {
     const { out, lines } = makeOutput();
     const code = await runAgentModels(out);
     expect(code).toBe(0);
     const text = lines.join("\n");
     expect(text).toContain("Provider priority:");
     expect(text).toContain("claude-code");
-    expect(text).toContain("Tiers:");
-    expect(text).toContain("standard:");
+    expect(text).toContain("Catalog:");
+    expect(text).toContain("claude-sonnet-4-6");
+    expect(text).toContain("efforts:");
+    // The tier scale is gone.
+    expect(text).not.toContain("Tiers:");
+    expect(text).not.toContain("standard:");
+    // The equivalence table is surfaced.
+    expect(text).toContain("Equivalence (spoke → Claude hub):");
+    expect(text).toContain("gpt-5.5");
   });
 
   it("marks disabled providers", async () => {
@@ -90,8 +97,10 @@ describe("runAgentResolve", () => {
     expect(code).toBe(0);
     const text = lines.join("\n");
     expect(text).toContain("claude-sonnet-4-6");
-    expect(text).toContain("standard");
     expect(text).toContain("claude-code");
+    expect(text).toContain("Relationship:");
+    // The tier line is removed.
+    expect(text).not.toContain("Normalized tier:");
   });
 
   it("outputs valid JSON when --json is set", async () => {

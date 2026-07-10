@@ -12,9 +12,14 @@ import {
 } from "../../../src/schemas/codexOutput.js";
 
 const baseEntry = {
+  enabled: true,
   executable: "codex",
-  families: { "openai-gpt": { model: "gpt-5.5" } },
-};
+  families: {
+    "openai-gpt": {
+      models: [{ id: "gpt-5.5", efforts: ["low", "medium", "high", "xhigh"], status: "active" }],
+    },
+  },
+} as const;
 
 const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const sampleLines = readFileSync(join(fixtureDir, "codex-exec-sample.jsonl"), "utf8")

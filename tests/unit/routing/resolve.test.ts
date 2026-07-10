@@ -7,6 +7,11 @@ import { resolveModel } from "../../../src/domain/routing/resolve.js";
 import type { ModelRouting } from "../../../src/schemas/modelRouting.js";
 import type { ProviderConfig } from "../../../src/schemas/providerConfig.js";
 
+const claudeOnly: ModelRouting = {
+  ...DEFAULT_MODEL_ROUTING,
+  providerPriority: ["claude-code"],
+};
+
 const mistralPriority: ModelRouting = {
   ...DEFAULT_MODEL_ROUTING,
   providerPriority: ["mistral-vibe", "codex-cli", "claude-code"],
@@ -17,13 +22,7 @@ const codexPriority: ModelRouting = {
   providerPriority: ["codex-cli", "claude-code"],
 };
 
-const claudeOnly: ModelRouting = {
-  ...DEFAULT_MODEL_ROUTING,
-  providerPriority: ["claude-code"],
-};
-
-// All non-Claude providers enabled, for §15 example tests that demonstrate routing behaviour.
-const allEnabledProviderConfig: ProviderConfig = {
+const allEnabled: ProviderConfig = {
   providers: {
     ...DEFAULT_PROVIDER_CONFIG.providers,
     "mistral-vibe": { ...DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"]!, enabled: true },
@@ -31,116 +30,167 @@ const allEnabledProviderConfig: ProviderConfig = {
   },
 };
 
-describe("resolveModel — spec §15 examples", () => {
-  it("Example 1: sonnet/medium with mistral priority → mistral-vibe/mistral-medium/medium (equivalent)", () => {
+describe("resolveModel — native same-family passthrough", () => {
+  it("Claude request on claude-code runs the versioned id directly (exact)", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
-      mistralPriority,
-      allEnabledProviderConfig,
-    );
-
-    expect(result.requested.family).toBe("claude-sonnet");
-    expect(result.requested.effort).toBe("medium");
-    expect(result.normalizedTier).toBe("standard");
-    expect(result.selected.provider).toBe("mistral-vibe");
-    expect(result.selected.family).toBe("mistral-medium");
-    expect(result.selected.thinking).toBe("medium");
-    expect(result.selected.concreteModel).toBe("phax-mistral-medium-3.5-medium");
-    expect(result.relationship).toBe("equivalent");
-  });
-
-  it("Example 2: sonnet/high with codex priority → codex-cli/openai-gpt/medium (equivalent)", () => {
-    const result = resolveModel(
-      { model: "claude-sonnet-4-6", effort: "high" },
-      codexPriority,
-      allEnabledProviderConfig,
-    );
-
-    expect(result.normalizedTier).toBe("strong");
-    expect(result.selected.provider).toBe("codex-cli");
-    expect(result.selected.family).toBe("openai-gpt");
-    expect(result.selected.thinking).toBe("medium");
-    expect(result.selected.concreteModel).toBe("gpt-5.5");
-    expect(result.relationship).toBe("equivalent");
-  });
-
-  it("Example 3: opus/medium with mistral priority + allowDowngrade=true → codex-cli/openai-gpt/xhigh (equivalent)", () => {
-    const result = resolveModel(
-      { model: "claude-opus-4-8", effort: "medium" },
-      { ...mistralPriority, allowDowngrade: true },
-      allEnabledProviderConfig,
-    );
-
-    expect(result.normalizedTier).toBe("frontier-medium");
-    expect(result.selected.provider).toBe("codex-cli");
-    expect(result.selected.family).toBe("openai-gpt");
-    expect(result.selected.thinking).toBe("xhigh");
-    expect(result.relationship).toBe("equivalent");
-  });
-
-  it("Example 4a: opus/high with mistral priority + allowDowngrade=true → codex-cli (equivalent)", () => {
-    const result = resolveModel(
-      { model: "claude-opus-4-8", effort: "high" },
-      { ...mistralPriority, allowDowngrade: true },
-      allEnabledProviderConfig,
-    );
-
-    expect(result.normalizedTier).toBe("frontier-high");
-    expect(result.selected.provider).toBe("codex-cli");
-    expect(result.selected.family).toBe("openai-gpt");
-    expect(result.selected.thinking).toBe("xhigh");
-    expect(result.relationship).toBe("equivalent");
-  });
-
-  it("Example 4b: opus/high with mistral priority + allowDowngrade=false → claude-code/claude-opus (no silent downgrade)", () => {
-    const result = resolveModel(
-      { model: "claude-opus-4-8", effort: "high" },
-      { ...mistralPriority, allowDowngrade: false },
+      claudeOnly,
       DEFAULT_PROVIDER_CONFIG,
     );
+    expect(result.requested.family).toBe("claude-sonnet");
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-4-6");
+    expect(result.selected.thinking).toBe("medium");
+    expect(result.relationship).toBe("exact");
+  });
 
-    expect(result.normalizedTier).toBe("frontier-high");
+  it("Opus request on claude-code preserves the requested effort (exact)", () => {
+    const result = resolveModel(
+      { model: "claude-opus-4-8", effort: "ultracode" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-opus");
     expect(result.selected.concreteModel).toBe("claude-opus-4-8");
+    expect(result.selected.thinking).toBe("ultracode");
+    expect(result.relationship).toBe("exact");
   });
 
-  it("Example 5: opus/max with codex priority + allowDowngrade=true → codex-cli/openai-gpt/xhigh (downgrade)", () => {
+  it("clamps a Sonnet request whose effort is not in the entry's efforts (equivalent)", () => {
+    // claude-sonnet-4-6 supports low/medium/high/max but not xhigh; nearest is high.
     const result = resolveModel(
-      { model: "claude-opus-4-8", effort: "max" },
-      { ...codexPriority, allowDowngrade: true },
-      allEnabledProviderConfig,
+      { model: "claude-sonnet-4-6", effort: "xhigh" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
     );
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.thinking).toBe("high");
+    expect(result.relationship).toBe("equivalent");
+  });
 
-    expect(result.normalizedTier).toBe("frontier-max");
+  it("clean-install default resolves same-family Claude natively (mistral/codex disabled)", () => {
+    const result = resolveModel(
+      { model: "claude-sonnet-4-6", effort: "medium" },
+      DEFAULT_MODEL_ROUTING,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.relationship).toBe("exact");
+  });
+
+  it("resolves a spoke id on its own spoke provider natively (exact)", () => {
+    const result = resolveModel({ model: "gpt-5.5", effort: "medium" }, codexPriority, allEnabled);
+    expect(result.selected.provider).toBe("codex-cli");
+    expect(result.selected.family).toBe("openai-gpt");
+    expect(result.selected.concreteModel).toBe("gpt-5.5");
+    expect(result.selected.thinking).toBe("medium");
+    expect(result.relationship).toBe("exact");
+  });
+});
+
+describe("resolveModel — cross-family translation via the Claude hub", () => {
+  it("claude-sonnet/medium translates to codex-cli/gpt-5.5/medium (equivalent)", () => {
+    const result = resolveModel(
+      { model: "claude-sonnet-4-6", effort: "medium" },
+      codexPriority,
+      allEnabled,
+    );
+    expect(result.selected.provider).toBe("codex-cli");
+    expect(result.selected.family).toBe("openai-gpt");
+    expect(result.selected.concreteModel).toBe("gpt-5.5");
+    expect(result.selected.thinking).toBe("medium");
+    expect(result.relationship).toBe("equivalent");
+  });
+
+  it("claude-sonnet/medium with mistral priority selects mistral's medium alias (equivalent)", () => {
+    const result = resolveModel(
+      { model: "claude-sonnet-4-6", effort: "medium" },
+      mistralPriority,
+      allEnabled,
+    );
+    expect(result.selected.provider).toBe("mistral-vibe");
+    expect(result.selected.family).toBe("mistral-medium");
+    expect(result.selected.concreteModel).toBe("phax-mistral-medium-3.5-medium");
+    expect(result.selected.thinking).toBe("medium");
+    expect(result.relationship).toBe("equivalent");
+  });
+
+  it("claude-opus/medium translates to codex-cli/gpt-5.5/xhigh via the hub (equivalent)", () => {
+    const result = resolveModel(
+      { model: "claude-opus-4-8", effort: "medium" },
+      codexPriority,
+      allEnabled,
+    );
+    expect(result.selected.provider).toBe("codex-cli");
+    expect(result.selected.family).toBe("openai-gpt");
+    expect(result.selected.concreteModel).toBe("gpt-5.5");
+    expect(result.selected.thinking).toBe("xhigh");
+    expect(result.relationship).toBe("equivalent");
+  });
+
+  it("gpt-5.5/medium translates to claude-code/claude-sonnet-4-6/medium via inverted hub edge", () => {
+    // gpt-5.5 medium is anchored to claude-sonnet-4-6/medium (equivalent).
+    const result = resolveModel({ model: "gpt-5.5", effort: "medium" }, claudeOnly, allEnabled);
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-4-6");
+    expect(result.selected.thinking).toBe("medium");
+    // spoke→hub inverts the stored relation; equivalent is self-inverse.
+    expect(result.relationship).toBe("equivalent");
+  });
+});
+
+describe("resolveModel — allowDowngrade floor", () => {
+  it("skips a downgrade edge when allowDowngrade=false, falling to claude-code native", () => {
+    const routing: ModelRouting = {
+      ...DEFAULT_MODEL_ROUTING,
+      providerPriority: ["codex-cli", "claude-code"],
+      allowDowngrade: false,
+      equivalence: {
+        ...DEFAULT_MODEL_ROUTING.equivalence,
+        "gpt-5.5": {
+          ...DEFAULT_MODEL_ROUTING.equivalence["gpt-5.5"]!,
+          xhigh: { claude: "claude-opus-4-8", effort: "max", relation: "downgrade" },
+        },
+      },
+    };
+    const result = resolveModel({ model: "claude-opus-4-8", effort: "max" }, routing, allEnabled);
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-opus");
+    expect(result.relationship).toBe("exact");
+  });
+
+  it("honours a downgrade edge when allowDowngrade=true", () => {
+    const routing: ModelRouting = {
+      ...DEFAULT_MODEL_ROUTING,
+      providerPriority: ["codex-cli", "claude-code"],
+      allowDowngrade: true,
+      equivalence: {
+        ...DEFAULT_MODEL_ROUTING.equivalence,
+        "gpt-5.5": {
+          ...DEFAULT_MODEL_ROUTING.equivalence["gpt-5.5"]!,
+          xhigh: { claude: "claude-opus-4-8", effort: "max", relation: "downgrade" },
+        },
+      },
+    };
+    const result = resolveModel({ model: "claude-opus-4-8", effort: "max" }, routing, allEnabled);
     expect(result.selected.provider).toBe("codex-cli");
     expect(result.selected.family).toBe("openai-gpt");
     expect(result.selected.thinking).toBe("xhigh");
     expect(result.relationship).toBe("downgrade");
   });
 
-  it("Example 6: opus/low with codex priority + allowDowngrade=true → codex-cli/openai-gpt/high (equivalent)", () => {
-    const result = resolveModel(
-      { model: "claude-opus-4-8", effort: "low" },
-      { ...codexPriority, allowDowngrade: true },
-      allEnabledProviderConfig,
-    );
-
-    expect(result.normalizedTier).toBe("frontier-low");
-    expect(result.selected.provider).toBe("codex-cli");
-    expect(result.selected.family).toBe("openai-gpt");
-    expect(result.selected.thinking).toBe("high");
-    expect(result.relationship).toBe("equivalent");
-  });
-
-  it("Example 7: opus/ultracode has no codex peer; resolves to claude-code/claude-opus/ultracode", () => {
+  it("skips a no_equivalent edge when allowDowngrade=false", () => {
+    // Opus/ultracode has no gpt-5.5 anchor in the default table → codex-cli
+    // fails to translate and we fall through to claude-code.
     const result = resolveModel(
       { model: "claude-opus-4-8", effort: "ultracode" },
-      { ...codexPriority, allowDowngrade: true },
-      allEnabledProviderConfig,
+      { ...codexPriority, allowDowngrade: false },
+      allEnabled,
     );
-
-    expect(result.normalizedTier).toBe("frontier-ultra");
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-opus");
     expect(result.selected.thinking).toBe("ultracode");
@@ -148,167 +198,74 @@ describe("resolveModel — spec §15 examples", () => {
   });
 });
 
-describe("resolveModel — additional behavior", () => {
-  it("routes unknown requested model ids to defaultTier with family claude-sonnet", () => {
+describe("resolveModel — terminal claude-code fallback", () => {
+  it("skips a disabled provider even when its family entry exists", () => {
+    // mistral-vibe is disabled in DEFAULT_PROVIDER_CONFIG; the walk falls
+    // through to claude-code native.
     const result = resolveModel(
-      { model: "totally-unknown-vendor-x1", effort: "high" },
-      claudeOnly,
+      { model: "claude-sonnet-4-6", effort: "medium" },
+      mistralPriority,
       DEFAULT_PROVIDER_CONFIG,
     );
-
-    expect(result.requested.family).toBe("claude-sonnet");
-    expect(result.normalizedTier).toBe(DEFAULT_MODEL_ROUTING.defaultTier);
     expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.relationship).toBe("exact");
   });
 
-  it("uses the heuristic when an unconfigured id contains 'sonnet'", () => {
+  it("falls to claude-code when every non-Claude provider is disabled", () => {
     const result = resolveModel(
-      { model: "claude-sonnet-9-9", effort: "medium" },
-      claudeOnly,
+      { model: "claude-opus-4-8", effort: "ultracode" },
+      mistralPriority,
       DEFAULT_PROVIDER_CONFIG,
     );
-
-    expect(result.requested.family).toBe("claude-sonnet");
-    expect(result.normalizedTier).toBe("standard");
-  });
-
-  it("uses the heuristic for an unconfigured 'gpt' id", () => {
-    const result = resolveModel(
-      { model: "gpt-6-mini", effort: "medium" },
-      claudeOnly,
-      DEFAULT_PROVIDER_CONFIG,
-    );
-
-    expect(result.requested.family).toBe("openai-gpt");
-  });
-
-  it("resolves haiku/medium to cheap tier and clamps to claude-haiku/none (equivalent)", () => {
-    const result = resolveModel(
-      { model: "haiku", effort: "medium" },
-      claudeOnly,
-      DEFAULT_PROVIDER_CONFIG,
-    );
-
-    expect(result.normalizedTier).toBe("cheap");
     expect(result.selected.provider).toBe("claude-code");
-    expect(result.selected.family).toBe("claude-haiku");
-    expect(result.selected.thinking).toBe("none");
-    expect(result.selected.concreteModel).toBe("claude-haiku-4-5-20251001");
+    expect(result.selected.family).toBe("claude-opus");
+    expect(result.selected.thinking).toBe("ultracode");
+    expect(result.relationship).toBe("exact");
+  });
+
+  it("routes unknown ids through the substring heuristic to claude-code", () => {
+    const result = resolveModel(
+      { model: "totally-unknown-model", effort: "medium" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    // Unknown id → familyOfId misses, fallback: claude-sonnet.
+    expect(result.requested.family).toBe("claude-sonnet");
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+  });
+
+  it("preserves selected family when heuristic matches (e.g., unknown opus id)", () => {
+    const result = resolveModel(
+      { model: "claude-opus-9-9", effort: "high" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.requested.family).toBe("claude-opus");
+    expect(result.selected.family).toBe("claude-opus");
+    // Requested id not in catalog → equivalent (substitution).
     expect(result.relationship).toBe("equivalent");
   });
+});
 
-  it("skips a Vibe candidate when the alias is missing in providerCfg", () => {
-    const providerCfgNoAlias: ProviderConfig = {
-      providers: {
-        ...DEFAULT_PROVIDER_CONFIG.providers,
-        "mistral-vibe": {
-          enabled: true,
-          executable: "vibe",
-          modelEnvVar: "VIBE_ACTIVE_MODEL",
-          defaultAgent: "auto-approve",
-          aliases: {
-            // intentionally missing mistral-medium/medium
-            "mistral-medium/low": "phax-mistral-medium-3.5-low",
-          },
-        },
-      },
-    };
-
+describe("resolveModel — reason and skippedForSecurity", () => {
+  it("mentions the selected provider and family in the reason", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
       mistralPriority,
-      providerCfgNoAlias,
+      allEnabled,
     );
-
-    expect(result.selected.provider).not.toBe("mistral-vibe");
-  });
-
-  it("skips a disabled provider even when its concrete model exists", () => {
-    // mistral-vibe is disabled in DEFAULT_PROVIDER_CONFIG but its alias for
-    // mistral-medium/medium is present. The enabled gate must skip it.
-    const result = resolveModel(
-      { model: "claude-sonnet-4-6", effort: "medium" },
-      mistralPriority,
-      DEFAULT_PROVIDER_CONFIG,
-    );
-
-    expect(result.selected.provider).toBe("claude-code");
-    expect(result.selected.family).toBe("claude-sonnet");
-    expect(result.relationship).toBe("exact");
-  });
-
-  it("clean-install default resolves every phase to claude-code", () => {
-    // With the §12 default, mistral-vibe and codex-cli are first in providerPriority
-    // but ship enabled: false — the enabled gate must skip them so the result is
-    // identical to a claude-code-only install.
-    const result = resolveModel(
-      { model: "claude-sonnet-4-6", effort: "medium" },
-      DEFAULT_MODEL_ROUTING,
-      DEFAULT_PROVIDER_CONFIG,
-    );
-
-    expect(result.selected.provider).toBe("claude-code");
-    expect(result.selected.family).toBe("claude-sonnet");
-    expect(result.relationship).toBe("exact");
-  });
-
-  it("classifies a same-family same-effort selection as exact", () => {
-    const result = resolveModel(
-      { model: "claude-sonnet-4-6", effort: "medium" },
-      claudeOnly,
-      DEFAULT_PROVIDER_CONFIG,
-    );
-
-    expect(result.selected.provider).toBe("claude-code");
-    expect(result.selected.family).toBe("claude-sonnet");
-    expect(result.relationship).toBe("exact");
-  });
-
-  it("emits a reason string that mentions the selected provider and tier", () => {
-    const result = resolveModel(
-      { model: "claude-sonnet-4-6", effort: "medium" },
-      mistralPriority,
-      allEnabledProviderConfig,
-    );
-
     expect(result.reason).toMatch(/mistral-vibe/);
-    expect(result.reason).toMatch(/standard/);
     expect(result.reason).toMatch(/equivalent/);
-  });
-
-  it("each Opus effort routes to its own frontier-* tier with claude-code", () => {
-    const cases = [
-      { effort: "low", tier: "frontier-low" },
-      { effort: "medium", tier: "frontier-medium" },
-      { effort: "high", tier: "frontier-high" },
-      { effort: "xhigh", tier: "frontier-xhigh" },
-      { effort: "max", tier: "frontier-max" },
-      { effort: "ultracode", tier: "frontier-ultra" },
-    ] as const;
-
-    for (const { effort, tier } of cases) {
-      const result = resolveModel(
-        { model: "claude-opus-4-8", effort },
-        claudeOnly,
-        DEFAULT_PROVIDER_CONFIG,
-      );
-
-      expect(result.normalizedTier).toBe(tier);
-      expect(result.selected.provider).toBe("claude-code");
-      expect(result.selected.family).toBe("claude-opus");
-      expect(result.selected.thinking).toBe(effort);
-      expect(result.selected.concreteModel).toBe("claude-opus-4-8");
-      expect(result.relationship).toBe("exact");
-    }
   });
 
   it("omits skippedForSecurity when no securityFilter is supplied", () => {
     const result = resolveModel(
       { model: "claude-sonnet-4-6", effort: "medium" },
       mistralPriority,
-      allEnabledProviderConfig,
+      allEnabled,
     );
-
     expect(result.skippedForSecurity).toBeUndefined();
     expect(result.reason).not.toMatch(/Skipped for security/);
   });

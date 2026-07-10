@@ -1,12 +1,6 @@
 import type { RunId } from "../branded.js";
 import type { SecurityMode } from "../security/types.js";
-import type {
-  ModelFamily,
-  ProviderId,
-  Relationship,
-  RoutingTier,
-  ThinkingLevel,
-} from "../routing/types.js";
+import type { ModelFamily, ProviderId, Relationship, ThinkingLevel } from "../routing/types.js";
 
 export interface StateTransitionTelemetryEvent {
   readonly type: "state.transition";
@@ -84,7 +78,6 @@ export interface ModelResolvedTelemetryEvent {
   readonly operationId?: string;
   readonly requestedFamily: ModelFamily;
   readonly requestedEffort: ThinkingLevel;
-  readonly normalizedTier: RoutingTier;
   readonly selectedProvider: ProviderId;
   readonly selectedFamily: ModelFamily;
   readonly selectedConcreteModel: string;

@@ -44,28 +44,33 @@ export async function runAgentModels(out: OutputPort): Promise<number> {
   const { routing, providerConfig } = configs;
 
   out.log(`Provider priority: ${routing.providerPriority.join(" → ")}`);
+  out.log(`Allow downgrade: ${routing.allowDowngrade}`);
   out.log("");
-  out.log("Tiers:");
+  out.log("Catalog:");
 
-  const tiers = routing.tiers as Record<
-    string,
-    Record<string, { family: string; effort?: string; thinking?: string; relationship?: string }>
-  >;
+  for (const [providerId, providerEntry] of Object.entries(providerConfig.providers)) {
+    const enabledFlag = providerEntry.enabled ? "" : " (disabled)";
+    out.log(`  ${providerId}${enabledFlag}:`);
+    const families = providerEntry.families ?? {};
+    for (const [family, familyEntry] of Object.entries(families)) {
+      out.log(`    ${family}:`);
+      for (const model of familyEntry.models) {
+        const statusFlag = model.status === "deprecated" ? " (deprecated)" : "";
+        out.log(`      ${model.id}${statusFlag}  efforts: ${model.efforts.join(", ")}`);
+      }
+    }
+  }
 
-  for (const tier of Object.keys(tiers)) {
-    const providers = tiers[tier];
-    out.log(`  ${tier}:`);
-    for (const [provider, entry] of Object.entries(providers ?? {})) {
-      const parts: string[] = [`family=${entry.family}`];
-      if (entry.effort !== undefined) parts.push(`effort=${entry.effort}`);
-      if (entry.thinking !== undefined) parts.push(`thinking=${entry.thinking}`);
-      if (entry.relationship !== undefined) parts.push(`relationship=${entry.relationship}`);
-      const enabledFlag = providerConfig.providers[
-        provider as keyof typeof providerConfig.providers
-      ]?.enabled
-        ? ""
-        : " (disabled)";
-      out.log(`    ${provider}: ${parts.join(", ")}${enabledFlag}`);
+  const spokes = Object.keys(routing.equivalence);
+  if (spokes.length > 0) {
+    out.log("");
+    out.log("Equivalence (spoke → Claude hub):");
+    for (const spokeId of spokes) {
+      const byEffort = routing.equivalence[spokeId] ?? {};
+      out.log(`  ${spokeId}:`);
+      for (const [effort, edge] of Object.entries(byEffort)) {
+        out.log(`    ${effort} → ${edge.claude}/${edge.effort} (${edge.relation})`);
+      }
     }
   }
 
@@ -104,7 +109,6 @@ export async function runAgentResolve(opts: AgentResolveOptions, out: OutputPort
   out.log(
     `Requested:        ${resolution.requested.model} (${resolution.requested.family}) @ ${resolution.requested.effort}`,
   );
-  out.log(`Normalized tier:  ${resolution.normalizedTier}`);
   out.log(`Selected provider: ${resolution.selected.provider}`);
   out.log(`Selected family:  ${resolution.selected.family}`);
   if (resolution.selected.thinking !== undefined) {

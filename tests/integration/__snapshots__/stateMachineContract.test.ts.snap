@@ -44,9 +44,8 @@ exports[`State Machine Contract > snapshots the ordered semantic trace for a hap
     "type": "state.transition",
   },
   {
-    "normalizedTier": "fast",
     "operationId": "phase-01",
-    "reason": "Provider priority selected claude-code; claude-sonnet/low maps to tier fast; claude-code provides claude-sonnet/low (exact).",
+    "reason": "Provider priority selected claude-code; claude-sonnet/low runs natively on claude-code as claude-sonnet-4-6/low (exact).",
     "relationship": "exact",
     "requestedEffort": "low",
     "requestedFamily": "claude-sonnet",
