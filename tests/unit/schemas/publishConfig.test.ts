@@ -15,7 +15,7 @@ const minimalValidPhaxConfig = {
   version: 1,
   name: "test",
   state: { root: ".phax" },
-  gateProfiles: { full: ["pnpm test"] },
+  gateProfiles: { full: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] },
 } as const;
 
 describe("PublishConfigSchema", () => {

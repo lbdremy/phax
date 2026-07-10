@@ -69,7 +69,13 @@ export function initProject(input: { cwd: string; force?: boolean }): InitResult
     version: 1,
     name,
     gateProfiles: {
-      fast: ["echo 'replace with your gate commands in phax.json'"],
+      standard: [
+        {
+          command: "echo 'replace with your gate commands in phax.json'",
+          surface: "local",
+          firing: "every-phase",
+        },
+      ],
     },
   };
 

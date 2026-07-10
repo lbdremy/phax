@@ -6,7 +6,9 @@ function makeProject(overrides: Partial<PhaxConfig> = {}): PhaxConfig {
   return {
     version: 1,
     name: "test",
-    gateProfiles: { fast: ["pnpm test"] as const },
+    gateProfiles: {
+      fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" as const }],
+    },
     ...overrides,
   } as PhaxConfig;
 }
@@ -176,33 +178,71 @@ describe("mergeConfigLayers", () => {
   describe("gateProfiles: union by key", () => {
     it("merges keys from all layers", () => {
       const project = makeProject({
-        gateProfiles: { full: ["pnpm check:full"] as const },
+        gateProfiles: {
+          full: [{ command: "pnpm check:full", surface: "local", firing: "every-phase" as const }],
+        },
       });
-      const globalUser = makeOverlay({ gateProfiles: { fast: ["pnpm test:unit"] as const } });
-      const localUser = makeOverlay({ gateProfiles: { dev: ["pnpm dev"] as const } });
+      const globalUser = makeOverlay({
+        gateProfiles: {
+          fast: [{ command: "pnpm test:unit", surface: "local", firing: "every-phase" as const }],
+        },
+      });
+      const localUser = makeOverlay({
+        gateProfiles: {
+          dev: [{ command: "pnpm dev", surface: "local", firing: "every-phase" as const }],
+        },
+      });
       const result = mergeConfigLayers({ project, globalUser, localUser });
-      expect(result.gateProfiles["full"]).toEqual(["pnpm check:full"]);
-      expect(result.gateProfiles["fast"]).toEqual(["pnpm test:unit"]);
-      expect(result.gateProfiles["dev"]).toEqual(["pnpm dev"]);
+      expect(result.gateProfiles["full"]).toEqual([
+        { command: "pnpm check:full", surface: "local", firing: "every-phase" },
+      ]);
+      expect(result.gateProfiles["fast"]).toEqual([
+        { command: "pnpm test:unit", surface: "local", firing: "every-phase" },
+      ]);
+      expect(result.gateProfiles["dev"]).toEqual([
+        { command: "pnpm dev", surface: "local", firing: "every-phase" },
+      ]);
     });
 
     it("higher layer wins for a shared profile key", () => {
       const project = makeProject({
-        gateProfiles: { fast: ["pnpm test"] as const },
+        gateProfiles: {
+          fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" as const }],
+        },
       });
-      const globalUser = makeOverlay({ gateProfiles: { fast: ["pnpm test:unit"] as const } });
-      const localUser = makeOverlay({ gateProfiles: { fast: ["pnpm test:unit --run"] as const } });
+      const globalUser = makeOverlay({
+        gateProfiles: {
+          fast: [{ command: "pnpm test:unit", surface: "local", firing: "every-phase" as const }],
+        },
+      });
+      const localUser = makeOverlay({
+        gateProfiles: {
+          fast: [
+            { command: "pnpm test:unit --run", surface: "local", firing: "every-phase" as const },
+          ],
+        },
+      });
       const result = mergeConfigLayers({ project, globalUser, localUser });
-      expect(result.gateProfiles["fast"]).toEqual(["pnpm test:unit --run"]);
+      expect(result.gateProfiles["fast"]).toEqual([
+        { command: "pnpm test:unit --run", surface: "local", firing: "every-phase" },
+      ]);
     });
 
     it("global overrides project for a shared key when no local", () => {
       const project = makeProject({
-        gateProfiles: { fast: ["pnpm test"] as const },
+        gateProfiles: {
+          fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" as const }],
+        },
       });
-      const globalUser = makeOverlay({ gateProfiles: { fast: ["pnpm test:unit"] as const } });
+      const globalUser = makeOverlay({
+        gateProfiles: {
+          fast: [{ command: "pnpm test:unit", surface: "local", firing: "every-phase" as const }],
+        },
+      });
       const result = mergeConfigLayers({ project, globalUser });
-      expect(result.gateProfiles["fast"]).toEqual(["pnpm test:unit"]);
+      expect(result.gateProfiles["fast"]).toEqual([
+        { command: "pnpm test:unit", surface: "local", firing: "every-phase" },
+      ]);
     });
   });
 

@@ -50,7 +50,7 @@ import {
   makeStepCompletedTelemetryEvent,
 } from "../domain/telemetry/events.js";
 import { reportAgentFailure } from "./telemetry/reportBuilders.js";
-import type { ResolvedConfig } from "../schemas/phaxConfig.js";
+import type { GateStep, ResolvedConfig } from "../schemas/phaxConfig.js";
 import { encodeSecurityPosture, type SecurityPosture } from "../schemas/securityPosture.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { ModelRouting } from "../schemas/modelRouting.js";
@@ -272,9 +272,9 @@ export function executePlan(
       makeStepCompletedTelemetryEvent({ runId, step: "config.validate", result: "success" }),
     );
 
-    let gateCommands: readonly string[];
+    let gateSteps: readonly GateStep[];
     try {
-      gateCommands = resolveGateProfile(config, gateProfileId, workspaceId);
+      gateSteps = resolveGateProfile(config, gateProfileId, workspaceId);
     } catch (err) {
       return yield* Effect.fail(
         new UnsafeGitStateError({
@@ -283,6 +283,7 @@ export function executePlan(
         }),
       );
     }
+    const gateCommands = gateSteps.map((s) => s.command);
 
     // Preflight: verify all plan-required commands are covered by the frozen set
     // before any git branch, worktree, or agent work begins.
@@ -585,7 +586,9 @@ export function executePlan(
         const previousHandoff = yield* readPreviousHandoff(runPath, plan.phases, i);
         const previousReconciliation = yield* readPreviousReconciliation(runPath, plan.phases, i);
 
-        const promptGateCommands = config.raw.gateProfiles[gateProfileId]?.flat(1) ?? [];
+        const promptGateCommands = (config.raw.gateProfiles[gateProfileId] ?? []).map(
+          (s) => s.command,
+        );
         const promptText = buildPhasePrompt({
           planMd,
           planJson: plan,
@@ -814,7 +817,7 @@ export function executePlan(
         // loop starts at `resumeAttempt + 1` with a fresh fix budget so prior
         // attempt artifacts are preserved.
         yield* runGatesWithFixLoop({
-          commands: gateCommands,
+          steps: gateSteps,
           cwd: worktreePath as string,
           phaseFolderPath,
           sessionId,

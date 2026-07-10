@@ -16,7 +16,9 @@ const resolvedConfig: ResolvedConfig = {
     version: 1,
     project: { name: "test-project", type: "single-package" },
     state: { root: stateRoot },
-    gateProfiles: { fast: ["pnpm test"] },
+    gateProfiles: {
+      fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" as const }],
+    },
   },
   stateRoot,
   namespace: "test-project",

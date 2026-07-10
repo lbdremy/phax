@@ -61,10 +61,14 @@ describe("runInit --yes (non-interactive)", () => {
       expect(config["$schema"]).toBe("./phax.schema.json");
 
       const gateProfiles = config["gateProfiles"] as Record<string, unknown>;
-      const fastCommands = gateProfiles["fast"] as string[];
-      expect(fastCommands.some((c) => c.includes("typecheck"))).toBe(true);
-      expect(fastCommands.some((c) => c.includes("lint"))).toBe(true);
-      expect(fastCommands.some((c) => c.includes("test:unit"))).toBe(true);
+      const standardSteps = gateProfiles["standard"] as Array<{
+        command: string;
+        surface: string;
+        firing: string;
+      }>;
+      expect(standardSteps.some((s) => s.command.includes("typecheck"))).toBe(true);
+      expect(standardSteps.some((s) => s.command.includes("lint"))).toBe(true);
+      expect(standardSteps.some((s) => s.command.includes("test:unit"))).toBe(true);
 
       await readFile(join(tmpDir, "phax.schema.json"), "utf8");
       await readFile(join(tmpDir, "phax.user.schema.json"), "utf8");
@@ -93,7 +97,11 @@ describe("runInit --yes (non-interactive)", () => {
   it("returns 1 and prints error when already initialized (no --force)", async () => {
     await writeFile(
       join(tmpDir, "phax.json"),
-      JSON.stringify({ version: 1, name: "existing", gateProfiles: { fast: ["echo ok"] } }),
+      JSON.stringify({
+        version: 1,
+        name: "existing",
+        gateProfiles: { fast: [{ command: "echo ok", surface: "local", firing: "every-phase" }] },
+      }),
       "utf8",
     );
 
@@ -113,7 +121,11 @@ describe("runInit --yes (non-interactive)", () => {
   it("overwrites existing phax.json with --force", async () => {
     await writeFile(
       join(tmpDir, "phax.json"),
-      JSON.stringify({ version: 1, name: "old", gateProfiles: { fast: ["echo old"] } }),
+      JSON.stringify({
+        version: 1,
+        name: "old",
+        gateProfiles: { fast: [{ command: "echo old", surface: "local", firing: "every-phase" }] },
+      }),
       "utf8",
     );
     await writeFile(join(tmpDir, "package.json"), PKG_WITH_SCRIPTS, "utf8");

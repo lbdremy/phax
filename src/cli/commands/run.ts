@@ -55,12 +55,7 @@ export interface RunCommandOptions {
 }
 
 function pickGateProfileId(config: ResolvedConfig): string | null {
-  const profiles = config.raw.gateProfiles;
-
-  if ("full" in profiles) return "full";
-  if ("fast" in profiles) return "fast";
-
-  const keys = Object.keys(profiles);
+  const keys = Object.keys(config.raw.gateProfiles);
   return keys[0] ?? null;
 }
 

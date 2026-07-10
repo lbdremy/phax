@@ -22,6 +22,7 @@ import {
 } from "../../src/app/eventAdapter.js";
 import type { CommitPhaseOptions } from "../../src/app/commit.js";
 import type { CleanupPhaseOptions } from "../../src/app/cleanup.js";
+import type { GateStep } from "../../src/schemas/phaxConfig.js";
 
 const runId = "my-run" as RunId;
 const phaseId = "phase-01" as PhaseId;
@@ -236,7 +237,9 @@ describe("adaptAgentResume", () => {
 // ─── adaptGateRun ─────────────────────────────────────────────────────────────
 
 describe("adaptGateRun", () => {
-  const gateCommands = ["pnpm typecheck"];
+  const gateSteps: GateStep[] = [
+    { command: "pnpm typecheck", surface: "local", firing: "every-phase" },
+  ];
   const cwd = worktreePath as string;
   const logPath = `${phaseFolderPath}/checks-attempt-01.log`;
 
@@ -246,7 +249,7 @@ describe("adaptGateRun", () => {
     const layer = Layer.mergeAll(fakeShell.layer, fakeFs.layer);
 
     const event = await Effect.runPromise(
-      adaptGateRun(gateCommands, cwd, logPath, 1, base).pipe(Effect.provide(layer)),
+      adaptGateRun(gateSteps, cwd, logPath, 1, base).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("GatePassed");
@@ -263,7 +266,7 @@ describe("adaptGateRun", () => {
     const layer = Layer.mergeAll(fakeShell.layer, fakeFs.layer);
 
     const event = await Effect.runPromise(
-      adaptGateRun(gateCommands, cwd, logPath, 2, base).pipe(Effect.provide(layer)),
+      adaptGateRun(gateSteps, cwd, logPath, 2, base).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("GateFailed");

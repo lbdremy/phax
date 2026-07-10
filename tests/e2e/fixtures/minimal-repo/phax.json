@@ -10,6 +10,6 @@
     }
   },
   "gateProfiles": {
-    "minimal": ["node --version"]
+    "minimal": [{ "command": "node --version", "surface": "local", "firing": "every-phase" }]
   }
 }

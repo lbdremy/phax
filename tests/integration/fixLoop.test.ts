@@ -8,6 +8,7 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
+import type { GateStep } from "../../src/schemas/phaxConfig.js";
 
 const runPath = "/fake/runs/my-run";
 const cwd = "/fake/worktrees/my-run/phase-01";
@@ -38,8 +39,10 @@ const runStatusJson = JSON.stringify({
   currentPhaseIndex: 0,
 });
 
+const testStep: GateStep = { command: "pnpm test", surface: "local", firing: "every-phase" };
+
 const baseOpts = {
-  commands: ["pnpm test"],
+  steps: [testStep],
   cwd,
   phaseFolderPath,
   sessionId,

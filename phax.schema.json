@@ -236,7 +236,21 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "$ref": "#/$defs/NonEmptyString"
+            "type": "object",
+            "required": ["command", "surface", "firing"],
+            "properties": {
+              "command": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "surface": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "firing": {
+                "type": "string",
+                "enum": ["every-phase", "terminal"]
+              }
+            },
+            "additionalProperties": false
           }
         }
       },
@@ -268,7 +282,21 @@
                 "type": "array",
                 "minItems": 1,
                 "items": {
-                  "$ref": "#/$defs/NonEmptyString"
+                  "type": "object",
+                  "required": ["command", "surface", "firing"],
+                  "properties": {
+                    "command": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "surface": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "firing": {
+                      "type": "string",
+                      "enum": ["every-phase", "terminal"]
+                    }
+                  },
+                  "additionalProperties": false
                 }
               }
             },

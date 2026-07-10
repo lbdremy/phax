@@ -48,7 +48,9 @@ describe("decodePhaxUserOverlay", () => {
 
   it("accepts gateProfiles", () => {
     const result = decodePhaxUserOverlay({
-      gateProfiles: { fast: ["pnpm test:unit"] },
+      gateProfiles: {
+        fast: [{ command: "pnpm test:unit", surface: "local", firing: "every-phase" }],
+      },
     });
     expect(Either.isRight(result)).toBe(true);
   });

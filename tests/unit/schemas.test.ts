@@ -9,7 +9,9 @@ const validConfig = {
   version: 1,
   name: "my-project",
   state: { root: "~/.phax" },
-  gateProfiles: { fast: ["pnpm test"] },
+  gateProfiles: {
+    fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" as const }],
+  },
 } as const;
 
 describe("decodePhaxConfig", () => {
@@ -22,7 +24,13 @@ describe("decodePhaxConfig", () => {
       ...validConfig,
       agent: { maxFixAttempts: 1 },
       commands: { setup: ["pnpm install"], cleanup: ["rm -rf node_modules"] },
-      gateProfiles: { fast: ["pnpm test"], full: ["pnpm test", "pnpm lint"] },
+      gateProfiles: {
+        fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" as const }],
+        full: [
+          { command: "pnpm test", surface: "local", firing: "every-phase" as const },
+          { command: "pnpm lint", surface: "local", firing: "every-phase" as const },
+        ],
+      },
       workspaces: [{ id: "frontend", name: "Frontend", path: "./packages/ui" }],
     };
     expect(Either.isRight(decodePhaxConfig(full))).toBe(true);
@@ -32,8 +40,32 @@ describe("decodePhaxConfig", () => {
     expect(Either.isLeft(decodePhaxConfig({ ...validConfig, version: 2 }))).toBe(true);
   });
 
-  it("rejects a config with an empty gate profile command array", () => {
+  it("rejects a config with an empty gate profile step array", () => {
     const bad = { ...validConfig, gateProfiles: { fast: [] } };
+    expect(Either.isLeft(decodePhaxConfig(bad))).toBe(true);
+  });
+
+  it("rejects a flat-array (string) gate profile entry and names the profile in the error", () => {
+    const bad = { ...validConfig, gateProfiles: { full: ["pnpm test"] } };
+    const result = decodePhaxConfig(bad);
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("rejects a gate step missing required fields", () => {
+    const bad = {
+      ...validConfig,
+      gateProfiles: { standard: [{ command: "pnpm test" }] },
+    };
+    expect(Either.isLeft(decodePhaxConfig(bad))).toBe(true);
+  });
+
+  it("rejects a gate step with an invalid firing value", () => {
+    const bad = {
+      ...validConfig,
+      gateProfiles: {
+        standard: [{ command: "pnpm test", surface: "local", firing: "always" }],
+      },
+    };
     expect(Either.isLeft(decodePhaxConfig(bad))).toBe(true);
   });
 

@@ -68,7 +68,9 @@ describe("State Machine Contract", () => {
         version: 1,
         project: { name: "test-project", type: "single-package" },
         state: { root: stateRoot },
-        gateProfiles: { full: ["true"] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase" as const }],
+        },
         commands: { setup: ["true"], cleanup: ["true"] },
       },
       stateRoot,
@@ -161,7 +163,9 @@ describe("State Machine Contract", () => {
         version: 1,
         project: { name: "test-project", type: "single-package" },
         state: { root: stateRoot },
-        gateProfiles: { full: ["true"] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase" as const }],
+        },
         commands: { setup: ["true"], cleanup: ["true"] },
       },
       stateRoot,
@@ -256,7 +260,9 @@ describe("State Machine Contract", () => {
         version: 1,
         project: { name: "test-project", type: "single-package" },
         state: { root: stateRoot },
-        gateProfiles: { full: ["pnpm test"] },
+        gateProfiles: {
+          full: [{ command: "pnpm test", surface: "local", firing: "every-phase" as const }],
+        },
         commands: { setup: ["true"], cleanup: ["true"] },
       },
       stateRoot,
