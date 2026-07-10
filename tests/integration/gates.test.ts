@@ -5,9 +5,11 @@ import { GateFailedError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import type { GateStep } from "../../src/schemas/phaxConfig.js";
+import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
 
 const cwd = "/fake/worktrees/my-run/phase-01";
 const logPath = "/fake/runs/my-run/phase-01/checks-attempt-01.log";
+const attributionPath = "/fake/runs/my-run/phase-01/gate-attribution.json";
 
 function step(
   command: string,
@@ -24,9 +26,11 @@ describe("runGates", () => {
     fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
 
     const outcome = await Effect.runPromise(
-      runGates([step("pnpm test"), step("pnpm lint")], cwd, logPath).pipe(
-        Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
-      ),
+      runGates({
+        steps: [step("pnpm test"), step("pnpm lint")],
+        cwd,
+        attemptLogPath: logPath,
+      }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
     );
 
     expect(outcome.attemptLogPath).toBe(logPath);
@@ -41,7 +45,7 @@ describe("runGates", () => {
     fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "all good", stderr: "" });
 
     await Effect.runPromise(
-      runGates([step("pnpm test")], cwd, logPath).pipe(
+      runGates({ steps: [step("pnpm test")], cwd, attemptLogPath: logPath }).pipe(
         Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
       ),
     );
@@ -63,7 +67,7 @@ describe("runGates", () => {
 
     const result = await Effect.runPromise(
       Effect.either(
-        runGates([step("pnpm test")], cwd, logPath).pipe(
+        runGates({ steps: [step("pnpm test")], cwd, attemptLogPath: logPath }).pipe(
           Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
         ),
       ),
@@ -86,7 +90,7 @@ describe("runGates", () => {
 
     await Effect.runPromise(
       Effect.ignore(
-        runGates([step("pnpm test")], cwd, logPath).pipe(
+        runGates({ steps: [step("pnpm test")], cwd, attemptLogPath: logPath }).pipe(
           Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
         ),
       ),
@@ -106,9 +110,11 @@ describe("runGates", () => {
 
     await Effect.runPromise(
       Effect.ignore(
-        runGates([step("pnpm test"), step("pnpm lint")], cwd, logPath).pipe(
-          Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
-        ),
+        runGates({
+          steps: [step("pnpm test"), step("pnpm lint")],
+          cwd,
+          attemptLogPath: logPath,
+        }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
       ),
     );
 
@@ -122,7 +128,7 @@ describe("runGates", () => {
     fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "", stderr: "" });
 
     await Effect.runPromise(
-      runGates([step("pnpm test")], cwd, logPath).pipe(
+      runGates({ steps: [step("pnpm test")], cwd, attemptLogPath: logPath }).pipe(
         Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
       ),
     );
@@ -140,7 +146,7 @@ describe("runGates", () => {
     });
 
     await Effect.runPromise(
-      runGates([step("pnpm test")], cwd, logPath).pipe(
+      runGates({ steps: [step("pnpm test")], cwd, attemptLogPath: logPath }).pipe(
         Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
       ),
     );
@@ -148,5 +154,106 @@ describe("runGates", () => {
     const log = fakeFs.impl.getFile(logPath);
     expect(log).toContain("stdout-output");
     expect(log).toContain("stderr-output");
+  });
+
+  it("does not write attribution when attributionPath is omitted", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
+
+    await Effect.runPromise(
+      runGates({ steps: [step("pnpm test")], cwd, attemptLogPath: logPath }).pipe(
+        Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
+      ),
+    );
+
+    expect(fakeFs.impl.getFile(attributionPath)).toBeUndefined();
+  });
+
+  it("records all steps as pass when all commands succeed", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
+
+    await Effect.runPromise(
+      runGates({
+        steps: [step("pnpm test", "local"), step("pnpm lint", "structural")],
+        cwd,
+        attemptLogPath: logPath,
+        attributionPath,
+        phaseId: "phase-01",
+      }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+    );
+
+    const raw = fakeFs.impl.getFile(attributionPath);
+    expect(raw).toBeDefined();
+    const record = JSON.parse(raw!) as GateAttribution;
+    expect(record.phase).toBe("phase-01");
+    expect(record.steps).toHaveLength(2);
+    expect(record.steps[0]).toEqual({ command: "pnpm test", surface: "local", result: "pass" });
+    expect(record.steps[1]).toEqual({
+      command: "pnpm lint",
+      surface: "structural",
+      result: "pass",
+    });
+  });
+
+  it("records first step as pass and second as fail when second command fails (fail-fast)", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("pnpm test", { exitCode: 0, stdout: "ok", stderr: "" });
+    fakeShell.impl.setResponse("pnpm lint", { exitCode: 1, stdout: "", stderr: "lint error" });
+
+    await Effect.runPromise(
+      Effect.ignore(
+        runGates({
+          steps: [
+            step("pnpm test", "local"),
+            step("pnpm lint", "structural"),
+            step("pnpm build", "product"),
+          ],
+          cwd,
+          attemptLogPath: logPath,
+          attributionPath,
+          phaseId: "phase-01",
+        }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+      ),
+    );
+
+    const raw = fakeFs.impl.getFile(attributionPath);
+    expect(raw).toBeDefined();
+    const record = JSON.parse(raw!) as GateAttribution;
+    expect(record.phase).toBe("phase-01");
+    // Only the first two steps ran; pnpm build was not executed
+    expect(record.steps).toHaveLength(2);
+    expect(record.steps[0]).toEqual({ command: "pnpm test", surface: "local", result: "pass" });
+    expect(record.steps[1]).toEqual({
+      command: "pnpm lint",
+      surface: "structural",
+      result: "fail",
+    });
+  });
+
+  it("writes attribution on failure path as well as success path", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setDefaultResponse({ exitCode: 1, stdout: "", stderr: "fail" });
+
+    await Effect.runPromise(
+      Effect.ignore(
+        runGates({
+          steps: [step("pnpm test", "local")],
+          cwd,
+          attemptLogPath: logPath,
+          attributionPath,
+          phaseId: "phase-01",
+        }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+      ),
+    );
+
+    const raw = fakeFs.impl.getFile(attributionPath);
+    expect(raw).toBeDefined();
+    const record = JSON.parse(raw!) as GateAttribution;
+    expect(record.steps[0]?.result).toBe("fail");
   });
 });

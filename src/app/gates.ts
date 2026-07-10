@@ -5,9 +5,18 @@ import { GateFailedError } from "../domain/errors.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { decodeRunStatus, encodeRunStatus } from "../schemas/status.js";
+import { encodeGateAttribution } from "../schemas/gateAttribution.js";
 
 export interface GateOutcome {
   readonly attemptLogPath: string;
+}
+
+export interface RunGatesOptions {
+  readonly steps: readonly GateStep[];
+  readonly cwd: string;
+  readonly attemptLogPath: string;
+  readonly attributionPath?: string;
+  readonly phaseId?: string;
 }
 
 export function resolveGateProfile(
@@ -39,15 +48,16 @@ function parseCommandTokens(raw: string): readonly [string, ...string[]] {
 }
 
 export function runGates(
-  steps: readonly GateStep[],
-  cwd: string,
-  attemptLogPath: string,
+  opts: RunGatesOptions,
 ): Effect.Effect<GateOutcome, GateFailedError | FsError | ShellError, Shell | FileSystem> {
+  const { steps, cwd, attemptLogPath, attributionPath, phaseId } = opts;
   return Effect.gen(function* () {
     const shell = yield* Shell;
     const fs = yield* FileSystem;
 
     const logLines: string[] = [];
+    const attributedSteps: Array<{ command: string; surface: string; result: "pass" | "fail" }> =
+      [];
 
     for (const step of steps) {
       const rawCommand = step.command;
@@ -62,6 +72,17 @@ export function runGates(
       logLines.push("");
 
       if (result.exitCode !== 0) {
+        attributedSteps.push({ command: rawCommand, surface: step.surface, result: "fail" });
+        if (attributionPath !== undefined && phaseId !== undefined) {
+          yield* fs.writeAtomic(
+            attributionPath,
+            JSON.stringify(
+              encodeGateAttribution({ phase: phaseId, steps: attributedSteps }),
+              null,
+              2,
+            ),
+          );
+        }
         yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
         return yield* Effect.fail(
           new GateFailedError({
@@ -73,8 +94,16 @@ export function runGates(
           }),
         );
       }
+
+      attributedSteps.push({ command: rawCommand, surface: step.surface, result: "pass" });
     }
 
+    if (attributionPath !== undefined && phaseId !== undefined) {
+      yield* fs.writeAtomic(
+        attributionPath,
+        JSON.stringify(encodeGateAttribution({ phase: phaseId, steps: attributedSteps }), null, 2),
+      );
+    }
     yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
     return { attemptLogPath };
   });

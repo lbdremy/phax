@@ -9,6 +9,7 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import type { GateStep } from "../../src/schemas/phaxConfig.js";
+import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
 
 const runPath = "/fake/runs/my-run";
 const cwd = "/fake/worktrees/my-run/phase-01";
@@ -271,5 +272,39 @@ describe("runGatesWithFixLoop", () => {
     expect(outcome.attemptLogPath).toContain("checks-attempt-02");
     expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-01.log`)).toBeDefined();
     expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-02.log`)).toBeDefined();
+  });
+
+  it("writes gate-attribution.json in the phase folder on success", async () => {
+    const { layer, fakeFs, fakeShell } = makeLayers();
+    fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
+    seedStatusFiles(fakeFs);
+
+    await Effect.runPromise(runGatesWithFixLoop(baseOpts).pipe(Effect.provide(layer)));
+
+    const raw = fakeFs.impl.getFile(`${phaseFolderPath}/gate-attribution.json`);
+    expect(raw).toBeDefined();
+    const record = JSON.parse(raw!) as GateAttribution;
+    expect(record.phase).toBe("phase-01");
+    expect(record.steps).toHaveLength(1);
+    expect(record.steps[0]).toEqual({ command: "pnpm test", surface: "local", result: "pass" });
+  });
+
+  it("overwrites gate-attribution.json on each attempt so the final file reflects the last evaluation", async () => {
+    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+
+    seedStatusFiles(fakeFs);
+    fakeBackend.impl.addResumeResponse(makeResumeResult());
+    fakeShell.impl.enqueue(
+      { exitCode: 1, stdout: "", stderr: "first fail" },
+      { exitCode: 0, stdout: "ok", stderr: "" },
+    );
+
+    await Effect.runPromise(runGatesWithFixLoop(baseOpts).pipe(Effect.provide(layer)));
+
+    const raw = fakeFs.impl.getFile(`${phaseFolderPath}/gate-attribution.json`);
+    expect(raw).toBeDefined();
+    const record = JSON.parse(raw!) as GateAttribution;
+    // Final attempt passed — record should show pass, not fail
+    expect(record.steps[0]?.result).toBe("pass");
   });
 });

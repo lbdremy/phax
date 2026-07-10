@@ -153,7 +153,15 @@ export function runGatesWithFixLoop(
       yield* telemetry.recordEvent(
         makeStepStartedTelemetryEvent({ runId, operationId: phaseId, step: `gate.run` }),
       );
-      const gateResult = yield* Effect.either(runGates(steps, cwd, logPath(attempt)));
+      const gateResult = yield* Effect.either(
+        runGates({
+          steps,
+          cwd,
+          attemptLogPath: logPath(attempt),
+          attributionPath: join(phaseFolderPath, "gate-attribution.json"),
+          phaseId,
+        }),
+      );
 
       if (Either.isRight(gateResult)) {
         yield* telemetry.recordEvent(
