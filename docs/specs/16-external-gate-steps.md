@@ -1,6 +1,6 @@
 # External Gate Steps
 
-Status: Draft
+Status: Approved
 
 Date: 2026-07-03
 
@@ -137,6 +137,8 @@ Given no registered external gate step, when a phase gate runs, then the gate be
 today with built-in steps only. (refs §5.1)
 
 ## 9. Open questions for implementation planning
+
+All questions are **resolved by adopting the recommended default** (review of 2026-07-10):
 
 - **Ordering of built-in vs external steps in one fix loop.** *Default:* run the built-in
   mechanical gate first, external steps after, within a single fix loop.

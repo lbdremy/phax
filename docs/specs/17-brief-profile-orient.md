@@ -1,6 +1,6 @@
 # Brief Profile — Orientation Fed Forward into a Phase
 
-Status: Draft
+Status: Approved
 
 Date: 2026-07-03
 
@@ -163,6 +163,8 @@ Given a pull that returns nothing, when it completes, then phax records the dema
 occurrence. (refs §5.6)
 
 ## 9. Open questions for implementation planning
+
+All questions are **resolved by adopting the recommended default** (review of 2026-07-10):
 
 - **Row schema minimum.** The required row fields (id, title, severity, trigger) may need one more
   to let the agent self-budget which bodies to read. *Default:* the four named fields; extend only

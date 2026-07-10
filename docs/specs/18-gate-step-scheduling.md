@@ -1,6 +1,6 @@
 # Gate Step Scheduling from the Plan
 
-Status: Draft
+Status: Approved
 
 Date: 2026-07-03
 
@@ -139,6 +139,8 @@ Given a completion diagnostic still pending before the terminal phase, when the 
 runs, then its scope is treated as closed and phax fails if the diagnostic persists. (refs §5.2, §5.3)
 
 ## 9. Open questions for implementation planning
+
+All questions are **resolved by adopting the recommended default** (review of 2026-07-10):
 
 - **How closure is supplied.** phax may compute closed scopes from a provider-supplied file→scope
   mapping over the plan's per-phase files, or receive a per-phase closed-set directly from the

@@ -1,6 +1,6 @@
 # Plan-Completeness Advisory
 
-Status: Draft
+Status: Approved
 
 Date: 2026-07-03
 
@@ -140,6 +140,8 @@ by them. (refs §5.3)
 Given no registered plan auditor, when a plan is drafted, then planning proceeds unchanged. (refs §5.4)
 
 ## 9. Open questions for implementation planning
+
+All questions are **resolved by adopting the recommended default** (review of 2026-07-10):
 
 - **When the handoff fires.** At plan finalization only, or also on plan edits. *Default:* on plan
   finalization, before the run starts.

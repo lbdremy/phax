@@ -1,6 +1,6 @@
 # Gate Profile as Attributed Steps
 
-Status: Draft
+Status: Approved
 
 Date: 2026-07-03
 
@@ -176,6 +176,8 @@ Given a completed run, when its summary is read, then it names the set of surfac
 verified. (refs §5.5)
 
 ## 9. Open questions for implementation planning
+
+All questions are **resolved by adopting the recommended default** (review of 2026-07-10):
 
 - **Presets vs fully user-defined profiles.** phax may ship named default profiles or leave the
   selection entirely to the project. *Default:* profiles are user-defined; phax may ship one default
