@@ -1673,6 +1673,140 @@ describe("executePlan — auto-publish after final review", () => {
   });
 });
 
+describe("executePlan — firing scheduling (every-phase vs terminal)", () => {
+  let stateRoot: string;
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-test-"));
+
+    const phase01Worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+    const phase02Worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-02");
+    await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
+    await mkdir(join(phase02Worktree, ".phax-context"), { recursive: true });
+    await writeFile(join(phase01Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+    await writeFile(join(phase02Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+  });
+
+  it("runs only every-phase steps at non-terminal phases and both at the terminal phase", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+
+    const config: ResolvedConfig = {
+      raw: {
+        version: 1,
+        project: { name: "test-project", type: "single-package" },
+        state: { root: stateRoot },
+        gateProfiles: {
+          full: [
+            { command: "pnpm test", surface: "local", firing: "every-phase" as const },
+            { command: "pnpm build", surface: "product", firing: "terminal" as const },
+          ],
+        },
+        commands: { setup: ["true"], cleanup: ["true"] },
+      },
+      stateRoot,
+      namespace: "test-project",
+      repoRoot: stateRoot,
+      maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
+      fileReconciliationMode: "report_only" as const,
+      security: {
+        profile: "unsafe",
+        filesystem: { allowRead: [], allowWrite: [] },
+        network: { profile: "provider-only", allowDomains: [] },
+        mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
+      },
+    };
+
+    const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+    const phase02WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-02");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(phase01WorktreePath, false, true);
+    fakeGit.impl.enqueueWorktreeIsClean(phase02WorktreePath, false);
+
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("pnpm test", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("pnpm build", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "deadbeef12345678\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-02" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-01-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-02-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          namespace: "test-project",
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+
+    // Collect the gate commands that ran (filter out git/setup/cleanup shell calls)
+    const gateCalls = fakeShell.impl.calls
+      .map((c) => c.command.join(" "))
+      .filter((cmd) => cmd === "pnpm test" || cmd === "pnpm build");
+
+    // phase-01 is non-terminal: only "pnpm test" (every-phase) should have run
+    // phase-02 is terminal: both "pnpm test" and "pnpm build" should have run
+    // Expected order: pnpm test (phase-01), pnpm test (phase-02), pnpm build (phase-02)
+    expect(gateCalls).toEqual(["pnpm test", "pnpm test", "pnpm build"]);
+  });
+});
+
 describe("executePlan — security preflight", () => {
   let stateRoot: string;
 

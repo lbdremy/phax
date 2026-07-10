@@ -78,6 +78,7 @@ import { decodePhaseFileReconciliation } from "../schemas/reconciliation.js";
 import { createPhaseFolder } from "./phaseFolder.js";
 import { recordPhaseWorktreeAndBranch } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
+import { selectGateSteps } from "../domain/gate/selectSteps.js";
 import { resolveRun } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
 import { createPhaseWorktree, preparePhaseBranch, prepareRunBranch } from "./worktree.js";
@@ -816,8 +817,9 @@ export function executePlan(
         // gate-success branch via dispatch(GatePassed). On resume-from-gate the
         // loop starts at `resumeAttempt + 1` with a fresh fix budget so prior
         // attempt artifacts are preserved.
+        const phaseSteps = selectGateSteps(gateSteps, isFinal);
         yield* runGatesWithFixLoop({
-          steps: gateSteps,
+          steps: phaseSteps,
           cwd: worktreePath as string,
           phaseFolderPath,
           sessionId,
