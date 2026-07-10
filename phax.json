@@ -42,7 +42,8 @@
       "pnpm audit:architecture",
       "pnpm build",
       "pnpm deno:smoke",
-      "pnpm deno:smoke-binary"
+      "pnpm deno:smoke-binary",
+      "pnpm gen:model-catalog --check"
     ]
   }
 }

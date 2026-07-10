@@ -244,27 +244,21 @@ because a spike's value is in judgment, not in compiling code. Reconcile it like
   egress block). Say so explicitly, so the synthesis reads as provisional until a real
   run fills the Results sections.
 
-## Model IDs
+## Model catalog
 
-Use exact model IDs:
-
-- `claude-sonnet-4-6` — default for most phases
-- `claude-opus-4-8` — reserve for deep reasoning (architecture audit, etc.)
-- `claude-haiku-4-5-20251001` — reserve for trivial tasks
-
-## Effort values
-
-Plans prefer Claude-oriented naming because Claude is the routing reference scale. Valid efforts per model family:
-
-| Family           | Valid efforts                                                  |
-| ---------------- | -------------------------------------------------------------- |
-| `claude-haiku`   | `none`                                                         |
-| `claude-sonnet`  | `low` \| `medium` \| `high` \| `max`                           |
-| `claude-opus`    | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
-| `mistral-medium` | `off` \| `low` \| `medium` \| `high` \| `max`                  |
-| `openai-gpt`     | `low` \| `medium` \| `high` \| `xhigh`                         |
-
-The superset across all families: `none | off | low | medium | high | xhigh | max | ultracode`. Per-family validity is enforced by the routing layer — the plan schema accepts the full superset.
+<!-- BEGIN generated: model-catalog -->
+| ID | Family | Status | Efforts |
+| --- | --- | --- | --- |
+| `claude-haiku-4-5-20251001` | `claude-haiku` | active | `none` |
+| `claude-sonnet-4-6` | `claude-sonnet` | active | `low` \| `medium` \| `high` \| `max` |
+| `claude-opus-4-8` | `claude-opus` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
+| `phax-mistral-medium-3.5-off` | `mistral-medium` | active | `off` |
+| `phax-mistral-medium-3.5-low` | `mistral-medium` | active | `low` |
+| `phax-mistral-medium-3.5-medium` | `mistral-medium` | active | `medium` |
+| `phax-mistral-medium-3.5-high` | `mistral-medium` | active | `high` |
+| `phax-mistral-medium-3.5-max` | `mistral-medium` | active | `max` |
+| `gpt-5.5` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` |
+<!-- END generated: model-catalog -->
 
 ## Required commands declaration
 
