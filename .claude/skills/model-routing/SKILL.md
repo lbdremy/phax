@@ -1,23 +1,25 @@
 ---
 name: model-routing
-description: Extend the routing layer, add provider adapters, change the resolution algorithm, or add new model families/tiers in src/domain/routing/.
+description: Extend the routing layer, add provider adapters, change the resolution algorithm, or add new model families in src/domain/routing/.
 ---
 
 # model-routing skill
 
-Use this skill when extending the routing layer, adding provider adapters, changing the resolution algorithm, or adding new model families / tiers.
+Use this skill when extending the routing layer, adding provider adapters, changing the resolution algorithm, or adding new model families.
 
 ## Architecture overview
 
 ```
 src/domain/routing/         ← PURE — no IO, no Effect, no infra imports
-  types.ts                  ← ProviderId, ModelFamily, EffortLevel, ThinkingLevel, RoutingTier, Relationship literals
+  types.ts                  ← ProviderId, ModelFamily, EffortLevel, ThinkingLevel, Relationship literals
   defaults.ts               ← DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG constants
-  resolve.ts                ← resolveModel(request, routing, providerCfg): RoutingResolution (total, pure)
+  catalog.ts                ← pure catalog helpers: familyOfId, entryFor, effortsFor, isDeprecated, nearestEfforts, equivalentFor, isClaudeFamily
+  resolve.ts                ← resolveModel(request, routing, providerCfg, securityFilter?): RoutingResolution (total, pure)
+  preflight.ts              ← preflightPhaseModels(phases, routing, providerConfig): { failures } (pure)
 
 src/schemas/
-  modelRouting.ts           ← Effect Schema for ~/.phax/model-routing.json; re-exports literal schemas
-  providerConfig.ts         ← Effect Schema for ~/.phax/providers.json
+  modelRouting.ts           ← Effect Schema for ~/.phax/model-routing.json (version 2); re-exports literal schemas
+  providerConfig.ts         ← Effect Schema for ~/.phax/providers.json (versioned catalog with per-entry efforts and status)
   vibeConfig.ts             ← VibeBaseModel schema + extractBaseModel + renderPhaxAliasBlocks
 
 src/app/
@@ -40,65 +42,48 @@ src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
 
 **Only `src/infra/providers/` may spawn**: the `spawn("claude"…)`, `spawn("vibe"…)`, `spawn("codex"…)` calls live exclusively in the corresponding adapter files. The architectural guard forbids these patterns anywhere else in `src/`.
 
-**Schemas use `onExcessProperty: "error"`**: config files are validated strictly. New fields in `model-routing.json` or `providers.json` must be added to the schema first.
+**Schemas use `onExcessProperty: "error"`**: config files are validated strictly. Config version 2 rejects `tiers`, `normalization`, and `defaultTier` fields — there is no back-compat shim. New fields must be added to the schema first.
 
 **No back-compat shims**: new required fields are required, not optional for legacy files.
 
-**No silent Opus downgrade**: when `allowDowngrade: false` (the default), `resolveModel` skips candidates with `downgrade` or `no_equivalent` relationship when the requested family is `claude-opus`. It always has a terminal fallback to `claude-code`.
+**`allowDowngrade` is the sole policy knob**: cross-family substitutions with `downgrade` or `no_equivalent` relation are skipped when `allowDowngrade: false`. Same-family resolution is always permitted.
 
-**Same-family preservation**: effort never changes model family for Claude families. A `claude-sonnet / low` request resolved to `claude-code` stays Sonnet (not Haiku). A same-family switch (e.g. Sonnet → Haiku) requires an explicit `relationship: "downgrade"` entry **and** `allowDowngrade: true`. The `resolveModel` function enforces this invariant regardless of the user-edited routing table.
+**Efforts are per catalog entry**: each versioned model id has its own `efforts` array. There is no family-wide effort set. The preflight validates that a phase's effort is in its entry's supported set before any agent spawns.
 
-**`ultracode` is Opus-only**: `claude-opus / ultracode` resolves through the `frontier-ultra` tier. No Mistral/OpenAI equivalent exists — it is never silently downgraded when `allowDowngrade: false`.
+**Terminal `claude-code` fallback**: `resolveModel` is total. If no provider in `providerPriority` resolves, the function falls through to `claude-code` — natively for Claude families, via the equivalence hub for non-Claude families.
 
 **Telemetry never fails a run**: the `agent.model.resolved` event is emitted via `telemetry.recordEvent` and errors are swallowed.
 
 **Atomic writes + backup**: `vibeSetup.ts` and the session writer use temp + rename; `vibeSetup.ts` backs up `~/.vibe/config.toml` before appending.
 
-## Per-family effort sets
+## Catalog helpers (`catalog.ts`)
 
-| Family           | Valid efforts                                                  |
-| ---------------- | -------------------------------------------------------------- |
-| `claude-haiku`   | `none`                                                         |
-| `claude-sonnet`  | `low` \| `medium` \| `high` \| `max`                           |
-| `claude-opus`    | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
-| `mistral-medium` | `off` \| `low` \| `medium` \| `high` \| `max`                  |
-| `openai-gpt`     | `low` \| `medium` \| `high` \| `xhigh`                         |
+| Export           | Purpose                                                                      |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `familyOfId`     | Look up the `ModelFamily` for a versioned id; `undefined` if not in catalog  |
+| `entryFor`       | `CatalogLocation` (provider + family + entry) for a versioned id             |
+| `effortsFor`     | The efforts array for a versioned id                                         |
+| `isDeprecated`   | True when the entry's status is `"deprecated"`                               |
+| `nearestEfforts` | Efforts sorted by proximity to a requested effort; used by preflight         |
+| `equivalentFor`  | Star-lookup through the Claude hub (hub→spoke, spoke→hub, spoke→spoke)       |
+| `isClaudeFamily` | True for `claude-haiku`, `claude-sonnet`, `claude-opus`                      |
 
-`FAMILY_EFFORTS` in `types.ts` is the authoritative capability map. Use `isEffortSupported(family, effort)` to check membership. The superset `EffortLevel` is derived from the union of all five; `ThinkingLevel` is an alias for backwards compatibility.
+`equivalentFor` semantics: equivalence table edges are stated hub-centric. Hub → spoke uses the stored relation directly; spoke → hub inverts it (`downgrade ↔ upgrade`); spoke → spoke composes two hops.
 
 ## Resolution pipeline
 
-1. `request.model` → look up `routing.requestedModelNormalization` → `ModelFamily`
-2. `family + request.effort` → look up `routing.normalization[family]` → `RoutingTier`
-3. Walk `routing.providerPriority`; for each provider skip it if its `providers.json` entry is `enabled: false`; check `routing.tiers[tier][provider]`
-4. Classify the substitution as `exact | equivalent | fallback | downgrade | no_equivalent`
-5. If `allowDowngrade: false` and family is `claude-opus`, skip `downgrade` / `no_equivalent`
-6. Same-family preservation guard: when requested family is a Claude family and provider is `claude-code`, force the resolved family to match the requested Claude family; clamp effort to `FAMILY_EFFORTS` for that family
-7. Resolve concrete model: claude/codex → `families[family].model`; vibe → `aliases["<family>/<thinking>"]`
-8. Build `RoutingResolution` with `reason` string
-
-## Routing tiers
-
-| Tier              | Typical use                                  |
-| ----------------- | -------------------------------------------- |
-| `cheap`           | Haiku-class, no thinking                     |
-| `fast`            | Sonnet/low — fast path, stays Sonnet         |
-| `standard`        | Sonnet/medium — default                      |
-| `strong`          | Sonnet/high                                  |
-| `very_strong`     | Sonnet/max or codex/high                     |
-| `frontier-low`    | Opus/low; codex gpt/high (`equivalent`)      |
-| `frontier-medium` | Opus/medium; codex gpt/xhigh (`equivalent`)  |
-| `frontier-high`   | Opus/high; codex gpt/xhigh (`equivalent`)    |
-| `frontier-xhigh`  | Opus/xhigh; codex gpt/xhigh (`equivalent`)   |
-| `frontier-max`    | Opus/max; codex gpt/xhigh (`downgrade`)      |
-| `frontier-ultra`  | Opus/ultracode only — no Mistral/OpenAI peer |
+1. Derive plan family from `request.model`: catalog lookup → `requestedModelNormalization` → substring heuristic → default `claude-sonnet`.
+2. Walk `routing.providerPriority`; skip disabled providers and security-filtered providers.
+3. If the provider serves the plan family, resolve natively from its catalog (relationship `exact` or `equivalent` if effort is clamped).
+4. Otherwise translate through the Claude hub via `equivalentFor`; skip when `allowDowngrade: false` and relation is `downgrade` or `no_equivalent`.
+5. Terminal `claude-code`: same-family natively, or spoke → hub via equivalence table. Relationship `no_equivalent` on a complete miss.
 
 ## Adding a new provider
 
 1. Add the literal to `ProviderId` in `src/domain/routing/types.ts`.
 2. Add the corresponding literal to `ProviderIdSchema` in `src/schemas/modelRouting.ts`.
-3. Add tier entries in `DEFAULT_MODEL_ROUTING.tiers` (in `defaults.ts`).
-4. Add a `ProviderEntry` in `DEFAULT_PROVIDER_CONFIG.providers`.
+3. Add equivalence edges in `DEFAULT_MODEL_ROUTING.equivalence` (in `defaults.ts`) for each of the provider's model ids and efforts, anchoring each to its Claude hub peer.
+4. Add a `ProviderEntry` in `DEFAULT_PROVIDER_CONFIG.providers` with a `families` record and per-model `models` arrays.
 5. Create `src/infra/providers/<newProvider>.ts` with `runNewProviderAgent` + resume variant returning `AgentRunResult`.
 6. Wire the new branch in `src/infra/providers/dispatcher.ts`.
 7. Add tests in `tests/unit/providers/<newProvider>.test.ts` (no real CLI — mock the spawn).
@@ -106,9 +91,10 @@ src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
 ## Adding a new model family
 
 1. Add the literal to `ModelFamily` in `types.ts` and `ModelFamilySchema` in `modelRouting.ts`.
-2. Add tier mappings in `DEFAULT_MODEL_ROUTING.normalization` and any `tiers` entries.
-3. Add `requestedModelNormalization` entries for known versioned IDs.
-4. Update `docs/model-routing.md` family table.
+2. Add `requestedModelNormalization` entries for known versioned ids in `DEFAULT_MODEL_ROUTING`.
+3. Add the family's `models` arrays (with per-entry `efforts` and `status`) to the relevant provider entry in `DEFAULT_PROVIDER_CONFIG`.
+4. If the family belongs to a spoke provider, add equivalence edges in `DEFAULT_MODEL_ROUTING.equivalence`.
+5. Update `docs/model-routing.md` family table.
 
 ## Per-invocation provider priority override
 
@@ -121,19 +107,14 @@ phax resume my-run --yes --provider-priority codex-cli,claude-code
 
 Valid ids: `claude-code`, `mistral-vibe`, `codex-cli`. The list is parsed by `parseProviderPriority` in `src/domain/routing/priorityOverride.ts` (deduped, trimmed, validated; fails fast on empty/unknown). The override is applied by `applyProviderPriorityOverride` which returns a new `ModelRouting` with only `providerPriority` replaced.
 
-**Caveat**: `claude-code` remains the guaranteed terminal fallback in `resolveModel` regardless of the override. An override that omits `claude-code` may still resolve to it when no listed provider can serve a tier.
+**Caveat**: `claude-code` remains the guaranteed terminal fallback in `resolveModel` regardless of the override.
 
-## Worked examples (spec §15)
+## Worked examples
 
-| Request        | Priority           | allowDowngrade | Result                                                                         |
-| -------------- | ------------------ | -------------- | ------------------------------------------------------------------------------ |
-| sonnet/medium  | mistral-vibe first | —              | mistral-vibe, `phax-mistral-medium-3.5-medium`, `equivalent`                   |
-| sonnet/high    | codex-cli first    | —              | codex-cli, `gpt-5.5`, effort `medium`, `equivalent`                            |
-| sonnet/low     | claude-code        | —              | claude-code, `claude-sonnet` (NOT haiku — same-family preserved)               |
-| opus/low       | codex-cli first    | true           | codex-cli, `gpt-5.5`, effort `high`, `equivalent` (tier `frontier-low`)        |
-| opus/medium    | codex-cli first    | true           | codex-cli, `gpt-5.5`, effort `xhigh`, `equivalent` (tier `frontier-medium`)    |
-| opus/high      | codex-cli first    | true           | codex-cli, `gpt-5.5`, effort `xhigh`, `equivalent` (tier `frontier-high`)      |
-| opus/xhigh     | codex-cli first    | true           | codex-cli, `gpt-5.5`, effort `xhigh`, `equivalent` (tier `frontier-xhigh`)     |
-| opus/max       | codex-cli first    | true           | codex-cli, `gpt-5.5`, effort `xhigh`, `downgrade` (tier `frontier-max`)        |
-| opus/max       | codex-cli first    | false          | claude-code, `claude-opus`, `exact` (`downgrade` skipped)                      |
-| opus/ultracode | any                | false          | claude-code, `claude-opus/ultracode`, `frontier-ultra` tier (no peer anywhere) |
+| Request                               | Priority           | allowDowngrade | Result                                                                     |
+| ------------------------------------- | ------------------ | -------------- | -------------------------------------------------------------------------- |
+| `claude-sonnet-4-6` / `medium`        | claude-code only   | —              | claude-code, `claude-sonnet-4-6`, `medium`, `exact`                        |
+| `claude-sonnet-4-6` / `medium`        | mistral-vibe first | —              | mistral-vibe, `phax-mistral-medium-3.5-medium`, `medium`, `equivalent`     |
+| `gpt-5.5` / `xhigh`                  | codex-cli first    | —              | codex-cli, `gpt-5.5`, `xhigh`, `exact`                                    |
+| `gpt-5.5` / `xhigh` (codex disabled) | —                  | true           | claude-code, `claude-opus-4-8`, `medium`, `equivalent` (hub translation)   |
+| `claude-opus-4-8` / `ultracode`       | any                | any            | claude-code, `claude-opus-4-8`, `ultracode`, `exact`                       |

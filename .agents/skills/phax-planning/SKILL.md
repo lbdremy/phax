@@ -246,6 +246,8 @@ because a spike's value is in judgment, not in compiling code. Reconcile it like
 
 ## Model catalog
 
+Each entry below is a versioned model id from the provider catalog with its effort set and status. Plan phases reference concrete model ids (e.g. `claude-sonnet-4-6`); phax resolves them natively when the execution provider serves the same family, or translates through the Claude-hub equivalence table otherwise. The catalog is the source of truth — the run-start preflight rejects any phase whose id or effort is not listed here.
+
 <!-- BEGIN generated: model-catalog -->
 | ID | Family | Status | Efforts |
 | --- | --- | --- | --- |
