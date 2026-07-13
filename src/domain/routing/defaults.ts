@@ -15,6 +15,37 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
       high: { claude: "claude-sonnet-4-6", effort: "high", relation: "equivalent" },
       xhigh: { claude: "claude-opus-4-8", effort: "medium", relation: "equivalent" },
     },
+    // OpenAI GPT-5.6 (Sol / Terra / Luna variants). Anchored to the Artificial
+    // Analysis Agentic Index — a single axis scoring both vendors at top effort
+    // (avg of GDPval-AA v2 + τ³-Banking; source: https://artificialanalysis.ai/):
+    // Sol 54.0 ≈ Fable 5 52.8, Terra 47.4 ≈ Opus 4.8 47.2, Luna 45.6 ≈ Sonnet 5
+    // 46.7 — all within ~1 point, so `equivalent`. Efforts map straight across;
+    // each variant's top `ultra` tier anchors to its Claude peer's `max`. (Not
+    // opus/ultracode: ultracode stays Claude's exclusive ceiling, never routed
+    // cross-provider — see sameFamilyPreservation tests.)
+    "gpt-5.6-sol": {
+      low: { claude: "claude-fable-5", effort: "low", relation: "equivalent" },
+      medium: { claude: "claude-fable-5", effort: "medium", relation: "equivalent" },
+      high: { claude: "claude-fable-5", effort: "high", relation: "equivalent" },
+      xhigh: { claude: "claude-fable-5", effort: "xhigh", relation: "equivalent" },
+      max: { claude: "claude-fable-5", effort: "max", relation: "equivalent" },
+      ultra: { claude: "claude-fable-5", effort: "max", relation: "equivalent" },
+    },
+    "gpt-5.6-terra": {
+      low: { claude: "claude-opus-4-8", effort: "low", relation: "equivalent" },
+      medium: { claude: "claude-opus-4-8", effort: "medium", relation: "equivalent" },
+      high: { claude: "claude-opus-4-8", effort: "high", relation: "equivalent" },
+      xhigh: { claude: "claude-opus-4-8", effort: "xhigh", relation: "equivalent" },
+      max: { claude: "claude-opus-4-8", effort: "max", relation: "equivalent" },
+      ultra: { claude: "claude-opus-4-8", effort: "max", relation: "equivalent" },
+    },
+    "gpt-5.6-luna": {
+      low: { claude: "claude-sonnet-5", effort: "low", relation: "equivalent" },
+      medium: { claude: "claude-sonnet-5", effort: "medium", relation: "equivalent" },
+      high: { claude: "claude-sonnet-5", effort: "high", relation: "equivalent" },
+      xhigh: { claude: "claude-sonnet-5", effort: "xhigh", relation: "equivalent" },
+      max: { claude: "claude-sonnet-5", effort: "max", relation: "equivalent" },
+    },
     // Mistral Vibe — one alias per effort, each anchored to its Claude peer.
     "phax-mistral-medium-3.5-off": {
       off: { claude: "claude-haiku-4-5-20251001", effort: "none", relation: "equivalent" },
@@ -36,6 +67,7 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
     haiku: "claude-haiku",
     sonnet: "claude-sonnet",
     opus: "claude-opus",
+    fable: "claude-fable",
   },
 };
 
@@ -61,6 +93,11 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
               efforts: ["low", "medium", "high", "max"],
               status: "active",
             },
+            {
+              id: "claude-sonnet-5",
+              efforts: ["low", "medium", "high", "xhigh", "max"],
+              status: "active",
+            },
           ],
         },
         "claude-opus": {
@@ -68,6 +105,15 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
             {
               id: "claude-opus-4-8",
               efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
+              status: "active",
+            },
+          ],
+        },
+        "claude-fable": {
+          models: [
+            {
+              id: "claude-fable-5",
+              efforts: ["low", "medium", "high", "xhigh", "max"],
               status: "active",
             },
           ],
@@ -100,6 +146,21 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
             {
               id: "gpt-5.5",
               efforts: ["low", "medium", "high", "xhigh"],
+              status: "active",
+            },
+            {
+              id: "gpt-5.6-sol",
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultra"],
+              status: "active",
+            },
+            {
+              id: "gpt-5.6-terra",
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultra"],
+              status: "active",
+            },
+            {
+              id: "gpt-5.6-luna",
+              efforts: ["low", "medium", "high", "xhigh", "max"],
               status: "active",
             },
           ],

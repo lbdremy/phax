@@ -40,6 +40,7 @@ const EffortSchema = Schema.Union(
   Schema.Literal("xhigh"),
   Schema.Literal("max"),
   Schema.Literal("ultracode"),
+  Schema.Literal("ultra"),
 );
 
 export const RunStatusSchema = Schema.Struct({

@@ -399,7 +399,7 @@ cmd "agent" {
         flag "--effort" {
             arg "<level>"
             required #true
-            help "Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode)"
+            help "Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode|ultra)"
         }
         flag "--json" {
             help "Output the resolution as JSON"

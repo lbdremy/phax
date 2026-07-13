@@ -4,6 +4,7 @@ export type ModelFamily =
   | "claude-haiku"
   | "claude-sonnet"
   | "claude-opus"
+  | "claude-fable"
   | "mistral-medium"
   | "openai-gpt";
 
@@ -15,7 +16,8 @@ export type ThinkingLevel =
   | "high"
   | "xhigh"
   | "max"
-  | "ultracode";
+  | "ultracode"
+  | "ultra";
 
 export type Relationship =
   | "exact"

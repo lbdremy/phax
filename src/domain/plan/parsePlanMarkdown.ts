@@ -271,6 +271,7 @@ const EffortSchema = Schema.Literal(
   "xhigh",
   "max",
   "ultracode",
+  "ultra",
 );
 const decodeEffort = Schema.decodeUnknownEither(EffortSchema);
 

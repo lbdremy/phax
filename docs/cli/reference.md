@@ -697,7 +697,7 @@ Requested model id (e.g. claude-sonnet-4-6)
 
 #### `--effort <level>`
 
-Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode)
+Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode|ultra)
 
 #### `--json`
 
