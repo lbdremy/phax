@@ -152,6 +152,11 @@ export class ModelPreflightError extends Data.TaggedError("ModelPreflightError")
     readonly model: string;
     readonly effort: string;
     readonly reasons: readonly string[];
+    readonly alternatives: readonly {
+      readonly id: string;
+      readonly family: string;
+      readonly efforts: readonly string[];
+    }[];
   }[];
 }> {}
 
