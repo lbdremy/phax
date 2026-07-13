@@ -14,6 +14,7 @@ const EFFORT_ORDINAL: Record<ThinkingLevel, number> = {
   xhigh: 4,
   max: 5,
   ultracode: 6,
+  ultra: 7,
 };
 
 export interface CatalogLocation {
@@ -129,7 +130,12 @@ function composeRelations(a: Relationship, b: Relationship): Relationship {
   return "equivalent";
 }
 
-const CLAUDE_FAMILIES: readonly ModelFamily[] = ["claude-haiku", "claude-sonnet", "claude-opus"];
+const CLAUDE_FAMILIES: readonly ModelFamily[] = [
+  "claude-haiku",
+  "claude-sonnet",
+  "claude-opus",
+  "claude-fable",
+];
 
 export function isClaudeFamily(family: ModelFamily): boolean {
   return CLAUDE_FAMILIES.includes(family);

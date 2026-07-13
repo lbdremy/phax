@@ -31,6 +31,7 @@ function resolveFamily(
   if (lower.includes("sonnet")) return { family: "claude-sonnet", source: "heuristic" };
   if (lower.includes("opus")) return { family: "claude-opus", source: "heuristic" };
   if (lower.includes("haiku")) return { family: "claude-haiku", source: "heuristic" };
+  if (lower.includes("fable")) return { family: "claude-fable", source: "heuristic" };
   if (lower.includes("mistral")) return { family: "mistral-medium", source: "heuristic" };
   if (lower.includes("gpt") || lower.includes("openai") || lower.includes("chatgpt")) {
     return { family: "openai-gpt", source: "heuristic" };
@@ -68,6 +69,7 @@ function nearestSupportedEffort(entry: CatalogEntry, effort: ThinkingLevel): Thi
     xhigh: 4,
     max: 5,
     ultracode: 6,
+    ultra: 7,
   };
   const target = ORDINAL[effort];
   let best = entry.efforts[0];

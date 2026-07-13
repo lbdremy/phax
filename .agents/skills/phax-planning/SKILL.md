@@ -253,13 +253,18 @@ Each entry below is a versioned model id from the provider catalog with its effo
 | --- | --- | --- | --- |
 | `claude-haiku-4-5-20251001` | `claude-haiku` | active | `none` |
 | `claude-sonnet-4-6` | `claude-sonnet` | active | `low` \| `medium` \| `high` \| `max` |
+| `claude-sonnet-5` | `claude-sonnet` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` |
 | `claude-opus-4-8` | `claude-opus` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
+| `claude-fable-5` | `claude-fable` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` |
 | `phax-mistral-medium-3.5-off` | `mistral-medium` | active | `off` |
 | `phax-mistral-medium-3.5-low` | `mistral-medium` | active | `low` |
 | `phax-mistral-medium-3.5-medium` | `mistral-medium` | active | `medium` |
 | `phax-mistral-medium-3.5-high` | `mistral-medium` | active | `high` |
 | `phax-mistral-medium-3.5-max` | `mistral-medium` | active | `max` |
 | `gpt-5.5` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` |
+| `gpt-5.6-sol` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultra` |
+| `gpt-5.6-terra` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultra` |
+| `gpt-5.6-luna` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` |
 <!-- END generated: model-catalog -->
 
 ## Required commands declaration

@@ -9,6 +9,7 @@ const EffortSchema = Schema.Literal(
   "xhigh",
   "max",
   "ultracode",
+  "ultra",
 );
 
 // What the model is asked to emit per phase. `title` is deliberately absent: it

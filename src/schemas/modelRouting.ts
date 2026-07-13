@@ -6,6 +6,7 @@ export const ModelFamilySchema = Schema.Literal(
   "claude-haiku",
   "claude-sonnet",
   "claude-opus",
+  "claude-fable",
   "mistral-medium",
   "openai-gpt",
 );
@@ -19,6 +20,7 @@ export const ThinkingLevelSchema = Schema.Literal(
   "xhigh",
   "max",
   "ultracode",
+  "ultra",
 );
 
 export const RelationshipSchema = Schema.Literal(

@@ -21,6 +21,7 @@ const THINKING_LEVELS: readonly string[] = [
   "xhigh",
   "max",
   "ultracode",
+  "ultra",
 ];
 
 async function loadConfigs(
@@ -302,7 +303,7 @@ export function registerAgentCommand(program: Command, out: OutputPort): void {
     .requiredOption("--model <id>", "Requested model id (e.g. claude-sonnet-4-6)")
     .requiredOption(
       "--effort <level>",
-      "Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode)",
+      "Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode|ultra)",
     )
     .option("--json", "Output the resolution as JSON")
     .action(async (opts: { model: string; effort: string; json?: boolean }) => {
