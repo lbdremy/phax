@@ -193,6 +193,13 @@ describe("executePlan — model preflight", () => {
       const err = result.left as ModelPreflightError;
       expect(err.failures[0]?.reasons[0]).toContain("ultracode");
       expect(err.failures[0]?.reasons[0]).toContain("not supported");
+      // The structured failure carries the catalog-derived alternatives so a
+      // machine-readable consumer sees the same self-correction hint as the
+      // rendered message (nearest supported efforts for the requested model).
+      const alt = err.failures[0]?.alternatives[0];
+      expect(alt?.id).toBe("claude-sonnet-4-6");
+      expect(alt?.family).toBe("claude-sonnet");
+      expect(alt?.efforts.length).toBeGreaterThan(0);
     }
 
     expect(fakeBackend.impl.runCalls).toHaveLength(0);

@@ -338,6 +338,11 @@ export function executePlan(
             model: f.model,
             effort: f.effort,
             reasons: f.reasons,
+            alternatives: f.alternatives.map((a) => ({
+              id: a.id,
+              family: a.family,
+              efforts: a.efforts,
+            })),
           })),
         }),
       );
