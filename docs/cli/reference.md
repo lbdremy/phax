@@ -587,6 +587,24 @@ phax report usage-cli
 phax report usage-cli --no-gist
 ```
 
+## `phax orient`
+
+- **Usage**: `phax orient [--file <path>] [id]`
+
+Pull orientation from the configured orient provider: expand a row by id, or pass --file to get an index for an arbitrary file
+
+### Arguments
+
+#### `[id]`
+
+Row id to expand
+
+### Flags
+
+#### `--file <path>`
+
+Return an index for an arbitrary file instead of expanding a row id
+
 ## `phax completions`
 
 - **Usage**: `phax completions <shell>`

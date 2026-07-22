@@ -4,12 +4,14 @@ import type { ProviderId } from "../routing/types.js";
 
 export interface AgentCommandRecord {
   readonly command: string;
-  readonly source: "config" | "gate";
+  readonly source: "config" | "gate" | "orient";
   readonly explicit: boolean;
   readonly requiredByPlan: boolean;
   readonly enforcement: CommandEnforcement;
   readonly degraded: boolean;
 }
+
+const ORIENT_COMMAND = "phax orient";
 
 function normalise(raw: string): string {
   return raw.trim().split(/\s+/).filter(Boolean).join(" ");
@@ -28,12 +30,14 @@ export function computeFrozenAgentCommands(input: {
   readonly gateCommands: readonly string[];
   readonly requiredCommands: readonly string[];
   readonly provider: ProviderId;
+  readonly orientEnabled: boolean;
 }): { readonly records: readonly AgentCommandRecord[]; readonly degraded: boolean } {
   const enforcement = PROVIDER_SECURITY_CAPABILITIES[input.provider].commandEnforcement;
   const normalisedRequired = new Set(input.requiredCommands.map(normalise).filter(Boolean));
 
-  // Build ordered, deduplicated map: config entries take precedence over gate entries.
-  const seen = new Map<string, { source: "config" | "gate"; explicit: boolean }>();
+  // Build ordered, deduplicated map: config entries take precedence over gate entries,
+  // which in turn take precedence over the implicit orient allowance.
+  const seen = new Map<string, { source: "config" | "gate" | "orient"; explicit: boolean }>();
 
   for (const raw of input.configCommands) {
     const cmd = normalise(raw);
@@ -47,6 +51,10 @@ export function computeFrozenAgentCommands(input: {
     if (cmd && !seen.has(cmd)) {
       seen.set(cmd, { source: "gate", explicit: false });
     }
+  }
+
+  if (input.orientEnabled && !seen.has(ORIENT_COMMAND)) {
+    seen.set(ORIENT_COMMAND, { source: "orient", explicit: false });
   }
 
   const records: AgentCommandRecord[] = [];

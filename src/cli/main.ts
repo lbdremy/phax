@@ -12,13 +12,12 @@ const rawArgs = process.argv.slice(2);
 if (rawArgs.includes("--usage")) {
   const fmtIdx = rawArgs.indexOf("--usage-format");
   const format = fmtIdx !== -1 && fmtIdx + 1 < rawArgs.length ? rawArgs[fmtIdx + 1] : "kdl";
-  handleUsageFlag(format ?? "kdl");
-  process.exit(0);
+  handleUsageFlag(format ?? "kdl", (code) => process.exit(code));
+} else {
+  buildProgram()
+    .parseAsync(process.argv)
+    .catch((err: unknown) => {
+      consoleOutput.error(`Unexpected error: ${String(err)}`);
+      process.exit(1);
+    });
 }
-
-buildProgram()
-  .parseAsync(process.argv)
-  .catch((err: unknown) => {
-    consoleOutput.error(`Unexpected error: ${String(err)}`);
-    process.exit(1);
-  });

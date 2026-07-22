@@ -333,6 +333,17 @@ cmd "report" {
     }
 }
 
+cmd "orient" {
+    help "Pull orientation from the configured orient provider: expand a row by id, or pass --file to get an index for an arbitrary file"
+    arg "[id]" {
+        help "Row id to expand"
+    }
+    flag "--file" {
+        arg "<path>"
+        help "Return an index for an arbitrary file instead of expanding a row id"
+    }
+}
+
 cmd "completions" {
     help "Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI."
     arg "<shell>" {
