@@ -46,6 +46,14 @@ describe("decodePhaxUserOverlay", () => {
     }
   });
 
+  it("accepts an orient block", () => {
+    const result = decodePhaxUserOverlay({ orient: { command: "orient-provider" } });
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.orient?.command).toBe("orient-provider");
+    }
+  });
+
   it("accepts gateProfiles", () => {
     const result = decodePhaxUserOverlay({
       gateProfiles: { fast: ["pnpm test:unit"] },

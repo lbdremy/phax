@@ -219,6 +219,41 @@ fixes, regressions); skip strict test-first for exploratory UI and scaffolding.
 - **Verify outside-in.** End by checking the user-visible behavior works end to
   end, then let the gates confirm it.
 
+## Technical arbitrations
+
+Planning is where technical trade-offs get decided — contract shapes, phase
+decomposition, which layer owns a behavior, model/effort per phase. The spec
+deliberately leaves these open ("what, not how"); do not resolve them silently.
+
+- **Surface real arbitrations as questions.** When two viable approaches differ
+  in what they sacrifice, stop and ask the human **before writing the phases** —
+  the same clarify gate the spec applies in its §9, applied at the plan layer.
+  Bundle the questions in one pass; don't drip them one at a time. An arbitration
+  is real when both options would pass the gates; a choice with only one viable
+  option is not a question, just make it.
+- **Frame every option by its dominant loss.** Do not weigh symmetric pros/cons
+  lists — both columns fill endlessly and everything appears to weigh the same.
+  Name, per option, the strongest thing you abandon by choosing it, and recommend
+  the option whose loss is acceptable:
+
+  ```markdown
+  Question: <the arbitration>
+
+  - Option A — abandons: <the strongest thing this choice gives up>
+  - Option B — abandons: <the strongest thing this choice gives up>
+
+  Recommendation: <option> — <why its loss is the acceptable one>.
+  ```
+
+  One line per option is enough. If you cannot name what an option abandons, you
+  have not understood the option yet — dig further before asking.
+- **Record the outcome in the plan.** Add a `## Technical arbitrations` section
+  to the plan preamble (before the first phase heading) listing each resolved
+  arbitration in one or two lines: the decision and the loss knowingly accepted.
+  It is informational (not extracted), but it lets the executing agent and the
+  reviewer read a phase without re-litigating the choice. Omit the section when
+  the plan required no arbitration.
+
 ## Spike and discovery plans
 
 phax is not only for feature work — it is a valid vehicle for spike / discovery /
@@ -382,6 +417,10 @@ is a token-prefix of the required command (`deno` covers `deno fmt`).
 - Inaccurate file lists — listing files you will not touch (noisy deviations),
   omitting files you will (false deviations), or listing files you only read.
 - Putting "maybe" files in the create/edit lists instead of the optional list.
+- Silently arbitrated trade-offs — picking between viable approaches without
+  asking the human, or recording the decision without the loss accepted (see
+  Technical arbitrations). Symmetric pros/cons lists are the same smell in
+  disguise.
 
 ## Example well-formed phase
 

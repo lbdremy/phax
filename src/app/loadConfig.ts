@@ -271,6 +271,7 @@ export function loadConfig(
     fileReconciliationMode: config.fileReconciliation?.mode ?? "report_only",
     security: resolvedSecurity,
     publish: resolvePublishConfig(config.publish),
+    ...(config.orient !== undefined ? { orient: config.orient } : {}),
     complianceReview: resolveComplianceReviewConfig(config.review?.compliance),
     codeReview: resolveCodeReviewConfig(config.review?.code),
   };

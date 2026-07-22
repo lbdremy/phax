@@ -13,6 +13,12 @@ export const PublishConfigSchema = Schema.Struct({
 
 export type PublishConfig = Schema.Schema.Type<typeof PublishConfigSchema>;
 
+export const OrientConfigSchema = Schema.Struct({
+  command: Schema.NonEmptyString,
+});
+
+export type OrientConfig = Schema.Schema.Type<typeof OrientConfigSchema>;
+
 export interface ResolvedPublishConfig {
   readonly auto: boolean;
   readonly remote: string;
@@ -118,6 +124,7 @@ export const PhaxConfigSchema = Schema.Struct({
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
+  orient: Schema.optional(OrientConfigSchema),
   review: Schema.optional(
     Schema.Struct({
       compliance: Schema.optional(ComplianceReviewConfigSchema),
@@ -160,6 +167,7 @@ export interface ResolvedConfig {
   readonly fileReconciliationMode: "report_only" | "warn";
   readonly security: ResolvedSecurityConfig;
   readonly publish: ResolvedPublishConfig;
+  readonly orient?: OrientConfig;
   readonly complianceReview: ResolvedComplianceReviewConfig;
   readonly codeReview: ResolvedCodeReviewConfig;
 }
@@ -195,6 +203,7 @@ export const PhaxUserOverlaySchema = Schema.Struct({
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
+  orient: Schema.optional(OrientConfigSchema),
   review: Schema.optional(
     Schema.Struct({
       compliance: Schema.optional(ComplianceReviewConfigSchema),
