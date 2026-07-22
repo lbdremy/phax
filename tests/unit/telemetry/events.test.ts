@@ -6,6 +6,9 @@ import {
   makeAdapterCallSucceededTelemetryEvent,
   makeArtifactGeneratedTelemetryEvent,
   makeGateEvaluatedTelemetryEvent,
+  makeOrientBriefComputedTelemetryEvent,
+  makeOrientPullEmptyTelemetryEvent,
+  makeOrientPullServedTelemetryEvent,
   makeSecurityPolicyAppliedTelemetryEvent,
   makeStateTransitionTelemetryEvent,
   makeStepCompletedTelemetryEvent,
@@ -243,6 +246,98 @@ describe("makeSecurityPolicyAppliedTelemetryEvent", () => {
       skippedForSecurity: [],
     });
     expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+  });
+});
+
+describe("makeOrientBriefComputedTelemetryEvent", () => {
+  it("produces a value the schema accepts", () => {
+    const event = makeOrientBriefComputedTelemetryEvent({
+      runId,
+      phase: "phase-05",
+      fileCount: 3,
+      rowCount: 2,
+    });
+    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+  });
+
+  it("sets type to orient.brief.computed", () => {
+    const event = makeOrientBriefComputedTelemetryEvent({
+      runId,
+      phase: "phase-05",
+      fileCount: 3,
+      rowCount: 2,
+    });
+    expect(event.type).toBe("orient.brief.computed");
+  });
+
+  it("preserves optional operationId when provided", () => {
+    const event = makeOrientBriefComputedTelemetryEvent({
+      runId,
+      operationId: "op-123",
+      phase: "phase-05",
+      fileCount: 3,
+      rowCount: 2,
+    });
+    expect(event.operationId).toBe("op-123");
+  });
+});
+
+describe("makeOrientPullServedTelemetryEvent", () => {
+  it("produces a value the schema accepts", () => {
+    const event = makeOrientPullServedTelemetryEvent({
+      runId,
+      kind: "expand",
+      subject: "row-1",
+    });
+    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+  });
+
+  it("sets type to orient.pull.served", () => {
+    const event = makeOrientPullServedTelemetryEvent({
+      runId,
+      kind: "file",
+      subject: "src/index.ts",
+    });
+    expect(event.type).toBe("orient.pull.served");
+  });
+
+  it("accepts the file pull kind", () => {
+    const event = makeOrientPullServedTelemetryEvent({
+      runId,
+      kind: "file",
+      subject: "src/index.ts",
+    });
+    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+  });
+});
+
+describe("makeOrientPullEmptyTelemetryEvent", () => {
+  it("produces a value the schema accepts", () => {
+    const event = makeOrientPullEmptyTelemetryEvent({
+      runId,
+      kind: "expand",
+      subject: "row-missing",
+    });
+    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+  });
+
+  it("sets type to orient.pull.empty", () => {
+    const event = makeOrientPullEmptyTelemetryEvent({
+      runId,
+      kind: "expand",
+      subject: "row-missing",
+    });
+    expect(event.type).toBe("orient.pull.empty");
+  });
+
+  it("preserves optional operationId when provided", () => {
+    const event = makeOrientPullEmptyTelemetryEvent({
+      runId,
+      operationId: "op-456",
+      kind: "file",
+      subject: "src/unknown.ts",
+    });
+    expect(event.operationId).toBe("op-456");
   });
 });
 

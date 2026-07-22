@@ -40,6 +40,13 @@ export interface SemanticTraceSnapshotEntry {
   readonly mcpMode?: string;
   readonly downgraded?: boolean;
   readonly skippedForSecurity?: readonly { readonly provider: string; readonly reason: string }[];
+  // orient.brief.computed
+  readonly phase?: string;
+  readonly fileCount?: number;
+  readonly rowCount?: number;
+  // orient.pull.served / orient.pull.empty
+  readonly kind?: string;
+  readonly subject?: string;
 }
 
 export type SemanticTraceSnapshot = ReadonlyArray<SemanticTraceSnapshotEntry>;
@@ -109,5 +116,17 @@ export const projectEvent = (e: SemanticTelemetryEvent): SemanticTraceSnapshotEn
         downgraded: e.downgraded,
         skippedForSecurity: e.skippedForSecurity,
       };
+    case "orient.brief.computed":
+      return {
+        type: e.type,
+        ...opId,
+        phase: e.phase,
+        fileCount: e.fileCount,
+        rowCount: e.rowCount,
+      };
+    case "orient.pull.served":
+      return { type: e.type, ...opId, kind: e.kind, subject: e.subject };
+    case "orient.pull.empty":
+      return { type: e.type, ...opId, kind: e.kind, subject: e.subject };
   }
 };
