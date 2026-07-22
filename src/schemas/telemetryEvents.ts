@@ -109,6 +109,31 @@ const SecurityPolicyAppliedTelemetryEventSchema = Schema.Struct({
   ),
 });
 
+const OrientBriefComputedTelemetryEventSchema = Schema.Struct({
+  type: Schema.Literal("orient.brief.computed"),
+  runId: Schema.String.pipe(Schema.minLength(1)),
+  operationId: Schema.optional(Schema.String),
+  phase: Schema.String.pipe(Schema.minLength(1)),
+  fileCount: Schema.Number,
+  rowCount: Schema.Number,
+});
+
+const OrientPullServedTelemetryEventSchema = Schema.Struct({
+  type: Schema.Literal("orient.pull.served"),
+  runId: Schema.String.pipe(Schema.minLength(1)),
+  operationId: Schema.optional(Schema.String),
+  kind: Schema.Literal("expand", "file"),
+  subject: Schema.String.pipe(Schema.minLength(1)),
+});
+
+const OrientPullEmptyTelemetryEventSchema = Schema.Struct({
+  type: Schema.Literal("orient.pull.empty"),
+  runId: Schema.String.pipe(Schema.minLength(1)),
+  operationId: Schema.optional(Schema.String),
+  kind: Schema.Literal("expand", "file"),
+  subject: Schema.String.pipe(Schema.minLength(1)),
+});
+
 export const SemanticTelemetryEventSchema = Schema.Union(
   StateTransitionTelemetryEventSchema,
   AdapterCallStartedTelemetryEventSchema,
@@ -120,6 +145,9 @@ export const SemanticTelemetryEventSchema = Schema.Union(
   ArtifactGeneratedTelemetryEventSchema,
   ModelResolvedTelemetryEventSchema,
   SecurityPolicyAppliedTelemetryEventSchema,
+  OrientBriefComputedTelemetryEventSchema,
+  OrientPullServedTelemetryEventSchema,
+  OrientPullEmptyTelemetryEventSchema,
 );
 
 export type SemanticTelemetryEventFromSchema = Schema.Schema.Type<
