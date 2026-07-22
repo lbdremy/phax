@@ -23,7 +23,7 @@ export const SecurityPostureSchema = Schema.Struct({
   agentCommands: Schema.Array(
     Schema.Struct({
       command: Schema.NonEmptyString,
-      source: Schema.Literal("config", "gate"),
+      source: Schema.Literal("config", "gate", "orient"),
       explicit: Schema.Boolean,
       requiredByPlan: Schema.Boolean,
       enforcement: Schema.Literal("exact", "prefix", "executable", "none"),

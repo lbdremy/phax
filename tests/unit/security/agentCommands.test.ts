@@ -12,6 +12,7 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
         gateCommands: [],
         requiredCommands: [],
         provider,
+        orientEnabled: false,
       });
       expect(records[0]?.degraded, `${provider} broad`).toBe(false);
       expect(degraded, `${provider} top-level degraded`).toBe(false);
@@ -24,6 +25,7 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
       gateCommands: [],
       requiredCommands: [],
       provider: "codex-cli",
+      orientEnabled: false,
     });
     expect(records[0]?.degraded).toBe(true);
     expect(degraded).toBe(true);
@@ -35,6 +37,7 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
       gateCommands: [],
       requiredCommands: [],
       provider: "mistral-vibe",
+      orientEnabled: false,
     });
     expect(records[0]?.degraded).toBe(true);
     expect(degraded).toBe(true);
@@ -46,6 +49,7 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
       gateCommands: [],
       requiredCommands: [],
       provider: "claude-code",
+      orientEnabled: false,
     });
     expect(records[0]?.degraded).toBe(false);
     expect(degraded).toBe(false);
@@ -59,6 +63,7 @@ describe("computeFrozenAgentCommands — source and explicit", () => {
       gateCommands: ["deno fmt"],
       requiredCommands: [],
       provider: "claude-code",
+      orientEnabled: false,
     });
     expect(records).toHaveLength(1);
     expect(records[0]?.source).toBe("config");
@@ -71,6 +76,7 @@ describe("computeFrozenAgentCommands — source and explicit", () => {
       gateCommands: ["git commit"],
       requiredCommands: [],
       provider: "claude-code",
+      orientEnabled: false,
     });
     expect(records[0]?.source).toBe("gate");
     expect(records[0]?.explicit).toBe(false);
@@ -82,9 +88,64 @@ describe("computeFrozenAgentCommands — source and explicit", () => {
       gateCommands: [],
       requiredCommands: [],
       provider: "claude-code",
+      orientEnabled: false,
     });
     expect(records[0]?.source).toBe("config");
     expect(records[0]?.explicit).toBe(true);
+  });
+});
+
+describe("computeFrozenAgentCommands — orient allowance", () => {
+  it("orientEnabled: true adds exactly one 'phax orient' entry with source:orient, explicit:false", () => {
+    const { records } = computeFrozenAgentCommands({
+      configCommands: ["deno"],
+      gateCommands: [],
+      requiredCommands: [],
+      provider: "claude-code",
+      orientEnabled: true,
+    });
+    const orientRecords = records.filter((r) => r.command === "phax orient");
+    expect(orientRecords).toHaveLength(1);
+    expect(orientRecords[0]?.source).toBe("orient");
+    expect(orientRecords[0]?.explicit).toBe(false);
+  });
+
+  it("orientEnabled: false leaves the frozen set unchanged (no 'phax orient' entry)", () => {
+    const { records } = computeFrozenAgentCommands({
+      configCommands: ["deno"],
+      gateCommands: [],
+      requiredCommands: [],
+      provider: "claude-code",
+      orientEnabled: false,
+    });
+    expect(records.find((r) => r.command === "phax orient")).toBeUndefined();
+    expect(records).toHaveLength(1);
+  });
+
+  it("an operator-configured 'phax orient' entry takes precedence over the implicit one", () => {
+    const { records } = computeFrozenAgentCommands({
+      configCommands: ["phax orient"],
+      gateCommands: [],
+      requiredCommands: [],
+      provider: "claude-code",
+      orientEnabled: true,
+    });
+    const orientRecords = records.filter((r) => r.command === "phax orient");
+    expect(orientRecords).toHaveLength(1);
+    expect(orientRecords[0]?.source).toBe("config");
+    expect(orientRecords[0]?.explicit).toBe(true);
+  });
+
+  it("the implicit 'phax orient' entry is narrow and degrades under codex-cli (none)", () => {
+    const { records, degraded } = computeFrozenAgentCommands({
+      configCommands: [],
+      gateCommands: [],
+      requiredCommands: [],
+      provider: "codex-cli",
+      orientEnabled: true,
+    });
+    expect(records[0]?.degraded).toBe(true);
+    expect(degraded).toBe(true);
   });
 });
 
@@ -95,6 +156,7 @@ describe("computeFrozenAgentCommands — requiredByPlan", () => {
       gateCommands: [],
       requiredCommands: ["deno fmt"],
       provider: "claude-code",
+      orientEnabled: false,
     });
     const denoFmt = records.find((r) => r.command === "deno fmt");
     const gitCommit = records.find((r) => r.command === "git commit");
@@ -108,6 +170,7 @@ describe("computeFrozenAgentCommands — requiredByPlan", () => {
       gateCommands: [],
       requiredCommands: ["deno fmt"],
       provider: "claude-code",
+      orientEnabled: false,
     });
     expect(records[0]?.command).toBe("deno fmt");
     expect(records[0]?.requiredByPlan).toBe(true);
@@ -121,6 +184,7 @@ describe("computeFrozenAgentCommands — normalisation and deduplication", () =>
       gateCommands: [""],
       requiredCommands: [],
       provider: "claude-code",
+      orientEnabled: false,
     });
     expect(records).toHaveLength(0);
   });
@@ -131,6 +195,7 @@ describe("computeFrozenAgentCommands — normalisation and deduplication", () =>
       gateCommands: ["git commit", "deno"],
       requiredCommands: [],
       provider: "claude-code",
+      orientEnabled: false,
     });
     expect(records).toHaveLength(2);
     expect(records[0]?.command).toBe("deno");
@@ -143,6 +208,7 @@ describe("computeFrozenAgentCommands — normalisation and deduplication", () =>
       gateCommands: [],
       requiredCommands: [],
       provider: "claude-code",
+      orientEnabled: false,
     });
     expect(claude[0]?.enforcement).toBe("prefix");
 
@@ -151,6 +217,7 @@ describe("computeFrozenAgentCommands — normalisation and deduplication", () =>
       gateCommands: [],
       requiredCommands: [],
       provider: "codex-cli",
+      orientEnabled: false,
     });
     expect(codex[0]?.enforcement).toBe("none");
   });

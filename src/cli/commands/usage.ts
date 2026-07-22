@@ -12,12 +12,18 @@ export function readPackageVersion(): string {
   return pkg.version;
 }
 
-export function handleUsageFlag(format: string): void {
+// `process.exit()` right after `process.stdout/stderr.write()` can truncate the
+// write: for a non-TTY pipe (as in a spawned child), Node writes larger than
+// PIPE_BUF asynchronously, and an immediate exit races the flush. Exiting only
+// from the write's completion callback guarantees the data is handed off
+// before the process terminates. `onDone` is the caller's `process.exit(code)`.
+export function handleUsageFlag(format: string, onDone: (code: number) => void): void {
   if (format !== "kdl" && format !== "json") {
     process.stderr.write(
       `Error: invalid --usage-format value "${format}". Valid choices: kdl, json\n`,
+      () => onDone(1),
     );
-    process.exit(1);
+    return;
   }
 
   const spec = readUsageSpec();
@@ -25,8 +31,9 @@ export function handleUsageFlag(format: string): void {
     process.stderr.write(
       `Error: phax.usage.kdl not found at ${spec.path}\n` +
         "If running from source, regenerate it with: pnpm gen:usage-spec\n",
+      () => onDone(1),
     );
-    process.exit(1);
+    return;
   }
 
   if (format === "json") {
@@ -46,8 +53,9 @@ export function handleUsageFlag(format: string): void {
             "Install it with: brew install usage\n" +
             "See https://usage.jdx.dev/cli/ for other install options.\n" +
             "Tip: Run `phax --usage` (without --usage-format) for the KDL format, which has no external dependency.\n",
+          () => onDone(1),
         );
-        process.exit(1);
+        return;
       }
       throw result.error;
     }
@@ -56,14 +64,15 @@ export function handleUsageFlag(format: string): void {
       const errOutput = [result.stdout, result.stderr].filter(Boolean).join("\n");
       process.stderr.write(
         `Error: usage generate json failed (exit ${result.status}):\n${errOutput}\n`,
+        () => onDone(1),
       );
-      process.exit(1);
+      return;
     }
 
-    process.stdout.write(result.stdout);
+    process.stdout.write(result.stdout, () => onDone(0));
     return;
   }
 
   // format === "kdl"
-  process.stdout.write(spec.content);
+  process.stdout.write(spec.content, () => onDone(0));
 }
