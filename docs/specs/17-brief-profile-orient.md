@@ -164,18 +164,36 @@ occurrence. (refs §5.6)
 
 ## 9. Open questions for implementation planning
 
-All questions are **resolved by adopting the recommended default** (review of 2026-07-10):
+Both questions are **resolved by adopting the recommended option** (review of 2026-07-10;
+reframed by dominant loss 2026-07-22, resolutions unchanged):
 
-- **Row schema minimum.** The required row fields (id, title, severity, trigger) may need one more
-  to let the agent self-budget which bodies to read. *Default:* the four named fields; extend only
-  if planning finds a concrete gap.
-- **Where the fed-forward brief and pulls are recorded.** Needed for later review-by-trajectory.
-  *Default:* record them in the run's existing trajectory/telemetry stream; artifact shape left to
-  the plan.
+**Row schema minimum.** Does the index row need a field beyond (id, title, severity, trigger)
+for the agent to self-budget which bodies to expand?
+
+- Four fields only — abandons: any signal for prioritizing expansions before pulling; a wrong
+  guess costs a pull round-trip inside the phase.
+- Add a budgeting hint (e.g. body size) — abandons: the minimal provider contract; every
+  provider must compute and maintain the hint, even where it is meaningless.
+
+Recommendation: four fields — a mispredicted pull is a cheap, occasional, in-session cost,
+while a widened provider contract is permanent; extend only if planning finds a concrete gap.
+
+**Where the fed-forward brief and pulls are recorded.** Needed for later review-by-trajectory.
+
+- Existing trajectory/telemetry stream — abandons: a directly queryable per-phase artifact;
+  review-by-trajectory must filter the stream to reconstruct orientation traffic.
+- Dedicated per-phase artifact — abandons: zero-new-schema simplicity; a new persisted,
+  required schema (no back-compat shims) phax owns forever.
+
+Recommendation: existing stream — stream filtering is a read-time cost paid occasionally at
+review; a persisted schema is a write-time contract paid on every run.
 
 ## 10. Implementation-planning note
 
 Settled: push-on-dispatch, index-not-content, pull-on-demand, and the strictly advisory posture.
-Left open: the exact row schema and where fed-forward briefs/pulls are recorded (§9). Constraint:
-**phax stays generic** — it defines the index row shape and the push/pull hooks; the provider fills
-them. phax learns nothing about the provider's domain vocabulary.
+Left open: the exact row schema and where fed-forward briefs/pulls are recorded (§9), and the
+concrete form of the pull capability (in-session tool vs `phax orient` CLI command — §6 marks it
+indicative). The pull-form choice is a plan-layer arbitration: the plan must surface it under its
+Technical arbitrations gate, framing each option by its dominant loss, not decide it silently.
+Constraint: **phax stays generic** — it defines the index row shape and the push/pull hooks; the
+provider fills them. phax learns nothing about the provider's domain vocabulary.
