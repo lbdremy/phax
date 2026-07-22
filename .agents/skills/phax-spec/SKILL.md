@@ -129,8 +129,9 @@ Given <precondition>, when <action>, then <observable outcome>. (refs §5.1)
 ## 9. Open questions for implementation planning
 
 <Ambiguities you could not resolve, with a recommended default for each. This is the Clarify
-gate: surface every unknown here rather than letting the planner guess. Resolve or default
-each before marking the spec Approved.>
+gate: surface every unknown here rather than letting the planner guess. When a question is an
+arbitration between options, frame each option by its dominant loss (see Arbitration below) —
+never a symmetric pros/cons list. Resolve or default each before marking the spec Approved.>
 
 ## 10. Implementation-planning note
 
@@ -222,6 +223,28 @@ E2E tests** the plan will write.
   fit a test (perf budget, security posture, UX feel) lives in the spec's Context/Product goal
   and, after archival, in commits/PRs — not in a maintained spec file.
 
+## Arbitration — decide on the dominant loss
+
+When a spec must choose between viable options, do not weigh symmetric pros/cons lists:
+both columns fill endlessly, everything appears to weigh the same, and the list ends up
+justifying whichever preference came first. Instead, name — per option — the **dominant
+loss**: the strongest thing you abandon by choosing it. The decision becomes a comparison
+of losses, and the recommendation states which loss is acceptable and why.
+
+Format, inside a §9 question:
+
+```markdown
+Question: <the arbitration>
+
+- Option A — abandons: <the strongest thing this choice gives up>
+- Option B — abandons: <the strongest thing this choice gives up>
+
+Recommendation: <option> — <why its loss is the acceptable one>.
+```
+
+One line per option is enough. If you cannot name what an option abandons, you have not
+understood the option yet — that, not a longer pros list, is the signal to dig further.
+
 ## Doctrine
 
 - **What, not how.** Functional requirements describe behavior. The moment a requirement names
@@ -239,6 +262,9 @@ E2E tests** the plan will write.
   as ignored-optional. Say so in the spec when it applies.
 - **Explicit over permissive.** Prefer per-variant enums and named cases over a permissive
   superset that admits nonsense combinations. Specify the exact allowed set.
+- **Arbitrate on what you abandon.** A trade-off is decided by comparing dominant losses,
+  not by counting advantages. Name, per option, the strongest thing given up; recommend
+  the option whose loss you accept.
 - **The spec is spent fuel.** It is consumed once to produce the plan and the tests, then
   archived. Do not design it to be maintained alongside the code.
 
@@ -261,6 +287,9 @@ E2E tests** the plan will write.
   ends up inventing the artifact anyway.
 - **Unresolved ambiguity smuggled into §5.** Ambiguities go in §9 (Open questions) with a
   recommended default — never hidden as a vague requirement.
+- **Symmetric pros/cons.** An advantages/disadvantages list where everything weighs the
+  same and the recommendation appears from nowhere. Restate each option as its dominant
+  loss and arbitrate on that.
 - **False confidence.** Matching a wrong spec satisfies no real requirement. The value is the
   thinking done while writing the spec, not the document itself — interrogate the problem.
 - **Free-floating requirements.** A §5 requirement with no acceptance criterion, or a criterion
@@ -281,6 +310,7 @@ When asked to review rather than write, check, in order:
    criterion `refs §`?
 5. **Bounds** — are Non-goals present and honest? Is the spec ≤ 3 pages?
 6. **Clarity gate** — are all §9 open questions resolved or defaulted before `Approved`?
+   Does every arbitration name the dominant loss per option, rather than listing pros/cons?
 7. **Testability** — could an agent turn every acceptance criterion into a passing test
    without inventing intent the spec did not state?
 

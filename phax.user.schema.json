@@ -179,6 +179,16 @@
       },
       "additionalProperties": false
     },
+    "orient": {
+      "type": "object",
+      "required": ["command"],
+      "properties": {
+        "command": {
+          "$ref": "#/$defs/NonEmptyString"
+        }
+      },
+      "additionalProperties": false
+    },
     "review": {
       "type": "object",
       "required": [],
