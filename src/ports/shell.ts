@@ -12,6 +12,7 @@ export class ShellError extends Data.TaggedError("ShellError")<{
 export interface ShellRunOptions {
   readonly command: readonly [string, ...string[]];
   readonly cwd: string;
+  readonly stdin?: string;
 }
 
 export interface ShellRunResult {

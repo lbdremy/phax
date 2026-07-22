@@ -5,10 +5,14 @@ import { Shell, ShellError } from "../ports/shell.js";
 function spawnCommand(
   command: readonly [string, ...string[]],
   cwd: string,
+  stdin?: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const [executable, ...args] = command;
-    const proc = spawn(executable, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    const proc =
+      stdin !== undefined
+        ? spawn(executable, args, { cwd, stdio: ["pipe", "pipe", "pipe"] })
+        : spawn(executable, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
 
     let stdoutBuf = "";
     let stderrBuf = "";
@@ -27,13 +31,18 @@ function spawnCommand(
     proc.on("error", (err) => {
       reject(err);
     });
+
+    if (stdin !== undefined) {
+      proc.stdin!.write(stdin);
+      proc.stdin!.end();
+    }
   });
 }
 
 export const NodeShellLayer = Layer.succeed(Shell, {
   run: (options) =>
     Effect.tryPromise({
-      try: () => spawnCommand(options.command, options.cwd),
+      try: () => spawnCommand(options.command, options.cwd, options.stdin),
       catch: (err): ShellError =>
         new ShellError({
           message: err instanceof Error ? err.message : String(err),
