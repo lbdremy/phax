@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildPhasePrompt } from "../../src/app/promptGeneration.js";
+import type { OrientRow } from "../../src/schemas/orient.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 
 const samplePhase: PhaxPlanPhase = {
@@ -159,6 +160,84 @@ describe("buildPhasePrompt", () => {
     });
     expect(prompt).toContain("## Previous phase file reconciliation");
     expect(prompt).toContain("No deviations.");
+  });
+
+  it("does not include the orientation section when orientationIndex is absent", () => {
+    const prompt = buildPhasePrompt({
+      planMd: "# Plan",
+      planJson: samplePlan,
+      currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
+    });
+    expect(prompt).not.toContain("## Orientation for this phase");
+  });
+
+  it("produces byte-identical output when orientationIndex is absent", () => {
+    const opts = {
+      planMd: "# Plan",
+      planJson: samplePlan,
+      currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
+    };
+    const withoutField = buildPhasePrompt(opts);
+    const withUndefinedField = buildPhasePrompt({ ...opts, orientationIndex: undefined });
+    expect(withUndefinedField).toBe(withoutField);
+  });
+
+  it("renders the orientation section with rows and pull instructions when orientationIndex is provided", () => {
+    const rows: OrientRow[] = [
+      { id: "row-1", title: "Watch the shell port", severity: "warn", trigger: "touches shell.ts" },
+      { id: "row-2", title: "Auth invariant", severity: "error", trigger: "touches auth.ts" },
+    ];
+    const prompt = buildPhasePrompt({
+      planMd: "# Plan",
+      planJson: samplePlan,
+      currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
+      orientationIndex: rows,
+    });
+    expect(prompt).toContain(
+      "## Orientation for this phase (expand a row before touching its files)",
+    );
+    expect(prompt).toContain("- [warn] row-1 — Watch the shell port");
+    expect(prompt).toContain("- [error] row-2 — Auth invariant");
+    expect(prompt).toContain("phax orient <id>");
+    expect(prompt).toContain("phax orient --file <path>");
+  });
+
+  it("renders the orientation section with a fallback line when orientationIndex is empty", () => {
+    const prompt = buildPhasePrompt({
+      planMd: "# Plan",
+      planJson: samplePlan,
+      currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
+      orientationIndex: [],
+    });
+    expect(prompt).toContain(
+      "## Orientation for this phase (expand a row before touching its files)",
+    );
+    expect(prompt).toContain("(no rows returned for this phase's planned files)");
+    expect(prompt).toContain("phax orient <id>");
+    expect(prompt).toContain("phax orient --file <path>");
+  });
+
+  it("places the orientation section between the current phase and execution rules", () => {
+    const rows: OrientRow[] = [
+      { id: "row-1", title: "Watch X", severity: "info", trigger: "touches foo.ts" },
+    ];
+    const prompt = buildPhasePrompt({
+      planMd: "# Plan",
+      planJson: samplePlan,
+      currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
+      orientationIndex: rows,
+    });
+    const currentPhaseIdx = prompt.indexOf("## Current phase");
+    const orientationIdx = prompt.indexOf("## Orientation for this phase");
+    const executionRulesIdx = prompt.indexOf("## Execution rules");
+    expect(currentPhaseIdx).toBeGreaterThan(-1);
+    expect(orientationIdx).toBeGreaterThan(currentPhaseIdx);
+    expect(executionRulesIdx).toBeGreaterThan(orientationIdx);
   });
 
   it("matches the expected snapshot", () => {

@@ -46,6 +46,7 @@ import {
   makeAdapterCallFailedTelemetryEvent,
   makeArtifactGeneratedTelemetryEvent,
   makeModelResolvedTelemetryEvent,
+  makeOrientBriefComputedTelemetryEvent,
   makeSecurityPolicyAppliedTelemetryEvent,
   makeStepStartedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
@@ -71,6 +72,8 @@ import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
+import { queryOrientIndex } from "./orient.js";
+import type { OrientRow } from "../schemas/orient.js";
 import { recordGateProfileInRunStatus, resolveGateProfile } from "./gates.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
@@ -626,6 +629,41 @@ export function executePlan(
         const previousHandoff = yield* readPreviousHandoff(runPath, plan.phases, i);
         const previousReconciliation = yield* readPreviousReconciliation(runPath, plan.phases, i);
 
+        // Advisory orientation brief: a provider failure must never fail, block,
+        // or retry the phase (spec §5.4) — a typed Either failure just skips
+        // weaving and leaves the prompt unchanged.
+        let orientationIndex: readonly OrientRow[] | undefined;
+        if (config.orient !== undefined) {
+          const plannedFiles = Array.from(
+            new Set([
+              ...phase.plannedFilesToCreate,
+              ...phase.plannedFilesToEdit,
+              ...phase.optionalFilesToEdit,
+            ]),
+          );
+          const orientResult = yield* queryOrientIndex(
+            config.orient,
+            plannedFiles,
+            worktreePath as string,
+          );
+          if (Either.isRight(orientResult)) {
+            orientationIndex = orientResult.right.rows;
+            yield* telemetry.recordEvent(
+              makeOrientBriefComputedTelemetryEvent({
+                runId,
+                operationId: phase.id,
+                phase: phase.id,
+                fileCount: plannedFiles.length,
+                rowCount: orientResult.right.rows.length,
+              }),
+            );
+          } else {
+            process.stderr.write(
+              `[phax] Warning: phase "${phase.id}" — orient provider query failed (${orientResult.left.message}). Dispatching without an orientation brief.\n`,
+            );
+          }
+        }
+
         const promptGateCommands = config.raw.gateProfiles[gateProfileId]?.flat(1) ?? [];
         const promptText = buildPhasePrompt({
           planMd,
@@ -634,6 +672,7 @@ export function executePlan(
           previousHandoff,
           previousReconciliation,
           gateCommands: promptGateCommands,
+          ...(orientationIndex !== undefined ? { orientationIndex } : {}),
         });
 
         const fs = yield* FileSystem;
