@@ -1,6 +1,6 @@
 # Model Catalog and Equivalence Routing (no canonical scale)
 
-Status: Approved
+Status: Archived
 
 Date: 2026-07-10
 
