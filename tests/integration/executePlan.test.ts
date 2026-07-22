@@ -17,9 +17,10 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
+import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
-import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import type { OrientConfig, ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
 
 const HANDOFF_CONTENT = [
@@ -626,6 +627,35 @@ describe("executePlan — happy-path 2-phase run", () => {
     }
   });
 });
+
+function setupCommonFakes(worktreePath: string) {
+  const fakeGit = makeFakeGit();
+  fakeGit.impl.setRepoIsClean(true);
+  fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
+
+  const fakeShell = makeFakeShell();
+  fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+  fakeShell.impl.setResponse("git rev-parse HEAD", {
+    exitCode: 0,
+    stdout: "deadbeef12345678\n",
+    stderr: "",
+  });
+  fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+  const fakeBackend = makeFakeBackend();
+  fakeBackend.impl.addRunResponse({
+    sessionId: "sess-01" as ClaudeSessionId,
+    outputPath: "",
+    finalText: "",
+  });
+  fakeBackend.impl.addResumeResponse({
+    sessionId: "sess-01-handoff" as ClaudeSessionId,
+    outputPath: "",
+    finalText: "",
+  });
+
+  return { fakeGit, fakeShell, fakeBackend };
+}
 
 function makeStatusTestConfig(root: string): ResolvedConfig {
   return {
@@ -1888,5 +1918,227 @@ describe("executePlan — security preflight", () => {
     expect(Either.isRight(result)).toBe(true);
     // Agent ran once
     expect(fakeBackend.impl.runCalls).toHaveLength(1);
+  });
+});
+
+describe("executePlan — orient dispatch weaving", () => {
+  let stateRoot: string;
+
+  const orientRawPlan = {
+    version: 1,
+    run: {
+      shortName: "my-run",
+      title: "My Run",
+      branch: "ai/my-run",
+      requiredCommands: [],
+    },
+    phases: [
+      {
+        id: "phase-01",
+        title: "First Phase",
+        model: "claude-sonnet-4-6",
+        effort: "low" as const,
+        planMarkdownAnchor: "#phase-01-first",
+        plannedFilesToCreate: ["src/foo.ts"],
+        plannedFilesToEdit: ["src/bar.ts"],
+        optionalFilesToEdit: [],
+        commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
+      },
+    ],
+  } as const;
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-orient-test-"));
+    const worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+    await mkdir(join(worktree, ".phax-context"), { recursive: true });
+    await writeFile(join(worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+  });
+
+  function makeOrientTestConfig(root: string, orient?: OrientConfig): ResolvedConfig {
+    const base = makeStatusTestConfig(root);
+    return orient !== undefined ? { ...base, orient } : base;
+  }
+
+  it("weaves the orientation index into prompt.md and records orient.brief.computed when a provider is registered", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(orientRawPlan));
+    const config = makeOrientTestConfig(stateRoot, { command: "orient-provider" });
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+
+    const { fakeGit, fakeShell, fakeBackend } = setupCommonFakes(worktreePath);
+    fakeShell.impl.setResponse("orient-provider", {
+      exitCode: 0,
+      stdout: JSON.stringify({
+        rows: [{ id: "row-1", title: "Watch X", severity: "warn", trigger: "touches foo.ts" }],
+      }),
+      stderr: "",
+    });
+
+    const fakeTelemetry = makeFakeSystemTelemetry();
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      fakeTelemetry.layer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          namespace: "test-project",
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+
+    const promptText = await readFile(join(runPath, "phase-01", "prompt.md"), "utf8");
+    expect(promptText).toContain(
+      "## Orientation for this phase (expand a row before touching its files)",
+    );
+    expect(promptText).toContain("- [warn] row-1 — Watch X");
+    expect(promptText).toContain("phax orient <id>");
+    expect(promptText).toContain("phax orient --file <path>");
+
+    const briefEvents = fakeTelemetry.impl
+      .events()
+      .filter((e) => e.type === "orient.brief.computed");
+    expect(briefEvents).toHaveLength(1);
+    expect(briefEvents[0]).toMatchObject({
+      phase: "phase-01",
+      fileCount: 2,
+      rowCount: 1,
+    });
+
+    const orientCalls = fakeShell.impl.calls.filter(
+      (c) => c.command.join(" ") === "orient-provider",
+    );
+    expect(orientCalls).toHaveLength(1);
+    expect(JSON.parse(orientCalls[0]?.stdin ?? "{}")).toEqual({
+      files: ["src/foo.ts", "src/bar.ts"],
+    });
+  });
+
+  it("dispatches the prompt unchanged and proceeds when the orient provider fails", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(orientRawPlan));
+    const config = makeOrientTestConfig(stateRoot, { command: "orient-provider" });
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+
+    const { fakeGit, fakeShell, fakeBackend } = setupCommonFakes(worktreePath);
+    fakeShell.impl.setResponse("orient-provider", { exitCode: 1, stdout: "", stderr: "boom" });
+
+    const fakeTelemetry = makeFakeSystemTelemetry();
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      fakeTelemetry.layer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          namespace: "test-project",
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    // A provider failure is advisory-only: the phase still completes successfully.
+    expect(Either.isRight(result)).toBe(true);
+
+    const promptText = await readFile(join(runPath, "phase-01", "prompt.md"), "utf8");
+    expect(promptText).not.toContain("## Orientation for this phase");
+
+    const briefEvents = fakeTelemetry.impl
+      .events()
+      .filter((e) => e.type === "orient.brief.computed");
+    expect(briefEvents).toHaveLength(0);
+  });
+
+  it("does not query a provider and leaves the prompt unchanged when no orient block is configured", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(orientRawPlan));
+    const config = makeOrientTestConfig(stateRoot);
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+
+    const { fakeGit, fakeShell, fakeBackend } = setupCommonFakes(worktreePath);
+
+    const fakeTelemetry = makeFakeSystemTelemetry();
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      fakeTelemetry.layer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          namespace: "test-project",
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+
+    const promptText = await readFile(join(runPath, "phase-01", "prompt.md"), "utf8");
+    expect(promptText).not.toContain("## Orientation for this phase");
+
+    const orientCalls = fakeShell.impl.calls.filter(
+      (c) => c.command.join(" ") === "orient-provider",
+    );
+    expect(orientCalls).toHaveLength(0);
+
+    const briefEvents = fakeTelemetry.impl
+      .events()
+      .filter((e) => e.type === "orient.brief.computed");
+    expect(briefEvents).toHaveLength(0);
   });
 });

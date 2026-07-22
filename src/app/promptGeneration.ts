@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
+import type { OrientRow } from "../schemas/orient.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import { HANDOFF_GUIDANCE_LINES, REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
 
@@ -11,16 +12,39 @@ export interface BuildPhasePromptOptions {
   readonly previousHandoff?: string | undefined;
   readonly previousReconciliation?: string | undefined;
   readonly gateCommands: string[];
+  readonly orientationIndex?: readonly OrientRow[] | undefined;
 }
 
 export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
-  const { planMd, planJson, currentPhase, previousHandoff, previousReconciliation, gateCommands } =
-    opts;
+  const {
+    planMd,
+    planJson,
+    currentPhase,
+    previousHandoff,
+    previousReconciliation,
+    gateCommands,
+    orientationIndex,
+  } = opts;
   const handoffSection = previousHandoff ?? "(no previous phase)";
 
   const reconciliationSection =
     previousReconciliation !== undefined
       ? ["## Previous phase file reconciliation", "", previousReconciliation, ""]
+      : [];
+
+  const orientationSection =
+    orientationIndex !== undefined
+      ? [
+          "## Orientation for this phase (expand a row before touching its files)",
+          "",
+          ...(orientationIndex.length > 0
+            ? orientationIndex.map((row) => `- [${row.severity}] ${row.id} — ${row.title}`)
+            : ["(no rows returned for this phase's planned files)"]),
+          "",
+          "Expand a row's full detail with `phax orient <id>`.",
+          "For a file not listed above — including one the plan did not predict — get its index with `phax orient --file <path>`.",
+          "",
+        ]
       : [];
 
   return [
@@ -59,6 +83,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "",
     JSON.stringify(currentPhase, null, 2),
     "",
+    ...orientationSection,
     "## Execution rules",
     "",
     "- Respect the current phase scope.",
@@ -119,6 +144,7 @@ export interface GeneratePhasePromptOptions {
   readonly previousHandoff?: string | undefined;
   readonly previousReconciliation?: string | undefined;
   readonly gateCommands: string[];
+  readonly orientationIndex?: readonly OrientRow[] | undefined;
 }
 
 export function generatePhasePrompt(
