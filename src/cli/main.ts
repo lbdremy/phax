@@ -1,7 +1,7 @@
 import { consoleOutput } from "../ports/output.js";
 import { setupInterruptHandlers } from "./interruptHandler.js";
 import { buildProgram } from "./program.js";
-import { handleUsageFlag } from "./commands/usage.js";
+import { runUsageFlagAndExit } from "./commands/usage.js";
 
 setupInterruptHandlers();
 
@@ -12,7 +12,7 @@ const rawArgs = process.argv.slice(2);
 if (rawArgs.includes("--usage")) {
   const fmtIdx = rawArgs.indexOf("--usage-format");
   const format = fmtIdx !== -1 && fmtIdx + 1 < rawArgs.length ? rawArgs[fmtIdx + 1] : "kdl";
-  handleUsageFlag(format ?? "kdl", (code) => process.exit(code));
+  void runUsageFlagAndExit(format ?? "kdl");
 } else {
   buildProgram()
     .parseAsync(process.argv)
