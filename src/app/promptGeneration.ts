@@ -5,6 +5,11 @@ import type { OrientRow } from "../schemas/orient.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import { HANDOFF_GUIDANCE_LINES, REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
 
+// The orientation index is advisory and provider-controlled; cap how many rows
+// we weave into every phase prompt so a large index can't balloon token cost.
+// The agent can still reach any file's rows on demand via `phax orient --file`.
+export const MAX_ORIENTATION_ROWS = 50;
+
 export interface BuildPhasePromptOptions {
   readonly planMd: string;
   readonly planJson: PhaxPlan;
@@ -32,14 +37,23 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
       ? ["## Previous phase file reconciliation", "", previousReconciliation, ""]
       : [];
 
+  const shownRows = orientationIndex?.slice(0, MAX_ORIENTATION_ROWS) ?? [];
+  const hiddenRowCount = (orientationIndex?.length ?? 0) - shownRows.length;
   const orientationSection =
     orientationIndex !== undefined
       ? [
           "## Orientation for this phase (expand a row before touching its files)",
           "",
           ...(orientationIndex.length > 0
-            ? orientationIndex.map((row) => `- [${row.severity}] ${row.id} — ${row.title}`)
+            ? shownRows.map(
+                (row) => `- [${row.severity}] ${row.id} — ${row.title} (when: ${row.trigger})`,
+              )
             : ["(no rows returned for this phase's planned files)"]),
+          ...(hiddenRowCount > 0
+            ? [
+                `- …and ${hiddenRowCount} more not shown. Use \`phax orient --file <path>\` to reach any file's rows.`,
+              ]
+            : []),
           "",
           "Expand a row's full detail with `phax orient <id>`.",
           "For a file not listed above — including one the plan did not predict — get its index with `phax orient --file <path>`.",

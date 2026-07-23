@@ -1,6 +1,7 @@
-import { Effect, Either } from "effect";
+import { Effect, Either, type ParseResult } from "effect";
 import type { OrientConfig } from "../schemas/phaxConfig.js";
 import { OrientProviderError } from "../domain/errors.js";
+import { formatParseError } from "../schemas/formatError.js";
 import { Shell } from "../ports/shell.js";
 import {
   decodeOrientExpandResponse,
@@ -8,6 +9,16 @@ import {
   type OrientExpandResponse,
   type OrientIndexResponse,
 } from "../schemas/orient.js";
+
+// stderr from a misbehaving provider can be arbitrarily large; keep only a
+// bounded head so the error stays loggable while still pointing at the cause.
+const STDERR_EXCERPT_LIMIT = 2000;
+
+function excerpt(text: string): string {
+  return text.length > STDERR_EXCERPT_LIMIT
+    ? `${text.slice(0, STDERR_EXCERPT_LIMIT)}… (${text.length - STDERR_EXCERPT_LIMIT} more chars)`
+    : text;
+}
 
 // `NonEmptyString` still admits a whitespace-only command, which tokenises to
 // nothing. Returning `undefined` keeps that a typed provider failure — the
@@ -25,7 +36,7 @@ function runOrientQuery<T>(
   config: OrientConfig,
   cwd: string,
   requestBody: unknown,
-  decode: (input: unknown) => Either.Either<T, unknown>,
+  decode: (input: unknown) => Either.Either<T, ParseResult.ParseError>,
 ): Effect.Effect<Either.Either<T, OrientProviderError>, never, Shell> {
   return Effect.gen(function* () {
     const shell = yield* Shell;
@@ -55,7 +66,7 @@ function runOrientQuery<T>(
         new OrientProviderError({
           message: `Orient provider exited with code ${exitCode}`,
           exitCode,
-          ...(stderr ? { stderrExcerpt: stderr } : {}),
+          ...(stderr ? { stderrExcerpt: excerpt(stderr) } : {}),
         }),
       );
     }
@@ -77,7 +88,9 @@ function runOrientQuery<T>(
     if (Either.isLeft(decoded)) {
       return Either.left(
         new OrientProviderError({
-          message: "Orient provider response failed schema validation",
+          message: `Orient provider response failed schema validation:\n${formatParseError(
+            decoded.left,
+          )}`,
         }),
       );
     }

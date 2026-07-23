@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPhasePrompt } from "../../src/app/promptGeneration.js";
+import { buildPhasePrompt, MAX_ORIENTATION_ROWS } from "../../src/app/promptGeneration.js";
 import type { OrientRow } from "../../src/schemas/orient.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 
@@ -199,10 +199,31 @@ describe("buildPhasePrompt", () => {
     expect(prompt).toContain(
       "## Orientation for this phase (expand a row before touching its files)",
     );
-    expect(prompt).toContain("- [warn] row-1 — Watch the shell port");
-    expect(prompt).toContain("- [error] row-2 — Auth invariant");
+    expect(prompt).toContain("- [warn] row-1 — Watch the shell port (when: touches shell.ts)");
+    expect(prompt).toContain("- [error] row-2 — Auth invariant (when: touches auth.ts)");
     expect(prompt).toContain("phax orient <id>");
     expect(prompt).toContain("phax orient --file <path>");
+  });
+
+  it("caps the woven rows at MAX_ORIENTATION_ROWS and notes the remainder", () => {
+    const rows: OrientRow[] = Array.from({ length: MAX_ORIENTATION_ROWS + 7 }, (_, i) => ({
+      id: `row-${i}`,
+      title: `Title ${i}`,
+      severity: "info" as const,
+      trigger: `touches file-${i}.ts`,
+    }));
+    const prompt = buildPhasePrompt({
+      planMd: "# Plan",
+      planJson: samplePlan,
+      currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
+      orientationIndex: rows,
+    });
+    const rendered = prompt.split("\n").filter((line) => /^- \[info\] row-\d+ /.test(line));
+    expect(rendered).toHaveLength(MAX_ORIENTATION_ROWS);
+    expect(prompt).toContain(`- [info] row-${MAX_ORIENTATION_ROWS - 1} —`);
+    expect(prompt).not.toContain(`- [info] row-${MAX_ORIENTATION_ROWS} —`);
+    expect(prompt).toContain("…and 7 more not shown");
   });
 
   it("renders the orientation section with a fallback line when orientationIndex is empty", () => {

@@ -145,7 +145,12 @@ export function generateUsageSpec(): string {
   return lines.join("\n");
 }
 
-const output = generateUsageSpec();
-const outPath = join(repoRoot, "phax.usage.kdl");
-writeFileSync(outPath, output, "utf8");
-console.log(`Written: ${outPath}`);
+// Only write when run as a script (`pnpm gen:usage-spec`). Importing this module
+// — as the drift test does to call generateUsageSpec() — must not touch the
+// committed file, or parallel test workers race on it.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const output = generateUsageSpec();
+  const outPath = join(repoRoot, "phax.usage.kdl");
+  writeFileSync(outPath, output, "utf8");
+  console.log(`Written: ${outPath}`);
+}

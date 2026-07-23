@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { consoleOutput } from "../ports/output.js";
 import { cliDocs } from "./cliDocs.js";
-import { handleUsageFlag, readPackageVersion } from "./commands/usage.js";
+import { readPackageVersion, runUsageFlagAndExit } from "./commands/usage.js";
 import { runValidate } from "./commands/validate.js";
 import { runUnlock } from "./commands/unlock.js";
 import { runExtractPlan } from "./commands/extractPlan.js";
@@ -59,12 +59,10 @@ export function buildProgram(): Command {
   program.hook("preAction", async () => {
     const opts = program.opts<{ usage?: boolean; usageFormat?: string }>();
     if (opts.usage === true) {
-      // Never resolves: handleUsageFlag's callback calls process.exit() once
-      // its write flushes, terminating the process before Commander can
-      // proceed to the matched subcommand's action.
-      await new Promise<void>(() => {
-        handleUsageFlag(opts.usageFormat ?? "kdl", (code) => process.exit(code));
-      });
+      // Resolves only via process.exit() inside runUsageFlagAndExit — which is
+      // itself timeout-bounded — so Commander never proceeds to the matched
+      // subcommand's action, and a wedged write can't hang here forever.
+      await runUsageFlagAndExit(opts.usageFormat ?? "kdl");
     }
   });
 

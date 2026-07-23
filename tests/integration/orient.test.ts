@@ -45,6 +45,23 @@ describe("queryOrientIndex", () => {
     if (Either.isLeft(result)) {
       expect(result.left).toBeInstanceOf(OrientProviderError);
       expect(result.left.exitCode).toBe(1);
+      expect(result.left.stderrExcerpt).toBe("boom");
+    }
+  });
+
+  it("truncates a huge stderr into a bounded excerpt", async () => {
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setDefaultResponse({ exitCode: 1, stdout: "", stderr: "z".repeat(10_000) });
+
+    const result = await Effect.runPromise(
+      queryOrientIndex(config, ["src/foo.ts"], cwd).pipe(Effect.provide(fakeShell.layer)),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      const excerpt = result.left.stderrExcerpt ?? "";
+      expect(excerpt.length).toBeLessThan(10_000);
+      expect(excerpt).toContain("more chars)");
     }
   });
 
@@ -75,6 +92,11 @@ describe("queryOrientIndex", () => {
     );
 
     expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      // The message must name the offending field, not just say "invalid".
+      expect(result.left.message).toContain("schema validation");
+      expect(result.left.message).toContain("rows");
+    }
   });
 });
 
