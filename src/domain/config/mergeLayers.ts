@@ -131,6 +131,10 @@ export function mergeConfigLayers(input: {
   const publishTitle =
     localUser?.publish?.title ?? globalUser?.publish?.title ?? project.publish?.title;
 
+  // orient: scalar override (command is required when orient is present)
+  const orientCommand =
+    localUser?.orient?.command ?? globalUser?.orient?.command ?? project.orient?.command;
+
   // review.compliance: per-field scalar override (enabled is required when compliance is present)
   const hasCompliance =
     project.review?.compliance !== undefined ||
@@ -230,6 +234,7 @@ export function mergeConfigLayers(input: {
           },
         }
       : {}),
+    ...(orientCommand !== undefined ? { orient: { command: orientCommand } } : {}),
     ...(hasCompliance && complianceEnabled !== undefined
       ? {
           review: {

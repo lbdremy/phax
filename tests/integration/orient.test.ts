@@ -153,3 +153,24 @@ describe("expandOrientRow", () => {
     }
   });
 });
+
+describe("orient provider command tokenisation", () => {
+  // `NonEmptyString` admits a whitespace-only command; it must surface as a
+  // typed failure, never as a defect that would fail the dispatching phase.
+  it("returns a typed failure for a whitespace-only command without spawning", async () => {
+    const fakeShell = makeFakeShell();
+
+    const result = await Effect.runPromise(
+      queryOrientIndex({ command: "   " }, ["src/foo.ts"], cwd).pipe(
+        Effect.provide(fakeShell.layer),
+      ),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(OrientProviderError);
+      expect(result.left.message).toContain("empty");
+    }
+    expect(fakeShell.impl.calls).toHaveLength(0);
+  });
+});

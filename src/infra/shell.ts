@@ -33,6 +33,11 @@ function spawnCommand(
     });
 
     if (stdin !== undefined) {
+      // A child that exits before draining stdin makes the write fail with
+      // EPIPE. An unhandled `error` on this stream is an uncaught exception —
+      // it never reaches the caller — so swallow it and let the `close`
+      // handler report the real exit code instead.
+      proc.stdin!.on("error", () => {});
       proc.stdin!.write(stdin);
       proc.stdin!.end();
     }

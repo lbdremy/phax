@@ -277,6 +277,38 @@ describe("mergeConfigLayers", () => {
     });
   });
 
+  describe("orient: scalar override", () => {
+    it("keeps the project orient block when a user layer says nothing about orient", () => {
+      const project = makeProject({ orient: { command: "orient-provider" } });
+      const localUser = makeOverlay({ state: { root: "~/.local" } });
+      const result = mergeConfigLayers({ project, localUser });
+      expect(result.orient?.command).toBe("orient-provider");
+    });
+
+    it("local orient command overrides global and project", () => {
+      const project = makeProject({ orient: { command: "project-provider" } });
+      const globalUser = makeOverlay({ orient: { command: "global-provider" } });
+      const localUser = makeOverlay({ orient: { command: "local-provider" } });
+      const result = mergeConfigLayers({ project, globalUser, localUser });
+      expect(result.orient?.command).toBe("local-provider");
+    });
+
+    it("a user layer can enable orient when the project config has none", () => {
+      const project = makeProject();
+      const globalUser = makeOverlay({ orient: { command: "global-provider" } });
+      const result = mergeConfigLayers({ project, globalUser });
+      expect(result.orient?.command).toBe("global-provider");
+    });
+
+    it("omits orient entirely when no layer configures it", () => {
+      const result = mergeConfigLayers({
+        project: makeProject(),
+        localUser: makeOverlay({ state: { root: "~/.local" } }),
+      });
+      expect(result.orient).toBeUndefined();
+    });
+  });
+
   describe("review.compliance: per-scalar override", () => {
     it("local compliance fields override project", () => {
       const project = makeProject({

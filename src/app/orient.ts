@@ -9,11 +9,14 @@ import {
   type OrientIndexResponse,
 } from "../schemas/orient.js";
 
-function parseCommandTokens(raw: string): readonly [string, ...string[]] {
+// `NonEmptyString` still admits a whitespace-only command, which tokenises to
+// nothing. Returning `undefined` keeps that a typed provider failure — the
+// channel is advisory, so it must never escape as a defect.
+function parseCommandTokens(raw: string): readonly [string, ...string[]] | undefined {
   const parts = raw.trim().split(/\s+/).filter(Boolean);
   const first = parts[0];
-  if (parts.length === 0 || first === undefined) {
-    throw new Error(`Empty orient provider command: "${raw}"`);
+  if (first === undefined) {
+    return undefined;
   }
   return [first, ...parts.slice(1)];
 }
@@ -27,6 +30,13 @@ function runOrientQuery<T>(
   return Effect.gen(function* () {
     const shell = yield* Shell;
     const command = parseCommandTokens(config.command);
+    if (command === undefined) {
+      return Either.left(
+        new OrientProviderError({
+          message: `Orient provider command is empty: "${config.command}"`,
+        }),
+      );
+    }
     const ran = yield* Effect.either(
       shell.run({ command, cwd, stdin: JSON.stringify(requestBody) }),
     );
