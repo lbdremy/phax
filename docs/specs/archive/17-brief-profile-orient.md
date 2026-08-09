@@ -1,6 +1,6 @@
 # Brief Profile — Orientation Fed Forward into a Phase
 
-Status: Approved
+Status: Archived
 
 Date: 2026-07-03
 
