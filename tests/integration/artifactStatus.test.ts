@@ -32,6 +32,7 @@ Body text.
 const APPROVED_PLAN = `# Some plan
 
 Status: Approved
+Source-Spec: (none)
 
 ## Overview
 

@@ -1,4 +1,5 @@
 import { Data } from "effect";
+import type { PlanStalenessVerdict } from "./artifact/lineage.js";
 
 export class PlanValidationError extends Data.TaggedError("PlanValidationError")<{
   message: string;
@@ -203,3 +204,46 @@ export class PlanNotApprovedError extends Data.TaggedError("PlanNotApprovedError
   status: string;
   message: string;
 }> {}
+
+export class SpecNotApprovedError extends Data.TaggedError("SpecNotApprovedError")<{
+  planPath: string;
+  specPath: string;
+  specStatus: string;
+}> {
+  override get message(): string {
+    return `${this.planPath} declares Source-Spec: ${this.specPath}, but ${this.specPath} has status "${this.specStatus}" (not Approved) — approve the spec first`;
+  }
+}
+
+export class SpecRetirementBlockedError extends Data.TaggedError("SpecRetirementBlockedError")<{
+  specPath: string;
+  dependents: readonly { readonly path: string; readonly status: string }[];
+}> {
+  override get message(): string {
+    const names = this.dependents.map((d) => `${d.path} (${d.status})`).join(", ");
+    return `${this.specPath} cannot be retired: it is still declared as Source-Spec by ${names} — abandon or archive them first`;
+  }
+}
+
+export class PlanStaleError extends Data.TaggedError("PlanStaleError")<{
+  path: string;
+  verdict: PlanStalenessVerdict;
+}> {
+  override get message(): string {
+    const remedy = `re-approve with "phax artifact approve ${this.path}"`;
+    if (this.verdict.kind === "missing-record") {
+      return `${this.path} is stale: ${this.verdict.detail} — ${remedy}`;
+    }
+    if (this.verdict.kind === "fresh") {
+      return `${this.path} is fresh`;
+    }
+    const lines = this.verdict.evidence.map((e) => {
+      if (e.reason === "spec-changed") return `spec-changed: ${e.specPath} changed since approval`;
+      if (e.reason === "ground-changed") {
+        return `ground-changed: ${e.files.join(", ")} changed since baseline ${e.baseline}`;
+      }
+      return "self-changed: the plan itself changed since approval";
+    });
+    return `${this.path} is stale (${lines.join("; ")}) — ${remedy}`;
+  }
+}
