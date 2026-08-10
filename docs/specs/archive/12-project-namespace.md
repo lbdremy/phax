@@ -1,6 +1,6 @@
 # Project Namespaces and Repo-Scoped Run Names
 
-Status: Draft
+Status: Archived
 
 Date: 2026-06-15
 

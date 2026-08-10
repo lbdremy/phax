@@ -1,5 +1,7 @@
 # PHAX Feature Spec — Feedback Ingest
 
+Status: Archived
+
 ## Document status
 
 This document specifies a dedicated PHAX feature: `phax feedback ingest`.

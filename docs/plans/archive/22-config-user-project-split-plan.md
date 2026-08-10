@@ -1,5 +1,9 @@
 # Plan — Split `phax.json` into project vs. user configuration layers
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Context and rationale
 
 Today there is a single configuration file: the repo's `phax.json`, located by

@@ -1,5 +1,7 @@
 # PHAX Spec — Deno Runtime and Distribution
 
+Status: Archived
+
 ## Status
 
 **Implemented** — all phases (01–06) are complete as of the `phax/deno-runtime-2` branch.

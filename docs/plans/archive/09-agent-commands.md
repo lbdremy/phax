@@ -1,5 +1,9 @@
 # Frozen Agent Commands — Implementation Plan
 
+Status: Archived
+
+Source-Spec: docs/specs/archive/09-agent-commands.md
+
 Implements `docs/specs/09-agent-commands.md`.
 
 ## Architecture findings (why this plan is shaped the way it is)

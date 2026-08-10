@@ -1,5 +1,7 @@
 # PHAX Phase Planning Skill Update: File Intent, Boundary Contracts, and Phase Handoff Reporting
 
+Status: Archived
+
 ## Purpose
 
 This document defines an update to the PHAX phase planning skill.

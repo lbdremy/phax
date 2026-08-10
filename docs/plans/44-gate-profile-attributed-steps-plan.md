@@ -1,5 +1,9 @@
 # Gate Profile as Attributed Steps — implementation plan
 
+Status: Approved
+
+Source-Spec: docs/specs/15-gate-profile-attributed-steps.md
+
 > Feed this `plan.md` to `phax extract-plan` to produce `phax-plan.json`, then
 > run it with `phax run`. Source spec:
 > [`docs/specs/15-gate-profile-attributed-steps.md`](../specs/15-gate-profile-attributed-steps.md).

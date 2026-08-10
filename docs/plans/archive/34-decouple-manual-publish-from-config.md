@@ -1,5 +1,9 @@
 # Plan — Decouple manual `publish-pr` from the publish config flag
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Overview
 
 Today `phax publish-pr <run>` refuses to run unless `phax.json` contains a

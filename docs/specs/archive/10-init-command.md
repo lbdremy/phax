@@ -1,5 +1,7 @@
 # Init Command and Local JSON Schema Reference
 
+Status: Archived
+
 ## Status
 
 Functional specification.

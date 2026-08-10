@@ -1,5 +1,9 @@
 # Plan: "What's next" guidance at run/resume terminal points
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Context and motivation
 
 phax follows a Unix-silent philosophy: without `--verbose`, the progress/event

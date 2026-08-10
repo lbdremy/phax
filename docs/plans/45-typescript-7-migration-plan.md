@@ -1,5 +1,9 @@
 # Migrate to TypeScript 7 — implementation plan
 
+Status: Approved
+
+Source-Spec: (none)
+
 > Feed this `plan.md` to `phax extract-plan` to produce `phax-plan.json`, then
 > run it with `phax run`. No source spec — this is a tooling/infrastructure
 > migration.

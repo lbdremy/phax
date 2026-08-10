@@ -1,5 +1,9 @@
 # Plan 26 — End-of-run recap and rate-limit reset-date fix
 
+Status: Archived
+
+Source-Spec: (none)
+
 This plan covers two user-facing console improvements to `phax run` (and the
 matching paths in `phax resume`):
 

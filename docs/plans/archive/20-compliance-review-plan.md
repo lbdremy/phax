@@ -1,5 +1,9 @@
 # Plan — Plan-compliance review at end of run
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Context and rationale
 
 When a phax run reaches `review_open`, the final phase worktree is kept open and the

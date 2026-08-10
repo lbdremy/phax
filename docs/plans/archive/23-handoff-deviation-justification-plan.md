@@ -1,5 +1,9 @@
 # Plan — Make the agent actually justify file-plan deviations, and surface the ones it skips
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Context and rationale
 
 When a phase finishes, phax compares the files the agent actually changed against

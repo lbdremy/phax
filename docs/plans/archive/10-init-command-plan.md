@@ -1,5 +1,9 @@
 # Plan — `phax init`, a local JSON Schema, and `phax schema upgrade`
 
+Status: Archived
+
+Source-Spec: docs/specs/archive/10-init-command.md
+
 Implements `docs/specs/10-init-command.md`.
 
 ## Design decisions (resolved during planning)

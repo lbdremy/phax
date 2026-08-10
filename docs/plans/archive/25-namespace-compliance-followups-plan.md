@@ -1,5 +1,9 @@
 # Plan — Address the attention points from the `project-namespaces` compliance review
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Context and rationale
 
 The compliance review of the `project-namespaces` run

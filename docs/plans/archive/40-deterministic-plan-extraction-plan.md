@@ -1,5 +1,9 @@
 # Deterministic plan extraction with LLM fallback
 
+Status: Archived
+
+Source-Spec: (none)
+
 > Plan for making `phax extract-plan` parse a conforming `plan.md` into an
 > `ExtractedPhaxPlan` **deterministically** (via an mdast syntax tree), falling
 > back to the existing LLM extraction only when the deterministic parse fails.

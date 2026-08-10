@@ -1,5 +1,7 @@
 # Install Planning Skill for Agent CLIs
 
+Status: Archived
+
 ## Status
 
 Functional specification.

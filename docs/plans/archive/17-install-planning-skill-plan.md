@@ -1,5 +1,9 @@
 # Plan 17 — Install the PHAX planning skill into agent CLIs
 
+Status: Archived
+
+Source-Spec: docs/specs/archive/08-install-planning-skill.md
+
 Implements `docs/specs/08-install-planning-skill.md`: a `phax skills install`
 command that copies the bundled `phax-planning` skill into the native skill
 directory of a selected agent target (`claude` | `codex` | `agent`) at a selected

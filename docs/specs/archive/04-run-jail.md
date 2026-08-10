@@ -1,5 +1,7 @@
 # PHAX Spec — Provider-Native Security Mode
 
+Status: Archived
+
 ## Status
 
 This document specifies the first security hardening layer for PHAX agent execution.

@@ -1,5 +1,9 @@
 # Upgrade to TypeScript 6 — Plan
 
+Status: Archived
+
+Source-Spec: (none)
+
 **Prerequisite for `docs/plans/16-deno-runtime-plan.md`.** Run and merge this plan
 before starting the Deno runtime plan.
 

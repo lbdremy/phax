@@ -1,5 +1,9 @@
 # Plan 42 — `review-compliance` accepts qualified run names
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Overview
 
 `phax review-compliance <run>` rejects a qualified run reference such as

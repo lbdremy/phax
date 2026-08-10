@@ -1,5 +1,9 @@
 # Plan — phax validate: config-first, plan optional
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Overview
 
 `phax validate` today validates two things and gets both wrong:

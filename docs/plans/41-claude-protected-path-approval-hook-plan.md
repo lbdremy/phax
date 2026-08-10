@@ -1,5 +1,9 @@
 # Scoped approval hook for declared Claude-Code protected-path edits
 
+Status: Approved
+
+Source-Spec: (none)
+
 > Plan for letting a phax agent edit a **Claude-Code protected path** (e.g.
 > `.claude/skills/**`) when — and only when — the phase's planned-file lists
 > declare it and the operator has opted in via `phax.json`. phax generates a

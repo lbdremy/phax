@@ -1,6 +1,6 @@
 # Usage-Based CLI Help, Documentation, and Completions
 
-Status: Draft specification  
+Status: Archived
 
 Date: 2026-06-15  
 

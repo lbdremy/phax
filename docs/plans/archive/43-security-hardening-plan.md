@@ -1,5 +1,9 @@
 # Plan 43 — Security-audit follow-ups (defense-in-depth hardening)
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Overview
 
 The security audit in PR #65 fixed the one HIGH exposure (the npm installer now

@@ -1,5 +1,9 @@
 # Implementation plan — Provider-specific effort/thinking enums and routing corrections
 
+Status: Archived
+
+Source-Spec: docs/specs/archive/03-update-provider-effort.md
+
 > Run short name: `update-provider-effort`.
 > Deliverable location: `docs/plans/03-update-provider-effort-plan.md`.
 > Format: matches `.skills/phax-planning.md` so `phax extract-plan` can consume

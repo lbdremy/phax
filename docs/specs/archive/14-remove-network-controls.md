@@ -1,6 +1,6 @@
 # Remove Misleading Network Controls
 
-Status: Draft
+Status: Archived
 
 Date: 2026-06-17
 

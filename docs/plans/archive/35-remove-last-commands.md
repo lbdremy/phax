@@ -1,5 +1,9 @@
 # Plan — Remove the `*-last` CLI command family
 
+Status: Archived
+
+Source-Spec: (none)
+
 Standalone CLI-surface cleanup. Removes the convenience `*-last` command variants
 that implicitly resolve "the most recent `review_open` run" in the current
 project, because they add noise to the CLI API without earning their keep — the

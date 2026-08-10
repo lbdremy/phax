@@ -1,5 +1,7 @@
 # Frozen Agent Commands
 
+Status: Archived
+
 ## Status
 
 Functional specification.
