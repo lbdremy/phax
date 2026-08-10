@@ -17,7 +17,7 @@ import { runReviewHandoff } from "./commands/reviewHandoff.js";
 import { runPublishPr } from "./commands/publishPr.js";
 import { runReviewCompliance } from "./commands/reviewCompliance.js";
 import { runReviewCode } from "./commands/reviewCode.js";
-import { runPlansOverlap } from "./commands/plansOverlap.js";
+import { registerPlansCommand } from "./commands/plans.js";
 import { runAdjustPlan } from "./commands/adjustPlan.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
@@ -305,29 +305,6 @@ export function buildProgram(): Command {
     );
 
   program
-    .command("plans-overlap")
-    .description("Report which plans can run in parallel without merge conflict")
-    .argument("<plan...>", "Paths to two or more plan.md files")
-    .option("--json", "Emit the overlap result as JSON instead of a report")
-    .option("--no-extract", "Fail on a cache miss instead of extracting the plan.md")
-    .option(
-      "--landed <run>",
-      "Report which of the given plans need re-adjustment after this run's actual changes",
-    )
-    .action(async (plans: string[], opts: { json?: true; extract?: boolean; landed?: string }) => {
-      const exitCode = await runPlansOverlap(
-        plans,
-        {
-          ...(opts.json === true ? { json: true as const } : {}),
-          ...(opts.extract === false ? { noExtract: true as const } : {}),
-          ...(opts.landed !== undefined ? { landed: opts.landed } : {}),
-        },
-        consoleOutput,
-      );
-      process.exit(exitCode);
-    });
-
-  program
     .command("adjust-plan")
     .description("Open an interactive session to adjust a plan after a landed run")
     .argument("<plan>", "Path to the plan.md to adjust")
@@ -400,6 +377,7 @@ export function buildProgram(): Command {
   registerSkillsCommand(program, consoleOutput);
   registerSchemaCommand(program, consoleOutput);
   registerArtifactCommand(program, consoleOutput);
+  registerPlansCommand(program, consoleOutput);
 
   // Wire long help and examples into the runtime --help output after all
   // registrations so commands from *Register.ts files are covered without
