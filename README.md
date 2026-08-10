@@ -252,15 +252,19 @@ phax publish-pr <short-name>          # push the final branch and open (or reuse
 
 ## Coordinating multiple plans
 
-When you have more than one plan in flight, these commands answer "can these run together?" and "did a landed run invalidate the others?" — using the same declared-file lists the per-phase reconciliation relies on.
+When you have more than one plan in flight, these commands answer "is this plan still fresh?", "can these run together?", and "did a landed run invalidate the others?" — using the same declared-file lists the per-phase reconciliation relies on.
 
 ```bash
-phax plans-overlap docs/plans/33-a.md docs/plans/35-b.md   # predicted: which plans are parallel-safe
-phax plans-overlap --landed <run> docs/plans/40-other.md   # confirmed: which plans the run's real diff invalidates
-phax adjust-plan docs/plans/40-other.md --landed <run>     # interactively reconcile a plan against a landed run
+phax plans status                                          # report every Approved plan as fresh or stale
+phax plans status --apply                                  # flip stale-computed plans Approved -> Stale
+phax plans overlap docs/plans/33-a.md docs/plans/35-b.md    # predicted: which plans are parallel-safe
+phax plans overlap --landed <run> docs/plans/40-other.md    # confirmed: which plans the run's real diff invalidates
+phax adjust-plan docs/plans/40-other.md --landed <run>      # interactively reconcile a plan against a landed run
 ```
 
-`phax plans-overlap` reports which plans can run in parallel without a merge conflict. Without `--landed`, it reads each `plan.md` through the content-addressed extraction cache (a cold miss extracts once via the LLM and caches it; `--no-extract` fails on a miss instead), unions each plan's declared phase file-sets into a footprint, intersects them pairwise, and reports a severity-graded conflict matrix, the clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule. With `--landed <run>`, it reads that run's actual git diff from its persisted `global-file-reconciliation.json` and reports which of the given plans now need re-adjustment. Conflicts are file-level, not hunk-level, and `--json` emits the raw result.
+`phax plans status` reports every live, Approved plan's staleness against what its approval was recorded against: the declared source spec's content, the plan's own content, and the files changed since the recorded baseline intersected with the plan's footprint. Stale entries name their reasons — `spec-changed`, `ground-changed`, `self-changed` — with evidence; a plan with no approval record, or one whose baseline commit no longer exists, reports `missing-record` and renders as stale. It is a report, not a gate — it exits 0 whether or not stale plans exist. `--apply` flips the stale-computed plans `Approved → Stale` as an explicit gesture; `--json` emits machine-readable output.
+
+`phax plans overlap` reports which plans can run in parallel without a merge conflict. Without `--landed`, it reads each `plan.md` through the content-addressed extraction cache (a cold miss extracts once via the LLM and caches it; `--no-extract` fails on a miss instead), unions each plan's declared phase file-sets into a footprint, intersects them pairwise, and reports a severity-graded conflict matrix, the clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule. With `--landed <run>`, it reads that run's actual git diff from its persisted `global-file-reconciliation.json` and reports which of the given plans now need re-adjustment. Conflicts are file-level, not hunk-level, and `--json` emits the raw result.
 
 `phax adjust-plan <plan> --landed <run>` opens an interactive, pre-prompted session that reconciles a plan against what a landed run actually changed: it establishes which declared files, line references, and decisions are now invalidated, asks clarifying questions, proposes concrete edits, and — only after your explicit approval — edits and commits the plan. The landed run must have reached review (it needs a `global-file-reconciliation.json`). The session is resumable; `--new-session` starts fresh.
 
@@ -512,7 +516,6 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax publish-pr <short-name>` — Pushes the final worktree branch to the GitHub remote and creates a pull request, or reuses an existing PR for the same branch. Requires a GitHub remote and gh CLI authentication.
 - `phax review-compliance <short-name>` — Runs a non-mutating plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. Does not modify the worktree, registry, or any files.
 - `phax review-code [FLAGS] <short-name>` — Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.
-- `phax plans-overlap [FLAGS] <plan>` — Reports which of two or more plans can run in parallel without a merge conflict — predicted from each plan's declared file-sets, or confirmed against a landed run's actual diff.
 - `phax adjust-plan <FLAGS> <plan>` — Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.
 - `phax init [--force] [--yes]` — Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service.
 - `phax report [--no-gist] [short-name]` — Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.
@@ -540,5 +543,8 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax artifact abandon <path>` — Abandons an artifact — a terminal status distinct from Archived, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).
 - `phax artifact archive <path>` — Archives an artifact — a terminal status for completed work. Legal from Approved (specs) or Approved or Stale (plans).
 - `phax artifact reopen <path>` — Reopens a Stale plan back to Draft, for when re-planning is needed before re-approval. Legal from Stale only. Rewrites the Status: line in place.
+- `phax plans <SUBCOMMAND>` — Parent command for reporting on plans: staleness of Approved plans against their recorded approval, and cross-plan file overlap.
+- `phax plans status [--apply] [--json]` — Reports every live, Approved plan's staleness against the ground it was approved against: the declared source spec's content, the plan's own content, and the files changed since the recorded baseline intersected with the plan's footprint. Each stale entry names its reasons (spec-changed, ground-changed, self-changed) with evidence; a plan with no approval record — or one whose baseline commit no longer exists — reports missing-record, which renders as stale. This is a report, not a gate: it exits 0 whether or not stale plans exist. Use --apply to flip stale-computed plans Approved -> Stale as an explicit gesture (the flip is never automatic). Use --json for machine-readable output.
+- `phax plans overlap [FLAGS] <plan>` — Reports which of two or more plans can run in parallel without a merge conflict — predicted from each plan's declared file-sets, or confirmed against a landed run's actual diff.
 
 <!-- END GENERATED CLI REFERENCE -->

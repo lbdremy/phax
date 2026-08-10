@@ -18,7 +18,7 @@ const TOP_LEVEL_COMMANDS = [
   "publish-pr",
   "review-compliance",
   "review-code",
-  "plans-overlap",
+  "plans",
   "adjust-plan",
   "init",
   "resume",
@@ -122,9 +122,11 @@ describe("buildProgram", () => {
     expect(optionNames).toContain("--effort");
   });
 
-  it("plans-overlap has variadic <plan...> arg and --json, --no-extract, --landed flags", () => {
+  it("plans overlap has variadic <plan...> arg and --json, --no-extract, --landed flags", () => {
     const program = buildProgram();
-    const cmd = program.commands.find((c) => c.name() === "plans-overlap");
+    const plansCmd = program.commands.find((c) => c.name() === "plans");
+    expect(plansCmd).toBeDefined();
+    const cmd = plansCmd!.commands.find((c) => c.name() === "overlap");
     expect(cmd).toBeDefined();
 
     const argNames = cmd!.registeredArguments.map((a) => a.name());
@@ -134,5 +136,25 @@ describe("buildProgram", () => {
     expect(optionNames).toContain("--json");
     expect(optionNames).toContain("--no-extract");
     expect(optionNames).toContain("--landed");
+  });
+
+  it("exposes plans subcommands: status, overlap", () => {
+    const program = buildProgram();
+    const plansCmd = program.commands.find((c) => c.name() === "plans");
+    expect(plansCmd).toBeDefined();
+    const subs = plansCmd!.commands.map((c) => c.name());
+    expect(subs).toContain("status");
+    expect(subs).toContain("overlap");
+  });
+
+  it("plans status has --apply and --json flags", () => {
+    const program = buildProgram();
+    const plansCmd = program.commands.find((c) => c.name() === "plans");
+    const cmd = plansCmd!.commands.find((c) => c.name() === "status");
+    expect(cmd).toBeDefined();
+
+    const optionNames = cmd!.options.map((o) => o.long);
+    expect(optionNames).toContain("--apply");
+    expect(optionNames).toContain("--json");
   });
 });
