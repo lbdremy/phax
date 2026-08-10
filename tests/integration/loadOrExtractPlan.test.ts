@@ -75,6 +75,30 @@ describe("loadOrExtractPlan — cold miss", () => {
   });
 });
 
+describe("loadOrExtractPlan — extraction is not gated by lifecycle status", () => {
+  it("extracts a Draft plan successfully — extraction has no status gate", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const fakeBackend = makeFakeBackend();
+
+    const draftPlanMd = `# Plan — My Test Run\n\nStatus: Draft\n\n## phase-01 — First Phase {#phase-01-first-phase}\n\nPhase description.\n`;
+    fakeFs.impl.setFile(PLAN_MD_PATH, draftPlanMd);
+    fakeBackend.impl.addCompletionResponse({ finalText: EXTRACTED_JSON });
+
+    const result = await Effect.runPromise(
+      loadOrExtractPlan({
+        planMdPath: PLAN_MD_PATH,
+        model: MODEL,
+        effort: EFFORT,
+        stateRoot: STATE_ROOT,
+        nowIso: NOW_ISO,
+      }).pipe(Effect.provide(makeLayer(fakeFs, fakeBackend))),
+    );
+
+    expect(result.fromCache).toBe(false);
+    expect(result.plan.run.shortName).toBe("my-test-run");
+  });
+});
+
 describe("loadOrExtractPlan — warm hit", () => {
   it("returns fromCache: true on a second call without calling the backend", async () => {
     const fakeFs = makeFakeFileSystem();

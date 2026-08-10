@@ -42,7 +42,7 @@ vi.mock("node:fs", async () => {
     existsSync: vi.fn(() => false),
     readFileSync: vi.fn((path: string, _enc: string) => {
       if (String(path).endsWith("registry.json")) throw new Error("ENOENT");
-      return "# Plan content";
+      return "# Plan content\n\nStatus: Approved\n";
     }),
   };
 });
@@ -370,5 +370,132 @@ describe("runRun — success recap output", () => {
     expect(recapText).toContain("https://github.com/acme/repo/pull/42");
     expect(recapText).toContain("View the pull request");
     expect(recapText).not.toContain("phax publish-pr");
+  });
+});
+
+async function setupConfigOnly() {
+  const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+  loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+
+  const { loadTelemetryConfig } = vi.mocked(
+    await import("../../../src/app/loadTelemetryConfig.js"),
+  );
+  loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+}
+
+async function mockPlanMd(content: string) {
+  const fs = vi.mocked(await import("node:fs"));
+  fs.readFileSync.mockImplementation((path: unknown, _enc?: unknown) => {
+    if (String(path).endsWith("registry.json")) throw new Error("ENOENT");
+    return content;
+  });
+}
+
+describe("runRun — plan lifecycle status gate", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("refuses a plan with no Status line and never calls loadOrExtractPlan", async () => {
+    await setupConfigOnly();
+    await mockPlanMd("# Plan content\n\n## Context\n");
+
+    const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, errors } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(code).not.toBe(0);
+    expect(loadOrExtractPlan).not.toHaveBeenCalled();
+    expect(errors.join("\n")).toMatch(/no "Status:" line/);
+  });
+
+  it("refuses a Draft plan, naming approval as the remedy", async () => {
+    await setupConfigOnly();
+    await mockPlanMd("# Plan content\n\nStatus: Draft\n\n## Context\n");
+
+    const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, errors } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(code).not.toBe(0);
+    expect(loadOrExtractPlan).not.toHaveBeenCalled();
+    expect(errors.join("\n")).toMatch(/Draft/);
+    expect(errors.join("\n")).toMatch(/[Aa]pprove/);
+  });
+
+  it("refuses a Stale plan with wording distinct from Draft", async () => {
+    await setupConfigOnly();
+    await mockPlanMd("# Plan content\n\nStatus: Stale\n\n## Context\n");
+
+    const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, errors } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(code).not.toBe(0);
+    expect(loadOrExtractPlan).not.toHaveBeenCalled();
+    const message = errors.join("\n");
+    expect(message).toMatch(/Stale/);
+    expect(message).toMatch(/re-plan/i);
+    expect(message).not.toContain("Approve it");
+  });
+
+  it("refuses an Abandoned plan as retired, distinct from Draft and Stale", async () => {
+    await setupConfigOnly();
+    await mockPlanMd("# Plan content\n\nStatus: Abandoned\n\n## Context\n");
+
+    const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, errors } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(code).not.toBe(0);
+    expect(loadOrExtractPlan).not.toHaveBeenCalled();
+    const message = errors.join("\n");
+    expect(message).toMatch(/retired/i);
+    expect(message).not.toMatch(/re-plan/i);
+    expect(message).not.toContain("Approve it");
+  });
+
+  it("proceeds into the extraction pipeline for an Approved plan", async () => {
+    await setupConfigOnly();
+    await mockPlanMd("# Plan content\n\nStatus: Approved\n\n## Context\n");
+
+    const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+    loadOrExtractPlan.mockReturnValue(
+      Effect.succeed({
+        plan: makePlan("fixbug"),
+        warnings: [],
+        detectedAnchors: [],
+        fromCache: false,
+      }),
+    );
+
+    const { loadModelRouting, loadProviderConfig } = vi.mocked(
+      await import("../../../src/app/loadRouting.js"),
+    );
+    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
+    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
+
+    const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
+    createRunFolder.mockReturnValue(
+      Effect.succeed({ runPath: "/fake-state/runs/acme.fixbug", runId: "r1" as RunId }),
+    );
+
+    const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
+    executePlan.mockReturnValue(Effect.succeed({}));
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(loadOrExtractPlan).toHaveBeenCalled();
+    expect(code).toBe(0);
   });
 });

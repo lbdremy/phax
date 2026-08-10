@@ -12,6 +12,7 @@ import {
   RateLimitError,
   UsageLimitError,
 } from "../../domain/errors.js";
+import { checkPlanRunnable } from "../../app/artifactStatus.js";
 import { buildWhatsNext, renderWhatsNext, toKeepAwakePlatform } from "../../domain/whatsNext.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { buildDryRunReport, formatDryRunReport } from "../../app/dryRun.js";
@@ -176,6 +177,20 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
       return 2;
     }
     priorityOverride = parsed.value;
+  }
+
+  // Gate on the plan's lifecycle status before wiring extraction. If the file
+  // itself is unreadable, skip the gate and let loadOrExtractPlan's existing
+  // error path report it — this gate must not invent a new missing-file error.
+  try {
+    const planMdForGate = readFileSync(planMdPath, "utf8");
+    const runnable = checkPlanRunnable(planMdForGate, planMdPath);
+    if (Either.isLeft(runnable)) {
+      out.error(runnable.left.message);
+      return exitCodeForError(runnable.left);
+    }
+  } catch {
+    // Unreadable plan file — defer to loadOrExtractPlan's error handling below.
   }
 
   // Extract plan.md → PhaxPlan via Claude (or return from cache). The result
