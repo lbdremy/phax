@@ -26,6 +26,9 @@ export interface GitOps {
   diffNameStatus(path: WorktreePath): Effect.Effect<readonly NameStatusEntry[], GitError>;
   remoteExists(remote: string, repo: string): Effect.Effect<boolean, GitError>;
   pushBranch(branch: BranchName, remote: string, repo: string): Effect.Effect<void, GitError>;
+  headCommit(repo: string): Effect.Effect<string, GitError>;
+  commitExists(commit: string, repo: string): Effect.Effect<boolean, GitError>;
+  changedFilesSince(baseline: string, repo: string): Effect.Effect<readonly string[], GitError>;
 }
 
 export class Git extends Context.Tag("phax/Git")<Git, GitOps>() {}
