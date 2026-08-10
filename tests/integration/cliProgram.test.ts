@@ -27,6 +27,7 @@ const TOP_LEVEL_COMMANDS = [
   "security",
   "skills",
   "schema",
+  "artifact",
   "completions",
   "report",
   "orient",

@@ -27,6 +27,7 @@ import { registerResetPhaseCommand } from "./commands/resetPhaseRegister.js";
 import { registerAgentCommand } from "./commands/agent.js";
 import { registerSecurityCommand } from "./commands/security.js";
 import { registerSkillsCommand } from "./commands/skills.js";
+import { registerArtifactCommand } from "./commands/artifact.js";
 import { runInit } from "./commands/init.js";
 import { registerSchemaCommand } from "./commands/schema.js";
 import { runCompletions } from "./commands/completions.js";
@@ -398,6 +399,7 @@ export function buildProgram(): Command {
   registerSecurityCommand(program, consoleOutput, globalTraceOpts);
   registerSkillsCommand(program, consoleOutput);
   registerSchemaCommand(program, consoleOutput);
+  registerArtifactCommand(program, consoleOutput);
 
   // Wire long help and examples into the runtime --help output after all
   // registrations so commands from *Register.ts files are covered without

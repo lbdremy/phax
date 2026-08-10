@@ -311,6 +311,7 @@ const DIRECT_NODE_IO = /\bfrom\s+["'](node:fs|node:fs\/promises|node:child_proce
 // FileSystem port.
 const CLI_DIRECT_IO_ALLOWLIST: ReadonlySet<string> = new Set([
   "src/cli/commands/adjustPlan.ts",
+  "src/cli/commands/artifact.ts",
   "src/cli/commands/completions.ts",
   "src/cli/commands/resume.ts",
   "src/cli/commands/run.ts",
