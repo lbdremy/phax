@@ -1,5 +1,9 @@
 # Implementation plan — Per-effort frontier tiers for the full Opus ladder
 
+Status: Archived
+
+Source-Spec: (none)
+
 > Deliverable location: `docs/plans/opus-frontier-tiers-plan.md`.
 > Format: matches the `.skills/phax-planning.md` skill so `phax extract-plan`
 > can consume this file and produce a `phax-plan.json`. Each phase carries an

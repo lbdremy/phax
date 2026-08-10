@@ -1,5 +1,9 @@
 # Plan — Harden the generated `phax.usage.kdl` pipeline
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Context and rationale
 
 The `usage-cli` run (PR #34) shipped CLI help/docs/completions/parity built on

@@ -1,5 +1,9 @@
 # Plan 13 — `phax reset-phase` command
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Problem
 
 Some failures are not recoverable by a gate-first resume (Plan 12). The clearest

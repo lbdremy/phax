@@ -1,5 +1,9 @@
 # Plan — Usage-Based CLI Help, Documentation, and Completions
 
+Status: Archived
+
+Source-Spec: docs/specs/archive/13-usage-cli.md
+
 Implements `docs/specs/13-usage-cli.md`.
 
 This plan integrates [Usage](https://usage.jdx.dev/) as PHAX's explicit,

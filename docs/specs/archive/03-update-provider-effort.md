@@ -1,5 +1,7 @@
 # Update — Provider Effort / Thinking Enums
 
+Status: Archived
+
 ## Replace OpenAI naming
 
 Use this OpenAI model family name everywhere:

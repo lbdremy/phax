@@ -1,5 +1,9 @@
 # Plan — `phax plans-overlap` — report which plans can run in parallel without merge conflict
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Overview
 
 Add a read-only `phax plans-overlap <plan.md...>` command that takes a list of

@@ -1,5 +1,9 @@
 # Implementation plan — Provider-native security mode (run jail)
 
+Status: Archived
+
+Source-Spec: docs/specs/archive/04-run-jail.md
+
 > Run short name: `run-jail`.
 > Deliverable location: `docs/plans/04-run-jail-plan.md`.
 > Format: matches `.skills/phax-planning.md` so `phax extract-plan` can consume

@@ -1,5 +1,9 @@
 # Implementation plan — Run review handoff and global file reconciliation
 
+Status: Archived
+
+Source-Spec: docs/specs/archive/05-review-handoff.md
+
 > Run short name: `review-handoff`.
 > Deliverable location: `docs/plans/05-review-handoff-plan.md`.
 > Format: matches `.skills/phax-planning.md` so `phax extract-plan` can consume

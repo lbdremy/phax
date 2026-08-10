@@ -1,5 +1,9 @@
 # Plan — Compliance review before phase details in the PR body
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Overview
 
 Today the PR body is assembled as `HEADER + review-handoff.md + compliance` in

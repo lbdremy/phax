@@ -1,5 +1,7 @@
 # Locked Agent Binding for Phase Sessions
 
+Status: Archived
+
 ## 1. Context
 
 Phax currently provides commands such as:

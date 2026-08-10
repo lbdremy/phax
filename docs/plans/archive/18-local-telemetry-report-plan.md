@@ -1,5 +1,9 @@
 # Plan — Local-only telemetry and `phax report`
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Context and rationale
 
 phax has no network egress and is not meant to phone home. Today the OpenTelemetry

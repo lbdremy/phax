@@ -1,5 +1,9 @@
 # Plan 27 — Compliance handoff access and resume recap follow-ups
 
+Status: Archived
+
+Source-Spec: (none)
+
 This plan addresses the two attention points surfaced by plan-26's compliance
 review:
 

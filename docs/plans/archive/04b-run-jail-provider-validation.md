@@ -1,5 +1,9 @@
 # Manual runbook — Run-jail provider sandbox validation
 
+Status: Archived
+
+Source-Spec: (none)
+
 > Companion to `docs/plans/04-run-jail-plan.md`. This runbook is **executed by a
 > human against the real installed CLIs** (`claude`, `codex`, `vibe`), not via
 > the phax CLI and not as a phax phase. Phases 05–07 of the main plan deliver the

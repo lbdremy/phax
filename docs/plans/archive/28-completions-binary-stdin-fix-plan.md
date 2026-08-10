@@ -1,5 +1,9 @@
 # Plan 28 — Fix shell completions and `--usage-format json` in the compiled binary
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Problem
 
 `phax completions zsh` fails when run from the released (deno-compiled) binary:

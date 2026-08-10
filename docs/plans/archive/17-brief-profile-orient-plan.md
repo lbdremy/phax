@@ -1,5 +1,9 @@
 # Brief Profile Orient
 
+Status: Archived
+
+Source-Spec: docs/specs/archive/17-brief-profile-orient.md
+
 ## Overview
 
 Implements `docs/specs/17-brief-profile-orient.md` (Approved): at phase dispatch phax queries a

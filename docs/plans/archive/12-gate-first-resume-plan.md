@@ -1,5 +1,9 @@
 # Plan 12 — Gate-first resume on gate exhaustion
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Problem
 
 When a phase exhausts its fix attempts (`maxFixAttempts` fix invocations all

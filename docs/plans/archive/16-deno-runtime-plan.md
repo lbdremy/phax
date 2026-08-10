@@ -1,5 +1,9 @@
 # Deno Runtime and Distribution — Plan
 
+Status: Archived
+
+Source-Spec: docs/specs/archive/06-deno-runtime.md
+
 Implements `docs/specs/06-deno-runtime.md`.
 
 **Prerequisite:** `docs/plans/15-typescript-6-migration-plan.md` must be merged

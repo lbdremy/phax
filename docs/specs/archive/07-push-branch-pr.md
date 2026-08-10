@@ -1,5 +1,7 @@
 # PHAX Spec — Push Branch and Create Pull Request
 
+Status: Archived
+
 ## Status
 
 This document specifies the final publication step for a PHAX run.

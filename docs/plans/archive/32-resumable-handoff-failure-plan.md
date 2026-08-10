@@ -1,5 +1,9 @@
 # Plan — Resumable handoff failures (don't burn a committed phase on a transient handoff error)
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Overview
 
 A real run (`steme-lab.steme-lab`) reached phase-04, **committed successfully**

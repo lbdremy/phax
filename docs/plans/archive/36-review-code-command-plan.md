@@ -1,5 +1,9 @@
 # Plan 36 — `phax review-code <short-name>` interactive code-review session
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Overview
 
 Add a `phax review-code <short-name>` command that opens an interactive,

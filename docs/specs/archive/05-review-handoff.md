@@ -1,5 +1,7 @@
 # PHAX Spec — Run Review Handoff and Global File Reconciliation
 
+Status: Archived
+
 ## Status
 
 This document specifies a PHAX feature that generates a final deterministic review document at the end of a phased run.

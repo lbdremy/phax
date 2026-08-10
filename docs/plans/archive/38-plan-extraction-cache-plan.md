@@ -1,5 +1,9 @@
 # Plan — Content-addressed plan-extraction cache + `.md` loader
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Overview
 
 `phax extract-plan` turns a `plan.md` into a structured `phax-plan.json` by calling

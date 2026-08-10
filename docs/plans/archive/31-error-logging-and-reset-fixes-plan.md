@@ -1,5 +1,9 @@
 # Plan — Durable agent error logging + reset-run resumability + MCP allowlist validation
 
+Status: Archived
+
+Source-Spec: (none)
+
 ## Overview
 
 A real run (`louloupapers.louloupress-new-features`) failed on phase-01 with the

@@ -1,5 +1,9 @@
 # Plan — smolvm isolation spike (`isolated` mode feasibility)
 
+Status: Approved
+
+Source-Spec: (none)
+
 ## Overview
 
 phax already ships a provider-native security mode (`secure`) and reserves a third

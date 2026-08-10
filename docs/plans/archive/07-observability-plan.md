@@ -1,5 +1,9 @@
 # Implementation plan — PHAX observability & telemetry doctrine
 
+Status: Archived
+
+Source-Spec: (none)
+
 > Source doctrine: `.context/attachments/rK8ZI3/pasted_text_2026-05-25_14-05-46.txt`
 > ("Observability and Telemetry Doctrine" for STEME systems).
 > Deliverable location: `docs/plans/observability-plan.md`.
