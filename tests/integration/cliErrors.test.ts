@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, afterEach } from "vitest";
 import { spawnSync, spawnSyncReturns } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -46,5 +48,26 @@ describe("CLI error messages", () => {
   it("valid command still exits 0", () => {
     const result = runCli(["--version"]);
     expect(result.status).toBe(0);
+  });
+
+  describe("phax run against a non-Approved plan", () => {
+    let tmpDir: string;
+
+    afterEach(() => {
+      if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it("Draft plan: non-zero exit, message names the file and status, no stack trace", () => {
+      tmpDir = mkdtempSync(join(tmpdir(), "phax-cli-errors-"));
+      const planPath = join(tmpDir, "plan.md");
+      writeFileSync(planPath, "# Draft plan\n\nStatus: Draft\n\n## Context\n");
+
+      const result = runCli(["run", "--plan", planPath]);
+      expect(result.status).not.toBe(0);
+      const combined = (result.stderr ?? "") + (result.stdout ?? "");
+      expect(combined).toContain(planPath);
+      expect(combined).toMatch(/Draft/);
+      expect(combined).not.toMatch(/at\s+\S+:\d+:\d+/);
+    });
   });
 });

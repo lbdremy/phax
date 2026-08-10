@@ -1,5 +1,7 @@
 # e2e-minimal — two-phase fixture plan
 
+Status: Approved
+
 > Minimal plan for phax end-to-end tests. Two quick phases against a simple
 > TypeScript stub. Uses haiku + low effort so runs are cheap.
 
