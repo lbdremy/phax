@@ -23,6 +23,7 @@ Body text.
 const PLAN_DOC = `# Some plan
 
 Status: Draft
+Source-Spec: (none)
 
 ## Overview
 
@@ -187,6 +188,59 @@ Status: Archived
 ## Overview
 `;
     const result = validateArtifact("docs/specs/archive/21-foo.md", md);
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("rejects a live plan with no Source-Spec declaration", () => {
+    const md = `# Doc
+
+Status: Draft
+
+## Overview
+`;
+    const result = validateArtifact("docs/plans/21-foo-plan.md", md);
+    assertLeftValidation(result);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toContain("Source-Spec");
+    }
+  });
+
+  it("rejects an archived plan with no Source-Spec declaration", () => {
+    const md = `# Doc
+
+Status: Archived
+
+## Overview
+`;
+    assertLeftValidation(validateArtifact("docs/plans/archive/21-foo-plan.md", md));
+  });
+
+  it("accepts a spec with no Source-Spec declaration", () => {
+    const result = validateArtifact("docs/specs/21-foo.md", SPEC_DOC);
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("accepts a plan with an explicit (none) Source-Spec declaration", () => {
+    const md = `# Doc
+
+Status: Draft
+Source-Spec: (none)
+
+## Overview
+`;
+    const result = validateArtifact("docs/plans/21-foo-plan.md", md);
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("accepts a plan declaring a spec path", () => {
+    const md = `# Doc
+
+Status: Draft
+Source-Spec: docs/specs/22-foo.md
+
+## Overview
+`;
+    const result = validateArtifact("docs/plans/21-foo-plan.md", md);
     expect(Either.isRight(result)).toBe(true);
   });
 });

@@ -1,5 +1,6 @@
 import { Either } from "effect";
 import { ArtifactValidationError } from "../errors.js";
+import { readSourceSpecLine } from "./lineage.js";
 import {
   type ArtifactKind,
   type ArtifactStatus,
@@ -120,6 +121,15 @@ export function validateArtifact(
       new ArtifactValidationError({
         path: repoRelPath,
         message: `${repoRelPath} has non-terminal status "${status}" but is inside an archive/ directory`,
+      }),
+    );
+  }
+
+  if (classification.kind === "plan" && readSourceSpecLine(md) === null) {
+    return Either.left(
+      new ArtifactValidationError({
+        path: repoRelPath,
+        message: `${repoRelPath} has no "Source-Spec:" declaration in its header (use "Source-Spec: <path>" or "Source-Spec: (none)")`,
       }),
     );
   }
