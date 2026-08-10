@@ -9,10 +9,15 @@ import {
   AgentInvocationError,
   GateAttemptsExhaustedError,
   PhaseHadNoChangesError,
+  PlanStaleError,
   RateLimitError,
   UsageLimitError,
 } from "../../domain/errors.js";
 import { checkPlanRunnable } from "../../app/artifactStatus.js";
+import { computeStalenessForPlan } from "../../app/planStaleness.js";
+import { classifyArtifactPath } from "../../domain/artifact/document.js";
+import { buildFootprint } from "../../domain/planOverlap/compute.js";
+import { planInputFromPhaxPlan } from "../../domain/planOverlap/fromPhaxPlan.js";
 import { buildWhatsNext, renderWhatsNext, toKeepAwakePlatform } from "../../domain/whatsNext.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { buildDryRunReport, formatDryRunReport } from "../../app/dryRun.js";
@@ -30,6 +35,7 @@ import type { NonEmptyArray } from "../../domain/routing/priorityOverride.js";
 import type { ProviderId } from "../../domain/routing/types.js";
 import type { SecurityMode } from "../../domain/security/types.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
+import { makeNodeGitLayer } from "../../infra/git.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../schemas/phaxPlan.js";
@@ -245,6 +251,33 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     out.warn(`extract warning: ${w}`);
   }
   const planMd = readFileSync(planMdPath, "utf8");
+
+  // Gate on staleness for repo-tracked artifact plans, reusing the extraction
+  // we already paid for. Loose plan.md files outside docs/plans/ cannot carry
+  // an approval record, so they skip this gate entirely (same scope as the
+  // lifecycle-status gate above).
+  const planRepoRel = relative(config.repoRoot, planMdPath).split(sep).join("/");
+  if (classifyArtifactPath(planRepoRel) !== null) {
+    const footprint = buildFootprint(planInputFromPhaxPlan(plan, planRepoRel, planRepoRel));
+    const stalenessResult = await Effect.runPromise(
+      Effect.either(
+        computeStalenessForPlan(planRepoRel, planMd, Array.from(footprint.all), {
+          repoRoot: config.repoRoot,
+        }).pipe(Effect.provide(NodeFileSystemLayer), Effect.provide(makeNodeGitLayer())),
+      ),
+    );
+    if (Either.isLeft(stalenessResult)) {
+      const err = stalenessResult.left;
+      out.error(`phax run refused: ${err instanceof Error ? err.message : String(err)}`);
+      return exitCodeForError(err);
+    }
+    const verdict = stalenessResult.right;
+    if (verdict.kind !== "fresh") {
+      const staleError = new PlanStaleError({ path: planRepoRel, verdict });
+      out.error(staleError.message);
+      return exitCodeForError(staleError);
+    }
+  }
 
   if (opts.shortName !== undefined && opts.shortName !== plan.run.shortName) {
     out.error(

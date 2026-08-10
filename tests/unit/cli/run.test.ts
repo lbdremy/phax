@@ -31,6 +31,11 @@ vi.mock("../../../src/infra/fs.js", async () => {
   const { Layer } = await import("effect");
   return { NodeFileSystemLayer: Layer.empty };
 });
+vi.mock("../../../src/infra/git.js", async () => {
+  const { Layer } = await import("effect");
+  return { makeNodeGitLayer: vi.fn(() => Layer.empty) };
+});
+vi.mock("../../../src/app/planStaleness.js", () => ({ computeStalenessForPlan: vi.fn() }));
 vi.mock("../../../src/ports/systemTelemetry.js", () => ({
   NoopSystemTelemetryLayer: {},
   SystemTelemetry: {},
@@ -513,6 +518,128 @@ describe("runRun — plan lifecycle status gate", () => {
     const code = await runRun({ plan: "plan.md" }, out);
 
     expect(loadOrExtractPlan).toHaveBeenCalled();
+    expect(code).toBe(0);
+  });
+});
+
+describe("runRun — staleness gate", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function setupStalenessRun() {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    loadConfig.mockReturnValue(Either.right({ ...makeConfig("acme"), repoRoot: process.cwd() }));
+
+    const { loadTelemetryConfig } = vi.mocked(
+      await import("../../../src/app/loadTelemetryConfig.js"),
+    );
+    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+
+    const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+    loadOrExtractPlan.mockReturnValue(
+      Effect.succeed({
+        plan: makePlan("fixbug"),
+        warnings: [],
+        detectedAnchors: [],
+        fromCache: false,
+      }),
+    );
+
+    const { loadModelRouting, loadProviderConfig } = vi.mocked(
+      await import("../../../src/app/loadRouting.js"),
+    );
+    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
+    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
+
+    const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
+    createRunFolder.mockReturnValue(
+      Effect.succeed({ runPath: "/fake-state/runs/acme.fixbug", runId: "r1" as RunId }),
+    );
+
+    const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
+    executePlan.mockReturnValue(Effect.succeed({}));
+
+    return { executePlan };
+  }
+
+  it("proceeds into the run pipeline when the verdict is fresh", async () => {
+    const { executePlan } = await setupStalenessRun();
+    const { computeStalenessForPlan } = vi.mocked(
+      await import("../../../src/app/planStaleness.js"),
+    );
+    computeStalenessForPlan.mockReturnValue(Effect.succeed({ kind: "fresh" }));
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out } = makeOutput();
+    const code = await runRun({ plan: "docs/plans/staleness-test.md" }, out);
+
+    expect(computeStalenessForPlan).toHaveBeenCalled();
+    expect(executePlan).toHaveBeenCalled();
+    expect(code).toBe(0);
+  });
+
+  it("refuses with a stale verdict naming each reason and the approve remedy, never entering the pipeline", async () => {
+    const { executePlan } = await setupStalenessRun();
+    const { computeStalenessForPlan } = vi.mocked(
+      await import("../../../src/app/planStaleness.js"),
+    );
+    computeStalenessForPlan.mockReturnValue(
+      Effect.succeed({
+        kind: "stale",
+        evidence: [
+          { reason: "spec-changed", specPath: "docs/specs/22-x.md" },
+          { reason: "ground-changed", baseline: "abc1234", files: ["src/a.ts"] },
+          { reason: "self-changed" },
+        ],
+      }),
+    );
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, errors } = makeOutput();
+    const code = await runRun({ plan: "docs/plans/staleness-test.md" }, out);
+
+    expect(executePlan).not.toHaveBeenCalled();
+    expect(code).toBe(1); // exitCodeForError is mocked to 1; real gate maps to 12
+    const message = errors.join("\n");
+    expect(message).toContain("spec-changed");
+    expect(message).toContain("ground-changed");
+    expect(message).toContain("self-changed");
+    expect(message).toContain("phax artifact approve docs/plans/staleness-test.md");
+  });
+
+  it("refuses on a missing-record verdict, never entering the pipeline", async () => {
+    const { executePlan } = await setupStalenessRun();
+    const { computeStalenessForPlan } = vi.mocked(
+      await import("../../../src/app/planStaleness.js"),
+    );
+    computeStalenessForPlan.mockReturnValue(
+      Effect.succeed({ kind: "missing-record", detail: "no approval record found" }),
+    );
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, errors } = makeOutput();
+    const code = await runRun({ plan: "docs/plans/staleness-test.md" }, out);
+
+    expect(executePlan).not.toHaveBeenCalled();
+    expect(code).toBe(1);
+    const message = errors.join("\n");
+    expect(message).toContain("no approval record found");
+    expect(message).toContain("phax artifact approve docs/plans/staleness-test.md");
+  });
+
+  it("never invokes the staleness check for a plan outside docs/plans/", async () => {
+    const { executePlan } = await setupStalenessRun();
+    const { computeStalenessForPlan } = vi.mocked(
+      await import("../../../src/app/planStaleness.js"),
+    );
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(computeStalenessForPlan).not.toHaveBeenCalled();
+    expect(executePlan).toHaveBeenCalled();
     expect(code).toBe(0);
   });
 });
