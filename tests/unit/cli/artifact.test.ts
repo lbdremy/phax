@@ -4,6 +4,8 @@ import { runArtifactStatus, runArtifactTransition } from "../../../src/cli/comma
 import {
   ArtifactValidationError,
   InvalidArtifactTransitionError,
+  SpecNotApprovedError,
+  SpecRetirementBlockedError,
 } from "../../../src/domain/errors.js";
 
 vi.mock("../../../src/app/artifactStatus.js", () => ({
@@ -140,5 +142,69 @@ describe("runArtifactTransition", () => {
     expect(code).toBe(12);
     const text = errors.join("\n");
     expect(text).toContain("Approved, Abandoned");
+  });
+
+  it("approve of a plan with a captured baseline logs the short sha", async () => {
+    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifact.mockReturnValue(
+      Effect.succeed({
+        status: "Approved",
+        path: "docs/plans/45-typescript-7-migration-plan.md",
+        approvedBaseline: "abcdef1234567890abcdef1234567890abcdef12",
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runArtifactTransition(
+      "docs/plans/45-typescript-7-migration-plan.md",
+      "Approved",
+      out,
+    );
+
+    expect(code).toBe(0);
+    expect(lines.some((l) => l === "Baseline: abcdef1")).toBe(true);
+  });
+
+  it("returns exit code 12 when the declared spec is not approved", async () => {
+    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifact.mockReturnValue(
+      Effect.fail(
+        new SpecNotApprovedError({
+          planPath: "docs/plans/45-typescript-7-migration-plan.md",
+          specPath: "docs/specs/22-foo.md",
+          specStatus: "Draft",
+        }),
+      ),
+    );
+
+    const { out, errors } = makeOutput();
+    const code = await runArtifactTransition(
+      "docs/plans/45-typescript-7-migration-plan.md",
+      "Approved",
+      out,
+    );
+
+    expect(code).toBe(12);
+    expect(errors.join("\n")).toContain("approve the spec first");
+  });
+
+  it("returns exit code 12 when spec retirement is blocked by a live dependent", async () => {
+    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifact.mockReturnValue(
+      Effect.fail(
+        new SpecRetirementBlockedError({
+          specPath: "docs/specs/22-foo.md",
+          dependents: [
+            { path: "docs/plans/45-typescript-7-migration-plan.md", status: "Approved" },
+          ],
+        }),
+      ),
+    );
+
+    const { out, errors } = makeOutput();
+    const code = await runArtifactTransition("docs/specs/22-foo.md", "Archived", out);
+
+    expect(code).toBe(12);
+    expect(errors.join("\n")).toContain("abandon or archive them first");
   });
 });

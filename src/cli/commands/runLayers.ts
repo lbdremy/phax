@@ -32,11 +32,14 @@ import {
   ModelPreflightError,
   PhaseHadNoChangesError,
   PlanNotApprovedError,
+  PlanStaleError,
   PlanValidationError,
   RateLimitError,
   RegistryCorruptionError,
   SecurityEnforcementError,
   SecurityPreflightError,
+  SpecNotApprovedError,
+  SpecRetirementBlockedError,
   UnsafeGitStateError,
   UsageLimitError,
 } from "../../domain/errors.js";
@@ -97,7 +100,10 @@ export function exitCodeForError(err: unknown): number {
   if (
     err instanceof InvalidArtifactTransitionError ||
     err instanceof ArtifactValidationError ||
-    err instanceof PlanNotApprovedError
+    err instanceof PlanNotApprovedError ||
+    err instanceof SpecNotApprovedError ||
+    err instanceof SpecRetirementBlockedError ||
+    err instanceof PlanStaleError
   )
     return 12;
   return 1;

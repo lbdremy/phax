@@ -4,7 +4,9 @@ import { Effect, Either, Layer } from "effect";
 import type { Command } from "commander";
 import type { OutputPort } from "../../ports/output.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
+import { makeNodeGitLayer } from "../../infra/git.js";
 import { FileSystem } from "../../ports/fs.js";
+import { Git } from "../../ports/git.js";
 import { inspectArtifact, transitionArtifact } from "../../app/artifactStatus.js";
 import type { ArtifactStatus } from "../../domain/artifact/status.js";
 import { exitCodeForError } from "./runLayers.js";
@@ -32,8 +34,8 @@ function toRepoRelativePath(pathArg: string): string {
   return rel.split(sep).join("/");
 }
 
-function buildLayer(): Layer.Layer<FileSystem> {
-  return NodeFileSystemLayer;
+function buildLayer(): Layer.Layer<FileSystem | Git> {
+  return Layer.merge(NodeFileSystemLayer, makeNodeGitLayer());
 }
 
 export async function runArtifactStatus(pathArg: string, out: OutputPort): Promise<number> {
@@ -61,17 +63,22 @@ export async function runArtifactTransition(
   out: OutputPort,
 ): Promise<number> {
   const repoRelPath = toRepoRelativePath(pathArg);
-  const effect = transitionArtifact(repoRelPath, target).pipe(Effect.provide(buildLayer()));
+  const repoRoot = findGitRoot(process.cwd());
+  const opts = { repoRoot, nowIso: new Date().toISOString() };
+  const effect = transitionArtifact(repoRelPath, target, opts).pipe(Effect.provide(buildLayer()));
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
     out.error(result.left.message);
     return exitCodeForError(result.left);
   }
 
-  const { status, path } = result.right;
+  const { status, path, approvedBaseline } = result.right;
   out.log(`Status: ${status}`);
   if (target === "Abandoned" || target === "Archived") {
     out.log(`Path:   ${path}`);
+  }
+  if (approvedBaseline !== undefined) {
+    out.log(`Baseline: ${approvedBaseline.slice(0, 7)}`);
   }
   return 0;
 }
