@@ -7,13 +7,34 @@ import { cliDocs } from "../../src/cli/cliDocs.js";
 // cliDocs but the generator fails to emit the metadata.
 const DOCUMENTED_COMMANDS = Object.keys(cliDocs);
 
-// Extract the text of a top-level cmd block (indent-0 closing brace convention).
+// Extract a `cmd "x" { ... }` block by brace depth, so a nested block (with
+// its own nested `cmd` children) is bounded correctly rather than by the
+// first "\n}" that happens to follow the opening brace.
+function extractBlock(text: string, startIdx: number): string {
+  const braceIdx = text.indexOf("{", startIdx);
+  let depth = 0;
+  for (let i = braceIdx; i < text.length; i++) {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}") {
+      depth--;
+      if (depth === 0) return text.slice(startIdx, i + 1);
+    }
+  }
+  return text.slice(startIdx);
+}
+
+// cmdName is a full command path ("run", "artifact status", ...); walk each
+// space-separated segment into the matching nested cmd block.
 function findCmdBlock(spec: string, cmdName: string): string | null {
-  const start = spec.indexOf(`cmd "${cmdName}" {`);
-  if (start === -1) return null;
-  const end = spec.indexOf("\n}", start);
-  if (end === -1) return null;
-  return spec.slice(start, end + 2);
+  let scope = spec;
+  let block: string | null = null;
+  for (const segment of cmdName.split(" ")) {
+    const start = scope.indexOf(`cmd "${segment}" {`);
+    if (start === -1) return null;
+    block = extractBlock(scope, start);
+    scope = block;
+  }
+  return block;
 }
 
 describe("usageSpec examples gate", () => {

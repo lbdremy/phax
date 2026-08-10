@@ -24,11 +24,14 @@ import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
   AgentSessionIdMissingError,
+  ArtifactValidationError,
   ConfigValidationError,
   GateFailedError,
+  InvalidArtifactTransitionError,
   LockConflictError,
   ModelPreflightError,
   PhaseHadNoChangesError,
+  PlanNotApprovedError,
   PlanValidationError,
   RateLimitError,
   RegistryCorruptionError,
@@ -91,6 +94,12 @@ export function exitCodeForError(err: unknown): number {
     err instanceof ModelPreflightError
   )
     return 11;
+  if (
+    err instanceof InvalidArtifactTransitionError ||
+    err instanceof ArtifactValidationError ||
+    err instanceof PlanNotApprovedError
+  )
+    return 12;
   return 1;
 }
 

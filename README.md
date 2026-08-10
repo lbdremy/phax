@@ -533,5 +533,12 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax skills install <--target <target>> [--scope <scope>] [skill]` — Install bundled PHAX skills into an agent's native skill directory
 - `phax schema <SUBCOMMAND>` — Manage the local phax.schema.json
 - `phax schema upgrade` — Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json
+- `phax artifact <SUBCOMMAND>` — Parent command for inspecting and transitioning the lifecycle status of a spec (docs/specs/) or plan (docs/plans/). Specs carry Draft, Approved, Abandoned, or Archived; plans additionally carry Stale. Transitioning to a terminal status (Abandoned, Archived) moves the file into the artifact's archive/ subdirectory as part of the transition. Illegal transitions and validation failures (missing status line, unknown status, status/location disagreement) refuse with exit code 12.
+- `phax artifact status <path>` — Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status. Read-only — no side effects.
+- `phax artifact approve <path>` — Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved plan is a no-op transition. Rewrites the Status: line in place.
+- `phax artifact stale <path>` — Manually marks a plan Stale. Legal from Approved only — Stale has no automatic trigger (that belongs to a future lineage spec). Rewrites the Status: line in place.
+- `phax artifact abandon <path>` — Abandons an artifact — a terminal status distinct from Archived, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).
+- `phax artifact archive <path>` — Archives an artifact — a terminal status for completed work. Legal from Approved (specs) or Approved or Stale (plans).
+- `phax artifact reopen <path>` — Reopens a Stale plan back to Draft, for when re-planning is needed before re-approval. Legal from Stale only. Rewrites the Status: line in place.
 
 <!-- END GENERATED CLI REFERENCE -->
