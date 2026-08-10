@@ -4,7 +4,13 @@ import { Git, GitError } from "../ports/git.js";
 import type { BranchName, WorktreePath } from "../domain/branded.js";
 import { decodeBranchName } from "../domain/branded.js";
 import { Either } from "effect";
-import { isPortcelainClean, parseBranchOutput, parseBranchExistsOutput } from "../schemas/git.js";
+import {
+  isPortcelainClean,
+  parseBranchOutput,
+  parseBranchExistsOutput,
+  parseHeadCommitOutput,
+  parseChangedFilesOutput,
+} from "../schemas/git.js";
 import { parseNameStatus } from "../domain/reconciliation/parseNameStatus.js";
 
 function gitRun(
@@ -129,6 +135,32 @@ export const NodeGitLayer = Layer.succeed(Git, {
 
   pushBranch: (branch, remote, repo) =>
     gitRun(["push", "--set-upstream", remote, "--", branch], repo).pipe(Effect.asVoid),
+
+  headCommit: (repo) =>
+    gitRun(["rev-parse", "HEAD"], repo).pipe(
+      Effect.flatMap(({ stdout }) => {
+        const sha = parseHeadCommitOutput(stdout);
+        if (sha === null) {
+          return Effect.fail(
+            new GitError({
+              message: `Could not parse HEAD commit: "${stdout.trim()}"`,
+              command: "git rev-parse HEAD",
+            }),
+          );
+        }
+        return Effect.succeed(sha);
+      }),
+    ),
+
+  commitExists: (commit, repo) =>
+    gitRunAllowFail(["rev-parse", "--verify", "--quiet", `${commit}^{commit}`], repo).pipe(
+      Effect.map(({ exitCode }) => exitCode === 0),
+    ),
+
+  changedFilesSince: (baseline, repo) =>
+    gitRun(["diff", "--name-only", baseline, "--"], repo).pipe(
+      Effect.map(({ stdout }) => parseChangedFilesOutput(stdout)),
+    ),
 });
 
 export function makeNodeGitLayer(): Layer.Layer<Git> {

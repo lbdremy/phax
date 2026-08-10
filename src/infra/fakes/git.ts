@@ -16,7 +16,10 @@ export type GitCall =
   | { method: "pruneWorktrees"; repo: string }
   | { method: "diffNameStatus"; path: string }
   | { method: "remoteExists"; remote: string; repo: string }
-  | { method: "pushBranch"; branch: string; remote: string; repo: string };
+  | { method: "pushBranch"; branch: string; remote: string; repo: string }
+  | { method: "headCommit"; repo: string }
+  | { method: "commitExists"; commit: string; repo: string }
+  | { method: "changedFilesSince"; baseline: string; repo: string };
 
 export class FakeGitImpl implements GitOps {
   readonly calls: GitCall[] = [];
@@ -65,6 +68,19 @@ export class FakeGitImpl implements GitOps {
   readonly pushedBranches = new Set<string>();
   private nextAddWorktreeError: string | undefined;
   private nextPushBranchError: string | undefined;
+
+  headCommitValue = "0".repeat(40);
+  readonly existingCommits = new Set<string>([this.headCommitValue]);
+  readonly changedFilesSinceResults = new Map<string, string[]>();
+
+  setHeadCommit(sha: string): void {
+    this.headCommitValue = sha;
+    this.existingCommits.add(sha);
+  }
+
+  setChangedFilesSince(baseline: string, files: string[]): void {
+    this.changedFilesSinceResults.set(baseline, files);
+  }
 
   addExistingRemote(remote: string): void {
     this.existingRemotes.add(remote);
@@ -188,6 +204,21 @@ export class FakeGitImpl implements GitOps {
     }
     this.pushedBranches.add(branch as string);
     return Effect.void;
+  }
+
+  headCommit(repo: string): Effect.Effect<string, GitError> {
+    this.calls.push({ method: "headCommit", repo });
+    return Effect.succeed(this.headCommitValue);
+  }
+
+  commitExists(commit: string, repo: string): Effect.Effect<boolean, GitError> {
+    this.calls.push({ method: "commitExists", commit, repo });
+    return Effect.succeed(this.existingCommits.has(commit));
+  }
+
+  changedFilesSince(baseline: string, repo: string): Effect.Effect<readonly string[], GitError> {
+    this.calls.push({ method: "changedFilesSince", baseline, repo });
+    return Effect.succeed(this.changedFilesSinceResults.get(baseline) ?? []);
   }
 }
 
