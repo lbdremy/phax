@@ -177,3 +177,29 @@ export class OrientProviderError extends Data.TaggedError("OrientProviderError")
   exitCode?: number;
   stderrExcerpt?: string;
 }> {}
+
+export class InvalidArtifactTransitionError extends Data.TaggedError(
+  "InvalidArtifactTransitionError",
+)<{
+  kind: "spec" | "plan";
+  from: string;
+  to: string;
+  legalTargets: readonly string[];
+}> {
+  override get message(): string {
+    const targets =
+      this.legalTargets.length > 0 ? this.legalTargets.join(", ") : "(none — terminal)";
+    return `Invalid ${this.kind} status transition: ${this.from} → ${this.to}. Legal transitions from ${this.from}: ${targets}`;
+  }
+}
+
+export class ArtifactValidationError extends Data.TaggedError("ArtifactValidationError")<{
+  path: string;
+  message: string;
+}> {}
+
+export class PlanNotApprovedError extends Data.TaggedError("PlanNotApprovedError")<{
+  path: string;
+  status: string;
+  message: string;
+}> {}
