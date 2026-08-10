@@ -82,6 +82,17 @@ export function transitionArtifact(
 
     if (isTerminalStatus(target)) {
       const destination = archivePathFor(repoRelPath);
+      // Never clobber an existing archived artifact (e.g. a reused plan number):
+      // the move writes then deletes, so an overwrite here is silent data loss.
+      const destinationExists = yield* fs.exists(destination);
+      if (destinationExists) {
+        return yield* Effect.fail(
+          new ArtifactValidationError({
+            path: repoRelPath,
+            message: `Cannot archive ${repoRelPath}: destination ${destination} already exists. Remove or rename it first.`,
+          }),
+        );
+      }
       const archiveDir = destination.slice(0, destination.lastIndexOf("/"));
       yield* fs.mkdirp(archiveDir);
       yield* fs.writeAtomic(destination, updatedMd);

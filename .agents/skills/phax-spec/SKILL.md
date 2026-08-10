@@ -29,21 +29,31 @@ you have left the spec layer.
 
 ## Lifecycle
 
-Every spec carries a status that moves in one direction:
+Every spec carries a `Status:` line drawn from a fixed set. phax now **enforces**
+it: the value must be one of these exact strings, and a terminal status
+(`Abandoned`, `Archived`) must live under `docs/specs/archive/` — status and
+location must agree, or validation fails.
 
 ```
-Draft  →  Approved  →  Archived
+Draft ──▶ Approved ──▶ Archived
+  │           │
+  └──▶ Abandoned ◀──┘
 ```
 
 - **Draft** — under authoring; ambiguities still open; not yet eligible for planning.
 - **Approved** — the human approval gate has passed: scope is bounded, requirements are
   unambiguous, acceptance criteria are testable. Only an Approved spec should be planned.
+- **Abandoned** — dropped before it shipped (terminal). The file moves to
+  `docs/specs/archive/`.
 - **Archived** — consumed. The spec has produced a plan and tests; it moves to
   `docs/specs/archive/`. From here on, code + tests are the source of truth. A readable spec
   _view_ can be regenerated from the tests on demand — it is a derived report, not a file to
   maintain.
 
-Record the status in the header block (below) and keep it accurate.
+Move status through its legal transitions with the `phax artifact` command group
+(`phax artifact approve|abandon|archive <path>`) rather than hand-editing — it
+validates the transition and, on a terminal one, moves the file into `archive/`
+for you. Record the status in the header block (below) and keep it accurate.
 
 ## File and naming convention
 
@@ -60,7 +70,7 @@ phax specs converge on; follow it so specs stop drifting.
 ```markdown
 # <Title>
 
-Status: Draft | Approved | Archived
+Status: Draft | Approved | Abandoned | Archived
 
 Date: YYYY-MM-DD
 
