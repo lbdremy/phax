@@ -143,6 +143,27 @@ describe("transitionArtifact", () => {
     }
   });
 
+  it("refuses to archive over an existing destination and leaves the original intact", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile("docs/plans/21-foo-plan.md", APPROVED_PLAN);
+    impl.setFile("docs/plans/archive/21-foo-plan.md", "# Pre-existing archived plan\n");
+
+    const result = await run(
+      transitionArtifact("docs/plans/21-foo-plan.md", "Archived").pipe(Effect.provide(layer)),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(ArtifactValidationError);
+      expect(result.left.message).toContain("already exists");
+    }
+    // Neither file is touched.
+    expect(impl.getFile("docs/plans/21-foo-plan.md")).toBe(APPROVED_PLAN);
+    expect(impl.getFile("docs/plans/archive/21-foo-plan.md")).toBe(
+      "# Pre-existing archived plan\n",
+    );
+  });
+
   it("surfaces InvalidArtifactTransitionError for an illegal transition", async () => {
     const { impl, layer } = makeFakeFileSystem();
     impl.setFile("docs/specs/21-foo.md", DRAFT_SPEC);

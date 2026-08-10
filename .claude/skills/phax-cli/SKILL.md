@@ -56,7 +56,7 @@ Most review commands have a `…-last` variant that targets the most recent
 
 ```
 phax init                          # scaffold phax.json
-# author plan.md  → use the `phax-planning` skill for its format
+# author plan.md  → use the `phax-planning` skill for its format (Status: Approved)
 phax run my-feature --plan plan.md # extract plan + run every phase → review_open
 phax enter my-feature              # review/iterate in the kept-open agent session
 phax publish-pr my-feature         # push branch + open a PR (needs gh)
@@ -67,6 +67,34 @@ phax archive my-feature            # finish
 if you want to inspect `phax-plan.json` first. Each phase requests a
 `model` + `effort` that phax resolves to a concrete provider — inspect routing
 under `phax agent` (see `--usage`).
+
+## Artifact lifecycle — specs and plans carry an enforced status
+
+Specs (`docs/specs/`) and plans (`docs/plans/`) each carry a `Status:` line in
+their header, drawn from a fixed per-kind set (specs: `Draft`, `Approved`,
+`Abandoned`, `Archived`; plans add `Stale`). phax **enforces the one gate that
+matters: only an `Approved` plan can run** — `phax run` refuses a `Draft`,
+`Stale`, or retired (`Abandoned`/`Archived`) plan, naming the status and the
+remedy, *before* extraction. Extraction itself stays ungated, so you can still
+preview a draft's `phax-plan.json`.
+
+The `phax artifact` command group inspects and moves lifecycle status through its
+legal transitions (see `--usage` for the exact subcommands and flags):
+
+- `phax artifact status <path>` — report an artifact's kind, current status, and
+  legal transitions.
+- `phax artifact approve <path>` — the `Draft → Approved` gate; run it on a plan
+  under `docs/plans/` before `phax run`.
+- `phax artifact stale` / `reopen` — mark a plan `Stale`, or reopen a `Stale`
+  plan back to `Draft` (plans only).
+- `phax artifact abandon` / `archive` — terminal transitions; phax moves the file
+  into the matching `archive/` directory as part of the transition.
+
+Transitions are validated: an illegal one is refused and names the legal set, and
+a terminal status must live under `archive/` (status and location must agree). A
+loose `plan.md` outside `docs/specs/`|`docs/plans/` is still gated on status, but
+its status line is edited by hand — `phax artifact` targets repo-tracked
+artifacts.
 
 When unsure about any command, read its `long_help` and `example` in
 `phax --usage`.

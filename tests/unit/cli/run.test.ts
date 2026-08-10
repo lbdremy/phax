@@ -463,6 +463,23 @@ describe("runRun — plan lifecycle status gate", () => {
     expect(message).not.toContain("Approve it");
   });
 
+  it("refuses an Approved plan under docs/plans/archive/ — the path is normalized to repo-relative first", async () => {
+    await setupConfigOnly();
+    await mockPlanMd("# Plan content\n\nStatus: Approved\n\n## Context\n");
+
+    const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, errors } = makeOutput();
+    // Absolute path under the configured repoRoot: before normalization the
+    // location check saw a non-"docs/plans/" prefix and silently skipped.
+    const code = await runRun({ plan: "/fake-repo/docs/plans/archive/foo-plan.md" }, out);
+
+    expect(code).not.toBe(0);
+    expect(loadOrExtractPlan).not.toHaveBeenCalled();
+    expect(errors.join("\n")).toMatch(/disagrees with its location/);
+  });
+
   it("proceeds into the extraction pipeline for an Approved plan", async () => {
     await setupConfigOnly();
     await mockPlanMd("# Plan content\n\nStatus: Approved\n\n## Context\n");

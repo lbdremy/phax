@@ -49,6 +49,34 @@ Write exactly one `# ` heading per plan and keep it short and descriptive — a
 long title becomes a long branch slug. Do not add a separate name or namespace
 field; the top-level heading is the sole source of the run's identity.
 
+## Plan header block
+
+Directly under the `# ` title, before the first `## ` section, every plan carries
+a short header block:
+
+```markdown
+# <Title>
+
+Status: Approved
+
+Source-Spec: docs/specs/NN-<slug>.md
+```
+
+- **`Status:`** — the plan's lifecycle status, one of `Draft`, `Approved`,
+  `Stale`, `Abandoned`, `Archived`. phax **enforces the run gate: only an
+  `Approved` plan can run** — `phax run` refuses any other status (naming the
+  remedy) before extraction. Approve a repo-tracked plan with
+  `phax artifact approve docs/plans/NN-<slug>-plan.md`; for a loose `plan.md`, set
+  the line by hand. Extraction is never gated, so a `Draft` still extracts for
+  preview.
+- **`Source-Spec:`** — the spec this plan implements
+  (`docs/specs/NN-<slug>.md`), or `(none)` when there is no source spec. It is the
+  lineage anchor for staleness tracking.
+
+These lines live in the preamble and are **not** extracted into `phax-plan.json`
+— they govern the run gate and lineage, not phase structure — but keep them
+present and accurate on every plan.
+
 ## Per-phase field set
 
 Each phase section must contain all of the following. Fields marked **extracted**

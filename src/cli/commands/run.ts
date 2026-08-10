@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName, type ShortName } from "../../domain/branded.js";
@@ -184,7 +184,11 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   // error path report it — this gate must not invent a new missing-file error.
   try {
     const planMdForGate = readFileSync(planMdPath, "utf8");
-    const runnable = checkPlanRunnable(planMdForGate, planMdPath);
+    // checkPlanRunnable's location check matches repo-relative POSIX prefixes
+    // (docs/plans/...), so normalize the absolute plan path against the repo
+    // root before handing it over — otherwise the location guard never fires.
+    const planRepoRel = relative(config.repoRoot, planMdPath).split(sep).join("/");
+    const runnable = checkPlanRunnable(planMdForGate, planRepoRel);
     if (Either.isLeft(runnable)) {
       out.error(runnable.left.message);
       return exitCodeForError(runnable.left);
