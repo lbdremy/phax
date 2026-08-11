@@ -3,14 +3,23 @@
 Follow-up work identified on 2026-08-09 (mapping phax against data-engineering lessons —
 graphs / ETL / change detection / democratization — and the desktop-app idea in
 `docs/ideas/desktop-app.md`); updated 2026-08-10 (entire.io positioning analysis and a
-second pass on the Josh Rosen data-engineering article). Tick items off as they land,
-and delete this file when it is empty.
+second pass on the Josh Rosen data-engineering article); updated 2026-08-11 (spec 26
+frontmatter planning added as priority). Tick items off as they land, and delete this
+file when it is empty.
 
 ## Plan and run the approved specs
 
 Planning order: 21 → 22 (22 consumes 21's state vocabulary); 23 and 24 are independent
 and can go anytime after — 24 is the largest and consumes 21 + 22.
 
+- [ ] **Priority — write the plan for spec 26**
+      (`docs/specs/26-artifact-frontmatter-metadata.md`, Approved 2026-08-11): YAML
+      frontmatter replaces the `Status:`/`Source-Spec:`/`Approved:` header lines on all
+      lifecycle artifacts; key-level fingerprint neutrality; migration coupled with
+      `approvals.json` fingerprint recomputation. Plan via the phax-planning skill →
+      `docs/plans/26-artifact-frontmatter-metadata-plan.md`. Constraint (spec §10):
+      sequence the run after plan 25 (artifact transition auto-commit, Approved
+      2026-08-11) lands — same transition write path.
 - [x] `docs/specs/21-artifact-lifecycle-status.md` — spec/plan state machines; only an
       `Approved` plan runs; archive-location agreement; `phax artifact` commands.
       **Landed on `main` 2026-08-10** (plan 21, five phases incl. the whole-tree
