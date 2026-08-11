@@ -179,9 +179,27 @@ export class FakeGitImpl implements GitOps {
     for (const path of paths) this.dirtyPathsSet.add(path);
   }
 
+  private readonly dirtyPathsQueue: (readonly string[])[] = [];
+
+  /** Queues the exact result of the next `dirtyPaths` call (FIFO), bypassing the
+   * `dirtyPathsSet` intersection. Use this to distinguish a caller's pre-write and
+   * post-write `dirtyPaths` calls within one use case invocation — `setDirtyPaths`
+   * alone can't, since it answers every call identically. */
+  enqueueDirtyPaths(paths: readonly string[]): void {
+    this.dirtyPathsQueue.push(paths);
+  }
+
   dirtyPaths(repo: string, paths: readonly string[]): Effect.Effect<readonly string[], GitError> {
     this.calls.push({ method: "dirtyPaths", repo, paths });
+    const queued = this.dirtyPathsQueue.shift();
+    if (queued !== undefined) return Effect.succeed(queued);
     return Effect.succeed(paths.filter((path) => this.dirtyPathsSet.has(path)));
+  }
+
+  private nextCommitPathsError: string | undefined;
+
+  failNextCommitPaths(stderr: string): void {
+    this.nextCommitPathsError = stderr;
   }
 
   commitPaths(
@@ -191,6 +209,19 @@ export class FakeGitImpl implements GitOps {
     body: string,
   ): Effect.Effect<void, GitError> {
     this.calls.push({ method: "commitPaths", repo, paths, subject, body });
+    if (this.nextCommitPathsError !== undefined) {
+      const stderr = this.nextCommitPathsError;
+      this.nextCommitPathsError = undefined;
+      return Effect.fail(
+        new GitError({
+          message: `git commit failed: ${stderr}`,
+          command: `git commit -m ${subject}`,
+          stderr,
+          stderrExcerpt: stderr,
+          exitCode: 1,
+        }),
+      );
+    }
     return Effect.void;
   }
 

@@ -62,7 +62,7 @@ export async function runPlansStatus(
   let flipped: readonly StalenessFlip[] = [];
   if (applied) {
     const applyResult = await Effect.runPromise(
-      applyStalenessReport(report, { repoRoot: config.repoRoot, nowIso }).pipe(
+      applyStalenessReport(report, { repoRoot: config.repoRoot, nowIso, commit: true }).pipe(
         Effect.either,
         Effect.provide(nodeLayer()),
       ),

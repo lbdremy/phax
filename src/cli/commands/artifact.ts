@@ -64,7 +64,7 @@ export async function runArtifactTransition(
 ): Promise<number> {
   const repoRelPath = toRepoRelativePath(pathArg);
   const repoRoot = findGitRoot(process.cwd());
-  const opts = { repoRoot, nowIso: new Date().toISOString() };
+  const opts = { repoRoot, nowIso: new Date().toISOString(), commit: true };
   const effect = transitionArtifact(repoRelPath, target, opts).pipe(Effect.provide(buildLayer()));
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {

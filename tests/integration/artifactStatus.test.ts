@@ -9,6 +9,8 @@ import { artifactFingerprint } from "../../src/app/approvalRecordStore.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import {
+  ArtifactCommitFailedError,
+  ArtifactDirtyWriteSetError,
   ArtifactValidationError,
   InvalidArtifactTransitionError,
   SpecNotApprovedError,
@@ -86,7 +88,11 @@ function makeHarness() {
   return { fsImpl, gitImpl, layer };
 }
 
-const DEFAULT_OPTS = { repoRoot: "/fake-repo", nowIso: "2026-08-10T12:00:00.000Z" };
+const DEFAULT_OPTS = {
+  repoRoot: "/fake-repo",
+  nowIso: "2026-08-10T12:00:00.000Z",
+  commit: false,
+};
 
 describe("inspectArtifact", () => {
   it("reports kind, status, and legal targets for an Approved plan", async () => {
@@ -389,6 +395,7 @@ describe("transitionArtifact", () => {
         transitionArtifact("docs/plans/40-plan.md", "Approved", {
           repoRoot: DEFAULT_OPTS.repoRoot,
           nowIso: secondNowIso,
+          commit: false,
         }).pipe(Effect.provide(layer)),
       );
       expect(Either.isRight(result)).toBe(true);
@@ -516,6 +523,154 @@ describe("transitionArtifact", () => {
       expect(Either.isRight(result)).toBe(true);
       const storeText = fsImpl.getFile(APPROVALS_FILE_PATH) as string;
       expect(() => JSON.parse(storeText)).not.toThrow();
+    });
+  });
+
+  describe("auto-commit", () => {
+    it("approve commits exactly the write-set", async () => {
+      const { fsImpl, gitImpl, layer } = makeHarness();
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
+      gitImpl.enqueueDirtyPaths([]); // pre-write precondition: clean
+      gitImpl.enqueueDirtyPaths(["docs/plans/40-plan.md", APPROVALS_FILE_PATH]); // post-write: changed
+
+      const result = await run(
+        transitionArtifact("docs/plans/40-plan.md", "Approved", {
+          ...DEFAULT_OPTS,
+          commit: true,
+        }).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      if (Either.isRight(result)) {
+        expect(result.right.commit).toEqual({
+          hash: gitImpl.headCommitValue,
+          subject: "chore(plans): approve 40-plan",
+        });
+      }
+      const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
+      expect(commitCalls).toEqual([
+        {
+          method: "commitPaths",
+          repo: DEFAULT_OPTS.repoRoot,
+          paths: ["docs/plans/40-plan.md", APPROVALS_FILE_PATH],
+          subject: "chore(plans): approve 40-plan",
+          body: expect.stringContaining("docs/plans/40-plan.md"),
+        },
+      ]);
+    });
+
+    it("archive captures the source removal and archive addition in one commit", async () => {
+      const { fsImpl, gitImpl, layer } = makeHarness();
+      fsImpl.setFile("docs/specs/21-foo.md", APPROVED_SPEC);
+      gitImpl.enqueueDirtyPaths([]);
+      gitImpl.enqueueDirtyPaths(["docs/specs/21-foo.md", "docs/specs/archive/21-foo.md"]);
+
+      const result = await run(
+        transitionArtifact("docs/specs/21-foo.md", "Archived", {
+          ...DEFAULT_OPTS,
+          commit: true,
+        }).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
+      expect(commitCalls).toHaveLength(1);
+      if (commitCalls[0]?.method === "commitPaths") {
+        expect(commitCalls[0].paths).toEqual([
+          "docs/specs/21-foo.md",
+          "docs/specs/archive/21-foo.md",
+        ]);
+      }
+    });
+
+    it("refuses a dirty write-set target before writing anything", async () => {
+      const { fsImpl, gitImpl, layer } = makeHarness();
+      const source = planMd("Draft", "(none)");
+      fsImpl.setFile("docs/plans/40-plan.md", source);
+      gitImpl.setDirtyPaths(["docs/plans/40-plan.md"]);
+
+      const result = await run(
+        transitionArtifact("docs/plans/40-plan.md", "Approved", {
+          ...DEFAULT_OPTS,
+          commit: true,
+        }).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ArtifactDirtyWriteSetError);
+        if (result.left instanceof ArtifactDirtyWriteSetError) {
+          expect(result.left.paths).toEqual(["docs/plans/40-plan.md"]);
+        }
+      }
+      expect(fsImpl.getFile("docs/plans/40-plan.md")).toBe(source);
+      expect(fsImpl.getFile(APPROVALS_FILE_PATH)).toBeUndefined();
+      expect(gitImpl.calls.some((c) => c.method === "commitPaths")).toBe(false);
+    });
+
+    it("--no-commit skips the precondition and creates no commit", async () => {
+      const { fsImpl, gitImpl, layer } = makeHarness();
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
+      gitImpl.setDirtyPaths(["docs/plans/40-plan.md"]); // would refuse if enforced
+
+      const result = await run(
+        transitionArtifact("docs/plans/40-plan.md", "Approved", {
+          ...DEFAULT_OPTS,
+          commit: false,
+        }).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      if (Either.isRight(result)) {
+        expect(result.right.commit).toBeUndefined();
+      }
+      expect(gitImpl.calls.some((c) => c.method === "dirtyPaths")).toBe(false);
+      expect(gitImpl.calls.some((c) => c.method === "commitPaths")).toBe(false);
+    });
+
+    it("a no-op transition (no diff against HEAD) creates no commit", async () => {
+      const { fsImpl, gitImpl, layer } = makeHarness();
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
+
+      const result = await run(
+        transitionArtifact("docs/plans/40-plan.md", "Approved", {
+          ...DEFAULT_OPTS,
+          commit: true,
+        }).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      if (Either.isRight(result)) {
+        expect(result.right.commit).toBeUndefined();
+      }
+      expect(gitImpl.calls.some((c) => c.method === "commitPaths")).toBe(false);
+    });
+
+    it("surfaces a commit failure loudly, leaving the writes in place", async () => {
+      const { fsImpl, gitImpl, layer } = makeHarness();
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
+      gitImpl.enqueueDirtyPaths([]);
+      gitImpl.enqueueDirtyPaths(["docs/plans/40-plan.md", APPROVALS_FILE_PATH]);
+      gitImpl.failNextCommitPaths("fatal: unable to auto-detect email address");
+
+      const result = await run(
+        transitionArtifact("docs/plans/40-plan.md", "Approved", {
+          ...DEFAULT_OPTS,
+          commit: true,
+        }).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ArtifactCommitFailedError);
+        if (result.left instanceof ArtifactCommitFailedError) {
+          expect(result.left.paths).toEqual(["docs/plans/40-plan.md", APPROVALS_FILE_PATH]);
+          expect(result.left.cause).toContain("unable to auto-detect email address");
+        }
+      }
+      // The transition's writes stayed in place despite the commit failure.
+      expect(fsImpl.getFile("docs/plans/40-plan.md")).toContain("Status: Approved");
+      expect(fsImpl.getFile(APPROVALS_FILE_PATH)).toBeDefined();
     });
   });
 });
