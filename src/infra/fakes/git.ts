@@ -12,6 +12,14 @@ export type GitCall =
   | { method: "addWorktree"; branch: string; path: string; repo: string }
   | { method: "removeWorktree"; path: string; force: boolean; repo: string }
   | { method: "commit"; repo: string; subject: string; body: string }
+  | { method: "dirtyPaths"; repo: string; paths: readonly string[] }
+  | {
+      method: "commitPaths";
+      repo: string;
+      paths: readonly string[];
+      subject: string;
+      body: string;
+    }
   | { method: "worktreeIsClean"; path: string }
   | { method: "pruneWorktrees"; repo: string }
   | { method: "diffNameStatus"; path: string }
@@ -159,6 +167,30 @@ export class FakeGitImpl implements GitOps {
 
   commit(repo: string, subject: string, body: string): Effect.Effect<void, GitError> {
     this.calls.push({ method: "commit", repo, subject, body });
+    return Effect.void;
+  }
+
+  readonly dirtyPathsSet = new Set<string>();
+
+  /** Marks exactly these paths as dirty; `dirtyPaths(repo, paths)` returns
+   * the intersection of its `paths` argument with this set. */
+  setDirtyPaths(paths: readonly string[]): void {
+    this.dirtyPathsSet.clear();
+    for (const path of paths) this.dirtyPathsSet.add(path);
+  }
+
+  dirtyPaths(repo: string, paths: readonly string[]): Effect.Effect<readonly string[], GitError> {
+    this.calls.push({ method: "dirtyPaths", repo, paths });
+    return Effect.succeed(paths.filter((path) => this.dirtyPathsSet.has(path)));
+  }
+
+  commitPaths(
+    repo: string,
+    paths: readonly string[],
+    subject: string,
+    body: string,
+  ): Effect.Effect<void, GitError> {
+    this.calls.push({ method: "commitPaths", repo, paths, subject, body });
     return Effect.void;
   }
 
