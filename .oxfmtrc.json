@@ -1,4 +1,12 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": ["node_modules", "dist", "docs", ".conductor", ".claude", ".agents"]
+  "ignorePatterns": [
+    "node_modules",
+    "dist",
+    "docs",
+    ".conductor",
+    ".claude",
+    ".agents",
+    "NEXT_STEPS.md"
+  ]
 }
