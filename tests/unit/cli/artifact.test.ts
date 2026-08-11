@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect } from "effect";
 import { runArtifactStatus, runArtifactTransition } from "../../../src/cli/commands/artifact.js";
 import {
+  ArtifactCommitFailedError,
+  ArtifactDirtyWriteSetError,
   ArtifactValidationError,
   InvalidArtifactTransitionError,
   SpecNotApprovedError,
@@ -206,5 +208,135 @@ describe("runArtifactTransition", () => {
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("abandon or archive them first");
+  });
+
+  it("defaults to commit: true when no flag is passed", async () => {
+    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifact.mockReturnValue(
+      Effect.succeed({
+        status: "Approved",
+        path: "docs/plans/45-typescript-7-migration-plan.md",
+      }),
+    );
+
+    const { out } = makeOutput();
+    await runArtifactTransition("docs/plans/45-typescript-7-migration-plan.md", "Approved", out);
+
+    expect(transitionArtifact).toHaveBeenCalledWith(
+      "docs/plans/45-typescript-7-migration-plan.md",
+      "Approved",
+      expect.objectContaining({ commit: true }),
+    );
+  });
+
+  it("threads commit: false through to the use case when --no-commit is passed", async () => {
+    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifact.mockReturnValue(
+      Effect.succeed({
+        status: "Approved",
+        path: "docs/plans/45-typescript-7-migration-plan.md",
+      }),
+    );
+
+    const { out } = makeOutput();
+    await runArtifactTransition(
+      "docs/plans/45-typescript-7-migration-plan.md",
+      "Approved",
+      out,
+      false,
+    );
+
+    expect(transitionArtifact).toHaveBeenCalledWith(
+      "docs/plans/45-typescript-7-migration-plan.md",
+      "Approved",
+      expect.objectContaining({ commit: false }),
+    );
+  });
+
+  it("renders the Commit: line with hash and subject when a commit was created", async () => {
+    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifact.mockReturnValue(
+      Effect.succeed({
+        status: "Approved",
+        path: "docs/plans/45-typescript-7-migration-plan.md",
+        commit: {
+          hash: "3f2a1c9abcdef1234567890abcdef1234567890",
+          subject: "chore(plans): approve 45-typescript-7-migration-plan",
+        },
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runArtifactTransition(
+      "docs/plans/45-typescript-7-migration-plan.md",
+      "Approved",
+      out,
+    );
+
+    expect(code).toBe(0);
+    expect(
+      lines.some(
+        (l) => l === "Commit: 3f2a1c9 — chore(plans): approve 45-typescript-7-migration-plan",
+      ),
+    ).toBe(true);
+  });
+
+  it("omits the Commit: line when no commit was created", async () => {
+    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifact.mockReturnValue(
+      Effect.succeed({
+        status: "Approved",
+        path: "docs/plans/45-typescript-7-migration-plan.md",
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    await runArtifactTransition("docs/plans/45-typescript-7-migration-plan.md", "Approved", out);
+
+    expect(lines.some((l) => l.startsWith("Commit:"))).toBe(false);
+  });
+
+  it("returns exit code 12 when the write-set target is dirty", async () => {
+    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifact.mockReturnValue(
+      Effect.fail(
+        new ArtifactDirtyWriteSetError({
+          paths: ["docs/plans/45-typescript-7-migration-plan.md"],
+        }),
+      ),
+    );
+
+    const { out, errors } = makeOutput();
+    const code = await runArtifactTransition(
+      "docs/plans/45-typescript-7-migration-plan.md",
+      "Approved",
+      out,
+    );
+
+    expect(code).toBe(12);
+    expect(errors.join("\n")).toContain("--no-commit");
+  });
+
+  it("returns a non-zero exit code when the transition commit fails", async () => {
+    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifact.mockReturnValue(
+      Effect.fail(
+        new ArtifactCommitFailedError({
+          paths: ["docs/plans/45-typescript-7-migration-plan.md"],
+          cause: "pre-commit hook failed",
+        }),
+      ),
+    );
+
+    const { out, errors } = makeOutput();
+    const code = await runArtifactTransition(
+      "docs/plans/45-typescript-7-migration-plan.md",
+      "Approved",
+      out,
+    );
+
+    expect(code).not.toBe(0);
+    expect(code).not.toBe(12);
+    expect(errors.join("\n")).toContain("commit failed");
   });
 });

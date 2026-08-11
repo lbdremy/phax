@@ -24,6 +24,7 @@ import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
   AgentSessionIdMissingError,
+  ArtifactDirtyWriteSetError,
   ArtifactValidationError,
   ConfigValidationError,
   GateFailedError,
@@ -103,7 +104,8 @@ export function exitCodeForError(err: unknown): number {
     err instanceof PlanNotApprovedError ||
     err instanceof SpecNotApprovedError ||
     err instanceof SpecRetirementBlockedError ||
-    err instanceof PlanStaleError
+    err instanceof PlanStaleError ||
+    err instanceof ArtifactDirtyWriteSetError
   )
     return 12;
   return 1;

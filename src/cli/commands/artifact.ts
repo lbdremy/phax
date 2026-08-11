@@ -61,10 +61,11 @@ export async function runArtifactTransition(
   pathArg: string,
   target: ArtifactStatus,
   out: OutputPort,
+  commit = true,
 ): Promise<number> {
   const repoRelPath = toRepoRelativePath(pathArg);
   const repoRoot = findGitRoot(process.cwd());
-  const opts = { repoRoot, nowIso: new Date().toISOString(), commit: true };
+  const opts = { repoRoot, nowIso: new Date().toISOString(), commit };
   const effect = transitionArtifact(repoRelPath, target, opts).pipe(Effect.provide(buildLayer()));
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
@@ -72,13 +73,16 @@ export async function runArtifactTransition(
     return exitCodeForError(result.left);
   }
 
-  const { status, path, approvedBaseline } = result.right;
+  const { status, path, approvedBaseline, commit: madeCommit } = result.right;
   out.log(`Status: ${status}`);
   if (target === "Abandoned" || target === "Archived") {
     out.log(`Path:   ${path}`);
   }
   if (approvedBaseline !== undefined) {
     out.log(`Baseline: ${approvedBaseline.slice(0, 7)}`);
+  }
+  if (madeCommit !== undefined) {
+    out.log(`Commit: ${madeCommit.hash.slice(0, 7)} — ${madeCommit.subject}`);
   }
   return 0;
 }
@@ -127,8 +131,9 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
       .command(t.name)
       .description(t.description)
       .argument("<path>", "Path to a spec or plan file under docs/specs/ or docs/plans/")
-      .action(async (path: string) => {
-        const exitCode = await runArtifactTransition(path, t.target, out);
+      .option("--no-commit", "Apply the transition without creating a git commit")
+      .action(async (path: string, options: { commit: boolean }) => {
+        const exitCode = await runArtifactTransition(path, t.target, out, options.commit);
         process.exit(exitCode);
       });
   }
