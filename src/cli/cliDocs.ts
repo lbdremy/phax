@@ -146,31 +146,31 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   "artifact approve": {
     longHelp:
-      "Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved plan is a no-op transition. Rewrites the Status: line in place.\n\nSide effects: writes the artifact file.",
+      "Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved plan is a no-op transition. Rewrites the Status: line in place.\n\nSide effects: writes the artifact file and, unless --no-commit is set, commits the transition's write-set (the artifact file, plus the approval record for plans) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
     examples: ["phax artifact approve docs/plans/45-typescript-7-migration-plan.md"],
   },
 
   "artifact stale": {
     longHelp:
-      "Manually marks a plan Stale. Legal from Approved only — Stale has no automatic trigger (that belongs to a future lineage spec). Rewrites the Status: line in place.\n\nSide effects: writes the plan file.",
+      "Manually marks a plan Stale. Legal from Approved only — Stale has no automatic trigger (that belongs to a future lineage spec). Rewrites the Status: line in place.\n\nSide effects: writes the plan file and, unless --no-commit is set, commits the write-set in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.",
     examples: ["phax artifact stale docs/plans/32-billing-plan.md"],
   },
 
   "artifact abandon": {
     longHelp:
-      "Abandons an artifact — a terminal status distinct from Archived, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its Status: line rewritten to Abandoned.",
+      "Abandons an artifact — a terminal status distinct from Archived, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its Status: line rewritten to Abandoned and, unless --no-commit is set, commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
     examples: ["phax artifact abandon docs/plans/45-typescript-7-migration-plan.md"],
   },
 
   "artifact archive": {
     longHelp:
-      "Archives an artifact — a terminal status for completed work. Legal from Approved (specs) or Approved or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its Status: line rewritten to Archived.",
+      "Archives an artifact — a terminal status for completed work. Legal from Approved (specs) or Approved or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its Status: line rewritten to Archived and, unless --no-commit is set, commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
     examples: ["phax artifact archive docs/specs/21-artifact-lifecycle-status.md"],
   },
 
   "artifact reopen": {
     longHelp:
-      "Reopens a Stale plan back to Draft, for when re-planning is needed before re-approval. Legal from Stale only. Rewrites the Status: line in place.",
+      "Reopens a Stale plan back to Draft, for when re-planning is needed before re-approval. Legal from Stale only. Rewrites the Status: line in place.\n\nSide effects: writes the plan file and, unless --no-commit is set, commits the write-set in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.",
     examples: ["phax artifact reopen docs/plans/32-billing-plan.md"],
   },
 };
