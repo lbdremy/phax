@@ -174,7 +174,9 @@ export function plansStalenessReport(
     const plansDirExists = yield* fs.exists("docs/plans");
     if (!plansDirExists) return [];
 
-    const entries = yield* fs.list("docs/plans");
+    // Sort so the report order is stable regardless of the adapter's readdir
+    // order (the Node adapter does not sort; POSIX gives no ordering guarantee).
+    const entries = (yield* fs.list("docs/plans")).toSorted();
     const report: StalenessReportEntry[] = [];
 
     for (const entry of entries) {

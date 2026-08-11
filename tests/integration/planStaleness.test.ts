@@ -529,6 +529,60 @@ describe("plansStalenessReport", () => {
     expect(good?.result).toEqual({ kind: "fresh" });
     expect(bad?.result.kind).toBe("error");
   });
+
+  it("a plan that fails artifact validation yields an error entry before any extraction", async () => {
+    const { fsImpl, backendImpl, layer } = fullHarness();
+
+    // Invalid Status value: validateArtifact rejects it up front, so the entry
+    // never reaches the Approved filter or the extraction pipeline.
+    fsImpl.setFile(
+      "docs/plans/40-malformed-plan.md",
+      "# Some plan\n\nStatus: Nonsense\nSource-Spec: (none)\n\n## Overview\n\nBody text.\n",
+    );
+
+    const report = await Effect.runPromise(
+      plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
+    );
+
+    expect(report).toHaveLength(1);
+    const entry = report[0];
+    expect(entry?.path).toBe("docs/plans/40-malformed-plan.md");
+    expect(entry?.result.kind).toBe("error");
+    if (entry?.result.kind === "error") {
+      expect(entry.result.message).toContain("not valid for a plan");
+    }
+    // Validation failed before extraction, so the backend was never engaged.
+    expect(backendImpl.runCalls).toHaveLength(0);
+    expect(backendImpl.completeCalls).toHaveLength(0);
+  });
+
+  it("scans only top-level plans, skipping the archive/ subdirectory", async () => {
+    const { fsImpl, layer } = fullHarness();
+
+    fsImpl.setFile(
+      "docs/plans/40-live-plan.md",
+      deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/live.ts"] }),
+    );
+    await run(
+      transitionArtifact("docs/plans/40-live-plan.md", "Approved", APPROVE_OPTS).pipe(
+        Effect.provide(layer),
+      ),
+    );
+
+    // An archived (terminal) plan under docs/plans/archive/. fs.list returns the
+    // bare "archive" directory entry, which the .md filter skips — its contents
+    // are never recursed into.
+    fsImpl.setFile(
+      "docs/plans/archive/38-old-plan.md",
+      deterministicPlanMd({ status: "Archived", sourceSpec: "(none)" }),
+    );
+
+    const report = await Effect.runPromise(
+      plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
+    );
+
+    expect(report.map((e) => e.path)).toEqual(["docs/plans/40-live-plan.md"]);
+  });
 });
 
 describe("applyStalenessReport", () => {
@@ -580,5 +634,40 @@ describe("applyStalenessReport", () => {
 
     expect(backendImpl.runCalls).toHaveLength(0);
     expect(backendImpl.completeCalls).toHaveLength(0);
+  });
+
+  it("flips a missing-record entry (vanished baseline) to Stale", async () => {
+    const { fsImpl, gitImpl, layer } = fullHarness();
+
+    fsImpl.setFile(
+      "docs/plans/40-plan.md",
+      deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/foo.ts"] }),
+    );
+    await run(
+      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+        Effect.provide(layer),
+      ),
+    );
+    // Baseline commit garbage-collected: the approval record survives but its
+    // baseline is gone, so the plan computes missing-record while still Approved.
+    gitImpl.existingCommits.delete(gitImpl.headCommitValue);
+
+    const report = await Effect.runPromise(
+      plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
+    );
+    expect(report.find((e) => e.path === "docs/plans/40-plan.md")?.result.kind).toBe(
+      "missing-record",
+    );
+
+    const flipped = await run(
+      applyStalenessReport(report, APPROVE_OPTS).pipe(Effect.provide(layer)),
+    );
+
+    expect(Either.isRight(flipped)).toBe(true);
+    if (Either.isRight(flipped)) {
+      expect(flipped.right.map((f) => f.path)).toEqual(["docs/plans/40-plan.md"]);
+      expect(flipped.right[0]?.verdict.kind).toBe("missing-record");
+    }
+    expect(fsImpl.getFile("docs/plans/40-plan.md")).toContain("Status: Stale");
   });
 });

@@ -30,6 +30,19 @@ and can go anytime after — 24 is the largest and consumes 21 + 22.
 - [ ] Audit the remaining active specs (15, 16, 18, 19) — any that are implemented on
       `main` should be flipped `Archived` and moved to `docs/specs/archive/` (done for
       17 on 2026-08-09).
+- [ ] Align path-rooting on the git convention (run from any subdirectory). Today the
+      CLI implicitly assumes `cwd == repoRoot`: git operations are correctly rooted at
+      `config.repoRoot`, but the `FileSystem` port resolves relative paths
+      (`docs/plans/approvals.json`, spec files, routing config) against `process.cwd()`.
+      The two disagree the moment you invoke phax from a subdirectory — e.g. the
+      staleness gate's git side reads the real baseline while the approval-store read
+      misses, reporting a spurious `missing-record` and refusing an approved run. git
+      itself works from anywhere in the tree by resolving against the repo root; since
+      phax is an extension of git and leans on it heavily, it should match that
+      contract. Direction: root the `FileSystem` adapter at `repoRoot` (or resolve
+      repo-relative paths through a single helper) so `run`, `artifact`, and `plans`
+      behave identically regardless of the working directory. Surfaced during the
+      phase-06 staleness-gate review.
 
 ## Spec candidates, deliberately not written yet
 
