@@ -225,6 +225,24 @@ export class SpecRetirementBlockedError extends Data.TaggedError("SpecRetirement
   }
 }
 
+export class ArtifactDirtyWriteSetError extends Data.TaggedError("ArtifactDirtyWriteSetError")<{
+  paths: readonly string[];
+}> {
+  override get message(): string {
+    const verb = this.paths.length === 1 ? "has" : "have";
+    return `Transition refused: ${this.paths.join(", ")} ${verb} uncommitted changes — commit or stash them first, or pass --no-commit`;
+  }
+}
+
+export class ArtifactCommitFailedError extends Data.TaggedError("ArtifactCommitFailedError")<{
+  paths: readonly string[];
+  cause: string;
+}> {
+  override get message(): string {
+    return `Transition wrote ${this.paths.join(", ")} but the commit failed: ${this.cause} — commit them manually`;
+  }
+}
+
 export class PlanStaleError extends Data.TaggedError("PlanStaleError")<{
   path: string;
   verdict: PlanStalenessVerdict;

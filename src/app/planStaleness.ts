@@ -3,6 +3,8 @@ import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import {
+  type ArtifactCommitFailedError,
+  type ArtifactDirtyWriteSetError,
   ArtifactValidationError,
   type InvalidArtifactTransitionError,
   type SpecNotApprovedError,
@@ -212,6 +214,8 @@ export function applyStalenessReport(
   | InvalidArtifactTransitionError
   | SpecNotApprovedError
   | SpecRetirementBlockedError
+  | ArtifactDirtyWriteSetError
+  | ArtifactCommitFailedError
   | GitError,
   FileSystem | Git
 > {

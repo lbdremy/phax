@@ -1,7 +1,9 @@
 import { Effect, Either } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { Git, type GitError } from "../ports/git.js";
+import { Git, type GitError, type GitOps } from "../ports/git.js";
 import {
+  ArtifactCommitFailedError,
+  ArtifactDirtyWriteSetError,
   ArtifactValidationError,
   InvalidArtifactTransitionError,
   PlanNotApprovedError,
@@ -26,6 +28,7 @@ import {
   validateArtifact,
 } from "../domain/artifact/document.js";
 import { readSourceSpecLine, upsertApprovedLine } from "../domain/artifact/lineage.js";
+import { transitionCommitMessage, transitionWriteSet } from "../domain/artifact/writeSet.js";
 import {
   artifactFingerprint,
   putApprovalRecord,
@@ -61,11 +64,13 @@ export interface ArtifactTransitionResult {
   readonly status: ArtifactStatus;
   readonly path: string;
   readonly approvedBaseline?: string;
+  readonly commit?: { readonly hash: string; readonly subject: string };
 }
 
 export interface TransitionArtifactOptions {
   readonly repoRoot: string;
   readonly nowIso: string;
+  readonly commit: boolean;
 }
 
 // Resolves a Source-Spec declaration to the spec's actual location: the declared
@@ -138,11 +143,14 @@ export function transitionArtifact(
   | InvalidArtifactTransitionError
   | SpecNotApprovedError
   | SpecRetirementBlockedError
+  | ArtifactDirtyWriteSetError
+  | ArtifactCommitFailedError
   | GitError,
   FileSystem | Git
 > {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
+    const git = yield* Git;
     const md = yield* fs.readText(repoRelPath);
     const validated = validateArtifact(repoRelPath, md);
     if (Either.isLeft(validated)) {
@@ -156,6 +164,14 @@ export function transitionArtifact(
         : requestTransition("plan", status as never, target as never);
     if (Either.isLeft(requested)) {
       return yield* Effect.fail(requested.left);
+    }
+
+    const writeSet = transitionWriteSet(kind, repoRelPath, target);
+    if (opts.commit) {
+      const dirty = yield* git.dirtyPaths(opts.repoRoot, writeSet);
+      if (dirty.length > 0) {
+        return yield* Effect.fail(new ArtifactDirtyWriteSetError({ paths: dirty }));
+      }
     }
 
     let updatedMd = replaceStatusLine(md, target);
@@ -192,7 +208,6 @@ export function transitionArtifact(
         sourceSpec = { path: declaration.path, fingerprint: artifactFingerprint(specMd) };
       }
 
-      const git = yield* Git;
       const baseline = yield* git.headCommit(opts.repoRoot);
       updatedMd = upsertApprovedLine(updatedMd, opts.nowIso, baseline.slice(0, 7));
       const planFingerprint = artifactFingerprint(updatedMd);
@@ -234,15 +249,47 @@ export function transitionArtifact(
       if (kind === "plan") {
         yield* removeApprovalRecord(repoRelPath);
       }
-      return { status: target, path: destination };
+      const result: ArtifactTransitionResult = { status: target, path: destination };
+      return yield* finalizeTransition(git, kind, target, repoRelPath, writeSet, opts, result);
     }
 
     yield* fs.writeAtomic(repoRelPath, updatedMd);
-    return {
+    const result: ArtifactTransitionResult = {
       status: target,
       path: repoRelPath,
       ...(approvedBaseline !== undefined ? { approvedBaseline } : {}),
     };
+    return yield* finalizeTransition(git, kind, target, repoRelPath, writeSet, opts, result);
+  });
+}
+
+// Commits exactly the transition write-set after a successful write, unless the
+// write produced no diff against HEAD (a no-op re-approval) or the caller opted out.
+function finalizeTransition(
+  git: GitOps,
+  kind: ArtifactKind,
+  target: ArtifactStatus,
+  repoRelPath: string,
+  writeSet: readonly string[],
+  opts: TransitionArtifactOptions,
+  result: ArtifactTransitionResult,
+): Effect.Effect<ArtifactTransitionResult, ArtifactCommitFailedError | GitError> {
+  return Effect.gen(function* () {
+    if (!opts.commit) return result;
+
+    const stillDirty = yield* git.dirtyPaths(opts.repoRoot, writeSet);
+    if (stillDirty.length === 0) return result;
+
+    const { subject, body } = transitionCommitMessage(kind, target, repoRelPath);
+    const committed = yield* Effect.either(git.commitPaths(opts.repoRoot, writeSet, subject, body));
+    if (Either.isLeft(committed)) {
+      return yield* Effect.fail(
+        new ArtifactCommitFailedError({ paths: writeSet, cause: committed.left.message }),
+      );
+    }
+
+    const hash = yield* git.headCommit(opts.repoRoot);
+    return { ...result, commit: { hash, subject } };
   });
 }
 

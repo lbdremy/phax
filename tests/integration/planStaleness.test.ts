@@ -15,7 +15,7 @@ import { ArtifactValidationError } from "../../src/domain/errors.js";
 
 const REPO_ROOT = "/fake-repo";
 const NOW_ISO = "2026-08-10T12:00:00.000Z";
-const APPROVE_OPTS = { repoRoot: REPO_ROOT, nowIso: NOW_ISO };
+const APPROVE_OPTS = { repoRoot: REPO_ROOT, nowIso: NOW_ISO, commit: false };
 
 function specMd(status: string): string {
   return `# Some spec\n\nStatus: ${status}\n\n## Overview\n\nSpec body v1.\n`;
@@ -314,6 +314,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       transitionArtifact("docs/plans/40-plan.md", "Approved", {
         repoRoot: REPO_ROOT,
         nowIso: "2026-08-11T09:00:00.000Z",
+        commit: false,
       }).pipe(Effect.provide(layer)),
     );
     const reapprovedMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
