@@ -10,6 +10,7 @@ import {
   parseBranchExistsOutput,
   parseHeadCommitOutput,
   parseChangedFilesOutput,
+  parseDirtyPaths,
 } from "../schemas/git.js";
 import { parseNameStatus } from "../domain/reconciliation/parseNameStatus.js";
 
@@ -113,6 +114,21 @@ export const NodeGitLayer = Layer.succeed(Git, {
   commit: (repo, subject, body) =>
     gitRun(["add", "-A"], repo).pipe(
       Effect.flatMap(() => gitRun(["commit", "-m", subject, "-m", body], repo)),
+      Effect.asVoid,
+    ),
+
+  dirtyPaths: (repo, paths) =>
+    paths.length === 0
+      ? Effect.succeed([])
+      : gitRun(["status", "--porcelain", "--", ...paths], repo).pipe(
+          Effect.map(({ stdout }) => parseDirtyPaths(stdout)),
+        ),
+
+  // Scoped to `paths` on both `add` and `commit` so other staged or dirty
+  // files in the worktree never enter this commit.
+  commitPaths: (repo, paths, subject, body) =>
+    gitRun(["add", "-A", "--", ...paths], repo).pipe(
+      Effect.flatMap(() => gitRun(["commit", "-m", subject, "-m", body, "--", ...paths], repo)),
       Effect.asVoid,
     ),
 
