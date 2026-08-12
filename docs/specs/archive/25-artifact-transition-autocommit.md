@@ -1,6 +1,6 @@
 # Artifact Transition Auto-Commit
 
-Status: Approved
+Status: Archived
 
 Date: 2026-08-11
 
