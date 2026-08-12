@@ -76,11 +76,10 @@ and can go anytime after — 24 is the largest and consumes 21 + 22.
 - [ ] Audit the remaining active specs (15, 16, 18, 19) — any that are implemented on
       `main` should be flipped `Archived` and moved to `docs/specs/archive/` (done for
       17 on 2026-08-09).
-- [ ] Retire the landed lifecycle artifacts still sitting live: plans 21, 22, 25 and
+- [x] Retire the landed lifecycle artifacts still sitting live: plans 21, 22, 25 and
       specs 21, 22, 25 all shipped but still read `Approved` outside `archive/` —
-      exactly the gap draft spec 27 automates. Archive each plan first, then its spec
-      (the chain gate refuses a spec with non-terminal dependents). If spec 28 lands
-      first, the verb is `phax artifact complete`.
+      exactly the gap draft spec 27 automates. **Done 2026-08-12** — archived plan
+      then spec per pair (chain gate order), six auto-committed transitions.
 - [ ] Align path-rooting on the git convention (run from any subdirectory). Today the
       CLI implicitly assumes `cwd == repoRoot`: git operations are correctly rooted at
       `config.repoRoot`, but the `FileSystem` port resolves relative paths
