@@ -264,7 +264,8 @@ export function transitionArtifact(
 }
 
 // Commits exactly the transition write-set after a successful write, unless the
-// write produced no diff against HEAD (a no-op re-approval) or the caller opted out.
+// write produced no diff against HEAD (the on-disk content was already identical)
+// or the caller opted out.
 function finalizeTransition(
   git: GitOps,
   kind: ArtifactKind,

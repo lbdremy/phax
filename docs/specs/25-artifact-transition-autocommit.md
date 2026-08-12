@@ -8,6 +8,19 @@ Audience: implementation planning with Claude Code
 
 Scope: functional behavior and consumption surface
 
+## Amendment — 2026-08-12: `--no-commit` removed
+
+Code review dropped the `--no-commit` opt-out flag: artifact transitions now **always**
+commit. Rationale (user decision): anyone who wants an uncommitted transition can simply
+commit the write-set themselves afterward, so the escape hatch did not earn its CLI
+surface. This supersedes §5.5 (Opt-out), the `[--no-commit]` flag in §6, the "Opt-out
+skips the commit" acceptance criterion in §8, and the "`--no-commit` as the only escape"
+phrasing in §9–§10. The clean-target precondition (§5.4) is unchanged and still refuses a
+dirty target with exit code 12 — the remedy is now "commit or stash them first" with no
+flag alternative. The `commit: boolean` toggle on the internal `TransitionArtifactOptions`
+survives only as a non-CLI implementation/test seam. All inline references below have been
+updated in place to match; the pre-amendment wording is preserved in git history.
+
 ## 1. Context
 
 The `phax artifact` command group transitions the lifecycle status of specs
@@ -81,10 +94,12 @@ transition commit.
 IF any write-set path is a dirty target THEN the system SHALL refuse the transition
 before writing anything, naming the dirty path(s) and the remedy.
 
-### 5.5 Opt-out
+### 5.5 No opt-out (amended 2026-08-12)
 
-WHERE the no-commit option is given THE system SHALL apply the transition without
-creating a commit and without enforcing the clean-target precondition.
+THE system SHALL NOT expose a no-commit opt-out on the CLI; every successful transition
+commits its write-set unconditionally. (Superseded the original clause, which let a
+`--no-commit` flag apply the transition without committing and without enforcing the
+clean-target precondition — see the Amendment above.)
 
 ### 5.6 No empty commits
 
@@ -102,13 +117,14 @@ SHALL exit non-zero, naming the written paths left uncommitted.
 
 ## 6. Surface
 
-Transition subcommands gain an opt-out flag (flag presence and spelling **normative**):
+Transition subcommands take only the path argument (amended 2026-08-12 — the
+`--no-commit` opt-out flag was removed; auto-commit is unconditional):
 
-    phax artifact approve <path> [--no-commit]
-    phax artifact stale   <path> [--no-commit]
-    phax artifact reopen  <path> [--no-commit]
-    phax artifact abandon <path> [--no-commit]
-    phax artifact archive <path> [--no-commit]
+    phax artifact approve <path>
+    phax artifact stale   <path>
+    phax artifact reopen  <path>
+    phax artifact abandon <path>
+    phax artifact archive <path>
 
 Success output, before → after (wording **indicative**; presence of the commit hash
 **normative** per §5.1):
@@ -130,7 +146,7 @@ Refusal on a dirty target (exit code 12 **normative**, consistent with existing
 transition refusals; wording **indicative**):
 
     ✗ approve refused: docs/plans/45-typescript-7-migration-plan.md has uncommitted
-      changes — commit or stash them first, or pass --no-commit
+      changes — commit or stash them first
     $? = 12
 
 No configuration surface: auto-commit is default-on with no `phax.json` switch.
@@ -167,14 +183,13 @@ new commit both removes the file from `docs/specs/` and adds it under
 ### Dirty target refuses before writing
 
 Given `docs/plans/NN-x-plan.md` with uncommitted edits, when `phax artifact approve`
-runs on it without `--no-commit`, then the command exits with code 12, names the dirty
-path, no commit is created, and the file's content and status are unchanged.
-(refs §5.4)
+runs on it, then the command exits with code 12, names the dirty path, no commit is
+created, and the file's content and status are unchanged. (refs §5.4)
 
-### Opt-out skips the commit
+### No opt-out (amended 2026-08-12)
 
-Given the same dirty plan, when `phax artifact approve --no-commit` runs on it, then
-the transition applies and no new commit is created. (refs §5.5)
+Removed. The `--no-commit` flag no longer exists, so there is no opt-out path to
+exercise; every transition commits. (refs §5.5)
 
 ### No-op transition creates no commit
 
@@ -198,7 +213,9 @@ warning?
   recorded; audit gaps silently reappear on exactly the files most likely to drift.
 
 Recommendation: refuse — the explicit `--no-commit` escape keeps the friction
-one flag away, while the silent-gap loss defeats the spec's purpose.
+one flag away, while the silent-gap loss defeats the spec's purpose. (Amended
+2026-08-12: refuse was adopted, but the `--no-commit` escape was later removed —
+the remedy is now to commit or stash first. See the Amendment above.)
 
 Question: does the approval `baseline` recorded on approve reference the pre-existing
 HEAD (recommended) or the transition commit itself?
@@ -224,9 +241,10 @@ the named paths) is trivial next to a rollback engine.
 
 ## 10. Implementation-planning note
 
-Settled: auto-commit is default-on with `--no-commit` as the only escape (user
-decision, 2026-08-11); path-scoped staging of the write-set only; clean-target
-precondition refusing with exit code 12; no configuration surface. The git side
+Settled: auto-commit is unconditional (user decision 2026-08-11 made it default-on with
+`--no-commit` as the only escape; the 2026-08-12 amendment removed that escape entirely);
+path-scoped staging of the write-set only; clean-target precondition refusing with exit
+code 12; no configuration surface. The git side
 effect goes through the existing git port — no new direct git access outside infra.
 Left open deliberately: the three §9 questions, each with a recommended default the
 planner may adopt without further consultation. Constraint: the precondition check

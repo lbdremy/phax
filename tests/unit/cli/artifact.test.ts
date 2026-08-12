@@ -210,7 +210,7 @@ describe("runArtifactTransition", () => {
     expect(errors.join("\n")).toContain("abandon or archive them first");
   });
 
-  it("defaults to commit: true when no flag is passed", async () => {
+  it("always passes commit: true to the use case", async () => {
     const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
     transitionArtifact.mockReturnValue(
       Effect.succeed({
@@ -226,30 +226,6 @@ describe("runArtifactTransition", () => {
       "docs/plans/45-typescript-7-migration-plan.md",
       "Approved",
       expect.objectContaining({ commit: true }),
-    );
-  });
-
-  it("threads commit: false through to the use case when --no-commit is passed", async () => {
-    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
-    transitionArtifact.mockReturnValue(
-      Effect.succeed({
-        status: "Approved",
-        path: "docs/plans/45-typescript-7-migration-plan.md",
-      }),
-    );
-
-    const { out } = makeOutput();
-    await runArtifactTransition(
-      "docs/plans/45-typescript-7-migration-plan.md",
-      "Approved",
-      out,
-      false,
-    );
-
-    expect(transitionArtifact).toHaveBeenCalledWith(
-      "docs/plans/45-typescript-7-migration-plan.md",
-      "Approved",
-      expect.objectContaining({ commit: false }),
     );
   });
 
@@ -314,7 +290,7 @@ describe("runArtifactTransition", () => {
     );
 
     expect(code).toBe(12);
-    expect(errors.join("\n")).toContain("--no-commit");
+    expect(errors.join("\n")).toContain("commit or stash them first");
   });
 
   it("returns a non-zero exit code when the transition commit fails", async () => {

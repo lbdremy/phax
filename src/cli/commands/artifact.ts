@@ -61,11 +61,10 @@ export async function runArtifactTransition(
   pathArg: string,
   target: ArtifactStatus,
   out: OutputPort,
-  commit = true,
 ): Promise<number> {
   const repoRelPath = toRepoRelativePath(pathArg);
   const repoRoot = findGitRoot(process.cwd());
-  const opts = { repoRoot, nowIso: new Date().toISOString(), commit };
+  const opts = { repoRoot, nowIso: new Date().toISOString(), commit: true };
   const effect = transitionArtifact(repoRelPath, target, opts).pipe(Effect.provide(buildLayer()));
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
@@ -131,9 +130,8 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
       .command(t.name)
       .description(t.description)
       .argument("<path>", "Path to a spec or plan file under docs/specs/ or docs/plans/")
-      .option("--no-commit", "Apply the transition without creating a git commit")
-      .action(async (path: string, options: { commit: boolean }) => {
-        const exitCode = await runArtifactTransition(path, t.target, out, options.commit);
+      .action(async (path: string) => {
+        const exitCode = await runArtifactTransition(path, t.target, out);
         process.exit(exitCode);
       });
   }

@@ -24,6 +24,15 @@ export function parseChangedFilesOutput(output: string): readonly string[] {
     .filter((line) => line.length > 0);
 }
 
+// A path git deems "unusual" (contains a double-quote, backslash, or control
+// character) is emitted wrapped in double quotes with those bytes C-escaped.
+// We run `status` with core.quotePath=false so non-ASCII bytes stay raw, leaving
+// only `\"` and `\\` to unescape here.
+function unquoteGitPath(token: string): string {
+  if (token.length < 2 || !token.startsWith('"') || !token.endsWith('"')) return token;
+  return token.slice(1, -1).replace(/\\(.)/g, "$1");
+}
+
 // `git status --porcelain` lines are "XY PATH" (untracked: "?? PATH"), or for
 // renames "R  OLD -> NEW" — both the old and new side count as dirty.
 export function parseDirtyPaths(output: string): readonly string[] {
@@ -33,9 +42,12 @@ export function parseDirtyPaths(output: string): readonly string[] {
     const rest = line.slice(3);
     const arrowIndex = rest.indexOf(" -> ");
     if (arrowIndex === -1) {
-      paths.push(rest);
+      paths.push(unquoteGitPath(rest));
     } else {
-      paths.push(rest.slice(0, arrowIndex), rest.slice(arrowIndex + 4));
+      paths.push(
+        unquoteGitPath(rest.slice(0, arrowIndex)),
+        unquoteGitPath(rest.slice(arrowIndex + 4)),
+      );
     }
   }
   return paths;

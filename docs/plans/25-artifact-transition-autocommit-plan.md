@@ -5,6 +5,10 @@ Status: Approved
 Source-Spec: docs/specs/25-artifact-transition-autocommit.md
 Approved: 2026-08-11 @ 4ae687b
 
+> Amendment 2026-08-12: the `--no-commit` opt-out described throughout this plan was
+> removed in code review — transitions now always commit. This plan is preserved as the
+> as-built implementation record; see the Amendment in spec 25 for the current behavior.
+
 Implements spec 25: every `phax artifact` status transition (`approve`, `stale`,
 `reopen`, `abandon`, `archive`) creates a single git commit containing exactly its
 write-set — the artifact file, the approval record when touched, and the archive move
