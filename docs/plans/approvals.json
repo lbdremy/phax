@@ -1,15 +1,6 @@
 {
   "version": 1,
   "records": {
-    "docs/plans/25-artifact-transition-autocommit-plan.md": {
-      "planFingerprint": "8c126b8700d2cd61167c52fc355170573944347891bfc6b7625c5eb86622b764",
-      "approvedAt": "2026-08-11T09:19:28.170Z",
-      "baseline": "4ae687b1ed527c2be3951bc2c9962b265a7bb155",
-      "sourceSpec": {
-        "path": "docs/specs/25-artifact-transition-autocommit.md",
-        "fingerprint": "dfb96f41db8c3a1a3708d59b217dea24ce9f81f167478b7dead2ba6cc8e50003"
-      }
-    },
     "docs/plans/39-smolvm-isolation-spike-plan.md": {
       "planFingerprint": "a839d6eaea2ebf49398fd4d3bb41779795dda242153143fcd9b15066dce41736",
       "approvedAt": "2026-08-11T07:58:51.275Z",

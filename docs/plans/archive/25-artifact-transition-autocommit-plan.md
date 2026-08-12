@@ -1,6 +1,6 @@
 # Artifact Transition Auto-Commit
 
-Status: Approved
+Status: Archived
 
 Source-Spec: docs/specs/25-artifact-transition-autocommit.md
 Approved: 2026-08-11 @ 4ae687b
