@@ -1,6 +1,6 @@
 # Artifact Lifecycle Status for Specs and Plans
 
-Status: Approved
+Status: Archived
 
 Date: 2026-08-10 (revised: `Abandoned` terminal state; original 2026-08-09)
 
