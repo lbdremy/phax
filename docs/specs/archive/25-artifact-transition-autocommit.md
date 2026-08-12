@@ -1,12 +1,10 @@
+---
+status: Archived
+date: 2026-08-11
+audience: implementation planning with Claude Code
+scope: functional behavior and consumption surface
+---
 # Artifact Transition Auto-Commit
-
-Status: Archived
-
-Date: 2026-08-11
-
-Audience: implementation planning with Claude Code
-
-Scope: functional behavior and consumption surface
 
 ## Amendment — 2026-08-12: `--no-commit` removed
 

@@ -1,12 +1,10 @@
+---
+status: Archived
+date: 2026-06-17
+audience: implementation planning with Claude Code
+scope: functional behavior only
+---
 # Remove Misleading Network Controls
-
-Status: Archived
-
-Date: 2026-06-17
-
-Audience: implementation planning with Claude Code
-
-Scope: functional behavior only
 
 ## 1. Context
 

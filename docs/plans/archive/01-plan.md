@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Implementation plan — `phax` CLI
-
-Status: Archived
-
-Source-Spec: (none)
 
 > Source spec: `.context/attachments/spec_orchestrateur_claude_code_phases (2).md`
 > Deliverable location: `docs/plans/plan.md`

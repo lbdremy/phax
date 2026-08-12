@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — Agent-binding architecture hardening
-
-Status: Archived
-
-Source-Spec: (none)
 
 Follow-up to plan 11 (`11-lock-agent-binding-phase-plan.md`), which shipped the
 per-phase `PhaseAgentBinding`. A review of that work surfaced three structural

@@ -1,12 +1,10 @@
+---
+status: Approved
+date: 2026-08-09
+audience: implementation planning with Claude Code
+scope: functional behavior and consumption surface
+---
 # Opportunistic Batch Execution of Disjoint Plans
-
-Status: Approved
-
-Date: 2026-08-09
-
-Audience: implementation planning with Claude Code
-
-Scope: functional behavior and consumption surface
 
 ## 1. Context
 

@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: docs/specs/archive/17-brief-profile-orient.md
+---
 # Brief Profile Orient
-
-Status: Archived
-
-Source-Spec: docs/specs/archive/17-brief-profile-orient.md
 
 ## Overview
 

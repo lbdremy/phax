@@ -1,11 +1,10 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan 27 — Compliance handoff access and resume recap follow-ups
 
-Status: Archived
-
-Source-Spec: (none)
-
 This plan addresses the two attention points surfaced by plan-26's compliance
-review:
 
 1. **Compliance reviewer cannot read earlier-phase handoffs.** The compliance
    review agent runs jailed to the *final phase's* worktree

@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — Durable agent error logging + reset-run resumability + MCP allowlist validation
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Overview
 

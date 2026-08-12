@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: docs/specs/archive/06-deno-runtime.md
+---
 # Deno Runtime and Distribution — Plan
-
-Status: Archived
-
-Source-Spec: docs/specs/archive/06-deno-runtime.md
 
 Implements `docs/specs/06-deno-runtime.md`.
 

@@ -1,6 +1,10 @@
+---
+status: Archived
+date: 2026-06-15
+audience: (unrecorded)
+scope: (unrecorded)
+---
 # PHAX Feature Spec — Feedback Ingest
-
-Status: Archived
 
 ## Document status
 

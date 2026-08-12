@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Manual runbook — Run-jail provider sandbox validation
-
-Status: Archived
-
-Source-Spec: (none)
 
 > Companion to `docs/plans/04-run-jail-plan.md`. This runbook is **executed by a
 > human against the real installed CLIs** (`claude`, `codex`, `vibe`), not via

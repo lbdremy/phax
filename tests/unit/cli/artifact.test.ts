@@ -60,7 +60,8 @@ describe("runArtifactStatus", () => {
       Effect.fail(
         new ArtifactValidationError({
           path: "docs/plans/foo.md",
-          message: 'docs/plans/foo.md has no "Status:" line in its header',
+          message:
+            "docs/plans/foo.md has no frontmatter block — lifecycle metadata must be YAML frontmatter",
         }),
       ),
     );
@@ -69,7 +70,7 @@ describe("runArtifactStatus", () => {
     const code = await runArtifactStatus("docs/plans/foo.md", out);
 
     expect(code).toBe(12);
-    expect(errors.join("\n")).toContain('has no "Status:" line');
+    expect(errors.join("\n")).toContain("has no frontmatter block");
   });
 });
 

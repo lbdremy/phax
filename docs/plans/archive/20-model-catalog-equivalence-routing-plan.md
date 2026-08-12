@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: docs/specs/archive/20-model-catalog-equivalence-routing.md
+---
 # Model catalog and equivalence routing
-
-Status: Archived
-
-Source-Spec: docs/specs/archive/20-model-catalog-equivalence-routing.md
 
 This plan implements spec `docs/specs/20-model-catalog-equivalence-routing.md`
 (Approved). It removes the invented routing-tier scale and replaces it with a

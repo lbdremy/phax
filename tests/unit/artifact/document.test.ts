@@ -4,31 +4,40 @@ import { ArtifactValidationError } from "../../../src/domain/errors.js";
 import {
   archivePathFor,
   classifyArtifactPath,
-  readStatusLine,
-  replaceStatusLine,
   validateArtifact,
 } from "../../../src/domain/artifact/document.js";
 import { decodePlanStatus, decodeSpecStatus } from "../../../src/schemas/artifactStatus.js";
 import { PLAN_STATUSES, SPEC_STATUSES } from "../../../src/domain/artifact/status.js";
 
-const SPEC_DOC = `# Some spec
-
-Status: Approved
-
-## Overview
-
-Body text.
-`;
-
-const PLAN_DOC = `# Some plan
-
-Status: Draft
-Source-Spec: (none)
+function specFm(status: string): string {
+  return `---
+status: ${status}
+date: 2026-01-01
+audience: test audience
+scope: test scope
+---
+# Some spec
 
 ## Overview
 
 Body text.
 `;
+}
+
+function planFm(status: string, sourceSpec: string): string {
+  return `---
+status: ${status}
+source-spec: ${sourceSpec}
+---
+# Some plan
+
+## Overview
+
+Body text.
+`;
+}
+
+const SPEC_DOC = specFm("Approved");
 
 describe("classifyArtifactPath", () => {
   it("classifies a live spec", () => {
@@ -75,48 +84,6 @@ describe("archivePathFor", () => {
   });
 });
 
-describe("readStatusLine", () => {
-  it("finds the status line on line 3 of a spec-shaped doc", () => {
-    expect(readStatusLine(SPEC_DOC)).toBe("Approved");
-  });
-
-  it("ignores a Status: line after the first H2", () => {
-    const md = `# Doc
-
-## Overview
-
-Status: not-a-real-status
-`;
-    expect(readStatusLine(md)).toBeNull();
-  });
-
-  it("returns null when no status line exists", () => {
-    expect(readStatusLine("# Doc\n\nNo status here.\n")).toBeNull();
-  });
-});
-
-describe("replaceStatusLine", () => {
-  it("replaces the value in place, round-tripping through readStatusLine", () => {
-    const updated = replaceStatusLine(PLAN_DOC, "Approved");
-    expect(readStatusLine(updated)).toBe("Approved");
-    expect(updated).toContain("Status: Approved");
-  });
-
-  it("does not touch a Status: line after the first H2", () => {
-    const md = `# Doc
-
-Status: Draft
-
-## Overview
-
-Status: illustrative-example
-`;
-    const updated = replaceStatusLine(md, "Approved");
-    expect(updated).toContain("Status: illustrative-example");
-    expect(readStatusLine(updated)).toBe("Approved");
-  });
-});
-
 function assertLeftValidation(
   result: Either.Either<unknown, unknown>,
 ): asserts result is Either.Left<never, ArtifactValidationError> {
@@ -139,18 +106,45 @@ describe("validateArtifact", () => {
     assertLeftValidation(validateArtifact("README.md", SPEC_DOC));
   });
 
-  it("rejects a missing status line", () => {
-    assertLeftValidation(validateArtifact("docs/specs/21-foo.md", "# Doc\n\nNo status.\n"));
+  it("rejects a header-line-only artifact with the missing-block message", () => {
+    const md = `# Some spec\n\nStatus: Approved\n\n## Overview\n`;
+    const result = validateArtifact("docs/specs/21-foo.md", md);
+    assertLeftValidation(result);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toContain("no frontmatter block");
+    }
   });
 
-  it("rejects an unknown status, naming the allowed set (spec Stale case)", () => {
-    const md = `# Doc
+  it("rejects a missing frontmatter block", () => {
+    const result = validateArtifact("docs/specs/21-foo.md", "# Doc\n\nNo metadata.\n");
+    assertLeftValidation(result);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toContain("no frontmatter block");
+    }
+  });
 
-Status: Stale
+  it("rejects an unknown frontmatter key, naming the key and the allowed set", () => {
+    const md = `---
+status: Approved
+date: 2026-01-01
+audience: a
+scope: s
+staus: typo
+---
+# Doc
 
 ## Overview
 `;
     const result = validateArtifact("docs/specs/21-foo.md", md);
+    assertLeftValidation(result);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toContain("staus");
+      expect(result.left.message).toContain("allowed for a spec: status, date, audience, scope");
+    }
+  });
+
+  it("rejects an unknown status value for a spec, naming the allowed statuses", () => {
+    const result = validateArtifact("docs/specs/21-foo.md", specFm("Stale"));
     assertLeftValidation(result);
     if (Either.isLeft(result)) {
       expect(result.left.message).toContain("Draft");
@@ -161,86 +155,67 @@ Status: Stale
   });
 
   it("rejects a terminal status outside archive/ (disagreement)", () => {
-    const md = `# Doc
-
-Status: Archived
-
-## Overview
-`;
-    assertLeftValidation(validateArtifact("docs/specs/21-foo.md", md));
+    assertLeftValidation(validateArtifact("docs/specs/21-foo.md", specFm("Archived")));
   });
 
   it("rejects a non-terminal status inside archive/ (disagreement)", () => {
-    const md = `# Doc
-
-Status: Draft
-
-## Overview
-`;
-    assertLeftValidation(validateArtifact("docs/specs/archive/21-foo.md", md));
+    assertLeftValidation(validateArtifact("docs/specs/archive/21-foo.md", specFm("Draft")));
   });
 
   it("accepts a terminal status inside archive/", () => {
-    const md = `# Doc
-
-Status: Archived
-
-## Overview
-`;
-    const result = validateArtifact("docs/specs/archive/21-foo.md", md);
+    const result = validateArtifact("docs/specs/archive/21-foo.md", specFm("Archived"));
     expect(Either.isRight(result)).toBe(true);
   });
 
-  it("rejects a live plan with no Source-Spec declaration", () => {
-    const md = `# Doc
+  it("accepts a Stale plan under docs/plans/", () => {
+    const result = validateArtifact("docs/plans/21-foo-plan.md", planFm("Stale", "null"));
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right).toEqual({ kind: "plan", status: "Stale" });
+    }
+  });
 
-Status: Draft
+  it("rejects a live plan missing the source-spec key, naming it", () => {
+    const md = `---
+status: Draft
+---
+# Doc
 
 ## Overview
 `;
     const result = validateArtifact("docs/plans/21-foo-plan.md", md);
     assertLeftValidation(result);
     if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("Source-Spec");
+      expect(result.left.message).toContain("source-spec");
     }
   });
 
-  it("rejects an archived plan with no Source-Spec declaration", () => {
-    const md = `# Doc
-
-Status: Archived
+  it("rejects an archived plan missing the source-spec key", () => {
+    const md = `---
+status: Archived
+---
+# Doc
 
 ## Overview
 `;
     assertLeftValidation(validateArtifact("docs/plans/archive/21-foo-plan.md", md));
   });
 
-  it("accepts a spec with no Source-Spec declaration", () => {
+  it("accepts a spec (which has no source-spec key)", () => {
     const result = validateArtifact("docs/specs/21-foo.md", SPEC_DOC);
     expect(Either.isRight(result)).toBe(true);
   });
 
-  it("accepts a plan with an explicit (none) Source-Spec declaration", () => {
-    const md = `# Doc
-
-Status: Draft
-Source-Spec: (none)
-
-## Overview
-`;
-    const result = validateArtifact("docs/plans/21-foo-plan.md", md);
+  it("accepts a plan with an explicit null source-spec", () => {
+    const result = validateArtifact("docs/plans/21-foo-plan.md", planFm("Draft", "null"));
     expect(Either.isRight(result)).toBe(true);
   });
 
   it("accepts a plan declaring a spec path", () => {
-    const md = `# Doc
-
-Status: Draft
-Source-Spec: docs/specs/22-foo.md
-
-## Overview
-`;
-    const result = validateArtifact("docs/plans/21-foo-plan.md", md);
+    const result = validateArtifact(
+      "docs/plans/21-foo-plan.md",
+      planFm("Draft", "docs/specs/22-foo.md"),
+    );
     expect(Either.isRight(result)).toBe(true);
   });
 });

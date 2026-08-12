@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan 13 — `phax reset-phase` command
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Problem
 

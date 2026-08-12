@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan 12 — Gate-first resume on gate exhaustion
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Problem
 

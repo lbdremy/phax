@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — Local-only telemetry and `phax report`
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Context and rationale
 

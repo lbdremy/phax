@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — Seal plan extraction behind a tool-less model-completion primitive
-
-Status: Archived
-
-Source-Spec: (none)
 
 Today `phax run` and `phax extract-plan` turn `plan.md` into `phax-plan.json` by
 calling the agent backend in the **least** restricted way possible:

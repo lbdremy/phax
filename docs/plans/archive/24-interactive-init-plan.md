@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — Interactive `phax init` (npm-init-style wizard)
-
-Status: Archived
-
-Source-Spec: (none)
 
 Make `phax init` interactive instead of "write a stub and walk away". Today
 `initProject` (`src/app/initProject.ts`) writes a minimal `phax.json` with a

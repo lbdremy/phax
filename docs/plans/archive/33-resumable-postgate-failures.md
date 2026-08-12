@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — Resumable post-gate failures (a phase that passed its gate must never burn on commit or cleanup)
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Overview
 

@@ -1,12 +1,10 @@
+---
+status: Archived
+date: 2026-06-15
+audience: implementation planning with Claude Code
+scope: functional behavior only
+---
 # Project Namespaces and Repo-Scoped Run Names
-
-Status: Archived
-
-Date: 2026-06-15
-
-Audience: implementation planning with Claude Code
-
-Scope: functional behavior only
 
 ## 1. Context
 

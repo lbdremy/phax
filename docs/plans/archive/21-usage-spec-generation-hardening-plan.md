@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — Harden the generated `phax.usage.kdl` pipeline
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Context and rationale
 

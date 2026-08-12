@@ -2,39 +2,39 @@
   "version": 1,
   "records": {
     "docs/plans/39-smolvm-isolation-spike-plan.md": {
-      "planFingerprint": "a839d6eaea2ebf49398fd4d3bb41779795dda242153143fcd9b15066dce41736",
+      "planFingerprint": "8ef354c247c74bbc53efb10257ef22338ed1ccfe2c6d06d46c9d5718f90294e0",
       "approvedAt": "2026-08-11T07:58:51.275Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
     },
     "docs/plans/41-claude-protected-path-approval-hook-plan.md": {
-      "planFingerprint": "eee1ce809979f540fa98bceb91e8f129f7daeacb6837626845e64f8b66566052",
+      "planFingerprint": "dad5ed3b6398d8a3b21de411356cd667862608483c80d4fac72c0684290220c9",
       "approvedAt": "2026-08-11T07:59:18.912Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
     },
     "docs/plans/44-gate-profile-attributed-steps-plan.md": {
-      "planFingerprint": "6a2d5b5308db83647ecd52b6b6987c1078915f93ffbbd49ccc657771437f353e",
+      "planFingerprint": "c3c6f282a70d3391de65df1b03b962c6a3f82fb6ca85b6f7d99689307015a941",
       "approvedAt": "2026-08-11T07:59:45.401Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": {
         "path": "docs/specs/15-gate-profile-attributed-steps.md",
-        "fingerprint": "544c7860dbcf4ce54d98678621d34606cc7c40c5c72576f39561a868f859e8b6"
+        "fingerprint": "c2f1fbacd2a86db9bcce6fcbb0ced6e11504ebc8ff0f444aa7fe854246421e52"
       }
     },
     "docs/plans/45-typescript-7-migration-plan.md": {
-      "planFingerprint": "e2252b56c2d8c519c966ca8895a19dcd8946f535ece65b3c42edc0099bc22a44",
+      "planFingerprint": "3170b1eeb786905c0209750cce50f64bd41baf679e68fd405bebd7dcce6cb51d",
       "approvedAt": "2026-08-11T07:57:20.361Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
     },
     "docs/plans/46-artifact-frontmatter-metadata-plan.md": {
-      "planFingerprint": "34d6a37481b617343ee412d91c7661b77ac0f029d210b71935023197b8ef99ab",
+      "planFingerprint": "62f71def498c87a45ca3e2e8ab17cf7cc6a106504687f2f0649c09039dbf3ef7",
       "approvedAt": "2026-08-12T14:33:50.554Z",
       "baseline": "db318d1a7bb5c4ce65cf394ec86bb7df83676ef1",
       "sourceSpec": {
         "path": "docs/specs/26-artifact-frontmatter-metadata.md",
-        "fingerprint": "fda565bf41f80736b670fcaf6b9c95b00a491b861d0211b9c367849fae23a4a2"
+        "fingerprint": "9201a5e179be06387e2ea727bc245a184afeb09e6702fd1b283d5a4ef5e8dffa"
       }
     }
   }

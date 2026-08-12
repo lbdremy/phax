@@ -3,104 +3,127 @@ import { describe, expect, it } from "vitest";
 import {
   APPROVALS_FILE_PATH,
   computeStaleness,
-  fingerprintableContent,
-  readSourceSpecLine,
+  readSourceSpec,
+  stampApproved,
   STALENESS_REASONS,
-  upsertApprovedLine,
   type ApprovalRecordLike,
   type StalenessEvidence,
   type StalenessReason,
 } from "../../../src/domain/artifact/lineage.js";
+import { fingerprintSource } from "../../../src/domain/artifact/frontmatter.js";
 import {
   decodeApprovalRecordFile,
   encodeApprovalRecordFile,
 } from "../../../src/schemas/approvalRecord.js";
 
-describe("readSourceSpecLine", () => {
+function planFm(opts: { status?: string; sourceSpec?: string; approved?: string; body?: string }) {
+  const status = opts.status ?? "Draft";
+  const sourceSpec = opts.sourceSpec ?? "null";
+  const approved = opts.approved !== undefined ? `${opts.approved}\n` : "";
+  const body = opts.body ?? "Body text.";
+  return `---\nstatus: ${status}\nsource-spec: ${sourceSpec}\n${approved}---\n# Plan\n\n## Overview\n\n${body}\n`;
+}
+
+describe("readSourceSpec", () => {
   it("reads a path-form declaration", () => {
-    const md = `# Plan\n\nStatus: Draft\nSource-Spec: docs/specs/22-foo.md\n\n## Overview\n`;
-    expect(readSourceSpecLine(md)).toEqual({ kind: "spec", path: "docs/specs/22-foo.md" });
+    expect(readSourceSpec(planFm({ sourceSpec: "docs/specs/22-foo.md" }))).toEqual({
+      kind: "spec",
+      path: "docs/specs/22-foo.md",
+    });
   });
 
-  it("reads the explicit (none) form", () => {
-    const md = `# Plan\n\nStatus: Draft\nSource-Spec: (none)\n\n## Overview\n`;
-    expect(readSourceSpecLine(md)).toEqual({ kind: "none" });
+  it("reads the explicit null form", () => {
+    expect(readSourceSpec(planFm({ sourceSpec: "null" }))).toEqual({ kind: "none" });
   });
 
-  it("returns null when the line is absent", () => {
-    const md = `# Plan\n\nStatus: Draft\n\n## Overview\n`;
-    expect(readSourceSpecLine(md)).toBeNull();
+  it("returns null when the frontmatter block is absent", () => {
+    expect(readSourceSpec("# Plan\n\n## Overview\n")).toBeNull();
   });
 
-  it("returns null for an empty value", () => {
-    const md = `# Plan\n\nStatus: Draft\nSource-Spec: \n\n## Overview\n`;
-    expect(readSourceSpecLine(md)).toBeNull();
-  });
-
-  it("ignores a Source-Spec line below the first H2", () => {
-    const md = `# Plan\n\nStatus: Draft\nSource-Spec: (none)\n\n## Overview\n\nSource-Spec: docs/specs/99-decoy.md\n`;
-    expect(readSourceSpecLine(md)).toEqual({ kind: "none" });
+  it("returns null when the source-spec key is missing", () => {
+    expect(readSourceSpec("---\nstatus: Draft\n---\n# Plan\n\n## Overview\n")).toBeNull();
   });
 });
 
-describe("fingerprintableContent", () => {
-  const BASE = `# Plan\n\nStatus: Draft\nSource-Spec: docs/specs/22-foo.md\n\n## Overview\n\nBody text.\n`;
+describe("fingerprintSource (approval-fingerprint neutrality)", () => {
+  const BASE = planFm({ sourceSpec: "docs/specs/22-foo.md" });
 
-  it("is unchanged when only the Status: line changes", () => {
-    const changed = `# Plan\n\nStatus: Approved\nSource-Spec: docs/specs/22-foo.md\n\n## Overview\n\nBody text.\n`;
-    expect(fingerprintableContent(changed)).toBe(fingerprintableContent(BASE));
+  it("is unchanged when only the status key changes", () => {
+    const changed = planFm({ status: "Approved", sourceSpec: "docs/specs/22-foo.md" });
+    expect(fingerprintSource(changed)).toBe(fingerprintSource(BASE));
   });
 
-  it("is unchanged when an Approved: stamp is added", () => {
-    const stamped = `# Plan\n\nStatus: Draft\nSource-Spec: docs/specs/22-foo.md\nApproved: 2026-08-10 @ abc1234\n\n## Overview\n\nBody text.\n`;
-    expect(fingerprintableContent(stamped)).toBe(fingerprintableContent(BASE));
+  it("is unchanged when an approved mapping is added", () => {
+    const stamped = planFm({
+      sourceSpec: "docs/specs/22-foo.md",
+      approved: "approved:\n  date: 2026-08-10\n  baseline: abc1234",
+    });
+    expect(fingerprintSource(stamped)).toBe(fingerprintSource(BASE));
   });
 
-  it("changes when the Source-Spec line changes", () => {
-    const changed = `# Plan\n\nStatus: Draft\nSource-Spec: docs/specs/23-bar.md\n\n## Overview\n\nBody text.\n`;
-    expect(fingerprintableContent(changed)).not.toBe(fingerprintableContent(BASE));
+  it("changes when the source-spec value changes", () => {
+    const changed = planFm({ sourceSpec: "docs/specs/23-bar.md" });
+    expect(fingerprintSource(changed)).not.toBe(fingerprintSource(BASE));
   });
 
   it("changes when body text changes", () => {
-    const changed = `# Plan\n\nStatus: Draft\nSource-Spec: docs/specs/22-foo.md\n\n## Overview\n\nOther text.\n`;
-    expect(fingerprintableContent(changed)).not.toBe(fingerprintableContent(BASE));
-  });
-
-  it("preserves a Status:-looking line below the first H2", () => {
-    const md = `# Plan\n\nStatus: Draft\nSource-Spec: (none)\n\n## Overview\n\nStatus: illustrative-example\n`;
-    expect(fingerprintableContent(md)).toContain("Status: illustrative-example");
+    const changed = planFm({ sourceSpec: "docs/specs/22-foo.md", body: "Other text." });
+    expect(fingerprintSource(changed)).not.toBe(fingerprintSource(BASE));
   });
 });
 
-describe("upsertApprovedLine", () => {
-  it("inserts after the Source-Spec line", () => {
-    const md = `# Plan\n\nStatus: Draft\nSource-Spec: (none)\n\n## Overview\n`;
-    const updated = upsertApprovedLine(md, "2026-08-10T12:00:00.000Z", "abc1234");
-    const lines = updated.split("\n");
-    const specIndex = lines.findIndex((l) => l.startsWith("Source-Spec:"));
-    expect(lines[specIndex + 1]).toBe("Approved: 2026-08-10 @ abc1234");
+describe("stampApproved", () => {
+  it("adds the approved mapping after the other keys", () => {
+    const md = planFm({ sourceSpec: "null" });
+    const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
+    expect(Either.isRight(updated)).toBe(true);
+    if (Either.isRight(updated)) {
+      expect(updated.right).toContain("approved:");
+      expect(updated.right).toContain("date: 2026-08-10");
+      expect(updated.right).toContain("baseline: abc1234");
+    }
   });
 
-  it("inserts after Status when there is no Source-Spec line", () => {
-    const md = `# Plan\n\nStatus: Draft\n\n## Overview\n`;
-    const updated = upsertApprovedLine(md, "2026-08-10T12:00:00.000Z", "abc1234");
-    const lines = updated.split("\n");
-    const statusIndex = lines.findIndex((l) => l.startsWith("Status:"));
-    expect(lines[statusIndex + 1]).toBe("Approved: 2026-08-10 @ abc1234");
+  it("replaces an existing approved mapping in place", () => {
+    const md = planFm({
+      sourceSpec: "null",
+      approved: "approved:\n  date: 2020-01-01\n  baseline: '0000000'",
+    });
+    const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
+    expect(Either.isRight(updated)).toBe(true);
+    if (Either.isRight(updated)) {
+      expect(updated.right).toContain("date: 2026-08-10");
+      expect(updated.right).not.toContain("2020-01-01");
+      expect((updated.right.match(/^approved:/gm) ?? []).length).toBe(1);
+    }
   });
 
-  it("replaces an existing stamp", () => {
-    const md = `# Plan\n\nStatus: Draft\nSource-Spec: (none)\nApproved: 2020-01-01 @ 0000000\n\n## Overview\n`;
-    const updated = upsertApprovedLine(md, "2026-08-10T12:00:00.000Z", "abc1234");
-    expect(updated).toContain("Approved: 2026-08-10 @ abc1234");
-    expect(updated).not.toContain("2020-01-01");
-    expect((updated.match(/^Approved:/gm) ?? []).length).toBe(1);
+  it("leaves the document body byte-identical", () => {
+    const md = planFm({ sourceSpec: "null", body: "Untouched body line.\n\nSecond paragraph." });
+    const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
+    expect(Either.isRight(updated)).toBe(true);
+    if (Either.isRight(updated)) {
+      const bodyAfter = updated.right.slice(updated.right.indexOf("---\n", 3) + 4);
+      const bodyBefore = md.slice(md.indexOf("---\n", 3) + 4);
+      expect(bodyAfter).toBe(bodyBefore);
+    }
   });
 
-  it("round-trips with fingerprintableContent (the stamp never affects the fingerprint)", () => {
-    const md = `# Plan\n\nStatus: Draft\nSource-Spec: (none)\n\n## Overview\n\nBody.\n`;
-    const stamped = upsertApprovedLine(md, "2026-08-10T12:00:00.000Z", "abc1234");
-    expect(fingerprintableContent(stamped)).toBe(fingerprintableContent(md));
+  it("never affects the approval fingerprint", () => {
+    const md = planFm({ sourceSpec: "null" });
+    const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
+    expect(Either.isRight(stamped)).toBe(true);
+    if (Either.isRight(stamped)) {
+      expect(fingerprintSource(stamped.right)).toBe(fingerprintSource(md));
+    }
+  });
+
+  it("fails with missing-block when there is no frontmatter", () => {
+    const result = stampApproved("# Plan\n\n## Overview\n", "2026-08-10T12:00:00.000Z", "abc1234");
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.kind).toBe("missing-block");
+    }
   });
 });
 

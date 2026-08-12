@@ -1,8 +1,8 @@
+---
+status: Approved
+source-spec: null
+---
 # Plan — smolvm isolation spike (`isolated` mode feasibility)
-
-Status: Approved
-
-Source-Spec: (none)
 
 ## Overview
 

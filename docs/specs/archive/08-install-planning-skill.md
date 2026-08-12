@@ -1,6 +1,10 @@
+---
+status: Archived
+date: 2026-06-15
+audience: (unrecorded)
+scope: (unrecorded)
+---
 # Install Planning Skill for Agent CLIs
-
-Status: Archived
 
 ## Status
 

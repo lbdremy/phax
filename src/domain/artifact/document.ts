@@ -1,15 +1,7 @@
 import { Either } from "effect";
 import { ArtifactValidationError } from "../errors.js";
-import { readSourceSpecLine } from "./lineage.js";
-import {
-  type ArtifactKind,
-  type ArtifactStatus,
-  isTerminalStatus,
-  parsePlanStatus,
-  parseSpecStatus,
-  PLAN_STATUSES,
-  SPEC_STATUSES,
-} from "./status.js";
+import { decodeArtifactFrontmatter, type FrontmatterProblem } from "./frontmatter.js";
+import { type ArtifactKind, type ArtifactStatus, isTerminalStatus } from "./status.js";
 
 export interface ArtifactClassification {
   readonly kind: ArtifactKind;
@@ -41,34 +33,26 @@ export function archivePathFor(repoRelPath: string): string {
   return `${archiveDir}${fileName}`;
 }
 
-const STATUS_LINE_PATTERN = /^Status:\s*(.+?)\s*$/;
-const H2_PATTERN = /^##\s/;
+// The allowed frontmatter key set per kind, rendered into schema-failure
+// messages so an author sees exactly what a spec or plan block may contain.
+const ALLOWED_KEYS: Record<ArtifactKind, string> = {
+  spec: "status, date, audience, scope",
+  plan: "status, source-spec, approved",
+};
 
-function headerLines(md: string): string[] {
-  const lines = md.split("\n");
-  const h2Index = lines.findIndex((line) => H2_PATTERN.test(line));
-  return h2Index === -1 ? lines : lines.slice(0, h2Index);
-}
-
-export function readStatusLine(md: string): string | null {
-  for (const line of headerLines(md)) {
-    const match = STATUS_LINE_PATTERN.exec(line);
-    if (match) return match[1] as string;
+export function frontmatterProblemMessage(
+  repoRelPath: string,
+  kind: ArtifactKind,
+  problem: FrontmatterProblem,
+): string {
+  switch (problem.kind) {
+    case "missing-block":
+      return `${repoRelPath} has no frontmatter block — lifecycle metadata must be YAML frontmatter (see docs/specs/26-artifact-frontmatter-metadata.md)`;
+    case "yaml-syntax":
+      return `${repoRelPath} has invalid YAML frontmatter: ${problem.detail}`;
+    case "schema":
+      return `${repoRelPath} has invalid frontmatter (allowed for a ${kind}: ${ALLOWED_KEYS[kind]}):\n${problem.detail}`;
   }
-  return null;
-}
-
-export function replaceStatusLine(md: string, next: string): string {
-  const lines = md.split("\n");
-  const h2Index = lines.findIndex((line) => H2_PATTERN.test(line));
-  const searchLimit = h2Index === -1 ? lines.length : h2Index;
-  for (let i = 0; i < searchLimit; i++) {
-    if (STATUS_LINE_PATTERN.test(lines[i] as string)) {
-      lines[i] = `Status: ${next}`;
-      return lines.join("\n");
-    }
-  }
-  return md;
 }
 
 export function validateArtifact(
@@ -85,27 +69,16 @@ export function validateArtifact(
     );
   }
 
-  const rawStatus = readStatusLine(md);
-  if (rawStatus === null) {
+  const decoded = decodeArtifactFrontmatter(classification.kind, md);
+  if (Either.isLeft(decoded)) {
     return Either.left(
       new ArtifactValidationError({
         path: repoRelPath,
-        message: `${repoRelPath} has no "Status:" line in its header`,
+        message: frontmatterProblemMessage(repoRelPath, classification.kind, decoded.left),
       }),
     );
   }
-
-  const allowed = classification.kind === "spec" ? SPEC_STATUSES : PLAN_STATUSES;
-  const status =
-    classification.kind === "spec" ? parseSpecStatus(rawStatus) : parsePlanStatus(rawStatus);
-  if (status === null) {
-    return Either.left(
-      new ArtifactValidationError({
-        path: repoRelPath,
-        message: `${repoRelPath} has status "${rawStatus}", which is not valid for a ${classification.kind} (allowed: ${allowed.join(", ")})`,
-      }),
-    );
-  }
+  const status = decoded.right.status;
 
   const terminal = isTerminalStatus(status);
   if (terminal && !classification.inArchive) {
@@ -121,15 +94,6 @@ export function validateArtifact(
       new ArtifactValidationError({
         path: repoRelPath,
         message: `${repoRelPath} has non-terminal status "${status}" but is inside an archive/ directory`,
-      }),
-    );
-  }
-
-  if (classification.kind === "plan" && readSourceSpecLine(md) === null) {
-    return Either.left(
-      new ArtifactValidationError({
-        path: repoRelPath,
-        message: `${repoRelPath} has no "Source-Spec:" declaration in its header (use "Source-Spec: <path>" or "Source-Spec: (none)")`,
       }),
     );
   }

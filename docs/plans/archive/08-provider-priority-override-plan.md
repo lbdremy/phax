@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Implementation plan — Per-invocation provider-priority override for `phax run` / `phax resume`
-
-Status: Archived
-
-Source-Spec: (none)
 
 > Deliverable location: `docs/plans/provider-priority-override-plan.md`.
 > Format: matches the `.skills/phax-planning.md` skill so `phax extract-plan`

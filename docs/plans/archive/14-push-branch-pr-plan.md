@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: docs/specs/archive/07-push-branch-pr.md
+---
 # Plan 14 — Push branch and create pull request
-
-Status: Archived
-
-Source-Spec: docs/specs/archive/07-push-branch-pr.md
 
 Implements [`docs/specs/07-push-branch-pr.md`](../specs/07-push-branch-pr.md):
 optionally push the final run branch to a remote and open a GitHub pull request,

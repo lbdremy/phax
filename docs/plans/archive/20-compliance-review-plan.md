@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — Plan-compliance review at end of run
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Context and rationale
 

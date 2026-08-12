@@ -1,6 +1,10 @@
+---
+status: Archived
+date: 2026-06-15
+audience: (unrecorded)
+scope: (unrecorded)
+---
 # PHAX Spec — Run Review Handoff and Global File Reconciliation
-
-Status: Archived
 
 ## Status
 

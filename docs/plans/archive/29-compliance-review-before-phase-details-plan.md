@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — Compliance review before phase details in the PR body
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Overview
 

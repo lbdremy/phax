@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Implementation plan — Enabled-gated routing + spec §12 default table (Option A)
-
-Status: Archived
-
-Source-Spec: (none)
 
 > Follow-up to `docs/plans/model-routing-plan.md`. Implements "Option A":
 > resolution honours each provider's `enabled` flag, and the built-in default

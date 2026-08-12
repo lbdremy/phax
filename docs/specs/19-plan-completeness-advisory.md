@@ -1,12 +1,10 @@
+---
+status: Approved
+date: 2026-07-03
+audience: implementation planning with Claude Code
+scope: functional behavior and consumption surface
+---
 # Plan-Completeness Advisory
-
-Status: Approved
-
-Date: 2026-07-03
-
-Audience: implementation planning with Claude Code
-
-Scope: functional behavior and consumption surface
 
 ## 1. Context
 
