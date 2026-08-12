@@ -119,7 +119,7 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   "plans status": {
     longHelp:
-      "Reports every live, Approved plan's staleness against the ground it was approved against: the declared source spec's content, the plan's own content, and the files changed since the recorded baseline intersected with the plan's footprint. Each stale entry names its reasons (spec-changed, ground-changed, self-changed) with evidence; a plan with no approval record — or one whose baseline commit no longer exists — reports missing-record, which renders as stale. This is a report, not a gate: it exits 0 whether or not stale plans exist. Use --apply to flip stale-computed plans Approved -> Stale as an explicit gesture (the flip is never automatic). Use --json for machine-readable output.\n\nSide effects: read-only unless --apply is set, in which case it writes the flipped plans' Status: lines.",
+      "Reports every live, Approved plan's staleness against the ground it was approved against: the declared source spec's content, the plan's own content, and the files changed since the recorded baseline intersected with the plan's footprint. Each stale entry names its reasons (spec-changed, ground-changed, self-changed) with evidence; a plan with no approval record — or one whose baseline commit no longer exists — reports missing-record, which renders as stale. This is a report, not a gate: it exits 0 whether or not stale plans exist. Use --apply to flip stale-computed plans Approved -> Stale as an explicit gesture (the flip is never automatic). Use --json for machine-readable output.\n\nSide effects: read-only unless --apply is set, in which case it writes the flipped plans' frontmatter status key.",
     examples: ["phax plans status", "phax plans status --apply", "phax plans status --json"],
   },
 
@@ -134,7 +134,7 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   artifact: {
     longHelp:
-      "Parent command for inspecting and transitioning the lifecycle status of a spec (docs/specs/) or plan (docs/plans/). Specs carry Draft, Approved, Abandoned, or Archived; plans additionally carry Stale. Transitioning to a terminal status (Abandoned, Archived) moves the file into the artifact's archive/ subdirectory as part of the transition. Illegal transitions and validation failures (missing status line, unknown status, status/location disagreement) refuse with exit code 12.",
+      "Parent command for inspecting and transitioning the lifecycle status of a spec (docs/specs/) or plan (docs/plans/). Specs carry Draft, Approved, Abandoned, or Archived; plans additionally carry Stale. Transitioning to a terminal status (Abandoned, Archived) moves the file into the artifact's archive/ subdirectory as part of the transition. Illegal transitions and validation failures (missing frontmatter block, unknown status, status/location disagreement) refuse with exit code 12.",
     examples: ["phax artifact status docs/plans/45-typescript-7-migration-plan.md"],
   },
 
@@ -146,31 +146,31 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   "artifact approve": {
     longHelp:
-      "Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved plan re-records the approval, refreshing its timestamp and baseline. Rewrites the Status: line in place.\n\nSide effects: writes the artifact file and commits the transition's write-set (the artifact file, plus the approval record for plans) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
+      "Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved plan re-records the approval, refreshing its timestamp and baseline. Rewrites the frontmatter status key in place.\n\nSide effects: writes the artifact file and commits the transition's write-set (the artifact file, plus the approval record for plans) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
     examples: ["phax artifact approve docs/plans/45-typescript-7-migration-plan.md"],
   },
 
   "artifact stale": {
     longHelp:
-      "Manually marks a plan Stale. Legal from Approved only — Stale has no automatic trigger (that belongs to a future lineage spec). Rewrites the Status: line in place.\n\nSide effects: writes the plan file and commits the write-set in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.",
+      "Manually marks a plan Stale. Legal from Approved only — Stale has no automatic trigger (that belongs to a future lineage spec). Rewrites the frontmatter status key in place.\n\nSide effects: writes the plan file and commits the write-set in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.",
     examples: ["phax artifact stale docs/plans/32-billing-plan.md"],
   },
 
   "artifact abandon": {
     longHelp:
-      "Abandons an artifact — a terminal status distinct from Archived, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its Status: line rewritten to Abandoned and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
+      "Abandons an artifact — a terminal status distinct from Archived, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Abandoned and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
     examples: ["phax artifact abandon docs/plans/45-typescript-7-migration-plan.md"],
   },
 
   "artifact archive": {
     longHelp:
-      "Archives an artifact — a terminal status for completed work. Legal from Approved (specs) or Approved or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its Status: line rewritten to Archived and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
+      "Archives an artifact — a terminal status for completed work. Legal from Approved (specs) or Approved or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Archived and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
     examples: ["phax artifact archive docs/specs/21-artifact-lifecycle-status.md"],
   },
 
   "artifact reopen": {
     longHelp:
-      "Reopens a Stale plan back to Draft, for when re-planning is needed before re-approval. Legal from Stale only. Rewrites the Status: line in place.\n\nSide effects: writes the plan file and commits the write-set in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.",
+      "Reopens a Stale plan back to Draft, for when re-planning is needed before re-approval. Legal from Stale only. Rewrites the frontmatter status key in place.\n\nSide effects: writes the plan file and commits the write-set in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.",
     examples: ["phax artifact reopen docs/plans/32-billing-plan.md"],
   },
 };

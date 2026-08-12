@@ -49,33 +49,34 @@ Write exactly one `# ` heading per plan and keep it short and descriptive — a
 long title becomes a long branch slug. Do not add a separate name or namespace
 field; the top-level heading is the sole source of the run's identity.
 
-## Plan header block
+## Plan frontmatter block
 
-Directly under the `# ` title, before the first `## ` section, every plan carries
-a short header block:
+Every plan carries a YAML frontmatter block at offset 0, before the `# ` title:
 
 ```markdown
-# <Title>
-
-Status: Approved
-
-Source-Spec: docs/specs/NN-<slug>.md
+---
+status: Approved
+source-spec: docs/specs/NN-<slug>.md
 ```
 
-- **`Status:`** — the plan's lifecycle status, one of `Draft`, `Approved`,
+- **`status`** — the plan's lifecycle status, one of `Draft`, `Approved`,
   `Stale`, `Abandoned`, `Archived`. phax **enforces the run gate: only an
   `Approved` plan can run** — `phax run` refuses any other status (naming the
   remedy) before extraction. Approve a repo-tracked plan with
   `phax artifact approve docs/plans/NN-<slug>-plan.md`; for a loose `plan.md`, set
-  the line by hand. Extraction is never gated, so a `Draft` still extracts for
+  the key by hand. Extraction is never gated, so a `Draft` still extracts for
   preview.
-- **`Source-Spec:`** — the spec this plan implements
-  (`docs/specs/NN-<slug>.md`), or `(none)` when there is no source spec. It is the
+- **`source-spec`** — the spec this plan implements
+  (`docs/specs/NN-<slug>.md`), or `null` when there is no source spec. It is the
   lineage anchor for staleness tracking.
+- **`approved`** — optional; a mapping with `date` and `baseline` written by
+  `phax artifact approve` when it stamps the approval. Absent on a plan that has
+  never been approved.
 
-These lines live in the preamble and are **not** extracted into `phax-plan.json`
-— they govern the run gate and lineage, not phase structure — but keep them
-present and accurate on every plan.
+This block is frontmatter, not preamble prose. It is **not** extracted into
+`phax-plan.json` — it governs the run gate and lineage, not phase structure — but
+the extractor skips the block before parsing the plan body, so keep it present
+and accurate on every plan.
 
 ## Per-phase field set
 

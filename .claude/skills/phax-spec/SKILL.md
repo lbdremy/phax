@@ -29,10 +29,10 @@ you have left the spec layer.
 
 ## Lifecycle
 
-Every spec carries a `Status:` line drawn from a fixed set. phax now **enforces**
-it: the value must be one of these exact strings, and a terminal status
-(`Abandoned`, `Archived`) must live under `docs/specs/archive/` — status and
-location must agree, or validation fails.
+Every spec carries a `status` key in its YAML frontmatter block, drawn from a fixed
+set. phax **enforces** it: the value must be one of these exact strings, and a
+terminal status (`Abandoned`, `Archived`) must live under `docs/specs/archive/` —
+status and location must agree, or validation fails.
 
 ```
 Draft ──▶ Approved ──▶ Archived
@@ -53,7 +53,7 @@ Draft ──▶ Approved ──▶ Archived
 Move status through its legal transitions with the `phax artifact` command group
 (`phax artifact approve|abandon|archive <path>`) rather than hand-editing — it
 validates the transition and, on a terminal one, moves the file into `archive/`
-for you. Record the status in the header block (below) and keep it accurate.
+for you. Record the status in the frontmatter block (below) and keep it accurate.
 
 ## File and naming convention
 
@@ -64,19 +64,19 @@ for you. Record the status in the header block (below) and keep it accurate.
 
 ## Canonical spec structure
 
-Start every spec with this header block, then the ten numbered sections. This is the shape
-phax specs converge on; follow it so specs stop drifting.
+Start every spec with this frontmatter block, then the ten numbered sections. This is the
+shape phax specs converge on; follow it so specs stop drifting. The key set is exact — an
+unknown or missing key fails validation.
 
 ```markdown
+---
+status: Draft | Approved | Abandoned | Archived
+date: YYYY-MM-DD
+audience: implementation planning with <agent>
+scope: functional behavior and consumption surface
+---
+
 # <Title>
-
-Status: Draft | Approved | Abandoned | Archived
-
-Date: YYYY-MM-DD
-
-Audience: implementation planning with <agent>
-
-Scope: functional behavior and consumption surface
 
 ## 1. Context
 
@@ -327,15 +327,14 @@ When asked to review rather than write, check, in order:
 ## Example well-formed slice
 
 ```markdown
+---
+status: Approved
+date: 2026-06-12
+audience: implementation planning with Claude Code
+scope: functional behavior and consumption surface
+---
+
 # Push Branch and Create Pull Request
-
-Status: Approved
-
-Date: 2026-06-12
-
-Audience: implementation planning with Claude Code
-
-Scope: functional behavior and consumption surface
 
 ## 3. Product goal
 

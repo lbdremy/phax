@@ -56,7 +56,7 @@ Most review commands have a `…-last` variant that targets the most recent
 
 ```
 phax init                          # scaffold phax.json
-# author plan.md  → use the `phax-planning` skill for its format (Status: Approved)
+# author plan.md  → use the `phax-planning` skill for its format (status: Approved)
 phax run my-feature --plan plan.md # extract plan + run every phase → review_open
 phax enter my-feature              # review/iterate in the kept-open agent session
 phax publish-pr my-feature         # push branch + open a PR (needs gh)
@@ -70,13 +70,13 @@ under `phax agent` (see `--usage`).
 
 ## Artifact lifecycle — specs and plans carry an enforced status
 
-Specs (`docs/specs/`) and plans (`docs/plans/`) each carry a `Status:` line in
-their header, drawn from a fixed per-kind set (specs: `Draft`, `Approved`,
-`Abandoned`, `Archived`; plans add `Stale`). phax **enforces the one gate that
-matters: only an `Approved` plan can run** — `phax run` refuses a `Draft`,
-`Stale`, or retired (`Abandoned`/`Archived`) plan, naming the status and the
-remedy, *before* extraction. Extraction itself stays ungated, so you can still
-preview a draft's `phax-plan.json`.
+Specs (`docs/specs/`) and plans (`docs/plans/`) each carry a `status` key in
+their YAML frontmatter block, drawn from a fixed per-kind set (specs: `Draft`,
+`Approved`, `Abandoned`, `Archived`; plans add `Stale`). phax **enforces the one
+gate that matters: only an `Approved` plan can run** — `phax run` refuses a
+`Draft`, `Stale`, or retired (`Abandoned`/`Archived`) plan, naming the status and
+the remedy, *before* extraction. Extraction itself stays ungated, so you can
+still preview a draft's `phax-plan.json`.
 
 The `phax artifact` command group inspects and moves lifecycle status through its
 legal transitions (see `--usage` for the exact subcommands and flags):
