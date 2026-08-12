@@ -1,3 +1,8 @@
+---
+status: Approved
+source-spec: null
+---
+
 # Hello World — three-phase example plan
 
 > This is an example `plan.md` for a tiny 3-phase run. Feed it to
