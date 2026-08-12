@@ -1,6 +1,6 @@
 # Artifact lifecycle status
 
-Status: Approved
+Status: Archived
 
 Source-Spec: docs/specs/21-artifact-lifecycle-status.md
 
