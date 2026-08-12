@@ -230,7 +230,7 @@ export class ArtifactDirtyWriteSetError extends Data.TaggedError("ArtifactDirtyW
 }> {
   override get message(): string {
     const verb = this.paths.length === 1 ? "has" : "have";
-    return `Transition refused: ${this.paths.join(", ")} ${verb} uncommitted changes — commit or stash them first, or pass --no-commit`;
+    return `Transition refused: ${this.paths.join(", ")} ${verb} uncommitted changes — commit or stash them first`;
   }
 }
 

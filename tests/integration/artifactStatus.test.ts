@@ -608,7 +608,7 @@ describe("transitionArtifact", () => {
       expect(gitImpl.calls.some((c) => c.method === "commitPaths")).toBe(false);
     });
 
-    it("--no-commit skips the precondition and creates no commit", async () => {
+    it("commit: false skips the precondition and creates no commit", async () => {
       const { fsImpl, gitImpl, layer } = makeHarness();
       fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
       gitImpl.setDirtyPaths(["docs/plans/40-plan.md"]); // would refuse if enforced

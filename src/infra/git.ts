@@ -120,7 +120,7 @@ export const NodeGitLayer = Layer.succeed(Git, {
   dirtyPaths: (repo, paths) =>
     paths.length === 0
       ? Effect.succeed([])
-      : gitRun(["status", "--porcelain", "--", ...paths], repo).pipe(
+      : gitRun(["-c", "core.quotePath=false", "status", "--porcelain", "--", ...paths], repo).pipe(
           Effect.map(({ stdout }) => parseDirtyPaths(stdout)),
         ),
 
