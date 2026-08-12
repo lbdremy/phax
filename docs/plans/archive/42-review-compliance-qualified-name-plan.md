@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan 42 — `review-compliance` accepts qualified run names
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Overview
 

@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — Split `phax.json` into project vs. user configuration layers
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Context and rationale
 

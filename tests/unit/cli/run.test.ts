@@ -47,7 +47,7 @@ vi.mock("node:fs", async () => {
     existsSync: vi.fn(() => false),
     readFileSync: vi.fn((path: string, _enc: string) => {
       if (String(path).endsWith("registry.json")) throw new Error("ENOENT");
-      return "# Plan content\n\nStatus: Approved\n";
+      return "---\nstatus: Approved\nsource-spec: null\n---\n# Plan content\n";
     }),
   };
 });
@@ -401,7 +401,7 @@ describe("runRun — plan lifecycle status gate", () => {
     vi.clearAllMocks();
   });
 
-  it("refuses a plan with no Status line and never calls loadOrExtractPlan", async () => {
+  it("refuses a plan with no frontmatter block and never calls loadOrExtractPlan", async () => {
     await setupConfigOnly();
     await mockPlanMd("# Plan content\n\n## Context\n");
 
@@ -413,12 +413,12 @@ describe("runRun — plan lifecycle status gate", () => {
 
     expect(code).not.toBe(0);
     expect(loadOrExtractPlan).not.toHaveBeenCalled();
-    expect(errors.join("\n")).toMatch(/no "Status:" line/);
+    expect(errors.join("\n")).toMatch(/no frontmatter block/);
   });
 
   it("refuses a Draft plan, naming approval as the remedy", async () => {
     await setupConfigOnly();
-    await mockPlanMd("# Plan content\n\nStatus: Draft\n\n## Context\n");
+    await mockPlanMd("---\nstatus: Draft\nsource-spec: null\n---\n# Plan content\n\n## Context\n");
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
 
@@ -434,7 +434,7 @@ describe("runRun — plan lifecycle status gate", () => {
 
   it("refuses a Stale plan with wording distinct from Draft", async () => {
     await setupConfigOnly();
-    await mockPlanMd("# Plan content\n\nStatus: Stale\n\n## Context\n");
+    await mockPlanMd("---\nstatus: Stale\nsource-spec: null\n---\n# Plan content\n\n## Context\n");
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
 
@@ -452,7 +452,9 @@ describe("runRun — plan lifecycle status gate", () => {
 
   it("refuses an Abandoned plan as retired, distinct from Draft and Stale", async () => {
     await setupConfigOnly();
-    await mockPlanMd("# Plan content\n\nStatus: Abandoned\n\n## Context\n");
+    await mockPlanMd(
+      "---\nstatus: Abandoned\nsource-spec: null\n---\n# Plan content\n\n## Context\n",
+    );
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
 
@@ -470,7 +472,9 @@ describe("runRun — plan lifecycle status gate", () => {
 
   it("refuses an Approved plan under docs/plans/archive/ — the path is normalized to repo-relative first", async () => {
     await setupConfigOnly();
-    await mockPlanMd("# Plan content\n\nStatus: Approved\n\n## Context\n");
+    await mockPlanMd(
+      "---\nstatus: Approved\nsource-spec: null\n---\n# Plan content\n\n## Context\n",
+    );
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
 
@@ -487,7 +491,9 @@ describe("runRun — plan lifecycle status gate", () => {
 
   it("proceeds into the extraction pipeline for an Approved plan", async () => {
     await setupConfigOnly();
-    await mockPlanMd("# Plan content\n\nStatus: Approved\n\n## Context\n");
+    await mockPlanMd(
+      "---\nstatus: Approved\nsource-spec: null\n---\n# Plan content\n\n## Context\n",
+    );
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
     loadOrExtractPlan.mockReturnValue(

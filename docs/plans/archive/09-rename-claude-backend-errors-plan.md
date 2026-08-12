@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan: Rename Claude-specific backend errors/telemetry → agent-generic
-
-Status: Archived
-
-Source-Spec: (none)
 
 This plan is written for `phax extract-plan`. Each phase section carries the
 extracted fields (`model`, `effort`, anchor, commit subject/body) plus

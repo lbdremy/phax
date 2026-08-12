@@ -1,6 +1,10 @@
+---
+status: Archived
+date: 2026-06-15
+audience: (unrecorded)
+scope: (unrecorded)
+---
 # Update — Provider Effort / Thinking Enums
-
-Status: Archived
 
 ## Replace OpenAI naming
 

@@ -1,6 +1,10 @@
+---
+status: Archived
+date: 2026-06-15
+audience: (unrecorded)
+scope: (unrecorded)
+---
 # PHAX Spec — Deno Runtime and Distribution
-
-Status: Archived
 
 ## Status
 

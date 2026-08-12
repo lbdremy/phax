@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan: "What's next" guidance at run/resume terminal points
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Context and motivation
 

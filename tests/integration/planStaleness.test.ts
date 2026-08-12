@@ -18,11 +18,12 @@ const NOW_ISO = "2026-08-10T12:00:00.000Z";
 const APPROVE_OPTS = { repoRoot: REPO_ROOT, nowIso: NOW_ISO, commit: false };
 
 function specMd(status: string): string {
-  return `# Some spec\n\nStatus: ${status}\n\n## Overview\n\nSpec body v1.\n`;
+  return `---\nstatus: ${status}\ndate: 2026-01-01\naudience: test\nscope: test\n---\n# Some spec\n\n## Overview\n\nSpec body v1.\n`;
 }
 
 function planMd(sourceSpec: string): string {
-  return `# Some plan\n\nStatus: Draft\nSource-Spec: ${sourceSpec}\n\n## Overview\n\nBody text.\n`;
+  const ss = sourceSpec === "(none)" ? "null" : sourceSpec;
+  return `---\nstatus: Draft\nsource-spec: ${ss}\n---\n# Some plan\n\n## Overview\n\nBody text.\n`;
 }
 
 function run<A, E>(effect: Effect.Effect<A, E, never>) {
@@ -341,10 +342,12 @@ function deterministicPlanMd(opts: {
     opts.create !== undefined && opts.create.length > 0
       ? opts.create.map((f) => `- ${f}`).join("\n")
       : "- (none)";
-  return `# Some plan
-
-Status: ${opts.status}
-Source-Spec: ${opts.sourceSpec}
+  const ss = opts.sourceSpec === "(none)" ? "null" : opts.sourceSpec;
+  return `---
+status: ${opts.status}
+source-spec: ${ss}
+---
+# Some plan
 
 ## Overview
 
@@ -479,7 +482,7 @@ describe("plansStalenessReport", () => {
     expect(fsImpl.getFile("docs/plans/40-fresh-plan.md")).toBe(beforeFresh);
     expect(fsImpl.getFile("docs/plans/41-stale-plan.md")).toBe(beforeStale);
     expect(fsImpl.getFile("docs/plans/42-draft-plan.md")).toBe(beforeDraft);
-    expect(fsImpl.getFile("docs/plans/42-draft-plan.md")).toContain("Status: Draft");
+    expect(fsImpl.getFile("docs/plans/42-draft-plan.md")).toContain("status: Draft");
 
     expect(backendImpl.runCalls).toHaveLength(0);
     expect(backendImpl.completeCalls).toHaveLength(0);
@@ -538,7 +541,7 @@ describe("plansStalenessReport", () => {
     // never reaches the Approved filter or the extraction pipeline.
     fsImpl.setFile(
       "docs/plans/40-malformed-plan.md",
-      "# Some plan\n\nStatus: Nonsense\nSource-Spec: (none)\n\n## Overview\n\nBody text.\n",
+      "---\nstatus: Nonsense\nsource-spec: null\n---\n# Some plan\n\n## Overview\n\nBody text.\n",
     );
 
     const report = await Effect.runPromise(
@@ -550,7 +553,7 @@ describe("plansStalenessReport", () => {
     expect(entry?.path).toBe("docs/plans/40-malformed-plan.md");
     expect(entry?.result.kind).toBe("error");
     if (entry?.result.kind === "error") {
-      expect(entry.result.message).toContain("not valid for a plan");
+      expect(entry.result.message).toContain("invalid frontmatter");
     }
     // Validation failed before extraction, so the backend was never engaged.
     expect(backendImpl.runCalls).toHaveLength(0);
@@ -630,8 +633,8 @@ describe("applyStalenessReport", () => {
       expect(rendered).toContain("docs/plans/41-stale-plan.md: Approved -> Stale");
     }
 
-    expect(fsImpl.getFile("docs/plans/41-stale-plan.md")).toContain("Status: Stale");
-    expect(fsImpl.getFile("docs/plans/40-fresh-plan.md")).toContain("Status: Approved");
+    expect(fsImpl.getFile("docs/plans/41-stale-plan.md")).toContain("status: Stale");
+    expect(fsImpl.getFile("docs/plans/40-fresh-plan.md")).toContain("status: Approved");
 
     expect(backendImpl.runCalls).toHaveLength(0);
     expect(backendImpl.completeCalls).toHaveLength(0);
@@ -669,6 +672,6 @@ describe("applyStalenessReport", () => {
       expect(flipped.right.map((f) => f.path)).toEqual(["docs/plans/40-plan.md"]);
       expect(flipped.right[0]?.verdict.kind).toBe("missing-record");
     }
-    expect(fsImpl.getFile("docs/plans/40-plan.md")).toContain("Status: Stale");
+    expect(fsImpl.getFile("docs/plans/40-plan.md")).toContain("status: Stale");
   });
 });

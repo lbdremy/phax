@@ -1,12 +1,10 @@
+---
+status: Archived
+date: 2026-07-10
+audience: implementation planning with Claude Code
+scope: functional behavior and consumption surface
+---
 # Model Catalog and Equivalence Routing (no canonical scale)
-
-Status: Archived
-
-Date: 2026-07-10
-
-Audience: implementation planning with Claude Code
-
-Scope: functional behavior and consumption surface
 
 ## 1. Context
 

@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — Enforce the architecture boundaries that slipped this run
-
-Status: Archived
-
-Source-Spec: (none)
 
 The agent-binding run (plan 11) introduced two layer-boundary violations that the
 gate did not catch, because `tests/unit/architecturalGuards.test.ts` only

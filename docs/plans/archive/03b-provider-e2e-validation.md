@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: docs/specs/archive/03-update-provider-effort.md
+---
 # Manual E2E validation runbook — Claude Code, Codex CLI, Mistral Vibe
-
-Status: Archived
-
-Source-Spec: docs/specs/archive/03-update-provider-effort.md
 
 > **Run this by hand, not via the phax CLI.** This is a validation runbook, not
 > a phax phase plan, so it is intentionally not in `.skills/phax-planning.md`

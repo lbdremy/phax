@@ -1,9 +1,11 @@
+---
+status: Archived
+source-spec: docs/specs/25-artifact-transition-autocommit.md
+approved:
+  date: 2026-08-11
+  baseline: 4ae687b
+---
 # Artifact Transition Auto-Commit
-
-Status: Archived
-
-Source-Spec: docs/specs/25-artifact-transition-autocommit.md
-Approved: 2026-08-11 @ 4ae687b
 
 > Amendment 2026-08-12: the `--no-commit` opt-out described throughout this plan was
 > removed in code review — transitions now always commit. This plan is preserved as the

@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Implementation plan — Simplified multi-provider model routing
-
-Status: Archived
-
-Source-Spec: (none)
 
 > Source spec: `.context/attachments/LWiMC1/pasted_text_2026-06-01_08-42-59.txt`
 > ("PHAX Spec — Simplified Multi-Provider Model Routing").

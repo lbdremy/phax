@@ -1,6 +1,10 @@
+---
+status: Archived
+date: 2026-06-23
+audience: (unrecorded)
+scope: (unrecorded)
+---
 # Locked Agent Binding for Phase Sessions
-
-Status: Archived
 
 ## 1. Context
 

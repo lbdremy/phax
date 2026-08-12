@@ -1,6 +1,10 @@
+---
+status: Archived
+date: 2026-06-23
+audience: (unrecorded)
+scope: (unrecorded)
+---
 # Init Command and Local JSON Schema Reference
-
-Status: Archived
 
 ## Status
 

@@ -1,12 +1,10 @@
+---
+status: Approved
+date: 2026-08-11
+audience: implementation planning with Claude Code
+scope: functional behavior and consumption surface
+---
 # YAML Frontmatter Metadata for Lifecycle Artifacts
-
-Status: Approved
-
-Date: 2026-08-11
-
-Audience: implementation planning with Claude Code
-
-Scope: functional behavior and consumption surface
 
 ## 1. Context
 

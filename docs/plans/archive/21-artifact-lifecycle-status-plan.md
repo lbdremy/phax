@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: docs/specs/21-artifact-lifecycle-status.md
+---
 # Artifact lifecycle status
-
-Status: Archived
-
-Source-Spec: docs/specs/21-artifact-lifecycle-status.md
 
 > Feed this `plan.md` to `phax extract-plan` to produce `phax-plan.json`, then
 > run it with `phax run`. Source spec:

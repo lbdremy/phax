@@ -60,7 +60,10 @@ describe("CLI error messages", () => {
     it("Draft plan: non-zero exit, message names the file and status, no stack trace", () => {
       tmpDir = mkdtempSync(join(tmpdir(), "phax-cli-errors-"));
       const planPath = join(tmpDir, "plan.md");
-      writeFileSync(planPath, "# Draft plan\n\nStatus: Draft\n\n## Context\n");
+      writeFileSync(
+        planPath,
+        "---\nstatus: Draft\nsource-spec: null\n---\n# Draft plan\n\n## Context\n",
+      );
 
       const result = runCli(["run", "--plan", planPath]);
       expect(result.status).not.toBe(0);
@@ -103,10 +106,11 @@ describe("CLI error messages", () => {
       writeFileSync(
         planPath,
         [
+          "---",
+          "status: Approved",
+          "source-spec: null",
+          "---",
           "# Stale gate test plan",
-          "",
-          "Status: Approved",
-          "Source-Spec: (none)",
           "",
           "---",
           "",

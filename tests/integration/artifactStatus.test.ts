@@ -19,34 +19,11 @@ import {
 import { APPROVALS_FILE_PATH } from "../../src/domain/artifact/lineage.js";
 import { decodeApprovalRecordFile } from "../../src/schemas/approvalRecord.js";
 
-const DRAFT_SPEC = `# Some spec
+const DRAFT_SPEC = specMd("Draft");
+const APPROVED_SPEC = specMd("Approved");
+const APPROVED_PLAN = planMd("Approved", "null");
 
-Status: Draft
-
-## Overview
-
-Body text.
-`;
-
-const APPROVED_SPEC = `# Some spec
-
-Status: Approved
-
-## Overview
-
-Body text.
-`;
-
-const APPROVED_PLAN = `# Some plan
-
-Status: Approved
-Source-Spec: (none)
-
-## Overview
-
-Body text.
-`;
-
+// A document with no frontmatter block: rejected by validateArtifact up front.
 const NO_STATUS_PLAN = `# Some plan
 
 ## Overview
@@ -55,10 +32,11 @@ Body text.
 `;
 
 function planMd(status: string, sourceSpec: string): string {
-  return `# Some plan
-
-Status: ${status}
-Source-Spec: ${sourceSpec}
+  return `---
+status: ${status}
+source-spec: ${sourceSpec}
+---
+# Some plan
 
 ## Overview
 
@@ -67,9 +45,13 @@ Body text.
 }
 
 function specMd(status: string): string {
-  return `# Some spec
-
-Status: ${status}
+  return `---
+status: ${status}
+date: 2026-01-01
+audience: test
+scope: test
+---
+# Some spec
 
 ## Overview
 
@@ -143,7 +125,7 @@ describe("transitionArtifact", () => {
     if (Either.isRight(result)) {
       expect(result.right).toEqual({ status: "Approved", path: "docs/specs/21-foo.md" });
     }
-    expect(fsImpl.getFile("docs/specs/21-foo.md")).toContain("Status: Approved");
+    expect(fsImpl.getFile("docs/specs/21-foo.md")).toContain("status: Approved");
   });
 
   it("archive relocates an Approved spec under archive/ and removes the original", async () => {
@@ -160,7 +142,7 @@ describe("transitionArtifact", () => {
     if (Either.isRight(result)) {
       expect(result.right).toEqual({ status: "Archived", path: "docs/specs/archive/21-foo.md" });
     }
-    expect(fsImpl.getFile("docs/specs/archive/21-foo.md")).toContain("Status: Archived");
+    expect(fsImpl.getFile("docs/specs/archive/21-foo.md")).toContain("status: Archived");
     expect(fsImpl.getFile("docs/specs/21-foo.md")).toBeUndefined();
   });
 
@@ -340,7 +322,9 @@ describe("transitionArtifact", () => {
 
       const updatedMd = fsImpl.getFile("docs/plans/40-plan.md");
       expect(updatedMd).toBeDefined();
-      expect(updatedMd).toContain(`Approved: 2026-08-10 @ ${gitImpl.headCommitValue.slice(0, 7)}`);
+      expect(updatedMd).toContain("approved:");
+      expect(updatedMd).toContain("date: 2026-08-10");
+      expect(updatedMd).toContain(gitImpl.headCommitValue.slice(0, 7));
 
       const storeText = fsImpl.getFile(APPROVALS_FILE_PATH);
       expect(storeText).toBeDefined();
@@ -362,7 +346,7 @@ describe("transitionArtifact", () => {
 
     it("(none) plan approves with a null sourceSpec binding", async () => {
       const { fsImpl, layer } = makeHarness();
-      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "null"));
 
       const result = await run(
         transitionArtifact("docs/plans/40-plan.md", "Approved", DEFAULT_OPTS).pipe(
@@ -381,7 +365,7 @@ describe("transitionArtifact", () => {
 
     it("re-approval replaces the sidecar entry with a fresh baseline", async () => {
       const { fsImpl, gitImpl, layer } = makeHarness();
-      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "null"));
 
       await run(
         transitionArtifact("docs/plans/40-plan.md", "Approved", DEFAULT_OPTS).pipe(
@@ -434,7 +418,7 @@ describe("transitionArtifact", () => {
       }
       // Neither artifact was touched.
       expect(fsImpl.getFile("docs/specs/23-foo.md")).toBeDefined();
-      expect(fsImpl.getFile("docs/plans/50-plan.md")).toContain("Status: Approved");
+      expect(fsImpl.getFile("docs/plans/50-plan.md")).toContain("status: Approved");
     });
 
     it("archives cleanly once the dependent is abandoned, without touching the dependent again", async () => {
@@ -459,7 +443,7 @@ describe("transitionArtifact", () => {
         expect(archiveResult.right.path).toBe("docs/specs/archive/23-foo.md");
       }
       // The dependent stays exactly where the abandon step left it.
-      expect(fsImpl.getFile("docs/plans/archive/50-plan.md")).toContain("Status: Abandoned");
+      expect(fsImpl.getFile("docs/plans/archive/50-plan.md")).toContain("status: Abandoned");
     });
 
     it("archives a spec with no dependents cleanly", async () => {
@@ -479,7 +463,7 @@ describe("transitionArtifact", () => {
   describe("sidecar hygiene", () => {
     it("removes the sidecar entry when an Approved plan goes terminal", async () => {
       const { fsImpl, layer } = makeHarness();
-      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "null"));
 
       await run(
         transitionArtifact("docs/plans/40-plan.md", "Approved", DEFAULT_OPTS).pipe(
@@ -512,7 +496,7 @@ describe("transitionArtifact", () => {
     it("does not block a transition when approvals.json is corrupt", async () => {
       const { fsImpl, layer } = makeHarness();
       fsImpl.setFile(APPROVALS_FILE_PATH, "{ not valid json");
-      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "null"));
 
       const result = await run(
         transitionArtifact("docs/plans/40-plan.md", "Approved", DEFAULT_OPTS).pipe(
@@ -529,7 +513,7 @@ describe("transitionArtifact", () => {
   describe("auto-commit", () => {
     it("approve commits exactly the write-set", async () => {
       const { fsImpl, gitImpl, layer } = makeHarness();
-      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "null"));
       gitImpl.enqueueDirtyPaths([]); // pre-write precondition: clean
       gitImpl.enqueueDirtyPaths(["docs/plans/40-plan.md", APPROVALS_FILE_PATH]); // post-write: changed
 
@@ -585,7 +569,7 @@ describe("transitionArtifact", () => {
 
     it("refuses a dirty write-set target before writing anything", async () => {
       const { fsImpl, gitImpl, layer } = makeHarness();
-      const source = planMd("Draft", "(none)");
+      const source = planMd("Draft", "null");
       fsImpl.setFile("docs/plans/40-plan.md", source);
       gitImpl.setDirtyPaths(["docs/plans/40-plan.md"]);
 
@@ -610,7 +594,7 @@ describe("transitionArtifact", () => {
 
     it("commit: false skips the precondition and creates no commit", async () => {
       const { fsImpl, gitImpl, layer } = makeHarness();
-      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "null"));
       gitImpl.setDirtyPaths(["docs/plans/40-plan.md"]); // would refuse if enforced
 
       const result = await run(
@@ -630,7 +614,7 @@ describe("transitionArtifact", () => {
 
     it("a no-op transition (no diff against HEAD) creates no commit", async () => {
       const { fsImpl, gitImpl, layer } = makeHarness();
-      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "null"));
 
       const result = await run(
         transitionArtifact("docs/plans/40-plan.md", "Approved", {
@@ -648,7 +632,7 @@ describe("transitionArtifact", () => {
 
     it("surfaces a commit failure loudly, leaving the writes in place", async () => {
       const { fsImpl, gitImpl, layer } = makeHarness();
-      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "(none)"));
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "null"));
       gitImpl.enqueueDirtyPaths([]);
       gitImpl.enqueueDirtyPaths(["docs/plans/40-plan.md", APPROVALS_FILE_PATH]);
       gitImpl.failNextCommitPaths("fatal: unable to auto-detect email address");
@@ -669,29 +653,27 @@ describe("transitionArtifact", () => {
         }
       }
       // The transition's writes stayed in place despite the commit failure.
-      expect(fsImpl.getFile("docs/plans/40-plan.md")).toContain("Status: Approved");
+      expect(fsImpl.getFile("docs/plans/40-plan.md")).toContain("status: Approved");
       expect(fsImpl.getFile(APPROVALS_FILE_PATH)).toBeDefined();
     });
   });
 });
 
 describe("checkPlanRunnable", () => {
-  it("refuses a plan with no status line", () => {
+  it("refuses a plan with no frontmatter block", () => {
     const result = checkPlanRunnable(NO_STATUS_PLAN, "docs/plans/21-foo-plan.md");
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) expect(result.left.status).toBe("missing");
   });
 
   it("refuses a plan with an invalid status value", () => {
-    const md = `# Plan\n\nStatus: NotAThing\n\n## Overview\n`;
-    const result = checkPlanRunnable(md, "docs/plans/21-foo-plan.md");
+    const result = checkPlanRunnable(planMd("NotAThing", "null"), "docs/plans/21-foo-plan.md");
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) expect(result.left.status).toBe("invalid");
   });
 
   it("refuses a Draft plan", () => {
-    const md = `# Plan\n\nStatus: Draft\n\n## Overview\n`;
-    const result = checkPlanRunnable(md, "docs/plans/21-foo-plan.md");
+    const result = checkPlanRunnable(planMd("Draft", "null"), "docs/plans/21-foo-plan.md");
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
       expect(result.left.status).toBe("Draft");
@@ -700,8 +682,7 @@ describe("checkPlanRunnable", () => {
   });
 
   it("refuses a Stale plan with wording distinct from Draft", () => {
-    const md = `# Plan\n\nStatus: Stale\n\n## Overview\n`;
-    const result = checkPlanRunnable(md, "docs/plans/21-foo-plan.md");
+    const result = checkPlanRunnable(planMd("Stale", "null"), "docs/plans/21-foo-plan.md");
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
       expect(result.left.status).toBe("Stale");
@@ -711,8 +692,10 @@ describe("checkPlanRunnable", () => {
   });
 
   it("refuses an Abandoned plan as retired, at its archive path", () => {
-    const md = `# Plan\n\nStatus: Abandoned\n\n## Overview\n`;
-    const result = checkPlanRunnable(md, "docs/plans/archive/21-foo-plan.md");
+    const result = checkPlanRunnable(
+      planMd("Abandoned", "null"),
+      "docs/plans/archive/21-foo-plan.md",
+    );
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
       expect(result.left.status).toBe("Abandoned");
@@ -721,8 +704,10 @@ describe("checkPlanRunnable", () => {
   });
 
   it("refuses an Archived plan as retired, at its archive path", () => {
-    const md = `# Plan\n\nStatus: Archived\n\n## Overview\n`;
-    const result = checkPlanRunnable(md, "docs/plans/archive/21-foo-plan.md");
+    const result = checkPlanRunnable(
+      planMd("Archived", "null"),
+      "docs/plans/archive/21-foo-plan.md",
+    );
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
       expect(result.left.status).toBe("Archived");
@@ -743,7 +728,7 @@ describe("checkPlanRunnable", () => {
     }
   });
 
-  it("passes for an Approved plan at a non-artifact path (fixtures stay line-only)", () => {
+  it("passes for an Approved plan at a non-artifact path", () => {
     const result = checkPlanRunnable(APPROVED_PLAN, "tests/fixtures/plan.md");
     expect(Either.isRight(result)).toBe(true);
   });

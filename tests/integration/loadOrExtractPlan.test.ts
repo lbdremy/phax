@@ -80,7 +80,7 @@ describe("loadOrExtractPlan — extraction is not gated by lifecycle status", ()
     const fakeFs = makeFakeFileSystem();
     const fakeBackend = makeFakeBackend();
 
-    const draftPlanMd = `# Plan — My Test Run\n\nStatus: Draft\n\n## phase-01 — First Phase {#phase-01-first-phase}\n\nPhase description.\n`;
+    const draftPlanMd = `---\nstatus: Draft\nsource-spec: null\n---\n# Plan — My Test Run\n\n## phase-01 — First Phase {#phase-01-first-phase}\n\nPhase description.\n`;
     fakeFs.impl.setFile(PLAN_MD_PATH, draftPlanMd);
     fakeBackend.impl.addCompletionResponse({ finalText: EXTRACTED_JSON });
 

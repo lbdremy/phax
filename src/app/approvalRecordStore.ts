@@ -1,7 +1,8 @@
 import { Effect, Either } from "effect";
 import { createHash } from "node:crypto";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { APPROVALS_FILE_PATH, fingerprintableContent } from "../domain/artifact/lineage.js";
+import { APPROVALS_FILE_PATH } from "../domain/artifact/lineage.js";
+import { fingerprintSource } from "../domain/artifact/frontmatter.js";
 import {
   decodeApprovalRecordFile,
   encodeApprovalRecordFile,
@@ -73,5 +74,5 @@ export function removeApprovalRecord(planPath: string): Effect.Effect<void, FsEr
 }
 
 export function artifactFingerprint(md: string): string {
-  return createHash("sha256").update(fingerprintableContent(md)).digest("hex");
+  return createHash("sha256").update(fingerprintSource(md)).digest("hex");
 }

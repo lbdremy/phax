@@ -1,6 +1,10 @@
+---
+status: Archived
+date: 2026-06-15
+audience: (unrecorded)
+scope: (unrecorded)
+---
 # PHAX Phase Planning Skill Update: File Intent, Boundary Contracts, and Phase Handoff Reporting
-
-Status: Archived
 
 ## Purpose
 

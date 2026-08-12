@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: docs/specs/archive/02-phax-planning-skill-update.md
+---
 # Implementation plan — Planned file intent and end-of-phase file reconciliation
-
-Status: Archived
-
-Source-Spec: docs/specs/archive/02-phax-planning-skill-update.md
 
 > Run short name: `planning-skill-update`.
 > Deliverable location: `docs/plans/02-phax-planning-skill-update-plan.md`.

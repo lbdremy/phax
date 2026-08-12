@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — `phax plans-overlap` — report which plans can run in parallel without merge conflict
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Overview
 

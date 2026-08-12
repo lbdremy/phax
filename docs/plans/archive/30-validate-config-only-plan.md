@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — phax validate: config-first, plan optional
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Overview
 

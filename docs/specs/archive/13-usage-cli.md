@@ -1,14 +1,10 @@
+---
+status: Archived
+date: 2026-06-15
+audience: implementation planning agent
+scope: (unrecorded)
+---
 # Usage-Based CLI Help, Documentation, and Completions
-
-Status: Archived
-
-Date: 2026-06-15  
-
-Project: PHAX / Phase CLI  
-
-Type: Functional specification  
-
-Audience: implementation planning agent
 
 ## Context
 

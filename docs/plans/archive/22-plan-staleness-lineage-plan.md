@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: docs/specs/22-plan-staleness-lineage.md
+---
 # Plan staleness and lineage
-
-Status: Archived
-
-Source-Spec: docs/specs/22-plan-staleness-lineage.md
 
 > Feed this `plan.md` to `phax extract-plan` to produce `phax-plan.json`, then
 > run it with `phax run`. Source spec:

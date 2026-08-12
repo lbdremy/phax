@@ -1,12 +1,10 @@
+---
+status: Draft
+date: 2026-08-12
+audience: implementation planning with Claude Code
+scope: functional behavior and consumption surface
+---
 # Rename the `Archived` Terminal Status to `Completed`
-
-Status: Draft
-
-Date: 2026-08-12
-
-Audience: implementation planning with Claude Code
-
-Scope: functional behavior and consumption surface
 
 ## 1. Context
 

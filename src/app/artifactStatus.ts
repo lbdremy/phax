@@ -16,18 +16,16 @@ import {
   type PlanStatus,
   isTerminalStatus,
   legalTargetsFrom,
-  parsePlanStatus,
-  PLAN_STATUSES,
   requestTransition,
 } from "../domain/artifact/status.js";
 import {
   archivePathFor,
   classifyArtifactPath,
-  readStatusLine,
-  replaceStatusLine,
+  frontmatterProblemMessage,
   validateArtifact,
 } from "../domain/artifact/document.js";
-import { readSourceSpecLine, upsertApprovedLine } from "../domain/artifact/lineage.js";
+import { readSourceSpec, stampApproved } from "../domain/artifact/lineage.js";
+import { decodeArtifactFrontmatter, setFrontmatterKeys } from "../domain/artifact/frontmatter.js";
 import { transitionCommitMessage, transitionWriteSet } from "../domain/artifact/writeSet.js";
 import {
   artifactFingerprint,
@@ -118,7 +116,7 @@ function findDependentPlans(
       if (Either.isLeft(planValidated)) {
         return yield* Effect.fail(planValidated.left);
       }
-      const declaration = readSourceSpecLine(planMd);
+      const declaration = readSourceSpec(planMd);
       if (
         declaration !== null &&
         declaration.kind === "spec" &&
@@ -174,11 +172,20 @@ export function transitionArtifact(
       }
     }
 
-    let updatedMd = replaceStatusLine(md, target);
+    const statusRewrite = setFrontmatterKeys(md, [{ key: "status", value: target }]);
+    if (Either.isLeft(statusRewrite)) {
+      return yield* Effect.fail(
+        new ArtifactValidationError({
+          path: repoRelPath,
+          message: frontmatterProblemMessage(repoRelPath, kind, statusRewrite.left),
+        }),
+      );
+    }
+    let updatedMd = statusRewrite.right;
     let approvedBaseline: string | undefined;
 
     if (kind === "plan" && target === "Approved") {
-      const declaration = readSourceSpecLine(md);
+      const declaration = readSourceSpec(md);
       let sourceSpec: { path: string; fingerprint: string } | null = null;
 
       if (declaration !== null && declaration.kind === "spec") {
@@ -209,7 +216,16 @@ export function transitionArtifact(
       }
 
       const baseline = yield* git.headCommit(opts.repoRoot);
-      updatedMd = upsertApprovedLine(updatedMd, opts.nowIso, baseline.slice(0, 7));
+      const stamped = stampApproved(updatedMd, opts.nowIso, baseline.slice(0, 7));
+      if (Either.isLeft(stamped)) {
+        return yield* Effect.fail(
+          new ArtifactValidationError({
+            path: repoRelPath,
+            message: frontmatterProblemMessage(repoRelPath, kind, stamped.left),
+          }),
+        );
+      }
+      updatedMd = stamped.right;
       const planFingerprint = artifactFingerprint(updatedMd);
       yield* putApprovalRecord(repoRelPath, {
         planFingerprint,
@@ -298,27 +314,27 @@ export function checkPlanRunnable(
   planMd: string,
   planPath: string,
 ): Either.Either<void, PlanNotApprovedError> {
-  const rawStatus = readStatusLine(planMd);
-  if (rawStatus === null) {
-    return Either.left(
-      new PlanNotApprovedError({
-        path: planPath,
-        status: "missing",
-        message: `${planPath} has no "Status:" line. Add "Status: Approved" (via phax artifact approve) before running.`,
-      }),
-    );
-  }
-
-  const status = parsePlanStatus(rawStatus);
-  if (status === null) {
+  const decoded = decodeArtifactFrontmatter("plan", planMd);
+  if (Either.isLeft(decoded)) {
+    if (decoded.left.kind === "missing-block") {
+      return Either.left(
+        new PlanNotApprovedError({
+          path: planPath,
+          status: "missing",
+          message: `${planPath} has no frontmatter block. Add a YAML frontmatter block with "status: Approved" (via phax artifact approve) before running.`,
+        }),
+      );
+    }
     return Either.left(
       new PlanNotApprovedError({
         path: planPath,
         status: "invalid",
-        message: `${planPath} has status "${rawStatus}", which is not a valid plan status (allowed: ${PLAN_STATUSES.join(", ")}).`,
+        message: frontmatterProblemMessage(planPath, "plan", decoded.left),
       }),
     );
   }
+
+  const status = decoded.right.status as PlanStatus;
 
   const refusal = refusalFor(planPath, status);
   if (refusal !== null) {

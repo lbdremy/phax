@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan 36 — `phax review-code <short-name>` interactive code-review session
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Overview
 

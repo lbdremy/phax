@@ -1,9 +1,11 @@
+---
+status: Approved
+source-spec: docs/specs/26-artifact-frontmatter-metadata.md
+approved:
+  date: 2026-08-12
+  baseline: db318d1
+---
 # Artifact Frontmatter Metadata
-
-Status: Approved
-
-Source-Spec: docs/specs/26-artifact-frontmatter-metadata.md
-Approved: 2026-08-12 @ db318d1
 
 ## Overview
 

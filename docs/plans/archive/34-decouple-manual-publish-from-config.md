@@ -1,8 +1,8 @@
+---
+status: Archived
+source-spec: null
+---
 # Plan — Decouple manual `publish-pr` from the publish config flag
-
-Status: Archived
-
-Source-Spec: (none)
 
 ## Overview
 
