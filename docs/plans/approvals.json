@@ -1,15 +1,6 @@
 {
   "version": 1,
   "records": {
-    "docs/plans/22-plan-staleness-lineage-plan.md": {
-      "planFingerprint": "a48c0f7f52785478f528b6580d1fc73d50593fd4f434938fa3e02bbbe4e1c5e4",
-      "approvedAt": "2026-08-11T07:57:00.086Z",
-      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
-      "sourceSpec": {
-        "path": "docs/specs/22-plan-staleness-lineage.md",
-        "fingerprint": "04a1e4c791e5feea2b738291e568d92ce9fe9972c6f2de1e475d51bd588ef299"
-      }
-    },
     "docs/plans/25-artifact-transition-autocommit-plan.md": {
       "planFingerprint": "8c126b8700d2cd61167c52fc355170573944347891bfc6b7625c5eb86622b764",
       "approvedAt": "2026-08-11T09:19:28.170Z",

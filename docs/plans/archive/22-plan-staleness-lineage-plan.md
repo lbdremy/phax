@@ -1,6 +1,6 @@
 # Plan staleness and lineage
 
-Status: Approved
+Status: Archived
 
 Source-Spec: docs/specs/22-plan-staleness-lineage.md
 
