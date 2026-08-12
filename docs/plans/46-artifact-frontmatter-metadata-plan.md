@@ -1,8 +1,9 @@
 # Artifact Frontmatter Metadata
 
-Status: Draft
+Status: Approved
 
 Source-Spec: docs/specs/26-artifact-frontmatter-metadata.md
+Approved: 2026-08-12 @ db318d1
 
 ## Overview
 

@@ -27,6 +27,15 @@
       "approvedAt": "2026-08-11T07:57:20.361Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
+    },
+    "docs/plans/46-artifact-frontmatter-metadata-plan.md": {
+      "planFingerprint": "34d6a37481b617343ee412d91c7661b77ac0f029d210b71935023197b8ef99ab",
+      "approvedAt": "2026-08-12T14:33:50.554Z",
+      "baseline": "db318d1a7bb5c4ce65cf394ec86bb7df83676ef1",
+      "sourceSpec": {
+        "path": "docs/specs/26-artifact-frontmatter-metadata.md",
+        "fingerprint": "fda565bf41f80736b670fcaf6b9c95b00a491b861d0211b9c367849fae23a4a2"
+      }
     }
   }
 }
