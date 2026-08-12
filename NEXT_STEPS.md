@@ -4,8 +4,28 @@ Follow-up work identified on 2026-08-09 (mapping phax against data-engineering l
 graphs / ETL / change detection / democratization — and the desktop-app idea in
 `docs/ideas/desktop-app.md`); updated 2026-08-10 (entire.io positioning analysis and a
 second pass on the Josh Rosen data-engineering article); updated 2026-08-11 (spec 26
-frontmatter planning added as priority). Tick items off as they land, and delete this
-file when it is empty.
+frontmatter planning added as priority); updated 2026-08-12 (plans 22 + 25 landed;
+draft specs 27 + 28 approval sequence added). Tick items off as they land, and delete
+this file when it is empty.
+
+## Approve the draft specs 27 and 28 (in this order)
+
+Two Drafts written 2026-08-12. Order matters: 28 renames the vocabulary 27 is written
+in, so 28 goes first and 27 gets swept before its approval.
+
+- [ ] Review + approve `docs/specs/28-rename-archived-to-completed.md` — terminal
+      status `Archived` → `Completed` (outcome pair `Completed | Abandoned`; the
+      `archive/` folder keeps its name); CLI verb `phax artifact archive` →
+      `phax artifact complete`, no alias; one-time staleness-neutral migration riding
+      spec 26's frontmatter rollout.
+- [ ] After 28 approves: sweep `docs/specs/27-run-carries-archival.md` terminology
+      (`Archived` → `Completed`, `archive` verb → `complete`), then review + approve —
+      run completion (final phase gates green, before `review_open`) applies the plan's
+      terminal transition on the run branch; ride-along spec completion behind the
+      chain gate; `phax publish-pr` untouched; merge lands work + record atomically.
+- [ ] Ripples once 28 is approved: spec 26's plan must use `Completed` (28 supersedes
+      its status-set naming); the `phax-spec`/`phax-planning` skills and CLI docs
+      update in the same rollout.
 
 ## Plan and run the approved specs
 
@@ -17,21 +37,30 @@ and can go anytime after — 24 is the largest and consumes 21 + 22.
       frontmatter replaces the `Status:`/`Source-Spec:`/`Approved:` header lines on all
       lifecycle artifacts; key-level fingerprint neutrality; migration coupled with
       `approvals.json` fingerprint recomputation. Plan via the phax-planning skill →
-      `docs/plans/26-artifact-frontmatter-metadata-plan.md`. Constraint (spec §10):
-      sequence the run after plan 25 (artifact transition auto-commit, Approved
-      2026-08-11) lands — same transition write path.
+      `docs/plans/26-artifact-frontmatter-metadata-plan.md`. The spec-§10 sequencing
+      constraint is now satisfied: plan 25 landed 2026-08-12 — nothing blocks this
+      plan. If spec 28 is approved first, the plan uses `Completed` (not `Archived`)
+      and carries 28's rename in the same migration pass.
 - [x] `docs/specs/21-artifact-lifecycle-status.md` — spec/plan state machines; only an
       `Approved` plan runs; archive-location agreement; `phax artifact` commands.
       **Landed on `main` 2026-08-10** (plan 21, five phases incl. the whole-tree
       migration).
-- [ ] `docs/specs/22-plan-staleness-lineage.md` — approval binds plan + spec + repo
+- [x] `docs/specs/22-plan-staleness-lineage.md` — approval binds plan + spec + repo
       baseline; staleness reasons `spec-changed | ground-changed | self-changed`; hard
-      gate at run start; `phax plans status [--apply]`. **Plan written and Approved
-      2026-08-10** (`docs/plans/22-plan-staleness-lineage-plan.md`, 6 phases) — ready
-      for `phax run`.
-  - [ ] Post-merge operator step (recorded in the plan Overview): re-approve plans 39,
-        41, 44, 45 with `phax artifact approve` so they gain approval records —
-        until then they compute stale per §5.14 and refuse to run.
+      gate at run start; `phax plans status [--apply]`. **Landed on `main` 2026-08-11**
+      (plan 22, 6 phases; the phase-06 review surfaced the path-rooting follow-up
+      below).
+  - [x] Post-merge operator step: re-approve plans 39, 41, 44, 45 so they gain
+        approval records — **done 2026-08-11** (approval baselines recorded; 39 and 41
+        compute fresh).
+  - [ ] Plans 44 and 45 have gone stale *again* (`ground-changed`: the README/docs and
+        `package.json` churn from landing plans 22 and 25). Review and
+        `phax artifact approve` them before running — `phax plans status` is the
+        source of truth.
+- [x] `docs/specs/25-artifact-transition-autocommit.md` — every artifact transition
+      auto-commits exactly its write-set (clean-target precondition, path-scoped
+      staging). **Landed on `main` 2026-08-12** (plan 25; the post-landing review
+      dropped `--no-commit` — transitions always commit).
 - [ ] `docs/specs/23-phase-decision-requests.md` — blocking agent-raised decision
       requests; answer-and-resume; decisions in the review handoff.
 - [ ] `docs/specs/24-batch-execution-disjoint-plans.md` — parallel disjoint plans,
@@ -47,6 +76,11 @@ and can go anytime after — 24 is the largest and consumes 21 + 22.
 - [ ] Audit the remaining active specs (15, 16, 18, 19) — any that are implemented on
       `main` should be flipped `Archived` and moved to `docs/specs/archive/` (done for
       17 on 2026-08-09).
+- [ ] Retire the landed lifecycle artifacts still sitting live: plans 21, 22, 25 and
+      specs 21, 22, 25 all shipped but still read `Approved` outside `archive/` —
+      exactly the gap draft spec 27 automates. Archive each plan first, then its spec
+      (the chain gate refuses a spec with non-terminal dependents). If spec 28 lands
+      first, the verb is `phax artifact complete`.
 - [ ] Align path-rooting on the git convention (run from any subdirectory). Today the
       CLI implicitly assumes `cwd == repoRoot`: git operations are correctly rooted at
       `config.repoRoot`, but the `FileSystem` port resolves relative paths
