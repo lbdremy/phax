@@ -16,8 +16,9 @@
     "npm:oxlint@^1.64.0": "1.69.0",
     "npm:tsx@^4.19.0": "4.22.4",
     "npm:typescript@^6.0.3": "6.0.3",
-    "npm:vite@^7.3.6": "7.3.6_@types+node@25.9.3_tsx@4.22.4",
-    "npm:vitest@^4.1.9": "4.1.9_@types+node@25.9.3_vite@7.3.6__@types+node@25.9.3__tsx@4.22.4_tsx@4.22.4"
+    "npm:vite@^7.3.6": "7.3.6_@types+node@25.9.3_tsx@4.22.4_yaml@2.9.0",
+    "npm:vitest@^4.1.9": "4.1.9_@types+node@25.9.3_vite@7.3.6__@types+node@25.9.3__tsx@4.22.4__yaml@2.9.0_yaml@2.9.0",
+    "npm:yaml@^2.9.0": "2.9.0"
   },
   "npm": {
     "@clack/core@1.4.2": {
@@ -975,7 +976,7 @@
         "tinyrainbow"
       ]
     },
-    "@vitest/mocker@4.1.9_vite@7.3.6__@types+node@25.9.3__tsx@4.22.4_@types+node@25.9.3_tsx@4.22.4": {
+    "@vitest/mocker@4.1.9_vite@7.3.6__@types+node@25.9.3__tsx@4.22.4__yaml@2.9.0_yaml@2.9.0": {
       "integrity": "sha512-EVkXzBjrPGM+cK8/ANWgBrkUCfJfb38/EfTSO8h7pWvKkyPkpWxvR7BkD2MyItMF62C97zAEoqdpUixwR/e+Rw==",
       "dependencies": [
         "@vitest/spy",
@@ -1689,7 +1690,7 @@
       "integrity": "sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==",
       "bin": true
     },
-    "vite@7.3.6_@types+node@25.9.3_tsx@4.22.4": {
+    "vite@7.3.6_@types+node@25.9.3_tsx@4.22.4_yaml@2.9.0": {
       "integrity": "sha512-4XP60spRGjSZFf1qYH+dJIkK2znL3zQfl9KkOV9MkkRR/3Dls0dxaBsQPTloEc5BLXWPL9vsOxopxyKoMmDueg==",
       "dependencies": [
         "@types/node",
@@ -1699,18 +1700,20 @@
         "postcss",
         "rollup",
         "tinyglobby",
-        "tsx"
+        "tsx",
+        "yaml"
       ],
       "optionalDependencies": [
         "fsevents"
       ],
       "optionalPeers": [
         "@types/node",
-        "tsx"
+        "tsx",
+        "yaml"
       ],
       "bin": true
     },
-    "vitest@4.1.9_@types+node@25.9.3_vite@7.3.6__@types+node@25.9.3__tsx@4.22.4_tsx@4.22.4": {
+    "vitest@4.1.9_@types+node@25.9.3_vite@7.3.6__@types+node@25.9.3__tsx@4.22.4__yaml@2.9.0_yaml@2.9.0": {
       "integrity": "sha512-nE3/LEyc0z87uHYLZebqCUOaJr2hdtuPp7BQ4BosVFnfltxgAvMG08NyrSGlPpOUWvR27c5flSmYFTNr78L9GQ==",
       "dependencies": [
         "@types/node",
@@ -1781,7 +1784,8 @@
         "npm:tsx@^4.19.0",
         "npm:typescript@^6.0.3",
         "npm:vite@^7.3.6",
-        "npm:vitest@^4.1.9"
+        "npm:vitest@^4.1.9",
+        "npm:yaml@^2.9.0"
       ]
     }
   }

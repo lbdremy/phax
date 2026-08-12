@@ -4,6 +4,7 @@ import { toString } from "mdast-util-to-string";
 import type { Heading, List, Paragraph, Root, RootContent } from "mdast";
 import { PlanValidationError } from "../errors.js";
 import { ExtractedPhaxPlanSchema, type ExtractedPhaxPlan } from "../../schemas/phaxPlan.js";
+import { splitFrontmatter } from "../artifact/frontmatter.js";
 
 const decodeExtracted = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
@@ -284,7 +285,9 @@ const decodeEffort = Schema.decodeUnknownEither(EffortSchema);
 export function extractPlanDeterministic(
   planMd: string,
 ): Either.Either<ExtractedPhaxPlan, PlanValidationError> {
-  const root = fromMarkdown(planMd);
+  const split = splitFrontmatter(planMd);
+  const body = split ? split.body : planMd;
+  const root = fromMarkdown(body);
 
   const h1 = findFirstH1(root);
   if (!h1) {
@@ -330,7 +333,7 @@ export function extractPlanDeterministic(
         }),
       );
     }
-    const { model, effort } = readRecommendedFields(planMd, recParagraph);
+    const { model, effort } = readRecommendedFields(body, recParagraph);
     if (!model) {
       return Either.left(
         new PlanValidationError({ message: `${id}: missing "Recommended model:" value` }),
@@ -355,7 +358,7 @@ export function extractPlanDeterministic(
 
     const subjectE = extractCommitSubject(pb.body, id);
     if (Either.isLeft(subjectE)) return Either.left(subjectE.left);
-    const bodyE = extractCommitBody(planMd, pb.body, id);
+    const bodyE = extractCommitBody(body, pb.body, id);
     if (Either.isLeft(bodyE)) return Either.left(bodyE.left);
 
     phases.push({

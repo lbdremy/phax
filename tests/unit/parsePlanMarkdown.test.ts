@@ -370,4 +370,42 @@ describe("extractPlanDeterministic", () => {
       expect(result.left.message).toMatch(/effort/i);
     }
   });
+
+  it("extracts a frontmatter-carrying plan identically to its header-line equivalent", () => {
+    const headerLineMd = makePlan({
+      title: "Frontmatter parity plan",
+      requiredCommands: "- pnpm add\n- pnpm test",
+      phases: [
+        makePhase({
+          create: "- src/a.ts",
+          edit: "- package.json",
+          optional: "- (none)",
+          subject: "feat(x): frontmatter parity",
+          body: [
+            "This is a hard-wrapped commit body",
+            "spanning several source",
+            "lines.",
+            "",
+            "- with a list item",
+            "- and another",
+          ].join("\n"),
+        }),
+      ],
+    });
+    const frontmatterMd = [
+      "---",
+      "status: Approved",
+      "source-spec: null",
+      "---",
+      "",
+      headerLineMd,
+    ].join("\n");
+
+    const headerResult = extractPlanDeterministic(headerLineMd);
+    const frontmatterResult = extractPlanDeterministic(frontmatterMd);
+    expect(Either.isRight(headerResult)).toBe(true);
+    expect(Either.isRight(frontmatterResult)).toBe(true);
+    if (!Either.isRight(headerResult) || !Either.isRight(frontmatterResult)) return;
+    expect(frontmatterResult.right).toEqual(headerResult.right);
+  });
 });
