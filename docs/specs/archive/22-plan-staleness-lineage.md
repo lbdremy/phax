@@ -1,6 +1,6 @@
 # Plan Staleness & Lineage
 
-Status: Approved
+Status: Archived
 
 Date: 2026-08-10 (revised: explicit source declarations and chain gates; original 2026-08-09)
 
