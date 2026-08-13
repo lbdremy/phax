@@ -8,6 +8,7 @@ import type { Command, Option, Argument } from "commander";
 import { buildProgram } from "../src/cli/program.js";
 import { cliDocs } from "../src/cli/cliDocs.js";
 import { cliCompleters } from "../src/cli/cliCompleters.js";
+import { isHiddenCommand } from "../src/cli/introspect.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../..");
 const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
@@ -90,6 +91,7 @@ function emitCommand(cmd: Command, indent: string, parentPath = ""): string[] {
   }
 
   for (const sub of cmd.commands) {
+    if (isHiddenCommand(sub)) continue;
     lines.push("");
     lines.push(...emitCommand(sub, inner, cmdPath));
   }
@@ -138,6 +140,7 @@ export function generateUsageSpec(): string {
 
   // All top-level commands.
   for (const cmd of program.commands) {
+    if (isHiddenCommand(cmd)) continue;
     lines.push(...emitCommand(cmd, ""));
     lines.push(``);
   }

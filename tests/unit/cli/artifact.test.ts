@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect } from "effect";
-import { runArtifactStatus, runArtifactTransition } from "../../../src/cli/commands/artifact.js";
+import {
+  runArtifactStatus,
+  runArtifactTransition,
+  runArtifactArchiveRefusal,
+} from "../../../src/cli/commands/artifact.js";
 import {
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
@@ -256,6 +260,17 @@ describe("runArtifactTransition", () => {
         (l) => l === "Commit: 3f2a1c9 — chore(plans): approve 45-typescript-7-migration-plan",
       ),
     ).toBe(true);
+  });
+
+  it("archive refusal: writes the refusal naming complete and returns exit code 1", () => {
+    const { out, errors, lines } = makeOutput();
+    const code = runArtifactArchiveRefusal(out);
+
+    expect(code).toBe(1);
+    expect(errors.join("\n")).toContain(
+      'unknown transition "archive" — the completion transition is: phax artifact complete <path>',
+    );
+    expect(lines).toHaveLength(0);
   });
 
   it("omits the Commit: line when no commit was created", async () => {

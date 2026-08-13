@@ -7,6 +7,15 @@ export interface CommandNode {
   subcommands: CommandNode[];
 }
 
+// Commander (v12) tracks a command's hidden flag on the private `_hidden`
+// field with no public getter. A retired verb (e.g. `artifact archive`) is
+// registered hidden and is absent from phax.usage.kdl (generate-usage-spec.ts
+// applies the same skip), so this snapshot must skip it too or the parity
+// gate reports a false mismatch.
+export function isHiddenCommand(cmd: Command): boolean {
+  return Boolean((cmd as unknown as Record<string, boolean | undefined>)["_hidden"]);
+}
+
 function walkCommand(cmd: Command): CommandNode {
   const flags = cmd.options
     .map((opt) => opt.long)
@@ -17,7 +26,7 @@ function walkCommand(cmd: Command): CommandNode {
   return {
     name: cmd.name(),
     flags,
-    subcommands: cmd.commands.map(walkCommand),
+    subcommands: cmd.commands.filter((sub) => !isHiddenCommand(sub)).map(walkCommand),
   };
 }
 

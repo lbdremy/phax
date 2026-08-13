@@ -101,12 +101,20 @@ const TRANSITIONS: readonly TransitionSpec[] = [
     target: "Abandoned",
   },
   {
-    name: "archive",
-    description: "Archive an artifact — terminal; moves the file to its archive/ directory",
+    name: "complete",
+    description: "Complete an artifact — terminal; moves the file to its archive/ directory",
     target: "Completed",
   },
   { name: "reopen", description: "Reopen a Stale plan back to Draft", target: "Draft" },
 ];
+
+const ARCHIVE_REFUSAL_MESSAGE =
+  'unknown transition "archive" — the completion transition is: phax artifact complete <path>';
+
+export function runArtifactArchiveRefusal(out: OutputPort): number {
+  out.error(ARCHIVE_REFUSAL_MESSAGE);
+  return 1;
+}
 
 // `artifact` is the parent command; each transition and `status` are real nested
 // subcommands (never a single space-separated command name — see the warning in
@@ -135,4 +143,17 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
         process.exit(exitCode);
       });
   }
+
+  // Retired verb: kept as a hidden subcommand so the invocation fails with a
+  // useful message naming its replacement, instead of Commander's generic
+  // "unknown command". Hidden means absent from --help and, once
+  // scripts/generate-usage-spec.ts skips hidden commands, from phax.usage.kdl
+  // and everything derived from it.
+  artifactCmd
+    .command("archive", { hidden: true })
+    .argument("<path>", "Path to a spec or plan file under docs/specs/ or docs/plans/")
+    .action(() => {
+      const exitCode = runArtifactArchiveRefusal(out);
+      process.exit(exitCode);
+    });
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildProgram } from "../../src/cli/program.js";
+import { isHiddenCommand } from "../../src/cli/introspect.js";
 
 const TOP_LEVEL_COMMANDS = [
   "validate",
@@ -145,6 +146,20 @@ describe("buildProgram", () => {
     const subs = plansCmd!.commands.map((c) => c.name());
     expect(subs).toContain("status");
     expect(subs).toContain("overlap");
+  });
+
+  it("artifact's visible subcommands are exactly status, approve, stale, abandon, complete, reopen; archive is registered but hidden", () => {
+    const program = buildProgram();
+    const artifactCmd = program.commands.find((c) => c.name() === "artifact");
+    expect(artifactCmd).toBeDefined();
+
+    const subs = artifactCmd!.commands;
+    const visibleNames = subs.filter((c) => !isHiddenCommand(c)).map((c) => c.name());
+    expect(visibleNames).toEqual(["status", "approve", "stale", "abandon", "complete", "reopen"]);
+
+    const archiveCmd = subs.find((c) => c.name() === "archive");
+    expect(archiveCmd).toBeDefined();
+    expect(isHiddenCommand(archiveCmd!)).toBe(true);
   });
 
   it("plans status has --apply and --json flags", () => {
