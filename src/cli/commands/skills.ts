@@ -13,9 +13,28 @@ import { EXPOSED_SKILL_NAMES, findExposedSkill } from "../../domain/skills/catal
 import { installSkill } from "../../app/skills/installSkill.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 
+// Filesystem roots the install resolves against. Defaults to the real
+// environment (the current working directory, the user's home, and the bundled
+// .claude/skills tree shipped with phax); tests inject temp dirs so a unit run
+// never writes into the repo working tree.
+export interface SkillsInstallRoots {
+  readonly projectRoot: string;
+  readonly homeDir: string;
+  readonly bundleRoot: string;
+}
+
+function defaultInstallRoots(): SkillsInstallRoots {
+  return {
+    projectRoot: process.cwd(),
+    homeDir: homedir(),
+    bundleRoot: join(import.meta.dirname, "../../..", ".claude", "skills"),
+  };
+}
+
 export async function runSkillsInstall(
   opts: { target: string; scope?: string | undefined; skill?: string | undefined },
   out: OutputPort,
+  roots: SkillsInstallRoots = defaultInstallRoots(),
 ): Promise<number> {
   const target = parseSkillTarget(opts.target);
   if (target === null) {
@@ -42,9 +61,7 @@ export async function runSkillsInstall(
     skillNames = [opts.skill];
   }
 
-  const bundleRoot = join(import.meta.dirname, "../../..", ".claude", "skills");
-  const projectRoot = process.cwd();
-  const homeDir = homedir();
+  const { projectRoot, homeDir, bundleRoot } = roots;
 
   out.log(`Target: ${target}`);
   out.log(`Scope: ${scope}`);

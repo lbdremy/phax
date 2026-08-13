@@ -1,6 +1,10 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Command } from "commander";
 import { registerSkillsCommand, runSkillsInstall } from "../../src/cli/commands/skills.js";
+import type { SkillsInstallRoots } from "../../src/cli/commands/skills.js";
 import type { OutputPort } from "../../src/ports/output.js";
 
 function makeProgram() {
@@ -102,9 +106,25 @@ describe("skills install subcommand registration", () => {
 });
 
 describe("runSkillsInstall validation", () => {
+  // Install into a throwaway project/home so a unit run never mutates the repo
+  // working tree; the bundle stays the real shipped .claude/skills so the
+  // exposed skills are actually found.
+  const bundleRoot = join(import.meta.dirname, "../..", ".claude", "skills");
+  let tmpRoot: string;
+  let roots: SkillsInstallRoots;
+
+  beforeEach(() => {
+    tmpRoot = mkdtempSync(join(tmpdir(), "phax-skillsargv-test-"));
+    roots = { projectRoot: tmpRoot, homeDir: tmpRoot, bundleRoot };
+  });
+
+  afterEach(() => {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
   it("returns 2 and prints error for invalid --target", async () => {
     const { out, errors } = captureOutput();
-    const exitCode = await runSkillsInstall({ target: "bad-target" }, out);
+    const exitCode = await runSkillsInstall({ target: "bad-target" }, out, roots);
     expect(exitCode).toBe(2);
     expect(errors[0]).toContain("Invalid --target");
     expect(errors[0]).toContain("claude");
@@ -112,7 +132,7 @@ describe("runSkillsInstall validation", () => {
 
   it("returns 2 and prints error for invalid --scope", async () => {
     const { out, errors } = captureOutput();
-    const exitCode = await runSkillsInstall({ target: "claude", scope: "bad-scope" }, out);
+    const exitCode = await runSkillsInstall({ target: "claude", scope: "bad-scope" }, out, roots);
     expect(exitCode).toBe(2);
     expect(errors[0]).toContain("Invalid --scope");
     expect(errors[0]).toContain("project");
@@ -121,9 +141,8 @@ describe("runSkillsInstall validation", () => {
   it("accepts all valid targets without validation error", async () => {
     for (const target of ["claude", "codex", "agent"]) {
       const { out, errors } = captureOutput();
-      // Will fail at installSkill (bundle not in cwd), but should pass validation
-      const exitCode = await runSkillsInstall({ target }, out);
-      // Exit code 2 is fine here (bundle missing), but NOT for invalid-target reason
+      const exitCode = await runSkillsInstall({ target }, out, roots);
+      // Install succeeds into the temp root; the point is no validation refusal.
       if (exitCode === 2) {
         expect(errors[0]).not.toContain("Invalid --target");
       }
@@ -133,7 +152,7 @@ describe("runSkillsInstall validation", () => {
   it("accepts both valid scopes without validation error", async () => {
     for (const scope of ["project", "user"]) {
       const { out, errors } = captureOutput();
-      const exitCode = await runSkillsInstall({ target: "claude", scope }, out);
+      const exitCode = await runSkillsInstall({ target: "claude", scope }, out, roots);
       if (exitCode === 2) {
         expect(errors[0]).not.toContain("Invalid --scope");
       }
@@ -142,7 +161,7 @@ describe("runSkillsInstall validation", () => {
 
   it("returns 2 and prints error for an unknown skill", async () => {
     const { out, errors } = captureOutput();
-    const exitCode = await runSkillsInstall({ target: "claude", skill: "bogus-skill" }, out);
+    const exitCode = await runSkillsInstall({ target: "claude", skill: "bogus-skill" }, out, roots);
     expect(exitCode).toBe(2);
     expect(errors[0]).toContain('Unknown skill "bogus-skill"');
     expect(errors[0]).toContain("phax-planning");
@@ -152,8 +171,7 @@ describe("runSkillsInstall validation", () => {
   it("accepts exposed skill names without validation error", async () => {
     for (const skill of ["phax-planning", "phax-cli", "phax-spec"]) {
       const { out, errors } = captureOutput();
-      // Will fail at installSkill (bundle not in cwd), but should pass validation
-      const exitCode = await runSkillsInstall({ target: "claude", skill }, out);
+      const exitCode = await runSkillsInstall({ target: "claude", skill }, out, roots);
       if (exitCode === 2) {
         expect(errors[0]).not.toContain("Unknown skill");
       }
@@ -161,10 +179,10 @@ describe("runSkillsInstall validation", () => {
   });
 
   it("installs every bundled skill when no skill is named", async () => {
-    // project scope writes under the repo's own .claude/skills, which already
-    // holds both bundled skills — so this is idempotent (already-present).
+    // Installs from the real bundle into the temp project root, so every skill
+    // is freshly created there.
     const { out, lines, errors } = captureOutput();
-    const exitCode = await runSkillsInstall({ target: "claude", scope: "project" }, out);
+    const exitCode = await runSkillsInstall({ target: "claude", scope: "project" }, out, roots);
     expect(errors).toHaveLength(0);
     expect(exitCode).toBe(0);
     const joined = lines.join("\n");
