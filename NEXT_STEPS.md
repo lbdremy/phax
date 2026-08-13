@@ -5,42 +5,41 @@ graphs / ETL / change detection / democratization — and the desktop-app idea i
 `docs/ideas/desktop-app.md`); updated 2026-08-10 (entire.io positioning analysis and a
 second pass on the Josh Rosen data-engineering article); updated 2026-08-11 (spec 26
 frontmatter planning added as priority); updated 2026-08-12 (plans 22 + 25 landed;
-draft specs 27 + 28 approval sequence added). Tick items off as they land, and delete
-this file when it is empty.
+draft specs 27 + 28 approval sequence added); updated 2026-08-13 (spec 26 / plan 46
+landed and retired; specs 27 + 28 swept for it). Tick items off as they land, and
+delete this file when it is empty.
 
 ## Approve the draft specs 27 and 28 (in this order)
 
 Two Drafts written 2026-08-12. Order matters: 28 renames the vocabulary 27 is written
-in, so 28 goes first and 27 gets swept before its approval.
+in, so 28 goes first and 27 gets swept before its approval. Both were swept on
+2026-08-13 for the fact that spec 26 landed — no stale cross-references remain.
 
 - [ ] Review + approve `docs/specs/28-rename-archived-to-completed.md` — terminal
       status `Archived` → `Completed` (outcome pair `Completed | Abandoned`; the
       `archive/` folder keeps its name); CLI verb `phax artifact archive` →
-      `phax artifact complete`, no alias; one-time staleness-neutral migration riding
-      spec 26's frontmatter rollout.
+      `phax artifact complete`, no alias; one-time staleness-neutral migration.
+      **Changed since drafting**: the §9 "ride spec 26's rollout" recommendation is
+      dead — 26 landed 2026-08-12 with the old vocabulary, so the rename is standalone
+      and rewrites every artifact's `status` key a second time. Staleness neutrality
+      (§5.5) must now be engineered rather than falling out of 26's one-time
+      fingerprint recomputation; on the upside the rewrite is one decoded YAML value
+      per file, not header-prose pattern matching.
 - [ ] After 28 approves: sweep `docs/specs/27-run-carries-archival.md` terminology
       (`Archived` → `Completed`, `archive` verb → `complete`), then review + approve —
       run completion (final phase gates green, before `review_open`) applies the plan's
       terminal transition on the run branch; ride-along spec completion behind the
       chain gate; `phax publish-pr` untouched; merge lands work + record atomically.
-- [ ] Ripples once 28 is approved: spec 26's plan must use `Completed` (28 supersedes
-      its status-set naming); the `phax-spec`/`phax-planning` skills and CLI docs
-      update in the same rollout.
+      Its spec-26 sequencing constraint is already lifted (swept 2026-08-13).
+- [ ] Ripples once 28 is approved: the `phax-spec`/`phax-planning` skills, the CLI help
+      (`phax.usage.kdl`) and `docs/cli/reference.md` all state `Archived`/`archive` —
+      spec 26's phase-03 just rewrote them, and 28's rollout rewrites them again.
 
 ## Plan and run the approved specs
 
-Planning order: 21 → 22 (22 consumes 21's state vocabulary); 23 and 24 are independent
-and can go anytime after — 24 is the largest and consumes 21 + 22.
+The lifecycle chain 21 → 22 → 25 → 26 has all landed. What remains here is 23 and 24:
+independent of each other, both plannable now — 24 is the largest and consumes 21 + 22.
 
-- [ ] **Priority — write the plan for spec 26**
-      (`docs/specs/26-artifact-frontmatter-metadata.md`, Approved 2026-08-11): YAML
-      frontmatter replaces the `Status:`/`Source-Spec:`/`Approved:` header lines on all
-      lifecycle artifacts; key-level fingerprint neutrality; migration coupled with
-      `approvals.json` fingerprint recomputation. Plan via the phax-planning skill →
-      `docs/plans/26-artifact-frontmatter-metadata-plan.md`. The spec-§10 sequencing
-      constraint is now satisfied: plan 25 landed 2026-08-12 — nothing blocks this
-      plan. If spec 28 is approved first, the plan uses `Completed` (not `Archived`)
-      and carries 28's rename in the same migration pass.
 - [x] `docs/specs/21-artifact-lifecycle-status.md` — spec/plan state machines; only an
       `Approved` plan runs; archive-location agreement; `phax artifact` commands.
       **Landed on `main` 2026-08-10** (plan 21, five phases incl. the whole-tree
@@ -53,14 +52,22 @@ and can go anytime after — 24 is the largest and consumes 21 + 22.
   - [x] Post-merge operator step: re-approve plans 39, 41, 44, 45 so they gain
         approval records — **done 2026-08-11** (approval baselines recorded; 39 and 41
         compute fresh).
-  - [ ] Plans 44 and 45 have gone stale *again* (`ground-changed`: the README/docs and
-        `package.json` churn from landing plans 22 and 25). Review and
-        `phax artifact approve` them before running — `phax plans status` is the
-        source of truth.
+  - [ ] Plans 41, 44 and 45 are stale as of 2026-08-13 (`ground-changed`: 41 from the
+        `phax-planning` skill rewrite, 44 from README/`docs/cli/reference.md`/`phax.json`
+        churn, 45 from `package.json`/lockfile churn — landing plans 22, 25 and 46).
+        Only plan 39 computes fresh. Review and `phax artifact approve` them before
+        running — `phax plans status` is the source of truth.
 - [x] `docs/specs/25-artifact-transition-autocommit.md` — every artifact transition
       auto-commits exactly its write-set (clean-target precondition, path-scoped
       staging). **Landed on `main` 2026-08-12** (plan 25; the post-landing review
       dropped `--no-commit` — transitions always commit).
+- [x] `docs/specs/26-artifact-frontmatter-metadata.md` — YAML frontmatter replaces the
+      `Status:`/`Source-Spec:`/`Approved:` header lines on all lifecycle artifacts;
+      key-level fingerprint neutrality; migration coupled with `approvals.json`
+      fingerprint recomputation. **Landed on `main` 2026-08-12** (plan 46, three
+      phases: primitives → frontmatter-only + 90-artifact migration → authoring
+      surface). Shipped with `Archived` intact, since spec 28 was not approved first —
+      see the 28 item above. Plan 46 and spec 26 retired to `archive/` 2026-08-13.
 - [ ] `docs/specs/23-phase-decision-requests.md` — blocking agent-raised decision
       requests; answer-and-resume; decisions in the review handoff.
 - [ ] `docs/specs/24-batch-execution-disjoint-plans.md` — parallel disjoint plans,

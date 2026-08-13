@@ -245,8 +245,8 @@ Constraints the plan must respect: transitions on the run branch go through the 
 domain transition functions and git port as `phax artifact` — no parallel archival path;
 the archival step is part of the run flow (state transitions through `src/domain/state.ts`
 discipline apply to the run side too); how §5.6's failure surfaces reuses the run's
-existing failure handling rather than inventing a new channel. Sequence after spec 26's
-frontmatter migration if that lands first — this spec is format-agnostic, but the
-transition write path it calls is being reworked there. Batch execution (24) will need to
+existing failure handling rather than inventing a new channel. Spec 26's frontmatter
+migration landed on 2026-08-12, so the transition write path this spec calls is already
+in its final shape — no sequencing constraint remains. Batch execution (24) will need to
 decide which member of a stacked batch carries a shared spec's archival; nothing here may
 preclude that being the last-merging member.

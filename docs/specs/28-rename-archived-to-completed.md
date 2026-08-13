@@ -15,9 +15,11 @@ into the artifact's `archive/` directory, and validation enforces the invariant 
 (terminal status ⇔ archive location). The CLI verbs are `phax artifact approve | stale |
 reopen | abandon | archive`, each transition auto-committed (25).
 
-Two approved-but-unimplemented documents restate this vocabulary: the frontmatter
-migration (26) names the status sets, and the run-carries-archival spec (27, Draft) makes
-run completion apply the plan's and spec's terminal transition on the run branch.
+The frontmatter migration (26) has since landed with this vocabulary intact: the status
+sets now live in an Effect Schema decoding a YAML `status` key, and every artifact in the
+repository carries it. One approved-but-unimplemented document restates the vocabulary:
+the run-carries-archival spec (27, Draft) makes run completion apply the plan's and
+spec's terminal transition on the run branch.
 
 ## 2. Problem
 
@@ -83,9 +85,9 @@ no plan stale because of the rename itself.
 
 ## 6. Surface
 
-Artifact status, before → after (value **normative**):
+Artifact status in the YAML frontmatter block, before → after (value **normative**):
 
-    Status: Archived        →        Status: Completed
+    status: Archived        →        status: Completed
 
 CLI, before → after (verb spelling **normative** per §5.4):
 
@@ -165,15 +167,16 @@ Question: does the `archive/` directory rename too (e.g. `completed/` + `abandon
 Recommendation: keep `archive/` — "archive" is an accurate place name for both outcomes;
 the collision this spec removes was in the *status* name, not the folder.
 
-Question: is the rename implemented standalone or riding the frontmatter migration (26)?
+Question (settled by events, 2026-08-13): standalone or riding the frontmatter
+migration (26)?
 
-- Ride 26's rollout (recommended) — abandons: independence; this spec's implementation
-  waits on 26's plan.
-- Standalone first — abandons: the single metadata rewrite pass; every artifact gets
-  touched twice, and 26's migration must then be re-checked against the new vocabulary.
-
-Recommendation: ride — 26's migration already rewrites every artifact's metadata block
-and recomputes fingerprints once; the rename is one more substitution in the same pass.
+26 landed on `main` on 2026-08-12 with the old vocabulary, so riding it is no longer
+available: the rename is standalone. What that costs is the single metadata rewrite pass
+— every artifact's `status` key is touched a second time — and §5.5's staleness
+neutrality now has to be engineered on its own rather than falling out of 26's one-time
+fingerprint recomputation. The upside the ride option was trading away is now free:
+frontmatter is a decoded key, so the migration rewrites one YAML value per file instead
+of pattern-matching header prose.
 
 ## 10. Implementation-planning note
 
@@ -185,9 +188,10 @@ messages accept exactly one spelling.
 
 Interactions this spec amends or constrains:
 
-- Spec 26 (approved): its §5.3/§6 name the old status sets; its implementation plan must
-  use `Completed` — this spec supersedes the naming, and per the §9 default the two
-  migrations ride together.
+- Spec 26 (landed 2026-08-12, archived): it shipped the old status names into the
+  frontmatter schema, the transition commands, the authoring skills, the CLI help and all
+  90 migrated artifacts. The rename therefore rewrites what 26 just wrote — one YAML
+  `status` value per file — instead of riding its pass (§9).
 - Spec 27 (draft): references `Archived` and `phax artifact archive` throughout; sweep
   its terminology when this spec is approved, before 27 is planned.
 - The `phax-spec` and `phax-planning` skills and CLI docs state the old vocabulary and
