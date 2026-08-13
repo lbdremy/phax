@@ -148,10 +148,18 @@ uses (26).
   implemented, not here.
 - **No partial-merge handling** — if a published PR is split or cherry-picked by hand,
   the human owns reconciling the archival commits like any other commit on the branch.
+- **No dependent-pointer rewriting** — the ride-along archival moves the spec out from
+  under dependent plans that are already terminal (the chain gate guarantees they are),
+  leaving their `source-spec` keys naming the pre-archive path. Those keys are not
+  rewritten. A plan's `source-spec` records the spec's path *as declared at approval*,
+  and resolution already accepts the declared path or its archive counterpart, so both
+  spellings name the same relation and both resolve. Rewriting them would pull files
+  other than the transitioning artifact into the transition's write-set, which is
+  exactly what 25 forbids.
 - **Concurrent-approval races are out of scope** — a new dependent plan approved on
   `main` after run completion is not detected by the branch-side chain gate; post-merge,
-  its dangling `Source-Spec:` path fails validation loudly (22 §5.2), which is the
-  designed safety net for concurrent edits generally.
+  its `source-spec` path fails validation loudly (22 §5.2) if the spec is gone from both
+  candidate locations, which is the designed safety net for concurrent edits generally.
 
 ## 8. Acceptance criteria
 
@@ -247,6 +255,10 @@ the archival step is part of the run flow (state transitions through `src/domain
 discipline apply to the run side too); how §5.6's failure surfaces reuses the run's
 existing failure handling rather than inventing a new channel. Spec 26's frontmatter
 migration landed on 2026-08-12, so the transition write path this spec calls is already
-in its final shape — no sequencing constraint remains. Batch execution (24) will need to
+in its final shape — no sequencing constraint remains. The plan must not "fix" the
+mixed `source-spec` spellings this flow produces (§7): the repository already carries
+both — archived plans retired before their spec name `docs/specs/archive/…`, those
+retired plan-first name `docs/specs/…` — and dual resolution is the designed reader, not
+a workaround. Batch execution (24) will need to
 decide which member of a stacked batch carries a shared spec's archival; nothing here may
 preclude that being the last-merging member.

@@ -80,8 +80,9 @@ SHALL fail naming `complete` as the replacement (an error, not an accepted alias
 ### 5.5 Migration induces no staleness
 
 The system's one-time migration SHALL rewrite every artifact whose status reads
-`Archived` — live and under `archive/` — to `Completed`, such that `phax plans` reports
-no plan stale because of the rename itself.
+`Archived` — live and under `archive/` — to `Completed`, such that `phax plans status`
+reports no plan stale by that rewrite. (The `ground-changed` staleness that landing the
+implementation diff produces is ordinary and out of scope here.)
 
 ## 6. Surface
 
@@ -124,6 +125,12 @@ Status inspection and transition commits pick up the name (**indicative**):
   with the repo's no-back-compat doctrine.
 - **No semantic change to what completion means** — the definitions of 21 (spec consumed,
   plan ran) carry over verbatim under the new name.
+- **No change to run-level archival** — the run registry's `archived` run status,
+  `phax archive <run>` and `phax runs --archived` keep their names and are untouched by
+  §5.4. Archiving a *run* really is a filing action (worktrees deleted, registry marked)
+  and has no `Abandoned` counterpart to collide with, so the §2 argument does not apply
+  to it. After this rename the two spellings stop competing: `phax archive` is the run
+  verb, `phax artifact complete` the artifact one.
 
 ## 8. Acceptance criteria
 
@@ -152,8 +159,9 @@ then the command fails naming `complete`. (refs §5.4)
 
 ### The migration is staleness-neutral
 
-Given the migrated repository, when `phax plans` runs, then no plan is reported stale
-whose only change since approval is the `Archived → Completed` rewrite. (refs §5.5)
+Given the migrated repository, when `phax plans status` runs, then no plan is reported
+stale whose only change since approval is the `Archived → Completed` rewrite, and
+`docs/plans/approvals.json` needs no recomputation. (refs §5.5)
 
 ## 9. Open questions for implementation planning
 
@@ -171,12 +179,13 @@ Question (settled by events, 2026-08-13): standalone or riding the frontmatter
 migration (26)?
 
 26 landed on `main` on 2026-08-12 with the old vocabulary, so riding it is no longer
-available: the rename is standalone. What that costs is the single metadata rewrite pass
-— every artifact's `status` key is touched a second time — and §5.5's staleness
-neutrality now has to be engineered on its own rather than falling out of 26's one-time
-fingerprint recomputation. The upside the ride option was trading away is now free:
-frontmatter is a decoded key, so the migration rewrites one YAML value per file instead
-of pattern-matching header prose.
+available: the rename is standalone and every artifact's `status` key is touched a second
+time. What that would have cost — a second fingerprint recomputation across
+`approvals.json` — 26 already removed: its fingerprint source deletes the `status` and
+`approved` keys before hashing, so rewriting a status value cannot move a fingerprint.
+§5.5 is therefore a regression check on a property that already holds, not work to
+engineer, and the rewrite is one decoded YAML value per file rather than header-prose
+pattern matching. Standalone costs a second pass over the files and buys independence.
 
 ## 10. Implementation-planning note
 
@@ -195,7 +204,9 @@ Interactions this spec amends or constrains:
 - Spec 27 (draft): references `Archived` and `phax artifact archive` throughout; sweep
   its terminology when this spec is approved, before 27 is planned.
 - The `phax-spec` and `phax-planning` skills and CLI docs state the old vocabulary and
-  must be updated in the same rollout.
+  must be updated in the same rollout. `phax.usage.kdl` is the source for both the CLI
+  help and `docs/cli/reference.md`, so the verb rename starts there; its run-level
+  `archive` command and `--archived` flag stay as they are (§7).
 
 Constraint: the rename is wholesale at the boundary — decode through the schema with the
 new vocabulary only; no transitional dual-accept, per the no-back-compat rule.
