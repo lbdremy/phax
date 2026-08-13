@@ -26,21 +26,28 @@ in, so 28 goes first and 27 gets swept before its approval. Both were swept on
       regression check rather than work; and fenced off run-level archival
       (`phax archive <run>`, the `archived` run status, `phax runs --archived`) as a
       non-goal, since §5.4 renames only the artifact verb.
-- [ ] **Next — sweep then approve `docs/specs/27-run-carries-archival.md`**: terminology
-      (`Archived` → `Completed`, `archive` verb → `complete`) now that 28 is approved,
-      then review + approve — run completion (final phase gates green, before
-      `review_open`) applies the plan's terminal transition on the run branch;
+- [x] `docs/specs/27-run-carries-archival.md` — run completion (final phase gates green,
+      before `review_open`) applies the plan's terminal transition on the run branch;
       ride-along spec completion behind the chain gate; `phax publish-pr` untouched;
-      merge lands work + record atomically. Its spec-26 sequencing constraint is
-      already lifted, and it now states as a non-goal (2026-08-13) that dependent plans'
-      `source-spec` keys are *not* rewritten when the ride-along archival moves a spec:
-      resolution accepts the declared path or its archive counterpart, so the two
-      spellings the repository carries both resolve, and rewriting them would pull
-      non-transitioning files into the write-set spec 25 scopes.
+      merge lands work + record atomically. **Swept into 28's vocabulary and approved
+      2026-08-13** (`Archived` → `Completed`, `archive` verb → `complete`, archival
+      commit → completion commit; the `archive/` folder and the archive move keep their
+      names per 28 §7). The filename keeps its `-archival` slug — an archived plan and
+      the commit history cite it, and slug/title divergence is already normal here. Two
+      notes added: dependent plans' `source-spec` keys are *not* rewritten when the
+      ride-along completion moves a spec (resolution accepts the declared path or its
+      archive counterpart, and rewriting would pull non-transitioning files into the
+      write-set 25 scopes); and §10 records that 27 is now written in a vocabulary no
+      code implements.
+- [ ] **Next — plan 28, then plan 27, in that order.** No plan exists for either. The
+      order is a hard constraint, not a preference: 27 names `Completed` and
+      `phax artifact complete` throughout, so its caller would reference a status the
+      schema rejects until 28's rename lands. Plan via the phax-planning skill.
 - [ ] Ripple from 28: the `phax-spec`/`phax-planning` skills, the CLI help
-      (`phax.usage.kdl`) and `docs/cli/reference.md` all state `Archived`/`archive` —
-      spec 26's phase-03 just rewrote them, and 28's rollout rewrites them again.
-- [ ] Plan 28 (and 27) once both specs are approved — no plan exists for either yet.
+      (`phax.usage.kdl`, the source for `docs/cli/reference.md`) all state
+      `Archived`/`archive` — spec 26's phase-03 just rewrote them, and 28's rollout
+      rewrites them again. The run-level `phax archive <run>`, the `archived` run
+      status and `phax runs --archived` stay as they are (28 §7).
 
 ## Plan and run the approved specs
 
