@@ -57,6 +57,7 @@ Every plan carries a YAML frontmatter block at offset 0, before the `# ` title:
 ---
 status: Approved
 source-spec: docs/specs/NN-<slug>.md
+---
 ```
 
 - **`status`** — the plan's lifecycle status, one of `Draft`, `Approved`,

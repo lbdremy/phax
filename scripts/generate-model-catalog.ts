@@ -11,10 +11,7 @@ import type { ProviderConfig } from "../src/schemas/providerConfig.js";
 export const BEGIN_MARKER = "<!-- BEGIN generated: model-catalog -->";
 export const END_MARKER = "<!-- END generated: model-catalog -->";
 
-const SKILL_FILES = [
-  ".claude/skills/phax-planning/SKILL.md",
-  ".agents/skills/phax-planning/SKILL.md",
-];
+const SKILL_FILES = [".claude/skills/phax-planning/SKILL.md"];
 
 /**
  * Render the catalog table from a ProviderConfig. Rows are grouped in the
