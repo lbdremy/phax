@@ -31,11 +31,11 @@ you have left the spec layer.
 
 Every spec carries a `status` key in its YAML frontmatter block, drawn from a fixed
 set. phax **enforces** it: the value must be one of these exact strings, and a
-terminal status (`Abandoned`, `Archived`) must live under `docs/specs/archive/` —
+terminal status (`Abandoned`, `Completed`) must live under `docs/specs/archive/` —
 status and location must agree, or validation fails.
 
 ```
-Draft ──▶ Approved ──▶ Archived
+Draft ──▶ Approved ──▶ Completed
   │           │
   └──▶ Abandoned ◀──┘
 ```
@@ -45,13 +45,13 @@ Draft ──▶ Approved ──▶ Archived
   unambiguous, acceptance criteria are testable. Only an Approved spec should be planned.
 - **Abandoned** — dropped before it shipped (terminal). The file moves to
   `docs/specs/archive/`.
-- **Archived** — consumed. The spec has produced a plan and tests; it moves to
+- **Completed** — consumed. The spec has produced a plan and tests; it moves to
   `docs/specs/archive/`. From here on, code + tests are the source of truth. A readable spec
   _view_ can be regenerated from the tests on demand — it is a derived report, not a file to
   maintain.
 
 Move status through its legal transitions with the `phax artifact` command group
-(`phax artifact approve|abandon|archive <path>`) rather than hand-editing — it
+(`phax artifact approve|abandon|complete <path>`) rather than hand-editing — it
 validates the transition and, on a terminal one, moves the file into `archive/`
 for you. Record the status in the frontmatter block (below) and keep it accurate.
 
@@ -70,7 +70,7 @@ unknown or missing key fails validation.
 
 ```markdown
 ---
-status: Draft | Approved | Abandoned | Archived
+status: Draft | Approved | Abandoned | Completed
 date: YYYY-MM-DD
 audience: implementation planning with <agent>
 scope: functional behavior and consumption surface

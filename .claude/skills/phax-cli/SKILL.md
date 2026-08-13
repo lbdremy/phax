@@ -72,9 +72,9 @@ under `phax agent` (see `--usage`).
 
 Specs (`docs/specs/`) and plans (`docs/plans/`) each carry a `status` key in
 their YAML frontmatter block, drawn from a fixed per-kind set (specs: `Draft`,
-`Approved`, `Abandoned`, `Archived`; plans add `Stale`). phax **enforces the one
+`Approved`, `Abandoned`, `Completed`; plans add `Stale`). phax **enforces the one
 gate that matters: only an `Approved` plan can run** — `phax run` refuses a
-`Draft`, `Stale`, or retired (`Abandoned`/`Archived`) plan, naming the status and
+`Draft`, `Stale`, or retired (`Abandoned`/`Completed`) plan, naming the status and
 the remedy, *before* extraction. Extraction itself stays ungated, so you can
 still preview a draft's `phax-plan.json`.
 
@@ -87,7 +87,7 @@ legal transitions (see `--usage` for the exact subcommands and flags):
   under `docs/plans/` before `phax run`.
 - `phax artifact stale` / `reopen` — mark a plan `Stale`, or reopen a `Stale`
   plan back to `Draft` (plans only).
-- `phax artifact abandon` / `archive` — terminal transitions; phax moves the file
+- `phax artifact abandon` / `complete` — terminal transitions; phax moves the file
   into the matching `archive/` directory as part of the transition.
 
 Transitions are validated: an illegal one is refused and names the legal set, and
