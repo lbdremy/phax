@@ -803,7 +803,7 @@ Regenerate phax.schema.json from the installed binary's config contract; never m
 
 - **Usage**: `phax artifact <SUBCOMMAND>`
 
-Parent command for inspecting and transitioning the lifecycle status of a spec (docs/specs/) or plan (docs/plans/). Specs carry Draft, Approved, Abandoned, or Archived; plans additionally carry Stale. Transitioning to a terminal status (Abandoned, Archived) moves the file into the artifact's archive/ subdirectory as part of the transition. Illegal transitions and validation failures (missing frontmatter block, unknown status, status/location disagreement) refuse with exit code 12.
+Parent command for inspecting and transitioning the lifecycle status of a spec (docs/specs/) or plan (docs/plans/). Specs carry Draft, Approved, Abandoned, or Completed; plans additionally carry Stale. Transitioning to a terminal status (Abandoned, Completed) moves the file into the artifact's archive/ subdirectory as part of the transition. Illegal transitions and validation failures (missing frontmatter block, unknown status, status/location disagreement) refuse with exit code 12.
 
 ### Examples
 
@@ -873,7 +873,7 @@ phax artifact stale docs/plans/32-billing-plan.md
 
 - **Usage**: `phax artifact abandon <path>`
 
-Abandons an artifact — a terminal status distinct from Archived, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).
+Abandons an artifact — a terminal status distinct from Completed, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).
 
 Side effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Abandoned and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.
 
@@ -889,13 +889,13 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 phax artifact abandon docs/plans/45-typescript-7-migration-plan.md
 ```
 
-## `phax artifact archive`
+## `phax artifact complete`
 
-- **Usage**: `phax artifact archive <path>`
+- **Usage**: `phax artifact complete <path>`
 
-Archives an artifact — a terminal status for completed work. Legal from Approved (specs) or Approved or Stale (plans).
+Completes an artifact — a terminal status for work that ran to completion. Legal from Approved (specs) or Approved or Stale (plans).
 
-Side effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Archived and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.
+Side effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Completed and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.
 
 ### Arguments
 
@@ -906,7 +906,7 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 ### Examples
 
 ```
-phax artifact archive docs/specs/21-artifact-lifecycle-status.md
+phax artifact complete docs/specs/21-artifact-lifecycle-status.md
 ```
 
 ## `phax artifact reopen`
