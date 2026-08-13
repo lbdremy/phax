@@ -221,7 +221,7 @@ export class SpecRetirementBlockedError extends Data.TaggedError("SpecRetirement
 }> {
   override get message(): string {
     const names = this.dependents.map((d) => `${d.path} (${d.status})`).join(", ");
-    return `${this.specPath} cannot be retired: it is still declared as Source-Spec by ${names} — abandon or archive them first`;
+    return `${this.specPath} cannot be retired: it is still declared as Source-Spec by ${names} — abandon or complete them first`;
   }
 }
 

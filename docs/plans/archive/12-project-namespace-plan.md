@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/12-project-namespace.md
 ---
 # Plan — Project Namespaces and Repo-Scoped Run Names

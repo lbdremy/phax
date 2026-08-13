@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Plan 26 — End-of-run recap and rate-limit reset-date fix

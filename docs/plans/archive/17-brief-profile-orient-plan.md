@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/17-brief-profile-orient.md
 ---
 # Brief Profile Orient

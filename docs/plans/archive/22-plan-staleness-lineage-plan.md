@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/22-plan-staleness-lineage.md
 ---
 # Plan staleness and lineage

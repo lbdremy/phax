@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Implementation plan — Enabled-gated routing + spec §12 default table (Option A)

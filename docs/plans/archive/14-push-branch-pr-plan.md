@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/07-push-branch-pr.md
 ---
 # Plan 14 — Push branch and create pull request

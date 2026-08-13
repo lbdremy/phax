@@ -19,8 +19,8 @@ describe("transitionWriteSet", () => {
     ]);
   });
 
-  it("spec archive: artifact path plus archive destination, no approvals file", () => {
-    expect(transitionWriteSet("spec", "docs/specs/21-foo.md", "Archived")).toEqual([
+  it("spec complete: artifact path plus archive destination, no approvals file", () => {
+    expect(transitionWriteSet("spec", "docs/specs/21-foo.md", "Completed")).toEqual([
       "docs/specs/21-foo.md",
       "docs/specs/archive/21-foo.md",
     ]);
@@ -53,8 +53,8 @@ describe("transitionWriteSet", () => {
     ]);
   });
 
-  it("plan archive: artifact path, approvals file, and archive destination", () => {
-    expect(transitionWriteSet("plan", "docs/plans/40-plan.md", "Archived")).toEqual([
+  it("plan complete: artifact path, approvals file, and archive destination", () => {
+    expect(transitionWriteSet("plan", "docs/plans/40-plan.md", "Completed")).toEqual([
       "docs/plans/40-plan.md",
       APPROVALS_FILE_PATH,
       "docs/plans/archive/40-plan.md",
@@ -68,7 +68,7 @@ describe("transitionCommitMessage", () => {
     ["Stale", "stale"],
     ["Draft", "reopen"],
     ["Abandoned", "abandon"],
-    ["Archived", "archive"],
+    ["Completed", "complete"],
   ] as const)("maps target %s to verb %s", (target, verb) => {
     const { subject } = transitionCommitMessage("plan", target, "docs/plans/40-plan.md");
     expect(subject).toBe(`chore(plans): ${verb} 40-plan`);
@@ -80,9 +80,9 @@ describe("transitionCommitMessage", () => {
   });
 
   it("body names the transition and the repo-relative path", () => {
-    const { body } = transitionCommitMessage("plan", "Archived", "docs/plans/40-plan.md");
+    const { body } = transitionCommitMessage("plan", "Completed", "docs/plans/40-plan.md");
     expect(body).toContain("docs/plans/40-plan.md");
-    expect(body).toContain("Archived");
+    expect(body).toContain("Completed");
   });
 
   it("strips the .md extension from the slug", () => {

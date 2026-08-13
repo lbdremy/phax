@@ -3,8 +3,8 @@ import { InvalidArtifactTransitionError } from "../errors.js";
 
 export type ArtifactKind = "spec" | "plan";
 
-export const SPEC_STATUSES = ["Draft", "Approved", "Abandoned", "Archived"] as const;
-export const PLAN_STATUSES = ["Draft", "Approved", "Stale", "Abandoned", "Archived"] as const;
+export const SPEC_STATUSES = ["Draft", "Approved", "Abandoned", "Completed"] as const;
+export const PLAN_STATUSES = ["Draft", "Approved", "Stale", "Abandoned", "Completed"] as const;
 
 export type SpecStatus = (typeof SPEC_STATUSES)[number];
 export type PlanStatus = (typeof PLAN_STATUSES)[number];
@@ -20,7 +20,7 @@ export function parsePlanStatus(value: string): PlanStatus | null {
   return (PLAN_STATUSES as readonly string[]).includes(value) ? (value as PlanStatus) : null;
 }
 
-const TERMINAL_STATUSES: ReadonlySet<ArtifactStatus> = new Set(["Abandoned", "Archived"]);
+const TERMINAL_STATUSES: ReadonlySet<ArtifactStatus> = new Set(["Abandoned", "Completed"]);
 
 export function isTerminalStatus(status: ArtifactStatus): boolean {
   return TERMINAL_STATUSES.has(status);
@@ -28,17 +28,17 @@ export function isTerminalStatus(status: ArtifactStatus): boolean {
 
 const SPEC_TRANSITIONS: Record<SpecStatus, readonly SpecStatus[]> = {
   Draft: ["Approved", "Abandoned"],
-  Approved: ["Abandoned", "Archived"],
+  Approved: ["Abandoned", "Completed"],
   Abandoned: [],
-  Archived: [],
+  Completed: [],
 };
 
 const PLAN_TRANSITIONS: Record<PlanStatus, readonly PlanStatus[]> = {
   Draft: ["Approved", "Abandoned"],
-  Approved: ["Approved", "Stale", "Abandoned", "Archived"],
-  Stale: ["Approved", "Draft", "Abandoned", "Archived"],
+  Approved: ["Approved", "Stale", "Abandoned", "Completed"],
+  Stale: ["Approved", "Draft", "Abandoned", "Completed"],
   Abandoned: [],
-  Archived: [],
+  Completed: [],
 };
 
 export function legalTargetsFrom<K extends ArtifactKind>(

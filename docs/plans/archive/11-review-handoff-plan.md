@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/05-review-handoff.md
 ---
 # Implementation plan — Run review handoff and global file reconciliation

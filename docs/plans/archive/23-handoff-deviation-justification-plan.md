@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Plan — Make the agent actually justify file-plan deviations, and surface the ones it skips

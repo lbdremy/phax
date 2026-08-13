@@ -578,7 +578,7 @@ describe("plansStalenessReport", () => {
     // are never recursed into.
     fsImpl.setFile(
       "docs/plans/archive/38-old-plan.md",
-      deterministicPlanMd({ status: "Archived", sourceSpec: "(none)" }),
+      deterministicPlanMd({ status: "Completed", sourceSpec: "(none)" }),
     );
 
     const report = await Effect.runPromise(

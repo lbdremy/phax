@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Implementation plan — Per-invocation provider-priority override for `phax run` / `phax resume`

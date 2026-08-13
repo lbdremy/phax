@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Implementation plan — PHAX observability & telemetry doctrine

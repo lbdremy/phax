@@ -37,7 +37,7 @@ describe("runArtifactStatus", () => {
       Effect.succeed({
         kind: "plan",
         status: "Approved",
-        legalTargets: ["Approved", "Stale", "Abandoned", "Archived"],
+        legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
       }),
     );
 
@@ -51,7 +51,7 @@ describe("runArtifactStatus", () => {
     expect(text).toContain("Status:");
     expect(text).toContain("Approved");
     expect(text).toContain("Legal transitions:");
-    expect(text).toContain("Stale, Abandoned, Archived");
+    expect(text).toContain("Stale, Abandoned, Completed");
   });
 
   it("returns exit code 12 and surfaces the validation message on failure", async () => {
@@ -100,11 +100,11 @@ describe("runArtifactTransition", () => {
     expect(lines.some((l) => l.startsWith("Path:"))).toBe(false);
   });
 
-  it("archive: logs the resulting status and the new archived path", async () => {
+  it("complete: logs the resulting status and the new archived path", async () => {
     const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
     transitionArtifact.mockReturnValue(
       Effect.succeed({
-        status: "Archived",
+        status: "Completed",
         path: "docs/specs/archive/21-artifact-lifecycle-status.md",
       }),
     );
@@ -112,13 +112,13 @@ describe("runArtifactTransition", () => {
     const { out, lines } = makeOutput();
     const code = await runArtifactTransition(
       "docs/specs/21-artifact-lifecycle-status.md",
-      "Archived",
+      "Completed",
       out,
     );
 
     expect(code).toBe(0);
     const text = lines.join("\n");
-    expect(text).toContain("Archived");
+    expect(text).toContain("Completed");
     expect(text).toContain("docs/specs/archive/21-artifact-lifecycle-status.md");
   });
 
@@ -205,10 +205,10 @@ describe("runArtifactTransition", () => {
     );
 
     const { out, errors } = makeOutput();
-    const code = await runArtifactTransition("docs/specs/22-foo.md", "Archived", out);
+    const code = await runArtifactTransition("docs/specs/22-foo.md", "Completed", out);
 
     expect(code).toBe(12);
-    expect(errors.join("\n")).toContain("abandon or archive them first");
+    expect(errors.join("\n")).toContain("abandon or complete them first");
   });
 
   it("always passes commit: true to the use case", async () => {

@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/08-install-planning-skill.md
 ---
 # Plan 17 — Install the PHAX planning skill into agent CLIs

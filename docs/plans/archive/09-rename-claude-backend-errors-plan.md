@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Plan: Rename Claude-specific backend errors/telemetry → agent-generic

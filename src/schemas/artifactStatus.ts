@@ -5,7 +5,7 @@ export const SpecStatusSchema = Schema.Union(
   Schema.Literal("Draft"),
   Schema.Literal("Approved"),
   Schema.Literal("Abandoned"),
-  Schema.Literal("Archived"),
+  Schema.Literal("Completed"),
 );
 
 export const PlanStatusSchema = Schema.Union(
@@ -13,7 +13,7 @@ export const PlanStatusSchema = Schema.Union(
   Schema.Literal("Approved"),
   Schema.Literal("Stale"),
   Schema.Literal("Abandoned"),
-  Schema.Literal("Archived"),
+  Schema.Literal("Completed"),
 );
 
 type SpecStatusSchemaType = Schema.Schema.Type<typeof SpecStatusSchema>;

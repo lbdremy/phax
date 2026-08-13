@@ -90,7 +90,7 @@ describe("inspectArtifact", () => {
       expect(result.right).toEqual({
         kind: "plan",
         status: "Approved",
-        legalTargets: ["Approved", "Stale", "Abandoned", "Archived"],
+        legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
       });
     }
   });
@@ -133,16 +133,16 @@ describe("transitionArtifact", () => {
     fsImpl.setFile("docs/specs/21-foo.md", APPROVED_SPEC);
 
     const result = await run(
-      transitionArtifact("docs/specs/21-foo.md", "Archived", DEFAULT_OPTS).pipe(
+      transitionArtifact("docs/specs/21-foo.md", "Completed", DEFAULT_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
-      expect(result.right).toEqual({ status: "Archived", path: "docs/specs/archive/21-foo.md" });
+      expect(result.right).toEqual({ status: "Completed", path: "docs/specs/archive/21-foo.md" });
     }
-    expect(fsImpl.getFile("docs/specs/archive/21-foo.md")).toContain("status: Archived");
+    expect(fsImpl.getFile("docs/specs/archive/21-foo.md")).toContain("status: Completed");
     expect(fsImpl.getFile("docs/specs/21-foo.md")).toBeUndefined();
   });
 
@@ -182,7 +182,7 @@ describe("transitionArtifact", () => {
     fsImpl.setFile("docs/plans/archive/21-foo-plan.md", "# Pre-existing archived plan\n");
 
     const result = await run(
-      transitionArtifact("docs/plans/21-foo-plan.md", "Archived", DEFAULT_OPTS).pipe(
+      transitionArtifact("docs/plans/21-foo-plan.md", "Completed", DEFAULT_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
@@ -204,7 +204,7 @@ describe("transitionArtifact", () => {
     fsImpl.setFile("docs/specs/21-foo.md", DRAFT_SPEC);
 
     const result = await run(
-      transitionArtifact("docs/specs/21-foo.md", "Archived", DEFAULT_OPTS).pipe(
+      transitionArtifact("docs/specs/21-foo.md", "Completed", DEFAULT_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
@@ -270,7 +270,7 @@ describe("transitionArtifact", () => {
 
     it("refuses when the declared spec resolves at its archive path but is not Approved (terminal)", async () => {
       const { fsImpl, layer } = makeHarness();
-      fsImpl.setFile("docs/specs/archive/22-foo.md", specMd("Archived"));
+      fsImpl.setFile("docs/specs/archive/22-foo.md", specMd("Completed"));
       fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "docs/specs/22-foo.md"));
 
       const result = await run(
@@ -283,7 +283,7 @@ describe("transitionArtifact", () => {
       if (Either.isLeft(result)) {
         expect(result.left).toBeInstanceOf(SpecNotApprovedError);
         if (result.left instanceof SpecNotApprovedError) {
-          expect(result.left.specStatus).toBe("Archived");
+          expect(result.left.specStatus).toBe("Completed");
         }
       }
     });
@@ -402,7 +402,7 @@ describe("transitionArtifact", () => {
       fsImpl.setFile("docs/plans/50-plan.md", planMd("Approved", "docs/specs/23-foo.md"));
 
       const result = await run(
-        transitionArtifact("docs/specs/23-foo.md", "Archived", DEFAULT_OPTS).pipe(
+        transitionArtifact("docs/specs/23-foo.md", "Completed", DEFAULT_OPTS).pipe(
           Effect.provide(layer),
         ),
       );
@@ -434,7 +434,7 @@ describe("transitionArtifact", () => {
       expect(Either.isRight(abandonResult)).toBe(true);
 
       const archiveResult = await run(
-        transitionArtifact("docs/specs/23-foo.md", "Archived", DEFAULT_OPTS).pipe(
+        transitionArtifact("docs/specs/23-foo.md", "Completed", DEFAULT_OPTS).pipe(
           Effect.provide(layer),
         ),
       );
@@ -451,7 +451,7 @@ describe("transitionArtifact", () => {
       fsImpl.setFile("docs/specs/24-foo.md", specMd("Approved"));
 
       const result = await run(
-        transitionArtifact("docs/specs/24-foo.md", "Archived", DEFAULT_OPTS).pipe(
+        transitionArtifact("docs/specs/24-foo.md", "Completed", DEFAULT_OPTS).pipe(
           Effect.provide(layer),
         ),
       );
@@ -550,7 +550,7 @@ describe("transitionArtifact", () => {
       gitImpl.enqueueDirtyPaths(["docs/specs/21-foo.md", "docs/specs/archive/21-foo.md"]);
 
       const result = await run(
-        transitionArtifact("docs/specs/21-foo.md", "Archived", {
+        transitionArtifact("docs/specs/21-foo.md", "Completed", {
           ...DEFAULT_OPTS,
           commit: true,
         }).pipe(Effect.provide(layer)),
@@ -703,14 +703,14 @@ describe("checkPlanRunnable", () => {
     }
   });
 
-  it("refuses an Archived plan as retired, at its archive path", () => {
+  it("refuses a Completed plan as retired, at its archive path", () => {
     const result = checkPlanRunnable(
-      planMd("Archived", "null"),
+      planMd("Completed", "null"),
       "docs/plans/archive/21-foo-plan.md",
     );
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
-      expect(result.left.status).toBe("Archived");
+      expect(result.left.status).toBe("Completed");
       expect(result.left.message).toContain("retired");
     }
   });

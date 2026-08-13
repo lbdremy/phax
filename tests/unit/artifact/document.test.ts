@@ -150,12 +150,12 @@ staus: typo
       expect(result.left.message).toContain("Draft");
       expect(result.left.message).toContain("Approved");
       expect(result.left.message).toContain("Abandoned");
-      expect(result.left.message).toContain("Archived");
+      expect(result.left.message).toContain("Completed");
     }
   });
 
   it("rejects a terminal status outside archive/ (disagreement)", () => {
-    assertLeftValidation(validateArtifact("docs/specs/21-foo.md", specFm("Archived")));
+    assertLeftValidation(validateArtifact("docs/specs/21-foo.md", specFm("Completed")));
   });
 
   it("rejects a non-terminal status inside archive/ (disagreement)", () => {
@@ -163,7 +163,7 @@ staus: typo
   });
 
   it("accepts a terminal status inside archive/", () => {
-    const result = validateArtifact("docs/specs/archive/21-foo.md", specFm("Archived"));
+    const result = validateArtifact("docs/specs/archive/21-foo.md", specFm("Completed"));
     expect(Either.isRight(result)).toBe(true);
   });
 
@@ -190,9 +190,9 @@ status: Draft
     }
   });
 
-  it("rejects an archived plan missing the source-spec key", () => {
+  it("rejects a completed plan missing the source-spec key", () => {
     const md = `---
-status: Archived
+status: Completed
 ---
 # Doc
 

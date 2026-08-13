@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/20-model-catalog-equivalence-routing.md
 ---
 # Model catalog and equivalence routing

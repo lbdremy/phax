@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/10-init-command.md
 ---
 # Plan — `phax init`, a local JSON Schema, and `phax schema upgrade`
