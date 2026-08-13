@@ -61,7 +61,7 @@ source-spec: docs/specs/NN-<slug>.md
 ```
 
 - **`status`** — the plan's lifecycle status, one of `Draft`, `Approved`,
-  `Stale`, `Abandoned`, `Archived`. phax **enforces the run gate: only an
+  `Stale`, `Abandoned`, `Completed`. phax **enforces the run gate: only an
   `Approved` plan can run** — `phax run` refuses any other status (naming the
   remedy) before extraction. Approve a repo-tracked plan with
   `phax artifact approve docs/plans/NN-<slug>-plan.md`; for a loose `plan.md`, set
