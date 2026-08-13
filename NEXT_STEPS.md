@@ -39,10 +39,16 @@ in, so 28 goes first and 27 gets swept before its approval. Both were swept on
       archive counterpart, and rewriting would pull non-transitioning files into the
       write-set 25 scopes); and §10 records that 27 is now written in a vocabulary no
       code implements.
-- [ ] **Next — plan 28, then plan 27, in that order.** No plan exists for either. The
-      order is a hard constraint, not a preference: 27 names `Completed` and
-      `phax artifact complete` throughout, so its caller would reference a status the
-      schema rejects until 28's rename lands. Plan via the phax-planning skill.
+- [x] Plan for spec 28 written 2026-08-13 —
+      `docs/plans/47-rename-archived-to-completed-plan.md` (Draft). Three phases: the
+      status flip fused with the 78-artifact repository migration (opus-4-8/high), the
+      CLI verb rename with a hidden refusing `archive` subcommand and regenerated CLI
+      documents (sonnet-5/high), the shipped skill bundles (sonnet-5/medium).
+      Deterministic extraction verified — 3 phases, no LLM fallback.
+- [ ] **Next — review + `phax artifact approve` plan 47, then run it.** After it lands,
+      write the plan for spec 27. The order is a hard constraint, not a preference: 27
+      names `Completed` and `phax artifact complete` throughout, so its caller would
+      reference a status the schema rejects until 28's rename lands.
 - [ ] Ripple from 28: the `phax-spec`/`phax-planning` skills, the CLI help
       (`phax.usage.kdl`, the source for `docs/cli/reference.md`) all state
       `Archived`/`archive` — spec 26's phase-03 just rewrote them, and 28's rollout
