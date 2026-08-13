@@ -15,25 +15,32 @@ Two Drafts written 2026-08-12. Order matters: 28 renames the vocabulary 27 is wr
 in, so 28 goes first and 27 gets swept before its approval. Both were swept on
 2026-08-13 for the fact that spec 26 landed — no stale cross-references remain.
 
-- [ ] Review + approve `docs/specs/28-rename-archived-to-completed.md` — terminal
-      status `Archived` → `Completed` (outcome pair `Completed | Abandoned`; the
-      `archive/` folder keeps its name); CLI verb `phax artifact archive` →
-      `phax artifact complete`, no alias; one-time staleness-neutral migration.
-      **Changed since drafting**: the §9 "ride spec 26's rollout" recommendation is
-      dead — 26 landed 2026-08-12 with the old vocabulary, so the rename is standalone
-      and rewrites every artifact's `status` key a second time. Staleness neutrality
-      (§5.5) must now be engineered rather than falling out of 26's one-time
-      fingerprint recomputation; on the upside the rewrite is one decoded YAML value
-      per file, not header-prose pattern matching.
-- [ ] After 28 approves: sweep `docs/specs/27-run-carries-archival.md` terminology
-      (`Archived` → `Completed`, `archive` verb → `complete`), then review + approve —
-      run completion (final phase gates green, before `review_open`) applies the plan's
-      terminal transition on the run branch; ride-along spec completion behind the
-      chain gate; `phax publish-pr` untouched; merge lands work + record atomically.
-      Its spec-26 sequencing constraint is already lifted (swept 2026-08-13).
-- [ ] Ripples once 28 is approved: the `phax-spec`/`phax-planning` skills, the CLI help
+- [x] `docs/specs/28-rename-archived-to-completed.md` — terminal status `Archived` →
+      `Completed` (outcome pair `Completed | Abandoned`; the `archive/` folder keeps its
+      name); CLI verb `phax artifact archive` → `phax artifact complete`, no alias;
+      one-time migration. **Approved 2026-08-13** after a review sweep that: killed the
+      §9 "ride spec 26's rollout" recommendation (26 landed first, so the rename is
+      standalone); corrected §5.5 — 26's `fingerprintSource` already deletes the
+      `status` and `approved` keys before hashing, so the rewrite is fingerprint-neutral
+      by construction and `approvals.json` needs no recomputation, making §5.5 a
+      regression check rather than work; and fenced off run-level archival
+      (`phax archive <run>`, the `archived` run status, `phax runs --archived`) as a
+      non-goal, since §5.4 renames only the artifact verb.
+- [ ] **Next — sweep then approve `docs/specs/27-run-carries-archival.md`**: terminology
+      (`Archived` → `Completed`, `archive` verb → `complete`) now that 28 is approved,
+      then review + approve — run completion (final phase gates green, before
+      `review_open`) applies the plan's terminal transition on the run branch;
+      ride-along spec completion behind the chain gate; `phax publish-pr` untouched;
+      merge lands work + record atomically. Its spec-26 sequencing constraint is
+      already lifted, and it now states as a non-goal (2026-08-13) that dependent plans'
+      `source-spec` keys are *not* rewritten when the ride-along archival moves a spec:
+      resolution accepts the declared path or its archive counterpart, so the two
+      spellings the repository carries both resolve, and rewriting them would pull
+      non-transitioning files into the write-set spec 25 scopes.
+- [ ] Ripple from 28: the `phax-spec`/`phax-planning` skills, the CLI help
       (`phax.usage.kdl`) and `docs/cli/reference.md` all state `Archived`/`archive` —
       spec 26's phase-03 just rewrote them, and 28's rollout rewrites them again.
+- [ ] Plan 28 (and 27) once both specs are approved — no plan exists for either yet.
 
 ## Plan and run the approved specs
 
