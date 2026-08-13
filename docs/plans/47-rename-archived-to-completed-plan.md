@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/28-rename-archived-to-completed.md
+approved:
+  date: 2026-08-13
+  baseline: "1e28676"
 ---
 # Rename Archived to Completed
 
