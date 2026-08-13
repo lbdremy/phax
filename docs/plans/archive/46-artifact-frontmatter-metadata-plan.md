@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Archived
 source-spec: docs/specs/26-artifact-frontmatter-metadata.md
 approved:
   date: 2026-08-12
