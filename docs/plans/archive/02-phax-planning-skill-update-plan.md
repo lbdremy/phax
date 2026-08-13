@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/02-phax-planning-skill-update.md
 ---
 # Implementation plan — Planned file intent and end-of-phase file reconciliation

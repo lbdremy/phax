@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Plan — Resumable handoff failures (don't burn a committed phase on a transient handoff error)

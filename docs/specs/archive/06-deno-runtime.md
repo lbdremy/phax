@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 date: 2026-06-15
 audience: (unrecorded)
 scope: (unrecorded)

@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Plan 13 — `phax reset-phase` command

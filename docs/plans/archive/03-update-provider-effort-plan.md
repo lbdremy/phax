@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/03-update-provider-effort.md
 ---
 # Implementation plan — Provider-specific effort/thinking enums and routing corrections

@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 date: "2026-08-10 (revised: explicit source declarations and chain gates;
   original 2026-08-09)"
 audience: implementation planning with Claude Code

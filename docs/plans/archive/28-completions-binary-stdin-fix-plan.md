@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Plan 28 — Fix shell completions and `--usage-format json` in the compiled binary

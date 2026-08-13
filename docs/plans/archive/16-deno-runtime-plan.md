@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/06-deno-runtime.md
 ---
 # Deno Runtime and Distribution — Plan

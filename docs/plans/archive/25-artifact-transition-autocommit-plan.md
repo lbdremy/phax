@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/25-artifact-transition-autocommit.md
 approved:
   date: 2026-08-11

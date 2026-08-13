@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Plan — Content-addressed plan-extraction cache + `.md` loader

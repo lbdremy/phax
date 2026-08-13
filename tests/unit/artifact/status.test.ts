@@ -30,7 +30,7 @@ describe("spec transitions", () => {
     ["Draft", "Approved"],
     ["Draft", "Abandoned"],
     ["Approved", "Abandoned"],
-    ["Approved", "Archived"],
+    ["Approved", "Completed"],
   ];
 
   describe.each(SPEC_LEGAL)("%s → %s", (from, to) => {
@@ -55,9 +55,9 @@ describe("spec transitions", () => {
     expect(SPEC_STATUSES).not.toContain("Stale");
   });
 
-  it("Abandoned and Archived are terminal", () => {
+  it("Abandoned and Completed are terminal", () => {
     expect(isTerminalStatus("Abandoned")).toBe(true);
-    expect(isTerminalStatus("Archived")).toBe(true);
+    expect(isTerminalStatus("Completed")).toBe(true);
   });
 
   it("Draft and Approved are not terminal", () => {
@@ -73,11 +73,11 @@ describe("plan transitions", () => {
     ["Approved", "Approved"],
     ["Approved", "Stale"],
     ["Approved", "Abandoned"],
-    ["Approved", "Archived"],
+    ["Approved", "Completed"],
     ["Stale", "Approved"],
     ["Stale", "Draft"],
     ["Stale", "Abandoned"],
-    ["Stale", "Archived"],
+    ["Stale", "Completed"],
   ];
 
   describe.each(PLAN_LEGAL)("%s → %s", (from, to) => {
@@ -102,9 +102,9 @@ describe("plan transitions", () => {
     assertRight(requestTransition("plan", "Approved", "Approved"), "Approved");
   });
 
-  it("Abandoned and Archived are terminal", () => {
+  it("Abandoned and Completed are terminal", () => {
     expect(isTerminalStatus("Abandoned")).toBe(true);
-    expect(isTerminalStatus("Archived")).toBe(true);
+    expect(isTerminalStatus("Completed")).toBe(true);
   });
 });
 
@@ -119,6 +119,13 @@ describe("parseSpecStatus", () => {
     expect(parseSpecStatus("Stale")).toBeNull();
     expect(parseSpecStatus("draft")).toBeNull();
     expect(parseSpecStatus("")).toBeNull();
+  });
+});
+
+describe("no back-compat for the retired Archived spelling", () => {
+  it("parseSpecStatus and parsePlanStatus both reject the literal Archived", () => {
+    expect(parseSpecStatus("Archived")).toBeNull();
+    expect(parsePlanStatus("Archived")).toBeNull();
   });
 });
 

@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Plan 27 — Compliance handoff access and resume recap follow-ups

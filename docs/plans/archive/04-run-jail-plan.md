@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/04-run-jail.md
 ---
 # Implementation plan — Provider-native security mode (run jail)

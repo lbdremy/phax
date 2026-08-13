@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/13-usage-cli.md
 ---
 # Plan — Usage-Based CLI Help, Documentation, and Completions

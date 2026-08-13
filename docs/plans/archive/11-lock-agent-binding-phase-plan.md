@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/archive/11-lock-agent-binding-phase.md
 ---
 # Plan — Locked Agent Binding for Phase Sessions

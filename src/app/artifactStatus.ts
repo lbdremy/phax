@@ -375,7 +375,7 @@ function refusalFor(planPath: string, status: PlanStatus): PlanNotApprovedError 
         message: `${planPath} is Stale. Re-plan and re-approve it before running.`,
       });
     case "Abandoned":
-    case "Archived":
+    case "Completed":
       return new PlanNotApprovedError({
         path: planPath,
         status,

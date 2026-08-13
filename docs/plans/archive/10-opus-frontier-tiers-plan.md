@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Implementation plan — Per-effort frontier tiers for the full Opus ladder

@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: null
 ---
 # Plan 43 — Security-audit follow-ups (defense-in-depth hardening)

@@ -1,5 +1,5 @@
 ---
-status: Archived
+status: Completed
 source-spec: docs/specs/21-artifact-lifecycle-status.md
 ---
 # Artifact lifecycle status

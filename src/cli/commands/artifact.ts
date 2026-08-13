@@ -74,7 +74,7 @@ export async function runArtifactTransition(
 
   const { status, path, approvedBaseline, commit: madeCommit } = result.right;
   out.log(`Status: ${status}`);
-  if (target === "Abandoned" || target === "Archived") {
+  if (target === "Abandoned" || target === "Completed") {
     out.log(`Path:   ${path}`);
   }
   if (approvedBaseline !== undefined) {
@@ -103,7 +103,7 @@ const TRANSITIONS: readonly TransitionSpec[] = [
   {
     name: "archive",
     description: "Archive an artifact — terminal; moves the file to its archive/ directory",
-    target: "Archived",
+    target: "Completed",
   },
   { name: "reopen", description: "Reopen a Stale plan back to Draft", target: "Draft" },
 ];

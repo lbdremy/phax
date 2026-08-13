@@ -22,7 +22,7 @@ const VERB_BY_TARGET: Record<ArtifactStatus, string> = {
   Approved: "approve",
   Stale: "stale",
   Abandoned: "abandon",
-  Archived: "archive",
+  Completed: "complete",
 };
 
 function slugFor(repoRelPath: string): string {
