@@ -14,6 +14,12 @@ export interface FileSystemOps {
   remove(path: string): Effect.Effect<void, FsError>;
   rename(from: string, to: string): Effect.Effect<void, FsError>;
   list(path: string): Effect.Effect<readonly string[], FsError>;
+  /**
+   * Returns a view of the same filesystem whose relative paths resolve
+   * against `root` instead of the process cwd. Absolute paths passed to the
+   * returned ops pass through unchanged. Rooting a rooted view composes.
+   */
+  rootedAt(root: string): FileSystemOps;
 }
 
 export class FileSystem extends Context.Tag("phax/FileSystem")<FileSystem, FileSystemOps>() {}
