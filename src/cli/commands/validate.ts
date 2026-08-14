@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig, describeConfigSources } from "../../app/loadConfig.js";
@@ -28,11 +29,17 @@ export function runValidate(opts: ValidateOptions, out: OutputPort): number {
   }
 
   if (opts.plan !== undefined) {
-    const planResult = loadPlan(opts.plan);
+    // Resolve explicitly against cwd here, at the command layer, rather than
+    // relying on loadPlan's underlying readFileSync to do it implicitly.
+    const resolvedPlanPath = resolve(cwd, opts.plan);
+    const planResult = loadPlan(resolvedPlanPath);
     if (Either.isLeft(planResult)) {
-      out.error(`Plan validation failed: ${planResult.left.message}`);
+      // loadPlan's message and path embed the resolved absolute path; swap
+      // back to what the user typed so the error names a path they wrote.
+      const message = planResult.left.message.split(resolvedPlanPath).join(opts.plan);
+      out.error(`Plan validation failed: ${message}`);
       if (planResult.left.path) {
-        out.error(`  at: ${planResult.left.path}`);
+        out.error(`  at: ${opts.plan}`);
       }
       return 1;
     }

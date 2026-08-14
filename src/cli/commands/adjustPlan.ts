@@ -1,6 +1,6 @@
 import { Effect, Either, Layer } from "effect";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
@@ -68,8 +68,11 @@ export async function runAdjustPlan(
   }
 
   let planMarkdown: string;
+  // Resolve explicitly against cwd here, at the command layer, rather than
+  // relying on readFile to do it implicitly.
+  const resolvedPlanPath = resolve(process.cwd(), planPathArg);
   try {
-    planMarkdown = await readFile(planPathArg, "utf8");
+    planMarkdown = await readFile(resolvedPlanPath, "utf8");
   } catch {
     out.error(`Cannot read plan.md at "${planPathArg}": file not found or not readable.`);
     return 1;

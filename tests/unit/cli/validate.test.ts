@@ -1,4 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { resolve } from "node:path";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { Either } from "effect";
 import { runValidate } from "../../../src/cli/commands/validate.js";
 
@@ -173,5 +174,59 @@ describe("runValidate", () => {
 
     expect(code).toBe(0);
     expect(lines.some((l) => l.includes("config is valid"))).toBe(true);
+  });
+
+  describe("--plan resolution against process.cwd()", () => {
+    let cwdSpy: ReturnType<typeof vi.spyOn>;
+
+    afterEach(() => {
+      cwdSpy.mockRestore();
+    });
+
+    it("resolves a relative --plan path against process.cwd(), not an implicit relative read", async () => {
+      const { loadConfig, describeConfigSources } = vi.mocked(
+        await import("../../../src/app/loadConfig.js"),
+      );
+      const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
+      loadConfig.mockReturnValue(Either.right(makeConfig()));
+      describeConfigSources.mockReturnValue(undefined);
+      loadPlan.mockReturnValue(Either.right(makePlan("myrun", 1)));
+      cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/some/other/dir");
+
+      const { out, lines } = makeOutput();
+      const code = runValidate({ plan: "sub/phax-plan.json" }, out);
+
+      expect(code).toBe(0);
+      expect(loadPlan).toHaveBeenCalledWith(resolve("/some/other/dir", "sub/phax-plan.json"));
+      // The success message still quotes the path as the user typed it.
+      expect(lines.some((l) => l.includes("sub/phax-plan.json"))).toBe(true);
+    });
+
+    it("plan load failure: error output quotes the path as typed, not the resolved absolute path", async () => {
+      const { loadConfig, describeConfigSources } = vi.mocked(
+        await import("../../../src/app/loadConfig.js"),
+      );
+      const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
+      loadConfig.mockReturnValue(Either.right(makeConfig()));
+      describeConfigSources.mockReturnValue(undefined);
+      cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/repo/nested");
+      const resolvedPath = resolve("/repo/nested", "phax-plan.json");
+      loadPlan.mockReturnValue(
+        Either.left({
+          message: `Failed to read or parse "${resolvedPath}": ENOENT`,
+          path: resolvedPath,
+        }),
+      );
+
+      const { out, errors } = makeOutput();
+      const code = runValidate({ plan: "phax-plan.json" }, out);
+
+      expect(code).toBe(1);
+      expect(loadPlan).toHaveBeenCalledWith(resolvedPath);
+      const combined = errors.join("\n");
+      expect(combined).toContain("phax-plan.json");
+      expect(combined).not.toContain(resolvedPath);
+      expect(combined).not.toContain("/repo/nested");
+    });
   });
 });
