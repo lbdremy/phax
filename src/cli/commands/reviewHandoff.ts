@@ -5,29 +5,25 @@ import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
 import { generateReviewHandoff } from "../../app/reviewHandoff.js";
 import { ReviewHandoffArtifactMissingError } from "../../domain/errors.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
-import { makeGlobalTelemetryJournalLayer } from "../../infra/telemetry/globalJournal.js";
-import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import {
-  loadTelemetryConfig,
-  TELEMETRY_CONFIG_PATH,
-  PHAX_HOME_DIR,
-} from "../../app/loadTelemetryConfig.js";
+  makeRepoRootedFileSystemLayer,
+  makeGlobalTelemetryJournalLayerOrNoop,
+} from "./runLayers.js";
+import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 
 export interface ReviewHandoffCommandOptions {
   allowPartial?: boolean;
 }
 
-function buildLayer(): Layer.Layer<
+function buildLayer(
+  config: ResolvedConfig,
+): Layer.Layer<
   import("../../ports/fs.js").FileSystem | import("../../ports/systemTelemetry.js").SystemTelemetry
 > {
-  const telemetryConfig = loadTelemetryConfig(TELEMETRY_CONFIG_PATH);
-  const telemetryEnabled = Either.isRight(telemetryConfig) ? telemetryConfig.right.enabled : true;
-  const telemetryLayer = telemetryEnabled
-    ? makeGlobalTelemetryJournalLayer(PHAX_HOME_DIR).pipe(Layer.provide(NodeFileSystemLayer))
-    : NoopSystemTelemetryLayer;
-
-  return Layer.mergeAll(NodeFileSystemLayer, telemetryLayer);
+  return Layer.mergeAll(
+    makeRepoRootedFileSystemLayer(config),
+    makeGlobalTelemetryJournalLayerOrNoop(),
+  );
 }
 
 export async function runReviewHandoff(
@@ -63,7 +59,7 @@ export async function runReviewHandoff(
   }
 
   const effect = generateReviewHandoff(info, { allowPartial: opts.allowPartial ?? false }).pipe(
-    Effect.provide(buildLayer()),
+    Effect.provide(buildLayer(config)),
   );
 
   const result = await Effect.runPromise(Effect.either(effect));

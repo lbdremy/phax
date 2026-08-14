@@ -9,11 +9,11 @@ import {
   type StalenessFlip,
 } from "../../domain/artifact/render.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
-import { exitCodeForError } from "./runLayers.js";
+import { exitCodeForError, makeRepoRootedFileSystemLayer } from "./runLayers.js";
+import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import { runPlansOverlap, type PlansOverlapCommandOptions } from "./plansOverlap.js";
 
 export interface PlansStatusCommandOptions {
@@ -21,10 +21,10 @@ export interface PlansStatusCommandOptions {
   readonly json?: true;
 }
 
-function nodeLayer() {
+function nodeLayer(config: ResolvedConfig) {
   return Layer.mergeAll(
     makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG),
-    NodeFileSystemLayer,
+    makeRepoRootedFileSystemLayer(config),
     makeNodeGitLayer(),
     NoopSystemTelemetryLayer,
   );
@@ -50,7 +50,7 @@ export async function runPlansStatus(
   };
 
   const reportResult = await Effect.runPromise(
-    plansStalenessReport(reportOpts).pipe(Effect.either, Effect.provide(nodeLayer())),
+    plansStalenessReport(reportOpts).pipe(Effect.either, Effect.provide(nodeLayer(config))),
   );
   if (Either.isLeft(reportResult)) {
     out.error(reportResult.left.message);
@@ -64,7 +64,7 @@ export async function runPlansStatus(
     const applyResult = await Effect.runPromise(
       applyStalenessReport(report, { repoRoot: config.repoRoot, nowIso, commit: true }).pipe(
         Effect.either,
-        Effect.provide(nodeLayer()),
+        Effect.provide(nodeLayer(config)),
       ),
     );
     if (Either.isLeft(applyResult)) {

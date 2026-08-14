@@ -16,11 +16,15 @@ vi.mock("../../../src/app/loadRouting.js", () => ({
   loadModelRouting: vi.fn(),
   loadProviderConfig: vi.fn(),
 }));
-vi.mock("../../../src/cli/commands/runLayers.js", () => ({
-  provideRunLayers: vi.fn((effect: unknown) => effect),
-  buildSystemTelemetryLayer: vi.fn(),
-  exitCodeForError: vi.fn(() => 1),
-}));
+vi.mock("../../../src/cli/commands/runLayers.js", async () => {
+  const { Layer } = await import("effect");
+  return {
+    provideRunLayers: vi.fn((effect: unknown) => effect),
+    buildSystemTelemetryLayer: vi.fn(),
+    exitCodeForError: vi.fn(() => 1),
+    makeRepoRootedFileSystemLayer: vi.fn(() => Layer.empty),
+  };
+});
 vi.mock("../../../src/cli/interruptHandler.js", () => ({
   setRunInterruptContext: vi.fn(),
   clearRunInterruptContext: vi.fn(),

@@ -8,7 +8,7 @@ import { reviewCompliance } from "../../app/reviewCompliance.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
+import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import type { FileSystem } from "../../ports/fs.js";
 import type { Backend } from "../../ports/backend.js";
@@ -60,7 +60,7 @@ export async function runReviewCompliance(
   const routingResult = await Effect.runPromise(
     Effect.either(
       Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
-    ).pipe(Effect.provide(NodeFileSystemLayer)),
+    ).pipe(Effect.provide(makeRepoRootedFileSystemLayer(config))),
   );
   if (Either.isLeft(routingResult)) {
     out.error(`Failed to load routing config: ${routingResult.left.message}`);
@@ -78,7 +78,7 @@ export async function runReviewCompliance(
   function buildLayer(): Layer.Layer<Backend | FileSystem | SystemTelemetry> {
     return Layer.mergeAll(
       makeNodeBackendLayer(providerConfig),
-      NodeFileSystemLayer,
+      makeRepoRootedFileSystemLayer(config),
       NoopSystemTelemetryLayer,
     );
   }

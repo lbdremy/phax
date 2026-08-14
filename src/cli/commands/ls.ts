@@ -3,8 +3,8 @@ import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { readRegistry } from "../../app/registry.js";
 import { resolveRun, findCurrentPhase } from "../../app/resolveRunInfo.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
+import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import { Lock } from "../../ports/lock.js";
 import type { RegistryEntry } from "../../schemas/registry.js";
 import { decodeShortName } from "../../domain/branded.js";
@@ -144,8 +144,9 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
     return 1;
   }
   const { stateRoot } = configResult.right;
+  const fsLayer = makeRepoRootedFileSystemLayer(configResult.right);
 
-  const registryEffect = readRegistry(stateRoot).pipe(Effect.provide(NodeFileSystemLayer));
+  const registryEffect = readRegistry(stateRoot).pipe(Effect.provide(fsLayer));
   const registryResult = await Effect.runPromise(Effect.either(registryEffect));
   if (Either.isLeft(registryResult)) {
     out.error(`Registry error: ${registryResult.left.message}`);
@@ -168,7 +169,7 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
     return 0;
   }
 
-  const lockLayer = Layer.merge(NodeFileSystemLayer, makeNodeLockLayer(stateRoot));
+  const lockLayer = Layer.merge(fsLayer, makeNodeLockLayer(stateRoot));
 
   const rows: LsRow[] = await Promise.all(
     reconciled.map(async ({ entry, row }) => {

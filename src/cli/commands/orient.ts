@@ -2,16 +2,10 @@ import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { expandOrientRow, queryOrientIndex } from "../../app/orient.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { NodeShellLayer } from "../../infra/shell.js";
-import { makeGlobalTelemetryJournalLayer } from "../../infra/telemetry/globalJournal.js";
-import { NoopSystemTelemetryLayer, SystemTelemetry } from "../../ports/systemTelemetry.js";
+import { makeGlobalTelemetryJournalLayerOrNoop } from "./runLayers.js";
+import { SystemTelemetry } from "../../ports/systemTelemetry.js";
 import { Shell } from "../../ports/shell.js";
-import {
-  loadTelemetryConfig,
-  TELEMETRY_CONFIG_PATH,
-  PHAX_HOME_DIR,
-} from "../../app/loadTelemetryConfig.js";
 import {
   makeOrientPullEmptyTelemetryEvent,
   makeOrientPullServedTelemetryEvent,
@@ -31,12 +25,7 @@ export interface OrientCommandOptions {
 const ORIENT_TELEMETRY_RUN_ID = "orient" as unknown as RunId;
 
 function buildLayer(): Layer.Layer<Shell | SystemTelemetry> {
-  const telemetryConfig = loadTelemetryConfig(TELEMETRY_CONFIG_PATH);
-  const telemetryEnabled = Either.isRight(telemetryConfig) ? telemetryConfig.right.enabled : true;
-  const telemetryLayer = telemetryEnabled
-    ? makeGlobalTelemetryJournalLayer(PHAX_HOME_DIR).pipe(Layer.provide(NodeFileSystemLayer))
-    : NoopSystemTelemetryLayer;
-  return Layer.mergeAll(NodeShellLayer, telemetryLayer);
+  return Layer.mergeAll(NodeShellLayer, makeGlobalTelemetryJournalLayerOrNoop());
 }
 
 function formatIndexRow(row: OrientRow): string {

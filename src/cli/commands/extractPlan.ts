@@ -5,9 +5,8 @@ import { extractPlan } from "../../app/extractPlan.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
-import { buildSystemTelemetryLayer } from "./runLayers.js";
+import { buildSystemTelemetryLayer, makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 
@@ -66,7 +65,7 @@ export async function runExtractPlan(
     ...(opts.refresh ? { refresh: true as const } : {}),
   }).pipe(
     Effect.provide(makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG)),
-    Effect.provide(NodeFileSystemLayer),
+    Effect.provide(makeRepoRootedFileSystemLayer(config)),
     Effect.provide(makeNodeLockLayer(config.stateRoot)),
     Effect.provide(telemetryLayer),
   );

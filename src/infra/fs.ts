@@ -101,3 +101,15 @@ export const NodeFileSystemLayer = Layer.succeed(
   FileSystem,
   makeNodeFileSystemOps((path) => path),
 );
+
+/**
+ * Build a FileSystem layer whose relative paths resolve against `root` instead
+ * of the process working directory. Absolute paths pass through unchanged, so a
+ * consumer handing down an already-absolute path (a stateRoot, PHAX_HOME_DIR)
+ * is unaffected. This is the composition-root primitive for rooting phax at
+ * `config.repoRoot` so its FileSystem side keeps git's work-from-anywhere
+ * contract; see `makeRepoRootedFileSystemLayer` in the CLI layer.
+ */
+export function makeRootedNodeFileSystemLayer(root: string): Layer.Layer<FileSystem> {
+  return Layer.succeed(FileSystem, makeNodeFileSystemOps((path) => path).rootedAt(root));
+}

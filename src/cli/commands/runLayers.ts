@@ -1,12 +1,13 @@
 import { join } from "node:path";
-import { Effect, Layer } from "effect";
+import { Effect, Either, Layer } from "effect";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
+import { NodeFileSystemLayer, makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { NodeShellLayer } from "../../infra/shell.js";
+import { makeGlobalTelemetryJournalLayer } from "../../infra/telemetry/globalJournal.js";
 import {
   makeSystemTelemetryLayer,
   type TelemetryFactoryInput,
@@ -18,7 +19,12 @@ import { GitHub } from "../../ports/github.js";
 import { Lock } from "../../ports/lock.js";
 import { Shell } from "../../ports/shell.js";
 import type { OutputPort } from "../../ports/output.js";
-import { SystemTelemetry } from "../../ports/systemTelemetry.js";
+import { NoopSystemTelemetryLayer, SystemTelemetry } from "../../ports/systemTelemetry.js";
+import {
+  loadTelemetryConfig,
+  TELEMETRY_CONFIG_PATH,
+  PHAX_HOME_DIR,
+} from "../../app/loadTelemetryConfig.js";
 import type { RunId } from "../../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
@@ -46,6 +52,34 @@ import {
 } from "../../domain/errors.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 
+/**
+ * Turn a resolved config into the repo-rooted `FileSystem` layer every command
+ * with a config must use. Relative paths crossing the port (`docs/plans`,
+ * `docs/plans/approvals.json`) then resolve against `config.repoRoot` — matching
+ * git's own work-from-anywhere contract — while absolute paths (`stateRoot`,
+ * `PHAX_HOME_DIR`) pass through unchanged. The architectural guard in
+ * `tests/unit/architecturalGuards.test.ts` forbids a command from reaching for
+ * the identity `NodeFileSystemLayer` instead of this helper.
+ */
+export function makeRepoRootedFileSystemLayer(config: ResolvedConfig): Layer.Layer<FileSystem> {
+  return makeRootedNodeFileSystemLayer(config.repoRoot);
+}
+
+/**
+ * The global telemetry journal (or a no-op when telemetry is disabled), fully
+ * provided with its own filesystem. The journal writes under `PHAX_HOME_DIR`,
+ * which is absolute, so it is deliberately backed by the identity
+ * `NodeFileSystemLayer` rather than a repo-rooted view — encapsulated here so
+ * commands never reach for the identity layer directly.
+ */
+export function makeGlobalTelemetryJournalLayerOrNoop(): Layer.Layer<SystemTelemetry> {
+  const telemetryConfig = loadTelemetryConfig(TELEMETRY_CONFIG_PATH);
+  const telemetryEnabled = Either.isRight(telemetryConfig) ? telemetryConfig.right.enabled : true;
+  return telemetryEnabled
+    ? makeGlobalTelemetryJournalLayer(PHAX_HOME_DIR).pipe(Layer.provide(NodeFileSystemLayer))
+    : NoopSystemTelemetryLayer;
+}
+
 export function provideRunLayers<A, E>(
   effect: Effect.Effect<A, E, Backend | FileSystem | Git | GitHub | Shell | Lock | SystemTelemetry>,
   config: ResolvedConfig,
@@ -54,7 +88,7 @@ export function provideRunLayers<A, E>(
 ): Effect.Effect<A, E, never> {
   return effect.pipe(
     Effect.provide(makeNodeBackendLayer(providerConfig)),
-    Effect.provide(NodeFileSystemLayer),
+    Effect.provide(makeRepoRootedFileSystemLayer(config)),
     Effect.provide(NodeGitLayer),
     Effect.provide(NodeGitHubLayer),
     Effect.provide(NodeShellLayer),

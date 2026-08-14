@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
@@ -9,11 +10,12 @@ import type {
   ReadjustmentImpactResult,
 } from "../../domain/planOverlap/types.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
 import { decodeShortName } from "../../domain/branded.js";
 import { resolveRun } from "../../app/resolveRunInfo.js";
+import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
+import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 
 export interface PlansOverlapCommandOptions {
   readonly json?: true;
@@ -32,10 +34,10 @@ function footprintToJson(fp: PlanFootprint) {
   };
 }
 
-function nodeLayer() {
+function nodeLayer(config: ResolvedConfig) {
   return Layer.mergeAll(
     makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG),
-    NodeFileSystemLayer,
+    makeRepoRootedFileSystemLayer(config),
     NoopSystemTelemetryLayer,
   );
 }
@@ -71,6 +73,12 @@ export async function runPlansOverlap(
   }
   const config = configResult.right;
 
+  // Absolutize each plan path against the invocation directory before it crosses
+  // the FileSystem port. The layer is rooted at repoRoot, so a bare relative arg
+  // would otherwise be reinterpreted as repo-relative; resolving here keeps a
+  // path typed on the command line meaning "relative to where I typed it".
+  const resolvedPlanMdPaths = planMdPaths.map((p) => resolve(process.cwd(), p));
+
   const model = config.extractPlanModel;
   const effort = config.extractPlanEffort;
   const { stateRoot } = config;
@@ -92,9 +100,9 @@ export async function runPlansOverlap(
     const { runPath } = infoResult.right;
 
     const impactResult = await Effect.runPromise(
-      analyzeReadjustmentImpact(runPath, planMdPaths, loaderOpts).pipe(
+      analyzeReadjustmentImpact(runPath, resolvedPlanMdPaths, loaderOpts).pipe(
         Effect.either,
-        Effect.provide(nodeLayer()),
+        Effect.provide(nodeLayer(config)),
       ),
     );
 
@@ -113,7 +121,10 @@ export async function runPlansOverlap(
   }
 
   const result = await Effect.runPromise(
-    analyzePlanOverlap(planMdPaths, loaderOpts).pipe(Effect.either, Effect.provide(nodeLayer())),
+    analyzePlanOverlap(resolvedPlanMdPaths, loaderOpts).pipe(
+      Effect.either,
+      Effect.provide(nodeLayer(config)),
+    ),
   );
 
   if (Either.isLeft(result)) {

@@ -367,6 +367,106 @@ describe("architectural guard: no direct Node I/O outside ports/infra", () => {
   });
 });
 
+// ── Repo-rooted FileSystem layer ──────────────────────────────────────────────
+// The FileSystem port is rooted at config.repoRoot so phax keeps git's
+// work-from-anywhere contract. A command under src/cli/commands/ must build its
+// FileSystem layer through makeRepoRootedFileSystemLayer(config) (from
+// runLayers.ts) or makeRootedNodeFileSystemLayer(root) (from infra/fs) — never
+// the identity NodeFileSystemLayer, which resolves relative paths against the
+// process cwd and reintroduces the subdirectory bug this guard prevents.
+//
+// The allowlist names the files that legitimately use the identity layer:
+//   - runLayers.ts: houses the rooted helper and the global-telemetry-journal
+//     wiring (journal + trace paths are absolute, so the identity layer is
+//     correct there).
+//   - agent, security: no resolved config; only absolute ~/.phax and ~/.vibe
+//     paths.
+//   - report: FS paths are absolute (stateRoot, PHAX_HOME_DIR, tmpdir) and the
+//     command may run without a resolved config.
+//   - init, skills: run before/without a phax project (init creates phax.json;
+//     skills resolves against explicit absolute install roots).
+const IDENTITY_FS_LAYER_ALLOWLIST: ReadonlySet<string> = new Set([
+  "src/cli/commands/runLayers.ts",
+  "src/cli/commands/agent.ts",
+  "src/cli/commands/report.ts",
+  "src/cli/commands/security.ts",
+  "src/cli/commands/init.ts",
+  "src/cli/commands/skills.ts",
+]);
+
+// Matches an import statement pulling bindings from an infra/fs module.
+// Group 1: the brace-enclosed binding list.
+const INFRA_FS_IMPORT_RE =
+  /import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+["'][^"']*\/infra\/fs(?:\.js)?["']/g;
+
+// Whether the file imports the exact identity binding `NodeFileSystemLayer`.
+// Must not be fooled by `makeRootedNodeFileSystemLayer`, the rooted factory,
+// which contains "NodeFileSystemLayer" as a substring.
+function importsIdentityFsLayer(content: string): boolean {
+  INFRA_FS_IMPORT_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = INFRA_FS_IMPORT_RE.exec(content)) !== null) {
+    const bindings = match[1]
+      .split(",")
+      .map((b) => b.trim())
+      .filter(Boolean);
+    for (const binding of bindings) {
+      const exported = binding
+        .replace(/^type\s+/, "")
+        .split(/\s+as\s+/)[0]
+        .trim();
+      if (exported === "NodeFileSystemLayer") return true;
+    }
+  }
+  return false;
+}
+
+describe("architectural guard: cli commands root the FileSystem layer", () => {
+  const commandsRoot = join(srcRoot, "cli", "commands");
+
+  it("no file under src/cli/commands/ imports the identity NodeFileSystemLayer (except allowlist)", () => {
+    const violations: string[] = [];
+
+    for (const absPath of listTsFiles(commandsRoot)) {
+      const rel = relative(repoRoot, absPath).split("\\").join("/");
+      if (IDENTITY_FS_LAYER_ALLOWLIST.has(rel)) continue;
+
+      const content = readFileSync(absPath, "utf8");
+      if (importsIdentityFsLayer(content)) {
+        violations.push(rel);
+      }
+    }
+
+    expect(
+      violations,
+      "These commands import the identity NodeFileSystemLayer, which resolves relative " +
+        "paths against the process cwd. Build the repo-rooted layer via " +
+        "makeRepoRootedFileSystemLayer(config) from ./runLayers.js instead (or " +
+        "makeRootedNodeFileSystemLayer(root) from ../../infra/fs.js).",
+    ).toEqual([]);
+  });
+
+  it("allowlist entries are kept honest by still actually importing the identity layer", () => {
+    for (const rel of IDENTITY_FS_LAYER_ALLOWLIST) {
+      const content = readFileSync(join(repoRoot, rel), "utf8");
+      expect(
+        importsIdentityFsLayer(content),
+        `${rel} no longer imports the identity NodeFileSystemLayer — remove it from IDENTITY_FS_LAYER_ALLOWLIST`,
+      ).toBe(true);
+    }
+  });
+
+  it("the detector flags the identity import but not the rooted factory", () => {
+    const identityImport = `import { NodeFileSystemLayer } from "../../infra/fs.js";`;
+    const rootedImport = `import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";`;
+    const bothImport = `import { NodeFileSystemLayer, makeRootedNodeFileSystemLayer } from "../../infra/fs.js";`;
+
+    expect(importsIdentityFsLayer(identityImport)).toBe(true);
+    expect(importsIdentityFsLayer(rootedImport)).toBe(false);
+    expect(importsIdentityFsLayer(bothImport)).toBe(true);
+  });
+});
+
 describe("architectural guard: single status writer", () => {
   it("only the dispatcher, runner, and documented metadata writers encode status JSON", () => {
     const violations: string[] = [];
