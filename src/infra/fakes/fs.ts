@@ -1,4 +1,5 @@
 import { Effect, Layer } from "effect";
+import { isAbsolute, join } from "node:path/posix";
 import { FileSystem, type FileSystemOps, FsError } from "../../ports/fs.js";
 
 export class FakeFileSystemImpl implements FileSystemOps {
@@ -116,6 +117,25 @@ export class FakeFileSystemImpl implements FileSystemOps {
 
     return Effect.void;
   }
+
+  rootedAt(root: string): FileSystemOps {
+    return makeRootedFakeFileSystemOps(this, root);
+  }
+}
+
+function makeRootedFakeFileSystemOps(base: FakeFileSystemImpl, root: string): FileSystemOps {
+  const resolveKey = (path: string): string => (isAbsolute(path) ? path : join(root, path));
+  return {
+    readText: (path) => base.readText(resolveKey(path)),
+    writeAtomic: (path, content) => base.writeAtomic(resolveKey(path), content),
+    appendLine: (path, line) => base.appendLine(resolveKey(path), line),
+    mkdirp: (path) => base.mkdirp(resolveKey(path)),
+    exists: (path) => base.exists(resolveKey(path)),
+    remove: (path) => base.remove(resolveKey(path)),
+    rename: (from, to) => base.rename(resolveKey(from), resolveKey(to)),
+    list: (path) => base.list(resolveKey(path)),
+    rootedAt: (nestedRoot) => makeRootedFakeFileSystemOps(base, resolveKey(nestedRoot)),
+  };
 }
 
 export const makeFakeFileSystem = () => {

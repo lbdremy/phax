@@ -9,9 +9,9 @@ import {
   appendFile,
   readdir,
 } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { randomBytes } from "node:crypto";
-import { FileSystem, FsError } from "../ports/fs.js";
+import { FileSystem, type FileSystemOps, FsError } from "../ports/fs.js";
 
 function wrapFsError(cause: unknown): FsError {
   return new FsError({
@@ -20,72 +20,84 @@ function wrapFsError(cause: unknown): FsError {
   });
 }
 
-export const NodeFileSystemLayer = Layer.succeed(FileSystem, {
-  readText: (path) =>
-    Effect.tryPromise({
-      try: () => readFile(path, "utf8"),
-      catch: wrapFsError,
-    }),
+export function makeNodeFileSystemOps(resolvePath: (path: string) => string): FileSystemOps {
+  return {
+    readText: (path) =>
+      Effect.tryPromise({
+        try: () => readFile(resolvePath(path), "utf8"),
+        catch: wrapFsError,
+      }),
 
-  writeAtomic: (path, content) =>
-    Effect.tryPromise({
-      try: async () => {
-        const dir = dirname(path);
-        await mkdir(dir, { recursive: true });
-        const rand = randomBytes(6).toString("hex");
-        const tmpPath = `${path}.tmp.${rand}`;
-        const handle = await open(tmpPath, "w");
-        try {
-          await handle.writeFile(content, "utf8");
-          await handle.sync();
-        } finally {
-          await handle.close();
-        }
-        await nodeRename(tmpPath, path);
-      },
-      catch: wrapFsError,
-    }),
+    writeAtomic: (path, content) =>
+      Effect.tryPromise({
+        try: async () => {
+          const resolved = resolvePath(path);
+          const dir = dirname(resolved);
+          await mkdir(dir, { recursive: true });
+          const rand = randomBytes(6).toString("hex");
+          const tmpPath = `${resolved}.tmp.${rand}`;
+          const handle = await open(tmpPath, "w");
+          try {
+            await handle.writeFile(content, "utf8");
+            await handle.sync();
+          } finally {
+            await handle.close();
+          }
+          await nodeRename(tmpPath, resolved);
+        },
+        catch: wrapFsError,
+      }),
 
-  appendLine: (path, line) =>
-    Effect.tryPromise({
-      try: async () => {
-        const dir = dirname(path);
-        await mkdir(dir, { recursive: true });
-        await appendFile(path, line + "\n", "utf8");
-      },
-      catch: wrapFsError,
-    }),
+    appendLine: (path, line) =>
+      Effect.tryPromise({
+        try: async () => {
+          const resolved = resolvePath(path);
+          const dir = dirname(resolved);
+          await mkdir(dir, { recursive: true });
+          await appendFile(resolved, line + "\n", "utf8");
+        },
+        catch: wrapFsError,
+      }),
 
-  mkdirp: (path) =>
-    Effect.tryPromise({
-      try: () => mkdir(path, { recursive: true }).then(() => undefined),
-      catch: wrapFsError,
-    }),
+    mkdirp: (path) =>
+      Effect.tryPromise({
+        try: () => mkdir(resolvePath(path), { recursive: true }).then(() => undefined),
+        catch: wrapFsError,
+      }),
 
-  exists: (path) =>
-    Effect.tryPromise({
-      try: () =>
-        access(path)
-          .then(() => true)
-          .catch(() => false),
-      catch: wrapFsError,
-    }),
+    exists: (path) =>
+      Effect.tryPromise({
+        try: () =>
+          access(resolvePath(path))
+            .then(() => true)
+            .catch(() => false),
+        catch: wrapFsError,
+      }),
 
-  remove: (path) =>
-    Effect.tryPromise({
-      try: () => rm(path, { recursive: true, force: true }),
-      catch: wrapFsError,
-    }),
+    remove: (path) =>
+      Effect.tryPromise({
+        try: () => rm(resolvePath(path), { recursive: true, force: true }),
+        catch: wrapFsError,
+      }),
 
-  rename: (from, to) =>
-    Effect.tryPromise({
-      try: () => nodeRename(from, to),
-      catch: wrapFsError,
-    }),
+    rename: (from, to) =>
+      Effect.tryPromise({
+        try: () => nodeRename(resolvePath(from), resolvePath(to)),
+        catch: wrapFsError,
+      }),
 
-  list: (path) =>
-    Effect.tryPromise({
-      try: () => readdir(path),
-      catch: wrapFsError,
-    }),
-});
+    list: (path) =>
+      Effect.tryPromise({
+        try: () => readdir(resolvePath(path)),
+        catch: wrapFsError,
+      }),
+
+    rootedAt: (root) =>
+      makeNodeFileSystemOps((path) => resolvePath(isAbsolute(path) ? path : join(root, path))),
+  };
+}
+
+export const NodeFileSystemLayer = Layer.succeed(
+  FileSystem,
+  makeNodeFileSystemOps((path) => path),
+);
