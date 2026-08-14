@@ -19,6 +19,7 @@ import { inspectResumeFromInfo } from "../../app/resume.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { decodeRunStatus } from "../../schemas/status.js";
 import { executePlan } from "../../app/executePlan.js";
+import { renderArtifactCompletions } from "./run.js";
 import { withRunLock } from "../../app/lock.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { DEFAULT_PROVIDER_CONFIG, DEFAULT_MODEL_ROUTING } from "../../domain/routing/defaults.js";
@@ -236,6 +237,13 @@ export async function runResume(
         routing,
         providerConfig,
         verbose: opts.verbose,
+        // Re-supply the plan's repo-relative path recorded at run creation so the
+        // final phase carries artifact completion on resume too (spec 27). Runs
+        // created before this field, and loose plans, resume with completion
+        // skipped (the field is absent).
+        ...(runStatus.planRepoRelPath !== undefined
+          ? { planRepoRelPath: runStatus.planRepoRelPath }
+          : {}),
       }),
     );
 
@@ -303,6 +311,11 @@ export async function runResume(
     const execResult = result.right;
     const phaseCount = execResult.committedPhases?.length;
     const prUrl = execResult.prUrl;
+    if (execResult.artifactCompletions !== undefined) {
+      for (const line of renderArtifactCompletions(execResult.artifactCompletions)) {
+        out.log(line);
+      }
+    }
     out.warn(
       renderWhatsNext(
         buildWhatsNext({ kind: "review_open", shortName, prUrl, phaseCount }, new Date()),

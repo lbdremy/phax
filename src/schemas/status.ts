@@ -58,6 +58,11 @@ export const RunStatusSchema = Schema.Struct({
   stoppedReason: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
   // Human-readable description of the last error that stopped the run.
   lastError: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  // Repo-relative POSIX path of the plan that produced this run, recorded at run
+  // creation so `phax resume` can re-supply it to the run-completion step (spec
+  // 27) without re-deriving it. Optional: runs created before this field, and
+  // loose plans with no lifecycle artifact, resume with completion skipped.
+  planRepoRelPath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
 });
 
 export type RunStatus = Schema.Schema.Type<typeof RunStatusSchema>;
