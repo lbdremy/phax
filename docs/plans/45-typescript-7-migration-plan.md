@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Stale
 source-spec: null
 ---
 # Migrate to TypeScript 7 — implementation plan
