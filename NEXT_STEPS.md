@@ -201,6 +201,19 @@ fallback. **Next: review + `phax artifact approve` plan 49, then run it.**
       through, with an architectural guard allowlisting the commands that legitimately
       stay on the identity layer.
 
+## Nice to have improvements
+
+- [ ] Reconciliation classifies optional files as `unplanned`. The reconciliation tool
+      builds its "planned" set from the required planned lists only, not the optional
+      lists, so an optional file that the phase legitimately delivers shows up as
+      `unplanned` in the reconciliation table (its "Planned in" column stays blank).
+      Surfaced by plan 49's compliance review, where
+      `tests/integration/adjustPlanCommand.test.ts` and `tests/unit/cli/run.test.ts` were
+      both flagged this way despite being listed as optional files in the plan. It is a
+      tooling classification artifact, not a real delivery deviation — fold the optional
+      lists into the reconciler's planned set (or give optional files their own status) so
+      future reviewers aren't misled.
+
 ## Spike candidate: entire.io × phax (analyzed 2026-08-10)
 
 [entire.io](https://entire.io/) — open-source (MIT) CLI hooking into agent configs
