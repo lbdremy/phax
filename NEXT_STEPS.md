@@ -10,8 +10,11 @@ landed and retired; specs 27 + 28 swept for it); updated 2026-08-14 (spec 28 / p
 landed as v0.8.0 and retired; plan 48 written for spec 27); updated again 2026-08-14
 (plan 48 approved, run and landed as v0.8.1 — the lifecycle chain is closed; plan 48
 retired, spec 27 pending; specs 23 and 24 postponed to the bottom, making the small
-follow-ups and the entire.io spike the active queue). Tick items off as they land, and
-delete this file when it is empty.
+follow-ups and the entire.io spike the active queue); updated a third time 2026-08-14
+(plan 49 approved, run and landed on `main` — the **first run to carry its own
+completion**, so no hand transition was needed; the small-follow-ups section is now
+closed, leaving the gate trilogy 15 / 16 / 18 + advisory 19 and the entire.io spike as
+the active queue). Tick items off as they land, and delete this file when it is empty.
 
 ## Approve the draft specs 27 and 28 (in this order)
 
@@ -97,11 +100,11 @@ in, so 28 goes first and 27 gets swept before its approval. Both were swept on
 ## The lifecycle chain (landed)
 
 The chain 21 → 22 → 25 → 26 → 28 → 27 has now landed in full (27 as v0.8.1 on
-2026-08-14; only spec 27's own retirement is outstanding, above). The two remaining
-approved specs, 23 and 24, were **deliberately postponed on 2026-08-14** — see
+2026-08-14; spec 27 retired the same day, so nothing here is outstanding). The two
+remaining approved specs, 23 and 24, were **deliberately postponed on 2026-08-14** — see
 "Postponed" near the bottom. What is left in front of them: the gate trilogy 15 / 16 /
-18 plus the advisory 19 (approved 2026-07-03, audited 2026-08-14, none implemented), the
-small follow-ups, and the entire.io spike.
+18 plus the advisory 19 (approved 2026-07-03, audited 2026-08-14, none implemented) and
+the entire.io spike — the small follow-ups closed with plan 49.
 
 - [x] `docs/specs/21-artifact-lifecycle-status.md` — spec/plan state machines; only an
       `Approved` plan runs; archive-location agreement; `phax artifact` commands.
@@ -125,9 +128,10 @@ small follow-ups, and the entire.io spike.
   - [ ] Re-approve 41, 44 and 45 when you next intend to run them. `Stale → Approved` is
         a legal direct transition — no Draft round-trip — but each needs a real review
         first, since the ground moved under it. The sequencing constraint is now
-        discharged: plan 48 edited `tests/unit/cli/run.test.ts` (in plan 44's footprint)
-        and has landed, so 44 can be re-approved against the current ground whenever you
-        pick it up.
+        discharged: plans 48 and 49 both edited `tests/unit/cli/run.test.ts` (in plan
+        44's footprint) and have landed, so 44 can be re-approved against the current
+        ground whenever you pick it up — re-read it against `main` first, since 49 also
+        reshaped how CLI commands acquire their layer.
 - [x] `docs/specs/25-artifact-transition-autocommit.md` — every artifact transition
       auto-commits exactly its write-set (clean-target precondition, path-scoped
       staging). **Landed on `main` 2026-08-12** (plan 25; the post-landing review
@@ -159,19 +163,29 @@ with 23 and 24 postponed they are the nearest planning targets.
       the four: a projection (ordered phases + touched files), an advisory pass, no
       blocking.
 
-## Small follow-ups (no spec needed)
+## Small follow-ups (no spec needed) — closed 2026-08-14
 
-Both open items below are now covered by one plan —
-`docs/plans/49-repo-rooting-and-orient-brief-plan.md` (Draft, written 2026-08-14, three
-phases, `source-spec: null`). Deterministic extraction verified: 3 phases, no LLM
-fallback. **Next: review + `phax artifact approve` plan 49, then run it.**
+Both open items were covered by one plan —
+`docs/plans/49-repo-rooting-and-orient-brief-plan.md` (three phases, `source-spec: null`,
+written and approved 2026-08-14, baseline `eb2e0fc`). **Approved `f377cf9`, run, and
+landed on `main` 2026-08-14** — `2d9ffeb` CLI path arguments, `2c9f638` the repo-rooted
+FileSystem layer, `c0d643e` the orient-brief artifact. Not yet released; `main` still
+carries the v0.8.1 tag.
 
-- [ ] Persist the orientation brief as a discrete artifact (`orient-brief.json` next to
-      `prompt.md`) — amends the behavior of archived spec 17; today the brief exists only
-      woven into `prompt.md` plus a telemetry count, so the rows the prompt truncated are
-      unrecoverable and a failed provider is indistinguishable afterwards from no
-      provider. **Plan 49 phase-03** — a tagged record (`ok` | `failed` |
-      `not-configured`) written for every phase before dispatch; nothing consumes it yet.
+Plan 49 is the **first run to carry its own completion**: `7ed7541`
+(`Approved → Completed`, plan moved to `docs/plans/archive/`) rode in on the run branch
+instead of being applied by hand, which is exactly what spec 27 / plan 48 built. No
+ride-along spec completion fired, correctly — `source-spec: null`. `phax plans status`
+now reports plan 39 alone, fresh.
+
+- [x] Persist the orientation brief as a discrete artifact (`orient-brief.json` next to
+      `prompt.md`) — amends the behavior of archived spec 17; the brief used to exist only
+      woven into `prompt.md` plus a telemetry count, so the rows the prompt truncated were
+      unrecoverable and a failed provider was indistinguishable afterwards from no
+      provider. **Landed as plan 49 phase-03** (`c0d643e`) — a tagged record
+      (`ok` | `failed` | `not-configured`) written for every phase before dispatch, with
+      `src/schemas/orientBrief.ts` decoding it. Nothing consumes it yet; the desktop
+      "inspect a run" screen and the compliance review are the natural first readers.
 - [x] Audit the remaining active specs (15, 16, 18, 19) for anything already implemented
       on `main` and therefore due a `Completed` flip — **done 2026-08-14: none of them
       is implemented**, nothing to retire. They moved up into their own section above.
@@ -179,27 +193,26 @@ fallback. **Next: review + `phax artifact approve` plan 49, then run it.**
       specs 21, 22, 25 all shipped but still read `Approved` outside `archive/` —
       exactly the gap draft spec 27 automates. **Done 2026-08-12** — archived plan
       then spec per pair (chain gate order), six auto-committed transitions.
-- [ ] Align path-rooting on the git convention (run from any subdirectory). Today the
-      CLI implicitly assumes `cwd == repoRoot`: git operations are correctly rooted at
-      `config.repoRoot`, but the `FileSystem` port resolves relative paths
+- [x] Align path-rooting on the git convention (run from any subdirectory). The
+      CLI used to assume `cwd == repoRoot`: git operations were correctly rooted at
+      `config.repoRoot`, but the `FileSystem` port resolved relative paths
       (`docs/plans/approvals.json`, spec files, routing config) against `process.cwd()`.
-      The two disagree the moment you invoke phax from a subdirectory — e.g. the
-      staleness gate's git side reads the real baseline while the approval-store read
-      misses, reporting a spurious `missing-record` and refusing an approved run. git
+      The two disagreed the moment you invoked phax from a subdirectory — e.g. the
+      staleness gate's git side read the real baseline while the approval-store read
+      missed, reporting a spurious `missing-record` and refusing an approved run. git
       itself works from anywhere in the tree by resolving against the repo root; since
       phax is an extension of git and leans on it heavily, it should match that
-      contract. Direction: root the `FileSystem` adapter at `repoRoot` (or resolve
-      repo-relative paths through a single helper) so `run`, `artifact`, and `plans`
-      behave identically regardless of the working directory. Surfaced during the
-      phase-06 staleness-gate review. **Half of this landed with plan 48**:
-      `FileSystemOps.rootedAt(root)` now exists on the port and both adapters
-      (`db89c52`), and `completeRunArtifacts` is its first consumer — it roots a view at
-      the worktree path. What remains is purely the decision to root the *base* layer at
-      `repoRoot` at the CLI composition root; the mechanism is already there.
-      **Plan 49 phases 01–02** — CLI path arguments absolutized at the edge first, then
-      one rooted-layer helper in `runLayers.ts` that every config-bearing command routes
-      through, with an architectural guard allowlisting the commands that legitimately
-      stay on the identity layer.
+      contract. Surfaced during the phase-06 staleness-gate review; half of the mechanism
+      landed with plan 48 (`db89c52`, `FileSystemOps.rootedAt(root)` on the port and both
+      adapters). **Closed by plan 49 phases 01–02, landed 2026-08-14**: `2d9ffeb`
+      absolutizes CLI path arguments against the invocation directory at the edge first
+      (so rooting can never silently reinterpret a typed path as repo-relative), then
+      `2c9f638` builds the base layer rooted at `repoRoot` through one helper in
+      `runLayers.ts` that every config-bearing command routes through — with an
+      architectural guard (`tests/unit/architecturalGuards.test.ts`) allowlisting the
+      commands that legitimately stay on the identity layer, and
+      `tests/integration/repoRootedCli.test.ts` exercising invocation from a
+      subdirectory.
 
 ## Nice to have improvements
 
