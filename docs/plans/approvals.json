@@ -27,12 +27,6 @@
       "approvedAt": "2026-08-11T07:57:20.361Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
-    },
-    "docs/plans/49-repo-rooting-and-orient-brief-plan.md": {
-      "planFingerprint": "e605df134ddecd7989c8644b0bbdf97bdfc6535f464deff816c8aa1a33f0a928",
-      "approvedAt": "2026-08-14T14:39:04.603Z",
-      "baseline": "eb2e0fc08e10d6e8ba3f473be0cc1ee1b1bc754e",
-      "sourceSpec": null
     }
   }
 }
