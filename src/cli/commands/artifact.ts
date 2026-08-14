@@ -3,7 +3,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import type { Command } from "commander";
 import type { OutputPort } from "../../ports/output.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
+import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
@@ -25,22 +25,22 @@ function findGitRoot(startDir: string): string {
 }
 
 // classifyArtifactPath matches on repo-relative POSIX paths, so a path typed
-// as absolute or cwd-relative on the command line is normalized here.
-function toRepoRelativePath(pathArg: string): string {
-  const cwd = process.cwd();
-  const absolute = isAbsolute(pathArg) ? pathArg : resolve(cwd, pathArg);
-  const repoRoot = findGitRoot(cwd);
+// as absolute or cwd-relative on the command line is normalized here against
+// the repo root the FileSystem layer is rooted at.
+function toRepoRelativePath(pathArg: string, repoRoot: string): string {
+  const absolute = isAbsolute(pathArg) ? pathArg : resolve(process.cwd(), pathArg);
   const rel = relative(repoRoot, absolute);
   return rel.split(sep).join("/");
 }
 
-function buildLayer(): Layer.Layer<FileSystem | Git> {
-  return Layer.merge(NodeFileSystemLayer, makeNodeGitLayer());
+function buildLayer(repoRoot: string): Layer.Layer<FileSystem | Git> {
+  return Layer.merge(makeRootedNodeFileSystemLayer(repoRoot), makeNodeGitLayer());
 }
 
 export async function runArtifactStatus(pathArg: string, out: OutputPort): Promise<number> {
-  const repoRelPath = toRepoRelativePath(pathArg);
-  const effect = inspectArtifact(repoRelPath).pipe(Effect.provide(buildLayer()));
+  const repoRoot = findGitRoot(process.cwd());
+  const repoRelPath = toRepoRelativePath(pathArg, repoRoot);
+  const effect = inspectArtifact(repoRelPath).pipe(Effect.provide(buildLayer(repoRoot)));
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
     out.error(result.left.message);
@@ -62,10 +62,12 @@ export async function runArtifactTransition(
   target: ArtifactStatus,
   out: OutputPort,
 ): Promise<number> {
-  const repoRelPath = toRepoRelativePath(pathArg);
   const repoRoot = findGitRoot(process.cwd());
+  const repoRelPath = toRepoRelativePath(pathArg, repoRoot);
   const opts = { repoRoot, nowIso: new Date().toISOString(), commit: true };
-  const effect = transitionArtifact(repoRelPath, target, opts).pipe(Effect.provide(buildLayer()));
+  const effect = transitionArtifact(repoRelPath, target, opts).pipe(
+    Effect.provide(buildLayer(repoRoot)),
+  );
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
     out.error(result.left.message);

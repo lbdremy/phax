@@ -4,22 +4,25 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
 import { publishRun } from "../../app/publishRun.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
+import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import type { FileSystem } from "../../ports/fs.js";
 import type { Git } from "../../ports/git.js";
 import type { GitHub } from "../../ports/github.js";
 import type { SystemTelemetry } from "../../ports/systemTelemetry.js";
+import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 
 export interface PublishPrCommandOptions {
   verbose?: boolean;
 }
 
-function buildLayer(): Layer.Layer<FileSystem | Git | GitHub | SystemTelemetry> {
+function buildLayer(
+  config: ResolvedConfig,
+): Layer.Layer<FileSystem | Git | GitHub | SystemTelemetry> {
   return Layer.mergeAll(
-    NodeFileSystemLayer,
+    makeRepoRootedFileSystemLayer(config),
     NodeGitLayer,
     NodeGitHubLayer,
     NoopSystemTelemetryLayer,
@@ -60,7 +63,7 @@ export async function runPublishPr(
   const effect = publishRun(info, config.publish, {
     repoRoot: config.repoRoot,
     ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}),
-  }).pipe(Effect.provide(buildLayer()));
+  }).pipe(Effect.provide(buildLayer(config)));
 
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {

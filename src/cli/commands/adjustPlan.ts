@@ -9,7 +9,7 @@ import { effectiveStateRoot } from "../../app/projectContext.js";
 import { readAgentBinding } from "../../app/agentBinding.js";
 import { prepareAdjustPlanSession } from "../../app/adjustPlan.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
+import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { makeNodeSessionLayer } from "../../infra/session.js";
 import { Session } from "../../ports/session.js";
@@ -88,7 +88,7 @@ export async function runAdjustPlan(
 
   const nodeLayer = Layer.mergeAll(
     makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG),
-    NodeFileSystemLayer,
+    makeRepoRootedFileSystemLayer(config),
     NoopSystemTelemetryLayer,
   );
 

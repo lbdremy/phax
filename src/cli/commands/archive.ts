@@ -5,24 +5,21 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
 import { archive } from "../../app/archive.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { NodeShellLayer } from "../../infra/shell.js";
-import { makeGlobalTelemetryJournalLayer } from "../../infra/telemetry/globalJournal.js";
-import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import {
-  loadTelemetryConfig,
-  TELEMETRY_CONFIG_PATH,
-  PHAX_HOME_DIR,
-} from "../../app/loadTelemetryConfig.js";
+  makeRepoRootedFileSystemLayer,
+  makeGlobalTelemetryJournalLayerOrNoop,
+} from "./runLayers.js";
+import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 
 export interface ArchiveCommandOptions {
   force?: boolean;
 }
 
 function buildLayer(
-  stateRoot: string,
+  config: ResolvedConfig,
 ): Layer.Layer<
   | import("../../ports/fs.js").FileSystem
   | import("../../ports/git.js").Git
@@ -30,18 +27,12 @@ function buildLayer(
   | import("../../ports/shell.js").Shell
   | import("../../ports/systemTelemetry.js").SystemTelemetry
 > {
-  const telemetryConfig = loadTelemetryConfig(TELEMETRY_CONFIG_PATH);
-  const telemetryEnabled = Either.isRight(telemetryConfig) ? telemetryConfig.right.enabled : true;
-  const telemetryLayer = telemetryEnabled
-    ? makeGlobalTelemetryJournalLayer(PHAX_HOME_DIR).pipe(Layer.provide(NodeFileSystemLayer))
-    : NoopSystemTelemetryLayer;
-
   return Layer.mergeAll(
-    NodeFileSystemLayer,
+    makeRepoRootedFileSystemLayer(config),
     makeNodeGitLayer(),
-    makeNodeLockLayer(stateRoot),
+    makeNodeLockLayer(config.stateRoot),
     NodeShellLayer,
-    telemetryLayer,
+    makeGlobalTelemetryJournalLayerOrNoop(),
   );
 }
 
@@ -49,11 +40,11 @@ async function archiveRun(
   namespace: string,
   shortNameStr: string,
   qualifiedName: string,
-  stateRoot: string,
-  repoRoot: string,
+  config: ResolvedConfig,
   opts: ArchiveCommandOptions,
   out: OutputPort,
 ): Promise<number> {
+  const { stateRoot, repoRoot } = config;
   // Safe: resolveRunRef already validated the shortName.
   const shortNameResult = decodeShortName(shortNameStr);
   if (Either.isLeft(shortNameResult)) {
@@ -63,7 +54,7 @@ async function archiveRun(
   const shortName = shortNameResult.right;
 
   const effect = archive(namespace, shortName, stateRoot, repoRoot, opts).pipe(
-    Effect.provide(buildLayer(stateRoot)),
+    Effect.provide(buildLayer(config)),
   );
 
   const result = await Effect.runPromise(Effect.either(effect));
@@ -86,8 +77,8 @@ export async function runArchive(
     out.error(`Config error: ${configResult.left.message}`);
     return 1;
   }
-  const { stateRoot, repoRoot } = configResult.right;
   const config = configResult.right;
+  const { stateRoot } = config;
 
   const resolveResult = resolveRunRef(shortNameArg, config, stateRoot);
   if (Either.isLeft(resolveResult)) {
@@ -100,5 +91,5 @@ export async function runArchive(
     out.log(`Target: ${qualifiedName}`);
   }
 
-  return archiveRun(namespace, shortName, qualifiedName, stateRoot, repoRoot, opts, out);
+  return archiveRun(namespace, shortName, qualifiedName, config, opts, out);
 }

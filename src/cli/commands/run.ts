@@ -35,7 +35,6 @@ import {
 import type { NonEmptyArray } from "../../domain/routing/priorityOverride.js";
 import type { ProviderId } from "../../domain/routing/types.js";
 import type { SecurityMode } from "../../domain/security/types.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
@@ -43,6 +42,7 @@ import type { PhaxPlan } from "../../schemas/phaxPlan.js";
 import {
   buildSystemTelemetryLayer,
   exitCodeForError,
+  makeRepoRootedFileSystemLayer,
   provideRunLayers,
   renderAgentInvocationError,
 } from "./runLayers.js";
@@ -287,7 +287,10 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
       Effect.either(
         computeStalenessForPlan(planRepoRel, planMd, Array.from(footprint.all), {
           repoRoot: config.repoRoot,
-        }).pipe(Effect.provide(NodeFileSystemLayer), Effect.provide(makeNodeGitLayer())),
+        }).pipe(
+          Effect.provide(makeRepoRootedFileSystemLayer(config)),
+          Effect.provide(makeNodeGitLayer()),
+        ),
       ),
     );
     if (Either.isLeft(stalenessResult)) {
@@ -353,7 +356,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   const routingResult = await Effect.runPromise(
     Effect.either(
       Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
-    ).pipe(Effect.provide(NodeFileSystemLayer)),
+    ).pipe(Effect.provide(makeRepoRootedFileSystemLayer(config))),
   );
   if (Either.isLeft(routingResult)) {
     out.error(`Failed to load routing config: ${routingResult.left.message}`);

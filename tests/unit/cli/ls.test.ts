@@ -22,6 +22,7 @@ vi.mock("../../../src/infra/lock.js", () => ({
 
 vi.mock("../../../src/infra/fs.js", () => ({
   NodeFileSystemLayer: Layer.empty,
+  makeRootedNodeFileSystemLayer: () => Layer.empty,
 }));
 
 function makeOutput() {

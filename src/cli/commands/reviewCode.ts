@@ -6,7 +6,7 @@ import { runKey } from "../../domain/runRef.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { prepareCodeReviewSession } from "../../app/reviewCode.js";
 import type { ResolvedCodeReviewConfig } from "../../schemas/phaxConfig.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
+import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { makeNodeSessionLayer } from "../../infra/session.js";
 import { Session } from "../../ports/session.js";
@@ -78,7 +78,9 @@ export async function runReviewCode(
     nowIso: new Date().toISOString(),
     ...(opts.model !== undefined ? { modelOverride: opts.model } : {}),
     ...(opts.effort !== undefined ? { effortOverride: opts.effort } : {}),
-  }).pipe(Effect.provide(Layer.mergeAll(NodeFileSystemLayer, NoopSystemTelemetryLayer)));
+  }).pipe(
+    Effect.provide(Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NoopSystemTelemetryLayer)),
+  );
 
   const prepareResult = await Effect.runPromise(Effect.either(prepareEffect));
   if (Either.isLeft(prepareResult)) {

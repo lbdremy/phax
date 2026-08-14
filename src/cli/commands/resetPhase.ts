@@ -5,16 +5,13 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
 import { resetPhase } from "../../app/resetPhase.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeShellLayer } from "../../infra/shell.js";
-import { makeGlobalTelemetryJournalLayer } from "../../infra/telemetry/globalJournal.js";
-import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import {
-  loadTelemetryConfig,
-  TELEMETRY_CONFIG_PATH,
-  PHAX_HOME_DIR,
-} from "../../app/loadTelemetryConfig.js";
+  makeRepoRootedFileSystemLayer,
+  makeGlobalTelemetryJournalLayerOrNoop,
+} from "./runLayers.js";
+import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import { reportConfigError } from "./reportConfigError.js";
 
 export interface ResetPhaseCommandOptions {
@@ -23,19 +20,20 @@ export interface ResetPhaseCommandOptions {
   trace?: boolean;
 }
 
-function buildLayer(): Layer.Layer<
+function buildLayer(
+  config: ResolvedConfig,
+): Layer.Layer<
   | import("../../ports/fs.js").FileSystem
   | import("../../ports/git.js").Git
   | import("../../ports/shell.js").Shell
   | import("../../ports/systemTelemetry.js").SystemTelemetry
 > {
-  const telemetryConfig = loadTelemetryConfig(TELEMETRY_CONFIG_PATH);
-  const telemetryEnabled = Either.isRight(telemetryConfig) ? telemetryConfig.right.enabled : true;
-  const telemetryLayer = telemetryEnabled
-    ? makeGlobalTelemetryJournalLayer(PHAX_HOME_DIR).pipe(Layer.provide(NodeFileSystemLayer))
-    : NoopSystemTelemetryLayer;
-
-  return Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, NodeShellLayer, telemetryLayer);
+  return Layer.mergeAll(
+    makeRepoRootedFileSystemLayer(config),
+    NodeGitLayer,
+    NodeShellLayer,
+    makeGlobalTelemetryJournalLayerOrNoop(),
+  );
 }
 
 export async function runResetPhase(
@@ -86,7 +84,7 @@ export async function runResetPhase(
     phaseId: phaseIdArg,
     stateRoot: config.stateRoot,
     repoRoot: config.repoRoot,
-  }).pipe(Effect.provide(buildLayer()));
+  }).pipe(Effect.provide(buildLayer(config)));
 
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {

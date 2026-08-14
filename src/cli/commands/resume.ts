@@ -29,11 +29,11 @@ import {
 } from "../../domain/routing/priorityOverride.js";
 import type { NonEmptyArray } from "../../domain/routing/priorityOverride.js";
 import type { ProviderId } from "../../domain/routing/types.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { setRunInterruptContext, clearRunInterruptContext } from "../interruptHandler.js";
 import {
   buildSystemTelemetryLayer,
   exitCodeForError,
+  makeRepoRootedFileSystemLayer,
   provideRunLayers,
   renderAgentInvocationError,
 } from "./runLayers.js";
@@ -198,7 +198,7 @@ export async function runResume(
   const routingResult = await Effect.runPromise(
     Effect.either(
       Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
-    ).pipe(Effect.provide(NodeFileSystemLayer)),
+    ).pipe(Effect.provide(makeRepoRootedFileSystemLayer(config))),
   );
   const { routing: loadedRouting, providerConfig } = Either.isRight(routingResult)
     ? routingResult.right
