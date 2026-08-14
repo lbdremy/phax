@@ -14,7 +14,7 @@ import {
 // bounded head so the error stays loggable while still pointing at the cause.
 const STDERR_EXCERPT_LIMIT = 2000;
 
-function excerpt(text: string): string {
+export function excerpt(text: string): string {
   return text.length > STDERR_EXCERPT_LIMIT
     ? `${text.slice(0, STDERR_EXCERPT_LIMIT)}… (${text.length - STDERR_EXCERPT_LIMIT} more chars)`
     : text;

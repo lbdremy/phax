@@ -74,8 +74,10 @@ import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
-import { queryOrientIndex } from "./orient.js";
+import { excerpt, queryOrientIndex } from "./orient.js";
 import type { OrientRow } from "../schemas/orient.js";
+import { encodeOrientBrief, type OrientBrief } from "../schemas/orientBrief.js";
+import { MAX_ORIENTATION_ROWS } from "./promptGeneration.js";
 import { recordGateProfileInRunStatus, resolveGateProfile } from "./gates.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
@@ -661,10 +663,13 @@ export function executePlan(
         const previousHandoff = yield* readPreviousHandoff(runPath, plan.phases, i);
         const previousReconciliation = yield* readPreviousReconciliation(runPath, plan.phases, i);
 
+        const fs = yield* FileSystem;
+
         // Advisory orientation brief: a provider failure must never fail, block,
         // or retry the phase (spec §5.4) — a typed Either failure just skips
         // weaving and leaves the prompt unchanged.
         let orientationIndex: readonly OrientRow[] | undefined;
+        let orientBrief: OrientBrief;
         if (config.orient !== undefined) {
           const plannedFiles = Array.from(
             new Set([
@@ -680,6 +685,13 @@ export function executePlan(
           );
           if (Either.isRight(orientResult)) {
             orientationIndex = orientResult.right.rows;
+            orientBrief = {
+              kind: "ok",
+              files: plannedFiles,
+              rows: orientResult.right.rows,
+              rowCount: orientResult.right.rows.length,
+              wovenRowCount: Math.min(orientResult.right.rows.length, MAX_ORIENTATION_ROWS),
+            };
             yield* telemetry.recordEvent(
               makeOrientBriefComputedTelemetryEvent({
                 runId,
@@ -690,11 +702,35 @@ export function executePlan(
               }),
             );
           } else {
+            orientBrief = {
+              kind: "failed",
+              files: plannedFiles,
+              error: excerpt(orientResult.left.message),
+            };
             process.stderr.write(
               `[phax] Warning: phase "${phase.id}" — orient provider query failed (${orientResult.left.message}). Dispatching without an orientation brief.\n`,
             );
           }
+        } else {
+          orientBrief = { kind: "not-configured" };
         }
+
+        // Evidence, not a gate: a failure to persist the brief must never fail
+        // the phase, mirroring the provider-failure handling above.
+        yield* fs
+          .writeAtomic(
+            join(phaseFolderPath, "orient-brief.json"),
+            JSON.stringify(encodeOrientBrief(orientBrief), null, 2),
+          )
+          .pipe(
+            Effect.catchAll((err) =>
+              Effect.sync(() => {
+                process.stderr.write(
+                  `[phax] Warning: phase "${phase.id}" — failed to write orient-brief.json (${err.message}).\n`,
+                );
+              }),
+            ),
+          );
 
         const promptGateCommands = config.raw.gateProfiles[gateProfileId]?.flat(1) ?? [];
         const promptText = buildPhasePrompt({
@@ -707,7 +743,6 @@ export function executePlan(
           ...(orientationIndex !== undefined ? { orientationIndex } : {}),
         });
 
-        const fs = yield* FileSystem;
         yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);
 
         // The resolved policy is provider-independent (filesystem/network/mcp
