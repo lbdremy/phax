@@ -90,18 +90,18 @@ in, so 28 goes first and 27 gets swept before its approval. Both were swept on
       completion. `phax plans status` had reported 48 as `ground-changed` stale against
       its own implementation diff; completion, not re-approval, was the right transition,
       and the report is now down to plan 39 alone.
-- [ ] **Next — retire spec 27** (`phax artifact complete
-      docs/specs/27-run-carries-archival.md`). Its plan is Completed, so the chain gate
-      is open. This is the last artifact anywhere that needs retiring by hand, and it
-      empties this section.
+- [x] Spec 27 retired 2026-08-14 (`2cbceed`, moved to `docs/specs/archive/`), right
+      after its plan. **This section is now closed** — no lifecycle artifact anywhere is
+      waiting on a hand transition.
 
 ## The lifecycle chain (landed)
 
 The chain 21 → 22 → 25 → 26 → 28 → 27 has now landed in full (27 as v0.8.1 on
 2026-08-14; only spec 27's own retirement is outstanding, above). The two remaining
 approved specs, 23 and 24, were **deliberately postponed on 2026-08-14** — see
-"Postponed" near the bottom. The active queue is therefore the small follow-ups and the
-entire.io spike, in that order.
+"Postponed" near the bottom. What is left in front of them: the gate trilogy 15 / 16 /
+18 plus the advisory 19 (approved 2026-07-03, audited 2026-08-14, none implemented), the
+small follow-ups, and the entire.io spike.
 
 - [x] `docs/specs/21-artifact-lifecycle-status.md` — spec/plan state machines; only an
       `Approved` plan runs; archive-location agreement; `phax artifact` commands.
@@ -139,14 +139,34 @@ entire.io spike, in that order.
       phases: primitives → frontmatter-only + 90-artifact migration → authoring
       surface). Shipped with `Archived` intact, since spec 28 was not approved first —
       see the 28 item above. Plan 46 and spec 26 retired to `archive/` 2026-08-13.
+
+## The gate trilogy 15 / 16 / 18 and the advisory 19
+
+Approved on 2026-07-03 and never planned. Audited 2026-08-14 against `main`: **none of
+the four is implemented**, so none flips to `Completed` — they are live backlog, and
+with 23 and 24 postponed they are the nearest planning targets.
+
+- [ ] `docs/specs/15-gate-profile-attributed-steps.md` — gate profiles today are plain
+      arrays of command strings (`phax.json` → `gateProfiles`, `GateProfilesSchema`), not
+      attributed steps. Plan 44 exists but is `Stale`; re-approve it after a real review
+      rather than re-planning from scratch.
+- [ ] `docs/specs/16-external-gate-steps.md` — no plan. Builds on 15's attributed step,
+      so it follows 15.
+- [ ] `docs/specs/18-gate-step-scheduling.md` — no plan. Also downstream of 15: a step
+      needs attributes before a phase can schedule it.
+- [ ] `docs/specs/19-plan-completeness-advisory.md` — no plan, and nothing registers a
+      plan auditor in `phax.json`. Independent of the gate trilogy and the smallest of
+      the four: a projection (ordered phases + touched files), an advisory pass, no
+      blocking.
+
 ## Small follow-ups (no spec needed)
 
 - [ ] Persist the orientation brief as a discrete artifact (`orient-brief.json` next to
       `prompt.md`) — one-phase plan amending the behavior of archived spec 17; today the
       brief exists only woven into `prompt.md` plus a telemetry count.
-- [ ] Audit the remaining active specs (15, 16, 18, 19) — any that are implemented on
-      `main` should be flipped `Completed` and moved to `docs/specs/archive/`
-      (`phax artifact complete`; done for 17 on 2026-08-09).
+- [x] Audit the remaining active specs (15, 16, 18, 19) for anything already implemented
+      on `main` and therefore due a `Completed` flip — **done 2026-08-14: none of them
+      is implemented**, nothing to retire. They moved up into their own section above.
 - [x] Retire the landed lifecycle artifacts still sitting live: plans 21, 22, 25 and
       specs 21, 22, 25 all shipped but still read `Approved` outside `archive/` —
       exactly the gap draft spec 27 automates. **Done 2026-08-12** — archived plan
