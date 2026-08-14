@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-08-14
+  baseline: eb2e0fc
 ---
 
 # Repo Rooting and Orient Brief
