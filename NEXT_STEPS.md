@@ -161,9 +161,17 @@ with 23 and 24 postponed they are the nearest planning targets.
 
 ## Small follow-ups (no spec needed)
 
+Both open items below are now covered by one plan —
+`docs/plans/49-repo-rooting-and-orient-brief-plan.md` (Draft, written 2026-08-14, three
+phases, `source-spec: null`). Deterministic extraction verified: 3 phases, no LLM
+fallback. **Next: review + `phax artifact approve` plan 49, then run it.**
+
 - [ ] Persist the orientation brief as a discrete artifact (`orient-brief.json` next to
-      `prompt.md`) — one-phase plan amending the behavior of archived spec 17; today the
-      brief exists only woven into `prompt.md` plus a telemetry count.
+      `prompt.md`) — amends the behavior of archived spec 17; today the brief exists only
+      woven into `prompt.md` plus a telemetry count, so the rows the prompt truncated are
+      unrecoverable and a failed provider is indistinguishable afterwards from no
+      provider. **Plan 49 phase-03** — a tagged record (`ok` | `failed` |
+      `not-configured`) written for every phase before dispatch; nothing consumes it yet.
 - [x] Audit the remaining active specs (15, 16, 18, 19) for anything already implemented
       on `main` and therefore due a `Completed` flip — **done 2026-08-14: none of them
       is implemented**, nothing to retire. They moved up into their own section above.
@@ -188,6 +196,10 @@ with 23 and 24 postponed they are the nearest planning targets.
       (`db89c52`), and `completeRunArtifacts` is its first consumer — it roots a view at
       the worktree path. What remains is purely the decision to root the *base* layer at
       `repoRoot` at the CLI composition root; the mechanism is already there.
+      **Plan 49 phases 01–02** — CLI path arguments absolutized at the edge first, then
+      one rooted-layer helper in `runLayers.ts` that every config-bearing command routes
+      through, with an architectural guard allowlisting the commands that legitimately
+      stay on the identity layer.
 
 ## Spike candidate: entire.io × phax (analyzed 2026-08-10)
 
