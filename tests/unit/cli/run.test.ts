@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
 import { ConfigValidationError } from "../../../src/domain/errors.js";
@@ -269,6 +270,55 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
     // The qualified name log line always appears (whether bumped or not)
     const allOutput = lines.join("\n");
     expect(allOutput).toMatch(/acme\.\w/);
+  });
+});
+
+describe("runRun — --plan resolves against process.cwd()", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("resolves a relative --plan path against process.cwd() before extraction", async () => {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+
+    const { loadTelemetryConfig } = vi.mocked(
+      await import("../../../src/app/loadTelemetryConfig.js"),
+    );
+    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+
+    const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+    loadOrExtractPlan.mockReturnValue(
+      Effect.succeed({
+        plan: makePlan("fixbug"),
+        warnings: [],
+        detectedAnchors: [],
+        fromCache: false,
+      }),
+    );
+
+    const { loadModelRouting, loadProviderConfig } = vi.mocked(
+      await import("../../../src/app/loadRouting.js"),
+    );
+    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
+    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
+
+    const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
+    createRunFolder.mockReturnValue(
+      Effect.succeed({ runPath: "/fake-state/runs/acme.fixbug", runId: "r1" as RunId }),
+    );
+
+    const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
+    executePlan.mockReturnValue(Effect.succeed({}));
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out } = makeOutput();
+    const code = await runRun({ plan: "sub/plan.md" }, out);
+
+    expect(code).toBe(0);
+    expect(loadOrExtractPlan).toHaveBeenCalledWith(
+      expect.objectContaining({ planMdPath: resolve(process.cwd(), "sub/plan.md") }),
+    );
   });
 });
 

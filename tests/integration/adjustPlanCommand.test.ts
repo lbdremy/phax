@@ -1,6 +1,6 @@
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Either } from "effect";
 import { EXTRACTOR_VERSION, planCacheKey } from "../../src/domain/planCache/key.js";
@@ -346,6 +346,34 @@ describe("runAdjustPlan", () => {
     expect(exitCode).toBe(1);
     expect(spawnSync).not.toHaveBeenCalled();
     expect(errors.some((e) => e.includes("low | medium | high"))).toBe(true);
+  });
+
+  it("relative plan path resolves against process.cwd(): exit 0, spawns claude", async () => {
+    const { spawnSync } = await import("node:child_process");
+    const planPath = join(stateRoot, "plan.md");
+    const { runPath, phaseDir } = await buildFakeRun(stateRoot, SHORT_NAME);
+    await writeClaudeBinding(phaseDir, runPath);
+    await writeReconciliation(runPath);
+    const planMdContent = await writePlanMd(planPath);
+    await seedPlanCache(stateRoot, planPath, planMdContent);
+
+    // A relative path typed from the actual process cwd (not repoRoot, not
+    // stateRoot) must resolve against that cwd — the same directory git and
+    // the shell would resolve it against.
+    const relativePlanPath = relative(process.cwd(), planPath);
+
+    const { runAdjustPlan } = await import("../../src/cli/commands/adjustPlan.js");
+    const logs: string[] = [];
+    const out = {
+      log: (m: string) => logs.push(m),
+      error: (m: string) => logs.push(`ERR: ${m}`),
+      warn: (m: string) => logs.push(`WARN: ${m}`),
+    };
+
+    const exitCode = await runAdjustPlan(relativePlanPath, { landed: SHORT_NAME }, out);
+
+    expect(exitCode).toBe(0);
+    expect(spawnSync).toHaveBeenCalled();
   });
 
   it("missing plan.md: exit 1 without spawning", async () => {
