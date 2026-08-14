@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Stale
 source-spec: docs/specs/15-gate-profile-attributed-steps.md
 ---
 # Gate Profile as Attributed Steps — implementation plan
