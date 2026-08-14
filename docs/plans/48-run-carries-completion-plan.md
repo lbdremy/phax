@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/27-run-carries-archival.md
+approved:
+  date: 2026-08-14
+  baseline: 01ba79a
 ---
 # Run Carries Completion
 

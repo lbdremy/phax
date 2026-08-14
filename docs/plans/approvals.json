@@ -27,6 +27,15 @@
       "approvedAt": "2026-08-11T07:57:20.361Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
+    },
+    "docs/plans/48-run-carries-completion-plan.md": {
+      "planFingerprint": "5f242084039ac5aae30aa88a4b3603a9df60818efc436ee00558481107a5e699",
+      "approvedAt": "2026-08-14T09:56:26.084Z",
+      "baseline": "01ba79a715b88a13a88dffdb11867bcc44387c39",
+      "sourceSpec": {
+        "path": "docs/specs/27-run-carries-archival.md",
+        "fingerprint": "af970a94b21b973bad8575739a31518abd122cf7f6f57339cea1fc55e3e759d6"
+      }
     }
   }
 }
