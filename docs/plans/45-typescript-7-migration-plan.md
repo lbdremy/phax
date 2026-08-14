@@ -1,5 +1,5 @@
 ---
-status: Stale
+status: Draft
 source-spec: null
 ---
 # Migrate to TypeScript 7 — implementation plan
