@@ -15,6 +15,7 @@ import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
   AgentSessionIdMissingError,
+  ArtifactCompletionPausedError,
   CleanupPausedError,
   CommitPausedError,
   GateAttemptsExhaustedError,
@@ -38,6 +39,7 @@ import { Git, type GitError } from "../ports/git.js";
 import { GitHub } from "../ports/github.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
+import { completeRunArtifacts, type RunCompletionReport } from "./completeRunArtifacts.js";
 import { publishRun } from "./publishRun.js";
 import { reviewCompliance } from "./reviewCompliance.js";
 import {
@@ -118,6 +120,10 @@ function isCleanupPausedError(e: unknown): e is CleanupPausedError {
   return e instanceof CleanupPausedError;
 }
 
+function isArtifactCompletionPausedError(e: unknown): e is ArtifactCompletionPausedError {
+  return e instanceof ArtifactCompletionPausedError;
+}
+
 // Highest NN suffix on `checks-attempt-NN.log` in the phase folder, or 0 if none.
 // On resume from gate exhaustion we use this to continue numbering attempt
 // artifacts, so prior `checks-attempt-NN.log` / `fix-attempt-NN.jsonl` files are
@@ -156,6 +162,12 @@ export interface ExecutePlanOptions {
   readonly providerConfig?: ProviderConfig | undefined;
   readonly securityMode?: SecurityMode | undefined;
   readonly verbose?: boolean | undefined;
+  // Repo-relative POSIX path of the plan that produced this run, supplied by the
+  // caller (run.ts / resume.ts) — executePlan never derives it. When present the
+  // final phase applies the plan's Approved → Completed transition on the run
+  // branch (spec 27). Absent for callers with no lifecycle artifact to complete
+  // (most tests); completeRunArtifacts is itself a no-op for loose paths.
+  readonly planRepoRelPath?: string | undefined;
 }
 
 export interface ExecutePlanResult {
@@ -163,6 +175,7 @@ export interface ExecutePlanResult {
   readonly finalPhaseId: string;
   readonly finalWorktreePath: WorktreePath;
   readonly prUrl?: string;
+  readonly artifactCompletions?: RunCompletionReport;
 }
 
 export type ExecutePlanError =
@@ -180,6 +193,7 @@ export type ExecutePlanError =
   | HandoffPausedError
   | CommitPausedError
   | CleanupPausedError
+  | ArtifactCompletionPausedError
   | ArchiveBlockedByDirtyWorktreeError
   | RegistryCorruptionError
   | RateLimitError
@@ -402,6 +416,7 @@ export function executePlan(
     let resumeFromHandoff = false;
     let resumeFromCommit = false;
     let resumeFromCleanup = false;
+    let resumeFromCompletion = false;
     let resumeSessionId: string | undefined;
     let resumeWorktreePath: string | undefined;
     let resumeAttempt = 0;
@@ -431,6 +446,15 @@ export function executePlan(
           resumeFromCleanup = true;
           resumeSessionId = phaseStatus.claudeSessionId;
           resumeWorktreePath = phaseStatus.worktreePath;
+        } else if (phaseStatus?.state === "committed" && startIndex === plan.phases.length - 1) {
+          // A `committed` final phase means the run paused at artifact completion
+          // (ArtifactCompletionFailed): commit/handoff already landed, only the
+          // completion step remains. `committed` is transient for non-final
+          // phases (they pause as `cleaning_up`), so the final-phase guard is what
+          // distinguishes this re-entry.
+          resumeFromCompletion = true;
+          resumeSessionId = phaseStatus.claudeSessionId;
+          resumeWorktreePath = phaseStatus.worktreePath;
         }
       }
     }
@@ -451,6 +475,7 @@ export function executePlan(
     let finalWorktreePath: WorktreePath | undefined;
     let finalPhaseId: string | undefined;
     let publishedPrUrl: string | undefined;
+    let artifactCompletions: RunCompletionReport | undefined;
 
     for (let i = startIndex; i < plan.phases.length; i++) {
       const phase = plan.phases[i];
@@ -460,6 +485,7 @@ export function executePlan(
       const isResumeFromHandoff = i === startIndex && resumeFromHandoff;
       const isResumeFromCommit = i === startIndex && resumeFromCommit;
       const isResumeFromCleanup = i === startIndex && resumeFromCleanup;
+      const isResumeFromCompletion = i === startIndex && resumeFromCompletion;
 
       // Resolve the phase branch before creating the phase folder so the
       // initial status.json can include branchName (required by the schema).
@@ -480,9 +506,15 @@ export function executePlan(
       let sessionId: ClaudeSessionId;
       let agentOptions: AgentRunOptions;
 
-      if (isResumeFromGate || isResumeFromHandoff || isResumeFromCommit || isResumeFromCleanup) {
-        // Resume-from-gate / resume-from-handoff / resume-from-commit / resume-from-cleanup:
-        // the worktree, branch, model-resolution, security posture, and Claude session were
+      if (
+        isResumeFromGate ||
+        isResumeFromHandoff ||
+        isResumeFromCommit ||
+        isResumeFromCleanup ||
+        isResumeFromCompletion
+      ) {
+        // Resume-from-gate / -handoff / -commit / -cleanup / -completion: the
+        // worktree, branch, model-resolution, security posture, and Claude session were
         // all written on the original attempt. Re-enter at the appropriate step using the
         // captured session — never start a blind fix/handoff session if the session id is missing.
         if (resumeSessionId === undefined) {
@@ -888,7 +920,12 @@ export function executePlan(
       // `ctx` is used by the FinalReviewOpened dispatch later in the loop.
       const ctx = dispatchCtx(phaseFolderPath, phase.id);
 
-      if (!isResumeFromHandoff && !isResumeFromCommit && !isResumeFromCleanup) {
+      if (
+        !isResumeFromHandoff &&
+        !isResumeFromCommit &&
+        !isResumeFromCleanup &&
+        !isResumeFromCompletion
+      ) {
         // running → passed transition is dispatched inside fixLoop on the
         // gate-success branch via dispatch(GatePassed). On resume-from-gate the
         // loop starts at `resumeAttempt + 1` with a fresh fix budget so prior
@@ -909,7 +946,7 @@ export function executePlan(
         });
       }
 
-      if (!isResumeFromHandoff && !isResumeFromCleanup) {
+      if (!isResumeFromHandoff && !isResumeFromCleanup && !isResumeFromCompletion) {
         // commitPhase dispatches CommitCreated internally.
         // If the commit fails for a reason other than no-changes (e.g. a pre-commit
         // hook rejection), dispatch CommitFailed to pause the run as `interrupted`
@@ -975,7 +1012,7 @@ export function executePlan(
         );
       }
 
-      if (!isResumeFromCleanup) {
+      if (!isResumeFromCleanup && !isResumeFromCompletion) {
         let reconciliation: ReconciliationResult;
         if (isResumeFromHandoff) {
           // The phase already committed; read the persisted reconciliation rather than
@@ -1101,6 +1138,48 @@ export function executePlan(
             }),
           );
         }
+        // Run completion (spec 27): apply the plan's Approved → Completed
+        // transition on the run branch — riding the source spec along where the
+        // chain gate allows — BEFORE review opens, so the reviewer sees the
+        // completion in the branch they review and the merge lands work and record
+        // together. This runs after the phase's handoff and before FinalReviewOpened
+        // (which generates review-handoff.md / final-report.md); completing after
+        // would describe a branch not yet carrying its own completion. A failure
+        // dispatches ArtifactCompletionFailed (pausing the run as `interrupted`
+        // with the final phase left `committed`) and re-raises as
+        // ArtifactCompletionPausedError so the top-level guard skips RunFailed.
+        // Idempotent, so a resume that partially succeeded re-applies nothing.
+        if (opts.planRepoRelPath !== undefined && opts.planRepoRelPath.length > 0) {
+          artifactCompletions = yield* completeRunArtifacts({
+            worktreePath: worktreePath as string,
+            planRepoRelPath: opts.planRepoRelPath,
+            nowIso: new Date().toISOString(),
+          }).pipe(
+            Effect.catchAll((e) =>
+              Effect.gen(function* () {
+                const reason = e instanceof Error ? e.message : String(e);
+                yield* dispatch(
+                  {
+                    ...eventBase(phase.id),
+                    type: "ArtifactCompletionFailed" as const,
+                    phaseId: phase.id as PhaseId,
+                    worktreePath,
+                    reason,
+                  },
+                  ctx,
+                );
+                return yield* Effect.fail(
+                  new ArtifactCompletionPausedError({
+                    message: `Artifact completion failed for phase "${phase.id}": ${reason}`,
+                    phaseId: phase.id,
+                    cause: e,
+                  }),
+                );
+              }),
+            ),
+          );
+        }
+
         // running/{committed} → review_open. The reducer emits OpenRunReview
         // and WriteFinalReport effects; the runner writes review-handoff.md,
         // updates the registry, and writes final-report.md.
@@ -1224,6 +1303,7 @@ export function executePlan(
       finalPhaseId,
       finalWorktreePath,
       ...(publishedPrUrl !== undefined ? { prUrl: publishedPrUrl } : {}),
+      ...(artifactCompletions !== undefined ? { artifactCompletions } : {}),
     };
   });
 
@@ -1298,13 +1378,24 @@ export function executePlan(
         return yield* Effect.fail(e);
       }),
     ),
+    // An artifact-completion failure after the final phase committed pauses the
+    // run instead of failing it: ArtifactCompletionFailed was dispatched at the
+    // catch site inside the isFinal block (performing the pause transition to
+    // interrupted with the final phase left `committed`), so we just re-raise
+    // here. The run is ready for `phax resume` to re-run only the completion step.
+    Effect.catchIf(isArtifactCompletionPausedError, (e) =>
+      Effect.gen(function* () {
+        return yield* Effect.fail(e);
+      }),
+    ),
     Effect.tapError((e) =>
       isRateLimitError(e) ||
       isNoChangesError(e) ||
       isGateAttemptsExhaustedError(e) ||
       isHandoffPausedError(e) ||
       isCommitPausedError(e) ||
-      isCleanupPausedError(e)
+      isCleanupPausedError(e) ||
+      isArtifactCompletionPausedError(e)
         ? Effect.void
         : Effect.gen(function* () {
             if (currentPhaseFolderPath !== undefined) {

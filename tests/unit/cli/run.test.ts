@@ -378,6 +378,90 @@ describe("runRun — success recap output", () => {
   });
 });
 
+describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders a ✓ completed line with the short commit hash per transition", async () => {
+    await setupSuccessRun({
+      committedPhases: ["phase-01"],
+      finalPhaseId: "phase-01",
+      artifactCompletions: {
+        transitions: [
+          {
+            kind: "plan",
+            path: "docs/plans/archive/70-run-carry-plan.md",
+            commit: { hash: "9c2d411abcdef0123456789", subject: "chore(plans): complete" },
+            alreadyComplete: false,
+          },
+          {
+            kind: "spec",
+            path: "docs/specs/archive/70-run-carry.md",
+            commit: { hash: "1f04e22fedcba9876543210", subject: "chore(specs): complete" },
+            alreadyComplete: false,
+          },
+        ],
+      },
+    });
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, lines } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(code).toBe(0);
+    const stdout = lines.join("\n");
+    expect(stdout).toContain("completed docs/plans/archive/70-run-carry-plan.md — 9c2d411");
+    expect(stdout).toContain("completed docs/specs/archive/70-run-carry.md — 1f04e22");
+  });
+
+  it("renders the chain-gate skip line and the blocking plan with its status", async () => {
+    await setupSuccessRun({
+      committedPhases: ["phase-01"],
+      finalPhaseId: "phase-01",
+      artifactCompletions: {
+        transitions: [
+          {
+            kind: "plan",
+            path: "docs/plans/archive/70-run-carry-plan.md",
+            commit: { hash: "9c2d411abcdef0123456789", subject: "chore(plans): complete" },
+            alreadyComplete: false,
+          },
+        ],
+        skippedSpec: {
+          path: "docs/specs/70-run-carry.md",
+          blockedBy: [{ path: "docs/plans/71-sibling-plan.md", status: "Approved" }],
+        },
+      },
+    });
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, lines } = makeOutput();
+    await runRun({ plan: "plan.md" }, out);
+
+    const stdout = lines.join("\n");
+    expect(stdout).toContain("spec docs/specs/70-run-carry.md kept");
+    expect(stdout).toContain("docs/plans/71-sibling-plan.md");
+    expect(stdout).toContain("Approved");
+  });
+
+  it("renders nothing extra when the completion report is empty", async () => {
+    await setupSuccessRun({
+      committedPhases: ["phase-01"],
+      finalPhaseId: "phase-01",
+      artifactCompletions: { transitions: [] },
+    });
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, lines } = makeOutput();
+    await runRun({ plan: "plan.md" }, out);
+
+    const stdout = lines.join("\n");
+    expect(stdout).not.toContain("✓ completed");
+    expect(stdout).not.toContain("kept");
+  });
+});
+
 async function setupConfigOnly() {
   const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
   loadConfig.mockReturnValue(Either.right(makeConfig("acme")));

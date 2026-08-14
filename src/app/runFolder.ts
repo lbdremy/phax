@@ -27,6 +27,9 @@ export function createRunFolder(
   planMd: string,
   plan: PhaxPlan,
   config: ResolvedConfig,
+  // Repo-relative POSIX path of the plan, persisted into run-status.json so
+  // `phax resume` can re-supply it to the run-completion step (spec 27).
+  planRepoRelPath?: string,
 ): Effect.Effect<RunFolderResult, FsError | RegistryCorruptionError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -53,6 +56,7 @@ export function createRunFolder(
       createdAt: now,
       updatedAt: now,
       phasesCount: plan.phases.length,
+      ...(planRepoRelPath !== undefined && planRepoRelPath.length > 0 ? { planRepoRelPath } : {}),
     };
 
     yield* fs.writeAtomic(join(runPath, "run-status.json"), JSON.stringify(runStatus, null, 2));

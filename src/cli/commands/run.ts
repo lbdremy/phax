@@ -24,6 +24,7 @@ import { buildDryRunReport, formatDryRunReport } from "../../app/dryRun.js";
 import { loadOrExtractPlan } from "../../app/loadOrExtractPlan.js";
 import { createRunFolder } from "../../app/runFolder.js";
 import { executePlan } from "../../app/executePlan.js";
+import type { RunCompletionReport } from "../../app/completeRunArtifacts.js";
 import { withRunLock } from "../../app/lock.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
@@ -69,6 +70,29 @@ function pickGateProfileId(config: ResolvedConfig): string | null {
 
   const keys = Object.keys(profiles);
   return keys[0] ?? null;
+}
+
+// Render the run-completion report (spec 27 §6) as output lines: one line per
+// completed artifact carrying its short commit hash, and — when the chain gate
+// kept the source spec live — a skip line naming the blocking plans. Pure
+// formatting; presence of the per-artifact commit-hash lines is normative, the
+// wording is not.
+export function renderArtifactCompletions(report: RunCompletionReport): string[] {
+  const lines: string[] = [];
+  for (const t of report.transitions) {
+    if (t.commit !== undefined) {
+      lines.push(`✓ completed ${t.path} — ${t.commit.hash.slice(0, 7)} (on run branch)`);
+    } else if (t.alreadyComplete) {
+      lines.push(`✓ completed ${t.path} — already complete`);
+    }
+  }
+  if (report.skippedSpec !== undefined) {
+    lines.push(`○ spec ${report.skippedSpec.path} kept: non-terminal dependent plans remain`);
+    for (const blocker of report.skippedSpec.blockedBy) {
+      lines.push(`    ${blocker.path}    ${blocker.status}`);
+    }
+  }
+  return lines;
 }
 
 function readRegistrySync(stateRoot: string) {
@@ -356,7 +380,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   try {
     const program = withRunLock(
       runKey(namespace, shortName),
-      createRunFolder(shortName, planMd, runPlan, config).pipe(
+      createRunFolder(shortName, planMd, runPlan, config, planRepoRel).pipe(
         Effect.flatMap(({ runPath, runId }) =>
           executePlan({
             shortName,
@@ -373,6 +397,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
             providerConfig,
             securityMode: effectiveSecurityMode,
             verbose: opts.verbose,
+            planRepoRelPath: planRepoRel,
           }),
         ),
       ),
@@ -446,6 +471,11 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     const qualName = runKey(namespace, shortName);
     const phaseCountStr = phaseCount !== undefined ? `${phaseCount} phase(s)` : "all phases";
     out.log(`Run "${qualName}" reached review — ${phaseCountStr} complete.`);
+    if (execResult.artifactCompletions !== undefined) {
+      for (const line of renderArtifactCompletions(execResult.artifactCompletions)) {
+        out.log(line);
+      }
+    }
     out.warn(
       renderWhatsNext(
         buildWhatsNext({ kind: "review_open", shortName, prUrl, phaseCount }, new Date()),
