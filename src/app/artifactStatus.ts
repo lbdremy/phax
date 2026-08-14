@@ -76,7 +76,7 @@ export interface TransitionArtifactOptions {
 // after its dependents went terminal moves file location, but the declaration
 // keeps naming the pre-archive path). Returns null when neither exists or the
 // resolved path is not a spec.
-function resolveDeclaredSpec(
+export function resolveDeclaredSpec(
   declaredPath: string,
 ): Effect.Effect<string | null, FsError, FileSystem> {
   return Effect.gen(function* () {
