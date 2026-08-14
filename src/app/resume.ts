@@ -44,6 +44,13 @@ interface NextResumablePhase {
  * This correctly handles the case where a phase was skipped (terminal) and the
  * *next* phase has no folder on disk — the old phaseStatuses-only scan would
  * miss it and report "no resumable phases".
+ *
+ * One state is terminal for a non-final phase but resumable for the final one:
+ * `committed`. A non-final phase proceeds committed → cleanup, so a persisted
+ * `committed` there is terminal. The *final* phase, however, is left `committed`
+ * when the run paused at artifact completion (ArtifactCompletionFailed) — that
+ * pause is resumable (executePlan re-enters the completion step), so it must be
+ * surfaced here rather than reported as "no resumable phases".
  */
 function findNextResumablePhase(
   phaseStatuses: readonly PhaseStatus[],
@@ -59,7 +66,11 @@ function findNextResumablePhase(
         // No on-disk folder yet — this phase hasn't started.
         return { phaseId: planPhase.id, phaseIndex: i, worktreePath: undefined };
       }
-      if (!TERMINAL_PHASE_STATES.has(status.state)) {
+      const isFinalPlanPhase = i === planPhases.length - 1;
+      const resumable =
+        !TERMINAL_PHASE_STATES.has(status.state) ||
+        (isFinalPlanPhase && status.state === "committed");
+      if (resumable) {
         return {
           phaseId: status.phaseId,
           phaseIndex: status.phaseIndex,

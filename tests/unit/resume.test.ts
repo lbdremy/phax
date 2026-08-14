@@ -284,4 +284,76 @@ describe("inspectResume", () => {
     expect(result.right.nextPhaseIndex).toBe(2);
     expect(result.right.skippedPhaseIds).toEqual(["phase-01", "phase-02"]);
   });
+
+  it("final phase left committed on an interrupted run (artifact-completion pause) → resumes from it", () => {
+    // ArtifactCompletionFailed leaves the run `interrupted` and the FINAL phase
+    // `committed` (commit + handoff already landed; only the completion step
+    // remains). `committed` is terminal for non-final phases, so the resume scan
+    // must special-case the final phase or the pause is unreachable.
+    const plan = {
+      version: 1,
+      run: {
+        shortName: "test-run",
+        title: "Test run",
+        branch: "ai/test-run",
+        requiredCommands: [],
+      },
+      phases: [makePlanPhase("phase-01")],
+    };
+    writeFileSync(join(runPath, "phax-plan.json"), JSON.stringify(plan));
+    writeFileSync(
+      join(runPath, "run-status.json"),
+      JSON.stringify(
+        makeRunStatus("interrupted", {
+          stoppedReason: "artifact_completion_failed",
+          lastError: 'Artifact completion failed for phase "phase-01": boom',
+        }),
+      ),
+    );
+    writeFileSync(
+      join(runPath, "phase-01", "status.json"),
+      JSON.stringify({ ...makePhaseStatus("committed"), commitHash: "abc1234" }),
+    );
+
+    const result = inspectResume("test-project", shortName, stateRoot);
+
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    expect(result.right.fromState).toBe("interrupted");
+    expect(result.right.nextPhaseId).toBe("phase-01");
+    expect(result.right.nextPhaseIndex).toBe(0);
+  });
+
+  it("non-final committed phase stays terminal → resumes from the next phase, not the committed one", () => {
+    // Guard on the special-case scoping: only the FINAL phase's `committed` is
+    // resumable. A non-final `committed` phase must remain terminal so the scan
+    // advances to the next (unstarted) phase.
+    const plan = {
+      version: 1,
+      run: {
+        shortName: "test-run",
+        title: "Test run",
+        branch: "ai/test-run",
+        requiredCommands: [],
+      },
+      phases: [makePlanPhase("phase-01"), makePlanPhase("phase-02")],
+    };
+    writeFileSync(join(runPath, "phax-plan.json"), JSON.stringify(plan));
+    writeFileSync(
+      join(runPath, "run-status.json"),
+      JSON.stringify(makeRunStatus("interrupted", { phasesCount: 2 })),
+    );
+    // phase-01 committed (non-final, terminal); phase-02 folder does not exist.
+    writeFileSync(
+      join(runPath, "phase-01", "status.json"),
+      JSON.stringify({ ...makePhaseStatus("committed"), phaseId: "phase-01", phaseIndex: 0 }),
+    );
+
+    const result = inspectResume("test-project", shortName, stateRoot);
+
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    expect(result.right.nextPhaseId).toBe("phase-02");
+    expect(result.right.nextPhaseIndex).toBe(1);
+  });
 });
