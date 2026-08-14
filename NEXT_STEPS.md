@@ -8,9 +8,10 @@ frontmatter planning added as priority); updated 2026-08-12 (plans 22 + 25 lande
 draft specs 27 + 28 approval sequence added); updated 2026-08-13 (spec 26 / plan 46
 landed and retired; specs 27 + 28 swept for it); updated 2026-08-14 (spec 28 / plan 47
 landed as v0.8.0 and retired; plan 48 written for spec 27); updated again 2026-08-14
-(plan 48 approved, run and landed as v0.8.1 — the lifecycle chain is closed; only its
-retirement remains). Tick items off as they land, and delete this file when it is
-empty.
+(plan 48 approved, run and landed as v0.8.1 — the lifecycle chain is closed; plan 48
+retired, spec 27 pending; specs 23 and 24 postponed to the bottom, making the small
+follow-ups and the entire.io spike the active queue). Tick items off as they land, and
+delete this file when it is empty.
 
 ## Approve the draft specs 27 and 28 (in this order)
 
@@ -82,20 +83,25 @@ in, so 28 goes first and 27 gets swept before its approval. Both were swept on
       `phax resume` refused and the resume-from-completion path was unreachable from the
       CLI; a `committed` **final** phase is now resumable while non-final phases keep the
       old behavior. **That closes the 21 → 22 → 25 → 26 → 28 → 27 lifecycle chain.**
-- [ ] **Next — retire plan 48 then spec 27** (`phax artifact complete`, plan before spec
-      per the chain gate). The run could not complete itself: the phax binary driving it
-      predates the feature it was adding, and the resume fix landed afterwards — so this
-      last pair is retired by hand, and every run from here on carries its own completion.
-      Note that `phax plans status` now reports 48 as `ground-changed` stale against its
-      own implementation diff; `Approved → Completed` is the right transition, not a
-      re-approval.
+- [x] Plan 48 retired by hand 2026-08-14 (`89a3305`, `Approved → Completed`, moved to
+      `docs/plans/archive/`). The run could not complete itself: the phax binary driving
+      it predates the feature it was adding, and the resume fix landed afterwards — so
+      this last pair is retired by hand, and every run from here on carries its own
+      completion. `phax plans status` had reported 48 as `ground-changed` stale against
+      its own implementation diff; completion, not re-approval, was the right transition,
+      and the report is now down to plan 39 alone.
+- [ ] **Next — retire spec 27** (`phax artifact complete
+      docs/specs/27-run-carries-archival.md`). Its plan is Completed, so the chain gate
+      is open. This is the last artifact anywhere that needs retiring by hand, and it
+      empties this section.
 
-## Plan and run the approved specs
+## The lifecycle chain (landed)
 
-The lifecycle chain 21 → 22 → 25 → 26 → 28 → 27 has now landed in full (27 as v0.8.1 on
-2026-08-14; only its artifact retirement is outstanding, above). What remains is 23 and
-24: independent of each other, both plannable now — 24 is the largest and consumes
-21 + 22.
+The chain 21 → 22 → 25 → 26 → 28 → 27 has now landed in full (27 as v0.8.1 on
+2026-08-14; only spec 27's own retirement is outstanding, above). The two remaining
+approved specs, 23 and 24, were **deliberately postponed on 2026-08-14** — see
+"Postponed" near the bottom. The active queue is therefore the small follow-ups and the
+entire.io spike, in that order.
 
 - [x] `docs/specs/21-artifact-lifecycle-status.md` — spec/plan state machines; only an
       `Approved` plan runs; archive-location agreement; `phax artifact` commands.
@@ -133,13 +139,6 @@ The lifecycle chain 21 → 22 → 25 → 26 → 28 → 27 has now landed in full
       phases: primitives → frontmatter-only + 90-artifact migration → authoring
       surface). Shipped with `Archived` intact, since spec 28 was not approved first —
       see the 28 item above. Plan 46 and spec 26 retired to `archive/` 2026-08-13.
-- [ ] `docs/specs/23-phase-decision-requests.md` — blocking agent-raised decision
-      requests; answer-and-resume; decisions in the review handoff.
-- [ ] `docs/specs/24-batch-execution-disjoint-plans.md` — parallel disjoint plans,
-      incremental ordered merge, terminal gate on the integration result, published as
-      GitHub stacked PRs (`gh stack`, public preview 2026-07-30) with a
-      single-integration-PR fallback.
-
 ## Small follow-ups (no spec needed)
 
 - [ ] Persist the orientation brief as a discrete artifact (`orient-brief.json` next to
@@ -211,7 +210,23 @@ limited to handoffs (phax's contractual `phase-handoff.md` is stronger for phase
       work starts; nothing consumes it before then.
 - [ ] Desktop app (review-by-trajectory cockpit) — stays in `docs/ideas/desktop-app.md`
       until specs 21–24 land: by its own rule the desktop only wraps existing CLI
-      surface, so its spec would otherwise invent commands.
+      surface, so its spec would otherwise invent commands. With 23 and 24 postponed,
+      this is parked for as long as they are.
+
+## Postponed — approved specs 23 and 24 (2026-08-14)
+
+Both are approved and plannable at any time; nothing blocks them technically and nothing
+above depends on them. Deliberately parked to work the follow-ups and the spike first.
+Pick them back up by writing a plan (`phax-planning` skill) — no re-approval needed
+unless their ground moves.
+
+- [ ] `docs/specs/23-phase-decision-requests.md` — blocking agent-raised decision
+      requests; answer-and-resume; decisions in the review handoff. The smaller of the
+      two, and it reuses the pause/resume machinery hardened by plan 48.
+- [ ] `docs/specs/24-batch-execution-disjoint-plans.md` — parallel disjoint plans,
+      incremental ordered merge, terminal gate on the integration result, published as
+      GitHub stacked PRs (`gh stack`, public preview 2026-07-30) with a
+      single-integration-PR fallback. The largest piece of work left; consumes 21 + 22.
 
 ## Longer horizon (unspecced, revisit deliberately)
 
