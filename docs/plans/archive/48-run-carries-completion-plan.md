@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/27-run-carries-archival.md
 approved:
   date: 2026-08-14
