@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/28-rename-archived-to-completed.md
 approved:
   date: 2026-08-13
