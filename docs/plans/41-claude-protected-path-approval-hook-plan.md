@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Stale
 source-spec: null
 ---
 # Scoped approval hook for declared Claude-Code protected-path edits
