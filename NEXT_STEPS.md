@@ -7,8 +7,10 @@ second pass on the Josh Rosen data-engineering article); updated 2026-08-11 (spe
 frontmatter planning added as priority); updated 2026-08-12 (plans 22 + 25 landed;
 draft specs 27 + 28 approval sequence added); updated 2026-08-13 (spec 26 / plan 46
 landed and retired; specs 27 + 28 swept for it); updated 2026-08-14 (spec 28 / plan 47
-landed as v0.8.0 and retired; plan 48 written for spec 27). Tick items off as they
-land, and delete this file when it is empty.
+landed as v0.8.0 and retired; plan 48 written for spec 27); updated again 2026-08-14
+(plan 48 approved, run and landed as v0.8.1 — the lifecycle chain is closed; only its
+retirement remains). Tick items off as they land, and delete this file when it is
+empty.
 
 ## Approve the draft specs 27 and 28 (in this order)
 
@@ -71,14 +73,29 @@ in, so 28 goes first and 27 gets swept before its approval. Both were swept on
       `transitionArtifact` through a **port method**, not an infra import or a threaded
       path prefix; and a failed completion **pauses** the run resumably rather than
       failing it.
-- [ ] **Next — review + `phax artifact approve` plan 48, then run it.** That closes the
-      21 → 22 → 25 → 26 → 28 → 27 lifecycle chain.
+- [x] Plan 48 approved 2026-08-14 (`58054de`, baseline `01ba79a`) and run — **landed on
+      `main` 2026-08-14**, released as **v0.8.1** (`db89c52` `FileSystemOps.rootedAt`,
+      `0f6f52f` the `completeRunArtifacts` use case, `ad27544` the
+      `ArtifactCompletionFailed` pause path, `b6e4aa6` the `executePlan` wiring +
+      run-output report). One post-run fix: `e80db0d` — a completion pause leaves the
+      final phase `committed`, which `findNextResumablePhase` treated as terminal, so
+      `phax resume` refused and the resume-from-completion path was unreachable from the
+      CLI; a `committed` **final** phase is now resumable while non-final phases keep the
+      old behavior. **That closes the 21 → 22 → 25 → 26 → 28 → 27 lifecycle chain.**
+- [ ] **Next — retire plan 48 then spec 27** (`phax artifact complete`, plan before spec
+      per the chain gate). The run could not complete itself: the phax binary driving it
+      predates the feature it was adding, and the resume fix landed afterwards — so this
+      last pair is retired by hand, and every run from here on carries its own completion.
+      Note that `phax plans status` now reports 48 as `ground-changed` stale against its
+      own implementation diff; `Approved → Completed` is the right transition, not a
+      re-approval.
 
 ## Plan and run the approved specs
 
-The lifecycle chain 21 → 22 → 25 → 26 → 28 has all landed; 27 is the last link and its
-plan (48) is written, pending approval. What remains beyond it is 23 and 24: independent
-of each other, both plannable now — 24 is the largest and consumes 21 + 22.
+The lifecycle chain 21 → 22 → 25 → 26 → 28 → 27 has now landed in full (27 as v0.8.1 on
+2026-08-14; only its artifact retirement is outstanding, above). What remains is 23 and
+24: independent of each other, both plannable now — 24 is the largest and consumes
+21 + 22.
 
 - [x] `docs/specs/21-artifact-lifecycle-status.md` — spec/plan state machines; only an
       `Approved` plan runs; archive-location agreement; `phax artifact` commands.
@@ -101,9 +118,10 @@ of each other, both plannable now — 24 is the largest and consumes 21 + 22.
         agree with the ground. Only plan 39 computes fresh.
   - [ ] Re-approve 41, 44 and 45 when you next intend to run them. `Stale → Approved` is
         a legal direct transition — no Draft round-trip — but each needs a real review
-        first, since the ground moved under it. Sequencing: plan 48 edits
-        `tests/unit/cli/run.test.ts`, which is in plan 44's footprint, so re-approve 44
-        *after* 48 lands rather than before.
+        first, since the ground moved under it. The sequencing constraint is now
+        discharged: plan 48 edited `tests/unit/cli/run.test.ts` (in plan 44's footprint)
+        and has landed, so 44 can be re-approved against the current ground whenever you
+        pick it up.
 - [x] `docs/specs/25-artifact-transition-autocommit.md` — every artifact transition
       auto-commits exactly its write-set (clean-target precondition, path-scoped
       staging). **Landed on `main` 2026-08-12** (plan 25; the post-landing review
@@ -146,10 +164,11 @@ of each other, both plannable now — 24 is the largest and consumes 21 + 22.
       contract. Direction: root the `FileSystem` adapter at `repoRoot` (or resolve
       repo-relative paths through a single helper) so `run`, `artifact`, and `plans`
       behave identically regardless of the working directory. Surfaced during the
-      phase-06 staleness-gate review. **Half of this arrives with plan 48**: its
-      phase-01 adds `FileSystemOps.rootedAt(root)` to the port and both adapters. What
-      remains afterwards is purely the decision to root the *base* layer at `repoRoot`
-      at the CLI composition root — the mechanism will already exist.
+      phase-06 staleness-gate review. **Half of this landed with plan 48**:
+      `FileSystemOps.rootedAt(root)` now exists on the port and both adapters
+      (`db89c52`), and `completeRunArtifacts` is its first consumer — it roots a view at
+      the worktree path. What remains is purely the decision to root the *base* layer at
+      `repoRoot` at the CLI composition root; the mechanism is already there.
 
 ## Spike candidate: entire.io × phax (analyzed 2026-08-10)
 
