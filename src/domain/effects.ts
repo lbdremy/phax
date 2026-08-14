@@ -15,14 +15,16 @@ export interface ResumeContext {
     | "No changes"
     | "Gate checks failed"
     | "Commit failed"
-    | "Cleanup failed";
+    | "Cleanup failed"
+    | "Artifact completion failed";
   readonly kind:
     | "rate_limit"
     | "usage_limit"
     | "no_changes"
     | "gates_exhausted"
     | "commit_failed"
-    | "cleanup_failed";
+    | "cleanup_failed"
+    | "artifact_completion_failed";
   readonly resetAt?: string | undefined;
   readonly phaseId?: string | undefined;
   readonly worktreePath?: string | undefined;

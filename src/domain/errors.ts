@@ -113,6 +113,14 @@ export class CleanupPausedError extends Data.TaggedError("CleanupPausedError")<{
   cause: unknown;
 }> {}
 
+export class ArtifactCompletionPausedError extends Data.TaggedError(
+  "ArtifactCompletionPausedError",
+)<{
+  message: string;
+  phaseId: string;
+  cause: unknown;
+}> {}
+
 export class RegistryCorruptionError extends Data.TaggedError("RegistryCorruptionError")<{
   message: string;
   registryPath: string;

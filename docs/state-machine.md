@@ -159,6 +159,7 @@ interface PhaxEventBase {
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `RateLimitDetected` | `RateLimitError` or `UsageLimitError` from Claude (carries `kind`, `resetAt?`, `cause`, `worktreePath?`, `sessionId?`)                                               |
 | `PhaseHadNoChanges` | `commitPhase` finds a clean worktree — real problem requiring user attention (transitions run to `interrupted`, phase to `skipped`; writes `resume-instructions.md`) |
+| `ArtifactCompletionFailed` | run-completion step failed after the final phase committed (carries `phaseId`, `worktreePath`, `reason`; transitions run to `interrupted`, phase stays `committed`; writes `resume-instructions.md`) |
 
 ## Dispositions
 
@@ -205,6 +206,7 @@ The compile-time `phaxDispositionMatrix` in `src/domain/matrix.ts` declares the 
 | `CleanupCompleted`         | U       | U       | S            | S           | U           | S      | S         | S       | S        |
 | `RateLimitDetected`        | U       | **H**   | I            | I           | S           | S      | S         | S       | S        |
 | `PhaseHadNoChanges`        | U       | **H**   | S            | S           | S           | S      | S         | S       | S        |
+| `ArtifactCompletionFailed` | U       | **H**   | S            | S           | U           | S      | S         | S       | S        |
 
 **H** = Handled, **I** = Ignored, **S** = Stale, **R** = Rejected, **U** = Unexpected
 
