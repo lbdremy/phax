@@ -6,14 +6,16 @@ graphs / ETL / change detection / democratization — and the desktop-app idea i
 second pass on the Josh Rosen data-engineering article); updated 2026-08-11 (spec 26
 frontmatter planning added as priority); updated 2026-08-12 (plans 22 + 25 landed;
 draft specs 27 + 28 approval sequence added); updated 2026-08-13 (spec 26 / plan 46
-landed and retired; specs 27 + 28 swept for it). Tick items off as they land, and
-delete this file when it is empty.
+landed and retired; specs 27 + 28 swept for it); updated 2026-08-14 (spec 28 / plan 47
+landed as v0.8.0 and retired; plan 48 written for spec 27). Tick items off as they
+land, and delete this file when it is empty.
 
 ## Approve the draft specs 27 and 28 (in this order)
 
 Two Drafts written 2026-08-12. Order matters: 28 renames the vocabulary 27 is written
 in, so 28 goes first and 27 gets swept before its approval. Both were swept on
 2026-08-13 for the fact that spec 26 landed — no stale cross-references remain.
+**28 has now landed and been retired; only 27 remains, and its plan is written.**
 
 - [x] `docs/specs/28-rename-archived-to-completed.md` — terminal status `Archived` →
       `Completed` (outcome pair `Completed | Abandoned`; the `archive/` folder keeps its
@@ -45,20 +47,38 @@ in, so 28 goes first and 27 gets swept before its approval. Both were swept on
       CLI verb rename with a hidden refusing `archive` subcommand and regenerated CLI
       documents (sonnet-5/high), the shipped skill bundles (sonnet-5/medium).
       Deterministic extraction verified — 3 phases, no LLM fallback.
-- [ ] **Next — review + `phax artifact approve` plan 47, then run it.** After it lands,
-      write the plan for spec 27. The order is a hard constraint, not a preference: 27
-      names `Completed` and `phax artifact complete` throughout, so its caller would
-      reference a status the schema rejects until 28's rename lands.
-- [ ] Ripple from 28: the `phax-spec`/`phax-planning` skills, the CLI help
-      (`phax.usage.kdl`, the source for `docs/cli/reference.md`) all state
-      `Archived`/`archive` — spec 26's phase-03 just rewrote them, and 28's rollout
-      rewrites them again. The run-level `phax archive <run>`, the `archived` run
+- [x] Plan 47 approved and run — **landed on `main` 2026-08-14**, released as **v0.8.0**
+      (`ae554dc` status flip + 78-artifact migration, `98199d7` CLI verb rename,
+      `0b4a4a3` shipped skill bundles, `289626b` refusal-without-path fix). Plan 47 and
+      spec 28 retired to `archive/` on 2026-08-14 — the first two transitions applied
+      with the new `phax artifact complete` verb, which dogfooded itself.
+- [x] Ripple from 28 applied: the `phax-spec`/`phax-planning`/`phax-cli` skill bundles,
+      `phax.usage.kdl`, `docs/cli/reference.md` and the README now read
+      `Completed`/`complete`. The run-level `phax archive <run>`, the `archived` run
       status and `phax runs --archived` stay as they are (28 §7).
+  - [x] Operator step: the **installed** skill copies under `~/.claude/skills/` still
+        read `Archived` — only the repo bundle (`.claude/skills/`, which *is* the install
+        source) had been rewritten. **Done 2026-08-14** —
+        `phax skills install --target claude --scope user` refreshed all three.
+- [x] Plan for spec 27 written 2026-08-14 —
+      `docs/plans/48-run-carries-completion-plan.md` (Draft). Four phases:
+      `FileSystemOps.rootedAt` on the port and its adapters (sonnet-5/high), the
+      `completeRunArtifacts` use case (opus-4-8/high), the `ArtifactCompletionFailed`
+      pause path (sonnet-5/high), and wiring it into `executePlan` with a
+      `resumeFromCompletion` re-entry and the run-output report (opus-4-8/high).
+      Deterministic extraction verified — 4 phases, no LLM fallback. Two arbitrations
+      were settled with the user and recorded in the plan: the worktree root reaches
+      `transitionArtifact` through a **port method**, not an infra import or a threaded
+      path prefix; and a failed completion **pauses** the run resumably rather than
+      failing it.
+- [ ] **Next — review + `phax artifact approve` plan 48, then run it.** That closes the
+      21 → 22 → 25 → 26 → 28 → 27 lifecycle chain.
 
 ## Plan and run the approved specs
 
-The lifecycle chain 21 → 22 → 25 → 26 has all landed. What remains here is 23 and 24:
-independent of each other, both plannable now — 24 is the largest and consumes 21 + 22.
+The lifecycle chain 21 → 22 → 25 → 26 → 28 has all landed; 27 is the last link and its
+plan (48) is written, pending approval. What remains beyond it is 23 and 24: independent
+of each other, both plannable now — 24 is the largest and consumes 21 + 22.
 
 - [x] `docs/specs/21-artifact-lifecycle-status.md` — spec/plan state machines; only an
       `Approved` plan runs; archive-location agreement; `phax artifact` commands.
@@ -72,11 +92,18 @@ independent of each other, both plannable now — 24 is the largest and consumes
   - [x] Post-merge operator step: re-approve plans 39, 41, 44, 45 so they gain
         approval records — **done 2026-08-11** (approval baselines recorded; 39 and 41
         compute fresh).
-  - [ ] Plans 41, 44 and 45 are stale as of 2026-08-13 (`ground-changed`: 41 from the
-        `phax-planning` skill rewrite, 44 from README/`docs/cli/reference.md`/`phax.json`
-        churn, 45 from `package.json`/lockfile churn — landing plans 22, 25 and 46).
-        Only plan 39 computes fresh. Review and `phax artifact approve` them before
-        running — `phax plans status` is the source of truth.
+  - [x] Plans 41, 44 and 45 computed stale (`ground-changed`: 41 from the
+        `phax-planning` skill rewrite — its footprint still names the `.agents/` mirror
+        that `62670ea` deleted; 44 from README / `docs/cli/reference.md` / `phax.json` /
+        `tests/unit/cli/run.test.ts` churn; 45 from `package.json` / lockfile churn).
+        **Flipped `Approved → Stale` 2026-08-14** via `phax plans status --apply` (three
+        auto-committed transitions, `7bc46ed`/`8b63c4f`/`278d4bb`), so the records now
+        agree with the ground. Only plan 39 computes fresh.
+  - [ ] Re-approve 41, 44 and 45 when you next intend to run them. `Stale → Approved` is
+        a legal direct transition — no Draft round-trip — but each needs a real review
+        first, since the ground moved under it. Sequencing: plan 48 edits
+        `tests/unit/cli/run.test.ts`, which is in plan 44's footprint, so re-approve 44
+        *after* 48 lands rather than before.
 - [x] `docs/specs/25-artifact-transition-autocommit.md` — every artifact transition
       auto-commits exactly its write-set (clean-target precondition, path-scoped
       staging). **Landed on `main` 2026-08-12** (plan 25; the post-landing review
@@ -101,8 +128,8 @@ independent of each other, both plannable now — 24 is the largest and consumes
       `prompt.md`) — one-phase plan amending the behavior of archived spec 17; today the
       brief exists only woven into `prompt.md` plus a telemetry count.
 - [ ] Audit the remaining active specs (15, 16, 18, 19) — any that are implemented on
-      `main` should be flipped `Archived` and moved to `docs/specs/archive/` (done for
-      17 on 2026-08-09).
+      `main` should be flipped `Completed` and moved to `docs/specs/archive/`
+      (`phax artifact complete`; done for 17 on 2026-08-09).
 - [x] Retire the landed lifecycle artifacts still sitting live: plans 21, 22, 25 and
       specs 21, 22, 25 all shipped but still read `Approved` outside `archive/` —
       exactly the gap draft spec 27 automates. **Done 2026-08-12** — archived plan
@@ -119,7 +146,10 @@ independent of each other, both plannable now — 24 is the largest and consumes
       contract. Direction: root the `FileSystem` adapter at `repoRoot` (or resolve
       repo-relative paths through a single helper) so `run`, `artifact`, and `plans`
       behave identically regardless of the working directory. Surfaced during the
-      phase-06 staleness-gate review.
+      phase-06 staleness-gate review. **Half of this arrives with plan 48**: its
+      phase-01 adds `FileSystemOps.rootedAt(root)` to the port and both adapters. What
+      remains afterwards is purely the decision to root the *base* layer at `repoRoot`
+      at the CLI composition root — the mechanism will already exist.
 
 ## Spike candidate: entire.io × phax (analyzed 2026-08-10)
 
