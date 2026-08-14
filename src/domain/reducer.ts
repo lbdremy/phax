@@ -702,6 +702,63 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
       }
       return assertNever(state);
 
+    case "ArtifactCompletionFailed":
+      switch (state.run) {
+        case "running": {
+          const ps = state.phase.state;
+          if (state.phase.state === "committed") {
+            return handled(
+              { run: "interrupted", phase: { state: "committed", hash: state.phase.hash } },
+              [
+                {
+                  type: "PersistState",
+                  patch: {
+                    run: { stoppedReason: "artifact_completion_failed", lastError: event.reason },
+                  },
+                },
+                {
+                  type: "WriteResumeInstructions",
+                  ctx: {
+                    reason: "Artifact completion failed",
+                    kind: "artifact_completion_failed",
+                    phaseId: event.phase,
+                    worktreePath: event.worktreePath as string,
+                  },
+                },
+                {
+                  type: "EmitTrace",
+                  name: "artifact.completion.failed",
+                  status: "failed",
+                  boundary: "artifact-completion",
+                  details: { phaseId: event.phase, reason: event.reason },
+                },
+                {
+                  type: "EmitTrace",
+                  name: "resume.available",
+                  status: "info",
+                  boundary: "resume-instructions.md",
+                  details: { resumeCommand: `phax resume ${event.run}` },
+                },
+              ],
+            );
+          }
+          return unexpected(`artifact completion failed while phase is ${ps}`);
+        }
+        case "rate_limited":
+          return stale("artifact completion failed on rate-limited run");
+        case "interrupted":
+          return stale("artifact completion failed on interrupted run");
+        case "created":
+        case "review_open":
+          return unexpected(`artifact completion failed while run is ${state.run}`);
+        case "failed":
+        case "completed":
+        case "stopped":
+        case "archived":
+          return stale(`artifact completion failed on ${state.run} run`);
+      }
+      return assertNever(state);
+
     case "CleanupStarted":
       switch (state.run) {
         case "running": {

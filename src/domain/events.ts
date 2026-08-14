@@ -159,6 +159,15 @@ export interface CleanupFailed extends PhaxEventBase {
   readonly reason: string;
 }
 
+// Cross-cutting: the run-completion step failed after the final phase committed.
+// Transitions run → interrupted, phase stays committed (resumable).
+export interface ArtifactCompletionFailed extends PhaxEventBase {
+  readonly type: "ArtifactCompletionFailed";
+  readonly phaseId: PhaseId;
+  readonly worktreePath: WorktreePath;
+  readonly reason: string;
+}
+
 // Cross-cutting: affects both run and phase substate.
 export interface RateLimitDetected extends PhaxEventBase {
   readonly type: "RateLimitDetected";
@@ -202,6 +211,7 @@ export type PhaxEvent =
   | CleanupStarted
   | CleanupCompleted
   | PhaseHadNoChanges
+  | ArtifactCompletionFailed
   | RateLimitDetected
   | PhaseResetRequested;
 
