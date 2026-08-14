@@ -125,13 +125,16 @@ the entire.io spike — the small follow-ups closed with plan 49.
         **Flipped `Approved → Stale` 2026-08-14** via `phax plans status --apply` (three
         auto-committed transitions, `7bc46ed`/`8b63c4f`/`278d4bb`), so the records now
         agree with the ground. Only plan 39 computes fresh.
-  - [ ] Re-approve 41, 44 and 45 when you next intend to run them. `Stale → Approved` is
+  - [ ] Re-approve 41 and 44 when you next intend to run them. `Stale → Approved` is
         a legal direct transition — no Draft round-trip — but each needs a real review
         first, since the ground moved under it. The sequencing constraint is now
         discharged: plans 48 and 49 both edited `tests/unit/cli/run.test.ts` (in plan
         44's footprint) and have landed, so 44 can be re-approved against the current
         ground whenever you pick it up — re-read it against `main` first, since 49 also
         reshaped how CLI commands acquire their layer.
+  - [x] Plan 45 took the other route on 2026-08-14: **reopened `Stale → Draft`
+        (`13343f6`) and replanned in place** rather than re-approved as written — see
+        "TypeScript 7 migration" below.
 - [x] `docs/specs/25-artifact-transition-autocommit.md` — every artifact transition
       auto-commits exactly its write-set (clean-target precondition, path-scoped
       staging). **Landed on `main` 2026-08-12** (plan 25; the post-landing review
@@ -169,8 +172,8 @@ Both open items were covered by one plan —
 `docs/plans/49-repo-rooting-and-orient-brief-plan.md` (three phases, `source-spec: null`,
 written and approved 2026-08-14, baseline `eb2e0fc`). **Approved `f377cf9`, run, and
 landed on `main` 2026-08-14** — `2d9ffeb` CLI path arguments, `2c9f638` the repo-rooted
-FileSystem layer, `c0d643e` the orient-brief artifact. Not yet released; `main` still
-carries the v0.8.1 tag.
+FileSystem layer, `c0d643e` the orient-brief artifact. **Released as v0.8.2**
+(`e9ff74c`).
 
 Plan 49 is the **first run to carry its own completion**: `7ed7541`
 (`Approved → Completed`, plan moved to `docs/plans/archive/`) rode in on the run branch
@@ -213,6 +216,31 @@ now reports plan 39 alone, fresh.
       commands that legitimately stay on the identity layer, and
       `tests/integration/repoRootedCli.test.ts` exercising invocation from a
       subdirectory.
+
+## TypeScript 7 migration (plan 45, replanned 2026-08-14)
+
+`docs/plans/45-typescript-7-migration-plan.md` went `Stale` (`ground-changed`, package /
+lockfile churn) on 2026-08-14 and was **reopened `Stale → Draft` (`13343f6`) and
+rewritten in place** rather than re-approved as written — replanning from the existing
+plan, keeping the number and the lineage. Two phases, `source-spec: null`; deterministic
+extraction verified (2 phases, schema validation passed, no LLM fallback); run branch
+short name shortened to `migrate-to-typescript-7`.
+
+Re-verifying the original against `main` at `e9ff74c` killed two of its claims: knip
+`6.12.2` **no longer depends on `typescript`** (it runs on `oxc-parser` / `get-tsconfig`),
+so the knip gate is insulated from the bump; and the `tsconfig` risk is now a closed
+checklist rather than an assumption — the TS 6.0 → 7.0 option-removal set is ten named
+options and **none of them is set here**, so a `TS5023` failure would be news, and the
+real risk is inference and emit. `typescript@latest` is still `7.0.2`, unchanged since
+2026-08-11.
+
+- [ ] **Operator step, before approving**: add `pnpm test:type` to the `full` gate
+      profile in `phax.json` and commit it. `test:type` is the only check that compiles
+      `tests/type/**` and it is absent from `full` — for a compiler migration that is
+      the load-bearing check, and a phase cannot add it for itself since gate profiles
+      are frozen at `loadConfig` (`src/cli/commands/run.ts:162`). Commit it *before*
+      `phax artifact approve` so the approval baseline already carries it.
+- [ ] Then approve plan 45 and run it.
 
 ## Nice to have improvements
 
