@@ -151,7 +151,7 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
   // and everything derived from it.
   artifactCmd
     .command("archive", { hidden: true })
-    .argument("<path>", "Path to a spec or plan file under docs/specs/ or docs/plans/")
+    .argument("[path]", "Path to a spec or plan file under docs/specs/ or docs/plans/")
     .action(() => {
       const exitCode = runArtifactArchiveRefusal(out);
       process.exit(exitCode);
