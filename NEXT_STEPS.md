@@ -5,61 +5,23 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-08-15, after the TypeScript 7 migration landed and closed the
-21 → 22 → 25 → 26 → 28 → 27 lifecycle chain's last follow-ups.
+Last pruned 2026-08-15, after plan 50 ran and closed the reconciliation and reopen
+cleanups — the last of the small follow-ups behind the 21 → 22 → 25 → 26 → 28 → 27
+lifecycle chain and the TypeScript 7 migration.
 
-## Release pending
+## Release pending — the only open item
 
-- [ ] Cut **v0.8.3**. The last tag is v0.8.2; the tsconfig strictness tightening and
-      the TypeScript 7 bump are on `main` unreleased. Fold it into the next feature
-      release if one is close.
-
-## Nice to have improvements — planned as plan 50, ahead of the release
-
-Both are covered by `docs/plans/50-reconciliation-and-reopen-cleanups-plan.md`
-(**Draft**, written 2026-08-15, `source-spec: null`, two phases, deterministic extraction
-verified — 2 phases, no LLM fallback). They share no files and no concepts, so the phases
-are independently committable. Three arbitrations were settled with the user and recorded
-in the plan preamble: optional files get their **own** `optional-touched` status rather
-than being folded into `plannedInPhases`; only reopen clears the approval record
-(`Approved → Stale` deliberately keeps it); and reopen clears the `approved:` frontmatter
-stamp as well as the store record.
-
-- [ ] **phase-01** — the global reconciliation table classifies touched optional files as
-      `unplanned`. Regrounded 2026-08-15, and the earlier description here was wrong about
-      where: the **per-phase** reconciler is already correct — `reconcile()` unions
-      create ∪ edit ∪ optional into its plan set
-      (`src/domain/reconciliation/reconcile.ts:24`) and routes touched optional files to
-      `optionalTouched`. The defect is one layer up in `aggregateGlobalReconciliation`
-      (`src/domain/reconciliation/global.ts:164`), which adds the phase to
-      `touchedInPhases` but never to `plannedInPhases`, so `deriveStatus` returns
-      `unplanned` and the "Planned in" column renders `—`. A unit test currently pins the
-      wrong behavior (`tests/unit/reconciliation/global.test.ts:353`). Surfaced by plan
-      49's compliance review, where `tests/integration/adjustPlanCommand.test.ts` and
-      `tests/unit/cli/run.test.ts` were both flagged despite being listed as optional.
-      The *footprint* path already counts optional files — `buildFootprint` unions them
-      into `.all` (`src/domain/planOverlap/compute.ts:25`), which is what
-      `planStaleness.ts:156` and `plans-overlap` consume — so staleness and overlap treat
-      an optional file as part of the plan while the global reconciler does not.
-- [ ] **phase-02** — `phax artifact reopen` leaves a dangling approval. `Stale → Draft`
-      clears neither the `approvals.json` entry nor the `approved:` frontmatter stamp, so
-      a `Draft` plan keeps an approval describing a version of itself that is about to be
-      rewritten. Found 2026-08-15 on plan 45. Inert today — staleness only consults
-      records for `Approved` plans, and `putApprovalRecord` overwrites by key
-      (`src/app/approvalRecordStore.ts:62`) — but the **completion** path already calls
-      `removeApprovalRecord` (`approvalRecordStore.ts:66`), so the two exits from
-      `Approved` disagree: complete cleans up, reopen does not. Note `Approved → Draft`
-      is not a legal plan transition, so `Stale → Draft` is the only reopen. The fix has
-      one non-obvious edge the plan calls out: `transitionWriteSet` must also carry
-      `approvals.json` on a plan reopen, since the write-set is both the dirty
-      precondition and the exact set the transition commits.
-- [ ] Approve and run plan 50, then cut the release above. Nothing sequences it after the
-      release — running it first just means v0.8.3 carries both fixes.
+- [ ] Cut **v0.8.3**. The last tag is v0.8.2, with 20 commits on `main` behind it: the
+      tsconfig strictness tightening, the TypeScript 7 bump, `test:type` in the full gate
+      profile, and plan 50's two fixes (`optional-touched` in the global reconciliation
+      table; `artifact reopen` clearing both the `approvals.json` record and the
+      `approved:` frontmatter stamp). Nothing is queued ahead of it — fold it into the
+      next feature release only if one starts soon.
 
 ## Spike candidate: entire.io × phax (analyzed 2026-08-10) — active queue head
 
 With the gate trilogy parked alongside 23 and 24, this is the only substantive work left
-active; the two items above are cheap fixes to slot in around it.
+active.
 
 [entire.io](https://entire.io/) — open-source (MIT) CLI hooking into agent configs
 (Claude Code, Codex, Cursor, Gemini, …) that captures full session transcripts (prompts,
