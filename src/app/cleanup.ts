@@ -44,7 +44,6 @@ export function cleanupPhase(
     worktreePath,
     phaseFolderPath,
     cleanupCommands,
-    repoRoot,
     isFinalPhase,
     runPath,
     shortName,

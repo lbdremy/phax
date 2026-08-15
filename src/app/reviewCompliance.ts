@@ -49,7 +49,7 @@ export function reviewCompliance(
   config: ResolvedComplianceReviewConfig,
   resolution: RoutingResolution,
   security: { mode: SecurityMode; config: ResolvedSecurityConfig },
-  opts: ReviewComplianceOpts,
+  _opts: ReviewComplianceOpts,
 ): Effect.Effect<ComplianceReviewResult, FsError, Backend | FileSystem | SystemTelemetry> {
   return Effect.gen(function* () {
     if (!config.enabled) {

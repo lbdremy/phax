@@ -38,8 +38,10 @@ export function describeCause(cause: unknown): string {
  *
  * The outer switch covers every event type; the inner switch covers every
  * run state. Phase-substate refinement happens inside the run-state arms.
- * Every branch returns explicitly — code after each inner switch is
- * unreachable and TypeScript narrows the residual state to `never`.
+ * Every branch returns explicitly, and each inner switch ends in a
+ * `default: return assertNever(state)` clause: when the switch is exhaustive
+ * TypeScript narrows `state` to `never` there, so adding a run state without
+ * handling it here fails to compile.
  */
 export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxState> {
   switch (event.type) {
@@ -56,8 +58,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return rejected(`cannot start run from ${state.run}`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "RunResumeRequested":
       switch (state.run) {
@@ -77,8 +80,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return rejected(`cannot resume run from ${state.run}`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "RunInterruptRequested":
       switch (state.run) {
@@ -94,8 +98,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return rejected(`cannot interrupt run from ${state.run}`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "RunArchiveRequested":
       switch (state.run) {
@@ -122,8 +127,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "failed":
         case "stopped":
           return rejected(`cannot archive run from ${state.run}`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "RunFailed":
       switch (state.run) {
@@ -139,8 +145,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return rejected(`cannot fail run from ${state.run}`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "FinalReviewOpened":
       switch (state.run) {
@@ -170,8 +177,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return rejected(`final review cannot reopen from ${state.run}`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "RunCompleted":
       switch (state.run) {
@@ -188,8 +196,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return rejected(`cannot complete run from ${state.run}`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "PhaseStartRequested":
       switch (state.run) {
@@ -213,8 +222,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`phase start requested on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "WorktreeCreated":
       switch (state.run) {
@@ -238,8 +248,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`worktree creation event on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "AgentInvocationStarted":
       switch (state.run) {
@@ -262,8 +273,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`agent invocation started on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "AgentInvocationCompleted":
       switch (state.run) {
@@ -285,8 +297,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`agent invocation completed on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "GateStarted":
       switch (state.run) {
@@ -309,8 +322,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`gate started on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "GatePassed":
       switch (state.run) {
@@ -332,8 +346,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`gate passed on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "GateFailed":
       switch (state.run) {
@@ -358,8 +373,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`gate failed on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "FixStarted":
       switch (state.run) {
@@ -385,8 +401,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`fix started on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "FixCompleted":
       switch (state.run) {
@@ -408,8 +425,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`fix completed on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "FixAttemptsExhausted":
       switch (state.run) {
@@ -475,8 +493,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`fix attempts exhausted on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "HandoffRequested":
       switch (state.run) {
@@ -499,8 +518,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`handoff requested on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "HandoffValidated":
       switch (state.run) {
@@ -523,8 +543,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`handoff validated on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "HandoffMissing":
       switch (state.run) {
@@ -563,8 +584,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`handoff missing on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "CommitCreated":
       switch (state.run) {
@@ -590,8 +612,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`commit created on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "CommitFailed":
       switch (state.run) {
@@ -645,8 +668,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`commit failed on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "CleanupFailed":
       switch (state.run) {
@@ -699,8 +723,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`cleanup failed on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "ArtifactCompletionFailed":
       switch (state.run) {
@@ -756,8 +781,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`artifact completion failed on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "CleanupStarted":
       switch (state.run) {
@@ -785,8 +811,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`cleanup started on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "CleanupCompleted":
       switch (state.run) {
@@ -808,8 +835,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`cleanup completed on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "PhaseHadNoChanges":
       switch (state.run) {
@@ -863,8 +891,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`phase had no changes on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "RateLimitDetected":
       switch (state.run) {
@@ -922,8 +951,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return stale(`rate limit on ${state.run} run`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
 
     case "PhaseResetRequested": {
       const resetResult = handled({ run: "interrupted", phase: { state: "pending" } }, [
@@ -958,8 +988,9 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
         case "stopped":
         case "archived":
           return rejected(`cannot reset phase while run is ${state.run}`);
+        default:
+          return assertNever(state);
       }
-      return assertNever(state);
     }
   }
 }

@@ -23,7 +23,7 @@ const MISSING_NAME_MESSAGE = `PHAX project name is missing in phax.json. Add a n
 
 function validateNameField(raw: unknown): ConfigValidationError | undefined {
   const obj = raw as Record<string, unknown>;
-  const name = obj?.name;
+  const name = obj?.["name"];
   if (typeof name !== "string" || name === "") {
     return new ConfigValidationError({ message: MISSING_NAME_MESSAGE, path: "name" });
   }

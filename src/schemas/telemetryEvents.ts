@@ -5,7 +5,6 @@ import {
   RelationshipSchema,
   ThinkingLevelSchema,
 } from "./modelRouting.js";
-import { NetworkProfileSchema, McpModeSchema } from "./securityConfig.js";
 
 const StateTransitionTelemetryEventSchema = Schema.Struct({
   type: Schema.Literal("state.transition"),

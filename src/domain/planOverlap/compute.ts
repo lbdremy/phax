@@ -4,7 +4,6 @@ import type {
   ImpactedPlan,
   LandedInput,
   OverlapEdge,
-  PlanFileSets,
   PlanFootprint,
   PlanInput,
   PlanOverlapResult,

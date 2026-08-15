@@ -1,7 +1,6 @@
 import { Effect, Layer } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
 import { Git, GitError } from "../ports/git.js";
-import type { BranchName, WorktreePath } from "../domain/branded.js";
 import { decodeBranchName } from "../domain/branded.js";
 import { Either } from "effect";
 import {

@@ -5,7 +5,6 @@ import { PROVIDER_SECURITY_CAPABILITIES } from "../domain/security/capabilities.
 import type { ProviderConfig } from "../schemas/providerConfig.js";
 import type { ProviderProbeResult } from "../domain/routing/providerSetup.js";
 import type { ProviderId } from "../domain/routing/types.js";
-import type { ProviderSecurityCapability } from "../domain/security/capabilities.js";
 
 interface ProviderStatus {
   readonly provider: ProviderId;
@@ -24,7 +23,7 @@ export interface SecurityStatusReport {
  * known provider security capabilities.
  */
 export function buildSecurityStatusReport(
-  providerConfig: ProviderConfig,
+  _providerConfig: ProviderConfig,
   probeResults: readonly ProviderProbeResult[],
 ): SecurityStatusReport {
   const providers: ProviderId[] = ["claude-code", "codex-cli", "mistral-vibe"];
