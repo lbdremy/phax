@@ -122,4 +122,7 @@ All scripts are POSIX `sh`, read-only, human-run, and not wired into any gate or
 | `03-format-and-join.sh`      | (phase-04) format readability from git alone, and the phax join          |
 
 Findings live in `findings/`, one doc per probe, copied from `findings/TEMPLATE.md`.
-The synthesis lands in `docs/spikes/entire-checkpoint-findings.md` (phase-05).
+The synthesis — per-probe verdicts, the adopt-vs-pattern options, consumption sketches,
+residual risks and the consolidated teardown checklist — is
+[`docs/spikes/entire-checkpoint-findings.md`](../../docs/spikes/entire-checkpoint-findings.md)
+(phase-05). Its `## Verdict` is left empty for the human, like the probe docs'.
