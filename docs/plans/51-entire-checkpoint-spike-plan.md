@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-08-15
+  baseline: f6c59ca
 ---
 # Entire Checkpoint Spike
 
