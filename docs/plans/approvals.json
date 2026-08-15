@@ -23,9 +23,9 @@
       }
     },
     "docs/plans/45-typescript-7-migration-plan.md": {
-      "planFingerprint": "3170b1eeb786905c0209750cce50f64bd41baf679e68fd405bebd7dcce6cb51d",
-      "approvedAt": "2026-08-11T07:57:20.361Z",
-      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "planFingerprint": "e09e288243da5df55201bd7c5e389e9590ca3e07f4124d8d27b1ae7716a26779",
+      "approvedAt": "2026-08-15T10:46:22.313Z",
+      "baseline": "8fc7bd37510b6b6c89f82772dca7f006dabb2817",
       "sourceSpec": null
     }
   }

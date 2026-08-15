@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-08-15
+  baseline: 8fc7bd3
 ---
 # Migrate to TypeScript 7
 
