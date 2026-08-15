@@ -243,6 +243,17 @@ real risk is inference and emit. `typescript@latest` is still `7.0.2`, unchanged
       (`TS1484` on a stripped `type` keyword). Landed as its own commit before the bump
       so TS7 inference diagnostics can't be confused with single-file-transpilation
       ones.
+- [x] The remaining six followed in `72f26c1`: `noUnusedLocals`, `noUnusedParameters`,
+      `noPropertyAccessFromIndexSignature`, `noUncheckedSideEffectImports`,
+      `allowUnreachableCode: false`, `allowUnusedLabels: false`. 43 diagnostics, of
+      which 29 were a single pattern — `interpret()` in `src/domain/reducer.ts` ended
+      each inner switch with a trailing `return assertNever(state)`, unreachable
+      *because* the switch is exhaustive. Moved into `default:` clauses, which keeps
+      the exhaustiveness proof (verified: dropping a case still fails with `TS2345`).
+      The other 14 were real dead code — unused imports/params/type alias and three
+      index-signature accesses; removing the dead `PlanFileSets` import then let knip
+      see its export was dead too. **The strictness contract is now settled before the
+      TS7 bump**, so every diagnostic phase-01 produces is attributable to the compiler.
 - [ ] **Operator step, before approving**: add `pnpm test:type` to the `full` gate
       profile in `phax.json` and commit it. `test:type` is the only check that compiles
       `tests/type/**` and it is absent from `full` — for a compiler migration that is
