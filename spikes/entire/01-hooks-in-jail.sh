@@ -161,17 +161,49 @@ echo "gated by --allowedTools, or executed outside it."
 
 # --- case 5: was a session captured at all? -----------------------------------
 section "case 5: captured session material per phase Session-Id"
-echo "Session-Id trailers on $run_branch (phax commits):"
-git log "$run_branch" --format='%H%x09%(trailers:key=Session-Id,valueonly,separator=)' \
-  | while IFS="$(printf '\t')" read -r sha sid; do
+# Capture is proven by the DURABLE record, not by .entire/metadata/. That
+# directory is live staging: entire condenses a session into a checkpoint ref at
+# commit time and clears the staging entry, so a completed phase legitimately has
+# no .entire/metadata/<session-id>/ at all. Testing it there reports "NOT
+# captured" for every finished phase — a false negative on this probe's whole
+# question. Verified 2026-08-15: all five phases of the observed run were
+# captured while .entire/metadata/ held only the one still-open session.
+#
+# The durable chain is:
+#   phax commit --Entire-Checkpoint--> refs/entire/checkpoints/<last2>/<ULID>
+#   checkpoint  --Entire-Session-----> must equal the commit's Session-Id
+cp_ref() { # cp_ref ULID -> its ref path, or empty
+  git for-each-ref --format='%(refname)' 'refs/entire/checkpoints/**' \
+    | grep -- "/$1\$" | head -1
+}
+echo "Session-Id / Entire-Checkpoint trailers on $run_branch (phax commits):"
+git log "$run_branch" \
+  --format='%H%x09%(trailers:key=Session-Id,valueonly,separator=)%x09%(trailers:key=Entire-Checkpoint,valueonly,separator=)' \
+  | while IFS="$(printf '\t')" read -r sha sid cpid; do
       [ -n "$sid" ] || continue
-      if [ -d ".entire/metadata/$sid" ]; then
-        echo "  $sha  $sid  -> .entire/metadata/$sid/ PRESENT:"
-        ls ".entire/metadata/$sid" | sed 's/^/       /'
+      short="$(git rev-parse --short "$sha")"
+      if [ -z "$cpid" ]; then
+        echo "  $short  $sid  -> no Entire-Checkpoint trailer (session NOT captured)"
+        continue
+      fi
+      ref="$(cp_ref "$cpid")"
+      if [ -z "$ref" ]; then
+        echo "  $short  $sid  -> trailer $cpid but NO ref (DANGLING checkpoint)"
+        continue
+      fi
+      esid="$(git log -1 "$ref" --format='%(trailers:key=Entire-Session,valueonly,separator=)')"
+      if [ "$esid" = "$sid" ]; then
+        echo "  $short  $sid  -> CAPTURED ($ref, Entire-Session matches)"
       else
-        echo "  $sha  $sid  -> .entire/metadata/$sid/ absent (session NOT captured)"
+        echo "  $short  $sid  -> captured but JOIN MISMATCH (checkpoint session $esid)"
       fi
     done
-[ -d .entire/metadata ] || echo "  (.entire/metadata/ does not exist at all)"
+# Staging is reported only as a live-session curiosity, never as the verdict.
+if [ -d .entire/metadata ]; then
+  echo "live staging in .entire/metadata/ (open sessions only, not evidence):"
+  ls .entire/metadata | sed 's/^/  /'
+else
+  echo "live staging .entire/metadata/: absent (expected once sessions condense)"
+fi
 
 printf '\nprobe complete (read-only; nothing was modified)\n'

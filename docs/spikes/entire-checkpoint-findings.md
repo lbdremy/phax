@@ -6,18 +6,44 @@ probes under `spikes/entire/` and lays out the adopt-vs-pattern options. It does
 **not** recommend: `## Verdict` is left empty for the human, exactly as the probe
 docs leave theirs, per the spike's execution-model caveat.
 
-**Status: provisional.** At the time this synthesis was written, all three probe
-findings docs (`spikes/entire/findings/01-hooks-in-jail.md`,
-`02-checkpoint-lifecycle.md`, `03-format-and-join.md`) had empty
-`## Results` / `## Verdict` sections — the probes are authored by the phase agents
-and executed out-of-band by a human, and the observed run had not yet been
-processed. Every per-probe summary below therefore reports the probe's *question
-and decisive cases*, not an answer. Once the human fills the probe Results, the
-summaries below should be updated and the provisional markers removed.
+**Status: evidence complete except the merge.** Updated 2026-08-15, after the
+observed run (`entire-checkpoint-spike-1786807559589`, 5 phases, `claude-fable-5`,
+entire 0.10.0, phax 0.8.3) was processed and all three probe findings docs had
+their `## Results` and `## Verdict` sections filled. Every probe question is
+answered except one: the run is `review_open` and unmerged, so whether checkpoints
+survive a **merge** (and how a squash collapses trailers) is still unobserved.
+Re-run `02-checkpoint-lifecycle.sh` after merging.
+
+**Correction carried into every summary below.** This synthesis and all three
+probes were written against the storage model in entire's published
+documentation — a `entire/checkpoints/v1` branch holding `<prefix>/<rest>/`
+subtrees. Installed entire 0.10.0 does not use it. It writes one ref **per
+checkpoint** at `refs/entire/checkpoints/<last-two-chars-of-ULID>/<ULID>`, tree at
+the ref root. The harnesses have been corrected; the discrepancy itself is
+evidence, and it is weighed under Residual risks.
 
 ## Per-probe summary
 
-### Probe 01 — hooks in the run-jail (provisional: Results unfilled)
+### Probe 01 — hooks in the run-jail — **PASS**
+
+**Answer: a phax phase agent is captured by entire, unmodified — 5/5 phases.**
+Both decisive cases resolved in favour of adoption. Worktree visibility passed
+*because* the enablement was committed first, which is a hard precondition, not a
+detail: enabled-but-uncommitted, the phase agent loads no hooks. Allowlist
+reachability passed because **Claude Code executes hook commands outside the
+`--allowedTools` gate** — the frozen set contained no bare `entire` and the hooks
+ran anyway, in every phase. phax needed no change; entire needed no phax-specific
+configuration.
+
+One correction from filling this probe, worth carrying: case 5 originally tested
+capture by looking for `.entire/metadata/<session-id>/`, which is live staging
+cleared once a session condenses. During the run that directory held only the one
+still-open session while all five phases were captured — the check would have
+recorded a false "not captured" on this probe's whole question.
+
+<details><summary>Original pre-run framing (kept for provenance)</summary>
+
+
 
 Question: *does a phax phase agent get captured by entire, unmodified?* The probe
 frames five cases, two decisive:
@@ -41,7 +67,34 @@ The remaining cases (settings diff vs snapshot, which events fire under
 `--print`, whether `.entire/metadata/<session-id>/` material exists per phase)
 refine *how much* is captured once both decisive cases pass. **Verdict: unfilled.**
 
-### Probe 02 — checkpoint lifecycle through worktree, merge and publish (provisional: Results unfilled)
+</details>
+
+### Probe 02 — checkpoint lifecycle — **PASS on commit and publish; merge unproven**
+
+**Complete across the run:** 5/5 phase commits carry `Entire-Checkpoint` injected
+by `prepare-commit-msg` from inside a linked worktree, each condensing to its own
+single-commit ref; 5 phase commits → 5 distinct checkpoints, no gap, no
+many-to-one. phax's own archival commit (`2685b57`, no agent session) has **no**
+checkpoint — absent, not empty. That boundary is worth stating positively: a
+records layer built on entire covers what the agent did and is structurally blind
+to what phax did on its own.
+
+**Publish is safe:** the run auto-published and `git ls-remote origin
+'refs/entire/*'` stayed empty. `refs/entire/*` is outside `refs/heads/*`, so an
+ordinary push does not carry it — a smaller exposure surface than a shadow branch.
+The flip side belongs in the decision: nothing fetches or clones that namespace by
+default either, so the record does **not** travel with the repo without extra
+refspec work. That cuts directly against the "run records travel with the repo"
+premise the pattern route is built on.
+
+**Weight:** ~2.2 MB for this 5-phase run (343–534 KB per checkpoint, uncompressed
+JSONL) on cheap doc/shell phases; an implementation run with a fix loop is larger.
+
+**Merge: still unobserved.** See Open questions.
+
+<details><summary>Original pre-run framing (kept for provenance)</summary>
+
+
 
 Questions: *is the checkpoint record complete across a full phax run?* and *does
 it survive merge and publish intact?* The probe walks trailer injection from a
@@ -58,7 +111,35 @@ observed. The probe also measures the shadow branch's repo weight, which the
 residual-risks section below cites. **Verdict: unfilled; repo-weight measurement
 unfilled.**
 
-### Probe 03 — format readability and the phax join (provisional: Results unfilled)
+</details>
+
+### Probe 03 — format readability and the join — **PASS on both**
+
+**Readable from git alone.** The entire field inventory was produced with
+`git for-each-ref` / `git show` / `git ls-tree` and no invocation of the `entire`
+binary. A desktop run-inspection screen would be a git reader, not a shell-out.
+
+**All seven desktop needs are present** — prompt text (`0/prompt.txt`,
+`content[].text`), tool name per call (`content[].name`, with inputs and result
+status), files touched (`files_touched[]`), timestamps (`created_at`, per-record
+`ts`), token counts (`token_usage`: input / cache_creation / cache_read / output /
+api_call_count), model id (`0/metadata.json:model`), session id
+(`0/metadata.json:session_id` and the `Entire-Session` trailer).
+
+**The join is deterministic both ways, 5/5**, and doubly anchored — by checkpoint
+id and by session id, so either alone suffices. Forward: `Session-Id` →
+`Entire-Checkpoint` → ref → `Entire-Session`. Reverse: every run checkpoint maps
+back to exactly one commit. Caveat: the namespace is repo-wide, not run-scoped, so
+a reverse walk must filter by run.
+
+**Stability is the mixed result.** The storage path is unversioned while the docs
+describe a versioned `v1` branch — the layout moved and its version marker did not
+move with it. Versioning survives in the payload (`cli_version: "0.10.0"` in both
+metadata files, `"v":1` per transcript record), so a reader must open a checkpoint
+to learn how to read it. Each ref is exactly one commit; 13/13 transcript lines
+parse standalone.
+
+<details><summary>Original pre-run framing (kept for provenance)</summary>
 
 Questions: *can desktop read this from git alone (no entire binary)?* and *is the
 phase ↔ transcript join deterministic in both directions?* The probe reads one
@@ -72,6 +153,8 @@ table both ways. Ground fact: phax's trailers (`Run-Id`, `Short-Name`,
 `Phase-Id`, `Phase-Title`, `Model`, `Effort`, `Session-Id`, `Gate-Log`) sit in
 the same commit message as `Entire-Checkpoint`, so the forward join is a
 same-commit read. **Verdict: unfilled.**
+
+</details>
 
 ## The decision this evidence serves
 
@@ -152,23 +235,36 @@ sequence (a second session producing `1/`).
 ## Residual risks
 
 - **Transcript exposure on a public repo.** entire commits full session
-  transcripts (prompts, tool calls, files touched) to a branch of
-  `lbdremy/phax`, which is public; redaction is best-effort. The only
-  protections are `--skip-push-sessions` and "never push the shadow branch" —
-  one `git push --all` publishes everything. Accepted knowingly for this spike;
-  unacceptable as a steady state without a redaction story.
-- **Repo weight per run.** Unmeasured until probe 02's Results are filled
-  (shadow-branch total bytes and largest transcript blob). Transcripts are
-  append-only JSONL per commit; weight grows with every phase of every run and
+  transcripts (prompts, tool calls, files touched) into `lbdremy/phax`, which is
+  public; redaction is best-effort. Measured better than feared: checkpoints live
+  under `refs/entire/*`, outside `refs/heads/*`, so an ordinary `git push` does
+  not carry them and `ls-remote` confirmed origin stayed clean across an
+  auto-published run. `--all` / `--mirror` still would. Accepted knowingly for
+  this spike; unacceptable as a steady state without a redaction story.
+- **Repo weight per run.** Measured: ~2.2 MB for a 5-phase run (343–534 KB per
+  checkpoint, uncompressed JSONL), on cheap doc/shell phases — an implementation
+  run with a fix loop is larger. Weight grows with every phase of every run and
   git never forgets it.
+- **The record does not travel by default.** The same property that limits
+  exposure limits distribution: nothing fetches or clones `refs/entire/*` without
+  an explicit refspec. "Run records versioned with the repo" is therefore only
+  half true out of the box — a real consideration for the durable-context-layer
+  ambition, which wants the record *shared*, not merely *local and versioned*.
 - **A second source of truth.** entire's record of "what happened" (transcripts,
   checkpoints) can disagree with phax's own (handoffs, gate logs,
   reconciliation). Two records with no arbitration rule invite exactly the
   ambiguity phax's deliberate skeleton exists to remove.
-- **Third-party format dependency.** The `v1` in the branch name is the only
-  confirmed version signal until probe 03 reports whether `metadata.json`
-  versions itself. Desktop reading the format directly is betting on an
-  MIT-licensed 0.x tool's format discipline.
+- **Third-party format dependency — the sharpest risk, and now evidenced.** The
+  documented storage model (a `entire/checkpoints/v1` branch with
+  `<prefix>/<rest>/` subtrees) and the shipped one (`refs/entire/checkpoints/…`,
+  one ref per checkpoint, tree at the ref root) **already disagree at 0.10.0**.
+  The layout changed and the one explicit version marker in the documented
+  model — the `v1` — did not survive the change. Versioning now lives only in the
+  payload (`cli_version`, per-record `"v":1`), so a reader must open a checkpoint
+  to learn how to read it, and cannot detect a layout change by looking at the
+  ref. This is not a hypothetical about an 0.x tool's format discipline; it is a
+  breakage this spike walked into. Both harnesses were written against the docs
+  and were wrong on first contact.
 - **Hooks in the commit path.** A failing `prepare-commit-msg` aborts commits.
   Observed on 0.10.0: the installed `prepare-commit-msg` and `post-commit` wrap
   their calls in `2>/dev/null || true` and cannot abort a phax commit — but
@@ -185,11 +281,24 @@ observed run's case-1 diff). One pass:
    `.entire/` — or, if history must stay linear, restore `.claude/settings*.json`
    from the pre-enable snapshot directory and `git rm -r .entire`.
 2. Restore `.git/hooks/` to the pre-enable `hooks-listing.txt` state (hooks live
-   in the common git dir, not the worktree; delete exactly the hooks entire
-   installed, per the recorded diff).
-3. Delete the local shadow branch: `git branch -D entire/checkpoints/v1`.
-4. Confirm nothing entire-related was ever pushed:
-   `git ls-remote origin 'entire/*'` must return nothing.
-5. Re-run `sh spikes/entire/00-preflight.sh` and confirm it reports a clean
-   state: no `.entire/`, no `entire/checkpoints/v1` ref, no settings file or git
-   hook mentioning entire.
+   in the common git dir, not the worktree). Entire installed exactly five:
+   `commit-msg`, `post-commit`, `post-rewrite`, `pre-push`, `prepare-commit-msg`.
+3. Delete the checkpoint refs. These are **not** a branch — `git branch -D` does
+   not reach them, and neither does anything else in the normal workflow, so
+   skipping this step leaves every transcript in the repo indefinitely:
+
+   ```sh
+   git for-each-ref --format='%(refname)' 'refs/entire/checkpoints/**' \
+     | while read -r ref; do git update-ref -d "$ref"; done
+   git for-each-ref 'refs/entire/**'   # must print nothing
+   ```
+
+   Their objects then become unreachable; `git gc --prune=now` removes them for
+   good. Until it runs, the transcripts are still in `.git/objects`.
+4. Confirm nothing entire-related was ever pushed — query the full namespace, not
+   just heads: `git ls-remote origin 'refs/entire/*' 'refs/heads/entire/*'` must
+   return nothing. (`ls-remote --heads` cannot see `refs/entire/*` and would pass
+   regardless.)
+5. Re-run `sh spikes/entire/00-preflight.sh` and confirm it reports a clean state:
+   no `.entire/`, zero checkpoint refs, no settings file or git hook mentioning
+   entire.

@@ -66,13 +66,13 @@ Enable command used (out-of-band, human only):
 
 The five cases, of which **2 and 4 are decisive**:
 
-| #   | Case                                                                               | Decisive | Question it answers                                                                  |
-| --- | ---------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------ |
-| 1   | Where `entire enable` wrote its settings (diff vs pre-enable snapshot)             | no       | which file to track, and the exact mutations for `## Teardown`                       |
-| 2   | Whether that file is visible inside a phase worktree (fresh checkout)              | **yes**  | do the hooks exist at all in the agent's cwd?                                        |
-| 3   | Which hook events entire registered, and whether each fires under `--print`        | no       | does headless mode drop any registered event?                                        |
-| 4   | Whether the hook command is reachable under the frozen agentCommands allowlist     | **yes**  | does Claude Code run hook commands through the `--allowedTools` gate, or outside it? |
-| 5   | Whether `.entire/metadata/<session-id>/` exists for a phase's `Session-Id` trailer | no       | end-to-end: was the session captured at all?                                         |
+| #   | Case                                                                           | Decisive | Question it answers                                                                  |
+| --- | ------------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------ |
+| 1   | Where `entire enable` wrote its settings (diff vs pre-enable snapshot)         | no       | which file to track, and the exact mutations for `## Teardown`                       |
+| 2   | Whether that file is visible inside a phase worktree (fresh checkout)          | **yes**  | do the hooks exist at all in the agent's cwd?                                        |
+| 3   | Which hook events entire registered, and whether each fires under `--print`    | no       | does headless mode drop any registered event?                                        |
+| 4   | Whether the hook command is reachable under the frozen agentCommands allowlist | **yes**  | does Claude Code run hook commands through the `--allowedTools` gate, or outside it? |
+| 5   | Whether a durable checkpoint exists for a phase's `Session-Id` trailer         | no       | end-to-end: was the session captured at all?                                         |
 
 Why 2 and 4 are decisive: a settings file the worktree checkout does not contain means
 no hooks load, regardless of permissions (case 2); and a hook whose command the jail
@@ -81,28 +81,59 @@ is captured once both decisive cases pass.
 
 ## Results
 
-| #   | Case                                | Observed |
-| --- | ----------------------------------- | -------- |
-| 1   | Settings location + exact diff      |          |
-| 2   | Worktree visibility (decisive)      |          |
-| 3   | Registered events / fire in --print |          |
-| 4   | Allowlist reachability (decisive)   |          |
-| 5   | Session material captured           |          |
+Filled 2026-08-15 from the observed run `entire-checkpoint-spike-1786807559589`
+(5 phases, `claude-fable-5`, entire 0.10.0, phax 0.8.3).
 
-<!-- Raw harness output below. Left empty until a real run fills it. -->
+| #   | Case                                | Observed                                                                                                                                                                                                                                                                                       |
+| --- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Settings location + exact diff      | `entire enable --agent claude-code --project --skip-push-sessions` **created** `.claude/settings.json` (none existed). Installed 5 git hooks: `commit-msg`, `post-commit`, `post-rewrite`, `pre-push`, `prepare-commit-msg`.                                                                   |
+| 2   | Worktree visibility (decisive)      | **Pass, but only because the config was committed first.** `.claude/settings.json` and `.entire/settings.json` were both present inside the phase worktree. `.claude/settings.local.json` is ignored globally (`~/.config/git/ignore`), so `--local` would have left the phase agent hookless. |
+| 3   | Registered events / fire in --print | Registered: `SessionStart`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `PreToolUse`(Agent), `PostToolUse`(Agent, TaskCreate\|TaskUpdate). Enough of them fire in a headless `--print` session to produce a complete checkpoint — evidenced by case 5, not asserted statically.                  |
+| 4   | Allowlist reachability (decisive)   | **Hooks run outside the `--allowedTools` gate.** The frozen set for this run was config ∪ `full` gate commands and contained no bare `entire`; the hook command is `sh -c '… exec entire hooks claude-code …'`. It ran anyway, in all 5 phases.                                                |
+| 5   | Session material captured           | **5 of 5 phases captured.** Each phase commit carries `Entire-Checkpoint`, resolving to a ref whose `Entire-Session` equals that commit's phax `Session-Id`.                                                                                                                                   |
+
+Per-phase evidence (`sh spikes/entire/01-hooks-in-jail.sh …` case 5):
+
+```
+a726aff  phase-01  b5218d40…  -> CAPTURED (refs/entire/checkpoints/GF/01M030KTF52JZ2WT2KDVE30AGF)
+39080d3  phase-02  9154050c…  -> CAPTURED (refs/entire/checkpoints/2T/01M030V4YH9NRFMKYHRVH54A2T)
+0d23c1d  phase-03  0fb3446b…  -> CAPTURED (refs/entire/checkpoints/5P/01M031RBED5CE2330EQGRXJE5P)
+4bef12c  phase-04  6d081cc4…  -> CAPTURED (refs/entire/checkpoints/MB/01M032WN4BDQ675PP31E2YR6MB)
+ffa1ed4  phase-05  41e5fd50…  -> CAPTURED (refs/entire/checkpoints/N9/01M034VBDEYPYF50ZRM3E4E2N9)
+```
+
+> **Correction to this probe's original harness.** Case 5 first tested capture by
+> looking for `.entire/metadata/<session-id>/`. That is live staging, cleared once
+> a session condenses into its checkpoint ref, so it reports "session NOT
+> captured" for every _completed_ phase. During this run `.entire/metadata/` held
+> only the one still-open session while all five phases were captured — the check
+> would have recorded a false **no** on this probe's entire question. The harness
+> now resolves `Entire-Checkpoint` → ref → `Entire-Session` instead.
 
 ## Verdict
 
-<!-- Must answer one question explicitly:
-     does a phax phase agent get captured by entire, UNMODIFIED?
-     pass/fail + one line. Left empty until Results is filled. -->
+**Pass — a phax phase agent is captured by entire, unmodified.** All five headless
+`--print` sessions, each spawned in a linked worktree under `acceptEdits` and a
+frozen `--allowedTools` allowlist, produced a complete checkpoint; phax needed no
+change, and entire needed no phax-specific configuration.
+
+The pass is conditional on one setup step, and it is not optional: the enablement
+must be **committed**. A phase worktree is a checkout of tracked files only, so an
+untracked or ignored `.claude/settings.json` / `.entire/settings.json` is invisible
+to the phase agent and to the git hooks that run with the worktree as cwd. Enabled
+but uncommitted, this probe fails for a reason that has nothing to do with the
+run-jail.
 
 ## Open questions
 
-<!-- Anything the observation could not settle, for phase-05 to carry.
-     Known candidates: does a resumed fix-loop session produce a second
-     metadata dir; do hook events differ between interactive and --print
-     beyond what case 3 shows. -->
+- Does a resumed fix-loop session (same phase, second attempt) produce one
+  checkpoint or two? This run had no gate failure, so the fix loop never engaged.
+- Do the hook events differ between interactive and `--print` beyond what case 3
+  covers? Only `--print` was exercised.
+- `Ephemeral-branch: entire/7116421-cadb10` appears on every checkpoint commit and
+  is undocumented here — harmless, but unexplained.
+- Only `claude-code` was tested. phax also routes to `codex` and `mistral-vibe`;
+  entire ships hooks for Codex but the pairing is unverified.
 
 ## Teardown
 
@@ -111,9 +142,20 @@ is captured once both decisive cases pass.
 
 Exact mutations entire made (fill from case 1's diff, verbatim):
 
-- `.claude/settings.json`: _(created/modified — paste the diff hunks)_
-- `.git/hooks/`: _(files added/changed — from the hooks-listing diff)_
-- `.entire/`: _(files created — `settings.json`, `.gitignore`, …)_
+Recorded 2026-08-15 from the observed run:
+
+- `.claude/settings.json`: **created** (did not exist before). Registers six hook
+  events, all invoking `sh -c '… exec entire hooks claude-code <event>'`, plus a
+  `permissions.deny` entry for `Read(./.entire/metadata/**)`.
+- `.git/hooks/`: **five added** — `commit-msg`, `post-commit`, `post-rewrite`,
+  `pre-push`, `prepare-commit-msg`. All but `pre-push` swallow failures with
+  `2>/dev/null || true`.
+- `.entire/`: created — `settings.json` (`enabled: true`,
+  `strategy_options.push_sessions: false`, `checkpoints.primary.type: "git-refs"`),
+  `.gitignore` (excludes `tmp/`, `settings.local.json`, `metadata/`, `logs/`,
+  `redactors/local/`), plus untracked `logs/`, `metadata/`, `tmp/`.
+- Checkpoint refs written: **8** under `refs/entire/checkpoints/**` (5 from this
+  run's phases, 3 from adjacent sessions).
 
 Revert steps, in order:
 
@@ -122,6 +164,20 @@ Revert steps, in order:
    `git rm -r .entire` if history must stay linear.
 2. Restore `.git/hooks/` to the `SNAPSHOT_DIR/hooks-listing.txt` state (delete the
    hooks entire installed; hooks live in the common git dir, not the worktree).
-3. Delete the local shadow branch: `git branch -D entire/checkpoints/v1`.
-4. Re-run `sh spikes/entire/00-preflight.sh` and confirm it reports: no `.entire/`,
-   no `entire/checkpoints/v1` ref, no settings file or git hook mentioning entire.
+3. Delete the checkpoint refs. They are **not** a branch, so `git branch -D` does
+   not reach them and nothing in the normal workflow ever will — skip this and
+   every transcript stays in the repo indefinitely:
+
+   ```sh
+   git for-each-ref --format='%(refname)' 'refs/entire/checkpoints/**' \
+     | while read -r ref; do git update-ref -d "$ref"; done
+   git for-each-ref 'refs/entire/**'   # must print nothing
+   ```
+
+   Then `git gc --prune=now` to drop the now-unreachable objects; until it runs
+   the transcripts are still in `.git/objects`.
+
+4. Confirm nothing was pushed, querying the full namespace (not `--heads`, which
+   cannot see it): `git ls-remote origin 'refs/entire/*' 'refs/heads/entire/*'`.
+5. Re-run `sh spikes/entire/00-preflight.sh` and confirm: no `.entire/`, zero
+   checkpoint refs, no settings file or git hook mentioning entire.

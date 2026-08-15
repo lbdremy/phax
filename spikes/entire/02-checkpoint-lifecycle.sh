@@ -6,21 +6,21 @@
 # plain `git commit -m <subject> -m <body>` and no `--no-verify`
 # (src/infra/git.ts), so entire's prepare-commit-msg and post-commit hooks
 # should fire on every phase commit — but from a linked worktree, with
-# condensation writing the shadow branch in the shared repo. Five steps:
+# condensation writing checkpoint refs in the shared repo. Five steps:
 #
 #   1. trailer injection: does every run-branch commit carry Entire-Checkpoint
 #      alongside phax's Run-Id / Phase-Id / Session-Id trailers?
-#   2. condensation: did post-commit advance entire/checkpoints/v1, and what
-#      tree path does each checkpoint occupy?
+#   2. condensation: did post-commit write a ref under refs/entire/checkpoints/
+#      for each trailer, and what does each checkpoint's tree hold?
 #   3. mapping: one checkpoint per phase commit, or many-to-one / missing?
 #   4. non-phase commits: are path-scoped artifact-transition commits (no
 #      Phase-Id trailer) checkpointed too, and is a session-less checkpoint
 #      empty or absent?
-#   5. merge and publish: which trailers survive the merge commit, is the
-#      shadow branch unaffected, and did the shadow branch stay local?
+#   5. merge and publish: which trailers survive the merge commit, are the
+#      checkpoint refs unaffected, and did they stay local?
 #
-# Plus the shadow branch's repo weight (total blob size, largest blobs), for
-# phase-05's residual-risk section.
+# Plus the checkpoint namespace's repo weight (total blob size, largest blobs),
+# for phase-05's residual-risk section.
 #
 # Read-only and human-run, from the repo root, after the observed phax run.
 # It assumes the hooks ran (phase-02's question) and looks only at git-visible
@@ -43,7 +43,24 @@ fi
 short_name=$1
 base=${2:-main}
 merge_ref=${3:-}
-shadow=entire/checkpoints/v1
+
+# Storage model, verified against entire 0.10.0 (`checkpoints.primary.type:
+# "git-refs"`): one ref PER CHECKPOINT at
+#   refs/entire/checkpoints/<last-two-chars-of-ULID>/<ULID>
+# with the tree at the ref root (metadata.json, 0/full.jsonl, 0/transcript.jsonl,
+# 0/prompt.txt, 0/content_hash.txt). There is no `entire/checkpoints/v1` branch
+# and no <first-two>/<rest> subtree: that is the model entire's published docs
+# describe, and 0.10.0 does not use it. Note the shard is the ULID's LAST two
+# characters (…E30AGF -> GF/), so slicing the front is wrong even against the
+# right namespace. Re-verify on a version bump.
+cp_ns='refs/entire/checkpoints/**'
+cp_ref() { # cp_ref ULID -> its ref path, or empty
+  git for-each-ref --format='%(refname)' "$cp_ns" | grep -- "/$1\$" | head -1
+}
+cp_all() { # every checkpoint ref, one per line
+  git for-each-ref --format='%(refname)' "$cp_ns"
+}
+cp_total="$(cp_all | grep -c . || true)"
 
 run_branch="phax/$short_name"
 git rev-parse --verify --quiet "$run_branch" >/dev/null || run_branch=$short_name
@@ -51,6 +68,18 @@ git rev-parse --verify --quiet "$run_branch" >/dev/null || {
   echo "ERROR: neither phax/$short_name nor $short_name resolves to a ref" >&2
   exit 1
 }
+# Before the run's branch is merged, phax/<short-name> still sits at base and the
+# phase commits live on phax/<short-name>--phase-NN. Prefer the highest-numbered
+# phase branch whenever the nominal run branch carries no commits of its own,
+# otherwise every step below walks base's history and reports nothing.
+if [ "$(git rev-parse "$run_branch")" = "$(git rev-parse "$base" 2>/dev/null || echo -)" ]; then
+  last_phase="$(git branch --list "phax/$short_name--phase-*" \
+    --format='%(refname:short)' | sort | tail -1)"
+  if [ -n "$last_phase" ]; then
+    echo "note: $run_branch is still at $base — using $last_phase (pre-merge run)"
+    run_branch=$last_phase
+  fi
+fi
 echo "run branch: $run_branch   base: $base"
 
 section() {
@@ -88,28 +117,29 @@ done
 echo "(a MISSING Entire-Checkpoint on a commit with a Session-Id means the"
 echo " prepare-commit-msg hook did not inject from the linked worktree)"
 
-# --- step 2: condensation onto the shadow branch ------------------------------
-section "step 2: condensation onto $shadow"
-if ! git rev-parse --verify --quiet "$shadow" >/dev/null; then
-  echo "$shadow: ABSENT — post-commit never condensed anything"
+# --- step 2: condensation into the checkpoint ref namespace -------------------
+section "step 2: condensation into refs/entire/checkpoints/"
+if [ "$cp_total" = 0 ]; then
+  echo "no refs under $cp_ns — post-commit never condensed anything"
 else
-  echo "$shadow: present, $(git rev-list --count "$shadow") commit(s)"
-  echo "--- shadow branch log (subjects only) ---"
-  git log "$shadow" --format='  %h %s'
-  echo "--- tree path shape at the tip (first 20 paths) ---"
-  git ls-tree -r --name-only "$shadow" | head -20 | sed 's/^/  /'
-  echo "--- per-checkpoint tree lookup (id -> <xx>/<rest>/...) ---"
+  echo "checkpoint refs: $cp_total"
+  echo "--- per-checkpoint lookup (trailer id -> ref -> tree) ---"
   for sha in $run_commits; do
     checkpoint="$(trailer "$sha" Entire-Checkpoint | head -1)"
     [ -n "$checkpoint" ] || continue
-    prefix="$(printf '%s' "$checkpoint" | cut -c1-2)"
-    rest="$(printf '%s' "$checkpoint" | cut -c3-)"
-    for f in metadata.json 0/full.jsonl 0/transcript.jsonl 0/prompt.txt; do
-      path="$prefix/$rest/$f"
-      if git cat-file -e "$shadow:$path" 2>/dev/null; then
-        echo "  $checkpoint: $path present"
+    ref="$(cp_ref "$checkpoint")"
+    if [ -z "$ref" ]; then
+      echo "  $checkpoint: NO REF — trailer points at nothing (dangling)"
+      continue
+    fi
+    echo "  $checkpoint -> $ref"
+    echo "    strategy: $(git log -1 "$ref" --format='%(trailers:key=Entire-Strategy,valueonly,separator=)')"
+    echo "    agent:    $(git log -1 "$ref" --format='%(trailers:key=Entire-Agent,valueonly,separator=)')"
+    for f in metadata.json 0/metadata.json 0/full.jsonl 0/transcript.jsonl 0/prompt.txt; do
+      if git cat-file -e "$ref:$f" 2>/dev/null; then
+        echo "    $f: present, $(git cat-file -s "$ref:$f") bytes"
       else
-        echo "  $checkpoint: $path ABSENT"
+        echo "    $f: ABSENT"
       fi
     done
   done
@@ -130,13 +160,13 @@ for sha in $run_commits; do
   fi
 done
 unique_ids=$(printf '%b' "$checkpoint_ids" | sort -u | grep -c . || true)
-shadow_commits=0
-git rev-parse --verify --quiet "$shadow" >/dev/null \
-  && shadow_commits=$(git rev-list --count "$shadow")
 echo "phase commits (Phase-Id trailer):        $phase_commits"
 echo "  of which carry Entire-Checkpoint:      $with_checkpoint"
 echo "  distinct checkpoint ids among them:    $unique_ids"
-echo "commits on $shadow:  $shadow_commits"
+echo "checkpoint refs in the repo:             $cp_total"
+echo "  (cp_total counts every checkpoint in the repo, including ones from"
+echo "   sessions unrelated to this run — compare it to unique_ids, not to"
+echo "   phase_commits)"
 echo "(flag in the findings any many-to-one — two phase commits sharing an id,"
 echo " e.g. a fix-loop resume — or missing case)"
 
@@ -183,14 +213,17 @@ for sha in $merge_commits; do
   done
 done
 [ "$found_merge" = 1 ] || echo "  (no commit on $base carries an Entire-Checkpoint trailer yet)"
-echo "--- shadow branch unaffected by the merge? ---"
-if git rev-parse --verify --quiet "$shadow" >/dev/null; then
-  echo "  $shadow tip: $(git log -1 --format='%h %ci' "$shadow")"
-  echo "  (compare this tip before and after the merge; it must not move)"
-fi
-echo "--- did the shadow branch stay local? (safety protocol) ---"
-git for-each-ref --format='  local:  %(refname)' "refs/heads/entire/*"
-if remote_refs="$(git ls-remote --heads origin 'entire/*' 2>/dev/null)"; then
+echo "--- checkpoint refs unaffected by the merge? ---"
+echo "  checkpoint refs now: $cp_total (record this before and after the merge;"
+echo "  a merge must not add, move or drop any — checkpoints attach to the"
+echo "  original commits, not to the merge)"
+cp_all | tail -3 | sed 's/^/    /'
+echo "--- did the checkpoints stay local? (safety protocol) ---"
+git for-each-ref --format='  local:  %(refname)' 'refs/heads/entire/*' "$cp_ns" \
+  | head -5
+# refs/entire/* is outside refs/heads/*, so --heads would not see it: ask the
+# remote for the full namespace or this check silently passes.
+if remote_refs="$(git ls-remote origin 'refs/entire/*' 'refs/heads/entire/*' 2>/dev/null)"; then
   if [ -n "$remote_refs" ]; then
     echo "  REMOTE HAS ENTIRE REFS — safety protocol violated:"
     printf '%s\n' "$remote_refs" | sed 's/^/    /'
@@ -201,20 +234,23 @@ else
   echo "  ls-remote failed (offline?) — check for remote entire/* refs by hand"
 fi
 
-# --- repo weight of the shadow branch -----------------------------------------
-section "repo weight of $shadow"
-if git rev-parse --verify --quiet "$shadow" >/dev/null; then
-  git rev-list --objects "$shadow" \
+# --- repo weight of the checkpoint namespace ----------------------------------
+section "repo weight of $cp_ns"
+if [ "$cp_total" != 0 ]; then
+  cp_all | git cat-file --batch-check='%(objectname)' >/dev/null 2>&1 || true
+  cp_all | while IFS= read -r ref; do git rev-list --objects "$ref"; done \
+    | sort -u \
     | git cat-file --batch-check='%(objecttype) %(objectsize) %(rest)' \
     | awk '$1 == "blob" { total += $2; n += 1 }
            END { printf "  blobs: %d, total uncompressed bytes: %d\n", n, total }'
   echo "  five largest blobs (bytes, path):"
-  git rev-list --objects "$shadow" \
+  cp_all | while IFS= read -r ref; do git rev-list --objects "$ref"; done \
+    | sort -u \
     | git cat-file --batch-check='%(objecttype) %(objectsize) %(rest)' \
     | awk '$1 == "blob" { $1 = ""; print }' \
     | sort -n | tail -5 | sed 's/^/   /'
 else
-  echo "  $shadow absent — nothing to weigh"
+  echo "  no checkpoint refs — nothing to weigh"
 fi
 
 printf '\nprobe complete (read-only; nothing was modified)\n'
