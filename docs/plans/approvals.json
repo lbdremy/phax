@@ -21,12 +21,6 @@
         "path": "docs/specs/15-gate-profile-attributed-steps.md",
         "fingerprint": "c2f1fbacd2a86db9bcce6fcbb0ced6e11504ebc8ff0f444aa7fe854246421e52"
       }
-    },
-    "docs/plans/45-typescript-7-migration-plan.md": {
-      "planFingerprint": "e09e288243da5df55201bd7c5e389e9590ca3e07f4124d8d27b1ae7716a26779",
-      "approvedAt": "2026-08-15T10:46:22.313Z",
-      "baseline": "8fc7bd37510b6b6c89f82772dca7f006dabb2817",
-      "sourceSpec": null
     }
   }
 }
