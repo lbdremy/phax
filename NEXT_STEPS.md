@@ -273,7 +273,26 @@ real risk is inference and emit. `typescript@latest` is still `7.0.2`, unchanged
       both flagged this way despite being listed as optional files in the plan. It is a
       tooling classification artifact, not a real delivery deviation — fold the optional
       lists into the reconciler's planned set (or give optional files their own status) so
-      future reviewers aren't misled.
+      future reviewers aren't misled. Further evidence that the reconciler is the odd one
+      out, found 2026-08-15: the *footprint* path already counts optional files —
+      `buildFootprint` unions create ∪ edit ∪ optional into `.all`
+      (`src/domain/planOverlap/compute.ts:25`), which is what `planStaleness.ts:156` and
+      `plans-overlap` consume. So staleness and overlap treat an optional file as part of
+      the plan while reconciliation does not; two subsystems read the same three lists
+      with different semantics.
+- [ ] `phax artifact reopen` leaves a dangling approval record. Reopening a plan
+      `Stale → Draft` clears neither the `approvals.json` entry nor its fingerprint and
+      baseline, so a `Draft` plan keeps an approval record describing a version of itself
+      that no longer exists. Found 2026-08-15 on plan 45, which still carries
+      `planFingerprint: 3170b1e…` / `baseline: 2843aa2` from its 2026-08-11 approval even
+      though it was reopened (`13343f6`) and fully rewritten. It is inert in practice —
+      staleness only consults records for `Approved` plans, and `putApprovalRecord`
+      overwrites by key (`src/app/approvalRecordStore.ts:62`), so the next approval
+      replaces it cleanly. But `removeApprovalRecord` already exists
+      (`approvalRecordStore.ts:66`) and is simply not called on the reopen path, so the
+      record outlives the approval it records. Either call it on reopen, or state
+      deliberately that records are tombstones kept for history — the current behavior
+      reads as neither.
 
 ## Spike candidate: entire.io × phax (analyzed 2026-08-10)
 
