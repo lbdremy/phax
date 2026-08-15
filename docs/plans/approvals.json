@@ -21,12 +21,6 @@
         "path": "docs/specs/15-gate-profile-attributed-steps.md",
         "fingerprint": "c2f1fbacd2a86db9bcce6fcbb0ced6e11504ebc8ff0f444aa7fe854246421e52"
       }
-    },
-    "docs/plans/51-entire-checkpoint-spike-plan.md": {
-      "planFingerprint": "2dfe36f44791a236fe761dda7246684b442b383fdcfac17c4420abfeb21dde95",
-      "approvedAt": "2026-08-15T15:24:52.585Z",
-      "baseline": "f6c59ca586210dd678aa08f0a312ccdaae9ae887",
-      "sourceSpec": null
     }
   }
 }
