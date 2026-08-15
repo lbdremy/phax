@@ -71,7 +71,7 @@ These load on demand. Reach for the matching one before editing that area:
 
 ## Conventions
 
-- TypeScript + Effect (v3) throughout; Effect handles dependency injection and effects.
+- TypeScript 7 (native compiler) + Effect (v3) throughout; Effect handles dependency injection and effects.
 - Schemas pin to specific library versions — when checking an Effect / `@effect/platform`
   API, cross-check against `package.json`; installed versions may differ from training data.
 - No back-compat shims in persisted schemas: new fields are required, not optional.
