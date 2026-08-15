@@ -94,9 +94,27 @@ cases and `.d.ts` emit) that must be resolved in the same commit.
   `None`/`AMD`/`UMD`/`System`, and `downlevelIteration` at any value. Checked
   against `tsconfig.json`: **none of the ten applies** — the repo is on `target:
   ES2022`, `module`/`moduleResolution: NodeNext`, `esModuleInterop: true`,
-  `strict: true`, with no `baseUrl`, no `outFile`, and no `downlevelIteration`. A
-  `TS5023 Unknown compiler option` failure is therefore expected to be a
-  non-event, and phase-01's real risk sits in inference and emit.
+  `strict: true`, with no `baseUrl`, no `outFile`, and no `downlevelIteration`.
+  **Confirmed empirically on 2026-08-14**, which is better evidence than reading
+  the list: TS 6.0's purpose is to warn about what 7.0 removes, this repo does not
+  set `ignoreDeprecations`, and both compiler entry points are silent on `6.0.3` —
+  `pnpm typecheck` and `pnpm test:type` each exit 0 with zero diagnostics. The
+  actual compiler on the actual repo says the config is 7.0-ready. A `TS5023
+  Unknown compiler option` failure is therefore expected to be a non-event, and
+  phase-01's real risk sits in inference and emit.
+- **The strictness profile is a tailwind, and it is out of scope.** `strict: true`
+  plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
+  `noImplicitOverride`, `noFallthroughCasesInSwitch`, `noImplicitReturns`, and
+  `useUnknownInCatchVariables` means a TS7 inference change is far more likely to
+  surface as a compile error than to silently change behavior — the migration is
+  noisier but safer for it, and the two most inference-sensitive flags
+  (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`) are exactly the ones
+  set. Note also what is *not* set — `noUnusedLocals`/`noUnusedParameters` (left
+  to oxlint/knip), `noPropertyAccessFromIndexSignature`,
+  `noUncheckedSideEffectImports`, `allowUnreachableCode: false`,
+  `allowUnusedLabels: false`, `isolatedModules`/`verbatimModuleSyntax`. Tightening
+  any of them is a separate decision on its own merits; doing it inside a compiler
+  bump would make the diff unreviewable. Out of scope here.
 - **knip no longer pulls in `typescript`.** The original listed knip as an
   indirect consumer of the compiler package. `knip@6.12.2`'s dependencies are
   `oxc-parser` / `oxc-resolver` / `get-tsconfig` / `zod` / … — no `typescript`,
@@ -193,11 +211,15 @@ green and the published bin runnable.
   --version` reports `7.x`.
 - Validate config acceptance first, because it is cheap and it partitions the
   work: run `pnpm typecheck` and confirm there is no `TS5023 Unknown compiler
-  option` against `tsconfig.json`. The Context section above checked all ten
-  options TS7 removes and none is set here, so a rejection would mean the
-  published removal list is incomplete — if it happens, record the option, the
-  diagnostic, and the fix (drop the option or use the supported equivalent) in
-  the handoff rather than treating it as routine.
+  option` against `tsconfig.json`. The pre-bump baseline is that TS `6.0.3` runs
+  `typecheck` and `test:type` clean with zero deprecation diagnostics, so a TS7
+  rejection would mean the 6.0 deprecation pass missed something — if it happens,
+  record the option, the diagnostic, and the fix (drop the option or use the
+  supported equivalent) in the handoff rather than treating it as routine.
+- Do not add or tighten any compiler option. `noUnusedLocals`,
+  `verbatimModuleSyntax`, `noPropertyAccessFromIndexSignature` and friends are
+  unset on purpose; this phase changes the compiler version, not the strictness
+  contract.
 - Resolve type-check diffs: run `pnpm typecheck` (`tsc --noEmit`) and `pnpm
   test:type` (`tsc --noEmit -p tsconfig.test.json`). Fix every new diagnostic the
   v7 compiler reports that v6 did not. Prefer fixing the source over loosening
