@@ -40,13 +40,25 @@ storage — unversioned, unshared). Entire plans/gates/orchestrates nothing. Ove
 limited to handoffs (phax's contractual `phase-handoff.md` is stronger for phases) and
 "what happened during the run".
 
-- [ ] Write the spike/discovery plan (`fast` gate, findings-doc pattern): enable entire
-      on a real phax run and answer three questions — (1) do entire's hooks work inside
-      the phax run-jail and agent-config control, (2) do checkpoints survive the
-      worktree → merge → publish flow (one checkpoint per phase commit?), (3) is the
-      `entire/checkpoints/v1` format readable enough for phax desktop's
-      "inspect a run" screen. Caveat to record: transcripts on a git branch are visible
-      to anyone who can read the repo; redaction is best-effort.
+- [x] Spike/discovery plan written 2026-08-15:
+      `docs/plans/51-entire-checkpoint-spike-plan.md` (**Draft**, `source-spec: null`,
+      five phases, all `claude-fable-5`, `fast` gate, deterministic extraction verified —
+      5 phases, no LLM fallback). Three probes plus a synthesis that deliberately leaves
+      `## Verdict` for the human. Ground established while planning: phax commits with
+      plain `git commit -m … -m …` and no `--no-verify` (`src/infra/git.ts:115`), so
+      entire's `prepare-commit-msg` / `post-commit` hooks fire on phase commits and the
+      `Entire-Checkpoint` trailer lands beside phax's own; but the phase agent's cwd is
+      the worktree, so a gitignored `settings.local.json` is invisible to it, and `git`
+      is in neither the config nor the `fast` gate command set, so probes are authored by
+      the agent and run by a human.
+- [ ] Enable entire out-of-band, then approve and run plan 51. Order matters: snapshot
+      `.claude/settings*.json` and `.git/hooks/` outside the repo first, enable with
+      `--skip-push-sessions`, smoke one manual commit (a failing `prepare-commit-msg`
+      aborts commits and would break the run), then run — the plan's own five phase
+      commits, merge and PR are the observed dataset. Needs `entire --version` and
+      `entire --help` in `security.agentCommands` first, or preflight fails.
+      Accepted risk, decided 2026-08-15: this is a public repo, the shadow branch stays
+      local and unpushed, and the branches get deleted afterwards.
 - [ ] If the spike is a go: decide adopt-vs-pattern — consume entire directly (commit ↔
       session from entire, session ↔ phase ↔ plan ↔ spec from phax = full provenance
       chain) vs adopt only the shadow-branch pattern for phax's own run records

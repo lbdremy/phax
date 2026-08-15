@@ -16,7 +16,9 @@
       "pnpm add",
       "pnpm exec tsx",
       "pnpm dev schema upgrade",
-      "smolvm"
+      "smolvm",
+      "entire --version",
+      "entire --help"
     ]
   },
   "review": { "compliance": { "enabled": true } },
