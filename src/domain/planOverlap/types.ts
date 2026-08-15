@@ -1,4 +1,4 @@
-export interface PlanFileSets {
+interface PlanFileSets {
   readonly create: readonly string[];
   readonly edit: readonly string[];
   readonly optional: readonly string[];

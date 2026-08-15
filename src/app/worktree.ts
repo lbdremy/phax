@@ -47,7 +47,7 @@ export function preparePhaseBranch(
 }
 
 export function prepareRunBranch(
-  shortName: ShortName,
+  _shortName: ShortName,
   planBranch: string,
   repoRoot: string,
   allowDirty?: boolean,

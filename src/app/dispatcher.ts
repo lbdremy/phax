@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
 import type { Disposition } from "../domain/disposition.js";
-import type { PhaxCommand, PhaxCommandType, StatePatch } from "../domain/effects.js";
+import type { PhaxCommandType, StatePatch } from "../domain/effects.js";
 import type { PhaxEvent } from "../domain/events.js";
 import { interpret } from "../domain/reducer.js";
 import type { PhaxState } from "../domain/state.js";
@@ -18,8 +18,6 @@ import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import {
   decodePhaseStatus,
   decodeRunStatus,
-  encodePhaseStatus,
-  encodeRunStatus,
   type PhaseStatus,
   type RunStatus,
 } from "../schemas/status.js";

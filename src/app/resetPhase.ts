@@ -235,8 +235,8 @@ function clearRunStatusLastError(runPath: string): Effect.Effect<void, FsError, 
     // through a status encoder here — the architectural guard reserves those
     // for the dispatcher and effect runner.
     const cleared: Record<string, unknown> = { ...(parsed as Record<string, unknown>) };
-    delete cleared.lastError;
-    cleared.updatedAt = new Date().toISOString();
+    delete cleared["lastError"];
+    cleared["updatedAt"] = new Date().toISOString();
     yield* fs.writeAtomic(path, JSON.stringify(cleared, null, 2));
   });
 }
