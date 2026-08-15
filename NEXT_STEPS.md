@@ -254,13 +254,20 @@ real risk is inference and emit. `typescript@latest` is still `7.0.2`, unchanged
       index-signature accesses; removing the dead `PlanFileSets` import then let knip
       see its export was dead too. **The strictness contract is now settled before the
       TS7 bump**, so every diagnostic phase-01 produces is attributable to the compiler.
-- [ ] **Operator step, before approving**: add `pnpm test:type` to the `full` gate
-      profile in `phax.json` and commit it. `test:type` is the only check that compiles
-      `tests/type/**` and it is absent from `full` — for a compiler migration that is
-      the load-bearing check, and a phase cannot add it for itself since gate profiles
-      are frozen at `loadConfig` (`src/cli/commands/run.ts:162`). Commit it *before*
-      `phax artifact approve` so the approval baseline already carries it.
-- [ ] Then approve plan 45 and run it.
+- [x] Operator step done 2026-08-15 (`92a1827`): `pnpm test:type` added to the `full`
+      gate profile in `phax.json`. It is the only check that compiles `tests/type/**`
+      and it was absent from `full` — for a compiler migration that is the load-bearing
+      check, and a phase cannot add it for itself since gate profiles are frozen at
+      `loadConfig` (`src/cli/commands/run.ts:162`). No new command: `test:type` is an
+      existing script, and gate commands are already in the frozen effective set.
+- [ ] **All pre-run prep now rides on PR #79.** Merge it first, then approve, then run:
+      the plan's footprint is create ∪ edit ∪ optional and its optional list names
+      `tsconfig.json`, which the strictness commits touch — approving before the merge
+      binds the baseline to a tree the merge then changes, flipping plan 45 to
+      `ground-changed` and refusing the run.
+      1. Merge PR #79.
+      2. `phax artifact approve docs/plans/45-typescript-7-migration-plan.md`
+      3. `phax run --plan docs/plans/45-typescript-7-migration-plan.md`
 
 ## Nice to have improvements
 

@@ -30,8 +30,8 @@ security configuration changes` section is needed.
 
 ## Required PHAX configuration changes
 
-Add `pnpm test:type` to the `full` gate profile in `phax.json` **before** running
-this plan:
+**Done — `92a1827`.** `pnpm test:type` is in the `full` gate profile in
+`phax.json`:
 
 ```json
 "full": [
@@ -57,15 +57,20 @@ gated rather than run by hand. `test:type` is an existing `package.json` script 
 this adds no new command, and gate commands are part of the frozen effective set,
 so the security preflight covers it automatically.
 
-This is an operator step, not a phase: `loadConfig` runs once at run start
+This had to be an operator step, not a phase: `loadConfig` runs once at run start
 (`src/cli/commands/run.ts:162`) and `executePlan` reads `config.raw.gateProfiles`
 from that snapshot, so a phase editing `phax.json` would not change its own run's
-gate. Sequence it as:
+gate.
 
-1. Edit `phax.json` as above and commit it on `main`.
-2. `phax artifact approve docs/plans/45-typescript-7-migration-plan.md` — approving
-   *after* the commit binds the approval baseline to the tree that already carries
-   the new gate, so the staleness gate cannot trip on it.
+**Approval must come last.** The plan's footprint is create ∪ edit ∪ optional
+(`buildFootprint`, `src/domain/planOverlap/compute.ts:25`, consumed by
+`planStaleness.ts:156`), and the optional list names `tsconfig.json` — which the
+pre-run strictness commits touch. Approving before those land on `main` binds the
+baseline to a tree they then change, flipping the plan to `ground-changed` and
+refusing the run. So:
+
+1. Land the pre-run prep on `main` — the strictness commits and this gate change.
+2. `phax artifact approve docs/plans/45-typescript-7-migration-plan.md`.
 3. `phax run`.
 
 ---
