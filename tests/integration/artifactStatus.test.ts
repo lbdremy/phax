@@ -510,6 +510,119 @@ describe("transitionArtifact", () => {
     });
   });
 
+  describe("reopen clears the approval", () => {
+    it("Stale → Draft drops the approved: stamp and the sidecar record", async () => {
+      const { fsImpl, layer } = makeHarness();
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "null"));
+
+      await run(
+        transitionArtifact("docs/plans/40-plan.md", "Approved", DEFAULT_OPTS).pipe(
+          Effect.provide(layer),
+        ),
+      );
+      await run(
+        transitionArtifact("docs/plans/40-plan.md", "Stale", DEFAULT_OPTS).pipe(
+          Effect.provide(layer),
+        ),
+      );
+
+      // Both artifacts of the approval survive the Approved → Stale exit.
+      expect(fsImpl.getFile("docs/plans/40-plan.md")).toContain("approved:");
+      const staleStore = decodeApprovalRecordFile(
+        JSON.parse(fsImpl.getFile(APPROVALS_FILE_PATH) as string),
+      );
+      expect(Either.isRight(staleStore)).toBe(true);
+      if (Either.isRight(staleStore)) {
+        expect(staleStore.right.records["docs/plans/40-plan.md"]).toBeDefined();
+      }
+
+      const result = await run(
+        transitionArtifact("docs/plans/40-plan.md", "Draft", DEFAULT_OPTS).pipe(
+          Effect.provide(layer),
+        ),
+      );
+      expect(Either.isRight(result)).toBe(true);
+
+      // The reopened plan claims no approval, in the frontmatter or the sidecar.
+      expect(fsImpl.getFile("docs/plans/40-plan.md")).not.toContain("approved:");
+      const afterStore = decodeApprovalRecordFile(
+        JSON.parse(fsImpl.getFile(APPROVALS_FILE_PATH) as string),
+      );
+      expect(Either.isRight(afterStore)).toBe(true);
+      if (Either.isRight(afterStore)) {
+        expect(afterStore.right.records["docs/plans/40-plan.md"]).toBeUndefined();
+      }
+    });
+
+    it("Approved → Stale retains the record (pinned arbitration)", async () => {
+      const { fsImpl, layer } = makeHarness();
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "null"));
+
+      await run(
+        transitionArtifact("docs/plans/40-plan.md", "Approved", DEFAULT_OPTS).pipe(
+          Effect.provide(layer),
+        ),
+      );
+      await run(
+        transitionArtifact("docs/plans/40-plan.md", "Stale", DEFAULT_OPTS).pipe(
+          Effect.provide(layer),
+        ),
+      );
+
+      // The record is the fingerprint/baseline the plan went stale against; a
+      // direct Stale → Approved is legal, so the record must survive here.
+      const store = decodeApprovalRecordFile(
+        JSON.parse(fsImpl.getFile(APPROVALS_FILE_PATH) as string),
+      );
+      expect(Either.isRight(store)).toBe(true);
+      if (Either.isRight(store)) {
+        expect(store.right.records["docs/plans/40-plan.md"]).toBeDefined();
+      }
+      expect(fsImpl.getFile("docs/plans/40-plan.md")).toContain("approved:");
+    });
+
+    it("the reopen commit carries the plan and approvals.json, leaving nothing uncommitted", async () => {
+      const { fsImpl, gitImpl, layer } = makeHarness();
+      fsImpl.setFile("docs/plans/40-plan.md", planMd("Draft", "null"));
+
+      await run(
+        transitionArtifact("docs/plans/40-plan.md", "Approved", DEFAULT_OPTS).pipe(
+          Effect.provide(layer),
+        ),
+      );
+      await run(
+        transitionArtifact("docs/plans/40-plan.md", "Stale", DEFAULT_OPTS).pipe(
+          Effect.provide(layer),
+        ),
+      );
+
+      gitImpl.enqueueDirtyPaths([]); // pre-write precondition: clean
+      gitImpl.enqueueDirtyPaths(["docs/plans/40-plan.md", APPROVALS_FILE_PATH]); // post-write
+
+      const result = await run(
+        transitionArtifact("docs/plans/40-plan.md", "Draft", {
+          ...DEFAULT_OPTS,
+          commit: true,
+        }).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      if (Either.isRight(result)) {
+        expect(result.right.commit).toEqual({
+          hash: gitImpl.headCommitValue,
+          subject: "chore(plans): reopen 40-plan",
+        });
+      }
+      // The commit stages exactly the write-set — plan + approvals.json — so no
+      // approvals.json edit is left behind in the working tree.
+      const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
+      expect(commitCalls).toHaveLength(1);
+      if (commitCalls[0]?.method === "commitPaths") {
+        expect(commitCalls[0].paths).toEqual(["docs/plans/40-plan.md", APPROVALS_FILE_PATH]);
+      }
+    });
+  });
+
   describe("auto-commit", () => {
     it("approve commits exactly the write-set", async () => {
       const { fsImpl, gitImpl, layer } = makeHarness();

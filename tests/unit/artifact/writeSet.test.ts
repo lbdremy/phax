@@ -39,9 +39,16 @@ describe("transitionWriteSet", () => {
     ]);
   });
 
-  it("plan reopen (Draft): just the artifact path", () => {
+  it("plan reopen (Draft): artifact path plus the approvals file", () => {
     expect(transitionWriteSet("plan", "docs/plans/40-plan.md", "Draft")).toEqual([
       "docs/plans/40-plan.md",
+      APPROVALS_FILE_PATH,
+    ]);
+  });
+
+  it("spec reopen (Draft): just the artifact path, no approvals file", () => {
+    expect(transitionWriteSet("spec", "docs/specs/21-foo.md", "Draft")).toEqual([
+      "docs/specs/21-foo.md",
     ]);
   });
 

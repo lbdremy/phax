@@ -108,6 +108,30 @@ export function setFrontmatterKeys(
 }
 
 /**
+ * Deletes the named keys from the frontmatter block, the mirror of
+ * {@link setFrontmatterKeys}: re-emits the block with the body byte-identical.
+ * Deleting a key that is absent is a no-op, not an error. Kept as its own
+ * operation rather than a delete variant of the `FrontmatterEdit` union.
+ */
+export function removeFrontmatterKeys(
+  md: string,
+  keys: readonly string[],
+): Either.Either<string, FrontmatterProblem> {
+  const split = splitFrontmatter(md);
+  if (split === null) return Either.left({ kind: "missing-block" });
+
+  const docE = parseYamlMapping(split.yamlText);
+  if (Either.isLeft(docE)) return Either.left(docE.left);
+
+  const doc = docE.right;
+  for (const key of keys) {
+    doc.delete(key);
+  }
+
+  return Either.right(`${DELIMITER}\n${doc.toString()}${DELIMITER}\n${split.body}`);
+}
+
+/**
  * Returns the portion of the document that determines its approval
  * fingerprint: the frontmatter block with `status` and `approved` removed,
  * plus the raw body. Only callers fingerprint artifacts that validation has

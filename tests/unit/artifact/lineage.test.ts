@@ -2,6 +2,7 @@ import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   APPROVALS_FILE_PATH,
+  clearApproved,
   computeStaleness,
   readSourceSpec,
   stampApproved,
@@ -124,6 +125,44 @@ describe("stampApproved", () => {
     if (Either.isLeft(result)) {
       expect(result.left.kind).toBe("missing-block");
     }
+  });
+});
+
+describe("clearApproved", () => {
+  it("removes an approved mapping added by stampApproved, restoring the frontmatter", () => {
+    const md = planFm({ sourceSpec: "docs/specs/22-foo.md" });
+    const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
+    expect(Either.isRight(stamped)).toBe(true);
+    if (!Either.isRight(stamped)) return;
+    const cleared = clearApproved(stamped.right);
+    expect(Either.isRight(cleared)).toBe(true);
+    if (!Either.isRight(cleared)) return;
+    expect(cleared.right).toBe(md);
+  });
+
+  it("is a no-op when no approved mapping is present", () => {
+    const md = planFm({ sourceSpec: "null" });
+    const cleared = clearApproved(md);
+    expect(Either.isRight(cleared)).toBe(true);
+    if (Either.isRight(cleared)) expect(cleared.right).toBe(md);
+  });
+
+  it("is fingerprint-neutral: clearing never changes the approval fingerprint", () => {
+    const md = planFm({ sourceSpec: "docs/specs/22-foo.md" });
+    const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
+    expect(Either.isRight(stamped)).toBe(true);
+    if (!Either.isRight(stamped)) return;
+    const cleared = clearApproved(stamped.right);
+    expect(Either.isRight(cleared)).toBe(true);
+    if (!Either.isRight(cleared)) return;
+    expect(fingerprintSource(cleared.right)).toBe(fingerprintSource(md));
+    expect(fingerprintSource(cleared.right)).toBe(fingerprintSource(stamped.right));
+  });
+
+  it("fails with missing-block when there is no frontmatter", () => {
+    const result = clearApproved("# Plan\n\n## Overview\n");
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) expect(result.left.kind).toBe("missing-block");
   });
 });
 
