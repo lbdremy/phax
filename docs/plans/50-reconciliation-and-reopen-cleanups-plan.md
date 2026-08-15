@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-08-15
+  baseline: c9abd19
 ---
 # Reconciliation and Reopen Cleanups
 
