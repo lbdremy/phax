@@ -234,6 +234,15 @@ options and **none of them is set here**, so a `TS5023` failure would be news, a
 real risk is inference and emit. `typescript@latest` is still `7.0.2`, unchanged since
 2026-08-11.
 
+- [x] Pre-run prep, done 2026-08-15 (`322d4a5`): `isolatedModules` and
+      `verbatimModuleSyntax` enabled on the base `tsconfig.json`. vitest / vite / tsx and
+      Deno all transpile file-by-file through esbuild, and nothing verified the source
+      was safe for that — the type-checker and the tools that actually build the code
+      disagreed about what they were compiling. Zero source changes needed (all 142
+      files with type-only imports already used `import type`), and probed for teeth
+      (`TS1484` on a stripped `type` keyword). Landed as its own commit before the bump
+      so TS7 inference diagnostics can't be confused with single-file-transpilation
+      ones.
 - [ ] **Operator step, before approving**: add `pnpm test:type` to the `full` gate
       profile in `phax.json` and commit it. `test:type` is the only check that compiles
       `tests/type/**` and it is absent from `full` — for a compiler migration that is

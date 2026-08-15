@@ -109,12 +109,18 @@ cases and `.d.ts` emit) that must be resolved in the same commit.
   surface as a compile error than to silently change behavior — the migration is
   noisier but safer for it, and the two most inference-sensitive flags
   (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`) are exactly the ones
-  set. Note also what is *not* set — `noUnusedLocals`/`noUnusedParameters` (left
-  to oxlint/knip), `noPropertyAccessFromIndexSignature`,
-  `noUncheckedSideEffectImports`, `allowUnreachableCode: false`,
-  `allowUnusedLabels: false`, `isolatedModules`/`verbatimModuleSyntax`. Tightening
-  any of them is a separate decision on its own merits; doing it inside a compiler
-  bump would make the diff unreviewable. Out of scope here.
+  set. `isolatedModules` and `verbatimModuleSyntax` were added on 2026-08-15
+  (`322d4a5`), **before** this plan runs and as their own commit — the repo
+  transpiles file-by-file through esbuild (vitest / vite / tsx) and Deno, and
+  nothing verified the source was safe for that. They cost zero source changes:
+  all 142 files with type-only imports already used `import type`. Doing it ahead
+  of the bump means TS7 inference diagnostics cannot be confused with
+  single-file-transpilation diagnostics in the same diff. What remains unset —
+  `noUnusedLocals`/`noUnusedParameters` (left to oxlint/knip),
+  `noPropertyAccessFromIndexSignature`, `noUncheckedSideEffectImports`,
+  `allowUnreachableCode: false`, `allowUnusedLabels: false` — stays that way;
+  tightening any of them is a separate decision on its own merits, and doing it
+  inside a compiler bump would make the diff unreviewable. Out of scope here.
 - **knip no longer pulls in `typescript`.** The original listed knip as an
   indirect consumer of the compiler package. `knip@6.12.2`'s dependencies are
   `oxc-parser` / `oxc-resolver` / `get-tsconfig` / `zod` / … — no `typescript`,
@@ -216,10 +222,11 @@ green and the published bin runnable.
   rejection would mean the 6.0 deprecation pass missed something — if it happens,
   record the option, the diagnostic, and the fix (drop the option or use the
   supported equivalent) in the handoff rather than treating it as routine.
-- Do not add or tighten any compiler option. `noUnusedLocals`,
-  `verbatimModuleSyntax`, `noPropertyAccessFromIndexSignature` and friends are
-  unset on purpose; this phase changes the compiler version, not the strictness
-  contract.
+- Do not add, tighten, or relax any compiler option. `isolatedModules` and
+  `verbatimModuleSyntax` were turned on before this run in their own commit
+  (`322d4a5`) precisely so they are not part of this diff; `noUnusedLocals`,
+  `noPropertyAccessFromIndexSignature` and friends stay unset on purpose. This
+  phase changes the compiler version, not the strictness contract.
 - Resolve type-check diffs: run `pnpm typecheck` (`tsc --noEmit`) and `pnpm
   test:type` (`tsc --noEmit -p tsconfig.test.json`). Fix every new diagnostic the
   v7 compiler reports that v6 did not. Prefer fixing the source over loosening
