@@ -37,6 +37,7 @@
     "full": [
       "pnpm format",
       "pnpm typecheck",
+      "pnpm test:type",
       "pnpm lint",
       "pnpm format:check",
       "pnpm knip",
