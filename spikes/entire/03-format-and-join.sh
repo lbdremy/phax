@@ -1,14 +1,14 @@
 #!/bin/sh
 # 03-format-and-join.sh — checkpoint format readability and the phax join (phase-04).
 #
-# Judges whether the entire/checkpoints/v1 format can back phax desktop's
-# "inspect a run" screen, and whether a phase can be joined to its transcript
-# deterministically. Five steps:
+# Judges whether the checkpoint format can back phax desktop's "inspect a run"
+# screen, and whether a phase can be joined to its transcript deterministically.
+# Five steps:
 #
 #   1. readability without the entire binary: read one checkpoint tree straight
-#      out of git (`git show entire/checkpoints/v1:<path>`) — the decisive case
-#      for desktop. A screen that must shell out to a third-party binary per run
-#      is a dependency; one that reads git is not.
+#      out of git (`git show refs/entire/checkpoints/<xx>/<ULID>:<path>`) — the
+#      decisive case for desktop. A screen that must shell out to a third-party
+#      binary per run is a dependency; one that reads git is not.
 #   2. field inventory: the fields present in metadata.json and in one
 #      transcript.jsonl record, to mark against what desktop needs (prompt text,
 #      tool name, file paths touched, timestamps, token counts, model id).
@@ -47,10 +47,24 @@ fi
 arg=$1
 short_name=${2:-entire-checkpoint-spike}
 base=${3:-main}
-shadow=entire/checkpoints/v1
 
-git rev-parse --verify --quiet "$shadow" >/dev/null || {
-  echo "ERROR: $shadow does not exist — nothing to read (run probe 02 first)" >&2
+# Storage model, verified against entire 0.10.0 (`checkpoints.primary.type:
+# "git-refs"`): one ref PER CHECKPOINT at
+#   refs/entire/checkpoints/<last-two-chars-of-ULID>/<ULID>
+# with the tree at the ref root. There is no `entire/checkpoints/v1` branch and
+# no <first-two>/<rest> subtree — that is the model entire's published docs
+# describe and 0.10.0 does not use. The shard is the ULID's LAST two characters
+# (…E30AGF -> GF/). That the shipped model and the documented model disagree at
+# 0.10.0 is itself a step-3 stability finding: record it there.
+cp_ns='refs/entire/checkpoints/**'
+cp_ref() { # cp_ref ULID -> its ref path, or empty
+  git for-each-ref --format='%(refname)' "$cp_ns" | grep -- "/$1\$" | head -1
+}
+cp_all() { # every checkpoint ref, one per line
+  git for-each-ref --format='%(refname)' "$cp_ns"
+}
+[ "$(cp_all | grep -c . || true)" != 0 ] || {
+  echo "ERROR: no refs under $cp_ns — nothing to read (run probe 02 first)" >&2
   exit 1
 }
 
@@ -77,27 +91,30 @@ if git rev-parse --verify --quiet "$arg^{commit}" >/dev/null; then
 else
   checkpoint=$arg
 fi
-prefix="$(printf '%s' "$checkpoint" | cut -c1-2)"
-rest="$(printf '%s' "$checkpoint" | cut -c3-)"
-cp_dir="$prefix/$rest"
+ref="$(cp_ref "$checkpoint")"
+[ -n "$ref" ] || {
+  echo "ERROR: checkpoint $checkpoint has no ref under $cp_ns" >&2
+  exit 1
+}
 
 # --- step 1: readability without the entire binary ----------------------------
 section "step 1: raw-git read of checkpoint $checkpoint"
-echo "tree path: $shadow:$cp_dir/ (shape confirmed by probe 02, cited not re-derived)"
-for f in metadata.json 0/full.jsonl 0/transcript.jsonl 0/prompt.txt; do
-  path="$cp_dir/$f"
-  if git cat-file -e "$shadow:$path" 2>/dev/null; then
-    size="$(git cat-file -s "$shadow:$path")"
-    echo "  $path: present, $size bytes"
+echo "ref: $ref (shape confirmed by probe 02, cited not re-derived)"
+for f in metadata.json 0/metadata.json 0/full.jsonl 0/transcript.jsonl 0/prompt.txt; do
+  if git cat-file -e "$ref:$f" 2>/dev/null; then
+    size="$(git cat-file -s "$ref:$f")"
+    echo "  $f: present, $size bytes"
   else
-    echo "  $path: ABSENT"
+    echo "  $f: ABSENT"
   fi
 done
+echo "--- checkpoint commit trailers (the join anchors) ---"
+git log -1 "$ref" --format='  %(trailers)' | sed '/^\s*$/d'
 echo "--- metadata.json (whole file — REDACT VALUES before pasting) ---"
-git show "$shadow:$cp_dir/metadata.json" 2>/dev/null | sed 's/^/  /' \
+git show "$ref:metadata.json" 2>/dev/null | sed 's/^/  /' \
   || echo "  (unreadable)"
 echo "--- prompt.txt: first line's length only (content not printed) ---"
-git show "$shadow:$cp_dir/0/prompt.txt" 2>/dev/null | head -1 | wc -c \
+git show "$ref:0/prompt.txt" 2>/dev/null | head -1 | wc -c \
   | awk '{ printf "  first line: %d bytes\n", $1 }'
 echo "(readable-from-git verdict: everything above came from git alone; the"
 echo " entire binary was never invoked)"
@@ -106,13 +123,13 @@ echo " entire binary was never invoked)"
 section "step 2: field inventory"
 if [ "$have_jq" = 1 ]; then
   echo "--- metadata.json: keys (recursive paths) ---"
-  git show "$shadow:$cp_dir/metadata.json" \
+  git show "$ref:metadata.json" \
     | jq -r 'paths(scalars) | join(".")' | sort | sed 's/^/  /'
   echo "--- transcript.jsonl: first record's top-level keys (values not printed) ---"
-  git show "$shadow:$cp_dir/0/transcript.jsonl" | head -1 \
+  git show "$ref:0/transcript.jsonl" | head -1 \
     | jq -r 'keys[]' | sed 's/^/  /'
   echo "--- transcript.jsonl: distinct record 'type' values and counts ---"
-  git show "$shadow:$cp_dir/0/transcript.jsonl" \
+  git show "$ref:0/transcript.jsonl" \
     | jq -r '.type // "«no type field»"' | sort | uniq -c | sed 's/^/  /'
 else
   echo "  jq absent — inspect metadata.json and the first transcript.jsonl"
@@ -124,28 +141,50 @@ echo "  token counts, model id"
 
 # --- step 3: format stability signals -----------------------------------------
 section "step 3: format stability signals"
-echo "  branch name carries a version: $shadow (the v1)"
+echo "  ref namespace carries no version marker: $cp_ns"
+echo "  DOCUMENTED-VS-SHIPPED MISMATCH: entire's published docs describe a"
+echo "  versioned 'entire/checkpoints/v1' branch; 0.10.0 writes an UNVERSIONED"
+echo "  ref namespace instead. The layout moved without the layout's own version"
+echo "  marker moving with it — so versioning lives in the payload (below), not"
+echo "  in the storage path. A reader must open a checkpoint to learn how to"
+echo "  read it. Weigh that in the format-stability verdict."
 echo "--- version/schema fields inside metadata.json ---"
-git show "$shadow:$cp_dir/metadata.json" \
-  | grep -iE '"(version|schema|format)[^"]*"' | sed 's/^/  /' \
+# Match the substring, not a key that *starts* with it: the field is
+# "cli_version", which an anchored '"(version|…)' pattern silently misses and
+# then reports as "no version field" — inverting the stability finding.
+git show "$ref:metadata.json" \
+  | grep -iE '"[^"]*(version|schema|format)[^"]*"' | sed 's/^/  /' \
   || echo "  (no field named *version*/*schema*/*format* in metadata.json)"
+echo "--- per-record version marker in transcript.jsonl ---"
+git show "$ref:0/transcript.jsonl" | head -1 \
+  | grep -oE '"(v|cli_version)":[^,}]*' | sed 's/^/  /' \
+  || echo "  (first record carries no per-record version marker)"
 echo "--- transcript.jsonl: line-wise JSON validity (append-only JSONL signal) ---"
-lines="$(git show "$shadow:$cp_dir/0/transcript.jsonl" | grep -c . || true)"
+lines="$(git show "$ref:0/transcript.jsonl" | grep -c . || true)"
 if [ "$have_jq" = 1 ]; then
-  valid="$(git show "$shadow:$cp_dir/0/transcript.jsonl" \
+  valid="$(git show "$ref:0/transcript.jsonl" \
     | jq -c . 2>/dev/null | grep -c . || true)"
   echo "  $valid of $lines non-empty lines parse as standalone JSON"
 else
   echo "  $lines non-empty lines (jq absent — validity not checked)"
 fi
-echo "--- shadow branch history: append-only across the run? ---"
-echo "  (a rewritten shadow branch would show non-linear history or force moves)"
-git log "$shadow" --format='  %h %s' | head -10
+echo "--- one commit per checkpoint ref? (immutability signal) ---"
+echo "  (each ref should be a single commit; a ref with history means"
+echo "   checkpoints get rewritten in place)"
+echo "  $ref: $(git rev-list --count "$ref") commit(s)"
 
 # --- step 4: the join, both directions ----------------------------------------
 section "step 4: phase <-> transcript join"
 run_branch="phax/$short_name"
 git rev-parse --verify --quiet "$run_branch" >/dev/null || run_branch=$short_name
+# Same pre-merge fallback as probe 02: until the run merges, phax/<short-name>
+# still sits at base and the phase commits live on phax/<short-name>--phase-NN.
+if git rev-parse --verify --quiet "$run_branch" >/dev/null \
+  && [ "$(git rev-parse "$run_branch")" = "$(git rev-parse "$base" 2>/dev/null || echo -)" ]; then
+  last_phase="$(git branch --list "phax/$short_name--phase-*" \
+    --format='%(refname:short)' | sort | tail -1)"
+  [ -z "$last_phase" ] || run_branch=$last_phase
+fi
 if ! git rev-parse --verify --quiet "$run_branch" >/dev/null; then
   echo "  neither phax/$short_name nor $short_name resolves — skipping the join"
 else
@@ -158,34 +197,47 @@ else
     echo "  note: $run_branch fully merged — walking its last 20 first-parent commits"
   fi
   echo "--- forward: phase commit -> checkpoint (one row per run-branch commit) ---"
-  printf '%s\n' "  sha        Phase-Id      Session-Id                            Entire-Checkpoint       Entire-Session"
+  # Entire-Session lives on the CHECKPOINT commit, never on the phax commit:
+  # reading it off "$sha" yields an always-blank column and silently destroys the
+  # very evidence this table exists to show. Resolve trailer -> ref -> session.
+  printf '%s\n' "  sha        Phase-Id      Session-Id                            Entire-Checkpoint           join"
   for sha in $run_commits; do
-    printf '  %s  %-12s  %-36s  %-22s  %s\n' \
+    phase_id="$(trailer "$sha" Phase-Id | head -1)"
+    sid="$(trailer "$sha" Session-Id | head -1)"
+    cpid="$(trailer "$sha" Entire-Checkpoint | head -1)"
+    verdict="—"
+    if [ -n "$cpid" ]; then
+      cref="$(cp_ref "$cpid")"
+      if [ -z "$cref" ]; then
+        verdict="DANGLING (no ref)"
+      else
+        esid="$(git log -1 "$cref" \
+          --format='%(trailers:key=Entire-Session,valueonly,separator=)')"
+        if [ "$esid" = "$sid" ]; then
+          verdict="OK"
+        else
+          verdict="MISMATCH ($esid)"
+        fi
+      fi
+    fi
+    printf '  %s  %-12s  %-36s  %-26s  %s\n' \
       "$(git rev-parse --short "$sha")" \
-      "$(trailer "$sha" Phase-Id | head -1)" \
-      "$(trailer "$sha" Session-Id | head -1)" \
-      "$(trailer "$sha" Entire-Checkpoint | head -1)" \
-      "$(trailer "$sha" Entire-Session | head -1)"
+      "${phase_id:-—}" "${sid:-—}" "${cpid:-—}" "$verdict"
   done
   echo "  (forward join is deterministic iff every Phase-Id row has exactly one"
-  echo "   Entire-Checkpoint; blank cells break it)"
+  echo "   Entire-Checkpoint whose ref's Entire-Session equals its Session-Id)"
 
-  echo "--- reverse: checkpoint -> phase commit (one row per shadow-branch tree) ---"
-  # Checkpoint dirs are the two-level <xx>/<rest> prefixes holding a metadata.json.
-  git ls-tree -r --name-only "$shadow" | grep '/metadata.json$' \
-    | sed 's|/metadata.json$||' | sort -u | while IFS= read -r dir; do
-    id="$(printf '%s' "$dir" | tr -d '/')"
-    if [ "$have_jq" = 1 ]; then
-      cp_session="$(git show "$shadow:$dir/metadata.json" \
-        | jq -r '.. | objects | to_entries[] | select(.key | test("session"; "i")) | .value' \
-        2>/dev/null | head -1)"
-    else
-      cp_session="«jq absent — read $dir/metadata.json by hand»"
-    fi
+  echo "--- reverse: checkpoint -> phase commit (one row per checkpoint ref) ---"
+  cp_all | while IFS= read -r cref; do
+    id="${cref##*/}"
+    cp_session="$(git log -1 "$cref" \
+      --format='%(trailers:key=Entire-Session,valueonly,separator=)')"
     matches="$(git log "$run_branch" --format='%h' \
       --grep="Entire-Checkpoint: $id" 2>/dev/null | tr '\n' ' ')"
     echo "  $id  session:${cp_session:-—}  run-branch commit(s): ${matches:-NONE}"
   done
+  echo "  (NONE is expected for checkpoints from sessions outside this run —"
+  echo "   the namespace is repo-wide, not run-scoped)"
   echo "  (reverse join is deterministic iff every checkpoint maps back to exactly"
   echo "   one commit; NONE or multiple shas break it)"
 
@@ -205,14 +257,15 @@ fi
 
 # --- step 5: size per run -----------------------------------------------------
 section "step 5: size per run (desktop screen cost)"
-git ls-tree -r --name-only "$shadow" | grep '/metadata.json$' \
-  | sed 's|/metadata.json$||' | sort -u | while IFS= read -r dir; do
-  bytes="$(git ls-tree -r -l "$shadow" -- "$dir" \
+cp_all | while IFS= read -r cref; do
+  bytes="$(git ls-tree -r -l "$cref" \
     | awk '{ total += $4 } END { printf "%d", total }')"
-  echo "  $(printf '%s' "$dir" | tr -d '/'): $bytes bytes"
+  echo "  ${cref##*/}: $bytes bytes"
 done
-git ls-tree -r -l "$shadow" \
+cp_all | while IFS= read -r cref; do git ls-tree -r -l "$cref"; done \
   | awk '{ total += $4; n += 1 }
          END { printf "  all checkpoints: %d files, %d uncompressed bytes\n", n, total }'
+echo "  (per-phase cost is what a desktop run screen pays; multiply by phase"
+echo "   count for the run, and remember these are compressible JSONL)"
 
 printf '\nprobe complete (read-only; nothing was modified, no entire invocation)\n'

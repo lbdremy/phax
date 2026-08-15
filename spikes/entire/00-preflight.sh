@@ -10,6 +10,11 @@
 # not wired into any phax gate.
 set -eu
 
+# Every check below is relative to the repo root, so root the script rather than
+# trusting the caller's cwd: from a subdirectory the relative probes would all
+# report "absent" and exit 0, which reads as "entire is not enabled".
+cd "$(git rev-parse --show-toplevel)"
+
 section() {
   printf '\n== %s ==\n' "$1"
 }
@@ -36,10 +41,25 @@ else
   echo ".entire/ directory: absent"
 fi
 
-if git rev-parse --verify --quiet entire/checkpoints/v1 >/dev/null; then
-  echo "entire/checkpoints/v1 ref: present ($(git rev-parse entire/checkpoints/v1))"
+# Storage model, verified against entire 0.10.0 (`checkpoints.primary.type:
+# "git-refs"` in .entire/settings.json): each checkpoint is its OWN ref under
+# refs/entire/checkpoints/<last-two-chars-of-ULID>/<ULID>, with the tree at the
+# ref root (metadata.json, 0/full.jsonl, 0/transcript.jsonl, 0/prompt.txt).
+# There is no `entire/checkpoints/v1` branch — that is the model entire's
+# published docs describe, and it does not match what 0.10.0 writes. Re-check
+# this on a version bump before trusting any path below.
+cp_count="$(git for-each-ref --format='x' 'refs/entire/checkpoints/**' | grep -c . || true)"
+if [ "$cp_count" -gt 0 ]; then
+  echo "checkpoint refs (refs/entire/checkpoints/**): $cp_count"
+  git for-each-ref --format='  %(refname) %(objectname:short)' \
+    'refs/entire/checkpoints/**' | head -10
+  [ "$cp_count" -le 10 ] || echo "  … $((cp_count - 10)) more"
 else
-  echo "entire/checkpoints/v1 ref: absent"
+  echo "checkpoint refs (refs/entire/checkpoints/**): none"
+fi
+if git rev-parse --verify --quiet entire/checkpoints/v1 >/dev/null; then
+  echo "legacy entire/checkpoints/v1 branch: present — this repo predates the"
+  echo "  git-refs storage model; every probe path needs revisiting"
 fi
 
 for f in .claude/settings.json .claude/settings.local.json; do
@@ -73,9 +93,18 @@ done
 section "push safety"
 echo "push.default: $(git config --get push.default || echo '(unset)')"
 echo "remote.origin.push: $(git config --get remote.origin.push || echo '(unset)')"
-echo "local refs matching entire/*:"
-git for-each-ref 'refs/heads/entire/*' --format='  %(refname) %(objectname:short)'
-git for-each-ref 'refs/heads/entire/*' --format='x' | grep -q x || echo "  (none)"
+echo "local refs matching entire/* (both namespaces):"
+git for-each-ref 'refs/heads/entire/*' 'refs/entire/*' \
+  --format='  %(refname) %(objectname:short)' | head -10
+any_refs="$(git for-each-ref --format='x' 'refs/heads/entire/*' 'refs/entire/*' \
+  | grep -c . || true)"
+[ "$any_refs" -gt 0 ] || echo "  (none)"
+# refs/entire/* sits outside refs/heads/*, so an ordinary `git push` does not
+# carry it and a clone does not fetch it. That is a smaller exposure surface
+# than a shadow *branch* would be — but `--mirror` still copies everything.
+echo "note: refs/entire/* is not pushed by a plain 'git push'; --all/--mirror would"
+echo "      still copy it. Verify the remote directly:"
+echo "      git ls-remote origin 'refs/entire/*'"
 
 # --- 4. phax ground facts -----------------------------------------------------
 section "phax ground facts"
