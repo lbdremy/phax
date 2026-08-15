@@ -6,6 +6,7 @@ const VALID_ENTRY = {
   path: "src/foo.ts",
   plannedInPhases: ["phase-01"],
   touchedInPhases: ["phase-01"],
+  optionalInPhases: [],
   expectedActions: ["create"],
   actualActions: ["added"],
   status: "matched",
@@ -71,5 +72,26 @@ describe("decodeGlobalFileReconciliation", () => {
     const entry = { ...VALID_ENTRY, futureField: "ignored" };
     const result = decodeGlobalFileReconciliation({ ...VALID_RECONCILIATION, files: [entry] });
     expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("decodes an optional-touched entry", () => {
+    const entry = {
+      ...VALID_ENTRY,
+      plannedInPhases: [],
+      optionalInPhases: ["phase-01"],
+      status: "optional-touched",
+      planned: false,
+    };
+    const result = decodeGlobalFileReconciliation({ ...VALID_RECONCILIATION, files: [entry] });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("fails when optionalInPhases is missing", () => {
+    const { optionalInPhases: _dropped, ...withoutOptional } = VALID_ENTRY;
+    const result = decodeGlobalFileReconciliation({
+      ...VALID_RECONCILIATION,
+      files: [withoutOptional],
+    });
+    expect(Either.isLeft(result)).toBe(true);
   });
 });

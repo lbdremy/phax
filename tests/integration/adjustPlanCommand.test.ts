@@ -138,6 +138,7 @@ async function writeReconciliation(runPath: string): Promise<void> {
           path: "src/domain/foo.ts",
           plannedInPhases: ["phase-01"],
           touchedInPhases: ["phase-01"],
+          optionalInPhases: [],
           expectedActions: ["create"],
           actualActions: ["added"],
           status: "matched",
