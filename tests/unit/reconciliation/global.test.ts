@@ -350,14 +350,70 @@ describe("aggregateGlobalReconciliation", () => {
   });
 
   describe("optional files", () => {
-    it("optional touched file with no planned entry → unplanned", () => {
+    it("optional touched file with no planned entry → optional-touched", () => {
       const phases: PhaseFileReconciliation[] = [
         { ...emptyPhase("phase-01"), optionalTouched: ["src/optional.ts"] },
       ];
       const result = aggregateGlobalReconciliation(phases);
       const entry = result.files.find((e) => e.path === "src/optional.ts")!;
-      expect(entry.status).toBe("unplanned");
+      expect(entry.status).toBe("optional-touched");
+      expect(entry.attention).toBe("ok");
+      expect(entry.unplanned).toBe(false);
       expect(entry.touchedInPhases).toEqual(["phase-01"]);
+      expect(entry.optionalInPhases).toEqual(["phase-01"]);
+    });
+
+    it("an optional-touched file is absent from result.unplanned and attentionPoints", () => {
+      const phases: PhaseFileReconciliation[] = [
+        { ...emptyPhase("phase-01"), optionalTouched: ["src/optional.ts"] },
+      ];
+      const result = aggregateGlobalReconciliation(phases);
+      expect(result.unplanned.map((e) => e.path)).not.toContain("src/optional.ts");
+      expect(result.attentionPoints.map((e) => e.path)).not.toContain("src/optional.ts");
+    });
+
+    it("a file optional in phase-01 and planned+touched in phase-02 → matched", () => {
+      const phases: PhaseFileReconciliation[] = [
+        { ...emptyPhase("phase-01"), optionalTouched: ["src/shared.ts"] },
+        { ...emptyPhase("phase-02"), editedAsPlanned: ["src/shared.ts"] },
+      ];
+      const result = aggregateGlobalReconciliation(phases);
+      const entry = result.files.find((e) => e.path === "src/shared.ts")!;
+      expect(entry.status).toBe("matched");
+      expect(entry.status).not.toBe("extra-touch");
+      expect(entry.status).not.toBe("action-mismatch");
+    });
+
+    it("a file planned+touched in phase-01 and optionally touched in phase-02 → matched", () => {
+      const phases: PhaseFileReconciliation[] = [
+        { ...emptyPhase("phase-01"), createdAsPlanned: ["src/shared.ts"] },
+        { ...emptyPhase("phase-02"), optionalTouched: ["src/shared.ts"] },
+      ];
+      const result = aggregateGlobalReconciliation(phases);
+      const entry = result.files.find((e) => e.path === "src/shared.ts")!;
+      expect(entry.status).toBe("matched");
+      expect(entry.status).not.toBe("extra-touch");
+    });
+
+    it("a genuinely unplanned file still resolves to unplanned", () => {
+      const phases: PhaseFileReconciliation[] = [
+        { ...emptyPhase("phase-01"), unplannedCreated: ["src/surprise.ts"] },
+      ];
+      const result = aggregateGlobalReconciliation(phases);
+      const entry = result.files.find((e) => e.path === "src/surprise.ts")!;
+      expect(entry.status).toBe("unplanned");
+      expect(entry.unplanned).toBe(true);
+    });
+
+    it("renders 'optional in: phase-01' in Notes and a non-blank Planned in cell", () => {
+      const global = aggregateGlobalReconciliation([
+        { ...emptyPhase("phase-01"), optionalTouched: ["src/optional.ts"] },
+      ]);
+      const md = renderGlobalReconciliationMarkdown(global, "acme.fixbug");
+      const row = md.split("\n").find((l) => l.includes("src/optional.ts"))!;
+      expect(row).toBeDefined();
+      expect(row).toContain("phase-01 (optional)");
+      expect(md).toContain("optional in: phase-01");
     });
   });
 

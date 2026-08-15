@@ -4,6 +4,7 @@ export type GlobalFileStatus =
   | "matched"
   | "missing"
   | "unplanned"
+  | "optional-touched"
   | "extra-touch"
   | "partially-matched"
   | "action-mismatch"
@@ -15,6 +16,7 @@ export interface GlobalFileEntry {
   readonly path: string;
   readonly plannedInPhases: readonly string[];
   readonly touchedInPhases: readonly string[];
+  readonly optionalInPhases: readonly string[];
   readonly expectedActions: readonly ("create" | "edit")[];
   readonly actualActions: readonly ("added" | "modified" | "deleted" | "renamed")[];
   readonly status: GlobalFileStatus;
@@ -35,6 +37,7 @@ export interface GlobalFileReconciliation {
 type Accumulator = {
   plannedInPhases: Set<string>;
   touchedInPhases: Set<string>;
+  optionalInPhases: Set<string>;
   expectedActions: Set<"create" | "edit">;
   actualActions: Set<"added" | "modified" | "deleted" | "renamed">;
 };
@@ -45,6 +48,7 @@ function getAcc(map: Map<string, Accumulator>, path: string): Accumulator {
     acc = {
       plannedInPhases: new Set(),
       touchedInPhases: new Set(),
+      optionalInPhases: new Set(),
       expectedActions: new Set(),
       actualActions: new Set(),
     };
@@ -54,26 +58,29 @@ function getAcc(map: Map<string, Accumulator>, path: string): Accumulator {
 }
 
 // Status precedence (highest to lowest):
-// renamed > deleted > unplanned > missing > action-mismatch > extra-touch > partially-matched > matched > unknown
+// renamed > deleted > optional-touched/unplanned > missing > action-mismatch > extra-touch
+// > partially-matched > matched > unknown
 function deriveStatus(
   isPlanned: boolean,
   isTouched: boolean,
+  isOptional: boolean,
   plannedInPhases: readonly string[],
   touchedInPhases: readonly string[],
+  optionalInPhases: readonly string[],
   expectedActions: ReadonlySet<string>,
   actualActions: ReadonlySet<string>,
 ): GlobalFileStatus {
   if (actualActions.has("renamed")) return "renamed";
   if (actualActions.has("deleted")) return "deleted";
 
-  if (isTouched && !isPlanned) return "unplanned";
+  if (isTouched && !isPlanned) return isOptional ? "optional-touched" : "unplanned";
   if (isPlanned && !isTouched) return "missing";
 
   if (isPlanned && isTouched) {
-    const plannedSet = new Set(plannedInPhases);
+    const plannedOrOptionalSet = new Set([...plannedInPhases, ...optionalInPhases]);
     const touchedSet = new Set(touchedInPhases);
     const allPlannedTouched = plannedInPhases.every((p) => touchedSet.has(p));
-    const allTouchedPlanned = touchedInPhases.every((p) => plannedSet.has(p));
+    const allTouchedPlanned = touchedInPhases.every((p) => plannedOrOptionalSet.has(p));
 
     // action-mismatch: every planned phase was touched, but no (create→added) or (edit→modified)
     // pair aligns. Only applies when the same phase is both planned and touched (allPlannedTouched),
@@ -164,6 +171,7 @@ export function aggregateGlobalReconciliation(
     for (const f of phase.optionalTouched) {
       const acc = getAcc(accMap, f);
       acc.touchedInPhases.add(phaseId);
+      acc.optionalInPhases.add(phaseId);
       // optional files may be added or modified; ReconciliationResult doesn't distinguish
       acc.actualActions.add("modified");
     }
@@ -186,6 +194,7 @@ export function aggregateGlobalReconciliation(
   for (const [path, acc] of accMap) {
     const plannedInPhases = [...acc.plannedInPhases].toSorted();
     const touchedInPhases = [...acc.touchedInPhases].toSorted();
+    const optionalInPhases = [...acc.optionalInPhases].toSorted();
     const expectedActions = [...acc.expectedActions].toSorted() as ("create" | "edit")[];
     const actualActions = [...acc.actualActions].toSorted() as (
       | "added"
@@ -196,12 +205,15 @@ export function aggregateGlobalReconciliation(
 
     const isPlanned = plannedInPhases.length > 0;
     const isTouched = touchedInPhases.length > 0;
+    const isOptional = optionalInPhases.length > 0;
 
     const status = deriveStatus(
       isPlanned,
       isTouched,
+      isOptional,
       plannedInPhases,
       touchedInPhases,
+      optionalInPhases,
       acc.expectedActions,
       acc.actualActions,
     );
@@ -210,14 +222,15 @@ export function aggregateGlobalReconciliation(
       path,
       plannedInPhases,
       touchedInPhases,
+      optionalInPhases,
       expectedActions,
       actualActions,
       status,
       planned: isPlanned,
-      unplanned: isTouched && !isPlanned,
+      unplanned: isTouched && !isPlanned && !isOptional,
       missing: isPlanned && !isTouched,
       extraTouch: status === "extra-touch",
-      attention: status === "matched" ? "ok" : "review",
+      attention: status === "matched" || status === "optional-touched" ? "ok" : "review",
     });
   }
 
@@ -245,7 +258,11 @@ export function renderGlobalReconciliationMarkdown(
   lines.push("| --- | --- | --- | --- | --- |");
 
   for (const entry of global.files) {
-    const plannedIn = entry.plannedInPhases.length > 0 ? entry.plannedInPhases.join(", ") : "—";
+    const plannedInParts = [
+      ...entry.plannedInPhases,
+      ...entry.optionalInPhases.map((p) => `${p} (optional)`),
+    ];
+    const plannedIn = plannedInParts.length > 0 ? plannedInParts.join(", ") : "—";
     const touchedIn = entry.touchedInPhases.length > 0 ? entry.touchedInPhases.join(", ") : "—";
     const notes = deriveNotes(entry);
     lines.push(`| ${entry.path} | ${plannedIn} | ${touchedIn} | ${entry.status} | ${notes} |`);
@@ -262,8 +279,10 @@ function deriveNotes(entry: GlobalFileEntry): string {
       return `not touched in: ${entry.plannedInPhases.join(", ")}`;
     case "unplanned":
       return `unplanned in: ${entry.touchedInPhases.join(", ")}`;
+    case "optional-touched":
+      return `optional in: ${entry.optionalInPhases.join(", ")}`;
     case "extra-touch":
-      return `extra touch in: ${entry.touchedInPhases.filter((p) => !entry.plannedInPhases.includes(p)).join(", ")}`;
+      return `extra touch in: ${entry.touchedInPhases.filter((p) => !entry.plannedInPhases.includes(p) && !entry.optionalInPhases.includes(p)).join(", ")}`;
     case "partially-matched":
       return `not touched in: ${entry.plannedInPhases.filter((p) => !entry.touchedInPhases.includes(p)).join(", ")}`;
     case "action-mismatch":
