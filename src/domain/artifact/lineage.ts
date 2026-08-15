@@ -1,6 +1,7 @@
 import { Either } from "effect";
 import {
   decodeArtifactFrontmatter,
+  removeFrontmatterKeys,
   setFrontmatterKeys,
   type FrontmatterProblem,
 } from "./frontmatter.js";
@@ -31,6 +32,14 @@ export function stampApproved(
 ): Either.Either<string, FrontmatterProblem> {
   const date = (dateIso.split("T")[0] as string) ?? dateIso;
   return setFrontmatterKeys(md, [{ key: "approved", value: { date, baseline: shortBaseline } }]);
+}
+
+// Removes the `approved` frontmatter mapping, the mirror of stampApproved. Used
+// on reopen so a Draft plan no longer stamps an approval of text about to be
+// rewritten. Fingerprint-neutral: fingerprintSource already deletes `approved`
+// before hashing, so clearing it never changes the plan's approval fingerprint.
+export function clearApproved(md: string): Either.Either<string, FrontmatterProblem> {
+  return removeFrontmatterKeys(md, ["approved"]);
 }
 
 export const STALENESS_REASONS = ["spec-changed", "ground-changed", "self-changed"] as const;

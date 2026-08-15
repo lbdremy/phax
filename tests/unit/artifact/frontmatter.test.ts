@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   decodeArtifactFrontmatter,
   fingerprintSource,
+  removeFrontmatterKeys,
   setFrontmatterKeys,
   splitFrontmatter,
 } from "../../../src/domain/artifact/frontmatter.js";
@@ -212,6 +213,42 @@ describe("setFrontmatterKeys", () => {
     const md = `# Plan\n\nStatus: Draft\n`;
     const result = setFrontmatterKeys(md, [{ key: "status", value: "Approved" }]);
     expect(result).toEqual(Either.left({ kind: "missing-block" }));
+  });
+});
+
+describe("removeFrontmatterKeys", () => {
+  it("deletes the key, leaving every other key and the body byte-identical", () => {
+    const result = removeFrontmatterKeys(PLAN_DOC, ["approved"]);
+    expect(Either.isRight(result)).toBe(true);
+    if (!Either.isRight(result)) return;
+    expect(result.right).not.toContain("approved:");
+    expect(result.right).toContain("status: Approved");
+    expect(result.right).toContain("source-spec: docs/specs/26-artifact-frontmatter-metadata.md");
+    const bodyAfter = result.right.slice(result.right.indexOf("---\n", 3) + 4);
+    const bodyBefore = PLAN_DOC.slice(PLAN_DOC.indexOf("---\n", 3) + 4);
+    expect(bodyAfter).toBe(bodyBefore);
+  });
+
+  it("is a no-op on an absent key", () => {
+    const md = `---\nstatus: Draft\nsource-spec: null\n---\n\n# Plan\n`;
+    const result = removeFrontmatterKeys(md, ["approved"]);
+    expect(Either.isRight(result)).toBe(true);
+    if (!Either.isRight(result)) return;
+    expect(result.right).toBe(md);
+  });
+
+  it("fails with missing-block when there is no frontmatter", () => {
+    const md = `# Plan\n\nStatus: Draft\n`;
+    const result = removeFrontmatterKeys(md, ["approved"]);
+    expect(result).toEqual(Either.left({ kind: "missing-block" }));
+  });
+
+  it("fails with yaml-syntax on malformed input", () => {
+    const md = `---\nstatus: [unterminated\n---\n\n# Plan\n`;
+    const result = removeFrontmatterKeys(md, ["approved"]);
+    expect(Either.isLeft(result)).toBe(true);
+    if (!Either.isLeft(result)) return;
+    expect(result.left.kind).toBe("yaml-syntax");
   });
 });
 

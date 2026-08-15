@@ -24,7 +24,7 @@ import {
   frontmatterProblemMessage,
   validateArtifact,
 } from "../domain/artifact/document.js";
-import { readSourceSpec, stampApproved } from "../domain/artifact/lineage.js";
+import { clearApproved, readSourceSpec, stampApproved } from "../domain/artifact/lineage.js";
 import { decodeArtifactFrontmatter, setFrontmatterKeys } from "../domain/artifact/frontmatter.js";
 import { transitionCommitMessage, transitionWriteSet } from "../domain/artifact/writeSet.js";
 import {
@@ -234,6 +234,24 @@ export function transitionArtifact(
         sourceSpec,
       });
       approvedBaseline = baseline;
+    }
+
+    // Reopen (Stale → Draft) is the mirror of completion's cleanup: the plan is
+    // about to be rewritten, so it must not keep an approval of its old text —
+    // clear both the `approved:` stamp and the approvals.json record. Both must
+    // land before finalizeTransition, which commits the write-set.
+    if (kind === "plan" && target === "Draft") {
+      const cleared = clearApproved(updatedMd);
+      if (Either.isLeft(cleared)) {
+        return yield* Effect.fail(
+          new ArtifactValidationError({
+            path: repoRelPath,
+            message: frontmatterProblemMessage(repoRelPath, kind, cleared.left),
+          }),
+        );
+      }
+      updatedMd = cleared.right;
+      yield* removeApprovalRecord(repoRelPath);
     }
 
     if (kind === "spec" && isTerminalStatus(target)) {

@@ -8,7 +8,10 @@ export function transitionWriteSet(
   target: ArtifactStatus,
 ): readonly string[] {
   const paths = [repoRelPath];
-  if (kind === "plan" && (target === "Approved" || isTerminalStatus(target))) {
+  if (
+    kind === "plan" &&
+    (target === "Approved" || target === "Draft" || isTerminalStatus(target))
+  ) {
     paths.push(APPROVALS_FILE_PATH);
   }
   if (isTerminalStatus(target)) {
