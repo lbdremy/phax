@@ -94,8 +94,10 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
       `refs/entire/checkpoints/<last-2-of-ULID>/<ULID>`, **not** the documented
       `entire/checkpoints/v1` branch — that mismatch at 0.10.0 is itself the
       format-stability evidence. Full write-up: `docs/spikes/entire-checkpoint-findings.md`.
-- [ ] Write the synthesis `## Verdict` (deliberately left empty for the human), then
-      execute the teardown checklist in `spikes/entire/findings/01-hooks-in-jail.md`.
+- [x] Synthesis `## Verdict` written 2026-08-17 (`e540d6f`, PR #82): **build, not adopt**.
+      The premise correction is recorded in the doc rather than quietly fixed, since it is
+      what flipped a clean 3-for-3 pass into "do not adopt".
+- [ ] Execute the teardown checklist in `spikes/entire/findings/01-hooks-in-jail.md`.
       Teardown deletes **refs**, not a branch: `git branch -D` cannot reach
       `refs/entire/*`, and `git gc --prune=now` is what actually removes the transcripts
       from `.git/objects`. The safety window stays open until then (public repo; `origin`
@@ -105,8 +107,9 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
 - [ ] **Write the spec: `docs/specs/29-phax-run-records.md`** (next free number; 23 and 24
       are the parked ones). phax writes a `phax/records/v1` shadow record per phase
       commit, holding what it already produces, and binds it to the commit it describes.
-      The build itself is narrow — the two design decisions below are the spec's real
-      content, not the plumbing.
+      The build itself is narrow; the decisions below are the spec's real content, and
+      both design decisions are now settled — the spec writes them up rather than
+      re-litigating them.
 
       Scope of the new machinery, all of it small: git object plumbing behind the existing
       `GitPort` (`hash-object -w`, a temp-index `write-tree` via `GIT_INDEX_FILE`,
@@ -123,26 +126,65 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
       namespace, and the version marker did not survive the layout change — so a reader
       cannot detect a layout change without opening a record. Do not repeat that.
 
-- [ ] **Design decision 1 — does the record travel?** This is the unsolved problem, and it
-      is unchanged by building rather than adopting: a phax-owned ref namespace is exactly
-      as unpushed as entire's. `refs/entire/*` is not pushed, fetched or cloned without an
-      explicit refspec, which is why the spike found `origin` clean — the property that
-      protected a public repo is the same one that keeps records local. Choose knowingly:
-      a ref namespace plus an explicit refspec (invisible, safe, opt-in to share), or a
-      real branch under `refs/heads/` (travels by default, appears in everyone's
-      `git branch -a`). The **cross-run durable context layer** in the longer-horizon
-      section depends entirely on this answer — a local record is what `stateRoot`
-      already is.
+- [x] **Design decision 1 — does the record travel? Settled 2026-08-17: a separate,
+      private records repo**, keyed by the source commit (entire's `--checkpoint-remote`
+      idea, which is the one piece of its design worth lifting wholesale). The source repo
+      carries only the commit and its trailer; the records repo carries the records. This
+      resolves distribution *and* exposure in one move: records travel by ordinary
+      push/clone, and a public source repo never holds a transcript. Knowingly accepted
+      loss: provenance now spans two repos, so `records explain` degrades when the records
+      repo is missing, stale, or unreachable — the spec must say what a degraded `explain`
+      prints rather than failing opaquely, and what happens when the two drift.
 
-- [ ] **Design decision 2 — transcripts in the repo, and redaction.** Today transcripts
-      live in `~/.phax`, outside the repo entirely. Moving them in creates an obligation
-      entire punts on as "best-effort": `output.jsonl` contains whatever the agent read
-      and printed. For phax's own public repo that is the developer's call; shipped as a
-      feature for other people's repos, **phax owns it**. Needs to be opt-in, with an
-      explicit statement of what lands in git and a redaction story (or a deliberate,
-      documented refusal to provide one).
+- [x] **Design decision 2 — transcripts and redaction? Settled 2026-08-17: everything by
+      default, no redaction engine.** The record carries `output.jsonl` alongside the
+      skeleton, and the docs state plainly that it holds whatever the agent read and
+      printed. This is only defensible *because* of decision 1 — the destination handles
+      exposure, not a filter — so the two decisions are a pair and must not be adopted
+      separately. A regex redactor was rejected on the grounds that it invites trust it
+      cannot earn.
 
-- [ ] **Knowingly accepted loss of building over adopting: phax records only phax runs.**
+      **Guard the pairing in config, or decision 2 becomes a footgun.** The dangerous
+      combination is transcripts enabled with records written into the working repo, on a
+      repo with a public remote. phax cannot reliably detect "public", so the spec needs an
+      explicit rule: either a records remote is **required** whenever transcripts are on,
+      or writing transcripts into the working repo demands a separate acknowledgement in
+      `phax.json`. Decide which in the spec; do not let the default drift into "transcripts
+      in a public repo" for someone who never read this file.
+
+- [x] **Feature scope, decided 2026-08-17 against entire's actual surface**
+      (`entire --help`, `checkpoint --help`, `session --help`). Most of entire's session
+      management is already phax's: `session info/list/resume/current` ≈ `phax
+      session-info` / `ls` / `resume` / `enter-phase`, `clean` ≈ `archive`, `status` ≈
+      `ls`, `plugin` ≈ `skills`; `enable` / `agent add` / `disable` / `doctor` are
+      integration scaffolding phax does not need because phax **is** the integration.
+
+      **Carry in v1:** record per phase commit with its trailer; versioned ref storage;
+      `phax records list`; **`phax records explain <sha>`** — the payoff, commit → prompt,
+      diff, gate log, handoff, transcript, i.e. blame-to-prompt, and the reason the record
+      is worth writing at all; token usage folded into `explain` (already present in
+      `output.jsonl`'s `result` record, so it is free).
+
+      **Defer:** `activity` / `recap` / `dispatch` — cross-run summaries over the record,
+      which only pay off once records exist and travel; they are the durable-context-layer
+      consumers. Squash-merge trailer collapse (rebase is fine — trailers ride the
+      message, so records resolve by id).
+
+      **Never carry:** semantic search (`search`, `checkpoint search`) — needs an embedding
+      index, so a model or a service, and phax is a deterministic local CLI; this is the
+      clearest line. The whole control plane (`auth`, `login`, `org`, `project`, `repo`,
+      `grant`, `api`, hosted mirrors). `session adopt`/`attach`/`stop` — phax owns
+      worktrees and bindings, so cross-worktree session adoption solves a problem it does
+      not have. Task-level granularity (`tasks/<tool-use-id>/`) — the phase is phax's unit
+      of record. Token "optimization recommendations" — that is LLM advice, not a record.
+
+      **Provider degradation, not uniformity.** phax captures via the provider's stdout,
+      not agent hooks, so transcript richness follows the adapter: Claude Code yields a
+      full `stream-json` stream; whether `codex` and `mistral-vibe` yield an equivalent is
+      **unverified**. The record must degrade gracefully — skeleton always, transcript when
+      the adapter produces one — and say which it got, rather than implying uniformity.
+
+- [x] **Knowingly accepted loss of building over adopting: phax records only phax runs.**
       entire captures every session in the repo, including ad-hoc ones — which is why the
       review commits on this branch carry checkpoints while phax was not running. A
       phax-native record is blind to everything a human does in an ordinary session. For
