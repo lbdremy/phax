@@ -2,9 +2,10 @@
 
 Decision document for the [entire.io](https://entire.io/) checkpoint spike
 (plan 51, run `entire-checkpoint-spike`). It assembles the evidence from the three
-probes under `spikes/entire/` and lays out the adopt-vs-pattern options. It does
-**not** recommend: `## Verdict` is left empty for the human, exactly as the probe
-docs leave theirs, per the spike's execution-model caveat.
+probes under `spikes/entire/` and lays out the adopt-vs-pattern options. The phase
+agent left `## Verdict` empty for the human, per the spike's execution-model
+caveat; **the developer filled it 2026-08-17 — the decision is build, not adopt.**
+Follow-on work is specced as `docs/specs/29-phax-run-records.md`.
 
 **Status: evidence complete except the merge.** Updated 2026-08-15, after the
 observed run (`entire-checkpoint-spike-1786807559589`, 5 phases, `claude-fable-5`,
@@ -158,6 +159,22 @@ same-commit read. **Verdict: unfilled.**
 
 ## The decision this evidence serves
 
+> **Premise correction, 2026-08-17 — read this before the options below.** The
+> framing as originally written rests on a claim that is false, and was false
+> before this spike started: that phax cannot capture transcripts. phax spawns
+> `claude --print --output-format stream-json --verbose`, so the entire event
+> stream passes through phax's own process, and phax already persists it —
+> `output.jsonl` per phase (90 KB for this spike's phase-01: 22 assistant, 11
+> user, 19 system records, a `result`, plus tool_use names and inputs), and
+> `prompt.md` at 45,263 bytes, **byte-identical** to entire's `0/prompt.txt` for
+> the same phase. entire never supplied capture. It supplied three things:
+> condensing a session into a git object, binding it to the commit by trailer, and
+> a query surface.
+>
+> This removes the second option's dominant loss entirely, which is why the
+> Verdict below goes the way it does. The original option text is kept as written,
+> because the correction is the finding.
+
 Two options, each named by its **dominant loss** — the strongest thing it
 abandons:
 
@@ -165,27 +182,93 @@ abandons:
   becomes a third-party format written by third-party hooks sitting in the commit
   path, and phax desktop reads a schema it does not control and cannot evolve.
 - **Adopt only the shadow-branch pattern** (`phax/records/v1`, phax-owned) —
-  abandons transcript capture: the one capability phax cannot produce itself,
+  ~~abandons transcript capture: the one capability phax cannot produce itself,
   since transcripts live in the provider's local storage and only agent-side
-  hooks see the session as it happens.
+  hooks see the session as it happens.~~ **Superseded — see the correction
+  above.** phax already has the transcript; this option abandons only the capture
+  of sessions *outside* phax runs.
 
-### Sketch: `phax/records/v1` (pattern-only route, not implemented)
+### Sketch: `phax/records/v1` (the chosen route, not yet implemented)
 
-What the pattern-only route would look like, sketched here only so the options
-are comparable: phax already holds everything except the transcript at commit
-time (run state, phase state, handoffs, gate logs, reconciliation, the
-orient brief). A `phax/records/v1` shadow branch written by phax's own git
-adapter — one tree per phase commit, keyed by the `Run-Id`/`Phase-Id` trailers
-phax already injects — would version the deliberate skeleton with the repo,
-no hooks, no third party, no new trailer. It would carry `handoff.md`,
-`gate-log`, `reconciliation.json`, `orient-brief.json`; it would **not** carry
-`transcript.jsonl`, because phax never sees it.
+phax already holds **everything** it would need to version, at commit time and on
+disk under `~/.phax/runs/<run>/<phase>/`: `output.jsonl` (the transcript),
+`prompt.md`, `diff.patch`, `checks-attempt-NN.log`,
+`file-reconciliation.{json,md}`, `phase-handoff.md`, `security.json` (the frozen
+policy the phase actually ran under), `model-resolution.json`, `orient-brief.json`,
+`agent-binding.json`, `status.json`. entire's checkpoint holds a transcript and
+nothing else, so the phax-owned record is **strictly richer** than the one on
+offer — not a lossy substitute for it.
+
+A `phax/records/v1` record written by phax's own git adapter — one tree per phase
+commit, keyed by the `Run-Id`/`Phase-Id` trailers phax already injects — versions
+that with the repo. No hooks and no injection race, because phax knows the session
+*and* makes the commit in the same process; entire needs a `prepare-commit-msg`
+hook only because its committer does not know the session. The whole defect class
+this spike walked into (live staging mistaken for the durable record, hook commands
+crossing the jail, trailers that could dangle) does not arise.
+
+The genuinely new machinery is narrow: git object plumbing behind the existing
+`GitPort` — `hash-object -w`, a temp-index `write-tree` via `GIT_INDEX_FILE`,
+`commit-tree`, `update-ref` — so a record is written **without touching the working
+tree**. Everything else is a schema and a trailer.
 
 ## Verdict
 
-<!-- Left empty for the human, per the spike's execution-model caveat.
-     Choose: adopt entire directly / adopt only the pattern / neither.
-     Fill only after the three probe Results/Verdict sections are filled. -->
+**Build, not adopt.** Decided 2026-08-17 by the developer, after the three probe
+Results were filled and the premise correction above came to light. phax builds
+`phax/records/v1` itself; entire is not adopted.
+
+The spike passed on every question it asked — hooks survive the run-jail 5/5,
+checkpoints land 5/5 with the join deterministic in both directions, and the format
+is readable from git alone with every field a desktop screen needs. **A clean pass,
+and it does not matter**, because the question worth asking turned out to be a
+different one: *what does entire actually supply that phax lacks?* Once the premise
+correction lands, the answer is condensation into a git object and a commit trailer
+— roughly a day of plumbing behind an existing port — and a query surface phax does
+not need in order to start.
+
+What decided it, in order of weight:
+
+1. **phax is better placed to do it.** Knowing the session *and* making the commit
+   in one process removes the hook, the injection race, and every defect this spike
+   found. entire's architecture pays a permanent complexity tax to work around a
+   problem phax does not have.
+2. **The record is strictly richer.** Transcript plus prompt, diff, gate log,
+   reconciliation, handoff, frozen security policy, model resolution, orient brief.
+   Adopting entire would have meant versioning the transcript and leaving the rest
+   in `~/.phax`, then joining across two systems to get back what phax already holds
+   in one place.
+3. **Format ownership, now evidenced rather than feared.** entire's documented
+   layout is a versioned `entire/checkpoints/v1` branch; 0.10.0 ships an
+   unversioned `refs/entire/checkpoints/` namespace, and the version marker did not
+   survive the change. Both harnesses in this spike were written from the docs and
+   were wrong on first contact. Betting phax desktop's read path on that is the
+   dominant loss of adopting, and it is no longer hypothetical.
+
+**Knowingly accepted loss:** phax records only phax runs. entire captures every
+session in the repo — including the ad-hoc review session that produced the
+corrections in this document, which carries its own checkpoints while phax was not
+running. A phax-native record is blind to anything a human does outside a run. That
+is acceptable because the first consumer (compliance review as diff-vs-intent
+evidence) is about phases by definition. If blame-to-prompt on an arbitrary line
+ever becomes wanted, entire is a complement to add then — not a foundation to have
+started from.
+
+**What the verdict does not settle**, carried into `docs/specs/29-phax-run-records.md`:
+
+- **Does the record travel?** Unchanged by building rather than adopting. The
+  property that kept `origin` clean through an auto-published run — `refs/entire/*`
+  sits outside `refs/heads/*` and is neither pushed nor fetched — is the same
+  property that keeps records local. A ref namespace plus an explicit refspec, or a
+  real branch that travels by default: the cross-run durable context layer depends
+  entirely on this answer, and a record that does not travel leaves it where
+  `stateRoot` already is.
+- **Do transcripts belong in a repo, and what redacts them?** They currently live
+  outside it. For phax's own public repo that is the developer's call; shipped as a
+  feature for other repos, phax owns the obligation entire punts on as
+  "best-effort".
+- **Version the layout in the ref name** — `phax/records/v1`, and hold to it. This
+  is the single most transferable lesson from the spike.
 
 ## Consumption paths this unlocks (sketches, not designs)
 
