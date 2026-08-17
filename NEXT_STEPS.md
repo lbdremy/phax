@@ -5,40 +5,72 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-08-15, after plan 50 ran and closed the reconciliation and reopen
-cleanups — the last of the small follow-ups behind the 21 → 22 → 25 → 26 → 28 → 27
-lifecycle chain and the TypeScript 7 migration.
+Last pruned 2026-08-17, after v0.8.3 shipped and the entire.io spike ran. The spike's
+own two open items are its verdict and its teardown; everything it answered is in
+`docs/spikes/entire-checkpoint-findings.md`, not here.
 
-## Release pending — the only open item
+## Small follow-ups — found while running the entire.io spike, 2026-08-15
 
-- [ ] Cut **v0.8.3**. The last tag is v0.8.2, with 20 commits on `main` behind it: the
-      tsconfig strictness tightening, the TypeScript 7 bump, `test:type` in the full gate
-      profile, and plan 50's two fixes (`optional-touched` in the global reconciliation
-      table; `artifact reopen` clearing both the `approvals.json` record and the
-      `approved:` frontmatter stamp). Nothing is queued ahead of it — fold it into the
-      next feature release only if one starts soon.
+Neither has anything to do with entire; both surfaced because the spike exercised
+paths nothing else had. Independent of each other and of everything below.
 
-## Spike candidate: entire.io × phax (analyzed 2026-08-10) — active queue head
+- [ ] **The gate profile a plan names is not the gate profile it runs.** Plan 51's
+      `### Verification` sections all name the `fast` profile, per the `phax-planning`
+      skill's spike doctrine ("use the `fast` gate profile, not `full` — a passing
+      `full` on spike artifacts is misleading false green"). The run used **`full`**
+      (`phax ls` PROFILE column, same as every prior run). The profile is not an
+      extracted `phax-plan.json` field, `### Verification` is informational by design,
+      and `phax run` has no flag to select one — so the doctrine prescribes something no
+      mechanism honors. Harmless here (a doc-and-shell run passed `full` anyway, just
+      slowly), but it means every spike plan silently gets the wrong gate. Decide
+      between: make the profile a per-phase extracted field, add a `phax run
+      --gate-profile` flag, or drop the claim from the skill. Adjacent to parked
+      spec 15 (attributed steps) but strictly smaller — profile *selection*, not step
+      attribution.
+- [ ] **`phax review-code`'s prompt never carries its worklist.**
+      `prepareCodeReviewSession` reads `global-file-reconciliation.md` and passes it as
+      `reconciliationMd` (`src/app/reviewCode.ts:206-210,247-253`), but
+      `buildCodeReviewPrompt` never destructures it
+      (`src/domain/review/codeReviewPrompt.ts:25`) — and the same call site hardcodes
+      `attentionPoints: []`. So the prompt's `## Primary worklist — attention points
+      from reconciliation` section renders `_No attention points recorded._` on **every**
+      review, and the reconciliation file is read from disk and discarded. The compliance
+      block is the only real content the prompt has ever carried. Fix is either to wire
+      the reconciliation attention points through, or to delete the dead input and the
+      section that promises it — the current state advertises a worklist it cannot
+      populate. Note the unused field is a used *interface* member, which is why neither
+      `knip` nor `oxlint` flags it.
+
+## phax-native run records (`phax/records/v1`) — decided 2026-08-17 — active queue head
 
 With the gate trilogy parked alongside 23 and 24, this is the only substantive work left
-active.
+active. **Decision: build, not adopt.** The entire.io spike ran, answered its three
+questions, and the answer that mattered most was not one of them.
 
-[entire.io](https://entire.io/) — open-source (MIT) CLI hooking into agent configs
-(Claude Code, Codex, Cursor, Gemini, …) that captures full session transcripts (prompts,
-tool calls, files touched, tokens) and writes a **Checkpoint per commit** on a shadow
-branch `entire/checkpoints/v1` — the session that produced each commit, versioned in the
-repo itself. On top: cross-agent query skills (`search` / `explain` / `what-happened` =
-blame-to-prompt / `review` diff-vs-intent / `session-handoff`), session resume across
-agents, and a hosted tier (distributed git mirrors, org management, secret redaction).
+**Correction to the premise this whole line of work rested on.** Every earlier note here
+claimed phax does not capture transcripts — that only session IDs are recorded and the
+transcripts stay in the provider's local storage. That is **false**, and it was false
+before the spike started. phax spawns
+`claude --print --output-format stream-json --verbose`, so the entire event stream flows
+through phax's own process, and phax already writes it: `output.jsonl` per phase (90 KB
+for spike phase-01: 22 assistant, 11 user, 19 system records, a `result`, tool_use names
+and inputs). `prompt.md` is 45,263 bytes — **byte-identical** to entire's
+`0/prompt.txt` for the same phase. entire never provided capture. It provided three
+things: condensing a session into a git object, binding it to the commit by trailer, and
+a query surface.
 
-Positioning vs phax — complementary, narrow overlap: phax records the **deliberate,
-structured skeleton** (spec → approved plan → phases → reconciled diffs → gates →
-curated handoffs, plus decision provenance via specs 21/22); entire records the **raw
-conversational evidence** (transcripts per commit). phax does not capture transcripts
-(only session IDs via the agent binding; transcripts stay in the provider's local
-storage — unversioned, unshared). Entire plans/gates/orchestrates nothing. Overlap is
-limited to handoffs (phax's contractual `phase-handoff.md` is stronger for phases) and
-"what happened during the run".
+Why phax is better placed to do that than entire is: entire needs a `prepare-commit-msg`
+hook precisely because the committer does not know the session. phax **knows the session
+and makes the commit in the same process** — no hooks, no injection race, no ambiguity
+about which commits get records. The entire class of defects the spike found (staging vs
+durable record, hooks-outside-the-jail, dangling trailers) does not arise.
+
+And the record would be strictly richer than the one on offer. Already written per phase,
+today, in `~/.phax/runs/<run>/<phase>/`: `output.jsonl`, `prompt.md`, `diff.patch`,
+`checks-attempt-NN.log`, `file-reconciliation.{json,md}`, `phase-handoff.md`,
+`security.json` (the frozen policy the phase actually ran under), `model-resolution.json`,
+`orient-brief.json`, `agent-binding.json`, `status.json`. entire's checkpoint holds a
+transcript and nothing else. **Nothing needs to be captured. It needs to be versioned.**
 
 - [x] Spike/discovery plan written 2026-08-15:
       `docs/plans/51-entire-checkpoint-spike-plan.md` (**Draft**, `source-spec: null`,
@@ -51,21 +83,79 @@ limited to handoffs (phax's contractual `phase-handoff.md` is stronger for phase
       the worktree, so a gitignored `settings.local.json` is invisible to it, and `git`
       is in neither the config nor the `fast` gate command set, so probes are authored by
       the agent and run by a human.
-- [ ] Enable entire out-of-band, then approve and run plan 51. Order matters: snapshot
-      `.claude/settings*.json` and `.git/hooks/` outside the repo first, enable with
-      `--skip-push-sessions`, smoke one manual commit (a failing `prepare-commit-msg`
-      aborts commits and would break the run), then run — the plan's own five phase
-      commits, merge and PR are the observed dataset. Needs `entire --version` and
-      `entire --help` in `security.agentCommands` first, or preflight fails.
-      Accepted risk, decided 2026-08-15: this is a public repo, the shadow branch stays
-      local and unpushed, and the branches get deleted afterwards.
-- [ ] If the spike is a go: decide adopt-vs-pattern — consume entire directly (commit ↔
-      session from entire, session ↔ phase ↔ plan ↔ spec from phax = full provenance
-      chain) vs adopt only the shadow-branch pattern for phax's own run records
-      (`phax/records/v1`), losing transcript capture.
-- [ ] Cheaper variant either way: compliance review consumes the phase transcript as
-      evidence (diff-vs-intent audit against the extracted plan — entire's `review`
-      skill with a far stronger intent referential).
+- [x] Ran 2026-08-15 (`entire-checkpoint-spike-1786807559589`, 5 phases, entire 0.10.0,
+      phax 0.8.3), reviewed, findings filled and harnesses corrected in `7e1566d`.
+      **Q1 hooks survive the run-jail: pass** (5/5 captured; hook commands run *outside*
+      the `--allowedTools` gate; conditional on committing the enablement, since a
+      worktree checks out tracked files only). **Q2 checkpoints survive: pass on commit
+      and publish, merge unproven** — the branch is still unmerged. **Q3 readable +
+      joinable: pass on both**, from plain git with no `entire` binary, join deterministic
+      5/5 both directions via `Session-Id` ↔ `Entire-Session`. Storage is
+      `refs/entire/checkpoints/<last-2-of-ULID>/<ULID>`, **not** the documented
+      `entire/checkpoints/v1` branch — that mismatch at 0.10.0 is itself the
+      format-stability evidence. Full write-up: `docs/spikes/entire-checkpoint-findings.md`.
+- [ ] Write the synthesis `## Verdict` (deliberately left empty for the human), then
+      execute the teardown checklist in `spikes/entire/findings/01-hooks-in-jail.md`.
+      Teardown deletes **refs**, not a branch: `git branch -D` cannot reach
+      `refs/entire/*`, and `git gc --prune=now` is what actually removes the transcripts
+      from `.git/objects`. The safety window stays open until then (public repo; `origin`
+      verified clean so far — `refs/entire/*` is not carried by an ordinary push).
+- [ ] Re-run `spikes/entire/02-checkpoint-lifecycle.sh` **after merging** the run branch:
+      merge survival and squash-trailer collapse are the only probe questions still open.
+- [ ] **Write the spec: `docs/specs/29-phax-run-records.md`** (next free number; 23 and 24
+      are the parked ones). phax writes a `phax/records/v1` shadow record per phase
+      commit, holding what it already produces, and binds it to the commit it describes.
+      The build itself is narrow — the two design decisions below are the spec's real
+      content, not the plumbing.
+
+      Scope of the new machinery, all of it small: git object plumbing behind the existing
+      `GitPort` (`hash-object -w`, a temp-index `write-tree` via `GIT_INDEX_FILE`,
+      `commit-tree`, `update-ref`) so a record is written **without touching the working
+      tree** — the one genuinely new capability; a record schema decoded at the boundary
+      like every other persisted shape; and a trailer on the phase commit pointing at the
+      record. Lifecycle questions the spec must settle: what happens on a failed or
+      abandoned phase, on a fix-loop retry (one record or two), and on the archival
+      commit (phax's own bookkeeping — no agent session, so presumably no record).
+
+      **Put the version in the ref name.** `phax/records/v1`, and mean it. This is the one
+      thing entire demonstrably got wrong: its documented layout is a versioned
+      `entire/checkpoints/v1` branch, 0.10.0 ships an unversioned `refs/entire/checkpoints/`
+      namespace, and the version marker did not survive the layout change — so a reader
+      cannot detect a layout change without opening a record. Do not repeat that.
+
+- [ ] **Design decision 1 — does the record travel?** This is the unsolved problem, and it
+      is unchanged by building rather than adopting: a phax-owned ref namespace is exactly
+      as unpushed as entire's. `refs/entire/*` is not pushed, fetched or cloned without an
+      explicit refspec, which is why the spike found `origin` clean — the property that
+      protected a public repo is the same one that keeps records local. Choose knowingly:
+      a ref namespace plus an explicit refspec (invisible, safe, opt-in to share), or a
+      real branch under `refs/heads/` (travels by default, appears in everyone's
+      `git branch -a`). The **cross-run durable context layer** in the longer-horizon
+      section depends entirely on this answer — a local record is what `stateRoot`
+      already is.
+
+- [ ] **Design decision 2 — transcripts in the repo, and redaction.** Today transcripts
+      live in `~/.phax`, outside the repo entirely. Moving them in creates an obligation
+      entire punts on as "best-effort": `output.jsonl` contains whatever the agent read
+      and printed. For phax's own public repo that is the developer's call; shipped as a
+      feature for other people's repos, **phax owns it**. Needs to be opt-in, with an
+      explicit statement of what lands in git and a redaction story (or a deliberate,
+      documented refusal to provide one).
+
+- [ ] **Knowingly accepted loss of building over adopting: phax records only phax runs.**
+      entire captures every session in the repo, including ad-hoc ones — which is why the
+      review commits on this branch carry checkpoints while phax was not running. A
+      phax-native record is blind to everything a human does in an ordinary session. For
+      compliance review that is irrelevant (it is about phases). For blame-to-prompt on an
+      arbitrary line it is the whole question — and if that becomes wanted, entire is a
+      complement to add later, not a foundation to have started from.
+
+- [ ] First consumer, once records exist: **compliance review as diff-vs-intent evidence.**
+      Today it compares the diff against the extracted plan; the transcript adds *how* the
+      phase got there — files read versus files claimed, approaches abandoned, the point of
+      drift. Needs no distribution answer (the review runs on the machine that ran the
+      phases), so it is the cheapest thing to build on top and does not wait on
+      decision 1.
 
 ## Spec candidates, deliberately not written yet
 
@@ -137,16 +227,20 @@ context "extracted" by the next); spec 22 *is* lesson 3 applied (fingerprints = 
 approval record = snapshot binding, footprint ∩ baseline = dependency tracking,
 "dependents go stale → re-plan only those" = selective recomputation). The gaps it
 names, in priority order: the durable context layer is local-only (stateRoot = a
-warehouse on a laptop — the entire.io spike addresses exactly this), the plan DAG is
-analyzed but not executed (spec 24), and staleness propagation stops at one hop.
+warehouse on a laptop — the run-records work above is the response, though only if
+design decision 1 makes the record travel), the plan DAG is analyzed but not executed
+(spec 24), and staleness propagation stops at one hop.
 
 - [ ] Cross-run durable context layer — feed the orient provider from phax's own run
       history (handoffs, deviations, final reports) instead of leaving the archive a
-      filing cabinet. 2026-08-10 addition: the layer should be **shared, not local** —
-      entire's shadow-branch pattern (run records traveling with the repo) is the
-      leading candidate; see the entire.io spike above. First raw material now exists:
-      the per-phase orientation brief (`orient-brief.json`, plan 49) is written for
-      every phase and nothing consumes it yet.
+      filing cabinet. The layer must be **shared, not local**, which is why this now
+      hangs directly off `phax/records/v1` **design decision 1** above: a record that
+      does not travel leaves this exactly where it is today. Revised 2026-08-17 — the
+      earlier note named entire's shadow-branch pattern as the leading candidate, but
+      the spike showed the pattern does not deliver sharing on its own; the distribution
+      choice is the substance, not the storage shape. First raw material already exists
+      and is still unread: the per-phase orientation brief (`orient-brief.json`,
+      plan 49).
 - [ ] Staleness propagation depth — spec 22 stops deliberately at one hop
       (spec → plan). Same record/fingerprint/footprint mechanism could later cover any
       derived artifact (reviews, reports, generated docs): "which summaries are now
