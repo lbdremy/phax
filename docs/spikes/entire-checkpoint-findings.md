@@ -254,21 +254,47 @@ evidence) is about phases by definition. If blame-to-prompt on an arbitrary line
 ever becomes wanted, entire is a complement to add then — not a foundation to have
 started from.
 
-**What the verdict does not settle**, carried into `docs/specs/29-phax-run-records.md`:
+**Settled alongside the verdict, 2026-08-17** — both carried into
+`docs/specs/29-phax-run-records.md` as written up, not as open questions:
 
-- **Does the record travel?** Unchanged by building rather than adopting. The
-  property that kept `origin` clean through an auto-published run — `refs/entire/*`
-  sits outside `refs/heads/*` and is neither pushed nor fetched — is the same
-  property that keeps records local. A ref namespace plus an explicit refspec, or a
-  real branch that travels by default: the cross-run durable context layer depends
-  entirely on this answer, and a record that does not travel leaves it where
-  `stateRoot` already is.
-- **Do transcripts belong in a repo, and what redacts them?** They currently live
-  outside it. For phax's own public repo that is the developer's call; shipped as a
-  feature for other repos, phax owns the obligation entire punts on as
-  "best-effort".
-- **Version the layout in the ref name** — `phax/records/v1`, and hold to it. This
-  is the single most transferable lesson from the spike.
+- **Does the record travel? Yes — via a separate, private records repo**, keyed by
+  the source commit. This is entire's `--checkpoint-remote` idea, and it is the one
+  piece of its design worth lifting wholesale: the source repo carries only the
+  commit and its trailer, the records repo carries the records. It resolves
+  distribution and exposure together — records travel by ordinary push and clone,
+  and a public source repo never holds a transcript. Accepted loss: provenance spans
+  two repos, so `records explain` degrades when the records repo is missing, stale,
+  or unreachable, and the spec must define that degraded output rather than failing
+  opaquely.
+- **Do transcripts belong in the record? Yes, by default, with no redaction
+  engine.** `output.jsonl` ships alongside the skeleton, documented plainly as
+  holding whatever the agent read and printed. A regex redactor was rejected for
+  inviting trust it cannot earn. **These two decisions are a pair**: "no redaction"
+  is defensible only because the destination is private. Adopting the second without
+  the first would make phax the thing that puts secrets in a public repo — so the
+  spec must guard the combination in config, either by requiring a records remote
+  whenever transcripts are on, or by demanding an explicit acknowledgement before
+  transcripts land in the working repo.
+- **Version the layout in the ref name** — `phax/records/v1`, and hold to it. The
+  single most transferable lesson from the spike.
+
+**Feature scope**, decided against entire's actual surface. Carried: record +
+trailer, versioned ref storage, `records list`, **`records explain <sha>`** (the
+payoff — blame-to-prompt), token usage folded into `explain`. Deferred:
+`activity` / `recap` / `dispatch` cross-run summaries, which only pay off once
+records travel. Never: semantic search (needs an embedding index — a model or a
+service, and phax is a deterministic local CLI), the whole control plane
+(`auth`/`org`/`project`/`repo`/`grant`/hosted mirrors), `session
+adopt`/`attach`/`stop` (phax owns worktrees and bindings), task-level granularity
+(the phase is phax's unit of record), and token "optimization recommendations".
+Most of the rest of entire's surface — `session info`/`list`/`resume`/`current`,
+`status`, `clean`, `plugin`, `enable`/`agent add`/`doctor` — phax either already
+has or does not need, because phax **is** the integration.
+
+Provider degradation is explicit, not glossed: phax captures via the provider's
+stdout rather than agent hooks, so transcript richness follows the adapter. Claude
+Code yields a full `stream-json` stream; whether `codex` and `mistral-vibe` do is
+**unverified**. A record states which it got.
 
 ## Consumption paths this unlocks (sketches, not designs)
 
