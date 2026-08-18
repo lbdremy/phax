@@ -278,6 +278,15 @@ started from.
   record at all. Conflating the last two would make every archival commit look like an
   outage.
 
+  **The records repo is cloned once into `~/.phax/records/<name>/`, and that clone is
+  the read *and* write path.** The network is a sync concern only: `explain` never
+  needs it, and a run works offline too, writing the record locally and deferring the
+  push. One trap to hold onto — a local miss is not a confirmed absence. If a teammate
+  pushed a record this clone has not fetched, reporting "no record for this commit"
+  would be a false negative of exactly the kind that would have inverted probe 01's
+  verdict. Local miss refreshes when the remote is reachable and reports "no record
+  locally, remote not consulted" when it is not.
+
   **Visibility detection guards this choice; it never makes it.** The destination is
   explicit in `phax.json` whenever transcripts are on. phax can detect visibility for
   GitHub remotes — `GithubPort` already shells `gh` and needs one small `visibility()`
