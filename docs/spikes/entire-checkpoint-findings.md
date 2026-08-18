@@ -307,8 +307,21 @@ started from.
   repo itself or a separate records repo. What matters is that a record never lands
   somewhere more readable than the code it describes. Adopting this without decision 1
   would make phax the thing that puts secrets in a public repo.
-- **Version the layout in the ref name** — `phax/records/v1`, and hold to it. The
+- **Version the layout in the branch name** — `phax/records/v1`, and hold to it. The
   single most transferable lesson from the spike.
+- **One orphan branch, two possible homes, and the records repo is not a clone of the
+  source.** The record is an ordinary sha-sharded branch, not a hidden ref namespace:
+  in a private source repo that branch lives in the repo itself; in a dedicated records
+  repo it is that repo's default branch. Same writer, same tree, same reader — only the
+  remote differs. A ref namespace was the earlier plan and is rejected in both homes,
+  because its purpose was to *hide* records inside the source repo and a custom
+  namespace is neither cloned nor fetched by default — which would defeat both the
+  `~/.phax/records/<name>` clone and travel-by-default. The records repo shares no
+  history with the source: the binding is a string (trailer → record id, record → source
+  sha) and the record already embeds `diff.patch`, so `explain` never needs source
+  objects. Cloning the source would duplicate its history for nothing and couple access
+  control, making records access imply code access — the opposite of why a separate
+  destination exists.
 
 **Feature scope**, decided against entire's actual surface. Carried: record +
 trailer, versioned ref storage, `records list`, **`records explain <sha>`** (the
