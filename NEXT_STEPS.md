@@ -137,10 +137,31 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
       - **Public source repo → separate private records repo**, keyed by the source
         commit (entire's `--checkpoint-remote` idea, the one piece of its design worth
         lifting wholesale). The source repo carries only the commit and its trailer.
-        Here the two-repo cost is worth paying, and only here: provenance spans two
-        repos, so `records explain` degrades when the records repo is missing, stale or
-        unreachable, and the spec must define that degraded output rather than failing
-        opaquely, plus what "drifted" means.
+        Here the two-repo cost is worth paying, and only here.
+
+      **Keying by the source commit collapses "stale" out of existence** — settled
+      2026-08-18, and it removes the vaguest thing this item previously handed to the
+      spec. A commit sha is immutable, so a record either exists under that key or it
+      does not; there is no drifted state to define and no degraded rendering to
+      design. `phax records explain` therefore has a flat error contract, three
+      outcomes rather than a spectrum, distinguished because the **remedy** differs:
+
+      1. **No records destination configured** → configuration error. Remedy: configure
+         one. Must not be reported as a missing record.
+      2. **Configured but unreachable** (network, auth, repo deleted) → straightforward
+         error naming the destination. Transient; remedy is retry or re-auth. Distinct
+         exit code, in the style of the existing `exit 12` for a dirty write-set.
+      3. **Reachable, no record for this commit** → **not a failure.** Expected for any
+         commit phax did not author: pre-feature history, hand-written commits, and
+         phax's own path-scoped archival commits, which by decision carry no record at
+         all. This must read as "no record for this commit", never as "your records
+         repo is broken" — conflating the two would make the archival commit look like
+         an outage every time.
+
+      Open sub-question for the spec: does `explain` **fetch on demand** into a local
+      cache under `~/.phax`, or require the records repo already present? A cache makes
+      case 2 fire only on a cache miss, which is most of the difference between "works
+      offline" and "does not".
 
       **Visibility detection guards the choice; it never makes it.** The destination is
       explicit in `phax.json` whenever transcripts are on. phax can detect visibility for
