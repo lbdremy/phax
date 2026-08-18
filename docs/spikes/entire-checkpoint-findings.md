@@ -257,24 +257,38 @@ started from.
 **Settled alongside the verdict, 2026-08-17** — both carried into
 `docs/specs/29-phax-run-records.md` as written up, not as open questions:
 
-- **Does the record travel? Yes — via a separate, private records repo**, keyed by
-  the source commit. This is entire's `--checkpoint-remote` idea, and it is the one
-  piece of its design worth lifting wholesale: the source repo carries only the
-  commit and its trailer, the records repo carries the records. It resolves
-  distribution and exposure together — records travel by ordinary push and clone,
-  and a public source repo never holds a transcript. Accepted loss: provenance spans
-  two repos, so `records explain` degrades when the records repo is missing, stale,
-  or unreachable, and the spec must define that degraded output rather than failing
-  opaquely.
+- **Where do records live? The destination follows the source repo's visibility**
+  (revised 2026-08-18; the first answer made a separate records repo unconditional).
+  A **private** source repo keeps records **in-repo** — the record's audience is
+  already exactly the code's audience, so a second repo buys nothing while costing
+  self-contained provenance, clone-by-default distribution, and a non-degrading
+  `explain`. A **public** source repo pushes records to a **separate private records
+  repo** keyed by the source commit — entire's `--checkpoint-remote` idea, the one
+  piece of its design worth lifting wholesale, with the source repo carrying only the
+  commit and its trailer. The two-repo cost is real and paid only in the public case:
+  provenance spans two repos, so `records explain` must degrade legibly when the
+  records repo is missing, stale or unreachable.
+
+  **Visibility detection guards this choice; it never makes it.** The destination is
+  explicit in `phax.json` whenever transcripts are on. phax can detect visibility for
+  GitHub remotes — `GithubPort` already shells `gh` and needs one small `visibility()`
+  addition — but not for arbitrary hosts, so detection is used to **refuse** rather
+  than to choose: in-repo plus transcripts plus a detected-public source is an error,
+  and an undetectable host requires an explicit acknowledgement. A wrong auto-guess in
+  the unsafe direction leaks transcripts.
+
+  **Residual risk, disclosed rather than mitigated: private today is not private
+  forever.** Making a repo public retroactively publishes every transcript in its
+  history, and deleting refs afterwards does not help once objects have been pushed
+  and cloned. Note phax's own repo is public, so phax dogfoods the awkward branch.
 - **Do transcripts belong in the record? Yes, by default, with no redaction
   engine.** `output.jsonl` ships alongside the skeleton, documented plainly as
   holding whatever the agent read and printed. A regex redactor was rejected for
   inviting trust it cannot earn. **These two decisions are a pair**: "no redaction"
-  is defensible only because the destination is private. Adopting the second without
-  the first would make phax the thing that puts secrets in a public repo — so the
-  spec must guard the combination in config, either by requiring a records remote
-  whenever transcripts are on, or by demanding an explicit acknowledgement before
-  transcripts land in the working repo.
+  is defensible only because the destination is private — whether that is the source
+  repo itself or a separate records repo. What matters is that a record never lands
+  somewhere more readable than the code it describes. Adopting this without decision 1
+  would make phax the thing that puts secrets in a public repo.
 - **Version the layout in the ref name** — `phax/records/v1`, and hold to it. The
   single most transferable lesson from the spike.
 
