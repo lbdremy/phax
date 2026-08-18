@@ -177,24 +177,34 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
         lifting wholesale). The source repo carries only the commit and its trailer.
         Here the two-repo cost is worth paying, and only here.
 
-      **Keying by the source commit collapses "stale" out of existence** — settled
-      2026-08-18, and it removes the vaguest thing this item previously handed to the
-      spec. A commit sha is immutable, so a record either exists under that key or it
-      does not; there is no drifted state to define and no degraded rendering to
-      design. `phax records explain` therefore has a flat error contract, three
-      outcomes rather than a spectrum, distinguished because the **remedy** differs:
+      **Keying by the source commit was wrong — corrected 2026-08-18 by the merge
+      itself.** PR #82 was **rebase**-merged: all five phase commits replayed onto `main`
+      with new shas (`a726aff` → `2390fe4`, `39080d3` → `ad8e44c`, and so on). Observed
+      on the result:
 
-      1. **No records destination configured** → configuration error. Remedy: configure
-         one. Must not be reported as a missing record.
-      2. **Configured but unreachable** (network, auth, repo deleted) → straightforward
-         error naming the destination. Transient; remedy is retry or re-auth. Distinct
-         exit code, in the style of the existing `exit 12` for a dirty write-set.
-      3. **Reachable, no record for this commit** → **not a failure.** Expected for any
-         commit phax did not author: pre-feature history, hand-written commits, and
-         phax's own path-scoped archival commits, which by decision carry no record at
-         all. This must read as "no record for this commit", never as "your records
-         repo is broken" — conflating the two would make the archival commit look like
-         an outage every time.
+      - Every trailer survived the rewrite — `Run-Id`, `Phase-Id`, `Session-Id` and
+        `Entire-Checkpoint` are all intact on the rebased commits.
+      - Trailer → checkpoint ref still resolves, 5/5.
+      - The **sha did not**. Each record's own `metadata.json` still names the pre-merge
+        branch, and the pre-merge shas are unreachable the moment the phase branches are
+        deleted.
+
+      So a commit sha is immutable but **not stable**: rebase and squash merges replace
+      it, which would orphan every record keyed by it — the exact opposite of the "no
+      drift" property claimed for it an hour earlier. What is stable is whatever rides
+      the commit *message*.
+
+      **Key records by `Run-Id` + `Phase-Id`.** phax already emits both, they are
+      meaningful rather than opaque, and they survive any history rewrite that preserves
+      the message. The source sha becomes a **recorded back-reference expected to go
+      stale**, never an address. `phax records explain <sha>` reads that sha's trailers
+      and resolves the key from them — it never addresses a record by sha. Note this is
+      precisely why entire mints a ULID and why its `resumeCommitTarget` goes
+      commit → trailer → checkpoint rather than sha → checkpoint; the choice looked
+      arbitrary until this merge explained it.
+
+      The three-outcome error contract is unaffected: a record still either exists under
+      its key or it does not.
 
       **Settled 2026-08-18: a persistent local clone at `~/.phax/records/<name>/` is
       the read *and* write path; the network is a sync concern only.** The records repo

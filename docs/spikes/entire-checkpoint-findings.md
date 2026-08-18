@@ -70,7 +70,7 @@ refine *how much* is captured once both decisive cases pass. **Verdict: unfilled
 
 </details>
 
-### Probe 02 — checkpoint lifecycle — **PASS on commit and publish; merge unproven**
+### Probe 02 — checkpoint lifecycle — **PASS on commit, publish and merge**
 
 **Complete across the run:** 5/5 phase commits carry `Entire-Checkpoint` injected
 by `prepare-commit-msg` from inside a linked worktree, each condensing to its own
@@ -91,7 +91,12 @@ premise the pattern route is built on.
 **Weight:** ~2.2 MB for this 5-phase run (343–534 KB per checkpoint, uncompressed
 JSONL) on cheap doc/shell phases; an implementation run with a fix loop is larger.
 
-**Merge: still unobserved.** See Open questions.
+**Merge: observed 2026-08-18, and it is the probe's most valuable result.** PR #82
+was rebase-merged, so every phase commit was replayed onto `main` with a new sha.
+All four trailers survived the rewrite and trailer → ref resolution held 5/5 — but
+the shas did not, orphaning any sha-keyed addressing. No squash merge occurred, so
+trailer *collapse* remains unobserved; a rebase merge preserves one trailer set per
+commit. See the decision section: this overturned the record-keying choice.
 
 <details><summary>Original pre-run framing (kept for provenance)</summary>
 
@@ -267,16 +272,19 @@ started from.
   piece of its design worth lifting wholesale, with the source repo carrying only the
   commit and its trailer. The two-repo cost is real and paid only in the public case.
 
-  **Keying by the source commit collapses "stale" out of existence.** A commit sha is
-  immutable, so a record either exists under that key or it does not — there is no
-  drifted state to define and no degraded rendering to design. `phax records explain`
-  gets a flat three-outcome contract instead, split by remedy rather than by severity:
-  no destination configured (a config error), configured but unreachable (transient,
-  name the destination, distinct exit code), and reachable-but-no-record — which is
-  **not a failure**, since it is the expected answer for pre-feature history,
-  hand-written commits, and phax's own archival commits, which by decision carry no
-  record at all. Conflating the last two would make every archival commit look like an
-  outage.
+  **Keying by the source commit was wrong, and the merge proved it.** PR #82 was
+  rebase-merged on 2026-08-18: all five phase commits replayed onto `main` with new
+  shas. Every trailer survived — `Run-Id`, `Phase-Id`, `Session-Id`,
+  `Entire-Checkpoint` — and trailer → checkpoint ref still resolves 5/5, but the shas
+  did not survive, and each record's `metadata.json` still names its pre-merge branch.
+  A sha is immutable yet **not stable**; what is stable is what rides the commit
+  message. So records key on **`Run-Id` + `Phase-Id`** — already emitted, meaningful,
+  rewrite-proof — with the source sha kept only as a back-reference expected to go
+  stale. `records explain <sha>` reads that sha's trailers and resolves the key from
+  them. This is why entire mints a ULID and resolves commit → trailer → checkpoint
+  rather than sha → checkpoint; the choice looked arbitrary until this merge explained
+  it. The three-outcome error contract is unaffected: a record still either exists
+  under its key or it does not.
 
   **The records repo is cloned once into `~/.phax/records/<name>/`, and that clone is
   the read *and* write path.** The network is a sync concern only: `explain` never
