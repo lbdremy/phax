@@ -158,10 +158,36 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
          repo is broken" — conflating the two would make the archival commit look like
          an outage every time.
 
-      Open sub-question for the spec: does `explain` **fetch on demand** into a local
-      cache under `~/.phax`, or require the records repo already present? A cache makes
-      case 2 fire only on a cache miss, which is most of the difference between "works
-      offline" and "does not".
+      **Settled 2026-08-18: a persistent local clone at `~/.phax/records/<name>/` is
+      the read *and* write path; the network is a sync concern only.** The records repo
+      must be reachable once, to be cloned; after that everything works offline. This
+      generalizes past `explain` — a **run** works on a plane too, because phax writes
+      the record into the local clone and defers the push. Keyed by the project `name`
+      from `phax.json`, matching the existing `~/.phax/runs/<name>.<shortName>` layout.
+
+      Consequences the spec must carry:
+
+      - **Case 2 moves from read time to setup time.** `explain` never needs the
+        network. "Unreachable" can only mean "no local clone yet and cannot make one",
+        which is a bootstrap failure with an obvious remedy.
+      - **A local miss is not a confirmed absence — this is the spike's case-5 bug
+        waiting to happen again.** If a teammate pushed a record this clone has not
+        fetched, reporting case 3 ("no record for this commit") is a false negative of
+        exactly the kind that would have inverted probe 01's verdict. Rule: local miss →
+        refresh if the remote is reachable, then re-resolve; local miss while offline →
+        report **"no record locally; remote not consulted"**, never "no record".
+      - **Deferred pushes need somewhere to be noticed.** A record written offline is
+        safe but unshared until a later sync — `phax records sync`, or piggy-backed on
+        the next run's publish. Unpushed records should be visible, not silent.
+      - **phax does not create the records repo.** If the configured destination does
+        not exist, refuse with the remedy; creating repositories on someone's account is
+        not phax's business.
+      - Retention is now a real question: ~2.2 MB per five-phase run, measured, and a
+        full clone is required because a blobless partial clone would defeat the offline
+        read this decision exists to guarantee.
+
+      None of this applies to the private/in-repo case, where the records are already in
+      the checkout — the clone exists only on the public-source-repo path.
 
       **Visibility detection guards the choice; it never makes it.** The destination is
       explicit in `phax.json` whenever transcripts are on. phax can detect visibility for
