@@ -265,9 +265,18 @@ started from.
   `explain`. A **public** source repo pushes records to a **separate private records
   repo** keyed by the source commit — entire's `--checkpoint-remote` idea, the one
   piece of its design worth lifting wholesale, with the source repo carrying only the
-  commit and its trailer. The two-repo cost is real and paid only in the public case:
-  provenance spans two repos, so `records explain` must degrade legibly when the
-  records repo is missing, stale or unreachable.
+  commit and its trailer. The two-repo cost is real and paid only in the public case.
+
+  **Keying by the source commit collapses "stale" out of existence.** A commit sha is
+  immutable, so a record either exists under that key or it does not — there is no
+  drifted state to define and no degraded rendering to design. `phax records explain`
+  gets a flat three-outcome contract instead, split by remedy rather than by severity:
+  no destination configured (a config error), configured but unreachable (transient,
+  name the destination, distinct exit code), and reachable-but-no-record — which is
+  **not a failure**, since it is the expected answer for pre-feature history,
+  hand-written commits, and phax's own archival commits, which by decision carry no
+  record at all. Conflating the last two would make every archival commit look like an
+  outage.
 
   **Visibility detection guards this choice; it never makes it.** The destination is
   explicit in `phax.json` whenever transcripts are on. phax can detect visibility for
