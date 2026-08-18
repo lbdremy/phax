@@ -120,11 +120,49 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
       abandoned phase, on a fix-loop retry (one record or two), and on the archival
       commit (phax's own bookkeeping — no agent session, so presumably no record).
 
-      **Put the version in the ref name.** `phax/records/v1`, and mean it. This is the one
-      thing entire demonstrably got wrong: its documented layout is a versioned
+      **Put the version in the branch name.** `phax/records/v1`, and mean it. This is the
+      one thing entire demonstrably got wrong: its documented layout is a versioned
       `entire/checkpoints/v1` branch, 0.10.0 ships an unversioned `refs/entire/checkpoints/`
       namespace, and the version marker did not survive the layout change — so a reader
       cannot detect a layout change without opening a record. Do not repeat that.
+
+      **Storage shape, settled 2026-08-18: one orphan branch, two possible homes.** The
+      record is an ordinary branch — `phax/records/v1`, sha-sharded — not a hidden ref
+      namespace:
+
+      ```
+      phax/records/v1        (orphan branch)
+        <xx>/<source-sha>/
+          output.jsonl  prompt.md  diff.patch  phase-handoff.md
+          checks-attempt-NN.log  file-reconciliation.json  security.json  …
+      ```
+
+      In a **private source repo** that branch lives in the repo itself; in a **dedicated
+      records repo** it is that repo's default branch. Same writer, same tree shape, same
+      reader — only the remote differs, which collapses a good chunk of the
+      implementation.
+
+      A ref namespace was the earlier plan and is now rejected in both homes. Its purpose
+      was to *hide* records inside the source repo, and hiding is exactly wrong here: a
+      custom namespace is neither cloned nor fetched by default, which would defeat the
+      `~/.phax/records/<name>` clone in the dedicated case and defeat travel-by-default in
+      the in-repo case — travel being the whole reason in-repo was chosen. Accepted cost
+      for the in-repo case: a visible `phax/records/v1` in everyone's `git branch -a`, and
+      transcripts in every clone. That is consistent with the rationale already accepted —
+      a private repo's record audience already equals its code audience. The write
+      plumbing is unchanged: `update-ref` simply targets `refs/heads/phax/records/v1`, so
+      records are still written without touching the working tree.
+
+      **The records repo is not a clone of the source.** The binding is a string — the
+      source commit's trailer carries the record id, the record carries the source sha —
+      and the record already embeds `diff.patch`, so `explain` never needs source objects.
+      Cloning the source would duplicate its whole history for no benefit and, worse,
+      couple access control: records access would imply code access, defeating the reason
+      a separate destination exists. As a non-clone it can also serve several projects,
+      keyed by project plus sha, if one records repo per org ever beats one per project.
+      Accepted cost: nothing validates that a sha still exists upstream, so records for
+      rebased-away commits become orphans — a `records prune` reconciling against the
+      source someday, not a design problem.
 
 - [x] **Design decision 1 — where do records live? Settled 2026-08-18: the destination
       follows the source repo's visibility.** Revised from the 2026-08-17 answer, which
@@ -231,7 +269,7 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
       `ls`, `plugin` ≈ `skills`; `enable` / `agent add` / `disable` / `doctor` are
       integration scaffolding phax does not need because phax **is** the integration.
 
-      **Carry in v1:** record per phase commit with its trailer; versioned ref storage;
+      **Carry in v1:** record per phase commit with its trailer; versioned branch storage;
       `phax records list`; **`phax records explain <sha>`** — the payoff, commit → prompt,
       diff, gate log, handoff, transcript, i.e. blame-to-prompt, and the reason the record
       is worth writing at all; token usage folded into `explain` (already present in
