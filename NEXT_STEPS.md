@@ -126,31 +126,56 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
       namespace, and the version marker did not survive the layout change — so a reader
       cannot detect a layout change without opening a record. Do not repeat that.
 
-- [x] **Design decision 1 — does the record travel? Settled 2026-08-17: a separate,
-      private records repo**, keyed by the source commit (entire's `--checkpoint-remote`
-      idea, which is the one piece of its design worth lifting wholesale). The source repo
-      carries only the commit and its trailer; the records repo carries the records. This
-      resolves distribution *and* exposure in one move: records travel by ordinary
-      push/clone, and a public source repo never holds a transcript. Knowingly accepted
-      loss: provenance now spans two repos, so `records explain` degrades when the records
-      repo is missing, stale, or unreachable — the spec must say what a degraded `explain`
-      prints rather than failing opaquely, and what happens when the two drift.
+- [x] **Design decision 1 — where do records live? Settled 2026-08-18: the destination
+      follows the source repo's visibility.** Revised from the 2026-08-17 answer, which
+      made a separate records repo unconditional.
+
+      - **Private source repo → records in-repo.** The record's audience is already
+        exactly the code's audience, so a second repo buys nothing and costs everything
+        listed below. Self-contained provenance, travels with a normal clone, no drift,
+        no degraded `explain`.
+      - **Public source repo → separate private records repo**, keyed by the source
+        commit (entire's `--checkpoint-remote` idea, the one piece of its design worth
+        lifting wholesale). The source repo carries only the commit and its trailer.
+        Here the two-repo cost is worth paying, and only here: provenance spans two
+        repos, so `records explain` degrades when the records repo is missing, stale or
+        unreachable, and the spec must define that degraded output rather than failing
+        opaquely, plus what "drifted" means.
+
+      **Visibility detection guards the choice; it never makes it.** The destination is
+      explicit in `phax.json` whenever transcripts are on. phax can detect visibility for
+      GitHub remotes — `GithubPort` already shells `gh` and would need one small
+      `visibility()` addition beside `repoRecognized` — but not for arbitrary hosts, so
+      detection is used to **refuse**, not to choose: in-repo + transcripts on + detected
+      public is an error, and an undetectable host requires the explicit acknowledgement.
+      A wrong auto-guess in the unsafe direction leaks transcripts, so phax must never
+      make one silently.
+
+      **Residual risk the spec must state plainly: private today is not private forever.**
+      Flipping a repo public retroactively publishes every transcript in its history, and
+      deleting the refs afterwards does not help once the objects have been pushed and
+      cloned. That is the standing cost of in-repo transcripts, and it is not mitigable —
+      only disclosed.
+
+      Note phax's own repo is **public**, so phax itself exercises the separate-records-repo
+      path. The more awkward branch of this decision is the one its maintainer dogfoods.
 
 - [x] **Design decision 2 — transcripts and redaction? Settled 2026-08-17: everything by
       default, no redaction engine.** The record carries `output.jsonl` alongside the
       skeleton, and the docs state plainly that it holds whatever the agent read and
       printed. This is only defensible *because* of decision 1 — the destination handles
       exposure, not a filter — so the two decisions are a pair and must not be adopted
-      separately. A regex redactor was rejected on the grounds that it invites trust it
+      separately. Under the revised decision 1 the private destination is either the
+      source repo itself (when private) or a separate private records repo (when the
+      source is public); what matters is that the record never lands somewhere more
+      readable than the code it describes. A regex redactor was rejected on the grounds that it invites trust it
       cannot earn.
 
-      **Guard the pairing in config, or decision 2 becomes a footgun.** The dangerous
-      combination is transcripts enabled with records written into the working repo, on a
-      repo with a public remote. phax cannot reliably detect "public", so the spec needs an
-      explicit rule: either a records remote is **required** whenever transcripts are on,
-      or writing transcripts into the working repo demands a separate acknowledgement in
-      `phax.json`. Decide which in the spec; do not let the default drift into "transcripts
-      in a public repo" for someone who never read this file.
+      **The footgun is now closed by decision 1's guard**, not left to the spec: the
+      dangerous combination — transcripts on, records in-repo, source repo public — is a
+      refusal, detected where the host allows it and requiring an explicit acknowledgement
+      where it does not. The default must never drift into "transcripts in a public repo"
+      for someone who never read this file.
 
 - [x] **Feature scope, decided 2026-08-17 against entire's actual surface**
       (`entire --help`, `checkpoint --help`, `session --help`). Most of entire's session
