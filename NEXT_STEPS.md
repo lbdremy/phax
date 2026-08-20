@@ -158,8 +158,13 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
       and the record already embeds `diff.patch`, so `explain` never needs source objects.
       Cloning the source would duplicate its whole history for no benefit and, worse,
       couple access control: records access would imply code access, defeating the reason
-      a separate destination exists. As a non-clone it can also serve several projects,
-      keyed by project plus sha, if one records repo per org ever beats one per project.
+      a separate destination exists. **One records repo per project — never one per org.**
+      Corrected 2026-08-20; an earlier note here floated sharing one repo across projects
+      and that is wrong for the same reason cloning the source is: someone who works for
+      several clients would make access to one client's records imply access to all of
+      them. So there is no project level in the tree — the key is `Run-Id`/`Phase-Id`
+      sharded and nothing else — and pointing two projects at one remote is a
+      misconfiguration, not a supported layout.
       Accepted cost: nothing validates that a sha still exists upstream, so records for
       rebased-away commits become orphans — a `records prune` reconciling against the
       source someday, not a design problem.
@@ -271,6 +276,98 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
       refusal, detected where the host allows it and requiring an explicit acknowledgement
       where it does not. The default must never drift into "transcripts in a public repo"
       for someone who never read this file.
+
+- [ ] **Design decision 3 — how does a project turn records on? Decided 2026-08-20; the
+      setup surface, not a separate feature.** Decisions 1 and 2 settle where a record
+      lives and what it holds, but nothing says how a project opts in, so as written
+      spec 29 specifies a writer nobody can enable. This is spec 29's own
+      **`## Setup and distribution`** section — not a new spec.
+
+      **The destination is announced, never asked.** Decision 1 makes visibility decide
+      and detection *refuse*, so the wizard must not offer an in-repo/dedicated select:
+      that select's whole point would be to let someone pick the one combination that is
+      an error. Three questions instead — (1) include the transcript?, (2) if the source is
+      public or the host is undetectable, the records remote URL, required and with no
+      default, (3) auto-push? The `phax init` wizard (`src/app/initWizard.ts`, which
+      already asks name / gates / compliance / publish) gains that block, and
+      **`phax records init`** asks the same three for the projects that already exist.
+      Both call one app-layer use case; the CLI stays thin.
+
+      **Answering no to the transcript question yields a skeleton record, not no record.**
+      Settled 2026-08-20. The record still carries `prompt.md`, `diff.patch`, the gate
+      logs, `phase-handoff.md`, `security.json` and the rest; only `output.jsonl` is
+      omitted. This buys no new machinery, because the record **already** has to declare
+      which shape it is: provider degradation means a skeleton-only record is a case
+      `explain` must handle whatever the toggle says. The toggle rides an axis that
+      exists rather than adding a variant.
+
+      Two consequences the spec must carry. Records are written whenever phax runs — the
+      first question is *include the transcript?*, never *record at all?*. And decision
+      1's guard is scoped to the transcript, exactly as decision 1 already words it:
+      transcripts off makes in-repo safe even on a public source repo, with no records
+      repo needed at all; only transcripts on + public source forces the dedicated
+      destination.
+
+      **Config declares the desired state, the state root holds the actual state, one
+      function reconciles them.** That function is **`phax records sync`**; `records init`
+      is it plus a config write. `phax init` refuses on an existing `phax.json`
+      (`already_initialized`), so the case that matters most — someone clones a phax
+      project whose config already names a records remote — never reaches `init` at all.
+      It is **`phax records sync`**, and phax **refuses with the remedy** rather than
+      cloning by itself — settled 2026-08-20. Auto-cloning would fetch a URL supplied by
+      whoever authored the project, onto a machine whose owner never saw it. Accepted
+      cost, and it is the frequent case: a newcomer's first `phax run` fails for a reason
+      unrelated to what they were doing, so the refusal has to name the exact command and
+      the destination it would clone.
+
+      | desired (`phax.json`) | actual (`~/.phax/records/<name>`) | action |
+      | --- | --- | --- |
+      | off | — | nothing |
+      | in-repo | — | nothing to bootstrap; the branch is born with the first record |
+      | dedicated + remote | no clone | **clone** |
+      | dedicated + remote | clone present, origin matches config | fetch |
+      | dedicated + remote | clone present, origin differs | **refuse** — never silently re-point |
+      | dedicated, no remote | nothing | create a local repo, local-only, warn that records do not travel |
+      | dedicated + remote added later | local repo with commits, remote non-empty | **refuse** with the remedy |
+
+      **Local-only is legitimate; growing a remote onto it later is the trap.** Offline,
+      solo, or undecided are real states and phax should support writing records with no
+      remote at all (creating a *local* repo under the state root is not the same as
+      creating a repo on someone's account, so this does not reopen "phax does not create
+      the records repo"). But the day a remote is configured, a non-empty remote means
+      **clone**, and only an empty one may receive a locally-seeded history — otherwise
+      the first push is an unrelated-histories or non-fast-forward failure, and that is
+      the last row of the table.
+
+      **Auto-push defaults on, fires at run completion, and can never fail a phase.**
+      Settled 2026-08-20 — and the cadence question was mis-framed when it was first
+      asked here. Deferring the *push* loses nothing, because the record is **committed
+      locally per phase** either way: a machine that dies mid-run leaves every record it
+      wrote committed in the local clone, for the next sync to push. So end-of-run is
+      strictly quieter at no durability cost, and it spares the in-repo case a shared
+      `phax/records/v1` moving under the team at every phase. A failed push marks the
+      records pending and surfaces them (`phax records status`, or a line in `ls`) —
+      decision 1 already requires unpushed records be visible rather than silent, and a
+      run that failed because the network did would invert the offline-first property the
+      local clone exists to provide.
+
+      **No retention mechanism in v1.** Settled 2026-08-20: records are written and kept.
+      ~2.2 MB per five-phase run is not a problem until a real repo says it is, and what
+      a stale record even is has no good answer before watching some age. Accepted cost,
+      stated because it is asymmetric: purging later means rewriting a history the team
+      has already cloned, not deleting a file. `records prune` stays a someday.
+
+      Still open, both small and both answerable while writing the spec:
+
+      - **Read from `refs/remotes/origin/phax/records/v1`, not a local branch.** An
+        ordinary `git clone` already fetches the branch, so in the in-repo case `explain`
+        must work in a fresh checkout with no sync at all; requiring a local branch would
+        put a setup step in front of the one command that is supposed to just work.
+      - **The records remote URL is third-party input.** It arrives in a versioned
+        `phax.json` from whoever authored the project, and `git clone ext::sh -c …` is
+        remote code execution. It must decode through a schema that admits `https://`,
+        `ssh://` and `git@…` and nothing else — the same boundary rule as every other
+        external input.
 
 - [x] **Feature scope, decided 2026-08-17 against entire's actual surface**
       (`entire --help`, `checkpoint --help`, `session --help`). Most of entire's session
