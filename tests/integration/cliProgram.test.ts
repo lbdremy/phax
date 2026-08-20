@@ -32,6 +32,7 @@ const TOP_LEVEL_COMMANDS = [
   "completions",
   "report",
   "orient",
+  "records",
 ] as const;
 
 describe("buildProgram", () => {

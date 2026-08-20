@@ -1,17 +1,26 @@
 import { basename, join } from "node:path";
+import { homedir } from "node:os";
 import { Effect, Either } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
+import { Git, type GitError } from "../ports/git.js";
+import { GitHub, type GitHubError } from "../ports/github.js";
 import { Prompt, type PromptCancelled, type PromptError } from "../ports/prompt.js";
 import { decodePackageJson, type PackageJson } from "../schemas/packageJson.js";
 import { decodePhaxConfig } from "../schemas/phaxConfig.js";
+import { resolveRecordsConfig } from "../schemas/recordsConfig.js";
 import { decodeNamespace } from "../domain/branded.js";
 import { detectName, detectPackageManager, suggestGateCommands } from "../domain/init/detect.js";
 import { buildPhaxConfig, type WizardAnswers } from "../domain/init/buildConfig.js";
+import { askRecordsAnswers } from "./configureRecords.js";
+import { reconcileRecordsSync } from "./recordsSync.js";
 import {
   serializePhaxConfigSchema,
   serializePhaxUserOverlaySchema,
   type InitResult,
 } from "./initProject.js";
+
+/** The default state root when `phax init` hasn't asked about `state.root`. */
+const DEFAULT_STATE_ROOT = join(homedir(), ".phax");
 
 function safeParseJson(text: string): unknown {
   try {
@@ -25,7 +34,11 @@ export function runInitWizard(input: {
   cwd: string;
   force?: boolean;
   interactive: boolean;
-}): Effect.Effect<InitResult, FsError | PromptError | PromptCancelled, Prompt | FileSystem> {
+}): Effect.Effect<
+  InitResult,
+  FsError | GitError | GitHubError | PromptError | PromptCancelled,
+  Prompt | FileSystem | Git | GitHub
+> {
   const { cwd, force = false, interactive } = input;
   const configPath = join(cwd, "phax.json");
   const schemaPath = join(cwd, "phax.schema.json");
@@ -129,6 +142,18 @@ export function runInitWizard(input: {
         });
       }
 
+      const recordsEnabled = yield* prompt.confirm({
+        message: "Record each phase's artifacts (prompt, diff, transcript) as it runs?",
+        initialValue: false,
+      });
+
+      let records: WizardAnswers["records"];
+      if (recordsEnabled) {
+        const github = yield* GitHub;
+        const visibility = yield* github.visibility(cwd);
+        records = yield* askRecordsAnswers({ visibility });
+      }
+
       answers = {
         name,
         gateCommands,
@@ -136,6 +161,7 @@ export function runInitWizard(input: {
         publishAuto,
         publishPushBranch,
         publishCreatePr,
+        ...(records !== undefined ? { records } : {}),
       };
 
       yield* prompt.outro("Done! Run `phax validate` or `phax run` to get started.");
@@ -154,6 +180,14 @@ export function runInitWizard(input: {
     yield* fs.writeAtomic(configPath, JSON.stringify(config, null, 2) + "\n");
     yield* fs.writeAtomic(schemaPath, serializePhaxConfigSchema());
     yield* fs.writeAtomic(userSchemaPath, serializePhaxUserOverlaySchema());
+
+    if (answers.records !== undefined) {
+      yield* reconcileRecordsSync({
+        records: resolveRecordsConfig(answers.records),
+        stateRoot: DEFAULT_STATE_ROOT,
+        namespace: answers.name,
+      });
+    }
 
     return {
       kind: "created" as const,
