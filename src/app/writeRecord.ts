@@ -7,11 +7,17 @@ import {
   extractCodexUsage,
   extractVibeUsage,
 } from "../domain/records/usage.js";
+import {
+  decideRecordsDestination,
+  type RecordsDestinationRefusalReason,
+  type RepoVisibility,
+} from "../domain/records/destination.js";
 import { decodeBranchName, type BranchName } from "../domain/branded.js";
 import { FileSystem, type FileSystemOps, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
+import { GitHub } from "../ports/github.js";
 import type { ProviderId } from "../schemas/providerId.js";
-import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
+import type { RecordsDestination, ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import {
   encodeRunRecordManifest,
   UNAVAILABLE_TOKEN_USAGE,
@@ -64,22 +70,55 @@ export type WriteRecordResult =
       readonly fileCount: number;
     }
   | { readonly kind: "records-off" }
-  | { readonly kind: "deferred-destination"; readonly destination: "repo" };
+  | { readonly kind: "deferred-destination"; readonly destination: "repo" }
+  | {
+      readonly kind: "refused";
+      readonly reason: RecordsDestinationRefusalReason;
+      readonly destination: RecordsDestination;
+      readonly message: string;
+      readonly remedy: string;
+    };
 
 /**
  * Assemble a phase's record and write it as one commit on `phax/records/v1`,
  * keyed by `runId/phaseId`, without touching the working tree or index (the
  * plumbing from phase-03 drives a scratch index). Records off is a total no-op,
  * and a dedicated `repo` destination is deferred to phase-06 — this phase only
- * writes the in-repo destination.
+ * writes the in-repo destination, and only once the destination policy allows
+ * it (spec §5.4): detection guards the configured choice, it never picks one.
  */
 export function writeRecord(
   input: WriteRecordInput,
-): Effect.Effect<WriteRecordResult, GitError | FsError, Git | FileSystem> {
+): Effect.Effect<WriteRecordResult, GitError | FsError, Git | FileSystem | GitHub> {
   return Effect.gen(function* () {
     if (!input.records.enabled) return { kind: "records-off" } as const;
     if (input.records.destination.kind === "repo") {
       return { kind: "deferred-destination", destination: "repo" } as const;
+    }
+
+    // Visibility is only consulted when transcripts are on — a skeleton
+    // record is safe in-repo whatever the visibility, and asking avoids a
+    // needless `gh` call on every phase of every skeleton-only project.
+    let visibility: RepoVisibility = "unknown";
+    if (input.records.transcript) {
+      const github = yield* GitHub;
+      visibility = yield* github
+        .visibility(input.repoRoot)
+        .pipe(Effect.orElseSucceed(() => "unknown" as const));
+    }
+    const destinationDecision = decideRecordsDestination({
+      transcript: input.records.transcript,
+      destination: input.records.destination,
+      visibility,
+    });
+    if (destinationDecision.kind === "refused") {
+      return {
+        kind: "refused",
+        reason: destinationDecision.reason,
+        destination: destinationDecision.destination,
+        message: destinationDecision.message,
+        remedy: destinationDecision.remedy,
+      } as const;
     }
 
     const fs = yield* FileSystem;

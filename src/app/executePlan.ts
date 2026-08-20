@@ -24,6 +24,7 @@ import {
   ModelPreflightError,
   PhaseHadNoChangesError,
   RateLimitError,
+  RecordsDestinationRefusedError,
   RegistryCorruptionError,
   SecurityEnforcementError,
   SecurityPreflightError,
@@ -206,7 +207,8 @@ export type ExecutePlanError =
   | SecurityEnforcementError
   | SecurityPreflightError
   | ModelPreflightError
-  | PhaseHadNoChangesError;
+  | PhaseHadNoChangesError
+  | RecordsDestinationRefusedError;
 
 export function mcpAllowlistPreflight(mcp: {
   readonly mode: McpMode;
@@ -289,36 +291,59 @@ export function executePlan(
     readonly sessionId: string | undefined;
     readonly outcome: RecordPhaseOutcome;
     readonly sourceSha?: string | undefined;
-  }): Effect.Effect<void, never, Git | FileSystem> {
+    // A destination refusal (spec §5.4) is a deliberate policy decision, not
+    // a transient write failure, so it is not swallowed into a warning the
+    // way I/O failures are — except at the failed-phase call site, which
+    // runs inside Effect.tapError over the phase's own original failure and
+    // must never let a records concern mask it. Defaults to failing hard.
+    readonly failOnRefusal?: boolean;
+  }): Effect.Effect<void, RecordsDestinationRefusedError, Git | FileSystem | GitHub> {
     if (!config.records.enabled || recordedPhaseIds.has(args.phaseId)) return Effect.void;
-    return writeRecord({
-      repoRoot: config.repoRoot,
-      phaseFolderPath: args.phaseFolderPath,
-      runId: runId as string,
-      phaseId: args.phaseId,
-      provider: args.provider,
-      model: args.model,
-      effort: args.effort,
-      outcome: args.outcome,
-      records: config.records,
-      ...(args.sourceSha !== undefined ? { sourceSha: args.sourceSha } : {}),
-      ...(args.sessionId !== undefined ? { sessionId: args.sessionId } : {}),
-    }).pipe(
-      Effect.tap((result) =>
-        Effect.sync(() => {
-          if (result.kind === "written") recordedPhaseIds.add(args.phaseId);
-        }),
-      ),
-      Effect.asVoid,
-      // A record-write failure never fails the run — it degrades to a warning.
-      Effect.catchAll((e) =>
-        Effect.sync(() => {
-          process.stderr.write(
-            `[phax] Warning: phase "${args.phaseId}" — failed to write record (${e instanceof Error ? e.message : String(e)}).\n`,
-          );
-        }),
-      ),
-    );
+    return Effect.gen(function* () {
+      const result = yield* writeRecord({
+        repoRoot: config.repoRoot,
+        phaseFolderPath: args.phaseFolderPath,
+        runId: runId as string,
+        phaseId: args.phaseId,
+        provider: args.provider,
+        model: args.model,
+        effort: args.effort,
+        outcome: args.outcome,
+        records: config.records,
+        ...(args.sourceSha !== undefined ? { sourceSha: args.sourceSha } : {}),
+        ...(args.sessionId !== undefined ? { sessionId: args.sessionId } : {}),
+      }).pipe(
+        // A record-write I/O failure never fails the run — it degrades to a warning.
+        Effect.catchAll((e) =>
+          Effect.sync(() => {
+            process.stderr.write(
+              `[phax] Warning: phase "${args.phaseId}" — failed to write record (${e instanceof Error ? e.message : String(e)}).\n`,
+            );
+            return { kind: "records-off" } as const;
+          }),
+        ),
+      );
+
+      if (result.kind === "written") {
+        recordedPhaseIds.add(args.phaseId);
+        return;
+      }
+      if (result.kind === "refused") {
+        const message = `Phase "${args.phaseId}" — records destination refused: ${result.message} (remedy: ${result.remedy})`;
+        if (args.failOnRefusal === false) {
+          process.stderr.write(`[phax] Warning: ${message}\n`);
+          return;
+        }
+        return yield* Effect.fail(
+          new RecordsDestinationRefusedError({
+            message,
+            phaseId: args.phaseId,
+            reason: result.reason,
+            remedy: result.remedy,
+          }),
+        );
+      }
+    });
   }
 
   // These errors pause the run (interrupted, resumable via `phax resume`) rather
@@ -1463,7 +1488,8 @@ export function executePlan(
             effort: currentEffort,
             sessionId: currentSessionId,
             outcome: "failed",
-          })
+            failOnRefusal: false,
+          }).pipe(Effect.catchAll(() => Effect.void))
         : Effect.void,
     ),
     // A rate/usage limit pauses the run instead of failing it: dispatch

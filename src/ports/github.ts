@@ -1,5 +1,6 @@
 import { Context, Data, Effect } from "effect";
 import type { BranchName } from "../domain/branded.js";
+import type { RepoVisibility } from "../domain/records/destination.js";
 
 export class GitHubError extends Data.TaggedError("GitHubError")<{
   message: string;
@@ -13,6 +14,14 @@ export interface GitHubOps {
   isAvailable(): Effect.Effect<boolean, GitHubError>;
   isAuthenticated(repo: string): Effect.Effect<boolean, GitHubError>;
   repoRecognized(repo: string): Effect.Effect<boolean, GitHubError>;
+  /**
+   * The source repo's visibility, as the host reports it. `"unknown"` covers
+   * every case where the host cannot be asked authoritatively — the CLI is
+   * unavailable, the repo is on a non-GitHub host, or the query fails —
+   * never guessed as `"private"` (spec §5.4 requires an explicit
+   * acknowledgement before an unknown visibility is treated as safe).
+   */
+  visibility(repo: string): Effect.Effect<RepoVisibility, GitHubError>;
   defaultBaseBranch(repo: string): Effect.Effect<string, GitHubError>;
   findPullRequestForBranch(
     branch: BranchName,

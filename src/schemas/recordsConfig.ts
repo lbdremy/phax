@@ -15,6 +15,10 @@ export const RecordsRemoteSchema = Schema.NonEmptyString.pipe(
 
 export const InRepoRecordsDestinationSchema = Schema.Struct({
   kind: Schema.Literal("in-repo"),
+  // Required only when the source repo's visibility cannot be detected and
+  // transcripts are enabled (spec §5.4) — an explicit statement that the
+  // project owner has confirmed the repo is private, not a default-on trust.
+  acknowledgedUnknownVisibility: Schema.optional(Schema.Boolean),
 });
 
 export const RepoRecordsDestinationSchema = Schema.Struct({

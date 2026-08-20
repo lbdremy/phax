@@ -1,11 +1,13 @@
 import { Effect, Layer } from "effect";
 import type { BranchName } from "../../domain/branded.js";
+import type { RepoVisibility } from "../../domain/records/destination.js";
 import { GitHub, type GitHubOps, GitHubError } from "../../ports/github.js";
 
 export type GitHubCall =
   | { method: "isAvailable" }
   | { method: "isAuthenticated"; repo: string }
   | { method: "repoRecognized"; repo: string }
+  | { method: "visibility"; repo: string }
   | { method: "defaultBaseBranch"; repo: string }
   | { method: "findPullRequestForBranch"; branch: string; repo: string }
   | {
@@ -25,6 +27,9 @@ export class FakeGitHubImpl implements GitHubOps {
   available = true;
   authenticated = true;
   recognized = true;
+  // Defaults to "private" — the common happy-path case — so existing tests
+  // that never call setVisibility() keep an in-repo destination allowed.
+  configuredVisibility: RepoVisibility = "private";
   configuredDefaultBranch = "main";
   readonly existingPrs = new Map<string, string>();
   createdPrUrl = "https://github.com/owner/repo/pull/1";
@@ -44,6 +49,10 @@ export class FakeGitHubImpl implements GitHubOps {
 
   setRepoRecognized(value: boolean): void {
     this.recognized = value;
+  }
+
+  setVisibility(value: RepoVisibility): void {
+    this.configuredVisibility = value;
   }
 
   setDefaultBranch(branch: string): void {
@@ -91,6 +100,11 @@ export class FakeGitHubImpl implements GitHubOps {
   repoRecognized(repo: string): Effect.Effect<boolean, GitHubError> {
     this.calls.push({ method: "repoRecognized", repo });
     return Effect.succeed(this.recognized);
+  }
+
+  visibility(repo: string): Effect.Effect<RepoVisibility, GitHubError> {
+    this.calls.push({ method: "visibility", repo });
+    return Effect.succeed(this.configuredVisibility);
   }
 
   defaultBaseBranch(repo: string): Effect.Effect<string, GitHubError> {

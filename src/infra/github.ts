@@ -2,6 +2,7 @@ import { Effect, Layer } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
 import { GitHub, GitHubError } from "../ports/github.js";
 import type { BranchName } from "../domain/branded.js";
+import type { RepoVisibility } from "../domain/records/destination.js";
 
 function ghRun(
   args: readonly string[],
@@ -59,6 +60,17 @@ export const NodeGitHubLayer = Layer.succeed(GitHub, {
 
   repoRecognized: (repo) =>
     ghRunAllowFail(["repo", "view"], repo).pipe(Effect.map(({ exitCode }) => exitCode === 0)),
+
+  visibility: (repo) =>
+    ghRunAllowFail(["repo", "view", "--json", "visibility", "-q", ".visibility"], repo).pipe(
+      Effect.map(({ stdout, exitCode }): RepoVisibility => {
+        if (exitCode !== 0) return "unknown";
+        const value = stdout.trim().toUpperCase();
+        if (value === "PUBLIC") return "public";
+        if (value === "PRIVATE") return "private";
+        return "unknown";
+      }),
+    ),
 
   defaultBaseBranch: (repo) =>
     ghRun(

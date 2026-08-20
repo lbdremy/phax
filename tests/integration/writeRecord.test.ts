@@ -7,8 +7,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect, Layer } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
+import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { Git, type GitError } from "../../src/ports/git.js";
 import { FileSystem, type FsError } from "../../src/ports/fs.js";
+import { GitHub } from "../../src/ports/github.js";
 import {
   writeRecord,
   RECORDS_BRANCH_NAME,
@@ -17,10 +19,14 @@ import {
 } from "../../src/app/writeRecord.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 
-const LAYER = Layer.merge(NodeFileSystemLayer, NodeGitLayer);
+// Defaults to "private" visibility, matching the fake's happy-path default,
+// so every existing test in this file (none of which exercise the
+// destination policy) keeps writing as before.
+const fakeGitHub = makeFakeGitHub();
+const LAYER = Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, fakeGitHub.layer);
 
 function run(
-  effect: Effect.Effect<WriteRecordResult, GitError | FsError, Git | FileSystem>,
+  effect: Effect.Effect<WriteRecordResult, GitError | FsError, Git | FileSystem | GitHub>,
 ): Promise<WriteRecordResult> {
   return Effect.runPromise(Effect.provide(effect, LAYER));
 }
@@ -61,6 +67,8 @@ describe("writeRecord", () => {
     git(["commit", "-m", "chore: initial commit"], repoDir);
 
     phaseFolder = mkdtempSync(join(tmpdir(), "phax-write-record-phase-"));
+    fakeGitHub.impl.setVisibility("private");
+    fakeGitHub.impl.calls.length = 0;
   });
 
   afterEach(async () => {
@@ -220,5 +228,52 @@ describe("writeRecord", () => {
     expect(git(["show", `${RECORDS_BRANCH_NAME}~1:run-1/phase-01/record.json`], repoDir)).toContain(
       '"phaseId": "phase-01"',
     );
+  });
+
+  it("refuses a public source repo with transcripts on and an in-repo destination, writing nothing", async () => {
+    fakeGitHub.impl.setVisibility("public");
+    await seedPhaseFolder({ "prompt.md": "p\n" });
+
+    const result = await run(writeRecord(baseInput()));
+
+    expect(result).toMatchObject({ kind: "refused", reason: "public-source-in-repo" });
+    expect(git(["show-ref"], repoDir)).not.toContain(RECORDS_BRANCH_NAME);
+  });
+
+  it("writes a skeleton for a public source repo when transcripts are off", async () => {
+    fakeGitHub.impl.setVisibility("public");
+    await seedPhaseFolder({ "prompt.md": "p\n", "output.jsonl": '{"type":"result"}\n' });
+
+    const result = await run(writeRecord(baseInput({ records: inRepoConfig(false) })));
+
+    expect(result.kind).toBe("written");
+    expect(readManifest("run-1/phase-01")["shape"]).toBe("skeleton");
+  });
+
+  it("refuses an unacknowledged unknown-visibility source repo, but writes once acknowledged", async () => {
+    fakeGitHub.impl.setVisibility("unknown");
+    await seedPhaseFolder({ "prompt.md": "p\n" });
+
+    const refused = await run(writeRecord(baseInput()));
+    expect(refused).toMatchObject({ kind: "refused", reason: "unacknowledged-unknown-visibility" });
+
+    const acknowledgedConfig: ResolvedRecordsConfig = {
+      enabled: true,
+      transcript: true,
+      destination: { kind: "in-repo", acknowledgedUnknownVisibility: true },
+      autoPush: false,
+    };
+    const written = await run(writeRecord(baseInput({ records: acknowledgedConfig })));
+    expect(written.kind).toBe("written");
+  });
+
+  it("never consults visibility for a dedicated repo destination, whatever it is", async () => {
+    fakeGitHub.impl.setVisibility("public");
+    await seedPhaseFolder({ "prompt.md": "p\n" });
+
+    const result = await run(writeRecord(baseInput({ records: REPO_CONFIG })));
+
+    expect(result).toEqual({ kind: "deferred-destination", destination: "repo" });
+    expect(fakeGitHub.impl.calls.some((call) => call.method === "visibility")).toBe(false);
   });
 });
