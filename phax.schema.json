@@ -289,6 +289,48 @@
         },
         "additionalProperties": false
       }
+    },
+    "records": {
+      "type": "object",
+      "required": ["transcript", "destination", "autoPush"],
+      "properties": {
+        "transcript": {
+          "type": "boolean"
+        },
+        "destination": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": ["kind"],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["in-repo"]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": ["kind", "remote"],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["repo"]
+                },
+                "remote": {
+                  "$ref": "#/$defs/NonEmptyString"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "autoPush": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

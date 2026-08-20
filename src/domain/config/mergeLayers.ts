@@ -163,6 +163,9 @@ export function mergeConfigLayers(input: {
   // workspaces: wholesale override (highest present layer wins)
   const workspaces = localUser?.workspaces ?? globalUser?.workspaces ?? project.workspaces;
 
+  // records: project-only, never overlaid (not part of PhaxUserOverlaySchema)
+  const records = project.records;
+
   return {
     ...(project.$schema !== undefined ? { $schema: project.$schema } : {}),
     version: project.version,
@@ -248,5 +251,6 @@ export function mergeConfigLayers(input: {
       : {}),
     gateProfiles,
     ...(workspaces !== undefined ? { workspaces } : {}),
+    ...(records !== undefined ? { records } : {}),
   };
 }
