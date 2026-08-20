@@ -1,5 +1,6 @@
 import { JSONSchema, Schema } from "effect";
 import { SecurityConfigSchema, type ResolvedSecurityConfig } from "./securityConfig.js";
+import { RecordsConfigSchema, type ResolvedRecordsConfig } from "./recordsConfig.js";
 
 export const PublishConfigSchema = Schema.Struct({
   auto: Schema.Boolean,
@@ -133,6 +134,7 @@ export const PhaxConfigSchema = Schema.Struct({
   ),
   gateProfiles: GateProfilesSchema,
   workspaces: Schema.optional(Schema.Array(WorkspaceSchema)),
+  records: Schema.optional(RecordsConfigSchema),
 });
 
 export type PhaxConfig = Schema.Schema.Type<typeof PhaxConfigSchema>;
@@ -170,9 +172,10 @@ export interface ResolvedConfig {
   readonly orient?: OrientConfig;
   readonly complianceReview: ResolvedComplianceReviewConfig;
   readonly codeReview: ResolvedCodeReviewConfig;
+  readonly records: ResolvedRecordsConfig;
 }
 
-export type { ResolvedSecurityConfig };
+export type { ResolvedSecurityConfig, ResolvedRecordsConfig };
 
 export const decodePhaxConfig = Schema.decodeUnknownEither(PhaxConfigSchema, {
   onExcessProperty: "error",

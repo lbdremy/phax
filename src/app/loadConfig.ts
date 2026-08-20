@@ -17,6 +17,7 @@ import {
   resolveCodeReviewConfig,
 } from "../schemas/phaxConfig.js";
 import { resolveSecurityConfig, DEFAULT_SECURITY_PROFILE } from "../schemas/securityConfig.js";
+import { resolveRecordsConfig } from "../schemas/recordsConfig.js";
 import { formatParseError } from "../schemas/formatError.js";
 
 const MISSING_NAME_MESSAGE = `PHAX project name is missing in phax.json. Add a name field, for example: name: "louloupapers".`;
@@ -274,6 +275,7 @@ export function loadConfig(
     ...(config.orient !== undefined ? { orient: config.orient } : {}),
     complianceReview: resolveComplianceReviewConfig(config.review?.compliance),
     codeReview: resolveCodeReviewConfig(config.review?.code),
+    records: resolveRecordsConfig(config.records),
   };
 
   return Either.right(resolved);
