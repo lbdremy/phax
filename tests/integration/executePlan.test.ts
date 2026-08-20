@@ -182,6 +182,12 @@ describe("executePlan — happy-path 2-phase run", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" as const },
+        autoPush: false,
+      },
 
       security: {
         profile: "unsafe",
@@ -345,6 +351,12 @@ describe("executePlan — happy-path 2-phase run", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" as const },
+        autoPush: false,
+      },
 
       security: {
         profile: "unsafe",
@@ -454,6 +466,12 @@ describe("executePlan — happy-path 2-phase run", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" as const },
+        autoPush: false,
+      },
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
@@ -566,6 +584,12 @@ describe("executePlan — happy-path 2-phase run", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" as const },
+        autoPush: false,
+      },
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
@@ -673,6 +697,12 @@ function makeStatusTestConfig(root: string): ResolvedConfig {
     extractPlanModel: "claude-haiku-4-5-20251001",
     extractPlanEffort: "low" as const,
     fileReconciliationMode: "report_only" as const,
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" as const },
+      autoPush: false,
+    },
     security: {
       profile: "unsafe",
       filesystem: { allowRead: [], allowWrite: [] },
@@ -1083,6 +1113,12 @@ describe("executePlan — resume from gates_exhausted", () => {
     extractPlanModel: "claude-haiku-4-5-20251001",
     extractPlanEffort: "low" as const,
     fileReconciliationMode: "report_only" as const,
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" as const },
+      autoPush: false,
+    },
     security: {
       profile: "unsafe",
       filesystem: { allowRead: [], allowWrite: [] },
@@ -1461,6 +1497,12 @@ function makePublishBaseConfig(
     extractPlanModel: "claude-haiku-4-5-20251001",
     extractPlanEffort: "low" as const,
     fileReconciliationMode: "report_only" as const,
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" as const },
+      autoPush: false,
+    },
     security: {
       profile: "unsafe",
       filesystem: { allowRead: [], allowWrite: [] },
@@ -1741,6 +1783,12 @@ describe("executePlan — security preflight", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" as const },
+        autoPush: false,
+      },
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
@@ -1852,6 +1900,12 @@ describe("executePlan — security preflight", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" as const },
+        autoPush: false,
+      },
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },

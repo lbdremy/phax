@@ -72,6 +72,9 @@ import {
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
+import { writeRecord } from "./writeRecord.js";
+import type { RecordPhaseOutcome } from "../schemas/runRecord.js";
+import type { ProviderId } from "../domain/routing/types.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
 import { excerpt, queryOrientIndex } from "./orient.js";
@@ -267,6 +270,74 @@ export function executePlan(
   let currentPhaseFolderPath: string | undefined;
   let currentWorktreePath: string | undefined;
   let currentSessionId: string | undefined;
+  // The resolved provider/model/effort in flight, captured once agentOptions is
+  // known, so a record can be written for a phase that fails after the agent ran.
+  let currentProvider: ProviderId | undefined;
+  let currentModel: string | undefined;
+  let currentEffort: string | undefined;
+
+  // Records (spec §5.1): one record per phase at its terminal outcome. A single
+  // helper writes both the committed and the failed case so the two cannot
+  // drift, and the guard set makes it exactly one per phase.
+  const recordedPhaseIds = new Set<string>();
+  function writeRecordForPhase(args: {
+    readonly phaseId: string;
+    readonly phaseFolderPath: string;
+    readonly provider: ProviderId;
+    readonly model: string;
+    readonly effort: string;
+    readonly sessionId: string | undefined;
+    readonly outcome: RecordPhaseOutcome;
+    readonly sourceSha?: string | undefined;
+  }): Effect.Effect<void, never, Git | FileSystem> {
+    if (!config.records.enabled || recordedPhaseIds.has(args.phaseId)) return Effect.void;
+    return writeRecord({
+      repoRoot: config.repoRoot,
+      phaseFolderPath: args.phaseFolderPath,
+      runId: runId as string,
+      phaseId: args.phaseId,
+      provider: args.provider,
+      model: args.model,
+      effort: args.effort,
+      outcome: args.outcome,
+      records: config.records,
+      ...(args.sourceSha !== undefined ? { sourceSha: args.sourceSha } : {}),
+      ...(args.sessionId !== undefined ? { sessionId: args.sessionId } : {}),
+    }).pipe(
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          if (result.kind === "written") recordedPhaseIds.add(args.phaseId);
+        }),
+      ),
+      Effect.asVoid,
+      // A record-write failure never fails the run — it degrades to a warning.
+      Effect.catchAll((e) =>
+        Effect.sync(() => {
+          process.stderr.write(
+            `[phax] Warning: phase "${args.phaseId}" — failed to write record (${e instanceof Error ? e.message : String(e)}).\n`,
+          );
+        }),
+      ),
+    );
+  }
+
+  // These errors pause the run (interrupted, resumable via `phax resume`) rather
+  // than terminally failing it; every other error is a terminal RunFailed. A
+  // pause is not a terminal phase outcome — the phase resumes in a later process
+  // and reaches committed/failed there — so no record is written for one, which
+  // also avoids a duplicate record when the resumed phase later commits. Kept in
+  // lockstep with the RunFailed guard at the end of the pipe (§5.1).
+  function isResumablePauseError(e: unknown): boolean {
+    return (
+      isRateLimitError(e) ||
+      isNoChangesError(e) ||
+      isGateAttemptsExhaustedError(e) ||
+      isHandoffPausedError(e) ||
+      isCommitPausedError(e) ||
+      isCleanupPausedError(e) ||
+      isArtifactCompletionPausedError(e)
+    );
+  }
 
   function eventBase(phaseId?: string): PhaxEventBase {
     return {
@@ -288,6 +359,7 @@ export function executePlan(
 
   const program = Effect.gen(function* () {
     const telemetry = yield* SystemTelemetry;
+    const git = yield* Git;
 
     yield* telemetry.recordEvent(makeStepStartedTelemetryEvent({ runId, step: "config.discover" }));
     yield* telemetry.recordEvent(
@@ -955,6 +1027,12 @@ export function executePlan(
       // `ctx` is used by the FinalReviewOpened dispatch later in the loop.
       const ctx = dispatchCtx(phaseFolderPath, phase.id);
 
+      // Capture the resolved binding for the records writer — including the
+      // failure path, which reads these from the outer scope.
+      currentProvider = agentOptions.provider;
+      currentModel = agentOptions.model;
+      currentEffort = agentOptions.effort;
+
       if (
         !isResumeFromHandoff &&
         !isResumeFromCommit &&
@@ -1160,6 +1238,27 @@ export function executePlan(
         );
       }
 
+      // Terminal committed outcome: assemble and write this phase's record onto
+      // phax/records/v1 before any run-completion bookkeeping, so no record is
+      // ever written for phax's own archival commit (spec §5.1). The source sha
+      // is the phase commit, resolved from the worktree HEAD; a lookup failure
+      // simply omits the back-reference rather than failing the phase.
+      if (config.records.enabled) {
+        const recordSourceSha = yield* git
+          .headCommit(worktreePath as string)
+          .pipe(Effect.orElseSucceed(() => undefined as string | undefined));
+        yield* writeRecordForPhase({
+          phaseId: phase.id,
+          phaseFolderPath,
+          provider: agentOptions.provider,
+          model: agentOptions.model,
+          effort: agentOptions.effort,
+          sessionId: sessionId as string,
+          outcome: "committed",
+          ...(recordSourceSha !== undefined ? { sourceSha: recordSourceSha } : {}),
+        });
+      }
+
       if (isFinal) {
         finalWorktreePath = worktreePath;
         finalPhaseId = phase.id;
@@ -1343,6 +1442,30 @@ export function executePlan(
   });
 
   return program.pipe(
+    // Records (spec §5.1): a phase that terminally failed never reaches the
+    // committed path, so write its record here from the in-flight phase's
+    // captured binding. Resumable pauses are skipped — they are not terminal
+    // outcomes, and the phase writes its record when it later commits or fails.
+    // Best-effort — never masks the original failure, and a no-op when records
+    // are off or the phase never resolved a provider binding.
+    Effect.tapError((e) =>
+      !isResumablePauseError(e) &&
+      currentPhaseId !== undefined &&
+      currentPhaseFolderPath !== undefined &&
+      currentProvider !== undefined &&
+      currentModel !== undefined &&
+      currentEffort !== undefined
+        ? writeRecordForPhase({
+            phaseId: currentPhaseId,
+            phaseFolderPath: currentPhaseFolderPath,
+            provider: currentProvider,
+            model: currentModel,
+            effort: currentEffort,
+            sessionId: currentSessionId,
+            outcome: "failed",
+          })
+        : Effect.void,
+    ),
     // A rate/usage limit pauses the run instead of failing it: dispatch
     // RateLimitDetected so the reducer transitions run+phase to `rate_limited`,
     // writes resume-instructions.md, and emits the trace events. Then re-raise
@@ -1424,13 +1547,7 @@ export function executePlan(
       }),
     ),
     Effect.tapError((e) =>
-      isRateLimitError(e) ||
-      isNoChangesError(e) ||
-      isGateAttemptsExhaustedError(e) ||
-      isHandoffPausedError(e) ||
-      isCommitPausedError(e) ||
-      isCleanupPausedError(e) ||
-      isArtifactCompletionPausedError(e)
+      isResumablePauseError(e)
         ? Effect.void
         : Effect.gen(function* () {
             if (currentPhaseFolderPath !== undefined) {
