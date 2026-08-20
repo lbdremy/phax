@@ -18,7 +18,12 @@
       "pnpm dev schema upgrade",
       "smolvm",
       "entire --version",
-      "entire --help"
+      "entire --help",
+      "git log",
+      "git show-ref",
+      "git cat-file",
+      "git ls-tree",
+      "pnpm test:integration"
     ]
   },
   "review": { "compliance": { "enabled": true } },
