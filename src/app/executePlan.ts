@@ -25,6 +25,7 @@ import {
   PhaseHadNoChangesError,
   RateLimitError,
   RecordsDestinationRefusedError,
+  RecordsSyncRequiredError,
   RegistryCorruptionError,
   SecurityEnforcementError,
   SecurityPreflightError,
@@ -74,6 +75,7 @@ import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
 import { writeRecord } from "./writeRecord.js";
+import { checkRecordsRunPreflight, recordsClonePath } from "./recordsSync.js";
 import type { RecordPhaseOutcome } from "../schemas/runRecord.js";
 import type { ProviderId } from "../domain/routing/types.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
@@ -208,7 +210,8 @@ export type ExecutePlanError =
   | SecurityPreflightError
   | ModelPreflightError
   | PhaseHadNoChangesError
-  | RecordsDestinationRefusedError;
+  | RecordsDestinationRefusedError
+  | RecordsSyncRequiredError;
 
 export function mcpAllowlistPreflight(mcp: {
   readonly mode: McpMode;
@@ -310,6 +313,9 @@ export function executePlan(
         effort: args.effort,
         outcome: args.outcome,
         records: config.records,
+        ...(config.records.destination.kind === "repo"
+          ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }
+          : {}),
         ...(args.sourceSha !== undefined ? { sourceSha: args.sourceSha } : {}),
         ...(args.sessionId !== undefined ? { sessionId: args.sessionId } : {}),
       }).pipe(
@@ -426,6 +432,24 @@ export function executePlan(
     // Preflight: verify all mcp.allow entries resolve to readable files before
     // any branch/worktree/agent work begins.
     yield* mcpAllowlistPreflight(config.security.mcp);
+
+    // Preflight: a dedicated records destination with no local clone yet
+    // refuses the run before any phase spawns (spec §5.7) — phax never clones
+    // on its own here, so this only checks and names `phax records sync`.
+    const recordsPreflight = yield* checkRecordsRunPreflight({
+      records: config.records,
+      stateRoot: config.stateRoot,
+      namespace,
+    });
+    if (recordsPreflight.kind === "refused") {
+      return yield* Effect.fail(
+        new RecordsSyncRequiredError({
+          message: recordsPreflight.message,
+          path: recordsPreflight.path,
+          remote: recordsPreflight.remote,
+        }),
+      );
+    }
 
     // Preflight: validate every phase's model and effort against the catalog
     // before any git branch, worktree, or agent work begins.

@@ -42,6 +42,7 @@ import {
   PlanStaleError,
   PlanValidationError,
   RateLimitError,
+  RecordsSyncRequiredError,
   RegistryCorruptionError,
   SecurityEnforcementError,
   SecurityPreflightError,
@@ -129,7 +130,8 @@ export function exitCodeForError(err: unknown): number {
   if (
     err instanceof SecurityEnforcementError ||
     err instanceof SecurityPreflightError ||
-    err instanceof ModelPreflightError
+    err instanceof ModelPreflightError ||
+    err instanceof RecordsSyncRequiredError
   )
     return 11;
   if (

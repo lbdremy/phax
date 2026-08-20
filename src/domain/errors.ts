@@ -117,6 +117,12 @@ export class RecordsDestinationRefusedError extends Data.TaggedError(
   remedy: string;
 }> {}
 
+export class RecordsSyncRequiredError extends Data.TaggedError("RecordsSyncRequiredError")<{
+  message: string;
+  path: string;
+  remote: string;
+}> {}
+
 export class CommitPausedError extends Data.TaggedError("CommitPausedError")<{
   message: string;
   phaseId: string;

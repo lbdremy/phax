@@ -76,6 +76,17 @@ export interface GitOps {
   readTree(repo: string, treeish: string): Effect.Effect<readonly GitTreeEntry[], GitError>;
   /** Read a blob's raw bytes by object id. */
   readBlob(repo: string, oid: string): Effect.Effect<Uint8Array, GitError>;
+
+  /**
+   * Fully clone `remote` into `path`, which must not yet exist (its parent
+   * must). No `--filter`: a blobless partial clone would defeat the offline
+   * read the records design exists to guarantee.
+   */
+  cloneRepo(remote: string, path: string): Effect.Effect<void, GitError>;
+  /** Fetch `remote`'s refs into `repo`'s remote-tracking refs. */
+  fetchRemote(remote: string, repo: string): Effect.Effect<void, GitError>;
+  /** The URL configured for `remote` in `repo`, or `null` when no such remote exists. */
+  remoteUrl(remote: string, repo: string): Effect.Effect<string | null, GitError>;
 }
 
 export class Git extends Context.Tag("phax/Git")<Git, GitOps>() {}

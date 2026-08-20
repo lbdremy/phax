@@ -2,7 +2,7 @@ import { Effect, Layer } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Git, GitError } from "../ports/git.js";
 import { decodeBranchName } from "../domain/branded.js";
 import { Either } from "effect";
@@ -307,6 +307,18 @@ export const NodeGitLayer = Layer.succeed(Git, {
 
   readBlob: (repo, oid) =>
     gitRunBuffer(["cat-file", "blob", oid], repo).pipe(Effect.map(({ stdout }) => stdout)),
+
+  // `path` does not exist yet, so the process cwd must be its (already-created)
+  // parent — the caller is responsible for mkdirp'ing it first.
+  cloneRepo: (remote, path) =>
+    gitRun(["clone", "--", remote, path], dirname(path)).pipe(Effect.asVoid),
+
+  fetchRemote: (remote, repo) => gitRun(["fetch", "--", remote], repo).pipe(Effect.asVoid),
+
+  remoteUrl: (remote, repo) =>
+    gitRunAllowFail(["remote", "get-url", remote], repo).pipe(
+      Effect.map(({ stdout, exitCode }) => (exitCode === 0 ? stdout.trim() : null)),
+    ),
 });
 
 export function makeNodeGitLayer(): Layer.Layer<Git> {
