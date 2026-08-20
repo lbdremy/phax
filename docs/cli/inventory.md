@@ -69,6 +69,8 @@ Global options (on all commands): `--verbose`, `--trace`
 | `records init` | — | `--force` | Configure records for this project (transcript, destination, auto-push) |
 | `records sync` | — | — | Bring the local records clone in line with its configured remote |
 | `records status` | — | — | Show pending (unpushed) records, by run and phase |
+| `records list` | — | `--run <id>` | List records present, by run and phase |
+| `records explain` | `<sha>` | `--prompt`, `--diff`, `--transcript`, `--gates` | Explain a commit from its record: prompt, diff, gates, handoff, transcript, usage |
 
 ## Removed commands
 

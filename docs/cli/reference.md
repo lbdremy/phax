@@ -1050,3 +1050,45 @@ Bring the local records clone in line with its configured remote
 - **Usage**: `phax records status`
 
 Show pending (unpushed) records, by run and phase
+
+## `phax records list`
+
+- **Usage**: `phax records list [--run <id>]`
+
+List records present, by run and phase
+
+### Flags
+
+#### `--run <id>`
+
+Only show records for this run id
+
+## `phax records explain`
+
+- **Usage**: `phax records explain [FLAGS] <sha>`
+
+Explain a commit from its record: prompt, diff, gates, handoff, transcript, usage
+
+### Arguments
+
+#### `<sha>`
+
+Commit sha in the source repository
+
+### Flags
+
+#### `--prompt`
+
+Print the full prompt
+
+#### `--diff`
+
+Print the full diff
+
+#### `--transcript`
+
+Print the full transcript
+
+#### `--gates`
+
+Print the gate check logs
