@@ -550,5 +550,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax records init [--force]` — Configure records for this project (transcript, destination, auto-push)
 - `phax records sync` — Bring the local records clone in line with its configured remote
 - `phax records status` — Show pending (unpushed) records, by run and phase
+- `phax records list [--run <id>]` — List records present, by run and phase
+- `phax records explain [FLAGS] <sha>` — Explain a commit from its record: prompt, diff, gates, handoff, transcript, usage
 
 <!-- END GENERATED CLI REFERENCE -->

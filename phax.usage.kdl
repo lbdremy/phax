@@ -596,4 +596,31 @@ cmd "records" {
     cmd "status" {
         help "Show pending (unpushed) records, by run and phase"
     }
+
+    cmd "list" {
+        help "List records present, by run and phase"
+        flag "--run" {
+            arg "<id>"
+            help "Only show records for this run id"
+        }
+    }
+
+    cmd "explain" {
+        help "Explain a commit from its record: prompt, diff, gates, handoff, transcript, usage"
+        arg "<sha>" {
+            help "Commit sha in the source repository"
+        }
+        flag "--prompt" {
+            help "Print the full prompt"
+        }
+        flag "--diff" {
+            help "Print the full diff"
+        }
+        flag "--transcript" {
+            help "Print the full transcript"
+        }
+        flag "--gates" {
+            help "Print the gate check logs"
+        }
+    }
 }
