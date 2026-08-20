@@ -12,6 +12,29 @@ export class GitError extends Data.TaggedError("GitError")<{
   expected?: string;
 }> {}
 
+/** A file to write into a records tree: a repo-relative path and its raw bytes. */
+export interface GitFileEntry {
+  readonly path: string;
+  readonly content: Uint8Array;
+}
+
+/** One blob entry of a git tree, as produced by `git ls-tree -r`. */
+export interface GitTreeEntry {
+  readonly mode: string;
+  readonly type: "blob" | "tree";
+  readonly oid: string;
+  readonly path: string;
+}
+
+/** Inputs for writing a tree-only commit onto a branch. */
+export interface WriteTreeCommitInput {
+  readonly repo: string;
+  readonly branch: BranchName;
+  /** The full commit message (subject and body already joined). */
+  readonly message: string;
+  readonly files: readonly GitFileEntry[];
+}
+
 export interface GitOps {
   isClean(repo: string): Effect.Effect<boolean, GitError>;
   currentBranch(repo: string): Effect.Effect<BranchName, GitError>;
@@ -36,6 +59,23 @@ export interface GitOps {
   headCommit(repo: string): Effect.Effect<string, GitError>;
   commitExists(commit: string, repo: string): Effect.Effect<boolean, GitError>;
   changedFilesSince(baseline: string, repo: string): Effect.Effect<readonly string[], GitError>;
+
+  /**
+   * Write `files` as a single commit on `branch` without touching the working
+   * tree or the index. The branch is created as an orphan (no parent) on its
+   * first write and parents onto its current tip on every write thereafter.
+   * Returns the new commit sha.
+   */
+  writeTreeCommit(input: WriteTreeCommitInput): Effect.Effect<string, GitError>;
+  /**
+   * Resolve a ref (branch, remote-tracking ref, or object id) to a commit sha,
+   * or `null` when it does not exist.
+   */
+  resolveRef(repo: string, ref: string): Effect.Effect<string | null, GitError>;
+  /** Recursively list the blob entries of a commit-or-tree. */
+  readTree(repo: string, treeish: string): Effect.Effect<readonly GitTreeEntry[], GitError>;
+  /** Read a blob's raw bytes by object id. */
+  readBlob(repo: string, oid: string): Effect.Effect<Uint8Array, GitError>;
 }
 
 export class Git extends Context.Tag("phax/Git")<Git, GitOps>() {}

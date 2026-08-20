@@ -1,5 +1,29 @@
+import type { GitTreeEntry } from "../ports/git.js";
+
 export function isPortcelainClean(output: string): boolean {
   return output.trim() === "";
+}
+
+// `git ls-tree -r -z` emits one NUL-terminated record per blob:
+// "<mode> SP <type> SP <oid> TAB <path>". The `-z` form leaves paths raw
+// (no C-quoting), so the byte after the tab through the NUL is the exact path.
+export function parseLsTreeZ(output: string): readonly GitTreeEntry[] {
+  const entries: GitTreeEntry[] = [];
+  for (const record of output.split("\0")) {
+    if (record.length === 0) continue;
+    const tabIndex = record.indexOf("\t");
+    if (tabIndex === -1) continue;
+    const meta = record.slice(0, tabIndex).split(" ");
+    const [mode, type, oid] = meta;
+    if (mode === undefined || type === undefined || oid === undefined) continue;
+    entries.push({
+      mode,
+      type: type === "tree" ? "tree" : "blob",
+      oid,
+      path: record.slice(tabIndex + 1),
+    });
+  }
+  return entries;
 }
 
 export function parseBranchOutput(output: string): string {

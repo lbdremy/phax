@@ -1,7 +1,29 @@
 import { Effect, Layer } from "effect";
 import type { BranchName, WorktreePath } from "../../domain/branded.js";
-import { Git, type GitOps, GitError } from "../../ports/git.js";
+import {
+  Git,
+  type GitOps,
+  GitError,
+  type GitTreeEntry,
+  type WriteTreeCommitInput,
+} from "../../ports/git.js";
 import type { NameStatusEntry } from "../../domain/reconciliation/types.js";
+
+// Deterministic 40-hex object id derived from bytes, so the fake round-trips
+// blobs and trees without a real hash. Not git-compatible; collision-free enough
+// for tests.
+function fakeOidFromBytes(bytes: Uint8Array): string {
+  let h = 0x811c9dc5;
+  for (const byte of bytes) {
+    h ^= byte;
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0").repeat(5).slice(0, 40);
+}
+
+function fakeOidFromString(input: string): string {
+  return fakeOidFromBytes(new TextEncoder().encode(input));
+}
 
 export type GitCall =
   | { method: "isClean"; repo: string }
@@ -27,7 +49,17 @@ export type GitCall =
   | { method: "pushBranch"; branch: string; remote: string; repo: string }
   | { method: "headCommit"; repo: string }
   | { method: "commitExists"; commit: string; repo: string }
-  | { method: "changedFilesSince"; baseline: string; repo: string };
+  | { method: "changedFilesSince"; baseline: string; repo: string }
+  | {
+      method: "writeTreeCommit";
+      repo: string;
+      branch: string;
+      message: string;
+      paths: readonly string[];
+    }
+  | { method: "resolveRef"; repo: string; ref: string }
+  | { method: "readTree"; repo: string; treeish: string }
+  | { method: "readBlob"; repo: string; oid: string };
 
 export class FakeGitImpl implements GitOps {
   readonly calls: GitCall[] = [];
@@ -282,6 +314,89 @@ export class FakeGitImpl implements GitOps {
   changedFilesSince(baseline: string, repo: string): Effect.Effect<readonly string[], GitError> {
     this.calls.push({ method: "changedFilesSince", baseline, repo });
     return Effect.succeed(this.changedFilesSinceResults.get(baseline) ?? []);
+  }
+
+  // In-memory git object store backing the records plumbing. Refs map to commit
+  // shas; commits carry their tree and parent; trees list blob entries; blobs
+  // hold raw bytes.
+  readonly fakeBlobs = new Map<string, Uint8Array>();
+  readonly fakeTrees = new Map<string, GitTreeEntry[]>();
+  readonly fakeCommits = new Map<
+    string,
+    { tree: string; parent: string | null; message: string }
+  >();
+  readonly fakeRefs = new Map<string, string>();
+  private fakeWriteCounter = 0;
+
+  writeTreeCommit(input: WriteTreeCommitInput): Effect.Effect<string, GitError> {
+    this.calls.push({
+      method: "writeTreeCommit",
+      repo: input.repo,
+      branch: input.branch,
+      message: input.message,
+      paths: input.files.map((f) => f.path),
+    });
+    const ref = `refs/heads/${input.branch}`;
+    const entries: GitTreeEntry[] = input.files
+      .map((file) => {
+        const oid = fakeOidFromBytes(file.content);
+        this.fakeBlobs.set(oid, file.content);
+        return { mode: "100644", type: "blob" as const, oid, path: file.path };
+      })
+      .toSorted((a, b) => a.path.localeCompare(b.path));
+    const treeOid = fakeOidFromString(
+      `tree:${entries.map((e) => `${e.oid} ${e.path}`).join("\n")}`,
+    );
+    this.fakeTrees.set(treeOid, entries);
+    const parent = this.fakeRefs.get(ref) ?? null;
+    const commitOid = fakeOidFromString(
+      `commit:${this.fakeWriteCounter++}:${treeOid}:${parent ?? ""}:${input.message}`,
+    );
+    this.fakeCommits.set(commitOid, { tree: treeOid, parent, message: input.message });
+    this.fakeRefs.set(ref, commitOid);
+    return Effect.succeed(commitOid);
+  }
+
+  resolveRef(repo: string, ref: string): Effect.Effect<string | null, GitError> {
+    this.calls.push({ method: "resolveRef", repo, ref });
+    const direct = this.fakeRefs.get(ref) ?? this.fakeRefs.get(`refs/heads/${ref}`);
+    if (direct !== undefined) return Effect.succeed(direct);
+    if (this.fakeCommits.has(ref)) return Effect.succeed(ref);
+    return Effect.succeed(null);
+  }
+
+  readTree(repo: string, treeish: string): Effect.Effect<readonly GitTreeEntry[], GitError> {
+    this.calls.push({ method: "readTree", repo, treeish });
+    let treeOid: string | undefined;
+    const commit = this.fakeCommits.get(treeish);
+    if (commit !== undefined) {
+      treeOid = commit.tree;
+    } else if (this.fakeTrees.has(treeish)) {
+      treeOid = treeish;
+    } else {
+      const resolved = this.fakeRefs.get(treeish) ?? this.fakeRefs.get(`refs/heads/${treeish}`);
+      if (resolved !== undefined) treeOid = this.fakeCommits.get(resolved)?.tree;
+    }
+    if (treeOid === undefined) {
+      return Effect.fail(
+        new GitError({
+          message: `unknown tree-ish: ${treeish}`,
+          command: `git ls-tree -r ${treeish}`,
+        }),
+      );
+    }
+    return Effect.succeed(this.fakeTrees.get(treeOid) ?? []);
+  }
+
+  readBlob(repo: string, oid: string): Effect.Effect<Uint8Array, GitError> {
+    this.calls.push({ method: "readBlob", repo, oid });
+    const content = this.fakeBlobs.get(oid);
+    if (content === undefined) {
+      return Effect.fail(
+        new GitError({ message: `unknown blob: ${oid}`, command: `git cat-file blob ${oid}` }),
+      );
+    }
+    return Effect.succeed(content);
   }
 }
 
