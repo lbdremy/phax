@@ -78,6 +78,12 @@ describe("State Machine Contract", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" as const },
+        autoPush: false,
+      },
 
       security: {
         profile: "unsafe",
@@ -171,6 +177,12 @@ describe("State Machine Contract", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" as const },
+        autoPush: false,
+      },
 
       security: {
         profile: "unsafe",
@@ -266,6 +278,12 @@ describe("State Machine Contract", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" as const },
+        autoPush: false,
+      },
 
       security: {
         profile: "unsafe",
