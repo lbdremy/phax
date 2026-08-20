@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/29-phax-run-records.md
+approved:
+  date: 2026-08-20
+  baseline: 2e059f1
 ---
 
 # phax run records

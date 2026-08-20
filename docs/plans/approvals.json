@@ -21,6 +21,15 @@
         "path": "docs/specs/15-gate-profile-attributed-steps.md",
         "fingerprint": "c2f1fbacd2a86db9bcce6fcbb0ced6e11504ebc8ff0f444aa7fe854246421e52"
       }
+    },
+    "docs/plans/52-phax-run-records-plan.md": {
+      "planFingerprint": "509e5e41cd3dfa4acb34a99b7cb77eb10178f39880c78c67f00b7d0607e46ed0",
+      "approvedAt": "2026-08-20T13:18:51.712Z",
+      "baseline": "2e059f115d475c01874256a4e88c403aa7127a44",
+      "sourceSpec": {
+        "path": "docs/specs/29-phax-run-records.md",
+        "fingerprint": "836ccc334ad038c104fe14b34c7f356306cc31b849739bccbdbe06b095a0afca"
+      }
     }
   }
 }
