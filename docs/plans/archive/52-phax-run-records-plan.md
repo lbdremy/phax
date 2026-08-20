@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/29-phax-run-records.md
 approved:
   date: 2026-08-20
