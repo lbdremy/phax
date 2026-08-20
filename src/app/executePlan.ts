@@ -1421,6 +1421,10 @@ export function executePlan(
         if (config.publish?.auto) {
           const publicationResult = yield* publishRun(infoResult.right, config.publish, {
             repoRoot: config.repoRoot,
+            records: config.records,
+            ...(config.records.destination.kind === "repo"
+              ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }
+              : {}),
             ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}),
           }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
           if (publicationResult?.kind === "published" && publicationResult.prUrl !== undefined) {

@@ -67,6 +67,12 @@ function makeConfig(namespace = "myproject") {
       model: "claude-sonnet-4-6",
       effort: "medium" as const,
     },
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" as const },
+      autoPush: false,
+    },
   };
 }
 

@@ -1,10 +1,16 @@
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
 import { dirname, join } from "node:path";
+import { decodeBranchName, type BranchName } from "../domain/branded.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
+import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
 
-const ORIGIN = "origin";
+/** The local records clone's remote is always named `origin` — it is cloned,
+ * never added by hand — so this is also the push target for a `repo` destination. */
+export const ORIGIN = "origin";
+
+const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName(RECORDS_BRANCH_NAME));
 
 /**
  * The local records clone's path for a dedicated `repo` destination, keyed by
@@ -126,5 +132,70 @@ export function checkRecordsRunPreflight(
       remote,
       message: `Records destination "${remote}" has no local clone at "${path}". Run \`phax records sync\` before starting this run.`,
     } as const;
+  });
+}
+
+export type RecordsPushResult =
+  | { readonly kind: "not-configured" }
+  | { readonly kind: "pushed"; readonly remote: string; readonly path: string }
+  | {
+      readonly kind: "failed";
+      readonly remote: string;
+      readonly path: string;
+      readonly message: string;
+    };
+
+export interface RecordsPushInput {
+  readonly records: ResolvedRecordsConfig;
+  /** The source repository — also the in-repo push target. */
+  readonly repoRoot: string;
+  /** The remote the source repo's branch is published to (`publish.remote`);
+   * used as the in-repo push target since records travel with the code. */
+  readonly publishRemote: string;
+  /** The local records clone's path, required (and used) only when the
+   * destination is a dedicated `repo`. */
+  readonly recordsClonePath?: string | undefined;
+}
+
+/**
+ * Push `phax/records/v1` when auto-push is on, at publish time (spec §5.8):
+ * to the source repo's publish remote for an in-repo destination, or to the
+ * local records clone's `origin` for a dedicated repo. Records mirror the
+ * work rather than lead it — the record is already committed locally when
+ * its phase commits, so this call only shares what already exists. Never
+ * fails: a rejected or unreachable push is reported so the caller can leave
+ * the records pending rather than fail the publish.
+ */
+export function pushRecordsAtPublish(
+  input: RecordsPushInput,
+): Effect.Effect<RecordsPushResult, never, Git> {
+  return Effect.gen(function* () {
+    if (!input.records.enabled || !input.records.autoPush) {
+      return { kind: "not-configured" } as const;
+    }
+
+    const isInRepo = input.records.destination.kind === "in-repo";
+    const path = isInRepo ? input.repoRoot : input.recordsClonePath;
+    const remote = isInRepo ? input.publishRemote : ORIGIN;
+    if (path === undefined) {
+      return {
+        kind: "failed",
+        remote,
+        path: input.repoRoot,
+        message: "Records destination is a dedicated repo but no local clone path was supplied.",
+      } as const;
+    }
+
+    const git = yield* Git;
+    const pushResult = yield* Effect.either(git.pushBranch(RECORDS_BRANCH, remote, path));
+    if (Either.isLeft(pushResult)) {
+      return {
+        kind: "failed",
+        remote,
+        path,
+        message: pushResult.left.stderr ?? pushResult.left.message,
+      } as const;
+    }
+    return { kind: "pushed", remote, path } as const;
   });
 }

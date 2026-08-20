@@ -3,7 +3,13 @@ import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig, locatePhaxConfig } from "../../app/loadConfig.js";
 import { configureRecords } from "../../app/configureRecords.js";
-import { reconcileRecordsSync, type RecordsSyncResult } from "../../app/recordsSync.js";
+import {
+  reconcileRecordsSync,
+  recordsClonePath,
+  type RecordsSyncResult,
+} from "../../app/recordsSync.js";
+import { computeRecordsPending, groupPendingByRun } from "../../app/recordsStatus.js";
+import { readRegistry } from "../../app/registry.js";
 import { PromptCancelled } from "../../ports/prompt.js";
 import { makeClackPromptLayer } from "../../infra/prompt.js";
 import { NodeGitLayer } from "../../infra/git.js";
@@ -99,6 +105,60 @@ async function runRecordsSync(_opts: Record<string, never>, out: OutputPort): Pr
   return reportSyncResult(result.right, out);
 }
 
+async function runRecordsStatus(_opts: Record<string, never>, out: OutputPort): Promise<number> {
+  const configResult = loadConfig(process.cwd());
+  if (Either.isLeft(configResult)) {
+    out.error(configResult.left.message);
+    return 2;
+  }
+  const config = configResult.right;
+
+  if (!config.records.enabled) {
+    out.log("Records are not configured for this project. Run `phax records init` first.");
+    return 0;
+  }
+
+  const recordsClonePathValue =
+    config.records.destination.kind === "repo"
+      ? recordsClonePath(config.stateRoot, config.namespace)
+      : undefined;
+
+  const effect = Effect.gen(function* () {
+    const pending = yield* computeRecordsPending({
+      records: config.records,
+      repoRoot: config.repoRoot,
+      publishRemote: config.publish.remote,
+      ...(recordsClonePathValue !== undefined ? { recordsClonePath: recordsClonePathValue } : {}),
+    });
+    const registry = yield* readRegistry(config.stateRoot);
+    return { pending, runs: groupPendingByRun(pending, registry) };
+  }).pipe(Effect.provide(Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NodeGitLayer)));
+
+  const result = await Effect.runPromise(Effect.either(effect));
+  if (Either.isLeft(result)) {
+    out.error(result.left.message);
+    return 1;
+  }
+
+  const { pending, runs } = result.right;
+  const destinationLabel =
+    pending.destination.kind === "in-repo"
+      ? `in-repo (${pending.localPath}, remote "${pending.remote}")`
+      : `repo "${pending.destination.remote}" (local clone: ${pending.localPath})`;
+  out.log(`Records destination: ${destinationLabel}`);
+
+  if (runs.length === 0) {
+    out.log("All records are pushed. Nothing pending.");
+    return 0;
+  }
+
+  out.log(`Pending: ${pending.pending.length} record(s) across ${runs.length} run(s)`);
+  for (const run of runs) {
+    out.log(`  ${run.shortName} (${run.phaseIds.join(", ")})`);
+  }
+  return 0;
+}
+
 function reportSyncResult(sync: RecordsSyncResult, out: OutputPort): number {
   switch (sync.kind) {
     case "nothing-to-bootstrap":
@@ -134,6 +194,14 @@ export function registerRecordsCommand(program: Command, out: OutputPort): void 
     .description("Bring the local records clone in line with its configured remote")
     .action(async () => {
       const exitCode = await runRecordsSync({}, out);
+      process.exit(exitCode);
+    });
+
+  records
+    .command("status")
+    .description("Show pending (unpushed) records, by run and phase")
+    .action(async () => {
+      const exitCode = await runRecordsStatus({}, out);
       process.exit(exitCode);
     });
 }

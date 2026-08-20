@@ -68,6 +68,7 @@ Global options (on all commands): `--verbose`, `--trace`
 |---|---|---|---|
 | `records init` | — | `--force` | Configure records for this project (transcript, destination, auto-push) |
 | `records sync` | — | — | Bring the local records clone in line with its configured remote |
+| `records status` | — | — | Show pending (unpushed) records, by run and phase |
 
 ## Removed commands
 

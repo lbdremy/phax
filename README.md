@@ -549,5 +549,6 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax records <SUBCOMMAND>` — Manage phax run records
 - `phax records init [--force]` — Configure records for this project (transcript, destination, auto-push)
 - `phax records sync` — Bring the local records clone in line with its configured remote
+- `phax records status` — Show pending (unpushed) records, by run and phase
 
 <!-- END GENERATED CLI REFERENCE -->

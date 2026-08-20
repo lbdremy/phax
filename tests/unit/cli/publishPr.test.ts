@@ -50,6 +50,12 @@ function makeConfig(publishAuto: boolean): ResolvedConfig {
       createPullRequest: true,
     },
     complianceReview: { enabled: false, model: "claude-sonnet-4-6", effort: "medium" },
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" },
+      autoPush: false,
+    },
   };
 }
 

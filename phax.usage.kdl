@@ -592,4 +592,8 @@ cmd "records" {
     cmd "sync" {
         help "Bring the local records clone in line with its configured remote"
     }
+
+    cmd "status" {
+        help "Show pending (unpushed) records, by run and phase"
+    }
 }
