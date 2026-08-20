@@ -27,6 +27,18 @@ paths nothing else had. Independent of each other and of everything below.
       --gate-profile` flag, or drop the claim from the skill. Adjacent to parked
       spec 15 (attributed steps) but strictly smaller — profile *selection*, not step
       attribution.
+- [ ] **`buildVibeArgs` passes a `--target` flag that `vibe` no longer accepts.** Found
+      2026-08-20 while probing provider transcript shapes for spec 29.
+      `src/infra/providers/mistralVibe.ts:105-109` always appends `--target <model>`;
+      vibe 2.13.0 answers `vibe: error: unrecognized arguments: --target` and exits 2,
+      so **every** `mistral-vibe` phase would fail at spawn. Model selection already works
+      through the `VIBE_ACTIVE_MODEL` env var that the same adapter sets
+      (`modelEnvVar`), and the local `~/.vibe/config.toml` does carry the
+      `phax-mistral-medium-3.5-*` aliases — so the fix is to drop the flag, not to
+      replace it. Unnoticed because `mistral-vibe` ships `enabled: false`
+      (`src/domain/routing/defaults.ts:123`) and no e2e run exercises it. Check whether
+      `--target` ever existed or was always wrong before deciding how far back the
+      breakage goes.
 - [ ] **`phax review-code`'s prompt never carries its worklist.**
       `prepareCodeReviewSession` reads `global-file-reconciliation.md` and passes it as
       `reconciliationMd` (`src/app/reviewCode.ts:206-210,247-253`), but

@@ -140,6 +140,12 @@ WHERE the provider produced no transcript THE system SHALL write a skeleton reco
 The system SHALL declare in every record which shape it holds, and SHALL report that shape
 when the record is read.
 
+WHERE a provider reports token usage outside its transcript stream THE system SHALL capture
+that source alongside the transcript.
+
+IF token usage cannot be obtained for a phase THEN the system SHALL report it as unavailable,
+and SHALL NOT report it as zero.
+
 The system SHALL NOT filter, redact, or transform the transcript it stores.
 
 ### 5.6 Setup
@@ -392,6 +398,13 @@ committed locally and absent from the remote; when the run is then published, th
 Given a run whose records failed to push, when `phax ls` runs, then its row reports the
 pending count, and `phax records status` names the run and the phases. (refs §5.8)
 
+### Token usage is reported for every provider, or declared absent
+
+Given a phase run by `mistral-vibe`, whose transcript stream carries no usage, when
+`phax records explain <sha>` runs, then it reports the phase's token usage from the captured
+session statistics; and given a phase whose usage could not be captured, then it reports usage
+as unavailable rather than as zero. (refs §5.5)
+
 ### A hostile records remote is rejected
 
 Given a `phax.json` whose records remote is `ext::sh -c '…'`, when any command loads the
@@ -430,10 +443,24 @@ record, not no record (§5.5); one records repo per project (§7); no retention 
 
 Constraints the plan must respect:
 
-- **Probe the `codex` and `mistral-vibe` transcript shape during planning**, before the record
-  schema is fixed. Only the Claude Code adapter is known to emit `stream-json`; §5.5's
-  degradation rule is the contract either way, but the plan must know what those two actually
-  produce rather than assuming a skeleton.
+- **Provider transcript shapes are probed, not assumed — done 2026-08-20, live, all three.**
+  Every adapter already pipes the provider's raw stdout to `output.jsonl`
+  (`claudeCode.ts:55`, `codexCli.ts:170`, `mistralVibe.ts:131`), so a transcript exists for
+  all three and each carries tool calls with their inputs and results. What is **not**
+  uniform is token usage:
+
+  | provider              | transcript                                   | token usage                          |
+  | --------------------- | -------------------------------------------- | ------------------------------------ |
+  | Claude Code           | `stream-json` — assistant/user/system/result | in `output.jsonl`, `result.usage` + `total_cost_usd` |
+  | codex-cli 0.144.3     | `item.completed` — `command_execution` with command, aggregated output, exit code | in `output.jsonl`, `turn.completed.usage` |
+  | mistral-vibe 2.13.0   | role-keyed messages — `tool_calls` with name + JSON arguments, tool results, `reasoning_content` | **not in the stream** — `~/.vibe/logs/session/<id>/meta.json` → `.stats` |
+
+  So §5.5's degradation rule is real, but the axis that degrades is **usage, not the
+  transcript**. For vibe the plan must capture the session `meta.json` as part of the record —
+  phax already reads that directory to discover the session id (`findVibeSessionId`), so the
+  path is known. It is also the richest of the three: session token totals, `session_cost` in
+  dollars, and `tool_calls_agreed` / `rejected` / `failed` / `succeeded`, the last of which is
+  compliance-review material nothing else exposes.
 
 - Writing a record needs git object plumbing behind the existing `GitPort` — the one genuinely
   new capability here. Everything else is assembling files phax already writes.
