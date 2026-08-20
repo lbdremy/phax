@@ -429,8 +429,9 @@ than left to the planner:
 - **Pending records** are reported in both `phax ls` (count) and `phax records status`
   (detail) (§5.8); one line of duplicated output is cheaper than either omission.
 
-The one question the plan must answer for itself is the `codex` / `mistral-vibe` transcript
-shape — see §10.
+The one question this spec previously left to the plan — the `codex` and `mistral-vibe`
+transcript shape — was probed live on 2026-08-20 instead. The measured result is in §10 and
+is the reason §5.5 now degrades on token usage rather than on the transcript.
 
 ## 10. Implementation-planning note
 
