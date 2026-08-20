@@ -11,8 +11,10 @@ import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import {
   AgentSessionIdMissingError,
   GateAttemptsExhaustedError,
+  RecordsDestinationRefusedError,
   SecurityPreflightError,
 } from "../../src/domain/errors.js";
+import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
@@ -1972,6 +1974,157 @@ describe("executePlan — security preflight", () => {
     expect(Either.isRight(result)).toBe(true);
     // Agent ran once
     expect(fakeBackend.impl.runCalls).toHaveLength(1);
+  });
+});
+
+describe("executePlan — records destination refusal", () => {
+  let stateRoot: string;
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-records-refusal-test-"));
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+  });
+
+  it("fails the run with a non-zero exit when a committed phase's records destination is refused", async () => {
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+    await mkdir(join(worktreePath, ".phax-context"), { recursive: true });
+    await writeFile(
+      join(worktreePath, ".phax-context", "phase-handoff.md"),
+      [
+        "## What was delivered",
+        "Done.",
+        "## Key decisions and why",
+        "None.",
+        "## Exact locations (file paths and exported names)",
+        "None.",
+        "## What the next phase needs to know",
+        "Nothing.",
+      ].join("\n"),
+    );
+
+    const rawRecordsRefusalPlan = {
+      version: 1,
+      run: {
+        shortName: "my-run",
+        title: "My Run",
+        branch: "ai/my-run",
+        requiredCommands: [],
+      },
+      phases: [
+        {
+          id: "phase-01",
+          title: "First Phase",
+          model: "claude-sonnet-4-6",
+          effort: "low" as const,
+          planMarkdownAnchor: "#phase-01",
+          plannedFilesToCreate: [],
+          plannedFilesToEdit: [],
+          optionalFilesToEdit: [],
+          commit: { subject: "feat: add thing", body: "Adds the thing." },
+        },
+      ],
+    } as const;
+
+    const plan = Either.getOrThrow(decodePhaxPlan(rawRecordsRefusalPlan));
+
+    const config: ResolvedConfig = {
+      raw: {
+        version: 1,
+        project: { name: "test-project", type: "single-package" },
+        state: { root: stateRoot },
+        gateProfiles: { full: ["true"] },
+        commands: { setup: [], cleanup: [] },
+      },
+      stateRoot,
+      namespace: "test-project",
+      repoRoot: stateRoot,
+      maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
+      fileReconciliationMode: "report_only" as const,
+      // Transcripts on, in-repo, and the source repo detected public below —
+      // spec §5.4's one refused combination.
+      records: {
+        enabled: true,
+        transcript: true,
+        destination: { kind: "in-repo" as const },
+        autoPush: false,
+      },
+      security: {
+        profile: "unsafe",
+        filesystem: { allowRead: [], allowWrite: [] },
+        network: { profile: "provider-only", allowDomains: [] },
+        mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
+      },
+    };
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
+
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "cafebabe\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-01-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const fakeGitHub = makeFakeGitHub();
+    fakeGitHub.impl.setVisibility("public");
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      fakeGitHub.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          namespace: "test-project",
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(RecordsDestinationRefusedError);
+      expect(exitCodeForError(result.left)).not.toBe(0);
+    }
   });
 });
 

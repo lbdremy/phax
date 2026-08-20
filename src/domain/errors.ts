@@ -101,6 +101,22 @@ export class HandoffPausedError extends Data.TaggedError("HandoffPausedError")<{
   cause: unknown;
 }> {}
 
+/**
+ * A phase reached its committed outcome but its records destination refused
+ * the write (spec §5.4) — transcripts enabled with an in-repo destination on
+ * a repo detected public, or an unacknowledged unknown visibility. This is a
+ * deliberate policy refusal, not a transient write failure, so it fails the
+ * run loudly rather than degrading to a warning.
+ */
+export class RecordsDestinationRefusedError extends Data.TaggedError(
+  "RecordsDestinationRefusedError",
+)<{
+  message: string;
+  phaseId: string;
+  reason: string;
+  remedy: string;
+}> {}
+
 export class CommitPausedError extends Data.TaggedError("CommitPausedError")<{
   message: string;
   phaseId: string;
