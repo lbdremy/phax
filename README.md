@@ -546,5 +546,8 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax plans <SUBCOMMAND>` — Parent command for reporting on plans: staleness of Approved plans against their recorded approval, and cross-plan file overlap.
 - `phax plans status [--apply] [--json]` — Reports every live, Approved plan's staleness against the ground it was approved against: the declared source spec's content, the plan's own content, and the files changed since the recorded baseline intersected with the plan's footprint. Each stale entry names its reasons (spec-changed, ground-changed, self-changed) with evidence; a plan with no approval record — or one whose baseline commit no longer exists — reports missing-record, which renders as stale. This is a report, not a gate: it exits 0 whether or not stale plans exist. Use --apply to flip stale-computed plans Approved -> Stale as an explicit gesture (the flip is never automatic). Use --json for machine-readable output.
 - `phax plans overlap [FLAGS] <plan>` — Reports which of two or more plans can run in parallel without a merge conflict — predicted from each plan's declared file-sets, or confirmed against a landed run's actual diff.
+- `phax records <SUBCOMMAND>` — Manage phax run records
+- `phax records init [--force]` — Configure records for this project (transcript, destination, auto-push)
+- `phax records sync` — Bring the local records clone in line with its configured remote
 
 <!-- END GENERATED CLI REFERENCE -->

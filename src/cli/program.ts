@@ -28,6 +28,7 @@ import { registerAgentCommand } from "./commands/agent.js";
 import { registerSecurityCommand } from "./commands/security.js";
 import { registerSkillsCommand } from "./commands/skills.js";
 import { registerArtifactCommand } from "./commands/artifact.js";
+import { registerRecordsCommand } from "./commands/records.js";
 import { runInit } from "./commands/init.js";
 import { registerSchemaCommand } from "./commands/schema.js";
 import { runCompletions } from "./commands/completions.js";
@@ -378,6 +379,7 @@ export function buildProgram(): Command {
   registerSchemaCommand(program, consoleOutput);
   registerArtifactCommand(program, consoleOutput);
   registerPlansCommand(program, consoleOutput);
+  registerRecordsCommand(program, consoleOutput);
 
   // Wire long help and examples into the runtime --help output after all
   // registrations so commands from *Register.ts files are covered without

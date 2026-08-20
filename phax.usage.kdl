@@ -578,3 +578,18 @@ cmd "plans" {
         }
     }
 }
+
+cmd "records" {
+    help "Manage phax run records"
+
+    cmd "init" {
+        help "Configure records for this project (transcript, destination, auto-push)"
+        flag "--force" {
+            help "Reconfigure records even if already configured"
+        }
+    }
+
+    cmd "sync" {
+        help "Bring the local records clone in line with its configured remote"
+    }
+}

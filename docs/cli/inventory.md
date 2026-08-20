@@ -27,6 +27,7 @@ Commander surface as of phase-01. Used as authoritative source for authoring `ph
 | `security` | — | — | Manage security configuration (has subcommands) |
 | `skills` | — | — | Manage PHAX skills (has subcommands) |
 | `schema` | — | — | Manage the local phax.schema.json (has subcommands) |
+| `records` | — | — | Manage phax run records (has subcommands) |
 
 Global options (on all commands): `--verbose`, `--trace`
 
@@ -60,6 +61,13 @@ Global options (on all commands): `--verbose`, `--trace`
 | Subcommand | Args | Flags | Description |
 |---|---|---|---|
 | `schema upgrade` | — | — | Upgrade the local phax.schema.json to the current bundled version |
+
+### `records`
+
+| Subcommand | Args | Flags | Description |
+|---|---|---|---|
+| `records init` | — | `--force` | Configure records for this project (transcript, destination, auto-push) |
+| `records sync` | — | — | Bring the local records clone in line with its configured remote |
 
 ## Removed commands
 

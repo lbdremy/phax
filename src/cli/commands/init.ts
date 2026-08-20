@@ -4,6 +4,8 @@ import { PromptCancelled } from "../../ports/prompt.js";
 import { runInitWizard } from "../../app/initWizard.js";
 import { makeClackPromptLayer } from "../../infra/prompt.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
+import { NodeGitLayer } from "../../infra/git.js";
+import { NodeGitHubLayer } from "../../infra/github.js";
 
 export async function runInit(
   opts: { force?: boolean; yes?: boolean },
@@ -18,7 +20,9 @@ export async function runInit(
   if (opts.force) wizardInput.force = opts.force;
 
   const effect = runInitWizard(wizardInput).pipe(
-    Effect.provide(Layer.mergeAll(makeClackPromptLayer(), NodeFileSystemLayer)),
+    Effect.provide(
+      Layer.mergeAll(makeClackPromptLayer(), NodeFileSystemLayer, NodeGitLayer, NodeGitHubLayer),
+    ),
   );
 
   const result = await Effect.runPromise(Effect.either(effect));

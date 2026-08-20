@@ -1020,3 +1020,27 @@ phax plans overlap docs/plans/33-a.md docs/plans/35-b.md
 ```
 phax plans overlap --landed my-feature docs/plans/40-other.md
 ```
+
+## `phax records`
+
+- **Usage**: `phax records <SUBCOMMAND>`
+
+Manage phax run records
+
+## `phax records init`
+
+- **Usage**: `phax records init [--force]`
+
+Configure records for this project (transcript, destination, auto-push)
+
+### Flags
+
+#### `--force`
+
+Reconfigure records even if already configured
+
+## `phax records sync`
+
+- **Usage**: `phax records sync`
+
+Bring the local records clone in line with its configured remote

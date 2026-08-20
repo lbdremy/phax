@@ -1,4 +1,5 @@
 import type { PhaxConfig } from "../../schemas/phaxConfig.js";
+import type { RecordsConfig } from "../../schemas/recordsConfig.js";
 
 export type WizardAnswers = {
   readonly name: string;
@@ -7,6 +8,7 @@ export type WizardAnswers = {
   readonly publishAuto: boolean;
   readonly publishPushBranch: boolean;
   readonly publishCreatePr: boolean;
+  readonly records?: RecordsConfig;
 };
 
 const GATE_PLACEHOLDER = "echo 'replace with your gate commands in phax.json'";
@@ -30,5 +32,6 @@ export function buildPhaxConfig(answers: WizardAnswers): PhaxConfig {
           },
         }
       : {}),
+    ...(answers.records !== undefined ? { records: answers.records } : {}),
   };
 }

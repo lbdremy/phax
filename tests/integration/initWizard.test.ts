@@ -2,6 +2,8 @@ import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { runInitWizard } from "../../src/app/initWizard.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { FAKE_PROMPT_CANCEL, makeFakePrompt } from "../../src/infra/fakes/prompt.js";
 import { PromptCancelled } from "../../src/ports/prompt.js";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
@@ -27,10 +29,14 @@ async function runWizard(
   fakePrompt: ReturnType<typeof makeFakePrompt>,
   opts: { force?: boolean; interactive: boolean },
 ) {
+  const fakeGit = makeFakeGit();
+  const fakeGitHub = makeFakeGitHub();
   return Effect.runPromise(
     Effect.either(
       runInitWizard({ cwd: CWD, ...opts }).pipe(
-        Effect.provide(Layer.mergeAll(fakeFs.layer, fakePrompt.layer)),
+        Effect.provide(
+          Layer.mergeAll(fakeFs.layer, fakePrompt.layer, fakeGit.layer, fakeGitHub.layer),
+        ),
       ),
     ),
   );
@@ -162,12 +168,13 @@ describe("runInitWizard — interactive path", () => {
   it("prompts for name and gate commands, writes config with user answers", async () => {
     const fakeFs = makeFakeFileSystem();
     fakeFs.impl.setFile(PKG_PATH, PKG_WITH_SCRIPTS);
-    // Queue: name, multiselect commands, compliance, publish
+    // Queue: name, multiselect commands, compliance, publish, records
     const fakePrompt = makeFakePrompt([
       "my-lib",
       ["pnpm typecheck"],
       false, // compliance
       false, // publish
+      false, // records
     ]);
 
     const result = await runWizard(fakeFs, fakePrompt, { interactive: true });
@@ -181,6 +188,7 @@ describe("runInitWizard — interactive path", () => {
     expect(config.gateProfiles?.fast).toEqual(["pnpm typecheck"]);
     expect(config.review).toBeUndefined();
     expect(config.publish).toBeUndefined();
+    expect(config.records).toBeUndefined();
   });
 
   it("enables compliance when user toggles it on", async () => {
@@ -191,6 +199,7 @@ describe("runInitWizard — interactive path", () => {
       ["pnpm typecheck"],
       true, // compliance enabled
       false, // publish
+      false, // records
     ]);
 
     await runWizard(fakeFs, fakePrompt, { interactive: true });
@@ -209,6 +218,7 @@ describe("runInitWizard — interactive path", () => {
       true, // publish
       true, // push branch
       false, // create PR
+      false, // records
     ]);
 
     await runWizard(fakeFs, fakePrompt, { interactive: true });
@@ -227,6 +237,7 @@ describe("runInitWizard — interactive path", () => {
       "pnpm run test", // gate command text prompt (no scripts)
       false, // compliance
       false, // publish
+      false, // records
     ]);
 
     await runWizard(fakeFs, fakePrompt, { interactive: true });
@@ -238,7 +249,7 @@ describe("runInitWizard — interactive path", () => {
   it("does not write a state block in interactive mode", async () => {
     const fakeFs = makeFakeFileSystem();
     fakeFs.impl.setFile(PKG_PATH, PKG_WITH_SCRIPTS);
-    const fakePrompt = makeFakePrompt(["my-lib", ["pnpm typecheck"], false, false]);
+    const fakePrompt = makeFakePrompt(["my-lib", ["pnpm typecheck"], false, false, false]);
 
     await runWizard(fakeFs, fakePrompt, { interactive: true });
 
@@ -249,12 +260,35 @@ describe("runInitWizard — interactive path", () => {
   it("writes both schema files in interactive mode", async () => {
     const fakeFs = makeFakeFileSystem();
     fakeFs.impl.setFile(PKG_PATH, PKG_WITH_SCRIPTS);
-    const fakePrompt = makeFakePrompt(["my-lib", ["pnpm typecheck"], false, false]);
+    const fakePrompt = makeFakePrompt(["my-lib", ["pnpm typecheck"], false, false, false]);
 
     await runWizard(fakeFs, fakePrompt, { interactive: true });
 
     expect(fakeFs.impl.getFile(SCHEMA_PATH)).toBeDefined();
     expect(fakeFs.impl.getFile(USER_SCHEMA_PATH)).toBeDefined();
+  });
+
+  it("enables records with an in-repo destination when the user opts in", async () => {
+    const fakeFs = makeFakeFileSystem();
+    fakeFs.impl.setFile(PKG_PATH, PKG_WITH_SCRIPTS);
+    const fakePrompt = makeFakePrompt([
+      "my-lib",
+      ["pnpm typecheck"],
+      false, // compliance
+      false, // publish
+      true, // records enabled
+      true, // transcript
+      true, // autoPush
+    ]);
+
+    await runWizard(fakeFs, fakePrompt, { interactive: true });
+
+    const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
+    expect(config.records).toEqual({
+      transcript: true,
+      destination: { kind: "in-repo" },
+      autoPush: true,
+    });
   });
 });
 
@@ -320,6 +354,7 @@ describe("runInitWizard — existing config, interactive reconfigure", () => {
       ["pnpm typecheck"],
       false, // compliance
       false, // publish
+      false, // records
     ]);
 
     const result = await runWizard(fakeFs, fakePrompt, { interactive: true });
