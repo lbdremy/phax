@@ -104,8 +104,14 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
       verified clean so far — `refs/entire/*` is not carried by an ordinary push).
 - [ ] Re-run `spikes/entire/02-checkpoint-lifecycle.sh` **after merging** the run branch:
       merge survival and squash-trailer collapse are the only probe questions still open.
-- [ ] **Write the spec: `docs/specs/29-phax-run-records.md`** (next free number; 23 and 24
-      are the parked ones). phax writes a `phax/records/v1` shadow record per phase
+- [ ] **Write the spec: `docs/specs/29-phax-run-records.md`** — **drafted 2026-08-20**,
+      `status: Draft`, awaiting the approval gate. §9 carries no open question; the one
+      thing the plan must answer for itself is the `codex` / `mistral-vibe` transcript
+      shape, which §10 makes a required planning probe. Two things the drafting surfaced
+      that are not recorded above: no new commit trailer is needed (the key is already on
+      the message), and a phase that fails without committing still gets a record, since
+      the key no longer depends on a commit existing. Original framing follows.
+      (next free number; 23 and 24 are the parked ones). phax writes a `phax/records/v1` shadow record per phase
       commit, holding what it already produces, and binds it to the commit it describes.
       The build itself is narrow; the decisions below are the spec's real content, and
       both design decisions are now settled — the spec writes them up rather than
@@ -339,13 +345,13 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
       the first push is an unrelated-histories or non-fast-forward failure, and that is
       the last row of the table.
 
-      **Auto-push defaults on, fires at run completion, and can never fail a phase.**
-      Settled 2026-08-20 — and the cadence question was mis-framed when it was first
-      asked here. Deferring the *push* loses nothing, because the record is **committed
-      locally per phase** either way: a machine that dies mid-run leaves every record it
-      wrote committed in the local clone, for the next sync to push. So end-of-run is
-      strictly quieter at no durability cost, and it spares the in-repo case a shared
-      `phax/records/v1` moving under the team at every phase. A failed push marks the
+      **Auto-push defaults on, fires at publish, and can never fail a phase.** Settled
+      2026-08-20, after two passes. Deferring the *push* loses nothing, because the record
+      is **committed locally per phase** either way — a machine that dies mid-run leaves
+      every record it wrote committed locally. What publish adds is sharing, and records
+      should be shared exactly when the work is: phase commit → record committed, run push
+      and publish → records pushed. A run never published keeps a local trace, which is
+      what its unpushed commits have too. A failed push marks the
       records pending and surfaces them (`phax records status`, or a line in `ls`) —
       decision 1 already requires unpushed records be visible rather than silent, and a
       run that failed because the network did would invert the offline-first property the
