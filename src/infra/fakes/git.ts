@@ -59,7 +59,10 @@ export type GitCall =
     }
   | { method: "resolveRef"; repo: string; ref: string }
   | { method: "readTree"; repo: string; treeish: string }
-  | { method: "readBlob"; repo: string; oid: string };
+  | { method: "readBlob"; repo: string; oid: string }
+  | { method: "cloneRepo"; remote: string; path: string }
+  | { method: "fetchRemote"; remote: string; repo: string }
+  | { method: "remoteUrl"; remote: string; repo: string };
 
 export class FakeGitImpl implements GitOps {
   readonly calls: GitCall[] = [];
@@ -397,6 +400,42 @@ export class FakeGitImpl implements GitOps {
       );
     }
     return Effect.succeed(content);
+  }
+
+  // Maps a cloned path to the "origin" URL it was cloned from, so remoteUrl
+  // can answer without a second, separate remote registry.
+  readonly clonedPaths = new Map<string, string>();
+  readonly unreachableRemotes = new Set<string>();
+
+  /** Makes the next `cloneRepo(remote, ...)` for this remote fail, simulating
+   * an unreachable host. */
+  setUnreachableRemote(remote: string): void {
+    this.unreachableRemotes.add(remote);
+  }
+
+  cloneRepo(remote: string, path: string): Effect.Effect<void, GitError> {
+    this.calls.push({ method: "cloneRepo", remote, path });
+    if (this.unreachableRemotes.has(remote)) {
+      return Effect.fail(
+        new GitError({
+          message: `could not resolve "${remote}"`,
+          command: `git clone -- ${remote} ${path}`,
+        }),
+      );
+    }
+    this.clonedPaths.set(path, remote);
+    return Effect.void;
+  }
+
+  fetchRemote(remote: string, repo: string): Effect.Effect<void, GitError> {
+    this.calls.push({ method: "fetchRemote", remote, repo });
+    return Effect.void;
+  }
+
+  remoteUrl(remote: string, repo: string): Effect.Effect<string | null, GitError> {
+    this.calls.push({ method: "remoteUrl", remote, repo });
+    if (remote !== "origin") return Effect.succeed(null);
+    return Effect.succeed(this.clonedPaths.get(repo) ?? null);
   }
 }
 

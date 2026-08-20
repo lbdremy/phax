@@ -41,6 +41,12 @@ function makeConfig(stateRoot: string): ResolvedConfig {
       mcp: { mode: "disabled", allow: [] },
       agentCommands: [],
     },
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" },
+      autoPush: false,
+    },
   };
 }
 

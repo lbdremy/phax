@@ -77,6 +77,12 @@ describe("executePlan — setup command failure", () => {
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" },
+        autoPush: false,
+      },
     };
 
     const fakeGit = makeFakeGit();
@@ -145,6 +151,12 @@ describe("executePlan — setup command failure", () => {
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" },
+        autoPush: false,
+      },
     };
 
     const fakeGit = makeFakeGit();
@@ -212,6 +224,12 @@ describe("executePlan — setup command failure", () => {
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
+      },
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" },
+        autoPush: false,
       },
     };
 

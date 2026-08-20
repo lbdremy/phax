@@ -56,6 +56,7 @@ const REPO_CONFIG: ResolvedRecordsConfig = {
 describe("writeRecord", () => {
   let repoDir: string;
   let phaseFolder: string;
+  let recordsCloneDir: string;
 
   beforeEach(async () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-write-record-repo-"));
@@ -67,6 +68,15 @@ describe("writeRecord", () => {
     git(["commit", "-m", "chore: initial commit"], repoDir);
 
     phaseFolder = mkdtempSync(join(tmpdir(), "phax-write-record-phase-"));
+
+    // Stands in for the local records clone (phase-06) that a dedicated
+    // `repo` destination writes into — a plain repo is enough since
+    // writeRecord only ever drives the tree-only plumbing against it.
+    recordsCloneDir = mkdtempSync(join(tmpdir(), "phax-write-record-clone-"));
+    git(["init"], recordsCloneDir);
+    git(["config", "--local", "user.email", "test@phax.test"], recordsCloneDir);
+    git(["config", "--local", "user.name", "phax test"], recordsCloneDir);
+
     fakeGitHub.impl.setVisibility("private");
     fakeGitHub.impl.calls.length = 0;
   });
@@ -74,6 +84,7 @@ describe("writeRecord", () => {
   afterEach(async () => {
     await rm(repoDir, { recursive: true, force: true });
     await rm(phaseFolder, { recursive: true, force: true });
+    await rm(recordsCloneDir, { recursive: true, force: true });
   });
 
   async function seedPhaseFolder(files: Record<string, string>): Promise<void> {
@@ -99,13 +110,13 @@ describe("writeRecord", () => {
     };
   }
 
-  function lsRecords(): readonly string[] {
-    const out = git(["ls-tree", "-r", "--name-only", RECORDS_BRANCH_NAME], repoDir).trim();
+  function lsRecords(dir: string = repoDir): readonly string[] {
+    const out = git(["ls-tree", "-r", "--name-only", RECORDS_BRANCH_NAME], dir).trim();
     return out === "" ? [] : out.split("\n");
   }
 
-  function readManifest(key: string): Record<string, unknown> {
-    const text = git(["show", `${RECORDS_BRANCH_NAME}:${key}/record.json`], repoDir);
+  function readManifest(key: string, dir: string = repoDir): Record<string, unknown> {
+    const text = git(["show", `${RECORDS_BRANCH_NAME}:${key}/record.json`], dir);
     return JSON.parse(text) as Record<string, unknown>;
   }
 
@@ -178,13 +189,30 @@ describe("writeRecord", () => {
     expect(git(["show-ref"], repoDir)).not.toContain(RECORDS_BRANCH_NAME);
   });
 
-  it("defers to phase-06 without writing when the destination is a dedicated repo", async () => {
+  it("defers without writing when the destination is a dedicated repo but no clone path is given", async () => {
     await seedPhaseFolder({ "prompt.md": "p\n" });
 
     const result = await run(writeRecord(baseInput({ records: REPO_CONFIG })));
 
     expect(result).toEqual({ kind: "deferred-destination", destination: "repo" });
     expect(git(["show-ref"], repoDir)).not.toContain(RECORDS_BRANCH_NAME);
+  });
+
+  it("writes into the local records clone, not the source repo, for a dedicated repo destination", async () => {
+    await seedPhaseFolder({ "prompt.md": "p\n", "output.jsonl": '{"type":"result"}\n' });
+
+    const result = await run(
+      writeRecord(baseInput({ records: REPO_CONFIG, recordsClonePath: recordsCloneDir })),
+    );
+
+    expect(result.kind).toBe("written");
+    expect(git(["show-ref"], repoDir)).not.toContain(RECORDS_BRANCH_NAME);
+    expect(lsRecords(recordsCloneDir)).toEqual([
+      "run-1/phase-01/output.jsonl",
+      "run-1/phase-01/prompt.md",
+      "run-1/phase-01/record.json",
+    ]);
+    expect(readManifest("run-1/phase-01", recordsCloneDir)["shape"]).toBe("full");
   });
 
   it("leaves the source repo's working tree and index byte-for-byte unchanged", async () => {
@@ -271,9 +299,11 @@ describe("writeRecord", () => {
     fakeGitHub.impl.setVisibility("public");
     await seedPhaseFolder({ "prompt.md": "p\n" });
 
-    const result = await run(writeRecord(baseInput({ records: REPO_CONFIG })));
+    const result = await run(
+      writeRecord(baseInput({ records: REPO_CONFIG, recordsClonePath: recordsCloneDir })),
+    );
 
-    expect(result).toEqual({ kind: "deferred-destination", destination: "repo" });
+    expect(result.kind).toBe("written");
     expect(fakeGitHub.impl.calls.some((call) => call.method === "visibility")).toBe(false);
   });
 });

@@ -39,8 +39,15 @@ const TRANSCRIPT_FILE = "output.jsonl";
 const MANIFEST_FILE = "record.json";
 
 export interface WriteRecordInput {
-  /** The source repository whose `phax/records/v1` branch receives the commit. */
+  /** The source repository. Also where `phax/records/v1` receives the commit
+   * when the destination is `in-repo`. */
   readonly repoRoot: string;
+  /**
+   * The local records clone's path (`recordsClonePath` in recordsSync.ts),
+   * where `phax/records/v1` receives the commit when the destination is a
+   * dedicated `repo` — required in that case, ignored for `in-repo`.
+   */
+  readonly recordsClonePath?: string | undefined;
   /** The phase's run-folder path (where its artifacts were written), not the worktree. */
   readonly phaseFolderPath: string;
   /** The record key's first component — the `Run-Id` the phase commit already carries. */
@@ -82,25 +89,38 @@ export type WriteRecordResult =
 /**
  * Assemble a phase's record and write it as one commit on `phax/records/v1`,
  * keyed by `runId/phaseId`, without touching the working tree or index (the
- * plumbing from phase-03 drives a scratch index). Records off is a total no-op,
- * and a dedicated `repo` destination is deferred to phase-06 — this phase only
- * writes the in-repo destination, and only once the destination policy allows
- * it (spec §5.4): detection guards the configured choice, it never picks one.
+ * plumbing from phase-03 drives a scratch index). Records off is a total
+ * no-op. The commit lands on the source repo for an `in-repo` destination, or
+ * on the local records clone (`recordsClonePath`) for a dedicated `repo`
+ * destination — and only once the destination policy allows it (spec §5.4):
+ * detection guards the configured choice, it never picks one.
  */
 export function writeRecord(
   input: WriteRecordInput,
 ): Effect.Effect<WriteRecordResult, GitError | FsError, Git | FileSystem | GitHub> {
   return Effect.gen(function* () {
     if (!input.records.enabled) return { kind: "records-off" } as const;
+
+    // A dedicated repo destination writes to the local clone, which must
+    // already exist by the time a phase runs — the run preflight
+    // (recordsSync.ts) refuses the run before any phase spawns otherwise.
+    // No clone path here is a caller bug, not a policy refusal, but degrades
+    // to the same deferred outcome phase-04 used before this destination was
+    // implemented rather than crashing the phase.
+    let targetRepoRoot = input.repoRoot;
     if (input.records.destination.kind === "repo") {
-      return { kind: "deferred-destination", destination: "repo" } as const;
+      if (input.recordsClonePath === undefined) {
+        return { kind: "deferred-destination", destination: "repo" } as const;
+      }
+      targetRepoRoot = input.recordsClonePath;
     }
 
-    // Visibility is only consulted when transcripts are on — a skeleton
-    // record is safe in-repo whatever the visibility, and asking avoids a
-    // needless `gh` call on every phase of every skeleton-only project.
+    // Visibility is only consulted for an in-repo destination with
+    // transcripts on — a skeleton record is safe in-repo whatever the
+    // visibility, and a dedicated repo is safe whatever the visibility, so
+    // asking avoids a needless `gh` call in both of those cases.
     let visibility: RepoVisibility = "unknown";
-    if (input.records.transcript) {
+    if (input.records.transcript && input.records.destination.kind === "in-repo") {
       const github = yield* GitHub;
       visibility = yield* github
         .visibility(input.repoRoot)
@@ -169,7 +189,7 @@ export function writeRecord(
     ].join("\n");
 
     const commitSha = yield* git.writeTreeCommit({
-      repo: input.repoRoot,
+      repo: targetRepoRoot,
       branch: RECORDS_BRANCH,
       message,
       files: gitFiles,
