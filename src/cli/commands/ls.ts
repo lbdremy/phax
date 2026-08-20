@@ -3,7 +3,10 @@ import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { readRegistry } from "../../app/registry.js";
 import { resolveRun, findCurrentPhase } from "../../app/resolveRunInfo.js";
+import { computeRecordsPending, pendingCountsByRunId } from "../../app/recordsStatus.js";
+import { recordsClonePath } from "../../app/recordsSync.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
+import { NodeGitLayer } from "../../infra/git.js";
 import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import { Lock } from "../../ports/lock.js";
 import type { RegistryEntry } from "../../schemas/registry.js";
@@ -30,6 +33,10 @@ interface LsRow {
   gateProfile: string;
   updatedAt: string;
   lockState: LockState;
+  /** Pending (unpushed) record count. `undefined` — rendered "-" — when
+   * records are off, or the row belongs to a different project's namespace
+   * than the one whose records this invocation can read (see `runLs`). */
+  recordsPending: number | undefined;
 }
 
 /**
@@ -52,6 +59,7 @@ function reconcileEntry(entry: RegistryEntry, stateRoot: string): LsRow {
     gateProfile: "-",
     updatedAt: formatTimestamp(entry.updatedAt),
     lockState: "none",
+    recordsPending: undefined,
   };
 
   const shortNameResult = decodeShortName(entry.shortName);
@@ -74,6 +82,7 @@ function reconcileEntry(entry: RegistryEntry, stateRoot: string): LsRow {
     gateProfile: info.gateProfileId ?? "-",
     updatedAt: formatTimestamp(info.updatedAt),
     lockState: "none",
+    recordsPending: undefined,
   };
 }
 
@@ -98,10 +107,15 @@ function pad(s: string, width: number): string {
 
 function getDisplayValue(row: LsRow, header: keyof LsRow): string {
   if (header === "shortName") return runKey(row.namespace, row.shortName);
+  if (header === "recordsPending")
+    return row.recordsPending === undefined ? "-" : String(row.recordsPending);
   return String(row[header]);
 }
 
-function formatTable(rows: LsRow[]): string {
+// The RECORDS column only appears when this project's records are configured
+// (`showRecords`) — an unconfigured project's `ls` output is byte-for-byte
+// unchanged from before records existed.
+function formatTable(rows: LsRow[], showRecords: boolean): string {
   if (rows.length === 0) return "(no runs)";
 
   const headers: (keyof LsRow)[] = [
@@ -112,6 +126,7 @@ function formatTable(rows: LsRow[]): string {
     "gateProfile",
     "updatedAt",
     "lockState",
+    ...(showRecords ? (["recordsPending"] as const) : []),
   ];
   const labels: Record<keyof LsRow, string> = {
     namespace: "NAMESPACE",
@@ -122,6 +137,7 @@ function formatTable(rows: LsRow[]): string {
     gateProfile: "PROFILE",
     updatedAt: "UPDATED",
     lockState: "LOCK",
+    recordsPending: "RECORDS",
   };
 
   const widths = headers.map((h) =>
@@ -143,8 +159,9 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
     out.error(`Config error: ${configResult.left.message}`);
     return 1;
   }
-  const { stateRoot } = configResult.right;
-  const fsLayer = makeRepoRootedFileSystemLayer(configResult.right);
+  const config = configResult.right;
+  const { stateRoot } = config;
+  const fsLayer = makeRepoRootedFileSystemLayer(config);
 
   const registryEffect = readRegistry(stateRoot).pipe(Effect.provide(fsLayer));
   const registryResult = await Effect.runPromise(Effect.either(registryEffect));
@@ -171,6 +188,34 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
 
   const lockLayer = Layer.merge(fsLayer, makeNodeLockLayer(stateRoot));
 
+  // Records live in this project's own repo (the shared registry can list
+  // runs from other namespaces/repos, whose records this invocation has no
+  // access to) — so pending counts are only computed, and only shown, for
+  // rows in the current project's namespace. Skipped entirely when records
+  // are off, so an unconfigured project's `ls` output never changes.
+  let recordsPendingCounts: ReadonlyMap<string, number> = new Map();
+  if (config.records.enabled) {
+    const recordsClonePathValue =
+      config.records.destination.kind === "repo"
+        ? recordsClonePath(config.stateRoot, config.namespace)
+        : undefined;
+    const pendingResult = await Effect.runPromise(
+      Effect.either(
+        computeRecordsPending({
+          records: config.records,
+          repoRoot: config.repoRoot,
+          publishRemote: config.publish.remote,
+          ...(recordsClonePathValue !== undefined
+            ? { recordsClonePath: recordsClonePathValue }
+            : {}),
+        }).pipe(Effect.provide(NodeGitLayer)),
+      ),
+    );
+    if (Either.isRight(pendingResult)) {
+      recordsPendingCounts = pendingCountsByRunId(pendingResult.right);
+    }
+  }
+
   const rows: LsRow[] = await Promise.all(
     reconciled.map(async ({ entry, row }) => {
       const shortNameResult = decodeShortName(row.shortName);
@@ -191,7 +236,12 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
         }
       }
 
-      return { ...row, lockState };
+      const recordsPending =
+        config.records.enabled && entry.namespace === config.namespace
+          ? (recordsPendingCounts.get(entry.runId) ?? 0)
+          : undefined;
+
+      return { ...row, lockState, recordsPending };
     }),
   );
 
@@ -208,7 +258,7 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
       ),
     );
   } else {
-    out.log(formatTable(rows));
+    out.log(formatTable(rows, config.records.enabled));
   }
 
   return 0;

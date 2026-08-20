@@ -4,6 +4,7 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
 import { publishRun } from "../../app/publishRun.js";
+import { recordsClonePath } from "../../app/recordsSync.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
@@ -62,6 +63,10 @@ export async function runPublishPr(
 
   const effect = publishRun(info, config.publish, {
     repoRoot: config.repoRoot,
+    records: config.records,
+    ...(config.records.destination.kind === "repo"
+      ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }
+      : {}),
     ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}),
   }).pipe(Effect.provide(buildLayer(config)));
 

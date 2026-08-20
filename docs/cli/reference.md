@@ -1044,3 +1044,9 @@ Reconfigure records even if already configured
 - **Usage**: `phax records sync`
 
 Bring the local records clone in line with its configured remote
+
+## `phax records status`
+
+- **Usage**: `phax records status`
+
+Show pending (unpushed) records, by run and phase

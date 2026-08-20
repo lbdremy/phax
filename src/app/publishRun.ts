@@ -2,6 +2,7 @@ import { Effect, Either } from "effect";
 import { join } from "node:path";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import type { ResolvedPublishConfig } from "../schemas/phaxConfig.js";
+import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { selectPrTitle } from "../domain/publish/title.js";
 import { buildPrBody } from "../domain/publish/body.js";
 import type { PublicationRecord, PrStatus, PushStatus } from "../domain/publish/types.js";
@@ -11,6 +12,7 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { GitHub, type GitHubError } from "../ports/github.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
+import { pushRecordsAtPublish } from "./recordsSync.js";
 import {
   makeAdapterCallStartedTelemetryEvent,
   makeAdapterCallSucceededTelemetryEvent,
@@ -36,6 +38,10 @@ export interface PublishRunOpts {
   readonly repoRoot: string;
   readonly verbose?: boolean;
   readonly now?: () => string;
+  /** Absent means records are not in play for this call — no push is attempted. */
+  readonly records?: ResolvedRecordsConfig | undefined;
+  /** The local records clone's path; required only when `records.destination.kind === "repo"`. */
+  readonly recordsClonePath?: string | undefined;
 }
 
 const REVIEW_HANDOFF_FILENAME = "review-handoff.md";
@@ -102,6 +108,33 @@ export function publishRun(
       branch: branchString,
       createdAt: now(),
     } as const;
+
+    // Records mirror the work rather than lead it (spec §5.8): the record is
+    // already committed locally when its phase commits, so publish adds
+    // sharing only. A no-op when records opts weren't supplied, and never
+    // fails — a rejected or unreachable push just leaves the records pending
+    // (`phax records status`), it must never fail an otherwise-successful
+    // publish.
+    const pushRecordsIfConfigured = (): Effect.Effect<void, never, Git> =>
+      Effect.gen(function* () {
+        if (opts.records === undefined) return;
+        const result = yield* pushRecordsAtPublish({
+          records: opts.records,
+          repoRoot: opts.repoRoot,
+          publishRemote: publish.remote,
+          ...(opts.recordsClonePath !== undefined
+            ? { recordsClonePath: opts.recordsClonePath }
+            : {}),
+        });
+        if (result.kind === "pushed") {
+          yield* logVerbose(verbose, `Records pushed to ${result.remote}.`);
+        } else if (result.kind === "failed") {
+          yield* logVerbose(
+            verbose,
+            `Records push to ${result.remote} failed: ${result.message} — records remain pending (see \`phax records status\`).`,
+          );
+        }
+      });
 
     const fail = (
       reason: string,
@@ -283,6 +316,7 @@ export function publishRun(
         prStatus: "not_attempted",
       };
       yield* writeRecordAndReport(record);
+      yield* pushRecordsIfConfigured();
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
           runId,
@@ -335,6 +369,7 @@ export function publishRun(
         pullRequestUrl: existingUrl,
       };
       yield* writeRecordAndReport(record);
+      yield* pushRecordsIfConfigured();
       yield* logVerbose(verbose, `Pull request already exists: ${existingUrl}`);
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
@@ -443,6 +478,7 @@ export function publishRun(
       pullRequestUrl: prUrl,
     };
     yield* writeRecordAndReport(record);
+    yield* pushRecordsIfConfigured();
     yield* logVerbose(verbose, `Pull request created: ${prUrl}`);
     yield* telemetry.recordEvent(
       makeStepCompletedTelemetryEvent({
