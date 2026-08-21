@@ -1,154 +1,205 @@
 ---
 status: Approved
-date: 2026-07-03
+date: "2026-08-21 (revised against the shipped spec 15: shrunk to diagnostic-emitting steps;
+  original 2026-07-03)"
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 ---
-# External Gate Steps
+# External Gate Steps — Structured Diagnostics
 
 ## 1. Context
 
-phax runs each phase in its own cumulative worktree, stacked on the previous phase, and evaluates a
-**gate** after the phase completes. Gate failures open a same-session fix loop that re-runs until
-the gate is green or the budget is spent. The gate steps are today a fixed, built-in set
-(typecheck / test / lint / build), selected by a coarse depth choice.
+Since v0.10 (spec 15, plan 44) a gate profile is a named list of attributed steps. Each step is a
+command carrying a `surface` (`local | structural | product`, closed enum) and a `firing`
+(`every-phase | terminal`). Steps run in profile order against the phase's cumulative worktree
+(stacked on every previous phase); the first non-zero exit fails the gate, its full log is written
+to the attempt log, and the same-session fix loop hands the agent the **failed command, the exit
+code and the raw log**. Per-phase attribution (`gate-attribution.json`) records each step's
+command, surface and `pass | fail`, and the run record manifest names the phase's
+`verifiedSurfaces`.
 
-Because each phase's worktree is stacked on the previous, the worktree at phase N contains the
-accumulated code of phases 1..N, plus everything already merged.
+This means an external tool — an architecture auditor such as `steme audit` — **already registers**
+as a gate step today: list it in the profile with `surface: "structural"`, and its exit code
+drives the loop. The registration, ordering, firing and cumulative-worktree concerns of the
+original spec 16 are shipped and are not re-specified here.
 
 ## 2. Problem
 
-The gate set is closed. A tool that verifies **architecture** — that boundaries hold and required
-wirings exist, not merely that the code compiles and tests pass — cannot register as a gate step
-and drive the existing fix loop. Structural findings therefore have no repair path inside a run:
-they are invisible to the gate that already knows how to fail, retry, and re-verify.
+What an external auditor feeds the fix loop is an **opaque log**. A structural finding is richer
+than that — it names a rule, a location, and a repair pointer (the guide that says how to fix it)
+— but the gate flattens it into stdout text the agent must parse by eye. The fix loop cannot tell
+one finding from another, cannot point the agent at the repair guide, and nothing downstream
+(reporting, the scheduling spec) can reason about individual findings, because from phax's point
+of view there are none — only a red command.
 
 ## 3. Product goal
 
-phax accepts **external gate steps** whose structured findings feed the existing same-session fix
-loop, run against the phase's cumulative worktree. From phax's point of view an external structural
-failure has the same shape as a failing test — a failure with a repair pointer — so it drops into
-the loop with no new machinery.
+A gate step may declare that it **emits structured diagnostics**. For such a step phax reads a
+diagnostics document from the step's output, takes the gate verdict from that document, and feeds
+each diagnostic — rule, location, message, repair pointer — into the same-session fix loop in
+place of a raw log. Everything else about the step (registration, surface, firing, attribution,
+cumulative worktree) is unchanged from spec 15.
 
-> An external audit is just another gate — a structural failure repairs through the same loop as a
-> failing test.
+> A structural failure repairs through the same loop as a failing test — but it arrives as
+> findings, not as a log to be read.
 
 ## 4. Terminology
 
-- **Gate step** — a command phax runs as part of a phase's gate; built-in or external.
-- **External gate step** — a registered, non-built-in gate command (e.g. an architecture auditor).
-- **Diagnostic** — a structured finding a gate step returns: a failure with a location and a repair
-  pointer, consumable by the fix loop.
-- **Cumulative worktree** — the phase's worktree, containing the accumulated code of all phases so
-  far.
+- **Gate step** — one command in a gate profile (spec 15). There is no built-in/external
+  distinction in phax; every step is a command.
+- **Diagnostic step** — a gate step that declares it emits a diagnostics document.
+- **Diagnostics document** — the structured output of a diagnostic step: a list of diagnostics.
+- **Diagnostic** — one finding: a rule identifier, a location, a message, and a repair pointer.
+- **Repair pointer** — a worktree-relative path to the guide the agent should read to repair the
+  finding. Opaque to phax.
 
 ## 5. Functional requirements
 
-### 5.1 Registration and execution
+### 5.1 Declaring a diagnostic step
 
-WHEN an external gate step is registered THE system SHALL run it as part of every phase's gate.
+THE system SHALL let a gate step declare that it emits a diagnostics document.
 
-IF no external gate step is registered THEN THE system SHALL run the gate with its built-in steps
-only, unchanged.
+IF a step does not declare it THEN the system SHALL treat the step exactly as today: exit code is
+the verdict, the log is what the fix loop sees.
 
-### 5.2 Fix-loop integration
+### 5.2 Verdict from the document
 
-WHEN an external gate step returns failing diagnostics THE system SHALL feed them into the
-same-session fix loop identically to a built-in gate failure.
+WHEN a diagnostic step completes THE system SHALL decode its diagnostics document and SHALL take
+the gate verdict from the document: an empty diagnostics list passes the step, a non-empty list
+fails it.
 
-### 5.3 Cumulative worktree
+IF a diagnostic step produces no decodable diagnostics document (regardless of its exit code)
+THEN the system SHALL fail the step as a provider error, naming the step and the decode failure.
 
-THE system SHALL run external gate steps against the phase's cumulative worktree — the accumulated
-code of all phases so far.
+### 5.3 Fix-loop integration
 
-### 5.4 Failure semantics
+WHEN a diagnostic step fails THE system SHALL hand the fix loop the step's diagnostics —
+each with its rule, location, message and repair pointer — and SHALL instruct the agent to read
+each repair pointer before repairing.
 
-WHEN an external gate step reports any failing diagnostic THE system SHALL fail the phase gate.
+THE system SHALL otherwise drive the fix loop identically for a diagnostic step and a plain step
+(same attempts, same budget, same re-verification).
+
+### 5.4 Attribution and records
+
+WHEN a diagnostic step runs THE system SHALL record it in the phase attribution record with the
+same command / surface / result fields as any other step.
+
+WHEN a diagnostic step fails THE system SHALL persist its diagnostics document alongside the
+attempt log so the findings are readable after the run.
 
 ## 6. Surface
 
-An external step registers as one more step in the gate profile (the Gate Profile spec's step
-object), its command being the external tool. That it registers through the profile is
-**normative**; whether a marker field distinguishes it from a built-in step is **indicative**:
+`phax.json`, a profile step **before → after**. That a step opts in through a field on the step
+object is **normative**; the field's spelling and value (`"output": "diagnostics"`) **indicative**:
 
 ```json
-"gateProfiles": {
-  "standard": [
-    { "command": "pnpm typecheck",               "surface": "local",      "firing": "every-phase" },
-    { "command": "steme audit apps/web --json",  "surface": "structural", "firing": "every-phase" }
-  ]
-}
+{ "command": "steme audit --json", "surface": "structural", "firing": "every-phase" }
+```
+→
+```json
+{ "command": "steme audit --json", "surface": "structural", "firing": "every-phase",
+  "output": "diagnostics" }
 ```
 
-Today the fix loop consumes a built-in gate failure as command + exit code + log
-(`GateFailed { command, exitCode, logPath }`) and the fix agent reads the log. An external step
-additionally emits structured diagnostics — each a failure with a location and a repair pointer,
-per §9 default the same information shape the fix loop already consumes. The location + repair
-pointer content is **normative**; the exact field spellings **indicative**, pinned by planning:
+Diagnostics document, read from the step's stdout (transport **normative**: stdout, JSON). The
+four fields per diagnostic and the empty-list-passes rule are **normative**; field spellings
+**indicative**:
 
 ```json
 { "diagnostics": [
   { "rule": "TS_BOUNDARY_001",
     "location": { "file": "apps/web/src/core/user.ts", "line": 12 },
     "message": "core must not import web",
-    "repair": "skills/scope-boundaries.md" }
+    "repair": "docs/skills/scope-boundaries.md" }
 ] }
 ```
 
-No new command or output form — external failures surface through the existing gate and fix-loop
-reporting unchanged.
+Fix prompt, what replaces the raw-log block for a diagnostic step (presence of each diagnostic and
+of the read-the-pointer instruction **normative**; wording **indicative**):
 
-No visual UI — no design annex.
+    # Gate checks failed — fix required
+    **Failed step:** `steme audit --json` (1 diagnostic)
+
+    ## Diagnostics
+    - TS_BOUNDARY_001 at apps/web/src/core/user.ts:12 — core must not import web
+      repair guide: docs/skills/scope-boundaries.md
+
+    ## Required action
+    Read each repair guide above before changing code, then fix every diagnostic …
+
+Provider error, when the document is missing or malformed (exit non-zero and step named
+**normative**; wording **indicative**):
+
+    ✗ gate step "steme audit --json" declared diagnostics output but returned none:
+      invalid JSON at position 0
+
+Persisted next to the attempt log (presence **normative**; name **indicative**):
+`checks-attempt-01.diagnostics.json`. Attribution record and `verifiedSurfaces` unchanged.
+
+No new command. No visual UI — no design annex.
 
 ## 7. Non-goals
 
-- The **content** of the audit — which rules exist, what they mean — is the external provider's
-  concern, not phax's.
-- **Repair** beyond feeding diagnostics to the existing fix loop (the provider supplies repair
-  guidance; phax owns the loop mechanics).
-- **Conditional scheduling** — treating some diagnostics as valid only at completion, and holding
-  others as pending — is deliberately excluded here; in this spec every external diagnostic is a
-  hard failure. Scheduling is a separate spec.
-- **Incremental** (changed-files-only) execution — a whole-worktree pass is acceptable.
-- The **orient/brief** channel and the **plan-completeness** advisory — separate specs.
+- The **content** of the audit — which rules exist, what a repair guide says — is the provider's.
+- **Registration, ordering, firing, cumulative worktree** — shipped by spec 15; not re-specified.
+- **Inlining** repair guides into the prompt — phax names the pointer; the agent reads it in the
+  worktree.
+- **Per-diagnostic scheduling** (invariant vs completion, pending) — the **Gate Step Scheduling**
+  spec. Here every diagnostic fails the step.
+- **Incremental** (changed-files-only) execution.
 
 ## 8. Acceptance criteria
 
-### External audit feeds the fix loop
+### Diagnostics feed the fix loop
 
-Given a registered external gate step that returns a failing diagnostic, when a phase gate runs,
-then phax fails the phase and the diagnostic enters the same-session fix loop. (refs §5.1, §5.2, §5.4)
+Given a diagnostic step that emits one diagnostic, when the phase gate runs, then the phase gate
+is red and the fix prompt lists that diagnostic's rule, location, message and repair pointer and
+instructs the agent to read the pointer. (refs §5.2, §5.3)
 
-### Runs against the cumulative worktree
+### Empty document passes
 
-Given a phase 2 stacked on phase 1, when the external gate step runs, then it sees code introduced
-in phase 1. (refs §5.3)
+Given a diagnostic step that emits an empty diagnostics list with a non-zero exit code, when the
+gate runs, then the step passes. (refs §5.2)
 
-### Any failing diagnostic fails the phase
+### Missing document is a provider error
 
-Given an external gate step that returns one failing diagnostic, when the gate runs, then the phase
-gate is red. (refs §5.4)
+Given a diagnostic step that exits 0 with non-JSON stdout, when the gate runs, then the step fails
+naming the step and the decode failure. (refs §5.2)
 
-### No external step is transparent
+### Plain steps are untouched
 
-Given no registered external gate step, when a phase gate runs, then the gate behaves as it does
-today with built-in steps only. (refs §5.1)
+Given a profile with no diagnostic step, when a gate fails, then the fix prompt carries the raw
+log exactly as before. (refs §5.1)
+
+### Attribution and persistence
+
+Given a failed diagnostic step, when the phase's attribution record and attempt directory are
+read, then the record lists the step with `result: "fail"` and its surface, and the diagnostics
+document is persisted next to the attempt log. (refs §5.4)
 
 ## 9. Open questions for implementation planning
 
-All questions are **resolved by adopting the recommended default** (review of 2026-07-10):
+All resolved by the recommended default (revision of 2026-08-21):
 
-- **Ordering of built-in vs external steps in one fix loop.** *Default:* run the built-in
-  mechanical gate first, external steps after, within a single fix loop.
-- **Diagnostic shape the fix loop consumes.** *Default:* the same shape as a built-in gate failure
-  (a location plus a repair pointer); the provider emits that shape.
+- **How phax knows a step emits diagnostics.**
+  - Explicit field on the step — abandons zero-config detection.
+  - Sniff stdout for a document — abandons explicitness: a tool that happens to print JSON
+    silently changes gate semantics.
+
+  Recommendation: explicit field — the profile is the place where a step's contract is declared.
+- **Exit code vs document.** For a diagnostic step the document is the verdict; the exit code is
+  ignored when a valid document is present (auditors conventionally exit 1 on findings). A
+  missing document is a provider error whatever the exit code.
+- **Repair pointer handling.** Name it; do not inline. The agent works inside the worktree and can
+  read the file; inlining would make phax guess at size and relevance.
 
 ## 10. Implementation-planning note
 
-Settled: external steps run in every phase's gate, feed the existing fix loop, run against the
-cumulative worktree, and hard-fail on any diagnostic. Left open: step ordering and the exact
-diagnostic shape (§9). Depends on the **Gate Profile as Attributed Steps** spec, which defines the
-profile model an external step registers into (and which removes the depth scalar). Constraint:
-**phax stays generic** — it encodes no audit semantics; the provider supplies all meaning.
-Follow-on: conditional scheduling of external diagnostics (invariant vs completion, plan-derived
-scope closure, pending) is the **Gate Step Scheduling** spec.
+Settled: opt-in per step; document on stdout is the verdict; diagnostics replace the raw log in
+the fix prompt with an explicit read-the-pointer instruction; provider error on a missing
+document; attribution unchanged; document persisted with the attempt log. Constraint: **phax stays
+generic** — it encodes no audit semantics; rule ids and repair pointers are opaque strings. Per
+phax schema policy the diagnostics document is decoded through a schema at the boundary; an
+unknown field on the step object is rejected as today. Follow-on: the **Gate Step Scheduling**
+spec adds a class and scope list to each diagnostic and a `pending` outcome.
