@@ -29,32 +29,7 @@ import { reportAgentFailure } from "./telemetry/reportBuilders.js";
 import { dispatch } from "./dispatcher.js";
 import { runGates, type GateOutcome } from "./gates.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
-
-function buildFixPrompt(gateError: GateFailedError, logContent: string, attempt: number): string {
-  return [
-    "# Gate checks failed — fix required",
-    "",
-    `Gate run (attempt ${attempt}) failed.`,
-    "",
-    `**Failed command:** \`${gateError.command}\``,
-    `**Exit code:** ${gateError.exitCode}`,
-    "",
-    "## Gate output",
-    "",
-    "```",
-    logContent,
-    "```",
-    "",
-    "## Required action",
-    "",
-    "Fix all issues revealed by the gate output above.",
-    "Make the minimum changes required to pass the gate.",
-    "Do not change unrelated code or introduce new features.",
-    "",
-    "Make sure to run the failed command after your changes to verify the gate now passes.",
-    "The gate run will be re-attempted automatically after your changes.",
-  ].join("\n");
-}
+import { buildFixPrompt } from "../domain/gate/fixPrompt.js";
 
 export interface RunGatesWithFixLoopOptions {
   readonly steps: readonly GateStep[];
@@ -268,7 +243,14 @@ export function runGatesWithFixLoop(
 
       const fs = yield* FileSystem;
       const logContent = yield* fs.readText(logPath(attempt));
-      const fixPrompt = buildFixPrompt(error, logContent, attempt);
+      const fixPrompt = buildFixPrompt({
+        command: error.command,
+        exitCode: error.exitCode,
+        attempt,
+        logContent,
+        logPath: error.logPath,
+        diagnostics: error.diagnostics,
+      });
 
       yield* telemetry.recordEvent(
         makeStepStartedTelemetryEvent({ runId, operationId: phaseId, step: "fix-loop" }),
