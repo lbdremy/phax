@@ -295,6 +295,40 @@ describe("writeRecord", () => {
     expect(written.kind).toBe("written");
   });
 
+  it("names verified surfaces derived from the phase's gate-attribution.json", async () => {
+    await seedPhaseFolder({
+      "prompt.md": "p\n",
+      "gate-attribution.json": JSON.stringify({
+        phase: "phase-01",
+        steps: [
+          { command: "pnpm format", surface: "local", result: "pass" },
+          { command: "pnpm build", surface: "product", result: "pass" },
+        ],
+      }),
+    });
+
+    await run(writeRecord(baseInput()));
+
+    expect(readManifest("run-1/phase-01")["verifiedSurfaces"]).toEqual(["local", "product"]);
+  });
+
+  it("names no verified surfaces when a phase has no gate-attribution.json", async () => {
+    await seedPhaseFolder({ "prompt.md": "p\n" });
+
+    await run(writeRecord(baseInput()));
+
+    expect(readManifest("run-1/phase-01")["verifiedSurfaces"]).toEqual([]);
+  });
+
+  it("names no verified surfaces and still writes when gate-attribution.json is corrupt", async () => {
+    await seedPhaseFolder({ "prompt.md": "p\n", "gate-attribution.json": "not json" });
+
+    const result = await run(writeRecord(baseInput()));
+
+    expect(result.kind).toBe("written");
+    expect(readManifest("run-1/phase-01")["verifiedSurfaces"]).toEqual([]);
+  });
+
   it("never consults visibility for a dedicated repo destination, whatever it is", async () => {
     fakeGitHub.impl.setVisibility("public");
     await seedPhaseFolder({ "prompt.md": "p\n" });

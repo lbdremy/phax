@@ -12,11 +12,14 @@ import {
   type RecordsDestinationRefusalReason,
   type RepoVisibility,
 } from "../domain/records/destination.js";
+import { verifiedSurfaces as computeVerifiedSurfaces } from "../domain/gate/verifiedSurfaces.js";
 import { decodeBranchName, type BranchName } from "../domain/branded.js";
 import { FileSystem, type FileSystemOps, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { GitHub } from "../ports/github.js";
 import type { ProviderId } from "../schemas/providerId.js";
+import { decodeGateAttribution } from "../schemas/gateAttribution.js";
+import type { Surface } from "../schemas/phaxConfig.js";
 import type { RecordsDestination, ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import {
   encodeRunRecordManifest,
@@ -37,6 +40,7 @@ const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName(RECORDS_BR
 
 const TRANSCRIPT_FILE = "output.jsonl";
 const MANIFEST_FILE = "record.json";
+const GATE_ATTRIBUTION_FILE = "gate-attribution.json";
 
 export interface WriteRecordInput {
   /** The source repository. Also where `phax/records/v1` receives the commit
@@ -153,6 +157,10 @@ export function writeRecord(
       input.sessionId,
       vibeHome,
     );
+    const verifiedSurfacesForPhase = yield* computeVerifiedSurfacesForPhase(
+      fs,
+      input.phaseFolderPath,
+    );
 
     const { manifest, artifactPaths } = assembleRecord({
       runId: input.runId,
@@ -165,6 +173,7 @@ export function writeRecord(
       provider: input.provider,
       outcome: input.outcome,
       usage,
+      verifiedSurfaces: verifiedSurfacesForPhase,
     });
 
     const key = `${input.runId}/${input.phaseId}`;
@@ -203,6 +212,35 @@ export function writeRecord(
       shape: manifest.shape,
       fileCount: gitFiles.length,
     } as const;
+  });
+}
+
+/**
+ * Derive the phase's verified surfaces from its `gate-attribution.json`, using
+ * the same semantics as the final report (phase-04): every executed step of a
+ * surface must have passed. Absent or undecodable attribution (the gate never
+ * ran, or the phase failed before it did) degrades to an empty set rather than
+ * failing the record write.
+ */
+function computeVerifiedSurfacesForPhase(
+  fs: FileSystemOps,
+  phaseFolderPath: string,
+): Effect.Effect<readonly Surface[], never> {
+  return Effect.gen(function* () {
+    const attributionPath = join(phaseFolderPath, GATE_ATTRIBUTION_FILE);
+    const exists = yield* fs.exists(attributionPath).pipe(Effect.orElseSucceed(() => false));
+    if (!exists) return [];
+    const text = yield* fs.readText(attributionPath).pipe(Effect.orElseSucceed(() => ""));
+    if (text === "") return [];
+    let json: unknown;
+    try {
+      json = JSON.parse(text) as unknown;
+    } catch {
+      return [];
+    }
+    const decoded = decodeGateAttribution(json);
+    if (Either.isLeft(decoded)) return [];
+    return computeVerifiedSurfaces(decoded.right);
   });
 }
 

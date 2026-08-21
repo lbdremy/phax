@@ -12,7 +12,7 @@ const decodeTokenUsage = Schema.decodeUnknownEither(TokenUsageSchema, {
 });
 
 const baseManifest = {
-  version: 1 as const,
+  version: 2 as const,
   runId: "entire-checkpoint-spike-1786807559589",
   phaseId: "phase-01",
   shape: "skeleton" as const,
@@ -21,6 +21,7 @@ const baseManifest = {
   provider: "claude-code" as const,
   outcome: "committed" as const,
   usage: UNAVAILABLE_TOKEN_USAGE,
+  verifiedSurfaces: [] as const,
 };
 
 describe("TokenUsageSchema", () => {
@@ -132,6 +133,25 @@ describe("RunRecordManifestSchema", () => {
 
   it("rejects unknown top-level keys", () => {
     const result = decodeRunRecordManifest({ ...baseManifest, bogus: "value" });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("rejects a surface outside the closed enum", () => {
+    const result = decodeRunRecordManifest({ ...baseManifest, verifiedSurfaces: ["bogus"] });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("decodes a manifest naming verified surfaces", () => {
+    const result = decodeRunRecordManifest({
+      ...baseManifest,
+      verifiedSurfaces: ["local", "product"],
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("rejects a v1 manifest (no verifiedSurfaces field)", () => {
+    const { verifiedSurfaces: _verifiedSurfaces, ...v1Manifest } = baseManifest;
+    const result = decodeRunRecordManifest({ ...v1Manifest, version: 1 });
     expect(Either.isLeft(result)).toBe(true);
   });
 

@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
+import { SurfaceSchema } from "./phaxConfig.js";
 
 /**
  * Full = skeleton plus `output.jsonl`. Skeleton is produced both when the
@@ -92,7 +93,7 @@ export const UNAVAILABLE_TOKEN_USAGE: TokenUsage = { available: false };
  * committed — it is never the record's address, which is `runId` + `phaseId`.
  */
 export const RunRecordManifestSchema = Schema.Struct({
-  version: Schema.Literal(1),
+  version: Schema.Literal(2),
   runId: Schema.NonEmptyString,
   phaseId: Schema.NonEmptyString,
   shape: RecordShapeSchema,
@@ -102,6 +103,7 @@ export const RunRecordManifestSchema = Schema.Struct({
   provider: ProviderIdSchema,
   outcome: RecordPhaseOutcomeSchema,
   usage: TokenUsageSchema,
+  verifiedSurfaces: Schema.Array(SurfaceSchema),
 });
 
 export type RunRecordManifest = Schema.Schema.Type<typeof RunRecordManifestSchema>;

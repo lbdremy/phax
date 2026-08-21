@@ -10,6 +10,7 @@ import {
   type RecordShape,
 } from "../schemas/runRecord.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
+import type { Surface } from "../schemas/phaxConfig.js";
 
 export interface RecordListEntry {
   readonly runId: string;
@@ -17,6 +18,7 @@ export interface RecordListEntry {
   readonly shape: RecordShape;
   readonly outcome: RecordPhaseOutcome;
   readonly recordCommitSha: string;
+  readonly verifiedSurfaces: readonly Surface[];
 }
 
 export type ListRecordsResult =
@@ -94,6 +96,7 @@ export function listRecords(
         shape: manifest.shape,
         outcome: manifest.outcome,
         recordCommitSha: sha,
+        verifiedSurfaces: manifest.verifiedSurfaces,
       });
     }
 
