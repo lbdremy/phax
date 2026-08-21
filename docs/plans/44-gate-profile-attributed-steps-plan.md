@@ -34,14 +34,23 @@ the profile *id*, never which surfaces were verified.
 Spec 15 replaces this with a profile that is a named set of **attributed steps**,
 each carrying two explicit dimensions:
 
-- **surface** — a recorded free-text label (convention: `local` / `structural` /
-  `product`). Pure **attribution**: phax records it and never branches on it.
+- **surface** — a closed enum `local | structural | product` (spec §9, revised
+  2026-08-21). Pure **attribution**: phax records it and never branches on it.
 - **firing** — `every-phase | terminal`. **Behavioral**: phax schedules on it.
 
 The depth scalar is removed, per-phase attribution is recorded, and the set of
 verified surfaces is legible at run end. Per phax schema policy there is **no
 back-compat shim**: a profile entry still in the old flat-array form is rejected
 at validation, naming the profile.
+
+**Revision 2026-08-21** (with the spec's): `surface` is a closed enum, and the
+attribution gains its first live consumer — the run records shipped in 0.9
+(spec 29, after this plan was first approved). The `gate-attribution.json`
+artifact rides the phase record automatically (`assembleRecord` carries every
+phase-folder file), and a new phase-05 puts the phase's **verified surfaces**
+in the record manifest so coverage is queryable across runs. "Verified" is
+tightened per the revised spec: a surface is verified only when every step of
+it that ran passed.
 
 ### Architecture seams (discovered)
 
@@ -99,8 +108,12 @@ generators, fixtures, tests, and the generated JSON schemas land in one commit.
 - **Schema** (`src/schemas/phaxConfig.ts`):
   - Add `const FiringSchema = Schema.Literal("every-phase", "terminal");` and
     `export type Firing = Schema.Schema.Type<typeof FiringSchema>;`.
+  - Add `export const SurfaceSchema = Schema.Literal("local", "structural",
+    "product");` and `export type Surface = Schema.Schema.Type<typeof
+    SurfaceSchema>;` — exported: phase-03/05 schemas reuse it as the single
+    source of the enum.
   - Add `const GateStepSchema = Schema.Struct({ command: Schema.NonEmptyString,
-    surface: Schema.NonEmptyString, firing: FiringSchema });` and
+    surface: SurfaceSchema, firing: FiringSchema });` and
     `export type GateStep = Schema.Schema.Type<typeof GateStepSchema>;`.
   - Change `GateProfilesSchema` value from `NonEmptyCommandArray` to
     `Schema.NonEmptyArray(GateStepSchema)`. Leave `NonEmptyCommandArray` in place
@@ -165,6 +178,8 @@ generators, fixtures, tests, and the generated JSON schemas land in one commit.
   `tests/unit/dryRun.test.ts`, `tests/unit/cli/run.test.ts`. Add:
   - a decode test asserting a flat-array profile entry is **rejected** and the
     error names the profile (§6, §9);
+  - a decode test asserting a step whose surface is outside
+    `local | structural | product` is rejected (closed enum, §5.2);
   - a `pickGateProfileId` test asserting the `full`/`fast` preference is gone
     (first key selected).
 
@@ -210,7 +225,8 @@ generators, fixtures, tests, and the generated JSON schemas land in one commit.
 - **Config → gate runner.** Consumer (`runGates`) needs an ordered list of
   executable commands plus, later, their attributes; producer
   (`resolveGateProfile`) provides `readonly GateStep[]`. Stable shape:
-  `{ command: string; surface: string; firing: "every-phase" | "terminal" }`.
+  `{ command: string; surface: "local" | "structural" | "product";
+  firing: "every-phase" | "terminal" }`.
 - **Gate steps → security/prompt.** Consumers (`checkRequiredCommands`, security
   posture, prompt) need only command **strings**; the producer maps
   `steps.map(s => s.command)`. The frozen effective set must include **every**
@@ -237,7 +253,8 @@ JSON schemas → tests.
 - Firing behavior (terminal vs every-phase scheduling) — phase-02.
 - Per-phase attribution record — phase-03.
 - Run-end surface reporting — phase-04.
-- User-facing docs — phase-05.
+- Verified surfaces in the run record — phase-05.
+- User-facing docs — phase-06.
 - Multi-profile disambiguation / a `--gate-profile` selector — not in this plan;
   a project defines one profile and firing carries the cadence.
 
@@ -249,7 +266,8 @@ JSON schemas → tests.
 ### Expected handoff content
 
 - The exact new symbols and their module: `GateStepSchema`, `FiringSchema`,
-  `type GateStep`, `type Firing` in `src/schemas/phaxConfig.ts`.
+  `SurfaceSchema`, `type GateStep`, `type Firing`, `type Surface` in
+  `src/schemas/phaxConfig.ts`.
 - The new `resolveGateProfile` return type and `runGates` signature
   (`steps: readonly GateStep[]`).
 - Where command strings are still derived (`steps.map(s => s.command)`) for
@@ -381,7 +399,8 @@ that actually ran up to and including the first failing one.
 
 - Add an attribution schema `src/schemas/gateAttribution.ts`:
   - `GateStepResultSchema = Schema.Struct({ command: NonEmptyString, surface:
-    NonEmptyString, result: Schema.Literal("pass", "fail") })`.
+    SurfaceSchema, result: Schema.Literal("pass", "fail") })` — import
+    `SurfaceSchema` from `./phaxConfig.js`; one source of truth for the enum.
   - `GateAttributionSchema = Schema.Struct({ phase: NonEmptyString, steps:
     Schema.Array(GateStepResultSchema) })` with `decode`/`encode` helpers,
     following the pattern in `src/schemas/status.ts`.
@@ -448,6 +467,9 @@ event adapter wiring → integration tests.
 ### Excluded scope
 
 - Aggregating surfaces across phases for the run-end summary — phase-04.
+- Carrying verified surfaces into the run record manifest — phase-05 (the
+  `gate-attribution.json` file itself already rides the record automatically:
+  the record carries every phase-folder artifact).
 - Any change to gate pass/fail semantics (still fail-fast on first non-zero exit).
 
 ### Verification
@@ -490,9 +512,14 @@ run (§5.5).
 - Add `src/app/gateAttribution.ts` (app layer) with a reader/aggregator that,
   given a run path and its phase ids, reads each phase's `gate-attribution.json`
   via the `FileSystem` port and returns the sorted set of surfaces that were
-  **verified** — a surface is verified when at least one step of that surface has
-  `result: "pass"`. Missing/unreadable records are skipped (a phase may have been
-  reset); never throw on absence.
+  **verified** — a surface is verified only when at least one step of that
+  surface ran and **every** step of that surface that ran has `result: "pass"`
+  (revised spec §5.5: a surface with any failing step is not verified). Extract
+  the per-record derivation as a pure domain helper
+  `src/domain/gate/verifiedSurfaces.ts`
+  (`verifiedSurfaces(record: GateAttribution): readonly Surface[]`) so phase-05
+  reuses the same semantics for the record manifest. Missing/unreadable records
+  are skipped (a phase may have been reset); never throw on absence.
 - In `src/app/finalReport.ts`, compute the verified-surface set and render it in
   the run summary, e.g. a line `surfaces verified: local, product` (presence
   normative; exact rendering indicative). Place it in the `## Run Summary`
@@ -504,6 +531,7 @@ run (§5.5).
 
 ### Planned files to create
 
+- src/domain/gate/verifiedSurfaces.ts
 - src/app/gateAttribution.ts
 - tests/unit/gateAttribution.reader.test.ts
 
@@ -526,8 +554,8 @@ run (§5.5).
 ### Test strategy
 
 - Reader unit tests (with FileSystem fake): dedupes surfaces across phases; a
-  surface with only `fail` results is not reported as verified; missing files are
-  skipped; empty input yields an empty set.
+  surface with any `fail` result — even alongside passes — is not reported as
+  verified; missing files are skipped; empty input yields an empty set.
 - finalReport integration: a completed run with local+product passing steps
   renders `surfaces verified: local, product`; a run with no records renders the
   empty state (§5.5 acceptance).
@@ -548,7 +576,8 @@ Reader/aggregator (+ unit tests) → finalReport rendering → integration test.
 
 ### Expected handoff content
 
-- The reader function signature and module path, and the exact final-report line
+- The reader function signature and module path, the pure `verifiedSurfaces`
+  helper's module path (phase-05 depends on it), and the exact final-report line
   format for verified surfaces (including the empty state).
 - Any deviation from the planned file lists, with the reason.
 
@@ -560,13 +589,126 @@ feat(gate): report verified surfaces at run end
 
 Aggregate the per-phase gate attribution records into the set of surfaces
 verified during the run and render it in the final report's run summary. A
-surface counts as verified when at least one of its steps passed; a run that
-exercised no surfaces renders an explicit empty state so unverified surfaces are
-visible rather than hidden.
+surface counts as verified only when every step of it that ran passed; a run
+that exercised no surfaces renders an explicit empty state so unverified
+surfaces are visible rather than hidden. Extract the per-record derivation as a
+pure domain helper reused by the record manifest in phase-05.
 
 ---
 
-## phase-05 — Documentation and reference {#phase-05-docs}
+## phase-05 — Verified surfaces in the run record {#phase-05-record-surfaces}
+
+**Recommended model:** claude-sonnet-4-6
+**Recommended effort:** medium
+
+Give the surface attribution its first cross-run consumer: the per-phase run
+record (spec 29, shipped in 0.9). The `gate-attribution.json` artifact already
+rides the record for free — `assembleRecord` carries every phase-folder file —
+so this phase adds only the queryable dimension: the record manifest names the
+phase's verified surfaces.
+
+### Detailed instructions
+
+- `src/schemas/runRecord.ts` — add `verifiedSurfaces:
+  Schema.Array(SurfaceSchema)` (imported from `./phaxConfig.js`) to
+  `RunRecordManifestSchema`, and bump `version: Schema.Literal(1)` to
+  `Schema.Literal(2)`. The field is **required** — no
+  optional-for-existing-records shim, per phax schema policy; v1 records fail
+  decode by design and the version literal keeps the error legible.
+- `src/domain/records/assemble.ts` — extend `AssembleRecordInput` with
+  `verifiedSurfaces: readonly Surface[]` and copy it into the manifest
+  (`version: 2`). Assembly stays pure; the caller computes the value.
+- `src/app/writeRecord.ts` — before calling `assembleRecord`, read the phase
+  folder's `gate-attribution.json` via the `FileSystem` port; when present and
+  decodable, derive the set with the pure `verifiedSurfaces` helper from
+  phase-04; when absent or undecodable (gate never ran, phase failed before the
+  gate), pass `[]`. Never fail the record write over the attribution file.
+- `src/app/executePlan.ts` (`writeRecordForPhase`, `:288-310`) — the phase
+  folder path should already reach `writeRecord`; confirm, and thread it only
+  if missing (note any deviation in the handoff).
+- `src/app/recordsList.ts` — render the manifest field in the listing (e.g. a
+  surfaces column: `local,structural`, or `-` when empty).
+- `src/app/recordsExplain.ts` — render the verified surfaces in the explain
+  output and note the attribution artifact when present.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- src/schemas/runRecord.ts
+- src/domain/records/assemble.ts
+- src/app/writeRecord.ts
+- src/app/recordsList.ts
+- src/app/recordsExplain.ts
+- tests/unit/runRecord.test.ts
+- tests/unit/recordsAssemble.test.ts
+- tests/integration/writeRecord.test.ts
+- tests/integration/recordsExplain.test.ts
+
+### Optional files that may be edited
+
+- tests/integration/recordsPush.test.ts
+- src/app/executePlan.ts
+
+### Boundary contracts
+
+- **Attribution record → record manifest.** Producer (`writeRecord`) derives
+  `verifiedSurfaces` from the phase's `gate-attribution.json` using the same
+  pure helper as the final report — one definition of "verified"; consumers
+  (records list/explain, cross-run queries) read it from the manifest without
+  opening artifacts. Stable shape: `verifiedSurfaces: readonly ("local" |
+  "structural" | "product")[]`, sorted, deduped.
+
+### Test strategy
+
+- Manifest schema unit tests: a v2 manifest with `verifiedSurfaces` round-trips;
+  a v1 manifest (no field) fails decode.
+- `assembleRecord` unit test: the field is copied verbatim into the manifest.
+- `writeRecord` integration: a phase folder with a passing attribution record
+  yields a manifest naming its surfaces; a folder without one yields `[]`; a
+  corrupt attribution file does not fail the write.
+- recordsList / recordsExplain integration: the surfaces render.
+
+### Implementation order
+
+Schema (+ unit tests) → `assembleRecord` → `writeRecord` derivation →
+list/explain rendering → integration tests.
+
+### Excluded scope
+
+- Any run-level aggregation inside records (the manifest is per-phase;
+  run-level legibility is phase-04's final report).
+- Migration tooling for v1 records — none, per schema policy.
+
+### Verification
+
+- The project's configured gate profile in `phax.json`.
+
+### Expected handoff content
+
+- The final `RunRecordManifestSchema` shape and version literal.
+- Where `writeRecord` reads the attribution file and the fallback behavior.
+- Confirmation list/explain render the field, with sample output lines.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+feat(records): name verified surfaces in the phase record manifest
+
+### Commit body
+
+Bump the run-record manifest to version 2 with a required verifiedSurfaces
+field derived from the phase's gate-attribution.json at write time, using the
+same verified-surface semantics as the final report (every executed step of
+the surface passed). The attribution artifact itself already rides the record;
+the manifest field makes surface coverage queryable across runs without
+opening artifacts. Records list and explain render the new field.
+
+---
+
+## phase-06 — Documentation and reference {#phase-06-docs}
 
 **Recommended model:** claude-sonnet-4-6
 **Recommended effort:** low
@@ -578,11 +720,14 @@ legibility. No code changes.
 ### Detailed instructions
 
 - `README.md` — update any `gateProfiles` example and prose from the flat-array
-  form to the attributed-step form; explain `surface` (recorded, convention
-  local/structural/product) and `firing` (every-phase | terminal), and that the
-  depth (fast/full) convention is removed.
+  form to the attributed-step form; explain `surface` (closed enum
+  local | structural | product, attribution only) and `firing`
+  (every-phase | terminal), and that the depth (fast/full) convention is
+  removed.
 - `docs/cli/reference.md` — update the gate-profile configuration reference to
-  the new shape; note the flat-array form is rejected at validation.
+  the new shape; note the flat-array form is rejected at validation, and that
+  `records list` / `records explain` show the phase's verified surfaces
+  (record manifest v2).
 - `CLAUDE.md` — if it references gate profiles or the fast/full convention,
   update to the attributed-step model.
 - `docs/security.md` — if it describes the gate command frozen set, note that all

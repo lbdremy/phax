@@ -1,6 +1,6 @@
 ---
 status: Approved
-date: 2026-07-03
+date: "2026-08-21 (revised: surface closed enum + run-record attribution; original 2026-07-03)"
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 ---
@@ -32,7 +32,7 @@ The gate needs to be a legible set of steps carrying explicit dimensions, not a 
 ## 3. Product goal
 
 A gate profile is a **named selection of gate steps**, each step carrying two explicit dimensions:
-the **surface** it verifies (a recorded label, e.g. local / structural / product) and its **firing**
+the **surface** it verifies (a closed enum: local / structural / product) and its **firing**
 time (every-phase or terminal). The depth scalar is removed. phax records, per phase, which steps
 ran and on what surface, so a run is attributable — which surfaces were verified is legible, and a
 surface a profile never exercised is visible rather than hidden.
@@ -44,9 +44,9 @@ surface a profile never exercised is visible rather than hidden.
 
 - **Gate profile** — the named set of gate steps a run evaluates.
 - **Gate step** — one command in the profile (built-in or external).
-- **Surface** — the class of verification a step performs, as a recorded label (conventionally
-  local, structural, or product). It is an **attribution** dimension: phax records it and does not
-  branch behavior on it.
+- **Surface** — the class of verification a step performs: one of `local`, `structural`, or
+  `product` (a closed enum; §9 revision). It is an **attribution** dimension: phax records it and
+  does not branch behavior on it.
 - **Firing** — when a step runs across a phased run: every-phase or terminal. It is a **behavioral**
   dimension: phax schedules on it.
 - **Attribution record** — the per-phase record of which steps ran, their surface, and their result.
@@ -62,7 +62,8 @@ steps it names.
 
 ### 5.2 Surface dimension (attribution)
 
-THE system SHALL require each gate step to declare the surface it verifies.
+THE system SHALL require each gate step to declare the surface it verifies as one of `local`,
+`structural`, or `product`, and SHALL reject any other value at validation.
 
 THE system SHALL record each step's declared surface and SHALL NOT alter gate behavior based on the
 surface value.
@@ -81,9 +82,16 @@ WHERE a step's firing is terminal THE system SHALL run it only at the run's term
 WHEN a phase gate completes THE system SHALL record which steps ran and, for each, its surface and
 its result.
 
+WHEN a phase's run record is written THE system SHALL carry the phase's attribution record among
+the record's artifacts and SHALL name, in the record manifest, the surfaces the phase verified, so
+surface coverage is queryable across runs without opening artifacts.
+
 ### 5.5 Run-level surface legibility
 
 WHEN a run completes THE system SHALL report the set of surfaces that were verified during the run.
+
+A surface counts as **verified** only when at least one step declaring it ran and every step
+declaring it that ran passed; a surface with any failing step is not reported as verified.
 
 ## 6. Surface
 
@@ -114,7 +122,8 @@ After, each step is an object carrying the two dimensions. The two dimensions an
 ```
 
 A profile entry still in the old flat-array form is rejected at validation naming the profile —
-no shim, per §9 default. **Normative.**
+no shim, per §9 default. The `surface` values form a closed enum
+(`local | structural | product`); any other value is rejected at validation. **Normative.**
 
 Per-phase attribution record, readable after each phase gate (fields normative; format and
 location **indicative**):
@@ -130,6 +139,14 @@ location **indicative**):
 Run-end summary names the verified surfaces (presence normative; rendering **indicative**):
 
     surfaces verified: local, product
+
+The per-phase run record (spec 29) carries `gate-attribution.json` among its artifacts, and its
+manifest names the phase's verified surfaces (field presence normative; key spelling
+**indicative**):
+
+```json
+{ "version": 2, "runId": "…", "phaseId": "phase-02", "verifiedSurfaces": ["local"] }
+```
 
 No visual UI — no design annex.
 
@@ -155,7 +172,9 @@ depth scalar is consulted. (refs §5.1)
 ### Step declares its surface and phax records it
 
 Given a step declaring surface "structural", when it runs, then phax records the result under that
-surface and behaves identically regardless of the surface value. (refs §5.2)
+surface and behaves identically regardless of the surface value. Given a step declaring a surface
+outside `local | structural | product`, when the config is decoded, then it is rejected at
+validation. (refs §5.2)
 
 ### Every-phase vs terminal firing
 
@@ -171,7 +190,13 @@ surface, and each step's result. (refs §5.4)
 ### Verified surfaces are legible at run end
 
 Given a completed run, when its summary is read, then it names the set of surfaces that were
-verified. (refs §5.5)
+verified; a surface whose steps both passed and failed in the final gate evaluation is not among
+them. (refs §5.5)
+
+### Attribution rides the run record
+
+Given a phase whose run record is written, when the record is read, then its artifacts include the
+phase's attribution record and its manifest names the phase's verified surfaces. (refs §5.4)
 
 ## 9. Open questions for implementation planning
 
@@ -181,17 +206,21 @@ All questions are **resolved by adopting the recommended default** (review of 20
   selection entirely to the project. *Default:* profiles are user-defined; phax may ship one default
   profile.
 - **Surface vocabulary.** Whether the surface label is a fixed enum (local/structural/product) or a
-  free label phax merely records. *Default:* record a free label with those three as the convention,
-  since phax does not branch on it.
+  free label phax merely records. *Original default (2026-07-10):* a free label with those three as
+  the convention. *Revised 2026-08-21:* a **closed enum** `local | structural | product` — the
+  doctrine's three-loop axis is complete and non-substitutable, and a free label lets typos and
+  cargo-cult values silently degrade the attribution this spec exists to protect.
 - **Migration from the depth scalar.** *Default:* remove it with no shim (phax schema policy);
   existing configs that set a depth are rejected at validation, not silently mapped.
 
 ## 10. Implementation-planning note
 
-Settled: a profile is a named set of steps; each step carries a **surface** (recorded, not
-behavioral) and a **firing** time (every-phase | terminal, behavioral); the depth scalar is removed;
-attribution is recorded per phase and surfaces are legible at run end. Left open: presets vs
-user-defined and the surface vocabulary (§9). Constraint: **phax stays generic** — firing is the
+Settled: a profile is a named set of steps; each step carries a **surface** (closed enum
+local | structural | product; recorded, not behavioral) and a **firing** time (every-phase |
+terminal, behavioral); the depth scalar is removed; attribution is recorded per phase, rides the
+phase's run record (whose manifest names the verified surfaces), and surfaces are legible at run
+end — a surface is verified only when every step of it that ran passed. Left open: presets vs
+user-defined (§9). Constraint: **phax stays generic** — firing is the
 only dimension phax schedules on; surface is pure attribution. This spec defines the profile shape;
 **External Gate Steps** and **Gate Step Scheduling** fill it with external steps and per-diagnostic
 timing respectively. Per phax schema policy, the removed depth scalar leaves no shim.
