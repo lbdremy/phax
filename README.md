@@ -127,11 +127,24 @@ Or add a `phax.json` manually at your repo root:
     "cleanup": ["rm -rf node_modules"]
   },
   "gateProfiles": {
-    "fast": ["pnpm typecheck", "pnpm test:unit"],
-    "full": ["pnpm typecheck", "pnpm lint", "pnpm test", "pnpm build"]
+    "full": [
+      { "command": "pnpm typecheck", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm test:unit", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm lint", "surface": "structural", "firing": "every-phase" },
+      { "command": "pnpm build", "surface": "product", "firing": "terminal" }
+    ]
   }
 }
 ```
+
+Each gate profile is a named list of **attributed steps**, not a flat command list. Every step carries two independent dimensions:
+
+- `surface` — a closed enum, `local | structural | product`, describing what the step verifies (local dev checks, structural/repo-wide checks, or product/build output). This is pure **attribution**: phax records it and never branches on it.
+- `firing` — `every-phase | terminal`. This is **behavioral**: `every-phase` steps run at every phase gate; `terminal` steps run only at the final phase gate, in addition to the every-phase steps.
+
+There is no fast/full depth convention to pick between — a project defines a single profile, and `firing` carries the cadence that used to be encoded in separate `fast`/`full` profile keys. The old flat `{ "full": ["pnpm test", ...] }` array form is rejected at validation, naming the offending profile.
+
+After each phase gate, phax records which steps ran, their surface, and their pass/fail result in `<phase>/gate-attribution.json`. At run end, the final report's `## Run Summary` lists the set of surfaces verified during the run — a surface counts as verified only when every step of it that ran passed. Each phase's run record also names its verified surfaces, so `phax records list` and `phax records explain` can show surface coverage without opening artifacts.
 
 The top-level `name` is the run namespace — run short-names are scoped under it. Provider routing is **not** configured here — it lives in the global `~/.phax/` config (see [Multi-provider model routing](#multi-provider-model-routing)). The optional `security.profile` (`secure` \| `unsafe` \| `isolated`, default `secure`) sets the default security posture for runs; see [Security modes](#security-modes). The optional `fileReconciliation.mode` (`report_only` \| `warn`, default `report_only`) controls how per-phase file reconciliation reports deviations from the plan; see [Run](#run). The optional `review.compliance` and `publish` blocks turn on an automatic plan-compliance review and a pushed pull request when each run reaches review; see [Compliance review & publishing](#compliance-review--publishing).
 
@@ -511,7 +524,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax open <short-name>` — Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument.
 - `phax ls [FLAGS]` — Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (awaiting human review), or --archived. Use --json for machine-readable output.
 - `phax archive [--force] <short-name>` — Archives a run by removing its worktrees and marking it archived in the registry. Without --force, fails when the final worktree has uncommitted changes.
-- `phax run <FLAGS> [short-name]` — Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.
+- `phax run <FLAGS> [short-name]` — Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs its gate profile's every-phase steps after execution; the final phase also runs the profile's terminal steps. Each step's surface (local, structural, or product) is recorded per phase and the run's verified surfaces are reported at run end.
 - `phax review-handoff [--allow-partial] <short-name>` — Regenerate review-handoff.md and global file reconciliation for a review_open run
 - `phax publish-pr <short-name>` — Pushes the final worktree branch to the GitHub remote and creates a pull request, or reuses an existing PR for the same branch. Requires a GitHub remote and gh CLI authentication.
 - `phax review-compliance <short-name>` — Runs a non-mutating plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. Does not modify the worktree, registry, or any files.
@@ -550,7 +563,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax records init [--force]` — Configure records for this project (transcript, destination, auto-push)
 - `phax records sync` — Bring the local records clone in line with its configured remote
 - `phax records status` — Show pending (unpushed) records, by run and phase
-- `phax records list [--run <id>]` — List records present, by run and phase
-- `phax records explain [FLAGS] <sha>` — Explain a commit from its record: prompt, diff, gates, handoff, transcript, usage
+- `phax records list [--run <id>]` — List records present, by run, phase, and verified surfaces
+- `phax records explain [FLAGS] <sha>` — Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage
 
 <!-- END GENERATED CLI REFERENCE -->

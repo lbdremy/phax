@@ -408,7 +408,7 @@ export function registerRecordsCommand(program: Command, out: OutputPort): void 
 
   records
     .command("list")
-    .description("List records present, by run and phase")
+    .description("List records present, by run, phase, and verified surfaces")
     .option("--run <id>", "Only show records for this run id")
     .action(async (opts: RecordsListOptions) => {
       const exitCode = await runRecordsList(opts, out);
@@ -418,7 +418,7 @@ export function registerRecordsCommand(program: Command, out: OutputPort): void 
   records
     .command("explain")
     .description(
-      "Explain a commit from its record: prompt, diff, gates, handoff, transcript, usage",
+      "Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage",
     )
     .argument("<sha>", "Commit sha in the source repository")
     .option("--prompt", "Print the full prompt")

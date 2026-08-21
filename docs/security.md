@@ -131,7 +131,10 @@ phase's **gate commands** (the resolved gate profile, e.g. `pnpm typecheck`,
 `pnpm test`) to verify — and fix — its own work. How that shell access is
 constrained differs by provider, because each provider exposes a different
 native control surface. The granularity differs, but in every secure-mode case
-the commands run **confined to the worktree**:
+the commands run **confined to the worktree**. The allowlisted set is every
+step's command in the profile, regardless of its `firing` — terminal steps
+still execute at the last phase, so their commands must be allowlisted from
+the start:
 
 | Provider       | Shell model in secure mode                                                                                                                                                                                      |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
