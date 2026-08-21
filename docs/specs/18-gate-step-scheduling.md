@@ -1,7 +1,7 @@
 ---
 status: Approved
-date: "2026-08-21 (revised against the shipped spec 15: firing is shipped, closure comes from a
-  registered scope provider; original 2026-07-03)"
+date: "2026-08-21 (re-approved against main 7b64e98: firing is shipped, closure comes from a registered scope provider;
+  original approval 2026-07-03)"
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 ---
