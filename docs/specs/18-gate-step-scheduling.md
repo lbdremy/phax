@@ -91,8 +91,9 @@ pending and SHALL NOT fail the step for it.
 
 ### 5.4 Pending in the fix loop and the record
 
-WHEN a step fails with both failing and pending diagnostics THE system SHALL hand the fix loop
-only the failing ones and SHALL list the pending ones as context the agent must not act on.
+WHEN a step fails with both failing and pending diagnostics THE system SHALL require the fix loop
+to repair only the failing ones and SHALL list the pending ones as optional work that is not
+required to pass the gate.
 
 WHEN a step has only pending diagnostics THE system SHALL record the step's result as `pending`
 in the phase attribution record, and SHALL NOT count the step's surface as verified for that
@@ -221,8 +222,8 @@ result is `pending` and the step's surface is not among the phase's `verifiedSur
 ### Mixed findings split
 
 Given one failing invariant and one pending completion diagnostic from the same step, when the
-fix loop opens, then the prompt asks to fix the invariant only and lists the pending one as not
-to be acted on. (refs §5.4)
+fix loop opens, then the prompt requires fixing the invariant only and lists the pending one as
+optional, not required to pass. (refs §5.4)
 
 ## 9. Open questions for implementation planning
 
@@ -241,6 +242,11 @@ All resolved by the recommended default (revision of 2026-08-21):
   contract already shipped and keeps enforcement in phax, mapping in the provider.
 - **One scope or many per diagnostic.** A list. A finding whose missing piece lives in another
   scope is true only when both are closed; a single token cannot say that.
+- **Query cadence.** Per gated phase (as written) rather than one per-run call returning every
+  phase's closure — abandons one cheaper call, keeps the answer correct if the plan is
+  re-extracted mid-run.
+- **Where the provider registers.** Top-level in `phax.json` next to `orient`, not per workspace —
+  abandons per-workspace scope oracles; the provider already receives paths and can dispatch.
 - **Deferral to a future run.** Out of scope; terminal closes all.
 
 ## 10. Implementation-planning note
@@ -249,7 +255,7 @@ Settled: class per diagnostic; `scopes` list on completion diagnostics; a regist
 provider queried per gated phase with the thin plan projection (ordered phases + planned files +
 gated phase id); terminal closes all without a query; invariant-always / completion-when-all-closed
 / pending-otherwise; `pending` as a third attribution result that does not verify a surface;
-pending findings persisted and shown to the agent as context only. Depends on the **External Gate
+pending findings persisted and shown to the agent as optional work, never required to pass. Depends on the **External Gate
 Steps** spec. Constraint: **phax stays generic** — scope tokens are opaque, the projection carries
 no model/effort/prompt/commit data, and phax encodes no "obligation" or "scope" meaning; the
 provider lowers its semantics onto this vocabulary. Per phax schema policy the provider response

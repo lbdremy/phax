@@ -1,6 +1,7 @@
 ---
 status: Approved
-date: 2026-07-03
+date: "2026-08-21 (revised: projection shape shared with the scope provider of spec 18;
+  original 2026-07-03)"
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 ---
@@ -14,7 +15,11 @@ codebase that the plan implicitly commits to — for example, that introducing o
 requires a later, corresponding file elsewhere.
 
 The plan is a **prediction**, not a contract: implementation may deviate, and the run's gate is the
-hard check. (See the gate step scheduling spec for the terminal, hard verification.)
+hard check: the **Gate Step Scheduling** spec (18) fails a completion diagnostic once every scope
+it names is closed, and the terminal phase closes all. That spec already hands a registered scope
+provider a **plan projection** — the ordered phases with their planned files — on stdin, the
+same way the shipped orient provider (spec 17) is driven. phax registers such providers as
+top-level `{ "command": … }` entries in `phax.json`.
 
 ## 2. Problem
 
@@ -38,7 +43,8 @@ never blocks planning or the run; hardness stays with the terminal gate.
 
 - **Plan projection** — the reduced view of `phax-plan.json` the auditor receives: ordered phases,
   each with its touched files. Everything else (models, effort, prompts, commit metadata) is
-  withheld.
+  withheld. It is the **same projection shape** the scope provider of spec 18 receives, minus the
+  gated-phase id (there is no phase being gated at plan time).
 - **Plan auditor** — a registered external consumer of the plan projection that returns findings.
 - **Advisory finding** — a non-blocking observation surfaced to the planning agent (e.g. an opened
   cross-part requirement with no later phase to satisfy it).
@@ -71,17 +77,22 @@ their touched files.
 
 ## 6. Surface
 
-Registration — the operator registers one plan auditor in `phax.json` (that it registers is
-normative; key spelling and command form **indicative**):
+Registration — the operator registers one plan auditor in `phax.json`, top-level next to the
+`orient` and `scopes` providers (that it registers as its own command is normative; key spelling
+and command form **indicative**):
 
 ```json
+"orient":      { "command": "steme orient --json" },
+"scopes":      { "command": "steme scopes --json" },
 "planAuditor": { "command": "steme audit-plan --json" }
 ```
 
-Projection — what the auditor receives, derived from `phax-plan.json`'s per-phase
-`plannedFilesToCreate` / `plannedFilesToEdit`. Ordered phases and their files, nothing else, is
-**normative** (§5.1, §5.5); field spellings **indicative**. Withheld (normative): `model`,
-`effort`, prompts and plan anchors, commit metadata:
+Projection — what the auditor receives on stdin, derived from `phax-plan.json`'s per-phase
+`plannedFilesToCreate` / `plannedFilesToEdit` (transport normative: stdin JSON request, stdout JSON
+response, as for `orient` and `scopes`). Ordered phases and their files, nothing else, is
+**normative** (§5.1, §5.5); field spellings **indicative** but SHALL match whatever spelling the
+scope provider's projection (spec 18) settles on — one projection, two consumers. Withheld
+(normative): `model`, `effort`, prompts and plan anchors, commit metadata:
 
 ```json
 { "phases": [
@@ -110,8 +121,10 @@ No visual UI — no design annex.
 
 - The **content** of the check — what relationships exist, what counts as a hole — is the auditor's
   concern, not phax's.
-- **Blocking or gating** on plan findings — the terminal gate (gate step scheduling spec) is the
+- **Blocking or gating** on plan findings — the scope-closure and terminal gate of spec 18 is the
   only hard check; this channel is advisory by construction.
+- **Merging** the plan auditor into the scope provider — they share the projection, not the
+  command; a project may register one without the other.
 - **Deferring a part to a future run** as an explicit, tracked decision — noted as a future
   concern, not specified here.
 - Auditing anything **beyond the projection** (prompts, model choice, phase internals).
@@ -151,5 +164,6 @@ All questions are **resolved by adopting the recommended default** (review of 20
 Settled: the minimal projection, the strictly advisory and non-blocking posture, and transparent
 behavior when no auditor is registered. Left open: handoff timing and surfacing form (§9).
 Constraint: **phax stays generic** — it exposes the plan projection and a findings channel; the
-auditor supplies all meaning. This channel must not acquire teeth; the hard completeness check
-remains the terminal gate defined in the gate step scheduling spec.
+auditor supplies all meaning. The projection is the one defined with spec 18's scope provider
+(ordered phases + planned files); plan it as a single shared shape, not two. This channel must not
+acquire teeth; the hard completeness check remains the scope-closure / terminal gate of spec 18.

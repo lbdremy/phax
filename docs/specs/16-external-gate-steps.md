@@ -71,6 +71,10 @@ fails it.
 IF a diagnostic step produces no decodable diagnostics document (regardless of its exit code)
 THEN the system SHALL fail the step as a provider error, naming the step and the decode failure.
 
+IF a diagnostic step exits non-zero with an empty diagnostics list THEN the system SHALL fail the
+step as a provider error, naming the step and the exit code — a non-zero exit with no findings is
+a tool failure, not a pass.
+
 ### 5.3 Fix-loop integration
 
 WHEN a diagnostic step fails THE system SHALL hand the fix loop the step's diagnostics —
@@ -159,8 +163,13 @@ instructs the agent to read the pointer. (refs §5.2, §5.3)
 
 ### Empty document passes
 
-Given a diagnostic step that emits an empty diagnostics list with a non-zero exit code, when the
-gate runs, then the step passes. (refs §5.2)
+Given a diagnostic step that exits 0 with an empty diagnostics list, when the gate runs, then the
+step passes. (refs §5.2)
+
+### Non-zero exit without findings is a provider error
+
+Given a diagnostic step that exits 2 with an empty diagnostics list, when the gate runs, then the
+step fails naming the step and the exit code. (refs §5.2)
 
 ### Missing document is a provider error
 
@@ -188,15 +197,17 @@ All resolved by the recommended default (revision of 2026-08-21):
     silently changes gate semantics.
 
   Recommendation: explicit field — the profile is the place where a step's contract is declared.
-- **Exit code vs document.** For a diagnostic step the document is the verdict; the exit code is
-  ignored when a valid document is present (auditors conventionally exit 1 on findings). A
-  missing document is a provider error whatever the exit code.
+- **Exit code vs document.** For a diagnostic step the document is the verdict: a non-empty list
+  fails whatever the exit code (auditors conventionally exit 1 on findings). A non-zero exit with
+  an *empty* list is a provider error, not a pass — a tool that crashed after printing must not
+  go green. A missing document is a provider error whatever the exit code.
 - **Repair pointer handling.** Name it; do not inline. The agent works inside the worktree and can
   read the file; inlining would make phax guess at size and relevance.
 
 ## 10. Implementation-planning note
 
-Settled: opt-in per step; document on stdout is the verdict; diagnostics replace the raw log in
+Settled: opt-in per step; document on stdout is the verdict (non-zero exit with no findings is a
+provider error); diagnostics replace the raw log in
 the fix prompt with an explicit read-the-pointer instruction; provider error on a missing
 document; attribution unchanged; document persisted with the attempt log. Constraint: **phax stays
 generic** — it encodes no audit semantics; rule ids and repair pointers are opaque strings. Per
