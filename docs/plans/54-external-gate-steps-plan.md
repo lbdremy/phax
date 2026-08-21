@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/16-external-gate-steps.md
+approved:
+  date: 2026-08-21
+  baseline: 7b04176
 ---
 # External Gate Steps — structured diagnostics
 
