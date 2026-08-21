@@ -149,7 +149,7 @@ export function adaptGateRun(
   attempt: number,
   base: PhaxEventBase,
 ): Effect.Effect<GatePassed | GateFailed, FsError | ShellError, Shell | FileSystem> {
-  return runGates(steps, cwd, attemptLogPath).pipe(
+  return runGates({ steps, cwd, attemptLogPath }).pipe(
     Effect.map((): GatePassed => ({ ...base, type: "GatePassed", attempt })),
     Effect.catchTag(
       "GateFailedError",
