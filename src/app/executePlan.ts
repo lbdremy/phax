@@ -855,16 +855,13 @@ export function executePlan(
             ),
           );
 
-        const promptGateCommands = (config.raw.gateProfiles[gateProfileId] ?? []).map(
-          (s) => s.command,
-        );
         const promptText = buildPhasePrompt({
           planMd,
           planJson: plan,
           currentPhase: phase,
           previousHandoff,
           previousReconciliation,
-          gateCommands: promptGateCommands,
+          gateCommands: gateCommandStrings,
           ...(orientationIndex !== undefined ? { orientationIndex } : {}),
         });
 
