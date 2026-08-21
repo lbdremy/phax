@@ -39,7 +39,9 @@ const runStatusJson = JSON.stringify({
 });
 
 const baseOpts = {
-  steps: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] as const,
+  steps: [
+    { command: "pnpm test", surface: "local", firing: "every-phase", output: "log" },
+  ] as const,
   cwd,
   phaseFolderPath,
   sessionId,

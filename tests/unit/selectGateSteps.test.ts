@@ -3,7 +3,7 @@ import { selectGateSteps } from "../../src/domain/gate/selectSteps.js";
 import type { GateStep } from "../../src/schemas/phaxConfig.js";
 
 function step(command: string, firing: GateStep["firing"]): GateStep {
-  return { command, surface: "local", firing };
+  return { command, surface: "local", firing, output: "log" };
 }
 
 describe("selectGateSteps", () => {

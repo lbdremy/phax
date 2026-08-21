@@ -63,16 +63,19 @@ describe("runInitWizard — non-interactive path", () => {
       command: "pnpm typecheck",
       surface: "local",
       firing: "every-phase",
+      output: "log",
     });
     expect(config.gateProfiles?.fast).toContainEqual({
       command: "pnpm lint",
       surface: "local",
       firing: "every-phase",
+      output: "log",
     });
     expect(config.gateProfiles?.fast).toContainEqual({
       command: "pnpm test:unit",
       surface: "local",
       firing: "every-phase",
+      output: "log",
     });
   });
 
@@ -146,6 +149,7 @@ describe("runInitWizard — non-interactive path", () => {
         command: "echo 'replace with your gate commands in phax.json'",
         surface: "local",
         firing: "every-phase",
+        output: "log",
       },
     ]);
   });
@@ -202,7 +206,7 @@ describe("runInitWizard — interactive path", () => {
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
     expect(config.name).toBe("my-lib");
     expect(config.gateProfiles?.fast).toEqual([
-      { command: "pnpm typecheck", surface: "local", firing: "every-phase" },
+      { command: "pnpm typecheck", surface: "local", firing: "every-phase", output: "log" },
     ]);
     expect(config.review).toBeUndefined();
     expect(config.publish).toBeUndefined();
@@ -262,7 +266,7 @@ describe("runInitWizard — interactive path", () => {
 
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
     expect(config.gateProfiles?.fast).toEqual([
-      { command: "pnpm run test", surface: "local", firing: "every-phase" },
+      { command: "pnpm run test", surface: "local", firing: "every-phase", output: "log" },
     ]);
   });
 
