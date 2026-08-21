@@ -50,10 +50,14 @@ export type Firing = Schema.Schema.Type<typeof FiringSchema>;
 export const SurfaceSchema = Schema.Literal("local", "structural", "product");
 export type Surface = Schema.Schema.Type<typeof SurfaceSchema>;
 
+const GateOutputSchema = Schema.Literal("log", "diagnostics");
+export type GateOutput = Schema.Schema.Type<typeof GateOutputSchema>;
+
 const GateStepSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: SurfaceSchema,
   firing: FiringSchema,
+  output: Schema.optionalWith(GateOutputSchema, { default: () => "log" as const }),
 });
 export type GateStep = Schema.Schema.Type<typeof GateStepSchema>;
 

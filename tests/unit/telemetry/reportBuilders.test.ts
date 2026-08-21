@@ -165,6 +165,7 @@ describe("GateFailedError stderrExcerpt", () => {
       command: "pnpm test",
       exitCode: 1,
       logPath: "/runs/my-run/phase-01/checks-attempt-01.log",
+      diagnostics: [],
       stderrExcerpt: "test suite failed",
     });
 

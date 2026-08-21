@@ -8,7 +8,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 
 function step(command: string, surface: GateStep["surface"] = "local"): GateStep {
-  return { command, surface, firing: "every-phase" };
+  return { command, surface, firing: "every-phase", output: "log" };
 }
 
 function makeConfig(overrides?: Partial<ResolvedConfig["raw"]>): ResolvedConfig {
@@ -168,6 +168,49 @@ describe("gate profile decode (attributed steps)", () => {
       ...baseConfig,
       gateProfiles: {
         full: [{ command: "pnpm test", surface: "local", firing: "every-phase", extra: true }],
+      },
+    });
+    expect(Either.isLeft(decoded)).toBe(true);
+  });
+
+  it("decodes a step without output to output: log", () => {
+    const decoded = decodePhaxConfig({
+      ...baseConfig,
+      gateProfiles: {
+        full: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+      },
+    });
+    expect(Either.isRight(decoded)).toBe(true);
+    if (Either.isRight(decoded)) {
+      expect(decoded.right.gateProfiles["full"]?.[0]?.output).toBe("log");
+    }
+  });
+
+  it("decodes a step with output: diagnostics", () => {
+    const decoded = decodePhaxConfig({
+      ...baseConfig,
+      gateProfiles: {
+        full: [
+          {
+            command: "pnpm test",
+            surface: "local",
+            firing: "every-phase",
+            output: "diagnostics",
+          },
+        ],
+      },
+    });
+    expect(Either.isRight(decoded)).toBe(true);
+    if (Either.isRight(decoded)) {
+      expect(decoded.right.gateProfiles["full"]?.[0]?.output).toBe("diagnostics");
+    }
+  });
+
+  it("rejects a step whose output is outside the closed enum", () => {
+    const decoded = decodePhaxConfig({
+      ...baseConfig,
+      gateProfiles: {
+        full: [{ command: "pnpm test", surface: "local", firing: "every-phase", output: "json" }],
       },
     });
     expect(Either.isLeft(decoded)).toBe(true);

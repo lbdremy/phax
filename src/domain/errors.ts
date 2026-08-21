@@ -1,5 +1,6 @@
 import { Data } from "effect";
 import type { PlanStalenessVerdict } from "./artifact/lineage.js";
+import type { GateDiagnostic } from "../schemas/gateDiagnostics.js";
 
 export class PlanValidationError extends Data.TaggedError("PlanValidationError")<{
   message: string;
@@ -63,6 +64,9 @@ export class GateFailedError extends Data.TaggedError("GateFailedError")<{
   command: string;
   exitCode: number;
   logPath: string;
+  /** Diagnostics decoded from a `output: "diagnostics"` step; empty for a
+   *  plain step or a provider error that returned no decodable document. */
+  diagnostics: readonly GateDiagnostic[];
   stderrExcerpt?: string;
 }> {}
 

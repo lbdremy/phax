@@ -17,6 +17,7 @@ const toGateStep = (command: string): GateStep => ({
   command,
   surface: "local",
   firing: "every-phase",
+  output: "log",
 });
 
 export function buildPhaxConfig(answers: WizardAnswers): PhaxConfig {

@@ -39,7 +39,9 @@ const runStatusJson = JSON.stringify({
 });
 
 const baseOpts = {
-  steps: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] as const,
+  steps: [
+    { command: "pnpm test", surface: "local", firing: "every-phase", output: "log" },
+  ] as const,
   cwd,
   phaseFolderPath,
   sessionId,
@@ -189,6 +191,42 @@ describe("runGatesWithFixLoop", () => {
     const { prompt } = fakeBackend.impl.resumeCalls[0]!;
     expect(prompt).toContain("Gate checks failed");
     expect(prompt).toContain("pnpm test");
+  });
+
+  it("feeds diagnostics into the fix prompt for a diagnostics step and omits the raw log", async () => {
+    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+
+    seedStatusFiles(fakeFs);
+    fakeBackend.impl.addResumeResponse(makeResumeResult());
+    const diagnosticsDocument = JSON.stringify({
+      diagnostics: [
+        {
+          rule: "no-console",
+          location: { file: "src/index.ts", line: 12 },
+          message: "Unexpected console statement",
+          repair: "Remove the console.log call",
+        },
+      ],
+    });
+    fakeShell.impl.enqueue(
+      { exitCode: 1, stdout: diagnosticsDocument, stderr: "" },
+      { exitCode: 0, stdout: JSON.stringify({ diagnostics: [] }), stderr: "" },
+    );
+
+    await Effect.runPromise(
+      runGatesWithFixLoop({
+        ...baseOpts,
+        steps: [
+          { command: "pnpm test", surface: "local", firing: "every-phase", output: "diagnostics" },
+        ] as const,
+      }).pipe(Effect.provide(layer)),
+    );
+
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
+    const { prompt } = fakeBackend.impl.resumeCalls[0]!;
+    expect(prompt).toContain("no-console");
+    expect(prompt).toContain("Remove the console.log call");
+    expect(prompt).not.toContain("## Gate output");
   });
 
   it("uses the session id from the fix result in the next gate attempt", async () => {
