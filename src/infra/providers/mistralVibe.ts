@@ -99,6 +99,8 @@ export function buildVibeArgs(
   resumeSessionId?: string,
 ): string[] {
   const securityFlags = buildVibeSecurityFlags(options.security, options.cwd);
+  // Model selection goes through modelEnvVar (VIBE_ACTIVE_MODEL) set by spawnVibe;
+  // `vibe` has no `--target` flag, so it must not be added back to this argv.
   const args: string[] = [
     "-p",
     prompt,
@@ -106,8 +108,6 @@ export function buildVibeArgs(
     entry.defaultAgent ?? "auto-approve",
     "--output",
     "streaming",
-    "--target",
-    options.model,
     ...securityFlags,
   ];
   if (resumeSessionId) {

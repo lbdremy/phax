@@ -55,12 +55,16 @@ describe("buildVibeArgs — unsafe mode", () => {
       "auto-approve",
       "--output",
       "streaming",
-      "--target",
-      "mistral-large",
       "--trust",
       "--workdir",
       "/tmp/work",
     ]);
+  });
+
+  it("does not pass --target or the model alias (selection is env-only)", () => {
+    const args = buildVibeArgs(baseEntry, "print ok", baseOptions(unsafePolicy));
+    expect(args).not.toContain("--target");
+    expect(args).not.toContain("mistral-large");
   });
 
   it("appends --resume when a session id is provided", () => {
@@ -82,6 +86,11 @@ describe("buildVibeArgs — secure mode", () => {
   it("drops blanket --trust", () => {
     const args = buildVibeArgs(baseEntry, "p", baseOptions(securePolicy));
     expect(args).not.toContain("--trust");
+  });
+
+  it("does not pass --target", () => {
+    const args = buildVibeArgs(baseEntry, "p", baseOptions(securePolicy));
+    expect(args).not.toContain("--target");
   });
 
   it("scopes --workdir to the cwd (worktree)", () => {
