@@ -5,28 +5,60 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-08-17, after v0.8.3 shipped and the entire.io spike ran. The spike's
-own two open items are its verdict and its teardown; everything it answered is in
-`docs/spikes/entire-checkpoint-findings.md`, not here.
+Last pruned 2026-08-21, after v0.9.0 shipped phax run records (spec 29 / plan 52 —
+all design decisions live in the archived spec), the gate-profile work was revived
+(spec 15 revised and plan 44 re-approved the same day), and the entire spike was
+declared done (teardown included; findings live in
+`docs/spikes/entire-checkpoint-findings.md`).
 
-## Small follow-ups — found while running the entire.io spike, 2026-08-15
+## Gate profile as attributed steps — plan 44 — re-approved 2026-08-21 — active queue head
 
-Neither has anything to do with entire; both surfaced because the spike exercised
-paths nothing else had. Independent of each other and of everything below.
+Spec 15 was revised in place 2026-08-21 (`2a5110a`, status stays Approved): `surface`
+is now a **closed enum** `local | structural | product` (the free-label default of
+2026-07-10 was reversed — the doctrine's three-loop axis is complete, and a free label
+lets typos and cargo-cult values degrade the attribution the spec exists to protect);
+the phase's attribution record **rides the run record** with the verified surfaces
+named in a v2 manifest (`verifiedSurfaces`, required, no shim); and "verified" is
+tightened to *every step of the surface that ran passed*. Rationale traces to
+steme-doc doctrine (`01-vision/verification-system-view.md`,
+`01-vision/phax-execution-harness-and-brief-profiles.md` §3) — surface is the axis
+attribution lives on, and spec 29 shipping first gave it a live consumer.
 
-- [ ] **The gate profile a plan names is not the gate profile it runs.** Plan 51's
-      `### Verification` sections all name the `fast` profile, per the `phax-planning`
-      skill's spike doctrine ("use the `fast` gate profile, not `full` — a passing
-      `full` on spike artifacts is misleading false green"). The run used **`full`**
-      (`phax ls` PROFILE column, same as every prior run). The profile is not an
-      extracted `phax-plan.json` field, `### Verification` is informational by design,
-      and `phax run` has no flag to select one — so the doctrine prescribes something no
-      mechanism honors. Harmless here (a doc-and-shell run passed `full` anyway, just
-      slowly), but it means every spike plan silently gets the wrong gate. Decide
-      between: make the profile a per-phase extracted field, add a `phax run
-      --gate-profile` flag, or drop the claim from the skill. Adjacent to parked
-      spec 15 (attributed steps) but strictly smaller — profile *selection*, not step
-      attribution.
+Plan 44 was revised to match (SurfaceSchema as the single source of the enum, a pure
+domain `verifiedSurfaces` helper shared by final report and record manifest, a new
+phase-05 wiring the record manifest, docs renumbered to phase-06) and re-approved
+`Stale → Approved` (`0f1eecc`, baseline `2a5110a`, spec fingerprint re-captured).
+
+- [ ] **Run plan 44** (`phax run`) — six phases: attributed-step schema → firing
+      scheduling → per-phase attribution → run-end surfaces → record manifest v2 →
+      docs.
+- [ ] **Audit debt the revision only partially retired.** The 2026-08-15 parked-note
+      audit found the plan's "architecture seams" line numbers had all moved under
+      plans 46–52 (`isFinal` 415 → 485, `GateProfilesSchema` 38-43 → 46,
+      `executePlan.ts` now ~1448 lines) and prescribed a Draft round-trip; the
+      2026-08-21 revision re-approved directly instead. Only the new phase-05 seams
+      (`writeRecordForPhase` at `:288-310`, the records modules) were verified against
+      current `main`; the July line numbers in phases 01–04 remain stale, and every
+      phase still recommends `claude-sonnet-4-6`. Either refresh seams + model
+      recommendations in place before running (edits re-stale the plan — one more
+      approve), or accept the agent re-locating the seams from the prose contract,
+      which *is* current.
+
+After it lands: specs 16 and 18 unpark (both build on 15's attributed step), and the
+`phax-planning` skill's spike gate doctrine needs rewording (see small follow-ups).
+
+## Small follow-ups
+
+- [ ] **Rework the `phax-planning` skill's spike gate-profile doctrine once plan 44
+      lands.** The original defect — "the gate profile a plan names is not the gate
+      profile it runs" (plan 51 named `fast` per the skill's spike doctrine, the run
+      used `full`; `### Verification` is informational and no mechanism selects a
+      profile) — is dissolved mechanically by plan 44 phase-01: the `full`/`fast`
+      preference is removed, a project defines one profile, and firing carries the
+      cadence. What survives is the skill itself still prescribing "use the `fast`
+      gate profile, not `full`" — after 44 that names a convention that no longer
+      exists. Restate the spike guidance in firing terms (a spike profile is
+      every-phase local steps; no terminal build/smoke).
 - [ ] **`buildVibeArgs` passes a `--target` flag that `vibe` no longer accepts.** Found
       2026-08-20 while probing provider transcript shapes for spec 29.
       `src/infra/providers/mistralVibe.ts:105-109` always appends `--target <model>`;
@@ -38,7 +70,7 @@ paths nothing else had. Independent of each other and of everything below.
       replace it. Unnoticed because `mistral-vibe` ships `enabled: false`
       (`src/domain/routing/defaults.ts:123`) and no e2e run exercises it. Check whether
       `--target` ever existed or was always wrong before deciding how far back the
-      breakage goes.
+      breakage goes. Still present on `main` as of 2026-08-21 (`mistralVibe.ts:109`).
 - [ ] **`phax review-code`'s prompt never carries its worklist.**
       `prepareCodeReviewSession` reads `global-file-reconciliation.md` and passes it as
       `reconciliationMd` (`src/app/reviewCode.ts:206-210,247-253`), but
@@ -53,386 +85,18 @@ paths nothing else had. Independent of each other and of everything below.
       populate. Note the unused field is a used *interface* member, which is why neither
       `knip` nor `oxlint` flags it.
 
-## phax-native run records (`phax/records/v1`) — decided 2026-08-17 — active queue head
+## Records consumers (the substrate shipped in 0.9)
 
-With the gate trilogy parked alongside 23 and 24, this is the only substantive work left
-active. **Decision: build, not adopt.** The entire.io spike ran, answered its three
-questions, and the answer that mattered most was not one of them.
-
-**Correction to the premise this whole line of work rested on.** Every earlier note here
-claimed phax does not capture transcripts — that only session IDs are recorded and the
-transcripts stay in the provider's local storage. That is **false**, and it was false
-before the spike started. phax spawns
-`claude --print --output-format stream-json --verbose`, so the entire event stream flows
-through phax's own process, and phax already writes it: `output.jsonl` per phase (90 KB
-for spike phase-01: 22 assistant, 11 user, 19 system records, a `result`, tool_use names
-and inputs). `prompt.md` is 45,263 bytes — **byte-identical** to entire's
-`0/prompt.txt` for the same phase. entire never provided capture. It provided three
-things: condensing a session into a git object, binding it to the commit by trailer, and
-a query surface.
-
-Why phax is better placed to do that than entire is: entire needs a `prepare-commit-msg`
-hook precisely because the committer does not know the session. phax **knows the session
-and makes the commit in the same process** — no hooks, no injection race, no ambiguity
-about which commits get records. The entire class of defects the spike found (staging vs
-durable record, hooks-outside-the-jail, dangling trailers) does not arise.
-
-And the record would be strictly richer than the one on offer. Already written per phase,
-today, in `~/.phax/runs/<run>/<phase>/`: `output.jsonl`, `prompt.md`, `diff.patch`,
-`checks-attempt-NN.log`, `file-reconciliation.{json,md}`, `phase-handoff.md`,
-`security.json` (the frozen policy the phase actually ran under), `model-resolution.json`,
-`orient-brief.json`, `agent-binding.json`, `status.json`. entire's checkpoint holds a
-transcript and nothing else. **Nothing needs to be captured. It needs to be versioned.**
-
-- [x] Spike/discovery plan written 2026-08-15:
-      `docs/plans/51-entire-checkpoint-spike-plan.md` (**Draft**, `source-spec: null`,
-      five phases, all `claude-fable-5`, `fast` gate, deterministic extraction verified —
-      5 phases, no LLM fallback). Three probes plus a synthesis that deliberately leaves
-      `## Verdict` for the human. Ground established while planning: phax commits with
-      plain `git commit -m … -m …` and no `--no-verify` (`src/infra/git.ts:115`), so
-      entire's `prepare-commit-msg` / `post-commit` hooks fire on phase commits and the
-      `Entire-Checkpoint` trailer lands beside phax's own; but the phase agent's cwd is
-      the worktree, so a gitignored `settings.local.json` is invisible to it, and `git`
-      is in neither the config nor the `fast` gate command set, so probes are authored by
-      the agent and run by a human.
-- [x] Ran 2026-08-15 (`entire-checkpoint-spike-1786807559589`, 5 phases, entire 0.10.0,
-      phax 0.8.3), reviewed, findings filled and harnesses corrected in `7e1566d`.
-      **Q1 hooks survive the run-jail: pass** (5/5 captured; hook commands run *outside*
-      the `--allowedTools` gate; conditional on committing the enablement, since a
-      worktree checks out tracked files only). **Q2 checkpoints survive: pass on commit
-      and publish, merge unproven** — the branch is still unmerged. **Q3 readable +
-      joinable: pass on both**, from plain git with no `entire` binary, join deterministic
-      5/5 both directions via `Session-Id` ↔ `Entire-Session`. Storage is
-      `refs/entire/checkpoints/<last-2-of-ULID>/<ULID>`, **not** the documented
-      `entire/checkpoints/v1` branch — that mismatch at 0.10.0 is itself the
-      format-stability evidence. Full write-up: `docs/spikes/entire-checkpoint-findings.md`.
-- [x] Synthesis `## Verdict` written 2026-08-17 (`e540d6f`, PR #82): **build, not adopt**.
-      The premise correction is recorded in the doc rather than quietly fixed, since it is
-      what flipped a clean 3-for-3 pass into "do not adopt".
-- [ ] Execute the teardown checklist in `spikes/entire/findings/01-hooks-in-jail.md`.
-      Teardown deletes **refs**, not a branch: `git branch -D` cannot reach
-      `refs/entire/*`, and `git gc --prune=now` is what actually removes the transcripts
-      from `.git/objects`. The safety window stays open until then (public repo; `origin`
-      verified clean so far — `refs/entire/*` is not carried by an ordinary push).
-- [ ] Re-run `spikes/entire/02-checkpoint-lifecycle.sh` **after merging** the run branch:
-      merge survival and squash-trailer collapse are the only probe questions still open.
-- [ ] **Write the spec: `docs/specs/29-phax-run-records.md`** — **drafted 2026-08-20**,
-      `status: Draft`, awaiting the approval gate. §9 carries no open question; the one
-      thing the plan must answer for itself is the `codex` / `mistral-vibe` transcript
-      shape, which §10 makes a required planning probe. Two things the drafting surfaced
-      that are not recorded above: no new commit trailer is needed (the key is already on
-      the message), and a phase that fails without committing still gets a record, since
-      the key no longer depends on a commit existing. Original framing follows.
-      (next free number; 23 and 24 are the parked ones). phax writes a `phax/records/v1` shadow record per phase
-      commit, holding what it already produces, and binds it to the commit it describes.
-      The build itself is narrow; the decisions below are the spec's real content, and
-      both design decisions are now settled — the spec writes them up rather than
-      re-litigating them.
-
-      Scope of the new machinery, all of it small: git object plumbing behind the existing
-      `GitPort` (`hash-object -w`, a temp-index `write-tree` via `GIT_INDEX_FILE`,
-      `commit-tree`, `update-ref`) so a record is written **without touching the working
-      tree** — the one genuinely new capability; a record schema decoded at the boundary
-      like every other persisted shape; and a trailer on the phase commit pointing at the
-      record. Lifecycle questions the spec must settle: what happens on a failed or
-      abandoned phase, on a fix-loop retry (one record or two), and on the archival
-      commit (phax's own bookkeeping — no agent session, so presumably no record).
-
-      **Put the version in the branch name.** `phax/records/v1`, and mean it. This is the
-      one thing entire demonstrably got wrong: its documented layout is a versioned
-      `entire/checkpoints/v1` branch, 0.10.0 ships an unversioned `refs/entire/checkpoints/`
-      namespace, and the version marker did not survive the layout change — so a reader
-      cannot detect a layout change without opening a record. Do not repeat that.
-
-      **Storage shape, settled 2026-08-18: one orphan branch, two possible homes.** The
-      record is an ordinary branch — `phax/records/v1`, sha-sharded — not a hidden ref
-      namespace:
-
-      ```
-      phax/records/v1        (orphan branch)
-        <xx>/<source-sha>/
-          output.jsonl  prompt.md  diff.patch  phase-handoff.md
-          checks-attempt-NN.log  file-reconciliation.json  security.json  …
-      ```
-
-      In a **private source repo** that branch lives in the repo itself; in a **dedicated
-      records repo** it is that repo's default branch. Same writer, same tree shape, same
-      reader — only the remote differs, which collapses a good chunk of the
-      implementation.
-
-      A ref namespace was the earlier plan and is now rejected in both homes. Its purpose
-      was to *hide* records inside the source repo, and hiding is exactly wrong here: a
-      custom namespace is neither cloned nor fetched by default, which would defeat the
-      `~/.phax/records/<name>` clone in the dedicated case and defeat travel-by-default in
-      the in-repo case — travel being the whole reason in-repo was chosen. Accepted cost
-      for the in-repo case: a visible `phax/records/v1` in everyone's `git branch -a`, and
-      transcripts in every clone. That is consistent with the rationale already accepted —
-      a private repo's record audience already equals its code audience. The write
-      plumbing is unchanged: `update-ref` simply targets `refs/heads/phax/records/v1`, so
-      records are still written without touching the working tree.
-
-      **The records repo is not a clone of the source.** The binding is a string — the
-      source commit's trailer carries the record id, the record carries the source sha —
-      and the record already embeds `diff.patch`, so `explain` never needs source objects.
-      Cloning the source would duplicate its whole history for no benefit and, worse,
-      couple access control: records access would imply code access, defeating the reason
-      a separate destination exists. **One records repo per project — never one per org.**
-      Corrected 2026-08-20; an earlier note here floated sharing one repo across projects
-      and that is wrong for the same reason cloning the source is: someone who works for
-      several clients would make access to one client's records imply access to all of
-      them. So there is no project level in the tree — the key is `Run-Id`/`Phase-Id`
-      sharded and nothing else — and pointing two projects at one remote is a
-      misconfiguration, not a supported layout.
-      Accepted cost: nothing validates that a sha still exists upstream, so records for
-      rebased-away commits become orphans — a `records prune` reconciling against the
-      source someday, not a design problem.
-
-- [x] **Design decision 1 — where do records live? Settled 2026-08-18: the destination
-      follows the source repo's visibility.** Revised from the 2026-08-17 answer, which
-      made a separate records repo unconditional.
-
-      - **Private source repo → records in-repo.** The record's audience is already
-        exactly the code's audience, so a second repo buys nothing and costs everything
-        listed below. Self-contained provenance, travels with a normal clone, no drift,
-        no degraded `explain`.
-      - **Public source repo → separate private records repo**, keyed by the source
-        commit (entire's `--checkpoint-remote` idea, the one piece of its design worth
-        lifting wholesale). The source repo carries only the commit and its trailer.
-        Here the two-repo cost is worth paying, and only here.
-
-      **Keying by the source commit was wrong — corrected 2026-08-18 by the merge
-      itself.** PR #82 was **rebase**-merged: all five phase commits replayed onto `main`
-      with new shas (`a726aff` → `2390fe4`, `39080d3` → `ad8e44c`, and so on). Observed
-      on the result:
-
-      - Every trailer survived the rewrite — `Run-Id`, `Phase-Id`, `Session-Id` and
-        `Entire-Checkpoint` are all intact on the rebased commits.
-      - Trailer → checkpoint ref still resolves, 5/5.
-      - The **sha did not**. Each record's own `metadata.json` still names the pre-merge
-        branch, and the pre-merge shas are unreachable the moment the phase branches are
-        deleted.
-
-      So a commit sha is immutable but **not stable**: rebase and squash merges replace
-      it, which would orphan every record keyed by it — the exact opposite of the "no
-      drift" property claimed for it an hour earlier. What is stable is whatever rides
-      the commit *message*.
-
-      **Key records by `Run-Id` + `Phase-Id`.** phax already emits both, they are
-      meaningful rather than opaque, and they survive any history rewrite that preserves
-      the message. The source sha becomes a **recorded back-reference expected to go
-      stale**, never an address. `phax records explain <sha>` reads that sha's trailers
-      and resolves the key from them — it never addresses a record by sha. Note this is
-      precisely why entire mints a ULID and why its `resumeCommitTarget` goes
-      commit → trailer → checkpoint rather than sha → checkpoint; the choice looked
-      arbitrary until this merge explained it.
-
-      The three-outcome error contract is unaffected: a record still either exists under
-      its key or it does not.
-
-      **Settled 2026-08-18: a persistent local clone at `~/.phax/records/<name>/` is
-      the read *and* write path; the network is a sync concern only.** The records repo
-      must be reachable once, to be cloned; after that everything works offline. This
-      generalizes past `explain` — a **run** works on a plane too, because phax writes
-      the record into the local clone and defers the push. Keyed by the project `name`
-      from `phax.json`, matching the existing `~/.phax/runs/<name>.<shortName>` layout.
-
-      Consequences the spec must carry:
-
-      - **Case 2 moves from read time to setup time.** `explain` never needs the
-        network. "Unreachable" can only mean "no local clone yet and cannot make one",
-        which is a bootstrap failure with an obvious remedy.
-      - **A local miss is not a confirmed absence — this is the spike's case-5 bug
-        waiting to happen again.** If a teammate pushed a record this clone has not
-        fetched, reporting case 3 ("no record for this commit") is a false negative of
-        exactly the kind that would have inverted probe 01's verdict. Rule: local miss →
-        refresh if the remote is reachable, then re-resolve; local miss while offline →
-        report **"no record locally; remote not consulted"**, never "no record".
-      - **Deferred pushes need somewhere to be noticed.** A record written offline is
-        safe but unshared until a later sync — `phax records sync`, or piggy-backed on
-        the next run's publish. Unpushed records should be visible, not silent.
-      - **phax does not create the records repo.** If the configured destination does
-        not exist, refuse with the remedy; creating repositories on someone's account is
-        not phax's business.
-      - Retention is now a real question: ~2.2 MB per five-phase run, measured, and a
-        full clone is required because a blobless partial clone would defeat the offline
-        read this decision exists to guarantee.
-
-      None of this applies to the private/in-repo case, where the records are already in
-      the checkout — the clone exists only on the public-source-repo path.
-
-      **Visibility detection guards the choice; it never makes it.** The destination is
-      explicit in `phax.json` whenever transcripts are on. phax can detect visibility for
-      GitHub remotes — `GithubPort` already shells `gh` and would need one small
-      `visibility()` addition beside `repoRecognized` — but not for arbitrary hosts, so
-      detection is used to **refuse**, not to choose: in-repo + transcripts on + detected
-      public is an error, and an undetectable host requires the explicit acknowledgement.
-      A wrong auto-guess in the unsafe direction leaks transcripts, so phax must never
-      make one silently.
-
-      **Residual risk the spec must state plainly: private today is not private forever.**
-      Flipping a repo public retroactively publishes every transcript in its history, and
-      deleting the refs afterwards does not help once the objects have been pushed and
-      cloned. That is the standing cost of in-repo transcripts, and it is not mitigable —
-      only disclosed.
-
-      Note phax's own repo is **public**, so phax itself exercises the separate-records-repo
-      path. The more awkward branch of this decision is the one its maintainer dogfoods.
-
-- [x] **Design decision 2 — transcripts and redaction? Settled 2026-08-17: everything by
-      default, no redaction engine.** The record carries `output.jsonl` alongside the
-      skeleton, and the docs state plainly that it holds whatever the agent read and
-      printed. This is only defensible *because* of decision 1 — the destination handles
-      exposure, not a filter — so the two decisions are a pair and must not be adopted
-      separately. Under the revised decision 1 the private destination is either the
-      source repo itself (when private) or a separate private records repo (when the
-      source is public); what matters is that the record never lands somewhere more
-      readable than the code it describes. A regex redactor was rejected on the grounds that it invites trust it
-      cannot earn.
-
-      **The footgun is now closed by decision 1's guard**, not left to the spec: the
-      dangerous combination — transcripts on, records in-repo, source repo public — is a
-      refusal, detected where the host allows it and requiring an explicit acknowledgement
-      where it does not. The default must never drift into "transcripts in a public repo"
-      for someone who never read this file.
-
-- [ ] **Design decision 3 — how does a project turn records on? Decided 2026-08-20; the
-      setup surface, not a separate feature.** Decisions 1 and 2 settle where a record
-      lives and what it holds, but nothing says how a project opts in, so as written
-      spec 29 specifies a writer nobody can enable. This is spec 29's own
-      **`## Setup and distribution`** section — not a new spec.
-
-      **The destination is announced, never asked.** Decision 1 makes visibility decide
-      and detection *refuse*, so the wizard must not offer an in-repo/dedicated select:
-      that select's whole point would be to let someone pick the one combination that is
-      an error. Three questions instead — (1) include the transcript?, (2) if the source is
-      public or the host is undetectable, the records remote URL, required and with no
-      default, (3) auto-push? The `phax init` wizard (`src/app/initWizard.ts`, which
-      already asks name / gates / compliance / publish) gains that block, and
-      **`phax records init`** asks the same three for the projects that already exist.
-      Both call one app-layer use case; the CLI stays thin.
-
-      **Answering no to the transcript question yields a skeleton record, not no record.**
-      Settled 2026-08-20. The record still carries `prompt.md`, `diff.patch`, the gate
-      logs, `phase-handoff.md`, `security.json` and the rest; only `output.jsonl` is
-      omitted. This buys no new machinery, because the record **already** has to declare
-      which shape it is: provider degradation means a skeleton-only record is a case
-      `explain` must handle whatever the toggle says. The toggle rides an axis that
-      exists rather than adding a variant.
-
-      Two consequences the spec must carry. Records are written whenever phax runs — the
-      first question is *include the transcript?*, never *record at all?*. And decision
-      1's guard is scoped to the transcript, exactly as decision 1 already words it:
-      transcripts off makes in-repo safe even on a public source repo, with no records
-      repo needed at all; only transcripts on + public source forces the dedicated
-      destination.
-
-      **Config declares the desired state, the state root holds the actual state, one
-      function reconciles them.** That function is **`phax records sync`**; `records init`
-      is it plus a config write. `phax init` refuses on an existing `phax.json`
-      (`already_initialized`), so the case that matters most — someone clones a phax
-      project whose config already names a records remote — never reaches `init` at all.
-      It is **`phax records sync`**, and phax **refuses with the remedy** rather than
-      cloning by itself — settled 2026-08-20. Auto-cloning would fetch a URL supplied by
-      whoever authored the project, onto a machine whose owner never saw it. Accepted
-      cost, and it is the frequent case: a newcomer's first `phax run` fails for a reason
-      unrelated to what they were doing, so the refusal has to name the exact command and
-      the destination it would clone.
-
-      | desired (`phax.json`) | actual (`~/.phax/records/<name>`) | action |
-      | --- | --- | --- |
-      | off | — | nothing |
-      | in-repo | — | nothing to bootstrap; the branch is born with the first record |
-      | dedicated + remote | no clone | **clone** |
-      | dedicated + remote | clone present, origin matches config | fetch |
-      | dedicated + remote | clone present, origin differs | **refuse** — never silently re-point |
-      | dedicated, no remote | nothing | create a local repo, local-only, warn that records do not travel |
-      | dedicated + remote added later | local repo with commits, remote non-empty | **refuse** with the remedy |
-
-      **Local-only is legitimate; growing a remote onto it later is the trap.** Offline,
-      solo, or undecided are real states and phax should support writing records with no
-      remote at all (creating a *local* repo under the state root is not the same as
-      creating a repo on someone's account, so this does not reopen "phax does not create
-      the records repo"). But the day a remote is configured, a non-empty remote means
-      **clone**, and only an empty one may receive a locally-seeded history — otherwise
-      the first push is an unrelated-histories or non-fast-forward failure, and that is
-      the last row of the table.
-
-      **Auto-push defaults on, fires at publish, and can never fail a phase.** Settled
-      2026-08-20, after two passes. Deferring the *push* loses nothing, because the record
-      is **committed locally per phase** either way — a machine that dies mid-run leaves
-      every record it wrote committed locally. What publish adds is sharing, and records
-      should be shared exactly when the work is: phase commit → record committed, run push
-      and publish → records pushed. A run never published keeps a local trace, which is
-      what its unpushed commits have too. A failed push marks the
-      records pending and surfaces them (`phax records status`, or a line in `ls`) —
-      decision 1 already requires unpushed records be visible rather than silent, and a
-      run that failed because the network did would invert the offline-first property the
-      local clone exists to provide.
-
-      **No retention mechanism in v1.** Settled 2026-08-20: records are written and kept.
-      ~2.2 MB per five-phase run is not a problem until a real repo says it is, and what
-      a stale record even is has no good answer before watching some age. Accepted cost,
-      stated because it is asymmetric: purging later means rewriting a history the team
-      has already cloned, not deleting a file. `records prune` stays a someday.
-
-      Still open, both small and both answerable while writing the spec:
-
-      - **Read from `refs/remotes/origin/phax/records/v1`, not a local branch.** An
-        ordinary `git clone` already fetches the branch, so in the in-repo case `explain`
-        must work in a fresh checkout with no sync at all; requiring a local branch would
-        put a setup step in front of the one command that is supposed to just work.
-      - **The records remote URL is third-party input.** It arrives in a versioned
-        `phax.json` from whoever authored the project, and `git clone ext::sh -c …` is
-        remote code execution. It must decode through a schema that admits `https://`,
-        `ssh://` and `git@…` and nothing else — the same boundary rule as every other
-        external input.
-
-- [x] **Feature scope, decided 2026-08-17 against entire's actual surface**
-      (`entire --help`, `checkpoint --help`, `session --help`). Most of entire's session
-      management is already phax's: `session info/list/resume/current` ≈ `phax
-      session-info` / `ls` / `resume` / `enter-phase`, `clean` ≈ `archive`, `status` ≈
-      `ls`, `plugin` ≈ `skills`; `enable` / `agent add` / `disable` / `doctor` are
-      integration scaffolding phax does not need because phax **is** the integration.
-
-      **Carry in v1:** record per phase commit with its trailer; versioned branch storage;
-      `phax records list`; **`phax records explain <sha>`** — the payoff, commit → prompt,
-      diff, gate log, handoff, transcript, i.e. blame-to-prompt, and the reason the record
-      is worth writing at all; token usage folded into `explain` (already present in
-      `output.jsonl`'s `result` record, so it is free).
-
-      **Defer:** `activity` / `recap` / `dispatch` — cross-run summaries over the record,
-      which only pay off once records exist and travel; they are the durable-context-layer
-      consumers. Squash-merge trailer collapse (rebase is fine — trailers ride the
-      message, so records resolve by id).
-
-      **Never carry:** semantic search (`search`, `checkpoint search`) — needs an embedding
-      index, so a model or a service, and phax is a deterministic local CLI; this is the
-      clearest line. The whole control plane (`auth`, `login`, `org`, `project`, `repo`,
-      `grant`, `api`, hosted mirrors). `session adopt`/`attach`/`stop` — phax owns
-      worktrees and bindings, so cross-worktree session adoption solves a problem it does
-      not have. Task-level granularity (`tasks/<tool-use-id>/`) — the phase is phax's unit
-      of record. Token "optimization recommendations" — that is LLM advice, not a record.
-
-      **Provider degradation, not uniformity.** phax captures via the provider's stdout,
-      not agent hooks, so transcript richness follows the adapter: Claude Code yields a
-      full `stream-json` stream; whether `codex` and `mistral-vibe` yield an equivalent is
-      **unverified**. The record must degrade gracefully — skeleton always, transcript when
-      the adapter produces one — and say which it got, rather than implying uniformity.
-
-- [x] **Knowingly accepted loss of building over adopting: phax records only phax runs.**
-      entire captures every session in the repo, including ad-hoc ones — which is why the
-      review commits on this branch carry checkpoints while phax was not running. A
-      phax-native record is blind to everything a human does in an ordinary session. For
-      compliance review that is irrelevant (it is about phases). For blame-to-prompt on an
-      arbitrary line it is the whole question — and if that becomes wanted, entire is a
-      complement to add later, not a foundation to have started from.
-
-- [ ] First consumer, once records exist: **compliance review as diff-vs-intent evidence.**
-      Today it compares the diff against the extracted plan; the transcript adds *how* the
-      phase got there — files read versus files claimed, approaches abandoned, the point of
-      drift. Needs no distribution answer (the review runs on the machine that ran the
-      phases), so it is the cheapest thing to build on top and does not wait on
-      decision 1.
+- [ ] First consumer: **compliance review as diff-vs-intent evidence.** Today it
+      compares the diff against the extracted plan; the transcript adds *how* the
+      phase got there — files read versus files claimed, approaches abandoned, the
+      point of drift. Needs no distribution answer (the review runs on the machine
+      that ran the phases), so it is the cheapest thing to build on top.
+- Second consumer is already queued above: `verifiedSurfaces` in the record manifest
+  (plan 44 phase-05) — surface coverage queryable across runs.
+- Still deferred from the build-not-adopt scope decision: `records activity` /
+  `recap` / `dispatch` cross-run summaries — the durable-context-layer consumers
+  (see longer horizon).
 
 ## Spec candidates, deliberately not written yet
 
@@ -446,35 +110,22 @@ transcript and nothing else. **Nothing needs to be captured. It needs to be vers
 
 ## Postponed — every approved-but-unplanned spec
 
-All six approved specs are parked. Each is plannable at any time; nothing blocks them
-technically and nothing in the active queue depends on them. Pick one back up by writing
-a plan (`phax-planning` skill) — no re-approval needed unless the spec's own ground
-moves. Note that plan staleness is a **plan** property, so a spec parked here does not
-rot; the plans written against them do.
+Five approved specs are parked (15 left this section 2026-08-21 — plan 44 is the
+active queue head above). Each is plannable at any time; nothing blocks them
+technically. Pick one back up by writing a plan (`phax-planning` skill) — no
+re-approval needed unless the spec's own ground moves. Note that plan staleness is a
+**plan** property, so a spec parked here does not rot; the plans written against them
+do.
 
-### Gate trilogy 15 / 16 / 18 and advisory 19 — parked 2026-08-15
+### Gate specs 16 / 18 and advisory 19
 
-Approved 2026-07-03, never planned, audited against `main` 2026-08-14: **none of the
-four is implemented**. Spec 15 is the entry point whenever this is picked back up — 16
-and 18 both wait on 15's attributed step; 19 is independent and the smallest of the four.
-
-- [ ] `docs/specs/15-gate-profile-attributed-steps.md` — gate profiles today are plain
-      arrays of command strings (`phax.json` → `gateProfiles`, `GateProfilesSchema`), not
-      attributed steps. Plan 44 exists but is `Stale`. **Take plan 45's route, not a
-      re-approval as written**: reopen `Stale → Draft` and replan in place, keeping the
-      number and lineage. Checked 2026-08-15 — the plan's "architecture seams" section
-      cites line numbers that have all moved under plans 46–49 (`isFinal` 415 → 485,
-      `GateProfilesSchema` 38-43 → 46, `executePlan.ts` now 1448 lines), it predates the
-      repo-rooted layer helper 49 introduced, and its five phases still recommend
-      `claude-sonnet-4-6`. The prose contract is sound; the ground under it is not — and
-      it drifts further the longer this stays parked, so re-check rather than trusting
-      that note.
-- [ ] `docs/specs/16-external-gate-steps.md` — no plan. Builds on 15's attributed step,
-      so it follows 15.
+- [ ] `docs/specs/16-external-gate-steps.md` — no plan. Builds on 15's attributed
+      step; plannable the moment plan 44 lands (planning it against the revised
+      spec 15 before then is possible but accepts rebase risk against 44's run).
 - [ ] `docs/specs/18-gate-step-scheduling.md` — no plan. Also downstream of 15: a step
       needs attributes before a phase can schedule it.
 - [ ] `docs/specs/19-plan-completeness-advisory.md` — no plan, and nothing registers a
-      plan auditor in `phax.json`. Independent of the gate trilogy: a projection
+      plan auditor in `phax.json`. Independent of the gate line: a projection
       (ordered phases + touched files), an advisory pass, no blocking.
 
 ### Specs 23 and 24 — parked 2026-08-14
@@ -503,21 +154,18 @@ lesson 2 (extract/transform/load separated; the handoff "loaded" by one phase is
 context "extracted" by the next); spec 22 *is* lesson 3 applied (fingerprints = CDC,
 approval record = snapshot binding, footprint ∩ baseline = dependency tracking,
 "dependents go stale → re-plan only those" = selective recomputation). The gaps it
-names, in priority order: the durable context layer is local-only (stateRoot = a
-warehouse on a laptop — the run-records work above is the response, though only if
-design decision 1 makes the record travel), the plan DAG is analyzed but not executed
-(spec 24), and staleness propagation stops at one hop.
+named, updated 2026-08-21: the durable context layer's substrate now exists —
+run records shipped in 0.9 and travel (`phax/records/v1`, dedicated records repo for
+public sources, `phax records sync`) — so the remaining gap is the *consumer*, not
+the storage; the plan DAG is analyzed but not executed (spec 24); and staleness
+propagation stops at one hop.
 
 - [ ] Cross-run durable context layer — feed the orient provider from phax's own run
       history (handoffs, deviations, final reports) instead of leaving the archive a
-      filing cabinet. The layer must be **shared, not local**, which is why this now
-      hangs directly off `phax/records/v1` **design decision 1** above: a record that
-      does not travel leaves this exactly where it is today. Revised 2026-08-17 — the
-      earlier note named entire's shadow-branch pattern as the leading candidate, but
-      the spike showed the pattern does not deliver sharing on its own; the distribution
-      choice is the substance, not the storage shape. First raw material already exists
-      and is still unread: the per-phase orientation brief (`orient-brief.json`,
-      plan 49).
+      filing cabinet. Unblocked 2026-08-21: the record travels, so the layer can be
+      **shared, not local**. First raw material already exists and is still unread:
+      the per-phase orientation brief (`orient-brief.json`, plan 49) — and, once
+      plan 44 phase-05 lands, the per-phase `verifiedSurfaces` manifest field.
 - [ ] Staleness propagation depth — spec 22 stops deliberately at one hop
       (spec → plan). Same record/fingerprint/footprint mechanism could later cover any
       derived artifact (reviews, reports, generated docs): "which summaries are now
@@ -525,7 +173,7 @@ design decision 1 makes the record travel), the plan DAG is analyzed but not exe
 - [ ] Desktop as role-shaped interfaces, not an augmented chat — one interface per
       participant over the intention↔evidence graph: approval screen showing what the
       approval commits to (ground, footprint, dependents), staleness dashboard
-      (spec 22), run inspection (entire checkpoints as raw material). phax as the
+      (spec 22), run inspection (run records as raw material). phax as the
       context engineer's tooling — what dbt was to the analytics engineer.
 - [ ] Derived spec views — regenerate a readable spec from the E2E tests on demand (a
       computed report, never a maintained file).
