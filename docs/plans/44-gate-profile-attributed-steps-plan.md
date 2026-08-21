@@ -1,9 +1,6 @@
 ---
-status: Stale
+status: Draft
 source-spec: docs/specs/15-gate-profile-attributed-steps.md
-approved:
-  date: 2026-08-21
-  baseline: 2a5110a
 ---
 # Gate Profile as Attributed Steps — implementation plan
 
