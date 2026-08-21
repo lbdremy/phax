@@ -33,13 +33,20 @@ describe("buildPhaxConfig", () => {
 
   it("places gate commands in the fast profile", () => {
     const config = buildPhaxConfig(baseAnswers);
-    expect(config.gateProfiles["fast"]).toEqual(["pnpm typecheck", "pnpm test:unit"]);
+    expect(config.gateProfiles["fast"]).toEqual([
+      { command: "pnpm typecheck", surface: "local", firing: "every-phase" },
+      { command: "pnpm test:unit", surface: "local", firing: "every-phase" },
+    ]);
   });
 
   it("falls back to placeholder when gateCommands is empty", () => {
     const config = buildPhaxConfig({ ...baseAnswers, gateCommands: [] });
     expect(config.gateProfiles["fast"]).toEqual([
-      "echo 'replace with your gate commands in phax.json'",
+      {
+        command: "echo 'replace with your gate commands in phax.json'",
+        surface: "local",
+        firing: "every-phase",
+      },
     ]);
   });
 

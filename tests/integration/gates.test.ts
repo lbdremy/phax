@@ -4,9 +4,14 @@ import { runGates } from "../../src/app/gates.js";
 import { GateFailedError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
+import type { GateStep } from "../../src/schemas/phaxConfig.js";
 
 const cwd = "/fake/worktrees/my-run/phase-01";
 const logPath = "/fake/runs/my-run/phase-01/checks-attempt-01.log";
+
+function steps(...commands: string[]): GateStep[] {
+  return commands.map((command) => ({ command, surface: "local", firing: "every-phase" }));
+}
 
 describe("runGates", () => {
   it("succeeds when all commands exit 0", async () => {
@@ -15,7 +20,7 @@ describe("runGates", () => {
     fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "ok", stderr: "" });
 
     const outcome = await Effect.runPromise(
-      runGates(["pnpm test", "pnpm lint"], cwd, logPath).pipe(
+      runGates(steps("pnpm test", "pnpm lint"), cwd, logPath).pipe(
         Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
       ),
     );
@@ -32,7 +37,7 @@ describe("runGates", () => {
     fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "all good", stderr: "" });
 
     await Effect.runPromise(
-      runGates(["pnpm test"], cwd, logPath).pipe(
+      runGates(steps("pnpm test"), cwd, logPath).pipe(
         Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
       ),
     );
@@ -54,7 +59,7 @@ describe("runGates", () => {
 
     const result = await Effect.runPromise(
       Effect.either(
-        runGates(["pnpm test"], cwd, logPath).pipe(
+        runGates(steps("pnpm test"), cwd, logPath).pipe(
           Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
         ),
       ),
@@ -77,7 +82,7 @@ describe("runGates", () => {
 
     await Effect.runPromise(
       Effect.ignore(
-        runGates(["pnpm test"], cwd, logPath).pipe(
+        runGates(steps("pnpm test"), cwd, logPath).pipe(
           Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
         ),
       ),
@@ -97,7 +102,7 @@ describe("runGates", () => {
 
     await Effect.runPromise(
       Effect.ignore(
-        runGates(["pnpm test", "pnpm lint"], cwd, logPath).pipe(
+        runGates(steps("pnpm test", "pnpm lint"), cwd, logPath).pipe(
           Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
         ),
       ),
@@ -113,7 +118,7 @@ describe("runGates", () => {
     fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "", stderr: "" });
 
     await Effect.runPromise(
-      runGates(["pnpm test"], cwd, logPath).pipe(
+      runGates(steps("pnpm test"), cwd, logPath).pipe(
         Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
       ),
     );
@@ -131,7 +136,7 @@ describe("runGates", () => {
     });
 
     await Effect.runPromise(
-      runGates(["pnpm test"], cwd, logPath).pipe(
+      runGates(steps("pnpm test"), cwd, logPath).pipe(
         Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
       ),
     );

@@ -34,7 +34,7 @@ const minimalConfig: ResolvedConfig = {
     state: { root: "/home/user/.phax" },
     agent: { extractPlan: { model: "claude-sonnet-4-6", effort: "medium" } },
     gateProfiles: {
-      full: ["pnpm test"],
+      full: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
     },
   },
   security: {

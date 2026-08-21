@@ -44,20 +44,23 @@
     "cleanup": ["rm -rf node_modules"]
   },
   "gateProfiles": {
-    "fast": ["pnpm format", "pnpm typecheck", "pnpm test:unit"],
     "full": [
-      "pnpm format",
-      "pnpm typecheck",
-      "pnpm test:type",
-      "pnpm lint",
-      "pnpm format:check",
-      "pnpm knip",
-      "pnpm test",
-      "pnpm audit:architecture",
-      "pnpm build",
-      "pnpm deno:smoke",
-      "pnpm deno:smoke-binary",
-      "pnpm gen:model-catalog --check"
+      { "command": "pnpm format", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm typecheck", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm test:type", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm lint", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm format:check", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm test", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm knip", "surface": "structural", "firing": "every-phase" },
+      { "command": "pnpm audit:architecture", "surface": "structural", "firing": "every-phase" },
+      {
+        "command": "pnpm gen:model-catalog --check",
+        "surface": "structural",
+        "firing": "every-phase"
+      },
+      { "command": "pnpm build", "surface": "product", "firing": "terminal" },
+      { "command": "pnpm deno:smoke", "surface": "product", "firing": "terminal" },
+      { "command": "pnpm deno:smoke-binary", "surface": "product", "firing": "terminal" }
     ]
   },
   "records": {

@@ -9,7 +9,7 @@ const validConfig = {
   version: 1,
   name: "my-project",
   state: { root: "~/.phax" },
-  gateProfiles: { fast: ["pnpm test"] },
+  gateProfiles: { fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] },
 } as const;
 
 describe("decodePhaxConfig", () => {
@@ -22,7 +22,13 @@ describe("decodePhaxConfig", () => {
       ...validConfig,
       agent: { maxFixAttempts: 1 },
       commands: { setup: ["pnpm install"], cleanup: ["rm -rf node_modules"] },
-      gateProfiles: { fast: ["pnpm test"], full: ["pnpm test", "pnpm lint"] },
+      gateProfiles: {
+        fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+        full: [
+          { command: "pnpm test", surface: "local", firing: "every-phase" },
+          { command: "pnpm lint", surface: "structural", firing: "terminal" },
+        ],
+      },
       workspaces: [{ id: "frontend", name: "Frontend", path: "./packages/ui" }],
     };
     expect(Either.isRight(decodePhaxConfig(full))).toBe(true);

@@ -43,7 +43,11 @@ beforeEach(() => {
 
   writeFileSync(
     join(repoDir, "phax.json"),
-    JSON.stringify({ version: 1, name: "test", gateProfiles: { fast: ["pnpm test"] } }),
+    JSON.stringify({
+      version: 1,
+      name: "test",
+      gateProfiles: { fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] },
+    }),
   );
   mkdirSync(join(repoDir, "docs", "plans"), { recursive: true });
   writeFileSync(join(repoDir, PLAN_REL), PLAN_MD);

@@ -59,7 +59,7 @@ function makeConfig(root: string, orient?: OrientConfig): ResolvedConfig {
       version: 1,
       project: { name: "test-project", type: "single-package" },
       state: { root },
-      gateProfiles: { full: ["true"] },
+      gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
       commands: { setup: ["true"], cleanup: ["true"] },
     },
     stateRoot: root,

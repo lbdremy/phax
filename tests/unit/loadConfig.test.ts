@@ -12,7 +12,7 @@ const baseConfig = {
   version: 1,
   name: "test",
   state: { root: "~/.phax" },
-  gateProfiles: { fast: ["pnpm test"] },
+  gateProfiles: { fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] },
 };
 
 let repoDir: string;

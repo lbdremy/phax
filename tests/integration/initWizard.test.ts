@@ -59,9 +59,21 @@ describe("runInitWizard — non-interactive path", () => {
     expect(written).toBeDefined();
     const config = JSON.parse(written!);
     expect(config.name).toBe("my-app");
-    expect(config.gateProfiles?.fast).toContain("pnpm typecheck");
-    expect(config.gateProfiles?.fast).toContain("pnpm lint");
-    expect(config.gateProfiles?.fast).toContain("pnpm test:unit");
+    expect(config.gateProfiles?.fast).toContainEqual({
+      command: "pnpm typecheck",
+      surface: "local",
+      firing: "every-phase",
+    });
+    expect(config.gateProfiles?.fast).toContainEqual({
+      command: "pnpm lint",
+      surface: "local",
+      firing: "every-phase",
+    });
+    expect(config.gateProfiles?.fast).toContainEqual({
+      command: "pnpm test:unit",
+      surface: "local",
+      firing: "every-phase",
+    });
   });
 
   it("does not write a state block", async () => {
@@ -130,7 +142,11 @@ describe("runInitWizard — non-interactive path", () => {
 
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
     expect(config.gateProfiles?.fast).toEqual([
-      "echo 'replace with your gate commands in phax.json'",
+      {
+        command: "echo 'replace with your gate commands in phax.json'",
+        surface: "local",
+        firing: "every-phase",
+      },
     ]);
   });
 
@@ -185,7 +201,9 @@ describe("runInitWizard — interactive path", () => {
 
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
     expect(config.name).toBe("my-lib");
-    expect(config.gateProfiles?.fast).toEqual(["pnpm typecheck"]);
+    expect(config.gateProfiles?.fast).toEqual([
+      { command: "pnpm typecheck", surface: "local", firing: "every-phase" },
+    ]);
     expect(config.review).toBeUndefined();
     expect(config.publish).toBeUndefined();
     expect(config.records).toBeUndefined();
@@ -243,7 +261,9 @@ describe("runInitWizard — interactive path", () => {
     await runWizard(fakeFs, fakePrompt, { interactive: true });
 
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
-    expect(config.gateProfiles?.fast).toEqual(["pnpm run test"]);
+    expect(config.gateProfiles?.fast).toEqual([
+      { command: "pnpm run test", surface: "local", firing: "every-phase" },
+    ]);
   });
 
   it("does not write a state block in interactive mode", async () => {
@@ -323,7 +343,11 @@ describe("runInitWizard — existing config, interactive reconfigure", () => {
     const fakeFs = makeFakeFileSystem();
     fakeFs.impl.setFile(
       CONFIG_PATH,
-      JSON.stringify({ version: 1, name: "old-name", gateProfiles: { fast: ["pnpm test"] } }),
+      JSON.stringify({
+        version: 1,
+        name: "old-name",
+        gateProfiles: { fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] },
+      }),
     );
     const fakePrompt = makeFakePrompt([false]); // confirm(reconfigure) = false
 
@@ -342,7 +366,7 @@ describe("runInitWizard — existing config, interactive reconfigure", () => {
         $schema: "./phax.schema.json",
         version: 1,
         name: "old-name",
-        gateProfiles: { fast: ["pnpm test"] },
+        gateProfiles: { fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] },
       }),
     );
     fakeFs.impl.setFile(PKG_PATH, PKG_WITH_SCRIPTS);

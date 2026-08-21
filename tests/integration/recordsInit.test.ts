@@ -34,7 +34,14 @@ describe("configureRecords", () => {
     await writeFile(
       configPath,
       JSON.stringify(
-        { version: 1, name: "acme", gateProfiles: { fast: ["pnpm test"] }, ...extra },
+        {
+          version: 1,
+          name: "acme",
+          gateProfiles: {
+            fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+          },
+          ...extra,
+        },
         null,
         2,
       ),

@@ -236,7 +236,9 @@ describe("adaptAgentResume", () => {
 // ─── adaptGateRun ─────────────────────────────────────────────────────────────
 
 describe("adaptGateRun", () => {
-  const gateCommands = ["pnpm typecheck"];
+  const gateSteps = [
+    { command: "pnpm typecheck", surface: "local", firing: "every-phase" },
+  ] as const;
   const cwd = worktreePath as string;
   const logPath = `${phaseFolderPath}/checks-attempt-01.log`;
 
@@ -246,7 +248,7 @@ describe("adaptGateRun", () => {
     const layer = Layer.mergeAll(fakeShell.layer, fakeFs.layer);
 
     const event = await Effect.runPromise(
-      adaptGateRun(gateCommands, cwd, logPath, 1, base).pipe(Effect.provide(layer)),
+      adaptGateRun(gateSteps, cwd, logPath, 1, base).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("GatePassed");
@@ -263,7 +265,7 @@ describe("adaptGateRun", () => {
     const layer = Layer.mergeAll(fakeShell.layer, fakeFs.layer);
 
     const event = await Effect.runPromise(
-      adaptGateRun(gateCommands, cwd, logPath, 2, base).pipe(Effect.provide(layer)),
+      adaptGateRun(gateSteps, cwd, logPath, 2, base).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("GateFailed");

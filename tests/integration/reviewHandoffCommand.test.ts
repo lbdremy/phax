@@ -96,7 +96,7 @@ describe("runReviewHandoff command", () => {
         version: 1,
         name: "test",
         state: { root: stateRoot },
-        gateProfiles: { fast: ["pnpm test"] },
+        gateProfiles: { fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] },
       }),
     );
 

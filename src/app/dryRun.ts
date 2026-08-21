@@ -41,8 +41,8 @@ export function buildDryRunReport(
   providerPriorityOverride?: readonly string[],
   securityMode?: SecurityMode,
 ): DryRunReport {
-  const profileId = gateProfileId ?? "full";
-  const gateCommands = resolveGateProfile(config, profileId);
+  const profileId = gateProfileId ?? Object.keys(config.raw.gateProfiles)[0] ?? "";
+  const gateCommands = resolveGateProfile(config, profileId).map((s) => s.command);
 
   // Use the passed securityMode if provided, otherwise fall back to config
   const effectiveSecurityMode = securityMode ?? config.security.profile;

@@ -44,9 +44,22 @@ export function resolvePublishConfig(raw: PublishConfig | undefined): ResolvedPu
 
 const NonEmptyCommandArray = Schema.NonEmptyArray(Schema.NonEmptyString);
 
+const FiringSchema = Schema.Literal("every-phase", "terminal");
+export type Firing = Schema.Schema.Type<typeof FiringSchema>;
+
+export const SurfaceSchema = Schema.Literal("local", "structural", "product");
+export type Surface = Schema.Schema.Type<typeof SurfaceSchema>;
+
+const GateStepSchema = Schema.Struct({
+  command: Schema.NonEmptyString,
+  surface: SurfaceSchema,
+  firing: FiringSchema,
+});
+export type GateStep = Schema.Schema.Type<typeof GateStepSchema>;
+
 const GateProfilesSchema = Schema.Record({
   key: Schema.NonEmptyString,
-  value: NonEmptyCommandArray,
+  value: Schema.NonEmptyArray(GateStepSchema),
 });
 
 const WorkspaceSchema = Schema.Struct({
