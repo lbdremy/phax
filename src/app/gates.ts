@@ -6,6 +6,14 @@ import { Shell, type ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { decodeRunStatus, encodeRunStatus } from "../schemas/status.js";
 import { encodeGateAttribution, type GateStepResult } from "../schemas/gateAttribution.js";
+import {
+  decodeGateDiagnosticsDocument,
+  encodeGateDiagnosticsDocument,
+  type GateDiagnostic,
+  type GateDiagnosticsDocument,
+} from "../schemas/gateDiagnostics.js";
+import { formatParseError } from "../schemas/formatError.js";
+import { diagnosticsPathFor } from "../domain/gate/diagnosticsPath.js";
 
 export interface GateOutcome {
   readonly attemptLogPath: string;
@@ -70,6 +78,39 @@ export function runGates(
       );
     }
 
+    /** Persist the transcript + attribution, optionally the diagnostics
+     *  document, and fail the gate. Called once a step is judged to have
+     *  failed; the caller has already recorded the `fail` step result. */
+    function failGate(params: {
+      readonly rawCommand: string;
+      readonly exitCode: number;
+      readonly message: string;
+      readonly diagnostics: readonly GateDiagnostic[];
+      readonly stderr: string;
+      readonly document?: GateDiagnosticsDocument;
+    }): Effect.Effect<never, GateFailedError | FsError> {
+      return Effect.gen(function* () {
+        yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
+        if (params.document !== undefined) {
+          yield* fs.writeAtomic(
+            diagnosticsPathFor(attemptLogPath),
+            JSON.stringify(encodeGateDiagnosticsDocument(params.document), null, 2),
+          );
+        }
+        yield* writeAttribution();
+        return yield* Effect.fail(
+          new GateFailedError({
+            message: params.message,
+            command: params.rawCommand,
+            exitCode: params.exitCode,
+            logPath: attemptLogPath,
+            diagnostics: params.diagnostics,
+            ...(params.stderr ? { stderrExcerpt: params.stderr } : {}),
+          }),
+        );
+      });
+    }
+
     for (const step of steps) {
       const rawCommand = step.command;
       const command = parseCommandTokens(rawCommand);
@@ -82,19 +123,83 @@ export function runGates(
       logLines.push(`exit ${result.exitCode}`);
       logLines.push("");
 
+      if (step.output === "diagnostics") {
+        // The step promised a diagnostics document on stdout. Decode it; the
+        // verdict comes from the document, not the exit code.
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(result.stdout) as unknown;
+        } catch (cause) {
+          const reason = `invalid JSON: ${cause instanceof Error ? cause.message : String(cause)}`;
+          logLines.push(
+            `provider error: step declared diagnostics output but returned none: ${reason}`,
+          );
+          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+          return yield* failGate({
+            rawCommand,
+            exitCode: result.exitCode,
+            message: `Gate step "${rawCommand}" declared diagnostics output but returned none: ${reason}`,
+            diagnostics: [],
+            stderr: result.stderr,
+          });
+        }
+
+        const decoded = decodeGateDiagnosticsDocument(parsed);
+        if (Either.isLeft(decoded)) {
+          const reason = `schema mismatch: ${formatParseError(decoded.left)}`;
+          logLines.push(
+            `provider error: step declared diagnostics output but returned none: ${reason}`,
+          );
+          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+          return yield* failGate({
+            rawCommand,
+            exitCode: result.exitCode,
+            message: `Gate step "${rawCommand}" declared diagnostics output but returned none: ${reason}`,
+            diagnostics: [],
+            stderr: result.stderr,
+          });
+        }
+
+        const document = decoded.right;
+
+        if (document.diagnostics.length === 0) {
+          if (result.exitCode === 0) {
+            stepResults.push({ command: rawCommand, surface: step.surface, result: "pass" });
+            continue;
+          }
+          const message = `Gate step "${rawCommand}" exited ${result.exitCode} with no diagnostics`;
+          logLines.push(`provider error: ${message}`);
+          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+          return yield* failGate({
+            rawCommand,
+            exitCode: result.exitCode,
+            message,
+            diagnostics: [],
+            stderr: result.stderr,
+          });
+        }
+
+        // A non-empty list fails the step whatever the exit code (spec §9).
+        stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+        return yield* failGate({
+          rawCommand,
+          exitCode: result.exitCode,
+          message: `Gate command failed: ${rawCommand} (${document.diagnostics.length} diagnostic(s))`,
+          diagnostics: document.diagnostics,
+          stderr: result.stderr,
+          document,
+        });
+      }
+
       if (result.exitCode !== 0) {
         stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
-        yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
-        yield* writeAttribution();
-        return yield* Effect.fail(
-          new GateFailedError({
-            message: `Gate command failed: ${rawCommand} (exit ${result.exitCode})`,
-            command: rawCommand,
-            exitCode: result.exitCode,
-            logPath: attemptLogPath,
-            ...(result.stderr ? { stderrExcerpt: result.stderr } : {}),
-          }),
-        );
+        return yield* failGate({
+          rawCommand,
+          exitCode: result.exitCode,
+          message: `Gate command failed: ${rawCommand} (exit ${result.exitCode})`,
+          diagnostics: [],
+          stderr: result.stderr,
+        });
       }
 
       stepResults.push({ command: rawCommand, surface: step.surface, result: "pass" });
