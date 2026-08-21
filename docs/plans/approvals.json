@@ -12,15 +12,6 @@
       "approvedAt": "2026-08-11T07:59:18.912Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
-    },
-    "docs/plans/44-gate-profile-attributed-steps-plan.md": {
-      "planFingerprint": "5bb00e85810922cfcd023c89fdcaa93591f482bd68815da1ae3ed8ed1bf36c58",
-      "approvedAt": "2026-08-21T07:57:19.786Z",
-      "baseline": "2a55253f3beadaa8ffc236c33035f6f9d537bbf1",
-      "sourceSpec": {
-        "path": "docs/specs/15-gate-profile-attributed-steps.md",
-        "fingerprint": "c351ec8fc3301800963f1c18636ebfb531ba7454135999554bf4899a985071f6"
-      }
     }
   }
 }
