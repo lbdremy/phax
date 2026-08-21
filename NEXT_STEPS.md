@@ -5,60 +5,16 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-08-21, after v0.9.0 shipped phax run records (spec 29 / plan 52 —
-all design decisions live in the archived spec), the gate-profile work was revived
-(spec 15 revised and plan 44 re-approved the same day), and the entire spike was
-declared done (teardown included; findings live in
-`docs/spikes/entire-checkpoint-findings.md`).
-
-## Gate profile as attributed steps — plan 44 — re-approved 2026-08-21 — active queue head
-
-Spec 15 was revised in place 2026-08-21 (`2a5110a`, status stays Approved): `surface`
-is now a **closed enum** `local | structural | product` (the free-label default of
-2026-07-10 was reversed — the doctrine's three-loop axis is complete, and a free label
-lets typos and cargo-cult values degrade the attribution the spec exists to protect);
-the phase's attribution record **rides the run record** with the verified surfaces
-named in a v2 manifest (`verifiedSurfaces`, required, no shim); and "verified" is
-tightened to *every step of the surface that ran passed*. Rationale traces to
-steme-doc doctrine (`01-vision/verification-system-view.md`,
-`01-vision/phax-execution-harness-and-brief-profiles.md` §3) — surface is the axis
-attribution lives on, and spec 29 shipping first gave it a live consumer.
-
-Plan 44 was revised to match (SurfaceSchema as the single source of the enum, a pure
-domain `verifiedSurfaces` helper shared by final report and record manifest, a new
-phase-05 wiring the record manifest, docs renumbered to phase-06) and re-approved
-`Stale → Approved` (`0f1eecc`, baseline `2a5110a`, spec fingerprint re-captured).
-
-- [ ] **Run plan 44** (`phax run`) — six phases: attributed-step schema → firing
-      scheduling → per-phase attribution → run-end surfaces → record manifest v2 →
-      docs.
-- [ ] **Audit debt the revision only partially retired.** The 2026-08-15 parked-note
-      audit found the plan's "architecture seams" line numbers had all moved under
-      plans 46–52 (`isFinal` 415 → 485, `GateProfilesSchema` 38-43 → 46,
-      `executePlan.ts` now ~1448 lines) and prescribed a Draft round-trip; the
-      2026-08-21 revision re-approved directly instead. Only the new phase-05 seams
-      (`writeRecordForPhase` at `:288-310`, the records modules) were verified against
-      current `main`; the July line numbers in phases 01–04 remain stale, and every
-      phase still recommends `claude-sonnet-4-6`. Either refresh seams + model
-      recommendations in place before running (edits re-stale the plan — one more
-      approve), or accept the agent re-locating the seams from the prose contract,
-      which *is* current.
-
-After it lands: specs 16 and 18 unpark (both build on 15's attributed step), and the
-`phax-planning` skill's spike gate doctrine needs rewording (see small follow-ups).
+Last pruned 2026-08-21, after v0.10.0 shipped the gate profile as attributed steps
+(spec 15 / plan 44 — all design decisions live in the archived spec; `surface` is the
+closed enum `local | structural | product`, steps fire every-phase or terminal, the
+phase record manifest names `verifiedSurfaces`) and the `phax-planning` skill's spike
+gate doctrine was restated in firing terms (`c5df1d0`). Earlier the same day v0.9.0
+shipped run records (spec 29 / plan 52) and the entire spike was declared done
+(findings in `docs/spikes/entire-checkpoint-findings.md`).
 
 ## Small follow-ups
 
-- [ ] **Rework the `phax-planning` skill's spike gate-profile doctrine once plan 44
-      lands.** The original defect — "the gate profile a plan names is not the gate
-      profile it runs" (plan 51 named `fast` per the skill's spike doctrine, the run
-      used `full`; `### Verification` is informational and no mechanism selects a
-      profile) — is dissolved mechanically by plan 44 phase-01: the `full`/`fast`
-      preference is removed, a project defines one profile, and firing carries the
-      cadence. What survives is the skill itself still prescribing "use the `fast`
-      gate profile, not `full`" — after 44 that names a convention that no longer
-      exists. Restate the spike guidance in firing terms (a spike profile is
-      every-phase local steps; no terminal build/smoke).
 - [ ] **`buildVibeArgs` passes a `--target` flag that `vibe` no longer accepts.** Found
       2026-08-20 while probing provider transcript shapes for spec 29.
       `src/infra/providers/mistralVibe.ts:105-109` always appends `--target <model>`;
@@ -92,8 +48,9 @@ After it lands: specs 16 and 18 unpark (both build on 15's attributed step), and
       phase got there — files read versus files claimed, approaches abandoned, the
       point of drift. Needs no distribution answer (the review runs on the machine
       that ran the phases), so it is the cheapest thing to build on top.
-- Second consumer is already queued above: `verifiedSurfaces` in the record manifest
-  (plan 44 phase-05) — surface coverage queryable across runs.
+- Second consumer shipped in 0.10: `verifiedSurfaces` in the record manifest
+  (plan 44 phase-05) — surface coverage is now queryable across runs, but nothing
+  queries it yet.
 - Still deferred from the build-not-adopt scope decision: `records activity` /
   `recap` / `dispatch` cross-run summaries — the durable-context-layer consumers
   (see longer horizon).
@@ -110,9 +67,9 @@ After it lands: specs 16 and 18 unpark (both build on 15's attributed step), and
 
 ## Postponed — every approved-but-unplanned spec
 
-Five approved specs are parked (15 left this section 2026-08-21 — plan 44 is the
-active queue head above). Each is plannable at any time; nothing blocks them
-technically. Pick one back up by writing a plan (`phax-planning` skill) — no
+Five approved specs are parked. With plan 44 landed, 16 and 18 are now the natural
+next pick — they build directly on the attributed step that shipped in 0.10. Each is
+plannable at any time; nothing blocks them technically. Pick one back up by writing a plan (`phax-planning` skill) — no
 re-approval needed unless the spec's own ground moves. Note that plan staleness is a
 **plan** property, so a spec parked here does not rot; the plans written against them
 do.
@@ -120,10 +77,12 @@ do.
 ### Gate specs 16 / 18 and advisory 19
 
 - [ ] `docs/specs/16-external-gate-steps.md` — no plan. Builds on 15's attributed
-      step; plannable the moment plan 44 lands (planning it against the revised
-      spec 15 before then is possible but accepts rebase risk against 44's run).
-- [ ] `docs/specs/18-gate-step-scheduling.md` — no plan. Also downstream of 15: a step
-      needs attributes before a phase can schedule it.
+      step, which is on `main` since 0.10 — unblocked. Re-read the spec against the
+      shipped `GateProfilesSchema` / `SurfaceSchema` before planning; it was written
+      against the July draft of 15.
+- [ ] `docs/specs/18-gate-step-scheduling.md` — no plan. Also unblocked by 0.10.
+      Check how much of it plan 44 phase-02 (every-phase vs terminal firing) already
+      covers — the spec may shrink to what firing does not express.
 - [ ] `docs/specs/19-plan-completeness-advisory.md` — no plan, and nothing registers a
       plan auditor in `phax.json`. Independent of the gate line: a projection
       (ordered phases + touched files), an advisory pass, no blocking.
@@ -164,8 +123,8 @@ propagation stops at one hop.
       history (handoffs, deviations, final reports) instead of leaving the archive a
       filing cabinet. Unblocked 2026-08-21: the record travels, so the layer can be
       **shared, not local**. First raw material already exists and is still unread:
-      the per-phase orientation brief (`orient-brief.json`, plan 49) — and, once
-      plan 44 phase-05 lands, the per-phase `verifiedSurfaces` manifest field.
+      the per-phase orientation brief (`orient-brief.json`, plan 49) and, since 0.10,
+      the per-phase `verifiedSurfaces` manifest field.
 - [ ] Staleness propagation depth — spec 22 stops deliberately at one hop
       (spec → plan). Same record/fingerprint/footprint mechanism could later cover any
       derived artifact (reviews, reports, generated docs): "which summaries are now
