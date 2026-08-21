@@ -68,8 +68,8 @@ do.
       replace the raw log in the fix prompt.
 - [ ] `docs/specs/18-gate-step-scheduling.md` — no plan; depends on 16. Adds
       `class` + `scopes` per diagnostic, a `scopes` provider queried per gated phase,
-      and `pending` as a third attribution result. The `steme scopes` command it
-      assumes is only *proposed* on the steme side — confirm before planning.
+      and `pending` as a third attribution result. phax defines the provider contract;
+      steme (or any provider) implements it.
 - [ ] `docs/specs/19-plan-completeness-advisory.md` — no plan. Shares 18's plan
       projection; plan it after (or with) 18 so the projection is built once.
 
