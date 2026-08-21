@@ -5,41 +5,15 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-08-21, after v0.10.0 shipped the gate profile as attributed steps
-(spec 15 / plan 44 — all design decisions live in the archived spec; `surface` is the
-closed enum `local | structural | product`, steps fire every-phase or terminal, the
-phase record manifest names `verifiedSurfaces`) and the `phax-planning` skill's spike
-gate doctrine was restated in firing terms (`c5df1d0`). Earlier the same day v0.9.0
-shipped run records (spec 29 / plan 52) and the entire spike was declared done
-(findings in `docs/spikes/entire-checkpoint-findings.md`).
-
-## Small follow-ups
-
-- [ ] **`buildVibeArgs` passes a `--target` flag that `vibe` no longer accepts.** Found
-      2026-08-20 while probing provider transcript shapes for spec 29.
-      `src/infra/providers/mistralVibe.ts:105-109` always appends `--target <model>`;
-      vibe 2.13.0 answers `vibe: error: unrecognized arguments: --target` and exits 2,
-      so **every** `mistral-vibe` phase would fail at spawn. Model selection already works
-      through the `VIBE_ACTIVE_MODEL` env var that the same adapter sets
-      (`modelEnvVar`), and the local `~/.vibe/config.toml` does carry the
-      `phax-mistral-medium-3.5-*` aliases — so the fix is to drop the flag, not to
-      replace it. Unnoticed because `mistral-vibe` ships `enabled: false`
-      (`src/domain/routing/defaults.ts:123`) and no e2e run exercises it. Check whether
-      `--target` ever existed or was always wrong before deciding how far back the
-      breakage goes. Still present on `main` as of 2026-08-21 (`mistralVibe.ts:109`).
-- [ ] **`phax review-code`'s prompt never carries its worklist.**
-      `prepareCodeReviewSession` reads `global-file-reconciliation.md` and passes it as
-      `reconciliationMd` (`src/app/reviewCode.ts:206-210,247-253`), but
-      `buildCodeReviewPrompt` never destructures it
-      (`src/domain/review/codeReviewPrompt.ts:25`) — and the same call site hardcodes
-      `attentionPoints: []`. So the prompt's `## Primary worklist — attention points
-      from reconciliation` section renders `_No attention points recorded._` on **every**
-      review, and the reconciliation file is read from disk and discarded. The compliance
-      block is the only real content the prompt has ever carried. Fix is either to wire
-      the reconciliation attention points through, or to delete the dead input and the
-      section that promises it — the current state advertises a worklist it cannot
-      populate. Note the unused field is a used *interface* member, which is why neither
-      `knip` nor `oxlint` flags it.
+Last pruned 2026-08-21, after v0.10.1 shipped plan 53 (`da90570` drops the `--target`
+flag `vibe` never accepted — the adapter was broken since it was written, model selection
+goes through `VIBE_ACTIVE_MODEL`; `a9231f6` builds the `phax review-code` worklist from
+`global-file-reconciliation.json` and deletes the dead `reconciliationMd` input — missing or
+malformed JSON degrades to an empty worklist). Earlier the same day v0.10.0 shipped the
+gate profile as attributed steps (spec 15 / plan 44 — all design decisions live in the
+archived spec; `surface` is the closed enum `local | structural | product`, steps fire
+every-phase or terminal, the phase record manifest names `verifiedSurfaces`) and v0.9.0
+shipped run records (spec 29 / plan 52). No small follow-ups are open.
 
 ## Records consumers (the substrate shipped in 0.9)
 
