@@ -109,7 +109,7 @@ describe("records explain and list (real git)", () => {
     const original = commitWithTrailers(repoDir, runId, phaseId);
 
     const manifest: RunRecordManifest = {
-      version: 1,
+      version: 2,
       runId,
       phaseId,
       shape: "full",
@@ -129,6 +129,7 @@ describe("records explain and list (real git)", () => {
           totalCostUsd: 1.23,
         },
       },
+      verifiedSurfaces: ["local", "product"],
     };
     await writeFullRecordCommit(repoDir, manifest, {
       "prompt.md": "a".repeat(100),
@@ -169,6 +170,7 @@ describe("records explain and list (real git)", () => {
     expect(outcome.record.diffStat).toEqual({ files: 1, insertions: 1, deletions: 1 });
     // The manifest's own back-reference is the original commit, still reachable here.
     expect(outcome.record.sourceCommitReachable).toBe(true);
+    expect(outcome.record.manifest.verifiedSurfaces).toEqual(["local", "product"]);
   });
 
   it("reports a hand-written commit with no trailers as not produced by a phax phase", async () => {
@@ -217,7 +219,7 @@ describe("records explain and list (real git)", () => {
     const sha = commitWithTrailers(repoDir, runId, phaseId);
 
     const manifest: RunRecordManifest = {
-      version: 1,
+      version: 2,
       runId,
       phaseId,
       shape: "skeleton",
@@ -239,6 +241,7 @@ describe("records explain and list (real git)", () => {
           toolCallsSucceeded: 3,
         },
       },
+      verifiedSurfaces: [],
     };
     await writeFullRecordCommit(repoDir, manifest, {
       "prompt.md": "prompt",
@@ -265,7 +268,7 @@ describe("records explain and list (real git)", () => {
   it("records list shows a failed phase's record", async () => {
     const runId = "run-list-1786800000003";
     const failedManifest: RunRecordManifest = {
-      version: 1,
+      version: 2,
       runId,
       phaseId: "phase-04",
       shape: "skeleton",
@@ -274,6 +277,7 @@ describe("records explain and list (real git)", () => {
       provider: "claude-code",
       outcome: "failed",
       usage: { available: false },
+      verifiedSurfaces: [],
     };
     await writeFullRecordCommit(repoDir, failedManifest, {
       "checks-attempt-01.log": "log",
@@ -303,5 +307,6 @@ describe("records explain and list (real git)", () => {
     const byPhase = new Map(result.records.map((r) => [r.phaseId, r]));
     expect(byPhase.get("phase-04")?.outcome).toBe("failed");
     expect(byPhase.get("phase-05")?.outcome).toBe("committed");
+    expect(byPhase.get("phase-04")?.verifiedSurfaces).toEqual([]);
   });
 });

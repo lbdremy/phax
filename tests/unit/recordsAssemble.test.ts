@@ -12,6 +12,7 @@ const baseInput: AssembleRecordInput = {
   provider: "claude-code",
   outcome: "committed",
   usage: UNAVAILABLE_TOKEN_USAGE,
+  verifiedSurfaces: [],
 };
 
 describe("assembleRecord", () => {
@@ -77,6 +78,14 @@ describe("assembleRecord", () => {
   it("carries the declared-unavailable usage through unchanged", () => {
     const { manifest } = assembleRecord(baseInput);
     expect(manifest.usage).toEqual(UNAVAILABLE_TOKEN_USAGE);
+  });
+
+  it("copies verifiedSurfaces verbatim into the manifest", () => {
+    const { manifest } = assembleRecord({
+      ...baseInput,
+      verifiedSurfaces: ["local", "product"],
+    });
+    expect(manifest.verifiedSurfaces).toEqual(["local", "product"]);
   });
 
   it("does not mutate the input files array", () => {

@@ -271,7 +271,11 @@ function renderFoundRecord(
     : "tokens unavailable";
   out.log(`record   ${shapeLabel}   ${usageLabel}`);
 
-  out.log(`gates    ${manifest.outcome} after ${record.checksAttemptCount} attempt(s)`);
+  const surfacesLabel =
+    manifest.verifiedSurfaces.length > 0 ? manifest.verifiedSurfaces.join(", ") : "(none)";
+  out.log(
+    `gates    ${manifest.outcome} after ${record.checksAttemptCount} attempt(s)   surfaces  ${surfacesLabel}`,
+  );
 
   if (manifest.sourceSha !== undefined) {
     const reachability =
@@ -347,8 +351,10 @@ async function runRecordsList(opts: RecordsListOptions, out: OutputPort): Promis
   }
 
   for (const entry of outcome.records) {
+    const surfacesLabel =
+      entry.verifiedSurfaces.length > 0 ? entry.verifiedSurfaces.join(",") : "-";
     out.log(
-      `${entry.runId}  ${entry.phaseId}  ${entry.shape}  ${entry.outcome}  ${entry.recordCommitSha.slice(0, 8)}`,
+      `${entry.runId}  ${entry.phaseId}  ${entry.shape}  ${entry.outcome}  ${entry.recordCommitSha.slice(0, 8)}  ${surfacesLabel}`,
     );
   }
   return 0;

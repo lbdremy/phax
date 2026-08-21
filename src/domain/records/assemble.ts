@@ -1,5 +1,6 @@
 import type { ProviderId } from "../../schemas/providerId.js";
 import type { RecordPhaseOutcome, RunRecordManifest, TokenUsage } from "../../schemas/runRecord.js";
+import type { Surface } from "../../schemas/phaxConfig.js";
 
 const TRANSCRIPT_FILE = "output.jsonl";
 
@@ -17,6 +18,7 @@ export interface AssembleRecordInput {
   readonly provider: ProviderId;
   readonly outcome: RecordPhaseOutcome;
   readonly usage: TokenUsage;
+  readonly verifiedSurfaces: readonly Surface[];
 }
 
 export interface AssembledRecord {
@@ -43,7 +45,7 @@ export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
     .toSorted((a, b) => a.localeCompare(b));
 
   const manifest: RunRecordManifest = {
-    version: 1,
+    version: 2,
     runId: input.runId,
     phaseId: input.phaseId,
     shape,
@@ -53,6 +55,7 @@ export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
     provider: input.provider,
     outcome: input.outcome,
     usage: input.usage,
+    verifiedSurfaces: input.verifiedSurfaces,
   };
 
   return { manifest, artifactPaths };
