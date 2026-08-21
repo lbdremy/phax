@@ -1,6 +1,6 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
-import type { ResolvedConfig } from "../schemas/phaxConfig.js";
+import type { GateStep, ResolvedConfig } from "../schemas/phaxConfig.js";
 import { GateFailedError } from "../domain/errors.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -14,7 +14,7 @@ export function resolveGateProfile(
   config: ResolvedConfig,
   profileId: string,
   workspaceId?: string,
-): readonly string[] {
+): readonly GateStep[] {
   if (workspaceId !== undefined) {
     const workspace = config.raw.workspaces?.find((w) => w.id === workspaceId);
     const wsProfile = workspace?.gateProfiles?.[profileId];
@@ -39,7 +39,7 @@ function parseCommandTokens(raw: string): readonly [string, ...string[]] {
 }
 
 export function runGates(
-  commands: readonly string[],
+  steps: readonly GateStep[],
   cwd: string,
   attemptLogPath: string,
 ): Effect.Effect<GateOutcome, GateFailedError | FsError | ShellError, Shell | FileSystem> {
@@ -49,7 +49,8 @@ export function runGates(
 
     const logLines: string[] = [];
 
-    for (const rawCommand of commands) {
+    for (const step of steps) {
+      const rawCommand = step.command;
       const command = parseCommandTokens(rawCommand);
       logLines.push(`$ ${rawCommand}`);
 

@@ -13,7 +13,7 @@ let originalHome: string | undefined;
 const baseConfig = {
   version: 1,
   name: "test",
-  gateProfiles: { fast: ["pnpm test"] },
+  gateProfiles: { fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] },
 };
 
 beforeEach(() => {

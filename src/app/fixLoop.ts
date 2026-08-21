@@ -28,6 +28,7 @@ import { makeSystemErrorReport } from "../domain/telemetry/errors.js";
 import { reportAgentFailure } from "./telemetry/reportBuilders.js";
 import { dispatch } from "./dispatcher.js";
 import { runGates, type GateOutcome } from "./gates.js";
+import type { GateStep } from "../schemas/phaxConfig.js";
 
 function buildFixPrompt(gateError: GateFailedError, logContent: string, attempt: number): string {
   return [
@@ -56,7 +57,7 @@ function buildFixPrompt(gateError: GateFailedError, logContent: string, attempt:
 }
 
 export interface RunGatesWithFixLoopOptions {
-  readonly commands: readonly string[];
+  readonly steps: readonly GateStep[];
   readonly cwd: string;
   readonly phaseFolderPath: string;
   readonly sessionId: ClaudeSessionId;
@@ -93,7 +94,7 @@ export function runGatesWithFixLoop(
   Shell | FileSystem | Backend | Git | SystemTelemetry
 > {
   const {
-    commands,
+    steps,
     cwd,
     phaseFolderPath,
     sessionId,
@@ -152,7 +153,7 @@ export function runGatesWithFixLoop(
       yield* telemetry.recordEvent(
         makeStepStartedTelemetryEvent({ runId, operationId: phaseId, step: `gate.run` }),
       );
-      const gateResult = yield* Effect.either(runGates(commands, cwd, logPath(attempt)));
+      const gateResult = yield* Effect.either(runGates(steps, cwd, logPath(attempt)));
 
       if (Either.isRight(gateResult)) {
         yield* telemetry.recordEvent(

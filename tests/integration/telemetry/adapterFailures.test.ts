@@ -77,7 +77,7 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
     const result = await Effect.runPromise(
       Effect.either(
         runGatesWithFixLoop({
-          commands: ["pnpm test"],
+          steps: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
           cwd: "/fake/worktrees/phase-01",
           phaseFolderPath,
           sessionId,

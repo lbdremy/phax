@@ -13,7 +13,7 @@ const decodeOrientConfig = Schema.decodeUnknownEither(OrientConfigSchema, {
 const minimalValidPhaxConfig = {
   version: 1,
   name: "test",
-  gateProfiles: { full: ["pnpm test"] },
+  gateProfiles: { full: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] },
 } as const;
 
 describe("OrientConfigSchema", () => {

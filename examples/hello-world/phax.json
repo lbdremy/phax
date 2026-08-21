@@ -9,7 +9,10 @@
     "cleanup": ["rm -rf node_modules"]
   },
   "gateProfiles": {
-    "fast": ["pnpm typecheck", "pnpm test"],
-    "full": ["pnpm typecheck", "pnpm test", "pnpm build"]
+    "standard": [
+      { "command": "pnpm typecheck", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm test", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm build", "surface": "product", "firing": "terminal" }
+    ]
   }
 }

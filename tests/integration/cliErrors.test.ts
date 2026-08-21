@@ -96,7 +96,7 @@ describe("CLI error messages", () => {
           version: 1,
           name: "test",
           state: { root: join(tmpRepoRoot, ".phax-state") },
-          gateProfiles: { fast: ["true"] },
+          gateProfiles: { fast: [{ command: "true", surface: "local", firing: "every-phase" }] },
         }),
       );
 

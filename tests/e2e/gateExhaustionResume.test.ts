@@ -83,7 +83,7 @@ describe.skipIf(!shouldRun)("E2E gate-exhaustion resume", () => {
         version: 1,
         project: { name: "test-project", type: "single-package" },
         state: { root: stateRoot },
-        gateProfiles: { full: ["true"] },
+        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
         commands: { setup: ["true"], cleanup: ["true"] },
       },
       stateRoot,

@@ -128,6 +128,21 @@ function makePlan(shortName = "fixbug"): PhaxPlan {
   };
 }
 
+describe("pickGateProfileId — no fast/full depth preference", () => {
+  it("selects the first configured profile key regardless of a 'full' key", async () => {
+    const { pickGateProfileId } = await import("../../../src/cli/commands/run.js");
+    // 'custom' is first; the old code would have preferred 'full'.
+    const config = { raw: { gateProfiles: { custom: [], full: [] } } } as never;
+    expect(pickGateProfileId(config)).toBe("custom");
+  });
+
+  it("returns null when no profiles are configured", async () => {
+    const { pickGateProfileId } = await import("../../../src/cli/commands/run.js");
+    const config = { raw: { gateProfiles: {} } } as never;
+    expect(pickGateProfileId(config)).toBeNull();
+  });
+});
+
 describe("runRun — AP2(a): config missing name fails before run folder creation", () => {
   beforeEach(() => {
     vi.clearAllMocks();

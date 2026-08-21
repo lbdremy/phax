@@ -182,13 +182,7 @@ export async function runResume(
   const runId = runIdResult.right;
 
   const profiles = config.raw.gateProfiles;
-  const gateProfileId =
-    runStatus.gateProfileId ??
-    ("full" in profiles
-      ? "full"
-      : "fast" in profiles
-        ? "fast"
-        : (Object.keys(profiles)[0] ?? null));
+  const gateProfileId = runStatus.gateProfileId ?? Object.keys(profiles)[0] ?? null;
 
   if (gateProfileId === null) {
     out.error("No gate profiles configured in phax.json");

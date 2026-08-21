@@ -62,14 +62,12 @@ export interface RunCommandOptions {
   trace?: boolean;
 }
 
-function pickGateProfileId(config: ResolvedConfig): string | null {
+// A project defines a single gate profile; there is no depth-scalar
+// (fast/full) preference. Select the sole profile by its first key, erroring
+// when none is configured. Multi-profile disambiguation is out of scope.
+export function pickGateProfileId(config: ResolvedConfig): string | null {
   const profiles = config.raw.gateProfiles;
-
-  if ("full" in profiles) return "full";
-  if ("fast" in profiles) return "fast";
-
-  const keys = Object.keys(profiles);
-  return keys[0] ?? null;
+  return Object.keys(profiles)[0] ?? null;
 }
 
 // Render the run-completion report (spec 27 §6) as output lines: one line per

@@ -113,7 +113,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
         version: 1,
         project: { name: "routing-test", type: "single-package" },
         state: { root: stateRoot },
-        gateProfiles: { full: ["true"] },
+        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
         commands: { setup: ["true"], cleanup: [] },
       },
       stateRoot,

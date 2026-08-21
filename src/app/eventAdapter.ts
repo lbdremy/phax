@@ -29,6 +29,7 @@ import { reportGitFailure } from "./telemetry/reportBuilders.js";
 import { cleanupPhase, type CleanupPhaseOptions } from "./cleanup.js";
 import { commitPhase, type CommitPhaseOptions } from "./commit.js";
 import { runGates } from "./gates.js";
+import type { GateStep } from "../schemas/phaxConfig.js";
 
 /**
  * Wraps an Effect so both the success and failure paths produce a PhaxEvent.
@@ -142,13 +143,13 @@ export function adaptAgentResume(
 }
 
 export function adaptGateRun(
-  commands: readonly string[],
+  steps: readonly GateStep[],
   cwd: string,
   attemptLogPath: string,
   attempt: number,
   base: PhaxEventBase,
 ): Effect.Effect<GatePassed | GateFailed, FsError | ShellError, Shell | FileSystem> {
-  return runGates(commands, cwd, attemptLogPath).pipe(
+  return runGates(steps, cwd, attemptLogPath).pipe(
     Effect.map((): GatePassed => ({ ...base, type: "GatePassed", attempt })),
     Effect.catchTag(
       "GateFailedError",
