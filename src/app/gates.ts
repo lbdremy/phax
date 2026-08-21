@@ -5,6 +5,7 @@ import { GateFailedError } from "../domain/errors.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { decodeRunStatus, encodeRunStatus } from "../schemas/status.js";
+import { encodeGateAttribution, type GateStepResult } from "../schemas/gateAttribution.js";
 
 export interface GateOutcome {
   readonly attemptLogPath: string;
@@ -38,16 +39,36 @@ function parseCommandTokens(raw: string): readonly [string, ...string[]] {
   return [first, ...parts.slice(1)];
 }
 
+export interface RunGatesOptions {
+  readonly steps: readonly GateStep[];
+  readonly cwd: string;
+  readonly attemptLogPath: string;
+  /** When provided together with `phaseId`, the steps that ran (up to and
+   *  including the first failure) are recorded here as a GateAttribution. */
+  readonly attributionPath?: string;
+  readonly phaseId?: string;
+}
+
 export function runGates(
-  steps: readonly GateStep[],
-  cwd: string,
-  attemptLogPath: string,
+  opts: RunGatesOptions,
 ): Effect.Effect<GateOutcome, GateFailedError | FsError | ShellError, Shell | FileSystem> {
+  const { steps, cwd, attemptLogPath, attributionPath, phaseId } = opts;
   return Effect.gen(function* () {
     const shell = yield* Shell;
     const fs = yield* FileSystem;
 
     const logLines: string[] = [];
+    const stepResults: GateStepResult[] = [];
+
+    function writeAttribution(): Effect.Effect<void, FsError> {
+      if (attributionPath === undefined || phaseId === undefined) {
+        return Effect.void;
+      }
+      return fs.writeAtomic(
+        attributionPath,
+        JSON.stringify(encodeGateAttribution({ phase: phaseId, steps: stepResults }), null, 2),
+      );
+    }
 
     for (const step of steps) {
       const rawCommand = step.command;
@@ -62,7 +83,9 @@ export function runGates(
       logLines.push("");
 
       if (result.exitCode !== 0) {
+        stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
         yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
+        yield* writeAttribution();
         return yield* Effect.fail(
           new GateFailedError({
             message: `Gate command failed: ${rawCommand} (exit ${result.exitCode})`,
@@ -73,9 +96,12 @@ export function runGates(
           }),
         );
       }
+
+      stepResults.push({ command: rawCommand, surface: step.surface, result: "pass" });
     }
 
     yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
+    yield* writeAttribution();
     return { attemptLogPath };
   });
 }

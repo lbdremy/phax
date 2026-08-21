@@ -251,6 +251,25 @@ describe("runGatesWithFixLoop", () => {
     expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-03.log`)).toBeDefined();
   });
 
+  it("gate-attribution.json reflects the final attempt, not intermediate failures", async () => {
+    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+
+    seedStatusFiles(fakeFs);
+    fakeBackend.impl.addResumeResponse(makeResumeResult());
+    fakeShell.impl.enqueue(
+      { exitCode: 1, stdout: "", stderr: "test failure" },
+      { exitCode: 0, stdout: "ok", stderr: "" },
+    );
+
+    await Effect.runPromise(runGatesWithFixLoop(baseOpts).pipe(Effect.provide(layer)));
+
+    const raw = fakeFs.impl.getFile(`${phaseFolderPath}/gate-attribution.json`);
+    expect(raw).toBeDefined();
+    const record = JSON.parse(raw!) as { phase: string; steps: unknown[] };
+    expect(record.phase).toBe("phase-01");
+    expect(record.steps).toEqual([{ command: "pnpm test", surface: "local", result: "pass" }]);
+  });
+
   it("regression: startAttempt=1 produces checks-attempt-01 on success and attempt-02 after one fix", async () => {
     const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
 
