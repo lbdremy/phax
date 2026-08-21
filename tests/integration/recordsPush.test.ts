@@ -147,6 +147,11 @@ describe("records push and pending status (real git)", () => {
     const cloneDir = mkdtempSync(join(tmpdir(), "phax-records-push-clone-"));
     await rm(cloneDir, { recursive: true, force: true });
     execGit(["clone", "--", remoteDir, cloneDir], tmpdir());
+    // A fresh clone inherits no committer identity, and CI runners set none
+    // globally; configure it locally like every other repo this suite commits
+    // into, so `commit-tree` does not fail with "empty ident name".
+    execGit(["config", "--local", "user.email", "test@phax.test"], cloneDir);
+    execGit(["config", "--local", "user.name", "phax test"], cloneDir);
     await writeRecordCommit(cloneDir, "run-2", "phase-01", "c");
 
     const repoRecords: ResolvedRecordsConfig = {

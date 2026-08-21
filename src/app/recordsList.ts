@@ -77,9 +77,15 @@ export function listRecords(
       );
       if (manifestEntry === undefined) continue;
       const bytes = yield* git.readBlob(localPath, manifestEntry.oid);
-      const decoded = decodeRunRecordManifest(
-        JSON.parse(new TextDecoder().decode(bytes)) as unknown,
-      );
+      let json: unknown;
+      try {
+        json = JSON.parse(new TextDecoder().decode(bytes)) as unknown;
+      } catch {
+        // A record.json that is not even valid JSON is treated the same as a
+        // schema-invalid one: skip it rather than crashing the whole listing.
+        continue;
+      }
+      const decoded = decodeRunRecordManifest(json);
       if (Either.isLeft(decoded)) continue;
       const manifest = decoded.right;
       records.push({

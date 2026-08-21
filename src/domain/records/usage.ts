@@ -115,6 +115,11 @@ export function extractCodexUsage(
  * (`findVibeSessionId` in `src/schemas/vibeOutput.ts`). `.stats` is the
  * richest of the three sources: it also carries tool-call agreement counts
  * nothing else exposes.
+ *
+ * Field names verified against live `~/.vibe/logs/session/<id>/meta.json`
+ * (vibe 2.13.0): the session-wide token counts are `session_prompt_tokens`
+ * and `session_completion_tokens` — vibe exposes no `input_tokens`/
+ * `output_tokens` keys at the `stats` level.
  */
 export function extractVibeUsage(metaJsonText: string): VibeTokenUsage | undefined {
   let parsed: unknown;
@@ -128,8 +133,8 @@ export function extractVibeUsage(metaJsonText: string): VibeTokenUsage | undefin
   const stats = parsed["stats"];
   if (!isRecord(stats)) return undefined;
 
-  const inputTokens = num(stats["input_tokens"]);
-  const outputTokens = num(stats["output_tokens"]);
+  const inputTokens = num(stats["session_prompt_tokens"]);
+  const outputTokens = num(stats["session_completion_tokens"]);
   const sessionCostUsd = num(stats["session_cost"]);
   const toolCallsAgreed = num(stats["tool_calls_agreed"]);
   const toolCallsRejected = num(stats["tool_calls_rejected"]);
