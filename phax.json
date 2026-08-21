@@ -4,7 +4,9 @@
   "name": "phax",
   "security": {
     "filesystem": {
-      "allowWrite": ["~/.phax"]
+      "allowWrite": [
+        "~/.phax"
+      ]
     },
     "agentCommands": [
       "deno",
@@ -26,7 +28,11 @@
       "pnpm test:integration"
     ]
   },
-  "review": { "compliance": { "enabled": true } },
+  "review": {
+    "compliance": {
+      "enabled": true
+    }
+  },
   "publish": {
     "auto": true,
     "remote": "origin",
@@ -36,11 +42,19 @@
     "baseBranch": "main"
   },
   "commands": {
-    "setup": ["pnpm install"],
-    "cleanup": ["rm -rf node_modules"]
+    "setup": [
+      "pnpm install"
+    ],
+    "cleanup": [
+      "rm -rf node_modules"
+    ]
   },
   "gateProfiles": {
-    "fast": ["pnpm format", "pnpm typecheck", "pnpm test:unit"],
+    "fast": [
+      "pnpm format",
+      "pnpm typecheck",
+      "pnpm test:unit"
+    ],
     "full": [
       "pnpm format",
       "pnpm typecheck",
@@ -55,5 +69,13 @@
       "pnpm deno:smoke-binary",
       "pnpm gen:model-catalog --check"
     ]
+  },
+  "records": {
+    "transcript": true,
+    "destination": {
+      "kind": "repo",
+      "remote": "git@github.com:lbdremy/phax-records.git"
+    },
+    "autoPush": true
   }
 }
