@@ -71,6 +71,13 @@ one with all the context of what it just did — and tells it to fix the failure
 the gate again. A phase only advances when its gate is green. A phase that produced no
 changes stops the run with a clear exit code instead of committing nothing and pretending.
 
+The same principle reaches back to the plan itself. Turning `plan.md` into the structured
+`phax-plan.json` that drives a run used to be an agent's job. Now it's a **deterministic
+parser first**: a well-formed plan extracts instantly, identically, with no model in the loop.
+Only a plan the parser can't read falls back to the LLM — and that fallback is recorded as a
+warning, not hidden. Extractions are content-addressed and cached, so the same plan text never
+gets extracted twice. Less of the pipeline is probabilistic than it was; that's the direction.
+
 ### 2. Human review at the center
 
 phax is not trying to remove you from the loop. It's trying to give you a *good seat* in it.
@@ -82,6 +89,9 @@ phax is not trying to remove you from the loop. It's trying to give you a *good 
   forward deliberately instead of by accident.
 - phax **reconciles** the files the agent actually touched against the files the plan said
   it would touch — more on this below, because it's one of my favorite parts.
+- Every phase leaves a **record** — prompt, diff, gate logs, handoff, transcript — versioned in
+  Git, not just in a folder on your laptop. Months later, `phax records explain <sha>` tells you
+  *why* a commit exists. More on this below.
 - The **final phase stays open**. When the run finishes, phax doesn't slam the door — it
   leaves the last phase's session and worktree live, writes a `review-handoff.md` pointing
   at the branch to review, and waits. You drop in with `phax enter`, `phax shell`, or
@@ -107,13 +117,18 @@ preserved for as long as you want to look at it.
 I didn't want phax welded to a single vendor. Phase execution can run through **Claude Code,
 Mistral Vibe, or OpenAI Codex**, chosen by a routing layer you control.
 
-The trick is that routing speaks in **model families** and **capability tiers**, not in
-versioned model IDs that rot every two months. You ask for a tier — `standard`, `strong`,
-`frontier-high` — and phax maps it to the best offering each provider has, then picks the
-first available provider from your priority list:
+I tried the obvious design first — an invented scale of capability tiers that each provider
+maps onto — and threw it out. A made-up ladder is one more thing to maintain, and it hides the
+real question. What shipped instead: the plan names **real, versioned models** (`claude-opus-4-8`
+at `high`, say) from a **catalog** phax keeps current, and a small **equivalence table** — a
+star with Claude at the hub — translates that request when a *different* provider family ends up
+running it. Each edge carries only a capability relation (`equivalent`, `upgrade`, `downgrade`),
+and the one policy knob is `allowDowngrade`. At run start a **preflight** checks every phase is
+actually runnable on what you have installed; if not, it refuses with the valid alternatives so
+the plan can be corrected *before* anything runs, not halfway through phase 4.
 
 ```bash
-phax agent models                         # the routing table + provider priority
+phax agent models                         # the catalog, equivalence table, provider priority
 phax agent resolve --model claude-opus-4-8 --effort high
 phax run --provider-priority codex-cli,claude-code   # override for one run
 ```
@@ -150,7 +165,10 @@ phax skills install --target claude  # once: teach your agent the plan format
 ```
 
 Now write the plan — except you don't write it by hand. You hand your agent a spec and the
-planning skill, and let it draft `plan.md` for you. In Claude Code, that's one prompt:
+planning skill, and let it draft `plan.md` for you. (The spec doesn't have to be hand-written
+either: a sibling `phax-spec` skill drafts it in the shape the planning skill expects — EARS
+requirements, testable acceptance criteria, a consumption surface. Spec → plan → run, each step
+consuming the last.) In Claude Code, the planning prompt is one line:
 
 ```text
 Plan the spec @docs/specs/14-remove-network-controls.md using @phax-planning
@@ -170,13 +188,26 @@ re-run. By the time you hand it to phax, you've already reviewed the *intent* �
 holds the execution to it, phase by phase, and the post-run reconciliation shows you where
 reality drifted from the plan you signed off on.
 
-Only then do you point `phax run` at it:
+When you believe in it, you say so — explicitly:
 
 ```bash
-phax run --plan plan.md              # extracts the plan, runs every phase, leaves a run to review
+phax artifact approve docs/plans/44-gate-profile-steps.md
+phax run --plan docs/plans/44-gate-profile-steps.md   # extracts, runs every phase, leaves a run to review
 ```
 
-That's the whole happy path: in normal use, `run` is the command you reach for.
+That approval isn't ceremony. Specs and plans carry a **lifecycle status** in their YAML
+frontmatter — `Draft`, `Approved`, `Stale`, `Abandoned`, `Completed` — and `phax run` **refuses
+to start from anything but an `Approved` plan**. A plan declares which spec it derives from
+(or explicitly declares none), and approving it is chain-gated: the source spec must be
+`Approved` too. Every transition is a path-scoped commit, so the history of *what you signed
+off on, and when* is in Git, next to the code. The "review the intent first" step above used to
+be a habit; now it's enforced.
+
+The approval also records **what it was given against** — the spec's content, the plan's
+content, and a baseline commit. That's what lets phax notice when the ground shifts under a
+plan, which matters once you have more than one in flight (below).
+
+That's the whole happy path: in normal use, `approve` then `run` are the commands you reach for.
 
 The one other command you *will* use on any sizable run is **`phax resume`**. Long runs hit
 usage limits — you're halfway through phase 4 of 7 and the provider cuts you off. phax doesn't
@@ -188,8 +219,8 @@ committed. The same holds for any clean mid-run stop: resume continues, it doesn
 Everything else is there when you want it, not on the critical path. `phax ls`, `phax enter`,
 `phax publish-pr`, and `phax archive` list, step into, ship, or shelve a run;
 `phax review-compliance` and `phax review-code` are the two review passes from above, run on
-demand; and `phax plans-overlap` and `phax adjust-plan` come out when you're juggling more than
-one plan at a time. And `phax extract-plan` exists on its own purely as a debugging aid — to
+demand; and `phax plans status`, `phax plans overlap`, and `phax adjust-plan` come out when
+you're juggling more than one plan at a time. And `phax extract-plan` exists on its own purely as a debugging aid — to
 check that your `plan.md` extracts into a clean `phax-plan.json` before you commit to a full run.
 You don't normally call it; `run` does the extraction for you.
 
@@ -206,7 +237,7 @@ decoration. After a phase runs, phax takes the **real** Git diff of what the age
 changed and **reconciles** it against what the phase *said* it would change. Deterministically,
 no model involved, it sorts every changed file into buckets:
 
-- created as planned / edited as planned,
+- created as planned / edited as planned / optional-and-touched,
 - **planned but missing** — the agent never touched a file it promised to,
 - **unplanned** — the agent created or edited a file the plan never mentioned,
 - deletions and renames.
@@ -249,7 +280,13 @@ before the phase-by-phase breakdown: whoever opens the PR reads `conformant` /
 to spend their attention. (The review is non-fatal — if it fails, the run still lands in
 `review_open` and you can fall back to running it yourself.) Too long for GitHub's size cap? It
 truncates gracefully and points to `review-handoff.md` on the branch. You can also publish by
-hand or retry with `phax publish-pr <run>`. So the artifact you open in the morning isn't a
+hand or retry with `phax publish-pr <run>`.
+
+One more thing rides on that branch. When the final phase's gates go green, the run appends the
+plan's own `Approved → Completed` transition as a commit on the run branch — before review
+opens, independent of how you publish. Merge the PR and the work and its completion land in one
+gesture; revert it and they unland together. The plan's status can't drift from what actually
+shipped, because they're the same commits. So the artifact you open in the morning isn't a
 naked diff — it's a PR that already tells you *whether the plan was honored, what the plan was,
 what actually happened, and exactly where the two diverged and why.*
 
@@ -258,7 +295,7 @@ what actually happened, and exactly where the two diverged and why.*
 The declared-file lists pay off a second time, pointed in the opposite direction. Once you're
 breaking work into plans, you start wanting to run *several*, and that raises a question phax
 can now answer deterministically: **which plans can run at the same time without colliding?**
-`phax plans-overlap` takes two or more `plan.md` files, unions each plan's declared phase
+`phax plans overlap` takes two or more `plan.md` files, unions each plan's declared phase
 file-sets into a footprint, and intersects them pairwise. Out comes a severity-graded conflict
 matrix, the clean pairs, the largest fully-disjoint set you can safely launch at once, and a
 greedy wave schedule. It's the same discipline the reconciliation leans on, aimed at
@@ -273,8 +310,64 @@ version of the question — it reads the run's **actual** Git diff (from the ver
 need re-adjustment, with no false negatives. And `phax adjust-plan <plan> --landed <run>` opens
 an interactive, pre-prompted session that walks the plan against what actually landed, proposes
 concrete edits, waits for your explicit approval, and only then rewrites and commits the plan.
+
+But drift doesn't only come from phax runs. A teammate merges a refactor by hand; you rewrite
+the spec a plan was derived from; you edit the plan itself after approving it. This is where the
+approval record earns its keep. `phax plans status` walks every `Approved` plan and checks it
+against the three things its approval was recorded against, naming the reason when one has
+moved — `spec-changed`, `ground-changed` (files in the plan's footprint changed since the
+baseline commit), `self-changed`. It's a report, not a gate: it exits 0 either way, and only
+`--apply` flips the stale ones to `Stale` — an explicit gesture, never automatic. A stale plan
+can't run; `reopen` sends it back to `Draft` for re-planning, or `approve` re-records it against
+the new ground if you've looked and it still holds.
+
 The same plan-vs-actual machinery that makes a single run reviewable also keeps a *backlog* of
-plans honest as the tree shifts underneath them.
+plans honest as the tree shifts underneath them — whoever shifted it.
+
+## Run records: blame should reach the intent
+
+Everything above produces evidence: the prompt a phase was given, the diff it produced, every
+gate log from every fix attempt, the reconciliation, the handoff, the agent's full transcript,
+the token usage. Before 1.0, all of that lived in `~/.phax/runs/` — a warehouse on one laptop.
+The phase commit carried trailers pointing at a gate log *path* that existed on exactly one
+filesystem. A reviewer on `main` could reach the commit and the diff, but not the prompt that
+produced it, the gate that admitted it, or the transcript showing what the agent read and what
+it abandoned. One `rm -rf ~/.phax` away from gone, and no teammate ever saw it.
+
+So 1.0 **versions what it already produces**. When a phase ends — committed, failed, or
+interrupted — phax writes a **record**: an ordinary Git tree on an orphan branch,
+`phax/records/v1`, written with plumbing so your working tree and index are never touched.
+Records are addressed by `Run-Id` + `Phase-Id`, which the phase commit's trailers already carry,
+so a rebase or squash-merge that rewrites the sha doesn't orphan anything. Nothing is filtered,
+redacted, or summarized; the transcript is stored as the provider emitted it, or the record says
+plainly that it holds a skeleton without one.
+
+Records follow the work rather than lead it: the record commits locally when the phase commits,
+and is pushed when the run is published. A push that fails leaves the record *pending* — shown
+in `phax ls` and `phax records status` — and never fails the run. Then, whenever you want to
+know why a line exists:
+
+```bash
+phax records explain <sha>    # prompt, diff, gates, handoff, transcript, usage — for that commit
+```
+
+The one rule I wouldn't bend: **a record must never land somewhere more readable than the code it
+describes.** A transcript can hold anything the agent saw. So records go into the source repo
+only when that repo is private; if the repo is public and transcripts are on, they go to a
+dedicated private records repo — and phax refuses to write otherwise. `phax records init` (or
+the `phax init` wizard) asks whether to include transcripts and whether to push automatically;
+it announces the destination, it doesn't offer a choice, and it tells you in so many words that
+making a private repo public later publishes every transcript already in its history.
+
+## Orientation before the gate
+
+The gate is corrective: it fires *after* the agent has written code. 1.0 adds a preventive leg.
+Register an **orient provider** and, when a phase is dispatched, phax asks it for a **brief**
+keyed by the phase's planned files — the conventions, boundaries, and patterns the project
+already knows about those files — and weaves it into the prompt as an *index* the agent can
+expand on demand (`phax orient <id>`), including for files the plan didn't predict. It's purely
+advisory: the brief arms the agent, it never jails it — the gate remains the only leg with teeth.
+No provider registered? The prompt is dispatched unchanged.
 
 ## What 1.0 ships with
 
@@ -283,7 +376,7 @@ A few things that make phax feel like a finished tool rather than a clever scrip
 - **`phax init`** — one command to scaffold a minimal, valid, schema-backed `phax.json`. The
   `$schema` reference is real and versions with the release, so your editor gives you
   validation and completion that match the phax you actually installed.
-- **Project namespaces** — runs now belong to a project. `phax.json` carries a `name`,
+- **Project namespaces** — runs belong to a project. `phax.json` carries a `name`,
   and runs are identified as `phax.remove-network-controls`, not a globally-ambiguous
   `remove-network-controls`. Inside a repo you still type the short name; phax resolves and
   *displays* the qualified one everywhere. Two projects can both have a
@@ -298,6 +391,10 @@ A few things that make phax feel like a finished tool rather than a clever scrip
   come from one validated source of truth, so `--help`, the README, and the runtime can't
   drift apart. `phax <command> --help` actually tells you what a command does and what it
   touches.
+- **Repo-rooted, from anywhere** — run phax from any subdirectory; paths resolve against where
+  you invoked it, state resolves against the repo root.
+- **An interactive `phax init`** — an `npm init`-style wizard that pre-fills the project slug
+  and gate commands from your `package.json`, and asks the records questions above.
 
 And a lot of deliberate *subtraction*: trimming convenience commands that didn't earn their
 keep, so the surface you have to learn is the surface that matters.
@@ -387,6 +484,7 @@ Let the agent do the work. Keep the review.
 ```bash
 npm install -g @lbdremy/phax
 phax init
+phax skills install --target claude
 ```
 
 — *phax 1.0*
