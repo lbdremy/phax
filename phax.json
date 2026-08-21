@@ -4,9 +4,7 @@
   "name": "phax",
   "security": {
     "filesystem": {
-      "allowWrite": [
-        "~/.phax"
-      ]
+      "allowWrite": ["~/.phax"]
     },
     "agentCommands": [
       "deno",
@@ -42,19 +40,11 @@
     "baseBranch": "main"
   },
   "commands": {
-    "setup": [
-      "pnpm install"
-    ],
-    "cleanup": [
-      "rm -rf node_modules"
-    ]
+    "setup": ["pnpm install"],
+    "cleanup": ["rm -rf node_modules"]
   },
   "gateProfiles": {
-    "fast": [
-      "pnpm format",
-      "pnpm typecheck",
-      "pnpm test:unit"
-    ],
+    "fast": ["pnpm format", "pnpm typecheck", "pnpm test:unit"],
     "full": [
       "pnpm format",
       "pnpm typecheck",
