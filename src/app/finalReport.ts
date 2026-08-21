@@ -7,6 +7,8 @@ import type { PublicationRecord } from "../domain/publish/types.js";
 import type { RunReviewInfo } from "./resolveRunInfo.js";
 import type { PhaseStatus } from "../schemas/status.js";
 import { decodeSecurityPosture, type SecurityPosture } from "../schemas/securityPosture.js";
+import type { Surface } from "../schemas/phaxConfig.js";
+import { aggregateVerifiedSurfaces } from "./gateAttribution.js";
 
 function formatDuration(startIso: string, endIso: string): string {
   const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
@@ -153,7 +155,11 @@ export function renderPublicationSection(record: PublicationRecord): string {
   return lines.join("\n") + "\n";
 }
 
-function buildFinalReportMarkdown(info: RunReviewInfo, publication?: PublicationRecord): string {
+function buildFinalReportMarkdown(
+  info: RunReviewInfo,
+  verifiedSurfaces: readonly Surface[],
+  publication?: PublicationRecord,
+): string {
   const passed = info.phaseStatuses.filter(isPhaseSuccessful).length;
   const failed = info.phaseStatuses.filter((p) => p.state === "failed").length;
   const total = info.phaseStatuses.length;
@@ -223,6 +229,7 @@ function buildFinalReportMarkdown(info: RunReviewInfo, publication?: Publication
 - **Final Phase Branch (review here)**: \`${info.finalPhaseBranch}\`
 - **State**: ${info.runState}
 - **Gate Profile**: ${info.gateProfileId ?? "(none)"}
+- **Surfaces Verified**: ${verifiedSurfaces.length > 0 ? verifiedSurfaces.join(", ") : "(none)"}
 - **Total Phases**: ${total}
 - **Passed**: ${passed}
 - **Failed**: ${failed}
@@ -255,7 +262,11 @@ export function writeFinalReport(
 ): Effect.Effect<void, FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const content = buildFinalReportMarkdown(info, publication);
+    const verifiedSurfaces = yield* aggregateVerifiedSurfaces(
+      info.runPath,
+      info.phaseStatuses.map((p) => p.phaseId),
+    );
+    const content = buildFinalReportMarkdown(info, verifiedSurfaces, publication);
     yield* fs.writeAtomic(join(info.runPath, "final-report.md"), content);
   });
 }
