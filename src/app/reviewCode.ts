@@ -14,6 +14,8 @@ import {
   type CodeReviewSession,
 } from "../schemas/codeReviewSession.js";
 import { decodeComplianceReview } from "../schemas/complianceReview.js";
+import { decodeGlobalFileReconciliation } from "../schemas/globalReconciliation.js";
+import { toCodeReviewAttentionPoints } from "../domain/review/codeReviewWorklist.js";
 import { decodePhaseAgentBinding } from "../schemas/phaseAgentBinding.js";
 import { getSessionAdapter } from "../domain/session/index.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -25,7 +27,7 @@ import {
   makeArtifactGeneratedTelemetryEvent,
 } from "../domain/telemetry/events.js";
 
-const GLOBAL_RECONCILIATION_FILENAME = "global-file-reconciliation.md";
+const GLOBAL_RECONCILIATION_FILENAME = "global-file-reconciliation.json";
 const COMPLIANCE_REVIEW_JSON_FILENAME = "compliance-review.json";
 const CODE_REVIEW_SESSION_FILENAME = "code-review-session.json";
 const PHAX_CONTEXT_DIR = ".phax-context";
@@ -203,11 +205,25 @@ export function prepareCodeReviewSession(
     // New session branch
     const sessionId = randomUUID();
 
+    // Build the primary worklist from the structured reconciliation JSON. A
+    // missing, unparsable, or undecodable file degrades to an empty worklist —
+    // never a refusal — mirroring the compliance JSON handling just below, so
+    // review-code stays usable on interrupted or older runs.
     const reconciliationPath = join(info.runPath, GLOBAL_RECONCILIATION_FILENAME);
     const reconciliationReadResult = yield* Effect.either(fs.readText(reconciliationPath));
-    const reconciliationMd = Either.isRight(reconciliationReadResult)
-      ? reconciliationReadResult.right
-      : "";
+    let attentionPoints: Parameters<typeof buildCodeReviewPrompt>[0]["attentionPoints"] = [];
+
+    if (Either.isRight(reconciliationReadResult)) {
+      try {
+        const reconciliationJson = JSON.parse(reconciliationReadResult.right);
+        const reconciliationDecodeResult = decodeGlobalFileReconciliation(reconciliationJson);
+        if (Either.isRight(reconciliationDecodeResult)) {
+          attentionPoints = toCodeReviewAttentionPoints(reconciliationDecodeResult.right);
+        }
+      } catch {
+        // Malformed JSON — treat as an empty worklist
+      }
+    }
 
     const complianceJsonPath = join(info.runPath, COMPLIANCE_REVIEW_JSON_FILENAME);
     const complianceReadResult = yield* Effect.either(fs.readText(complianceJsonPath));
@@ -246,8 +262,7 @@ export function prepareCodeReviewSession(
 
     const promptContent = buildCodeReviewPrompt({
       worktreePath,
-      reconciliationMd,
-      attentionPoints: [],
+      attentionPoints,
       ...(complianceBlock !== undefined ? { compliance: complianceBlock } : {}),
       complianceMissing,
     });

@@ -12,7 +12,6 @@ const baseAttentionPoints = [
 
 const baseInput = {
   worktreePath: "/home/user/.phax/worktrees/my-run/phase-03",
-  reconciliationMd: "## PHAX File Reconciliation\n\n### Planned to edit\n- [x] src/foo.ts",
   attentionPoints: baseAttentionPoints,
   complianceMissing: false,
 };

@@ -2,7 +2,6 @@ export const CODE_REVIEW_PROMPT_FILENAME = "code-review-prompt.md";
 
 export interface BuildCodeReviewPromptInput {
   readonly worktreePath: string;
-  readonly reconciliationMd: string;
   readonly attentionPoints: ReadonlyArray<{
     readonly path: string;
     readonly status: string;

@@ -93,6 +93,48 @@ const codexBinding = encodePhaseAgentBinding({
   status: "completed",
 });
 
+function reconciliationEntry(overrides: Record<string, unknown>): Record<string, unknown> {
+  return {
+    path: "src/x.ts",
+    plannedInPhases: [],
+    touchedInPhases: [],
+    optionalInPhases: [],
+    expectedActions: [],
+    actualActions: [],
+    status: "unplanned",
+    planned: false,
+    unplanned: true,
+    missing: false,
+    extraTouch: false,
+    attention: "review",
+    ...overrides,
+  };
+}
+
+const attentionPathA = "src/unplanned-a.ts";
+const attentionPathB = "src/missing-b.ts";
+
+const validReconciliationJson = JSON.stringify({
+  files: [],
+  unplanned: [],
+  missing: [],
+  attentionPoints: [
+    reconciliationEntry({
+      path: attentionPathA,
+      status: "unplanned",
+      touchedInPhases: ["phase-01"],
+    }),
+    reconciliationEntry({
+      path: attentionPathB,
+      status: "missing",
+      plannedInPhases: ["phase-02"],
+    }),
+  ],
+});
+
+const reconciliationJsonPath = `${runPath}/global-file-reconciliation.json`;
+const NO_ATTENTION_SENTINEL = "_No attention points recorded._";
+
 const validComplianceJson = JSON.stringify({
   version: 1,
   verdict: "conformant-with-deviations",
@@ -116,7 +158,7 @@ describe("prepareCodeReviewSession", () => {
   it("new session: writes prompt and session record, returns mode 'new' with claude --session-id", async () => {
     const fs = makeFakeFileSystem();
     fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
-    fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
+    fs.impl.setFile(reconciliationJsonPath, validReconciliationJson);
 
     const result = await Effect.runPromise(
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
@@ -143,6 +185,12 @@ describe("prepareCodeReviewSession", () => {
     expect(promptContent).toBeDefined();
     expect(promptContent).toContain("Code review session");
 
+    // Worklist sourced from the reconciliation JSON — both attention points
+    // rendered, empty-worklist sentinel absent
+    expect(promptContent).toContain(attentionPathA);
+    expect(promptContent).toContain(attentionPathB);
+    expect(promptContent).not.toContain(NO_ATTENTION_SENTINEL);
+
     // Session record written
     const recordRaw = fs.impl.getFile(sessionRecordPath);
     expect(recordRaw).toBeDefined();
@@ -159,7 +207,7 @@ describe("prepareCodeReviewSession", () => {
   it("new session with compliance present: prompt reflects compliance content", async () => {
     const fs = makeFakeFileSystem();
     fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
-    fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
+    fs.impl.setFile(reconciliationJsonPath, validReconciliationJson);
     fs.impl.setFile(`${runPath}/compliance-review.json`, validComplianceJson);
 
     const result = await Effect.runPromise(
@@ -185,7 +233,7 @@ describe("prepareCodeReviewSession", () => {
   it("new session without compliance: prompt includes compliance-missing tip", async () => {
     const fs = makeFakeFileSystem();
     fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
-    fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
+    fs.impl.setFile(reconciliationJsonPath, validReconciliationJson);
     // No compliance-review.json
 
     const result = await Effect.runPromise(
@@ -200,6 +248,44 @@ describe("prepareCodeReviewSession", () => {
 
     const promptContent = fs.impl.getFile(promptFilePath);
     expect(promptContent).toContain("phax review-compliance");
+  });
+
+  it("new session with no reconciliation JSON: ready with empty worklist", async () => {
+    const fs = makeFakeFileSystem();
+    fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
+    // No global-file-reconciliation.json
+
+    const result = await Effect.runPromise(
+      prepareCodeReviewSession(makeInfo(), defaultConfig, {
+        newSession: false,
+        nowIso,
+      }).pipe(Effect.provide(makeLayer(fs))),
+    );
+
+    expect(result.kind).toBe("ready");
+    if (result.kind !== "ready") return;
+
+    const promptContent = fs.impl.getFile(promptFilePath);
+    expect(promptContent).toContain(NO_ATTENTION_SENTINEL);
+  });
+
+  it("new session with malformed reconciliation JSON: ready with empty worklist", async () => {
+    const fs = makeFakeFileSystem();
+    fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
+    fs.impl.setFile(reconciliationJsonPath, "{ not valid json");
+
+    const result = await Effect.runPromise(
+      prepareCodeReviewSession(makeInfo(), defaultConfig, {
+        newSession: false,
+        nowIso,
+      }).pipe(Effect.provide(makeLayer(fs))),
+    );
+
+    expect(result.kind).toBe("ready");
+    if (result.kind !== "ready") return;
+
+    const promptContent = fs.impl.getFile(promptFilePath);
+    expect(promptContent).toContain(NO_ATTENTION_SENTINEL);
   });
 
   it("resume (no overrides): returns mode 'resume' with --resume, no --model/--effort", async () => {
@@ -282,7 +368,7 @@ describe("prepareCodeReviewSession", () => {
   it("newSession: true with existing record: regenerates and returns mode 'new'", async () => {
     const fs = makeFakeFileSystem();
     fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
-    fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
+    fs.impl.setFile(reconciliationJsonPath, validReconciliationJson);
 
     const existingRecord = encodeCodeReviewSession({
       version: 1,
@@ -321,7 +407,7 @@ describe("prepareCodeReviewSession", () => {
   it("unsupported provider for new session: returns kind 'unsupported', no session record", async () => {
     const fs = makeFakeFileSystem();
     fs.impl.setFile(bindingPath, JSON.stringify(codexBinding));
-    fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
+    fs.impl.setFile(reconciliationJsonPath, validReconciliationJson);
 
     const result = await Effect.runPromise(
       prepareCodeReviewSession(makeInfo(), defaultConfig, {
