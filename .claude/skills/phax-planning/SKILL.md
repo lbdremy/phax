@@ -299,11 +299,12 @@ because a spike's value is in judgment, not in compiling code. Reconcile it like
   live API, observing a network block) happens out-of-band — a human or an e2e step —
   and its output is pasted into the findings doc. A closing synthesis phase
   rapatriates the judgment into a go/no-go.
-- **Use the `fast` gate profile, not `full`.** Spike artifacts (`spikes/`, docs) have no
-  architecture/knip/build surface to protect, so a passing `full` gate is misleading
-  "false green". `fast` is honest and `typecheck` still covers any TypeScript
-  scaffolding the spike produces. Gates passing trivially ("à vide") is acceptable for a
-  spike — the real signal lives in the findings doc, not the gate.
+- **Keep the spike project's gate profile light.** Spike artifacts (`spikes/`, docs) have
+  no architecture/knip/build surface to protect, so gating them on heavy structural/product
+  steps is a misleading "false green". Configure the spike's single gate profile with just
+  the honest light steps (e.g. `typecheck` to cover any TypeScript scaffolding the spike
+  produces). Gates passing trivially ("à vide") is acceptable for a spike — the real signal
+  lives in the findings doc, not the gate.
 - **State the execution-model caveat in the plan Overview.** A phase agent runs in a
   worktree and cannot reliably self-verify real-world effects (a microVM escape, a live
   egress block). Say so explicitly, so the synthesis reads as provisional until a real
@@ -487,7 +488,7 @@ durable place to persist run state.
 
 ### Verification
 
-- The project's configured `full` gate profile in `phax.json`.
+- The project's configured `standard` gate profile in `phax.json`.
 
 ### Expected handoff content
 
