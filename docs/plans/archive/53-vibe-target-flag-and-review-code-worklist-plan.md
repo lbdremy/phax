@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: null
 approved:
   date: 2026-08-21

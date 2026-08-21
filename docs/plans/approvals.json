@@ -12,12 +12,6 @@
       "approvedAt": "2026-08-11T07:59:18.912Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
-    },
-    "docs/plans/53-vibe-target-flag-and-review-code-worklist-plan.md": {
-      "planFingerprint": "dff973fddff1e4dd4f2210e1e77fa6060eb72e288343260df9dd96bbaa2d3860",
-      "approvedAt": "2026-08-21T11:04:37.986Z",
-      "baseline": "02f577037fe6a98a76a428d17051bd3a05210c43",
-      "sourceSpec": null
     }
   }
 }
