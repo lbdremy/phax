@@ -44,7 +44,7 @@
     "cleanup": ["rm -rf node_modules"]
   },
   "gateProfiles": {
-    "full": [
+    "standard": [
       { "command": "pnpm format", "surface": "local", "firing": "every-phase" },
       { "command": "pnpm typecheck", "surface": "local", "firing": "every-phase" },
       { "command": "pnpm test:type", "surface": "local", "firing": "every-phase" },
