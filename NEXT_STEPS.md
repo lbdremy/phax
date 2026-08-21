@@ -31,6 +31,16 @@ shipped run records (spec 29 / plan 52). No small follow-ups are open.
 
 ## Spec candidates, deliberately not written yet
 
+- [ ] **Spec re-approval with a recorded ground.** Found 2026-08-21 re-approving specs 16/18/19
+      after their in-place revision against the shipped spec 15: `phax artifact approve` refuses
+      `Approved → Approved` for specs (exit 12), and a spec's frontmatter has no `approved:
+      { date, baseline }` mapping — only plans carry one. The re-approval ended up as prose in
+      the `date` key (`"2026-08-21 (re-approved against main 7b64e98: …)"`), which nothing can
+      read back. Spec 22's staleness machinery therefore sees plan ground move but never spec
+      ground. Candidate shape: specs gain the same `approved` mapping as plans and
+      `Approved → Approved` becomes the legal re-stamp (as it already is for plans); the
+      frontmatter key set is exact, so this is a schema change with no shim. Smallest of the
+      candidates — write it next.
 - [ ] Preview manifest — `phax.json` declares how to preview a finished run
       (per-project-type discriminated union: web / cli / lib). Write it when desktop
       work starts; nothing consumes it before then.
@@ -42,7 +52,10 @@ shipped run records (spec 29 / plan 52). No small follow-ups are open.
 ## Postponed — every approved-but-unplanned spec
 
 Five approved specs are parked. With plan 44 landed, 16 and 18 are now the natural
-next pick — they build directly on the attributed step that shipped in 0.10. Each is
+next pick — they build directly on the attributed step that shipped in 0.10. All three gate-line
+specs (16, 18, 19) were revised and re-approved against main `7b64e98` on 2026-08-21 (`cd04e3a`,
+`7b64e98`, `5f67f0a`): 16 shrank to diagnostic-emitting steps, 18 gets closure from a registered
+`scopes` provider fed with a thin plan projection, 19 shares that projection. Each is
 plannable at any time; nothing blocks them technically. Pick one back up by writing a plan (`phax-planning` skill) — no
 re-approval needed unless the spec's own ground moves. Note that plan staleness is a
 **plan** property, so a spec parked here does not rot; the plans written against them
@@ -50,16 +63,15 @@ do.
 
 ### Gate specs 16 / 18 and advisory 19
 
-- [ ] `docs/specs/16-external-gate-steps.md` — no plan. Builds on 15's attributed
-      step, which is on `main` since 0.10 — unblocked. Re-read the spec against the
-      shipped `GateProfilesSchema` / `SurfaceSchema` before planning; it was written
-      against the July draft of 15.
-- [ ] `docs/specs/18-gate-step-scheduling.md` — no plan. Also unblocked by 0.10.
-      Check how much of it plan 44 phase-02 (every-phase vs terminal firing) already
-      covers — the spec may shrink to what firing does not express.
-- [ ] `docs/specs/19-plan-completeness-advisory.md` — no plan, and nothing registers a
-      plan auditor in `phax.json`. Independent of the gate line: a projection
-      (ordered phases + touched files), an advisory pass, no blocking.
+- [ ] `docs/specs/16-external-gate-steps.md` — no plan. Ready to plan: a step opts in
+      with an `output: diagnostics` field, the stdout document is the verdict, findings
+      replace the raw log in the fix prompt.
+- [ ] `docs/specs/18-gate-step-scheduling.md` — no plan; depends on 16. Adds
+      `class` + `scopes` per diagnostic, a `scopes` provider queried per gated phase,
+      and `pending` as a third attribution result. The `steme scopes` command it
+      assumes is only *proposed* on the steme side — confirm before planning.
+- [ ] `docs/specs/19-plan-completeness-advisory.md` — no plan. Shares 18's plan
+      projection; plan it after (or with) 18 so the projection is built once.
 
 ### Specs 23 and 24 — parked 2026-08-14
 
