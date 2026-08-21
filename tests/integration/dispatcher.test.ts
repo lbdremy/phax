@@ -172,6 +172,7 @@ describe("dispatch — non-handled dispositions", () => {
       exitCode: 1,
       logPath: "/tmp/log",
       attempt: 1,
+      diagnostics: [],
     };
 
     const result = await Effect.runPromise(dispatch(event, ctx).pipe(Effect.provide(layer)));

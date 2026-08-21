@@ -274,6 +274,7 @@ describe("adaptGateRun", () => {
       expect(event.exitCode).toBe(1);
       expect(event.logPath).toBe(logPath);
       expect(event.attempt).toBe(2);
+      expect(event.diagnostics).toEqual([]);
     }
   });
 });

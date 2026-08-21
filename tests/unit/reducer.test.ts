@@ -88,6 +88,7 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     exitCode: 1,
     logPath: "/tmp/gate.log",
     attempt: 0,
+    diagnostics: [],
   },
   FixStarted: { ...base, type: "FixStarted", phase: phaseId, attempt: 1 },
   FixCompleted: { ...base, type: "FixCompleted", phase: phaseId, sessionId },
