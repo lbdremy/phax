@@ -1,6 +1,7 @@
 ---
-status: Approved
-date: "2026-08-21 (revised: surface closed enum + run-record attribution; original 2026-07-03)"
+status: Completed
+date: "2026-08-21 (revised: surface closed enum + run-record attribution;
+  original 2026-07-03)"
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 ---
