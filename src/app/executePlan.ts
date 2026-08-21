@@ -11,6 +11,7 @@ import type {
   WorktreePath,
 } from "../domain/branded.js";
 import { decodeBranchName, decodePhaseId, decodeWorktreePath } from "../domain/branded.js";
+import { selectGateSteps } from "../domain/gate/selectSteps.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
@@ -1095,8 +1096,9 @@ export function executePlan(
         // gate-success branch via dispatch(GatePassed). On resume-from-gate the
         // loop starts at `resumeAttempt + 1` with a fresh fix budget so prior
         // attempt artifacts are preserved.
+        const phaseSteps = selectGateSteps(gateSteps, isFinal);
         yield* runGatesWithFixLoop({
-          steps: gateSteps,
+          steps: phaseSteps,
           cwd: worktreePath as string,
           phaseFolderPath,
           sessionId,
