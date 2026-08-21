@@ -181,7 +181,7 @@ cmd "archive" {
 
 cmd "run" {
     help "Extract a plan from plan.md and run all phases, or preview with --dry-run"
-    long_help "Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.\n\nExtraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/."
+    long_help "Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs its gate profile's every-phase steps after execution; the final phase also runs the profile's terminal steps. Each step's surface (local, structural, or product) is recorded per phase and the run's verified surfaces are reported at run end.\n\nExtraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/."
     example "phax run --plan plan.md"
     example "phax run my-feature --plan plan.md"
     example "phax run --plan plan.md --dry-run"
@@ -598,7 +598,7 @@ cmd "records" {
     }
 
     cmd "list" {
-        help "List records present, by run and phase"
+        help "List records present, by run, phase, and verified surfaces"
         flag "--run" {
             arg "<id>"
             help "Only show records for this run id"
@@ -606,7 +606,7 @@ cmd "records" {
     }
 
     cmd "explain" {
-        help "Explain a commit from its record: prompt, diff, gates, handoff, transcript, usage"
+        help "Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage"
         arg "<sha>" {
             help "Commit sha in the source repository"
         }

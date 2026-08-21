@@ -295,7 +295,7 @@ phax archive usage-cli --force
 
 - **Usage**: `phax run <FLAGS> [short-name]`
 
-Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.
+Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs its gate profile's every-phase steps after execution; the final phase also runs the profile's terminal steps. Each step's surface (local, structural, or product) is recorded per phase and the run's verified surfaces are reported at run end.
 
 Extraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.
 
@@ -1055,7 +1055,7 @@ Show pending (unpushed) records, by run and phase
 
 - **Usage**: `phax records list [--run <id>]`
 
-List records present, by run and phase
+List records present, by run, phase, and verified surfaces
 
 ### Flags
 
@@ -1067,7 +1067,7 @@ Only show records for this run id
 
 - **Usage**: `phax records explain [FLAGS] <sha>`
 
-Explain a commit from its record: prompt, diff, gates, handoff, transcript, usage
+Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage
 
 ### Arguments
 

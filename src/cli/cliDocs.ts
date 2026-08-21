@@ -12,7 +12,7 @@ export interface CliDocEntry {
 export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
   run: {
     longHelp:
-      "Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs a gate profile after execution; the final phase worktree stays open for human review.\n\nExtraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/.",
+      "Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs its gate profile's every-phase steps after execution; the final phase also runs the profile's terminal steps. Each step's surface (local, structural, or product) is recorded per phase and the run's verified surfaces are reported at run end.\n\nExtraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/.",
     examples: [
       "phax run --plan plan.md",
       "phax run my-feature --plan plan.md",
