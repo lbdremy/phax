@@ -13,11 +13,16 @@ const attributionPath = "/fake/runs/my-run/phase-01/gate-attribution.json";
 const phaseId = "phase-01";
 
 function steps(...commands: string[]): GateStep[] {
-  return commands.map((command) => ({ command, surface: "local", firing: "every-phase" }));
+  return commands.map((command) => ({
+    command,
+    surface: "local",
+    firing: "every-phase",
+    output: "log",
+  }));
 }
 
 function stepWithSurface(command: string, surface: Surface): GateStep {
-  return { command, surface, firing: "every-phase" };
+  return { command, surface, firing: "every-phase", output: "log" };
 }
 
 describe("runGates", () => {

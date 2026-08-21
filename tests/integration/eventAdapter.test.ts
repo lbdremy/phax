@@ -237,7 +237,7 @@ describe("adaptAgentResume", () => {
 
 describe("adaptGateRun", () => {
   const gateSteps = [
-    { command: "pnpm typecheck", surface: "local", firing: "every-phase" },
+    { command: "pnpm typecheck", surface: "local", firing: "every-phase", output: "log" },
   ] as const;
   const cwd = worktreePath as string;
   const logPath = `${phaseFolderPath}/checks-attempt-01.log`;

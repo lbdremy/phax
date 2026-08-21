@@ -259,6 +259,10 @@
               "firing": {
                 "type": "string",
                 "enum": ["every-phase", "terminal"]
+              },
+              "output": {
+                "type": "string",
+                "enum": ["log", "diagnostics"]
               }
             },
             "additionalProperties": false
@@ -306,6 +310,10 @@
                     "firing": {
                       "type": "string",
                       "enum": ["every-phase", "terminal"]
+                    },
+                    "output": {
+                      "type": "string",
+                      "enum": ["log", "diagnostics"]
                     }
                   },
                   "additionalProperties": false
