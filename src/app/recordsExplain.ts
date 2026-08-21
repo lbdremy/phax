@@ -170,7 +170,20 @@ function loadRecord(
       );
     }
     const manifestBytes = yield* git.readBlob(localPath, manifestEntry.oid);
-    const decoded = decodeRunRecordManifest(JSON.parse(decodeText(manifestBytes)) as unknown);
+    let manifestJson: unknown;
+    try {
+      manifestJson = JSON.parse(decodeText(manifestBytes)) as unknown;
+    } catch (cause) {
+      // A record.json that is not valid JSON reaches the caller as the same
+      // clean failure as a schema-invalid one, never an uncaught defect.
+      return yield* Effect.fail(
+        new GitError({
+          message: `Malformed ${prefix}record.json at ${recordCommitSha}: ${String(cause)}`,
+          command: "records explain",
+        }),
+      );
+    }
+    const decoded = decodeRunRecordManifest(manifestJson);
     if (Either.isLeft(decoded)) {
       return yield* Effect.fail(
         new GitError({

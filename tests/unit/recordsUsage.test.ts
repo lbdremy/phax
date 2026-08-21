@@ -101,8 +101,8 @@ describe("extractVibeUsage", () => {
     const metaJson = JSON.stringify({
       session_id: "session_123_abc",
       stats: {
-        input_tokens: 1000,
-        output_tokens: 200,
+        session_prompt_tokens: 1000,
+        session_completion_tokens: 200,
         session_cost: 0.05,
         tool_calls_agreed: 3,
         tool_calls_rejected: 1,
@@ -123,6 +123,42 @@ describe("extractVibeUsage", () => {
     });
   });
 
+  it("extracts usage from a real vibe 2.13.0 stats shape, ignoring extra fields", () => {
+    // Captured verbatim from a live ~/.vibe/logs/session/<id>/meta.json.
+    const metaJson = JSON.stringify({
+      session_id: "session_123_abc",
+      stats: {
+        steps: 4,
+        session_prompt_tokens: 25418,
+        session_completion_tokens: 179,
+        tool_calls_agreed: 2,
+        tool_calls_rejected: 0,
+        tool_calls_failed: 0,
+        tool_calls_succeeded: 2,
+        context_tokens: 8653,
+        last_turn_prompt_tokens: 8596,
+        last_turn_completion_tokens: 57,
+        last_turn_duration: 8.81681000000026,
+        tokens_per_second: 6.464923254555596,
+        input_price_per_million: 1.5,
+        output_price_per_million: 7.5,
+        session_total_llm_tokens: 25597,
+        last_turn_total_tokens: 8653,
+        session_cost: 0.039469500000000005,
+      },
+    });
+    expect(extractVibeUsage(metaJson)).toEqual({
+      provider: "mistral-vibe",
+      inputTokens: 25418,
+      outputTokens: 179,
+      sessionCostUsd: 0.039469500000000005,
+      toolCallsAgreed: 2,
+      toolCallsRejected: 0,
+      toolCallsFailed: 0,
+      toolCallsSucceeded: 2,
+    });
+  });
+
   it("returns undefined when .stats is absent (usage could not be captured)", () => {
     const metaJson = JSON.stringify({ session_id: "session_123_abc" });
     expect(extractVibeUsage(metaJson)).toBeUndefined();
@@ -135,7 +171,7 @@ describe("extractVibeUsage", () => {
   it("returns undefined for a .stats object missing a required field", () => {
     const metaJson = JSON.stringify({
       session_id: "session_123_abc",
-      stats: { input_tokens: 1000, output_tokens: 200 },
+      stats: { session_prompt_tokens: 1000, session_completion_tokens: 200 },
     });
     expect(extractVibeUsage(metaJson)).toBeUndefined();
   });
