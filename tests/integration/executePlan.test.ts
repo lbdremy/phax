@@ -715,6 +715,143 @@ function makeStatusTestConfig(root: string): ResolvedConfig {
   };
 }
 
+describe("executePlan — firing scheduling", () => {
+  let stateRoot: string;
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-firing-test-"));
+
+    const phase01Worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+    const phase02Worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-02");
+    await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
+    await mkdir(join(phase02Worktree, ".phax-context"), { recursive: true });
+    await writeFile(join(phase01Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+    await writeFile(join(phase02Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+  });
+
+  it("runs only every-phase steps before the terminal phase, and both at the terminal phase", async () => {
+    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+
+    const config: ResolvedConfig = {
+      raw: {
+        version: 1,
+        project: { name: "test-project", type: "single-package" },
+        state: { root: stateRoot },
+        gateProfiles: {
+          full: [
+            { command: "true", surface: "local", firing: "every-phase" },
+            { command: "echo terminal-step", surface: "product", firing: "terminal" },
+          ],
+        },
+        commands: { setup: ["true"], cleanup: ["true"] },
+      },
+      stateRoot,
+      namespace: "test-project",
+      repoRoot: stateRoot,
+      maxFixAttempts: 1,
+      extractPlanModel: "claude-haiku-4-5-20251001",
+      extractPlanEffort: "low" as const,
+      fileReconciliationMode: "report_only" as const,
+      records: {
+        enabled: false,
+        transcript: false,
+        destination: { kind: "in-repo" as const },
+        autoPush: false,
+      },
+      security: {
+        profile: "unsafe",
+        filesystem: { allowRead: [], allowWrite: [] },
+        network: { profile: "provider-only", allowDomains: [] },
+        mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
+      },
+    };
+
+    const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+    const phase02WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-02");
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    fakeGit.impl.enqueueWorktreeIsClean(phase01WorktreePath, false, true);
+    fakeGit.impl.enqueueWorktreeIsClean(phase02WorktreePath, false);
+
+    const fakeShell = makeFakeShell();
+    fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("echo terminal-step", { exitCode: 0, stdout: "", stderr: "" });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "deadbeef12345678\n",
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+
+    const fakeBackend = makeFakeBackend();
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addRunResponse({
+      sessionId: "sess-02" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-01-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-02-handoff" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          namespace: "test-project",
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+
+    const phase01Log = await readFile(join(runPath, "phase-01", "checks-attempt-01.log"), "utf8");
+    expect(phase01Log).toContain("$ true");
+    expect(phase01Log).not.toContain("$ echo terminal-step");
+
+    const phase02Log = await readFile(join(runPath, "phase-02", "checks-attempt-01.log"), "utf8");
+    expect(phase02Log).toContain("$ true");
+    expect(phase02Log).toContain("$ echo terminal-step");
+  });
+});
+
 describe("executePlan — binding status lifecycle", () => {
   let stateRoot: string;
 
