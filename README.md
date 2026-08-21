@@ -131,16 +131,23 @@ Or add a `phax.json` manually at your repo root:
       { "command": "pnpm typecheck", "surface": "local", "firing": "every-phase" },
       { "command": "pnpm test:unit", "surface": "local", "firing": "every-phase" },
       { "command": "pnpm lint", "surface": "structural", "firing": "every-phase" },
-      { "command": "pnpm build", "surface": "product", "firing": "terminal" }
+      { "command": "pnpm build", "surface": "product", "firing": "terminal" },
+      {
+        "command": "pnpm audit:security",
+        "surface": "structural",
+        "firing": "every-phase",
+        "output": "diagnostics"
+      }
     ]
   }
 }
 ```
 
-Each gate profile is a named list of **attributed steps**, not a flat command list. Every step carries two independent dimensions:
+Each gate profile is a named list of **attributed steps**, not a flat command list. Every step carries these dimensions:
 
 - `surface` — a closed enum, `local | structural | product`, describing what the step verifies (local dev checks, structural/repo-wide checks, or product/build output). This is pure **attribution**: phax records it and never branches on it.
 - `firing` — `every-phase | terminal`. This is **behavioral**: `every-phase` steps run at every phase gate; `terminal` steps run only at the final phase gate, in addition to the every-phase steps.
+- `output` — optional, `log | diagnostics`, defaults to `log`. A `"log"` step's stdout/stderr are appended to the attempt log as raw text, same as today. A `"diagnostics"` step's stdout is decoded as a JSON document `{ "diagnostics": [{ "rule", "location": { "file", "line"? }, "message", "repair" }, ...] }`; the verdict comes from that document instead of the exit code: a non-empty list fails the step whatever the exit code, exit 0 with an empty list passes, and a missing/undecodable document or a non-zero exit with an empty list is a provider error that still fails the step (with the raw log, since there is no document to show). A failing document is persisted as `checks-attempt-NN.diagnostics.json` next to the attempt log, and its diagnostics — not the raw log — drive the fix prompt.
 
 There is no fast/full depth convention to pick between — a project defines a single profile, and `firing` carries the cadence that used to be encoded in separate `fast`/`full` profile keys. The old flat `{ "full": ["pnpm test", ...] }` array form is rejected at validation, naming the offending profile.
 
