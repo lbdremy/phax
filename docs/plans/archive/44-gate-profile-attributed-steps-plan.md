@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/15-gate-profile-attributed-steps.md
 approved:
   date: 2026-08-21
