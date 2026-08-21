@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-08-21
+  baseline: 02f5770
 ---
 # Vibe target flag and review-code worklist fixes
 
