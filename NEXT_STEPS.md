@@ -41,6 +41,15 @@ shipped run records (spec 29 / plan 52). No small follow-ups are open.
       `Approved → Approved` becomes the legal re-stamp (as it already is for plans); the
       frontmatter key set is exact, so this is a schema change with no shim. Smallest of the
       candidates — write it next.
+- [ ] **OpenSpec-inspired ideas — brainstorm before speccing.** Captured 2026-09-01 in
+      `docs/ideas/openspec-inspired-ideas.md` from the OpenSpec comparison
+      (`docs/comparisons/openspec-vs-phax.md`). Three pistes: living specs describing
+      current system behavior with requirement deltas folded back at `phax artifact
+      complete` (would give spec 22's `spec-changed` check a meaningful baseline);
+      requirement-level traceability on top of the file-level reconciliation (refines
+      `plans overlap` and the compliance review); an explicit explore step before
+      `phax-spec`. Brainstorm the first piste before writing anything — it interacts
+      with the spec re-approval candidate above.
 - [ ] Preview manifest — `phax.json` declares how to preview a finished run
       (per-project-type discriminated union: web / cli / lib). Write it when desktop
       work starts; nothing consumes it before then.
