@@ -103,3 +103,11 @@ agent; phax is closer to a **build system / CI harness for agent work**.
    gateless, Spec Kit prescribes a longer command pipeline with human
    approve/reject checkpoints). Both leave execution, isolation, and
    verification to the agent; that entire layer is what phax adds.
+
+## Next steps
+
+Ideas phax could borrow from OpenSpec — living specs with requirement-level
+delta folding, requirement-level traceability for `plans overlap` and the
+compliance review, and an explicit explore step — are captured for later
+brainstorming in
+[`../ideas/openspec-inspired-ideas.md`](../ideas/openspec-inspired-ideas.md).
