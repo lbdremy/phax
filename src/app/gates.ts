@@ -19,6 +19,9 @@ export interface GateOutcome {
   readonly attemptLogPath: string;
 }
 
+const DIAGNOSTICS_EXPECTED_SHAPE =
+  ' — expected {"diagnostics": [{"rule", "location": {"file", "line"?}, "message", "repair"}]} on stdout';
+
 export function resolveGateProfile(
   config: ResolvedConfig,
   profileId: string,
@@ -132,13 +135,13 @@ export function runGates(
         } catch (cause) {
           const reason = `invalid JSON: ${cause instanceof Error ? cause.message : String(cause)}`;
           logLines.push(
-            `provider error: step declared diagnostics output but returned none: ${reason}`,
+            `provider error: step declared diagnostics output but returned none: ${reason}${DIAGNOSTICS_EXPECTED_SHAPE}`,
           );
           stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
           return yield* failGate({
             rawCommand,
             exitCode: result.exitCode,
-            message: `Gate step "${rawCommand}" declared diagnostics output but returned none: ${reason}`,
+            message: `Gate step "${rawCommand}" declared diagnostics output but returned none: ${reason}${DIAGNOSTICS_EXPECTED_SHAPE}`,
             diagnostics: [],
             stderr: result.stderr,
           });
@@ -148,13 +151,13 @@ export function runGates(
         if (Either.isLeft(decoded)) {
           const reason = `schema mismatch: ${formatParseError(decoded.left)}`;
           logLines.push(
-            `provider error: step declared diagnostics output but returned none: ${reason}`,
+            `provider error: step declared diagnostics output but returned none: ${reason}${DIAGNOSTICS_EXPECTED_SHAPE}`,
           );
           stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
           return yield* failGate({
             rawCommand,
             exitCode: result.exitCode,
-            message: `Gate step "${rawCommand}" declared diagnostics output but returned none: ${reason}`,
+            message: `Gate step "${rawCommand}" declared diagnostics output but returned none: ${reason}${DIAGNOSTICS_EXPECTED_SHAPE}`,
             diagnostics: [],
             stderr: result.stderr,
           });

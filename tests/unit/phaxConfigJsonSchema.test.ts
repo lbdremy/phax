@@ -49,4 +49,40 @@ describe("getPhaxConfigJsonSchema", () => {
     const required = (stepSchema?.["required"] as string[] | undefined) ?? [];
     expect(required).not.toContain("output");
   });
+
+  it("has a description on orient.command mentioning whitespace and phax --usage", () => {
+    const schema = getPhaxConfigJsonSchema() as Record<string, unknown>;
+    const properties = schema["properties"] as Record<string, unknown>;
+    const orient = properties["orient"] as Record<string, unknown>;
+    const orientDefs = orient["properties"] as Record<string, unknown> | undefined;
+    const command = (orientDefs?.["command"] ?? orient) as Record<string, unknown>;
+    const desc = command["description"] as string | undefined;
+    expect(typeof desc).toBe("string");
+    expect(desc).toContain("whitespace");
+    expect(desc).toContain("phax --usage");
+  });
+
+  it("has a description on gate step output mentioning diagnostics shape and verdict rules", () => {
+    const schema = getPhaxConfigJsonSchema() as Record<string, unknown>;
+    const stepSchema = findGateStepSchema(schema);
+    expect(stepSchema).toBeDefined();
+    const properties = stepSchema?.["properties"] as Record<string, unknown>;
+    const output = properties["output"] as Record<string, unknown>;
+    const desc = output["description"] as string | undefined;
+    expect(typeof desc).toBe("string");
+    for (const token of [
+      "diagnostics",
+      "rule",
+      "location",
+      "file",
+      "line",
+      "message",
+      "repair",
+      "non-empty",
+      "empty list",
+      "provider error",
+    ]) {
+      expect(desc, `missing token: ${token}`).toContain(token);
+    }
+  });
 });

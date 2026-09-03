@@ -15,7 +15,10 @@ export const PublishConfigSchema = Schema.Struct({
 export type PublishConfig = Schema.Schema.Type<typeof PublishConfigSchema>;
 
 export const OrientConfigSchema = Schema.Struct({
-  command: Schema.NonEmptyString,
+  command: Schema.NonEmptyString.annotations({
+    description:
+      "The orient provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes a JSON request to the provider's stdin and reads a JSON response from stdout. Full contract: `phax --usage`, cmd orient.",
+  }),
 });
 
 export type OrientConfig = Schema.Schema.Type<typeof OrientConfigSchema>;
@@ -53,11 +56,18 @@ export type Surface = Schema.Schema.Type<typeof SurfaceSchema>;
 const GateOutputSchema = Schema.Literal("log", "diagnostics");
 export type GateOutput = Schema.Schema.Type<typeof GateOutputSchema>;
 
+const GATE_OUTPUT_DESCRIPTION =
+  '"log" (default) streams raw command output. "diagnostics" expects {"diagnostics": [{"rule", "location": {"file", "line"?}, "message", "repair"}]} on stdout.' +
+  " Verdict rules: a non-empty list fails the step whatever the exit code; exit 0 with an empty list passes; a missing or undecodable document, or a non-zero exit with an empty list, is a provider error that fails the step with the raw log." +
+  " A failing document is saved as checks-attempt-NN.diagnostics.json and drives the fix prompt.";
+
 const GateStepSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: SurfaceSchema,
   firing: FiringSchema,
-  output: Schema.optionalWith(GateOutputSchema, { default: () => "log" as const }),
+  output: Schema.optionalWith(GateOutputSchema, { default: () => "log" as const }).annotations({
+    description: GATE_OUTPUT_DESCRIPTION,
+  }),
 });
 export type GateStep = Schema.Schema.Type<typeof GateStepSchema>;
 
