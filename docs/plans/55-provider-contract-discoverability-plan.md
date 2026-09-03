@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/30-provider-contract-discoverability.md
+approved:
+  date: 2026-09-03
+  baseline: 097cd0c
 ---
 
 # Provider contract discoverability
