@@ -7,6 +7,8 @@ import {
   type ArtifactDirtyWriteSetError,
   ArtifactValidationError,
   type InvalidArtifactTransitionError,
+  type SpecApprovalUnrecordedError,
+  type SpecEditedSinceApprovalError,
   type SpecNotApprovedError,
   type SpecRetirementBlockedError,
 } from "../domain/errors.js";
@@ -213,6 +215,8 @@ export function applyStalenessReport(
   | ArtifactValidationError
   | InvalidArtifactTransitionError
   | SpecNotApprovedError
+  | SpecApprovalUnrecordedError
+  | SpecEditedSinceApprovalError
   | SpecRetirementBlockedError
   | ArtifactDirtyWriteSetError
   | ArtifactCommitFailedError

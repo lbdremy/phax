@@ -85,9 +85,14 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
   it("reports fresh for an unchanged plan and spec with no ground changes", async () => {
     const { fsImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/specs/22-foo.md", specMd("Approved"));
+    fsImpl.setFile("docs/specs/22-foo.md", specMd("Draft"));
     fsImpl.setFile("docs/plans/40-plan.md", planMd("docs/specs/22-foo.md"));
 
+    await run(
+      transitionArtifact("docs/specs/22-foo.md", "Approved", APPROVE_OPTS).pipe(
+        Effect.provide(layer),
+      ),
+    );
     await run(
       transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
@@ -107,16 +112,25 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
   it("a declared spec's content edit reports spec-changed", async () => {
     const { fsImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/specs/22-foo.md", specMd("Approved"));
+    fsImpl.setFile("docs/specs/22-foo.md", specMd("Draft"));
     fsImpl.setFile("docs/plans/40-plan.md", planMd("docs/specs/22-foo.md"));
 
+    await run(
+      transitionArtifact("docs/specs/22-foo.md", "Approved", APPROVE_OPTS).pipe(
+        Effect.provide(layer),
+      ),
+    );
     await run(
       transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
     const currentPlanMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
-    fsImpl.setFile("docs/specs/22-foo.md", specMd("Approved").replace("v1", "v2 — edited"));
+    const approvedSpecMd = fsImpl.getFile("docs/specs/22-foo.md") as string;
+    fsImpl.setFile(
+      "docs/specs/22-foo.md",
+      approvedSpecMd.replace("Spec body v1.", "Spec body v2 — edited."),
+    );
 
     const verdict = await run(
       computeStalenessForPlan("docs/plans/40-plan.md", currentPlanMd, [], {
@@ -231,9 +245,14 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
   it("reports all three reasons together, in enum order", async () => {
     const { fsImpl, gitImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/specs/22-foo.md", specMd("Approved"));
+    fsImpl.setFile("docs/specs/22-foo.md", specMd("Draft"));
     fsImpl.setFile("docs/plans/40-plan.md", planMd("docs/specs/22-foo.md"));
 
+    await run(
+      transitionArtifact("docs/specs/22-foo.md", "Approved", APPROVE_OPTS).pipe(
+        Effect.provide(layer),
+      ),
+    );
     await run(
       transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
@@ -242,7 +261,11 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
     const approvedMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
     const editedMd = approvedMd.replace("Body text.", "Body text v2 — edited.");
 
-    fsImpl.setFile("docs/specs/22-foo.md", specMd("Approved").replace("v1", "v2 — edited"));
+    const approvedSpecMd = fsImpl.getFile("docs/specs/22-foo.md") as string;
+    fsImpl.setFile(
+      "docs/specs/22-foo.md",
+      approvedSpecMd.replace("Spec body v1.", "Spec body v2 — edited."),
+    );
     gitImpl.setChangedFilesSince(gitImpl.headCommitValue, ["src/foo.ts"]);
 
     const verdict = await run(
@@ -264,11 +287,57 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
     }
   });
 
-  it("a dangling recorded Source-Spec fails with ArtifactValidationError naming it", async () => {
+  it("re-approving the spec without editing it leaves the plan fresh (fingerprint is stamp-neutral)", async () => {
     const { fsImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/specs/22-foo.md", specMd("Approved"));
+    fsImpl.setFile("docs/specs/22-foo.md", specMd("Draft"));
     fsImpl.setFile("docs/plans/40-plan.md", planMd("docs/specs/22-foo.md"));
 
+    // Approve spec first so the chain gate accepts the plan approval
+    await run(
+      transitionArtifact("docs/specs/22-foo.md", "Approved", APPROVE_OPTS).pipe(
+        Effect.provide(layer),
+      ),
+    );
+
+    await run(
+      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+        Effect.provide(layer),
+      ),
+    );
+    const currentPlanMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
+
+    // Re-approve the spec with no body edit (only the approved: stamp changes)
+    await run(
+      transitionArtifact("docs/specs/22-foo.md", "Approved", {
+        ...APPROVE_OPTS,
+        nowIso: "2026-08-11T09:00:00.000Z",
+      }).pipe(Effect.provide(layer)),
+    );
+
+    // The plan's staleness check must still report fresh because fingerprintSource
+    // strips the approved: key — re-stamping alone does not change the fingerprint.
+    const verdict = await run(
+      computeStalenessForPlan("docs/plans/40-plan.md", currentPlanMd, [], {
+        repoRoot: REPO_ROOT,
+      }).pipe(Effect.provide(layer)),
+    );
+
+    expect(Either.isRight(verdict)).toBe(true);
+    if (Either.isRight(verdict)) {
+      expect(verdict.right).toEqual({ kind: "fresh" });
+    }
+  });
+
+  it("a dangling recorded Source-Spec fails with ArtifactValidationError naming it", async () => {
+    const { fsImpl, layer } = coreHarness();
+    fsImpl.setFile("docs/specs/22-foo.md", specMd("Draft"));
+    fsImpl.setFile("docs/plans/40-plan.md", planMd("docs/specs/22-foo.md"));
+
+    await run(
+      transitionArtifact("docs/specs/22-foo.md", "Approved", APPROVE_OPTS).pipe(
+        Effect.provide(layer),
+      ),
+    );
     await run(
       transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),

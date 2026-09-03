@@ -6,6 +6,8 @@ import type {
   ArtifactDirtyWriteSetError,
   ArtifactValidationError,
   InvalidArtifactTransitionError,
+  SpecApprovalUnrecordedError,
+  SpecEditedSinceApprovalError,
   SpecNotApprovedError,
 } from "../domain/errors.js";
 import { SpecRetirementBlockedError } from "../domain/errors.js";
@@ -40,9 +42,10 @@ export interface CompleteRunArtifactsInput {
   readonly nowIso: string;
 }
 
-// The full transitionArtifact error surface. SpecNotApprovedError and (for the
-// plan transition) SpecRetirementBlockedError are runtime-unreachable here — a
-// plan going Completed never chain-gates — but stay in the union because
+// The full transitionArtifact error surface. SpecNotApprovedError,
+// SpecApprovalUnrecordedError, SpecEditedSinceApprovalError, and (for the plan
+// transition) SpecRetirementBlockedError are runtime-unreachable here — a plan
+// going Completed never chain-gates — but stay in the union because
 // transitionArtifact's signature carries them regardless of target. Phase-04
 // turns every member into the ArtifactCompletionFailed pause.
 export type RunCompletionError =
@@ -50,6 +53,8 @@ export type RunCompletionError =
   | ArtifactValidationError
   | InvalidArtifactTransitionError
   | SpecNotApprovedError
+  | SpecApprovalUnrecordedError
+  | SpecEditedSinceApprovalError
   | SpecRetirementBlockedError
   | ArtifactDirtyWriteSetError
   | ArtifactCommitFailedError

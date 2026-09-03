@@ -46,6 +46,8 @@ import {
   RegistryCorruptionError,
   SecurityEnforcementError,
   SecurityPreflightError,
+  SpecApprovalUnrecordedError,
+  SpecEditedSinceApprovalError,
   SpecNotApprovedError,
   SpecRetirementBlockedError,
   UnsafeGitStateError,
@@ -139,6 +141,8 @@ export function exitCodeForError(err: unknown): number {
     err instanceof ArtifactValidationError ||
     err instanceof PlanNotApprovedError ||
     err instanceof SpecNotApprovedError ||
+    err instanceof SpecApprovalUnrecordedError ||
+    err instanceof SpecEditedSinceApprovalError ||
     err instanceof SpecRetirementBlockedError ||
     err instanceof PlanStaleError ||
     err instanceof ArtifactDirtyWriteSetError
