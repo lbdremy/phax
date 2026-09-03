@@ -351,7 +351,7 @@ describe("runGates", () => {
       expect(record.steps).toEqual([{ command: "pnpm audit", surface: "local", result: "fail" }]);
     });
 
-    it("treats non-JSON stdout as a provider error naming the step", async () => {
+    it("treats non-JSON stdout as a provider error naming the step and expected shape", async () => {
       const fakeFs = makeFakeFileSystem();
       const fakeShell = makeFakeShell();
       fakeShell.impl.setResponse("pnpm audit", {
@@ -379,6 +379,50 @@ describe("runGates", () => {
         expect(err.diagnostics).toEqual([]);
         expect(err.message).toContain("pnpm audit");
         expect(err.message).toContain("declared diagnostics output but returned none");
+        expect(err.message).toContain("diagnostics");
+        expect(err.message).toContain("rule");
+        expect(err.message).toContain("location");
+        expect(err.message).toContain("message");
+        expect(err.message).toContain("repair");
+      }
+      expect(fakeFs.impl.getFile(diagnosticsPath)).toBeUndefined();
+      const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
+      expect(record.steps).toEqual([{ command: "pnpm audit", surface: "local", result: "fail" }]);
+    });
+
+    it("treats a schema-mismatch document as a provider error naming the expected shape", async () => {
+      const fakeFs = makeFakeFileSystem();
+      const fakeShell = makeFakeShell();
+      fakeShell.impl.setResponse("pnpm audit", {
+        exitCode: 0,
+        stdout: JSON.stringify({ wrong: "shape" }),
+        stderr: "",
+      });
+
+      const result = await Effect.runPromise(
+        Effect.either(
+          runGates({
+            steps: [diagnosticsStep("pnpm audit")],
+            cwd,
+            attemptLogPath: logPath,
+            attributionPath,
+            phaseId,
+          }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+        ),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        const err = result.left as GateFailedError;
+        expect(err).toBeInstanceOf(GateFailedError);
+        expect(err.diagnostics).toEqual([]);
+        expect(err.message).toContain("pnpm audit");
+        expect(err.message).toContain("declared diagnostics output but returned none");
+        expect(err.message).toContain("diagnostics");
+        expect(err.message).toContain("rule");
+        expect(err.message).toContain("location");
+        expect(err.message).toContain("message");
+        expect(err.message).toContain("repair");
       }
       expect(fakeFs.impl.getFile(diagnosticsPath)).toBeUndefined();
       const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;

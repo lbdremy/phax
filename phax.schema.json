@@ -194,7 +194,10 @@
       "required": ["command"],
       "properties": {
         "command": {
-          "$ref": "#/$defs/NonEmptyString"
+          "type": "string",
+          "description": "The orient provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes a JSON request to the provider's stdin and reads a JSON response from stdout. Full contract: `phax --usage`, cmd orient.",
+          "title": "nonEmptyString",
+          "minLength": 1
         }
       },
       "additionalProperties": false
@@ -262,7 +265,8 @@
               },
               "output": {
                 "type": "string",
-                "enum": ["log", "diagnostics"]
+                "enum": ["log", "diagnostics"],
+                "description": "\"log\" (default) streams raw command output. \"diagnostics\" expects {\"diagnostics\": [{\"rule\", \"location\": {\"file\", \"line\"?}, \"message\", \"repair\"}]} on stdout. Verdict rules: a non-empty list fails the step whatever the exit code; exit 0 with an empty list passes; a missing or undecodable document, or a non-zero exit with an empty list, is a provider error that fails the step with the raw log. A failing document is saved as checks-attempt-NN.diagnostics.json and drives the fix prompt."
               }
             },
             "additionalProperties": false
@@ -313,7 +317,8 @@
                     },
                     "output": {
                       "type": "string",
-                      "enum": ["log", "diagnostics"]
+                      "enum": ["log", "diagnostics"],
+                      "description": "\"log\" (default) streams raw command output. \"diagnostics\" expects {\"diagnostics\": [{\"rule\", \"location\": {\"file\", \"line\"?}, \"message\", \"repair\"}]} on stdout. Verdict rules: a non-empty list fails the step whatever the exit code; exit 0 with an empty list passes; a missing or undecodable document, or a non-zero exit with an empty list, is a provider error that fails the step with the raw log. A failing document is saved as checks-attempt-NN.diagnostics.json and drives the fix prompt."
                     }
                   },
                   "additionalProperties": false
