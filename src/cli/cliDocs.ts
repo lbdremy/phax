@@ -10,6 +10,12 @@ export interface CliDocEntry {
 // This map is the single source of truth: both the runtime --help output
 // (via program.ts) and the spec generator read it, so they never disagree.
 export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
+  orient: {
+    longHelp:
+      'Requires an orient provider in phax.json:\n\n  "orient": { "command": "node ./orient.mjs" }\n\nphax runs the command with no shell — the string is split on whitespace, so use a wrapper script for pipelines or paths with spaces — from the current directory (the phase worktree during a run), writes one JSON request on stdin and expects exit code 0 and one JSON response on stdout.\n\nIndex request  {"files": ["src/a.ts", "src/b.ts"]}\nIndex response {"rows": [{"id": "...", "title": "...", "severity": "error"|"warn"|"info", "trigger": "..."}]}\n\nExpand request  {"expand": "<id>"}\nExpand response {"row": {"id", "title", "severity", "trigger", "body"}} or {"row": null} when the id is unknown\n\nAll fields are non-empty strings. A non-zero exit, non-JSON stdout or a response that fails validation is reported as a provider error (exit 1); an empty index or a null row prints "No orientation available." and exits 0.\n\nDuring a run phax sends the index request for each phase\'s planned files and weaves the rows into the phase prompt. When orient is configured, `phax orient` is allowed to the in-phase agent without an explicit agentCommands grant.',
+    examples: ["phax orient core-no-adapters", "phax orient --file src/jobs/sync.ts"],
+  },
+
   run: {
     longHelp:
       "Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs its gate profile's every-phase steps after execution; the final phase also runs the profile's terminal steps. Each step's surface (local, structural, or product) is recorded per phase and the run's verified surfaces are reported at run end.\n\nExtraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/.",

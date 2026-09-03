@@ -60,7 +60,7 @@ export async function runOrient(
 
   if (config.orient === undefined) {
     out.error(
-      "No orient provider is configured. Add an `orient: { command }` block to phax.json to enable `phax orient`.",
+      "No orient provider is configured. Add an `orient: { command }` block to phax.json; the provider contract is documented under `phax --usage` (cmd orient).",
     );
     return 1;
   }
