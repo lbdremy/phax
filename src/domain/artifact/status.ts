@@ -28,7 +28,7 @@ export function isTerminalStatus(status: ArtifactStatus): boolean {
 
 const SPEC_TRANSITIONS: Record<SpecStatus, readonly SpecStatus[]> = {
   Draft: ["Approved", "Abandoned"],
-  Approved: ["Abandoned", "Completed"],
+  Approved: ["Approved", "Abandoned", "Completed"],
   Abandoned: [],
   Completed: [],
 };

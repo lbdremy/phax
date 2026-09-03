@@ -112,3 +112,19 @@ export function computeStaleness(input: ComputeStalenessInput): PlanStalenessVer
 }
 
 export const APPROVALS_FILE_PATH = "docs/plans/approvals.json";
+export const SPEC_APPROVALS_FILE_PATH = "docs/specs/approvals.json";
+
+export type SpecApprovalVerdict =
+  | { readonly kind: "unrecorded" }
+  | { readonly kind: "recorded"; readonly editedSinceApproval: boolean };
+
+export function specApprovalVerdict(
+  record: { readonly specFingerprint: string } | null,
+  currentFingerprint: string,
+): SpecApprovalVerdict {
+  if (record === null) return { kind: "unrecorded" };
+  return {
+    kind: "recorded",
+    editedSinceApproval: record.specFingerprint !== currentFingerprint,
+  };
+}

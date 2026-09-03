@@ -1,5 +1,5 @@
 import { archivePathFor } from "./document.js";
-import { APPROVALS_FILE_PATH } from "./lineage.js";
+import { APPROVALS_FILE_PATH, SPEC_APPROVALS_FILE_PATH } from "./lineage.js";
 import { type ArtifactKind, type ArtifactStatus, isTerminalStatus } from "./status.js";
 
 export function transitionWriteSet(
@@ -13,6 +13,9 @@ export function transitionWriteSet(
     (target === "Approved" || target === "Draft" || isTerminalStatus(target))
   ) {
     paths.push(APPROVALS_FILE_PATH);
+  }
+  if (kind === "spec" && (target === "Approved" || isTerminalStatus(target))) {
+    paths.push(SPEC_APPROVALS_FILE_PATH);
   }
   if (isTerminalStatus(target)) {
     paths.push(archivePathFor(repoRelPath));

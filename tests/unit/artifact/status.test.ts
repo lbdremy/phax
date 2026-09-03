@@ -29,6 +29,7 @@ describe("spec transitions", () => {
   const SPEC_LEGAL: [string, string][] = [
     ["Draft", "Approved"],
     ["Draft", "Abandoned"],
+    ["Approved", "Approved"],
     ["Approved", "Abandoned"],
     ["Approved", "Completed"],
   ];
@@ -49,6 +50,14 @@ describe("spec transitions", () => {
         expect(result.left.legalTargets).toEqual(legalTargetsFrom("spec", from));
       }
     }
+  });
+
+  it("re-approval (Approved → Approved) is legal", () => {
+    assertRight(requestTransition("spec", "Approved", "Approved"), "Approved");
+  });
+
+  it("legalTargetsFrom spec Approved includes Approved", () => {
+    expect(legalTargetsFrom("spec", "Approved")).toContain("Approved");
   });
 
   it("has no Stale status", () => {

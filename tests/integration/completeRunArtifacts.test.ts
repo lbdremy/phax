@@ -20,6 +20,7 @@ const SPEC_PATH = "docs/specs/70-run-carry.md";
 const PLAN_ARCHIVE = "docs/plans/archive/70-run-carry-plan.md";
 const SPEC_ARCHIVE = "docs/specs/archive/70-run-carry.md";
 const APPROVALS = "docs/plans/approvals.json";
+const SPEC_APPROVALS = "docs/specs/approvals.json";
 
 function planMd(status: string, sourceSpec: string): string {
   return `---\nstatus: ${status}\nsource-spec: ${sourceSpec}\n---\n# Some plan\n\n## Overview\n\nBody text.\n`;
@@ -27,6 +28,10 @@ function planMd(status: string, sourceSpec: string): string {
 
 function specMd(status: string): string {
   return `---\nstatus: ${status}\ndate: 2026-01-01\naudience: test\nscope: test\n---\n# Some spec\n\n## Overview\n\nBody text.\n`;
+}
+
+function emptySpecApprovalsJson(): string {
+  return JSON.stringify({ version: 1, records: {} }, null, 2);
 }
 
 function approvalsJson(planPath: string, specPath: string): string {
@@ -119,6 +124,7 @@ describe("completeRunArtifacts", () => {
     writeRepoFile(SPEC_PATH, specMd("Approved"));
     writeRepoFile(PLAN_PATH, planMd("Approved", SPEC_PATH));
     writeRepoFile(APPROVALS, approvalsJson(PLAN_PATH, SPEC_PATH));
+    writeRepoFile(SPEC_APPROVALS, emptySpecApprovalsJson());
     commitAll();
 
     const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
@@ -167,6 +173,7 @@ describe("completeRunArtifacts", () => {
     writeRepoFile(SPEC_PATH, specMd("Approved"));
     writeRepoFile(PLAN_PATH, planMd("Approved", SPEC_PATH));
     writeRepoFile(APPROVALS, approvalsJson(PLAN_PATH, SPEC_PATH));
+    writeRepoFile(SPEC_APPROVALS, emptySpecApprovalsJson());
     commitAll();
 
     const first = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });

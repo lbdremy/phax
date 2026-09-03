@@ -252,6 +252,51 @@ describe("removeFrontmatterKeys", () => {
   });
 });
 
+const STAMPED_SPEC_DOC = `---
+status: Approved
+date: 2026-08-11
+audience: implementation planning with Claude Code
+scope: functional behavior and consumption surface
+approved:
+  date: 2026-08-11
+  baseline: 4ae687b
+---
+
+# Some Spec
+
+Body text.
+`;
+
+describe("decodeArtifactFrontmatter (spec approved stamp)", () => {
+  it("decodes a spec with a valid approved mapping", () => {
+    const decoded = decodeArtifactFrontmatter("spec", STAMPED_SPEC_DOC);
+    expect(Either.isRight(decoded)).toBe(true);
+    if (!Either.isRight(decoded)) return;
+    expect(decoded.right).toMatchObject({
+      status: "Approved",
+      approved: { date: "2026-08-11", baseline: "4ae687b" },
+    });
+  });
+
+  it("rejects a spec whose approved mapping carries an extra sub-key", () => {
+    const md = `---\nstatus: Approved\ndate: 2026-08-11\naudience: x\nscope: y\napproved:\n  date: 2026-08-11\n  baseline: abc1234\n  extra: forbidden\n---\n\n# Spec\n`;
+    const decoded = decodeArtifactFrontmatter("spec", md);
+    expect(Either.isLeft(decoded)).toBe(true);
+    if (!Either.isLeft(decoded)) return;
+    expect(decoded.left.kind).toBe("schema");
+    if (decoded.left.kind === "schema") {
+      expect(decoded.left.detail).toContain("extra");
+    }
+  });
+
+  it("decodes a spec with approved absent as valid", () => {
+    const decoded = decodeArtifactFrontmatter("spec", SPEC_DOC);
+    expect(Either.isRight(decoded)).toBe(true);
+    if (!Either.isRight(decoded)) return;
+    expect("approved" in decoded.right).toBe(false);
+  });
+});
+
 describe("fingerprintSource", () => {
   it("is identical for two documents differing only in status", () => {
     const other = PLAN_DOC.replace("status: Approved", "status: Draft");
@@ -287,5 +332,9 @@ describe("fingerprintSource", () => {
   it("returns the document verbatim when there is no frontmatter block", () => {
     const md = `# Plan\n\nStatus: Draft\n`;
     expect(fingerprintSource(md)).toBe(md);
+  });
+
+  it("is identical for a stamped spec and its unstamped version", () => {
+    expect(fingerprintSource(STAMPED_SPEC_DOC)).toBe(fingerprintSource(SPEC_DOC));
   });
 });
