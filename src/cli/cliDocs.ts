@@ -146,14 +146,20 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   "artifact status": {
     longHelp:
-      "Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status. Read-only — no side effects.",
-    examples: ["phax artifact status docs/plans/45-typescript-7-migration-plan.md"],
+      "Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status. For Approved specs, also reports the approval date and baseline, and whether the spec has been edited since that approval (recorded) or has no approval record (unrecorded). Read-only — no side effects.",
+    examples: [
+      "phax artifact status docs/plans/45-typescript-7-migration-plan.md",
+      "phax artifact status docs/specs/31-spec-approval-ground.md",
+    ],
   },
 
   "artifact approve": {
     longHelp:
-      "Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved plan re-records the approval, refreshing its timestamp and baseline. Rewrites the frontmatter status key in place.\n\nSide effects: writes the artifact file and commits the transition's write-set (the artifact file, plus the approval record for plans) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
-    examples: ["phax artifact approve docs/plans/45-typescript-7-migration-plan.md"],
+      "Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved artifact re-records the approval, refreshing its timestamp and baseline — this is the correct way to record an in-place revision of a spec, not editing the date by hand. Rewrites the frontmatter status key in place.\n\nFor specs: stamps `approved: { date, baseline }` in the frontmatter and writes a record to docs/specs/approvals.json.\nFor plans: stamps `approved: { date, baseline }` in the frontmatter and writes a record to docs/plans/approvals.json. Plan approval refuses with exit 12 if the declared Source-Spec is Approved but its approval is unrecorded or edited since approval — re-approve the spec first.\n\nSide effects: writes the artifact file and commits the transition's write-set (the artifact file plus the approval record sidecar) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
+    examples: [
+      "phax artifact approve docs/plans/45-typescript-7-migration-plan.md",
+      "phax artifact approve docs/specs/31-spec-approval-ground.md",
+    ],
   },
 
   "artifact stale": {
