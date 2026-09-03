@@ -47,10 +47,16 @@ export async function runArtifactStatus(pathArg: string, out: OutputPort): Promi
     return exitCodeForError(result.left);
   }
 
-  const { kind, status, legalTargets } = result.right;
+  const { kind, status, legalTargets, approval } = result.right;
   out.log(`Path:              ${repoRelPath}`);
   out.log(`Kind:              ${kind}`);
   out.log(`Status:            ${status}`);
+  if (approval.kind === "recorded") {
+    out.log(`Approved:          ${approval.date} @ ${approval.baseline}`);
+    out.log(`Edited since:      ${approval.editedSinceApproval ? "yes" : "no"}`);
+  } else if (approval.kind === "unrecorded") {
+    out.log(`Approved:          (unrecorded — run phax artifact approve to record)`);
+  }
   out.log(
     `Legal transitions: ${legalTargets.length > 0 ? legalTargets.join(", ") : "(none — terminal)"}`,
   );

@@ -42,6 +42,7 @@ describe("runArtifactStatus", () => {
         kind: "plan",
         status: "Approved",
         legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
+        approval: { kind: "none" },
       }),
     );
 
