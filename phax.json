@@ -23,7 +23,8 @@
       "git show-ref",
       "git cat-file",
       "git ls-tree",
-      "pnpm test:integration"
+      "pnpm test:integration",
+      "node"
     ]
   },
   "review": {
