@@ -263,6 +263,8 @@ Question: keep the single-string command and document the whitespace split, or m
 
 Recommendation: keep the string and document the rule (§7 records it as a non-goal).
 
+Resolved 2026-09-03: keep the string.
+
 Question: what runtime does the example provider use?
 
 - Node script — abandons: nothing the example does not already require; hello-world runs `pnpm`.
@@ -270,6 +272,8 @@ Question: what runtime does the example provider use?
   parsing, which is the wrong first impression of the contract.
 
 Recommendation: a dependency-free Node script.
+
+Resolved 2026-09-03: Node script.
 
 ## 10. Implementation-planning note
 
@@ -280,9 +284,10 @@ from the usage spec, so §5.3 should fall out of regeneration rather than hand e
 schema already carries generated descriptions for at least one field, so §5.4 should reuse that
 mechanism rather than post-process the JSON.
 
-Deliberately open: whether the contract text is authored once and shared between the usage long
-help and the schema description, or written twice. The plan should keep a single test that pins
-the normative facts so the two cannot drift silently.
+Deliberately open (confirmed 2026-09-03): whether the contract text is authored once and shared
+between the usage long help and the schema description, or written twice, is the planner's call.
+Either way the plan must keep a single test that pins the normative facts so the two cannot
+drift silently.
 
 Constraint: no change to `src/schemas/orient.ts` semantics or to the orient config shape; a plan
 that finds it needs either has left this spec's scope.
