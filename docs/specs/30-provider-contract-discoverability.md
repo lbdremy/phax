@@ -1,7 +1,7 @@
 ---
 status: Approved
-date: "2026-09-03 (revised the same day after approval to add the gate diagnostics contract;
-  re-approval pending — original approval covered orient only)"
+date: "2026-09-03 (re-approved against main a4ec669 after widening to the gate diagnostics
+  contract; original approval the same day covered orient only)"
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 ---
