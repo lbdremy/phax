@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 const ROWS = [
   {
     id: "keep-it-simple",
@@ -24,8 +22,11 @@ const ROWS = [
   },
 ];
 
-const stdin = readFileSync("/dev/stdin", "utf8").trim();
-const request = JSON.parse(stdin);
+// Read the request from the stdin stream rather than opening /dev/stdin:
+// on Linux that path fails with ENXIO when the parent hands over a pipe.
+let input = "";
+for await (const chunk of process.stdin) input += chunk;
+const request = JSON.parse(input.trim());
 
 if ("files" in request) {
   const files = request.files;
