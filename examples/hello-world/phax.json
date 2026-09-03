@@ -2,8 +2,9 @@
   "version": 1,
   "name": "hello-world",
   "state": { "root": "~/.phax" },
-  "editor": { "command": "zed" },
-  "agent": { "backend": "claude-code-cli", "maxFixAttempts": 1 },
+  "agent": { "maxFixAttempts": 1 },
+  "security": { "agentCommands": ["node"] },
+  "orient": { "command": "node ./orient.mjs" },
   "commands": {
     "setup": ["pnpm install"],
     "cleanup": ["rm -rf node_modules"]
@@ -12,7 +13,13 @@
     "standard": [
       { "command": "pnpm typecheck", "surface": "local", "firing": "every-phase" },
       { "command": "pnpm test", "surface": "local", "firing": "every-phase" },
-      { "command": "pnpm build", "surface": "product", "firing": "terminal" }
+      { "command": "pnpm build", "surface": "product", "firing": "terminal" },
+      {
+        "command": "node ./audit.mjs",
+        "surface": "structural",
+        "firing": "every-phase",
+        "output": "diagnostics"
+      }
     ]
   }
 }

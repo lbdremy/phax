@@ -155,6 +155,25 @@ After each phase gate, phax records which steps ran, their surface, and their pa
 
 The top-level `name` is the run namespace — run short-names are scoped under it. Provider routing is **not** configured here — it lives in the global `~/.phax/` config (see [Multi-provider model routing](#multi-provider-model-routing)). The optional `security.profile` (`secure` \| `unsafe` \| `isolated`, default `secure`) sets the default security posture for runs; see [Security modes](#security-modes). The optional `fileReconciliation.mode` (`report_only` \| `warn`, default `report_only`) controls how per-phase file reconciliation reports deviations from the plan; see [Run](#run). The optional `review.compliance` and `publish` blocks turn on an automatic plan-compliance review and a pushed pull request when each run reaches review; see [Compliance review & publishing](#compliance-review--publishing).
 
+### Orient provider
+
+Add an `"orient"` block to tell phax how to fetch orientation rows for the current project:
+
+```json
+{
+  "orient": { "command": "node ./orient.mjs" }
+}
+```
+
+The command string is split on whitespace with no shell — use a wrapper script if the path contains spaces or you need a pipeline. phax writes a JSON request to the provider's stdin and reads a JSON response from stdout; the provider must exit 0 on both success and "not found" responses.
+
+- **Index request** — `{"files": ["src/foo.ts", ...]}`: respond with `{"rows": [{"id", "title", "severity", "trigger"}, ...]}` for every row whose trigger prefix matches any file in the list. `severity` is one of `"error" | "warn" | "info"`.
+- **Expand request** — `{"expand": "<id>"}`: respond with `{"row": {"id", "title", "severity", "trigger", "body"}}` for a known id, or `{"row": null}` for an unknown one.
+- All fields are non-empty strings. A non-zero exit, non-JSON stdout, or a response that fails validation is a provider error (exit 1). An empty index or a null row prints "No orientation available." and exits 0.
+- During a run phax sends the index request for each phase's planned files and weaves the rows into the phase prompt. When orient is configured, `phax orient` is implicitly granted to the in-phase agent without an `agentCommands` entry.
+
+Full contract: [`phax orient`](docs/cli/reference.md#phax-orient).
+
 Validate it before running:
 
 ```bash
