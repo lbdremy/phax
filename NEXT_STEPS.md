@@ -5,15 +5,13 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-08-21, after v0.10.1 shipped plan 53 (`da90570` drops the `--target`
-flag `vibe` never accepted — the adapter was broken since it was written, model selection
-goes through `VIBE_ACTIVE_MODEL`; `a9231f6` builds the `phax review-code` worklist from
-`global-file-reconciliation.json` and deletes the dead `reconciliationMd` input — missing or
-malformed JSON degrades to an empty worklist). Earlier the same day v0.10.0 shipped the
-gate profile as attributed steps (spec 15 / plan 44 — all design decisions live in the
-archived spec; `surface` is the closed enum `local | structural | product`, steps fire
-every-phase or terminal, the phase record manifest names `verifiedSurfaces`) and v0.9.0
-shipped run records (spec 29 / plan 52). No small follow-ups are open.
+Last pruned 2026-09-03. Since the previous prune (2026-08-21, v0.10.1): spec 16 shipped as
+diagnostic-emitting gate steps through plan 54 (`75b086f` flag + document schema, `0195ea8`
+verdict from the document, `3bfd834` diagnostics in the fix prompt; spec and plan completed
+`cad4d31` / `1105c59`). Spec 30 (provider contract discoverability — the orient and
+gate-diagnostics contracts readable from `--usage`, the generated schema, the README and
+`examples/hello-world`) is Approved and its plan 55 is running. Spec 31 (spec approval with a
+recorded ground) is Approved and unplanned. No small follow-ups are open.
 
 ## Records consumers (the substrate shipped in 0.9)
 
@@ -31,16 +29,6 @@ shipped run records (spec 29 / plan 52). No small follow-ups are open.
 
 ## Spec candidates, deliberately not written yet
 
-- [ ] **Spec re-approval with a recorded ground.** Found 2026-08-21 re-approving specs 16/18/19
-      after their in-place revision against the shipped spec 15: `phax artifact approve` refuses
-      `Approved → Approved` for specs (exit 12), and a spec's frontmatter has no `approved:
-      { date, baseline }` mapping — only plans carry one. The re-approval ended up as prose in
-      the `date` key (`"2026-08-21 (re-approved against main 7b64e98: …)"`), which nothing can
-      read back. Spec 22's staleness machinery therefore sees plan ground move but never spec
-      ground. Candidate shape: specs gain the same `approved` mapping as plans and
-      `Approved → Approved` becomes the legal re-stamp (as it already is for plans); the
-      frontmatter key set is exact, so this is a schema change with no shim. Smallest of the
-      candidates — write it next.
 - [ ] **OpenSpec-inspired ideas — brainstorm before speccing.** Captured 2026-09-01 in
       `docs/ideas/openspec-inspired-ideas.md` from the OpenSpec comparison
       (`docs/comparisons/openspec-vs-phax.md`). Three pistes: living specs describing
@@ -48,8 +36,9 @@ shipped run records (spec 29 / plan 52). No small follow-ups are open.
       complete` (would give spec 22's `spec-changed` check a meaningful baseline);
       requirement-level traceability on top of the file-level reconciliation (refines
       `plans overlap` and the compliance review); an explicit explore step before
-      `phax-spec`. Brainstorm the first piste before writing anything — it interacts
-      with the spec re-approval candidate above.
+      `phax-spec`. Brainstorm the first piste before writing anything — spec 31 now gives
+      a spec approval its own fingerprinted record, so the living-spec piste has a
+      baseline to fold deltas into; build on it rather than beside it.
 - [ ] Preview manifest — `phax.json` declares how to preview a finished run
       (per-project-type discriminated union: web / cli / lib). Write it when desktop
       work starts; nothing consumes it before then.
@@ -58,27 +47,40 @@ shipped run records (spec 29 / plan 52). No small follow-ups are open.
       surface, so its spec would otherwise invent commands. With 23 and 24 postponed,
       this is parked for as long as they are.
 
-## Postponed — every approved-but-unplanned spec
+## Approved specs — in flight, next, parked
 
-Five approved specs are parked. With plan 44 landed, 16 and 18 are now the natural
-next pick — they build directly on the attributed step that shipped in 0.10. All three gate-line
-specs (16, 18, 19) were revised and re-approved against main `7b64e98` on 2026-08-21 (`cd04e3a`,
-`7b64e98`, `5f67f0a`): 16 shrank to diagnostic-emitting steps, 18 gets closure from a registered
-`scopes` provider fed with a thin plan projection, 19 shares that projection. Each is
-plannable at any time; nothing blocks them technically. Pick one back up by writing a plan (`phax-planning` skill) — no
-re-approval needed unless the spec's own ground moves. Note that plan staleness is a
-**plan** property, so a spec parked here does not rot; the plans written against them
+Six approved specs are open: 30 is running, 31 is next to plan, four are parked (18, 19,
+23, 24). Gate-line specs 18 and 19 were revised and re-approved against main `7b64e98` on
+2026-08-21 (`cd04e3a`, `7b64e98`, `5f67f0a`): 18 gets closure from a registered `scopes`
+provider fed with a thin plan projection, 19 shares that projection. Each is plannable at
+any time. Pick one up by writing a plan (`phax-planning` skill). Note that plan staleness
+is a **plan** property, so a spec parked here does not rot; the plans written against them
 do.
 
-### Gate specs 16 / 18 and advisory 19
+### In flight and next to plan
 
-- [ ] `docs/specs/16-external-gate-steps.md` — no plan. Ready to plan: a step opts in
-      with an `output: diagnostics` field, the stdout document is the verdict, findings
-      replace the raw log in the fix prompt.
-- [ ] `docs/specs/18-gate-step-scheduling.md` — no plan; depends on 16. Adds
-      `class` + `scopes` per diagnostic, a `scopes` provider queried per gated phase,
-      and `pending` as a third attribution result. phax defines the provider contract;
-      steme (or any provider) implements it.
+- [ ] **Spec 30 / plan 55** — run `provider-contract-discoverability` started 2026-09-03
+      (three phases: orient contract in `cliDocs` → usage/reference/README; schema
+      descriptions on `orient.command` and gate-step `output` plus the diagnostics
+      provider-error shape; README orient section and two `examples/hello-world` provider
+      scripts). When it reaches review: publish, `phax artifact complete` plan 55 then
+      spec 30, prune here.
+- [ ] **Spec 31 `docs/specs/31-spec-approval-ground.md`** — Approved 2026-09-03, no plan.
+      Write the plan next. Specs gain the plan-style `approved: { date, baseline }` stamp
+      and a `docs/specs/approvals.json` record with the content fingerprint;
+      `Approved → Approved` becomes a legal re-stamp; `artifact status` reports
+      edited-since-approval / unrecorded; plan approval refuses (exit 12) a spec that is
+      edited since approval or unrecorded. Migration after it lands: re-approve 18, 19, 23,
+      24 and 30 with the tool and restore their `date` keys to plain dates — do this
+      **before** approving any plan against 18/19, since the chain gate will refuse an
+      unrecorded spec.
+
+### Gate spec 18 and advisory 19
+
+- [ ] `docs/specs/18-gate-step-scheduling.md` — no plan. Its dependency, spec 16, shipped
+      in plan 54 (2026-09-02), so nothing blocks it. Adds `class` + `scopes` per diagnostic,
+      a `scopes` provider queried per gated phase, and `pending` as a third attribution
+      result. phax defines the provider contract; steme (or any provider) implements it.
 - [ ] `docs/specs/19-plan-completeness-advisory.md` — no plan. Shares 18's plan
       projection; plan it after (or with) 18 so the projection is built once.
 
