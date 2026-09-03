@@ -12,6 +12,15 @@
       "approvedAt": "2026-08-11T07:59:18.912Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
+    },
+    "docs/plans/55-provider-contract-discoverability-plan.md": {
+      "planFingerprint": "59c9aa9040efe99b7e92f96f81af3d776e0204c6ac8da5c9c4a0482de646f75d",
+      "approvedAt": "2026-09-03T07:39:27.384Z",
+      "baseline": "097cd0cb967870d4e4f079e7098b626357f7fc4f",
+      "sourceSpec": {
+        "path": "docs/specs/30-provider-contract-discoverability.md",
+        "fingerprint": "40fa3362e2f24eb3393c1d94697975c6dfbb0297e9c3a350687100163ed96523"
+      }
     }
   }
 }
