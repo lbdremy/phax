@@ -315,6 +315,9 @@ cmd "report" {
 
 cmd "orient" {
     help "Pull orientation from the configured orient provider: expand a row by id, or pass --file to get an index for an arbitrary file"
+    long_help "Requires an orient provider in phax.json:\n\n  \"orient\": { \"command\": \"node ./orient.mjs\" }\n\nphax runs the command with no shell — the string is split on whitespace, so use a wrapper script for pipelines or paths with spaces — from the current directory (the phase worktree during a run), writes one JSON request on stdin and expects exit code 0 and one JSON response on stdout.\n\nIndex request  {\"files\": [\"src/a.ts\", \"src/b.ts\"]}\nIndex response {\"rows\": [{\"id\": \"...\", \"title\": \"...\", \"severity\": \"error\"|\"warn\"|\"info\", \"trigger\": \"...\"}]}\n\nExpand request  {\"expand\": \"<id>\"}\nExpand response {\"row\": {\"id\", \"title\", \"severity\", \"trigger\", \"body\"}} or {\"row\": null} when the id is unknown\n\nAll fields are non-empty strings. A non-zero exit, non-JSON stdout or a response that fails validation is reported as a provider error (exit 1); an empty index or a null row prints \"No orientation available.\" and exits 0.\n\nDuring a run phax sends the index request for each phase's planned files and weaves the rows into the phase prompt. When orient is configured, `phax orient` is allowed to the in-phase agent without an explicit agentCommands grant."
+    example "phax orient core-no-adapters"
+    example "phax orient --file src/jobs/sync.ts"
     arg "[id]" {
         help "Row id to expand"
     }

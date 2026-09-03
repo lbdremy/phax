@@ -103,6 +103,7 @@ describe("runOrient", () => {
     const code = await runOrient("row-1", {}, out);
     expect(code).toBe(1);
     expect(errors.some((e) => e.includes("No orient provider is configured"))).toBe(true);
+    expect(errors.some((e) => e.includes("phax --usage"))).toBe(true);
   });
 
   it("expand hit: prints the row body and returns 0", async () => {
