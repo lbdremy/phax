@@ -7,6 +7,8 @@ import {
   ArtifactValidationError,
   InvalidArtifactTransitionError,
   PlanNotApprovedError,
+  SpecApprovalUnrecordedError,
+  SpecEditedSinceApprovalError,
   SpecNotApprovedError,
   SpecRetirementBlockedError,
 } from "../domain/errors.js";
@@ -24,19 +26,72 @@ import {
   frontmatterProblemMessage,
   validateArtifact,
 } from "../domain/artifact/document.js";
-import { clearApproved, readSourceSpec, stampApproved } from "../domain/artifact/lineage.js";
+import {
+  clearApproved,
+  readSourceSpec,
+  specApprovalVerdict,
+  stampApproved,
+} from "../domain/artifact/lineage.js";
 import { decodeArtifactFrontmatter, setFrontmatterKeys } from "../domain/artifact/frontmatter.js";
 import { transitionCommitMessage, transitionWriteSet } from "../domain/artifact/writeSet.js";
 import {
   artifactFingerprint,
   putApprovalRecord,
+  putSpecApprovalRecord,
+  readSpecApprovalRecord,
   removeApprovalRecord,
+  removeSpecApprovalRecord,
 } from "./approvalRecordStore.js";
+
+export type SpecApprovalInfo =
+  | { readonly kind: "none" }
+  | { readonly kind: "unrecorded" }
+  | {
+      readonly kind: "recorded";
+      readonly date: string;
+      readonly baseline: string;
+      readonly editedSinceApproval: boolean;
+    };
 
 export interface ArtifactReport {
   readonly kind: ArtifactKind;
   readonly status: ArtifactStatus;
   readonly legalTargets: readonly ArtifactStatus[];
+  readonly approval: SpecApprovalInfo;
+}
+
+function computeSpecApprovalInfo(
+  repoRelPath: string,
+  md: string,
+  status: ArtifactStatus,
+): Effect.Effect<SpecApprovalInfo, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const decoded = decodeArtifactFrontmatter("spec", md);
+    const stamp = Either.isRight(decoded) ? decoded.right.approved : undefined;
+
+    if (status !== "Approved" && stamp == null) {
+      return { kind: "none" };
+    }
+
+    const fingerprint = artifactFingerprint(md);
+    const record = yield* readSpecApprovalRecord(repoRelPath);
+    const verdict = specApprovalVerdict(record, fingerprint);
+
+    if (verdict.kind === "unrecorded") {
+      return { kind: "unrecorded" };
+    }
+
+    if (stamp != null) {
+      return {
+        kind: "recorded",
+        date: stamp.date,
+        baseline: stamp.baseline,
+        editedSinceApproval: verdict.editedSinceApproval,
+      };
+    }
+
+    return { kind: "unrecorded" };
+  });
 }
 
 export function inspectArtifact(
@@ -54,7 +109,11 @@ export function inspectArtifact(
       kind === "spec"
         ? legalTargetsFrom("spec", status as never)
         : legalTargetsFrom("plan", status as never);
-    return { kind, status, legalTargets };
+
+    const approval: SpecApprovalInfo =
+      kind === "spec" ? yield* computeSpecApprovalInfo(repoRelPath, md, status) : { kind: "none" };
+
+    return { kind, status, legalTargets, approval };
   });
 }
 
@@ -140,6 +199,8 @@ export function transitionArtifact(
   | ArtifactValidationError
   | InvalidArtifactTransitionError
   | SpecNotApprovedError
+  | SpecApprovalUnrecordedError
+  | SpecEditedSinceApprovalError
   | SpecRetirementBlockedError
   | ArtifactDirtyWriteSetError
   | ArtifactCommitFailedError
@@ -184,6 +245,27 @@ export function transitionArtifact(
     let updatedMd = statusRewrite.right;
     let approvedBaseline: string | undefined;
 
+    if (kind === "spec" && target === "Approved") {
+      const baseline = yield* git.headCommit(opts.repoRoot);
+      const stamped = stampApproved(updatedMd, opts.nowIso, baseline.slice(0, 7));
+      if (Either.isLeft(stamped)) {
+        return yield* Effect.fail(
+          new ArtifactValidationError({
+            path: repoRelPath,
+            message: frontmatterProblemMessage(repoRelPath, kind, stamped.left),
+          }),
+        );
+      }
+      updatedMd = stamped.right;
+      const specFingerprint = artifactFingerprint(updatedMd);
+      yield* putSpecApprovalRecord(repoRelPath, {
+        specFingerprint,
+        approvedAt: opts.nowIso,
+        baseline,
+      });
+      approvedBaseline = baseline;
+    }
+
     if (kind === "plan" && target === "Approved") {
       const declaration = readSourceSpec(md);
       let sourceSpec: { path: string; fingerprint: string } | null = null;
@@ -212,7 +294,31 @@ export function transitionArtifact(
             }),
           );
         }
-        sourceSpec = { path: declaration.path, fingerprint: artifactFingerprint(specMd) };
+
+        const specFingerprint = artifactFingerprint(specMd);
+        const specRecord = yield* readSpecApprovalRecord(resolvedSpecPath);
+        const specVerdict = specApprovalVerdict(specRecord, specFingerprint);
+
+        if (specVerdict.kind === "unrecorded") {
+          return yield* Effect.fail(
+            new SpecApprovalUnrecordedError({
+              planPath: repoRelPath,
+              specPath: declaration.path,
+            }),
+          );
+        }
+
+        if (specRecord !== null && specVerdict.editedSinceApproval) {
+          return yield* Effect.fail(
+            new SpecEditedSinceApprovalError({
+              planPath: repoRelPath,
+              specPath: declaration.path,
+              baseline: specRecord.baseline,
+            }),
+          );
+        }
+
+        sourceSpec = { path: declaration.path, fingerprint: specFingerprint };
       }
 
       const baseline = yield* git.headCommit(opts.repoRoot);
@@ -280,9 +386,8 @@ export function transitionArtifact(
       yield* fs.mkdirp(archiveDir);
       yield* fs.writeAtomic(destination, updatedMd);
       yield* fs.remove(repoRelPath);
-      if (kind === "plan") {
-        yield* removeApprovalRecord(repoRelPath);
-      }
+      if (kind === "plan") yield* removeApprovalRecord(repoRelPath);
+      if (kind === "spec") yield* removeSpecApprovalRecord(repoRelPath);
       const result: ArtifactTransitionResult = { status: target, path: destination };
       return yield* finalizeTransition(git, kind, target, repoRelPath, writeSet, opts, result);
     }

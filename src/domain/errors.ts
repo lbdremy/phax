@@ -249,6 +249,25 @@ export class SpecNotApprovedError extends Data.TaggedError("SpecNotApprovedError
   }
 }
 
+export class SpecApprovalUnrecordedError extends Data.TaggedError("SpecApprovalUnrecordedError")<{
+  planPath: string;
+  specPath: string;
+}> {
+  override get message(): string {
+    return `${this.planPath} declares Source-Spec: ${this.specPath}, but ${this.specPath} is Approved with no recorded approval — re-approve the spec first`;
+  }
+}
+
+export class SpecEditedSinceApprovalError extends Data.TaggedError("SpecEditedSinceApprovalError")<{
+  planPath: string;
+  specPath: string;
+  baseline: string;
+}> {
+  override get message(): string {
+    return `${this.planPath} declares Source-Spec: ${this.specPath}, but ${this.specPath} is Approved but edited since its approval (${this.baseline.slice(0, 7)}) — re-approve the spec first`;
+  }
+}
+
 export class SpecRetirementBlockedError extends Data.TaggedError("SpecRetirementBlockedError")<{
   specPath: string;
   dependents: readonly { readonly path: string; readonly status: string }[];
