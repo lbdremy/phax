@@ -675,6 +675,7 @@ describe("transitionArtifact", () => {
       if (commitCalls[0]?.method === "commitPaths") {
         expect(commitCalls[0].paths).toEqual([
           "docs/specs/21-foo.md",
+          "docs/specs/approvals.json",
           "docs/specs/archive/21-foo.md",
         ]);
       }

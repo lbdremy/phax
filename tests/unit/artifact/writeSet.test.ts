@@ -3,25 +3,31 @@ import {
   transitionCommitMessage,
   transitionWriteSet,
 } from "../../../src/domain/artifact/writeSet.js";
-import { APPROVALS_FILE_PATH } from "../../../src/domain/artifact/lineage.js";
+import {
+  APPROVALS_FILE_PATH,
+  SPEC_APPROVALS_FILE_PATH,
+} from "../../../src/domain/artifact/lineage.js";
 
 describe("transitionWriteSet", () => {
-  it("spec approve: just the artifact path", () => {
+  it("spec approve: artifact path plus the spec approvals file", () => {
     expect(transitionWriteSet("spec", "docs/specs/21-foo.md", "Approved")).toEqual([
       "docs/specs/21-foo.md",
+      SPEC_APPROVALS_FILE_PATH,
     ]);
   });
 
-  it("spec abandon: artifact path plus archive destination, no approvals file", () => {
+  it("spec abandon: artifact path, spec approvals file, and archive destination", () => {
     expect(transitionWriteSet("spec", "docs/specs/21-foo.md", "Abandoned")).toEqual([
       "docs/specs/21-foo.md",
+      SPEC_APPROVALS_FILE_PATH,
       "docs/specs/archive/21-foo.md",
     ]);
   });
 
-  it("spec complete: artifact path plus archive destination, no approvals file", () => {
+  it("spec complete: artifact path, spec approvals file, and archive destination", () => {
     expect(transitionWriteSet("spec", "docs/specs/21-foo.md", "Completed")).toEqual([
       "docs/specs/21-foo.md",
+      SPEC_APPROVALS_FILE_PATH,
       "docs/specs/archive/21-foo.md",
     ]);
   });

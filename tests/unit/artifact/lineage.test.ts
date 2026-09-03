@@ -5,6 +5,8 @@ import {
   clearApproved,
   computeStaleness,
   readSourceSpec,
+  SPEC_APPROVALS_FILE_PATH,
+  specApprovalVerdict,
   stampApproved,
   STALENESS_REASONS,
   type ApprovalRecordLike,
@@ -163,6 +165,65 @@ describe("clearApproved", () => {
     const result = clearApproved("# Plan\n\n## Overview\n");
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) expect(result.left.kind).toBe("missing-block");
+  });
+});
+
+const SPEC_DOC = `---
+status: Draft
+date: 2026-08-11
+audience: implementation planning with Claude Code
+scope: functional behavior and consumption surface
+---
+
+# Some Spec
+
+Body text.
+`;
+
+describe("stampApproved on a spec", () => {
+  it("leaves other keys byte-identical when stamping a spec", () => {
+    const updated = stampApproved(SPEC_DOC, "2026-08-11T12:00:00.000Z", "abc1234");
+    expect(Either.isRight(updated)).toBe(true);
+    if (!Either.isRight(updated)) return;
+    expect(updated.right).toContain("date: 2026-08-11");
+    expect(updated.right).toContain("audience: implementation planning with Claude Code");
+    expect(updated.right).toContain("scope: functional behavior and consumption surface");
+    expect(updated.right).toContain("approved:");
+  });
+
+  it("leaves the body byte-identical when stamping a spec", () => {
+    const updated = stampApproved(SPEC_DOC, "2026-08-11T12:00:00.000Z", "abc1234");
+    expect(Either.isRight(updated)).toBe(true);
+    if (!Either.isRight(updated)) return;
+    const bodyAfter = updated.right.slice(updated.right.indexOf("---\n", 3) + 4);
+    const bodyBefore = SPEC_DOC.slice(SPEC_DOC.indexOf("---\n", 3) + 4);
+    expect(bodyAfter).toBe(bodyBefore);
+  });
+});
+
+describe("specApprovalVerdict", () => {
+  it("returns unrecorded when record is null", () => {
+    expect(specApprovalVerdict(null, "fp-current")).toEqual({ kind: "unrecorded" });
+  });
+
+  it("returns recorded/not edited when fingerprints match", () => {
+    expect(specApprovalVerdict({ specFingerprint: "fp-same" }, "fp-same")).toEqual({
+      kind: "recorded",
+      editedSinceApproval: false,
+    });
+  });
+
+  it("returns recorded/edited when fingerprints differ", () => {
+    expect(specApprovalVerdict({ specFingerprint: "fp-old" }, "fp-new")).toEqual({
+      kind: "recorded",
+      editedSinceApproval: true,
+    });
+  });
+});
+
+describe("SPEC_APPROVALS_FILE_PATH", () => {
+  it("points to docs/specs/approvals.json", () => {
+    expect(SPEC_APPROVALS_FILE_PATH).toBe("docs/specs/approvals.json");
   });
 });
 
