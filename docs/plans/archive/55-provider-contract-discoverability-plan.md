@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/30-provider-contract-discoverability.md
 approved:
   date: 2026-09-03
