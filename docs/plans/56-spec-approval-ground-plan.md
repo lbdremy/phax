@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/31-spec-approval-ground.md
+approved:
+  date: 2026-09-03
+  baseline: 1ad91c2
 ---
 
 # Spec approval ground
