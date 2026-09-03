@@ -12,15 +12,6 @@
       "approvedAt": "2026-08-11T07:59:18.912Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
-    },
-    "docs/plans/56-spec-approval-ground-plan.md": {
-      "planFingerprint": "ff562a31485565c69e3bec02389d1cfedc5ee1705005f810eb24ca837368fe6c",
-      "approvedAt": "2026-09-03T08:32:30.423Z",
-      "baseline": "1ad91c2b0242d75cafd41367f92d2916e471713c",
-      "sourceSpec": {
-        "path": "docs/specs/31-spec-approval-ground.md",
-        "fingerprint": "14b73d27b90bcab371ff21de1182ce8caa0978bed8b81c629f5ebd02d9a13371"
-      }
     }
   }
 }

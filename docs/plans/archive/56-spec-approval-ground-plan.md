@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/31-spec-approval-ground.md
 approved:
   date: 2026-09-03
