@@ -102,34 +102,39 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
           return assertNever(state);
       }
 
-    case "RunArchiveRequested":
+    case "RunArchiveRequested": {
+      const archiveEffects: readonly PhaxCommand[] = [
+        { type: "MoveRunToArchive", from: event.from, to: event.to },
+        ...(event.worktreesFrom !== undefined && event.worktreesTo !== undefined
+          ? [
+              {
+                type: "MoveRunToArchive" as const,
+                from: event.worktreesFrom,
+                to: event.worktreesTo,
+              },
+            ]
+          : []),
+      ];
       switch (state.run) {
         case "review_open":
         case "completed":
-          return handled({ run: "archived" }, [
-            { type: "MoveRunToArchive", from: event.from, to: event.to },
-            ...(event.worktreesFrom !== undefined && event.worktreesTo !== undefined
-              ? [
-                  {
-                    type: "MoveRunToArchive" as const,
-                    from: event.worktreesFrom,
-                    to: event.worktreesTo,
-                  },
-                ]
-              : []),
-          ]);
+          return handled({ run: "archived" }, archiveEffects);
+        case "created":
+        case "failed":
+        case "interrupted":
+        case "rate_limited":
+        case "stopped":
+          return event.force
+            ? handled({ run: "archived" }, archiveEffects)
+            : rejected(`run is ${state.run}, not finished; pass --force to archive it anyway`);
         case "archived":
           return rejected("run is already archived");
-        case "created":
         case "running":
-        case "rate_limited":
-        case "interrupted":
-        case "failed":
-        case "stopped":
-          return rejected(`cannot archive run from ${state.run}`);
+          return rejected("cannot archive a running run");
         default:
           return assertNever(state);
       }
+    }
 
     case "RunFailed":
       switch (state.run) {

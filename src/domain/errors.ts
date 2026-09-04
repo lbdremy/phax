@@ -92,6 +92,12 @@ export class ArchiveBlockedByDirtyWorktreeError extends Data.TaggedError(
   worktreePath: string;
 }> {}
 
+export class ArchiveRefusedError extends Data.TaggedError("ArchiveRefusedError")<{
+  message: string;
+  shortName: string;
+  state: string;
+}> {}
+
 export class PhaseHadNoChangesError extends Data.TaggedError("PhaseHadNoChangesError")<{
   message: string;
   phaseId: string;
