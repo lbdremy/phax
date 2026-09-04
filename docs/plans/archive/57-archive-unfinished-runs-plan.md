@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/32-archive-unfinished-runs.md
 approved:
   date: 2026-09-04
