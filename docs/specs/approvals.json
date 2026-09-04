@@ -20,6 +20,11 @@
       "specFingerprint": "b19da59fbf82a781a6e034aef4fbe27507a63137cbc7c165d8ad8031cfd99c81",
       "approvedAt": "2026-09-04T09:28:11.427Z",
       "baseline": "67e20c372589e947257a71f941e43e4367a5abe4"
+    },
+    "docs/specs/32-archive-unfinished-runs.md": {
+      "specFingerprint": "ac3f9e9ec691efeb259cb85c25996d8b7201b918f1d4747a463014c3a19a3171",
+      "approvedAt": "2026-09-04T09:52:43.421Z",
+      "baseline": "1ceb7ae8d8d9fd2139ba0be02dc40f5681cf131a"
     }
   }
 }
