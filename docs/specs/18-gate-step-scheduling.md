@@ -3,6 +3,9 @@ status: Approved
 date: 2026-08-21
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-09-04
+  baseline: 37405b9
 ---
 # Gate Step Scheduling from the Plan
 
