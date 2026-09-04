@@ -3,6 +3,9 @@ status: Approved
 date: 2026-08-21
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-09-04
+  baseline: 44bd9b3
 ---
 # Plan-Completeness Advisory
 
