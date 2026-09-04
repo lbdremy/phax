@@ -13,6 +13,7 @@ import {
   makeGlobalTelemetryJournalLayerOrNoop,
 } from "./runLayers.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
+import { ArchiveRefusedError } from "../../domain/errors.js";
 
 export interface ArchiveCommandOptions {
   force?: boolean;
@@ -59,7 +60,12 @@ async function archiveRun(
 
   const result = await Effect.runPromise(Effect.either(effect));
   if (Either.isLeft(result)) {
-    out.error(`Archive failed: ${result.left.message}`);
+    const err = result.left;
+    if (err instanceof ArchiveRefusedError) {
+      out.error(`Archive refused: ${err.message}`);
+    } else {
+      out.error(`Archive failed: ${err.message}`);
+    }
     return 1;
   }
 

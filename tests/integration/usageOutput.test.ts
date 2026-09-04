@@ -99,6 +99,25 @@ describe("phax --usage", () => {
   );
 });
 
+describe("phax.usage.kdl archive command content", () => {
+  it("archive command help documents --force and unfinished", () => {
+    expect(existsSync(specPath)).toBe(true);
+    const kdlContent = readFileSync(specPath, "utf8");
+
+    // Locate the archive command block
+    const archiveIdx = kdlContent.indexOf('\ncmd "archive"');
+    expect(archiveIdx, "archive command not found in KDL").toBeGreaterThan(-1);
+
+    // Find the next top-level cmd boundary so we only inspect the archive block
+    const nextCmdIdx = kdlContent.indexOf('\ncmd "', archiveIdx + 1);
+    const archiveBlock =
+      nextCmdIdx === -1 ? kdlContent.slice(archiveIdx) : kdlContent.slice(archiveIdx, nextCmdIdx);
+
+    expect(archiveBlock).toContain("--force");
+    expect(archiveBlock).toContain("unfinished");
+  });
+});
+
 describe("phax --version vs KDL version", () => {
   it(
     "--version matches the version field in phax.usage.kdl",

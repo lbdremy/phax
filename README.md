@@ -328,9 +328,11 @@ Archive is the **only** operation that touches `worktrees/`. It moves:
 Then runs `git worktree prune` to drop stale admin records. Nothing is destructively deleted — every phase's working state is preserved for later inspection.
 
 ```bash
-phax archive <short-name>       # requires review_open or completed
-phax archive <short-name> --force  # allow uncommitted changes in final worktree
+phax archive <short-name>        # any non-running run; unfinished states require --force
+phax archive <short-name> --force  # archive an unfinished run, or bypass the dirty-worktree check
 ```
+
+Finished runs (`review_open`, `completed`) archive without `--force`. Unfinished runs (`created`, `failed`, `interrupted`, `rate_limited`, `stopped`) are refused unless `--force` is passed — the refusal message names the state. Running, locked, and already-archived runs are never archivable. The run's `stoppedReason` and `lastError` survive archival intact.
 
 ## Multi-provider model routing
 
@@ -549,7 +551,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax path <short-name>` — Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools.
 - `phax open <short-name>` — Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument.
 - `phax ls [FLAGS]` — Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (awaiting human review), or --archived. Use --json for machine-readable output.
-- `phax archive [--force] <short-name>` — Archives a run by removing its worktrees and marking it archived in the registry. Without --force, fails when the final worktree has uncommitted changes.
+- `phax archive [--force] <short-name>` — Archives a run by moving its worktrees under ~/.phax/archive/<namespace>.<short-name>/ and marking it archived in the registry. Nothing is destructively deleted — every phase's working state is preserved.
 - `phax run <FLAGS> [short-name]` — Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs its gate profile's every-phase steps after execution; the final phase also runs the profile's terminal steps. Each step's surface (local, structural, or product) is recorded per phase and the run's verified surfaces are reported at run end.
 - `phax review-handoff [--allow-partial] <short-name>` — Regenerate review-handoff.md and global file reconciliation for a review_open run
 - `phax publish-pr <short-name>` — Pushes the final worktree branch to the GitHub remote and creates a pull request, or reuses an existing PR for the same branch. Requires a GitHub remote and gh CLI authentication.
