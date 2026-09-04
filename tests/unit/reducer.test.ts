@@ -63,6 +63,7 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
   RunArchiveRequested: {
     ...base,
     type: "RunArchiveRequested",
+    force: false,
     from: "/tmp/state/runs/run-1",
     to: "/tmp/state/archive/run-1",
   },
@@ -239,6 +240,88 @@ describe("interpret — run lifecycle", () => {
   it("RunArchiveRequested on archived is rejected (not ignored — explicit replay guard)", () => {
     const d = interpret(representativeState.archived, sampleEvents.RunArchiveRequested);
     expect(d.kind).toBe("Rejected");
+  });
+
+  it("RunArchiveRequested on review_open with force: false → Handled (unchanged behaviour)", () => {
+    const d = interpret(representativeState.review_open, {
+      ...sampleEvents.RunArchiveRequested,
+      force: false,
+    });
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({ run: "archived" });
+  });
+
+  it("RunArchiveRequested on completed with force: false → Handled (unchanged behaviour)", () => {
+    const d = interpret(representativeState.completed, {
+      ...sampleEvents.RunArchiveRequested,
+      force: false,
+    });
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({ run: "archived" });
+  });
+});
+
+describe("interpret — RunArchiveRequested with force consent", () => {
+  const archiveEvent = {
+    ...sampleEvents.RunArchiveRequested,
+    from: "/tmp/state/runs/run-1",
+    to: "/tmp/state/archive/run-1/runs",
+    worktreesFrom: "/tmp/state/worktrees/run-1",
+    worktreesTo: "/tmp/state/archive/run-1/worktrees",
+  };
+
+  const unfinishedStates = ["created", "failed", "interrupted", "rate_limited", "stopped"] as const;
+
+  for (const runState of unfinishedStates) {
+    it(`${runState} × force:false → Rejected with state name and --force in reason`, () => {
+      const state = representativeState[runState];
+      const d = interpret(state, { ...archiveEvent, force: false });
+      expect(d.kind).toBe("Rejected");
+      if (d.kind !== "Rejected") return;
+      expect(d.reason).toContain(runState);
+      expect(d.reason).toContain("--force");
+    });
+
+    it(`${runState} × force:true → Handled with run:archived (no worktrees)`, () => {
+      const state = representativeState[runState];
+      const d = interpret(state, {
+        ...archiveEvent,
+        force: true,
+        worktreesFrom: undefined,
+        worktreesTo: undefined,
+      });
+      expect(d.kind).toBe("Handled");
+      if (d.kind !== "Handled") return;
+      expect(d.nextState).toEqual({ run: "archived" });
+      const moveEffects = d.effects.filter((e) => e.type === "MoveRunToArchive");
+      expect(moveEffects).toHaveLength(1);
+    });
+
+    it(`${runState} × force:true → Handled with two MoveRunToArchive effects (with worktrees)`, () => {
+      const state = representativeState[runState];
+      const d = interpret(state, { ...archiveEvent, force: true });
+      expect(d.kind).toBe("Handled");
+      if (d.kind !== "Handled") return;
+      expect(d.nextState).toEqual({ run: "archived" });
+      const moveEffects = d.effects.filter((e) => e.type === "MoveRunToArchive");
+      expect(moveEffects).toHaveLength(2);
+    });
+  }
+
+  it("running × force:true → Rejected (running cannot be archived regardless of force)", () => {
+    const d = interpret(representativeState.running, { ...archiveEvent, force: true });
+    expect(d.kind).toBe("Rejected");
+    if (d.kind !== "Rejected") return;
+    expect(d.reason).toContain("running");
+  });
+
+  it("archived × force:true → Rejected (already archived)", () => {
+    const d = interpret(representativeState.archived, { ...archiveEvent, force: true });
+    expect(d.kind).toBe("Rejected");
+    if (d.kind !== "Rejected") return;
+    expect(d.reason).toContain("already archived");
   });
 });
 

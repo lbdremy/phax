@@ -195,7 +195,13 @@ describe("dispatch — non-handled dispositions", () => {
     const fakeFs = seedFs({ runState: "running", phaseState: "running" });
     const { layer, fakeTelemetry } = makeLayers(fakeFs);
 
-    const event: PhaxEvent = { type: "RunArchiveRequested", ...baseEventFields };
+    const event: PhaxEvent = {
+      type: "RunArchiveRequested",
+      ...baseEventFields,
+      force: false,
+      from: runPath,
+      to: `${runPath}-archive`,
+    };
 
     const result = await Effect.runPromise(dispatch(event, ctx).pipe(Effect.provide(layer)));
 

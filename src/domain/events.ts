@@ -26,6 +26,7 @@ export interface RunInterruptRequested extends PhaxEventBase {
 
 export interface RunArchiveRequested extends PhaxEventBase {
   readonly type: "RunArchiveRequested";
+  readonly force: boolean;
   readonly from: string;
   readonly to: string;
   /** Source path of the worktrees folder (e.g. ~/.phax/worktrees/{short}). */

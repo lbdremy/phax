@@ -8,7 +8,7 @@ import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
-  InvalidTransitionError,
+  ArchiveRefusedError,
   RegistryCorruptionError,
   LockConflictError,
   SetupCommandFailedError,
@@ -38,7 +38,7 @@ export function archive(
   | SetupCommandFailedError
   | RegistryCorruptionError
   | ArchiveBlockedByDirtyWorktreeError
-  | InvalidTransitionError
+  | ArchiveRefusedError
   | LockConflictError,
   FileSystem | Git | Shell | Lock | SystemTelemetry
 > {
@@ -70,12 +70,17 @@ export function archive(
         ? (infoResult.right.worktreePath as WorktreePath)
         : undefined;
 
-    // 3. Check final worktree cleanliness
-    if (worktreePath) {
+    const runState = Either.isRight(infoResult) ? infoResult.right.runState : undefined;
+    const finished = runState === "review_open" || runState === "completed";
+
+    // 3. Check final worktree cleanliness (finished runs without --force only).
+    //    An unfinished run never reaches this guard: the reducer rejects it before
+    //    MoveRunToArchive is emitted, and --force bypasses cleanliness entirely.
+    if (worktreePath && !opts.force && finished) {
       const worktreeExists = yield* fs.exists(worktreePath);
       if (worktreeExists) {
         const isClean = yield* git.worktreeIsClean(worktreePath);
-        if (!isClean && !opts.force) {
+        if (!isClean) {
           return yield* Effect.fail(
             new ArchiveBlockedByDirtyWorktreeError({
               message: `Worktree at "${worktreePath}" has uncommitted changes. Commit or stash changes, or use --force.`,
@@ -96,10 +101,12 @@ export function archive(
     }
 
     // 4. Dispatch RunArchiveRequested. The reducer is the source of truth for
-    //    which run states allow archiving (review_open and completed); any
-    //    other state comes back as a Rejected disposition and we surface that
-    //    as an InvalidTransitionError. On Handled, the reducer emits
-    //    MoveRunToArchive effects and the dispatcher persists run-status.json.
+    //    which states allow archiving: review_open and completed always succeed;
+    //    created, failed, interrupted, rate_limited, and stopped succeed only
+    //    when force is set; running and archived are always refused. A non-Handled
+    //    disposition surfaces as ArchiveRefusedError with the reducer's reason.
+    //    On Handled, the reducer emits MoveRunToArchive effects and the dispatcher
+    //    persists run-status.json.
     //
     //    Both the run folder and the worktrees folder land under a single
     //    umbrella so a user can move the entire archive entry as one unit and
@@ -118,6 +125,7 @@ export function archive(
         occurredAt: new Date().toISOString(),
         run: shortName as unknown as RunId,
         type: "RunArchiveRequested",
+        force: opts.force ?? false,
         from: runPath,
         to: runsTo,
         worktreesFrom: worktreesDirExists ? worktreesFrom : undefined,
@@ -127,10 +135,10 @@ export function archive(
     );
     if (result.disposition !== "Handled") {
       return yield* Effect.fail(
-        new InvalidTransitionError({
-          from: result.stateBefore.run,
-          to: "archived",
-          entity: "run",
+        new ArchiveRefusedError({
+          message: `Run "${qualifiedKey}" ${result.reason ?? "cannot be archived"}.`,
+          shortName: qualifiedKey,
+          state: result.stateBefore.run,
         }),
       );
     }
