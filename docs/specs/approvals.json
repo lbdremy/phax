@@ -5,6 +5,11 @@
       "specFingerprint": "18d0933d3abcd62bd713b7149f14e7155b1d8eb3adb8a0d3b12c0d4c9d6db556",
       "approvedAt": "2026-09-04T09:27:58.040Z",
       "baseline": "37405b96b6d354ff84ca1f03c1c3ee1ff833836e"
+    },
+    "docs/specs/19-plan-completeness-advisory.md": {
+      "specFingerprint": "ffbf055f13140ebf31a7369e7af323695298c463d5b74c8b7eb460bec0ced24f",
+      "approvedAt": "2026-09-04T09:28:10.304Z",
+      "baseline": "44bd9b337db714ec4968cef09fb9f1c8edde9b7f"
     }
   }
 }
