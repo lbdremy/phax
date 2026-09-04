@@ -83,8 +83,12 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   archive: {
     longHelp:
-      "Archives a run by removing its worktrees and marking it archived in the registry. Without --force, fails when the final worktree has uncommitted changes.\n\nSide effects: deletes worktrees from the filesystem, updates ~/.phax/runs/.",
-    examples: ["phax archive usage-cli", "phax archive usage-cli --force"],
+      "Archives a run by moving its worktrees under ~/.phax/archive/<namespace>.<short-name>/ and marking it archived in the registry. Nothing is destructively deleted — every phase's working state is preserved.\n\nFinished runs (review_open, completed) archive by default. Unfinished runs (created, failed, interrupted, rate_limited, stopped) are refused unless --force is set; the refusal message names the run's current state and the flag. Running, locked, and already-archived runs are never archivable regardless of --force.\n\nThe run's stoppedReason and lastError survive archival intact.\n\nWithout --force on a finished run, the final worktree must be clean. With --force, no cleanliness check runs.\n\nSide effects: moves worktrees on the filesystem, updates ~/.phax/runs/.",
+    examples: [
+      "phax archive usage-cli",
+      "phax archive usage-cli --force",
+      "phax archive plan-27 --force  # give up an interrupted run",
+    ],
   },
 
   "publish-pr": {

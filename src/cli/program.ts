@@ -204,9 +204,12 @@ export function buildProgram(): Command {
 
   program
     .command("archive")
-    .description("Archive a completed or review_open run")
+    .description("Archive a run that is not running; --force is required for an unfinished run")
     .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .option("--force", "Archive even if the final worktree has uncommitted changes")
+    .option(
+      "--force",
+      "Archive even if the run is unfinished or a worktree has uncommitted changes",
+    )
     .action(async (shortName: string, opts: { force?: boolean }) => {
       const exitCode = await runArchive(shortName, opts, consoleOutput);
       process.exit(exitCode);
