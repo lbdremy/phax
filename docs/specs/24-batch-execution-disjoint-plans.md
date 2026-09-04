@@ -3,6 +3,9 @@ status: Approved
 date: 2026-08-09
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-09-04
+  baseline: 67e20c3
 ---
 # Opportunistic Batch Execution of Disjoint Plans
 
