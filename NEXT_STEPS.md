@@ -5,13 +5,20 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-09-03. Since the previous prune (2026-08-21, v0.10.1): spec 16 shipped as
-diagnostic-emitting gate steps through plan 54 (`75b086f` flag + document schema, `0195ea8`
-verdict from the document, `3bfd834` diagnostics in the fix prompt; spec and plan completed
-`cad4d31` / `1105c59`). Spec 30 (provider contract discoverability — the orient and
-gate-diagnostics contracts readable from `--usage`, the generated schema, the README and
-`examples/hello-world`) is Approved and its plan 55 is running. Spec 31 (spec approval with a
-recorded ground) is Approved and unplanned. No small follow-ups are open.
+Last pruned 2026-09-04. Since the previous prune (2026-09-03): spec 30 shipped as the
+readable provider contract through plan 55 (`eb673ba` orient contract in the usage spec,
+`dce28c8` schema descriptions for `orient.command` and the gate-step diagnostics shape,
+`04d8ddd` README section plus the two `examples/hello-world` provider scripts, `dba3570`
+stdin fix; spec and plan completed `ddd70e2` / `53ddf33`). Spec 31 was planned, approved,
+run and shipped in the same stretch as plan 56 (`627349a` spec approval stamp and record
+shape, `d9f85ed` recorded approvals plus the chain gate on plan approval, `d73a696`
+`artifact status` reporting and re-approval docs; completed `7c67ff4` / `4033952`,
+skills documented `1ceb7ae`). Its migration is **done for the parked specs**: 18, 19, 23
+and 24 were re-approved with the tool on 2026-09-04 (`19b1958`, `6b2b3ae`, `a74a352`,
+`36b267f`) with plain `date` keys restored (`9132ccf`) and the sidecar tracked (`dedb550`).
+Spec 32 (archive unfinished runs) was approved a day before the tooling landed, so it was
+re-approved on 2026-09-04 (`6330a33`) to record it; its plan is written and approved. No
+small follow-ups are open.
 
 ## Records consumers (the substrate shipped in 0.9)
 
@@ -36,9 +43,10 @@ recorded ground) is Approved and unplanned. No small follow-ups are open.
       complete` (would give spec 22's `spec-changed` check a meaningful baseline);
       requirement-level traceability on top of the file-level reconciliation (refines
       `plans overlap` and the compliance review); an explicit explore step before
-      `phax-spec`. Brainstorm the first piste before writing anything — spec 31 now gives
-      a spec approval its own fingerprinted record, so the living-spec piste has a
-      baseline to fold deltas into; build on it rather than beside it.
+      `phax-spec`. Brainstorm the first piste before writing anything — spec 31 shipped
+      2026-09-03, so a spec approval now has its own fingerprinted record and the
+      living-spec piste has a baseline to fold deltas into; build on it rather than
+      beside it.
 - [ ] Preview manifest — `phax.json` declares how to preview a finished run
       (per-project-type discriminated union: web / cli / lib). Write it when desktop
       work starts; nothing consumes it before then.
@@ -49,31 +57,37 @@ recorded ground) is Approved and unplanned. No small follow-ups are open.
 
 ## Approved specs — in flight, next, parked
 
-Six approved specs are open: 30 is running, 31 is next to plan, four are parked (18, 19,
-23, 24). Gate-line specs 18 and 19 were revised and re-approved against main `7b64e98` on
-2026-08-21 (`cd04e3a`, `7b64e98`, `5f67f0a`): 18 gets closure from a registered `scopes`
-provider fed with a thin plan projection, 19 shares that projection. Each is plannable at
-any time. Pick one up by writing a plan (`phax-planning` skill). Note that plan staleness
-is a **plan** property, so a spec parked here does not rot; the plans written against them
-do.
+Five approved specs are open: 32 is approved with plan 57 and ready to run, four are parked
+(18, 19, 23, 24). Gate-line specs 18 and 19 were revised and re-approved against main `7b64e98`
+on 2026-08-21 (`cd04e3a`, `7b64e98`, `5f67f0a`): 18 gets closure from a registered `scopes`
+provider fed with a thin plan projection, 19 shares that projection. All four now carry a
+recorded approval, so the chain gate will let a plan be approved against them. Each is
+plannable at any time. Pick one up by writing a plan (`phax-planning` skill). Note that plan
+staleness is a **plan** property, so a spec parked here does not rot; the plans written
+against them do.
 
-### In flight and next to plan
+### Next to run
 
-- [ ] **Spec 30 / plan 55** — run `provider-contract-discoverability` started 2026-09-03
-      (three phases: orient contract in `cliDocs` → usage/reference/README; schema
-      descriptions on `orient.command` and gate-step `output` plus the diagnostics
-      provider-error shape; README orient section and two `examples/hello-world` provider
-      scripts). When it reaches review: publish, `phax artifact complete` plan 55 then
-      spec 30, prune here.
-- [ ] **Spec 31 `docs/specs/31-spec-approval-ground.md`** — Approved 2026-09-03, no plan.
-      Write the plan next. Specs gain the plan-style `approved: { date, baseline }` stamp
-      and a `docs/specs/approvals.json` record with the content fingerprint;
-      `Approved → Approved` becomes a legal re-stamp; `artifact status` reports
-      edited-since-approval / unrecorded; plan approval refuses (exit 12) a spec that is
-      edited since approval or unrecorded. Migration after it lands: re-approve 18, 19, 23,
-      24 and 30 with the tool and restore their `date` keys to plain dates — do this
-      **before** approving any plan against 18/19, since the chain gate will refuse an
-      unrecorded spec.
+- [ ] **Spec 32 / plan 57 — `archive-unfinished-runs`, approved and ready to run.**
+      Spec Approved 2026-09-03 (`1ad91c2`) and re-approved with the tool on 2026-09-04
+      (`6330a33`) — it had been approved a day before spec 31's tooling landed, so it
+      carried no record and the chain gate refused the plan. The plan was renamed from
+      `32-` to `57-` (the `32-` slot is taken by the archived
+      `32-resumable-handoff-failure-plan.md`; the sequence after 55 and 56 is 57),
+      drafted `13b8e4c` and approved `bda1e9d` with lineage recorded against spec 32.
+      Two phases: consent-aware archive rule and refusal in the reducer + use case; CLI
+      contract and regenerated docs. Launch with
+      `phax run archive-unfinished-runs --plan docs/plans/57-archive-unfinished-runs-plan.md`.
+      When it reaches review: publish, `phax artifact complete` plan 57 then spec 32,
+      prune here.
+
+### Housekeeping
+
+- [ ] The registry carries ~15 runs stuck in `created` from earlier experiments. They are
+      exactly what spec 32 unblocks; sweep them with `phax archive --force` once it ships.
+- Note: the released `phax` on PATH is v0.10.1 and predates spec 31 — it refuses the
+  `Approved → Approved` re-stamp. Run artifact transitions from source (`pnpm dev
+  artifact ...`) until the next release.
 
 ### Gate spec 18 and advisory 19
 
