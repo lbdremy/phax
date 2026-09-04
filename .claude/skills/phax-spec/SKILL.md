@@ -55,6 +55,17 @@ Move status through its legal transitions with the `phax artifact` command group
 validates the transition and, on a terminal one, moves the file into `archive/`
 for you. Record the status in the frontmatter block (below) and keep it accurate.
 
+`phax artifact approve` also stamps an `approved: { date, baseline }` block into the
+frontmatter and writes a record to `docs/specs/approvals.json`. Both are **written by phax,
+never by hand** — treat them as machine state, not authored content. Re-approving an
+already-**Approved** spec is legal and is the supported way to record an **in-place
+revision**: it re-stamps the block and rewrites the record against the spec's current
+content. Because a plan can only be approved against a recorded, unmodified spec, a plan
+whose `Source-Spec` is Approved but **unrecorded** (no record in `approvals.json`) or
+**edited since** its approval fails plan approval with exit 12 — re-approve the spec first.
+`phax artifact status <spec>` reports the approval date, baseline, and whether the spec has
+been edited since.
+
 ## File and naming convention
 
 - One feature = one spec file: `docs/specs/NN-<slug>.md` (`NN` zero-padded, `<slug>`
@@ -65,8 +76,10 @@ for you. Record the status in the frontmatter block (below) and keep it accurate
 ## Canonical spec structure
 
 Start every spec with this frontmatter block, then the ten numbered sections. This is the
-shape phax specs converge on; follow it so specs stop drifting. The key set is exact — an
-unknown or missing key fails validation.
+shape phax specs converge on; follow it so specs stop drifting. The four authored keys are
+exact — an unknown or missing one fails validation. `approved` is the one optional key: it is
+written by phax on approval (see Lifecycle), never authored by hand — omit it until the spec
+is first approved.
 
 ```markdown
 ---
@@ -74,6 +87,9 @@ status: Draft | Approved | Abandoned | Completed
 date: YYYY-MM-DD
 audience: implementation planning with <agent>
 scope: functional behavior and consumption surface
+approved:                 # written by phax on approval, never by hand; absent until approved
+  date: YYYY-MM-DD
+  baseline: <short-sha>
 ---
 
 # <Title>

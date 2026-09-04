@@ -84,7 +84,13 @@ legal transitions (see `--usage` for the exact subcommands and flags):
 - `phax artifact status <path>` — report an artifact's kind, current status, and
   legal transitions.
 - `phax artifact approve <path>` — the `Draft → Approved` gate; run it on a plan
-  under `docs/plans/` before `phax run`.
+  under `docs/plans/` before `phax run`. Approving stamps `approved: { date, baseline }`
+  into the frontmatter and writes a record to the sidecar (`docs/plans/approvals.json` for
+  plans, `docs/specs/approvals.json` for specs). Re-approving an already-`Approved` artifact
+  is legal — it re-records the approval against the current content, the correct way to log an
+  in-place revision (don't hand-edit the stamp). Approving a plan whose `Source-Spec` is an
+  Approved spec that is **unrecorded** or **edited since** its approval is refused with exit
+  12 — re-approve the spec first.
 - `phax artifact stale` / `reopen` — mark a plan `Stale`, or reopen a `Stale`
   plan back to `Draft` (plans only).
 - `phax artifact abandon` / `complete` — terminal transitions; phax moves the file
