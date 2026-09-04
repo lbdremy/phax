@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/32-archive-unfinished-runs.md
+approved:
+  date: 2026-09-04
+  baseline: 13b8e4c
 ---
 
 # Archive unfinished runs
