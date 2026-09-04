@@ -12,15 +12,6 @@
       "approvedAt": "2026-08-11T07:59:18.912Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
-    },
-    "docs/plans/57-archive-unfinished-runs-plan.md": {
-      "planFingerprint": "4582ba74f13785a480e58536a4834d9e2f5e20bb7613d667c437c93f9474bec9",
-      "approvedAt": "2026-09-04T09:53:24.757Z",
-      "baseline": "13b8e4caf4e0b998d6730b8f8b4a3e6fa4bc2a78",
-      "sourceSpec": {
-        "path": "docs/specs/32-archive-unfinished-runs.md",
-        "fingerprint": "ac3f9e9ec691efeb259cb85c25996d8b7201b918f1d4747a463014c3a19a3171"
-      }
     }
   }
 }
