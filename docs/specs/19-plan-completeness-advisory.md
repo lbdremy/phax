@@ -1,7 +1,6 @@
 ---
 status: Approved
-date: "2026-08-21 (re-approved against main 7b64e98: projection shape shared with the scope provider of spec 18;
-  original approval 2026-07-03)"
+date: 2026-08-21
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 ---
