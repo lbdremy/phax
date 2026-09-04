@@ -61,17 +61,18 @@ does not rot; the plans written against them do.
 
 ### Housekeeping
 
-- [ ] Archive the plan 57 run. `phax.archive-unfinished-runs` is still `review_open` after
-      PR #90 merged, with its two phase worktrees under `~/.phax/worktrees/` and the
-      `phax/archive-unfinished-runs--phase-0{1,2}` branches. `pnpm dev archive
-      archive-unfinished-runs` (no `--force` needed: the run finished).
-- [ ] Sweep the 10 runs stuck in `created` from earlier experiments — exactly what spec 32
-      unblocked: `phax.typescript-6-migration`, `phax.deno-runtime`,
-      `phax.install-planning-skill`, `phax.telemetry-report`, `phax.plan-compliance-review`,
-      `phax.fix-completions`, `phax.model-catalog-and-equivalence-routing`,
-      `phax.brief-profile-orient`, `phax.artifact-lifecycle-status`,
-      `steme-lab.lazy-guides-and-doctrine-check`. Each needs `pnpm dev archive <name> --force`
-      until the next release puts `--force` on PATH.
+- Done 2026-09-04: the plan 57 run was archived after PR #90 merged, and the ten runs stuck
+  in `created` were swept with `phax archive --force` from source. Five of them predated
+  spec 12 and their `run-status.json` had no `namespace` (one plan also lacked
+  `run.requiredCommands`); they were hand-patched before archiving, since there is no
+  back-compat shim and the resolver reports such a folder as "not found" rather than
+  as unreadable. Nothing else in `~/.phax/runs/` is that old.
+- [ ] Five more unfinished runs from June still sit in the registry, outside the `created`
+      sweep: `phax.planning-skill-update` (rate_limited), `phax.compliance-handoff-resume`
+      and `phax.plan-27` (interrupted), `louloupapers.louloupress-new-features` (failed) and
+      `louloupapers.louloupress-features` (interrupted). All are long dead; sweep them the
+      same way (`pnpm dev archive <qualified-name> --force`, from the owning project for the
+      louloupapers pair) when convenient.
 - [ ] Cut a release. `main` is 57 commits past `v0.10.1` (2026-08-21) with eight `feat`/`fix`
       commits: the diagnostic gate steps (spec 16), the provider contract docs (spec 30), spec
       approval records and the chain gate (spec 31), and `archive --force` (spec 32). Until it
