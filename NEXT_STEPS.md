@@ -61,18 +61,18 @@ does not rot; the plans written against them do.
 
 ### Housekeeping
 
-- Done 2026-09-04: the plan 57 run was archived after PR #90 merged, and the ten runs stuck
-  in `created` were swept with `phax archive --force` from source. Five of them predated
-  spec 12 and their `run-status.json` had no `namespace` (one plan also lacked
-  `run.requiredCommands`); they were hand-patched before archiving, since there is no
-  back-compat shim and the resolver reports such a folder as "not found" rather than
-  as unreadable. Nothing else in `~/.phax/runs/` is that old.
-- [ ] Five more unfinished runs from June still sit in the registry, outside the `created`
-      sweep: `phax.planning-skill-update` (rate_limited), `phax.compliance-handoff-resume`
-      and `phax.plan-27` (interrupted), `louloupapers.louloupress-new-features` (failed) and
-      `louloupapers.louloupress-features` (interrupted). All are long dead; sweep them the
-      same way (`pnpm dev archive <qualified-name> --force`, from the owning project for the
-      louloupapers pair) when convenient.
+- Done 2026-09-04: registry fully swept. The plan 57 run was archived after PR #90 merged,
+  then every unfinished run from the June experiments (ten in `created`, five in
+  `failed` / `interrupted` / `rate_limited`, two of them louloupapers runs) was archived with
+  `phax archive --force` from source. `~/.phax/runs/` and `~/.phax/worktrees/` are empty;
+  the registry holds only `archived` entries. Six runs predated spec 12 and their
+  `run-status.json` had no `namespace` (one plan also lacked `run.requiredCommands`); they
+  were hand-patched first, since there is no back-compat shim and the unqualified resolver
+  reports such a folder as "not found" rather than as unreadable. The louloupapers pair had
+  to be archived from the phax repo by qualified name (its `phax.json` is pre-spec-15 and
+  the CLI refuses to load there), followed by a manual `git worktree prune` in that repo —
+  cross-project archive only prunes the current repo. Migrate that `phax.json` before
+  running phax in louloupapers again.
 - [ ] Cut a release. `main` is 57 commits past `v0.10.1` (2026-08-21) with eight `feat`/`fix`
       commits: the diagnostic gate steps (spec 16), the provider contract docs (spec 30), spec
       approval records and the chain gate (spec 31), and `archive --force` (spec 32). Until it
