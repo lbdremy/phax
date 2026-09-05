@@ -14,6 +14,18 @@ unblocked. Spec 31's migration was already done for the parked specs (18, 19, 23
 re-approved with the tool on 2026-09-04). No approved spec is in flight any more; everything
 left is either parked, housekeeping, or a candidate not yet written.
 
+## Small follow-ups
+
+- [ ] **Unqualified run lookup says "not found" for a folder that exists but fails to
+      decode.** Found during the 2026-09-04 registry sweep: `resolveRunRef` (`src/app/`) only
+      distinguishes the registry entry from the run files on the qualified path
+      (`unresolvable-qualified`, "is in the registry but its files could not be read"); the
+      unqualified in-project path collapses both into `not-found`. Six pre-spec-12 runs hit
+      this and looked deleted when they were merely undecodable. Fix: check the registry
+      first on the unqualified path too, and reuse the `unresolvable-qualified` message when
+      the entry exists but `resolveRun` fails. Ideally surface the decode reason (which field
+      is missing) — `loadRunReviewInfo` already knows it and throws it away.
+
 ## Records consumers (the substrate shipped in 0.9)
 
 - [ ] First consumer: **compliance review as diff-vs-intent evidence.** Today it
