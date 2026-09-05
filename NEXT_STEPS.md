@@ -5,14 +5,16 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-09-04 (second prune that day); release note added 2026-09-05. Since the previous prune (earlier on
-2026-09-04): spec 32 shipped through plan 57 in one sitting — run `archive-unfinished-runs`
+Last pruned 2026-09-05. That day v0.11.0 shipped (`f9a53ee`): the staged npm publish was
+approved, `latest` and the global install are both 0.11.0, and the release carries specs 16,
+30, 31 and 32 — the "run artifact transitions from source" caveat is gone with it. The day
+before, spec 32 shipped through plan 57 in one sitting — run `archive-unfinished-runs`
 (`ab26aaf` consent-aware archive rule, refusal in the reducer and use case, `--force` on the
 CLI; `3e0d11a` README and usage docs), merged as PR #90, plan 57 and spec 32 completed
-(`f010f9d` / `c34660d`). `phax archive --force` now exists, so the stuck-runs sweep below is
-unblocked. Spec 31's migration was already done for the parked specs (18, 19, 23, 24
-re-approved with the tool on 2026-09-04). No approved spec is in flight any more; everything
-left is either parked, housekeeping, or a candidate not yet written.
+(`f010f9d` / `c34660d`) — and the registry was swept clean with it (see Housekeeping). Spec
+31's migration was already done for the parked specs (18, 19, 23, 24 re-approved with the
+tool on 2026-09-04). No approved spec is in flight; everything left is either parked, a
+small follow-up, or a candidate not yet written.
 
 ## Small follow-ups
 
@@ -85,20 +87,6 @@ does not rot; the plans written against them do.
   the CLI refuses to load there), followed by a manual `git worktree prune` in that repo —
   cross-project archive only prunes the current repo. Migrate that `phax.json` before
   running phax in louloupapers again.
-- [ ] **Finish the v0.11.0 release — approve the staged npm publish.** Tagged and pushed
-      2026-09-05 (`f9a53ee`); the Release workflow and both CI runs are green and the GitHub
-      release with the four binaries is published. The workflow uses `npm stage publish`, so
-      `@lbdremy/phax@0.11.0` sits staged and npm still serves 0.10.1 as `latest`. Approval is
-      the 2FA step and needs a logged-in maintainer; the local npm (11.5.1) predates the
-      `stage` subcommand, so use `npx npm@11.16.0`:
-      `npm login`, then `npx npm@11.16.0 stage list @lbdremy/phax`, then
-      `npx npm@11.16.0 stage approve @lbdremy/phax@0.11.0`. Afterwards
-      `npm i -g @lbdremy/phax@0.11.0` — the `phax` on PATH is still 0.10.1 and refuses the
-      `Approved → Approved` re-stamp and has no `archive --force`; until the upgrade, artifact
-      transitions run from source (`pnpm dev`). The release ships the diagnostic gate steps
-      (spec 16), the provider contract docs (spec 30), spec approval records and the chain gate
-      (spec 31), and `archive --force` (spec 32).
-
 ### Gate spec 18 and advisory 19
 
 - [ ] `docs/specs/18-gate-step-scheduling.md` — no plan. Its dependency, spec 16, shipped
@@ -128,7 +116,7 @@ does not rot; the plans written against them do.
 - [ ] Plan 39 (`39-smolvm-isolation-spike-plan.md`) reads `Approved` in its frontmatter but
       `phax plans status` reports it `STALE` with `missing-record`: its recorded approval
       baseline `2843aa2` no longer exists on `main` (rewritten history). Either re-approve it
-      with a fresh read (`pnpm dev artifact approve docs/plans/39-…`) or abandon it if the
+      with a fresh read (`phax artifact approve docs/plans/39-…`) or abandon it if the
       smolvm spike is no longer worth running; do not leave the frontmatter and the record
       disagreeing.
 
