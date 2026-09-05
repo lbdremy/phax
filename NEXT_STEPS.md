@@ -5,7 +5,7 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-09-04 (second prune that day). Since the previous prune (earlier on
+Last pruned 2026-09-04 (second prune that day); release note added 2026-09-05. Since the previous prune (earlier on
 2026-09-04): spec 32 shipped through plan 57 in one sitting — run `archive-unfinished-runs`
 (`ab26aaf` consent-aware archive rule, refusal in the reducer and use case, `--force` on the
 CLI; `3e0d11a` README and usage docs), merged as PR #90, plan 57 and spec 32 completed
@@ -85,11 +85,19 @@ does not rot; the plans written against them do.
   the CLI refuses to load there), followed by a manual `git worktree prune` in that repo —
   cross-project archive only prunes the current repo. Migrate that `phax.json` before
   running phax in louloupapers again.
-- [ ] Cut a release. `main` is 57 commits past `v0.10.1` (2026-08-21) with eight `feat`/`fix`
-      commits: the diagnostic gate steps (spec 16), the provider contract docs (spec 30), spec
-      approval records and the chain gate (spec 31), and `archive --force` (spec 32). Until it
-      ships, the `phax` on PATH (0.10.1) refuses the `Approved → Approved` re-stamp and has no
-      `--force`, so artifact transitions and the sweep above must run from source (`pnpm dev`).
+- [ ] **Finish the v0.11.0 release — approve the staged npm publish.** Tagged and pushed
+      2026-09-05 (`f9a53ee`); the Release workflow and both CI runs are green and the GitHub
+      release with the four binaries is published. The workflow uses `npm stage publish`, so
+      `@lbdremy/phax@0.11.0` sits staged and npm still serves 0.10.1 as `latest`. Approval is
+      the 2FA step and needs a logged-in maintainer; the local npm (11.5.1) predates the
+      `stage` subcommand, so use `npx npm@11.16.0`:
+      `npm login`, then `npx npm@11.16.0 stage list @lbdremy/phax`, then
+      `npx npm@11.16.0 stage approve @lbdremy/phax@0.11.0`. Afterwards
+      `npm i -g @lbdremy/phax@0.11.0` — the `phax` on PATH is still 0.10.1 and refuses the
+      `Approved → Approved` re-stamp and has no `archive --force`; until the upgrade, artifact
+      transitions run from source (`pnpm dev`). The release ships the diagnostic gate steps
+      (spec 16), the provider contract docs (spec 30), spec approval records and the chain gate
+      (spec 31), and `archive --force` (spec 32).
 
 ### Gate spec 18 and advisory 19
 
