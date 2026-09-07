@@ -333,6 +333,7 @@ Each entry below is a versioned model id from the provider catalog with its effo
 | `gpt-5.6-sol` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultra` |
 | `gpt-5.6-terra` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultra` |
 | `gpt-5.6-luna` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` |
+| `gpt-6-astra` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultra` |
 <!-- END generated: model-catalog -->
 
 ## Required commands declaration

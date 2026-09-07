@@ -54,7 +54,7 @@ silently changes what an alias means.
 | `gpt-5.6-sol`   | `low medium high xhigh max ultra`  | codex registry (0.144.x); still `visibility: list`, no `upgrade`, in 0.153.4's bundled catalog even though the account registry read 2026-09-07 omitted it | `0667c17` |
 | `gpt-5.6-terra` | `low medium high xhigh max ultra`  | codex registry                                                            | `0667c17` |
 | `gpt-5.6-luna`  | `low medium high xhigh max`        | codex registry (caps at `max`)                                            | `0667c17` |
-| `gpt-6-astra`   | `low medium high xhigh max ultra`  | codex 0.153.4 bundled catalog; `minimal_client_version` 0.153.0; released 2026-09-03 | _plan 59_ |
+| `gpt-6-astra`   | `low medium high xhigh max ultra`  | codex 0.153.4 bundled catalog; `minimal_client_version` 0.153.0; released 2026-09-03 | phase-02 |
 
 Not catalogued on purpose: `gpt-5.4` / `gpt-5.4-mini` (upstream `upgrade`
 pointers to Terra / Luna), `gpt-5.6-pro` and `gpt-5.5-pro` (not in the codex
@@ -84,7 +84,7 @@ spoke → hub lookups. Rules that have held since July 2026:
 | `gpt-5.6-sol`   | `claude-fable-5`    | `equivalent` | AA Agentic Index, July 2026: Sol 54.0 vs Fable 5 52.8                                                                                                             | `0667c17` |
 | `gpt-5.6-terra` | `claude-opus-4-8`   | `equivalent` | AA Agentic Index, July 2026: Terra 47.4 vs Opus 4.8 47.2                                                                                                          | `0667c17` |
 | `gpt-5.6-luna`  | `claude-sonnet-5`   | `equivalent` | AA Agentic Index, July 2026: Luna 45.6 vs Sonnet 5 46.7                                                                                                           | `0667c17` |
-| `gpt-6-astra`   | `claude-fable-5-1`  | `downgrade`  | AA Intelligence Index, 2026-09-07, low/medium/high/xhigh/max: Astra 49/52/53/54/55 vs Fable 5.1 51/53/54/56/57 (1–2 under at every effort). Opus 5 (44/50/52/53/54) was rejected: it would leave Fable 5.1 with no codex route. | _plan 59_ |
+| `gpt-6-astra`   | `claude-fable-5-1`  | `downgrade`  | AA Intelligence Index, 2026-09-07, low/medium/high/xhigh/max: Astra 49/52/53/54/55 vs Fable 5.1 51/53/54/56/57 (1–2 under at every effort). Opus 5 (44/50/52/53/54) was rejected: it would leave Fable 5.1 with no codex route. | phase-02 |
 
 Consequence of the one `downgrade` edge: with `allowDowngrade: true` (the
 default) a Fable 5.1 phase still reaches codex when it is first in priority,

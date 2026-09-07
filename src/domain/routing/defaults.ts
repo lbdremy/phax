@@ -46,6 +46,22 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
       xhigh: { claude: "claude-sonnet-5", effort: "xhigh", relation: "equivalent" },
       max: { claude: "claude-sonnet-5", effort: "max", relation: "equivalent" },
     },
+    // OpenAI GPT-6 Astra — anchored straight across to claude-fable-5-1 on the
+    // Artificial Analysis Intelligence Index (leaderboard read 2026-09-07):
+    // Astra 49/52/53/54/55 vs Fable 5.1 51/53/54/56/57 at low/medium/high/
+    // xhigh/max — 1-2 points under at every effort, outside the ~1-point
+    // tolerance used for `equivalent`, hence hub-centric `downgrade`: a Fable
+    // 5.1 phase routed to Astra is a downgrade, an Astra phase falling back to
+    // Fable 5.1 is an upgrade. `ultra` anchors to `max` so `ultracode` stays
+    // Claude-only.
+    "gpt-6-astra": {
+      low: { claude: "claude-fable-5-1", effort: "low", relation: "downgrade" },
+      medium: { claude: "claude-fable-5-1", effort: "medium", relation: "downgrade" },
+      high: { claude: "claude-fable-5-1", effort: "high", relation: "downgrade" },
+      xhigh: { claude: "claude-fable-5-1", effort: "xhigh", relation: "downgrade" },
+      max: { claude: "claude-fable-5-1", effort: "max", relation: "downgrade" },
+      ultra: { claude: "claude-fable-5-1", effort: "max", relation: "downgrade" },
+    },
     // Mistral Vibe — one alias per effort, each anchored to its Claude peer.
     "phax-mistral-medium-3.5-off": {
       off: { claude: "claude-haiku-4-5-20251001", effort: "none", relation: "equivalent" },
@@ -174,6 +190,11 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
             {
               id: "gpt-5.6-luna",
               efforts: ["low", "medium", "high", "xhigh", "max"],
+              status: "active",
+            },
+            {
+              id: "gpt-6-astra",
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultra"],
               status: "active",
             },
           ],

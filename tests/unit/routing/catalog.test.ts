@@ -282,4 +282,54 @@ describe("equivalentFor (star lookup)", () => {
     );
     expect(sub).toBeUndefined();
   });
+
+  it("hub → spoke: claude-fable-5-1/xhigh anchors to gpt-6-astra/xhigh (downgrade)", () => {
+    const sub = equivalentFor(
+      "claude-fable-5-1",
+      "xhigh",
+      "openai-gpt",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub?.id).toBe("gpt-6-astra");
+    expect(sub?.effort).toBe("xhigh");
+    expect(sub?.relation).toBe("downgrade");
+  });
+
+  it("spoke → hub: gpt-6-astra/max inverts to claude-fable-5-1/max as an upgrade", () => {
+    const sub = equivalentFor(
+      "gpt-6-astra",
+      "max",
+      "claude-fable",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub?.id).toBe("claude-fable-5-1");
+    expect(sub?.effort).toBe("max");
+    expect(sub?.relation).toBe("upgrade");
+  });
+
+  it("spoke → hub: gpt-6-astra/ultra anchors to claude-fable-5-1/max as an upgrade", () => {
+    const sub = equivalentFor(
+      "gpt-6-astra",
+      "ultra",
+      "claude-fable",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub?.id).toBe("claude-fable-5-1");
+    expect(sub?.effort).toBe("max");
+    expect(sub?.relation).toBe("upgrade");
+  });
+
+  it("hub → spoke: claude-fable-5-1/ultracode has no anchor into openai-gpt", () => {
+    const sub = equivalentFor(
+      "claude-fable-5-1",
+      "ultracode",
+      "openai-gpt",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub).toBeUndefined();
+  });
 });
