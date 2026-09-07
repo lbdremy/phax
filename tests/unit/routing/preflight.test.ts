@@ -366,6 +366,19 @@ describe("preflightPhaseModels — disabled provider", () => {
     );
     expect(result.failures).toHaveLength(0);
   });
+
+  it("passes for gpt-6-astra/ultra when codex is disabled and allowDowngrade is false (spoke→hub is an upgrade)", () => {
+    const routing: ModelRouting = {
+      ...DEFAULT_MODEL_ROUTING,
+      allowDowngrade: false,
+    };
+    const result = preflightPhaseModels(
+      [{ id: "phase-01", model: "gpt-6-astra", effort: "ultra" }],
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.failures).toHaveLength(0);
+  });
 });
 
 describe("preflightPhaseModels — multiple failures per phase", () => {

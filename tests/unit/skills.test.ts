@@ -41,6 +41,7 @@ describe("phax-planning skill", () => {
     expect(content).toContain("claude-haiku-4-5-20251001");
     expect(content).toContain("claude-fable-5-1");
     expect(content).toContain("claude-opus-5");
+    expect(content).toContain("gpt-6-astra");
   });
 
   it("lists per-family effort values", () => {

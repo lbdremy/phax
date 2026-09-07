@@ -47,7 +47,7 @@ The provider config (`~/.phax/providers.json`) holds the catalog. Every entry is
 
 Efforts are **per catalog entry** (per versioned id), not per family. A deprecated entry stays in the catalog so existing plans referencing it get an actionable error with current alternatives rather than a silent miss.
 
-Valid effort values: `none | off | low | medium | high | xhigh | max | ultracode`. Different entries support different subsets.
+Valid effort values: `none | off | low | medium | high | xhigh | max | ultracode | ultra`. Different entries support different subsets.
 
 ## Claude-hub equivalence table
 
@@ -74,6 +74,8 @@ Resolution uses this table in three directions:
 - **hub → spoke**: find the spoke id whose edge points at the requested Claude id + effort and belongs to the target family. The stored relation applies as-is.
 - **spoke → hub**: direct lookup `equivalence[id][effort]`; the relation is **inverted** (`downgrade ↔ upgrade`).
 - **spoke → spoke**: compose the two hops (spoke1 → hub, hub → spoke2). The resulting relation is the composition of both hops.
+
+The shipped table uses `downgrade` for `gpt-6-astra` → `claude-fable-5-1`: under `allowDowngrade: false` a `claude-fable-5-1` phase stays on Claude Code, while a `gpt-6-astra` phase still falls back to `claude-fable-5-1` because the inverted spoke → hub direction is an `upgrade`.
 
 ## Resolution algorithm
 
@@ -168,6 +170,8 @@ Config version 2. Old `tiers`, `normalization`, and `defaultTier` fields are rej
 
 Each `families` entry contains a `models` array of versioned entries with `id`, `efforts`, and `status`.
 
+`gpt-6-astra` requires codex ≥ 0.153.0 (its `minimal_client_version`); an older installed codex will not serve it even when `codex-cli` is enabled.
+
 ## Worked examples
 
 ### Example 1 — claude-sonnet-4-6/medium, claude-code only (native passthrough)
@@ -211,6 +215,14 @@ If `codex-cli` is disabled, the terminal translates spoke → hub: `equivalence[
 - No spoke equivalence edge for any id at effort `ultracode`
 - Falls to `claude-code` terminal → same-family natively
 - **Result**: `claude-code`, `claude-opus-4-8`, effort `ultracode`, relationship `exact`
+
+### Example 6 — gpt-6-astra/ultra, codex-cli disabled (spoke → hub upgrade)
+
+- Request: `gpt-6-astra` / `ultra`
+- Plan family: `openai-gpt` (catalog lookup)
+- `codex-cli` disabled → falls through to the `claude-code` terminal
+- Terminal translates spoke → hub: `equivalence["gpt-6-astra"]["ultra"]` → `{claude: "claude-fable-5-1", effort: "max"}`, stored relation `downgrade` inverted to `upgrade`
+- **Result**: `claude-code`, `claude-fable-5-1`, effort `max`, relationship `upgrade`
 
 ## Editing the routing config
 

@@ -184,6 +184,62 @@ describe("resolveModel — Claude Fable 5.1 and Opus 5 native resolution", () =>
   });
 });
 
+describe("resolveModel — GPT-6 Astra anchored to Fable 5.1 (downgrade)", () => {
+  it("gpt-6-astra/ultra resolves natively on codex-cli when codex is first and enabled (exact)", () => {
+    const result = resolveModel(
+      { model: "gpt-6-astra", effort: "ultra" },
+      codexPriority,
+      allEnabled,
+    );
+    expect(result.selected.provider).toBe("codex-cli");
+    expect(result.selected.family).toBe("openai-gpt");
+    expect(result.selected.concreteModel).toBe("gpt-6-astra");
+    expect(result.selected.thinking).toBe("ultra");
+    expect(result.relationship).toBe("exact");
+  });
+
+  it("gpt-6-astra/high falls back to claude-fable-5-1/high when codex is disabled (upgrade)", () => {
+    const result = resolveModel(
+      { model: "gpt-6-astra", effort: "high" },
+      DEFAULT_MODEL_ROUTING,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-fable");
+    expect(result.selected.concreteModel).toBe("claude-fable-5-1");
+    expect(result.selected.thinking).toBe("high");
+    expect(result.relationship).toBe("upgrade");
+  });
+
+  it("claude-fable-5-1/high routes to codex-cli/gpt-6-astra/high when allowDowngrade=true", () => {
+    const routing: ModelRouting = {
+      ...DEFAULT_MODEL_ROUTING,
+      providerPriority: ["codex-cli", "claude-code"],
+      allowDowngrade: true,
+    };
+    const result = resolveModel({ model: "claude-fable-5-1", effort: "high" }, routing, allEnabled);
+    expect(result.selected.provider).toBe("codex-cli");
+    expect(result.selected.family).toBe("openai-gpt");
+    expect(result.selected.concreteModel).toBe("gpt-6-astra");
+    expect(result.selected.thinking).toBe("high");
+    expect(result.relationship).toBe("downgrade");
+  });
+
+  it("claude-fable-5-1/high stays on claude-code when allowDowngrade=false", () => {
+    const routing: ModelRouting = {
+      ...DEFAULT_MODEL_ROUTING,
+      providerPriority: ["codex-cli", "claude-code"],
+      allowDowngrade: false,
+    };
+    const result = resolveModel({ model: "claude-fable-5-1", effort: "high" }, routing, allEnabled);
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-fable");
+    expect(result.selected.concreteModel).toBe("claude-fable-5-1");
+    expect(result.selected.thinking).toBe("high");
+    expect(result.relationship).toBe("exact");
+  });
+});
+
 describe("resolveModel — allowDowngrade floor", () => {
   it("skips a downgrade edge when allowDowngrade=false, falling to claude-code native", () => {
     const routing: ModelRouting = {

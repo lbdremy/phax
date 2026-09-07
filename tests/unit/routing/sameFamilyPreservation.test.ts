@@ -17,6 +17,11 @@ const mistralPriority: ModelRouting = {
   providerPriority: ["mistral-vibe", "codex-cli", "claude-code"],
 };
 
+const codexPriority: ModelRouting = {
+  ...DEFAULT_MODEL_ROUTING,
+  providerPriority: ["codex-cli", "claude-code"],
+};
+
 const allEnabled: ProviderConfig = {
   providers: {
     ...DEFAULT_PROVIDER_CONFIG.providers,
@@ -127,6 +132,17 @@ describe("opus/ultracode has no default spoke equivalent", () => {
     );
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.thinking).toBe("ultracode");
+  });
+
+  it("never silently downgrades claude-fable-5-1/ultracode to codex-cli even with codex first and enabled", () => {
+    const result = resolveModel(
+      { model: "claude-fable-5-1", effort: "ultracode" },
+      codexPriority,
+      allEnabled,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-fable");
     expect(result.selected.thinking).toBe("ultracode");
   });
 });
