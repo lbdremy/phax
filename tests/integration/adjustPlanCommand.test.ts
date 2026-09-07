@@ -45,11 +45,11 @@ function makeBaseConfig(stateRoot: string) {
     },
     complianceReview: {
       enabled: false,
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       effort: "medium" as const,
     },
     codeReview: {
-      model: "claude-opus-4-8",
+      model: "claude-opus-5",
       effort: "high" as const,
     },
     raw: {
