@@ -147,7 +147,7 @@ Each gate profile is a named list of **attributed steps**, not a flat command li
 
 - `surface` — a closed enum, `local | structural | product`, describing what the step verifies (local dev checks, structural/repo-wide checks, or product/build output). This is pure **attribution**: phax records it and never branches on it.
 - `firing` — `every-phase | terminal`. This is **behavioral**: `every-phase` steps run at every phase gate; `terminal` steps run only at the final phase gate, in addition to the every-phase steps.
-- `output` — optional, `log | diagnostics`, defaults to `log`. A `"log"` step's stdout/stderr are appended to the attempt log as raw text, same as today. A `"diagnostics"` step's stdout is decoded as a JSON document `{ "diagnostics": [{ "rule", "location": { "file", "line"? }, "message", "repair" }, ...] }`; the verdict comes from that document instead of the exit code: a non-empty list fails the step whatever the exit code, exit 0 with an empty list passes, and a missing/undecodable document or a non-zero exit with an empty list is a provider error that still fails the step (with the raw log, since there is no document to show). A failing document is persisted as `checks-attempt-NN.diagnostics.json` next to the attempt log, and its diagnostics — not the raw log — drive the fix prompt.
+- `output` — optional, `log | diagnostics`, defaults to `log`. A `"log"` step's stdout/stderr are appended to the attempt log as raw text, same as today. A `"diagnostics"` step's stdout is decoded as a JSON document `{ "diagnostics": [{ "rule", "class": "invariant"|"completion", "scopes"?: [...], "location": { "file", "line"? }, "message", "repair" }, ...] }`; the verdict comes from that document instead of the exit code. Every diagnostic declares a `class`: an `"invariant"` diagnostic always fails the step. A `"completion"` diagnostic names one or more `scopes` and fails the step only once every scope it names is **closed**, as reported by the registered `scopes` provider (see [Scope provider](#scope-provider)) — otherwise it is **pending**: it does not fail the phase, and is shown to the fix-loop agent as optional work. A step with only pending diagnostics records `pending` (not `pass`/`fail`) in `gate-attribution.json` and never counts its surface as verified. Pending findings are persisted as `checks-attempt-NN.pending.json` next to the attempt log; a failing document is persisted as `checks-attempt-NN.diagnostics.json`, and its failing diagnostics — not the raw log — drive the fix prompt. A missing/undecodable document, or a non-zero exit with an empty list, is a provider error that still fails the step (with the raw log, since there is no document to show).
 
 There is no fast/full depth convention to pick between — a project defines a single profile, and `firing` carries the cadence that used to be encoded in separate `fast`/`full` profile keys. The old flat `{ "full": ["pnpm test", ...] }` array form is rejected at validation, naming the offending profile.
 
@@ -173,6 +173,31 @@ The command string is split on whitespace with no shell — use a wrapper script
 - During a run phax sends the index request for each phase's planned files and weaves the rows into the phase prompt. When orient is configured, `phax orient` is implicitly granted to the in-phase agent without an `agentCommands` entry.
 
 Full contract: [`phax orient`](docs/cli/reference.md#phax-orient).
+
+### Scope provider
+
+Add a `"scopes"` block to register the provider that answers, for a completion diagnostic (see [Configure](#configure) above), which scopes are already closed:
+
+```json
+{
+  "scopes": { "command": "node ./scopes.mjs" }
+}
+```
+
+The command string is split on whitespace with no shell, same as `orient`. Before each non-terminal phase's gate — only when that gate has at least one `output: "diagnostics"` step — phax writes the plan projection to the provider's stdin:
+
+```json
+{
+  "phase": "phase-02",
+  "phases": [
+    { "id": "phase-01", "files": ["src/core/billing/port.ts"] },
+    { "id": "phase-02", "files": ["src/core/billing/invoice.ts"] },
+    { "id": "phase-03", "files": ["src/adapters/billing/stripe.ts"] }
+  ]
+}
+```
+
+`phases[].files` is each phase's planned files to create and edit, deduplicated, in plan order (`optionalFilesToEdit` is never included). The provider responds on stdout with `{"closed": ["<scope>", ...]}` and must exit 0. A completion diagnostic fails the step once every scope it names appears in `closed`; otherwise it is pending. The **terminal phase** closes every scope without querying the provider — it is never called. If a gate step returns a completion diagnostic but no `scopes` provider is registered, the gate fails through the fix loop with a configuration-error message naming `phax.json`. A non-zero exit, non-JSON stdout, or a response that fails validation likewise fails the gate through the fix loop, with the reason in the attempt log — the same treatment as an `orient` provider error.
 
 Validate it before running:
 

@@ -239,6 +239,109 @@ describe("runGatesWithFixLoop", () => {
     expect(prompt).not.toContain("## Gate output");
   });
 
+  it("splits mixed findings: the invariant fails, the open completion is pending", async () => {
+    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+
+    seedStatusFiles(fakeFs);
+    fakeBackend.impl.addResumeResponse(makeResumeResult());
+    const scopesConfig = { command: "scopes-provider" } as const;
+    const mixedDocument = JSON.stringify({
+      diagnostics: [
+        {
+          rule: "no-console",
+          class: "invariant",
+          location: { file: "src/index.ts", line: 12 },
+          message: "Unexpected console statement",
+          repair: "Remove the console.log call",
+        },
+        {
+          rule: "missing-wiring",
+          class: "completion",
+          scopes: ["core"],
+          location: { file: "src/core/billing/port.ts" },
+          message: "billing port is not wired up",
+          repair: "wire the port into the adapter registry",
+        },
+      ],
+    });
+    fakeShell.impl.setResponse("pnpm audit", { exitCode: 1, stdout: mixedDocument, stderr: "" });
+    fakeShell.impl.setResponse("scopes-provider", {
+      exitCode: 0,
+      stdout: JSON.stringify({ closed: [] }),
+      stderr: "",
+    });
+
+    await Effect.runPromise(
+      Effect.either(
+        runGatesWithFixLoop({
+          ...baseOpts,
+          steps: [
+            {
+              command: "pnpm audit",
+              surface: "local",
+              firing: "every-phase",
+              output: "diagnostics",
+            },
+          ] as const,
+          scheduling: { ...baseOpts.scheduling, scopesProvider: scopesConfig },
+        }).pipe(Effect.provide(layer)),
+      ),
+    );
+
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
+    const { prompt } = fakeBackend.impl.resumeCalls[0]!;
+    const diagnosticsIndex = prompt.indexOf("## Diagnostics");
+    const pendingIndex = prompt.indexOf("## Pending");
+    expect(diagnosticsIndex).toBeGreaterThan(-1);
+    expect(pendingIndex).toBeGreaterThan(diagnosticsIndex);
+    expect(prompt.slice(diagnosticsIndex, pendingIndex)).toContain("no-console");
+    expect(prompt.slice(diagnosticsIndex, pendingIndex)).not.toContain("missing-wiring");
+    expect(prompt).toContain("missing-wiring");
+    expect(prompt).toContain("not required to pass");
+  });
+
+  it("dispatches GatePassed without entering the fix loop when a step is pending-only", async () => {
+    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+
+    seedStatusFiles(fakeFs);
+    const scopesConfig = { command: "scopes-provider" } as const;
+    const completionOnlyDocument = JSON.stringify({
+      diagnostics: [
+        {
+          rule: "missing-wiring",
+          class: "completion",
+          scopes: ["core"],
+          location: { file: "src/core/billing/port.ts" },
+          message: "billing port is not wired up",
+          repair: "wire the port into the adapter registry",
+        },
+      ],
+    });
+    fakeShell.impl.setResponse("pnpm audit", {
+      exitCode: 1,
+      stdout: completionOnlyDocument,
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("scopes-provider", {
+      exitCode: 0,
+      stdout: JSON.stringify({ closed: [] }),
+      stderr: "",
+    });
+
+    const outcome = await Effect.runPromise(
+      runGatesWithFixLoop({
+        ...baseOpts,
+        steps: [
+          { command: "pnpm audit", surface: "local", firing: "every-phase", output: "diagnostics" },
+        ] as const,
+        scheduling: { ...baseOpts.scheduling, scopesProvider: scopesConfig },
+      }).pipe(Effect.provide(layer)),
+    );
+
+    expect(outcome.pending).toHaveLength(1);
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
+  });
+
   it("uses the session id from the fix result in the next gate attempt", async () => {
     const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
 
