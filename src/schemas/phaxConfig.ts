@@ -122,7 +122,8 @@ export interface ResolvedComplianceReviewConfig {
   readonly effort: Effort;
 }
 
-export const DEFAULT_COMPLIANCE_REVIEW_MODEL = "claude-sonnet-4-6";
+// $2/$10 vs Sonnet 4.6's $3/$15, same effort curve
+export const DEFAULT_COMPLIANCE_REVIEW_MODEL = "claude-sonnet-5";
 
 export function resolveComplianceReviewConfig(
   raw: ComplianceReviewConfig | undefined,
@@ -185,7 +186,8 @@ export interface ResolvedCodeReviewConfig {
   readonly effort: Effort;
 }
 
-export const DEFAULT_CODE_REVIEW_MODEL = "claude-opus-4-8";
+// same per-token tier as Opus 4.8, fewer generated tokens
+export const DEFAULT_CODE_REVIEW_MODEL = "claude-opus-5";
 
 export function resolveCodeReviewConfig(
   raw: CodeReviewConfig | undefined,

@@ -441,7 +441,7 @@ Start a fresh review session instead of resuming the existing one
 
 #### `--model <model>`
 
-Override the model, including on resume (default: review.code.model, else claude-opus-4-8)
+Override the model, including on resume (default: review.code.model, else claude-opus-5)
 
 #### `--effort <effort>`
 
@@ -481,7 +481,7 @@ Start a fresh adjustment session instead of resuming
 
 #### `--model <model>`
 
-Override the model (default: claude-opus-4-8)
+Override the model (default: claude-opus-5)
 
 #### `--effort <effort>`
 
