@@ -273,6 +273,7 @@ export function loadConfig(
     security: resolvedSecurity,
     publish: resolvePublishConfig(config.publish),
     ...(config.orient !== undefined ? { orient: config.orient } : {}),
+    ...(config.scopes !== undefined ? { scopes: config.scopes } : {}),
     complianceReview: resolveComplianceReviewConfig(config.review?.compliance),
     codeReview: resolveCodeReviewConfig(config.review?.code),
     records: resolveRecordsConfig(config.records),

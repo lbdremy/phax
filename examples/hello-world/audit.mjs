@@ -35,6 +35,7 @@ for (const filePath of tsFiles) {
     if (NODE_IMPORT_RE.test(line)) {
       diagnostics.push({
         rule: "HW_NO_IO",
+        class: "invariant",
         location: { file: rel, line: idx + 1 },
         message: "greet must not perform I/O",
         repair: "plan.md#phase-01-greet-function",

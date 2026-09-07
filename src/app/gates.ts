@@ -20,7 +20,7 @@ export interface GateOutcome {
 }
 
 const DIAGNOSTICS_EXPECTED_SHAPE =
-  ' — expected {"diagnostics": [{"rule", "location": {"file", "line"?}, "message", "repair"}]} on stdout';
+  ' — expected {"diagnostics": [{"rule", "class": "invariant"|"completion", "scopes"?: [...], "location": {"file", "line"?}, "message", "repair"}]} on stdout';
 
 export function resolveGateProfile(
   config: ResolvedConfig,
