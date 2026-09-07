@@ -23,6 +23,15 @@ export const OrientConfigSchema = Schema.Struct({
 
 export type OrientConfig = Schema.Schema.Type<typeof OrientConfigSchema>;
 
+export const ScopesConfigSchema = Schema.Struct({
+  command: Schema.NonEmptyString.annotations({
+    description:
+      'The scopes provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes the plan projection ({"phase", "phases": [{"id", "files"}]}) to the provider\'s stdin before each non-terminal phase gate that has a diagnostic step and expects exit 0 with {"closed": ["<scope>", ...]} on stdout. A completion diagnostic fails the step only when every scope it names is closed, otherwise it is pending; the terminal phase closes every scope without a query. Full contract: `phax --usage`, cmd run.',
+  }),
+});
+
+export type ScopesConfig = Schema.Schema.Type<typeof ScopesConfigSchema>;
+
 export interface ResolvedPublishConfig {
   readonly auto: boolean;
   readonly remote: string;
@@ -57,9 +66,10 @@ const GateOutputSchema = Schema.Literal("log", "diagnostics");
 export type GateOutput = Schema.Schema.Type<typeof GateOutputSchema>;
 
 const GATE_OUTPUT_DESCRIPTION =
-  '"log" (default) streams raw command output. "diagnostics" expects {"diagnostics": [{"rule", "location": {"file", "line"?}, "message", "repair"}]} on stdout.' +
+  '"log" (default) streams raw command output. "diagnostics" expects {"diagnostics": [{"rule", "class": "invariant"|"completion", "scopes"?: [...], "location": {"file", "line"?}, "message", "repair"}]} on stdout.' +
   " Verdict rules: a non-empty list fails the step whatever the exit code; exit 0 with an empty list passes; a missing or undecodable document, or a non-zero exit with an empty list, is a provider error that fails the step with the raw log." +
-  " A failing document is saved as checks-attempt-NN.diagnostics.json and drives the fix prompt.";
+  " A failing document is saved as checks-attempt-NN.diagnostics.json and drives the fix prompt." +
+  ' A completion diagnostic names one or more scopes and is pending — not failing — until every scope it names is closed by the "scopes" provider.';
 
 const GateStepSchema = Schema.Struct({
   command: Schema.NonEmptyString,
@@ -153,6 +163,7 @@ export const PhaxConfigSchema = Schema.Struct({
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
   orient: Schema.optional(OrientConfigSchema),
+  scopes: Schema.optional(ScopesConfigSchema),
   review: Schema.optional(
     Schema.Struct({
       compliance: Schema.optional(ComplianceReviewConfigSchema),
@@ -197,6 +208,7 @@ export interface ResolvedConfig {
   readonly security: ResolvedSecurityConfig;
   readonly publish: ResolvedPublishConfig;
   readonly orient?: OrientConfig;
+  readonly scopes?: ScopesConfig;
   readonly complianceReview: ResolvedComplianceReviewConfig;
   readonly codeReview: ResolvedCodeReviewConfig;
   readonly records: ResolvedRecordsConfig;
@@ -234,6 +246,7 @@ export const PhaxUserOverlaySchema = Schema.Struct({
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
   orient: Schema.optional(OrientConfigSchema),
+  scopes: Schema.optional(ScopesConfigSchema),
   review: Schema.optional(
     Schema.Struct({
       compliance: Schema.optional(ComplianceReviewConfigSchema),

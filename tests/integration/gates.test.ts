@@ -246,6 +246,7 @@ describe("runGates", () => {
       diagnostics: [
         {
           rule: "no-console",
+          class: "invariant",
           location: { file: "src/index.ts", line: 12 },
           message: "Unexpected console statement",
           repair: "Remove the console.log call",

@@ -62,6 +62,22 @@ describe("getPhaxConfigJsonSchema", () => {
     expect(desc).toContain("phax --usage");
   });
 
+  it("lists scopes.command as present, not required, with a description naming closed", () => {
+    const schema = getPhaxConfigJsonSchema() as Record<string, unknown>;
+    const properties = schema["properties"] as Record<string, unknown>;
+    const scopes = properties["scopes"] as Record<string, unknown>;
+    expect(scopes).toBeDefined();
+    const required = (schema["required"] as string[] | undefined) ?? [];
+    expect(required).not.toContain("scopes");
+    const scopesDefs = scopes["properties"] as Record<string, unknown> | undefined;
+    const command = (scopesDefs?.["command"] ?? scopes) as Record<string, unknown>;
+    const scopesRequired = (scopes["required"] as string[] | undefined) ?? [];
+    expect(scopesRequired).toContain("command");
+    const desc = command["description"] as string | undefined;
+    expect(typeof desc).toBe("string");
+    expect(desc).toContain("closed");
+  });
+
   it("has a description on gate step output mentioning diagnostics shape and verdict rules", () => {
     const schema = getPhaxConfigJsonSchema() as Record<string, unknown>;
     const stepSchema = findGateStepSchema(schema);

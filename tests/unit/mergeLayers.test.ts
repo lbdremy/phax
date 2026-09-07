@@ -309,6 +309,38 @@ describe("mergeConfigLayers", () => {
     });
   });
 
+  describe("scopes: scalar override", () => {
+    it("keeps the project scopes block when a user layer says nothing about scopes", () => {
+      const project = makeProject({ scopes: { command: "scopes-provider" } });
+      const localUser = makeOverlay({ state: { root: "~/.local" } });
+      const result = mergeConfigLayers({ project, localUser });
+      expect(result.scopes?.command).toBe("scopes-provider");
+    });
+
+    it("local scopes command overrides global and project", () => {
+      const project = makeProject({ scopes: { command: "project-provider" } });
+      const globalUser = makeOverlay({ scopes: { command: "global-provider" } });
+      const localUser = makeOverlay({ scopes: { command: "local-provider" } });
+      const result = mergeConfigLayers({ project, globalUser, localUser });
+      expect(result.scopes?.command).toBe("local-provider");
+    });
+
+    it("a user layer can enable scopes when the project config has none", () => {
+      const project = makeProject();
+      const globalUser = makeOverlay({ scopes: { command: "global-provider" } });
+      const result = mergeConfigLayers({ project, globalUser });
+      expect(result.scopes?.command).toBe("global-provider");
+    });
+
+    it("omits scopes entirely when no layer configures it", () => {
+      const result = mergeConfigLayers({
+        project: makeProject(),
+        localUser: makeOverlay({ state: { root: "~/.local" } }),
+      });
+      expect(result.scopes).toBeUndefined();
+    });
+  });
+
   describe("review.compliance: per-scalar override", () => {
     it("local compliance fields override project", () => {
       const project = makeProject({

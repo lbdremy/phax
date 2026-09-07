@@ -30,6 +30,7 @@ describe("buildFixPrompt", () => {
     const diagnostics: readonly GateDiagnostic[] = [
       {
         rule: "no-unused-vars",
+        class: "invariant",
         location: { file: "src/foo.ts", line: 12 },
         message: "unused variable 'x'",
         repair: "remove the unused declaration",
@@ -47,6 +48,7 @@ describe("buildFixPrompt", () => {
     const diagnostics: readonly GateDiagnostic[] = [
       {
         rule: "missing-license",
+        class: "invariant",
         location: { file: "package.json" },
         message: "license field is missing",
         repair: "add a license field",
@@ -62,6 +64,7 @@ describe("buildFixPrompt", () => {
     const diagnostics: readonly GateDiagnostic[] = [
       {
         rule: "no-unused-vars",
+        class: "invariant",
         location: { file: "src/foo.ts", line: 12 },
         message: "unused variable 'x'",
         repair: "remove the unused declaration",

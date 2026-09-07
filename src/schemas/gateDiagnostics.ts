@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-export const GateDiagnosticSchema = Schema.Struct({
+const GateDiagnosticFields = {
   rule: Schema.NonEmptyString,
   location: Schema.Struct({
     file: Schema.NonEmptyString,
@@ -8,7 +8,27 @@ export const GateDiagnosticSchema = Schema.Struct({
   }),
   message: Schema.NonEmptyString,
   repair: Schema.NonEmptyString,
+};
+
+export const InvariantDiagnosticSchema = Schema.Struct({
+  class: Schema.Literal("invariant"),
+  ...GateDiagnosticFields,
 });
+
+export type InvariantDiagnostic = Schema.Schema.Type<typeof InvariantDiagnosticSchema>;
+
+export const CompletionDiagnosticSchema = Schema.Struct({
+  class: Schema.Literal("completion"),
+  scopes: Schema.NonEmptyArray(Schema.NonEmptyString),
+  ...GateDiagnosticFields,
+});
+
+export type CompletionDiagnostic = Schema.Schema.Type<typeof CompletionDiagnosticSchema>;
+
+export const GateDiagnosticSchema = Schema.Union(
+  InvariantDiagnosticSchema,
+  CompletionDiagnosticSchema,
+);
 
 export type GateDiagnostic = Schema.Schema.Type<typeof GateDiagnosticSchema>;
 
