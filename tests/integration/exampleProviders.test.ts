@@ -7,6 +7,7 @@ import { Either } from "effect";
 import { decodeOrientIndexResponse, decodeOrientExpandResponse } from "../../src/schemas/orient.js";
 import { decodeGateDiagnosticsDocument } from "../../src/schemas/gateDiagnostics.js";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
+import { decodeScopesResponse } from "../../src/schemas/scopes.js";
 
 const repoRoot = new URL("../../", import.meta.url).pathname.replace(/\/$/, "");
 const exampleDir = join(repoRoot, "examples/hello-world");
@@ -118,7 +119,7 @@ describe("examples/hello-world audit provider", () => {
 });
 
 describe("examples/hello-world phax.json", () => {
-  it("decodes with decodePhaxConfig and has orient and a diagnostics step", () => {
+  it("decodes with decodePhaxConfig and has orient, scopes and a diagnostics step", () => {
     const raw = JSON.parse(readFileSync(join(exampleDir, "phax.json"), "utf8"));
     const result = decodePhaxConfig(raw);
     expect(Either.isRight(result)).toBe(true);
@@ -126,9 +127,32 @@ describe("examples/hello-world phax.json", () => {
       const config = result.right;
       expect(config.orient).toBeDefined();
       expect(config.orient?.command).toBeTruthy();
+      expect(config.scopes).toBeDefined();
+      expect(config.scopes?.command).toBeTruthy();
       const steps = config.gateProfiles?.["standard"] ?? [];
       const diagStep = steps.find((s) => s.output === "diagnostics");
       expect(diagStep).toBeDefined();
+    }
+  });
+});
+
+describe("examples/hello-world scopes provider", () => {
+  const scopesScript = join(exampleDir, "scopes.mjs");
+
+  it("decodes a closed-scopes response and closes the greet scope at phase-01", () => {
+    const request = JSON.stringify({
+      phase: "phase-01",
+      phases: [
+        { id: "phase-01", files: ["src/greet.ts"] },
+        { id: "phase-02", files: ["tests/greet.test.ts"] },
+      ],
+    });
+    const { stdout, status } = runScript(scopesScript, request, exampleDir);
+    expect(status).toBe(0);
+    const result = decodeScopesResponse(JSON.parse(stdout));
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.closed).toEqual(["greet"]);
     }
   });
 });

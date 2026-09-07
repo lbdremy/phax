@@ -5,6 +5,7 @@
   "agent": { "maxFixAttempts": 1 },
   "security": { "agentCommands": ["node"] },
   "orient": { "command": "node ./orient.mjs" },
+  "scopes": { "command": "node ./scopes.mjs" },
   "commands": {
     "setup": ["pnpm install"],
     "cleanup": ["rm -rf node_modules"]
