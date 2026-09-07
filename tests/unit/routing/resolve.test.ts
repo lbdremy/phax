@@ -143,6 +143,47 @@ describe("resolveModel — cross-family translation via the Claude hub", () => {
   });
 });
 
+describe("resolveModel — Claude Fable 5.1 and Opus 5 native resolution", () => {
+  it("claude-opus-5/xhigh resolves natively on claude-code (exact)", () => {
+    const result = resolveModel(
+      { model: "claude-opus-5", effort: "xhigh" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-opus");
+    expect(result.selected.concreteModel).toBe("claude-opus-5");
+    expect(result.selected.thinking).toBe("xhigh");
+    expect(result.relationship).toBe("exact");
+  });
+
+  it("claude-fable-5-1/ultracode resolves natively on claude-code (exact)", () => {
+    const result = resolveModel(
+      { model: "claude-fable-5-1", effort: "ultracode" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-fable");
+    expect(result.selected.concreteModel).toBe("claude-fable-5-1");
+    expect(result.selected.thinking).toBe("ultracode");
+    expect(result.relationship).toBe("exact");
+  });
+
+  it("claude-opus-4-8/ultracode still resolves to the older entry (order preserved)", () => {
+    const result = resolveModel(
+      { model: "claude-opus-4-8", effort: "ultracode" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-opus");
+    expect(result.selected.concreteModel).toBe("claude-opus-4-8");
+    expect(result.selected.thinking).toBe("ultracode");
+    expect(result.relationship).toBe("exact");
+  });
+});
+
 describe("resolveModel — allowDowngrade floor", () => {
   it("skips a downgrade edge when allowDowngrade=false, falling to claude-code native", () => {
     const routing: ModelRouting = {

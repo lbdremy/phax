@@ -36,11 +36,11 @@ Efforts are per entry, never per family. Status `active` unless stated.
 | --------------------------- | --------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------ |
 | `claude-haiku-4-5-20251001` | `claude-haiku`  | `none`                                           | No effort ladder in Claude Code; still the newest Haiku (`latest_per_family.haiku`)                    | initial catalog          |
 | `claude-sonnet-4-6`         | `claude-sonnet` | `low medium high max`                            | No `xhigh_effort` capability, hence no `ultracode`                                                     | initial catalog          |
-| `claude-sonnet-5`           | `claude-sonnet` | `low medium high xhigh max ultracode`            | `xhigh_effort`; `ultracode` added when Claude Code 2.1.263 was confirmed to gate it on xhigh only     | `0667c17`; ultracode _plan 59_ |
+| `claude-sonnet-5`           | `claude-sonnet` | `low medium high xhigh max ultracode`            | `xhigh_effort`; `ultracode` added when Claude Code 2.1.263 was confirmed to gate it on xhigh only     | `0667c17`; ultracode phase-01 |
 | `claude-opus-4-8`           | `claude-opus`   | `low medium high xhigh max ultracode`            | `xhigh_effort`                                                                                          | initial catalog          |
-| `claude-opus-5`             | `claude-opus`   | `low medium high xhigh max ultracode`            | Claude Code 2.1.263 table, `xhigh_effort`, knowledge cutoff May 2026                                   | _plan 59_                |
-| `claude-fable-5`            | `claude-fable`  | `low medium high xhigh max ultracode`            | `xhigh_effort`; ultracode added with plan 59                                                            | `0667c17`; ultracode _plan 59_ |
-| `claude-fable-5-1`          | `claude-fable`  | `low medium high xhigh max ultracode`            | Claude Code 2.1.257+ (`latest_per_family.fable`), released 2026-09-01, `xhigh_effort`                  | _plan 59_                |
+| `claude-opus-5`             | `claude-opus`   | `low medium high xhigh max ultracode`            | Claude Code 2.1.263 table, `xhigh_effort`, knowledge cutoff May 2026                                   | phase-01                 |
+| `claude-fable-5`            | `claude-fable`  | `low medium high xhigh max ultracode`            | `xhigh_effort`; ultracode added phase-01                                                                | `0667c17`; ultracode phase-01 |
+| `claude-fable-5-1`          | `claude-fable`  | `low medium high xhigh max ultracode`            | Claude Code 2.1.257+ (`latest_per_family.fable`), released 2026-09-01, `xhigh_effort`                  | phase-01                 |
 
 Order inside a family is oldest first: `pickActiveEntry` resolves an alias
 (`opus`, `gpt`, …) to the first active entry, so prepending a new version

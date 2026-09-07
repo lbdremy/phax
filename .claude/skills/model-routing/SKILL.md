@@ -95,7 +95,6 @@ src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
 3. Add the family's `models` arrays (with per-entry `efforts` and `status`) to the relevant provider entry in `DEFAULT_PROVIDER_CONFIG`.
 4. If the family belongs to a spoke provider, add equivalence edges in `DEFAULT_MODEL_ROUTING.equivalence`.
 5. Update `docs/model-routing.md` family table.
-6. Record where the ids/efforts were read from, the anchor basis, and any default re-pointing in `docs/model-catalog.md` (sections 2–4 plus the refresh log). Every catalog change updates that file in the same commit.
 
 ## Per-invocation provider priority override
 

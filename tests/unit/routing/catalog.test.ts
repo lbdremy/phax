@@ -46,6 +46,8 @@ describe("familyOfId", () => {
     expect(familyOfId("claude-sonnet-4-6", DEFAULT_PROVIDER_CONFIG)).toBe("claude-sonnet");
     expect(familyOfId("claude-opus-4-8", DEFAULT_PROVIDER_CONFIG)).toBe("claude-opus");
     expect(familyOfId("claude-haiku-4-5-20251001", DEFAULT_PROVIDER_CONFIG)).toBe("claude-haiku");
+    expect(familyOfId("claude-fable-5-1", DEFAULT_PROVIDER_CONFIG)).toBe("claude-fable");
+    expect(familyOfId("claude-opus-5", DEFAULT_PROVIDER_CONFIG)).toBe("claude-opus");
   });
 
   it("returns the family for a spoke id", () => {
@@ -145,10 +147,11 @@ describe("nearestEfforts", () => {
 });
 
 describe("isClaudeFamily", () => {
-  it("recognizes all three Claude families", () => {
+  it("recognizes all four Claude families", () => {
     expect(isClaudeFamily("claude-haiku")).toBe(true);
     expect(isClaudeFamily("claude-sonnet")).toBe(true);
     expect(isClaudeFamily("claude-opus")).toBe(true);
+    expect(isClaudeFamily("claude-fable")).toBe(true);
   });
 
   it("returns false for non-Claude families", () => {
