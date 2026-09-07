@@ -5,24 +5,29 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-09-05. That day v0.11.0 shipped (`f9a53ee`): the staged npm publish was
-approved, `latest` and the global install are both 0.11.0, and the release carries specs 16,
-30, 31 and 32 — the "run artifact transitions from source" caveat is gone with it. The day
-before, spec 32 shipped through plan 57 in one sitting — run `archive-unfinished-runs`
-(`ab26aaf` consent-aware archive rule, refusal in the reducer and use case, `--force` on the
-CLI; `3e0d11a` README and usage docs), merged as PR #90, plan 57 and spec 32 completed
-(`f010f9d` / `c34660d`) — and the registry was swept clean with it (see Housekeeping). Spec
-31's migration was already done for the parked specs (18, 19, 23, 24 re-approved with the
-tool on 2026-09-04). No approved spec is in flight; everything left is either parked, a
-small follow-up, or a candidate not yet written.
+Last pruned 2026-09-07. That day two plans shipped back to back on `main`: spec 18 through
+plan 58 (`03fadad`..`5eeed8f` — diagnostic classes, the registered `scopes` provider, the plan
+projection in `src/domain/plan/projection.ts`, scheduling against closed scopes, `pending` as
+optional work), merged as PR #92 with plan 58 and spec 18 completed (`7842f6c` / `a14119e`);
+then the September catalog refresh through plan 59 (`0a7ccc2` Fable 5.1 + Opus 5 with
+ultracode on xhigh-capable entries, `a42153d` GPT-6 Astra anchored to Fable 5.1 as a
+downgrade, `8f5073d` review/adjust defaults re-pointed to Opus 5 and Sonnet 5), merged as
+PR #93 and completed (`0204d53`). The run-lookup follow-up below went in first as PR #91
+(`911457a`). None of this is released: `latest` is still v0.11.0 (`f9a53ee`, 2026-09-05), so
+the next publish carries spec 18 and the new catalog. Three approved specs remain, all
+parked (19, 23, 24); 19 is now the cheapest to pick up since plan 58 built the projection it
+shares.
 
 ## Small follow-ups
 
 - [x] **Unqualified run lookup says "not found" for a folder that exists but fails to
-      decode.** Fixed 2026-09-07: `resolveRunRef` now checks the registry on the unqualified
+      decode.** Fixed 2026-09-07 (PR #91, `911457a`): `resolveRunRef` now checks the registry on the unqualified
       in-project path too and refuses with `unresolvable-qualified` when the entry exists but
       the files fail to load; the refusal message carries the load reason, including the
       schema issues (which field is missing) that `loadRunReviewInfo` used to discard.
+- [ ] **Release 0.12.0.** Spec 18 (gate step scheduling) and the Fable 5.1 / Opus 5 /
+      GPT-6 Astra catalog with the new review defaults are on `main` unreleased. Same staged
+      npm flow as 0.11.0; bump, publish, confirm `latest` and the global install.
 
 ## Records consumers (the substrate shipped in 0.9)
 
@@ -61,36 +66,38 @@ small follow-up, or a candidate not yet written.
 
 ## Approved specs — in flight, next, parked
 
-Four approved specs are open, all parked (18, 19, 23, 24). Gate-line specs 18 and 19 were
-revised and re-approved against main `7b64e98` on 2026-08-21 (`cd04e3a`, `7b64e98`, `5f67f0a`):
-18 gets closure from a registered `scopes` provider fed with a thin plan projection, 19 shares
-that projection. All four carry a recorded approval, so the chain gate will let a plan be
-approved against them. Each is plannable at any time. Pick one up by writing a plan
+Three approved specs are open, all parked (19, 23, 24). Spec 18 shipped 2026-09-07 through
+plan 58 (PR #92) and is archived. Spec 19 was revised and re-approved alongside 18 on
+2026-08-21 (`cd04e3a`, `7b64e98`, `5f67f0a`) and re-approved with the tool on 2026-09-04
+(baseline `44bd9b3`), so it carries a recorded approval and the chain gate will let a plan be
+approved against it. All three are plannable at any time. Pick one up by writing a plan
 (`phax-planning` skill). Note that plan staleness is a **plan** property, so a spec parked here
 does not rot; the plans written against them do.
 
 ### Housekeeping
 
-- Done 2026-09-04: registry fully swept. The plan 57 run was archived after PR #90 merged,
-  then every unfinished run from the June experiments (ten in `created`, five in
-  `failed` / `interrupted` / `rate_limited`, two of them louloupapers runs) was archived with
-  `phax archive --force` from source. `~/.phax/runs/` and `~/.phax/worktrees/` are empty;
-  the registry holds only `archived` entries. Six runs predated spec 12 and their
-  `run-status.json` had no `namespace` (one plan also lacked `run.requiredCommands`); they
-  were hand-patched first, since there is no back-compat shim and the unqualified resolver
-  reports such a folder as "not found" rather than as unreadable. The louloupapers pair had
-  to be archived from the phax repo by qualified name (its `phax.json` is pre-spec-15 and
-  the CLI refuses to load there), followed by a manual `git worktree prune` in that repo —
-  cross-project archive only prunes the current repo. Migrate that `phax.json` before
-  running phax in louloupapers again.
-### Gate spec 18 and advisory 19
+- [ ] **Archive today's three runs.** `phax ls` shows `phax.gate-step-scheduling` in
+      `created` (the first attempt at plan 58, superseded by `-2` before it ran) and
+      `phax.gate-step-scheduling-2` / `phax.catalog-fable-5-1-opus-5-gpt-6-astra` in
+      `review_open` with worktrees still checked out, though PRs #92 and #93 are merged.
+      `phax archive` the two review_open runs normally; the `created` one needs `--force`
+      (spec 32's consent rule). `~/.phax/worktrees/` should be empty afterwards.
+- Done 2026-09-04: registry fully swept of the June experiments (ten in `created`, five in
+  `failed` / `interrupted` / `rate_limited`, two of them louloupapers runs) with
+  `phax archive --force` from source. Six runs predated spec 12 and were hand-patched first
+  (no `namespace` in `run-status.json`, one plan lacking `run.requiredCommands`). The
+  louloupapers pair had to be archived from the phax repo by qualified name (its `phax.json`
+  is pre-spec-15 and the CLI refuses to load there), followed by a manual `git worktree
+  prune` in that repo — cross-project archive only prunes the current repo. Migrate that
+  `phax.json` before running phax in louloupapers again.
 
-- [ ] `docs/specs/18-gate-step-scheduling.md` — no plan. Its dependency, spec 16, shipped
-      in plan 54 (2026-09-02), so nothing blocks it. Adds `class` + `scopes` per diagnostic,
-      a `scopes` provider queried per gated phase, and `pending` as a third attribution
-      result. phax defines the provider contract; steme (or any provider) implements it.
-- [ ] `docs/specs/19-plan-completeness-advisory.md` — no plan. Shares 18's plan
-      projection; plan it after (or with) 18 so the projection is built once.
+### Advisory spec 19
+
+- [ ] `docs/specs/19-plan-completeness-advisory.md` — no plan. Its dependency, spec 18,
+      shipped in plan 58 (2026-09-07), and the plan projection it shares already exists
+      (`src/domain/plan/projection.ts`, fed to the `scopes` provider via `src/app/scopes.ts`),
+      so the plan is now a thin consumer: query the provider at plan time and surface the
+      advisory. Nothing blocks it.
 
 ### Specs 23 and 24 — parked 2026-08-14
 
