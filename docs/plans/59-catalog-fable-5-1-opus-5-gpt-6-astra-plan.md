@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-09-07
+  baseline: 2a1eb37
 ---
 
 # Catalog: Fable 5.1, Opus 5, GPT-6 Astra

@@ -21,6 +21,12 @@
         "path": "docs/specs/18-gate-step-scheduling.md",
         "fingerprint": "18d0933d3abcd62bd713b7149f14e7155b1d8eb3adb8a0d3b12c0d4c9d6db556"
       }
+    },
+    "docs/plans/59-catalog-fable-5-1-opus-5-gpt-6-astra-plan.md": {
+      "planFingerprint": "97e7960fdf669d1b14eca04542fc492f699d20f1afe2be2a6b8a486392b70bf4",
+      "approvedAt": "2026-09-07T08:33:04.234Z",
+      "baseline": "2a1eb3708cd46799cb9f3d53bac6488b48e46728",
+      "sourceSpec": null
     }
   }
 }
