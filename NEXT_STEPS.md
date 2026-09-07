@@ -18,15 +18,11 @@ small follow-up, or a candidate not yet written.
 
 ## Small follow-ups
 
-- [ ] **Unqualified run lookup says "not found" for a folder that exists but fails to
-      decode.** Found during the 2026-09-04 registry sweep: `resolveRunRef` (`src/app/`) only
-      distinguishes the registry entry from the run files on the qualified path
-      (`unresolvable-qualified`, "is in the registry but its files could not be read"); the
-      unqualified in-project path collapses both into `not-found`. Six pre-spec-12 runs hit
-      this and looked deleted when they were merely undecodable. Fix: check the registry
-      first on the unqualified path too, and reuse the `unresolvable-qualified` message when
-      the entry exists but `resolveRun` fails. Ideally surface the decode reason (which field
-      is missing) — `loadRunReviewInfo` already knows it and throws it away.
+- [x] **Unqualified run lookup says "not found" for a folder that exists but fails to
+      decode.** Fixed 2026-09-07: `resolveRunRef` now checks the registry on the unqualified
+      in-project path too and refuses with `unresolvable-qualified` when the entry exists but
+      the files fail to load; the refusal message carries the load reason, including the
+      schema issues (which field is missing) that `loadRunReviewInfo` used to discard.
 
 ## Records consumers (the substrate shipped in 0.9)
 

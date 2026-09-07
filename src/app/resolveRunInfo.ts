@@ -7,6 +7,7 @@ import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { decodeRunStatus, decodePhaseStatus, type PhaseStatus } from "../schemas/status.js";
 import { decodePhaxPlan } from "../schemas/phaxPlan.js";
 import { runKey } from "../domain/runRef.js";
+import { formatParseError } from "../schemas/formatError.js";
 
 export type { RunReviewInfo };
 
@@ -54,9 +55,14 @@ function loadRunReviewInfo(
   }
 
   const rawRunStatus = tryReadJson(runStatusPath);
+  if (rawRunStatus === undefined) {
+    return Either.left(`run-status.json at "${runPath}" is not valid JSON`);
+  }
   const runStatusResult = decodeRunStatus(rawRunStatus);
   if (Either.isLeft(runStatusResult)) {
-    return Either.left(`Invalid run-status.json at "${runPath}"`);
+    return Either.left(
+      `Invalid run-status.json at "${runPath}":\n${formatParseError(runStatusResult.left)}`,
+    );
   }
   const runStatus = runStatusResult.right;
 
