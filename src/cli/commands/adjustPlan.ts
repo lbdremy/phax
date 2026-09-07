@@ -22,8 +22,9 @@ function isValidEffort(value: string): value is ValidEffort {
   return (VALID_EFFORT_VALUES as readonly string[]).includes(value);
 }
 
-const DEFAULT_MODEL = "claude-opus-4-8";
-const DEFAULT_EFFORT: ValidEffort = "high";
+// same per-token tier as Opus 4.8, fewer generated tokens
+export const DEFAULT_MODEL = "claude-opus-5";
+export const DEFAULT_EFFORT: ValidEffort = "high";
 
 export interface AdjustPlanCommandOptions {
   readonly landed: string;

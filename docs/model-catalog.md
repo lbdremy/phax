@@ -9,9 +9,8 @@ cross-provider anchors are based on, and the cost basis behind every default.
 Update it in the same change that touches the catalog or a default, and append
 a row to the refresh log at the bottom.
 
-**State described:** the catalog after plan 59
-(`docs/plans/59-catalog-fable-5-1-opus-5-gpt-6-astra-plan.md`) lands. Rows
-marked _plan 59_ are not on `main` until that plan completes.
+**State described:** the catalog as it stands after
+`docs/plans/59-catalog-fable-5-1-opus-5-gpt-6-astra-plan.md` landed.
 
 ## 1. Sources of truth
 
@@ -116,7 +115,7 @@ as the current default**, judged on per-token price first, then tokens
 generated (the energy proxy), then the index. Efforts change only when the
 data says so.
 
-| Job                | Where                                                      | Default (after plan 59)        | Effort   | Justification                                                                                                                                                          | Previous            |
+| Job                | Where                                                      | Default                        | Effort   | Justification                                                                                                                                                          | Previous            |
 | ------------------ | ---------------------------------------------------------- | ------------------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
 | Code review        | `DEFAULT_CODE_REVIEW_MODEL`, `src/schemas/phaxConfig.ts`   | `claude-opus-5`                | `high`   | Same per-token tier as Opus 4.8, fewer generated tokens (120M vs 130M), +6 index points, cheaper low/medium curve. Fable 5.1 rejected: 2× per token, a third more tokens, +3 points. | `claude-opus-4-8`   |
 | Plan adjustment    | `DEFAULT_MODEL`, `src/cli/commands/adjustPlan.ts`          | `claude-opus-5`                | `high`   | Same reasoning as code review.                                                                                                                                         | `claude-opus-4-8`   |
@@ -149,4 +148,4 @@ Run through this each time a provider ships or retires a model:
 | Date       | Change                                                                                                                             | Where                                     |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
 | 2026-07-13 | GPT-5.6 Sol/Terra/Luna, Claude Fable 5, Claude Sonnet 5, `ultra` effort; anchors on AA Agentic Index                              | `0667c17`                                 |
-| 2026-09-07 | Claude Fable 5.1, Claude Opus 5, GPT-6 Astra (→ Fable 5.1, `downgrade`); `ultracode` on every xhigh-capable Claude entry; defaults re-pointed on cost (Opus 5, Sonnet 5) | plan 59 (pending until it lands)          |
+| 2026-09-07 | Claude Fable 5.1, Claude Opus 5, GPT-6 Astra (→ Fable 5.1, `downgrade`); `ultracode` on every xhigh-capable Claude entry; defaults re-pointed on cost (Opus 5, Sonnet 5) | `phax/catalog-fable-5-1-opus-5-gpt-6-astra` |

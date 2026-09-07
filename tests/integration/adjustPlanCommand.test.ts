@@ -254,7 +254,7 @@ describe("runAdjustPlan", () => {
     );
     const call = vi.mocked(spawnSync).mock.calls[0]!;
     expect(call[1]).toContain("--model");
-    expect(call[1]).toContain("claude-opus-4-8");
+    expect(call[1]).toContain("claude-opus-5");
     expect(call[1]).toContain("--effort");
     expect(call[1]).toContain("high");
     expect(logs.some((l) => l.toLowerCase().includes("starting"))).toBe(true);

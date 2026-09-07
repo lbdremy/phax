@@ -299,7 +299,7 @@ phax path  <short-name>         # print the worktree path (script-friendly)
 phax open  <short-name>         # open the worktree in the configured editor
 ```
 
-`phax review-code` launches the AI agent in the final worktree already primed with a code-review prompt — seeded with the file reconciliation and, if present, the compliance findings — so the review starts from context instead of a blank prompt. The session is resumable: re-running resumes it, `--new-session` starts fresh. Override the model/effort with `--model`/`--effort` (defaults from `review.code`, else `claude-opus-4-8` at `high` effort). You take over the session to investigate, discuss, and apply fixes.
+`phax review-code` launches the AI agent in the final worktree already primed with a code-review prompt — seeded with the file reconciliation and, if present, the compliance findings — so the review starts from context instead of a blank prompt. The session is resumable: re-running resumes it, `--new-session` starts fresh. Override the model/effort with `--model`/`--effort` (defaults from `review.code`, else `claude-opus-5` at `high` effort). You take over the session to investigate, discuss, and apply fixes.
 
 ## Compliance review & publishing
 
@@ -310,7 +310,7 @@ phax review-compliance <short-name>   # non-mutating plan-compliance review of t
 phax publish-pr <short-name>          # push the final branch and open (or reuse) a PR
 ```
 
-`phax review-compliance` re-invokes the AI agent with the run's handoff artifacts and the original plan and writes a verdict; it never touches the worktree, registry, or any files. Configure its model/effort under `review.compliance` in `phax.json` (default model `claude-sonnet-4-6`, effort `medium`).
+`phax review-compliance` re-invokes the AI agent with the run's handoff artifacts and the original plan and writes a verdict; it never touches the worktree, registry, or any files. Configure its model/effort under `review.compliance` in `phax.json` (default model `claude-sonnet-5`, effort `medium`).
 
 `phax publish-pr` pushes the final worktree branch to the GitHub remote and creates a pull request, reusing an existing PR for the same branch if one exists. It requires a GitHub remote and an authenticated `gh` CLI. Configure the remote, base branch, and title under `publish` in `phax.json`.
 

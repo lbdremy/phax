@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig, describeConfigSources } from "../../src/app/loadConfig.js";
 import { DEFAULT_EXTRACT_MODEL, DEFAULT_CODE_REVIEW_MODEL } from "../../src/schemas/phaxConfig.js";
 import { DEFAULT_SECURITY_PROFILE } from "../../src/schemas/securityConfig.js";
+import { entryFor } from "../../src/domain/routing/catalog.js";
+import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 
 const baseConfig = {
   version: 1,
@@ -300,7 +302,14 @@ describe("loadConfig security resolution", () => {
 });
 
 describe("loadConfig codeReview defaults", () => {
-  it("defaults codeReview to claude-opus-4-8 and high effort when no review.code block", () => {
+  it("defaults DEFAULT_CODE_REVIEW_MODEL and DEFAULT_EXTRACT_MODEL to their catalog-pinned ids", () => {
+    expect(DEFAULT_CODE_REVIEW_MODEL).toBe("claude-opus-5");
+    expect(DEFAULT_EXTRACT_MODEL).toBe("claude-haiku-4-5-20251001");
+    expect(entryFor(DEFAULT_CODE_REVIEW_MODEL, DEFAULT_PROVIDER_CONFIG)).toBeDefined();
+    expect(entryFor(DEFAULT_EXTRACT_MODEL, DEFAULT_PROVIDER_CONFIG)).toBeDefined();
+  });
+
+  it("resolves codeReview to DEFAULT_CODE_REVIEW_MODEL and high effort when no review.code block", () => {
     writePhaxJson(baseConfig);
     const result = loadConfig(repoDir);
     expect(Either.isRight(result)).toBe(true);

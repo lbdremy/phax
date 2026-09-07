@@ -288,7 +288,7 @@ export function buildProgram(): Command {
     .option("--new-session", "Start a fresh review session instead of resuming the existing one")
     .option(
       "--model <model>",
-      "Override the model, including on resume (default: review.code.model, else claude-opus-4-8)",
+      "Override the model, including on resume (default: review.code.model, else claude-opus-5)",
     )
     .option(
       "--effort <effort>",
@@ -314,7 +314,7 @@ export function buildProgram(): Command {
     .argument("<plan>", "Path to the plan.md to adjust")
     .requiredOption("--landed <run>", "The landed run whose actual changes drive the adjustment")
     .option("--new-session", "Start a fresh adjustment session instead of resuming")
-    .option("--model <model>", "Override the model (default: claude-opus-4-8)")
+    .option("--model <model>", "Override the model (default: claude-opus-5)")
     .option("--effort <effort>", "Override the effort (low | medium | high)")
     .action(
       async (

@@ -7,6 +7,8 @@ import {
   getPhaxConfigJsonSchema,
   DEFAULT_COMPLIANCE_REVIEW_MODEL,
 } from "../../../src/schemas/phaxConfig.js";
+import { entryFor } from "../../../src/domain/routing/catalog.js";
+import { DEFAULT_PROVIDER_CONFIG } from "../../../src/domain/routing/defaults.js";
 
 const decodeComplianceReviewConfig = Schema.decodeUnknownEither(ComplianceReviewConfigSchema, {
   onExcessProperty: "error",
@@ -56,6 +58,11 @@ describe("ComplianceReviewConfigSchema", () => {
 });
 
 describe("resolveComplianceReviewConfig", () => {
+  it("pins DEFAULT_COMPLIANCE_REVIEW_MODEL to a catalog-present id", () => {
+    expect(DEFAULT_COMPLIANCE_REVIEW_MODEL).toBe("claude-sonnet-5");
+    expect(entryFor(DEFAULT_COMPLIANCE_REVIEW_MODEL, DEFAULT_PROVIDER_CONFIG)).toBeDefined();
+  });
+
   it("returns disabled defaults when undefined", () => {
     const resolved = resolveComplianceReviewConfig(undefined);
     expect(resolved.enabled).toBe(false);
