@@ -80,7 +80,7 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     sessionId,
   },
   GateStarted: { ...base, type: "GateStarted", phase: phaseId, attempt: 0 },
-  GatePassed: { ...base, type: "GatePassed", phase: phaseId, attempt: 0 },
+  GatePassed: { ...base, type: "GatePassed", phase: phaseId, attempt: 0, pending: [] },
   GateFailed: {
     ...base,
     type: "GateFailed",
@@ -90,6 +90,7 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     logPath: "/tmp/gate.log",
     attempt: 0,
     diagnostics: [],
+    pending: [],
   },
   FixStarted: { ...base, type: "FixStarted", phase: phaseId, attempt: 1 },
   FixCompleted: { ...base, type: "FixCompleted", phase: phaseId, sessionId },

@@ -8,6 +8,7 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
+import { makeScopesRequest } from "../../src/domain/plan/projection.js";
 
 const runPath = "/fake/runs/my-run";
 const cwd = "/fake/worktrees/my-run/phase-01";
@@ -43,6 +44,14 @@ const baseOpts = {
     { command: "pnpm test", surface: "local", firing: "every-phase", output: "log" },
   ] as const,
   cwd,
+  scheduling: {
+    isTerminal: false,
+    scopesProvider: undefined,
+    request: makeScopesRequest(
+      [{ id: "phase-01", plannedFilesToCreate: [], plannedFilesToEdit: [] }],
+      "phase-01",
+    ),
+  },
   phaseFolderPath,
   sessionId,
   agentOptions: {

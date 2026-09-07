@@ -12,6 +12,7 @@ import type {
 } from "../domain/branded.js";
 import { decodeBranchName, decodePhaseId, decodeWorktreePath } from "../domain/branded.js";
 import { selectGateSteps } from "../domain/gate/selectSteps.js";
+import { makeScopesRequest } from "../domain/plan/projection.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
@@ -1097,6 +1098,11 @@ export function executePlan(
         yield* runGatesWithFixLoop({
           steps: phaseSteps,
           cwd: worktreePath as string,
+          scheduling: {
+            isTerminal: isFinal,
+            scopesProvider: config.scopes,
+            request: makeScopesRequest(plan.phases, phase.id),
+          },
           phaseFolderPath,
           sessionId,
           agentOptions,

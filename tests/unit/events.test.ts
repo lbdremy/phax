@@ -59,7 +59,7 @@ const samples = {
     sessionId,
   },
   GateStarted: { ...base, type: "GateStarted", phase: phaseId, attempt: 0 },
-  GatePassed: { ...base, type: "GatePassed", phase: phaseId, attempt: 0 },
+  GatePassed: { ...base, type: "GatePassed", phase: phaseId, attempt: 0, pending: [] },
   GateFailed: {
     ...base,
     type: "GateFailed",
@@ -69,6 +69,7 @@ const samples = {
     logPath: "/tmp/gate.log",
     attempt: 0,
     diagnostics: [],
+    pending: [],
   },
   FixStarted: { ...base, type: "FixStarted", phase: phaseId, attempt: 1 },
   FixCompleted: { ...base, type: "FixCompleted", phase: phaseId, sessionId },
@@ -135,11 +136,12 @@ function visit(event: PhaxEvent): string {
     case "FixCompleted":
       return `${event.type}:${event.sessionId}`;
     case "GateStarted":
-    case "GatePassed":
     case "FixStarted":
       return `${event.type}:${event.attempt}`;
+    case "GatePassed":
+      return `${event.type}:${event.attempt}:${event.pending.length}`;
     case "GateFailed":
-      return `${event.type}:${event.command}:${event.exitCode}:${event.attempt}:${event.diagnostics.length}`;
+      return `${event.type}:${event.command}:${event.exitCode}:${event.attempt}:${event.diagnostics.length}:${event.pending.length}`;
     case "HandoffMissing":
       return `${event.type}:${event.missingSections.join(",")}`;
     case "CommitCreated":
