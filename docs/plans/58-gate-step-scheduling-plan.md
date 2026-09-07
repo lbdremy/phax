@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/18-gate-step-scheduling.md
+approved:
+  date: 2026-09-07
+  baseline: 25f09a2
 ---
 
 # Gate step scheduling
