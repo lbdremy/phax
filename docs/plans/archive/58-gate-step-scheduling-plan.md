@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/18-gate-step-scheduling.md
 approved:
   date: 2026-09-07

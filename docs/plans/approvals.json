@@ -13,15 +13,6 @@
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
     },
-    "docs/plans/58-gate-step-scheduling-plan.md": {
-      "planFingerprint": "61d6ed5c19ad1ffdf65d74c9de3afb649d5f6e98d01b5e8842107ed56ce13df3",
-      "approvedAt": "2026-09-07T07:58:14.389Z",
-      "baseline": "25f09a239a04df419da4f34ebb97fc3d9d5ab47b",
-      "sourceSpec": {
-        "path": "docs/specs/18-gate-step-scheduling.md",
-        "fingerprint": "18d0933d3abcd62bd713b7149f14e7155b1d8eb3adb8a0d3b12c0d4c9d6db556"
-      }
-    },
     "docs/plans/59-catalog-fable-5-1-opus-5-gpt-6-astra-plan.md": {
       "planFingerprint": "97e7960fdf669d1b14eca04542fc492f699d20f1afe2be2a6b8a486392b70bf4",
       "approvedAt": "2026-09-07T08:33:04.234Z",
