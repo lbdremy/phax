@@ -13,8 +13,8 @@ then the September catalog refresh through plan 59 (`0a7ccc2` Fable 5.1 + Opus 5
 ultracode on xhigh-capable entries, `a42153d` GPT-6 Astra anchored to Fable 5.1 as a
 downgrade, `8f5073d` review/adjust defaults re-pointed to Opus 5 and Sonnet 5), merged as
 PR #93 and completed (`0204d53`). The run-lookup follow-up below went in first as PR #91
-(`911457a`). v0.12.0 was cut the same day (`a1cfdff`, tag pushed) but the npm publish has not landed
-yet (see Small follow-ups). Three approved specs remain, all
+(`911457a`). v0.12.0 shipped the same day (`a1cfdff`): the staged npm publish was approved, and `latest`
+and the global install are both 0.12.0. Three approved specs remain, all
 parked (19, 23, 24); 19 is now the cheapest to pick up since plan 58 built the projection it
 shares.
 
@@ -25,10 +25,6 @@ shares.
       in-project path too and refuses with `unresolvable-qualified` when the entry exists but
       the files fail to load; the refusal message carries the load reason, including the
       schema issues (which field is missing) that `loadRunReviewInfo` used to discard.
-- [ ] **Finish the 0.12.0 publish.** The release commit (`a1cfdff`) and tag `v0.12.0` are on
-      `origin` as of 2026-09-07, carrying spec 18 and the Fable 5.1 / Opus 5 / GPT-6 Astra
-      catalog with the new review defaults, but `@lbdremy/phax` `latest` is still 0.11.0 and
-      so is the global install. Approve the staged publish, then confirm both read 0.12.0.
 
 ## Records consumers (the substrate shipped in 0.9)
 
