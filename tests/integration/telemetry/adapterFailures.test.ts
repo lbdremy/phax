@@ -79,6 +79,11 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
         runGatesWithFixLoop({
           steps: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
           cwd: "/fake/worktrees/phase-01",
+          scheduling: {
+            isTerminal: false,
+            scopesProvider: undefined,
+            request: { phase: "phase-01", phases: [] },
+          },
           phaseFolderPath,
           sessionId,
           agentOptions: {

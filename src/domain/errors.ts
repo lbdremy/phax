@@ -1,6 +1,19 @@
 import { Data } from "effect";
 import type { PlanStalenessVerdict } from "./artifact/lineage.js";
 import type { GateDiagnostic } from "../schemas/gateDiagnostics.js";
+import type { PendingDiagnostic } from "./gate/scheduleDiagnostics.js";
+
+/**
+ * A gate step's pending completion diagnostics, grouped under the step that
+ * produced them. Rides `GateFailedError`, the gate events and the gate outcome
+ * (empty for a plain step). Defined here — in the domain — so both
+ * `src/domain/events.ts` and `src/app/gates.ts` can reference one canonical
+ * type without a domain → app import.
+ */
+export interface PendingStep {
+  readonly command: string;
+  readonly pending: readonly PendingDiagnostic[];
+}
 
 export class PlanValidationError extends Data.TaggedError("PlanValidationError")<{
   message: string;
@@ -67,6 +80,9 @@ export class GateFailedError extends Data.TaggedError("GateFailedError")<{
   /** Diagnostics decoded from a `output: "diagnostics"` step; empty for a
    *  plain step or a provider error that returned no decodable document. */
   diagnostics: readonly GateDiagnostic[];
+  /** Pending completion diagnostics recorded on the attempt up to the failing
+   *  step; empty for a plain step. */
+  pending: readonly PendingStep[];
   stderrExcerpt?: string;
 }> {}
 

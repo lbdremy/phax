@@ -1,5 +1,5 @@
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "./branded.js";
-import type { RateLimitError, UsageLimitError } from "./errors.js";
+import type { PendingStep, RateLimitError, UsageLimitError } from "./errors.js";
 import type { GateDiagnostic } from "../schemas/gateDiagnostics.js";
 import type { RunReviewInfo } from "./runReviewInfo.js";
 
@@ -77,6 +77,8 @@ export interface GateStarted extends PhaxEventBase {
 export interface GatePassed extends PhaxEventBase {
   readonly type: "GatePassed";
   readonly attempt: number;
+  /** Pending completion diagnostics left green by this gate; empty when none. */
+  readonly pending: readonly PendingStep[];
 }
 
 export interface GateFailed extends PhaxEventBase {
@@ -88,6 +90,8 @@ export interface GateFailed extends PhaxEventBase {
   /** Diagnostics decoded from a `output: "diagnostics"` step; empty for a
    *  plain step or a provider error that returned no decodable document. */
   readonly diagnostics: readonly GateDiagnostic[];
+  /** Pending completion diagnostics recorded before the failure; empty when none. */
+  readonly pending: readonly PendingStep[];
 }
 
 export interface FixStarted extends PhaxEventBase {

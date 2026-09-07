@@ -28,7 +28,7 @@ import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { reportGitFailure } from "./telemetry/reportBuilders.js";
 import { cleanupPhase, type CleanupPhaseOptions } from "./cleanup.js";
 import { commitPhase, type CommitPhaseOptions } from "./commit.js";
-import { runGates } from "./gates.js";
+import { runGates, type GateScheduling } from "./gates.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
 
 /**
@@ -146,11 +146,14 @@ export function adaptGateRun(
   steps: readonly GateStep[],
   cwd: string,
   attemptLogPath: string,
+  scheduling: GateScheduling,
   attempt: number,
   base: PhaxEventBase,
 ): Effect.Effect<GatePassed | GateFailed, FsError | ShellError, Shell | FileSystem> {
-  return runGates({ steps, cwd, attemptLogPath }).pipe(
-    Effect.map((): GatePassed => ({ ...base, type: "GatePassed", attempt })),
+  return runGates({ steps, cwd, scheduling, attemptLogPath }).pipe(
+    Effect.map(
+      (outcome): GatePassed => ({ ...base, type: "GatePassed", attempt, pending: outcome.pending }),
+    ),
     Effect.catchTag(
       "GateFailedError",
       (e): Effect.Effect<GateFailed, never> =>
@@ -162,6 +165,7 @@ export function adaptGateRun(
           logPath: e.logPath,
           attempt,
           diagnostics: e.diagnostics,
+          pending: e.pending,
         }),
     ),
   );
