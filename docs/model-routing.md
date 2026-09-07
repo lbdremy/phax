@@ -6,13 +6,14 @@ This page explains how routing works. Why the catalog contains what it contains 
 
 ## Model families
 
-Five families span the three providers:
+Six families span the three providers:
 
 | Family           | Providers                              |
 | ---------------- | -------------------------------------- |
 | `claude-haiku`   | claude-code                            |
 | `claude-sonnet`  | claude-code, mistral-vibe (equivalent) |
 | `claude-opus`    | claude-code, codex-cli (equivalent)    |
+| `claude-fable`   | claude-code, codex-cli (equivalent)    |
 | `mistral-medium` | mistral-vibe                           |
 | `openai-gpt`     | codex-cli                              |
 
@@ -34,7 +35,8 @@ The provider config (`~/.phax/providers.json`) holds the catalog. Every entry is
         },
         "claude-opus": {
           "models": [
-            { "id": "claude-opus-4-8", "efforts": ["low", "medium", "high", "xhigh", "max", "ultracode"], "status": "active" }
+            { "id": "claude-opus-4-8", "efforts": ["low", "medium", "high", "xhigh", "max", "ultracode"], "status": "active" },
+            { "id": "claude-opus-5", "efforts": ["low", "medium", "high", "xhigh", "max", "ultracode"], "status": "active" }
           ]
         }
       }

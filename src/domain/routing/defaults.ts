@@ -76,6 +76,9 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
     "claude-code": {
       enabled: true,
       executable: "claude",
+      // `ultracode` is listed on every entry that supports `xhigh`: Claude
+      // Code gates ultracode on xhigh support, not on a specific model
+      // (verified against 2.1.263).
       families: {
         "claude-haiku": {
           models: [
@@ -95,7 +98,7 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
             },
             {
               id: "claude-sonnet-5",
-              efforts: ["low", "medium", "high", "xhigh", "max"],
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
               status: "active",
             },
           ],
@@ -107,13 +110,23 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
               efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
               status: "active",
             },
+            {
+              id: "claude-opus-5",
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
+              status: "active",
+            },
           ],
         },
         "claude-fable": {
           models: [
             {
               id: "claude-fable-5",
-              efforts: ["low", "medium", "high", "xhigh", "max"],
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
+              status: "active",
+            },
+            {
+              id: "claude-fable-5-1",
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
               status: "active",
             },
           ],

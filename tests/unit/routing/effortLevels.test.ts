@@ -35,6 +35,60 @@ describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
     expect(effortsFor("gpt-5.5", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
   });
 
+  it("claude-opus-5 supports low|medium|high|xhigh|max|ultracode", () => {
+    const expected: readonly ThinkingLevel[] = [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultracode",
+    ];
+    expect(effortsFor("claude-opus-5", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
+  });
+
+  it("claude-fable-5-1 supports low|medium|high|xhigh|max|ultracode", () => {
+    const expected: readonly ThinkingLevel[] = [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultracode",
+    ];
+    expect(effortsFor("claude-fable-5-1", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
+  });
+
+  it("claude-fable-5 supports low|medium|high|xhigh|max|ultracode", () => {
+    const expected: readonly ThinkingLevel[] = [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultracode",
+    ];
+    expect(effortsFor("claude-fable-5", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
+  });
+
+  it("claude-sonnet-5 supports low|medium|high|xhigh|max|ultracode", () => {
+    const expected: readonly ThinkingLevel[] = [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultracode",
+    ];
+    expect(effortsFor("claude-sonnet-5", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
+  });
+
+  it("claude-sonnet-4-6 still lacks xhigh and ultracode", () => {
+    const efforts = effortsFor("claude-sonnet-4-6", DEFAULT_PROVIDER_CONFIG);
+    expect(efforts).not.toContain("xhigh");
+    expect(efforts).not.toContain("ultracode");
+  });
+
   it("every mistral alias entry advertises exactly one effort", () => {
     const aliases = [
       { id: "phax-mistral-medium-3.5-off", effort: "off" as const },
@@ -54,6 +108,10 @@ describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
       "claude-haiku-4-5-20251001",
       "claude-sonnet-4-6",
       "claude-opus-4-8",
+      "claude-opus-5",
+      "claude-fable-5",
+      "claude-fable-5-1",
+      "claude-sonnet-5",
       "gpt-5.5",
       "phax-mistral-medium-3.5-off",
       "phax-mistral-medium-3.5-low",
