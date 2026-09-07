@@ -2,6 +2,8 @@
 
 PHAX routes phase execution through three provider families — Claude Code, Mistral Vibe, and OpenAI Codex — using a **versioned model catalog** and a **Claude-hub equivalence table**. A concrete versioned model id and effort resolve natively when a provider serves the same family; they translate through the Claude hub when they don't.
 
+This page explains how routing works. Why the catalog contains what it contains — where each id was read from, what the cross-provider anchors are based on, and the cost basis behind phax's built-in default models — is recorded in [`docs/model-catalog.md`](model-catalog.md); update it in the same change as any catalog edit.
+
 ## Model families
 
 Five families span the three providers:
