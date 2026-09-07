@@ -231,14 +231,14 @@ least as well" rule):
   `isClaudeFamily` row (`.claude/skills/model-routing/SKILL.md`) also predates
   `claude-fable`.
 - **Built-in defaults** (phase-03): `DEFAULT_COMPLIANCE_REVIEW_MODEL`
-  (`src/schemas/phaxConfig.ts:115`, effort `medium` at `:123`),
-  `DEFAULT_EXTRACT_MODEL` (`:170`), `DEFAULT_CODE_REVIEW_MODEL` (`:177`,
-  effort `high` at `:186`), and `adjustPlan`'s private `DEFAULT_MODEL`
+  (`src/schemas/phaxConfig.ts:125`, effort `medium` at `:133`),
+  `DEFAULT_EXTRACT_MODEL` (`:181`), `DEFAULT_CODE_REVIEW_MODEL` (`:188`,
+  effort `high` at `:195`), and `adjustPlan`'s private `DEFAULT_MODEL`
   (`src/cli/commands/adjustPlan.ts:25`). The `--model` help strings in
   `src/cli/program.ts:291,317` name `claude-opus-4-8` and flow into
   `phax.usage.kdl` (`pnpm gen:usage-spec`) and `docs/cli/reference.md` plus
-  the README's generated CLI block (`pnpm docs:cli`). README prose at `:277`
-  and `:288` names the review defaults by hand; `docs/extract-plan-model.md`
+  the README's generated CLI block (`pnpm docs:cli`). README prose at `:302`
+  and `:313` names the review defaults by hand; `docs/extract-plan-model.md`
   names Haiku and the Sonnet 4.6 retry example. Tests pin the defaults through
   the exported constants (`tests/unit/loadConfig.test.ts:308,328`,
   `tests/unit/schemas/complianceReviewConfig.test.ts:62,69`), never by
@@ -590,10 +590,10 @@ Efforts are unchanged. Users who set `review.code`, `review.compliance` or
   `pnpm gen:usage-spec` and `pnpm docs:cli` and commit the regenerated
   `phax.usage.kdl`, `docs/cli/reference.md` and README generated block. Do
   not hand-edit the generated files; `pnpm format:check` must stay clean.
-- **README prose**: `README.md:277` (review-code default "else
-  `claude-opus-4-8` at `high` effort" → `claude-opus-5`) and `:288`
+- **README prose**: `README.md:302` (review-code default "else
+  `claude-opus-4-8` at `high` effort" → `claude-opus-5`) and `:313`
   (compliance default `claude-sonnet-4-6` → `claude-sonnet-5`). Leave the
-  `phax agent resolve --model claude-sonnet-4-6` example at `:343` alone; it
+  `phax agent resolve --model claude-sonnet-4-6` example at `:368` alone; it
   is a routing example, not a default.
 - **`docs/extract-plan-model.md`**: keep the Haiku default text; change the
   "retrying with a stronger model" example and the config excerpt from
