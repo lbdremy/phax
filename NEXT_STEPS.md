@@ -13,8 +13,8 @@ then the September catalog refresh through plan 59 (`0a7ccc2` Fable 5.1 + Opus 5
 ultracode on xhigh-capable entries, `a42153d` GPT-6 Astra anchored to Fable 5.1 as a
 downgrade, `8f5073d` review/adjust defaults re-pointed to Opus 5 and Sonnet 5), merged as
 PR #93 and completed (`0204d53`). The run-lookup follow-up below went in first as PR #91
-(`911457a`). None of this is released: `latest` is still v0.11.0 (`f9a53ee`, 2026-09-05), so
-the next publish carries spec 18 and the new catalog. Three approved specs remain, all
+(`911457a`). v0.12.0 was cut the same day (`a1cfdff`, tag pushed) but the npm publish has not landed
+yet (see Small follow-ups). Three approved specs remain, all
 parked (19, 23, 24); 19 is now the cheapest to pick up since plan 58 built the projection it
 shares.
 
@@ -25,9 +25,10 @@ shares.
       in-project path too and refuses with `unresolvable-qualified` when the entry exists but
       the files fail to load; the refusal message carries the load reason, including the
       schema issues (which field is missing) that `loadRunReviewInfo` used to discard.
-- [ ] **Release 0.12.0.** Spec 18 (gate step scheduling) and the Fable 5.1 / Opus 5 /
-      GPT-6 Astra catalog with the new review defaults are on `main` unreleased. Same staged
-      npm flow as 0.11.0; bump, publish, confirm `latest` and the global install.
+- [ ] **Finish the 0.12.0 publish.** The release commit (`a1cfdff`) and tag `v0.12.0` are on
+      `origin` as of 2026-09-07, carrying spec 18 and the Fable 5.1 / Opus 5 / GPT-6 Astra
+      catalog with the new review defaults, but `@lbdremy/phax` `latest` is still 0.11.0 and
+      so is the global install. Approve the staged publish, then confirm both read 0.12.0.
 
 ## Records consumers (the substrate shipped in 0.9)
 
@@ -76,12 +77,13 @@ does not rot; the plans written against them do.
 
 ### Housekeeping
 
-- [ ] **Archive today's three runs.** `phax ls` shows `phax.gate-step-scheduling` in
-      `created` (the first attempt at plan 58, superseded by `-2` before it ran) and
-      `phax.gate-step-scheduling-2` / `phax.catalog-fable-5-1-opus-5-gpt-6-astra` in
-      `review_open` with worktrees still checked out, though PRs #92 and #93 are merged.
-      `phax archive` the two review_open runs normally; the `created` one needs `--force`
-      (spec 32's consent rule). `~/.phax/worktrees/` should be empty afterwards.
+- [x] **Archive today's three runs.** Done 2026-09-07: `gate-step-scheduling-2` and
+      `catalog-fable-5-1-opus-5-gpt-6-astra` (both `review_open`, PRs #92 / #93 merged)
+      archived normally; `gate-step-scheduling` (the first attempt at plan 58, never ran)
+      with `--force`. Registry holds only `archived` entries again and
+      `~/.phax/worktrees/` is empty. One non-phax worktree remains at
+      `../phax-run-lookup-unreadable` (branch `fix/run-lookup-unreadable`, PR #91 merged) —
+      `git worktree remove` it when convenient.
 - Done 2026-09-04: registry fully swept of the June experiments (ten in `created`, five in
   `failed` / `interrupted` / `rate_limited`, two of them louloupapers runs) with
   `phax archive --force` from source. Six runs predated spec 12 and were hand-patched first
