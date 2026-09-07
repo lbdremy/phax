@@ -39,6 +39,26 @@ function readRegistrySync(stateRoot: string): Registry | undefined {
   }
 }
 
+function findRegistryEntry(
+  stateRoot: string,
+  namespace: string,
+  shortName: string,
+): Registry["runs"][number] | undefined {
+  const registry = readRegistrySync(stateRoot);
+  return (registry?.runs ?? []).find((r) => r.namespace === namespace && r.shortName === shortName);
+}
+
+function unresolvableRefusal(
+  namespace: string,
+  shortName: string,
+  reason: string,
+): ResolveRunRefRefusal {
+  return {
+    variant: "unresolvable-qualified",
+    message: `Run "${runKey(namespace, shortName)}" is in the registry but its files could not be read. Run from the owning repository, or the run may have been cleared.\nReason: ${reason}`,
+  };
+}
+
 /**
  * Resolve a raw user run-reference argument to a located run.
  *
@@ -47,7 +67,10 @@ function readRegistrySync(stateRoot: string): Registry | undefined {
  *   found run belongs to a different namespace.
  * - Unqualified + outside a project: refuse with matching qualified candidates from the registry.
  * - Qualified: resolve the exact (namespace, shortName) via the registry, then load from disk.
- *   Refuses with `unresolvable-qualified` when the registry entry exists but files are unreadable.
+ *
+ * On both in-project paths, a run whose registry entry exists but whose files cannot be
+ * loaded is refused with `unresolvable-qualified` (carrying the load failure reason) rather
+ * than `not-found`, so an undecodable run folder is never reported as deleted.
  */
 export function resolveRunRef(
   rawArg: string,
@@ -80,10 +103,15 @@ export function resolveRunRef(
     const namespace = config.namespace;
     const infoResult = resolveRun(namespace, ref.shortName as ShortName, stateRoot);
     if (Either.isLeft(infoResult)) {
-      return Either.left({
-        variant: "not-found",
-        message: `Run "${runKey(namespace, ref.shortName)}" not found.`,
-      });
+      const entry = findRegistryEntry(stateRoot, namespace, ref.shortName);
+      return Either.left(
+        entry === undefined
+          ? {
+              variant: "not-found",
+              message: `Run "${runKey(namespace, ref.shortName)}" not found.`,
+            }
+          : unresolvableRefusal(namespace, ref.shortName, infoResult.left),
+      );
     }
 
     const info = infoResult.right;
@@ -101,10 +129,7 @@ export function resolveRunRef(
   const namespace = ref.namespace;
   const shortName = ref.shortName;
 
-  const registry = readRegistrySync(stateRoot);
-  const entry = (registry?.runs ?? []).find(
-    (r) => r.namespace === namespace && r.shortName === shortName,
-  );
+  const entry = findRegistryEntry(stateRoot, namespace, shortName);
 
   if (entry === undefined) {
     return Either.left({
@@ -115,10 +140,7 @@ export function resolveRunRef(
 
   const infoResult = resolveRun(namespace, shortName as ShortName, stateRoot);
   if (Either.isLeft(infoResult)) {
-    return Either.left({
-      variant: "unresolvable-qualified",
-      message: `Run "${runKey(namespace, shortName)}" is in the registry but its files could not be read. Run from the owning repository, or the run may have been cleared.`,
-    });
+    return Either.left(unresolvableRefusal(namespace, shortName, infoResult.left));
   }
 
   const crossProject = config !== undefined && config.namespace !== namespace;

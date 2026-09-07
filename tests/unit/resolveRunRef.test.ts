@@ -160,6 +160,48 @@ describe("resolveRunRef", () => {
       expect(result.left.variant).toBe("not-found");
       expect(result.left.message).toContain("myns.missing");
     });
+
+    it("returns unresolvable-qualified with the decode reason when the registry entry exists but run-status.json fails to decode", () => {
+      writeRun(stateRoot, "myns", "fixbug");
+      // Pre-spec-12 shape: no `namespace` field.
+      const { namespace: _dropped, ...legacy } = makeRunStatus("myns", "fixbug") as {
+        namespace: string;
+      };
+      writeFileSync(
+        join(stateRoot, "runs", "myns.fixbug", "run-status.json"),
+        JSON.stringify(legacy),
+      );
+      writeFileSync(
+        join(stateRoot, "registry.json"),
+        JSON.stringify(makeRegistry([makeRegistryEntry("myns", "fixbug")])),
+      );
+
+      const config = makeConfig("myns", stateRoot);
+      const result = resolveRunRef("fixbug", config, stateRoot);
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(result.left.variant).toBe("unresolvable-qualified");
+      expect(result.left.message).toContain("myns.fixbug");
+      expect(result.left.message).toContain("could not be read");
+      expect(result.left.message).toContain("Invalid run-status.json");
+      expect(result.left.message).toContain("namespace");
+    });
+
+    it("returns unresolvable-qualified when the registry entry exists but the run folder is gone", () => {
+      writeFileSync(
+        join(stateRoot, "registry.json"),
+        JSON.stringify(makeRegistry([makeRegistryEntry("myns", "fixbug")])),
+      );
+
+      const config = makeConfig("myns", stateRoot);
+      const result = resolveRunRef("fixbug", config, stateRoot);
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(result.left.variant).toBe("unresolvable-qualified");
+      expect(result.left.message).toContain("No run-status.json");
+    });
   });
 
   describe("unqualified outside a project", () => {
@@ -270,6 +312,7 @@ describe("resolveRunRef", () => {
       if (Either.isRight(result)) throw new Error("expected refusal");
       expect(result.left.variant).toBe("unresolvable-qualified");
       expect(result.left.message).toContain("myns.fixbug");
+      expect(result.left.message).toContain("Reason: No run-status.json");
     });
   });
 
