@@ -13,3 +13,15 @@ export function diagnosticsPathFor(attemptLogPath: string): string {
     : attemptLogPath;
   return `${base}.diagnostics.json`;
 }
+
+/**
+ * Names the pending-diagnostics document persisted next to a gate attempt
+ * log, using the same `.log`-stripping rule as {@link diagnosticsPathFor}
+ * (`checks-attempt-01.log` → `checks-attempt-01.pending.json`).
+ */
+export function pendingPathFor(attemptLogPath: string): string {
+  const base = attemptLogPath.endsWith(".log")
+    ? attemptLogPath.slice(0, -".log".length)
+    : attemptLogPath;
+  return `${base}.pending.json`;
+}

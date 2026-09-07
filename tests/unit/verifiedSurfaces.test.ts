@@ -41,6 +41,18 @@ describe("verifiedSurfaces", () => {
     expect(result).not.toContain("product");
   });
 
+  it("excludes a surface whose step is pending, even with no failures", () => {
+    const record: GateAttribution = {
+      phase: "phase-01",
+      steps: [
+        { command: "pnpm format", surface: "structural", result: "pass" },
+        { command: "pnpm audit:diagnostics", surface: "structural", result: "pending" },
+      ],
+    };
+
+    expect(verifiedSurfaces(record)).toEqual([]);
+  });
+
   it("returns an empty array for a record with no steps", () => {
     expect(verifiedSurfaces({ phase: "phase-01", steps: [] })).toEqual([]);
   });

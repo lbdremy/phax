@@ -4,7 +4,7 @@ import { SurfaceSchema } from "./phaxConfig.js";
 const GateStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: SurfaceSchema,
-  result: Schema.Literal("pass", "fail"),
+  result: Schema.Literal("pass", "fail", "pending"),
 });
 
 export type GateStepResult = Schema.Schema.Type<typeof GateStepResultSchema>;

@@ -43,13 +43,25 @@ describe("GateAttributionSchema", () => {
     expect(Either.isLeft(decoded)).toBe(true);
   });
 
-  it("rejects a step whose result is outside pass | fail", () => {
+  it("rejects a step whose result is outside pass | fail | pending", () => {
     const decoded = decodeGateAttribution({
       phase: "phase-01",
       steps: [{ command: "pnpm test", surface: "local", result: "skipped" }],
     });
 
     expect(Either.isLeft(decoded)).toBe(true);
+  });
+
+  it("decodes a pending result", () => {
+    const decoded = decodeGateAttribution({
+      phase: "phase-01",
+      steps: [{ command: "pnpm audit:diagnostics", surface: "structural", result: "pending" }],
+    });
+
+    expect(Either.isRight(decoded)).toBe(true);
+    if (Either.isRight(decoded)) {
+      expect(decoded.right.steps[0]?.result).toBe("pending");
+    }
   });
 
   it("rejects a missing phase", () => {
