@@ -219,6 +219,12 @@ export class OrientProviderError extends Data.TaggedError("OrientProviderError")
   stderrExcerpt?: string;
 }> {}
 
+export class ScopesProviderError extends Data.TaggedError("ScopesProviderError")<{
+  message: string;
+  exitCode?: number;
+  stderrExcerpt?: string;
+}> {}
+
 export class InvalidArtifactTransitionError extends Data.TaggedError(
   "InvalidArtifactTransitionError",
 )<{
