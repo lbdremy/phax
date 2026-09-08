@@ -15,6 +15,11 @@
       "specFingerprint": "b19da59fbf82a781a6e034aef4fbe27507a63137cbc7c165d8ad8031cfd99c81",
       "approvedAt": "2026-09-04T09:28:11.427Z",
       "baseline": "67e20c372589e947257a71f941e43e4367a5abe4"
+    },
+    "docs/specs/33-plan-lint.md": {
+      "specFingerprint": "db0b1db3a69556babd9690473981dacb8726ba27fc7fa820496aaa8742b9122c",
+      "approvedAt": "2026-09-08T08:48:55.433Z",
+      "baseline": "02cea1702cc34c330b371760a80621cdf50f88e1"
     }
   }
 }

@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-09-08
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-09-08
+  baseline: 02cea17
 ---
 
 # Plan Lint
