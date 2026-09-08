@@ -545,8 +545,9 @@ cmd "artifact" {
 }
 
 cmd "plans" {
-    help "Report plan staleness and cross-plan overlap"
-    long_help "Parent command for reporting on plans: staleness of Approved plans against their recorded approval, and cross-plan file overlap."
+    help "Lint a plan and report plan staleness and cross-plan overlap"
+    long_help "Parent command for reporting on plans: the mechanical defects of a single plan (lint), staleness of Approved plans against their recorded approval, and cross-plan file overlap."
+    example "phax plans lint docs/plans/60-foo-plan.md"
     example "phax plans status"
     example "phax plans overlap docs/plans/33-a.md docs/plans/35-b.md"
 
@@ -581,6 +582,19 @@ cmd "plans" {
         flag "--landed" {
             arg "<run>"
             help "Report which of the given plans need re-adjustment after this run's actual changes"
+        }
+    }
+
+    cmd "lint" {
+        help "Report a plan's mechanical defects without running it"
+        long_help "Reports every mechanical defect of a plan.md that phax can establish before a run, as findings with a severity (error or warning), a check, and the phase they concern.\n\nFour checks run: structure — every field the deterministic extraction requires, reported in full rather than stopping at the first; files — the planned create/edit lists walked in phase order against the working tree, so an edit of a file no earlier phase creates, a create of a file that already exists or was already created, and a phase that both creates and edits a path are errors (a path listed both to create and as optional is the one warning; optional files are never checked); commands — the plan's required commands against security.agentCommands and the gate profile; models — each phase's model and effort against the routing catalog, with alternatives when one is refused.\n\nThe file-plan ground is the working tree as it is now, not any commit. Read-only and model-free: it never writes, never reads the extraction cache and never falls back to the extraction model, so a plan the deterministic parser cannot read reports its structural errors and stops. Exits 1 when at least one finding is an error, 0 otherwise (warnings alone do not fail).\n\nSide effects: none."
+        example "phax plans lint docs/plans/60-foo-plan.md"
+        example "phax plans lint docs/plans/60-foo-plan.md --json"
+        arg "<plan>" {
+            help "Path to the plan.md"
+        }
+        flag "--json" {
+            help "Emit the findings as JSON"
         }
     }
 }

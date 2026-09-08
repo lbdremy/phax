@@ -123,8 +123,21 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
 
   plans: {
     longHelp:
-      "Parent command for reporting on plans: staleness of Approved plans against their recorded approval, and cross-plan file overlap.",
-    examples: ["phax plans status", "phax plans overlap docs/plans/33-a.md docs/plans/35-b.md"],
+      "Parent command for reporting on plans: the mechanical defects of a single plan (lint), staleness of Approved plans against their recorded approval, and cross-plan file overlap.",
+    examples: [
+      "phax plans lint docs/plans/60-foo-plan.md",
+      "phax plans status",
+      "phax plans overlap docs/plans/33-a.md docs/plans/35-b.md",
+    ],
+  },
+
+  "plans lint": {
+    longHelp:
+      "Reports every mechanical defect of a plan.md that phax can establish before a run, as findings with a severity (error or warning), a check, and the phase they concern.\n\nFour checks run: structure — every field the deterministic extraction requires, reported in full rather than stopping at the first; files — the planned create/edit lists walked in phase order against the working tree, so an edit of a file no earlier phase creates, a create of a file that already exists or was already created, and a phase that both creates and edits a path are errors (a path listed both to create and as optional is the one warning; optional files are never checked); commands — the plan's required commands against security.agentCommands and the gate profile; models — each phase's model and effort against the routing catalog, with alternatives when one is refused.\n\nThe file-plan ground is the working tree as it is now, not any commit. Read-only and model-free: it never writes, never reads the extraction cache and never falls back to the extraction model, so a plan the deterministic parser cannot read reports its structural errors and stops. Exits 1 when at least one finding is an error, 0 otherwise (warnings alone do not fail).\n\nSide effects: none.",
+    examples: [
+      "phax plans lint docs/plans/60-foo-plan.md",
+      "phax plans lint docs/plans/60-foo-plan.md --json",
+    ],
   },
 
   "plans status": {

@@ -50,6 +50,16 @@ describe("buildProgram", () => {
     expect(names.length).toBe(TOP_LEVEL_COMMANDS.length);
   });
 
+  it("exposes plans lint with a <plan> argument and --json", () => {
+    const program = buildProgram();
+    const plansCmd = program.commands.find((c) => c.name() === "plans");
+    expect(plansCmd).toBeDefined();
+    const lintCmd = plansCmd!.commands.find((c) => c.name() === "lint");
+    expect(lintCmd).toBeDefined();
+    expect(lintCmd!.registeredArguments.map((a) => a.name())).toEqual(["plan"]);
+    expect(lintCmd!.options.map((o) => o.long)).toContain("--json");
+  });
+
   it("exposes agent subcommands: models, resolve, probe, setup", () => {
     const program = buildProgram();
     const agentCmd = program.commands.find((c) => c.name() === "agent");

@@ -62,6 +62,12 @@ Global options (on all commands): `--verbose`, `--trace`
 |---|---|---|---|
 | `schema upgrade` | — | — | Upgrade the local phax.schema.json to the current bundled version |
 
+### `plans`
+
+| Subcommand | Args | Flags | Description |
+|---|---|---|---|
+| `plans lint` | `<plan>` | `--json` | Report a plan's mechanical defects without running it |
+
 ### `records`
 
 | Subcommand | Args | Flags | Description |
