@@ -65,6 +65,8 @@ export function filePlanFindings(
     const createdHere = new Set<string>();
 
     for (const path of phase.plannedFilesToCreate) {
+      // A create/edit collision is its own defect (spec 33 §5.6); it does not
+      // excuse the path from §5.5, so the checks below still run on it.
       if (phase.plannedFilesToEdit.includes(path)) {
         findings.push({
           severity: "error",
@@ -72,8 +74,6 @@ export function filePlanFindings(
           phase: phase.id,
           message: `create and edit both list ${path}`,
         });
-        createdHere.add(path);
-        continue;
       }
 
       const origin = known.get(path);

@@ -190,6 +190,38 @@ describe("filePlanFindings", () => {
     ]);
   });
 
+  it("does not let a create/edit collision mask the other create findings", () => {
+    const phases: readonly FilePlanPhase[] = [
+      phase({
+        id: "phase-01",
+        plannedFilesToCreate: ["a.ts"],
+        plannedFilesToEdit: ["a.ts"],
+        optionalFilesToEdit: ["a.ts"],
+      }),
+    ];
+
+    expect(filePlanFindings(phases, new Set(["a.ts"]))).toEqual([
+      {
+        severity: "error",
+        check: "files",
+        phase: "phase-01",
+        message: "create and edit both list a.ts",
+      },
+      {
+        severity: "error",
+        check: "files",
+        phase: "phase-01",
+        message: "create a.ts: exists in the working tree",
+      },
+      {
+        severity: "warning",
+        check: "files",
+        phase: "phase-01",
+        message: "create a.ts: also listed under optional files",
+      },
+    ]);
+  });
+
   it("never checks optional files, existing or absent", () => {
     const phases: readonly FilePlanPhase[] = [
       phase({ id: "phase-01", optionalFilesToEdit: ["existing.ts", "absent.ts"] }),
