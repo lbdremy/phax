@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   structureFindings,
+  plannedPaths,
+  filePlanFindings,
   type LintCheck,
   type LintSeverity,
+  type FilePlanPhase,
 } from "../../src/domain/plan/lint.js";
 
 // Conforming plan: extractPlanDeterministic parses this without the LLM.
@@ -68,5 +71,138 @@ describe("structureFindings", () => {
       expect(severities).toContain(finding.severity);
       expect(checks).toContain(finding.check);
     }
+  });
+});
+
+function phase(overrides: Partial<FilePlanPhase> & { id: string }): FilePlanPhase {
+  return {
+    plannedFilesToCreate: [],
+    plannedFilesToEdit: [],
+    optionalFilesToEdit: [],
+    ...overrides,
+  };
+}
+
+describe("plannedPaths", () => {
+  it("deduplicates and excludes optional files, in plan order", () => {
+    const phases: readonly FilePlanPhase[] = [
+      phase({
+        id: "phase-01",
+        plannedFilesToCreate: ["a.ts"],
+        plannedFilesToEdit: ["b.ts"],
+        optionalFilesToEdit: ["z.ts"],
+      }),
+      phase({
+        id: "phase-02",
+        plannedFilesToCreate: ["a.ts", "c.ts"],
+        plannedFilesToEdit: [],
+      }),
+    ];
+
+    expect(plannedPaths(phases)).toEqual(["a.ts", "b.ts", "c.ts"]);
+  });
+});
+
+describe("filePlanFindings", () => {
+  it("returns [] for a clean multi-phase plan", () => {
+    const phases: readonly FilePlanPhase[] = [
+      phase({ id: "phase-01", plannedFilesToCreate: ["a.ts"] }),
+      phase({ id: "phase-02", plannedFilesToEdit: ["a.ts"], plannedFilesToCreate: ["b.ts"] }),
+    ];
+
+    expect(filePlanFindings(phases, new Set())).toEqual([]);
+  });
+
+  it("flags editing a file that does not exist and no earlier phase creates", () => {
+    const phases: readonly FilePlanPhase[] = [
+      phase({ id: "phase-01", plannedFilesToEdit: ["missing.ts"] }),
+    ];
+
+    expect(filePlanFindings(phases, new Set())).toEqual([
+      {
+        severity: "error",
+        check: "files",
+        phase: "phase-01",
+        message: "edit missing.ts: does not exist and no earlier phase creates it",
+      },
+    ]);
+  });
+
+  it("allows editing a file created by an earlier phase", () => {
+    const phases: readonly FilePlanPhase[] = [
+      phase({ id: "phase-01", plannedFilesToCreate: ["a.ts"] }),
+      phase({ id: "phase-02", plannedFilesToEdit: ["a.ts"] }),
+    ];
+
+    expect(filePlanFindings(phases, new Set())).toEqual([]);
+  });
+
+  it("flags creating a file that already exists in the working tree", () => {
+    const phases: readonly FilePlanPhase[] = [
+      phase({ id: "phase-01", plannedFilesToCreate: ["existing.ts"] }),
+    ];
+
+    expect(filePlanFindings(phases, new Set(["existing.ts"]))).toEqual([
+      {
+        severity: "error",
+        check: "files",
+        phase: "phase-01",
+        message: "create existing.ts: exists in the working tree",
+      },
+    ]);
+  });
+
+  it("flags creating a file an earlier phase already created", () => {
+    const phases: readonly FilePlanPhase[] = [
+      phase({ id: "phase-01", plannedFilesToCreate: ["a.ts"] }),
+      phase({ id: "phase-02", plannedFilesToCreate: ["a.ts"] }),
+    ];
+
+    expect(filePlanFindings(phases, new Set())).toEqual([
+      {
+        severity: "error",
+        check: "files",
+        phase: "phase-02",
+        message: "create a.ts: already created by phase-01",
+      },
+    ]);
+  });
+
+  it("flags a phase that both creates and edits the same path", () => {
+    const phases: readonly FilePlanPhase[] = [
+      phase({ id: "phase-01", plannedFilesToCreate: ["a.ts"], plannedFilesToEdit: ["a.ts"] }),
+    ];
+
+    expect(filePlanFindings(phases, new Set())).toEqual([
+      {
+        severity: "error",
+        check: "files",
+        phase: "phase-01",
+        message: "create and edit both list a.ts",
+      },
+    ]);
+  });
+
+  it("never checks optional files, existing or absent", () => {
+    const phases: readonly FilePlanPhase[] = [
+      phase({ id: "phase-01", optionalFilesToEdit: ["existing.ts", "absent.ts"] }),
+    ];
+
+    expect(filePlanFindings(phases, new Set(["existing.ts"]))).toEqual([]);
+  });
+
+  it("warns when a path is listed both to create and as optional in the same phase", () => {
+    const phases: readonly FilePlanPhase[] = [
+      phase({ id: "phase-01", plannedFilesToCreate: ["a.ts"], optionalFilesToEdit: ["a.ts"] }),
+    ];
+
+    expect(filePlanFindings(phases, new Set())).toEqual([
+      {
+        severity: "warning",
+        check: "files",
+        phase: "phase-01",
+        message: "create a.ts: also listed under optional files",
+      },
+    ]);
   });
 });
