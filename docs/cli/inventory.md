@@ -8,7 +8,6 @@ Commander surface as of phase-01. Used as authoritative source for authoring `ph
 |---|---|---|---|
 | `validate` | — | `--config <path>` (default: `phax.json`), `--plan <path>` (default: `phax-plan.json`) | Validate phax.json and phax-plan.json without any side effects |
 | `unlock` | `<short-name>` | `--force` | Remove a stale run lock |
-| `extract-plan` | — | `--plan-md <path>` (required), `--out <path>` (required), `--force`, `--model <model>`, `--effort <effort>` | Extract phax-plan.json from a plan.md by calling Claude Code headlessly |
 | `enter` | `<short-name>` | — | Resume the final phase's agent session interactively |
 | `enter-phase` | `<short-name> <phase-id>` | — | Resume a specific phase's agent session interactively |
 | `session-info` | `<short-name>` | `--debug` | Print session diagnostics for a run |

@@ -1,10 +1,9 @@
 import { Effect, Either, Schema } from "effect";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { Lock } from "../ports/lock.js";
 import {
   ExtractedPhaxPlanSchema,
   getExtractedPlanJsonSchema,
@@ -13,15 +12,12 @@ import {
 } from "../schemas/phaxPlan.js";
 import {
   AgentInvocationError,
-  LockConflictError,
   PlanValidationError,
   RateLimitError,
   UsageLimitError,
 } from "../domain/errors.js";
-import { decodeShortName } from "../domain/branded.js";
 import { formatParseError } from "../schemas/formatError.js";
 import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
-import { loadOrExtractPlan } from "./loadOrExtractPlan.js";
 
 const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
@@ -44,43 +40,6 @@ function buildExtractionPrompt(planMd: string, jsonSchema: object): string {
     "Plan document:",
     planMd,
   ].join("\n");
-}
-
-function buildExtractReport(plan: PhaxPlan, detectedAnchors: string[], warnings: string[]): string {
-  const lines: string[] = [
-    "# Extract Report",
-    "",
-    `**Generated:** ${new Date().toISOString()}`,
-    "",
-    "## Summary",
-    "",
-    `- Anchors detected in plan.md: ${detectedAnchors.length}${detectedAnchors.length ? ` (${detectedAnchors.join(", ")})` : ""}`,
-    `- Phases extracted: ${plan.phases.length}`,
-    `- Run short name: ${plan.run.shortName}`,
-    `- Required commands: ${plan.run.requiredCommands.length}${plan.run.requiredCommands.length ? ` (${plan.run.requiredCommands.join(", ")})` : ""}`,
-    `- Schema validation: passed`,
-    "",
-  ];
-
-  if (warnings.length > 0) {
-    lines.push("## Warnings", "");
-    for (const w of warnings) {
-      lines.push(`- ${w}`);
-    }
-    lines.push("");
-  }
-
-  lines.push("## Extracted Phases", "");
-  for (const phase of plan.phases) {
-    lines.push(`### ${phase.id}: ${phase.title}`, "");
-    lines.push(`- model: ${phase.model}`);
-    lines.push(`- effort: ${phase.effort}`);
-    lines.push(`- anchor: ${phase.planMarkdownAnchor}`);
-    lines.push(`- commit.subject: ${phase.commit.subject}`);
-    lines.push("");
-  }
-
-  return lines.join("\n");
 }
 
 export interface ExtractPlanCoreOptions {
@@ -159,8 +118,7 @@ export function extractPlanLlm(
 
 /**
  * Extract a PhaxPlan from a plan.md file via Claude. Performs no file writes —
- * callers persist the result wherever they want (cwd for `phax extract-plan`,
- * the run folder for `phax run`).
+ * the caller persists the result wherever it wants (the run folder for `phax run`).
  */
 export function extractPlanCore(
   opts: ExtractPlanCoreOptions,
@@ -190,88 +148,6 @@ export function extractPlanCore(
   });
 }
 
-export interface ExtractPlanOptions extends ExtractPlanCoreOptions {
-  readonly outPath: string;
-  readonly force: boolean;
-  readonly stateRoot: string;
-  readonly nowIso: string;
-  readonly refresh?: boolean;
-}
-
-export interface ExtractPlanResult {
-  readonly plan: PhaxPlan;
-  readonly outPath: string;
-  readonly reportPath: string;
-  readonly warnings: string[];
-}
-
-export type ExtractPlanError = ExtractPlanCoreError | LockConflictError;
-
-/**
- * Persistent wrapper around `extractPlanCore`: validates the target path is
- * writable (no clobbering an active run), runs the core extraction, then writes
- * `phax-plan.json` and `extract-report.md` next to it.
- */
-export function extractPlan(
-  opts: ExtractPlanOptions,
-): Effect.Effect<ExtractPlanResult, ExtractPlanError, Backend | FileSystem | Lock> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const lock = yield* Lock;
-
-    const outExists = yield* fs.exists(opts.outPath);
-
-    if (outExists && !opts.force) {
-      return yield* Effect.fail(
-        new PlanValidationError({
-          message: `"${opts.outPath}" already exists. Use --force to overwrite.`,
-          path: opts.outPath,
-        }),
-      );
-    }
-
-    // When forcing over an existing file, guard against overwriting a plan that belongs to an active run.
-    if (outExists && opts.force) {
-      const existingText = yield* fs.readText(opts.outPath).pipe(Effect.orElseSucceed(() => "{}"));
-      const existingShortName = parseShortNameFromPlanText(existingText);
-      if (existingShortName !== undefined) {
-        const shortNameResult = decodeShortName(existingShortName);
-        if (Either.isRight(shortNameResult)) {
-          const lockStatus = yield* lock
-            .status(shortNameResult.right)
-            .pipe(Effect.orElseSucceed(() => ({ kind: "none" as const })));
-          if (lockStatus.kind === "active") {
-            return yield* Effect.fail(
-              new LockConflictError({
-                message: `Run "${existingShortName}" has an active lock (pid ${lockStatus.pid}). Stop the run before overwriting its plan.`,
-                shortName: existingShortName,
-                lockPath: "",
-                lockingPid: lockStatus.pid,
-              }),
-            );
-          }
-        }
-      }
-    }
-
-    const { plan, warnings, detectedAnchors } = yield* loadOrExtractPlan({
-      planMdPath: opts.planMdPath,
-      model: opts.model,
-      effort: opts.effort,
-      stateRoot: opts.stateRoot,
-      nowIso: opts.nowIso,
-      refresh: opts.refresh,
-    });
-
-    yield* fs.writeAtomic(opts.outPath, JSON.stringify(plan, null, 2));
-
-    const reportPath = join(dirname(opts.outPath), "extract-report.md");
-    yield* fs.writeAtomic(reportPath, buildExtractReport(plan, detectedAnchors, warnings));
-
-    return { plan, outPath: opts.outPath, reportPath, warnings };
-  });
-}
-
 // Claude sometimes wraps JSON output in a ```json fence despite the prompt
 // forbidding it. Strip a single leading/trailing fence so JSON.parse succeeds.
 function stripJsonCodeFence(text: string): string {
@@ -279,20 +155,4 @@ function stripJsonCodeFence(text: string): string {
   const fence = /^```(?:json)?\s*\n([\s\S]*?)\n?```$/i;
   const match = trimmed.match(fence);
   return match?.[1]?.trim() ?? trimmed;
-}
-
-function parseShortNameFromPlanText(text: string): string | undefined {
-  try {
-    const parsed = JSON.parse(text) as unknown;
-    if (typeof parsed === "object" && parsed !== null) {
-      const run = (parsed as Record<string, unknown>)["run"];
-      if (typeof run === "object" && run !== null) {
-        const shortName = (run as Record<string, unknown>)["shortName"];
-        if (typeof shortName === "string" && shortName.length > 0) return shortName;
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return undefined;
 }

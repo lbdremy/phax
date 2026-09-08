@@ -20,8 +20,8 @@ export interface OrientCommandOptions {
 
 // `phax orient` is invoked by the in-phase agent from inside a phase worktree,
 // which has no resolvable RunId (no marker file/env var ties the worktree back
-// to its run — see src/app/worktree.ts). A stable placeholder mirrors the one
-// already used by `extract-plan` for the same "no run context yet" situation.
+// to its run — see src/app/worktree.ts). A stable placeholder stands in for
+// the "no run context yet" situation.
 const ORIENT_TELEMETRY_RUN_ID = "orient" as unknown as RunId;
 
 function buildLayer(): Layer.Layer<Shell | SystemTelemetry> {

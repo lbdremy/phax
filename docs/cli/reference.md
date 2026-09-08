@@ -57,38 +57,6 @@ Run short name, e.g. usage-cli
 
 Remove the lock regardless of staleness
 
-## `phax extract-plan`
-
-- **Usage**: `phax extract-plan <FLAGS>`
-
-Extract phax-plan.json from a plan.md by calling Claude Code headlessly
-
-### Flags
-
-#### `--plan-md <path>`
-
-Path to the plan.md file to extract from
-
-#### `--out <path>`
-
-Output path for phax-plan.json
-
-#### `--force`
-
-Overwrite existing output file (blocked if the run is actively locked)
-
-#### `--model <model>`
-
-Claude model to use (overrides phax.json agent.extractPlan.model)
-
-#### `--effort <effort>`
-
-Effort level (low|medium|high, overrides phax.json agent.extractPlan.effort)
-
-#### `--refresh`
-
-Re-extract even if a cached extraction exists (overwrites cache entry)
-
 ## `phax enter`
 
 - **Usage**: `phax enter <short-name>`
