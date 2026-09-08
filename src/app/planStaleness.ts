@@ -27,7 +27,7 @@ import { buildFootprint } from "../domain/planOverlap/compute.js";
 import { planInputFromPhaxPlan } from "../domain/planOverlap/fromPhaxPlan.js";
 import { artifactFingerprint, readApprovalStore } from "./approvalRecordStore.js";
 import { transitionArtifact, type TransitionArtifactOptions } from "./artifactStatus.js";
-import type { ExtractPlanCoreError } from "./extractPlan.js";
+import type { ExtractPlanError } from "./extractPlan.js";
 import { loadOrExtractPlan } from "./loadOrExtractPlan.js";
 
 // Mirrors resolveDeclaredSpec in artifactStatus.ts. Duplicated deliberately:
@@ -136,7 +136,7 @@ export function computePlanStaleness(
   opts: ComputePlanStalenessOptions,
 ): Effect.Effect<
   PlanStalenessVerdict,
-  FsError | GitError | ArtifactValidationError | ExtractPlanCoreError,
+  FsError | GitError | ArtifactValidationError | ExtractPlanError,
   FileSystem | Git | Backend
 > {
   return Effect.gen(function* () {

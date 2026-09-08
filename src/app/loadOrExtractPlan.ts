@@ -6,7 +6,7 @@ import { PlanValidationError } from "../domain/errors.js";
 import { planCacheKey, EXTRACTOR_VERSION } from "../domain/planCache/key.js";
 import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
 import { extractPlanDeterministic } from "../domain/plan/parsePlanMarkdown.js";
-import { extractPlanLlm, type ExtractPlanCoreError } from "./extractPlan.js";
+import { extractPlanLlm, type ExtractPlanError } from "./extractPlan.js";
 import { readCacheEntry, writeCacheEntry, planMdSha256 } from "./planCacheStore.js";
 
 export interface LoadOrExtractOptions {
@@ -28,7 +28,7 @@ export interface LoadOrExtractResult {
 
 export function loadOrExtractPlan(
   opts: LoadOrExtractOptions,
-): Effect.Effect<LoadOrExtractResult, ExtractPlanCoreError, Backend | FileSystem> {
+): Effect.Effect<LoadOrExtractResult, ExtractPlanError, Backend | FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Effect, Either, Layer } from "effect";
-import { extractPlanCore } from "../../src/app/extractPlan.js";
+import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { PlanValidationError } from "../../src/domain/errors.js";
@@ -23,6 +23,9 @@ function extractedJson(phases: ReadonlyArray<{ id: string; anchor: string }>): s
   });
 }
 
+// Drives the live fallback path: these fixtures are deliberately not
+// deterministically parseable, so `loadOrExtractPlan` reaches the LLM step and
+// then finalizes — which is where titles are derived from the headings.
 function run(planMd: string, finalText: string) {
   const fakeFs = makeFakeFileSystem();
   const fakeBackend = makeFakeBackend();
@@ -33,16 +36,18 @@ function run(planMd: string, finalText: string) {
   const layer = Layer.mergeAll(fakeFs.layer, fakeBackend.layer);
   return Effect.runPromise(
     Effect.either(
-      extractPlanCore({
+      loadOrExtractPlan({
         planMdPath: "/repo/plan.md",
         model: "claude-sonnet-4-6",
         effort: "low",
+        stateRoot: "/state",
+        nowIso: "2026-09-08T00:00:00.000Z",
       }).pipe(Effect.provide(layer)),
     ),
   );
 }
 
-describe("extractPlanCore — title derivation from headings", () => {
+describe("loadOrExtractPlan — title derivation from headings", () => {
   it("derives phase titles from headings even though the model omits them", async () => {
     const planMd = [
       "# Plan — My Run",
