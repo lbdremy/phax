@@ -5,7 +5,7 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-09-07. That day two plans shipped back to back on `main`: spec 18 through
+Last pruned 2026-09-08. On 2026-09-07 two plans shipped back to back on `main`: spec 18 through
 plan 58 (`03fadad`..`5eeed8f` — diagnostic classes, the registered `scopes` provider, the plan
 projection in `src/domain/plan/projection.ts`, scheduling against closed scopes, `pending` as
 optional work), merged as PR #92 with plan 58 and spec 18 completed (`7842f6c` / `a14119e`);
@@ -77,9 +77,8 @@ does not rot; the plans written against them do.
       `catalog-fable-5-1-opus-5-gpt-6-astra` (both `review_open`, PRs #92 / #93 merged)
       archived normally; `gate-step-scheduling` (the first attempt at plan 58, never ran)
       with `--force`. Registry holds only `archived` entries again and
-      `~/.phax/worktrees/` is empty. One non-phax worktree remains at
-      `../phax-run-lookup-unreadable` (branch `fix/run-lookup-unreadable`, PR #91 merged) —
-      `git worktree remove` it when convenient.
+      `~/.phax/worktrees/` is empty. The leftover non-phax worktree for PR #91
+      (`../phax-run-lookup-unreadable`) and its branch were removed 2026-09-08.
 - Done 2026-09-04: registry fully swept of the June experiments (ten in `created`, five in
   `failed` / `interrupted` / `rate_limited`, two of them louloupapers runs) with
   `phax archive --force` from source. Six runs predated spec 12 and were hand-patched first
@@ -114,12 +113,12 @@ does not rot; the plans written against them do.
       the `.agents/` mirror the `phax-planning` skill rewrite deleted). `Stale →
       Approved` is a legal direct transition — no Draft round-trip — but it needs a real
       read against `main` first.
-- [ ] Plan 39 (`39-smolvm-isolation-spike-plan.md`) reads `Approved` in its frontmatter but
-      `phax plans status` reports it `STALE` with `missing-record`: its recorded approval
-      baseline `2843aa2` no longer exists on `main` (rewritten history). Either re-approve it
-      with a fresh read (`phax artifact approve docs/plans/39-…`) or abandon it if the
-      smolvm spike is no longer worth running; do not leave the frontmatter and the record
-      disagreeing.
+- [x] Plan 39 (`39-smolvm-isolation-spike-plan.md`) re-approved 2026-09-08 (`0ffe7a5`,
+      baseline `322ba3a`) after a read against `main`: its premises hold (`isolated` mode
+      still reserved and gated, `smolvm` still declared in `agentCommands`, its model ids
+      still active in the catalog); the one drift was the `fast` gate profile it named,
+      removed 2026-08-21 when a project went to a single profile — reworded to `standard`
+      (`322ba3a`). `phax plans status` reports it fresh. Prune this entry next pass.
 
 ## Longer horizon (unspecced, revisit deliberately)
 
