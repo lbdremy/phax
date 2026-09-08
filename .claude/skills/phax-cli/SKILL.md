@@ -57,14 +57,15 @@ Most review commands have a `…-last` variant that targets the most recent
 ```
 phax init                          # scaffold phax.json
 # author plan.md  → use the `phax-planning` skill for its format (status: Approved)
+phax plans lint plan.md            # check structure, planned files, run readiness
 phax run my-feature --plan plan.md # extract plan + run every phase → review_open
 phax enter my-feature              # review/iterate in the kept-open agent session
 phax publish-pr my-feature         # push branch + open a PR (needs gh)
 phax archive my-feature            # finish
 ```
 
-`phax run` extracts the plan inline; `phax extract-plan` is the standalone step
-if you want to inspect `phax-plan.json` first. Each phase requests a
+`phax run` extracts the plan inline; `phax plans lint <plan>` checks a plan's
+structure, planned files and run readiness without running it. Each phase requests a
 `model` + `effort` that phax resolves to a concrete provider — inspect routing
 under `phax agent` (see `--usage`).
 

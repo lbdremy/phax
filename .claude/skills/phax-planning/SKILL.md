@@ -1,16 +1,17 @@
 ---
 name: phax-planning
-description: Write or review a plan.md that `phax extract-plan` will turn into phax-plan.json — phase structure, required fields, model/effort, commit metadata.
+description: Write or review a plan.md that `phax run` extracts and `phax plans lint` checks — phase structure, required fields, model/effort, commit metadata.
 ---
 
 # phax planning skill
 
-Use this skill when you are asked to write or review a `plan.md` that will be
-fed to `phax extract-plan`.
+Use this skill when you are asked to write or review a `plan.md` that
+`phax run` will extract and `phax plans lint` will check.
 
 ## What phax expects
 
-`phax extract-plan` turns your `plan.md` into `phax-plan.json` in two stages:
+`phax run` performs the extraction, turning your `plan.md` into `phax-plan.json`
+in two stages:
 
 1. **Deterministic first.** phax parses the Markdown structure directly (an
    mdast tree) and pulls out every required field. This is instant, free, and
@@ -35,9 +36,22 @@ phax reconciles those declarations against the actual git diff and asks the
 executing agent to explain any deviation in its handoff (see
 [End-of-phase file reconciliation](#end-of-phase-file-reconciliation)).
 
+## Lint before you run
+
+`phax plans lint <plan>` reports every mechanical defect of a plan before a run
+touches it — read-only, and model-free, so it never falls back to the extraction
+model. Four checks: **structure** (every field the deterministic parse requires,
+reported in full rather than stopping at the first), **files** (the planned
+create/edit lists walked in phase order against the working tree — an edit of a
+file no earlier phase creates, or a create of a file that already exists, is an
+error), **commands** (the plan's required commands against `security.agentCommands`
+and the gate profile), and **models** (each phase's model/effort against the
+routing catalog). It exits 1 when any finding is an error. A `Draft` plan lints
+like any other — run it while drafting, not only before approval.
+
 ## Run title and short name
 
-The plan's single top-level `# ` heading is the run title. `phax extract-plan`
+The plan's single top-level `# ` heading is the run title. The extraction
 derives both extracted run-level fields from it:
 
 - `run.title` — the heading text verbatim.
@@ -82,7 +96,7 @@ and accurate on every plan.
 ## Per-phase field set
 
 Each phase section must contain all of the following. Fields marked **extracted**
-are pulled by `phax extract-plan` into `phax-plan.json`; the rest are
+are pulled by the extraction into `phax-plan.json`; the rest are
 informational for the executing agent.
 
 | Field                    | Location in section                                     | Extracted? |
@@ -111,7 +125,7 @@ the plan preamble) is **not** per-phase — it applies to the whole run. See
 [Required commands declaration](#required-commands-declaration).
 
 The three planned-file arrays are **required**: the section must be present even
-when it is empty (write `- (none)` for an empty list). `phax extract-plan` pulls
+when it is empty (write `- (none)` for an empty list). The extraction pulls
 all three into `phax-plan.json`, where they back the end-of-phase file
 reconciliation.
 
@@ -185,7 +199,7 @@ any file-plan deviation phax flags>
 - `NN` is zero-padded to two digits.
 - `<slug>` uses only lowercase letters and hyphens.
 - The anchor must be on the same line as the heading.
-- `phax extract-plan` derives `id` as `"phase-NN"` (e.g. `"phase-01"`, matching
+- The extraction derives `id` as `"phase-NN"` (e.g. `"phase-01"`, matching
   `/^phase-\d{2}$/`) and `planMarkdownAnchor` from this line, and errors without
   the anchor.
 
@@ -444,7 +458,7 @@ is a token-prefix of the required command (`deno` covers `deno fmt`).
 - Vague commit subjects — the subject is used in the git log; keep it precise.
 - Scope creep — "and also clean up X" in a phase that has a different primary
   objective splits reviewer attention and risks the gate failing on unrelated work.
-- Skipping the `{#phase-NN-<slug>}` anchor — `phax extract-plan` uses it as the
+- Skipping the `{#phase-NN-<slug>}` anchor — the extraction uses it as the
   `planMarkdownAnchor` field and will error without it.
 - Parallel or overlapping phase scope — each phase must be independently
   committable; assume the previous phase is done and merged.
