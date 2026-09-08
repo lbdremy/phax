@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/33-plan-lint.md
+approved:
+  date: 2026-09-08
+  baseline: "4146814"
 ---
 # Plan lint
 

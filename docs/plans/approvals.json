@@ -1,6 +1,15 @@
 {
   "version": 1,
   "records": {
+    "docs/plans/33-plan-lint-plan.md": {
+      "planFingerprint": "eb101581b502d660f4e42c93b54ae51e3aa6b0ad16ec75507b4a776bfe9c98e4",
+      "approvedAt": "2026-09-08T09:02:19.827Z",
+      "baseline": "4146814e0361973244a043b9d99b35fd6d54bd1f",
+      "sourceSpec": {
+        "path": "docs/specs/33-plan-lint.md",
+        "fingerprint": "db0b1db3a69556babd9690473981dacb8726ba27fc7fa820496aaa8742b9122c"
+      }
+    },
     "docs/plans/39-smolvm-isolation-spike-plan.md": {
       "planFingerprint": "cd102b226246db5b78cc17a5d6af93da05342ba9894258044f019e3bcd5bf028",
       "approvedAt": "2026-09-08T08:19:41.314Z",
