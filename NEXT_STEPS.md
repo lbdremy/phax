@@ -20,6 +20,15 @@ shares.
 
 ## Small follow-ups
 
+- [ ] **`phax run` allocates the run before its preflight.** Found 2026-09-08: `run`
+      creates the run folder and the registry entry, then `executePlan` runs the
+      required-commands, mcp, records and clean-tree preflights. A preflight refusal leaves
+      a `created` run holding the slug, and the retry gets `-2`. Seven of the ten `-2`
+      pairs in the local registry are exactly that (first attempt holds only the
+      snapshotted plan and status; second attempt 28 s to 3 min later). Fix: run every
+      preflight that needs only the plan and the config before `createRunFolder`, so a
+      refused run never exists. Spec 33 (plan lint) mitigates by catching two of the
+      causes earlier but does not fix the ordering.
 - [x] **Unqualified run lookup says "not found" for a folder that exists but fails to
       decode.** Fixed 2026-09-07 (PR #91, `911457a`): `resolveRunRef` now checks the registry on the unqualified
       in-project path too and refuses with `unresolvable-qualified` when the entry exists but
@@ -53,9 +62,21 @@ shares.
       2026-09-03, so a spec approval now has its own fingerprinted record and the
       living-spec piste has a baseline to fold deltas into; build on it rather than
       beside it.
+- [ ] **`phax prune` — delete archived runs.** Raised 2026-09-08 alongside the `-2`
+      diagnosis. Slugs must never collide (kept), so the registry keeps archived runs as
+      name-holders; the way to free a name is to delete the archived run for real, not to
+      weaken uniqueness. A `prune` command that removes archived runs (folder, worktrees,
+      registry entry) makes the slug free itself. Distinct from `archive`, which moves and
+      keeps.
 - [ ] Preview manifest — `phax.json` declares how to preview a finished run
       (per-project-type discriminated union: web / cli / lib). Write it when desktop
       work starts; nothing consumes it before then.
+- [ ] **Spec 33 — plan lint** drafted 2026-09-08 (`docs/specs/33-plan-lint.md`): a
+      read-only, model-free `phax plans lint <plan>` reporting structural, file-plan
+      (sequence-aware: edits must exist or be created earlier, creates must not) and
+      run-readiness (commands, models) defects; removes `extract-plan`. Four §9 questions
+      carry defaults; approve once they are decided. Spec 19's handoff then fires inside
+      this command, and its "no new command" line needs a one-line revision + re-approval.
 - [ ] Desktop app (review-by-trajectory cockpit) — stays in `docs/ideas/desktop-app.md`
       until specs 21–24 land: by its own rule the desktop only wraps existing CLI
       surface, so its spec would otherwise invent commands. With 23 and 24 postponed,
