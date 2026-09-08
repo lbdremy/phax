@@ -16,8 +16,8 @@ by hand.
 ## Where the spec sits in the phax pipeline
 
 ```
-spec (this skill)  →  plan.md (phax-planning)  →  phax-plan.json (extract-plan)  →  phax run (gates + reconciliation)
-   what & why            how, decomposed              structured tasks                 executable enforcement
+spec (this skill)  →  plan.md (phax-planning)  →  phax plans lint  →  phax run (extraction + gates + reconciliation)
+   what & why            how, decomposed            mechanical check        executable enforcement
 ```
 
 A spec is **functional behavior and consumption surface**: the _what_ and the _why_, never
