@@ -114,8 +114,10 @@ spellings, surfacing and artifact form **indicative**:
 ] }
 ```
 
-No new command — the handoff fires at plan finalization inside the existing planning flow (per §9
-default).
+No new command of its own — the handoff fires inside `phax plans lint <plan>` (spec 33), the
+read-only plan check that is the "plan finalization" point of the planning flow (per §9 default,
+revised 2026-09-08): the auditor's findings are rendered alongside the lint's own findings as an
+`advisory` check with severity `warning`, and never affect the exit code.
 
 No visual UI — no design annex.
 
@@ -157,14 +159,18 @@ Given no registered plan auditor, when a plan is drafted, then planning proceeds
 All questions are **resolved by adopting the recommended default** (review of 2026-07-10):
 
 - **When the handoff fires.** At plan finalization only, or also on plan edits. *Default:* on plan
-  finalization, before the run starts.
+  finalization, before the run starts. *Revised 2026-09-08:* "plan finalization" is `phax plans
+  lint` (spec 33); the auditor is queried each time the lint runs on a plan whose deterministic
+  extraction succeeds, and never from `phax run`.
 - **How findings are surfaced.** Inline in the planning session vs a written artifact the planner
   reads. *Default:* surface in the planning session; persist alongside the plan for traceability.
 
 ## 10. Implementation-planning note
 
-Settled: the minimal projection, the strictly advisory and non-blocking posture, and transparent
-behavior when no auditor is registered. Left open: handoff timing and surfacing form (§9).
+Settled: the minimal projection, the strictly advisory and non-blocking posture, transparent
+behavior when no auditor is registered, and the trigger: the handoff lives in the `phax plans lint`
+use case introduced by spec 33, appended as an `advisory` check that cannot set the exit code.
+Left open: surfacing form beyond the lint report (§9).
 Constraint: **phax stays generic** — it exposes the plan projection and a findings channel; the
 auditor supplies all meaning. The projection is the one defined with spec 18's scope provider
 (ordered phases + planned files); plan it as a single shared shape, not two. This channel must not
