@@ -40,10 +40,9 @@ whether egress is actually blocked. A phax phase agent running in a worktree can
 reliably nest a microVM or self-verify a network escape. Therefore, for the probe
 phases (02–04), **the agent's mechanical deliverable is the harness script plus a
 findings document with an empty `## Results` / `## Verdict` section**; the real VM run
-is performed out-of-band and its output pasted into the findings doc. The `fast` gate
-(`pnpm format` + `pnpm typecheck` + `pnpm test:unit`) verifies the repo still
-type-checks and its unit suite stays green — it does **not** prove the isolation
-claims. Treat the synthesis (phase-05) as provisional until a real
+is performed out-of-band and its output pasted into the findings doc. The project's
+single configured gate profile (`standard` in `phax.json`) verifies the repo still
+type-checks and its suites stay green — it does **not** prove the isolation claims. Treat the synthesis (phase-05) as provisional until a real
 run fills in the Results sections. This is called out again in each probe phase's
 excluded scope and handoff.
 
@@ -133,12 +132,12 @@ README first (states intent), then the preflight script, then the findings templ
 
 ### Verification
 
-- The project's configured `fast` gate profile in `phax.json` (`pnpm format` +
-  `pnpm typecheck` + `pnpm test:unit`). Since this phase adds only `spikes/` files,
-  the gate confirms the repo still type-checks and its unit suite stays green — it does
-  not exercise the harness. `fast` (not `full`) is chosen deliberately: a spike's
-  scaffolding has no architecture/knip/build surface to protect, and `typecheck` still
-  covers any TypeScript scaffolding that appears.
+- The project's single configured gate profile in `phax.json` (`standard`; phax runs
+  the first configured profile, there is no fast/full choice). Since this phase adds
+  only `spikes/` files, the gate confirms the repo still type-checks and its suites
+  stay green — it does not exercise the harness. The structural and product steps
+  (knip, architecture audit, build, deno smoke) pass vacuously for spike-only changes,
+  which is acceptable: the real signal lives in the findings doc, not the gate.
 
 ### Expected handoff content
 
@@ -215,7 +214,7 @@ Harness script, then findings doc referencing it.
 
 ### Verification
 
-- The project's configured `fast` gate profile in `phax.json` (confirms repo health;
+- The project's configured `standard` gate profile in `phax.json` (confirms repo health;
   does not run the harness).
 
 ### Expected handoff content
@@ -300,7 +299,7 @@ Harness with the five-case matrix, then findings doc framing the two crux questi
 
 ### Verification
 
-- The project's configured `fast` gate profile in `phax.json` (repo health only).
+- The project's configured `standard` gate profile in `phax.json` (repo health only).
 
 ### Expected handoff content
 
@@ -384,7 +383,7 @@ Parameterized harness, then per-provider findings table.
 
 ### Verification
 
-- The project's configured `fast` gate profile in `phax.json` (repo health only).
+- The project's configured `standard` gate profile in `phax.json` (repo health only).
 
 ### Expected handoff content
 
@@ -476,7 +475,7 @@ Read the three findings docs, then write summary → go/no-go → integration sk
 
 ### Verification
 
-- The project's configured `fast` gate profile in `phax.json` (confirms the doc-only
+- The project's configured `standard` gate profile in `phax.json` (confirms the doc-only
   change leaves the repo green).
 
 ### Expected handoff content
