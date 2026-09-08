@@ -277,6 +277,201 @@ const EffortSchema = Schema.Literal(
 const decodeEffort = Schema.decodeUnknownEither(EffortSchema);
 
 /**
+ * A structural defect found while walking a plan.md. `phase` is the
+ * `phase-NN` id when the error concerns a phase, `null` for plan-level
+ * errors. `message` never repeats the phase id — callers that want the
+ * legacy `"phase-NN: <message>"` form re-prefix it themselves.
+ */
+export interface StructureError {
+  readonly phase: string | null;
+  readonly message: string;
+}
+
+// Raw error as produced during the walk: `message` still carries the
+// `"phase-NN: "` prefix baked in by the per-check helpers below, so
+// `extractPlanDeterministic` can reuse it verbatim as the first-error
+// message exactly as before the accumulation refactor.
+interface RawStructureError {
+  readonly phase: string | null;
+  readonly message: string;
+}
+
+function stripPhasePrefix(message: string, phase: string): string {
+  const prefix = `${phase}: `;
+  return message.startsWith(prefix) ? message.slice(prefix.length) : message;
+}
+
+interface PlanWalkResult {
+  readonly errors: readonly RawStructureError[];
+  readonly candidate: {
+    readonly version: 1;
+    readonly run: {
+      readonly shortName: string;
+      readonly title: string;
+      readonly requiredCommands: readonly string[];
+    };
+    readonly phases: readonly unknown[];
+  } | null;
+}
+
+// Walks the plan once, accumulating every structural defect in document
+// order instead of stopping at the first one. A phase whose heading cannot
+// be parsed (missing `{#anchor}`) contributes its heading error and is
+// skipped; every other phase runs all of its checks regardless of earlier
+// failures. `candidate` is only populated when the walk found no errors —
+// it is the shape `extractPlanDeterministic` decodes through the schema.
+function walkPlan(planMd: string): PlanWalkResult {
+  const errors: RawStructureError[] = [];
+  const split = splitFrontmatter(planMd);
+  const body = split ? split.body : planMd;
+  const root = fromMarkdown(body);
+
+  const h1 = findFirstH1(root);
+  let runTitle = "";
+  if (!h1) {
+    errors.push({ phase: null, message: `missing top-level "# " heading for run title` });
+  } else {
+    runTitle = toString(h1).trim();
+    if (runTitle.length === 0) {
+      errors.push({ phase: null, message: `top-level heading is empty` });
+    }
+  }
+
+  const preamble = collectPreamble(root);
+  const requiredCommandsE = extractRequiredCommands(preamble);
+  let requiredCommands: readonly string[] = [];
+  if (Either.isLeft(requiredCommandsE)) {
+    errors.push({ phase: null, message: requiredCommandsE.left.message });
+  } else {
+    requiredCommands = requiredCommandsE.right;
+  }
+
+  const phaseBlocks = collectPhaseBlocks(root);
+  if (phaseBlocks.length === 0) {
+    errors.push({ phase: null, message: `no phase headings found` });
+  }
+
+  const phases: unknown[] = [];
+  for (const pb of phaseBlocks) {
+    const headingText = toString(pb.heading).trim();
+    const parsed = parsePhaseHeading(headingText);
+    if (!parsed) {
+      const idMatch = headingText.match(PHASE_HEADING_RE);
+      errors.push({
+        phase: idMatch ? idMatch[1]!.toLowerCase() : null,
+        message: `phase heading "${headingText}" missing id or {#anchor}`,
+      });
+      continue;
+    }
+    const { id, anchor } = parsed;
+    let phaseOk = true;
+
+    const recParagraph = pb.body.find(
+      (n): n is Paragraph => isParagraph(n) && paragraphContainsRecommended(n),
+    );
+    let model: string | null = null;
+    let decodedEffort: Schema.Schema.Type<typeof EffortSchema> | null = null;
+    if (!recParagraph) {
+      errors.push({ phase: id, message: `${id}: missing "Recommended model:" line` });
+      phaseOk = false;
+    } else {
+      const { model: rawModel, effort: rawEffort } = readRecommendedFields(body, recParagraph);
+      model = rawModel;
+      if (!rawModel) {
+        errors.push({ phase: id, message: `${id}: missing "Recommended model:" value` });
+        phaseOk = false;
+      }
+      if (!rawEffort) {
+        errors.push({ phase: id, message: `${id}: missing "Recommended effort:" value` });
+        phaseOk = false;
+      } else {
+        const effortE = decodeEffort(rawEffort);
+        if (Either.isLeft(effortE)) {
+          errors.push({ phase: id, message: `${id}: invalid effort "${rawEffort}"` });
+          phaseOk = false;
+        } else {
+          decodedEffort = effortE.right;
+        }
+      }
+    }
+
+    const createE = extractPlannedList(pb.body, "Planned files to create", id);
+    if (Either.isLeft(createE)) {
+      errors.push({ phase: id, message: createE.left.message });
+      phaseOk = false;
+    }
+    const editE = extractPlannedList(pb.body, "Planned files to edit", id);
+    if (Either.isLeft(editE)) {
+      errors.push({ phase: id, message: editE.left.message });
+      phaseOk = false;
+    }
+    const optionalE = extractPlannedList(pb.body, "Optional files that may be edited", id);
+    if (Either.isLeft(optionalE)) {
+      errors.push({ phase: id, message: optionalE.left.message });
+      phaseOk = false;
+    }
+
+    const subjectE = extractCommitSubject(pb.body, id);
+    if (Either.isLeft(subjectE)) {
+      errors.push({ phase: id, message: subjectE.left.message });
+      phaseOk = false;
+    }
+    const bodyE = extractCommitBody(body, pb.body, id);
+    if (Either.isLeft(bodyE)) {
+      errors.push({ phase: id, message: bodyE.left.message });
+      phaseOk = false;
+    }
+
+    if (
+      phaseOk &&
+      Either.isRight(createE) &&
+      Either.isRight(editE) &&
+      Either.isRight(optionalE) &&
+      Either.isRight(subjectE) &&
+      Either.isRight(bodyE)
+    ) {
+      phases.push({
+        id,
+        model,
+        effort: decodedEffort,
+        planMarkdownAnchor: anchor,
+        plannedFilesToCreate: createE.right,
+        plannedFilesToEdit: editE.right,
+        optionalFilesToEdit: optionalE.right,
+        commit: { subject: subjectE.right, body: bodyE.right },
+      });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { errors, candidate: null };
+  }
+
+  return {
+    errors,
+    candidate: {
+      version: 1,
+      run: { shortName: runTitle, title: runTitle, requiredCommands },
+      phases,
+    },
+  };
+}
+
+/**
+ * Walks a plan.md and returns every structural defect it can establish, in
+ * document order, instead of stopping at the first one. Groundwork for
+ * `phax plans lint` (spec 33): `structureFindings` in `lint.ts` maps this to
+ * the finding vocabulary.
+ */
+export function collectPlanStructureErrors(planMd: string): readonly StructureError[] {
+  const { errors } = walkPlan(planMd);
+  return errors.map((e) => ({
+    phase: e.phase,
+    message: e.phase ? stripPhasePrefix(e.message, e.phase) : e.message,
+  }));
+}
+
+/**
  * Pure deterministic extractor: parses a conforming `plan.md` into an
  * `ExtractedPhaxPlan` via an mdast tree. The output is decoded through
  * `ExtractedPhaxPlanSchema` so a parser bug cannot inject malformed data —
@@ -285,103 +480,10 @@ const decodeEffort = Schema.decodeUnknownEither(EffortSchema);
 export function extractPlanDeterministic(
   planMd: string,
 ): Either.Either<ExtractedPhaxPlan, PlanValidationError> {
-  const split = splitFrontmatter(planMd);
-  const body = split ? split.body : planMd;
-  const root = fromMarkdown(body);
-
-  const h1 = findFirstH1(root);
-  if (!h1) {
-    return Either.left(
-      new PlanValidationError({ message: `missing top-level "# " heading for run title` }),
-    );
+  const { errors, candidate } = walkPlan(planMd);
+  if (errors.length > 0 || !candidate) {
+    return Either.left(new PlanValidationError({ message: errors[0]!.message }));
   }
-  const runTitle = toString(h1).trim();
-  if (runTitle.length === 0) {
-    return Either.left(new PlanValidationError({ message: `top-level heading is empty` }));
-  }
-
-  const preamble = collectPreamble(root);
-  const requiredCommandsE = extractRequiredCommands(preamble);
-  if (Either.isLeft(requiredCommandsE)) return Either.left(requiredCommandsE.left);
-  const requiredCommands = requiredCommandsE.right;
-
-  const phaseBlocks = collectPhaseBlocks(root);
-  if (phaseBlocks.length === 0) {
-    return Either.left(new PlanValidationError({ message: `no phase headings found` }));
-  }
-
-  const phases: unknown[] = [];
-  for (const pb of phaseBlocks) {
-    const headingText = toString(pb.heading).trim();
-    const parsed = parsePhaseHeading(headingText);
-    if (!parsed) {
-      return Either.left(
-        new PlanValidationError({
-          message: `phase heading "${headingText}" missing id or {#anchor}`,
-        }),
-      );
-    }
-    const { id, anchor } = parsed;
-
-    const recParagraph = pb.body.find(
-      (n): n is Paragraph => isParagraph(n) && paragraphContainsRecommended(n),
-    );
-    if (!recParagraph) {
-      return Either.left(
-        new PlanValidationError({
-          message: `${id}: missing "Recommended model:" line`,
-        }),
-      );
-    }
-    const { model, effort } = readRecommendedFields(body, recParagraph);
-    if (!model) {
-      return Either.left(
-        new PlanValidationError({ message: `${id}: missing "Recommended model:" value` }),
-      );
-    }
-    if (!effort) {
-      return Either.left(
-        new PlanValidationError({ message: `${id}: missing "Recommended effort:" value` }),
-      );
-    }
-    const effortE = decodeEffort(effort);
-    if (Either.isLeft(effortE)) {
-      return Either.left(new PlanValidationError({ message: `${id}: invalid effort "${effort}"` }));
-    }
-
-    const createE = extractPlannedList(pb.body, "Planned files to create", id);
-    if (Either.isLeft(createE)) return Either.left(createE.left);
-    const editE = extractPlannedList(pb.body, "Planned files to edit", id);
-    if (Either.isLeft(editE)) return Either.left(editE.left);
-    const optionalE = extractPlannedList(pb.body, "Optional files that may be edited", id);
-    if (Either.isLeft(optionalE)) return Either.left(optionalE.left);
-
-    const subjectE = extractCommitSubject(pb.body, id);
-    if (Either.isLeft(subjectE)) return Either.left(subjectE.left);
-    const bodyE = extractCommitBody(body, pb.body, id);
-    if (Either.isLeft(bodyE)) return Either.left(bodyE.left);
-
-    phases.push({
-      id,
-      model,
-      effort: effortE.right,
-      planMarkdownAnchor: anchor,
-      plannedFilesToCreate: createE.right,
-      plannedFilesToEdit: editE.right,
-      optionalFilesToEdit: optionalE.right,
-      commit: { subject: subjectE.right, body: bodyE.right },
-    });
-  }
-
-  const candidate = {
-    version: 1,
-    run: {
-      shortName: runTitle,
-      title: runTitle,
-      requiredCommands,
-    },
-    phases,
-  };
 
   const decoded = decodeExtracted(candidate);
   if (Either.isLeft(decoded)) {
