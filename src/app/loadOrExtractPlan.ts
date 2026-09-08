@@ -65,7 +65,7 @@ export function loadOrExtractPlan(
     if (opts.noExtract) {
       return yield* Effect.fail(
         new PlanValidationError({
-          message: `No cached extraction for "${opts.planMdPath}"; run \`phax extract-plan\` or drop --no-extract.`,
+          message: `No cached extraction for "${opts.planMdPath}"; drop --no-extract to extract it.`,
           path: opts.planMdPath,
         }),
       );

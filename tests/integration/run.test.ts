@@ -60,7 +60,7 @@ function makeBaseOpts() {
 }
 
 describe("run — extraction cache", () => {
-  it("warm cache skips the backend (simulates extract-plan then run)", async () => {
+  it("warm cache skips the backend (simulates a prior extraction then run)", async () => {
     const fakeFs = makeFakeFileSystem();
     const fakeBackend = makeFakeBackend();
     fakeFs.impl.setFile(PLAN_MD_PATH, PLAN_MD);
@@ -69,7 +69,7 @@ describe("run — extraction cache", () => {
     const layer = makeLayer(fakeFs, fakeBackend);
     const opts = makeBaseOpts();
 
-    // First call — simulates `phax extract-plan` or a prior `phax run`
+    // First call — simulates a prior `phax run`
     const first = await Effect.runPromise(loadOrExtractPlan(opts).pipe(Effect.provide(layer)));
     expect(first.fromCache).toBe(false);
     expect(fakeBackend.impl.completeCalls).toHaveLength(1);
@@ -105,7 +105,7 @@ describe("run — extraction cache", () => {
     expect(fakeBackend.impl.completeCalls).toHaveLength(2);
   });
 
-  it("an extract-plan then run of the same md is a single backend call", async () => {
+  it("a prior `phax run` then run of the same md is a single backend call", async () => {
     const fakeFs = makeFakeFileSystem();
     const fakeBackend = makeFakeBackend();
     fakeFs.impl.setFile(PLAN_MD_PATH, PLAN_MD);
@@ -114,7 +114,7 @@ describe("run — extraction cache", () => {
     const layer = makeLayer(fakeFs, fakeBackend);
     const opts = makeBaseOpts();
 
-    // Simulate `phax extract-plan` populating the cache
+    // Simulate a prior `phax run` populating the cache
     const extractResult = await Effect.runPromise(
       loadOrExtractPlan(opts).pipe(Effect.provide(layer)),
     );

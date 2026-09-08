@@ -4,7 +4,6 @@ import { cliDocs } from "./cliDocs.js";
 import { readPackageVersion, runUsageFlagAndExit } from "./commands/usage.js";
 import { runValidate } from "./commands/validate.js";
 import { runUnlock } from "./commands/unlock.js";
-import { runExtractPlan } from "./commands/extractPlan.js";
 import { runEnter } from "./commands/enter.js";
 import { runEnterPhase } from "./commands/enterPhase.js";
 import { runSessionInfo } from "./commands/sessionInfo.js";
@@ -96,32 +95,6 @@ export function buildProgram(): Command {
       const exitCode = await runUnlock(shortName, opts, consoleOutput);
       process.exit(exitCode);
     });
-
-  program
-    .command("extract-plan")
-    .description("Extract phax-plan.json from a plan.md by calling Claude Code headlessly")
-    .requiredOption("--plan-md <path>", "Path to the plan.md file to extract from")
-    .requiredOption("--out <path>", "Output path for phax-plan.json")
-    .option("--force", "Overwrite existing output file (blocked if the run is actively locked)")
-    .option("--model <model>", "Claude model to use (overrides phax.json agent.extractPlan.model)")
-    .option(
-      "--effort <effort>",
-      "Effort level (low|medium|high, overrides phax.json agent.extractPlan.effort)",
-    )
-    .option("--refresh", "Re-extract even if a cached extraction exists (overwrites cache entry)")
-    .action(
-      async (opts: {
-        planMd: string;
-        out: string;
-        force?: boolean;
-        model?: string;
-        effort?: string;
-        refresh?: boolean;
-      }) => {
-        const exitCode = await runExtractPlan({ ...opts, ...globalTraceOpts() }, consoleOutput);
-        process.exit(exitCode);
-      },
-    );
 
   program
     .command("enter")

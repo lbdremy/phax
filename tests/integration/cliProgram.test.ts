@@ -5,7 +5,6 @@ import { isHiddenCommand } from "../../src/cli/introspect.js";
 const TOP_LEVEL_COMMANDS = [
   "validate",
   "unlock",
-  "extract-plan",
   "enter",
   "enter-phase",
   "session-info",

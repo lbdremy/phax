@@ -50,34 +50,6 @@ cmd "unlock" {
     }
 }
 
-cmd "extract-plan" {
-    help "Extract phax-plan.json from a plan.md by calling Claude Code headlessly"
-    flag "--plan-md" {
-        arg "<path>"
-        required #true
-        help "Path to the plan.md file to extract from"
-    }
-    flag "--out" {
-        arg "<path>"
-        required #true
-        help "Output path for phax-plan.json"
-    }
-    flag "--force" {
-        help "Overwrite existing output file (blocked if the run is actively locked)"
-    }
-    flag "--model" {
-        arg "<model>"
-        help "Claude model to use (overrides phax.json agent.extractPlan.model)"
-    }
-    flag "--effort" {
-        arg "<effort>"
-        help "Effort level (low|medium|high, overrides phax.json agent.extractPlan.effort)"
-    }
-    flag "--refresh" {
-        help "Re-extract even if a cached extraction exists (overwrites cache entry)"
-    }
-}
-
 cmd "enter" {
     help "Resume the final phase's agent session interactively"
     long_help "Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively."

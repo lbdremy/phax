@@ -568,7 +568,6 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 
 - `phax validate [--plan <path>]` — Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json
 - `phax unlock [--force] <short-name>` — Remove a stale run lock; use --force to remove any lock
-- `phax extract-plan <FLAGS>` — Extract phax-plan.json from a plan.md by calling Claude Code headlessly
 - `phax enter <short-name>` — Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.
 - `phax enter-phase <short-name> <phase-id>` — Attaches to the agent session for a specific phase worktree. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main.
 - `phax session-info [--debug] <short-name>` — Prints diagnostic information about a run: its current state, active phase, worktree path, and agent session id. Read-only — no side effects.

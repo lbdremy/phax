@@ -226,7 +226,7 @@ describe("loadOrExtractPlan — noExtract: true on a miss", () => {
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
       expect(result.left).toBeInstanceOf(PlanValidationError);
-      expect((result.left as PlanValidationError).message).toContain("phax extract-plan");
+      expect((result.left as PlanValidationError).message).toContain("--no-extract");
     }
     expect(fakeBackend.impl.completeCalls).toHaveLength(0);
   });
