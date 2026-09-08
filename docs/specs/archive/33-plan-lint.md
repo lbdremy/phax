@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 date: 2026-09-08
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
