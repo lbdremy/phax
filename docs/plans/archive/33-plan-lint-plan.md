@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/33-plan-lint.md
 approved:
   date: 2026-09-08
