@@ -9,8 +9,8 @@ source-spec: null
 > declare it and the operator has opted in via `phax.json`. phax generates a
 > narrow `PreToolUse` approval hook scoped to exactly those declared paths and
 > passes it to `claude` via `--settings`, keeping the rest of the secure jail
-> (Bash allow-list, filesystem bounds) intact. Feed this file to
-> `phax extract-plan` to produce `phax-plan.json`.
+> (Bash allow-list, filesystem bounds) intact. Check this file with
+> `phax plans lint`, then run it with `phax run --plan <this file>`.
 
 ---
 
