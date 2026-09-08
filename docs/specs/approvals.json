@@ -2,9 +2,9 @@
   "version": 1,
   "records": {
     "docs/specs/19-plan-completeness-advisory.md": {
-      "specFingerprint": "ffbf055f13140ebf31a7369e7af323695298c463d5b74c8b7eb460bec0ced24f",
-      "approvedAt": "2026-09-04T09:28:10.304Z",
-      "baseline": "44bd9b337db714ec4968cef09fb9f1c8edde9b7f"
+      "specFingerprint": "d353ce2f4dc3020ca3da9e7886085cd44cc0cfd58f848fd29e564a55a617ed9c",
+      "approvedAt": "2026-09-08T09:02:37.988Z",
+      "baseline": "e07e35de53dcb3bed723131c5d0acbd4c96d0fa3"
     },
     "docs/specs/23-phase-decision-requests.md": {
       "specFingerprint": "9508e9c38f63c361a588de697fa91daaa7691e09c55fb7039cf73539d62a7c6e",
