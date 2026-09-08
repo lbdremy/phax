@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { Either } from "effect";
-import { extractPlanDeterministic } from "../../src/domain/plan/parsePlanMarkdown.js";
+import {
+  extractPlanDeterministic,
+  collectPlanStructureErrors,
+} from "../../src/domain/plan/parsePlanMarkdown.js";
 
 function makePhase(
   overrides: {
@@ -407,5 +410,125 @@ describe("extractPlanDeterministic", () => {
     expect(Either.isRight(frontmatterResult)).toBe(true);
     if (!Either.isRight(headerResult) || !Either.isRight(frontmatterResult)) return;
     expect(frontmatterResult.right).toEqual(headerResult.right);
+  });
+});
+
+describe("collectPlanStructureErrors", () => {
+  it("accumulates every structural error in document order, split by phase", () => {
+    const phase02MissingEditSection = [
+      `## phase-02 — Beta {#phase-02-beta}`,
+      ``,
+      `**Recommended model:** claude-opus-4-8`,
+      `**Recommended effort:** medium`,
+      ``,
+      `### Planned files to create`,
+      ``,
+      `- (none)`,
+      ``,
+      `### Optional files that may be edited`,
+      ``,
+      `- (none)`,
+      ``,
+      `### Commit subject`,
+      ``,
+      `feat(b): beta`,
+      ``,
+      `### Commit body`,
+      ``,
+      `Beta body.`,
+    ].join("\n");
+    const phase03MissingEffortAndEmptySubject = [
+      `## phase-03 — Gamma {#phase-03-gamma}`,
+      ``,
+      `**Recommended model:** claude-opus-4-8`,
+      `**Recommended effort:**`,
+      ``,
+      `### Planned files to create`,
+      ``,
+      `- (none)`,
+      ``,
+      `### Planned files to edit`,
+      ``,
+      `- (none)`,
+      ``,
+      `### Optional files that may be edited`,
+      ``,
+      `- (none)`,
+      ``,
+      `### Commit subject`,
+      ``,
+      "``",
+      ``,
+      `### Commit body`,
+      ``,
+      `Gamma body.`,
+    ].join("\n");
+    const md = makePlan({
+      phases: [
+        makePhase({ id: "phase-01", anchor: "phase-01-alpha" }),
+        phase02MissingEditSection,
+        phase03MissingEffortAndEmptySubject,
+      ],
+    });
+
+    const errors = collectPlanStructureErrors(md);
+
+    expect(errors).toEqual([
+      { phase: "phase-02", message: `missing "### Planned files to edit" section` },
+      { phase: "phase-03", message: `missing "Recommended effort:" value` },
+      { phase: "phase-03", message: `empty commit subject` },
+    ]);
+  });
+
+  it("still returns the first error, re-prefixed, from extractPlanDeterministic", () => {
+    const phase02MissingEditSection = [
+      `## phase-02 — Beta {#phase-02-beta}`,
+      ``,
+      `**Recommended model:** claude-opus-4-8`,
+      `**Recommended effort:** medium`,
+      ``,
+      `### Planned files to create`,
+      ``,
+      `- (none)`,
+      ``,
+      `### Optional files that may be edited`,
+      ``,
+      `- (none)`,
+      ``,
+      `### Commit subject`,
+      ``,
+      `feat(b): beta`,
+      ``,
+      `### Commit body`,
+      ``,
+      `Beta body.`,
+    ].join("\n");
+    const md = makePlan({
+      phases: [makePhase({ id: "phase-01", anchor: "phase-01-alpha" }), phase02MissingEditSection],
+    });
+
+    const result = extractPlanDeterministic(md);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toBe(`phase-02: missing "### Planned files to edit" section`);
+    }
+  });
+
+  it("reports a plan-level error with a null phase", () => {
+    const md = [
+      `# Deterministic plan`,
+      ``,
+      makePhase({ id: "phase-01", anchor: "phase-01-alpha" }),
+      ``,
+      `---`,
+      ``,
+    ].join("\n");
+
+    const errors = collectPlanStructureErrors(md);
+
+    expect(errors).toContainEqual({
+      phase: null,
+      message: `missing "## Required commands" section`,
+    });
   });
 });
