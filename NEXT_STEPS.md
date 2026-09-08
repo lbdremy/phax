@@ -71,12 +71,6 @@ shares.
 - [ ] Preview manifest — `phax.json` declares how to preview a finished run
       (per-project-type discriminated union: web / cli / lib). Write it when desktop
       work starts; nothing consumes it before then.
-- [ ] **Spec 33 — plan lint** drafted 2026-09-08 (`docs/specs/33-plan-lint.md`): a
-      read-only, model-free `phax plans lint <plan>` reporting structural, file-plan
-      (sequence-aware: edits must exist or be created earlier, creates must not) and
-      run-readiness (commands, models) defects; removes `extract-plan`. Four §9 questions
-      carry defaults; approve once they are decided. Spec 19's handoff then fires inside
-      this command, and its "no new command" line needs a one-line revision + re-approval.
 - [ ] Desktop app (review-by-trajectory cockpit) — stays in `docs/ideas/desktop-app.md`
       until specs 21–24 land: by its own rule the desktop only wraps existing CLI
       surface, so its spec would otherwise invent commands. With 23 and 24 postponed,
@@ -84,7 +78,7 @@ shares.
 
 ## Approved specs — in flight, next, parked
 
-Three approved specs are open, all parked (19, 23, 24). Spec 18 shipped 2026-09-07 through
+Four approved specs are open: 33 is next (plan approved), 19 follows it, 23 and 24 are parked. Spec 18 shipped 2026-09-07 through
 plan 58 (PR #92) and is archived. Spec 19 was revised and re-approved alongside 18 on
 2026-08-21 (`cd04e3a`, `7b64e98`, `5f67f0a`) and re-approved with the tool on 2026-09-04
 (baseline `44bd9b3`), so it carries a recorded approval and the chain gate will let a plan be
@@ -109,13 +103,22 @@ does not rot; the plans written against them do.
   prune` in that repo — cross-project archive only prunes the current repo. Migrate that
   `phax.json` before running phax in louloupapers again.
 
-### Advisory spec 19
+### Spec 33 — plan lint (next)
 
-- [ ] `docs/specs/19-plan-completeness-advisory.md` — no plan. Its dependency, spec 18,
-      shipped in plan 58 (2026-09-07), and the plan projection it shares already exists
-      (`src/domain/plan/projection.ts`, fed to the `scopes` provider via `src/app/scopes.ts`),
-      so the plan is now a thin consumer: query the provider at plan time and surface the
-      advisory. Nothing blocks it.
+- [ ] `docs/specs/33-plan-lint.md` approved 2026-09-08 (`7dd2b9d`, baseline `02cea17`); plan
+      `docs/plans/33-plan-lint-plan.md` approved the same day (`1fb5549`, baseline `4146814`),
+      six phases, no required commands. `phax plans lint <plan>`: structural findings from the
+      accumulating parser, sequence-aware file-plan rule, `commands` / `models` readiness
+      checks reusing the run preflight, `--json`, exit 1 on errors; removes `extract-plan`
+      (code, generated docs, README, three skills, hello-world example). Run it, then archive.
+
+### Advisory spec 19 (after 33)
+
+- [ ] `docs/specs/19-plan-completeness-advisory.md` — no plan. Revised and re-approved
+      2026-09-08 (`e07e35d` / `583dc4b`): the auditor handoff now fires inside `phax plans lint`
+      as an `advisory` check that never sets the exit code. Depends on plan 33 landing (the
+      `lintPlan` use case is its hook); the projection it consumes already exists
+      (`src/domain/plan/projection.ts`). Then a thin one- or two-phase plan.
 
 ### Specs 23 and 24 — parked 2026-08-14
 
