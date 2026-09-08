@@ -1,12 +1,13 @@
-# extract-plan model configuration
+# Plan extraction model configuration
 
 ## Where the model is configured
 
-`phax extract-plan` resolves its model and effort through a three-level precedence chain:
+Plan extraction runs inside `phax run` (and `plans status` / `plans overlap`) as the
+fallback used when the deterministic parser cannot extract a plan on its own. There is
+no CLI flag for it; the model and effort resolve through a two-level precedence chain:
 
-1. **CLI flag** — `--model <model>` / `--effort <level>` on the command line (highest priority)
-2. **`phax.json`** — `agent.extractPlan.model` / `agent.extractPlan.effort`
-3. **Built-in default** — `claude-haiku-4-5-20251001` at `low` effort (lowest priority)
+1. **`phax.json`** — `agent.extractPlan.model` / `agent.extractPlan.effort`
+2. **Built-in default** — `claude-haiku-4-5-20251001` at `low` effort (lowest priority)
 
 Example `phax.json` override:
 
@@ -31,14 +32,15 @@ level is appropriate because extraction does not require deep reasoning.
 
 The built-in default is intentionally conservative. If extraction fails (bad JSON, schema
 mismatch) the run has not yet started — no worktree, no state has been committed — so
-retrying with a stronger model via `--model claude-sonnet-5 --effort medium` is cheap.
+retrying with a stronger model configured via `agent.extractPlan` is cheap. Run `phax
+plans lint <plan>` first to catch structural defects without invoking a model at all.
 
 ## Local validation policy
 
-Regardless of which model is used, `extract-plan` always validates the raw JSON output
-against the `PhaxPlanSchema` locally before writing `phax-plan.json`. This means a
-cheaper model that produces structurally invalid output is caught immediately rather than
-silently poisoning a run later (spec §6).
+Regardless of which model is used, the extraction fallback always validates the raw JSON
+output against the `PhaxPlanSchema` locally before it is used. This means a cheaper model
+that produces structurally invalid output is caught immediately rather than silently
+poisoning a run later (spec §6).
 
 ## TODO: `assess-extract-model` command (deferred)
 
