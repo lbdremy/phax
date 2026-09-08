@@ -236,17 +236,20 @@ This rewrites `phax.schema.json` and `phax.user.schema.json` next to the nearest
 
 ## Write a plan
 
-Author `plan.md` with the [`phax-planning`](.claude/skills/phax-planning/SKILL.md) skill — it is the source of truth for the plan format that `phax extract-plan` consumes. The skill defines the per-phase template contract (heading + `{#phase-NN-<slug>}` anchor, recommended model/effort, the three planned-file lists, gate-profile verification, commit subject/body) and the planning doctrine (plan outside-in, implement inside-out, verify outside-in). Point your agent at that skill when drafting or reviewing a plan; don't hand-roll the format.
+Author `plan.md` with the [`phax-planning`](.claude/skills/phax-planning/SKILL.md) skill — it is the source of truth for the plan format that `phax run` extracts and `phax plans lint` checks. The skill defines the per-phase template contract (heading + `{#phase-NN-<slug>}` anchor, recommended model/effort, the three planned-file lists, gate-profile verification, commit subject/body) and the planning doctrine (plan outside-in, implement inside-out, verify outside-in). Point your agent at that skill when drafting or reviewing a plan; don't hand-roll the format.
 
 In short: `plan.md` is a Markdown document with one `## phase-NN — <title>  {#phase-NN-<slug>}` section per phase, each carrying an objective, detailed instructions, planned-file lists, a gate-profile verification step, and a commit subject/body. See `examples/plan.md` for a worked example and [`.claude/skills/phax-planning/SKILL.md`](.claude/skills/phax-planning/SKILL.md) for the full template contract.
 
-## Extract the plan
+## Lint the plan
 
 ```bash
-phax extract-plan --plan-md plan.md --out phax-plan.json
+phax plans lint docs/plans/NN-<slug>-plan.md
 ```
 
-This invokes the configured extraction agent headlessly with the `phax-plan.json` JSON Schema, validates the structured output, and writes the plan atomically. Add `--force` to overwrite an existing file.
+This is a read-only, model-free check: it reports every structural defect the deterministic
+parser can find, whether the planned-file lists are coherent with the working tree and with
+earlier phases, whether every required command is covered, and whether each phase's
+model/effort is in the routing catalog. It exits 1 when any finding is an error.
 
 ## Run
 
@@ -411,7 +414,7 @@ Add `--trace` to also write one JSON line per semantic event to `semantic.jsonl`
 phax run --plan plan.md --trace
 ```
 
-Both flags can be combined. See [`docs/observability.md`](docs/observability.md) for the full observability architecture and [`docs/extract-plan-model.md`](docs/extract-plan-model.md) for how to configure the model used by `extract-plan`.
+Both flags can be combined. See [`docs/observability.md`](docs/observability.md) for the full observability architecture and [`docs/plan-extraction-model.md`](docs/plan-extraction-model.md) for how to configure the model `phax run` uses for the fallback extraction.
 
 ## Observability
 

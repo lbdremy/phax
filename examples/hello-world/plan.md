@@ -5,9 +5,9 @@ source-spec: null
 
 # Hello World — three-phase example plan
 
-> This is an example `plan.md` for a tiny 3-phase run. Feed it to
-> `phax extract-plan` to produce `phax-plan.json`, then run it with
-> `phax run --plan phax-plan.json --dry-run` to verify the plan.
+> This is an example `plan.md` for a tiny 3-phase run. Check it with
+> `phax plans lint plan.md`, then run it with
+> `phax run --plan plan.md` to verify the plan.
 
 ---
 
