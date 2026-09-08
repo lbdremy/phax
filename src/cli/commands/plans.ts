@@ -114,7 +114,7 @@ export async function runPlansLint(
 
   // FileSystem only — no Backend layer, so the lint cannot reach a model.
   const reportResult = await Effect.runPromise(
-    lintPlan({ planMdPath, config }).pipe(
+    lintPlan({ planMdPath, reportPath: plan, config }).pipe(
       Effect.either,
       Effect.provide(makeRepoRootedFileSystemLayer(config)),
     ),
