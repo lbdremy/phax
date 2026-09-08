@@ -1,6 +1,9 @@
 ---
 status: Approved
 source-spec: null
+approved:
+  date: 2026-09-08
+  baseline: 322ba3a
 ---
 # Plan — smolvm isolation spike (`isolated` mode feasibility)
 

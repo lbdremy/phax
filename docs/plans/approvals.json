@@ -2,9 +2,9 @@
   "version": 1,
   "records": {
     "docs/plans/39-smolvm-isolation-spike-plan.md": {
-      "planFingerprint": "8ef354c247c74bbc53efb10257ef22338ed1ccfe2c6d06d46c9d5718f90294e0",
-      "approvedAt": "2026-08-11T07:58:51.275Z",
-      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "planFingerprint": "cd102b226246db5b78cc17a5d6af93da05342ba9894258044f019e3bcd5bf028",
+      "approvedAt": "2026-09-08T08:19:41.314Z",
+      "baseline": "322ba3a5795a658d8d7ee48200b14e9b61ad8933",
       "sourceSpec": null
     },
     "docs/plans/41-claude-protected-path-approval-hook-plan.md": {
