@@ -3,10 +3,17 @@ import {
   structureFindings,
   plannedPaths,
   filePlanFindings,
+  commandFindings,
+  modelFindings,
+  hasLintErrors,
   type LintCheck,
   type LintSeverity,
   type FilePlanPhase,
 } from "../../src/domain/plan/lint.js";
+import {
+  DEFAULT_MODEL_ROUTING,
+  DEFAULT_PROVIDER_CONFIG,
+} from "../../src/domain/routing/defaults.js";
 
 // Conforming plan: extractPlanDeterministic parses this without the LLM.
 // Reused verbatim from tests/unit/loadOrExtractPlan.test.ts.
@@ -204,5 +211,93 @@ describe("filePlanFindings", () => {
         message: "create a.ts: also listed under optional files",
       },
     ]);
+  });
+});
+
+describe("commandFindings", () => {
+  it("returns no findings when every required command is covered", () => {
+    expect(commandFindings(["pnpm test", "deno fmt"], ["deno"], ["pnpm test"])).toEqual([]);
+  });
+
+  it("reports one error per uncovered required command", () => {
+    expect(commandFindings(["deno", "cargo"], ["pnpm"], ["pnpm test"])).toEqual([
+      {
+        severity: "error",
+        check: "commands",
+        phase: null,
+        message:
+          'required command "deno" is not covered by security.agentCommands or the gate profile',
+      },
+      {
+        severity: "error",
+        check: "commands",
+        phase: null,
+        message:
+          'required command "cargo" is not covered by security.agentCommands or the gate profile',
+      },
+    ]);
+  });
+});
+
+describe("modelFindings", () => {
+  it("returns no findings for a phase whose model and effort are in the catalog", () => {
+    expect(
+      modelFindings(
+        [{ id: "phase-01", model: "claude-sonnet-5", effort: "medium" }],
+        DEFAULT_MODEL_ROUTING,
+        DEFAULT_PROVIDER_CONFIG,
+      ),
+    ).toEqual([]);
+  });
+
+  it("reports an unknown model id against the failing phase", () => {
+    expect(
+      modelFindings(
+        [{ id: "phase-02", model: "claude-imaginary-9", effort: "medium" }],
+        DEFAULT_MODEL_ROUTING,
+        DEFAULT_PROVIDER_CONFIG,
+      ),
+    ).toEqual([
+      {
+        severity: "error",
+        check: "models",
+        phase: "phase-02",
+        message: 'claude-imaginary-9 / medium: model id "claude-imaginary-9" not found in catalog',
+      },
+    ]);
+  });
+
+  it("appends the catalog alternatives when the failure lists any", () => {
+    const findings = modelFindings(
+      [{ id: "phase-01", model: "claude-sonnet-5", effort: "none" }],
+      DEFAULT_MODEL_ROUTING,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.check).toBe("models");
+    expect(findings[0]?.phase).toBe("phase-01");
+    expect(findings[0]?.message).toContain(
+      'claude-sonnet-5 / none: effort "none" is not supported',
+    );
+    expect(findings[0]?.message).toContain("(alternatives: claude-sonnet-5)");
+  });
+});
+
+describe("hasLintErrors", () => {
+  it("is false for no findings and for warnings only", () => {
+    expect(hasLintErrors([])).toBe(false);
+    expect(
+      hasLintErrors([{ severity: "warning", check: "files", phase: "phase-01", message: "w" }]),
+    ).toBe(false);
+  });
+
+  it("is true as soon as one finding is an error", () => {
+    expect(
+      hasLintErrors([
+        { severity: "warning", check: "files", phase: "phase-01", message: "w" },
+        { severity: "error", check: "models", phase: "phase-02", message: "e" },
+      ]),
+    ).toBe(true);
   });
 });

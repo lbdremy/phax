@@ -1,4 +1,8 @@
 import { collectPlanStructureErrors } from "./parsePlanMarkdown.js";
+import { checkRequiredCommands } from "../security/agentCommands.js";
+import { preflightPhaseModels, type PreflightPhase } from "../routing/preflight.js";
+import type { ModelRouting } from "../../schemas/modelRouting.js";
+import type { ProviderConfig } from "../../schemas/providerConfig.js";
 
 export type LintSeverity = "error" | "warning";
 export type LintCheck = "structure" | "files" | "commands" | "models";
@@ -117,4 +121,53 @@ export function filePlanFindings(
   }
 
   return findings;
+}
+
+/**
+ * The run-start required-commands preflight, reported as findings (spec 33
+ * §5.8). Same inputs `executePlan` gives `checkRequiredCommands`, so a command
+ * the run would refuse is a lint error for the same reason.
+ */
+export function commandFindings(
+  requiredCommands: readonly string[],
+  configCommands: readonly string[],
+  gateCommands: readonly string[],
+): readonly LintFinding[] {
+  const { missing } = checkRequiredCommands({ requiredCommands, configCommands, gateCommands });
+  return missing.map((command) => ({
+    severity: "error",
+    check: "commands",
+    phase: null,
+    message: `required command "${command}" is not covered by security.agentCommands or the gate profile`,
+  }));
+}
+
+/**
+ * The run-start model preflight, reported as findings (spec 33 §5.9). The
+ * catalog-derived alternatives ride along in the message so a rejected plan
+ * can be corrected without running it.
+ */
+export function modelFindings(
+  phases: readonly PreflightPhase[],
+  routing: ModelRouting,
+  providerConfig: ProviderConfig,
+): readonly LintFinding[] {
+  const { failures } = preflightPhaseModels(phases, routing, providerConfig);
+  return failures.map((failure) => {
+    const alternatives =
+      failure.alternatives.length > 0
+        ? ` (alternatives: ${failure.alternatives.map((a) => a.id).join(", ")})`
+        : "";
+    return {
+      severity: "error",
+      check: "models",
+      phase: failure.phaseId,
+      message: `${failure.model} / ${failure.effort}: ${failure.reasons.join("; ")}${alternatives}`,
+    };
+  });
+}
+
+/** True when at least one finding has severity `error` — the CLI's exit code. */
+export function hasLintErrors(findings: readonly LintFinding[]): boolean {
+  return findings.some((f) => f.severity === "error");
 }
