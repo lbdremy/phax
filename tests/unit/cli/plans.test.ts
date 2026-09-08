@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { resolve } from "node:path";
 import { Effect, Either } from "effect";
 import { runPlansStatus, runPlansLint } from "../../../src/cli/commands/plans.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
@@ -164,6 +165,24 @@ describe("runPlansStatus", () => {
 describe("runPlansLint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("reads the absolutized path but reports the argument as typed", async () => {
+    await setupConfig();
+    const lintPlan = await mockLint({ plan: "docs/plans/60-foo-plan.md", findings: [] });
+
+    const { out, lines } = makeOutput();
+    const code = await runPlansLint("docs/plans/60-foo-plan.md", {}, out);
+
+    expect(code).toBe(0);
+    expect(lintPlan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        planMdPath: resolve(process.cwd(), "docs/plans/60-foo-plan.md"),
+        reportPath: "docs/plans/60-foo-plan.md",
+      }),
+    );
+    // The header names the path the user typed, not the resolved one.
+    expect(lines.join("\n")).toBe("docs/plans/60-foo-plan.md: no findings");
   });
 
   it("exits 0 and renders the report when only warnings are found", async () => {

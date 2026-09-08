@@ -17,13 +17,20 @@ import { resolveGateProfile } from "./gates.js";
 import { loadModelRouting, loadProviderConfig } from "./loadRouting.js";
 
 export interface LintReport {
-  /** The plan path exactly as the caller gave it. */
+  /** The plan path as the caller wants it reported — `LintPlanOptions.reportPath`. */
   readonly plan: string;
   readonly findings: readonly LintFinding[];
 }
 
 export interface LintPlanOptions {
+  /** Absolute path the plan is read from. */
   readonly planMdPath: string;
+  /**
+   * The path the report names. The CLI absolutizes `planMdPath` against the
+   * invocation directory, so it passes the argument as typed here — a reader
+   * should see the path they wrote, not a resolved one.
+   */
+  readonly reportPath: string;
   readonly config: ResolvedConfig;
 }
 
@@ -39,7 +46,7 @@ export interface LintPlanOptions {
 export function lintPlan(
   opts: LintPlanOptions,
 ): Effect.Effect<LintReport, FsError | ConfigValidationError, FileSystem> {
-  const { planMdPath, config } = opts;
+  const { planMdPath, reportPath, config } = opts;
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const planMd = yield* fs.readText(planMdPath);
@@ -50,7 +57,7 @@ export function lintPlan(
     if (Either.isLeft(extracted)) {
       // Every later check needs a parsed plan; the structural errors already
       // say why it could not be parsed.
-      return { plan: planMdPath, findings };
+      return { plan: reportPath, findings };
     }
 
     const finalized = finalizeExtractedPlan(extracted.right, planMd);
@@ -61,7 +68,7 @@ export function lintPlan(
         phase: null,
         message: finalized.left.message,
       });
-      return { plan: planMdPath, findings };
+      return { plan: reportPath, findings };
     }
 
     const { plan, warnings } = finalized.right;
@@ -90,6 +97,6 @@ export function lintPlan(
     const providerConfig = yield* loadProviderConfig();
     findings.push(...modelFindings(plan.phases, routing, providerConfig));
 
-    return { plan: planMdPath, findings };
+    return { plan: reportPath, findings };
   });
 }

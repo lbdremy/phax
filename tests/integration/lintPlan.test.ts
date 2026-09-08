@@ -97,6 +97,7 @@ function runLint(plan: string, files: Readonly<Record<string, string>> = {}) {
   // require a Backend, so it can never fall back to the extraction model.
   const effect: Effect.Effect<LintReport, unknown, never> = lintPlan({
     planMdPath: PLAN_PATH,
+    reportPath: PLAN_PATH,
     config,
   }).pipe(Effect.provide(fakeFs.layer));
 
