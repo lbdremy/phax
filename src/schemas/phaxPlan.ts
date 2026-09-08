@@ -13,7 +13,7 @@ const EffortSchema = Schema.Literal(
 );
 
 // What the model is asked to emit per phase. `title` is deliberately absent: it
-// is derived deterministically from the plan.md heading (see `extractPlanCore`),
+// is derived deterministically from the plan.md heading (see `finalizeExtractedPlan`),
 // not round-tripped through the model's JSON. A `"` in a title would otherwise
 // derail the model into malformed output, which the strict `onExcessProperty`
 // decode rejects — keeping the trip-wire but removing the failure mode.
@@ -55,7 +55,7 @@ export const ExtractedPhaxPlanSchema = Schema.Struct({
   run: Schema.Struct({
     // Loose on purpose: the model is unreliable at emitting a valid slug, so we
     // accept any non-empty string here and slugify it ourselves in
-    // `extractPlanCore` (see `slugifyShortName`).
+    // `finalizeExtractedPlan` (see `slugifyShortName`).
     shortName: Schema.NonEmptyString,
     title: Schema.NonEmptyString,
     requiredCommands: Schema.Array(Schema.String),

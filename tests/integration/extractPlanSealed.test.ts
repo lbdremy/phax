@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Effect, Either, Layer } from "effect";
 import { tmpdir } from "node:os";
-import { extractPlanCore } from "../../src/app/extractPlan.js";
+import { extractPlanLlm } from "../../src/app/extractPlan.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { RateLimitError } from "../../src/domain/errors.js";
@@ -36,23 +36,20 @@ function validJson(): string {
 function setup() {
   const fakeBackend = makeFakeBackend();
   const fakeFs = makeFakeFileSystem();
-  fakeFs.impl.setFile("/repo/plan.md", PLAN_MD);
   const layer = Layer.mergeAll(fakeBackend.layer, fakeFs.layer);
   return { fakeBackend, fakeFs, layer };
 }
 
-describe("extractPlanCore — sealed completion path", () => {
+describe("extractPlanLlm — sealed completion path", () => {
   it("calls complete instead of runAgent", async () => {
     const { fakeBackend, fakeFs, layer } = setup();
     fakeBackend.impl.addCompletionResponse({ finalText: validJson() });
 
     const result = await Effect.runPromise(
       Effect.either(
-        extractPlanCore({
-          planMdPath: "/repo/plan.md",
-          model: "claude-sonnet-4-6",
-          effort: "low",
-        }).pipe(Effect.provide(layer)),
+        extractPlanLlm(PLAN_MD, { model: "claude-sonnet-4-6", effort: "low" }).pipe(
+          Effect.provide(layer),
+        ),
       ),
     );
 
@@ -67,11 +64,9 @@ describe("extractPlanCore — sealed completion path", () => {
 
     await Effect.runPromise(
       Effect.either(
-        extractPlanCore({
-          planMdPath: "/repo/plan.md",
-          model: "claude-sonnet-4-6",
-          effort: "low",
-        }).pipe(Effect.provide(layer)),
+        extractPlanLlm(PLAN_MD, { model: "claude-sonnet-4-6", effort: "low" }).pipe(
+          Effect.provide(layer),
+        ),
       ),
     );
 
@@ -88,11 +83,9 @@ describe("extractPlanCore — sealed completion path", () => {
 
     await Effect.runPromise(
       Effect.either(
-        extractPlanCore({
-          planMdPath: "/repo/plan.md",
-          model: "claude-sonnet-4-6",
-          effort: "low",
-        }).pipe(Effect.provide(layer)),
+        extractPlanLlm(PLAN_MD, { model: "claude-sonnet-4-6", effort: "low" }).pipe(
+          Effect.provide(layer),
+        ),
       ),
     );
 
@@ -106,11 +99,9 @@ describe("extractPlanCore — sealed completion path", () => {
 
     const result = await Effect.runPromise(
       Effect.either(
-        extractPlanCore({
-          planMdPath: "/repo/plan.md",
-          model: "claude-sonnet-4-6",
-          effort: "low",
-        }).pipe(Effect.provide(layer)),
+        extractPlanLlm(PLAN_MD, { model: "claude-sonnet-4-6", effort: "low" }).pipe(
+          Effect.provide(layer),
+        ),
       ),
     );
 
@@ -127,9 +118,7 @@ describe("extractPlanCore — sealed completion path", () => {
 
     await Effect.runPromise(
       Effect.either(
-        extractPlanCore({ planMdPath: "/repo/plan.md", model: "my-model", effort: "high" }).pipe(
-          Effect.provide(layer),
-        ),
+        extractPlanLlm(PLAN_MD, { model: "my-model", effort: "high" }).pipe(Effect.provide(layer)),
       ),
     );
 

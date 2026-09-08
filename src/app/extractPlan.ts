@@ -8,7 +8,6 @@ import {
   ExtractedPhaxPlanSchema,
   getExtractedPlanJsonSchema,
   type ExtractedPhaxPlan,
-  type PhaxPlan,
 } from "../schemas/phaxPlan.js";
 import {
   AgentInvocationError,
@@ -17,7 +16,6 @@ import {
   UsageLimitError,
 } from "../domain/errors.js";
 import { formatParseError } from "../schemas/formatError.js";
-import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
 
 const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
@@ -42,20 +40,7 @@ function buildExtractionPrompt(planMd: string, jsonSchema: object): string {
   ].join("\n");
 }
 
-export interface ExtractPlanCoreOptions {
-  readonly planMdPath: string;
-  readonly model: string;
-  readonly effort: string;
-}
-
-export interface ExtractPlanCoreResult {
-  readonly plan: PhaxPlan;
-  readonly planMd: string;
-  readonly warnings: string[];
-  readonly detectedAnchors: string[];
-}
-
-export type ExtractPlanCoreError =
+export type ExtractPlanError =
   | PlanValidationError
   | AgentInvocationError
   | RateLimitError
@@ -71,7 +56,7 @@ export type ExtractPlanCoreError =
 export function extractPlanLlm(
   planMd: string,
   opts: { model: string; effort: string },
-): Effect.Effect<ExtractedPhaxPlan, ExtractPlanCoreError, Backend | FileSystem> {
+): Effect.Effect<ExtractedPhaxPlan, ExtractPlanError, Backend | FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const backend = yield* Backend;
@@ -113,38 +98,6 @@ export function extractPlanLlm(
     }
 
     return decoded.right;
-  });
-}
-
-/**
- * Extract a PhaxPlan from a plan.md file via Claude. Performs no file writes —
- * the caller persists the result wherever it wants (the run folder for `phax run`).
- */
-export function extractPlanCore(
-  opts: ExtractPlanCoreOptions,
-): Effect.Effect<ExtractPlanCoreResult, ExtractPlanCoreError, Backend | FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-
-    const planMd = yield* fs.readText(opts.planMdPath).pipe(
-      Effect.mapError(
-        (e) =>
-          new PlanValidationError({
-            message: `Failed to read plan.md at "${opts.planMdPath}": ${e.message}`,
-            path: opts.planMdPath,
-          }),
-      ),
-    );
-
-    const extracted = yield* extractPlanLlm(planMd, { model: opts.model, effort: opts.effort });
-
-    const finalized = finalizeExtractedPlan(extracted, planMd);
-    if (Either.isLeft(finalized)) {
-      return yield* Effect.fail(finalized.left);
-    }
-
-    const { plan, warnings, detectedAnchors } = finalized.right;
-    return { plan, planMd, warnings, detectedAnchors };
   });
 }
 
