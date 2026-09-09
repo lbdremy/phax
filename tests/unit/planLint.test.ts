@@ -370,6 +370,41 @@ describe("advisoryFindings", () => {
     ]);
   });
 
+  it("strips ANSI escapes and control characters from provider text", () => {
+    expect(
+      advisoryFindings({
+        findings: [{ message: "\u001B[31mphase-01 is\nunbalanced", phases: ["phase-01"] }],
+      }),
+    ).toEqual([
+      {
+        severity: "warning",
+        check: "advisory",
+        phase: "phase-01",
+        message: "phase-01 is unbalanced",
+      },
+    ]);
+  });
+
+  it("bounds a runaway message and phase name", () => {
+    const findings = advisoryFindings({
+      findings: [{ message: "m".repeat(2000), phases: ["p".repeat(2000)] }],
+    });
+    expect(findings[0]!.message.length).toBeLessThan(600);
+    expect(findings[0]!.phase!.length).toBeLessThan(40);
+  });
+
+  it("reports a phase that sanitizes to nothing as unnamed", () => {
+    expect(advisoryFindings({ findings: [{ message: "m", phases: ["\u0007"] }] })).toEqual([
+      { severity: "warning", check: "advisory", phase: null, message: "m" },
+    ]);
+  });
+
+  it("substitutes a placeholder for a message that sanitizes to nothing", () => {
+    expect(advisoryFindings({ findings: [{ message: "\u0007", phases: [] }] })[0]!.message).toBe(
+      "(auditor returned an empty message)",
+    );
+  });
+
   it("hasLintErrors is false for an advisory-only report", () => {
     const findings = advisoryFindings({
       findings: [{ message: "m", phases: ["phase-01", "phase-02"] }],
@@ -388,7 +423,7 @@ describe("auditorFailureFinding", () => {
     });
   });
 
-  it("appends the first line of a multi-line stderr excerpt", () => {
+  it("condenses every non-empty stderr line onto the warning", () => {
     expect(
       auditorFailureFinding({
         message: "Plan auditor exited with code 1",
@@ -398,7 +433,51 @@ describe("auditorFailureFinding", () => {
       severity: "warning",
       check: "advisory",
       phase: null,
-      message: "plan auditor failed: Plan auditor exited with code 1; stderr: boom",
+      message: "plan auditor failed: Plan auditor exited with code 1; stderr: boom | more detail",
     });
+  });
+
+  it("keeps the cause of a crashing script, not just its first boilerplate line", () => {
+    // The shape Node prints for a missing module: the informative line is
+    // several frames down, so a first-line-only excerpt would drop it.
+    const finding = auditorFailureFinding({
+      message: "Plan auditor exited with code 1",
+      stderrExcerpt: [
+        "node:internal/modules/cjs/loader:1413",
+        "  throw err;",
+        "  ^",
+        "",
+        "Error: Cannot find module '/repo/audit-plan.mjs'",
+      ].join("\n"),
+    });
+    expect(finding.message).toContain("Cannot find module");
+  });
+
+  it("bounds a runaway stderr excerpt", () => {
+    const finding = auditorFailureFinding({
+      message: "Plan auditor exited with code 1",
+      stderrExcerpt: "x".repeat(5000),
+    });
+    expect(finding.message.length).toBeLessThan(400);
+    expect(finding.message).toContain("…");
+  });
+
+  it("strips control characters and ANSI escapes from stderr", () => {
+    const finding = auditorFailureFinding({
+      message: "Plan auditor exited with code 1",
+      stderrExcerpt: "\u001B[31mred\u001B[0m\u0007alarm",
+    });
+    expect(finding.message).toBe(
+      "plan auditor failed: Plan auditor exited with code 1; stderr: red alarm",
+    );
+  });
+
+  it("omits the stderr clause when the excerpt is only whitespace", () => {
+    expect(
+      auditorFailureFinding({
+        message: "Plan auditor exited with code 1",
+        stderrExcerpt: "\n  \n",
+      }).message,
+    ).toBe("plan auditor failed: Plan auditor exited with code 1");
   });
 });

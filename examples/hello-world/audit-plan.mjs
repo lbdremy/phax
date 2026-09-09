@@ -12,11 +12,13 @@ request.phases.forEach((phase, index) => {
     const match = SRC_FILE.exec(file);
     if (match === null) continue;
     const testFile = `tests/${match[1]}.test.ts`;
-    const laterPhases = request.phases.slice(index);
-    const paired = laterPhases.some((p) => p.files.includes(testFile));
+    // Same-or-later: a phase that ships its own test is already paired, so the
+    // slice starts at this phase rather than the one after it.
+    const pairingPhases = request.phases.slice(index);
+    const paired = pairingPhases.some((p) => p.files.includes(testFile));
     if (!paired) {
       findings.push({
-        message: `${phase.id} touches ${file}; no later phase touches ${testFile}`,
+        message: `${phase.id} touches ${file}; no phase from ${phase.id} onward touches ${testFile}`,
         phases: [phase.id],
       });
     }

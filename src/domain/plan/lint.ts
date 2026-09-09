@@ -168,33 +168,70 @@ export function modelFindings(
   });
 }
 
+// Everything an auditor returns is untrusted text rendered straight into the
+// terminal report. Drop ANSI sequences and control characters so a finding
+// cannot repaint or reflow the report, and bound each field so one finding
+// cannot swamp it. The phase bound is generous next to a real `phase-NN` id;
+// it exists only to stop an absurd string from raggeding the phase column.
+// eslint-disable-next-line no-control-regex
+const ANSI_SEQUENCE = /\u001B\[[0-9;]*[A-Za-z]/g;
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F]+/g;
+const ADVISORY_MESSAGE_LIMIT = 500;
+const ADVISORY_PHASE_LIMIT = 32;
+
+function sanitizeProviderText(text: string, limit: number): string {
+  const flattened = text.replace(ANSI_SEQUENCE, "").replace(CONTROL_CHARS, " ").trim();
+  return flattened.length > limit ? `${flattened.slice(0, limit)}…` : flattened;
+}
+
 /**
  * Fans an auditor response out to one `advisory` warning per phase a finding
  * names, in order; a finding naming no phase becomes a single `phase: null`
  * warning. Severity is always `warning` — findings never affect the exit code.
+ * A phase that sanitizes down to nothing is reported as unnamed rather than as
+ * a blank column.
  */
 export function advisoryFindings(response: PlanAuditResponse): readonly LintFinding[] {
   const findings: LintFinding[] = [];
   for (const finding of response.findings) {
+    const sanitized = sanitizeProviderText(finding.message, ADVISORY_MESSAGE_LIMIT);
+    // `NonEmptyString` still admits a message that is nothing but control
+    // characters; a placeholder keeps the row meaningful.
+    const message = sanitized.length > 0 ? sanitized : "(auditor returned an empty message)";
     if (finding.phases.length === 0) {
-      findings.push({
-        severity: "warning",
-        check: "advisory",
-        phase: null,
-        message: finding.message,
-      });
+      findings.push({ severity: "warning", check: "advisory", phase: null, message });
       continue;
     }
     for (const phase of finding.phases) {
+      const sanitizedPhase = sanitizeProviderText(phase, ADVISORY_PHASE_LIMIT);
       findings.push({
         severity: "warning",
         check: "advisory",
-        phase,
-        message: finding.message,
+        phase: sanitizedPhase.length > 0 ? sanitizedPhase : null,
+        message,
       });
     }
   }
   return findings;
+}
+
+// A failing auditor is most often a broken script, and the first line of a
+// crashing runtime's stderr is boilerplate — Node opens with its own loader
+// frame and only names the cause several lines down. Condense every non-empty
+// line onto one row instead, bounded so the report stays readable.
+const STDERR_MESSAGE_LIMIT = 300;
+
+function condenseStderr(stderr: string): string | undefined {
+  const lines = stderr
+    .split("\n")
+    .map((line) => sanitizeProviderText(line, STDERR_MESSAGE_LIMIT))
+    .filter((line) => line.length > 0);
+  if (lines.length === 0) return undefined;
+  const joined = lines.join(" | ");
+  return joined.length > STDERR_MESSAGE_LIMIT
+    ? `${joined.slice(0, STDERR_MESSAGE_LIMIT)}…`
+    : joined;
 }
 
 /**
@@ -205,10 +242,11 @@ export function auditorFailureFinding(failure: {
   readonly message: string;
   readonly stderrExcerpt?: string;
 }): LintFinding {
-  const stderrLine = failure.stderrExcerpt?.split("\n")[0];
+  const stderr =
+    failure.stderrExcerpt !== undefined ? condenseStderr(failure.stderrExcerpt) : undefined;
   const message =
-    stderrLine !== undefined
-      ? `plan auditor failed: ${failure.message}; stderr: ${stderrLine}`
+    stderr !== undefined
+      ? `plan auditor failed: ${failure.message}; stderr: ${stderr}`
       : `plan auditor failed: ${failure.message}`;
   return { severity: "warning", check: "advisory", phase: null, message };
 }
