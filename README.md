@@ -207,6 +207,43 @@ phax validate
 phax validate --plan phax-plan.json
 ```
 
+### Plan auditor
+
+Add a `"planAuditor"` block to register a provider that reviews a plan's shape
+before a run touches it:
+
+```json
+{
+  "planAuditor": { "command": "node ./audit-plan.mjs" }
+}
+```
+
+The command string is split on whitespace with no shell, same as `orient` and
+`scopes`. `phax plans lint` queries it — never `phax run` — and only once the
+plan's deterministic extraction succeeds. It writes the plan projection to the
+provider's stdin:
+
+```json
+{
+  "phases": [
+    { "id": "phase-01", "files": ["src/greet.ts"] },
+    { "id": "phase-02", "files": ["tests/greet.test.ts"] }
+  ]
+}
+```
+
+This is the same projection the scope provider receives, minus the gated
+phase id: `phases[].files` is each phase's planned files to create and edit,
+deduplicated, in plan order (`optionalFilesToEdit` is never included). Models,
+efforts, prompts, anchors and commit metadata never leave phax. The provider
+responds on stdout with `{"findings": [{"message", "phases": [...]}]}` and
+must exit 0. Every finding renders as a `warning` on the lint's `advisory`
+check, one row per phase named in `phases` (`-` when the list is empty). A
+non-zero exit, non-JSON stdout, or a response that fails validation is a
+single `advisory` warning naming the reason. Advisory findings never set the
+lint's exit code, and with no `planAuditor` registered — or on a plan the
+deterministic parser cannot read — there are no advisory findings.
+
 ## Configuration layers
 
 phax resolves configuration from four layers, least-to-most specific (most personal wins):
@@ -248,8 +285,10 @@ phax plans lint docs/plans/NN-<slug>-plan.md
 
 This is a read-only, model-free check: it reports every structural defect the deterministic
 parser can find, whether the planned-file lists are coherent with the working tree and with
-earlier phases, whether every required command is covered, and whether each phase's
-model/effort is in the routing catalog. It exits 1 when any finding is an error.
+earlier phases, whether every required command is covered, whether each phase's
+model/effort is in the routing catalog, and — when a [plan auditor](#plan-auditor) is
+registered — every advisory finding it returns about the plan's shape. It exits 1 when any
+finding is an error; advisory findings are always warnings.
 
 ## Run
 

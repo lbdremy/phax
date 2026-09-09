@@ -8,6 +8,7 @@ import { decodeOrientIndexResponse, decodeOrientExpandResponse } from "../../src
 import { decodeGateDiagnosticsDocument } from "../../src/schemas/gateDiagnostics.js";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 import { decodeScopesResponse } from "../../src/schemas/scopes.js";
+import { decodePlanAuditResponse } from "../../src/schemas/planAudit.js";
 
 const repoRoot = new URL("../../", import.meta.url).pathname.replace(/\/$/, "");
 const exampleDir = join(repoRoot, "examples/hello-world");
@@ -129,6 +130,8 @@ describe("examples/hello-world phax.json", () => {
       expect(config.orient?.command).toBeTruthy();
       expect(config.scopes).toBeDefined();
       expect(config.scopes?.command).toBeTruthy();
+      expect(config.planAuditor).toBeDefined();
+      expect(config.planAuditor?.command).toBeTruthy();
       const steps = config.gateProfiles?.["standard"] ?? [];
       const diagStep = steps.find((s) => s.output === "diagnostics");
       expect(diagStep).toBeDefined();
@@ -153,6 +156,42 @@ describe("examples/hello-world scopes provider", () => {
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
       expect(result.right.closed).toEqual(["greet"]);
+    }
+  });
+});
+
+describe("examples/hello-world plan auditor", () => {
+  const auditPlanScript = join(exampleDir, "audit-plan.mjs");
+
+  it("finds no findings on the full hello-world plan projection", () => {
+    const request = JSON.stringify({
+      phases: [
+        { id: "phase-01", files: ["src/greet.ts"] },
+        { id: "phase-02", files: ["tests/greet.test.ts"] },
+      ],
+    });
+    const { stdout, status } = runScript(auditPlanScript, request, exampleDir);
+    expect(status).toBe(0);
+    const result = decodePlanAuditResponse(JSON.parse(stdout));
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.findings).toEqual([]);
+    }
+  });
+
+  it("flags src/greet.ts when no later phase touches tests/greet.test.ts", () => {
+    const request = JSON.stringify({
+      phases: [{ id: "phase-01", files: ["src/greet.ts"] }],
+    });
+    const { stdout, status } = runScript(auditPlanScript, request, exampleDir);
+    expect(status).toBe(0);
+    const result = decodePlanAuditResponse(JSON.parse(stdout));
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.findings).toHaveLength(1);
+      const finding = result.right.findings[0]!;
+      expect(finding.phases).toEqual(["phase-01"]);
+      expect(finding.message).toContain("tests/greet.test.ts");
     }
   });
 });
