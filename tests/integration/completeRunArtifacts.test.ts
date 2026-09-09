@@ -89,12 +89,19 @@ beforeEach(() => {
   git(["init"]);
   git(["config", "--local", "user.email", "test@phax.test"]);
   git(["config", "--local", "user.name", "phax test"]);
+  // `git commit` otherwise spawns a detached `git maintenance run --auto`,
+  // which can still be writing into .git when afterEach removes the tree —
+  // the teardown then fails with ENOTEMPTY.
+  git(["config", "--local", "maintenance.auto", "false"]);
+  git(["config", "--local", "gc.auto", "0"]);
   writeRepoFile("README.md", "# fixture\n");
   commitAll();
 });
 
 afterEach(() => {
-  rmSync(repoDir, { recursive: true, force: true });
+  // Retries cover any other late writer: rmSync does not retry by default, so
+  // a single racing entry is enough to fail the whole removal.
+  rmSync(repoDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
 });
 
 describe("completeRunArtifacts", () => {
