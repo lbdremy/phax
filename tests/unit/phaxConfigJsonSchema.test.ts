@@ -78,6 +78,22 @@ describe("getPhaxConfigJsonSchema", () => {
     expect(desc).toContain("closed");
   });
 
+  it("lists planAuditor.command as present, not required, with a description naming findings", () => {
+    const schema = getPhaxConfigJsonSchema() as Record<string, unknown>;
+    const properties = schema["properties"] as Record<string, unknown>;
+    const planAuditor = properties["planAuditor"] as Record<string, unknown>;
+    expect(planAuditor).toBeDefined();
+    const required = (schema["required"] as string[] | undefined) ?? [];
+    expect(required).not.toContain("planAuditor");
+    const planAuditorDefs = planAuditor["properties"] as Record<string, unknown> | undefined;
+    const command = (planAuditorDefs?.["command"] ?? planAuditor) as Record<string, unknown>;
+    const planAuditorRequired = (planAuditor["required"] as string[] | undefined) ?? [];
+    expect(planAuditorRequired).toContain("command");
+    const desc = command["description"] as string | undefined;
+    expect(typeof desc).toBe("string");
+    expect(desc).toContain("findings");
+  });
+
   it("has a description on gate step output mentioning diagnostics shape and verdict rules", () => {
     const schema = getPhaxConfigJsonSchema() as Record<string, unknown>;
     const stepSchema = findGateStepSchema(schema);

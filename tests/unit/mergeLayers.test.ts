@@ -341,6 +341,38 @@ describe("mergeConfigLayers", () => {
     });
   });
 
+  describe("planAuditor: scalar override", () => {
+    it("keeps the project planAuditor block when a user layer says nothing about planAuditor", () => {
+      const project = makeProject({ planAuditor: { command: "audit-plan" } });
+      const localUser = makeOverlay({ state: { root: "~/.local" } });
+      const result = mergeConfigLayers({ project, localUser });
+      expect(result.planAuditor?.command).toBe("audit-plan");
+    });
+
+    it("local planAuditor command overrides global and project", () => {
+      const project = makeProject({ planAuditor: { command: "project-provider" } });
+      const globalUser = makeOverlay({ planAuditor: { command: "global-provider" } });
+      const localUser = makeOverlay({ planAuditor: { command: "local-provider" } });
+      const result = mergeConfigLayers({ project, globalUser, localUser });
+      expect(result.planAuditor?.command).toBe("local-provider");
+    });
+
+    it("a user layer can enable planAuditor when the project config has none", () => {
+      const project = makeProject();
+      const globalUser = makeOverlay({ planAuditor: { command: "global-provider" } });
+      const result = mergeConfigLayers({ project, globalUser });
+      expect(result.planAuditor?.command).toBe("global-provider");
+    });
+
+    it("omits planAuditor entirely when no layer configures it", () => {
+      const result = mergeConfigLayers({
+        project: makeProject(),
+        localUser: makeOverlay({ state: { root: "~/.local" } }),
+      });
+      expect(result.planAuditor).toBeUndefined();
+    });
+  });
+
   describe("review.compliance: per-scalar override", () => {
     it("local compliance fields override project", () => {
       const project = makeProject({
