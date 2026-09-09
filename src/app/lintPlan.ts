@@ -3,9 +3,12 @@ import { Effect, Either } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { ConfigValidationError } from "../domain/errors.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
+import { Shell } from "../ports/shell.js";
 import { extractPlanDeterministic } from "../domain/plan/parsePlanMarkdown.js";
 import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
 import {
+  advisoryFindings,
+  auditorFailureFinding,
   commandFindings,
   filePlanFindings,
   modelFindings,
@@ -13,6 +16,8 @@ import {
   structureFindings,
   type LintFinding,
 } from "../domain/plan/lint.js";
+import { makePlanAuditRequest } from "../domain/plan/projection.js";
+import { queryPlanAuditor } from "./planAuditor.js";
 import { resolveGateProfile } from "./gates.js";
 import { loadModelRouting, loadProviderConfig } from "./loadRouting.js";
 
@@ -37,15 +42,18 @@ export interface LintPlanOptions {
 /**
  * Read-only, model-free plan lint (spec 33 §5.1, §5.3): reads the plan, runs
  * the structure, file-plan, required-commands and model checks, and returns
- * the findings. The requirement set is `FileSystem` alone — no `Backend`, so
- * this use case cannot fall back to the extraction model by construction.
+ * the findings. The requirement set is `FileSystem` plus `Shell` for the
+ * registered plan auditor — still no `Backend`, so this use case cannot fall
+ * back to the extraction model by construction. Advisory findings are the one
+ * check that reports on an external provider, and they are warnings by
+ * construction: an auditor failure is a finding, never an effect error.
  *
  * An unreadable plan or an unusable global config is the effect's error, never
  * a finding: findings describe the plan, not the environment.
  */
 export function lintPlan(
   opts: LintPlanOptions,
-): Effect.Effect<LintReport, FsError | ConfigValidationError, FileSystem> {
+): Effect.Effect<LintReport, FsError | ConfigValidationError, FileSystem | Shell> {
   const { planMdPath, reportPath, config } = opts;
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -96,6 +104,21 @@ export function lintPlan(
     const routing = yield* loadModelRouting();
     const providerConfig = yield* loadProviderConfig();
     findings.push(...modelFindings(plan.phases, routing, providerConfig));
+
+    // Advisory: only when a plan auditor is registered, and only once the plan
+    // parsed cleanly — an unparseable plan never spawns the auditor.
+    if (config.planAuditor !== undefined) {
+      const audited = yield* queryPlanAuditor(
+        config.planAuditor,
+        makePlanAuditRequest(plan.phases),
+        config.repoRoot,
+      );
+      findings.push(
+        ...(Either.isRight(audited)
+          ? advisoryFindings(audited.right)
+          : [auditorFailureFinding(audited.left)]),
+      );
+    }
 
     return { plan: reportPath, findings };
   });
