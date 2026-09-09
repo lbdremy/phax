@@ -14,6 +14,7 @@ import {
 } from "../../domain/artifact/render.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
+import { NodeShellLayer } from "../../infra/shell.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
 import { exitCodeForError, makeRepoRootedFileSystemLayer } from "./runLayers.js";
@@ -112,11 +113,11 @@ export async function runPlansLint(
   // repo-relative (same reasoning as `plans overlap`).
   const planMdPath = resolve(process.cwd(), plan);
 
-  // FileSystem only — no Backend layer, so the lint cannot reach a model.
+  // Filesystem and shell only, no Backend, so the lint cannot reach a model.
   const reportResult = await Effect.runPromise(
     lintPlan({ planMdPath, reportPath: plan, config }).pipe(
       Effect.either,
-      Effect.provide(makeRepoRootedFileSystemLayer(config)),
+      Effect.provide(Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NodeShellLayer)),
     ),
   );
   if (Either.isLeft(reportResult)) {
