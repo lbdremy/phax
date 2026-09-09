@@ -3,9 +3,10 @@ import { checkRequiredCommands } from "../security/agentCommands.js";
 import { preflightPhaseModels, type PreflightPhase } from "../routing/preflight.js";
 import type { ModelRouting } from "../../schemas/modelRouting.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
+import type { PlanAuditResponse } from "../../schemas/planAudit.js";
 
 export type LintSeverity = "error" | "warning";
-export type LintCheck = "structure" | "files" | "commands" | "models";
+export type LintCheck = "structure" | "files" | "commands" | "models" | "advisory";
 
 export interface LintFinding {
   readonly severity: LintSeverity;
@@ -165,6 +166,51 @@ export function modelFindings(
       message: `${failure.model} / ${failure.effort}: ${failure.reasons.join("; ")}${alternatives}`,
     };
   });
+}
+
+/**
+ * Fans an auditor response out to one `advisory` warning per phase a finding
+ * names, in order; a finding naming no phase becomes a single `phase: null`
+ * warning. Severity is always `warning` — findings never affect the exit code.
+ */
+export function advisoryFindings(response: PlanAuditResponse): readonly LintFinding[] {
+  const findings: LintFinding[] = [];
+  for (const finding of response.findings) {
+    if (finding.phases.length === 0) {
+      findings.push({
+        severity: "warning",
+        check: "advisory",
+        phase: null,
+        message: finding.message,
+      });
+      continue;
+    }
+    for (const phase of finding.phases) {
+      findings.push({
+        severity: "warning",
+        check: "advisory",
+        phase,
+        message: finding.message,
+      });
+    }
+  }
+  return findings;
+}
+
+/**
+ * Maps a failed auditor invocation to a single `advisory` warning, never an
+ * effect error — the lint must not depend on the auditor being reachable.
+ */
+export function auditorFailureFinding(failure: {
+  readonly message: string;
+  readonly stderrExcerpt?: string;
+}): LintFinding {
+  const stderrLine = failure.stderrExcerpt?.split("\n")[0];
+  const message =
+    stderrLine !== undefined
+      ? `plan auditor failed: ${failure.message}; stderr: ${stderrLine}`
+      : `plan auditor failed: ${failure.message}`;
+  return { severity: "warning", check: "advisory", phase: null, message };
 }
 
 /** True when at least one finding has severity `error` — the CLI's exit code. */

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { makeScopesRequest, projectPhases } from "../../src/domain/plan/projection.js";
+import {
+  makePlanAuditRequest,
+  makeScopesRequest,
+  projectPhases,
+} from "../../src/domain/plan/projection.js";
 
 const phases = [
   {
@@ -82,5 +86,21 @@ describe("makeScopesRequest", () => {
       { id: "phase-02", files: ["src/core/billing/invoice.ts"] },
       { id: "phase-03", files: ["src/adapters/billing/stripe.ts"] },
     ]);
+  });
+});
+
+describe("makePlanAuditRequest", () => {
+  it("shapes exactly { phases: [{ id, files }] }, no phase key", () => {
+    const request = makePlanAuditRequest(phases);
+
+    expect(Object.keys(request)).toEqual(["phases"]);
+    for (const phase of request.phases) {
+      expect(Object.keys(phase).toSorted()).toEqual(["files", "id"]);
+    }
+  });
+
+  it("matches projectPhases verbatim, in order", () => {
+    const request = makePlanAuditRequest(phases);
+    expect(request.phases).toEqual(projectPhases(phases));
   });
 });
