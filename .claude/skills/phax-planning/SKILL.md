@@ -40,14 +40,19 @@ executing agent to explain any deviation in its handoff (see
 
 `phax plans lint <plan>` reports every mechanical defect of a plan before a run
 touches it — read-only, and model-free, so it never falls back to the extraction
-model. Four checks: **structure** (every field the deterministic parse requires,
+model. Five checks: **structure** (every field the deterministic parse requires,
 reported in full rather than stopping at the first), **files** (the planned
 create/edit lists walked in phase order against the working tree — an edit of a
 file no earlier phase creates, or a create of a file that already exists, is an
 error), **commands** (the plan's required commands against `security.agentCommands`
-and the gate profile), and **models** (each phase's model/effort against the
-routing catalog). It exits 1 when any finding is an error. A `Draft` plan lints
-like any other — run it while drafting, not only before approval.
+and the gate profile), **models** (each phase's model/effort against the routing
+catalog), and **advisory** (when `phax.json` registers a `planAuditor`, every
+finding it returns about the plan's shape — one warning per phase it names). It
+exits 1 when any finding is an error; advisory findings are always warnings, so
+they never fail the lint — treat them as planning advice. With no auditor
+registered, or on a plan the deterministic parser cannot read, there are no
+advisory findings. A `Draft` plan lints like any other — run it while drafting,
+not only before approval.
 
 ## Run title and short name
 
