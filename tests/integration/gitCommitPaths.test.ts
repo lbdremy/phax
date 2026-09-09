@@ -1,4 +1,4 @@
-import { rm, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git } from "../../src/ports/git.js";
+import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 function runGit(args: string, cwd: string): void {
   execSync(`git ${args}`, { cwd, stdio: "pipe" });
@@ -18,6 +19,7 @@ describe("NodeGitLayer.commitPaths", () => {
   beforeEach(async () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-git-commit-paths-test-"));
     runGit("init", repoDir);
+    disableGitAutoMaintenance(repoDir);
     runGit("config --local user.email test@phax.test", repoDir);
     runGit("config --local user.name 'phax test'", repoDir);
 
@@ -26,8 +28,8 @@ describe("NodeGitLayer.commitPaths", () => {
     runGit("commit -m 'chore: initial commit'", repoDir);
   });
 
-  afterEach(async () => {
-    await rm(repoDir, { recursive: true, force: true });
+  afterEach(() => {
+    removeTempDir(repoDir);
   });
 
   it("commits only the given paths, leaving an unrelated dirty file untouched", async () => {
@@ -98,6 +100,7 @@ describe("NodeGitLayer.dirtyPaths", () => {
   beforeEach(async () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-git-dirty-paths-test-"));
     runGit("init", repoDir);
+    disableGitAutoMaintenance(repoDir);
     runGit("config --local user.email test@phax.test", repoDir);
     runGit("config --local user.name 'phax test'", repoDir);
 
@@ -108,8 +111,8 @@ describe("NodeGitLayer.dirtyPaths", () => {
     runGit("commit -m 'chore: initial commit'", repoDir);
   });
 
-  afterEach(async () => {
-    await rm(repoDir, { recursive: true, force: true });
+  afterEach(() => {
+    removeTempDir(repoDir);
   });
 
   it("reports exactly the dirty subset for modified, staged, untracked, and clean paths", async () => {

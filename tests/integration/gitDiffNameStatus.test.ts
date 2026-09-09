@@ -1,4 +1,4 @@
-import { rm, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +8,7 @@ import { Effect, Either } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git, GitError } from "../../src/ports/git.js";
 import type { BranchName, WorktreePath } from "../../src/domain/branded.js";
+import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 function runGit(args: string, cwd: string): void {
   execSync(`git ${args}`, { cwd, stdio: "pipe" });
@@ -19,6 +20,7 @@ describe("NodeGitLayer.diffNameStatus", () => {
   beforeEach(async () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-git-diff-test-"));
     runGit("init", repoDir);
+    disableGitAutoMaintenance(repoDir);
     runGit("config --local user.email test@phax.test", repoDir);
     runGit("config --local user.name 'phax test'", repoDir);
 
@@ -29,7 +31,7 @@ describe("NodeGitLayer.diffNameStatus", () => {
   });
 
   afterEach(async () => {
-    await rm(repoDir, { recursive: true, force: true });
+    removeTempDir(repoDir);
   });
 
   it("returns added, modified, and deleted entries for HEAD^..HEAD", async () => {
@@ -170,6 +172,7 @@ describe("NodeGitLayer.remoteExists and pushBranch", () => {
     bareRemoteDir = mkdtempSync(join(tmpdir(), "phax-git-push-remote-"));
 
     execSync("git init --bare -b main", { cwd: bareRemoteDir, stdio: "pipe" });
+    disableGitAutoMaintenance(bareRemoteDir);
 
     runGit("init -b main", repoDir);
     runGit("config --local user.email test@phax.test", repoDir);
@@ -182,8 +185,8 @@ describe("NodeGitLayer.remoteExists and pushBranch", () => {
   });
 
   afterEach(async () => {
-    await rm(repoDir, { recursive: true, force: true });
-    await rm(bareRemoteDir, { recursive: true, force: true });
+    removeTempDir(repoDir);
+    removeTempDir(bareRemoteDir);
   });
 
   it("remoteExists returns true for a configured remote", async () => {

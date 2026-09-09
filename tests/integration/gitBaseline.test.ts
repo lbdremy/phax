@@ -1,4 +1,4 @@
-import { rm, writeFile, appendFile } from "node:fs/promises";
+import { writeFile, appendFile } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git } from "../../src/ports/git.js";
+import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 function runGit(args: string, cwd: string): void {
   execSync(`git ${args}`, { cwd, stdio: "pipe" });
@@ -22,6 +23,7 @@ describe("NodeGitLayer baseline operations", () => {
   beforeEach(async () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-git-baseline-test-"));
     runGit("init", repoDir);
+    disableGitAutoMaintenance(repoDir);
     runGit("config --local user.email test@phax.test", repoDir);
     runGit("config --local user.name 'phax test'", repoDir);
 
@@ -30,8 +32,8 @@ describe("NodeGitLayer baseline operations", () => {
     runGit("commit -m 'chore: initial commit'", repoDir);
   });
 
-  afterEach(async () => {
-    await rm(repoDir, { recursive: true, force: true });
+  afterEach(() => {
+    removeTempDir(repoDir);
   });
 
   it("headCommit returns the sha git rev-parse HEAD reports", async () => {
