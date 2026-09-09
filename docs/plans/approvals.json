@@ -12,6 +12,15 @@
       "approvedAt": "2026-08-11T07:59:18.912Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
+    },
+    "docs/plans/60-plan-completeness-advisory-plan.md": {
+      "planFingerprint": "236fb97042fca60f0b302c5bc8b831c571200fd5910257518a75d46ca9cb0610",
+      "approvedAt": "2026-09-09T09:08:55.201Z",
+      "baseline": "765c53a5009ee808ccbf16d7ea80a378b8ea148f",
+      "sourceSpec": {
+        "path": "docs/specs/19-plan-completeness-advisory.md",
+        "fingerprint": "d353ce2f4dc3020ca3da9e7886085cd44cc0cfd58f848fd29e564a55a617ed9c"
+      }
     }
   }
 }
