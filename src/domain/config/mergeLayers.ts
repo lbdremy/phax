@@ -139,6 +139,12 @@ export function mergeConfigLayers(input: {
   const scopesCommand =
     localUser?.scopes?.command ?? globalUser?.scopes?.command ?? project.scopes?.command;
 
+  // planAuditor: scalar override (command is required when planAuditor is present)
+  const planAuditorCommand =
+    localUser?.planAuditor?.command ??
+    globalUser?.planAuditor?.command ??
+    project.planAuditor?.command;
+
   // review.compliance: per-field scalar override (enabled is required when compliance is present)
   const hasCompliance =
     project.review?.compliance !== undefined ||
@@ -243,6 +249,7 @@ export function mergeConfigLayers(input: {
       : {}),
     ...(orientCommand !== undefined ? { orient: { command: orientCommand } } : {}),
     ...(scopesCommand !== undefined ? { scopes: { command: scopesCommand } } : {}),
+    ...(planAuditorCommand !== undefined ? { planAuditor: { command: planAuditorCommand } } : {}),
     ...(hasCompliance && complianceEnabled !== undefined
       ? {
           review: {

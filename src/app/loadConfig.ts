@@ -274,6 +274,7 @@ export function loadConfig(
     publish: resolvePublishConfig(config.publish),
     ...(config.orient !== undefined ? { orient: config.orient } : {}),
     ...(config.scopes !== undefined ? { scopes: config.scopes } : {}),
+    ...(config.planAuditor !== undefined ? { planAuditor: config.planAuditor } : {}),
     complianceReview: resolveComplianceReviewConfig(config.review?.compliance),
     codeReview: resolveCodeReviewConfig(config.review?.code),
     records: resolveRecordsConfig(config.records),
