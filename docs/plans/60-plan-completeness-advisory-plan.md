@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/19-plan-completeness-advisory.md
+approved:
+  date: 2026-09-09
+  baseline: 765c53a
 ---
 
 # Plan-completeness advisory
