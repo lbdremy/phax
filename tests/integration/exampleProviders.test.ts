@@ -9,6 +9,9 @@ import { decodeGateDiagnosticsDocument } from "../../src/schemas/gateDiagnostics
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 import { decodeScopesResponse } from "../../src/schemas/scopes.js";
 import { decodePlanAuditResponse } from "../../src/schemas/planAudit.js";
+import { extractPlanDeterministic } from "../../src/domain/plan/parsePlanMarkdown.js";
+import { finalizeExtractedPlan } from "../../src/domain/plan/finalize.js";
+import { makePlanAuditRequest } from "../../src/domain/plan/projection.js";
 
 const repoRoot = new URL("../../", import.meta.url).pathname.replace(/\/$/, "");
 const exampleDir = join(repoRoot, "examples/hello-world");
@@ -163,14 +166,29 @@ describe("examples/hello-world scopes provider", () => {
 describe("examples/hello-world plan auditor", () => {
   const auditPlanScript = join(exampleDir, "audit-plan.mjs");
 
-  it("finds no findings on the full hello-world plan projection", () => {
-    const request = JSON.stringify({
-      phases: [
-        { id: "phase-01", files: ["src/greet.ts"] },
-        { id: "phase-02", files: ["tests/greet.test.ts"] },
-      ],
-    });
-    const { stdout, status } = runScript(auditPlanScript, request, exampleDir);
+  // Project the example plan.md exactly as `phax plans lint` would, rather
+  // than hand-writing a projection: a phase added to or dropped from the
+  // example then shows up here instead of silently drifting past the test.
+  function helloWorldProjection(): { phases: readonly { id: string; files: readonly string[] }[] } {
+    const planMd = readFileSync(join(exampleDir, "plan.md"), "utf8");
+    const extracted = extractPlanDeterministic(planMd);
+    if (Either.isLeft(extracted)) {
+      throw new Error(`examples/hello-world/plan.md no longer parses: ${extracted.left.message}`);
+    }
+    const finalized = finalizeExtractedPlan(extracted.right, planMd);
+    if (Either.isLeft(finalized)) {
+      throw new Error(
+        `examples/hello-world/plan.md no longer finalizes: ${finalized.left.message}`,
+      );
+    }
+    return makePlanAuditRequest(finalized.right.plan.phases);
+  }
+
+  it("finds no findings on the example plan's own projection", () => {
+    const projection = helloWorldProjection();
+    // Guards the premise: the example must still pair a src file with a test.
+    expect(projection.phases.length).toBeGreaterThan(1);
+    const { stdout, status } = runScript(auditPlanScript, JSON.stringify(projection), exampleDir);
     expect(status).toBe(0);
     const result = decodePlanAuditResponse(JSON.parse(stdout));
     expect(Either.isRight(result)).toBe(true);
@@ -179,11 +197,13 @@ describe("examples/hello-world plan auditor", () => {
     }
   });
 
-  it("flags src/greet.ts when no later phase touches tests/greet.test.ts", () => {
-    const request = JSON.stringify({
-      phases: [{ id: "phase-01", files: ["src/greet.ts"] }],
-    });
-    const { stdout, status } = runScript(auditPlanScript, request, exampleDir);
+  it("flags src/greet.ts once the test-bearing phase is dropped", () => {
+    const projection = helloWorldProjection();
+    const withoutTests = {
+      phases: projection.phases.filter((phase) => !phase.files.some((f) => f.startsWith("tests/"))),
+    };
+    expect(withoutTests.phases.length).toBeLessThan(projection.phases.length);
+    const { stdout, status } = runScript(auditPlanScript, JSON.stringify(withoutTests), exampleDir);
     expect(status).toBe(0);
     const result = decodePlanAuditResponse(JSON.parse(stdout));
     expect(Either.isRight(result)).toBe(true);
