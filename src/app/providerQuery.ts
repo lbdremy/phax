@@ -30,6 +30,15 @@ export interface ProviderQueryFailure {
   readonly stderrExcerpt?: string;
 }
 
+export interface ProviderQueryOptions {
+  /**
+   * Wall-clock cap on the provider. Left unset for providers that may legitimately
+   * think for a while; set it where the caller is a command the user expects to
+   * return promptly, so a wedged provider cannot wedge that command.
+   */
+  readonly timeoutMs?: number;
+}
+
 export function runProviderQuery<T, E>(
   providerLabel: string,
   command: string,
@@ -37,6 +46,7 @@ export function runProviderQuery<T, E>(
   requestBody: unknown,
   decode: (input: unknown) => Either.Either<T, ParseResult.ParseError>,
   makeError: (failure: ProviderQueryFailure) => E,
+  options: ProviderQueryOptions = {},
 ): Effect.Effect<Either.Either<T, E>, never, Shell> {
   return Effect.gen(function* () {
     const shell = yield* Shell;
@@ -45,11 +55,16 @@ export function runProviderQuery<T, E>(
       return Either.left(makeError({ message: `${providerLabel} command is empty: "${command}"` }));
     }
     const ran = yield* Effect.either(
-      shell.run({ command: tokens, cwd, stdin: JSON.stringify(requestBody) }),
+      shell.run({
+        command: tokens,
+        cwd,
+        stdin: JSON.stringify(requestBody),
+        ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
+      }),
     );
 
     if (Either.isLeft(ran)) {
-      return Either.left(makeError({ message: ran.left.message }));
+      return Either.left(makeError({ message: `${providerLabel} ${ran.left.message}` }));
     }
 
     const { exitCode, stdout, stderr } = ran.right;
