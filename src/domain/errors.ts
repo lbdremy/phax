@@ -241,6 +241,12 @@ export class ScopesProviderError extends Data.TaggedError("ScopesProviderError")
   stderrExcerpt?: string;
 }> {}
 
+export class PlanAuditorError extends Data.TaggedError("PlanAuditorError")<{
+  message: string;
+  exitCode?: number;
+  stderrExcerpt?: string;
+}> {}
+
 export class InvalidArtifactTransitionError extends Data.TaggedError(
   "InvalidArtifactTransitionError",
 )<{

@@ -6,6 +6,8 @@ import {
   commandFindings,
   modelFindings,
   hasLintErrors,
+  advisoryFindings,
+  auditorFailureFinding,
   type LintCheck,
   type LintSeverity,
   type FilePlanPhase,
@@ -331,5 +333,72 @@ describe("hasLintErrors", () => {
         { severity: "error", check: "models", phase: "phase-02", message: "e" },
       ]),
     ).toBe(true);
+  });
+});
+
+describe("advisoryFindings", () => {
+  it("returns no findings for an empty response", () => {
+    expect(advisoryFindings({ findings: [] })).toEqual([]);
+  });
+
+  it("fans a finding out to one warning per named phase, in order", () => {
+    expect(
+      advisoryFindings({ findings: [{ message: "m", phases: ["phase-01", "phase-03"] }] }),
+    ).toEqual([
+      { severity: "warning", check: "advisory", phase: "phase-01", message: "m" },
+      { severity: "warning", check: "advisory", phase: "phase-03", message: "m" },
+    ]);
+  });
+
+  it("maps an empty phases list to a single phase: null warning", () => {
+    expect(advisoryFindings({ findings: [{ message: "m", phases: [] }] })).toEqual([
+      { severity: "warning", check: "advisory", phase: null, message: "m" },
+    ]);
+  });
+
+  it("preserves auditor finding order across multiple findings", () => {
+    expect(
+      advisoryFindings({
+        findings: [
+          { message: "first", phases: ["phase-01"] },
+          { message: "second", phases: [] },
+        ],
+      }),
+    ).toEqual([
+      { severity: "warning", check: "advisory", phase: "phase-01", message: "first" },
+      { severity: "warning", check: "advisory", phase: null, message: "second" },
+    ]);
+  });
+
+  it("hasLintErrors is false for an advisory-only report", () => {
+    const findings = advisoryFindings({
+      findings: [{ message: "m", phases: ["phase-01", "phase-02"] }],
+    });
+    expect(hasLintErrors(findings)).toBe(false);
+  });
+});
+
+describe("auditorFailureFinding", () => {
+  it("shapes a warning naming the failure message, phase: null", () => {
+    expect(auditorFailureFinding({ message: "Plan auditor exited with code 1" })).toEqual({
+      severity: "warning",
+      check: "advisory",
+      phase: null,
+      message: "plan auditor failed: Plan auditor exited with code 1",
+    });
+  });
+
+  it("appends the first line of a multi-line stderr excerpt", () => {
+    expect(
+      auditorFailureFinding({
+        message: "Plan auditor exited with code 1",
+        stderrExcerpt: "boom\nmore detail",
+      }),
+    ).toEqual({
+      severity: "warning",
+      check: "advisory",
+      phase: null,
+      message: "plan auditor failed: Plan auditor exited with code 1; stderr: boom",
+    });
   });
 });

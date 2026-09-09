@@ -28,3 +28,11 @@ export function makeScopesRequest(
     phases: projectPhases(phases),
   };
 }
+
+export interface PlanAuditRequest {
+  readonly phases: readonly ProjectedPhase[];
+}
+
+export function makePlanAuditRequest(phases: ReadonlyArray<ProjectablePhase>): PlanAuditRequest {
+  return { phases: projectPhases(phases) };
+}
