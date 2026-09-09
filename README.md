@@ -240,9 +240,10 @@ responds on stdout with `{"findings": [{"message", "phases": [...]}]}` and
 must exit 0. Every finding renders as a `warning` on the lint's `advisory`
 check, one row per phase named in `phases` (`-` when the list is empty). A
 non-zero exit, non-JSON stdout, or a response that fails validation is a
-single `advisory` warning naming the reason. Advisory findings never set the
-lint's exit code, and with no `planAuditor` registered — or on a plan the
-deterministic parser cannot read — there are no advisory findings.
+single `advisory` warning naming the reason, as is an auditor that outruns the
+30s cap phax spawns it under. Advisory findings never set the lint's exit code,
+and with no `planAuditor` registered — or on a plan the deterministic parser
+cannot read — there are no advisory findings.
 
 ## Configuration layers
 

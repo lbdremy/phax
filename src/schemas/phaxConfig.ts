@@ -35,7 +35,7 @@ export type ScopesConfig = Schema.Schema.Type<typeof ScopesConfigSchema>;
 export const PlanAuditorConfigSchema = Schema.Struct({
   command: Schema.NonEmptyString.annotations({
     description:
-      'The plan auditor command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes the plan projection ({"phases": [{"id", "files"}]}) to the provider\'s stdin from `phax plans lint` whenever the plan\'s deterministic extraction succeeds, and expects exit 0 with {"findings": [{"message", "phases": [...]}]} on stdout. Every finding is a warning on the lint\'s advisory check, one per phase it names; a failing auditor is one warning; findings never set the exit code. `phax run` never queries it. Full contract: `phax --usage`, cmd plans lint.',
+      'The plan auditor command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes the plan projection ({"phases": [{"id", "files"}]}) to the provider\'s stdin from `phax plans lint` whenever the plan\'s deterministic extraction succeeds, and expects exit 0 with {"findings": [{"message", "phases": [...]}]} on stdout. Every finding is a warning on the lint\'s advisory check, one per phase it names; a failing auditor is one warning, and the command is capped at 30s; findings never set the exit code. `phax run` never queries it. Full contract: `phax --usage`, cmd plans lint.',
   }),
 });
 
