@@ -1,5 +1,4 @@
 import { mkdtempSync } from "node:fs";
-import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -18,6 +17,7 @@ import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { ResolvedPublishConfig } from "../../src/schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName("phax/records/v1"));
 
@@ -62,15 +62,17 @@ describe("records push and pending status (real git)", () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-records-push-repo-"));
     remoteDir = mkdtempSync(join(tmpdir(), "phax-records-push-remote-"));
     execGit(["init"], repoDir);
+    disableGitAutoMaintenance(repoDir);
     execGit(["config", "--local", "user.email", "test@phax.test"], repoDir);
     execGit(["config", "--local", "user.name", "phax test"], repoDir);
     execGit(["init", "--bare"], remoteDir);
+    disableGitAutoMaintenance(remoteDir);
     execGit(["remote", "add", "origin", remoteDir], repoDir);
   });
 
   afterEach(async () => {
-    await rm(repoDir, { recursive: true, force: true });
-    await rm(remoteDir, { recursive: true, force: true });
+    removeTempDir(repoDir);
+    removeTempDir(remoteDir);
   });
 
   it("a run's records are committed locally and absent from the remote until pushed", async () => {
@@ -145,8 +147,9 @@ describe("records push and pending status (real git)", () => {
 
   it("pushes to the local clone's origin for a dedicated repo destination", async () => {
     const cloneDir = mkdtempSync(join(tmpdir(), "phax-records-push-clone-"));
-    await rm(cloneDir, { recursive: true, force: true });
+    removeTempDir(cloneDir);
     execGit(["clone", "--", remoteDir, cloneDir], tmpdir());
+    disableGitAutoMaintenance(cloneDir);
     // A fresh clone inherits no committer identity, and CI runners set none
     // globally; configure it locally like every other repo this suite commits
     // into, so `commit-tree` does not fail with "empty ident name".
@@ -181,7 +184,7 @@ describe("records push and pending status (real git)", () => {
     );
     expect(pending.pending).toEqual([]);
 
-    await rm(cloneDir, { recursive: true, force: true });
+    removeTempDir(cloneDir);
   });
 
   it("does not push and reports nothing pending when records are disabled", async () => {

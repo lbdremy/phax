@@ -1,5 +1,5 @@
 import { mkdtempSync, readFileSync } from "node:fs";
-import { rm, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -8,6 +8,7 @@ import { Effect, Either } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git, type GitError } from "../../src/ports/git.js";
 import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
+import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 const RECORDS_BRANCH = ((): BranchName => {
   const decoded = decodeBranchName("phax/records/v1");
@@ -32,6 +33,7 @@ describe("NodeGitLayer object plumbing", () => {
   beforeEach(async () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-git-object-plumbing-"));
     git(["init"], repoDir);
+    disableGitAutoMaintenance(repoDir);
     git(["config", "--local", "user.email", "test@phax.test"], repoDir);
     git(["config", "--local", "user.name", "phax test"], repoDir);
     await writeFile(join(repoDir, "README.md"), "# test\n");
@@ -40,7 +42,7 @@ describe("NodeGitLayer object plumbing", () => {
   });
 
   afterEach(async () => {
-    await rm(repoDir, { recursive: true, force: true });
+    removeTempDir(repoDir);
   });
 
   it("leaves a dirty working tree and the repo index byte-for-byte unchanged", async () => {

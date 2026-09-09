@@ -1,5 +1,5 @@
 import { mkdtempSync } from "node:fs";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -18,6 +18,7 @@ import {
   type WriteRecordResult,
 } from "../../src/app/writeRecord.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 // Defaults to "private" visibility, matching the fake's happy-path default,
 // so every existing test in this file (none of which exercise the
@@ -61,6 +62,7 @@ describe("writeRecord", () => {
   beforeEach(async () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-write-record-repo-"));
     git(["init"], repoDir);
+    disableGitAutoMaintenance(repoDir);
     git(["config", "--local", "user.email", "test@phax.test"], repoDir);
     git(["config", "--local", "user.name", "phax test"], repoDir);
     await writeFile(join(repoDir, "README.md"), "# test\n");
@@ -74,6 +76,7 @@ describe("writeRecord", () => {
     // writeRecord only ever drives the tree-only plumbing against it.
     recordsCloneDir = mkdtempSync(join(tmpdir(), "phax-write-record-clone-"));
     git(["init"], recordsCloneDir);
+    disableGitAutoMaintenance(recordsCloneDir);
     git(["config", "--local", "user.email", "test@phax.test"], recordsCloneDir);
     git(["config", "--local", "user.name", "phax test"], recordsCloneDir);
 
@@ -82,9 +85,9 @@ describe("writeRecord", () => {
   });
 
   afterEach(async () => {
-    await rm(repoDir, { recursive: true, force: true });
-    await rm(phaseFolder, { recursive: true, force: true });
-    await rm(recordsCloneDir, { recursive: true, force: true });
+    removeTempDir(repoDir);
+    removeTempDir(phaseFolder);
+    removeTempDir(recordsCloneDir);
   });
 
   async function seedPhaseFolder(files: Record<string, string>): Promise<void> {
@@ -240,7 +243,7 @@ describe("writeRecord", () => {
     await seedPhaseFolder({ "prompt.md": "p1\n" });
     await run(writeRecord(baseInput({ phaseId: "phase-01" })));
 
-    await rm(phaseFolder, { recursive: true, force: true });
+    removeTempDir(phaseFolder);
     await mkdir(phaseFolder, { recursive: true });
     await seedPhaseFolder({ "prompt.md": "p2\n" });
     await run(writeRecord(baseInput({ phaseId: "phase-02" })));

@@ -1,9 +1,10 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { execSync, spawnSync, spawnSyncReturns } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
 const mainTs = join(repoRoot, "src/cli/main.ts");
@@ -54,7 +55,7 @@ describe("CLI error messages", () => {
     let tmpDir: string;
 
     afterEach(() => {
-      if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
+      removeTempDir(tmpDir);
     });
 
     it("Draft plan: non-zero exit, message names the file and status, no stack trace", () => {
@@ -78,7 +79,7 @@ describe("CLI error messages", () => {
     let tmpRepoRoot: string;
 
     afterEach(() => {
-      if (tmpRepoRoot) rmSync(tmpRepoRoot, { recursive: true, force: true });
+      removeTempDir(tmpRepoRoot);
     });
 
     it("Approved docs/plans/ plan with no approval record: exit 12, message names the missing record and the approve remedy, no stack trace", () => {
@@ -87,6 +88,7 @@ describe("CLI error messages", () => {
       // repo-relative classification silently fails on macOS's /tmp symlink.
       tmpRepoRoot = realpathSync(mkdtempSync(join(tmpdir(), "phax-cli-errors-stale-")));
       execSync("git init -q", { cwd: tmpRepoRoot });
+      disableGitAutoMaintenance(tmpRepoRoot);
       execSync('git config user.email "test@example.com"', { cwd: tmpRepoRoot });
       execSync('git config user.name "Test"', { cwd: tmpRepoRoot });
 

@@ -1,5 +1,5 @@
 import { mkdtempSync } from "node:fs";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -17,6 +17,7 @@ import {
   type RecordsSyncResult,
 } from "../../src/app/recordsSync.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 const LAYER = Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer);
 
@@ -60,11 +61,12 @@ describe("recordsSync", () => {
     stateRoot = mkdtempSync(join(tmpdir(), "phax-records-sync-state-"));
     remoteDir = mkdtempSync(join(tmpdir(), "phax-records-sync-remote-"));
     git(["init", "--bare"], remoteDir);
+    disableGitAutoMaintenance(remoteDir);
   });
 
   afterEach(async () => {
-    await rm(stateRoot, { recursive: true, force: true });
-    await rm(remoteDir, { recursive: true, force: true });
+    removeTempDir(stateRoot);
+    removeTempDir(remoteDir);
   });
 
   describe("reconcileRecordsSync", () => {
@@ -90,9 +92,11 @@ describe("recordsSync", () => {
     it("refuses a local clone whose origin differs, leaving it untouched", async () => {
       const otherRemote = mkdtempSync(join(tmpdir(), "phax-records-sync-other-remote-"));
       git(["init", "--bare"], otherRemote);
+      disableGitAutoMaintenance(otherRemote);
       const path = recordsClonePath(stateRoot, namespace);
       await mkdir(join(stateRoot, "records"), { recursive: true });
       git(["clone", "--", otherRemote, path], stateRoot);
+      disableGitAutoMaintenance(path);
       const statusBefore = git(["status", "--porcelain"], path);
 
       const config = repoConfig(remoteDir);
@@ -109,13 +113,14 @@ describe("recordsSync", () => {
       expect(git(["remote", "get-url", "origin"], path).trim()).toBe(otherRemote);
       expect(git(["status", "--porcelain"], path)).toBe(statusBefore);
 
-      await rm(otherRemote, { recursive: true, force: true });
+      removeTempDir(otherRemote);
     });
 
     it("refuses a local-only repo holding commits with no origin remote", async () => {
       const path = recordsClonePath(stateRoot, namespace);
       await mkdir(path, { recursive: true });
       git(["init"], path);
+      disableGitAutoMaintenance(path);
       git(["config", "--local", "user.email", "test@phax.test"], path);
       git(["config", "--local", "user.name", "phax test"], path);
       await writeFile(join(path, "README.md"), "# local only\n");

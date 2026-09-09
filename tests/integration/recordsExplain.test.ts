@@ -1,5 +1,4 @@
 import { mkdtempSync } from "node:fs";
-import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -14,6 +13,7 @@ import { explainRecord } from "../../src/app/recordsExplain.js";
 import { listRecords } from "../../src/app/recordsList.js";
 import { encodeRunRecordManifest, type RunRecordManifest } from "../../src/schemas/runRecord.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName("phax/records/v1"));
 const LAYER = Layer.mergeAll(NodeGitLayer, NodeShellLayer);
@@ -94,13 +94,14 @@ describe("records explain and list (real git)", () => {
   beforeEach(() => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-records-explain-repo-"));
     execGit(["init"], repoDir);
+    disableGitAutoMaintenance(repoDir);
     execGit(["config", "--local", "user.email", "test@phax.test"], repoDir);
     execGit(["config", "--local", "user.name", "phax test"], repoDir);
     execGit(["commit", "--allow-empty", "-m", "chore: initial commit"], repoDir);
   });
 
   afterEach(async () => {
-    await rm(repoDir, { recursive: true, force: true });
+    removeTempDir(repoDir);
   });
 
   it("resolves a record through the commit's Run-Id/Phase-Id trailers, surviving a rebase", async () => {
