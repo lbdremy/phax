@@ -274,14 +274,14 @@ This rewrites `phax.schema.json` and `phax.user.schema.json` next to the nearest
 
 ## Write a plan
 
-Author `plan.md` with the [`phax-planning`](.claude/skills/phax-planning/SKILL.md) skill — it is the source of truth for the plan format that `phax run` extracts and `phax plans lint` checks. The skill defines the per-phase template contract (heading + `{#phase-NN-<slug>}` anchor, recommended model/effort, the three planned-file lists, gate-profile verification, commit subject/body) and the planning doctrine (plan outside-in, implement inside-out, verify outside-in). Point your agent at that skill when drafting or reviewing a plan; don't hand-roll the format.
+Create the plan file with `phax artifact new plan <slug> --spec <spec path>` (or without `--spec` when there is no source spec), then fill it in. Author `plan.md` with the [`phax-planning`](.claude/skills/phax-planning/SKILL.md) skill — it is the source of truth for the plan format that `phax run` extracts and `phax plans lint` checks. The skill defines the per-phase template contract (heading + `{#phase-NN-<slug>}` anchor, recommended model/effort, the three planned-file lists, gate-profile verification, commit subject/body) and the planning doctrine (plan outside-in, implement inside-out, verify outside-in). Point your agent at that skill when drafting or reviewing a plan; don't hand-roll the format.
 
 In short: `plan.md` is a Markdown document with one `## phase-NN — <title>  {#phase-NN-<slug>}` section per phase, each carrying an objective, detailed instructions, planned-file lists, a gate-profile verification step, and a commit subject/body. See [`examples/hello-world/plan.md`](examples/hello-world/plan.md) for a worked example and [`.claude/skills/phax-planning/SKILL.md`](.claude/skills/phax-planning/SKILL.md) for the full template contract.
 
 ## Lint the plan
 
 ```bash
-phax plans lint docs/plans/NN-<slug>-plan.md
+phax plans lint docs/plans/2609091412-plan-prune-plan.md
 ```
 
 This is a read-only, model-free check: it reports every structural defect the deterministic
@@ -364,9 +364,9 @@ When you have more than one plan in flight, these commands answer "is this plan 
 ```bash
 phax plans status                                          # report every Approved plan as fresh or stale
 phax plans status --apply                                  # flip stale-computed plans Approved -> Stale
-phax plans overlap docs/plans/33-a.md docs/plans/35-b.md    # predicted: which plans are parallel-safe
-phax plans overlap --landed <run> docs/plans/40-other.md    # confirmed: which plans the run's real diff invalidates
-phax adjust-plan docs/plans/40-other.md --landed <run>      # interactively reconcile a plan against a landed run
+phax plans overlap docs/plans/2609091412-plan-a-plan.md docs/plans/2609091420-plan-b-plan.md    # predicted: which plans are parallel-safe
+phax plans overlap --landed <run> docs/plans/2609091430-plan-c-plan.md    # confirmed: which plans the run's real diff invalidates
+phax adjust-plan docs/plans/2609091430-plan-c-plan.md --landed <run>      # interactively reconcile a plan against a landed run
 ```
 
 `phax plans status` reports every live, Approved plan's staleness against what its approval was recorded against: the declared source spec's content, the plan's own content, and the files changed since the recorded baseline intersected with the plan's footprint. Stale entries name their reasons — `spec-changed`, `ground-changed`, `self-changed` — with evidence; a plan with no approval record, or one whose baseline commit no longer exists, reports `missing-record` and renders as stale. It is a report, not a gate — it exits 0 whether or not stale plans exist. `--apply` flips the stale-computed plans `Approved → Stale` as an explicit gesture; `--json` emits machine-readable output.
