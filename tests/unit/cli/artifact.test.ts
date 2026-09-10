@@ -4,9 +4,11 @@ import {
   runArtifactStatus,
   runArtifactTransition,
   runArtifactArchiveRefusal,
+  runCreateArtifact,
 } from "../../../src/cli/commands/artifact.js";
 import {
   ArtifactCommitFailedError,
+  ArtifactCreationError,
   ArtifactDirtyWriteSetError,
   ArtifactValidationError,
   InvalidArtifactTransitionError,
@@ -17,6 +19,10 @@ import {
 vi.mock("../../../src/app/artifactStatus.js", () => ({
   inspectArtifact: vi.fn(),
   transitionArtifact: vi.fn(),
+}));
+
+vi.mock("../../../src/app/createArtifact.js", () => ({
+  createArtifact: vi.fn(),
 }));
 
 function makeOutput() {
@@ -340,5 +346,79 @@ describe("runArtifactTransition", () => {
     expect(code).not.toBe(0);
     expect(code).not.toBe(12);
     expect(errors.join("\n")).toContain("commit failed");
+  });
+});
+
+describe("runCreateArtifact", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("spec: logs the created path with (Draft), exits 0", async () => {
+    const { createArtifact } = vi.mocked(await import("../../../src/app/createArtifact.js"));
+    createArtifact.mockReturnValue(
+      Effect.succeed({ path: "docs/specs/2609091412-plan-prune.md", sourceSpec: null }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runCreateArtifact("spec", "plan-prune", undefined, out);
+
+    expect(code).toBe(0);
+    expect(lines).toEqual(["created docs/specs/2609091412-plan-prune.md (Draft)"]);
+  });
+
+  it("plan: logs the created path with the bound source-spec, exits 0", async () => {
+    const { createArtifact } = vi.mocked(await import("../../../src/app/createArtifact.js"));
+    createArtifact.mockReturnValue(
+      Effect.succeed({
+        path: "docs/plans/2609101030-plan-prune-plan.md",
+        sourceSpec: "docs/specs/2609091412-plan-prune.md",
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runCreateArtifact(
+      "plan",
+      "plan-prune",
+      "docs/specs/2609091412-plan-prune.md",
+      out,
+    );
+
+    expect(code).toBe(0);
+    expect(lines).toEqual([
+      "created docs/plans/2609101030-plan-prune-plan.md (Draft, source-spec docs/specs/2609091412-plan-prune.md)",
+    ]);
+  });
+
+  it("plan: logs source-spec null when no --spec is given", async () => {
+    const { createArtifact } = vi.mocked(await import("../../../src/app/createArtifact.js"));
+    createArtifact.mockReturnValue(
+      Effect.succeed({ path: "docs/plans/2609101031-catalog-refresh-plan.md", sourceSpec: null }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runCreateArtifact("plan", "catalog-refresh", undefined, out);
+
+    expect(code).toBe(0);
+    expect(lines).toEqual([
+      "created docs/plans/2609101031-catalog-refresh-plan.md (Draft, source-spec null)",
+    ]);
+  });
+
+  it("returns exit code 12 and surfaces the refusal message on a bad slug", async () => {
+    const { createArtifact } = vi.mocked(await import("../../../src/app/createArtifact.js"));
+    createArtifact.mockReturnValue(
+      Effect.fail(
+        new ArtifactCreationError({
+          message: 'slug "Plan_Prune" does not match [a-z0-9]+(-[a-z0-9]+)*',
+        }),
+      ),
+    );
+
+    const { out, errors } = makeOutput();
+    const code = await runCreateArtifact("spec", "Plan_Prune", undefined, out);
+
+    expect(code).toBe(12);
+    expect(errors.join("\n")).toContain("Plan_Prune");
   });
 });
