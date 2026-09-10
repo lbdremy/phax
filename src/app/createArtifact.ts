@@ -2,7 +2,12 @@ import { Effect, Either } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { ArtifactCreationError } from "../domain/errors.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
-import { buildArtifactName, isSlug } from "../domain/artifact/name.js";
+import {
+  artifactNameGrammar,
+  buildArtifactName,
+  isSlug,
+  parseArtifactName,
+} from "../domain/artifact/name.js";
 import { classifyArtifactPath, validateArtifact } from "../domain/artifact/document.js";
 
 export interface CreateArtifactInput {
@@ -91,6 +96,15 @@ export function createArtifact(
     }
 
     const name = buildArtifactName(input.kind, input.nowIso, input.slug);
+    // A grammatical slug can still build an off-grammar name: a spec slug ending
+    // in "-plan" reads as a plan, which every artifact command then refuses.
+    if (parseArtifactName(input.kind, name) === null) {
+      return yield* Effect.fail(
+        new ArtifactCreationError({
+          message: `slug "${input.slug}" would name ${name}, which does not match ${artifactNameGrammar(input.kind)}`,
+        }),
+      );
+    }
     const dir = input.kind === "spec" ? "docs/specs" : "docs/plans";
     const path = `${dir}/${name}`;
 
