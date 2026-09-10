@@ -1,6 +1,15 @@
 {
   "version": 1,
   "records": {
+    "docs/plans/2609100902-artifact-timestamp-naming-plan.md": {
+      "planFingerprint": "f4efcb1cd14a81562b7a870344f1a5a029834be13fd436ea493f9a6a6df02ffd",
+      "approvedAt": "2026-09-10T09:53:39.363Z",
+      "baseline": "b378d90e4b54b85eb1cbe36631ed451be47d6069",
+      "sourceSpec": {
+        "path": "docs/specs/2609091040-artifact-timestamp-naming.md",
+        "fingerprint": "85a34c03dfdb1dc7f5082ba1086f1a2fbf8ed167adbff7dfe1d00d2a63d33669"
+      }
+    },
     "docs/plans/39-smolvm-isolation-spike-plan.md": {
       "planFingerprint": "cd102b226246db5b78cc17a5d6af93da05342ba9894258044f019e3bcd5bf028",
       "approvedAt": "2026-09-08T08:19:41.314Z",
