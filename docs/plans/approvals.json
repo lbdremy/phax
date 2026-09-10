@@ -2,9 +2,9 @@
   "version": 1,
   "records": {
     "docs/plans/2609100902-artifact-timestamp-naming-plan.md": {
-      "planFingerprint": "f4efcb1cd14a81562b7a870344f1a5a029834be13fd436ea493f9a6a6df02ffd",
-      "approvedAt": "2026-09-10T09:53:39.363Z",
-      "baseline": "b378d90e4b54b85eb1cbe36631ed451be47d6069",
+      "planFingerprint": "f41614b42d4b9d21f7fc44fe7c2c6ad91f59717b3024a6e52f4070a34a791917",
+      "approvedAt": "2026-09-10T09:54:58.979Z",
+      "baseline": "174149a0e30e4eaff1d45b29f49b37e90d283369",
       "sourceSpec": {
         "path": "docs/specs/2609091040-artifact-timestamp-naming.md",
         "fingerprint": "85a34c03dfdb1dc7f5082ba1086f1a2fbf8ed167adbff7dfe1d00d2a63d33669"
