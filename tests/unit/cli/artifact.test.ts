@@ -182,7 +182,7 @@ describe("runArtifactTransition", () => {
       Effect.fail(
         new SpecNotApprovedError({
           planPath: "docs/plans/2607101056-typescript-7-migration-plan.md",
-          specPath: "docs/specs/22-foo.md",
+          specPath: "docs/specs/2609101222-foo.md",
           specStatus: "Draft",
         }),
       ),
@@ -204,7 +204,7 @@ describe("runArtifactTransition", () => {
     transitionArtifact.mockReturnValue(
       Effect.fail(
         new SpecRetirementBlockedError({
-          specPath: "docs/specs/22-foo.md",
+          specPath: "docs/specs/2609101222-foo.md",
           dependents: [
             { path: "docs/plans/2607101056-typescript-7-migration-plan.md", status: "Approved" },
           ],
@@ -213,7 +213,7 @@ describe("runArtifactTransition", () => {
     );
 
     const { out, errors } = makeOutput();
-    const code = await runArtifactTransition("docs/specs/22-foo.md", "Completed", out);
+    const code = await runArtifactTransition("docs/specs/2609101222-foo.md", "Completed", out);
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("abandon or complete them first");
@@ -250,7 +250,7 @@ describe("runArtifactTransition", () => {
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
         commit: {
           hash: "3f2a1c9abcdef1234567890abcdef1234567890",
-          subject: "chore(plans): approve 45-typescript-7-migration-plan",
+          subject: "chore(plans): approve typescript-7-migration",
         },
       }),
     );
@@ -264,9 +264,7 @@ describe("runArtifactTransition", () => {
 
     expect(code).toBe(0);
     expect(
-      lines.some(
-        (l) => l === "Commit: 3f2a1c9 — chore(plans): approve 45-typescript-7-migration-plan",
-      ),
+      lines.some((l) => l === "Commit: 3f2a1c9 — chore(plans): approve typescript-7-migration"),
     ).toBe(true);
   });
 

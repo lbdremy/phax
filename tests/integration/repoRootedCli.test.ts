@@ -19,7 +19,7 @@ import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 // pass through untouched. Running from a nested subdirectory with the identity
 // layer is the exact condition that produced the spurious `missing-record`.
 
-const PLAN_REL = "docs/plans/40-x.md";
+const PLAN_REL = "docs/plans/2609101240-x-plan.md";
 // Deliberately malformed front-matter: validateArtifact rejects it, so
 // plansStalenessReport records an error entry without reaching the Backend/Git
 // extraction path — keeping this test provider-free while still exercising the

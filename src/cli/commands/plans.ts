@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { relative, resolve, sep } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import type { Command } from "commander";
 import type { OutputPort } from "../../ports/output.js";
@@ -112,10 +112,13 @@ export async function runPlansLint(
   // at repoRoot, so a bare relative arg would otherwise be reinterpreted as
   // repo-relative (same reasoning as `plans overlap`).
   const planMdPath = resolve(process.cwd(), plan);
+  // classifyArtifactPath matches on repo-relative POSIX paths; a plan outside
+  // the repo yields `../…`, which never classifies as an artifact.
+  const repoRelPath = relative(config.repoRoot, planMdPath).split(sep).join("/");
 
   // Filesystem and shell only, no Backend, so the lint cannot reach a model.
   const reportResult = await Effect.runPromise(
-    lintPlan({ planMdPath, reportPath: plan, config }).pipe(
+    lintPlan({ planMdPath, reportPath: plan, repoRelPath, config }).pipe(
       Effect.either,
       Effect.provide(Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NodeShellLayer)),
     ),

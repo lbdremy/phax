@@ -13,17 +13,19 @@ function trackedFiles(): string[] {
     .filter((f) => f.length > 0);
 }
 
-// Widened to cover tests/** in phase-03, once every fixture has moved to the
-// new grammar; phase-02 only guards the repo's real specs and plans.
 const PRE_MIGRATION_PATH = /docs\/(specs|plans)\/(archive\/)?[0-9]{2}[a-z]?-/;
+
+// Test fixtures that name an old-grammar path on purpose, to assert the
+// refusal. They are stripped from a test file's text before the scan so the
+// rest of that file stays guarded.
+const DELIBERATE_REFUSAL_FIXTURES: readonly string[] = ["docs/specs/34-foo.md"];
 
 // The regex above also matches text that was never a real artifact path: the
 // timestamp-naming spec/plan quote the old grammar verbatim in their own
 // before/after illustration (rewriting them would corrupt the very history
 // they document, and would invalidate their recorded approval fingerprint);
-// several already-archived plans/specs use small numbers in *hypothetical*
-// CLI examples (`docs/plans/32-billing-plan.md`, `docs/specs/15-*.md`, …)
-// that were never backed by a file; and `phax artifact new`'s remaining
+// several already-archived plans/specs use small counters in *hypothetical*
+// CLI examples that were never backed by a file; and `phax artifact new`'s remaining
 // fictitious example paths in cliDocs.ts, its generated contract files, and
 // README.md are phase-04/05 scope. Each entry here was individually checked
 // against the phase-02 migration mapping to confirm it names no real old
@@ -51,12 +53,14 @@ const KNOWN_NON_MIGRATION_MATCHES: ReadonlySet<string> = new Set([
 ]);
 
 describe("artifact name migration guard", () => {
-  it("no tracked file outside tests/** names a pre-migration artifact path", () => {
+  it("no tracked file, tests included, names a pre-migration artifact path", () => {
     const offenders: string[] = [];
     for (const relPath of trackedFiles()) {
-      if (relPath.startsWith("tests/")) continue;
       if (KNOWN_NON_MIGRATION_MATCHES.has(relPath)) continue;
-      const text = readFileTextSafe(join(repoRoot, relPath));
+      let text = readFileTextSafe(join(repoRoot, relPath));
+      if (text !== null && relPath.startsWith("tests/")) {
+        for (const fixture of DELIBERATE_REFUSAL_FIXTURES) text = text.replaceAll(fixture, "");
+      }
       if (text !== null && PRE_MIGRATION_PATH.test(text)) {
         offenders.push(relPath);
       }

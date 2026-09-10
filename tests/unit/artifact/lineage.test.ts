@@ -29,9 +29,9 @@ function planFm(opts: { status?: string; sourceSpec?: string; approved?: string;
 
 describe("readSourceSpec", () => {
   it("reads a path-form declaration", () => {
-    expect(readSourceSpec(planFm({ sourceSpec: "docs/specs/22-foo.md" }))).toEqual({
+    expect(readSourceSpec(planFm({ sourceSpec: "docs/specs/2609101222-foo.md" }))).toEqual({
       kind: "spec",
-      path: "docs/specs/22-foo.md",
+      path: "docs/specs/2609101222-foo.md",
     });
   });
 
@@ -49,28 +49,28 @@ describe("readSourceSpec", () => {
 });
 
 describe("fingerprintSource (approval-fingerprint neutrality)", () => {
-  const BASE = planFm({ sourceSpec: "docs/specs/22-foo.md" });
+  const BASE = planFm({ sourceSpec: "docs/specs/2609101222-foo.md" });
 
   it("is unchanged when only the status key changes", () => {
-    const changed = planFm({ status: "Approved", sourceSpec: "docs/specs/22-foo.md" });
+    const changed = planFm({ status: "Approved", sourceSpec: "docs/specs/2609101222-foo.md" });
     expect(fingerprintSource(changed)).toBe(fingerprintSource(BASE));
   });
 
   it("is unchanged when an approved mapping is added", () => {
     const stamped = planFm({
-      sourceSpec: "docs/specs/22-foo.md",
+      sourceSpec: "docs/specs/2609101222-foo.md",
       approved: "approved:\n  date: 2026-08-10\n  baseline: abc1234",
     });
     expect(fingerprintSource(stamped)).toBe(fingerprintSource(BASE));
   });
 
   it("changes when the source-spec value changes", () => {
-    const changed = planFm({ sourceSpec: "docs/specs/23-bar.md" });
+    const changed = planFm({ sourceSpec: "docs/specs/2609101223-bar.md" });
     expect(fingerprintSource(changed)).not.toBe(fingerprintSource(BASE));
   });
 
   it("changes when body text changes", () => {
-    const changed = planFm({ sourceSpec: "docs/specs/22-foo.md", body: "Other text." });
+    const changed = planFm({ sourceSpec: "docs/specs/2609101222-foo.md", body: "Other text." });
     expect(fingerprintSource(changed)).not.toBe(fingerprintSource(BASE));
   });
 });
@@ -132,7 +132,7 @@ describe("stampApproved", () => {
 
 describe("clearApproved", () => {
   it("removes an approved mapping added by stampApproved, restoring the frontmatter", () => {
-    const md = planFm({ sourceSpec: "docs/specs/22-foo.md" });
+    const md = planFm({ sourceSpec: "docs/specs/2609101222-foo.md" });
     const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
     expect(Either.isRight(stamped)).toBe(true);
     if (!Either.isRight(stamped)) return;
@@ -150,7 +150,7 @@ describe("clearApproved", () => {
   });
 
   it("is fingerprint-neutral: clearing never changes the approval fingerprint", () => {
-    const md = planFm({ sourceSpec: "docs/specs/22-foo.md" });
+    const md = planFm({ sourceSpec: "docs/specs/2609101222-foo.md" });
     const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
     expect(Either.isRight(stamped)).toBe(true);
     if (!Either.isRight(stamped)) return;
@@ -232,7 +232,7 @@ function record(overrides: Partial<ApprovalRecordLike> = {}): ApprovalRecordLike
     planFingerprint: "plan-fp",
     approvedAt: "2026-08-10T00:00:00.000Z",
     baseline: "a".repeat(40),
-    sourceSpec: { path: "docs/specs/22-foo.md", fingerprint: "spec-fp" },
+    sourceSpec: { path: "docs/specs/2609101222-foo.md", fingerprint: "spec-fp" },
     ...overrides,
   };
 }
@@ -274,7 +274,7 @@ describe("computeStaleness", () => {
     });
     expect(verdict).toEqual({
       kind: "stale",
-      evidence: [{ reason: "spec-changed", specPath: "docs/specs/22-foo.md" }],
+      evidence: [{ reason: "spec-changed", specPath: "docs/specs/2609101222-foo.md" }],
     });
   });
 
@@ -317,7 +317,7 @@ describe("computeStaleness", () => {
     expect(verdict).toEqual({
       kind: "stale",
       evidence: [
-        { reason: "spec-changed", specPath: "docs/specs/22-foo.md" },
+        { reason: "spec-changed", specPath: "docs/specs/2609101222-foo.md" },
         { reason: "ground-changed", baseline: "a".repeat(40), files: ["src/a.ts"] },
         { reason: "self-changed" },
       ],
@@ -380,11 +380,11 @@ describe("approval record sidecar schema", () => {
   const sample = {
     version: 1 as const,
     records: {
-      "docs/plans/22-foo-plan.md": {
+      "docs/plans/2609101222-foo-plan.md": {
         planFingerprint: "plan-fp",
         approvedAt: "2026-08-10T00:00:00.000Z",
         baseline: "a".repeat(40),
-        sourceSpec: { path: "docs/specs/22-foo.md", fingerprint: "spec-fp" },
+        sourceSpec: { path: "docs/specs/2609101222-foo.md", fingerprint: "spec-fp" },
       },
     },
   };
@@ -401,8 +401,8 @@ describe("approval record sidecar schema", () => {
     const withNull = {
       ...sample,
       records: {
-        "docs/plans/22-foo-plan.md": {
-          ...sample.records["docs/plans/22-foo-plan.md"],
+        "docs/plans/2609101222-foo-plan.md": {
+          ...sample.records["docs/plans/2609101222-foo-plan.md"],
           sourceSpec: null,
         },
       },
@@ -413,7 +413,7 @@ describe("approval record sidecar schema", () => {
   it("rejects a missing required field", () => {
     const bad = {
       version: 1,
-      records: { "docs/plans/22-foo-plan.md": { approvedAt: "2026-08-10T00:00:00.000Z" } },
+      records: { "docs/plans/2609101222-foo-plan.md": { approvedAt: "2026-08-10T00:00:00.000Z" } },
     };
     expect(Either.isLeft(decodeApprovalRecordFile(bad))).toBe(true);
   });
@@ -422,8 +422,8 @@ describe("approval record sidecar schema", () => {
     const bad = {
       ...sample,
       records: {
-        "docs/plans/22-foo-plan.md": {
-          ...sample.records["docs/plans/22-foo-plan.md"],
+        "docs/plans/2609101222-foo-plan.md": {
+          ...sample.records["docs/plans/2609101222-foo-plan.md"],
           baseline: "not-hex",
         },
       },

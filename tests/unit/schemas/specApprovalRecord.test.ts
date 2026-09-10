@@ -10,7 +10,7 @@ const VALID_BASELINE = "a".repeat(40);
 const sample = {
   version: 1 as const,
   records: {
-    "docs/specs/31-spec-approval-ground.md": {
+    "docs/specs/2609101231-spec-approval-ground.md": {
       specFingerprint: "spec-fp",
       approvedAt: "2026-09-03T12:00:00.000Z",
       baseline: VALID_BASELINE,
@@ -31,8 +31,8 @@ describe("SpecApprovalRecordFileSchema", () => {
     const bad = {
       ...sample,
       records: {
-        "docs/specs/31-spec-approval-ground.md": {
-          ...sample.records["docs/specs/31-spec-approval-ground.md"],
+        "docs/specs/2609101231-spec-approval-ground.md": {
+          ...sample.records["docs/specs/2609101231-spec-approval-ground.md"],
           baseline: "not-hex",
         },
       },
@@ -44,8 +44,8 @@ describe("SpecApprovalRecordFileSchema", () => {
     const bad = {
       ...sample,
       records: {
-        "docs/specs/31-spec-approval-ground.md": {
-          ...sample.records["docs/specs/31-spec-approval-ground.md"],
+        "docs/specs/2609101231-spec-approval-ground.md": {
+          ...sample.records["docs/specs/2609101231-spec-approval-ground.md"],
           baseline: "abc1234",
         },
       },
@@ -57,8 +57,8 @@ describe("SpecApprovalRecordFileSchema", () => {
     const bad = {
       ...sample,
       records: {
-        "docs/specs/31-spec-approval-ground.md": {
-          ...sample.records["docs/specs/31-spec-approval-ground.md"],
+        "docs/specs/2609101231-spec-approval-ground.md": {
+          ...sample.records["docs/specs/2609101231-spec-approval-ground.md"],
           extra: "forbidden",
         },
       },
@@ -70,7 +70,7 @@ describe("SpecApprovalRecordFileSchema", () => {
     const bad = {
       version: 1,
       records: {
-        "docs/specs/31-spec-approval-ground.md": {
+        "docs/specs/2609101231-spec-approval-ground.md": {
           approvedAt: "2026-09-03T12:00:00.000Z",
           baseline: VALID_BASELINE,
         },
@@ -83,12 +83,12 @@ describe("SpecApprovalRecordFileSchema", () => {
     const multi = {
       version: 1 as const,
       records: {
-        "docs/specs/31-spec-approval-ground.md": {
+        "docs/specs/2609101231-spec-approval-ground.md": {
           specFingerprint: "fp-1",
           approvedAt: "2026-09-03T12:00:00.000Z",
           baseline: VALID_BASELINE,
         },
-        "docs/specs/32-other.md": {
+        "docs/specs/2609101232-other.md": {
           specFingerprint: "fp-2",
           approvedAt: "2026-09-03T13:00:00.000Z",
           baseline: "b".repeat(40),
