@@ -68,8 +68,16 @@ been edited since.
 
 ## File and naming convention
 
-- One feature = one spec file: `docs/specs/NN-<slug>.md` (`NN` zero-padded, `<slug>`
-  lowercase-and-hyphens). The plan it produces mirrors the name: `docs/plans/NN-<slug>-plan.md`.
+- One feature = one spec file: `docs/specs/<YYMMDDHHMM>-<slug>.md` — a ten-digit stamp
+  (the creation minute in UTC, two zero-padded digits per field) and a slug
+  (`[a-z0-9]+(-[a-z0-9]+)*`). The plan it produces mirrors the **slug**, never the
+  stamp: `docs/plans/<YYMMDDHHMM>-<slug>-plan.md`, stamped at its own creation.
+- Never compute the stamp yourself. Create the file with
+  `phax artifact new spec <slug>` — it names the file from the clock and writes the
+  frontmatter block below; you fill in the body. Every artifact command refuses a
+  file whose name is off-grammar.
+- Refer to a spec by its slug in prose, commits and pull requests ("the `plan-prune`
+  spec"), never by its stamp. The stamp only orders the directory.
 - Keep a spec to **1–3 pages**. If it grows past that, the feature is too big — split it into
   separate specs. A bounded spec is what makes the `Draft → Approved` gate meaningful.
 

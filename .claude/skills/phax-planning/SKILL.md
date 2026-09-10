@@ -70,12 +70,19 @@ field; the top-level heading is the sole source of the run's identity.
 
 ## Plan frontmatter block
 
+Create a repo-tracked plan with `phax artifact new plan <slug> --spec <spec path>`
+(omit `--spec` when there is no source spec): it names the file
+`docs/plans/<YYMMDDHHMM>-<slug>-plan.md` from the clock — the slug must equal the
+source spec's slug, which `phax plans lint` checks — and writes the frontmatter
+block; you fill in the body. Never compute the stamp yourself, and refer to a plan
+by its slug in prose, commits and pull requests, never by its stamp.
+
 Every plan carries a YAML frontmatter block at offset 0, before the `# ` title:
 
 ```markdown
 ---
 status: Approved
-source-spec: docs/specs/NN-<slug>.md
+source-spec: docs/specs/<YYMMDDHHMM>-<slug>.md
 ---
 ```
 
@@ -83,11 +90,11 @@ source-spec: docs/specs/NN-<slug>.md
   `Stale`, `Abandoned`, `Completed`. phax **enforces the run gate: only an
   `Approved` plan can run** — `phax run` refuses any other status (naming the
   remedy) before extraction. Approve a repo-tracked plan with
-  `phax artifact approve docs/plans/NN-<slug>-plan.md`; for a loose `plan.md`, set
+  `phax artifact approve docs/plans/<YYMMDDHHMM>-<slug>-plan.md`; for a loose `plan.md`, set
   the key by hand. Extraction is never gated, so a `Draft` still extracts for
   preview.
 - **`source-spec`** — the spec this plan implements
-  (`docs/specs/NN-<slug>.md`), or `null` when there is no source spec. It is the
+  (`docs/specs/<YYMMDDHHMM>-<slug>.md`), or `null` when there is no source spec. It is the
   lineage anchor for staleness tracking.
 - **`approved`** — optional; a mapping with `date` and `baseline` written by
   `phax artifact approve` when it stamps the approval. Absent on a plan that has
