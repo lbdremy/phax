@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-09-09
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-09-10
+  baseline: c48a8c1
 ---
 
 # Timestamp Naming for Specs and Plans

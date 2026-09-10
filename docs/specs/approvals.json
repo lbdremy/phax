@@ -10,6 +10,11 @@
       "specFingerprint": "b19da59fbf82a781a6e034aef4fbe27507a63137cbc7c165d8ad8031cfd99c81",
       "approvedAt": "2026-09-04T09:28:11.427Z",
       "baseline": "67e20c372589e947257a71f941e43e4367a5abe4"
+    },
+    "docs/specs/2609091040-artifact-timestamp-naming.md": {
+      "specFingerprint": "85a34c03dfdb1dc7f5082ba1086f1a2fbf8ed167adbff7dfe1d00d2a63d33669",
+      "approvedAt": "2026-09-10T08:20:45.222Z",
+      "baseline": "c48a8c1fce78bafac4feeec193b0f73238338a63"
     }
   }
 }
