@@ -5,7 +5,7 @@ Decision document for the [entire.io](https://entire.io/) checkpoint spike
 probes under `spikes/entire/` and lays out the adopt-vs-pattern options. The phase
 agent left `## Verdict` empty for the human, per the spike's execution-model
 caveat; **the developer filled it 2026-08-17 — the decision is build, not adopt.**
-Follow-on work is specced as `docs/specs/29-phax-run-records.md`.
+Follow-on work is specced as `docs/specs/2608201245-phax-run-records.md`.
 
 **Status: evidence complete except the merge.** Updated 2026-08-15, after the
 observed run (`entire-checkpoint-spike-1786807559589`, 5 phases, `claude-fable-5`,
@@ -260,7 +260,7 @@ ever becomes wanted, entire is a complement to add then — not a foundation to 
 started from.
 
 **Settled alongside the verdict, 2026-08-17** — both carried into
-`docs/specs/29-phax-run-records.md` as written up, not as open questions:
+`docs/specs/2608201245-phax-run-records.md` as written up, not as open questions:
 
 - **Where do records live? The destination follows the source repo's visibility**
   (revised 2026-08-18; the first answer made a separate records repo unconditional).

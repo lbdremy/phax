@@ -47,7 +47,7 @@ export function frontmatterProblemMessage(
 ): string {
   switch (problem.kind) {
     case "missing-block":
-      return `${repoRelPath} has no frontmatter block — lifecycle metadata must be YAML frontmatter (see docs/specs/26-artifact-frontmatter-metadata.md)`;
+      return `${repoRelPath} has no frontmatter block — lifecycle metadata must be YAML frontmatter (see docs/specs/2608110950-artifact-frontmatter-metadata.md)`;
     case "yaml-syntax":
       return `${repoRelPath} has invalid YAML frontmatter: ${problem.detail}`;
     case "schema":
