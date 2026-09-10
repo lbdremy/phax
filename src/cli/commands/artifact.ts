@@ -8,7 +8,8 @@ import { makeNodeGitLayer } from "../../infra/git.js";
 import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
 import { inspectArtifact, transitionArtifact } from "../../app/artifactStatus.js";
-import type { ArtifactStatus } from "../../domain/artifact/status.js";
+import { createArtifact } from "../../app/createArtifact.js";
+import type { ArtifactKind, ArtifactStatus } from "../../domain/artifact/status.js";
 import { exitCodeForError } from "./runLayers.js";
 
 function findGitRoot(startDir: string): string {
@@ -94,6 +95,34 @@ export async function runArtifactTransition(
   return 0;
 }
 
+export async function runCreateArtifact(
+  kind: ArtifactKind,
+  slug: string,
+  sourceSpecArg: string | undefined,
+  out: OutputPort,
+): Promise<number> {
+  const repoRoot = findGitRoot(process.cwd());
+  const sourceSpec =
+    sourceSpecArg === undefined ? null : toRepoRelativePath(sourceSpecArg, repoRoot);
+  const input = { kind, slug, sourceSpec, nowIso: new Date().toISOString(), repoRoot };
+  const effect = createArtifact(input).pipe(
+    Effect.provide(makeRootedNodeFileSystemLayer(repoRoot)),
+  );
+  const result = await Effect.runPromise(Effect.either(effect));
+  if (Either.isLeft(result)) {
+    out.error(result.left.message);
+    return exitCodeForError(result.left);
+  }
+
+  const { path, sourceSpec: boundSpec } = result.right;
+  if (kind === "spec") {
+    out.log(`created ${path} (Draft)`);
+  } else {
+    out.log(`created ${path} (Draft, source-spec ${boundSpec ?? "null"})`);
+  }
+  return 0;
+}
+
 interface TransitionSpec {
   readonly name: string;
   readonly description: string;
@@ -151,6 +180,31 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
         process.exit(exitCode);
       });
   }
+
+  // `new` is a parent command; `spec` and `plan` are real nested subcommands
+  // (never a single space-separated command name — see the warning above).
+  const newCmd = artifactCmd
+    .command("new")
+    .description("Create a Draft spec or plan named from the current UTC minute");
+
+  newCmd
+    .command("spec")
+    .description("Create a Draft spec at docs/specs/<YYMMDDHHMM>-<slug>.md")
+    .argument("<slug>", "Slug matching `[a-z0-9]+(-[a-z0-9]+)*`")
+    .action(async (slug: string) => {
+      const exitCode = await runCreateArtifact("spec", slug, undefined, out);
+      process.exit(exitCode);
+    });
+
+  newCmd
+    .command("plan")
+    .description("Create a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md")
+    .argument("<slug>", "Slug matching `[a-z0-9]+(-[a-z0-9]+)*`")
+    .option("--spec <path>", "Path to the source spec to bind as source-spec")
+    .action(async (slug: string, cmdOpts: { spec?: string }) => {
+      const exitCode = await runCreateArtifact("plan", slug, cmdOpts.spec, out);
+      process.exit(exitCode);
+    });
 
   // Retired verb: kept as a hidden subcommand so the invocation fails with a
   // useful message naming its replacement, instead of Commander's generic

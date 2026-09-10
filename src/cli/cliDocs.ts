@@ -127,7 +127,7 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     examples: [
       "phax plans lint docs/plans/2609101200-foo-plan.md",
       "phax plans status",
-      "phax plans overlap docs/plans/33-a.md docs/plans/35-b.md",
+      "phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md",
     ],
   },
 
@@ -150,8 +150,8 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     longHelp:
       "Reports which of two or more plans can run in parallel without a merge conflict — predicted from each plan's declared file-sets, or confirmed against a landed run's actual diff.\n\n(Predicted) Without --landed: reads each plan.md's structured form through the content-addressed extraction cache (a cold cache miss extracts once via LLM and caches the result; use --no-extract to fail on a miss instead). Unions each plan's declared phase file-sets into a per-plan footprint, intersects footprints pairwise, and reports the severity-graded conflict matrix, clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule.\n\n(Confirmed) With --landed <run>: takes a run that has already produced changes and reports which of the given plans need re-adjustment because they touch a file the run actually changed. The landed run's footprint is read from its persisted global-file-reconciliation.json (the real git diff across its phases), giving actual-vs-declared impact with no false negatives.\n\nCaveats: the predicted mode reflects declared file intentions, not what agents will actually touch. Conflicts are file-level, not hunk-level — two plans editing different regions of the same file are flagged even if git would auto-merge them. Regenerated artifacts (phax.usage.kdl, docs/cli/reference.md) are a hard-conflict class.\n\nSide effects: read-only with respect to your plans; may run one LLM extraction per uncached plan.md.",
     examples: [
-      "phax plans overlap docs/plans/33-a.md docs/plans/35-b.md",
-      "phax plans overlap --landed my-feature docs/plans/40-other.md",
+      "phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md",
+      "phax plans overlap --landed my-feature docs/plans/2609101033-other-plan.md",
     ],
   },
 
@@ -182,7 +182,7 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
   "artifact stale": {
     longHelp:
       "Manually marks a plan Stale. Legal from Approved only — Stale has no automatic trigger (that belongs to a future lineage spec). Rewrites the frontmatter status key in place.\n\nSide effects: writes the plan file and commits the write-set in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.",
-    examples: ["phax artifact stale docs/plans/32-billing-plan.md"],
+    examples: ["phax artifact stale docs/plans/2607101056-typescript-7-migration-plan.md"],
   },
 
   "artifact abandon": {
@@ -200,6 +200,27 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
   "artifact reopen": {
     longHelp:
       "Reopens a Stale plan back to Draft, for when re-planning is needed before re-approval. Legal from Stale only. Rewrites the frontmatter status key in place.\n\nSide effects: writes the plan file and commits the write-set in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.",
-    examples: ["phax artifact reopen docs/plans/32-billing-plan.md"],
+    examples: ["phax artifact reopen docs/plans/2607101056-typescript-7-migration-plan.md"],
+  },
+
+  "artifact new": {
+    longHelp:
+      "Parent command for creating a Draft spec or plan named from the current UTC minute: <YYMMDDHHMM>-<slug>.md for a spec, <YYMMDDHHMM>-<slug>-plan.md for a plan. The instant is captured when the command runs, never chosen or backdated. A bad slug, an existing target name, or (for a plan) a --spec that is missing or not a spec all refuse with exit code 12 before anything is written.",
+    examples: ["phax artifact new spec plan-prune"],
+  },
+
+  "artifact new spec": {
+    longHelp:
+      "Creates a Draft spec at docs/specs/<YYMMDDHHMM>-<slug>.md, with a frontmatter-only skeleton (status, date, audience, scope). The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.\n\nSide effects: writes the new spec file. Does not commit — transition commands (phax artifact approve) commit, creation does not.",
+    examples: ["phax artifact new spec plan-prune"],
+  },
+
+  "artifact new plan": {
+    longHelp:
+      "Creates a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md, with a frontmatter-only skeleton (status, source-spec). Pass --spec <path> to bind an existing spec as the plan's source-spec; the path must classify as a spec (live or archived), exist, and pass artifact validation. Without --spec, source-spec is written as null. The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.\n\nSide effects: writes the new plan file. Does not commit — transition commands (phax artifact approve) commit, creation does not.",
+    examples: [
+      "phax artifact new plan plan-prune --spec docs/specs/2609091412-plan-prune.md",
+      "phax artifact new plan catalog-refresh",
+    ],
   },
 };
