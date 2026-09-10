@@ -119,6 +119,27 @@ describe("createArtifact", () => {
     expect(impl.files.size).toBe(0);
   });
 
+  it("refuses a spec slug ending in -plan, whose name would read as a plan, without writing", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+
+    const result = await run(
+      createArtifact({
+        kind: "spec",
+        slug: "foo-plan",
+        sourceSpec: null,
+        nowIso: "2026-09-09T14:12:40.000Z",
+        repoRoot: "/fake-repo",
+      }).pipe(Effect.provide(layer)),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(ArtifactCreationError);
+      expect(result.left.message).toContain("2609091412-foo-plan.md");
+    }
+    expect(impl.files.size).toBe(0);
+  });
+
   it("refuses when the target already exists, without writing", async () => {
     const { impl, layer } = makeFakeFileSystem();
     impl.setFile("docs/specs/2609091412-plan-prune.md", APPROVED_SPEC);
