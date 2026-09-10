@@ -158,15 +158,15 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
   artifact: {
     longHelp:
       "Parent command for inspecting and transitioning the lifecycle status of a spec (docs/specs/) or plan (docs/plans/). Specs carry Draft, Approved, Abandoned, or Completed; plans additionally carry Stale. Transitioning to a terminal status (Abandoned, Completed) moves the file into the artifact's archive/ subdirectory as part of the transition. Illegal transitions and validation failures (missing frontmatter block, unknown status, status/location disagreement) refuse with exit code 12.",
-    examples: ["phax artifact status docs/plans/45-typescript-7-migration-plan.md"],
+    examples: ["phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md"],
   },
 
   "artifact status": {
     longHelp:
       "Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status. For Approved specs, also reports the approval date and baseline, and whether the spec has been edited since that approval (recorded) or has no approval record (unrecorded). Read-only — no side effects.",
     examples: [
-      "phax artifact status docs/plans/45-typescript-7-migration-plan.md",
-      "phax artifact status docs/specs/31-spec-approval-ground.md",
+      "phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md",
+      "phax artifact status docs/specs/2609030749-spec-approval-ground.md",
     ],
   },
 
@@ -174,8 +174,8 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     longHelp:
       "Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved artifact re-records the approval, refreshing its timestamp and baseline — this is the correct way to record an in-place revision of a spec, not editing the date by hand. Rewrites the frontmatter status key in place.\n\nFor specs: stamps `approved: { date, baseline }` in the frontmatter and writes a record to docs/specs/approvals.json.\nFor plans: stamps `approved: { date, baseline }` in the frontmatter and writes a record to docs/plans/approvals.json. Plan approval refuses with exit 12 if the declared Source-Spec is Approved but its approval is unrecorded or edited since approval — re-approve the spec first.\n\nSide effects: writes the artifact file and commits the transition's write-set (the artifact file plus the approval record sidecar) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
     examples: [
-      "phax artifact approve docs/plans/45-typescript-7-migration-plan.md",
-      "phax artifact approve docs/specs/31-spec-approval-ground.md",
+      "phax artifact approve docs/plans/2607101056-typescript-7-migration-plan.md",
+      "phax artifact approve docs/specs/2609030749-spec-approval-ground.md",
     ],
   },
 
@@ -188,13 +188,13 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
   "artifact abandon": {
     longHelp:
       "Abandons an artifact — a terminal status distinct from Completed, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Abandoned and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
-    examples: ["phax artifact abandon docs/plans/45-typescript-7-migration-plan.md"],
+    examples: ["phax artifact abandon docs/plans/2607101056-typescript-7-migration-plan.md"],
   },
 
   "artifact complete": {
     longHelp:
       "Completes an artifact — a terminal status for work that ran to completion. Legal from Approved (specs) or Approved or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Completed and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
-    examples: ["phax artifact complete docs/specs/21-artifact-lifecycle-status.md"],
+    examples: ["phax artifact complete docs/specs/2608091526-artifact-lifecycle-status.md"],
   },
 
   "artifact reopen": {

@@ -810,7 +810,7 @@ Parent command for inspecting and transitioning the lifecycle status of a spec (
 ### Examples
 
 ```
-phax artifact status docs/plans/45-typescript-7-migration-plan.md
+phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md
 ```
 
 ## `phax artifact status`
@@ -828,11 +828,11 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 ### Examples
 
 ```
-phax artifact status docs/plans/45-typescript-7-migration-plan.md
+phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md
 ```
 
 ```
-phax artifact status docs/specs/31-spec-approval-ground.md
+phax artifact status docs/specs/2609030749-spec-approval-ground.md
 ```
 
 ## `phax artifact approve`
@@ -855,11 +855,11 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 ### Examples
 
 ```
-phax artifact approve docs/plans/45-typescript-7-migration-plan.md
+phax artifact approve docs/plans/2607101056-typescript-7-migration-plan.md
 ```
 
 ```
-phax artifact approve docs/specs/31-spec-approval-ground.md
+phax artifact approve docs/specs/2609030749-spec-approval-ground.md
 ```
 
 ## `phax artifact stale`
@@ -899,7 +899,7 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 ### Examples
 
 ```
-phax artifact abandon docs/plans/45-typescript-7-migration-plan.md
+phax artifact abandon docs/plans/2607101056-typescript-7-migration-plan.md
 ```
 
 ## `phax artifact complete`
@@ -919,7 +919,7 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 ### Examples
 
 ```
-phax artifact complete docs/specs/21-artifact-lifecycle-status.md
+phax artifact complete docs/specs/2608091526-artifact-lifecycle-status.md
 ```
 
 ## `phax artifact reopen`

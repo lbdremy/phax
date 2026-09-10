@@ -97,10 +97,10 @@ does not rot; the plans written against them do.
 
 ### Specs 23 and 24 — parked 2026-08-14
 
-- [ ] `docs/specs/23-phase-decision-requests.md` — blocking agent-raised decision
+- [ ] `docs/specs/2608091526-phase-decision-requests.md` — blocking agent-raised decision
       requests; answer-and-resume; decisions in the review handoff. The smaller of the
       two, and it reuses the pause/resume machinery hardened by plan 48.
-- [ ] `docs/specs/24-batch-execution-disjoint-plans.md` — parallel disjoint plans,
+- [ ] `docs/specs/2608091526-batch-execution-disjoint-plans.md` — parallel disjoint plans,
       incremental ordered merge, terminal gate on the integration result, published as
       GitHub stacked PRs (`gh stack`, public preview 2026-07-30) with a
       single-integration-PR fallback. The largest piece of work left; consumes 21 + 22.

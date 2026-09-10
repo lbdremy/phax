@@ -47,7 +47,10 @@ describe("runArtifactStatus", () => {
     );
 
     const { out, lines } = makeOutput();
-    const code = await runArtifactStatus("docs/plans/45-typescript-7-migration-plan.md", out);
+    const code = await runArtifactStatus(
+      "docs/plans/2607101056-typescript-7-migration-plan.md",
+      out,
+    );
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -89,13 +92,13 @@ describe("runArtifactTransition", () => {
     transitionArtifact.mockReturnValue(
       Effect.succeed({
         status: "Approved",
-        path: "docs/plans/45-typescript-7-migration-plan.md",
+        path: "docs/plans/2607101056-typescript-7-migration-plan.md",
       }),
     );
 
     const { out, lines } = makeOutput();
     const code = await runArtifactTransition(
-      "docs/plans/45-typescript-7-migration-plan.md",
+      "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
       out,
     );
@@ -110,13 +113,13 @@ describe("runArtifactTransition", () => {
     transitionArtifact.mockReturnValue(
       Effect.succeed({
         status: "Completed",
-        path: "docs/specs/archive/21-artifact-lifecycle-status.md",
+        path: "docs/specs/archive/2608091526-artifact-lifecycle-status.md",
       }),
     );
 
     const { out, lines } = makeOutput();
     const code = await runArtifactTransition(
-      "docs/specs/21-artifact-lifecycle-status.md",
+      "docs/specs/2608091526-artifact-lifecycle-status.md",
       "Completed",
       out,
     );
@@ -124,7 +127,7 @@ describe("runArtifactTransition", () => {
     expect(code).toBe(0);
     const text = lines.join("\n");
     expect(text).toContain("Completed");
-    expect(text).toContain("docs/specs/archive/21-artifact-lifecycle-status.md");
+    expect(text).toContain("docs/specs/archive/2608091526-artifact-lifecycle-status.md");
   });
 
   it("returns exit code 12 and names the legal targets on an illegal transition", async () => {
@@ -142,7 +145,7 @@ describe("runArtifactTransition", () => {
 
     const { out, errors } = makeOutput();
     const code = await runArtifactTransition(
-      "docs/plans/45-typescript-7-migration-plan.md",
+      "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Stale",
       out,
     );
@@ -157,14 +160,14 @@ describe("runArtifactTransition", () => {
     transitionArtifact.mockReturnValue(
       Effect.succeed({
         status: "Approved",
-        path: "docs/plans/45-typescript-7-migration-plan.md",
+        path: "docs/plans/2607101056-typescript-7-migration-plan.md",
         approvedBaseline: "abcdef1234567890abcdef1234567890abcdef12",
       }),
     );
 
     const { out, lines } = makeOutput();
     const code = await runArtifactTransition(
-      "docs/plans/45-typescript-7-migration-plan.md",
+      "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
       out,
     );
@@ -178,7 +181,7 @@ describe("runArtifactTransition", () => {
     transitionArtifact.mockReturnValue(
       Effect.fail(
         new SpecNotApprovedError({
-          planPath: "docs/plans/45-typescript-7-migration-plan.md",
+          planPath: "docs/plans/2607101056-typescript-7-migration-plan.md",
           specPath: "docs/specs/22-foo.md",
           specStatus: "Draft",
         }),
@@ -187,7 +190,7 @@ describe("runArtifactTransition", () => {
 
     const { out, errors } = makeOutput();
     const code = await runArtifactTransition(
-      "docs/plans/45-typescript-7-migration-plan.md",
+      "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
       out,
     );
@@ -203,7 +206,7 @@ describe("runArtifactTransition", () => {
         new SpecRetirementBlockedError({
           specPath: "docs/specs/22-foo.md",
           dependents: [
-            { path: "docs/plans/45-typescript-7-migration-plan.md", status: "Approved" },
+            { path: "docs/plans/2607101056-typescript-7-migration-plan.md", status: "Approved" },
           ],
         }),
       ),
@@ -221,15 +224,19 @@ describe("runArtifactTransition", () => {
     transitionArtifact.mockReturnValue(
       Effect.succeed({
         status: "Approved",
-        path: "docs/plans/45-typescript-7-migration-plan.md",
+        path: "docs/plans/2607101056-typescript-7-migration-plan.md",
       }),
     );
 
     const { out } = makeOutput();
-    await runArtifactTransition("docs/plans/45-typescript-7-migration-plan.md", "Approved", out);
+    await runArtifactTransition(
+      "docs/plans/2607101056-typescript-7-migration-plan.md",
+      "Approved",
+      out,
+    );
 
     expect(transitionArtifact).toHaveBeenCalledWith(
-      "docs/plans/45-typescript-7-migration-plan.md",
+      "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
       expect.objectContaining({ commit: true }),
     );
@@ -240,7 +247,7 @@ describe("runArtifactTransition", () => {
     transitionArtifact.mockReturnValue(
       Effect.succeed({
         status: "Approved",
-        path: "docs/plans/45-typescript-7-migration-plan.md",
+        path: "docs/plans/2607101056-typescript-7-migration-plan.md",
         commit: {
           hash: "3f2a1c9abcdef1234567890abcdef1234567890",
           subject: "chore(plans): approve 45-typescript-7-migration-plan",
@@ -250,7 +257,7 @@ describe("runArtifactTransition", () => {
 
     const { out, lines } = makeOutput();
     const code = await runArtifactTransition(
-      "docs/plans/45-typescript-7-migration-plan.md",
+      "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
       out,
     );
@@ -279,12 +286,16 @@ describe("runArtifactTransition", () => {
     transitionArtifact.mockReturnValue(
       Effect.succeed({
         status: "Approved",
-        path: "docs/plans/45-typescript-7-migration-plan.md",
+        path: "docs/plans/2607101056-typescript-7-migration-plan.md",
       }),
     );
 
     const { out, lines } = makeOutput();
-    await runArtifactTransition("docs/plans/45-typescript-7-migration-plan.md", "Approved", out);
+    await runArtifactTransition(
+      "docs/plans/2607101056-typescript-7-migration-plan.md",
+      "Approved",
+      out,
+    );
 
     expect(lines.some((l) => l.startsWith("Commit:"))).toBe(false);
   });
@@ -294,14 +305,14 @@ describe("runArtifactTransition", () => {
     transitionArtifact.mockReturnValue(
       Effect.fail(
         new ArtifactDirtyWriteSetError({
-          paths: ["docs/plans/45-typescript-7-migration-plan.md"],
+          paths: ["docs/plans/2607101056-typescript-7-migration-plan.md"],
         }),
       ),
     );
 
     const { out, errors } = makeOutput();
     const code = await runArtifactTransition(
-      "docs/plans/45-typescript-7-migration-plan.md",
+      "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
       out,
     );
@@ -315,7 +326,7 @@ describe("runArtifactTransition", () => {
     transitionArtifact.mockReturnValue(
       Effect.fail(
         new ArtifactCommitFailedError({
-          paths: ["docs/plans/45-typescript-7-migration-plan.md"],
+          paths: ["docs/plans/2607101056-typescript-7-migration-plan.md"],
           cause: "pre-commit hook failed",
         }),
       ),
@@ -323,7 +334,7 @@ describe("runArtifactTransition", () => {
 
     const { out, errors } = makeOutput();
     const code = await runArtifactTransition(
-      "docs/plans/45-typescript-7-migration-plan.md",
+      "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
       out,
     );

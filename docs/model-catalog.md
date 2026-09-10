@@ -10,7 +10,7 @@ Update it in the same change that touches the catalog or a default, and append
 a row to the refresh log at the bottom.
 
 **State described:** the catalog as it stands after
-`docs/plans/59-catalog-fable-5-1-opus-5-gpt-6-astra-plan.md` landed.
+`docs/plans/2609070832-catalog-fable-5-1-opus-5-gpt-6-astra-plan.md` landed.
 
 ## 1. Sources of truth
 
