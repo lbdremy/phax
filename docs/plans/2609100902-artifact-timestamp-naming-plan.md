@@ -74,6 +74,12 @@ re-litigating them.
   closed set whose widest member sizes the renderer's column; a fifth-plus name
   would ragged every report for one finding, and a name/lineage mismatch is a
   structural property of the plan file.
+- **The two `approvals.json` stay out of phase-02's file lists.** Abandons:
+  an honest footprint for two files the migration certainly edits. Accepted:
+  the footprint feeds staleness, and the approval commit rewrites
+  `docs/plans/approvals.json` after taking its baseline, so listing it makes
+  the plan stale at its own approval (found 2026-09-10 on the first launch of
+  this plan; a staleness follow-up is queued in `NEXT_STEPS.md`).
 - **Grammar violations raise `ArtifactValidationError`.** Abandons: nothing
   observable. Accepted: it is the error `validateArtifact` already raises for
   a status/location disagreement, it already maps to exit code 12 in
@@ -249,6 +255,12 @@ behave exactly as before. Lock the invariant with a repository-scan test.
 - Verify by hand before committing: `phax artifact status` on the four live
   artifacts and `phax plans status` (must list the same two Approved plans as
   before, both fresh); `git status` shows renames (`R`), not delete+add pairs.
+- **`docs/specs/approvals.json` and `docs/plans/approvals.json` are edited by
+  this phase but deliberately absent from every planned list.** A plan whose
+  footprint names `docs/plans/approvals.json` is reported `Stale`
+  (`ground-changed`) the moment it is approved, because the approval commit
+  itself rewrites that file after the baseline is taken. Explain both files as
+  an expected deviation in the handoff.
 
 ### Planned files to create
 
@@ -366,8 +378,6 @@ behave exactly as before. Lock the invariant with a repository-scan test.
 
 ### Planned files to edit
 
-- `docs/specs/approvals.json`
-- `docs/plans/approvals.json`
 - `NEXT_STEPS.md`
 - `README.md`
 - `docs/model-catalog.md`
@@ -417,8 +427,8 @@ mapping table in the body.
 ### Expected handoff content
 
 - The full old → new mapping (the same table as the commit body).
-- The list of every file the reference sweep touched beyond the planned list,
-  and the deletions of the 110 old paths, explained as the rename halves of the
+- The list of every file the reference sweep touched beyond the planned list
+  (the two `approvals.json` first), and the deletions of the 110 old paths, explained as the rename halves of the
   planned creates — this is the one expected reconciliation deviation.
 - The `phax artifact status` output for the four live artifacts and the
   `phax plans status` report after migration.
