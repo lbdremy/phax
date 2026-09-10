@@ -267,6 +267,10 @@ export class ArtifactValidationError extends Data.TaggedError("ArtifactValidatio
   message: string;
 }> {}
 
+export class ArtifactCreationError extends Data.TaggedError("ArtifactCreationError")<{
+  message: string;
+}> {}
+
 export class PlanNotApprovedError extends Data.TaggedError("PlanNotApprovedError")<{
   path: string;
   status: string;

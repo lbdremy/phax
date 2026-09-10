@@ -158,18 +158,30 @@ describe("buildProgram", () => {
     expect(subs).toContain("overlap");
   });
 
-  it("artifact's visible subcommands are exactly status, approve, stale, abandon, complete, reopen; archive is registered but hidden", () => {
+  it("artifact's visible subcommands are exactly status, approve, stale, abandon, complete, reopen, new; archive is registered but hidden", () => {
     const program = buildProgram();
     const artifactCmd = program.commands.find((c) => c.name() === "artifact");
     expect(artifactCmd).toBeDefined();
 
     const subs = artifactCmd!.commands;
     const visibleNames = subs.filter((c) => !isHiddenCommand(c)).map((c) => c.name());
-    expect(visibleNames).toEqual(["status", "approve", "stale", "abandon", "complete", "reopen"]);
+    expect(visibleNames).toEqual([
+      "status",
+      "approve",
+      "stale",
+      "abandon",
+      "complete",
+      "reopen",
+      "new",
+    ]);
 
     const archiveCmd = subs.find((c) => c.name() === "archive");
     expect(archiveCmd).toBeDefined();
     expect(isHiddenCommand(archiveCmd!)).toBe(true);
+
+    const newCmd = subs.find((c) => c.name() === "new");
+    const newSubNames = newCmd!.commands.map((c) => c.name());
+    expect(newSubNames).toEqual(["spec", "plan"]);
   });
 
   it("plans status has --apply and --json flags", () => {

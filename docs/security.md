@@ -307,7 +307,7 @@ See `scripts/security/README.md` for the full toolkit reference.
 - **Keep dependencies fresh.** Enable Dependabot or Renovate for both `pnpm` and
   GitHub Actions. Dev/build tooling (esbuild, vite, vitest) is the largest
   advisory surface; upgrade it promptly and re-run `pnpm audit:security deps`.
-- **Complete the tracked hardening follow-ups** in `docs/plans/43-security-hardening-plan.md`:
+- **Complete the tracked hardening follow-ups** in `docs/plans/2607020808-security-hardening-plan.md`:
   pin GitHub Actions to commit SHAs, add `--` separators / tighten
   `BranchNameSchema` in the git adapter, and convert `scripts/docs-cli.ts` to
   `execFileSync`.

@@ -15,10 +15,10 @@ import { InvalidArtifactTransitionError } from "../../src/domain/errors.js";
 const LAYER = Layer.merge(NodeFileSystemLayer, NodeGitLayer);
 const NOW = "2026-08-14T12:00:00.000Z";
 
-const PLAN_PATH = "docs/plans/70-run-carry-plan.md";
-const SPEC_PATH = "docs/specs/70-run-carry.md";
-const PLAN_ARCHIVE = "docs/plans/archive/70-run-carry-plan.md";
-const SPEC_ARCHIVE = "docs/specs/archive/70-run-carry.md";
+const PLAN_PATH = "docs/plans/2609101270-run-carry-plan.md";
+const SPEC_PATH = "docs/specs/2609101270-run-carry.md";
+const PLAN_ARCHIVE = "docs/plans/archive/2609101270-run-carry-plan.md";
+const SPEC_ARCHIVE = "docs/specs/archive/2609101270-run-carry.md";
 const APPROVALS = "docs/plans/approvals.json";
 const SPEC_APPROVALS = "docs/specs/approvals.json";
 
@@ -153,7 +153,7 @@ describe("completeRunArtifacts", () => {
   });
 
   it("skips the spec when a sibling plan still depends on it, naming the blocker", async () => {
-    const siblingPath = "docs/plans/71-sibling-plan.md";
+    const siblingPath = "docs/plans/2609101271-sibling-plan.md";
     writeRepoFile(SPEC_PATH, specMd("Approved"));
     writeRepoFile(PLAN_PATH, planMd("Approved", SPEC_PATH));
     writeRepoFile(siblingPath, planMd("Approved", SPEC_PATH));
@@ -227,8 +227,8 @@ describe("completeRunArtifacts", () => {
   });
 
   it("lands the transition only under the worktree, leaving the test-process repo untouched", async () => {
-    const probePlan = "docs/plans/98765-phax-rooting-probe-plan.md";
-    const probeArchive = "docs/plans/archive/98765-phax-rooting-probe-plan.md";
+    const probePlan = "docs/plans/2609109876-phax-rooting-probe-plan.md";
+    const probeArchive = "docs/plans/archive/2609109876-phax-rooting-probe-plan.md";
     const cwdProbe = join(process.cwd(), probeArchive);
     expect(existsSync(cwdProbe)).toBe(false);
 

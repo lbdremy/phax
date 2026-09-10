@@ -41,10 +41,10 @@ function coreHarness() {
 describe("computeStalenessForPlan (core, Backend-free)", () => {
   it("no sidecar entry reports missing-record", async () => {
     const { fsImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/plans/40-plan.md", planMd("(none)"));
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("(none)"));
 
     const verdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", planMd("(none)"), [], {
+      computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", planMd("(none)"), [], {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -57,19 +57,19 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
   it("a vanished baseline commit reports missing-record naming it", async () => {
     const { fsImpl, gitImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/plans/40-plan.md", planMd("(none)"));
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("(none)"));
 
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
     const baseline = gitImpl.headCommitValue;
     gitImpl.existingCommits.delete(baseline);
 
-    const currentPlanMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
+    const currentPlanMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
     const verdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", currentPlanMd, [], {
+      computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", currentPlanMd, [], {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -85,25 +85,30 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
   it("reports fresh for an unchanged plan and spec with no ground changes", async () => {
     const { fsImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/specs/22-foo.md", specMd("Draft"));
-    fsImpl.setFile("docs/plans/40-plan.md", planMd("docs/specs/22-foo.md"));
+    fsImpl.setFile("docs/specs/2609101222-foo.md", specMd("Draft"));
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("docs/specs/2609101222-foo.md"));
 
     await run(
-      transitionArtifact("docs/specs/22-foo.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/specs/2609101222-foo.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
-    const currentPlanMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
+    const currentPlanMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
 
     const verdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", currentPlanMd, ["src/foo.ts"], {
-        repoRoot: REPO_ROOT,
-      }).pipe(Effect.provide(layer)),
+      computeStalenessForPlan(
+        "docs/plans/2609101240-thing-plan.md",
+        currentPlanMd,
+        ["src/foo.ts"],
+        {
+          repoRoot: REPO_ROOT,
+        },
+      ).pipe(Effect.provide(layer)),
     );
 
     expect(Either.isRight(verdict)).toBe(true);
@@ -112,28 +117,28 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
   it("a declared spec's content edit reports spec-changed", async () => {
     const { fsImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/specs/22-foo.md", specMd("Draft"));
-    fsImpl.setFile("docs/plans/40-plan.md", planMd("docs/specs/22-foo.md"));
+    fsImpl.setFile("docs/specs/2609101222-foo.md", specMd("Draft"));
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("docs/specs/2609101222-foo.md"));
 
     await run(
-      transitionArtifact("docs/specs/22-foo.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/specs/2609101222-foo.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
-    const currentPlanMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
-    const approvedSpecMd = fsImpl.getFile("docs/specs/22-foo.md") as string;
+    const currentPlanMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
+    const approvedSpecMd = fsImpl.getFile("docs/specs/2609101222-foo.md") as string;
     fsImpl.setFile(
-      "docs/specs/22-foo.md",
+      "docs/specs/2609101222-foo.md",
       approvedSpecMd.replace("Spec body v1.", "Spec body v2 — edited."),
     );
 
     const verdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", currentPlanMd, [], {
+      computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", currentPlanMd, [], {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -142,24 +147,24 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
     if (Either.isRight(verdict)) {
       expect(verdict.right).toEqual({
         kind: "stale",
-        evidence: [{ reason: "spec-changed", specPath: "docs/specs/22-foo.md" }],
+        evidence: [{ reason: "spec-changed", specPath: "docs/specs/2609101222-foo.md" }],
       });
     }
   });
 
   it("a spec-less ((none)) plan never reports spec-changed", async () => {
     const { fsImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/plans/40-plan.md", planMd("(none)"));
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("(none)"));
 
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
-    const currentPlanMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
+    const currentPlanMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
 
     const verdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", currentPlanMd, [], {
+      computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", currentPlanMd, [], {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -170,20 +175,25 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
   it("a footprint file listed in changedFilesSince reports ground-changed naming exactly that file", async () => {
     const { fsImpl, gitImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/plans/40-plan.md", planMd("(none)"));
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("(none)"));
 
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
-    const currentPlanMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
+    const currentPlanMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
     gitImpl.setChangedFilesSince(gitImpl.headCommitValue, ["src/foo.ts", "unrelated.ts"]);
 
     const verdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", currentPlanMd, ["src/foo.ts"], {
-        repoRoot: REPO_ROOT,
-      }).pipe(Effect.provide(layer)),
+      computeStalenessForPlan(
+        "docs/plans/2609101240-thing-plan.md",
+        currentPlanMd,
+        ["src/foo.ts"],
+        {
+          repoRoot: REPO_ROOT,
+        },
+      ).pipe(Effect.provide(layer)),
     );
 
     expect(Either.isRight(verdict)).toBe(true);
@@ -199,20 +209,25 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
   it("changed files disjoint from the footprint do not flip the verdict", async () => {
     const { fsImpl, gitImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/plans/40-plan.md", planMd("(none)"));
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("(none)"));
 
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
-    const currentPlanMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
+    const currentPlanMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
     gitImpl.setChangedFilesSince(gitImpl.headCommitValue, ["unrelated.ts"]);
 
     const verdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", currentPlanMd, ["src/foo.ts"], {
-        repoRoot: REPO_ROOT,
-      }).pipe(Effect.provide(layer)),
+      computeStalenessForPlan(
+        "docs/plans/2609101240-thing-plan.md",
+        currentPlanMd,
+        ["src/foo.ts"],
+        {
+          repoRoot: REPO_ROOT,
+        },
+      ).pipe(Effect.provide(layer)),
     );
 
     expect(Either.isRight(verdict)).toBe(true);
@@ -221,18 +236,18 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
   it("editing the plan body after approval reports self-changed", async () => {
     const { fsImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/plans/40-plan.md", planMd("(none)"));
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("(none)"));
 
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
-    const approvedMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
+    const approvedMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
     const editedMd = approvedMd.replace("Body text.", "Body text v2 — edited.");
 
     const verdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", editedMd, [], {
+      computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", editedMd, [], {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -245,31 +260,31 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
   it("reports all three reasons together, in enum order", async () => {
     const { fsImpl, gitImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/specs/22-foo.md", specMd("Draft"));
-    fsImpl.setFile("docs/plans/40-plan.md", planMd("docs/specs/22-foo.md"));
+    fsImpl.setFile("docs/specs/2609101222-foo.md", specMd("Draft"));
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("docs/specs/2609101222-foo.md"));
 
     await run(
-      transitionArtifact("docs/specs/22-foo.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/specs/2609101222-foo.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
-    const approvedMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
+    const approvedMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
     const editedMd = approvedMd.replace("Body text.", "Body text v2 — edited.");
 
-    const approvedSpecMd = fsImpl.getFile("docs/specs/22-foo.md") as string;
+    const approvedSpecMd = fsImpl.getFile("docs/specs/2609101222-foo.md") as string;
     fsImpl.setFile(
-      "docs/specs/22-foo.md",
+      "docs/specs/2609101222-foo.md",
       approvedSpecMd.replace("Spec body v1.", "Spec body v2 — edited."),
     );
     gitImpl.setChangedFilesSince(gitImpl.headCommitValue, ["src/foo.ts"]);
 
     const verdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", editedMd, ["src/foo.ts"], {
+      computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", editedMd, ["src/foo.ts"], {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -279,7 +294,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       expect(verdict.right).toEqual({
         kind: "stale",
         evidence: [
-          { reason: "spec-changed", specPath: "docs/specs/22-foo.md" },
+          { reason: "spec-changed", specPath: "docs/specs/2609101222-foo.md" },
           { reason: "ground-changed", baseline: gitImpl.headCommitValue, files: ["src/foo.ts"] },
           { reason: "self-changed" },
         ],
@@ -289,26 +304,26 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
   it("re-approving the spec without editing it leaves the plan fresh (fingerprint is stamp-neutral)", async () => {
     const { fsImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/specs/22-foo.md", specMd("Draft"));
-    fsImpl.setFile("docs/plans/40-plan.md", planMd("docs/specs/22-foo.md"));
+    fsImpl.setFile("docs/specs/2609101222-foo.md", specMd("Draft"));
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("docs/specs/2609101222-foo.md"));
 
     // Approve spec first so the chain gate accepts the plan approval
     await run(
-      transitionArtifact("docs/specs/22-foo.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/specs/2609101222-foo.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
 
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
-    const currentPlanMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
+    const currentPlanMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
 
     // Re-approve the spec with no body edit (only the approved: stamp changes)
     await run(
-      transitionArtifact("docs/specs/22-foo.md", "Approved", {
+      transitionArtifact("docs/specs/2609101222-foo.md", "Approved", {
         ...APPROVE_OPTS,
         nowIso: "2026-08-11T09:00:00.000Z",
       }).pipe(Effect.provide(layer)),
@@ -317,7 +332,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
     // The plan's staleness check must still report fresh because fingerprintSource
     // strips the approved: key — re-stamping alone does not change the fingerprint.
     const verdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", currentPlanMd, [], {
+      computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", currentPlanMd, [], {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -330,24 +345,24 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
   it("a dangling recorded Source-Spec fails with ArtifactValidationError naming it", async () => {
     const { fsImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/specs/22-foo.md", specMd("Draft"));
-    fsImpl.setFile("docs/plans/40-plan.md", planMd("docs/specs/22-foo.md"));
+    fsImpl.setFile("docs/specs/2609101222-foo.md", specMd("Draft"));
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("docs/specs/2609101222-foo.md"));
 
     await run(
-      transitionArtifact("docs/specs/22-foo.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/specs/2609101222-foo.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
-    const currentPlanMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
-    fsImpl.remove("docs/specs/22-foo.md");
+    const currentPlanMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
+    fsImpl.remove("docs/specs/2609101222-foo.md");
 
     const verdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", currentPlanMd, [], {
+      computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", currentPlanMd, [], {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -355,25 +370,27 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
     expect(Either.isLeft(verdict)).toBe(true);
     if (Either.isLeft(verdict)) {
       expect(verdict.left).toBeInstanceOf(ArtifactValidationError);
-      expect((verdict.left as ArtifactValidationError).message).toContain("docs/specs/22-foo.md");
+      expect((verdict.left as ArtifactValidationError).message).toContain(
+        "docs/specs/2609101222-foo.md",
+      );
     }
   });
 
   it("re-approval on edited content restores freshness", async () => {
     const { fsImpl, layer } = coreHarness();
-    fsImpl.setFile("docs/plans/40-plan.md", planMd("(none)"));
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("(none)"));
 
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
-    const approvedMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
+    const approvedMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
     const editedMd = approvedMd.replace("Body text.", "Body text v2 — edited.");
-    fsImpl.setFile("docs/plans/40-plan.md", editedMd);
+    fsImpl.setFile("docs/plans/2609101240-thing-plan.md", editedMd);
 
     const staleVerdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", editedMd, [], {
+      computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", editedMd, [], {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -381,16 +398,16 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
     if (Either.isRight(staleVerdict)) expect(staleVerdict.right.kind).toBe("stale");
 
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", {
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", {
         repoRoot: REPO_ROOT,
         nowIso: "2026-08-11T09:00:00.000Z",
         commit: false,
       }).pipe(Effect.provide(layer)),
     );
-    const reapprovedMd = fsImpl.getFile("docs/plans/40-plan.md") as string;
+    const reapprovedMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
 
     const freshVerdict = await run(
-      computeStalenessForPlan("docs/plans/40-plan.md", reapprovedMd, [], {
+      computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", reapprovedMd, [], {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -473,17 +490,19 @@ describe("computePlanStaleness (extraction wrapper)", () => {
   it("derives the footprint through deterministic extraction without touching the backend", async () => {
     const { fsImpl, backendImpl, layer } = fullHarness();
     fsImpl.setFile(
-      "docs/plans/40-plan.md",
+      "docs/plans/2609101240-thing-plan.md",
       deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/foo.ts"] }),
     );
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
 
     const verdict = await run(
-      computePlanStaleness("docs/plans/40-plan.md", REPORT_OPTS).pipe(Effect.provide(layer)),
+      computePlanStaleness("docs/plans/2609101240-thing-plan.md", REPORT_OPTS).pipe(
+        Effect.provide(layer),
+      ),
     );
 
     expect(Either.isRight(verdict)).toBe(true);
@@ -498,49 +517,49 @@ describe("plansStalenessReport", () => {
     const { fsImpl, backendImpl, layer } = fullHarness();
 
     fsImpl.setFile(
-      "docs/plans/40-fresh-plan.md",
+      "docs/plans/2609101240-fresh-plan.md",
       deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/fresh.ts"] }),
     );
     await run(
-      transitionArtifact("docs/plans/40-fresh-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-fresh-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
 
     fsImpl.setFile(
-      "docs/plans/41-stale-plan.md",
+      "docs/plans/2609101241-stale-plan.md",
       deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/stale.ts"] }),
     );
     await run(
-      transitionArtifact("docs/plans/41-stale-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101241-stale-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
-    const approvedStaleMd = fsImpl.getFile("docs/plans/41-stale-plan.md") as string;
+    const approvedStaleMd = fsImpl.getFile("docs/plans/2609101241-stale-plan.md") as string;
     fsImpl.setFile(
-      "docs/plans/41-stale-plan.md",
+      "docs/plans/2609101241-stale-plan.md",
       approvedStaleMd.replace("Body text.", "Body text v2 — edited after approval."),
     );
 
     fsImpl.setFile(
-      "docs/plans/42-draft-plan.md",
+      "docs/plans/2609101242-draft-plan.md",
       deterministicPlanMd({ status: "Draft", sourceSpec: "(none)" }),
     );
 
-    const beforeFresh = fsImpl.getFile("docs/plans/40-fresh-plan.md");
-    const beforeStale = fsImpl.getFile("docs/plans/41-stale-plan.md");
-    const beforeDraft = fsImpl.getFile("docs/plans/42-draft-plan.md");
+    const beforeFresh = fsImpl.getFile("docs/plans/2609101240-fresh-plan.md");
+    const beforeStale = fsImpl.getFile("docs/plans/2609101241-stale-plan.md");
+    const beforeDraft = fsImpl.getFile("docs/plans/2609101242-draft-plan.md");
 
     const report = await Effect.runPromise(
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
     );
 
     expect(report.map((e) => e.path)).toEqual([
-      "docs/plans/40-fresh-plan.md",
-      "docs/plans/41-stale-plan.md",
+      "docs/plans/2609101240-fresh-plan.md",
+      "docs/plans/2609101241-stale-plan.md",
     ]);
-    const fresh = report.find((e) => e.path === "docs/plans/40-fresh-plan.md");
-    const stale = report.find((e) => e.path === "docs/plans/41-stale-plan.md");
+    const fresh = report.find((e) => e.path === "docs/plans/2609101240-fresh-plan.md");
+    const stale = report.find((e) => e.path === "docs/plans/2609101241-stale-plan.md");
     expect(fresh?.result).toEqual({ kind: "fresh" });
     expect(stale?.result).toEqual({
       kind: "stale",
@@ -548,17 +567,17 @@ describe("plansStalenessReport", () => {
     });
 
     // Report-only sweep: no file was rewritten, and the Draft plan is untouched.
-    expect(fsImpl.getFile("docs/plans/40-fresh-plan.md")).toBe(beforeFresh);
-    expect(fsImpl.getFile("docs/plans/41-stale-plan.md")).toBe(beforeStale);
-    expect(fsImpl.getFile("docs/plans/42-draft-plan.md")).toBe(beforeDraft);
-    expect(fsImpl.getFile("docs/plans/42-draft-plan.md")).toContain("status: Draft");
+    expect(fsImpl.getFile("docs/plans/2609101240-fresh-plan.md")).toBe(beforeFresh);
+    expect(fsImpl.getFile("docs/plans/2609101241-stale-plan.md")).toBe(beforeStale);
+    expect(fsImpl.getFile("docs/plans/2609101242-draft-plan.md")).toBe(beforeDraft);
+    expect(fsImpl.getFile("docs/plans/2609101242-draft-plan.md")).toContain("status: Draft");
 
     expect(backendImpl.runCalls).toHaveLength(0);
     expect(backendImpl.completeCalls).toHaveLength(0);
 
     const rendered = renderStalenessReport(report);
-    expect(rendered).toContain("docs/plans/40-fresh-plan.md: fresh");
-    expect(rendered).toContain("docs/plans/41-stale-plan.md: STALE");
+    expect(rendered).toContain("docs/plans/2609101240-fresh-plan.md: fresh");
+    expect(rendered).toContain("docs/plans/2609101241-stale-plan.md: STALE");
     expect(rendered).toContain("self-changed");
   });
 
@@ -574,20 +593,20 @@ describe("plansStalenessReport", () => {
     const { fsImpl, layer } = fullHarness();
 
     fsImpl.setFile(
-      "docs/plans/40-good-plan.md",
+      "docs/plans/2609101240-good-plan.md",
       deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/good.ts"] }),
     );
     await run(
-      transitionArtifact("docs/plans/40-good-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-good-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
 
     // Not deterministically parseable (no "## Required commands" / phase section);
     // with noExtract: true and no cache entry, extraction fails outright.
-    fsImpl.setFile("docs/plans/41-bad-plan.md", planMd("(none)"));
+    fsImpl.setFile("docs/plans/2609101241-bad-plan.md", planMd("(none)"));
     await run(
-      transitionArtifact("docs/plans/41-bad-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101241-bad-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
@@ -597,8 +616,8 @@ describe("plansStalenessReport", () => {
     );
 
     expect(report).toHaveLength(2);
-    const good = report.find((e) => e.path === "docs/plans/40-good-plan.md");
-    const bad = report.find((e) => e.path === "docs/plans/41-bad-plan.md");
+    const good = report.find((e) => e.path === "docs/plans/2609101240-good-plan.md");
+    const bad = report.find((e) => e.path === "docs/plans/2609101241-bad-plan.md");
     expect(good?.result).toEqual({ kind: "fresh" });
     expect(bad?.result.kind).toBe("error");
   });
@@ -609,7 +628,7 @@ describe("plansStalenessReport", () => {
     // Invalid Status value: validateArtifact rejects it up front, so the entry
     // never reaches the Approved filter or the extraction pipeline.
     fsImpl.setFile(
-      "docs/plans/40-malformed-plan.md",
+      "docs/plans/2609101240-malformed-plan.md",
       "---\nstatus: Nonsense\nsource-spec: null\n---\n# Some plan\n\n## Overview\n\nBody text.\n",
     );
 
@@ -619,7 +638,7 @@ describe("plansStalenessReport", () => {
 
     expect(report).toHaveLength(1);
     const entry = report[0];
-    expect(entry?.path).toBe("docs/plans/40-malformed-plan.md");
+    expect(entry?.path).toBe("docs/plans/2609101240-malformed-plan.md");
     expect(entry?.result.kind).toBe("error");
     if (entry?.result.kind === "error") {
       expect(entry.result.message).toContain("invalid frontmatter");
@@ -633,11 +652,11 @@ describe("plansStalenessReport", () => {
     const { fsImpl, layer } = fullHarness();
 
     fsImpl.setFile(
-      "docs/plans/40-live-plan.md",
+      "docs/plans/2609101240-live-plan.md",
       deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/live.ts"] }),
     );
     await run(
-      transitionArtifact("docs/plans/40-live-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-live-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
@@ -646,7 +665,7 @@ describe("plansStalenessReport", () => {
     // bare "archive" directory entry, which the .md filter skips — its contents
     // are never recursed into.
     fsImpl.setFile(
-      "docs/plans/archive/38-old-plan.md",
+      "docs/plans/archive/2609101238-old-plan.md",
       deterministicPlanMd({ status: "Completed", sourceSpec: "(none)" }),
     );
 
@@ -654,7 +673,7 @@ describe("plansStalenessReport", () => {
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
     );
 
-    expect(report.map((e) => e.path)).toEqual(["docs/plans/40-live-plan.md"]);
+    expect(report.map((e) => e.path)).toEqual(["docs/plans/2609101240-live-plan.md"]);
   });
 });
 
@@ -663,27 +682,27 @@ describe("applyStalenessReport", () => {
     const { fsImpl, backendImpl, layer } = fullHarness();
 
     fsImpl.setFile(
-      "docs/plans/40-fresh-plan.md",
+      "docs/plans/2609101240-fresh-plan.md",
       deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/fresh.ts"] }),
     );
     await run(
-      transitionArtifact("docs/plans/40-fresh-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-fresh-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
 
     fsImpl.setFile(
-      "docs/plans/41-stale-plan.md",
+      "docs/plans/2609101241-stale-plan.md",
       deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/stale.ts"] }),
     );
     await run(
-      transitionArtifact("docs/plans/41-stale-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101241-stale-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
-    const approvedStaleMd = fsImpl.getFile("docs/plans/41-stale-plan.md") as string;
+    const approvedStaleMd = fsImpl.getFile("docs/plans/2609101241-stale-plan.md") as string;
     fsImpl.setFile(
-      "docs/plans/41-stale-plan.md",
+      "docs/plans/2609101241-stale-plan.md",
       approvedStaleMd.replace("Body text.", "Body text v2 — edited after approval."),
     );
 
@@ -697,13 +716,13 @@ describe("applyStalenessReport", () => {
 
     expect(Either.isRight(flipped)).toBe(true);
     if (Either.isRight(flipped)) {
-      expect(flipped.right.map((f) => f.path)).toEqual(["docs/plans/41-stale-plan.md"]);
+      expect(flipped.right.map((f) => f.path)).toEqual(["docs/plans/2609101241-stale-plan.md"]);
       const rendered = renderStalenessApply(flipped.right);
-      expect(rendered).toContain("docs/plans/41-stale-plan.md: Approved -> Stale");
+      expect(rendered).toContain("docs/plans/2609101241-stale-plan.md: Approved -> Stale");
     }
 
-    expect(fsImpl.getFile("docs/plans/41-stale-plan.md")).toContain("status: Stale");
-    expect(fsImpl.getFile("docs/plans/40-fresh-plan.md")).toContain("status: Approved");
+    expect(fsImpl.getFile("docs/plans/2609101241-stale-plan.md")).toContain("status: Stale");
+    expect(fsImpl.getFile("docs/plans/2609101240-fresh-plan.md")).toContain("status: Approved");
 
     expect(backendImpl.runCalls).toHaveLength(0);
     expect(backendImpl.completeCalls).toHaveLength(0);
@@ -713,11 +732,11 @@ describe("applyStalenessReport", () => {
     const { fsImpl, gitImpl, layer } = fullHarness();
 
     fsImpl.setFile(
-      "docs/plans/40-plan.md",
+      "docs/plans/2609101240-thing-plan.md",
       deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/foo.ts"] }),
     );
     await run(
-      transitionArtifact("docs/plans/40-plan.md", "Approved", APPROVE_OPTS).pipe(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
         Effect.provide(layer),
       ),
     );
@@ -728,7 +747,7 @@ describe("applyStalenessReport", () => {
     const report = await Effect.runPromise(
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
     );
-    expect(report.find((e) => e.path === "docs/plans/40-plan.md")?.result.kind).toBe(
+    expect(report.find((e) => e.path === "docs/plans/2609101240-thing-plan.md")?.result.kind).toBe(
       "missing-record",
     );
 
@@ -738,9 +757,9 @@ describe("applyStalenessReport", () => {
 
     expect(Either.isRight(flipped)).toBe(true);
     if (Either.isRight(flipped)) {
-      expect(flipped.right.map((f) => f.path)).toEqual(["docs/plans/40-plan.md"]);
+      expect(flipped.right.map((f) => f.path)).toEqual(["docs/plans/2609101240-thing-plan.md"]);
       expect(flipped.right[0]?.verdict.kind).toBe("missing-record");
     }
-    expect(fsImpl.getFile("docs/plans/40-plan.md")).toContain("status: Stale");
+    expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toContain("status: Stale");
   });
 });

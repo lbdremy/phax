@@ -460,13 +460,13 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
         transitions: [
           {
             kind: "plan",
-            path: "docs/plans/archive/70-run-carry-plan.md",
+            path: "docs/plans/archive/2609101270-run-carry-plan.md",
             commit: { hash: "9c2d411abcdef0123456789", subject: "chore(plans): complete" },
             alreadyComplete: false,
           },
           {
             kind: "spec",
-            path: "docs/specs/archive/70-run-carry.md",
+            path: "docs/specs/archive/2609101270-run-carry.md",
             commit: { hash: "1f04e22fedcba9876543210", subject: "chore(specs): complete" },
             alreadyComplete: false,
           },
@@ -480,8 +480,8 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
 
     expect(code).toBe(0);
     const stdout = lines.join("\n");
-    expect(stdout).toContain("completed docs/plans/archive/70-run-carry-plan.md — 9c2d411");
-    expect(stdout).toContain("completed docs/specs/archive/70-run-carry.md — 1f04e22");
+    expect(stdout).toContain("completed docs/plans/archive/2609101270-run-carry-plan.md — 9c2d411");
+    expect(stdout).toContain("completed docs/specs/archive/2609101270-run-carry.md — 1f04e22");
   });
 
   it("renders the chain-gate skip line and the blocking plan with its status", async () => {
@@ -492,14 +492,14 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
         transitions: [
           {
             kind: "plan",
-            path: "docs/plans/archive/70-run-carry-plan.md",
+            path: "docs/plans/archive/2609101270-run-carry-plan.md",
             commit: { hash: "9c2d411abcdef0123456789", subject: "chore(plans): complete" },
             alreadyComplete: false,
           },
         ],
         skippedSpec: {
-          path: "docs/specs/70-run-carry.md",
-          blockedBy: [{ path: "docs/plans/71-sibling-plan.md", status: "Approved" }],
+          path: "docs/specs/2609101270-run-carry.md",
+          blockedBy: [{ path: "docs/plans/2609101271-sibling-plan.md", status: "Approved" }],
         },
       },
     });
@@ -509,8 +509,8 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
     await runRun({ plan: "plan.md" }, out);
 
     const stdout = lines.join("\n");
-    expect(stdout).toContain("spec docs/specs/70-run-carry.md kept");
-    expect(stdout).toContain("docs/plans/71-sibling-plan.md");
+    expect(stdout).toContain("spec docs/specs/2609101270-run-carry.md kept");
+    expect(stdout).toContain("docs/plans/2609101271-sibling-plan.md");
     expect(stdout).toContain("Approved");
   });
 
@@ -747,7 +747,7 @@ describe("runRun — staleness gate", () => {
       Effect.succeed({
         kind: "stale",
         evidence: [
-          { reason: "spec-changed", specPath: "docs/specs/22-x.md" },
+          { reason: "spec-changed", specPath: "docs/specs/2609101222-x.md" },
           { reason: "ground-changed", baseline: "abc1234", files: ["src/a.ts"] },
           { reason: "self-changed" },
         ],

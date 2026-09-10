@@ -118,25 +118,25 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
   "adjust-plan": {
     longHelp:
       "Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.\n\nInput: the path to the plan.md to adjust and --landed <run> (the run whose actual changes drive the adjustment). The landed run must have a global-file-reconciliation.json (i.e. it must have reached review). Re-invocation without --new-session resumes the same session; --new-session starts a fresh one.\n\nSide effects: spawns a long-lived interactive provider session (network I/O); the session may, after developer approval, edit and commit the plan.md.",
-    examples: ["phax adjust-plan docs/plans/40-foo.md --landed my-feature"],
+    examples: ["phax adjust-plan docs/plans/2609101030-plan-prune-plan.md --landed my-feature"],
   },
 
   plans: {
     longHelp:
       "Parent command for reporting on plans: the mechanical defects of a single plan (lint), staleness of Approved plans against their recorded approval, and cross-plan file overlap.",
     examples: [
-      "phax plans lint docs/plans/60-foo-plan.md",
+      "phax plans lint docs/plans/2609101200-foo-plan.md",
       "phax plans status",
-      "phax plans overlap docs/plans/33-a.md docs/plans/35-b.md",
+      "phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md",
     ],
   },
 
   "plans lint": {
     longHelp:
-      "Reports every mechanical defect of a plan.md that phax can establish before a run, as findings with a severity (error or warning), a check, and the phase they concern.\n\nFive checks run: structure — every field the deterministic extraction requires, reported in full rather than stopping at the first; files — the planned create/edit lists walked in phase order against the working tree, so an edit of a file no earlier phase creates, a create of a file that already exists or was already created, and a phase that both creates and edits a path are errors (a path listed both to create and as optional is the one warning; optional files are never checked); commands — the plan's required commands against security.agentCommands and the gate profile; models — each phase's model and effort against the routing catalog, with alternatives when one is refused; advisory — when phax.json registers a planAuditor, phax writes the plan projection (the ordered phases, each with its planned create/edit files, and nothing else) to that command's stdin and reports every finding it returns as a warning naming the phases it concerns; a failing auditor is a single warning, and so is one that outruns the 30s cap phax spawns it under; with no auditor, or a plan the parser cannot read, there are no advisory findings. Advisory findings never affect the exit code.\n\nThe file-plan ground is the working tree as it is now, not any commit. Read-only and model-free: it never writes, never reads the extraction cache and never falls back to the extraction model, so a plan the deterministic parser cannot read reports its structural errors and stops. Exits 1 when at least one finding is an error, 0 otherwise (warnings alone do not fail).\n\nSide effects: none of phax's own; a registered plan auditor is spawned once with the projection on stdin, capped at 30s.",
+      "Reports every mechanical defect of a plan.md that phax can establish before a run, as findings with a severity (error or warning), a check, and the phase they concern.\n\nFive checks run: structure — every field the deterministic extraction requires, reported in full rather than stopping at the first; files — the planned create/edit lists walked in phase order against the working tree, so an edit of a file no earlier phase creates, a create of a file that already exists or was already created, and a phase that both creates and edits a path are errors (a path listed both to create and as optional is the one warning; optional files are never checked); commands — the plan's required commands against security.agentCommands and the gate profile; models — each phase's model and effort against the routing catalog, with alternatives when one is refused; advisory — when phax.json registers a planAuditor, phax writes the plan projection (the ordered phases, each with its planned create/edit files, and nothing else) to that command's stdin and reports every finding it returns as a warning naming the phases it concerns; a failing auditor is a single warning, and so is one that outruns the 30s cap phax spawns it under; with no auditor, or a plan the parser cannot read, there are no advisory findings. Advisory findings never affect the exit code.\n\nA plan under docs/plans/ is first validated like any artifact (a name off <YYMMDDHHMM>-<slug>-plan.md, an invalid frontmatter block or a status/location disagreement refuses with exit code 12), and a slug that differs from its source spec's slug is a structure error; a loose plan.md outside docs/plans/ is exempt from both.\n\nThe file-plan ground is the working tree as it is now, not any commit. Read-only and model-free: it never writes, never reads the extraction cache and never falls back to the extraction model, so a plan the deterministic parser cannot read reports its structural errors and stops. Exits 1 when at least one finding is an error, 0 otherwise (warnings alone do not fail).\n\nSide effects: none of phax's own; a registered plan auditor is spawned once with the projection on stdin, capped at 30s.",
     examples: [
-      "phax plans lint docs/plans/60-foo-plan.md",
-      "phax plans lint docs/plans/60-foo-plan.md --json",
+      "phax plans lint docs/plans/2609101200-foo-plan.md",
+      "phax plans lint docs/plans/2609101200-foo-plan.md --json",
     ],
   },
 
@@ -150,23 +150,23 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     longHelp:
       "Reports which of two or more plans can run in parallel without a merge conflict — predicted from each plan's declared file-sets, or confirmed against a landed run's actual diff.\n\n(Predicted) Without --landed: reads each plan.md's structured form through the content-addressed extraction cache (a cold cache miss extracts once via LLM and caches the result; use --no-extract to fail on a miss instead). Unions each plan's declared phase file-sets into a per-plan footprint, intersects footprints pairwise, and reports the severity-graded conflict matrix, clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule.\n\n(Confirmed) With --landed <run>: takes a run that has already produced changes and reports which of the given plans need re-adjustment because they touch a file the run actually changed. The landed run's footprint is read from its persisted global-file-reconciliation.json (the real git diff across its phases), giving actual-vs-declared impact with no false negatives.\n\nCaveats: the predicted mode reflects declared file intentions, not what agents will actually touch. Conflicts are file-level, not hunk-level — two plans editing different regions of the same file are flagged even if git would auto-merge them. Regenerated artifacts (phax.usage.kdl, docs/cli/reference.md) are a hard-conflict class.\n\nSide effects: read-only with respect to your plans; may run one LLM extraction per uncached plan.md.",
     examples: [
-      "phax plans overlap docs/plans/33-a.md docs/plans/35-b.md",
-      "phax plans overlap --landed my-feature docs/plans/40-other.md",
+      "phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md",
+      "phax plans overlap --landed my-feature docs/plans/2609101033-other-plan.md",
     ],
   },
 
   artifact: {
     longHelp:
       "Parent command for inspecting and transitioning the lifecycle status of a spec (docs/specs/) or plan (docs/plans/). Specs carry Draft, Approved, Abandoned, or Completed; plans additionally carry Stale. Transitioning to a terminal status (Abandoned, Completed) moves the file into the artifact's archive/ subdirectory as part of the transition. Illegal transitions and validation failures (missing frontmatter block, unknown status, status/location disagreement) refuse with exit code 12.",
-    examples: ["phax artifact status docs/plans/45-typescript-7-migration-plan.md"],
+    examples: ["phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md"],
   },
 
   "artifact status": {
     longHelp:
       "Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status. For Approved specs, also reports the approval date and baseline, and whether the spec has been edited since that approval (recorded) or has no approval record (unrecorded). Read-only — no side effects.",
     examples: [
-      "phax artifact status docs/plans/45-typescript-7-migration-plan.md",
-      "phax artifact status docs/specs/31-spec-approval-ground.md",
+      "phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md",
+      "phax artifact status docs/specs/2609030749-spec-approval-ground.md",
     ],
   },
 
@@ -174,32 +174,53 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     longHelp:
       "Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved artifact re-records the approval, refreshing its timestamp and baseline — this is the correct way to record an in-place revision of a spec, not editing the date by hand. Rewrites the frontmatter status key in place.\n\nFor specs: stamps `approved: { date, baseline }` in the frontmatter and writes a record to docs/specs/approvals.json.\nFor plans: stamps `approved: { date, baseline }` in the frontmatter and writes a record to docs/plans/approvals.json. Plan approval refuses with exit 12 if the declared Source-Spec is Approved but its approval is unrecorded or edited since approval — re-approve the spec first.\n\nSide effects: writes the artifact file and commits the transition's write-set (the artifact file plus the approval record sidecar) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
     examples: [
-      "phax artifact approve docs/plans/45-typescript-7-migration-plan.md",
-      "phax artifact approve docs/specs/31-spec-approval-ground.md",
+      "phax artifact approve docs/plans/2607101056-typescript-7-migration-plan.md",
+      "phax artifact approve docs/specs/2609030749-spec-approval-ground.md",
     ],
   },
 
   "artifact stale": {
     longHelp:
       "Manually marks a plan Stale. Legal from Approved only — Stale has no automatic trigger (that belongs to a future lineage spec). Rewrites the frontmatter status key in place.\n\nSide effects: writes the plan file and commits the write-set in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.",
-    examples: ["phax artifact stale docs/plans/32-billing-plan.md"],
+    examples: ["phax artifact stale docs/plans/2607101056-typescript-7-migration-plan.md"],
   },
 
   "artifact abandon": {
     longHelp:
       "Abandons an artifact — a terminal status distinct from Completed, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Abandoned and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
-    examples: ["phax artifact abandon docs/plans/45-typescript-7-migration-plan.md"],
+    examples: ["phax artifact abandon docs/plans/2607101056-typescript-7-migration-plan.md"],
   },
 
   "artifact complete": {
     longHelp:
       "Completes an artifact — a terminal status for work that ran to completion. Legal from Approved (specs) or Approved or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Completed and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.",
-    examples: ["phax artifact complete docs/specs/21-artifact-lifecycle-status.md"],
+    examples: ["phax artifact complete docs/specs/2608091526-artifact-lifecycle-status.md"],
   },
 
   "artifact reopen": {
     longHelp:
       "Reopens a Stale plan back to Draft, for when re-planning is needed before re-approval. Legal from Stale only. Rewrites the frontmatter status key in place.\n\nSide effects: writes the plan file and commits the write-set in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.",
-    examples: ["phax artifact reopen docs/plans/32-billing-plan.md"],
+    examples: ["phax artifact reopen docs/plans/2607101056-typescript-7-migration-plan.md"],
+  },
+
+  "artifact new": {
+    longHelp:
+      "Parent command for creating a Draft spec or plan named from the current UTC minute: <YYMMDDHHMM>-<slug>.md for a spec, <YYMMDDHHMM>-<slug>-plan.md for a plan. The instant is captured when the command runs, never chosen or backdated. A bad slug, an existing target name, or (for a plan) a --spec that is missing or not a spec all refuse with exit code 12 before anything is written.",
+    examples: ["phax artifact new spec plan-prune"],
+  },
+
+  "artifact new spec": {
+    longHelp:
+      "Creates a Draft spec at docs/specs/<YYMMDDHHMM>-<slug>.md, with a frontmatter-only skeleton (status, date, audience, scope). The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.\n\nSide effects: writes the new spec file. Does not commit — transition commands (phax artifact approve) commit, creation does not.",
+    examples: ["phax artifact new spec plan-prune"],
+  },
+
+  "artifact new plan": {
+    longHelp:
+      "Creates a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md, with a frontmatter-only skeleton (status, source-spec). Pass --spec <path> to bind an existing spec as the plan's source-spec; the path must classify as a spec (live or archived), exist, and pass artifact validation. Without --spec, source-spec is written as null. The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.\n\nSide effects: writes the new plan file. Does not commit — transition commands (phax artifact approve) commit, creation does not.",
+    examples: [
+      "phax artifact new plan plan-prune --spec docs/specs/2609091412-plan-prune.md",
+      "phax artifact new plan catalog-refresh",
+    ],
   },
 };

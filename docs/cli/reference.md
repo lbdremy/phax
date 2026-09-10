@@ -458,7 +458,7 @@ Override the effort (low | medium | high)
 ### Examples
 
 ```
-phax adjust-plan docs/plans/40-foo.md --landed my-feature
+phax adjust-plan docs/plans/2609101030-plan-prune-plan.md --landed my-feature
 ```
 
 ## `phax init`
@@ -810,7 +810,7 @@ Parent command for inspecting and transitioning the lifecycle status of a spec (
 ### Examples
 
 ```
-phax artifact status docs/plans/45-typescript-7-migration-plan.md
+phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md
 ```
 
 ## `phax artifact status`
@@ -828,11 +828,11 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 ### Examples
 
 ```
-phax artifact status docs/plans/45-typescript-7-migration-plan.md
+phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md
 ```
 
 ```
-phax artifact status docs/specs/31-spec-approval-ground.md
+phax artifact status docs/specs/2609030749-spec-approval-ground.md
 ```
 
 ## `phax artifact approve`
@@ -855,11 +855,11 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 ### Examples
 
 ```
-phax artifact approve docs/plans/45-typescript-7-migration-plan.md
+phax artifact approve docs/plans/2607101056-typescript-7-migration-plan.md
 ```
 
 ```
-phax artifact approve docs/specs/31-spec-approval-ground.md
+phax artifact approve docs/specs/2609030749-spec-approval-ground.md
 ```
 
 ## `phax artifact stale`
@@ -879,7 +879,7 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 ### Examples
 
 ```
-phax artifact stale docs/plans/32-billing-plan.md
+phax artifact stale docs/plans/2607101056-typescript-7-migration-plan.md
 ```
 
 ## `phax artifact abandon`
@@ -899,7 +899,7 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 ### Examples
 
 ```
-phax artifact abandon docs/plans/45-typescript-7-migration-plan.md
+phax artifact abandon docs/plans/2607101056-typescript-7-migration-plan.md
 ```
 
 ## `phax artifact complete`
@@ -919,7 +919,7 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 ### Examples
 
 ```
-phax artifact complete docs/specs/21-artifact-lifecycle-status.md
+phax artifact complete docs/specs/2608091526-artifact-lifecycle-status.md
 ```
 
 ## `phax artifact reopen`
@@ -939,7 +939,69 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 ### Examples
 
 ```
-phax artifact reopen docs/plans/32-billing-plan.md
+phax artifact reopen docs/plans/2607101056-typescript-7-migration-plan.md
+```
+
+## `phax artifact new`
+
+- **Usage**: `phax artifact new <SUBCOMMAND>`
+
+Parent command for creating a Draft spec or plan named from the current UTC minute: <YYMMDDHHMM>-<slug>.md for a spec, <YYMMDDHHMM>-<slug>-plan.md for a plan. The instant is captured when the command runs, never chosen or backdated. A bad slug, an existing target name, or (for a plan) a --spec that is missing or not a spec all refuse with exit code 12 before anything is written.
+
+### Examples
+
+```
+phax artifact new spec plan-prune
+```
+
+## `phax artifact new spec`
+
+- **Usage**: `phax artifact new spec <slug>`
+
+Creates a Draft spec at docs/specs/<YYMMDDHHMM>-<slug>.md, with a frontmatter-only skeleton (status, date, audience, scope). The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.
+
+Side effects: writes the new spec file. Does not commit — transition commands (phax artifact approve) commit, creation does not.
+
+### Arguments
+
+#### `<slug>`
+
+Slug matching `[a-z0-9]+(-[a-z0-9]+)*`
+
+### Examples
+
+```
+phax artifact new spec plan-prune
+```
+
+## `phax artifact new plan`
+
+- **Usage**: `phax artifact new plan [--spec <path>] <slug>`
+
+Creates a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md, with a frontmatter-only skeleton (status, source-spec). Pass --spec <path> to bind an existing spec as the plan's source-spec; the path must classify as a spec (live or archived), exist, and pass artifact validation. Without --spec, source-spec is written as null. The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.
+
+Side effects: writes the new plan file. Does not commit — transition commands (phax artifact approve) commit, creation does not.
+
+### Arguments
+
+#### `<slug>`
+
+Slug matching `[a-z0-9]+(-[a-z0-9]+)*`
+
+### Flags
+
+#### `--spec <path>`
+
+Path to the source spec to bind as source-spec
+
+### Examples
+
+```
+phax artifact new plan plan-prune --spec docs/specs/2609091412-plan-prune.md
+```
+
+```
+phax artifact new plan catalog-refresh
 ```
 
 ## `phax plans`
@@ -951,7 +1013,7 @@ Parent command for reporting on plans: the mechanical defects of a single plan (
 ### Examples
 
 ```
-phax plans lint docs/plans/60-foo-plan.md
+phax plans lint docs/plans/2609101200-foo-plan.md
 ```
 
 ```
@@ -959,7 +1021,7 @@ phax plans status
 ```
 
 ```
-phax plans overlap docs/plans/33-a.md docs/plans/35-b.md
+phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md
 ```
 
 ## `phax plans status`
@@ -1031,11 +1093,11 @@ Report which of the given plans need re-adjustment after this run's actual chang
 ### Examples
 
 ```
-phax plans overlap docs/plans/33-a.md docs/plans/35-b.md
+phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md
 ```
 
 ```
-phax plans overlap --landed my-feature docs/plans/40-other.md
+phax plans overlap --landed my-feature docs/plans/2609101033-other-plan.md
 ```
 
 ## `phax plans lint`
@@ -1045,6 +1107,8 @@ phax plans overlap --landed my-feature docs/plans/40-other.md
 Reports every mechanical defect of a plan.md that phax can establish before a run, as findings with a severity (error or warning), a check, and the phase they concern.
 
 Five checks run: structure — every field the deterministic extraction requires, reported in full rather than stopping at the first; files — the planned create/edit lists walked in phase order against the working tree, so an edit of a file no earlier phase creates, a create of a file that already exists or was already created, and a phase that both creates and edits a path are errors (a path listed both to create and as optional is the one warning; optional files are never checked); commands — the plan's required commands against security.agentCommands and the gate profile; models — each phase's model and effort against the routing catalog, with alternatives when one is refused; advisory — when phax.json registers a planAuditor, phax writes the plan projection (the ordered phases, each with its planned create/edit files, and nothing else) to that command's stdin and reports every finding it returns as a warning naming the phases it concerns; a failing auditor is a single warning, and so is one that outruns the 30s cap phax spawns it under; with no auditor, or a plan the parser cannot read, there are no advisory findings. Advisory findings never affect the exit code.
+
+A plan under docs/plans/ is first validated like any artifact (a name off <YYMMDDHHMM>-<slug>-plan.md, an invalid frontmatter block or a status/location disagreement refuses with exit code 12), and a slug that differs from its source spec's slug is a structure error; a loose plan.md outside docs/plans/ is exempt from both.
 
 The file-plan ground is the working tree as it is now, not any commit. Read-only and model-free: it never writes, never reads the extraction cache and never falls back to the extraction model, so a plan the deterministic parser cannot read reports its structural errors and stops. Exits 1 when at least one finding is an error, 0 otherwise (warnings alone do not fail).
 
@@ -1065,11 +1129,11 @@ Emit the findings as JSON
 ### Examples
 
 ```
-phax plans lint docs/plans/60-foo-plan.md
+phax plans lint docs/plans/2609101200-foo-plan.md
 ```
 
 ```
-phax plans lint docs/plans/60-foo-plan.md --json
+phax plans lint docs/plans/2609101200-foo-plan.md --json
 ```
 
 ## `phax records`

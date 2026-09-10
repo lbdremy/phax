@@ -171,7 +171,7 @@ requirements, testable acceptance criteria, a consumption surface. Spec → plan
 consuming the last.) In Claude Code, the planning prompt is one line:
 
 ```text
-Plan the spec @docs/specs/14-remove-network-controls.md using @phax-planning
+Plan the spec @docs/specs/2606171452-remove-network-controls.md using @phax-planning
 ```
 
 This is the planning step — the one I run on **Claude Opus** (it's where precision pays off,

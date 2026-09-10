@@ -1,14 +1,14 @@
 {
   "version": 1,
   "records": {
-    "docs/plans/39-smolvm-isolation-spike-plan.md": {
+    "docs/plans/2606291247-smolvm-isolation-spike-plan.md": {
       "planFingerprint": "cd102b226246db5b78cc17a5d6af93da05342ba9894258044f019e3bcd5bf028",
       "approvedAt": "2026-09-08T08:19:41.314Z",
       "baseline": "322ba3a5795a658d8d7ee48200b14e9b61ad8933",
       "sourceSpec": null
     },
-    "docs/plans/41-claude-protected-path-approval-hook-plan.md": {
-      "planFingerprint": "dad5ed3b6398d8a3b21de411356cd667862608483c80d4fac72c0684290220c9",
+    "docs/plans/2606301114-claude-protected-path-approval-hook-plan.md": {
+      "planFingerprint": "20d30cba843b42212e11fe6f42c54e0aa24a125d6a5013ad8a58574c03b8abc2",
       "approvedAt": "2026-08-11T07:59:18.912Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null

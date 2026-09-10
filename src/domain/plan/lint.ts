@@ -28,6 +28,26 @@ export function structureFindings(planMd: string): readonly LintFinding[] {
   }));
 }
 
+/**
+ * A repo-tracked plan mirrors its source spec's slug (spec
+ * artifact-timestamp-naming §5.3). A plan with no source spec, or a source
+ * spec whose name does not parse, has nothing to compare against.
+ */
+export function lineageFindings(
+  planSlug: string,
+  sourceSpecSlug: string | null,
+): readonly LintFinding[] {
+  if (sourceSpecSlug === null || planSlug === sourceSpecSlug) return [];
+  return [
+    {
+      severity: "error",
+      check: "structure",
+      phase: null,
+      message: `slug "${planSlug}" differs from source spec slug "${sourceSpecSlug}"`,
+    },
+  ];
+}
+
 export interface FilePlanPhase {
   readonly id: string;
   readonly plannedFilesToCreate: readonly string[];

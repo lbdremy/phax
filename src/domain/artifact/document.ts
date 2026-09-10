@@ -1,6 +1,7 @@
 import { Either } from "effect";
 import { ArtifactValidationError } from "../errors.js";
 import { decodeArtifactFrontmatter, type FrontmatterProblem } from "./frontmatter.js";
+import { artifactNameGrammar, parseArtifactName } from "./name.js";
 import { type ArtifactKind, type ArtifactStatus, isTerminalStatus } from "./status.js";
 
 export interface ArtifactClassification {
@@ -47,7 +48,7 @@ export function frontmatterProblemMessage(
 ): string {
   switch (problem.kind) {
     case "missing-block":
-      return `${repoRelPath} has no frontmatter block — lifecycle metadata must be YAML frontmatter (see docs/specs/26-artifact-frontmatter-metadata.md)`;
+      return `${repoRelPath} has no frontmatter block — lifecycle metadata must be YAML frontmatter (see docs/specs/2608110950-artifact-frontmatter-metadata.md)`;
     case "yaml-syntax":
       return `${repoRelPath} has invalid YAML frontmatter: ${problem.detail}`;
     case "schema":
@@ -65,6 +66,16 @@ export function validateArtifact(
       new ArtifactValidationError({
         path: repoRelPath,
         message: `${repoRelPath} is not a recognized artifact path (expected docs/specs/, docs/specs/archive/, docs/plans/, or docs/plans/archive/)`,
+      }),
+    );
+  }
+
+  const fileName = repoRelPath.slice(repoRelPath.lastIndexOf("/") + 1);
+  if (parseArtifactName(classification.kind, fileName) === null) {
+    return Either.left(
+      new ArtifactValidationError({
+        path: repoRelPath,
+        message: `${repoRelPath}: name does not match ${artifactNameGrammar(classification.kind)}`,
       }),
     );
   }
