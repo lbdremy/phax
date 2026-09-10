@@ -31,6 +31,16 @@ passed and `@lbdremy/phax@latest` is 0.13.0. Two approved specs remain, both par
       started, but `src/cli/commands/run.ts` still calls `createRunFolder` before
       `executePlan`, so a refusal from any other preflight still burns the slug.
 
+- [ ] **A plan whose footprint names `docs/plans/approvals.json` is stale at its own
+      approval.** Found 2026-09-10 launching the artifact-timestamp-naming plan: `phax
+      artifact approve` takes the baseline at HEAD, then commits a rewrite of
+      `docs/plans/approvals.json` (and the plan's own frontmatter), so `phax run`
+      reports `ground-changed` before anything starts. Optional files count in the
+      footprint too, so there is no list to hide the file in. Worked around by leaving
+      both `approvals.json` out of that plan's lists. Fix: exclude the transition commit
+      from the ground-change window (baseline = the approval commit, or ignore the
+      transition's own write-set), and cover it with a staleness test.
+
 ## Records consumers (the substrate shipped in 0.9)
 
 - [ ] First consumer: **compliance review as diff-vs-intent evidence.** Today it
