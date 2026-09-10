@@ -24,16 +24,13 @@ const DELIBERATE_REFUSAL_FIXTURES: readonly string[] = ["docs/specs/34-foo.md"];
 // timestamp-naming spec/plan quote the old grammar verbatim in their own
 // before/after illustration (rewriting them would corrupt the very history
 // they document, and would invalidate their recorded approval fingerprint);
-// several already-archived plans/specs use small counters in *hypothetical*
-// CLI examples that were never backed by a file; and `phax artifact new`'s remaining
-// fictitious example paths in cliDocs.ts, its generated contract files, and
-// README.md are phase-04/05 scope. Each entry here was individually checked
+// and several already-archived plans/specs and the 1.0 announcement post use
+// small counters in *hypothetical* CLI examples that were never backed by a
+// file. Each entry here was individually checked
 // against the phase-02 migration mapping to confirm it names no real old
 // path that should have been rewritten.
 const KNOWN_NON_MIGRATION_MATCHES: ReadonlySet<string> = new Set([
-  "README.md",
   "docs/blog/announcing-phax-1.0.md",
-  "docs/cli/reference.md",
   "docs/plans/archive/2609100902-artifact-timestamp-naming-plan.md",
   "docs/plans/archive/2606090853-review-handoff-plan.md",
   "docs/plans/archive/2606261007-plans-overlap-command-plan.md",
@@ -48,8 +45,6 @@ const KNOWN_NON_MIGRATION_MATCHES: ReadonlySet<string> = new Set([
   "docs/specs/archive/2608121241-run-carries-archival.md",
   "docs/specs/archive/2609030749-spec-approval-ground.md",
   "docs/specs/archive/2609080848-plan-lint.md",
-  "phax.usage.kdl",
-  "src/cli/cliDocs.ts",
 ]);
 
 describe("artifact name migration guard", () => {
