@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2609091040-artifact-timestamp-naming.md
+approved:
+  date: 2026-09-10
+  baseline: b378d90
 ---
 
 # Artifact timestamp naming
