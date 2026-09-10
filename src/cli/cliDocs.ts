@@ -118,7 +118,7 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
   "adjust-plan": {
     longHelp:
       "Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.\n\nInput: the path to the plan.md to adjust and --landed <run> (the run whose actual changes drive the adjustment). The landed run must have a global-file-reconciliation.json (i.e. it must have reached review). Re-invocation without --new-session resumes the same session; --new-session starts a fresh one.\n\nSide effects: spawns a long-lived interactive provider session (network I/O); the session may, after developer approval, edit and commit the plan.md.",
-    examples: ["phax adjust-plan docs/plans/40-foo.md --landed my-feature"],
+    examples: ["phax adjust-plan docs/plans/2609101030-plan-prune-plan.md --landed my-feature"],
   },
 
   plans: {

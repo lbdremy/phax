@@ -458,7 +458,7 @@ Override the effort (low | medium | high)
 ### Examples
 
 ```
-phax adjust-plan docs/plans/40-foo.md --landed my-feature
+phax adjust-plan docs/plans/2609101030-plan-prune-plan.md --landed my-feature
 ```
 
 ## `phax init`
