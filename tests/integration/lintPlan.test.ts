@@ -1,12 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { Effect, Exit, Layer } from "effect";
+import { Effect, Either, Exit, Layer } from "effect";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { lintPlan, type LintReport } from "../../src/app/lintPlan.js";
+import { ArtifactValidationError } from "../../src/domain/errors.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 
 const REPO_ROOT = "/repo";
-const PLAN_PATH = "/repo/docs/plans/60-thing-plan.md";
+const PLAN_REL = "docs/plans/2609101260-thing-plan.md";
+const PLAN_PATH = `${REPO_ROOT}/${PLAN_REL}`;
+const DRAFT_FRONTMATTER = "---\nstatus: Draft\nsource-spec: null\n---\n";
+
+function frontmatterWithSpec(sourceSpec: string): string {
+  return `---\nstatus: Draft\nsource-spec: ${sourceSpec}\n---\n`;
+}
 
 const config = {
   stateRoot: "/home/user/.phax",
@@ -48,6 +55,7 @@ function planMd(
     readonly model?: string;
     readonly create?: string;
     readonly edit?: string;
+    readonly frontmatter?: string;
   } = {},
 ): string {
   const {
@@ -55,8 +63,9 @@ function planMd(
     model = "claude-sonnet-5",
     create = "- (none)",
     edit = "- (none)",
+    frontmatter = DRAFT_FRONTMATTER,
   } = overrides;
-  return `# Thing
+  return `${frontmatter}# Thing
 
 ## Required commands
 
@@ -89,16 +98,22 @@ Does the thing.
 `;
 }
 
-function runLint(
+interface LintOpts {
+  readonly config?: ResolvedConfig;
+  readonly fakeShell?: ReturnType<typeof makeFakeShell>;
+  /** Repo-relative plan path; the plan is read from `/repo/<planRel>`. */
+  readonly planRel?: string;
+}
+
+function lintEffect(
   plan: string,
   files: Readonly<Record<string, string>> = {},
-  opts: {
-    readonly config?: ResolvedConfig;
-    readonly fakeShell?: ReturnType<typeof makeFakeShell>;
-  } = {},
-) {
+  opts: LintOpts = {},
+): Effect.Effect<LintReport, unknown, never> {
+  const planRel = opts.planRel ?? PLAN_REL;
+  const planPath = `${REPO_ROOT}/${planRel}`;
   const fakeFs = makeFakeFileSystem();
-  fakeFs.impl.setFile(PLAN_PATH, plan);
+  fakeFs.impl.setFile(planPath, plan);
   for (const [path, content] of Object.entries(files)) fakeFs.impl.setFile(path, content);
 
   const fakeShell = opts.fakeShell ?? makeFakeShell();
@@ -113,16 +128,19 @@ function runLint(
   // Deliberately provided with the filesystem and shell layers alone:
   // `lintPlan` must not require a Backend, so it can never fall back to the
   // extraction model.
-  const effect: Effect.Effect<LintReport, unknown, never> = lintPlan({
-    planMdPath: PLAN_PATH,
-    reportPath: PLAN_PATH,
+  return lintPlan({
+    planMdPath: planPath,
+    reportPath: planPath,
+    repoRelPath: planRel,
     config: opts.config ?? config,
   }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)));
-
-  return Effect.runPromise(effect);
 }
 
-const PLAN_WITH_TWO_PHASES = `# Thing
+function runLint(plan: string, files: Readonly<Record<string, string>> = {}, opts: LintOpts = {}) {
+  return Effect.runPromise(lintEffect(plan, files, opts));
+}
+
+const PLAN_WITH_TWO_PHASES = `${DRAFT_FRONTMATTER}# Thing
 
 ## Required commands
 
@@ -246,12 +264,85 @@ describe("lintPlan", () => {
     const fakeShell = makeFakeShell();
 
     const exit = await Effect.runPromiseExit(
-      lintPlan({ planMdPath: PLAN_PATH, reportPath: PLAN_PATH, config }).pipe(
-        Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)),
-      ),
+      lintPlan({
+        planMdPath: PLAN_PATH,
+        reportPath: PLAN_PATH,
+        repoRelPath: PLAN_REL,
+        config,
+      }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
     );
 
     expect(Exit.isFailure(exit)).toBe(true);
+  });
+
+  describe("repo-tracked plan checks", () => {
+    it("fails with ArtifactValidationError, naming the grammar, on an off-grammar name", async () => {
+      const result = await Effect.runPromise(
+        Effect.either(lintEffect(planMd(), {}, { planRel: "docs/plans/Thing_Plan.md" })),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ArtifactValidationError);
+        expect((result.left as ArtifactValidationError).message).toBe(
+          "docs/plans/Thing_Plan.md: name does not match <YYMMDDHHMM>-<slug>-plan.md",
+        );
+      }
+    });
+
+    it("fails with ArtifactValidationError on a well-named plan with no frontmatter", async () => {
+      const result = await Effect.runPromise(
+        Effect.either(lintEffect(planMd({ frontmatter: "" }))),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ArtifactValidationError);
+      }
+    });
+
+    it("reports a plan slug that differs from its source spec's slug as a structure error", async () => {
+      const report = await runLint(
+        planMd({
+          frontmatter: frontmatterWithSpec("docs/specs/2609101200-other-thing.md"),
+          edit: "- src/a.ts",
+        }),
+        { "/repo/src/a.ts": "export {}" },
+      );
+
+      expect(report.findings).toEqual([
+        {
+          severity: "error",
+          check: "structure",
+          phase: null,
+          message: 'slug "thing" differs from source spec slug "other-thing"',
+        },
+      ]);
+    });
+
+    it("reports nothing when the slug matches its source spec's, archived or live", async () => {
+      for (const spec of [
+        "docs/specs/2609101200-thing.md",
+        "docs/specs/archive/2609101200-thing.md",
+      ]) {
+        const report = await runLint(
+          planMd({ frontmatter: frontmatterWithSpec(spec), edit: "- src/a.ts" }),
+          { "/repo/src/a.ts": "export {}" },
+        );
+        expect(report.findings).toEqual([]);
+      }
+    });
+
+    it("skips both checks for a loose plan.md outside docs/plans/", async () => {
+      for (const frontmatter of ["", frontmatterWithSpec("docs/specs/2609101200-other.md")]) {
+        const report = await runLint(
+          planMd({ frontmatter, edit: "- src/a.ts" }),
+          { "/repo/src/a.ts": "export {}" },
+          { planRel: "examples/hello-world/plan.md" },
+        );
+        expect(report.findings).toEqual([]);
+      }
+    });
   });
 
   describe("advisory check", () => {

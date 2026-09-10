@@ -25,8 +25,8 @@ const PLAN_LEVEL_FINDING: LintFinding = {
 
 describe("renderLintReport", () => {
   it("reports no findings", () => {
-    const text = renderLintReport({ plan: "docs/plans/60-foo-plan.md", findings: [] });
-    expect(text).toBe("docs/plans/60-foo-plan.md: no findings");
+    const text = renderLintReport({ plan: "docs/plans/2609101260-foo-plan.md", findings: [] });
+    expect(text).toBe("docs/plans/2609101260-foo-plan.md: no findings");
   });
 
   it("counts errors and warnings in the header", () => {

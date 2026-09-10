@@ -1,5 +1,6 @@
 import { archivePathFor } from "./document.js";
 import { APPROVALS_FILE_PATH, SPEC_APPROVALS_FILE_PATH } from "./lineage.js";
+import { parseArtifactName } from "./name.js";
 import { type ArtifactKind, type ArtifactStatus, isTerminalStatus } from "./status.js";
 
 export function transitionWriteSet(
@@ -31,8 +32,13 @@ const VERB_BY_TARGET: Record<ArtifactStatus, string> = {
   Completed: "complete",
 };
 
-function slugFor(repoRelPath: string): string {
+// Artifacts are referred to by slug, never by stamp. validateArtifact has
+// accepted the name before any transition commits, so the basename fallback
+// is unreachable in practice.
+function slugFor(kind: ArtifactKind, repoRelPath: string): string {
   const fileName = repoRelPath.slice(repoRelPath.lastIndexOf("/") + 1);
+  const parsed = parseArtifactName(kind, fileName);
+  if (parsed !== null) return parsed.slug;
   return fileName.endsWith(".md") ? fileName.slice(0, -".md".length) : fileName;
 }
 
@@ -43,7 +49,7 @@ export function transitionCommitMessage(
 ): { readonly subject: string; readonly body: string } {
   const verb = VERB_BY_TARGET[target];
   const scope = kind === "plan" ? "plans" : "specs";
-  const slug = slugFor(repoRelPath);
+  const slug = slugFor(kind, repoRelPath);
   const subject = `chore(${scope}): ${verb} ${slug}`;
   const body = `Transitions ${repoRelPath} to ${target} (${verb}).`;
   return { subject, body };

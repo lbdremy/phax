@@ -14,7 +14,7 @@ import type { PrepareAdjustPlanSessionOpts } from "../../src/app/adjustPlan.ts";
 const stateRoot = "/fake-state";
 const runPath = `${stateRoot}/runs/my-feature`;
 const runKey = "my-feature";
-const planPath = "docs/plans/40-foo.md";
+const planPath = "docs/plans/2609101240-foo-plan.md";
 const nowIso = "2026-06-29T10:00:00.000Z";
 const cwd = "/repo/root";
 

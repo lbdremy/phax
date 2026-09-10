@@ -27,8 +27,8 @@ const HANDOFF_CONTENT = [
 
 const shortName = Either.getOrThrow(decodeShortName("my-run"));
 
-const PLAN_REL = "docs/plans/70-run-carry-plan.md";
-const PLAN_ARCHIVE = "docs/plans/archive/70-run-carry-plan.md";
+const PLAN_REL = "docs/plans/2609101270-run-carry-plan.md";
+const PLAN_ARCHIVE = "docs/plans/archive/2609101270-run-carry-plan.md";
 
 const rawPlan = {
   version: 1,

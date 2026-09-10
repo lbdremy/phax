@@ -40,7 +40,7 @@ describe("runArtifactStatus — approval rendering", () => {
     );
 
     const { out, lines } = makeOutput();
-    const code = await runArtifactStatus("docs/specs/31-spec-approval-ground.md", out);
+    const code = await runArtifactStatus("docs/specs/2609101231-spec-approval-ground.md", out);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -65,7 +65,7 @@ describe("runArtifactStatus — approval rendering", () => {
     );
 
     const { out, lines } = makeOutput();
-    const code = await runArtifactStatus("docs/specs/31-spec-approval-ground.md", out);
+    const code = await runArtifactStatus("docs/specs/2609101231-spec-approval-ground.md", out);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -85,7 +85,7 @@ describe("runArtifactStatus — approval rendering", () => {
     );
 
     const { out, lines } = makeOutput();
-    const code = await runArtifactStatus("docs/specs/31-spec-approval-ground.md", out);
+    const code = await runArtifactStatus("docs/specs/2609101231-spec-approval-ground.md", out);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -105,7 +105,7 @@ describe("runArtifactStatus — approval rendering", () => {
     );
 
     const { out, lines } = makeOutput();
-    const code = await runArtifactStatus("docs/plans/56-spec-approval-ground-plan.md", out);
+    const code = await runArtifactStatus("docs/plans/2609101256-spec-approval-ground-plan.md", out);
 
     expect(code).toBe(0);
     const text = lines.join("\n");

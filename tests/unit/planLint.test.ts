@@ -8,6 +8,7 @@ import {
   hasLintErrors,
   advisoryFindings,
   auditorFailureFinding,
+  lineageFindings,
   type LintCheck,
   type LintSeverity,
   type FilePlanPhase,
@@ -80,6 +81,27 @@ describe("structureFindings", () => {
       expect(severities).toContain(finding.severity);
       expect(checks).toContain(finding.check);
     }
+  });
+});
+
+describe("lineageFindings", () => {
+  it("reports one structure error naming both slugs when they differ", () => {
+    expect(lineageFindings("prune", "plan-prune")).toEqual([
+      {
+        severity: "error",
+        check: "structure",
+        phase: null,
+        message: 'slug "prune" differs from source spec slug "plan-prune"',
+      },
+    ]);
+  });
+
+  it("reports nothing when the slugs match", () => {
+    expect(lineageFindings("plan-prune", "plan-prune")).toEqual([]);
+  });
+
+  it("reports nothing when there is no source spec slug", () => {
+    expect(lineageFindings("plan-prune", null)).toEqual([]);
   });
 });
 

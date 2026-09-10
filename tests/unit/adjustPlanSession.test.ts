@@ -4,7 +4,7 @@ import { decodeAdjustPlanSession } from "../../src/schemas/adjustPlanSession.js"
 
 const valid = {
   version: 1 as const,
-  planPath: "docs/plans/40-foo.md",
+  planPath: "docs/plans/2609101240-foo-plan.md",
   landedRunKey: "my-feature.phase-01",
   provider: "claude-code" as const,
   sessionId: "sess-uuid-1234",
@@ -18,7 +18,7 @@ describe("decodeAdjustPlanSession", () => {
     const result = decodeAdjustPlanSession(valid);
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
-      expect(result.right.planPath).toBe("docs/plans/40-foo.md");
+      expect(result.right.planPath).toBe("docs/plans/2609101240-foo-plan.md");
       expect(result.right.provider).toBe("claude-code");
       expect(result.right.version).toBe(1);
     }

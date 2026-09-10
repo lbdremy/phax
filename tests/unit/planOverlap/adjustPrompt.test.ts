@@ -6,7 +6,7 @@ import {
 } from "../../../src/domain/planOverlap/adjustPrompt.js";
 
 const baseInput = {
-  planPath: "docs/plans/40-foo.md",
+  planPath: "docs/plans/2609101240-foo-plan.md",
   planMarkdown: "# Plan 40\n\nSome plan content here.",
   landedLabel: "my-feature.phase-01",
   landedChanges: {
@@ -25,7 +25,7 @@ describe("ADJUST_PLAN_PROMPT_FILENAME", () => {
 describe("buildAdjustPlanPrompt", () => {
   it("names the plan path", () => {
     const output = buildAdjustPlanPrompt(baseInput);
-    expect(output).toContain("docs/plans/40-foo.md");
+    expect(output).toContain("docs/plans/2609101240-foo-plan.md");
   });
 
   it("names the landed run label", () => {

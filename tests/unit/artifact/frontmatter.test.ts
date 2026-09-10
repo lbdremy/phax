@@ -22,7 +22,7 @@ Body text.
 
 const PLAN_DOC = `---
 status: Approved
-source-spec: docs/specs/26-artifact-frontmatter-metadata.md
+source-spec: docs/specs/2609101226-artifact-frontmatter-metadata.md
 approved:
   date: 2026-08-11
   baseline: 4ae687b
@@ -95,7 +95,7 @@ describe("decodeArtifactFrontmatter", () => {
     expect(decoded).toEqual(
       Either.right({
         status: "Approved",
-        "source-spec": "docs/specs/26-artifact-frontmatter-metadata.md",
+        "source-spec": "docs/specs/2609101226-artifact-frontmatter-metadata.md",
         approved: { date: "2026-08-11", baseline: "4ae687b" },
       }),
     );
@@ -223,7 +223,9 @@ describe("removeFrontmatterKeys", () => {
     if (!Either.isRight(result)) return;
     expect(result.right).not.toContain("approved:");
     expect(result.right).toContain("status: Approved");
-    expect(result.right).toContain("source-spec: docs/specs/26-artifact-frontmatter-metadata.md");
+    expect(result.right).toContain(
+      "source-spec: docs/specs/2609101226-artifact-frontmatter-metadata.md",
+    );
     const bodyAfter = result.right.slice(result.right.indexOf("---\n", 3) + 4);
     const bodyBefore = PLAN_DOC.slice(PLAN_DOC.indexOf("---\n", 3) + 4);
     expect(bodyAfter).toBe(bodyBefore);
@@ -318,8 +320,8 @@ describe("fingerprintSource", () => {
 
   it("differs when source-spec differs", () => {
     const other = PLAN_DOC.replace(
-      "source-spec: docs/specs/26-artifact-frontmatter-metadata.md",
-      "source-spec: docs/specs/27-other.md",
+      "source-spec: docs/specs/2609101226-artifact-frontmatter-metadata.md",
+      "source-spec: docs/specs/2609101227-other.md",
     );
     expect(fingerprintSource(PLAN_DOC)).not.toBe(fingerprintSource(other));
   });

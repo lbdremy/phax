@@ -5,6 +5,7 @@ import { runPlansStatus, runPlansLint } from "../../../src/cli/commands/plans.js
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 import type { StalenessReport } from "../../../src/domain/artifact/render.js";
 import type { LintReport } from "../../../src/app/lintPlan.js";
+import { ArtifactValidationError } from "../../../src/domain/errors.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -53,9 +54,9 @@ function makeConfig(): ResolvedConfig {
 }
 
 const FRESH_STALE_REPORT: StalenessReport = [
-  { path: "docs/plans/10-fresh.md", result: { kind: "fresh" } },
+  { path: "docs/plans/2609101210-fresh-plan.md", result: { kind: "fresh" } },
   {
-    path: "docs/plans/20-stale.md",
+    path: "docs/plans/2609101220-stale-plan.md",
     result: {
       kind: "stale",
       evidence: [{ reason: "self-changed" }],
@@ -91,8 +92,8 @@ describe("runPlansStatus", () => {
 
     expect(code).toBe(0);
     const text = lines.join("\n");
-    expect(text).toContain("docs/plans/10-fresh.md: fresh");
-    expect(text).toContain("docs/plans/20-stale.md: STALE");
+    expect(text).toContain("docs/plans/2609101210-fresh-plan.md: fresh");
+    expect(text).toContain("docs/plans/2609101220-stale-plan.md: STALE");
     expect(text).toContain("self-changed");
     expect(applyStalenessReport).not.toHaveBeenCalled();
   });
@@ -106,7 +107,7 @@ describe("runPlansStatus", () => {
     applyStalenessReport.mockReturnValue(
       Effect.succeed([
         {
-          path: "docs/plans/20-stale.md",
+          path: "docs/plans/2609101220-stale-plan.md",
           verdict: { kind: "stale", evidence: [{ reason: "self-changed" }] },
         },
       ]),
@@ -118,7 +119,7 @@ describe("runPlansStatus", () => {
     expect(code).toBe(0);
     expect(applyStalenessReport).toHaveBeenCalledTimes(1);
     const text = lines.join("\n");
-    expect(text).toContain("docs/plans/20-stale.md: Approved -> Stale");
+    expect(text).toContain("docs/plans/2609101220-stale-plan.md: Approved -> Stale");
   });
 
   it("without --apply, the apply use case is not called", async () => {
@@ -169,20 +170,20 @@ describe("runPlansLint", () => {
 
   it("reads the absolutized path but reports the argument as typed", async () => {
     await setupConfig();
-    const lintPlan = await mockLint({ plan: "docs/plans/60-foo-plan.md", findings: [] });
+    const lintPlan = await mockLint({ plan: "docs/plans/2609101260-foo-plan.md", findings: [] });
 
     const { out, lines } = makeOutput();
-    const code = await runPlansLint("docs/plans/60-foo-plan.md", {}, out);
+    const code = await runPlansLint("docs/plans/2609101260-foo-plan.md", {}, out);
 
     expect(code).toBe(0);
     expect(lintPlan).toHaveBeenCalledWith(
       expect.objectContaining({
-        planMdPath: resolve(process.cwd(), "docs/plans/60-foo-plan.md"),
-        reportPath: "docs/plans/60-foo-plan.md",
+        planMdPath: resolve(process.cwd(), "docs/plans/2609101260-foo-plan.md"),
+        reportPath: "docs/plans/2609101260-foo-plan.md",
       }),
     );
     // The header names the path the user typed, not the resolved one.
-    expect(lines.join("\n")).toBe("docs/plans/60-foo-plan.md: no findings");
+    expect(lines.join("\n")).toBe("docs/plans/2609101260-foo-plan.md: no findings");
   });
 
   it("exits 0 and renders the report when only warnings are found", async () => {
@@ -268,6 +269,35 @@ describe("runPlansLint", () => {
     expect(code).toBe(1);
     expect(errors.join("\n")).toContain("bad phax.json");
     expect(lintPlan).not.toHaveBeenCalled();
+  });
+
+  it("passes the plan's path relative to the repo root as repoRelPath", async () => {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    loadConfig.mockReturnValue(Either.right({ ...makeConfig(), repoRoot: process.cwd() }));
+    const lintPlan = await mockLint({ plan: "docs/plans/2609101260-foo-plan.md", findings: [] });
+
+    const { out } = makeOutput();
+    await runPlansLint("docs/plans/2609101260-foo-plan.md", {}, out);
+
+    expect(lintPlan).toHaveBeenCalledWith(
+      expect.objectContaining({ repoRelPath: "docs/plans/2609101260-foo-plan.md" }),
+    );
+  });
+
+  it("an off-grammar repo-tracked plan exits 12 with the validation message", async () => {
+    await setupConfig();
+    const { lintPlan } = vi.mocked(await import("../../../src/app/lintPlan.js"));
+    const message = "docs/plans/foo-plan.md: name does not match <YYMMDDHHMM>-<slug>-plan.md";
+    lintPlan.mockReturnValue(
+      Effect.fail(new ArtifactValidationError({ path: "docs/plans/foo-plan.md", message })),
+    );
+
+    const { out, errors, lines } = makeOutput();
+    const code = await runPlansLint("docs/plans/foo-plan.md", {}, out);
+
+    expect(code).toBe(12);
+    expect(errors).toEqual([message]);
+    expect(lines).toEqual([]);
   });
 
   it("a use-case failure reports the message and exits non-zero", async () => {
