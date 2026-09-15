@@ -21,6 +21,8 @@ flight and the registry holds only `archived` entries.
 Everything the 1.0 announcement (`docs/blog/announcing-phax-1.0.md`) describes is shipped,
 except `isolated` mode, which the post itself disclaims. The feature surface is not what
 holds 1.0 back; the things below are. Ordered by what 1.0 would be lying about if skipped.
+Decided 2026-09-15: the first four are the blockers; the last three are wanted but do not
+hold the tag.
 
 - [ ] **Two known happy-path defects.** The run-before-preflight slug burn and the
       approval-commit staleness (both under *Small follow-ups*). A 1.0 whose `approve` →
@@ -109,6 +111,13 @@ desktop — none is promised by the announcement.
       weaken uniqueness. A `prune` command that removes archived runs (folder, worktrees,
       registry entry) makes the slug free itself. Distinct from `archive`, which moves and
       keeps.
+- [ ] **`phax autopilot` — the lifecycle driven in a loop from a corpus.** Raised
+      2026-09-15, captured in `docs/ideas/autopilot.md`. Explicitly after 1.0: a
+      deterministic supervisor (not a master agent) over roadmap → spec → decide → plan →
+      lint → approve → run → land → loop, framed by a frozen `autopilot.md`. Depends on
+      spec 23 (decision requests carry the `recommendation` it adopts) and needs a roadmap
+      artifact, a decision policy, budget/stop conditions and a machine-distinguishable
+      approval. First target: the steme CLI from its corpus.
 - [ ] Preview manifest — `phax.json` declares how to preview a finished run
       (per-project-type discriminated union: web / cli / lib). Write it when desktop
       work starts; nothing consumes it before then.
