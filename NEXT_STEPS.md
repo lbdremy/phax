@@ -5,17 +5,52 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-09-09. Two plans shipped back to back on `main`: spec 33 through plan 33
-on 2026-09-08 (`4531cb51`..`c9ec7ad4` — `phax plans lint` with the accumulating parser, the
-sequence-aware file-plan rule and the run-readiness checks; `extract-plan` removed, the
-write → lint → run flow documented), merged as PR #94 and completed (`e7126f09` /
-`a3f12af5`); then spec 19 through plan 60 on 2026-09-09 (`1069c2bc`..`5bbf84d5` — the
-registered plan auditor next to `orient` and `scopes`, the plan-audit request over the
-projection, advisory findings inside `plans lint` that never set the exit code, a
-hello-world auditor), merged as PR #96 and completed (`ab3772e2` / `7200a2f1`), followed by
-two same-day fixes (`c1b8f685` auditor failure cause kept, `77b7a117` the auditor capped by
-an optional shell timeout). v0.13.0 shipped 2026-09-09 (`9dd47f0e`): the release workflow
-passed and `@lbdremy/phax@latest` is 0.13.0. Two approved specs remain, both parked (23, 24).
+Last pruned 2026-09-15. Since the previous prune: the artifact-timestamp-naming spec
+(`2609091040`) shipped through its plan on 2026-09-10 (`4114e063`..`e029960e` — the
+`<YYMMDDHHMM>-<slug>` name grammar, enforced in every reader and in `plans lint`, every spec
+and plan migrated, `phax artifact new spec|plan` stamped from the clock, the skills taught to
+reference by slug), merged as PR #97 and completed (`30631178` / `b3d834d5`), followed by one
+same-day fix (`debb3c14` refuse a spec slug that would name an off-grammar spec). v0.14.0
+shipped 2026-09-15 (`8da9d82e`): the release workflow passed, the GitHub release carries the
+four binaries, and `@lbdremy/phax@latest` is 0.14.0. The run was archived and the global
+install bumped the same day. Two approved specs remain, both parked (23, 24); nothing is in
+flight and the registry holds only `archived` entries.
+
+## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0
+
+Everything the 1.0 announcement (`docs/blog/announcing-phax-1.0.md`) describes is shipped,
+except `isolated` mode, which the post itself disclaims. The feature surface is not what
+holds 1.0 back; the things below are. Ordered by what 1.0 would be lying about if skipped.
+
+- [ ] **Two known happy-path defects.** The run-before-preflight slug burn and the
+      approval-commit staleness (both under *Small follow-ups*). A 1.0 whose `approve` →
+      `run` sequence can refuse itself is not 1.0.
+- [ ] **A persisted-format stability promise.** `phax.json` (`version: 1`), the run status
+      files, `approvals.json`, `phax/records/v1`. The no-shims rule is right for 0.x, but 1.0
+      means a config written under 1.0 still loads under 1.x — the louloupapers repo already
+      shows what the alternative looks like (a `phax.json` the CLI refuses). Decide the
+      contract (frozen `version: 1` + a migration command, or a documented "re-run `phax
+      init`" policy) and write it down in the README.
+- [ ] **CLI contract freeze.** `phax.usage.kdl` had a breaking change in 0.13 (`extract-plan`
+      removed) and another candidate is queued (`prune`). Land the last renames from
+      `docs/vocabulary-review.md` §"Top fixes" (at least 1, 2 and 4 — they change output and
+      flag values) *before* 1.0, then hold the contract for one or two 0.x releases.
+- [ ] **`phax prune`.** Without it a slug is held forever by its archived run; the `-2` habit
+      is the visible symptom. Small, and it closes the run lifecycle (created → … → archived →
+      gone).
+- [ ] **Distribution polish.** macOS binaries are neither signed nor notarized
+      (`docs/release.md`); npm install works, the raw binary is Gatekeeper-blocked. Either
+      sign, or make npm the only documented install path for 1.0.
+- [ ] **Provider coverage on record.** The post is honest that Claude is the tested path.
+      `tests/e2e/semanticTrace.providers.test.ts` is the only real exercise of Codex and
+      Vibe; one full `phax run` per provider on a real plan, with the result noted here, is
+      the minimum to keep the provider-independence claim.
+- [ ] **A second user.** The registry shows one operator across three repos (phax,
+      steme-lab, louloupapers). One outside `phax init` → `run` → `publish-pr` on a repo not
+      authored here, before the number changes.
+
+Not blockers, on purpose: specs 23/24, records consumers, the durable context layer, the
+desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
@@ -84,21 +119,14 @@ passed and `@lbdremy/phax@latest` is 0.13.0. Two approved specs remain, both par
 
 ## Approved specs — parked
 
-Two approved specs are open, 23 and 24, both parked since 2026-08-14. Specs 33 and 19
-shipped 2026-09-08 / 2026-09-09 (PRs #94 / #96) and are archived; nothing is in flight.
-Both remaining specs are plannable at any time. Pick one up by writing a plan
-(`phax-planning` skill) and running `phax plans lint` on it — the advisory auditor now
-fires there too. Note that plan staleness is a **plan** property, so a spec parked here
-does not rot; the plans written against them do.
+Two approved specs are open, 23 and 24, both parked since 2026-08-14. Nothing is in flight.
+Both remaining specs are plannable at any time. Pick one up with `phax artifact new plan
+<slug> --spec <path>`, write it with the `phax-planning` skill and run `phax plans lint` on
+it — the advisory auditor fires there too. Note that plan staleness is a **plan** property,
+so a spec parked here does not rot; the plans written against them do.
 
 ### Housekeeping
 
-- [x] **Archive the two `review_open` runs.** Done 2026-09-09: `phax.plan-lint` (plan 33,
-      PR #94) and `phax.plan-completeness-advisory` (plan 60, PR #96) archived normally.
-      Registry holds only `archived` entries again and `~/.phax/worktrees/` is empty.
-      Prune this entry next pass.
-- [x] **Bump the global install to 0.13.0.** Done 2026-09-09 (`npm install -g
-      @lbdremy/phax@0.13.0`); `phax --version` reports 0.13.0. Prune this entry next pass.
 - Standing note from the 2026-09-04 registry sweep: the louloupapers `phax.json` is
   pre-spec-15 and the CLI refuses to load there. Migrate it before running phax in
   louloupapers again (its two runs were archived from the phax repo by qualified name,
