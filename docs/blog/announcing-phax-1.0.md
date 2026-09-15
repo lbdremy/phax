@@ -57,26 +57,53 @@ decides what happens. There is exactly one writer to the run's status files. Not
 
 The visible payoff is **gates**. After the agent finishes a phase, phax runs the phase's
 verification commands — your typecheck, your tests, your linter, whatever you put in a
-*gate profile*:
+*gate profile*. A profile isn't a dial ("fast" vs "full"); it's a list of **attributed steps**,
+each saying what *surface* it verifies and *when* it fires:
 
 ```json
 "gateProfiles": {
-  "fast": ["pnpm typecheck", "pnpm test:unit"],
-  "full": ["pnpm typecheck", "pnpm lint", "pnpm test", "pnpm build"]
+  "standard": [
+    { "command": "pnpm typecheck", "surface": "local",      "firing": "every-phase" },
+    { "command": "pnpm test",      "surface": "local",      "firing": "every-phase" },
+    { "command": "pnpm audit:architecture",
+                                   "surface": "structural", "firing": "every-phase",
+                                   "output": "diagnostics" },
+    { "command": "pnpm build",     "surface": "product",    "firing": "terminal" }
+  ]
 }
 ```
+
+Cheap checks run at every phase; the expensive build runs once, at the end. Every step's
+outcome is recorded per phase, so a green gate says *which surfaces were verified* — local,
+structural, product — not just "it passed". That attribution travels with the run: the
+final report names the run's verified surfaces, and so does the record each phase leaves
+behind (below), so months later you can ask whether the architecture check ever ran on a
+given commit.
 
 If a gate fails, phax doesn't shrug and move on. It resumes the *same agent session* — the
 one with all the context of what it just did — and tells it to fix the failure, then runs
 the gate again. A phase only advances when its gate is green. A phase that produced no
 changes stops the run with a clear exit code instead of committing nothing and pretending.
 
-The same principle reaches back to the plan itself. Turning `plan.md` into the structured
-`phax-plan.json` that drives a run used to be an agent's job. Now it's a **deterministic
-parser first**: a well-formed plan extracts instantly, identically, with no model in the loop.
-Only a plan the parser can't read falls back to the LLM — and that fallback is recorded as a
-warning, not hidden. Extractions are content-addressed and cached, so the same plan text never
-gets extracted twice. Less of the pipeline is probabilistic than it was; that's the direction.
+A step that declares `"output": "diagnostics"` feeds the fix loop something better than a raw
+log: a list of **structured findings** — rule, location, message, and a repair pointer — so the
+agent is told *which* rule broke and where the guide that fixes it lives, instead of parsing
+stdout by eye. And because the plan says which phase creates which file, phax can tell an
+auditor *when* a finding is fair: a "this wiring is missing" diagnostic against a file a later
+phase is planned to add is reported as pending work, not as a failure, until the phase that
+owns it has landed. Invariants fail immediately; completion findings fail exactly once the
+plan says they should.
+
+The same principle reaches back to the plan itself. Turning `plan.md` into the structured form
+that drives a run is a **deterministic parser first**: a well-formed plan extracts instantly,
+identically, with no model in the loop. Only a plan the parser can't read falls back to the LLM —
+and that fallback is recorded as a warning, not hidden. Extractions are content-addressed and
+cached, so the same plan text never gets extracted twice. And before any of that,
+**`phax plans lint`** tells you whether a plan is fit to run at all — read-only, model-free, in
+one pass: every structural defect (not just the first), planned-file lists walked in phase order
+against the working tree, required commands checked against the allowlist, every phase's
+model/effort checked against the catalog. Less of the pipeline is probabilistic than it was;
+that's the direction.
 
 ### 2. Human review at the center
 
@@ -119,7 +146,7 @@ Mistral Vibe, or OpenAI Codex**, chosen by a routing layer you control.
 
 I tried the obvious design first — an invented scale of capability tiers that each provider
 maps onto — and threw it out. A made-up ladder is one more thing to maintain, and it hides the
-real question. What shipped instead: the plan names **real, versioned models** (`claude-opus-4-8`
+real question. What shipped instead: the plan names **real, versioned models** (`claude-opus-5`
 at `high`, say) from a **catalog** phax keeps current, and a small **equivalence table** — a
 star with Claude at the hub — translates that request when a *different* provider family ends up
 running it. Each edge carries only a capability relation (`equivalent`, `upgrade`, `downgrade`),
@@ -129,7 +156,7 @@ the plan can be corrected *before* anything runs, not halfway through phase 4.
 
 ```bash
 phax agent models                         # the catalog, equivalence table, provider priority
-phax agent resolve --model claude-opus-4-8 --effort high
+phax agent resolve --model claude-opus-5 --effort high
 phax run --provider-priority codex-cli,claude-code   # override for one run
 ```
 
@@ -191,23 +218,31 @@ reality drifted from the plan you signed off on.
 When you believe in it, you say so — explicitly:
 
 ```bash
-phax artifact approve docs/plans/44-gate-profile-steps.md
-phax run --plan docs/plans/44-gate-profile-steps.md   # extracts, runs every phase, leaves a run to review
+phax plans lint docs/plans/2609080902-plan-lint-plan.md        # fit to run? no model, no side effects
+phax artifact approve docs/plans/2609080902-plan-lint-plan.md
+phax run --plan docs/plans/2609080902-plan-lint-plan.md        # extracts, runs every phase, leaves a run to review
 ```
 
 That approval isn't ceremony. Specs and plans carry a **lifecycle status** in their YAML
 frontmatter — `Draft`, `Approved`, `Stale`, `Abandoned`, `Completed` — and `phax run` **refuses
 to start from anything but an `Approved` plan**. A plan declares which spec it derives from
 (or explicitly declares none), and approving it is chain-gated: the source spec must be
-`Approved` too. Every transition is a path-scoped commit, so the history of *what you signed
-off on, and when* is in Git, next to the code. The "review the intent first" step above used to
-be a habit; now it's enforced.
+`Approved` too — and *still* the text someone approved, not edited since. Every transition is a
+path-scoped commit, so the history of *what you signed off on, and when* is in Git, next to the
+code. The "review the intent first" step above used to be a habit; now it's enforced.
 
-The approval also records **what it was given against** — the spec's content, the plan's
-content, and a baseline commit. That's what lets phax notice when the ground shifts under a
+The approval also records **what it was given against**. For a plan: the spec's content, the
+plan's content, and a baseline commit. For a spec: its own content and a baseline. Re-approving
+is legal and simply re-records — that's the honest gesture after an in-place revision, instead
+of editing a date by hand. That record is what lets phax notice when the ground shifts under a
 plan, which matters once you have more than one in flight (below).
 
-That's the whole happy path: in normal use, `approve` then `run` are the commands you reach for.
+The files themselves are named by phax, not by you: `phax artifact new spec <slug>` and
+`phax artifact new plan <slug> --spec <path>` stamp a `YYMMDDHHMM-` prefix from the clock, so
+two artifacts never fight over a counter and a directory listing *is* the authoring order.
+
+That's the whole happy path: in normal use, `lint`, `approve`, then `run` are the commands you
+reach for.
 
 The one other command you *will* use on any sizable run is **`phax resume`**. Long runs hit
 usage limits — you're halfway through phase 4 of 7 and the provider cuts you off. phax doesn't
@@ -217,12 +252,12 @@ whenever you come back — minutes or hours later — and never re-runs a phase 
 committed. The same holds for any clean mid-run stop: resume continues, it doesn't restart.
 
 Everything else is there when you want it, not on the critical path. `phax ls`, `phax enter`,
-`phax publish-pr`, and `phax archive` list, step into, ship, or shelve a run;
+`phax publish-pr`, and `phax archive` list, step into, ship, or shelve a run (a run that
+stopped short — failed, interrupted, rate-limited — can be shelved too, with an explicit
+`--force`, so a registry never fills up with attempts you gave up on);
 `phax review-compliance` and `phax review-code` are the two review passes from above, run on
 demand; and `phax plans status`, `phax plans overlap`, and `phax adjust-plan` come out when
-you're juggling more than one plan at a time. And `phax extract-plan` exists on its own purely as a debugging aid — to
-check that your `plan.md` extracts into a clean `phax-plan.json` before you commit to a full run.
-You don't normally call it; `run` does the extraction for you.
+you're juggling more than one plan at a time.
 
 The planning doctrine is short: **plan outside-in, implement inside-out, verify outside-in.**
 
@@ -304,7 +339,7 @@ regions of the same file still get flagged — better a false alarm than a surpr
 
 That's the *prediction*. The harder problem is **drift after the fact**: you land one plan and
 the others you wrote against the old tree go quietly stale — referencing files, line numbers,
-and decisions that just moved. `phax plans-overlap --landed <run>` answers the *confirmed*
+and decisions that just moved. `phax plans overlap --landed <run>` answers the *confirmed*
 version of the question — it reads the run's **actual** Git diff (from the very same
 `global-file-reconciliation.json` the review used) and tells you which of your other plans now
 need re-adjustment, with no false negatives. And `phax adjust-plan <plan> --landed <run>` opens
@@ -319,7 +354,9 @@ moved — `spec-changed`, `ground-changed` (files in the plan's footprint change
 baseline commit), `self-changed`. It's a report, not a gate: it exits 0 either way, and only
 `--apply` flips the stale ones to `Stale` — an explicit gesture, never automatic. A stale plan
 can't run; `reopen` sends it back to `Draft` for re-planning, or `approve` re-records it against
-the new ground if you've looked and it still holds.
+the new ground if you've looked and it still holds. The same question is asked one level up:
+`phax artifact status` on an approved spec says whether it has been edited since its approval —
+and plan approval refuses to bind to a spec that has.
 
 The same plan-vs-actual machinery that makes a single run reviewable also keeps a *backlog* of
 plans honest as the tree shifts underneath them — whoever shifted it.
@@ -348,7 +385,7 @@ in `phax ls` and `phax records status` — and never fails the run. Then, whenev
 know why a line exists:
 
 ```bash
-phax records explain <sha>    # prompt, diff, gates, handoff, transcript, usage — for that commit
+phax records explain <sha>    # prompt, diff, gates + verified surfaces, handoff, transcript, usage
 ```
 
 The one rule I wouldn't bend: **a record must never land somewhere more readable than the code it
@@ -368,6 +405,25 @@ already knows about those files — and weaves it into the prompt as an *index* 
 expand on demand (`phax orient <id>`), including for files the plan didn't predict. It's purely
 advisory: the brief arms the agent, it never jails it — the gate remains the only leg with teeth.
 No provider registered? The prompt is dispatched unchanged.
+
+Orient is one of **three providers** you can plug into `phax.json`, and they all speak the same
+shape — a command phax runs with no shell, one JSON request on stdin, one JSON response on
+stdout, and the contract documented in `phax --usage` so you don't reverse-engineer it from a
+failure. Each sits at a different point of the run:
+
+- **`orient`** — *before the phase*: the brief above.
+- **`scopes`** — *during the gate*: given the plan projection, it says which units of the
+  codebase are closed by which phase, so a completion diagnostic can wait for the phase that
+  owns it (the scheduling rule from the gates section).
+- **`planAuditor`** — *before the run*: `phax plans lint` hands it the plan projection — the
+  ordered phases and their planned files, nothing else — and reports what it returns as
+  advisory warnings. A plan that opens a cross-part requirement in phase 2 and never closes it
+  gets flagged before a single token is spent. Advisory means advisory: it never sets the exit
+  code, and a slow or crashing auditor is one warning, not a broken lint.
+
+phax owns none of the knowledge these providers carry. It owns the *timing*: the same
+plan-derived signal — which files, which phase — offered at three points where an outside tool
+can use it.
 
 ## What 1.0 ships with
 
