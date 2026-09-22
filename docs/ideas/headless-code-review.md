@@ -60,6 +60,30 @@ implementation: phases, gates, records, compliance. So the review produces a **p
 One call is one pass; the caller bounds the passes (the steme conductor: two) and re-runs
 `--headless` after each to observe.
 
+## Configuration: symmetric with compliance
+
+`phax.json` already has `review.compliance.enabled` (with `model`, `effort`) and
+`review.code` with only `model` and `effort`. Two optional keys complete the symmetry,
+kept apart because they answer different questions:
+
+```jsonc
+"review": {
+  "compliance": { "enabled": true },
+  "code": {
+    "enabled": true,        // run the headless review at the end of the run;
+                            // the run stays review_open with its two artifacts
+    "append": true,         // approve and run review-plan.md without intervention…
+    "maxPasses": 2,         // …at most this many times (re-review after each)
+    "model": "…", "effort": "high"
+  }
+}
+```
+
+Defaults: `enabled: false`, `append: false`. A hand-driven run with `enabled` alone gets
+the findings and the plan and keeps the decision; a loop sets both. Optional keys, so
+the `version: 1` stability promise for `phax.json` is untouched. The interactive
+`review-code` is unaffected by either.
+
 ## Same PR, not a stacked one
 
 Considered and set aside: opening a second PR based on the first (stacked). What it would
