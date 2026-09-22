@@ -43,11 +43,19 @@ implementation: phases, gates, records, compliance. So the review produces a **p
     `deviation` is a departure from the spec or plan; `concern` a risk, a missing test,
     a security point; `info` style. A malformed or missing document is a provider error.
 
-  - `review-plan.md`, a plan in the `phax-planning` format covering every finding of
-    severity `deviation` or above (`info` goes to a handoff note). It declares the run's
-    source spec as its source and `code-review.json` as its ground, and it must pass
+  - `review-plan.json` **and** its rendering `review-plan.md`: a plan covering every
+    finding of severity `deviation` or above (`info` goes to a handoff note), declaring
+    the run's source spec as its source and `code-review.json` as its ground, and passing
     `plans lint` — including, once it exists, the oracle-separation lint: a fix phase may
     not touch a file and its oracle together.
+
+  **The agent emits JSON only**, validated against the schemas (`code-review.json`, and
+  the plan directly in the `phax-plan.json` shape the extractor would have produced).
+  phax materialises the artifacts deterministically: renders `review-plan.md` from the
+  JSON (a rendering, never a prose the agent wrote), commits both under the run
+  directory, writes them into the records, and **seeds the content-addressed extraction
+  cache with the plan JSON** — so `run --append` never re-extracts the plan through a
+  model. Zero model calls between the review and the run.
 
 - **`phax run --append <run> review-plan.md`** — executes that plan **as a continuation
   of the same run**: phases numbered after the existing ones, each worktree branched from
