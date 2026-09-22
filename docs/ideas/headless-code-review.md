@@ -57,8 +57,14 @@ implementation: phases, gates, records, compliance. So the review produces a **p
   spec rather than a flag. Approval of the appended plan follows whatever policy approves
   plans (a loop's machine approval is recorded as such).
 
-One call is one pass; the caller bounds the passes (the steme conductor: two) and re-runs
-`--headless` after each to observe.
+One call is one pass; the caller bounds the passes (the steme conductor: two). **Both
+reviews run again after every append**, in this order: compliance over the whole run
+(original plan *and* review plan, since the handoff and reconciliation now cover the
+appended phases), then the headless code review with the compliance verdict in its brief,
+then a new plan only if non-`info` findings remain — compliance `deviation` findings
+included, they share the severity schema. A `divergent` compliance verdict emits no plan:
+the run drifted from its plan, and fixing code would chase the wrong target; the caller
+decides (the steme conductor blocks the item and escalates).
 
 ## Configuration: symmetric with compliance
 
@@ -100,6 +106,6 @@ separately from the implementation, i.e. with the multi-human decision queue.
   same session. `--append` lives on `run`.
 - In a trajectory UI, appended phases show after the original ones with their origin
   (`from review`) — the timeline tells "what the review changed" without a second PR.
-- Open: whether `--headless` should refuse to emit a plan when compliance is `divergent`
-  (the fix would chase the wrong target); how a decision request raised inside an
-  appended phase is attributed; whether `info` findings accumulate across passes.
+- Open: how a decision request raised inside an appended phase is attributed; whether
+  `info` findings accumulate across passes. (Decided above: no plan on a `divergent`
+  compliance verdict.)
