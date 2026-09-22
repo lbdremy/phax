@@ -30,8 +30,36 @@ local phax gives that without a shell. What actually varies is the adapter set:
 
 One domain, two adapter sets, selected by configuration. The writes stay what they are —
 spec, plan, approve, run, publish are repo writes plus phax commands — so a web backend
-can drive all of them by invoking the `phax` binary in local or cloud mode. The UI never
-gains a capability the CLI lacks; that rule from `desktop-app.md` becomes literal.
+can drive all of them. The UI never gains a capability the CLI lacks; that rule from
+`desktop-app.md` becomes literal once both are entry adapters over the same use cases
+(next section).
+
+## Consumption: a library, not a daemon, not the binary
+
+Decided 2026-09-22 with the steme cockpit as first consumer. Three ways a UI backend can
+drive phax, and why the middle one wins:
+
+| Form | What the consumer gets | Why not |
+| --- | --- | --- |
+| Invoke the `phax` binary | JSON on stdout to parse, one process per command, types lost at the boundary | The lazy default; every persisted format becomes a wire format *and* every command output does too |
+| **Import phax as a library** — `app` (use cases) + `ports` as the public API, adapter sets shipped by phax | Typed calls, in-process runs (a long run is a job in the consumer's `jobs/` scope), decision requests as values, one composition root | — |
+| A phax daemon with its own RPC | A network surface | A third contract to freeze and secure, for nothing the library does not give; the consumer already has its own web-rpc between its web and its backend |
+
+Consequences of the library form:
+
+- **The CLI becomes one entry adapter among others.** `src/cli` and a web backend both call
+  the same `app` use cases; "never a capability the CLI lacks" holds by construction.
+- **Adapters stay in phax.** The consumer picks a set (local or cloud) and composes; it
+  never writes an `fs` or `shell` adapter of its own, or the domain ends up with two hosts
+  that drift.
+- **Publication is the real work.** phax is Deno; the first consumer is Node/pnpm. JSR with
+  npm compatibility or a dnt build, tested against a Node consumer.
+- **After 1.0, or marked experimental.** A library API is one more contract; 1.0 is already
+  freezing the CLI and the persisted formats and should not grow a third blocker.
+- **Schemas first, at no risk.** `src/schemas` (registry, run status, records, approvals)
+  can ship alone as a small typed package now: it freezes nothing beyond what the 1.0
+  stability promise already covers, and a read-only consumer of records (the steme cockpit's
+  first slice) gets typed parsing instead of a hand-written one.
 
 ## What it unlocks
 
