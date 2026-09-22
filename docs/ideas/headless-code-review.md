@@ -1,50 +1,81 @@
-# Idea: headless code review — `review-code --headless` and `--apply`
+# Idea: the code review as a plan — `review-code --headless` and `run --append`
 
 > Status: **brainstorm**. Captured 2026-09-22 from the steme roadmap-1.0 conductor
-> design — not a spec, not a plan. Nothing below is committed. Two additive flags on an
-> existing command; the CLI contract freeze for 1.0 (`NEXT_STEPS.md`) is not touched.
-> Related: [`autopilot.md`](./autopilot.md) (the loop that needs it), `review-compliance`
-> (the shape to copy).
+> design, revised the same day — not a spec, not a plan. Nothing below is committed.
+> Additive to the CLI; `run --append` is a new run transition and deserves a small spec
+> of its own. Related: [`autopilot.md`](./autopilot.md) (the loop that needs it),
+> [`change-gates-from-the-harness.md`](./change-gates-from-the-harness.md) (the
+> oracle-separation lint this makes applicable), `review-compliance` (the shape to copy).
 
 ## Why
 
 `review-code` opens an interactive, pre-prompted session for a developer to take over.
-A loop has no developer. The first idea was to print the prompt and hand it to a
-headless `claude -p`; that takes the review *out* of phax — no run directory, no
-records, no resumable session, and findings as free text. Better to keep the session
-phax's and make its output data.
+A loop has no developer. Two first ideas were wrong in instructive ways:
+
+- *Print the prompt and hand it to a headless agent* — takes the review **out** of phax:
+  no run directory, no records, no resumable session, findings as free text.
+- *Resume the review session with "fix everything above `info`"* — keeps the session but
+  lets changes **into the run without passing through phases**: no gate of their own, no
+  handoff, no reconciliation, and a session free to edit the test that judges it. The
+  `review_open` state accepts manual fixes as ordinary commits; a loop should not use
+  that door.
+
+The correction that comes out of a review should go through the same machinery as the
+implementation: phases, gates, records, compliance. So the review produces a **plan**.
 
 ## Shape
 
 - **`phax review-code <run> --headless`** — runs the same review in the run's worktree,
-  with the same session record, without a terminal, and writes
-  `code-review.json` under the run directory. The session stays resumable, exactly as the
-  interactive one is. Schema on the model of `complianceReview`:
+  with the same session record, without a terminal, and writes two artifacts under the
+  run directory:
 
-  ```json
-  { "version": 1,
-    "findings": [
-      { "severity": "bug" | "deviation" | "concern" | "info",
-        "file": "src/…", "line": 42,
-        "message": "…", "suggestion": "…" }
-    ] }
-  ```
+  - `code-review.json`, on the model of `complianceReview`:
 
-  `deviation` is a departure from the spec or plan; `concern` is a risk, a missing
-  test, a security point; `info` is style. A malformed or missing document is a
-  provider error, as for compliance.
+    ```json
+    { "version": 1,
+      "findings": [
+        { "severity": "bug" | "deviation" | "concern" | "info",
+          "file": "src/…", "line": 42,
+          "message": "…", "suggestion": "…" }
+      ] }
+    ```
 
-- **`phax review-code <run> --apply --min-severity <s>`** — resumes that session with
-  one instruction: fix every finding of severity ≥ `s`, nothing else. Then re-runs the
-  gate profile on the final worktree and commits (the run is `review_open`, where
-  manual fixes already land). One call is one pass; the caller bounds the passes and
-  re-runs `--headless` after each to observe.
+    `deviation` is a departure from the spec or plan; `concern` a risk, a missing test,
+    a security point; `info` style. A malformed or missing document is a provider error.
+
+  - `review-plan.md`, a plan in the `phax-planning` format covering every finding of
+    severity `deviation` or above (`info` goes to a handoff note). It declares the run's
+    source spec as its source and `code-review.json` as its ground, and it must pass
+    `plans lint` — including, once it exists, the oracle-separation lint: a fix phase may
+    not touch a file and its oracle together.
+
+- **`phax run --append <run> review-plan.md`** — executes that plan **as a continuation
+  of the same run**: phases numbered after the existing ones, each worktree branched from
+  the last phase's branch, same run id, same records lineage, `review-handoff.md` and the
+  global file reconciliation regenerated over the whole range, one PR. This is a new run
+  transition (`review_open` → `running` with appended phases), which is why it is a small
+  spec rather than a flag. Approval of the appended plan follows whatever policy approves
+  plans (a loop's machine approval is recorded as such).
+
+One call is one pass; the caller bounds the passes (the steme conductor: two) and re-runs
+`--headless` after each to observe.
+
+## Same PR, not a stacked one
+
+Considered and set aside: opening a second PR based on the first (stacked). What it would
+buy — an isolated, attributable diff for the correction — phax already gives per phase
+(`records explain`, one commit per phase). What it would cost: two merges in order, two CI
+runs, a review split in two, and a loop that must reason about PR order. GitHub's stacking
+support is thin. It becomes worth revisiting when a team must approve the correction
+separately from the implementation, i.e. with the multi-human decision queue.
 
 ## Notes
 
 - Mirrors `review-compliance`, which is already non-mutating and structured.
-- The interactive command is unchanged; `--headless` and `--apply` are the two new
-  entry points over the same session.
-- Open: whether `--apply` should refuse when compliance is `divergent` (the fix would
-  be chasing the wrong target), and whether `info` findings get written to a handoff
-  note instead of being dropped.
+- The interactive command is unchanged; `--headless` is a second entry point over the
+  same session. `--append` lives on `run`.
+- In a trajectory UI, appended phases show after the original ones with their origin
+  (`from review`) — the timeline tells "what the review changed" without a second PR.
+- Open: whether `--headless` should refuse to emit a plan when compliance is `divergent`
+  (the fix would chase the wrong target); how a decision request raised inside an
+  appended phase is attributed; whether `info` findings accumulate across passes.
