@@ -52,8 +52,16 @@ Consequences of the library form:
 - **Adapters stay in phax.** The consumer picks a set (local or cloud) and composes; it
   never writes an `fs` or `shell` adapter of its own, or the domain ends up with two hosts
   that drift.
-- **Publication is the real work.** phax is Deno; the first consumer is Node/pnpm. JSR with
-  npm compatibility or a dnt build, tested against a Node consumer.
+- **Publication is a plain TypeScript build.** `src/` uses no `Deno.*` API: the infra imports
+  `node:fs`, `node:path`, `node:child_process`, `node:crypto`, `node:os`, plus `effect`, `yaml`
+  and mdast. Deno is the toolchain (`deno compile`, the binary's permission sandbox, the test
+  runner), not the runtime surface, so a Node consumer needs an ordinary package build, not a
+  migration. One thing is lost in-process: the binary's explicit Deno permission set. Imported
+  into a host, phax runs with the host process's permissions.
+- **Where the host runs.** Local adapters need `child_process`, a filesystem and minutes-long
+  runs, so the host is a long-lived Node process or a container, never a V8-isolate runtime
+  such as Cloudflare Workers (workerd, no Node, no Deno). A consumer built on Nitro can keep
+  its web tier on an edge runtime and its jobs beside it.
 - **After 1.0, or marked experimental.** A library API is one more contract; 1.0 is already
   freezing the CLI and the persisted formats and should not grow a third blocker.
 - **Schemas first, at no risk.** `src/schemas` (registry, run status, records, approvals)
