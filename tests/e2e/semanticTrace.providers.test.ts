@@ -66,7 +66,7 @@ const shortName = Either.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
-  run: { shortName: "my-run", title: "My Run", branch: "ai/my-run" },
+  run: { shortName: "my-run", title: "My Run", branch: "ai/my-run", requiredCommands: [] },
   phases: [
     {
       id: "phase-01",
@@ -145,7 +145,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
 
   beforeEach(async () => {
     stateRoot = await mkdtemp(join(tmpdir(), "phax-e2e-semantic-trace-providers-"));
-    const phase01Worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const phase01Worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
     await writeFile(join(phase01Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
   });
@@ -161,12 +161,13 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
       const config: ResolvedConfig = {
         raw: {
           version: 1,
-          project: { name: "test-project", type: "single-package" },
+          name: "test-project",
           state: { root: stateRoot },
           gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
           commands: { setup: ["true"], cleanup: ["true"] },
         },
         stateRoot,
+        namespace: "test-project",
         repoRoot: stateRoot,
         maxFixAttempts: 1,
         extractPlanModel: "claude-haiku-4-5-20251001",
@@ -184,10 +185,11 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
           filesystem: { allowRead: [], allowWrite: [] },
           network: { profile: "provider-only", allowDomains: [] },
           mcp: { mode: "disabled", allow: [] },
+          agentCommands: [],
         },
       };
 
-      const phase01WorktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
+      const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
       const fakeGit = makeFakeGit();
       fakeGit.impl.setRepoIsClean(true);
@@ -231,6 +233,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
       const result = await Effect.runPromise(
         Effect.either(
           executePlan({
+            namespace: "test-project",
             shortName,
             plan,
             planMd: "# My Plan",

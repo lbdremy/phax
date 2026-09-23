@@ -46,7 +46,7 @@ const shortName = Either.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
-  run: { shortName: "my-run", title: "My Run", branch: "ai/my-run" },
+  run: { shortName: "my-run", title: "My Run", branch: "ai/my-run", requiredCommands: [] },
   phases: [
     {
       id: "phase-01",
@@ -71,7 +71,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
   beforeEach(async () => {
     stateRoot = await mkdtemp(join(tmpdir(), "phax-e2e-reset-phase-"));
     // Pre-create the worktree dir so executePlan can write the handoff file there.
-    const phase01Worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const phase01Worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
     await writeFile(join(phase01Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
   });
@@ -86,12 +86,13 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
         gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
-        commands: { setup: ["true"], cleanup: ["true"] },
+        commands: { setup: [], cleanup: [] },
       },
       stateRoot,
+      namespace: "test-project",
       repoRoot: stateRoot,
       maxFixAttempts: 1,
       extractPlanModel: "claude-haiku-4-5-20251001",
@@ -108,6 +109,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
         filesystem: { allowRead: [], allowWrite: [] },
         network: { profile: "provider-only", allowDomains: [] },
         mcp: { mode: "disabled", allow: [] },
+        agentCommands: [],
       },
     };
 
@@ -147,6 +149,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
     const firstResult = await Effect.runPromise(
       Effect.either(
         executePlan({
+          namespace: "test-project",
           shortName,
           plan,
           planMd: "# My Plan",
@@ -185,6 +188,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
     const resetResult = await Effect.runPromise(
       Effect.either(
         resetPhase({
+          namespace: "test-project",
           shortName,
           stateRoot,
           repoRoot: stateRoot,
@@ -225,7 +229,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
     // --- Step 3: resume → fresh agent invocation ---
 
     // Re-create the worktree dir for the fresh run.
-    const phase01Worktree = join(stateRoot, "worktrees", "my-run", "phase-01");
+    const phase01Worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(phase01Worktree, ".phax-context"), { recursive: true });
     await writeFile(join(phase01Worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
 
@@ -267,6 +271,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
     const resumeResult = await Effect.runPromise(
       Effect.either(
         executePlan({
+          namespace: "test-project",
           shortName,
           plan,
           planMd: "# My Plan",

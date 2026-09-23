@@ -88,7 +88,9 @@ for (const provider of E2E_PROVIDERS) {
         const plan = JSON.parse(readFileSync(planJsonPath, "utf8")) as {
           run: { branch: string };
         };
-        expect(plan.run.branch).toBe(`phax/${shortName}`);
+        // The run dir is the run key, `<namespace>.<shortName>`; the branch
+        // carries the bare short name.
+        expect(plan.run.branch).toBe(`phax/${shortName.replace(/^e2e-fixture\./, "")}`);
       },
     );
 

@@ -6,7 +6,12 @@ source-spec: null
 # e2e-minimal — two-phase fixture plan
 
 > Minimal plan for phax end-to-end tests. Two quick phases against a simple
-> TypeScript stub. Uses haiku + low effort so runs are cheap.
+> TypeScript stub. Uses haiku (effort `none`, the only one it takes) so runs are
+> cheap, and follows the phax-planning shape so extraction stays deterministic.
+
+## Required commands
+
+- (none)
 
 ---
 
@@ -20,7 +25,7 @@ an `add` function; phase 02 documents it in the README.
 ## phase-01 — Add add function {#phase-01-add-function}
 
 **Recommended model:** claude-haiku-4-5-20251001
-**Recommended effort:** low
+**Recommended effort:** none
 
 ### Objective
 
@@ -38,18 +43,26 @@ Add `export function add(a: number, b: number): number { return a + b; }` to
   ```
 - Do not create any other files.
 
-### Included scope
+### Planned files to create
 
-- `src/index.ts` only.
+- (none)
+
+### Planned files to edit
+
+- `src/index.ts`
+
+### Optional files that may be edited
+
+- (none)
 
 ### Excluded scope
 
 - README (phase-02).
 - Any test files.
 
-### Validation expectations
+### Verification
 
-Running `node --version` exits 0 (gate always passes for this fixture).
+The `minimal` gate profile in `phax.json` (`node --version`, always passes).
 
 ### Commit subject
 
@@ -70,7 +83,7 @@ README.md.
 ## phase-02 — Document add function {#phase-02-document-add-function}
 
 **Recommended model:** claude-haiku-4-5-20251001
-**Recommended effort:** low
+**Recommended effort:** none
 
 ### Objective
 
@@ -84,17 +97,25 @@ usage snippet.
   call `add`.
 - Keep the existing content; only append — do not remove any lines.
 
-### Included scope
+### Planned files to create
 
-- `README.md` only.
+- (none)
+
+### Planned files to edit
+
+- `README.md`
+
+### Optional files that may be edited
+
+- (none)
 
 ### Excluded scope
 
 - `src/` (phase-01 is complete).
 
-### Validation expectations
+### Verification
 
-Running `node --version` exits 0 (gate always passes for this fixture).
+The `minimal` gate profile in `phax.json` (`node --version`, always passes).
 
 ### Commit subject
 
