@@ -5,7 +5,7 @@ audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 approved:
   date: 2026-09-23
-  baseline: 0b6473d
+  baseline: 84be31d
 ---
 
 # Claude skill edit grant
