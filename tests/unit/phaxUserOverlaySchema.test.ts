@@ -54,6 +54,21 @@ describe("decodePhaxUserOverlay", () => {
     }
   });
 
+  it("accepts an authoring block with spec and plan model/effort", () => {
+    const result = decodePhaxUserOverlay({
+      authoring: {
+        spec: { model: "claude-sonnet-5", effort: "high" },
+        plan: { effort: "medium" },
+      },
+    });
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.authoring?.spec?.model).toBe("claude-sonnet-5");
+      expect(result.right.authoring?.spec?.effort).toBe("high");
+      expect(result.right.authoring?.plan?.effort).toBe("medium");
+    }
+  });
+
   it("accepts gateProfiles", () => {
     const result = decodePhaxUserOverlay({
       gateProfiles: {

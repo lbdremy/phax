@@ -5,7 +5,13 @@ import { execSync } from "node:child_process";
 import { Either } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig, describeConfigSources } from "../../src/app/loadConfig.js";
-import { DEFAULT_EXTRACT_MODEL, DEFAULT_CODE_REVIEW_MODEL } from "../../src/schemas/phaxConfig.js";
+import {
+  DEFAULT_EXTRACT_MODEL,
+  DEFAULT_CODE_REVIEW_MODEL,
+  DEFAULT_AUTHORING_MODEL,
+  DEFAULT_AUTHORING_EFFORT,
+  resolveAuthoringSelection,
+} from "../../src/schemas/phaxConfig.js";
 import { DEFAULT_SECURITY_PROFILE } from "../../src/schemas/securityConfig.js";
 import { entryFor } from "../../src/domain/routing/catalog.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
@@ -337,5 +343,60 @@ describe("loadConfig codeReview defaults", () => {
       expect(result.right.codeReview.model).toBe(DEFAULT_CODE_REVIEW_MODEL);
       expect(result.right.codeReview.effort).toBe("medium");
     }
+  });
+});
+
+describe("loadConfig authoring defaults", () => {
+  it("resolves authoring.spec and authoring.plan to catalog defaults when no authoring block", () => {
+    writePhaxJson(baseConfig);
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.authoring.spec.model).toBe(DEFAULT_AUTHORING_MODEL);
+      expect(result.right.authoring.spec.effort).toBe(DEFAULT_AUTHORING_EFFORT);
+      expect(result.right.authoring.plan.model).toBe(DEFAULT_AUTHORING_MODEL);
+      expect(result.right.authoring.plan.effort).toBe(DEFAULT_AUTHORING_EFFORT);
+    }
+  });
+
+  it("honors authoring.spec.model while keeping the effort default", () => {
+    writePhaxJson({ ...baseConfig, authoring: { spec: { model: "claude-sonnet-5" } } });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.authoring.spec.model).toBe("claude-sonnet-5");
+      expect(result.right.authoring.spec.effort).toBe(DEFAULT_AUTHORING_EFFORT);
+      expect(result.right.authoring.plan.model).toBe(DEFAULT_AUTHORING_MODEL);
+    }
+  });
+
+  it("honors authoring.plan.effort independently of authoring.spec", () => {
+    writePhaxJson({ ...baseConfig, authoring: { plan: { effort: "medium" } } });
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.authoring.plan.effort).toBe("medium");
+      expect(result.right.authoring.plan.model).toBe(DEFAULT_AUTHORING_MODEL);
+      expect(result.right.authoring.spec.effort).toBe(DEFAULT_AUTHORING_EFFORT);
+    }
+  });
+});
+
+describe("resolveAuthoringSelection", () => {
+  const configured = { model: "configured-model", effort: "medium" as const };
+
+  it("prefers the flag over the configured value for model and effort independently", () => {
+    expect(resolveAuthoringSelection({ flagModel: "flag-model", configured })).toEqual({
+      model: "flag-model",
+      effort: "medium",
+    });
+    expect(resolveAuthoringSelection({ flagEffort: "high", configured })).toEqual({
+      model: "configured-model",
+      effort: "high",
+    });
+  });
+
+  it("falls back to the configured value when no flag is given", () => {
+    expect(resolveAuthoringSelection({ configured })).toEqual(configured);
   });
 });

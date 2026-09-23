@@ -125,6 +125,52 @@ export type CodeReviewConfig = Schema.Schema.Type<typeof CodeReviewConfigSchema>
 
 export type ComplianceReviewConfig = Schema.Schema.Type<typeof ComplianceReviewConfigSchema>;
 
+export const AuthoringKindConfigSchema = Schema.Struct({
+  model: Schema.optional(Schema.NonEmptyString),
+  effort: Schema.optional(EffortLiteral),
+});
+
+export type AuthoringKindConfig = Schema.Schema.Type<typeof AuthoringKindConfigSchema>;
+
+export const AuthoringConfigSchema = Schema.Struct({
+  spec: Schema.optional(AuthoringKindConfigSchema),
+  plan: Schema.optional(AuthoringKindConfigSchema),
+});
+
+export type AuthoringConfig = Schema.Schema.Type<typeof AuthoringConfigSchema>;
+
+export const DEFAULT_AUTHORING_MODEL = "claude-opus-5-5";
+export const DEFAULT_AUTHORING_EFFORT: Effort = "high";
+
+export interface ResolvedAuthoringConfig {
+  readonly spec: { readonly model: string; readonly effort: Effort };
+  readonly plan: { readonly model: string; readonly effort: Effort };
+}
+
+export function resolveAuthoringConfig(raw: AuthoringConfig | undefined): ResolvedAuthoringConfig {
+  return {
+    spec: {
+      model: raw?.spec?.model ?? DEFAULT_AUTHORING_MODEL,
+      effort: raw?.spec?.effort ?? DEFAULT_AUTHORING_EFFORT,
+    },
+    plan: {
+      model: raw?.plan?.model ?? DEFAULT_AUTHORING_MODEL,
+      effort: raw?.plan?.effort ?? DEFAULT_AUTHORING_EFFORT,
+    },
+  };
+}
+
+export function resolveAuthoringSelection(input: {
+  readonly flagModel?: string;
+  readonly flagEffort?: Effort;
+  readonly configured: { readonly model: string; readonly effort: Effort };
+}): { readonly model: string; readonly effort: Effort } {
+  return {
+    model: input.flagModel ?? input.configured.model,
+    effort: input.flagEffort ?? input.configured.effort,
+  };
+}
+
 export interface ResolvedComplianceReviewConfig {
   readonly enabled: boolean;
   readonly model: string;
@@ -181,6 +227,7 @@ export const PhaxConfigSchema = Schema.Struct({
       code: Schema.optional(CodeReviewConfigSchema),
     }),
   ),
+  authoring: Schema.optional(AuthoringConfigSchema),
   gateProfiles: GateProfilesSchema,
   workspaces: Schema.optional(Schema.Array(WorkspaceSchema)),
   records: Schema.optional(RecordsConfigSchema),
@@ -224,6 +271,7 @@ export interface ResolvedConfig {
   readonly planAuditor?: PlanAuditorConfig;
   readonly complianceReview: ResolvedComplianceReviewConfig;
   readonly codeReview: ResolvedCodeReviewConfig;
+  readonly authoring: ResolvedAuthoringConfig;
   readonly records: ResolvedRecordsConfig;
 }
 
@@ -267,6 +315,7 @@ export const PhaxUserOverlaySchema = Schema.Struct({
       code: Schema.optional(CodeReviewConfigSchema),
     }),
   ),
+  authoring: Schema.optional(AuthoringConfigSchema),
   gateProfiles: Schema.optional(GateProfilesSchema),
   workspaces: Schema.optional(Schema.Array(WorkspaceSchema)),
 });

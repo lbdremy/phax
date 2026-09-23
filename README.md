@@ -155,6 +155,20 @@ After each phase gate, phax records which steps ran, their surface, and their pa
 
 The top-level `name` is the run namespace — run short-names are scoped under it. Provider routing is **not** configured here — it lives in the global `~/.phax/` config (see [Multi-provider model routing](#multi-provider-model-routing)). The optional `security.profile` (`secure` \| `unsafe` \| `isolated`, default `secure`) sets the default security posture for runs; see [Security modes](#security-modes). The optional `fileReconciliation.mode` (`report_only` \| `warn`, default `report_only`) controls how per-phase file reconciliation reports deviations from the plan; see [Run](#run). The optional `review.compliance` and `publish` blocks turn on an automatic plan-compliance review and a pushed pull request when each run reaches review; see [Compliance review & publishing](#compliance-review--publishing).
 
+The optional `authoring.spec` and `authoring.plan` blocks each take an optional `model` and `effort`, resolved flag → config → catalog default (`claude-opus-5-5` at `high` effort) for the headless authoring command:
+
+```json
+"review": { "code": { "model": "claude-opus-5-5", "effort": "high" } }
+→
+"review": { "code": { "model": "claude-opus-5-5", "effort": "high" } },
+"authoring": {
+  "spec": { "model": "claude-opus-5-5", "effort": "high" },
+  "plan": { "model": "claude-opus-5-5", "effort": "high" }
+}
+```
+
+Both keys are optional and independent — an absent `model` or `effort` falls back to the catalog default, so a `version: 1` config without an `authoring` block loads unchanged.
+
 ### Orient provider
 
 Add an `"orient"` block to tell phax how to fetch orientation rows for the current project:

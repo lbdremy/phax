@@ -266,6 +266,41 @@
       },
       "additionalProperties": false
     },
+    "authoring": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "spec": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "model": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "effort": {
+              "type": "string",
+              "enum": ["low", "medium", "high"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "plan": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "model": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "effort": {
+              "type": "string",
+              "enum": ["low", "medium", "high"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "gateProfiles": {
       "type": "object",
       "required": [],
