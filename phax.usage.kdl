@@ -184,6 +184,9 @@ cmd "run" {
     flag "--refresh" {
         help "Re-extract the plan even if a cached extraction exists"
     }
+    flag "--allow-skill-edits" {
+        help "Allow phases to edit the .claude/skills files the plan declares"
+    }
 }
 
 cmd "review-handoff" {

@@ -32,6 +32,7 @@ import {
   SecurityEnforcementError,
   SecurityPreflightError,
   SetupCommandFailedError,
+  SkillEditConsentError,
   UnsafeGitStateError,
   UsageLimitError,
   WorktreeCreationError,
@@ -74,6 +75,10 @@ import {
   computeFrozenAgentCommands,
 } from "../domain/security/agentCommands.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
+import {
+  checkSkillEditConsent,
+  formatSkillEditConsentRefusal,
+} from "../domain/security/skillEditGrants.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
 import { writeRecord } from "./writeRecord.js";
@@ -171,6 +176,10 @@ export interface ExecutePlanOptions {
   readonly routing?: ModelRouting | undefined;
   readonly providerConfig?: ProviderConfig | undefined;
   readonly securityMode?: SecurityMode | undefined;
+  // Skill edit consent: `phax run --allow-skill-edits`, or the consent recorded
+  // in run-status.json on resume. Absent means no consent, so a plan declaring
+  // `.claude/skills/**` files is refused at preflight.
+  readonly allowSkillEdits?: boolean | undefined;
   readonly verbose?: boolean | undefined;
   // Repo-relative POSIX path of the plan that produced this run, supplied by the
   // caller (run.ts / resume.ts) — executePlan never derives it. When present the
@@ -210,6 +219,7 @@ export type ExecutePlanError =
   | UsageLimitError
   | SecurityEnforcementError
   | SecurityPreflightError
+  | SkillEditConsentError
   | ModelPreflightError
   | PhaseHadNoChangesError
   | RecordsDestinationRefusedError
@@ -264,6 +274,7 @@ export function executePlan(
     routing = DEFAULT_MODEL_ROUTING,
     providerConfig = DEFAULT_PROVIDER_CONFIG,
     securityMode: passedSecurityMode,
+    allowSkillEdits = false,
   } = opts;
 
   // Use the passed securityMode if provided, otherwise fall back to config
@@ -428,6 +439,22 @@ export function executePlan(
             `Add the missing commands to security.agentCommands in phax.json before running.`,
           ].join("\n"),
           missing: preflightResult.missing,
+        }),
+      );
+    }
+
+    // Preflight: phases still to run that declare `.claude/skills/**` files need
+    // skill edit consent. Runs on resume too, so a run with no recorded consent
+    // is refused instead of having its skill edits silently denied.
+    const skillEditGaps = checkSkillEditConsent({
+      phases: plan.phases.slice(startIndex),
+      allowSkillEdits,
+    });
+    if (skillEditGaps.length > 0) {
+      return yield* Effect.fail(
+        new SkillEditConsentError({
+          message: formatSkillEditConsentRefusal(skillEditGaps),
+          phases: skillEditGaps,
         }),
       );
     }

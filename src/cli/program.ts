@@ -204,6 +204,10 @@ export function buildProgram(): Command {
       "Security mode override (secure|unsafe|isolated, overrides config default)",
     )
     .option("--refresh", "Re-extract the plan even if a cached extraction exists")
+    .option(
+      "--allow-skill-edits",
+      "Allow phases to edit the .claude/skills files the plan declares",
+    )
     .action(
       async (
         shortName: string | undefined,
@@ -213,6 +217,7 @@ export function buildProgram(): Command {
           providerPriority?: string;
           dryRun?: boolean;
           refresh?: boolean;
+          allowSkillEdits?: boolean;
         },
       ) => {
         const merged = { ...opts, ...globalTraceOpts() };

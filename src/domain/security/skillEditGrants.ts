@@ -34,3 +34,50 @@ export function resolveSkillEditGrants(plannedPaths: readonly string[]): readonl
   }
   return grants;
 }
+
+export interface SkillEditConsentPhase {
+  readonly id: string;
+  readonly plannedFilesToCreate: readonly string[];
+  readonly plannedFilesToEdit: readonly string[];
+  readonly optionalFilesToEdit: readonly string[];
+}
+
+export interface SkillEditConsentGap {
+  readonly phaseId: string;
+  readonly files: readonly string[];
+}
+
+/** A phase's skill edit grant: its declared skill files across all three planned lists. */
+export function phaseSkillEditGrants(phase: SkillEditConsentPhase): readonly string[] {
+  return resolveSkillEditGrants([
+    ...phase.plannedFilesToCreate,
+    ...phase.plannedFilesToEdit,
+    ...phase.optionalFilesToEdit,
+  ]);
+}
+
+/**
+ * Preflight: the phases whose declared skill files need `--allow-skill-edits`.
+ * Empty when consent was given or when no phase declares a skill file.
+ */
+export function checkSkillEditConsent(args: {
+  readonly phases: readonly SkillEditConsentPhase[];
+  readonly allowSkillEdits: boolean;
+}): readonly SkillEditConsentGap[] {
+  if (args.allowSkillEdits) return [];
+  const gaps: SkillEditConsentGap[] = [];
+  for (const phase of args.phases) {
+    const files = phaseSkillEditGrants(phase);
+    if (files.length > 0) gaps.push({ phaseId: phase.id, files });
+  }
+  return gaps;
+}
+
+/** The refusal message for a missing `--allow-skill-edits` (spec §6). */
+export function formatSkillEditConsentRefusal(gaps: readonly SkillEditConsentGap[]): string {
+  return [
+    "Security preflight failed: the plan edits skill files, which requires --allow-skill-edits.",
+    ...gaps.map((gap) => `  ${gap.phaseId}: ${gap.files.join(", ")}`),
+    "Re-run with --allow-skill-edits to grant exactly these files.",
+  ].join("\n");
+}

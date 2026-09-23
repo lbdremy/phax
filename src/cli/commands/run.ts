@@ -55,6 +55,7 @@ export interface RunCommandOptions {
   plan: string;
   dryRun?: boolean;
   allowDirty?: boolean;
+  allowSkillEdits?: boolean;
   providerPriority?: string;
   security?: string;
   refresh?: boolean;
@@ -328,6 +329,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
           gateProfileId,
           priorityOverride !== undefined ? [...priorityOverride] : undefined,
           effectiveSecurityMode,
+          opts.allowSkillEdits ?? false,
         ),
       ),
     );
@@ -381,7 +383,14 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
   try {
     const program = withRunLock(
       runKey(namespace, shortName),
-      createRunFolder(shortName, planMd, runPlan, config, planRepoRel).pipe(
+      createRunFolder(
+        shortName,
+        planMd,
+        runPlan,
+        config,
+        planRepoRel,
+        opts.allowSkillEdits ?? false,
+      ).pipe(
         Effect.flatMap(({ runPath, runId }) =>
           executePlan({
             shortName,
@@ -397,6 +406,7 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
             routing,
             providerConfig,
             securityMode: effectiveSecurityMode,
+            allowSkillEdits: opts.allowSkillEdits ?? false,
             verbose: opts.verbose,
             planRepoRelPath: planRepoRel,
           }),

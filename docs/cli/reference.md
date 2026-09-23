@@ -311,6 +311,10 @@ Security mode override (secure|unsafe|isolated, overrides config default)
 
 Re-extract the plan even if a cached extraction exists
 
+#### `--allow-skill-edits`
+
+Allow phases to edit the .claude/skills files the plan declares
+
 ### Examples
 
 ```

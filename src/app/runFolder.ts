@@ -30,6 +30,8 @@ export function createRunFolder(
   // Repo-relative POSIX path of the plan, persisted into run-status.json so
   // `phax resume` can re-supply it to the run-completion step (spec 27).
   planRepoRelPath?: string,
+  // `phax run --allow-skill-edits`; recorded only when given, so resume inherits it.
+  allowSkillEdits?: boolean,
 ): Effect.Effect<RunFolderResult, FsError | RegistryCorruptionError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -57,6 +59,7 @@ export function createRunFolder(
       updatedAt: now,
       phasesCount: plan.phases.length,
       ...(planRepoRelPath !== undefined && planRepoRelPath.length > 0 ? { planRepoRelPath } : {}),
+      ...(allowSkillEdits === true ? { allowSkillEdits: true } : {}),
     };
 
     yield* fs.writeAtomic(join(runPath, "run-status.json"), JSON.stringify(runStatus, null, 2));

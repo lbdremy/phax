@@ -1,5 +1,56 @@
 import { describe, expect, it } from "vitest";
-import { resolveSkillEditGrants } from "../../../src/domain/security/skillEditGrants.js";
+import {
+  checkSkillEditConsent,
+  resolveSkillEditGrants,
+} from "../../../src/domain/security/skillEditGrants.js";
+
+function phase(id: string, edit: readonly string[], create: readonly string[] = []) {
+  return { id, plannedFilesToCreate: create, plannedFilesToEdit: edit, optionalFilesToEdit: [] };
+}
+
+describe("checkSkillEditConsent", () => {
+  const phases = [
+    phase("phase-01", ["src/x.ts"]),
+    phase("phase-02", [".claude/skills/foo/SKILL.md"], ["src/y.ts"]),
+  ];
+
+  it("names the phase and file that need consent when none was given", () => {
+    expect(checkSkillEditConsent({ phases, allowSkillEdits: false })).toEqual([
+      { phaseId: "phase-02", files: [".claude/skills/foo/SKILL.md"] },
+    ]);
+  });
+
+  it("covers the create and optional lists too", () => {
+    expect(
+      checkSkillEditConsent({
+        phases: [
+          {
+            id: "phase-01",
+            plannedFilesToCreate: [".claude/skills/new/SKILL.md"],
+            plannedFilesToEdit: [],
+            optionalFilesToEdit: [".claude/skills/opt/SKILL.md"],
+          },
+        ],
+        allowSkillEdits: false,
+      }),
+    ).toEqual([
+      {
+        phaseId: "phase-01",
+        files: [".claude/skills/new/SKILL.md", ".claude/skills/opt/SKILL.md"],
+      },
+    ]);
+  });
+
+  it("returns [] with consent", () => {
+    expect(checkSkillEditConsent({ phases, allowSkillEdits: true })).toEqual([]);
+  });
+
+  it("returns [] when no phase declares a skill file, with or without consent", () => {
+    const plain = [phase("phase-01", ["src/x.ts", ".claude/settings.json"])];
+    expect(checkSkillEditConsent({ phases: plain, allowSkillEdits: false })).toEqual([]);
+    expect(checkSkillEditConsent({ phases: plain, allowSkillEdits: true })).toEqual([]);
+  });
+});
 
 describe("resolveSkillEditGrants", () => {
   it("keeps a declared skill file", () => {
