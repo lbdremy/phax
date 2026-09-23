@@ -30,7 +30,9 @@ import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
   AgentSessionIdMissingError,
+  ArtifactCommitFailedError,
   ArtifactCreationError,
+  AuthoringDocumentError,
   ArtifactDirtyWriteSetError,
   ArtifactValidationError,
   ConfigValidationError,
@@ -124,7 +126,12 @@ export function exitCodeForError(err: unknown): number {
   if (err instanceof PlanValidationError || err instanceof ConfigValidationError) return 2;
   if (err instanceof UnsafeGitStateError) return 3;
   if (err instanceof GateFailedError) return 4;
-  if (err instanceof AgentInvocationError || err instanceof AgentSessionIdMissingError) return 5;
+  if (
+    err instanceof AgentInvocationError ||
+    err instanceof AgentSessionIdMissingError ||
+    err instanceof AuthoringDocumentError
+  )
+    return 5;
   if (err instanceof ArchiveBlockedByDirtyWorktreeError) return 6;
   if (err instanceof LockConflictError) return 7;
   if (err instanceof RateLimitError || err instanceof UsageLimitError) return 8;
@@ -151,6 +158,17 @@ export function exitCodeForError(err: unknown): number {
   )
     return 12;
   return 1;
+}
+
+/**
+ * Exit code for a failed headless `artifact new`. Same families as
+ * `exitCodeForError`, except a failed artifact commit is an artifact error
+ * (12): the headless path's own commit is part of creating the artifact,
+ * whereas a transition's failed commit keeps its generic code.
+ */
+export function exitCodeForAuthoringError(err: unknown): number {
+  if (err instanceof ArtifactCommitFailedError) return 12;
+  return exitCodeForError(err);
 }
 
 export function renderAgentInvocationError(err: AgentInvocationError): {

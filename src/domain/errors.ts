@@ -271,6 +271,18 @@ export class ArtifactCreationError extends Data.TaggedError("ArtifactCreationErr
   message: string;
 }> {}
 
+/**
+ * A headless authoring session ended without a usable document: its final
+ * message was not JSON, or the JSON failed the kind's document schema.
+ * `message` carries the reason (the first violation's path for a schema
+ * failure). Nothing was written or committed. Reported as a provider error.
+ */
+export class AuthoringDocumentError extends Data.TaggedError("AuthoringDocumentError")<{
+  kind: "spec" | "plan";
+  slug: string;
+  message: string;
+}> {}
+
 export class PlanNotApprovedError extends Data.TaggedError("PlanNotApprovedError")<{
   path: string;
   status: string;
@@ -330,7 +342,7 @@ export class ArtifactCommitFailedError extends Data.TaggedError("ArtifactCommitF
   cause: string;
 }> {
   override get message(): string {
-    return `Transition wrote ${this.paths.join(", ")} but the commit failed: ${this.cause} — commit them manually`;
+    return `Wrote ${this.paths.join(", ")} but the commit failed: ${this.cause} — commit them manually`;
   }
 }
 

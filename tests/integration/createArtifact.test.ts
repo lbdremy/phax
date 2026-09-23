@@ -1,6 +1,6 @@
 import { Effect, Either } from "effect";
 import { describe, expect, it } from "vitest";
-import { createArtifact } from "../../src/app/createArtifact.js";
+import { createArtifact, resolveArtifactTarget } from "../../src/app/createArtifact.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { ArtifactCreationError } from "../../src/domain/errors.js";
 
@@ -204,5 +204,53 @@ describe("createArtifact", () => {
       expect(result.left).toBeInstanceOf(ArtifactCreationError);
     }
     expect(impl.files.size).toBe(1);
+  });
+});
+
+describe("resolveArtifactTarget", () => {
+  it("resolves a plan's path and its validated source spec without writing", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile("docs/specs/2609091412-plan-prune.md", APPROVED_SPEC);
+
+    const result = await run(
+      resolveArtifactTarget({
+        kind: "plan",
+        slug: "plan-prune",
+        sourceSpec: "docs/specs/2609091412-plan-prune.md",
+        nowIso: "2026-09-10T10:30:00.000Z",
+      }).pipe(Effect.provide(layer)),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right).toEqual({
+        dir: "docs/plans",
+        path: "docs/plans/2609101030-plan-prune-plan.md",
+        sourceSpec: { path: "docs/specs/2609091412-plan-prune.md", markdown: APPROVED_SPEC },
+      });
+    }
+    expect(impl.files.size).toBe(1);
+  });
+
+  it("ignores --spec for a spec", async () => {
+    const { layer } = makeFakeFileSystem();
+
+    const result = await run(
+      resolveArtifactTarget({
+        kind: "spec",
+        slug: "plan-prune",
+        sourceSpec: "docs/specs/2609091412-missing.md",
+        nowIso: "2026-09-09T14:12:40.000Z",
+      }).pipe(Effect.provide(layer)),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right).toEqual({
+        dir: "docs/specs",
+        path: "docs/specs/2609091412-plan-prune.md",
+        sourceSpec: null,
+      });
+    }
   });
 });
