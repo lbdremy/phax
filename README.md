@@ -355,6 +355,7 @@ phax run --plan plan.md --dry-run               # preview only — zero side eff
 phax run --plan plan.md --allow-dirty           # skip clean-tree guard
 phax run --plan plan.md --provider-priority mistral-vibe,claude-code  # override provider priority for this run
 phax run --plan plan.md --security unsafe       # override the security mode for this run
+phax run --plan plan.md --allow-skill-edits     # let phases edit the .claude/skills files the plan declares
 ```
 
 Each phase:
