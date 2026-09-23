@@ -9,8 +9,8 @@
     },
     "docs/plans/2609231209-claude-skill-edit-grant-plan.md": {
       "planFingerprint": "e83a68d0400e0a5a43691003221bc47ac45ce73dacf158e746e679c27b1ebf98",
-      "approvedAt": "2026-09-23T12:33:26.296Z",
-      "baseline": "e9074feec800f83a50f542ac35e1fe273f36d016",
+      "approvedAt": "2026-09-23T13:26:07.380Z",
+      "baseline": "458ea4449b9101fc1b76cb569e1677022a3f7bb9",
       "sourceSpec": {
         "path": "docs/specs/2609231215-claude-skill-edit-grant.md",
         "fingerprint": "8b2af5284f34b3c55918e77064ac60f37655f6dcd64bdbf2195343265bffdc0f"
