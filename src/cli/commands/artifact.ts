@@ -9,7 +9,11 @@ import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { Backend } from "../../ports/backend.js";
 import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
-import { inspectArtifact, transitionArtifact } from "../../app/artifactStatus.js";
+import {
+  type ArtifactAuthoring,
+  inspectArtifact,
+  transitionArtifact,
+} from "../../app/artifactStatus.js";
 import { createArtifact } from "../../app/createArtifact.js";
 import { authorArtifact } from "../../app/authorArtifact.js";
 import { loadConfig } from "../../app/loadConfig.js";
@@ -60,6 +64,18 @@ function buildLayer(repoRoot: string): Layer.Layer<FileSystem | Git> {
   return Layer.merge(makeRootedNodeFileSystemLayer(repoRoot), makeNodeGitLayer());
 }
 
+function authoringText(authoring: ArtifactAuthoring): string {
+  if (authoring.kind === "interactive") return "interactive (no sidecar)";
+  const { agreement, sidecarPath } = authoring;
+  const state =
+    agreement === "in-sync"
+      ? "in sync"
+      : agreement === "diverged"
+        ? "diverged — body differs from the sidecar's rendering"
+        : `invalid sidecar — ${agreement.message}`;
+  return `headless — sidecar ${sidecarPath} (${state})`;
+}
+
 export async function runArtifactStatus(pathArg: string, out: OutputPort): Promise<number> {
   const repoRoot = findGitRoot(process.cwd());
   const repoRelPath = toRepoRelativePath(pathArg, repoRoot);
@@ -70,10 +86,11 @@ export async function runArtifactStatus(pathArg: string, out: OutputPort): Promi
     return exitCodeForError(result.left);
   }
 
-  const { kind, status, legalTargets, approval } = result.right;
+  const { kind, status, legalTargets, approval, authoring } = result.right;
   out.log(`Path:              ${repoRelPath}`);
   out.log(`Kind:              ${kind}`);
   out.log(`Status:            ${status}`);
+  out.log(`Authored:          ${authoringText(authoring)}`);
   if (approval.kind === "recorded") {
     out.log(`Approved:          ${approval.date} @ ${approval.baseline}`);
     out.log(`Edited since:      ${approval.editedSinceApproval ? "yes" : "no"}`);

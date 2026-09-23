@@ -5,6 +5,7 @@ import { Git, type GitError } from "../ports/git.js";
 import {
   type ArtifactCommitFailedError,
   type ArtifactDirtyWriteSetError,
+  type ArtifactSidecarDivergedError,
   ArtifactValidationError,
   type InvalidArtifactTransitionError,
   type SpecApprovalUnrecordedError,
@@ -218,6 +219,7 @@ export function applyStalenessReport(
   | SpecApprovalUnrecordedError
   | SpecEditedSinceApprovalError
   | SpecRetirementBlockedError
+  | ArtifactSidecarDivergedError
   | ArtifactDirtyWriteSetError
   | ArtifactCommitFailedError
   | GitError,

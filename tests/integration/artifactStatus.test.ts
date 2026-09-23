@@ -11,6 +11,7 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import {
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
+  ArtifactSidecarDivergedError,
   ArtifactValidationError,
   InvalidArtifactTransitionError,
   SpecApprovalUnrecordedError,
@@ -24,6 +25,9 @@ import {
 } from "../../src/domain/artifact/lineage.js";
 import { decodeApprovalRecordFile } from "../../src/schemas/approvalRecord.js";
 import { decodeSpecApprovalRecordFile } from "../../src/schemas/specApprovalRecord.js";
+import { decodeSpecDocument } from "../../src/schemas/specDocument.js";
+import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
+import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
 
 const DRAFT_SPEC = specMd("Draft");
 const APPROVED_SPEC = specMd("Approved");
@@ -98,6 +102,7 @@ describe("inspectArtifact", () => {
         status: "Approved",
         legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
         approval: { kind: "none" },
+        authoring: { kind: "interactive" },
       });
     }
   });
@@ -1155,6 +1160,250 @@ describe("transitionArtifact", () => {
       // The transition's writes stayed in place despite the commit failure.
       expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toContain("status: Approved");
       expect(fsImpl.getFile(APPROVALS_FILE_PATH)).toBeDefined();
+    });
+  });
+});
+
+// A hand edit of a headless artifact's body.
+function edited(body: string): string {
+  return body.replace("Free a slug", "Release a slug");
+}
+
+describe("headless-authored artifacts (JSON sidecar)", () => {
+  const SPEC = "docs/specs/2609230835-plan-prune.md";
+  const SIDECAR = "docs/specs/2609230835-plan-prune.json";
+  const ARCHIVED_SPEC = "docs/specs/archive/2609230835-plan-prune.md";
+  const ARCHIVED_SIDECAR = "docs/specs/archive/2609230835-plan-prune.json";
+
+  const SPEC_DOCUMENT = {
+    version: 1,
+    kind: "spec",
+    title: "Plan Prune",
+    ground: [{ path: "docs/ideas/plan-prune.md", note: "the idea" }],
+    context: "A slug is held forever by its archived run.",
+    problem: "The `-2` habit is the visible symptom.",
+    productGoal: {
+      statement: "Free a slug once its run is archived.",
+      guidingRule: "A slug is held only by a live run.",
+    },
+    terminology: [{ term: "live run", definition: "a run that is not archived" }],
+    requirements: [
+      {
+        id: "5.1",
+        title: "Prune eligibility",
+        pattern: "event",
+        statement: "WHEN a run is archived THE system SHALL make it eligible to prune.",
+      },
+    ],
+    surface: [
+      {
+        surface: "cli: `phax prune <run>`",
+        binding: "normative",
+        before: null,
+        after: "phax prune usage-cli",
+      },
+    ],
+    nonGoals: ["pruning a live run"],
+    acceptanceCriteria: [
+      {
+        id: "AC-1",
+        name: "Prune frees the slug",
+        given: "an archived run usage-cli",
+        when: "`phax prune usage-cli` runs",
+        // oxlint-disable-next-line unicorn/no-thenable -- given/when/then data, never awaited
+        then: "the slug is free",
+        refs: ["5.1"],
+      },
+    ],
+    openQuestions: [],
+    planningNote: { settled: ["manual prune"], open: [], constraints: [] },
+    docsPage: { kind: "none", why: "the CLI reference covers it" },
+  };
+  const SIDECAR_JSON = `${JSON.stringify(SPEC_DOCUMENT, null, 2)}\n`;
+
+  function headlessSpecMd(status: string, bodyEdit: (body: string) => string = (b) => b): string {
+    const decoded = decodeSpecDocument(SPEC_DOCUMENT);
+    if (Either.isLeft(decoded)) throw new Error("fixture spec document must decode");
+    return `---
+status: ${status}
+date: 2026-09-23
+audience: implementation planning with Claude Code
+scope: functional behavior and consumption surface
+---
+${bodyEdit(renderSpecBody(decoded.right))}`;
+  }
+
+  function headlessHarness(md: string, sidecarJson: string = SIDECAR_JSON) {
+    const harness = makeHarness();
+    harness.fsImpl.setFile(SPEC, md);
+    harness.fsImpl.setFile(SIDECAR, sidecarJson);
+    return harness;
+  }
+
+  describe("inspectArtifact", () => {
+    it("reports headless, in sync, when the body is the sidecar's rendering", async () => {
+      const { layer } = headlessHarness(headlessSpecMd("Draft"));
+      const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
+      expect(Either.isRight(result) && result.right.authoring).toEqual({
+        kind: "headless",
+        sidecarPath: SIDECAR,
+        agreement: "in-sync",
+      });
+    });
+
+    it("reports diverged after a body edit", async () => {
+      const { layer } = headlessHarness(headlessSpecMd("Draft", edited));
+      const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
+      expect(Either.isRight(result) && result.right.authoring).toEqual({
+        kind: "headless",
+        sidecarPath: SIDECAR,
+        agreement: "diverged",
+      });
+    });
+
+    it("reports an invalid sidecar with the reason", async () => {
+      const { layer } = headlessHarness(headlessSpecMd("Draft"), "{ nope");
+      const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
+      expect(Either.isRight(result) && result.right.authoring).toMatchObject({
+        kind: "headless",
+        agreement: { kind: "invalid", message: expect.stringMatching(/^not JSON/) },
+      });
+    });
+
+    it("reports interactive (no sidecar) for an artifact without one", async () => {
+      const { fsImpl, layer } = makeHarness();
+      fsImpl.setFile(SPEC, DRAFT_SPEC);
+      const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
+      expect(Either.isRight(result) && result.right.authoring).toEqual({ kind: "interactive" });
+    });
+  });
+
+  describe("transitionArtifact", () => {
+    it("approve commits the artifact, its sidecar and the approvals file", async () => {
+      const { fsImpl, gitImpl, layer } = headlessHarness(headlessSpecMd("Draft"));
+      gitImpl.enqueueDirtyPaths([]);
+      gitImpl.enqueueDirtyPaths([SPEC, SPEC_APPROVALS_FILE_PATH]);
+
+      const result = await run(
+        transitionArtifact(SPEC, "Approved", { ...DEFAULT_OPTS, commit: true }).pipe(
+          Effect.provide(layer),
+        ),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
+      expect(commitCalls).toHaveLength(1);
+      if (commitCalls[0]?.method === "commitPaths") {
+        expect(commitCalls[0].paths).toEqual([SPEC, SIDECAR, SPEC_APPROVALS_FILE_PATH]);
+      }
+      // The frontmatter stamp does not diverge the pair.
+      expect(fsImpl.getFile(SIDECAR)).toBe(SIDECAR_JSON);
+      const after = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
+      expect(Either.isRight(after) && after.right.authoring).toMatchObject({
+        agreement: "in-sync",
+      });
+    });
+
+    it("complete moves both files under archive/ in one commit", async () => {
+      const { fsImpl, gitImpl, layer } = headlessHarness(headlessSpecMd("Approved"));
+      gitImpl.enqueueDirtyPaths([]);
+      gitImpl.enqueueDirtyPaths([SPEC, SIDECAR, ARCHIVED_SPEC, ARCHIVED_SIDECAR]);
+
+      const result = await run(
+        transitionArtifact(SPEC, "Completed", { ...DEFAULT_OPTS, commit: true }).pipe(
+          Effect.provide(layer),
+        ),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      expect(fsImpl.getFile(SPEC)).toBeUndefined();
+      expect(fsImpl.getFile(SIDECAR)).toBeUndefined();
+      expect(fsImpl.getFile(ARCHIVED_SPEC)).toContain("status: Completed");
+      expect(fsImpl.getFile(ARCHIVED_SIDECAR)).toBe(SIDECAR_JSON);
+      const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
+      expect(commitCalls).toHaveLength(1);
+      if (commitCalls[0]?.method === "commitPaths") {
+        expect(commitCalls[0].paths).toEqual([
+          SPEC,
+          SIDECAR,
+          SPEC_APPROVALS_FILE_PATH,
+          ARCHIVED_SPEC,
+          ARCHIVED_SIDECAR,
+        ]);
+      }
+    });
+
+    it("approve of a diverged artifact fails with exit 12 naming both remedies, writing nothing", async () => {
+      const source = headlessSpecMd("Draft", edited);
+      const { fsImpl, gitImpl, layer } = headlessHarness(source);
+
+      const result = await run(
+        transitionArtifact(SPEC, "Approved", { ...DEFAULT_OPTS, commit: true }).pipe(
+          Effect.provide(layer),
+        ),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ArtifactSidecarDivergedError);
+        expect(exitCodeForError(result.left)).toBe(12);
+        expect(result.left.message).toContain("differs from its sidecar's rendering");
+        expect(result.left.message).toContain(
+          "phax artifact new spec plan-prune --headless --brief <file|->",
+        );
+        expect(result.left.message).toContain(
+          `delete ${SIDECAR} to demote the artifact to hand-authored`,
+        );
+      }
+      expect(fsImpl.getFile(SPEC)).toBe(source);
+      expect(fsImpl.getFile(SPEC_APPROVALS_FILE_PATH)).toBeUndefined();
+      expect(gitImpl.calls.some((c) => c.method === "commitPaths")).toBe(false);
+    });
+
+    it("approve of an artifact with an invalid sidecar fails the same way", async () => {
+      const { layer } = headlessHarness(headlessSpecMd("Draft"), "{ nope");
+
+      const result = await run(
+        transitionArtifact(SPEC, "Approved", DEFAULT_OPTS).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ArtifactSidecarDivergedError);
+        expect(result.left.message).toContain("has an invalid sidecar (not JSON");
+      }
+    });
+
+    it("other transitions are not blocked by divergence; the sidecar still travels", async () => {
+      const { fsImpl, layer } = headlessHarness(headlessSpecMd("Draft", edited));
+
+      const result = await run(
+        transitionArtifact(SPEC, "Abandoned", DEFAULT_OPTS).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      expect(fsImpl.getFile(ARCHIVED_SPEC)).toContain("status: Abandoned");
+      expect(fsImpl.getFile(ARCHIVED_SIDECAR)).toBe(SIDECAR_JSON);
+      expect(fsImpl.getFile(SIDECAR)).toBeUndefined();
+    });
+
+    it("refuses to archive over an existing archived sidecar, moving neither file", async () => {
+      const source = headlessSpecMd("Approved");
+      const { fsImpl, layer } = headlessHarness(source);
+      fsImpl.setFile(ARCHIVED_SIDECAR, "{}");
+
+      const result = await run(
+        transitionArtifact(SPEC, "Completed", DEFAULT_OPTS).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ArtifactValidationError);
+        expect(result.left.message).toContain(`destination ${ARCHIVED_SIDECAR} already exists`);
+      }
+      expect(fsImpl.getFile(SPEC)).toBe(source);
+      expect(fsImpl.getFile(SIDECAR)).toBe(SIDECAR_JSON);
+      expect(fsImpl.getFile(ARCHIVED_SPEC)).toBeUndefined();
     });
   });
 });
