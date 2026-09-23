@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2609230835-headless-authoring.md
 approved:
   date: 2026-09-23
