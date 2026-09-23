@@ -43,7 +43,43 @@ describe("planCacheKey", () => {
     expect(a).toBe(b);
   });
 
-  it("EXTRACTOR_VERSION is 1", () => {
-    expect(EXTRACTOR_VERSION).toBe(1);
+  it("EXTRACTOR_VERSION is 2", () => {
+    expect(EXTRACTOR_VERSION).toBe(2);
+  });
+
+  describe("keys on the body without its frontmatter", () => {
+    const body = "\n# Plan\n\n## Required commands\n\n- (none)\n";
+    const draft = `---\nstatus: Draft\nsource-spec: null\n---\n${body}`;
+    const approved = `---\nstatus: Approved\nsource-spec: null\napproved:\n  date: 2026-09-23\n  baseline: abc1234\n---\n${body}`;
+
+    it("same body under two different frontmatter blocks → same key", () => {
+      expect(planCacheKey(draft, "claude-sonnet-4-6", "medium")).toBe(
+        planCacheKey(approved, "claude-sonnet-4-6", "medium"),
+      );
+    });
+
+    it("a frontmatter-bearing plan keys like its bare body", () => {
+      expect(planCacheKey(draft, "claude-sonnet-4-6", "medium")).toBe(
+        planCacheKey(body, "claude-sonnet-4-6", "medium"),
+      );
+    });
+
+    it("a body edit under the same frontmatter → different key", () => {
+      const edited = draft.replace("# Plan", "# Plan, edited");
+      expect(planCacheKey(edited, "claude-sonnet-4-6", "medium")).not.toBe(
+        planCacheKey(draft, "claude-sonnet-4-6", "medium"),
+      );
+    });
+
+    it("a plan without a frontmatter block keys on its full text", () => {
+      // An unterminated block is not frontmatter: the whole text is the body.
+      const unterminated = "---\nstatus: Draft\n# Plan\n";
+      expect(planCacheKey(unterminated, "claude-sonnet-4-6", "medium")).not.toBe(
+        planCacheKey("# Plan\n", "claude-sonnet-4-6", "medium"),
+      );
+      expect(planCacheKey("# Plan A", "claude-sonnet-4-6", "medium")).not.toBe(
+        planCacheKey("# Plan B", "claude-sonnet-4-6", "medium"),
+      );
+    });
   });
 });
