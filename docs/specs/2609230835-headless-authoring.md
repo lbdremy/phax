@@ -59,8 +59,8 @@ stability promise.
 
 ## 4. Terminology
 
-- **Brief** — the caller's prompt file: what to write and from what ground. phax prepends the
-  skill and the output schema; the brief is never the whole prompt.
+- **Brief** — the caller's prompt, from a file or from stdin: what to write and from what
+  ground. phax prepends the skill and the output schema; the brief is never the whole prompt.
 - **Authoring session** — the provider session phax spawns for one `--headless` invocation.
 - **Spec document** — the JSON a spec authoring session returns, in the spec document schema
   this spec introduces. **Plan document** — the JSON a plan session returns: the extracted-plan
@@ -85,6 +85,9 @@ stability promise.
 - The system SHALL leave `artifact new spec|plan <slug>` without `--headless` unchanged: a
   frontmatter-only skeleton, no session, no commit.
 - IF `--headless` is given without `--brief` THEN the system SHALL refuse before spawning.
+- WHERE `--brief -` is given THE system SHALL read the brief from stdin.
+- The system SHALL resolve the authoring model and effort as: the flag, else the `phax.json`
+  authoring key for that artifact kind, else the built-in catalog default.
 - IF the slug is off-grammar, the target name or its sidecar already exists, the brief cannot
   be read, or (plan) `--spec` is missing or not a valid spec, THEN the system SHALL refuse
   before spawning, with the same refusal family as the interactive path.
@@ -152,7 +155,7 @@ stability promise.
 ### 5.7 Authoring record
 
 - WHEN the commit lands and records are enabled THE system SHALL write an authoring record —
-  brief, full prompt, document, transcript per the records transcript setting, provider,
+  the brief's content (its path too, when it had one), full prompt, document, transcript per the records transcript setting, provider,
   model, effort, usage, outcome and the artifact commit as its source — under the same
   destination policy as phase records.
 - WHILE records are disabled THE system SHALL succeed without writing a record.
@@ -181,12 +184,27 @@ stability promise.
 
 ## 6. Surface
 
-Invocation (`--headless` and `--brief` **normative**; `--model`/`--effort` **normative** as
-names, defaults §9):
+Invocation (`--headless`, `--brief <file|->`, `--model` and `--effort` **normative** as
+names; precedence flag → config → catalog default **normative**):
 
 ```
 phax artifact new spec headless-authoring --headless --brief brief.md [--model claude-opus-5-5 --effort high]
 phax artifact new plan headless-authoring --headless --brief brief.md --spec docs/specs/2609230835-headless-authoring.md
+cat brief.md | phax artifact new spec headless-authoring --headless --brief -
+```
+
+`phax.json`, before → after (that per-kind optional defaults exist is **normative**; key
+spelling **indicative**; absent keys fall through to the catalog default, so `version: 1`
+configs load unchanged):
+
+```
+"review": { "code": { "model": "claude-opus-5-5", "effort": "high" } }
+→
+"review": { "code": { "model": "claude-opus-5-5", "effort": "high" } },
+"authoring": {
+  "spec": { "model": "claude-opus-5-5", "effort": "high" },
+  "plan": { "model": "claude-opus-5-5", "effort": "high" }
+}
 ```
 
 Output sketch (that the four facts are printed is **normative**; layout **indicative**):
@@ -358,7 +376,7 @@ Commit message (that it is one path-scoped commit of the artifact and sidecar is
 Schema access (**indicative**): `phax artifact schema spec|plan` prints the document JSON
 Schema, titled `phax spec document (experimental)` / `phax plan document (experimental)`.
 
-No visual UI, no design annex. No `phax.json` change (defaults are §9).
+No visual UI, no design annex.
 
 ## 7. Non-goals
 
@@ -373,9 +391,9 @@ No visual UI, no design annex. No `phax.json` change (defaults are §9).
 - **Back-filling sidecars** for existing specs and plans.
 - **Quality lint of a spec** (EARS wording, page budget, layer discipline) beyond schema
   validation and traceability — that stays with the human gate.
-- **A brief on stdin** (§9), **`phax.json` authoring defaults** (§9), other artifact kinds,
-  the docs page itself (only its section is authored), the `review-as-plan` and
-  `schemas-package` specs, and any change to spec 23's persisted decision record.
+- Other artifact kinds, the docs page itself (only its section is authored), the
+  `review-as-plan` and `schemas-package` specs, and any change to spec 23's persisted
+  decision record.
 - **Stability of the document formats** — both ship experimental; the 1.0 promise does not
   cover them until a later spec says so.
 
@@ -399,6 +417,18 @@ made. (refs §5.1)
 
 Given a slug that already names a spec, or `--headless` without `--brief`, when the command
 runs, then it exits 12 and no session was spawned. (refs §5.1)
+
+### Brief from stdin
+
+Given a brief piped on stdin, when `phax artifact new spec <slug> --headless --brief -` runs,
+then the session receives that brief and the record carries its content with no path.
+(refs §5.1, §5.7)
+
+### Defaults resolve flag, then config, then catalog
+
+Given `phax.json` with `authoring.spec.model` set and no `--model` flag, when the command
+runs, then the session uses the configured model; given `--model` as well, the flag wins;
+given neither, the catalog default is used. (refs §5.1)
 
 ### Invalid JSON lands nothing
 
@@ -457,6 +487,9 @@ whose title says experimental, with no provider call. (refs §5.10)
 
 ## 9. Open questions for implementation planning
 
+All questions are **resolved** (review of 2026-09-23); each carries its decision. Two depart
+from the recommendation and are marked so.
+
 Question: is the sidecar authoritative, and what happens when the Markdown is hand-edited?
 
 - Authoritative when present and in sync; divergence demotes it silently to "interactive" —
@@ -471,6 +504,8 @@ Recommendation: the second — a hand-edited artifact has no sidecar by definiti
 the demotion a deliberate deletion; `approve` already refuses on an unrecorded or edited
 spec, this is the same posture.
 
+Decision: the recommendation.
+
 Question: where does the authoring record live?
 
 - Reuse the phase record manifest with `runId` = the artifact name and `phaseId` =
@@ -481,6 +516,8 @@ Question: where does the authoring record live?
 
 Recommendation: the distinct kind — records are a persisted format the 1.0 promise will
 cover; a lie in the manifest is worse than a second, explicit shape.
+
+Decision: the recommendation.
 
 Question: seed the extraction cache, or rely on the deterministic render alone?
 
@@ -493,6 +530,8 @@ Question: seed the extraction cache, or rely on the deterministic render alone?
 Recommendation: both — the seed is cheap and the acceptance criterion checks the outcome
 (no extraction session), not the mechanism.
 
+Decision: the recommendation.
+
 Question: where do the model and effort defaults come from?
 
 - Flags with built-in defaults from the catalog (the planning skill's recommended model,
@@ -503,6 +542,10 @@ Question: where do the model and effort defaults come from?
 Recommendation: flags with built-in defaults — the first consumer passes flags on every call;
 a config key can be added later without breaking anything.
 
+Decision (**departs from the recommendation**): all three layers — flag, else optional
+`phax.json` `authoring.{spec,plan}.{model,effort}`, else catalog default. The keys are
+optional, so a `version: 1` config without them loads unchanged; §6 shows the block.
+
 Question: `--brief` from a file only, or also stdin?
 
 - File only — abandons: one temp file per call for a scripted caller.
@@ -511,6 +554,9 @@ Question: `--brief` from a file only, or also stdin?
 
 Recommendation: file only — the record must name and carry the brief; the conductor writes
 files anyway.
+
+Decision (**departs from the recommendation**): also `--brief -`. The record carries the
+brief's content in every case, and its path only when there was one (§5.7).
 
 Question: record a failed session?
 
@@ -522,6 +568,8 @@ Question: record a failed session?
 Recommendation: record it — this mirrors phase records, and a failed authoring session is the
 most useful transcript a loop will ever read.
 
+Decision: the recommendation.
+
 Question: is the docs-page section required in every spec document?
 
 - Required, with an explicit `{ kind: "none", why }` variant — abandons: nothing; a
@@ -531,9 +579,12 @@ Question: is the docs-page section required in every spec document?
 
 Recommendation: required with the `none` variant.
 
+Decision: the recommendation.
+
 ## 10. Implementation-planning note
 
-Settled: the two `--headless` invocations and their flags; JSON-only results validated at the
+Settled: the two `--headless` invocations and their flags, with `--brief -` for stdin and the
+flag → `phax.json` `authoring` key → catalog default precedence; JSON-only results validated at the
 boundary with nothing written on failure; the spec document's section set, EARS `pattern`,
 typed `surface` strings with `binding` and before/after blocks, traceability check, the
 decision-request shape of open questions, the required docs-page section; the plan document
@@ -543,10 +594,11 @@ plus sidecar; the sidecar in every transition write-set; an authoring record whe
 on; `artifact status` reporting authoring mode and sidecar agreement; both schemas printable
 and titled experimental; the exit-code families in §6.
 
-Left open until the §9 defaults are reviewed: sidecar demotion posture, record kind and key,
-cache seeding, default model/effort, stdin brief, failed-session record, the `none` docs-page
-variant. Also open to the planner: the exact rendering prose, the section anchors, and the
-schema-print spelling.
+Every §9 question is decided: sidecar divergence blocks `approve` until explicit deletion; a
+distinct `authoring` record kind; cache seeded and render on the fast path; three-layer
+model/effort defaults; stdin brief; failed sessions recorded; docs page required with a `none`
+variant. Left to the planner: the exact rendering prose, the section anchors, the
+`authoring` key spelling, and the schema-print spelling.
 
 Constraints the plan must respect: the authoring session is a recorded provider session in the
 repository root under the read-only review posture (the brief names corpus paths the agent
@@ -556,7 +608,9 @@ happens; the extracted projection of a plan document must be the extracted-plan 
 not a copy; the deterministic parser is the oracle for the plan rendering (render → parse →
 equals projection is a unit test, not a hope); the interactive `createArtifact` path is not
 touched — the headless path composes it; transition write-sets extend to the sidecar through
-the existing write-set discipline; the spec document schema is versioned (`version: 1`) with no
+the existing write-set discipline; the `authoring` config keys are optional at birth (a
+`version: 1` config must keep loading), which is a deliberate exception to the no-optional
+rule, not a shim; the spec document schema is versioned (`version: 1`) with no
 optional-for-back-compat fields, and its experimental status is stated in the schema title and
 in the README's persisted-formats note, never as a field of the instance. Keep the spec's
 `ground` list as the citation the first consumer expects ("the spec cites what it read").
