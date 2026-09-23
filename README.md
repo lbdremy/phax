@@ -286,6 +286,18 @@ phax schema upgrade
 
 This rewrites `phax.schema.json` and `phax.user.schema.json` next to the nearest `phax.json` and reports whether the files changed or were already current. It never modifies `phax.json`.
 
+## Experimental formats
+
+These formats are outside the `version: 1` stability promise that covers `phax.json` and the run formats: they may change between releases without a schema version bump.
+
+| Format           | Where it lives                                       | Contract                        |
+| ---------------- | ---------------------------------------------------- | ------------------------------- |
+| Spec document    | the `.json` sidecar beside a headless-authored spec  | `phax artifact schema spec`     |
+| Plan document    | the `.json` sidecar beside a headless-authored plan  | `phax artifact schema plan`     |
+| Authoring record | `authoring/<YYMMDDHHMM>-<slug>` on `phax/records/v1` | `phax records explain <commit>` |
+
+All three are produced by [headless authoring](#headless-authoring).
+
 ## Write a plan
 
 Create the plan file with `phax artifact new plan <slug> --spec <spec path>` (or without `--spec` when there is no source spec), then fill it in. Author `plan.md` with the [`phax-planning`](.claude/skills/phax-planning/SKILL.md) skill — it is the source of truth for the plan format that `phax run` extracts and `phax plans lint` checks. The skill defines the per-phase template contract (heading + `{#phase-NN-<slug>}` anchor, recommended model/effort, the three planned-file lists, gate-profile verification, commit subject/body) and the planning doctrine (plan outside-in, implement inside-out, verify outside-in). Point your agent at that skill when drafting or reviewing a plan; don't hand-roll the format.
@@ -306,8 +318,11 @@ cat brief.md | phax artifact new spec headless-authoring --headless --brief -
 authoring spec headless-authoring — claude-opus-5-5 / high
 created docs/specs/2609230835-headless-authoring.md (Draft, headless)
 sidecar docs/specs/2609230835-headless-authoring.json
-commit  a1b2c3d — docs(specs): draft headless-authoring
+commit a1b2c3d — docs(specs): draft headless-authoring
+record authoring/2609230835-headless-authoring
 ```
+
+The last line names the session's authoring record on `phax/records/v1` (`record off` when records are off; a warning when it could not be written — never a failure). `phax records explain <commit>` on the artifact commit resolves it.
 
 | Situation                                                                         | Exit |
 | --------------------------------------------------------------------------------- | ---- |
@@ -316,7 +331,7 @@ commit  a1b2c3d — docs(specs): draft headless-authoring
 | provider rate or usage limit                                                      | 8    |
 | authored and committed                                                            | 0    |
 
-The interactive path (`artifact new spec|plan <slug>` without `--headless`) is unchanged: no session, no sidecar, no commit. Both the spec document and plan document formats are **experimental**, outside the `version: 1` stability promise; print either with `phax artifact schema spec|plan`.
+The interactive path (`artifact new spec|plan <slug>` without `--headless`) is unchanged: no session, no sidecar, no commit. The spec document, the plan document and the authoring record are **experimental** formats — see [Experimental formats](#experimental-formats).
 
 ## Lint the plan
 

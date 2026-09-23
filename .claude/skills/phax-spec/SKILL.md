@@ -329,6 +329,61 @@ understood the option yet — that, not a longer pros list, is the signal to dig
 - **Free-floating requirements.** A §5 requirement with no acceptance criterion, or a criterion
   with no `refs §`, breaks the traceability chain that lets the spec be archived.
 
+## Headless authoring
+
+Everything above describes the Markdown spec you write in an interactive session. When the
+session is spawned by `phax artifact new spec <slug> --headless --brief <file|->`, the
+deliverable changes: you return the **spec document** — a JSON object — and phax renders it
+deterministically to the canonical structure above, writes the `.md` with its JSON sidecar
+beside it, and commits both. The doctrine does not change; only the container does.
+
+- **The JSON object is your final message**, alone: no code fence, no commentary before or
+  after it. The prompt carries the authoritative JSON Schema; `phax artifact schema spec`
+  prints the same schema.
+- **Write no files.** phax writes, renders and commits; a file you write is not the artifact.
+- **Every key is required.** An empty section is an empty array or an explicit variant
+  (`before: null`, `docsPage.kind: "none"`), never a missing key. Unknown keys are rejected.
+- **Plain text, not Markdown structure.** Headings, numbering, `refs §` citations and the
+  `None.` placeholders are rendered by phax.
+
+Top-level keys, with the section each renders to:
+
+| Key                  | Shape                                                        | Renders to                               |
+| -------------------- | ------------------------------------------------------------ | ---------------------------------------- |
+| `version`, `kind`    | `1`, `"spec"`                                                | —                                        |
+| `title`              | string                                                       | `# <Title>`                              |
+| `ground`             | `[{ path, note }]` — files you read to write §1              | §1, a "Ground read:" list                |
+| `context`            | string                                                       | §1 Context                               |
+| `problem`            | string                                                       | §2 Problem                               |
+| `productGoal`        | `{ statement, guidingRule }`                                 | §3, the rule as a blockquote             |
+| `terminology`        | `[{ term, definition }]`                                     | §4 Terminology                           |
+| `requirements`       | non-empty `[{ id, title, pattern, statement }]`              | §5, one `### 5.N` per requirement        |
+| `surface`            | `[{ surface, binding, before, after }]`                      | §6 Surface                               |
+| `nonGoals`           | `[string]`                                                   | §7 Non-goals                             |
+| `acceptanceCriteria` | non-empty `[{ id, name, given, when, then, refs }]`          | §8, "Given …, when …, then …" + refs     |
+| `openQuestions`      | `[{ id, question, options, recommendation, rationale }]`     | §9 Open questions                        |
+| `planningNote`       | `{ settled, open, constraints }` — three string arrays       | §10 Implementation-planning note         |
+| `docsPage`           | `{ kind: "page", page, reader, example }` or `{ kind: "none", why }` | §11 Docs page                    |
+
+The constrained shapes:
+
+- **`pattern`** — the requirement's EARS pattern: `"ubiquitous"`, `"event"`, `"state"`,
+  `"unwanted"` or `"optional"` (see EARS above). `statement` is the full EARS sentence.
+- **`surface`** — the element's kind and name, prefixed by one of `cli: `, `config: `,
+  `file: `, `api: `, `package: `, `internal: ` (e.g. `"cli: phax artifact schema"`).
+- **`binding`** — `"normative"` or `"indicative"` (see Surface above).
+- **`before` / `after`** — the materialized element: `after` is the invocation, block or
+  payload the consumer sees; `before` is its current form, or `null` for a new element.
+- **Open questions** — each has two or more `options` of `{ id, label, abandons }`
+  (`abandons` is the option's dominant loss — see Arbitration), and `recommendation` is the
+  `id` of one of them, argued in `rationale`.
+
+Traceability is checked when phax decodes the document, and the first violation rejects it:
+requirement, question and per-question option ids are unique; every acceptance criterion's
+`refs` names existing requirement `id`s; every requirement is referenced by at least one
+criterion; every `recommendation` names one of its question's options. Requirement ids are
+yours to choose — phax numbers the §5 headings by position and rewrites refs to match.
+
 ## Reviewing a spec
 
 When asked to review rather than write, check, in order:
