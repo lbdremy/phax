@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2609231215-claude-skill-edit-grant.md
 approved:
   date: 2026-09-23
