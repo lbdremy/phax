@@ -196,8 +196,8 @@ export interface ResolvedCodeReviewConfig {
   readonly effort: Effort;
 }
 
-// same per-token tier as Opus 4.8, fewer generated tokens
-export const DEFAULT_CODE_REVIEW_MODEL = "claude-opus-5";
+// cheaper per token than Opus 5, scores above Fable 5.1 from medium effort up
+export const DEFAULT_CODE_REVIEW_MODEL = "claude-opus-5-5";
 
 export function resolveCodeReviewConfig(
   raw: CodeReviewConfig | undefined,

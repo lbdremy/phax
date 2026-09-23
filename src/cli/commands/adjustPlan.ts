@@ -22,8 +22,8 @@ function isValidEffort(value: string): value is ValidEffort {
   return (VALID_EFFORT_VALUES as readonly string[]).includes(value);
 }
 
-// same per-token tier as Opus 4.8, fewer generated tokens
-export const DEFAULT_MODEL = "claude-opus-5";
+// cheaper per token than Opus 5, scores above Fable 5.1 from medium effort up
+export const DEFAULT_MODEL = "claude-opus-5-5";
 export const DEFAULT_EFFORT: ValidEffort = "high";
 
 export interface AdjustPlanCommandOptions {

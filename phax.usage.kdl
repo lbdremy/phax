@@ -226,7 +226,7 @@ cmd "review-code" {
     }
     flag "--model" {
         arg "<model>"
-        help "Override the model, including on resume (default: review.code.model, else claude-opus-5)"
+        help "Override the model, including on resume (default: review.code.model, else claude-opus-5-5)"
     }
     flag "--effort" {
         arg "<effort>"
@@ -251,7 +251,7 @@ cmd "adjust-plan" {
     }
     flag "--model" {
         arg "<model>"
-        help "Override the model (default: claude-opus-5)"
+        help "Override the model (default: claude-opus-5-5)"
     }
     flag "--effort" {
         arg "<effort>"
