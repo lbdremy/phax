@@ -171,4 +171,47 @@ describe("buildDryRunReport / formatDryRunReport", () => {
     expect(output).toContain("✓ pnpm test");
     expect(output).not.toContain("Preflight will fail");
   });
+
+  describe("skill edit grants", () => {
+    const planWithSkill: PhaxPlan = {
+      ...minimalPlan,
+      phases: [
+        {
+          ...minimalPlan.phases[0],
+          plannedFilesToEdit: [".claude/skills/foo/SKILL.md", "src/x.ts"],
+        },
+      ],
+    };
+
+    it("lists per-phase grants and flags missing consent", () => {
+      const report = buildDryRunReport(planWithSkill, minimalConfig);
+      expect(report.phases[0]?.skillEditGrants).toEqual([".claude/skills/foo/SKILL.md"]);
+      expect(report.skillEditConsentMissing).toBe(true);
+      const output = formatDryRunReport(report);
+      expect(output).toContain("skill edits: .claude/skills/foo/SKILL.md");
+      expect(output).toContain("requires --allow-skill-edits");
+    });
+
+    it("does not flag consent when --allow-skill-edits is given", () => {
+      const report = buildDryRunReport(
+        planWithSkill,
+        minimalConfig,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
+      expect(report.skillEditConsentMissing).toBe(false);
+      const output = formatDryRunReport(report);
+      expect(output).toContain("skill edits: .claude/skills/foo/SKILL.md");
+      expect(output).not.toContain("--allow-skill-edits");
+    });
+
+    it("shows no grants and no warning for a plan without skill files", () => {
+      const report = buildDryRunReport(minimalPlan, minimalConfig);
+      expect(report.phases[0]?.skillEditGrants).toEqual([]);
+      expect(report.skillEditConsentMissing).toBe(false);
+      expect(formatDryRunReport(report)).not.toContain("skill edits");
+    });
+  });
 });

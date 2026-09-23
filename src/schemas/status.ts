@@ -63,6 +63,10 @@ export const RunStatusSchema = Schema.Struct({
   // 27) without re-deriving it. Optional: runs created before this field, and
   // loose plans with no lifecycle artifact, resume with completion skipped.
   planRepoRelPath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  // Skill edit consent given at `phax run --allow-skill-edits`, recorded so
+  // `phax resume` inherits it. Optional like `planRepoRelPath`: existing
+  // run-status.json files must still decode, and absent means no consent.
+  allowSkillEdits: Schema.optionalWith(Schema.Boolean, { exact: true }),
 });
 
 export type RunStatus = Schema.Schema.Type<typeof RunStatusSchema>;

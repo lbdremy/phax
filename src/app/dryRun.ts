@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { resolveGateProfile } from "./gates.js";
 import { checkRequiredCommands } from "../domain/security/agentCommands.js";
 import { runKey } from "../domain/runRef.js";
+import { checkSkillEditConsent, phaseSkillEditGrants } from "../domain/security/skillEditGrants.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { SecurityMode } from "../domain/security/types.js";
@@ -13,6 +14,8 @@ export interface DryRunPhase {
   readonly model: string;
   readonly effort: string;
   readonly worktreePath: string;
+  // The declared `.claude/skills/**` files this phase would be granted.
+  readonly skillEditGrants: readonly string[];
 }
 
 export interface DryRunReport {
@@ -30,6 +33,9 @@ export interface DryRunReport {
   readonly requiredCommands: readonly string[];
   readonly uncoveredRequiredCommands: readonly string[];
   readonly phases: readonly DryRunPhase[];
+  // True when a phase declares skill files and `--allow-skill-edits` was not
+  // given, so the preflight would refuse the run.
+  readonly skillEditConsentMissing: boolean;
   readonly runPath: string;
   readonly providerPriorityOverride?: readonly string[];
 }
@@ -40,6 +46,7 @@ export function buildDryRunReport(
   gateProfileId?: string,
   providerPriorityOverride?: readonly string[],
   securityMode?: SecurityMode,
+  allowSkillEdits = false,
 ): DryRunReport {
   const profileId = gateProfileId ?? Object.keys(config.raw.gateProfiles)[0] ?? "";
   const gateCommands = resolveGateProfile(config, profileId).map((s) => s.command);
@@ -67,7 +74,10 @@ export function buildDryRunReport(
     model: p.model,
     effort: p.effort,
     worktreePath: join(worktreesRoot, p.id),
+    skillEditGrants: phaseSkillEditGrants(p),
   }));
+  const skillEditConsentMissing =
+    checkSkillEditConsent({ phases: plan.phases, allowSkillEdits }).length > 0;
 
   return {
     shortName: plan.run.shortName,
@@ -84,6 +94,7 @@ export function buildDryRunReport(
     requiredCommands,
     uncoveredRequiredCommands,
     phases,
+    skillEditConsentMissing,
     runPath: join(config.stateRoot, "runs", runKey(config.namespace, plan.run.shortName)),
     ...(providerPriorityOverride !== undefined ? { providerPriorityOverride } : {}),
   };
@@ -161,6 +172,14 @@ export function formatDryRunReport(report: DryRunReport): string {
       `  [${phase.index + 1}] ${phase.id} — ${phase.title} (${phase.model}, ${phase.effort})`,
     );
     lines.push(`       worktree: ${phase.worktreePath}`);
+    if (phase.skillEditGrants.length > 0) {
+      lines.push(`       skill edits: ${phase.skillEditGrants.join(", ")}`);
+    }
+  }
+  if (report.skillEditConsentMissing) {
+    lines.push(
+      "  ⚠  Preflight will fail: the plan edits skill files, which requires --allow-skill-edits.",
+    );
   }
 
   return lines.join("\n");

@@ -50,6 +50,7 @@ import {
   RegistryCorruptionError,
   SecurityEnforcementError,
   SecurityPreflightError,
+  SkillEditConsentError,
   SpecApprovalUnrecordedError,
   SpecEditedSinceApprovalError,
   SpecNotApprovedError,
@@ -141,6 +142,7 @@ export function exitCodeForError(err: unknown): number {
   if (
     err instanceof SecurityEnforcementError ||
     err instanceof SecurityPreflightError ||
+    err instanceof SkillEditConsentError ||
     err instanceof ModelPreflightError ||
     err instanceof RecordsSyncRequiredError
   )

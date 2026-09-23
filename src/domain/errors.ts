@@ -202,6 +202,13 @@ export class SecurityPreflightError extends Data.TaggedError("SecurityPreflightE
   missing: readonly string[];
 }> {}
 
+// The plan declares `.claude/skills/**` files but the run has no skill edit
+// consent (`phax run --allow-skill-edits`, or consent recorded for resume).
+export class SkillEditConsentError extends Data.TaggedError("SkillEditConsentError")<{
+  message: string;
+  phases: readonly { readonly phaseId: string; readonly files: readonly string[] }[];
+}> {}
+
 export class ModelPreflightError extends Data.TaggedError("ModelPreflightError")<{
   message: string;
   failures: readonly {

@@ -230,6 +230,8 @@ export async function runResume(
         startIndex: decision.nextPhaseIndex,
         routing,
         providerConfig,
+        // Skill edit consent is given only at `phax run`; resume inherits it.
+        allowSkillEdits: runStatus.allowSkillEdits === true,
         verbose: opts.verbose,
         // Re-supply the plan's repo-relative path recorded at run creation so the
         // final phase carries artifact completion on resume too (spec 27). Runs
