@@ -118,6 +118,50 @@ desktop — none is promised by the announcement.
       spec 23 (decision requests carry the `recommendation` it adopts) and needs a roadmap
       artifact, a decision policy, budget/stop conditions and a machine-distinguishable
       approval. First target: the steme CLI from its corpus.
+- [ ] **Three additive specs the steme roadmap-1.0 experiment needs before it starts**
+      (raised 2026-09-22/23, the steme conductor is the first consumer; see
+      `/Volumes/Work/steme/steme-doc/docs/doctrine/01-vision/roadmap-1.0-experiment-protocol.md`
+      §3.2 and its item-0 schedule). None holds the 1.0 tag — all are additive to the CLI
+      and to `phax.json` — but the experiment pins the release that carries them, so
+      they come before that release and after nothing:
+      1. **`headless-authoring`** — `docs/ideas/headless-authoring.md`: `artifact new
+         spec|plan --headless --brief <file>`; phax spawns the authoring session with the
+         skill and an output schema, receives JSON only (plan in the `phax-plan.json`
+         shape, extraction cache seeded; spec in a new spec schema whose open questions
+         take spec 23's decision-request shape), renders the Markdown, stamps, commits,
+         records. Moves two of the four model-invocation points inside phax; the spec
+         schema is a new format, shipped experimental.
+      2. **`review-as-plan`** — `docs/ideas/headless-code-review.md`: `review-code
+         --headless` (JSON only: `code-review.json` + `review-plan.json`/`.md`), `run
+         --append <run> <plan>` (a new run transition: appended phases, same records
+         lineage, one PR), `review.code.enabled` / `append` / `maxPasses` symmetric with
+         `review.compliance`; per pass, compliance then code review, no plan on a
+         `divergent` verdict. Ideally the first spec written through (1).
+      3. **`schemas-package`** — the persisted-format schemas (`src/schemas`: registry,
+         run status, records, approvals, compliance and code-review documents, phax-plan)
+         published alone as a typed npm package, freezing nothing beyond the 1.0 promise;
+         a read-only records consumer gets typed parsing.
+- [ ] **Library readiness, then local and cloud modes** — `docs/ideas/local-and-cloud-modes.md`
+      (2026-09-22/23). After 1.0, beside autopilot. The consumption form is decided: a
+      **library** (`app` + `ports` exported, adapter sets shipped by phax, the CLI one
+      entry adapter among others), never a daemon, never the binary. Readiness checklist
+      surveyed 2026-09-23: `exports` and one barrel per layer with `knip` enforcing
+      privacy; a single `LocalLive` composition root instead of per-command layers; **two
+      missing ports — `Clock` (~20 `app` modules call `new Date()`/`Date.now()`) and
+      `Ids` (`randomUUID` ×27, `randomBytes` ×2), reuse Effect's `Clock`/`Random`**;
+      **ten `app` modules import `node:fs` directly, bypassing `FileSystem`** (in cloud
+      mode they would read the host's disk — fix first, then let the architectural guard
+      forbid `node:fs`/`node:child_process` in `app`); environment reads in `loadConfig`,
+      `providerProbe`, `effectRunner`, `report` behind a host port; the file lock under a
+      long-lived host; no exit-code mapping in `app`. Then the cloud adapter set (sandbox
+      `fs`/`git`/`shell`, Agent SDK `backend`, DB `lock`, persisted decision requests for
+      `prompt`/`editor`).
+- [ ] **Two gates on the change** — `docs/ideas/change-gates-from-the-harness.md`
+      (2026-09-22): a per-phase reviewable-unit diff budget, and a `plans lint` rule
+      refusing a phase that plans both a file and its oracle (with oracle files read-only
+      to the phase session unless declared oracle-authoring). Both config-gated gate
+      steps or lint rules; the second is what makes `review-as-plan` safe against an
+      agent editing the test that judges it.
 - [ ] Preview manifest — `phax.json` declares how to preview a finished run
       (per-project-type discriminated union: web / cli / lib). Write it when desktop
       work starts; nothing consumes it before then.
