@@ -19,16 +19,22 @@ should be able to emit it. Hence a provider, like the other three.
 Request   { "run": "<id>" } | { "files": ["src/a.ts", …] }
 Response  { "cells": [{ surface, mode, meaning, scope, state, rules: [id…] }],
             "nodes": [{ id, kind, … }],
-            "lines": [{ file, range: [from, to], rules: [id…], state, locked }],
+            "lines": [{ file, range: [from, to], kind, meanings: [m…],
+                        proved: [{ meaning, rule, grade }], residual: [m…] }],
             "provenance": { tool, version, profile } }
 ```
 
 - `state` is one of five, never a boolean: no rule exists · rule exists, not selected ·
   rule ran, no applicable site · rule ran, violation waived · rule ran, applied, passed.
-- `locked` is true when everything the line says falls under rules that ran, applied and
-  passed — an import under a boundary rule, a config line under a schema rule, a Zod
-  schema line under a strictness rule, a style class inside a design-system component.
-  A UI folds locked lines; a reviewer's attention goes to the complement.
+- **A line is locked when its `residual` is empty — a computation, never a rule's
+  claim.** Three parties, none of which can lock alone: a parser classifies the line's
+  `kind` (deterministic); a small human-owned table in the target's stackpack says which
+  `meanings` that kind carries (an import: boundaries + contract, never invariant; a
+  config key under a schema: contract; a side-effect import is not an "import" because it
+  runs code); rules prove one meaning each, and only when they ran, applied, passed, and
+  are of structural grade (a heuristic rule may colour a line, not lock it). `residual` is
+  the kind's meanings minus the proved ones. A UI folds empty-residual lines and annotates
+  partial ones ("boundaries proved; contract: no rule"); attention goes to the complement.
 - **No scalar, no average** — steme's decision 15 (no single coverage number) applies to
   the document: the complement is a *list* of lines to read, whose length is visible but
   is not a percentage.
