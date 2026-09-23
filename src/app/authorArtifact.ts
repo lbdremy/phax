@@ -4,6 +4,7 @@ import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import type { GitHub } from "../ports/github.js";
+import type { OutputPort } from "../ports/output.js";
 import {
   ArtifactCommitFailedError,
   ArtifactCreationError,
@@ -80,6 +81,11 @@ export interface AuthorArtifactInput {
   readonly records: ResolvedRecordsConfig;
   /** The local records clone, required for a dedicated `repo` records destination. */
   readonly recordsClonePath?: string | undefined;
+  /**
+   * Where a failed session's record warning goes. A committed session's record
+   * is returned in the result for the caller to render instead.
+   */
+  readonly output: Pick<OutputPort, "warn">;
 }
 
 /**
@@ -370,7 +376,7 @@ export function authorArtifact(
     });
     if (Either.isLeft(outcome)) {
       const warning = recordWarning(record);
-      if (warning !== undefined) process.stderr.write(`[phax] Warning: ${warning}\n`);
+      if (warning !== undefined) input.output.warn(warning);
       return yield* Effect.fail(outcome.left);
     }
     return { ...outcome.right, record };

@@ -309,6 +309,7 @@ export async function runCreateArtifactHeadless(
       extractPlanEffort: config.extractPlanEffort,
       nowIso: new Date().toISOString(),
       records: config.records,
+      output: out,
       ...(config.records.destination.kind === "repo"
         ? { recordsClonePath: recordsClonePath(config.stateRoot, config.namespace) }
         : {}),
