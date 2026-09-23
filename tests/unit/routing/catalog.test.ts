@@ -48,6 +48,7 @@ describe("familyOfId", () => {
     expect(familyOfId("claude-haiku-4-5-20251001", DEFAULT_PROVIDER_CONFIG)).toBe("claude-haiku");
     expect(familyOfId("claude-fable-5-1", DEFAULT_PROVIDER_CONFIG)).toBe("claude-fable");
     expect(familyOfId("claude-opus-5", DEFAULT_PROVIDER_CONFIG)).toBe("claude-opus");
+    expect(familyOfId("claude-opus-5-5", DEFAULT_PROVIDER_CONFIG)).toBe("claude-opus");
   });
 
   it("returns the family for a spoke id", () => {

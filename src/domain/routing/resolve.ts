@@ -40,6 +40,10 @@ function resolveFamily(
   return { family: "claude-sonnet", source: "fallback" };
 }
 
+// Catalog entries within a family are listed newest-first (see
+// DEFAULT_PROVIDER_CONFIG in defaults.ts), so the first active entry is the
+// family's current model. This is what an unresolved id (an alias like
+// `opus`, a heuristic match, or the terminal Sonnet fallback) resolves to.
 function pickActiveEntry(
   provider: ProviderId,
   family: ModelFamily,

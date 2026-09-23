@@ -95,6 +95,11 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
       // `ultracode` is listed on every entry that supports `xhigh`: Claude
       // Code gates ultracode on xhigh support, not on a specific model
       // (verified against 2.1.263).
+      //
+      // Entries within a family are listed newest-first: `pickActiveEntry`
+      // (src/domain/routing/resolve.ts) resolves an alias or unknown id to
+      // the first active entry of its family, so the first entry is the
+      // family's current model.
       families: {
         "claude-haiku": {
           models: [
@@ -108,13 +113,13 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
         "claude-sonnet": {
           models: [
             {
-              id: "claude-sonnet-4-6",
-              efforts: ["low", "medium", "high", "max"],
+              id: "claude-sonnet-5",
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
               status: "active",
             },
             {
-              id: "claude-sonnet-5",
-              efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
+              id: "claude-sonnet-4-6",
+              efforts: ["low", "medium", "high", "max"],
               status: "active",
             },
           ],
@@ -122,7 +127,7 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
         "claude-opus": {
           models: [
             {
-              id: "claude-opus-4-8",
+              id: "claude-opus-5-5",
               efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
               status: "active",
             },
@@ -131,17 +136,22 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
               efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
               status: "active",
             },
+            {
+              id: "claude-opus-4-8",
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
+              status: "active",
+            },
           ],
         },
         "claude-fable": {
           models: [
             {
-              id: "claude-fable-5",
+              id: "claude-fable-5-1",
               efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
               status: "active",
             },
             {
-              id: "claude-fable-5-1",
+              id: "claude-fable-5",
               efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
               status: "active",
             },

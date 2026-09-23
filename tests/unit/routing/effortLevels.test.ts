@@ -35,6 +35,18 @@ describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
     expect(effortsFor("gpt-5.5", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
   });
 
+  it("claude-opus-5-5 supports low|medium|high|xhigh|max|ultracode", () => {
+    const expected: readonly ThinkingLevel[] = [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultracode",
+    ];
+    expect(effortsFor("claude-opus-5-5", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
+  });
+
   it("claude-opus-5 supports low|medium|high|xhigh|max|ultracode", () => {
     const expected: readonly ThinkingLevel[] = [
       "low",
@@ -114,6 +126,7 @@ describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
       "claude-sonnet-4-6",
       "claude-opus-4-8",
       "claude-opus-5",
+      "claude-opus-5-5",
       "claude-fable-5",
       "claude-fable-5-1",
       "claude-sonnet-5",

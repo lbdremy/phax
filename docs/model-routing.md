@@ -35,8 +35,9 @@ The provider config (`~/.phax/providers.json`) holds the catalog. Every entry is
         },
         "claude-opus": {
           "models": [
-            { "id": "claude-opus-4-8", "efforts": ["low", "medium", "high", "xhigh", "max", "ultracode"], "status": "active" },
-            { "id": "claude-opus-5", "efforts": ["low", "medium", "high", "xhigh", "max", "ultracode"], "status": "active" }
+            { "id": "claude-opus-5-5", "efforts": ["low", "medium", "high", "xhigh", "max", "ultracode"], "status": "active" },
+            { "id": "claude-opus-5", "efforts": ["low", "medium", "high", "xhigh", "max", "ultracode"], "status": "active" },
+            { "id": "claude-opus-4-8", "efforts": ["low", "medium", "high", "xhigh", "max", "ultracode"], "status": "active" }
           ]
         }
       }
@@ -46,6 +47,8 @@ The provider config (`~/.phax/providers.json`) holds the catalog. Every entry is
 ```
 
 Efforts are **per catalog entry** (per versioned id), not per family. A deprecated entry stays in the catalog so existing plans referencing it get an actionable error with current alternatives rather than a silent miss.
+
+Entries within a family are listed newest-first; a family alias (`opus`, `sonnet`, `fable`, `gpt`) or any unrecognized id resolves to the first active entry, so it always means the family's current model.
 
 Valid effort values: `none | off | low | medium | high | xhigh | max | ultracode | ultra`. Different entries support different subsets.
 
