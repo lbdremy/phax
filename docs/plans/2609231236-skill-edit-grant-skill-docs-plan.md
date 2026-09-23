@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-09-23
+  baseline: 0a7696f
 ---
 
 # Skill edit grant skill docs

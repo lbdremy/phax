@@ -15,6 +15,12 @@
         "path": "docs/specs/2609231215-claude-skill-edit-grant.md",
         "fingerprint": "8b2af5284f34b3c55918e77064ac60f37655f6dcd64bdbf2195343265bffdc0f"
       }
+    },
+    "docs/plans/2609231236-skill-edit-grant-skill-docs-plan.md": {
+      "planFingerprint": "70f975ab634e435a0e5f9a4ad95407d05969cd13644ebbcc72c28d9f5fe1b5e5",
+      "approvedAt": "2026-09-23T12:37:19.450Z",
+      "baseline": "0a7696f45d080b567b8f5b87d92cf886b2cea3d1",
+      "sourceSpec": null
     }
   }
 }
