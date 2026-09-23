@@ -1,0 +1,101 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderSpecBody > matches the full-fixture snapshot 1`] = `
+"# Plan Prune — \`phax prune\`
+
+## 1. Context
+
+A slug is held forever by its archived run.
+
+Ground read:
+
+- \`docs/ideas/plan-prune.md\` — the idea this spec makes precise
+- \`src/app/archive.ts\` — where runs are archived
+
+## 2. Problem
+
+The \`-2\` habit is the visible symptom.
+
+## 3. Product goal
+
+Free a slug once its run is archived.
+
+> A slug is held only by a live run.
+
+## 4. Terminology
+
+- **live run** — a run that is not archived
+
+## 5. Functional requirements
+
+### 5.1 Prune eligibility
+
+WHEN a run is archived THE system SHALL make it eligible to prune.
+
+### 5.2 Prune refusal
+
+IF the run is live THEN the system SHALL refuse to prune it.
+
+## 6. Surface
+
+### cli: \`phax prune <run>\` — normative
+
+    phax prune usage-cli
+      pruned usage-cli (archived 2026-09-01)
+      $? = 0
+
+### config: \`phax.json\` \`archive.prune\` — indicative
+
+before:
+
+    "archive": { "keep": 10 }
+
+after:
+
+    "archive": { "keep": 10, "prune": "manual" }
+
+## 7. Non-goals
+
+- pruning a run that is not archived
+
+## 8. Acceptance criteria
+
+### Prune frees the slug
+
+Given an archived run usage-cli, when \`phax prune usage-cli\` runs, then the slug is free. (refs §5.1)
+
+### Live runs are kept
+
+Given a live run usage-cli, when \`phax prune usage-cli\` runs, then it refuses. (refs §5.2, §5.1)
+
+## 9. Open questions for implementation planning
+
+### Q1 — Is pruning manual or automatic past \`keep\`?
+
+- manual — an explicit \`phax prune\` — abandons: self-shrinking
+- auto — prune at archive time — abandons: later inspection
+
+Recommendation: manual — an explicit \`phax prune\` — records already keep the trajectory.
+
+## 10. Implementation-planning note
+
+Settled:
+
+- manual prune
+- exit codes
+
+Left open: none.
+
+Constraints:
+
+- no new state
+
+## 11. Docs page
+
+Page: docs/cli/prune.md
+
+Reader: an operator whose \`-2\` runs pile up
+
+Example: phax prune usage-cli
+"
+`;
