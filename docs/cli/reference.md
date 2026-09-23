@@ -956,11 +956,13 @@ phax artifact new spec plan-prune
 
 ## `phax artifact new spec`
 
-- **Usage**: `phax artifact new spec <slug>`
+- **Usage**: `phax artifact new spec [FLAGS] <slug>`
 
 Creates a Draft spec at docs/specs/<YYMMDDHHMM>-<slug>.md, with a frontmatter-only skeleton (status, date, audience, scope). The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.
 
 Side effects: writes the new spec file. Does not commit — transition commands (phax artifact approve) commit, creation does not.
+
+Pass --headless --brief <file|-> (experimental) to author the spec itself instead of writing a blank skeleton: phax spawns a recorded agent session with the phax-spec skill and the spec document JSON Schema, accepts a schema-valid document as the session's only output, renders it to the canonical Markdown, and writes the rendered spec plus its JSON sidecar. --model and --effort override the resolved authoring model/effort (flag, then phax.json's authoring.spec, then the catalog default). Side effects: spawns a provider session; on success, writes and commits the spec and its sidecar in one commit; nothing lands on a refusal or an invalid session result.
 
 ### Arguments
 
@@ -968,19 +970,43 @@ Side effects: writes the new spec file. Does not commit — transition commands 
 
 Slug matching `[a-z0-9]+(-[a-z0-9]+)*`
 
+### Flags
+
+#### `--headless`
+
+Author via a recorded agent session from a brief instead of a blank skeleton (experimental)
+
+#### `--brief <file|->`
+
+Path to a brief file, or - to read the brief from stdin
+
+#### `--model <model>`
+
+Override the authoring model (default: flag → config → catalog)
+
+#### `--effort <effort>`
+
+Override the authoring effort (low|medium|high)
+
 ### Examples
 
 ```
 phax artifact new spec plan-prune
 ```
 
+```
+phax artifact new spec plan-prune --headless --brief brief.md
+```
+
 ## `phax artifact new plan`
 
-- **Usage**: `phax artifact new plan [--spec <path>] <slug>`
+- **Usage**: `phax artifact new plan [FLAGS] <slug>`
 
 Creates a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md, with a frontmatter-only skeleton (status, source-spec). Pass --spec <path> to bind an existing spec as the plan's source-spec; the path must classify as a spec (live or archived), exist, and pass artifact validation. Without --spec, source-spec is written as null. The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.
 
 Side effects: writes the new plan file. Does not commit — transition commands (phax artifact approve) commit, creation does not.
+
+Pass --headless --brief <file|-> (experimental) to author the plan itself instead of writing a blank skeleton: phax spawns a recorded agent session with the phax-planning skill and the plan document JSON Schema (the extracted-plan shape plus informational content), accepts a schema-valid document as the session's only output, renders it to the phax-planning Markdown shape, writes the rendered plan plus its JSON sidecar, and seeds the extraction cache so phax run never re-extracts it. --model and --effort override the resolved authoring model/effort (flag, then phax.json's authoring.plan, then the catalog default). Side effects: spawns a provider session; on success, writes and commits the plan and its sidecar in one commit and seeds the extraction cache; nothing lands on a refusal or an invalid session result.
 
 ### Arguments
 
@@ -994,6 +1020,22 @@ Slug matching `[a-z0-9]+(-[a-z0-9]+)*`
 
 Path to the source spec to bind as source-spec
 
+#### `--headless`
+
+Author via a recorded agent session from a brief instead of a blank skeleton (experimental)
+
+#### `--brief <file|->`
+
+Path to a brief file, or - to read the brief from stdin
+
+#### `--model <model>`
+
+Override the authoring model (default: flag → config → catalog)
+
+#### `--effort <effort>`
+
+Override the authoring effort (low|medium|high)
+
 ### Examples
 
 ```
@@ -1002,6 +1044,10 @@ phax artifact new plan plan-prune --spec docs/specs/2609091412-plan-prune.md
 
 ```
 phax artifact new plan catalog-refresh
+```
+
+```
+phax artifact new plan plan-prune --headless --brief brief.md --spec docs/specs/2609091412-plan-prune.md
 ```
 
 ## `phax artifact schema`

@@ -1,18 +1,38 @@
 import { execSync } from "node:child_process";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { Argument, type Command } from "commander";
 import type { OutputPort } from "../../ports/output.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
+import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
+import { Backend } from "../../ports/backend.js";
 import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
 import { inspectArtifact, transitionArtifact } from "../../app/artifactStatus.js";
 import { createArtifact } from "../../app/createArtifact.js";
+import { authorArtifact } from "../../app/authorArtifact.js";
+import { loadConfig } from "../../app/loadConfig.js";
+import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
+import { effectiveStateRoot } from "../../app/projectContext.js";
+import { resolveModel } from "../../domain/routing/resolve.js";
 import type { ArtifactKind, ArtifactStatus } from "../../domain/artifact/status.js";
 import { getPlanDocumentJsonSchema } from "../../schemas/planDocument.js";
 import { getSpecDocumentJsonSchema } from "../../schemas/specDocument.js";
-import { exitCodeForError } from "./runLayers.js";
+import { resolveAuthoringSelection, type Effort } from "../../schemas/phaxConfig.js";
+import { defaultBundleRoot } from "./skills.js";
+import { exitCodeForAuthoringError, exitCodeForError } from "./runLayers.js";
+
+const VALID_EFFORT_VALUES = ["low", "medium", "high"] as const;
+
+function isValidEffort(value: string): value is Effort {
+  return (VALID_EFFORT_VALUES as readonly string[]).includes(value);
+}
+
+const SKILL_SOURCE_DIR_FOR_KIND: Readonly<Record<ArtifactKind, string>> = {
+  spec: "phax-spec",
+  plan: "phax-planning",
+};
 
 function findGitRoot(startDir: string): string {
   try {
@@ -125,6 +145,163 @@ export async function runCreateArtifact(
   return 0;
 }
 
+// `--brief -`: the one sanctioned stream read outside a port (see the plan's
+// arbitration) — a path brief goes through the repo-rooted FileSystem layer instead.
+function readStdinText(stream: NodeJS.ReadableStream = process.stdin): Promise<string> {
+  return new Promise((resolvePromise, reject) => {
+    let data = "";
+    stream.setEncoding("utf8");
+    stream.on("data", (chunk: string) => {
+      data += chunk;
+    });
+    stream.on("end", () => resolvePromise(data));
+    stream.on("error", reject);
+  });
+}
+
+interface AuthoringBrief {
+  readonly text: string;
+  readonly path: string | null;
+}
+
+async function resolveBriefText(
+  briefArg: string,
+  repoRoot: string,
+  readStdin: () => Promise<string>,
+): Promise<Either.Either<AuthoringBrief, string>> {
+  if (briefArg === "-") {
+    const text = await readStdin();
+    return Either.right({ text, path: null });
+  }
+
+  const relPath = toRepoRelativePath(briefArg, repoRoot);
+  const effect = Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    return yield* fs.readText(relPath);
+  }).pipe(Effect.provide(makeRootedNodeFileSystemLayer(repoRoot)));
+  const result = await Effect.runPromise(Effect.either(effect));
+  if (Either.isLeft(result)) {
+    return Either.left(`--brief ${relPath}: ${result.left.message}`);
+  }
+  return Either.right({ text: result.right, path: relPath });
+}
+
+export interface HeadlessArtifactOptions {
+  readonly headless?: boolean;
+  readonly brief?: string;
+  readonly model?: string;
+  readonly effort?: string;
+}
+
+export interface HeadlessArtifactDeps {
+  readonly backendLayer?: Layer.Layer<Backend>;
+  readonly readStdin?: () => Promise<string>;
+}
+
+export async function runCreateArtifactHeadless(
+  kind: ArtifactKind,
+  slug: string,
+  sourceSpecArg: string | undefined,
+  opts: HeadlessArtifactOptions,
+  out: OutputPort,
+  deps: HeadlessArtifactDeps = {},
+): Promise<number> {
+  if (opts.brief === undefined) {
+    out.error("--brief <file|-> is required with --headless");
+    return 12;
+  }
+  if (opts.effort !== undefined && !isValidEffort(opts.effort)) {
+    out.error(
+      `Invalid --effort value "${opts.effort}". Allowed values: ${VALID_EFFORT_VALUES.join(" | ")}`,
+    );
+    return 1;
+  }
+  const flagEffort = opts.effort as Effort | undefined;
+
+  const configResult = loadConfig(process.cwd());
+  if (Either.isLeft(configResult)) {
+    out.error(`Config error: ${configResult.left.message}`);
+    return 1;
+  }
+  const config = configResult.right;
+  const repoRoot = config.repoRoot;
+
+  const briefResult = await resolveBriefText(opts.brief, repoRoot, deps.readStdin ?? readStdinText);
+  if (Either.isLeft(briefResult)) {
+    out.error(briefResult.left);
+    return 12;
+  }
+  const brief = briefResult.right;
+
+  const sourceSpec =
+    sourceSpecArg === undefined ? null : toRepoRelativePath(sourceSpecArg, repoRoot);
+
+  const configuredSelection = kind === "spec" ? config.authoring.spec : config.authoring.plan;
+  const selection = resolveAuthoringSelection({
+    ...(opts.model !== undefined ? { flagModel: opts.model } : {}),
+    ...(flagEffort !== undefined ? { flagEffort } : {}),
+    configured: configuredSelection,
+  });
+
+  out.log(`authoring ${kind} ${slug} — ${selection.model} / ${selection.effort}`);
+
+  const fsGitLayer = buildLayer(repoRoot);
+  const routingResult = await Effect.runPromise(
+    Effect.either(
+      Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
+    ).pipe(Effect.provide(fsGitLayer)),
+  );
+  if (Either.isLeft(routingResult)) {
+    out.error(`Failed to load routing config: ${routingResult.left.message}`);
+    return 1;
+  }
+  const { routing, providerConfig } = routingResult.right;
+
+  const resolution = resolveModel(
+    { model: selection.model, effort: selection.effort },
+    routing,
+    providerConfig,
+    () => ({ allowed: true }),
+  );
+
+  const backendLayer = deps.backendLayer ?? makeNodeBackendLayer(providerConfig);
+  const layer = Layer.mergeAll(fsGitLayer, backendLayer);
+
+  const effect = Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const skillPath = join(defaultBundleRoot(), SKILL_SOURCE_DIR_FOR_KIND[kind], "SKILL.md");
+    const skillText = yield* fs.readText(skillPath);
+    return yield* authorArtifact({
+      kind,
+      slug,
+      brief,
+      sourceSpec,
+      model: selection.model,
+      effort: selection.effort,
+      resolution,
+      skillText,
+      security: config.security,
+      repoRoot,
+      stateRoot: effectiveStateRoot(config),
+      extractPlanModel: config.extractPlanModel,
+      extractPlanEffort: config.extractPlanEffort,
+      nowIso: new Date().toISOString(),
+    });
+  }).pipe(Effect.provide(layer));
+
+  const result = await Effect.runPromise(Effect.either(effect));
+  if (Either.isLeft(result)) {
+    out.error(`✗ authoring failed: ${result.left.message}`);
+    return exitCodeForAuthoringError(result.left);
+  }
+
+  const { path, sidecarPath, commit } = result.right;
+  out.log(`created ${path} (Draft, headless)`);
+  out.log(`sidecar ${sidecarPath}`);
+  out.log(`commit ${commit.hash.slice(0, 7)} — ${commit.subject}`);
+  return 0;
+}
+
 const DOCUMENT_JSON_SCHEMAS: Readonly<Record<ArtifactKind, () => object>> = {
   spec: getSpecDocumentJsonSchema,
   plan: getPlanDocumentJsonSchema,
@@ -203,8 +380,17 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
     .command("spec")
     .description("Create a Draft spec at docs/specs/<YYMMDDHHMM>-<slug>.md")
     .argument("<slug>", "Slug matching `[a-z0-9]+(-[a-z0-9]+)*`")
-    .action(async (slug: string) => {
-      const exitCode = await runCreateArtifact("spec", slug, undefined, out);
+    .option(
+      "--headless",
+      "Author via a recorded agent session from a brief instead of a blank skeleton (experimental)",
+    )
+    .option("--brief <file|->", "Path to a brief file, or - to read the brief from stdin")
+    .option("--model <model>", "Override the authoring model (default: flag → config → catalog)")
+    .option("--effort <effort>", "Override the authoring effort (low|medium|high)")
+    .action(async (slug: string, cmdOpts: HeadlessArtifactOptions) => {
+      const exitCode = cmdOpts.headless
+        ? await runCreateArtifactHeadless("spec", slug, undefined, cmdOpts, out)
+        : await runCreateArtifact("spec", slug, undefined, out);
       process.exit(exitCode);
     });
 
@@ -213,8 +399,17 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
     .description("Create a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md")
     .argument("<slug>", "Slug matching `[a-z0-9]+(-[a-z0-9]+)*`")
     .option("--spec <path>", "Path to the source spec to bind as source-spec")
-    .action(async (slug: string, cmdOpts: { spec?: string }) => {
-      const exitCode = await runCreateArtifact("plan", slug, cmdOpts.spec, out);
+    .option(
+      "--headless",
+      "Author via a recorded agent session from a brief instead of a blank skeleton (experimental)",
+    )
+    .option("--brief <file|->", "Path to a brief file, or - to read the brief from stdin")
+    .option("--model <model>", "Override the authoring model (default: flag → config → catalog)")
+    .option("--effort <effort>", "Override the authoring effort (low|medium|high)")
+    .action(async (slug: string, cmdOpts: { spec?: string } & HeadlessArtifactOptions) => {
+      const exitCode = cmdOpts.headless
+        ? await runCreateArtifactHeadless("plan", slug, cmdOpts.spec, cmdOpts, out)
+        : await runCreateArtifact("plan", slug, cmdOpts.spec, out);
       process.exit(exitCode);
     });
 

@@ -292,6 +292,32 @@ Create the plan file with `phax artifact new plan <slug> --spec <spec path>` (or
 
 In short: `plan.md` is a Markdown document with one `## phase-NN — <title>  {#phase-NN-<slug>}` section per phase, each carrying an objective, detailed instructions, planned-file lists, a gate-profile verification step, and a commit subject/body. See [`examples/hello-world/plan.md`](examples/hello-world/plan.md) for a worked example and [`.claude/skills/phax-planning/SKILL.md`](.claude/skills/phax-planning/SKILL.md) for the full template contract.
 
+### Headless authoring
+
+`phax artifact new spec|plan <slug> --headless --brief <file|->` (**experimental**) spawns the authoring session itself instead of leaving you a blank skeleton: it loads the matching skill (`phax-spec` or `phax-planning`) and the document's JSON Schema, accepts a schema-valid document as the session's only output, renders it deterministically to the same Markdown shape the interactive path expects, writes a JSON sidecar beside it, and commits both in one commit. A plan authored this way seeds the extraction cache, so `phax run` never re-extracts it. `--model`/`--effort` override the resolved authoring model/effort (flag, then `phax.json`'s `authoring.spec`/`authoring.plan`, then the catalog default — see [Configure](#configure)).
+
+```bash
+phax artifact new spec headless-authoring --headless --brief brief.md
+phax artifact new plan headless-authoring --headless --brief brief.md --spec docs/specs/2609230835-headless-authoring.md
+cat brief.md | phax artifact new spec headless-authoring --headless --brief -
+```
+
+```
+authoring spec headless-authoring — claude-opus-5-5 / high
+created docs/specs/2609230835-headless-authoring.md (Draft, headless)
+sidecar docs/specs/2609230835-headless-authoring.json
+commit  a1b2c3d — docs(specs): draft headless-authoring
+```
+
+| Situation                                                                         | Exit |
+| --------------------------------------------------------------------------------- | ---- |
+| bad slug, target or sidecar exists, unreadable brief, bad `--spec`, commit failed | 12   |
+| session result not JSON, or fails the document schema                             | 5    |
+| provider rate or usage limit                                                      | 8    |
+| authored and committed                                                            | 0    |
+
+The interactive path (`artifact new spec|plan <slug>` without `--headless`) is unchanged: no session, no sidecar, no commit. Both the spec document and plan document formats are **experimental**, outside the `version: 1` stability promise; print either with `phax artifact schema spec|plan`.
+
 ## Lint the plan
 
 ```bash
@@ -666,8 +692,8 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax artifact complete <path>` — Completes an artifact — a terminal status for work that ran to completion. Legal from Approved (specs) or Approved or Stale (plans).
 - `phax artifact reopen <path>` — Reopens a Stale plan back to Draft, for when re-planning is needed before re-approval. Legal from Stale only. Rewrites the frontmatter status key in place.
 - `phax artifact new <SUBCOMMAND>` — Parent command for creating a Draft spec or plan named from the current UTC minute: <YYMMDDHHMM>-<slug>.md for a spec, <YYMMDDHHMM>-<slug>-plan.md for a plan. The instant is captured when the command runs, never chosen or backdated. A bad slug, an existing target name, or (for a plan) a --spec that is missing or not a spec all refuse with exit code 12 before anything is written.
-- `phax artifact new spec <slug>` — Creates a Draft spec at docs/specs/<YYMMDDHHMM>-<slug>.md, with a frontmatter-only skeleton (status, date, audience, scope). The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.
-- `phax artifact new plan [--spec <path>] <slug>` — Creates a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md, with a frontmatter-only skeleton (status, source-spec). Pass --spec <path> to bind an existing spec as the plan's source-spec; the path must classify as a spec (live or archived), exist, and pass artifact validation. Without --spec, source-spec is written as null. The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.
+- `phax artifact new spec [FLAGS] <slug>` — Creates a Draft spec at docs/specs/<YYMMDDHHMM>-<slug>.md, with a frontmatter-only skeleton (status, date, audience, scope). The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.
+- `phax artifact new plan [FLAGS] <slug>` — Creates a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md, with a frontmatter-only skeleton (status, source-spec). Pass --spec <path> to bind an existing spec as the plan's source-spec; the path must classify as a spec (live or archived), exist, and pass artifact validation. Without --spec, source-spec is written as null. The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.
 - `phax artifact schema <kind>` — Prints the JSON Schema of the experimental spec document (kind spec) or plan document (kind plan), pretty-printed to stdout, so a consumer can read the contract a headless authoring session must satisfy without a model call.
 - `phax plans <SUBCOMMAND>` — Parent command for reporting on plans: the mechanical defects of a single plan (lint), staleness of Approved plans against their recorded approval, and cross-plan file overlap.
 - `phax plans status [--apply] [--json]` — Reports every live, Approved plan's staleness against the ground it was approved against: the declared source spec's content, the plan's own content, and the files changed since the recorded baseline intersected with the plan's footprint. Each stale entry names its reasons (spec-changed, ground-changed, self-changed) with evidence; a plan with no approval record — or one whose baseline commit no longer exists — reports missing-record, which renders as stale. This is a report, not a gate: it exits 0 whether or not stale plans exist. Use --apply to flip stale-computed plans Approved -> Stale as an explicit gesture (the flip is never automatic). Use --json for machine-readable output.

@@ -23,11 +23,16 @@ export interface SkillsInstallRoots {
   readonly bundleRoot: string;
 }
 
+/** The bundled `.claude/skills` tree shipped with this phax install. */
+export function defaultBundleRoot(): string {
+  return join(import.meta.dirname, "../../..", ".claude", "skills");
+}
+
 function defaultInstallRoots(): SkillsInstallRoots {
   return {
     projectRoot: process.cwd(),
     homeDir: homedir(),
-    bundleRoot: join(import.meta.dirname, "../../..", ".claude", "skills"),
+    bundleRoot: defaultBundleRoot(),
   };
 }
 

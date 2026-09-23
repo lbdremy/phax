@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
 import { Command } from "commander";
 import {
   registerArtifactCommand,
@@ -8,16 +8,20 @@ import {
   runArtifactArchiveRefusal,
   runArtifactSchema,
   runCreateArtifact,
+  runCreateArtifactHeadless,
 } from "../../../src/cli/commands/artifact.js";
 import {
   ArtifactCommitFailedError,
   ArtifactCreationError,
   ArtifactDirtyWriteSetError,
   ArtifactValidationError,
+  AuthoringDocumentError,
   InvalidArtifactTransitionError,
+  RateLimitError,
   SpecNotApprovedError,
   SpecRetirementBlockedError,
 } from "../../../src/domain/errors.js";
+import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 
 vi.mock("../../../src/app/artifactStatus.js", () => ({
   inspectArtifact: vi.fn(),
@@ -26,6 +30,23 @@ vi.mock("../../../src/app/artifactStatus.js", () => ({
 
 vi.mock("../../../src/app/createArtifact.js", () => ({
   createArtifact: vi.fn(),
+}));
+
+vi.mock("../../../src/app/authorArtifact.js", () => ({
+  authorArtifact: vi.fn(),
+}));
+
+vi.mock("../../../src/app/loadConfig.js", () => ({
+  loadConfig: vi.fn(),
+}));
+
+vi.mock("../../../src/app/loadRouting.js", () => ({
+  loadModelRouting: vi.fn(),
+  loadProviderConfig: vi.fn(),
+}));
+
+vi.mock("../../../src/domain/routing/resolve.js", () => ({
+  resolveModel: vi.fn(),
 }));
 
 function makeOutput() {
@@ -456,5 +477,267 @@ describe("runArtifactSchema", () => {
       program.parseAsync(["node", "phax", "artifact", "schema", "idea"]),
     ).rejects.toMatchObject({ code: "commander.invalidArgument" });
     expect(lines).toEqual([]);
+  });
+});
+
+const FAKE_SECURITY: ResolvedConfig["security"] = {
+  profile: "secure",
+  filesystem: { allowRead: [], allowWrite: [] },
+  network: { profile: "provider-only" },
+  mcp: { mode: "disabled", allow: [] },
+  agentCommands: [],
+};
+
+function makeHeadlessConfig(
+  authoring: ResolvedConfig["authoring"] = {
+    spec: { model: "config-spec-model", effort: "medium" },
+    plan: { model: "config-plan-model", effort: "medium" },
+  },
+): ResolvedConfig {
+  return {
+    raw: {} as ResolvedConfig["raw"],
+    namespace: "test-project",
+    stateRoot: "/fake-state",
+    repoRoot: "/fake-repo",
+    maxFixAttempts: 1,
+    extractPlanModel: "claude-haiku-4-5-20251001",
+    extractPlanEffort: "low",
+    fileReconciliationMode: "report_only",
+    security: FAKE_SECURITY,
+    publish: {
+      auto: false,
+      remote: "origin",
+      provider: "github",
+      pushBranch: true,
+      createPullRequest: true,
+    },
+    complianceReview: { enabled: false, model: "claude-sonnet-5", effort: "medium" },
+    codeReview: { model: "claude-opus-5-5", effort: "high" },
+    authoring,
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" },
+      autoPush: false,
+    },
+  };
+}
+
+const FAKE_RESOLUTION = {
+  requested: { model: "config-spec-model", family: "claude-opus", effort: "medium" },
+  selected: {
+    provider: "claude-code",
+    family: "claude-opus",
+    concreteModel: "config-spec-model",
+    thinking: "medium",
+  },
+  relationship: "exact",
+  reason: "exact match",
+} as const;
+
+describe("runCreateArtifactHeadless", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function mockHappyPathConfig(authoring?: ResolvedConfig["authoring"]): Promise<void> {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    loadConfig.mockReturnValue(Either.right(makeHeadlessConfig(authoring)));
+
+    const { loadModelRouting, loadProviderConfig } = vi.mocked(
+      await import("../../../src/app/loadRouting.js"),
+    );
+    loadModelRouting.mockReturnValue(Effect.succeed({ families: [], providerPriority: [] }));
+    loadProviderConfig.mockReturnValue(Effect.succeed({ providers: {} }));
+
+    const { resolveModel } = vi.mocked(await import("../../../src/domain/routing/resolve.js"));
+    resolveModel.mockReturnValue(FAKE_RESOLUTION);
+  }
+
+  it("exits 12 without calling authorArtifact when --brief is missing", async () => {
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+
+    const { out, errors } = makeOutput();
+    const code = await runCreateArtifactHeadless("spec", "plan-prune", undefined, {}, out);
+
+    expect(code).toBe(12);
+    expect(errors.join("\n")).toContain("--brief");
+    expect(authorArtifact).not.toHaveBeenCalled();
+  });
+
+  it("success: prints the four lines and exits 0", async () => {
+    await mockHappyPathConfig();
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+    authorArtifact.mockReturnValue(
+      Effect.succeed({
+        path: "docs/specs/2609230835-plan-prune.md",
+        sidecarPath: "docs/specs/2609230835-plan-prune.json",
+        commit: { hash: "a1b2c3d4e5f6", subject: "docs(specs): draft plan-prune" },
+        authoringId: "2609230835-plan-prune",
+        sessionFolder: "/fake-state/authoring/2609230835-plan-prune",
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runCreateArtifactHeadless(
+      "spec",
+      "plan-prune",
+      undefined,
+      { headless: true, brief: "-" },
+      out,
+      { readStdin: async () => "write a spec about plan pruning" },
+    );
+
+    expect(code).toBe(0);
+    expect(lines).toEqual([
+      "authoring spec plan-prune — config-spec-model / medium",
+      "created docs/specs/2609230835-plan-prune.md (Draft, headless)",
+      "sidecar docs/specs/2609230835-plan-prune.json",
+      "commit a1b2c3d — docs(specs): draft plan-prune",
+    ]);
+  });
+
+  it("failure: AuthoringDocumentError prints the message and exits 5", async () => {
+    await mockHappyPathConfig();
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+    authorArtifact.mockReturnValue(
+      Effect.fail(
+        new AuthoringDocumentError({
+          kind: "spec",
+          slug: "plan-prune",
+          message:
+            'spec document rejected — acceptanceCriteria[2].refs[0]: "5.9" names no requirement',
+        }),
+      ),
+    );
+
+    const { out, errors } = makeOutput();
+    const code = await runCreateArtifactHeadless(
+      "spec",
+      "plan-prune",
+      undefined,
+      { headless: true, brief: "-" },
+      out,
+      { readStdin: async () => "brief" },
+    );
+
+    expect(code).toBe(5);
+    expect(errors.join("\n")).toContain("names no requirement");
+    expect(errors.join("\n")).toContain("✗ authoring failed:");
+  });
+
+  it("failure: ArtifactCreationError (existing target) exits 12", async () => {
+    await mockHappyPathConfig();
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+    authorArtifact.mockReturnValue(
+      Effect.fail(new ArtifactCreationError({ message: "docs/specs/foo.md already exists" })),
+    );
+
+    const { out, errors } = makeOutput();
+    const code = await runCreateArtifactHeadless(
+      "spec",
+      "plan-prune",
+      undefined,
+      { headless: true, brief: "-" },
+      out,
+      { readStdin: async () => "brief" },
+    );
+
+    expect(code).toBe(12);
+    expect(errors.join("\n")).toContain("already exists");
+  });
+
+  it("failure: RateLimitError exits 8", async () => {
+    await mockHappyPathConfig();
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+    authorArtifact.mockReturnValue(
+      Effect.fail(new RateLimitError({ message: "rate limited", rawMessage: "rate limited" })),
+    );
+
+    const { out, errors } = makeOutput();
+    const code = await runCreateArtifactHeadless(
+      "spec",
+      "plan-prune",
+      undefined,
+      { headless: true, brief: "-" },
+      out,
+      { readStdin: async () => "brief" },
+    );
+
+    expect(code).toBe(8);
+    expect(errors.join("\n")).toContain("rate limited");
+  });
+
+  it("precedence: flag wins over config over catalog default for model and effort", async () => {
+    await mockHappyPathConfig();
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+    authorArtifact.mockReturnValue(
+      Effect.succeed({
+        path: "docs/specs/2609230835-plan-prune.md",
+        sidecarPath: "docs/specs/2609230835-plan-prune.json",
+        commit: { hash: "a1b2c3d4e5f6", subject: "docs(specs): draft plan-prune" },
+        authoringId: "2609230835-plan-prune",
+        sessionFolder: "/fake-state/authoring/2609230835-plan-prune",
+      }),
+    );
+
+    const { out } = makeOutput();
+    await runCreateArtifactHeadless(
+      "spec",
+      "plan-prune",
+      undefined,
+      { headless: true, brief: "-", model: "flag-model", effort: "high" },
+      out,
+      { readStdin: async () => "brief" },
+    );
+
+    expect(authorArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "flag-model", effort: "high" }),
+    );
+  });
+
+  it("precedence: config wins over catalog default when no flag is given", async () => {
+    await mockHappyPathConfig();
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+    authorArtifact.mockReturnValue(
+      Effect.succeed({
+        path: "docs/specs/2609230835-plan-prune.md",
+        sidecarPath: "docs/specs/2609230835-plan-prune.json",
+        commit: { hash: "a1b2c3d4e5f6", subject: "docs(specs): draft plan-prune" },
+        authoringId: "2609230835-plan-prune",
+        sessionFolder: "/fake-state/authoring/2609230835-plan-prune",
+      }),
+    );
+
+    const { out } = makeOutput();
+    await runCreateArtifactHeadless(
+      "spec",
+      "plan-prune",
+      undefined,
+      { headless: true, brief: "-" },
+      out,
+      { readStdin: async () => "brief" },
+    );
+
+    expect(authorArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "config-spec-model", effort: "medium" }),
+    );
+  });
+
+  it("invalid --effort refuses before calling authorArtifact", async () => {
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+
+    const { out, errors } = makeOutput();
+    const code = await runCreateArtifactHeadless(
+      "spec",
+      "plan-prune",
+      undefined,
+      { headless: true, brief: "-", effort: "extreme" },
+      out,
+    );
+
+    expect(code).toBe(1);
+    expect(errors.join("\n")).toContain("Invalid --effort value");
+    expect(authorArtifact).not.toHaveBeenCalled();
   });
 });
