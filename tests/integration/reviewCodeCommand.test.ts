@@ -178,7 +178,11 @@ describe("runReviewCode", () => {
 
     const { runReviewCode } = await import("../../src/cli/commands/reviewCode.js");
     const logs: string[] = [];
-    const out = { log: (m: string) => logs.push(m), error: (m: string) => logs.push(`ERR: ${m}`) };
+    const out = {
+      log: (m: string) => logs.push(m),
+      warn: (m: string) => logs.push(`WARN: ${m}`),
+      error: (m: string) => logs.push(`ERR: ${m}`),
+    };
 
     const exitCode = await runReviewCode(shortName, {}, out);
 
@@ -204,7 +208,7 @@ describe("runReviewCode", () => {
     await writeReconciliationMd(runPath);
 
     const { runReviewCode } = await import("../../src/cli/commands/reviewCode.js");
-    const out = { log: vi.fn(), error: vi.fn() };
+    const out = { log: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
     await runReviewCode(shortName, { model: "claude-sonnet-4-6", effort: "medium" }, out);
 
@@ -220,7 +224,7 @@ describe("runReviewCode", () => {
 
     const { runReviewCode } = await import("../../src/cli/commands/reviewCode.js");
     const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
+    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 
     const exitCode = await runReviewCode("test-run", { effort: "max" }, out);
 
@@ -253,7 +257,11 @@ describe("runReviewCode", () => {
 
     const { runReviewCode } = await import("../../src/cli/commands/reviewCode.js");
     const logs: string[] = [];
-    const out = { log: (m: string) => logs.push(m), error: (m: string) => logs.push(`ERR: ${m}`) };
+    const out = {
+      log: (m: string) => logs.push(m),
+      warn: (m: string) => logs.push(`WARN: ${m}`),
+      error: (m: string) => logs.push(`ERR: ${m}`),
+    };
 
     const exitCode = await runReviewCode(shortName, {}, out);
 
@@ -287,7 +295,7 @@ describe("runReviewCode", () => {
     );
 
     const { runReviewCode } = await import("../../src/cli/commands/reviewCode.js");
-    const out = { log: vi.fn(), error: vi.fn() };
+    const out = { log: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
     await runReviewCode(shortName, { model: "claude-sonnet-4-6" }, out);
 
@@ -310,7 +318,7 @@ describe("runReviewCode", () => {
 
     const { runReviewCode } = await import("../../src/cli/commands/reviewCode.js");
     const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
+    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 
     const exitCode = await runReviewCode(shortName, {}, out);
 

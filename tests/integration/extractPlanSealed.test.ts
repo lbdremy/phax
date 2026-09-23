@@ -42,7 +42,7 @@ function setup() {
 
 describe("extractPlanLlm — sealed completion path", () => {
   it("calls complete instead of runAgent", async () => {
-    const { fakeBackend, fakeFs, layer } = setup();
+    const { fakeBackend, layer } = setup();
     fakeBackend.impl.addCompletionResponse({ finalText: validJson() });
 
     const result = await Effect.runPromise(
@@ -59,7 +59,7 @@ describe("extractPlanLlm — sealed completion path", () => {
   });
 
   it("passes a throwaway temp dir (not the repo path) to complete", async () => {
-    const { fakeBackend, fakeFs, layer } = setup();
+    const { fakeBackend, layer } = setup();
     fakeBackend.impl.addCompletionResponse({ finalText: validJson() });
 
     await Effect.runPromise(
@@ -113,7 +113,7 @@ describe("extractPlanLlm — sealed completion path", () => {
   });
 
   it("passes provider claude-code to complete", async () => {
-    const { fakeBackend, fakeFs, layer } = setup();
+    const { fakeBackend, layer } = setup();
     fakeBackend.impl.addCompletionResponse({ finalText: validJson() });
 
     await Effect.runPromise(

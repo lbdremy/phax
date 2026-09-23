@@ -2,6 +2,7 @@ import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import type { BranchName, PhaseId, RunId, WorktreePath } from "../../../src/domain/branded.js";
 import type { PhaxEventBase } from "../../../src/domain/events.js";
+import type { SecurityPolicy } from "../../../src/domain/security/types.js";
 import { AgentInvocationError, GateAttemptsExhaustedError } from "../../../src/domain/errors.js";
 import { Backend } from "../../../src/ports/backend.js";
 import { SystemTelemetry } from "../../../src/ports/systemTelemetry.js";
@@ -21,6 +22,15 @@ const worktreePath = "/runs/my-run/worktrees/phase-01" as WorktreePath;
 const runPath = "/fake/runs/my-run";
 const phaseFolderPath = `${runPath}/phase-01`;
 const sessionId = "sess-abc123" as ClaudeSessionId;
+
+const security: SecurityPolicy = {
+  mode: "unsafe",
+  filesystem: { allowRead: [], allowWrite: [] },
+  network: { profile: "open" },
+  mcp: { mode: "provider-default", allow: [] },
+  agentCommands: [],
+  failClosed: false,
+};
 
 const runStatusJson = JSON.stringify({
   version: 1,
@@ -77,7 +87,7 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
     const result = await Effect.runPromise(
       Effect.either(
         runGatesWithFixLoop({
-          steps: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+          steps: [{ command: "pnpm test", surface: "local", firing: "every-phase", output: "log" }],
           cwd: "/fake/worktrees/phase-01",
           scheduling: {
             isTerminal: false,
@@ -91,6 +101,7 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
             model: "claude-sonnet-4-6",
             effort: "medium",
             cwd: "/fake/worktrees/phase-01",
+            security,
             phaseFolderPath,
           },
           maxFixAttempts: 0,
@@ -172,6 +183,7 @@ describe("claude adapter failure via FakeBackend + reportAgentFailure", () => {
             model: "m",
             effort: "low",
             cwd: "/",
+            security,
           }),
         );
 

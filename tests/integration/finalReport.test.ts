@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 import { writeFinalReport } from "../../src/app/finalReport.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -24,8 +24,6 @@ function makePhaseStatus(overrides: Partial<PhaseStatus> = {}): PhaseStatus {
     branchName: "ai/test-run--phase-01" as BranchName,
     createdAt: now,
     updatedAt: now,
-    claudeSessionId: undefined,
-    commitHash: undefined,
     ...overrides,
   };
 }

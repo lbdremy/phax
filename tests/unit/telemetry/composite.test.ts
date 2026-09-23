@@ -80,10 +80,12 @@ describe("makeCompositeOps", () => {
 
   it("does not block fanOut when one implementation fails internally", async () => {
     const good = new InMemoryTelemetry();
-    const bad: typeof good = {
-      ...good,
-      recordEvent: () => Effect.fail(new Error("bad impl") as never),
-    };
+    class FailingTelemetry extends InMemoryTelemetry {
+      override recordEvent() {
+        return Effect.fail(new Error("bad impl") as never);
+      }
+    }
+    const bad = new FailingTelemetry();
     const composite = makeCompositeOps([bad, good]);
     const event = makeStepStartedTelemetryEvent({ runId, step: "resilience-test" });
 

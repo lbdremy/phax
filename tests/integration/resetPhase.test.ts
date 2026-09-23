@@ -46,7 +46,7 @@ async function seedRun(
     phasesCount: opts.phases.length,
     gateProfileId: "full",
   };
-  if (opts.lastError !== undefined) runStatus.lastError = opts.lastError;
+  if (opts.lastError !== undefined) runStatus["lastError"] = opts.lastError;
   await writeFile(join(runPath, "run-status.json"), JSON.stringify(runStatus));
 
   for (const phase of opts.phases) {
@@ -63,8 +63,8 @@ async function seedRun(
       createdAt: nowIso(),
       updatedAt: nowIso(),
     };
-    if (phase.worktreePath !== undefined) status.worktreePath = phase.worktreePath;
-    if (phase.commitHash !== undefined) status.commitHash = phase.commitHash;
+    if (phase.worktreePath !== undefined) status["worktreePath"] = phase.worktreePath;
+    if (phase.commitHash !== undefined) status["commitHash"] = phase.commitHash;
     await writeFile(join(phaseFolderPath, "status.json"), JSON.stringify(status));
   }
 
@@ -160,9 +160,9 @@ describe("resetPhase", () => {
     const runStatus = JSON.parse(
       await readFile(join(runPath, "run-status.json"), "utf8"),
     ) as Record<string, unknown>;
-    expect(runStatus.state).toBe("interrupted");
-    expect(runStatus.stoppedReason).toBe("phase_reset");
-    expect(runStatus.lastError).toBeUndefined();
+    expect(runStatus["state"]).toBe("interrupted");
+    expect(runStatus["stoppedReason"]).toBe("phase_reset");
+    expect(runStatus["lastError"]).toBeUndefined();
   });
 
   it("rejects resetting a phase whose later sibling is already committed", async () => {
@@ -303,7 +303,7 @@ describe("resetPhase", () => {
     const runStatus = JSON.parse(
       await readFile(join(runPath, "run-status.json"), "utf8"),
     ) as Record<string, unknown>;
-    expect(runStatus.state).toBe("interrupted");
+    expect(runStatus["state"]).toBe("interrupted");
     const entries = await readdir(runPath);
     expect(entries.some((e) => e.startsWith("phase-01.reset-"))).toBe(true);
   });

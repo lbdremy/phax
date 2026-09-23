@@ -78,7 +78,7 @@ describe("run subcommand argv parsing", () => {
       "mistral-vibe,claude-code",
     ]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toMatchObject({
+    expect(spy.mock.calls[0]?.[0]).toMatchObject({
       shortName: "foo",
       providerPriority: "mistral-vibe,claude-code",
     });
@@ -87,13 +87,13 @@ describe("run subcommand argv parsing", () => {
   it("omits providerPriority when flag is not given", async () => {
     const spy = await parseAndCapture(["run", "foo"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0].providerPriority).toBeUndefined();
+    expect(spy.mock.calls[0]?.[0].providerPriority).toBeUndefined();
   });
 
   it("combines --provider-priority with --dry-run", async () => {
     const spy = await parseAndCapture(["run", "--provider-priority", "codex-cli", "--dry-run"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toMatchObject({
+    expect(spy.mock.calls[0]?.[0]).toMatchObject({
       providerPriority: "codex-cli",
       dryRun: true,
     });
@@ -108,7 +108,7 @@ describe("run subcommand argv parsing", () => {
       "claude-code",
     ]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toMatchObject({
+    expect(spy.mock.calls[0]?.[0]).toMatchObject({
       shortName: "bar",
       providerPriority: "claude-code",
       verbose: true,
@@ -118,7 +118,7 @@ describe("run subcommand argv parsing", () => {
   it("passes --security flag to runRun", async () => {
     const spy = await parseAndCapture(["run", "foo", "--security", "unsafe"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toMatchObject({
+    expect(spy.mock.calls[0]?.[0]).toMatchObject({
       shortName: "foo",
       security: "unsafe",
     });
@@ -127,7 +127,7 @@ describe("run subcommand argv parsing", () => {
   it("passes --security secure", async () => {
     const spy = await parseAndCapture(["run", "--security", "secure", "--dry-run"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toMatchObject({
+    expect(spy.mock.calls[0]?.[0]).toMatchObject({
       security: "secure",
       dryRun: true,
     });
@@ -136,7 +136,7 @@ describe("run subcommand argv parsing", () => {
   it("passes --security isolated", async () => {
     const spy = await parseAndCapture(["run", "--security", "isolated", "--dry-run"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toMatchObject({
+    expect(spy.mock.calls[0]?.[0]).toMatchObject({
       security: "isolated",
       dryRun: true,
     });
@@ -145,6 +145,6 @@ describe("run subcommand argv parsing", () => {
   it("omits security when flag is not given", async () => {
     const spy = await parseAndCapture(["run", "foo"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0].security).toBeUndefined();
+    expect(spy.mock.calls[0]?.[0].security).toBeUndefined();
   });
 });

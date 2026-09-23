@@ -2,6 +2,9 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { Either } from "effect";
 import { runValidate } from "../../../src/cli/commands/validate.js";
+import { ConfigValidationError, PlanValidationError } from "../../../src/domain/errors.js";
+import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
+import type { PhaxPlan } from "../../../src/schemas/phaxPlan.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -26,7 +29,7 @@ function makeOutput() {
   };
 }
 
-function makeConfig(namespace = "myproject") {
+function makeConfig(namespace = "myproject"): ResolvedConfig {
   return {
     raw: {} as never,
     namespace,
@@ -34,44 +37,60 @@ function makeConfig(namespace = "myproject") {
     repoRoot: "/fake-repo",
     maxFixAttempts: 3,
     extractPlanModel: "claude-haiku-4-5-20251001",
-    extractPlanEffort: "low" as const,
-    fileReconciliationMode: "report_only" as const,
+    extractPlanEffort: "low",
+    fileReconciliationMode: "report_only",
     security: {
-      mode: "secure" as const,
-      enforcedGates: [],
-      allowedPaths: [],
-      blockedCommands: [],
+      profile: "secure",
+      filesystem: { allowRead: [], allowWrite: [] },
+      network: { profile: "provider-only" },
+      mcp: { mode: "disabled", allow: [] },
+      agentCommands: [],
     },
     publish: {
       auto: false,
       remote: "origin",
-      provider: "github" as const,
+      provider: "github",
       pushBranch: true,
       createPullRequest: true,
     },
     complianceReview: {
       enabled: false,
       model: "claude-sonnet-4-6",
-      effort: "medium" as const,
+      effort: "medium",
+    },
+    codeReview: { model: "claude-opus-5-5", effort: "high" },
+    authoring: {
+      spec: { model: "claude-opus-5-5", effort: "high" },
+      plan: { model: "claude-opus-5-5", effort: "high" },
+    },
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" },
+      autoPush: false,
     },
   };
 }
 
-function makePlan(shortName = "myrun", phaseCount = 2) {
+function makePhase(i: number): PhaxPlan["phases"][number] {
+  return {
+    id: `phase-0${i + 1}`,
+    model: "claude-sonnet-4-6",
+    effort: "medium",
+    planMarkdownAnchor: `phase-0${i + 1}`,
+    plannedFilesToCreate: [],
+    plannedFilesToEdit: [],
+    optionalFilesToEdit: [],
+    commit: { subject: `feat: phase ${i + 1}`, body: "" },
+    title: `Phase ${i + 1}`,
+  };
+}
+
+function makePlan(shortName = "myrun", phaseCount = 2): PhaxPlan {
   return {
     version: 1,
     run: { shortName, title: "My Run", requiredCommands: [], branch: `phax/${shortName}` },
-    phases: Array.from({ length: phaseCount }, (_, i) => ({
-      id: `phase-0${i + 1}`,
-      model: "claude-sonnet-4-6",
-      effort: "medium" as const,
-      planMarkdownAnchor: `phase-0${i + 1}`,
-      plannedFilesToCreate: [],
-      plannedFilesToEdit: [],
-      optionalFilesToEdit: [],
-      commit: { subject: `feat: phase ${i + 1}`, body: "" },
-      title: `Phase ${i + 1}`,
-    })),
+    phases: [makePhase(0), ...Array.from({ length: phaseCount - 1 }, (_, i) => makePhase(i + 1))],
   };
 }
 
@@ -107,7 +126,9 @@ describe("runValidate", () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
     loadConfig.mockReturnValue(
-      Either.left({ message: "no phax.json found", path: "/repo/phax.json" }),
+      Either.left(
+        new ConfigValidationError({ message: "no phax.json found", path: "/repo/phax.json" }),
+      ),
     );
 
     const { out, errors } = makeOutput();
@@ -151,7 +172,9 @@ describe("runValidate", () => {
     loadConfig.mockReturnValue(Either.right(makeConfig()));
     describeConfigSources.mockReturnValue(undefined);
     loadPlan.mockReturnValue(
-      Either.left({ message: "invalid plan schema", path: "phax-plan.json" }),
+      Either.left(
+        new PlanValidationError({ message: "invalid plan schema", path: "phax-plan.json" }),
+      ),
     );
 
     const { out, errors } = makeOutput();
@@ -212,10 +235,12 @@ describe("runValidate", () => {
       cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/repo/nested");
       const resolvedPath = resolve("/repo/nested", "phax-plan.json");
       loadPlan.mockReturnValue(
-        Either.left({
-          message: `Failed to read or parse "${resolvedPath}": ENOENT`,
-          path: resolvedPath,
-        }),
+        Either.left(
+          new PlanValidationError({
+            message: `Failed to read or parse "${resolvedPath}": ENOENT`,
+            path: resolvedPath,
+          }),
+        ),
       );
 
       const { out, errors } = makeOutput();

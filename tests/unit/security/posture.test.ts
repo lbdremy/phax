@@ -1,13 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { Either } from "effect";
 import {
   decodeSecurityPosture,
   encodeSecurityPosture,
-  SecurityPostureSchema,
+  type SecurityPosture,
 } from "../../../src/schemas/securityPosture.js";
 
 const baseSecurePosture = {
-  version: 1,
+  version: 1 as const,
   mode: "secure" as const,
   provider: "claude-code" as const,
   sandboxEnabled: true,
@@ -29,7 +29,7 @@ const baseSecurePosture = {
 };
 
 const unsafePosture = {
-  version: 1,
+  version: 1 as const,
   mode: "unsafe" as const,
   provider: "codex-cli" as const,
   sandboxEnabled: false,
@@ -51,7 +51,7 @@ const unsafePosture = {
 };
 
 const downgradedVibePosture = {
-  version: 1,
+  version: 1 as const,
   mode: "secure" as const,
   provider: "mistral-vibe" as const,
   sandboxEnabled: true,
@@ -73,7 +73,7 @@ const downgradedVibePosture = {
 };
 
 const withSkippedProviders = {
-  version: 1,
+  version: 1 as const,
   mode: "secure" as const,
   provider: "claude-code" as const,
   sandboxEnabled: true,
@@ -140,7 +140,7 @@ describe("SecurityPostureSchema", () => {
       expect(Either.isRight(result)).toBe(true);
       if (Either.isRight(result)) {
         expect(result.right.providerSkippedForSecurity).toHaveLength(1);
-        expect(result.right.providerSkippedForSecurity[0].provider).toBe("mistral-vibe");
+        expect(result.right.providerSkippedForSecurity[0]?.provider).toBe("mistral-vibe");
       }
     });
 
@@ -175,7 +175,6 @@ describe("SecurityPostureSchema", () => {
   describe("rejects invalid postures", () => {
     it("rejects missing version", () => {
       const invalid = { ...baseSecurePosture, version: undefined };
-      // @ts-expect-error - intentionally invalid
       const result = decodeSecurityPosture(invalid);
       expect(Either.isLeft(result)).toBe(true);
     });
@@ -205,14 +204,12 @@ describe("SecurityPostureSchema", () => {
         ...baseSecurePosture,
         filesystem: { ...baseSecurePosture.filesystem, allowRead: "not-an-array" },
       };
-      // @ts-expect-error - intentionally invalid
       const result = decodeSecurityPosture(invalid);
       expect(Either.isLeft(result)).toBe(true);
     });
 
     it("rejects missing required field sandboxEnabled", () => {
       const invalid = { ...baseSecurePosture, sandboxEnabled: undefined };
-      // @ts-expect-error - intentionally invalid
       const result = decodeSecurityPosture(invalid);
       expect(Either.isLeft(result)).toBe(true);
     });
@@ -292,12 +289,12 @@ describe("SecurityPostureSchema", () => {
       expect(Either.isRight(result)).toBe(true);
       if (Either.isRight(result)) {
         expect(result.right.agentCommands).toHaveLength(2);
-        expect(result.right.agentCommands[0].command).toBe("deno fmt");
-        expect(result.right.agentCommands[0].source).toBe("config");
-        expect(result.right.agentCommands[0].explicit).toBe(true);
-        expect(result.right.agentCommands[0].requiredByPlan).toBe(true);
-        expect(result.right.agentCommands[0].enforcement).toBe("prefix");
-        expect(result.right.agentCommands[0].degraded).toBe(false);
+        expect(result.right.agentCommands[0]?.command).toBe("deno fmt");
+        expect(result.right.agentCommands[0]?.source).toBe("config");
+        expect(result.right.agentCommands[0]?.explicit).toBe(true);
+        expect(result.right.agentCommands[0]?.requiredByPlan).toBe(true);
+        expect(result.right.agentCommands[0]?.enforcement).toBe("prefix");
+        expect(result.right.agentCommands[0]?.degraded).toBe(false);
       }
     });
 
@@ -319,8 +316,8 @@ describe("SecurityPostureSchema", () => {
       const result = decodeSecurityPosture(posture);
       expect(Either.isRight(result)).toBe(true);
       if (Either.isRight(result)) {
-        expect(result.right.agentCommands[0].degraded).toBe(true);
-        expect(result.right.agentCommands[0].enforcement).toBe("none");
+        expect(result.right.agentCommands[0]?.degraded).toBe(true);
+        expect(result.right.agentCommands[0]?.enforcement).toBe("none");
       }
     });
 
@@ -434,10 +431,19 @@ describe("SecurityPostureSchema", () => {
 
   describe("schema type inference", () => {
     it("has all required fields", () => {
-      // This is a compile-time check that the schema has the expected shape
-      type Posture = typeof SecurityPostureSchema._A;
-      // We can't easily test this at runtime, but the type should match our expectations
-      expect(true).toBe(true);
+      expectTypeOf<keyof SecurityPosture>().toEqualTypeOf<
+        | "version"
+        | "mode"
+        | "provider"
+        | "sandboxEnabled"
+        | "filesystem"
+        | "network"
+        | "mcp"
+        | "downgraded"
+        | "marks"
+        | "agentCommands"
+        | "providerSkippedForSecurity"
+      >();
     });
   });
 });

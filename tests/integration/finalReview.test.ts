@@ -35,6 +35,7 @@ const runReviewInfo: RunReviewInfo = {
   runId: "my-run-1234567890",
   runState: "running",
   branch: "feature/my-run",
+  runTitle: undefined,
   finalPhaseBranch: "feature/my-run--phase-01" as BranchName,
   stateRoot,
   runPath,

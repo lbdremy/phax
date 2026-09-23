@@ -20,15 +20,15 @@ beforeEach(() => {
   repoDir = mkdtempSync(join(tmpdir(), "phax-layers-test-"));
   execSync("git init", { cwd: repoDir, stdio: "ignore" });
   tempHome = mkdtempSync(join(tmpdir(), "phax-layers-home-"));
-  originalHome = process.env.HOME;
-  process.env.HOME = tempHome;
+  originalHome = process.env["HOME"];
+  process.env["HOME"] = tempHome;
 });
 
 afterEach(() => {
   if (originalHome === undefined) {
-    delete process.env.HOME;
+    delete process.env["HOME"];
   } else {
-    process.env.HOME = originalHome;
+    process.env["HOME"] = originalHome;
   }
   rmSync(repoDir, { recursive: true, force: true });
   rmSync(tempHome, { recursive: true, force: true });

@@ -8,6 +8,7 @@ import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 
 const RUN_PATH = "/runs/test-run";
 const RUN_ID = "run-id-001";
+const QUALIFIED_RUN_NAME = "test-project.test-run";
 
 function makePhaseJson(
   phaseId: string,
@@ -74,6 +75,7 @@ describe("generateGlobalReconciliation", () => {
         phaseIds: ["phase-01", "phase-02"],
         allowPartial: false,
         runId: RUN_ID,
+        qualifiedRunName: QUALIFIED_RUN_NAME,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -126,6 +128,7 @@ describe("generateGlobalReconciliation", () => {
         phaseIds: ["phase-01", "phase-02"],
         allowPartial: false,
         runId: RUN_ID,
+        qualifiedRunName: QUALIFIED_RUN_NAME,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -157,6 +160,7 @@ describe("generateGlobalReconciliation", () => {
         phaseIds: ["phase-01"],
         allowPartial: false,
         runId: RUN_ID,
+        qualifiedRunName: QUALIFIED_RUN_NAME,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -183,6 +187,7 @@ describe("generateGlobalReconciliation", () => {
         phaseIds: ["phase-01", "phase-02"],
         allowPartial: true,
         runId: RUN_ID,
+        qualifiedRunName: QUALIFIED_RUN_NAME,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -213,6 +218,7 @@ describe("generateGlobalReconciliation", () => {
         phaseIds: [],
         allowPartial: false,
         runId: RUN_ID,
+        qualifiedRunName: QUALIFIED_RUN_NAME,
       }).pipe(Effect.provide(layers)),
     );
 

@@ -3,6 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Either } from "effect";
+import {
+  resolveAuthoringConfig,
+  resolveCodeReviewConfig,
+  resolveComplianceReviewConfig,
+  resolvePublishConfig,
+} from "../../src/schemas/phaxConfig.js";
+import { resolveRecordsConfig } from "../../src/schemas/recordsConfig.js";
 
 vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(() => ({ status: 0, error: undefined })),
@@ -120,12 +127,18 @@ describe("runEnter", () => {
         security: {
           profile: "unsafe",
           filesystem: { allowRead: [], allowWrite: [] },
-          network: { profile: "provider-only", allowDomains: [] },
+          network: { profile: "provider-only" },
           mcp: { mode: "disabled", allow: [] },
+          agentCommands: [],
         },
+        publish: resolvePublishConfig(undefined),
+        complianceReview: resolveComplianceReviewConfig(undefined),
+        codeReview: resolveCodeReviewConfig(undefined),
+        authoring: resolveAuthoringConfig(undefined),
+        records: resolveRecordsConfig(undefined),
         raw: {
           version: 1 as const,
-          project: { name: "test", type: "single-package" as const },
+          name: "test",
           state: { root: stateRoot },
           gateProfiles: {},
           commands: { setup: ["true"] },
@@ -157,7 +170,11 @@ describe("runEnter", () => {
 
     const { runEnter } = await import("../../src/cli/commands/enter.js");
     const logs: string[] = [];
-    const out = { log: (m: string) => logs.push(m), error: (m: string) => logs.push(`ERR: ${m}`) };
+    const out = {
+      log: (m: string) => logs.push(m),
+      warn: (m: string) => logs.push(`WARN: ${m}`),
+      error: (m: string) => logs.push(`ERR: ${m}`),
+    };
 
     const exitCode = await runEnter("my-run", out);
 
@@ -185,7 +202,7 @@ describe("runEnter", () => {
 
     const { runEnter } = await import("../../src/cli/commands/enter.js");
     const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
+    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 
     const exitCode = await runEnter("my-run", out);
 
@@ -203,7 +220,7 @@ describe("runEnter", () => {
 
     const { runEnter } = await import("../../src/cli/commands/enter.js");
     const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
+    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 
     const exitCode = await runEnter("my-run", out);
 
@@ -214,7 +231,7 @@ describe("runEnter", () => {
   it("returns 1 when run not found", async () => {
     const { runEnter } = await import("../../src/cli/commands/enter.js");
     const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
+    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 
     const exitCode = await runEnter("no-such-run", out);
 

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Either } from "effect";
 import { findCurrentPhase } from "../../src/app/resolveRunInfo.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
+import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 
 vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -122,23 +123,42 @@ describe("runSessionInfo", () => {
         repoRoot: stateRoot,
         maxFixAttempts: 3,
         extractPlanModel: "claude-haiku-4-5-20251001",
-        extractPlanEffort: "low" as const,
-        fileReconciliationMode: "report_only" as const,
-
+        extractPlanEffort: "low",
+        fileReconciliationMode: "report_only",
         security: {
           profile: "unsafe",
           filesystem: { allowRead: [], allowWrite: [] },
-          network: { profile: "provider-only", allowDomains: [] },
+          network: { profile: "provider-only" },
           mcp: { mode: "disabled", allow: [] },
+          agentCommands: [],
+        },
+        publish: {
+          auto: false,
+          remote: "origin",
+          provider: "github",
+          pushBranch: true,
+          createPullRequest: true,
+        },
+        complianceReview: { enabled: false, model: "claude-sonnet-5", effort: "medium" },
+        codeReview: { model: "claude-opus-5-5", effort: "high" },
+        authoring: {
+          spec: { model: "claude-opus-5-5", effort: "high" },
+          plan: { model: "claude-opus-5-5", effort: "high" },
+        },
+        records: {
+          enabled: false,
+          transcript: false,
+          destination: { kind: "in-repo" },
+          autoPush: false,
         },
         raw: {
-          version: 1 as const,
-          project: { name: "test", type: "single-package" as const },
+          version: 1,
+          name: "test",
           state: { root: stateRoot },
           gateProfiles: {},
           commands: { setup: ["true"] },
         },
-      }),
+      } satisfies ResolvedConfig),
     );
   });
 
@@ -163,6 +183,7 @@ describe("runSessionInfo", () => {
     const lines: string[] = [];
     const out = {
       log: (m: string) => lines.push(m),
+      warn: (m: string) => lines.push(`WARN: ${m}`),
       error: (m: string) => lines.push(`ERR: ${m}`),
     };
 
@@ -185,6 +206,7 @@ describe("runSessionInfo", () => {
     const lines: string[] = [];
     const out = {
       log: (m: string) => lines.push(m),
+      warn: (m: string) => lines.push(`WARN: ${m}`),
       error: (m: string) => lines.push(`ERR: ${m}`),
     };
 
@@ -198,7 +220,7 @@ describe("runSessionInfo", () => {
   it("returns 1 for an invalid short name", async () => {
     const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
     const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
+    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 
     const exitCode = await runSessionInfo("INVALID NAME", out);
 
@@ -209,7 +231,7 @@ describe("runSessionInfo", () => {
   it("returns 1 when run does not exist", async () => {
     const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
     const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
+    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 
     const exitCode = await runSessionInfo("no-such-run", out);
 
@@ -244,7 +266,7 @@ describe("runSessionInfo", () => {
 
     const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
     const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
 
     const exitCode = await runSessionInfo("my-run", out);
 
@@ -291,7 +313,7 @@ describe("runSessionInfo", () => {
     // session-info never consults routing, so no routing mock needed — we just verify output.
     const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
     const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
 
     const exitCode = await runSessionInfo("my-run", out);
 
@@ -312,7 +334,7 @@ describe("runSessionInfo", () => {
 
     const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
     const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
 
     const exitCode = await runSessionInfo("my-run", out);
 
@@ -351,7 +373,7 @@ describe("runSessionInfo", () => {
 
     const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
     const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
 
     const exitCode = await runSessionInfo("my-run", out);
 
@@ -387,7 +409,7 @@ describe("runSessionInfo", () => {
 
     const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
     const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
 
     const exitCode = await runSessionInfo("my-run", out);
 
@@ -425,7 +447,7 @@ describe("runSessionInfo", () => {
 
     const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
     const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
 
     const exitCode = await runSessionInfo("my-run", out);
 
@@ -461,7 +483,7 @@ describe("runSessionInfo", () => {
 
     const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
     const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
 
     const exitCode = await runSessionInfo("my-run", out);
 
@@ -498,7 +520,7 @@ describe("runSessionInfo", () => {
 
     const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
     const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), error: vi.fn() };
+    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
 
     const exitCode = await runSessionInfo("my-run", out, { debug: true });
 

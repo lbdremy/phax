@@ -68,7 +68,7 @@ describe("makeGlobalTelemetryJournalLayer", () => {
   });
 
   it("swallows prune errors and still emits telemetry", async () => {
-    const { impl: fs, layer: fsLayer } = makeFakeFileSystem();
+    const { layer: fsLayer } = makeFakeFileSystem();
     // Do NOT seed the phax dir — list will fail with ENOENT, prune swallows it
 
     const journalLayer = makeGlobalTelemetryJournalLayer(PHAX_DIR, clock).pipe(

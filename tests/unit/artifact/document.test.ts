@@ -90,7 +90,7 @@ describe("archivePathFor", () => {
 
 function assertLeftValidation(
   result: Either.Either<unknown, unknown>,
-): asserts result is Either.Left<never, ArtifactValidationError> {
+): asserts result is Either.Left<ArtifactValidationError, never> {
   expect(Either.isLeft(result)).toBe(true);
   if (Either.isLeft(result)) {
     expect(result.left).toBeInstanceOf(ArtifactValidationError);

@@ -2,7 +2,12 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { effectiveStateRoot } from "../../src/app/projectContext.js";
-import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import {
+  resolveAuthoringConfig,
+  resolveCodeReviewConfig,
+  type ResolvedConfig,
+} from "../../src/schemas/phaxConfig.js";
+import { resolveRecordsConfig } from "../../src/schemas/recordsConfig.js";
 
 const minimalConfig = {
   raw: {} as ResolvedConfig["raw"],
@@ -15,6 +20,9 @@ const minimalConfig = {
   security: {} as ResolvedConfig["security"],
   publish: {} as ResolvedConfig["publish"],
   complianceReview: {} as ResolvedConfig["complianceReview"],
+  codeReview: resolveCodeReviewConfig(undefined),
+  authoring: resolveAuthoringConfig(undefined),
+  records: resolveRecordsConfig(undefined),
 };
 
 describe("effectiveStateRoot", () => {

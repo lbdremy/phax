@@ -1,5 +1,5 @@
 import { mkdtempSync, writeFileSync, rmSync, realpathSync } from "node:fs";
-import { tmpdir, homedir } from "node:os";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
 import { Either } from "effect";
@@ -12,7 +12,6 @@ import {
   DEFAULT_AUTHORING_EFFORT,
   resolveAuthoringSelection,
 } from "../../src/schemas/phaxConfig.js";
-import { DEFAULT_SECURITY_PROFILE } from "../../src/schemas/securityConfig.js";
 import { entryFor } from "../../src/domain/routing/catalog.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 

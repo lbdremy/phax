@@ -65,7 +65,7 @@ describe("assembleRecord", () => {
   });
 
   it("omits the source sha for a phase that ended without a commit", () => {
-    const { manifest } = assembleRecord({ ...baseInput, outcome: "failed", sourceSha: undefined });
+    const { manifest } = assembleRecord({ ...baseInput, outcome: "failed" });
     expect(manifest.sourceSha).toBeUndefined();
   });
 

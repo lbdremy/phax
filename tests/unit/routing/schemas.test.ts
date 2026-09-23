@@ -16,15 +16,8 @@ import type {
   ModelFamily,
   ProviderId,
   Relationship,
-  RoutingRequest,
-  RoutingResolution,
   ThinkingLevel,
 } from "../../../src/domain/routing/types.js";
-
-// Compile-time shape check: if fields are removed from the domain types, these
-// type aliases fail. Exhaustive `satisfies` checks live in tests/type/routing.ts.
-type CompileTimeRoutingRequest = RoutingRequest;
-type CompileTimeRoutingResolution = RoutingResolution;
 
 const decodeProviderId = Schema.decodeUnknownEither(ProviderIdSchema);
 const decodeModelFamily = Schema.decodeUnknownEither(ModelFamilySchema);

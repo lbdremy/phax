@@ -243,7 +243,7 @@ function hasNonLayerBinding(bindingList: string): boolean {
       // inline type keyword: `import { type Foo }` — always fine
       if (binding.startsWith("type ")) return false;
       // binding alias: `Foo as bar` — check the exported name (Foo)
-      const exported = binding.split(/\s+as\s+/)[0].trim();
+      const exported = (binding.split(/\s+as\s+/)[0] ?? "").trim();
       return !exported.includes("Layer");
     });
 }
@@ -269,7 +269,7 @@ describe("architectural guard: cli may import only layer composition from infra"
           const isTypeOnlyImport = Boolean(match[1]);
           if (isTypeOnlyImport) continue;
 
-          const bindingList = match[2];
+          const bindingList = match[2] ?? "";
           if (hasNonLayerBinding(bindingList)) {
             violations.push(`${rel}: ${match[0].trim()}`);
           }
@@ -406,7 +406,7 @@ function importsIdentityFsLayer(content: string): boolean {
   INFRA_FS_IMPORT_RE.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = INFRA_FS_IMPORT_RE.exec(content)) !== null) {
-    const bindings = match[1]
+    const bindings = (match[1] ?? "")
       .split(",")
       .map((b) => b.trim())
       .filter(Boolean);
@@ -414,7 +414,7 @@ function importsIdentityFsLayer(content: string): boolean {
       const exported = binding
         .replace(/^type\s+/, "")
         .split(/\s+as\s+/)[0]
-        .trim();
+        ?.trim();
       if (exported === "NodeFileSystemLayer") return true;
     }
   }

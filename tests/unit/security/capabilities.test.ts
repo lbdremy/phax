@@ -27,6 +27,7 @@ const securePolicy: SecurityPolicy = {
   filesystem: { allowRead: ["/repo"], allowWrite: ["/repo"] },
   network: { profile: "provider-only" },
   mcp: { mode: "disabled", allow: [] },
+  agentCommands: [],
   failClosed: true,
 };
 
@@ -35,6 +36,7 @@ const unsafePolicy: SecurityPolicy = {
   filesystem: { allowRead: [], allowWrite: [] },
   network: { profile: "open" },
   mcp: { mode: "provider-default", allow: [] },
+  agentCommands: [],
   failClosed: false,
 };
 

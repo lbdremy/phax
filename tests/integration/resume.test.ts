@@ -9,6 +9,7 @@ import { decodeShortName } from "../../src/domain/branded.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
@@ -79,9 +80,11 @@ describe("executePlan — resume from startIndex: 1", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
-        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+        },
         commands: { setup: ["true"] },
       },
       stateRoot,
@@ -91,6 +94,19 @@ describe("executePlan — resume from startIndex: 1", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      publish: {
+        auto: false,
+        remote: "origin",
+        provider: "github",
+        pushBranch: true,
+        createPullRequest: true,
+      },
+      complianceReview: { enabled: false, model: "claude-sonnet-5", effort: "medium" },
+      codeReview: { model: "claude-opus-5-5", effort: "high" },
+      authoring: {
+        spec: { model: "claude-opus-5-5", effort: "high" },
+        plan: { model: "claude-opus-5-5", effort: "high" },
+      },
       records: {
         enabled: false,
         transcript: false,
@@ -101,7 +117,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
@@ -216,6 +232,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       fakeGit.layer,
       fakeShell.layer,
       fakeBackend.layer,
+      makeFakeGitHub().layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
     );
@@ -263,9 +280,11 @@ describe("executePlan — resume from startIndex: 1", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
-        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+        },
         commands: { setup: ["true"] },
       },
       stateRoot,
@@ -275,6 +294,19 @@ describe("executePlan — resume from startIndex: 1", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      publish: {
+        auto: false,
+        remote: "origin",
+        provider: "github",
+        pushBranch: true,
+        createPullRequest: true,
+      },
+      complianceReview: { enabled: false, model: "claude-sonnet-5", effort: "medium" },
+      codeReview: { model: "claude-opus-5-5", effort: "high" },
+      authoring: {
+        spec: { model: "claude-opus-5-5", effort: "high" },
+        plan: { model: "claude-opus-5-5", effort: "high" },
+      },
       records: {
         enabled: false,
         transcript: false,
@@ -285,7 +317,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
@@ -398,6 +430,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       fakeGit.layer,
       fakeShell.layer,
       fakeBackend.layer,
+      makeFakeGitHub().layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
     );

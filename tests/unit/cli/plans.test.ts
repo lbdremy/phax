@@ -2,7 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { resolve } from "node:path";
 import { Effect, Either } from "effect";
 import { runPlansStatus, runPlansLint } from "../../../src/cli/commands/plans.js";
-import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
+import {
+  resolveAuthoringConfig,
+  resolveCodeReviewConfig,
+  type ResolvedConfig,
+} from "../../../src/schemas/phaxConfig.js";
+import { resolveRecordsConfig } from "../../../src/schemas/recordsConfig.js";
+import { resolveSecurityConfig } from "../../../src/schemas/securityConfig.js";
 import type { StalenessReport } from "../../../src/domain/artifact/render.js";
 import type { LintReport } from "../../../src/app/lintPlan.js";
 import { ArtifactValidationError } from "../../../src/domain/errors.js";
@@ -41,7 +47,7 @@ function makeConfig(): ResolvedConfig {
     extractPlanModel: "claude-haiku-4-5-20251001",
     extractPlanEffort: "low",
     fileReconciliationMode: "report_only",
-    security: { mode: "secure", enforcedGates: [], allowedPaths: [], blockedCommands: [] },
+    security: resolveSecurityConfig(undefined, "secure"),
     publish: {
       auto: false,
       remote: "origin",
@@ -50,6 +56,9 @@ function makeConfig(): ResolvedConfig {
       createPullRequest: true,
     },
     complianceReview: { enabled: false, model: "claude-sonnet-4-6", effort: "medium" },
+    codeReview: resolveCodeReviewConfig(undefined),
+    authoring: resolveAuthoringConfig(undefined),
+    records: resolveRecordsConfig(undefined),
   };
 }
 

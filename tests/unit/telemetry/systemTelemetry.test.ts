@@ -1,4 +1,4 @@
-import { Effect, Exit, Layer } from "effect";
+import { Effect, Exit } from "effect";
 import { describe, expect, it } from "vitest";
 import { Either } from "effect";
 import { decodeRunId } from "../../../src/domain/branded.js";

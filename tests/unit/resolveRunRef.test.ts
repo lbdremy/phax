@@ -4,7 +4,13 @@ import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Either } from "effect";
 import { resolveRunRef } from "../../src/app/resolveRunRef.js";
-import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import {
+  resolveAuthoringConfig,
+  resolveCodeReviewConfig,
+  type ResolvedConfig,
+} from "../../src/schemas/phaxConfig.js";
+import { resolveRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { resolveSecurityConfig } from "../../src/schemas/securityConfig.js";
 
 const now = new Date().toISOString();
 
@@ -62,12 +68,7 @@ function makeConfig(namespace: string, stateRoot: string): ResolvedConfig {
     extractPlanModel: "claude-haiku-4-5-20251001",
     extractPlanEffort: "medium",
     fileReconciliationMode: "report_only",
-    security: {
-      enabled: false,
-      model: "claude-sonnet-4-6",
-      effort: "medium",
-      failOn: "high",
-    },
+    security: resolveSecurityConfig(undefined, "secure"),
     publish: {
       auto: false,
       remote: "origin",
@@ -79,19 +80,15 @@ function makeConfig(namespace: string, stateRoot: string): ResolvedConfig {
       enabled: false,
       model: "claude-sonnet-4-6",
       effort: "medium",
-      failOn: "high",
     },
+    codeReview: resolveCodeReviewConfig(undefined),
+    authoring: resolveAuthoringConfig(undefined),
+    records: resolveRecordsConfig(undefined),
     raw: {
+      version: 1,
       name: namespace,
-      stateRoot: undefined,
-      maxFixAttempts: undefined,
       gateProfiles: {},
-      workspaces: undefined,
-      extractPlan: undefined,
-      security: undefined,
-      publish: undefined,
-      complianceReview: undefined,
-    } as unknown as ResolvedConfig["raw"],
+    },
   };
 }
 

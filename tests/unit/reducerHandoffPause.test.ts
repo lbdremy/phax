@@ -2,7 +2,7 @@ import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodePhaseId, decodeRunId } from "../../src/domain/branded.js";
 import { interpret } from "../../src/domain/reducer.js";
-import type { PhaxEvent, HandoffMissing } from "../../src/domain/events.js";
+import type { HandoffMissing } from "../../src/domain/events.js";
 import type { PhaxState } from "../../src/domain/state.js";
 
 function unwrap<T>(e: Either.Either<T, unknown>): T {

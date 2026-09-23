@@ -37,6 +37,7 @@ function makeRunReviewInfo(phaseIds: readonly string[]): RunReviewInfo {
     runId: "test-run-999",
     runState: "running",
     branch: "feature/test-run",
+    runTitle: undefined,
     finalPhaseBranch: `feature/test-run--${phaseIds.at(-1)}` as BranchName,
     stateRoot,
     runPath,

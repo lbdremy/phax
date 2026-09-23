@@ -9,10 +9,17 @@ import { decodeShortName } from "../../../src/domain/branded.js";
 import type { ClaudeSessionId } from "../../../src/domain/branded.js";
 import { makeFakeBackend } from "../../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../../src/infra/fakes/git.js";
+import { makeFakeGitHub } from "../../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../../src/infra/fakes/systemTelemetry.js";
 import { NodeFileSystemLayer } from "../../../src/infra/fs.js";
-import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
+import {
+  resolveAuthoringConfig,
+  resolveCodeReviewConfig,
+  resolveComplianceReviewConfig,
+  resolvePublishConfig,
+  type ResolvedConfig,
+} from "../../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../../src/schemas/phaxPlan.js";
 
 const HANDOFF_CONTENT = [
@@ -66,9 +73,11 @@ describe("executePlan — semantic telemetry end-to-end", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
-        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+        },
         commands: { setup: ["true"], cleanup: ["true"] },
       },
       stateRoot,
@@ -78,6 +87,10 @@ describe("executePlan — semantic telemetry end-to-end", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      publish: resolvePublishConfig(undefined),
+      complianceReview: resolveComplianceReviewConfig(undefined),
+      codeReview: resolveCodeReviewConfig(undefined),
+      authoring: resolveAuthoringConfig(undefined),
       records: {
         enabled: false,
         transcript: false,
@@ -88,7 +101,7 @@ describe("executePlan — semantic telemetry end-to-end", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
@@ -127,6 +140,7 @@ describe("executePlan — semantic telemetry end-to-end", () => {
       fakeGit.layer,
       fakeShell.layer,
       fakeBackend.layer,
+      makeFakeGitHub().layer,
       NodeFileSystemLayer,
       fakeTelemetry.layer,
     );

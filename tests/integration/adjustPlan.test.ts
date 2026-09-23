@@ -1,14 +1,14 @@
 import { Effect, Layer } from "effect";
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { prepareAdjustPlanSession } from "../../src/app/adjustPlan.ts";
+import { prepareAdjustPlanSession } from "../../src/app/adjustPlan.js";
 import { ADJUST_PLAN_PROMPT_FILENAME } from "../../src/domain/planOverlap/adjustPrompt.js";
 import { planCacheKey, EXTRACTOR_VERSION } from "../../src/domain/planCache/key.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import { encodeAdjustPlanSession } from "../../src/schemas/adjustPlanSession.js";
-import type { PrepareAdjustPlanSessionOpts } from "../../src/app/adjustPlan.ts";
+import type { PrepareAdjustPlanSessionOpts } from "../../src/app/adjustPlan.js";
 
 // Paths
 const stateRoot = "/fake-state";

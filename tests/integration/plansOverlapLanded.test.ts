@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Either } from "effect";
 import { EXTRACTOR_VERSION, planCacheKey } from "../../src/domain/planCache/key.js";
 import { planMdSha256, cacheEntryPath } from "../../src/app/planCacheStore.js";
+import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 
 vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -14,42 +15,51 @@ const MODEL = "claude-haiku-4-5-20251001";
 const EFFORT = "low";
 const NAMESPACE = "test";
 
-function makeBaseConfig(stateRoot: string) {
+function makeBaseConfig(stateRoot: string): ResolvedConfig {
   return {
     stateRoot,
     namespace: NAMESPACE,
     repoRoot: stateRoot,
     maxFixAttempts: 3,
     extractPlanModel: MODEL,
-    extractPlanEffort: EFFORT as const,
-    fileReconciliationMode: "report_only" as const,
+    extractPlanEffort: EFFORT,
+    fileReconciliationMode: "report_only",
     security: {
-      profile: "unsafe" as const,
+      profile: "unsafe",
       filesystem: { allowRead: [], allowWrite: [] },
-      network: { profile: "provider-only" as const, allowDomains: [] },
-      mcp: { mode: "disabled" as const, allow: [] },
+      network: { profile: "provider-only" },
+      mcp: { mode: "disabled", allow: [] },
       agentCommands: [],
     },
     publish: {
-      enabled: false,
-      autoCreatePr: false,
-      prTitle: undefined,
-      prBody: undefined,
-      labels: [],
-      reviewers: [],
+      auto: false,
+      remote: "origin",
+      provider: "github",
+      pushBranch: true,
+      createPullRequest: true,
     },
     complianceReview: {
       enabled: false,
       model: "claude-sonnet-4-6",
-      effort: "medium" as const,
+      effort: "medium",
     },
     codeReview: {
       model: "claude-opus-4-8",
-      effort: "high" as const,
+      effort: "high",
+    },
+    authoring: {
+      spec: { model: "claude-opus-5-5", effort: "high" },
+      plan: { model: "claude-opus-5-5", effort: "high" },
+    },
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" },
+      autoPush: false,
     },
     raw: {
-      version: 1 as const,
-      project: { name: NAMESPACE, type: "single-package" as const },
+      version: 1,
+      name: NAMESPACE,
       state: { root: stateRoot },
       gateProfiles: {},
       commands: { setup: ["true"] },
@@ -69,7 +79,6 @@ function makePlanMd(shortName: string): string {
 
 async function seedCache(
   stateRoot: string,
-  planMdPath: string,
   planMd: string,
   shortName: string,
   creates: string[],
@@ -218,8 +227,7 @@ describe("runPlansOverlap --landed", () => {
     await mkdir(join(stateRoot, "runs"), { recursive: true });
 
     const { loadConfig } = await import("../../src/app/loadConfig.js");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    vi.mocked(loadConfig).mockReturnValue(Either.right(makeBaseConfig(stateRoot) as any));
+    vi.mocked(loadConfig).mockReturnValue(Either.right(makeBaseConfig(stateRoot)));
   });
 
   afterEach(async () => {
@@ -231,7 +239,7 @@ describe("runPlansOverlap --landed", () => {
     const planPath = join(tmpDir, "plan-a.md");
     const md = makePlanMd("plan-a");
     await writeFile(planPath, md);
-    await seedCache(stateRoot, planPath, md, "plan-a", [], ["src/shared.ts"]);
+    await seedCache(stateRoot, md, "plan-a", [], ["src/shared.ts"]);
 
     await buildFakeRunFolder(
       stateRoot,
@@ -260,7 +268,7 @@ describe("runPlansOverlap --landed", () => {
     const planPath = join(tmpDir, "plan-b.md");
     const md = makePlanMd("plan-b");
     await writeFile(planPath, md);
-    await seedCache(stateRoot, planPath, md, "plan-b", ["src/other.ts"], []);
+    await seedCache(stateRoot, md, "plan-b", ["src/other.ts"], []);
 
     await buildFakeRunFolder(
       stateRoot,
@@ -320,7 +328,7 @@ describe("runPlansOverlap --landed", () => {
     const planPath = join(tmpDir, "plan-c.md");
     const md = makePlanMd("plan-c");
     await writeFile(planPath, md);
-    await seedCache(stateRoot, planPath, md, "plan-c", ["src/foo.ts"], []);
+    await seedCache(stateRoot, md, "plan-c", ["src/foo.ts"], []);
 
     const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
     const errors: string[] = [];
@@ -336,7 +344,7 @@ describe("runPlansOverlap --landed", () => {
     const planPath = join(tmpDir, "plan-d.md");
     const md = makePlanMd("plan-d");
     await writeFile(planPath, md);
-    await seedCache(stateRoot, planPath, md, "plan-d", [], ["src/touched.ts"]);
+    await seedCache(stateRoot, md, "plan-d", [], ["src/touched.ts"]);
 
     await buildFakeRunFolder(
       stateRoot,

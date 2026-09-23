@@ -21,8 +21,10 @@ const baseEntry = {
 const unsafePolicy: SecurityPolicy = {
   mode: "unsafe",
   filesystem: { allowRead: [], allowWrite: [] },
-  network: { profile: "open", allowDomains: [] },
+  network: { profile: "open" },
   mcp: { mode: "provider-default", allow: [] },
+  agentCommands: [],
+
   failClosed: false,
 };
 
@@ -32,8 +34,10 @@ const securePolicy: SecurityPolicy = {
     allowRead: ["/tmp/work", "/home/me/.phax"],
     allowWrite: ["/tmp/work", "/home/me/.phax"],
   },
-  network: { profile: "provider-only", allowDomains: ["api.mistral.ai"] },
+  network: { profile: "provider-only" },
   mcp: { mode: "disabled", allow: [] },
+  agentCommands: [],
+
   failClosed: true,
 };
 

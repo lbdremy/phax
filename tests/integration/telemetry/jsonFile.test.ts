@@ -1,7 +1,7 @@
 import { Effect, Either, Layer } from "effect";
 import { mkdtemp, rm, readFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { decodeRunId } from "../../../src/domain/branded.js";
 import {
@@ -64,7 +64,7 @@ describe("JsonFileTelemetry", () => {
       Effect.flatMap(SystemTelemetry, (t) =>
         Effect.all(
           events.map((e) => t.recordEvent(e)),
-          { concurrency: "sequential" },
+          { concurrency: 1 },
         ),
       ).pipe(Effect.provide(layer)),
     );
@@ -120,7 +120,7 @@ describe("JsonFileTelemetry", () => {
       Effect.flatMap(SystemTelemetry, (t) =>
         Effect.all(
           steps.map((e) => t.recordEvent(e)),
-          { concurrency: "sequential" },
+          { concurrency: 1 },
         ),
       ).pipe(Effect.provide(layer)),
     );

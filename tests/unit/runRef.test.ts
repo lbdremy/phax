@@ -131,7 +131,7 @@ describe("nextAvailableShortName", () => {
 
   it("trims trailing dashes before appending suffix to stay within 64 chars", () => {
     const longBase = ("a".repeat(62) + "--") as ShortName; // 64 chars with trailing dashes
-    const used = new Set([longBase]);
+    const used = new Set<string>([longBase]);
     const result = nextAvailableShortName(longBase, (n) => used.has(n));
     expect(result.length).toBeLessThanOrEqual(64);
     expect(used.has(result)).toBe(false);

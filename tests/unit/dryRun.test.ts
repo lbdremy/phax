@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { buildDryRunReport, formatDryRunReport } from "../../src/app/dryRun.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
-import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import {
+  resolveAuthoringConfig,
+  resolveCodeReviewConfig,
+  type ResolvedConfig,
+} from "../../src/schemas/phaxConfig.js";
+import { resolveRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { DEFAULT_SECURITY_PROFILE } from "../../src/schemas/securityConfig.js";
 
 const minimalPlan: PhaxPlan = {
@@ -18,6 +23,10 @@ const minimalPlan: PhaxPlan = {
       title: "First phase",
       model: "claude-sonnet-4-6",
       effort: "medium",
+      planMarkdownAnchor: "#phase-01",
+      plannedFilesToCreate: [],
+      plannedFilesToEdit: [],
+      optionalFilesToEdit: [],
       commit: { subject: "feat: add thing", body: "" },
     },
   ],
@@ -34,13 +43,13 @@ const minimalConfig: ResolvedConfig = {
     state: { root: "/home/user/.phax" },
     agent: { extractPlan: { model: "claude-sonnet-4-6", effort: "medium" } },
     gateProfiles: {
-      full: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+      full: [{ command: "pnpm test", surface: "local", firing: "every-phase", output: "log" }],
     },
   },
   security: {
     profile: "secure",
     filesystem: { allowRead: [], allowWrite: [] },
-    network: { profile: "provider-only", allowDomains: [] },
+    network: { profile: "provider-only" },
     mcp: { mode: "disabled", allow: [] },
     agentCommands: [],
   },
@@ -55,6 +64,9 @@ const minimalConfig: ResolvedConfig = {
     createPullRequest: true,
   },
   complianceReview: { enabled: false, model: "claude-sonnet-4-6", effort: "medium" },
+  codeReview: resolveCodeReviewConfig(undefined),
+  authoring: resolveAuthoringConfig(undefined),
+  records: resolveRecordsConfig(undefined),
 };
 
 describe("buildDryRunReport / formatDryRunReport", () => {

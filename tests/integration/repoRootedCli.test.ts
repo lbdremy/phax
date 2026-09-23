@@ -38,8 +38,8 @@ beforeEach(() => {
   repoDir = mkdtempSync(join(tmpdir(), "phax-rooted-repo-"));
   execSync("git init", { cwd: repoDir, stdio: "ignore" });
   tempHome = mkdtempSync(join(tmpdir(), "phax-rooted-home-"));
-  originalHome = process.env.HOME;
-  process.env.HOME = tempHome;
+  originalHome = process.env["HOME"];
+  process.env["HOME"] = tempHome;
 
   writeFileSync(
     join(repoDir, "phax.json"),
@@ -64,8 +64,8 @@ afterEach(() => {
   // Restore cwd before removing the temp dir so the rm never fails on a
   // still-current working directory.
   process.chdir(originalCwd);
-  if (originalHome === undefined) delete process.env.HOME;
-  else process.env.HOME = originalHome;
+  if (originalHome === undefined) delete process.env["HOME"];
+  else process.env["HOME"] = originalHome;
   rmSync(repoDir, { recursive: true, force: true });
   rmSync(tempHome, { recursive: true, force: true });
 });

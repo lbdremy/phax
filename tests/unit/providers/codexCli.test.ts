@@ -29,8 +29,9 @@ const sampleLines = readFileSync(join(fixtureDir, "codex-exec-sample.jsonl"), "u
 const unsafePolicy: SecurityPolicy = {
   mode: "unsafe",
   filesystem: { allowRead: [], allowWrite: [] },
-  network: { profile: "open", allowDomains: [] },
+  network: { profile: "open" },
   mcp: { mode: "provider-default", allow: [] },
+  agentCommands: [],
   failClosed: false,
 };
 
@@ -40,8 +41,9 @@ const securePolicy: SecurityPolicy = {
     allowRead: ["/tmp/work", "/home/me/.phax"],
     allowWrite: ["/tmp/work", "/home/me/.phax"],
   },
-  network: { profile: "provider-only", allowDomains: ["api.openai.com"] },
+  network: { profile: "provider-only" },
   mcp: { mode: "disabled", allow: [] },
+  agentCommands: [],
   failClosed: true,
 };
 
@@ -130,7 +132,7 @@ describe("buildCodexArgs — secure mode", () => {
   it("enables sandbox network when the network profile is not provider-only", () => {
     const policy: SecurityPolicy = {
       ...securePolicy,
-      network: { profile: "dev-allowlist", allowDomains: ["api.openai.com", "registry.npmjs.org"] },
+      network: { profile: "dev-allowlist" },
     };
     const args = buildCodexArgs(baseEntry, baseOptions(policy));
     expect(args).toContain("sandbox_workspace_write.network_access=true");
@@ -290,7 +292,7 @@ describe("buildCodexCompletionArgs — sealed completion", () => {
   });
 
   it("falls back to options.model when families entry absent", () => {
-    const noFamiliesEntry = { executable: "codex" };
+    const noFamiliesEntry = { enabled: true, executable: "codex" };
     const args = buildCodexCompletionArgs(noFamiliesEntry, completionOptions());
     expect(args[args.indexOf("-m") + 1]).toBe("gpt-5.5");
   });

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { spawnSync, spawnSyncReturns } from "node:child_process";
-import { join, dirname } from "node:path";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
 const mainTs = join(repoRoot, "src/cli/main.ts");
 
-function runCli(args: string[], env?: NodeJS.ProcessEnv): spawnSyncReturns<string> {
+function runCli(args: string[], env?: NodeJS.ProcessEnv): SpawnSyncReturns<string> {
   return spawnSync("tsx", [mainTs, ...args], {
     encoding: "utf8",
     env: { ...process.env, ...env },
@@ -22,10 +22,10 @@ function isUsageAvailable(): boolean {
 function pathWithoutUsage(): string {
   // Locate `usage` by searching PATH directories, then exclude that directory.
   // Uses only Node.js fs — no shell `which` invocation.
-  const pathDirs = (process.env.PATH ?? "").split(":");
+  const pathDirs = (process.env["PATH"] ?? "").split(":");
   const usageDir = pathDirs.find((dir) => existsSync(join(dir, "usage")));
   if (usageDir === undefined) {
-    return process.env.PATH ?? "/usr/bin:/bin";
+    return process.env["PATH"] ?? "/usr/bin:/bin";
   }
   return pathDirs.filter((p) => p !== usageDir).join(":");
 }
