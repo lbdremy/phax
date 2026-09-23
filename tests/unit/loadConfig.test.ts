@@ -303,7 +303,7 @@ describe("loadConfig security resolution", () => {
 
 describe("loadConfig codeReview defaults", () => {
   it("defaults DEFAULT_CODE_REVIEW_MODEL and DEFAULT_EXTRACT_MODEL to their catalog-pinned ids", () => {
-    expect(DEFAULT_CODE_REVIEW_MODEL).toBe("claude-opus-5");
+    expect(DEFAULT_CODE_REVIEW_MODEL).toBe("claude-opus-5-5");
     expect(DEFAULT_EXTRACT_MODEL).toBe("claude-haiku-4-5-20251001");
     expect(entryFor(DEFAULT_CODE_REVIEW_MODEL, DEFAULT_PROVIDER_CONFIG)).toBeDefined();
     expect(entryFor(DEFAULT_EXTRACT_MODEL, DEFAULT_PROVIDER_CONFIG)).toBeDefined();
