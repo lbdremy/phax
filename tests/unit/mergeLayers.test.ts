@@ -388,6 +388,65 @@ describe("mergeConfigLayers", () => {
     });
   });
 
+  describe("review.code: per-scalar override", () => {
+    it("project code review survives an overlay that does not set it", () => {
+      const project = makeProject({
+        review: {
+          compliance: { enabled: true },
+          code: { model: "claude-sonnet-5", effort: "medium" },
+        },
+      });
+      const result = mergeConfigLayers({ project, globalUser: makeOverlay() });
+      expect(result.review?.code).toEqual({ model: "claude-sonnet-5", effort: "medium" });
+      expect(result.review?.compliance?.enabled).toBe(true);
+    });
+
+    it("local beats global beats project, per field", () => {
+      const project = makeProject({ review: { code: { model: "base-model", effort: "low" } } });
+      const globalUser = makeOverlay({ review: { code: { effort: "medium" } } });
+      const localUser = makeOverlay({ review: { code: { effort: "high" } } });
+      const result = mergeConfigLayers({ project, globalUser, localUser });
+      expect(result.review?.code).toEqual({ model: "base-model", effort: "high" });
+      expect(result.review?.compliance).toBeUndefined();
+    });
+  });
+
+  describe("authoring: per-kind, per-scalar override", () => {
+    it("project authoring survives an empty overlay", () => {
+      const project = makeProject({
+        authoring: { spec: { model: "claude-sonnet-5" }, plan: { effort: "high" } },
+      });
+      const result = mergeConfigLayers({ project, globalUser: makeOverlay() });
+      expect(result.authoring).toEqual({
+        spec: { model: "claude-sonnet-5" },
+        plan: { effort: "high" },
+      });
+    });
+
+    it("overlay fields override per kind and per field, local beating global", () => {
+      const project = makeProject({
+        authoring: { spec: { model: "base-model", effort: "low" } },
+      });
+      const globalUser = makeOverlay({
+        authoring: { spec: { effort: "medium" }, plan: { model: "global-model" } },
+      });
+      const localUser = makeOverlay({ authoring: { spec: { effort: "high" } } });
+      const result = mergeConfigLayers({ project, globalUser, localUser });
+      expect(result.authoring).toEqual({
+        spec: { model: "base-model", effort: "high" },
+        plan: { model: "global-model" },
+      });
+    });
+
+    it("authoring is absent when no layer sets it", () => {
+      const result = mergeConfigLayers({
+        project: makeProject(),
+        localUser: makeOverlay({ state: { root: "~/.local" } }),
+      });
+      expect(result.authoring).toBeUndefined();
+    });
+  });
+
   describe("identity fields always from project", () => {
     it("version and name always come from the project config", () => {
       const project = makeProject({ name: "my-project" });
