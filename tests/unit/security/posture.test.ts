@@ -25,6 +25,7 @@ const baseSecurePosture = {
   downgraded: false,
   marks: [] as const,
   agentCommands: [] as const,
+  skillEditGrants: [],
   providerSkippedForSecurity: [],
 };
 
@@ -47,6 +48,7 @@ const unsafePosture = {
   downgraded: false,
   marks: [] as const,
   agentCommands: [] as const,
+  skillEditGrants: [],
   providerSkippedForSecurity: [],
 };
 
@@ -69,6 +71,7 @@ const downgradedVibePosture = {
   downgraded: true,
   marks: ["partial-filesystem", "mcp-unenforced"] as const,
   agentCommands: [] as const,
+  skillEditGrants: [],
   providerSkippedForSecurity: [],
 };
 
@@ -91,6 +94,7 @@ const withSkippedProviders = {
   downgraded: false,
   marks: [] as const,
   agentCommands: [] as const,
+  skillEditGrants: [],
   providerSkippedForSecurity: [
     { provider: "mistral-vibe" as const, reason: "cannot satisfy strict secure mode" },
   ],
@@ -332,6 +336,7 @@ describe("SecurityPostureSchema", () => {
         mcp: { mode: "disabled" as const, allow: [] },
         downgraded: false,
         marks: [] as const,
+        skillEditGrants: [],
         providerSkippedForSecurity: [],
         // agentCommands intentionally omitted
       };
@@ -377,6 +382,30 @@ describe("SecurityPostureSchema", () => {
       if (Either.isRight(decoded)) {
         expect(decoded.right).toEqual(posture);
       }
+    });
+  });
+
+  describe("skillEditGrants field", () => {
+    it("round-trips posture with skill edit grants", () => {
+      const posture = {
+        ...baseSecurePosture,
+        skillEditGrants: [".claude/skills/foo/SKILL.md"],
+      };
+      const decoded = decodeSecurityPosture(encodeSecurityPosture(posture));
+      expect(Either.isRight(decoded)).toBe(true);
+      if (Either.isRight(decoded)) {
+        expect(decoded.right.skillEditGrants).toEqual([".claude/skills/foo/SKILL.md"]);
+      }
+    });
+
+    it("rejects posture missing skillEditGrants field", () => {
+      const { skillEditGrants: _omitted, ...invalid } = baseSecurePosture;
+      expect(Either.isLeft(decodeSecurityPosture(invalid))).toBe(true);
+    });
+
+    it("rejects an empty grant path", () => {
+      const posture = { ...baseSecurePosture, skillEditGrants: [""] };
+      expect(Either.isLeft(decodeSecurityPosture(posture))).toBe(true);
     });
   });
 
@@ -442,6 +471,7 @@ describe("SecurityPostureSchema", () => {
         | "downgraded"
         | "marks"
         | "agentCommands"
+        | "skillEditGrants"
         | "providerSkippedForSecurity"
       >();
     });

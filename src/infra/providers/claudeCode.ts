@@ -25,6 +25,7 @@ import {
   hasErroredResultEvent,
   type RateLimitClassification,
 } from "../../schemas/claudeOutput.js";
+import { buildSkillEditGrantSettings } from "./claudeSkillEditSettings.js";
 import { persistSessionId } from "./sessionWriter.js";
 import { writeAgentErrorLog } from "./agentErrorLog.js";
 
@@ -123,6 +124,10 @@ function spawnClaude(
 //                              via --mcp-config; satisfies mcp.mode "disabled"
 //                              and constrains "allowlist")
 //   --mcp-config <path>...     (one per file when mcp.mode === "allowlist")
+//   --settings <json>          (only with skill edit grants: an inline
+//                              PermissionRequest hook allowing exactly the
+//                              granted .claude/skills files; see
+//                              claudeSkillEditSettings.ts)
 //
 // Network: there is no native --allowed-domains flag and no domain-allowlist
 // concept in the policy (04b confirmed no provider enforces one). The Claude CLI
@@ -154,6 +159,7 @@ function buildSecureClaudeFlags(
   security: SecurityPolicy,
   cwd: string,
   agentCommands: readonly string[],
+  skillEditGrants: readonly string[],
 ): string[] {
   const addDirs = security.filesystem.allowWrite
     .filter((p) => p !== cwd)
@@ -179,7 +185,20 @@ function buildSecureClaudeFlags(
       ? ["--allowedTools", allowRules.join(",")]
       : ["--disallowed-tools", "Bash"];
 
-  return ["--permission-mode", "acceptEdits", ...addDirs, ...shellFlags, ...mcpFlags];
+  // Declared skill files get through Claude's protected-path check via an
+  // inline PermissionRequest hook; with no grants the argv is unchanged.
+  const grantSettings = buildSkillEditGrantSettings(cwd, skillEditGrants);
+  const settingsFlags =
+    grantSettings === undefined ? [] : ["--settings", JSON.stringify(grantSettings)];
+
+  return [
+    "--permission-mode",
+    "acceptEdits",
+    ...addDirs,
+    ...shellFlags,
+    ...mcpFlags,
+    ...settingsFlags,
+  ];
 }
 
 export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): string[] {
@@ -205,7 +224,12 @@ export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): s
         mode: options.security.mode,
       });
     }
-    return buildSecureClaudeFlags(options.security, options.cwd, options.agentCommands ?? []);
+    return buildSecureClaudeFlags(
+      options.security,
+      options.cwd,
+      options.agentCommands ?? [],
+      options.skillEditGrants ?? [],
+    );
   })();
 
   const args = [...common, ...modeFlags, "--model", options.model, "--effort", options.effort];

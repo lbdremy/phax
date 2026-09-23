@@ -4,6 +4,7 @@ import {
   buildCompletionArgs,
   gateCommandAllowRules,
 } from "../../../src/infra/providers/claudeCode.js";
+import { buildSkillEditGrantSettings } from "../../../src/infra/providers/claudeSkillEditSettings.js";
 import { SecurityEnforcementError } from "../../../src/domain/errors.js";
 import type { AgentRunOptions, CompletionOptions } from "../../../src/ports/backend.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
@@ -151,6 +152,66 @@ describe("buildArgs — secure mode", () => {
     const args = buildArgs(baseOptions({ ...securePolicy, mode: "isolated" }));
     expect(args).not.toContain("bypassPermissions");
     expect(args).toContain("--strict-mcp-config");
+  });
+});
+
+describe("buildArgs — skill edit grants", () => {
+  const grants = [".claude/skills/foo/SKILL.md", ".claude/skills/new/SKILL.md"];
+
+  it("secure mode with grants appends exactly one --settings with the PermissionRequest hook", () => {
+    const args = buildArgs({ ...baseOptions(securePolicy), skillEditGrants: grants });
+    const indexes = args.reduce<number[]>((acc, v, i) => {
+      if (v === "--settings") acc.push(i);
+      return acc;
+    }, []);
+    expect(indexes).toHaveLength(1);
+    const settings = JSON.parse(args[(indexes[0] ?? -1) + 1] ?? "");
+    expect(settings).toEqual(buildSkillEditGrantSettings("/tmp/work", grants));
+    const handlers = settings.hooks.PermissionRequest[0].hooks;
+    expect(handlers).toHaveLength(6);
+    expect(handlers[0].if).toBe("Edit(//tmp/work/.claude/skills/foo/SKILL.md)");
+  });
+
+  it("secure mode with [] produces the same argv as before, with no --settings", () => {
+    const args = buildArgs({ ...baseOptions(securePolicy), skillEditGrants: [] });
+    expect(args).toEqual([
+      "--print",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--permission-mode",
+      "acceptEdits",
+      "--add-dir",
+      "/home/me/.phax",
+      "--disallowed-tools",
+      "Bash",
+      "--strict-mcp-config",
+      "--model",
+      "claude-sonnet-4-6",
+      "--effort",
+      "high",
+    ]);
+    expect(args).toEqual(buildArgs(baseOptions(securePolicy)));
+  });
+
+  it("unsafe mode ignores grants", () => {
+    const args = buildArgs({ ...baseOptions(unsafePolicy), skillEditGrants: grants });
+    expect(args).not.toContain("--settings");
+    expect(args).toEqual(buildArgs(baseOptions(unsafePolicy)));
+  });
+
+  it("absent skillEditGrants (review, headless authoring) produces no --settings", () => {
+    const args = buildArgs(baseOptions(securePolicy));
+    expect(args).not.toContain("--settings");
+  });
+
+  it("keeps --resume after --settings on resume invocations", () => {
+    const args = buildArgs(
+      { ...baseOptions(securePolicy), skillEditGrants: grants },
+      "session-abc",
+    );
+    expect(args).toContain("--settings");
+    expect(args.slice(-2)).toEqual(["--resume", "session-abc"]);
   });
 });
 
