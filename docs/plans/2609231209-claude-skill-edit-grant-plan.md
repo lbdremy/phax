@@ -3,7 +3,7 @@ status: Approved
 source-spec: docs/specs/2609231215-claude-skill-edit-grant.md
 approved:
   date: 2026-09-23
-  baseline: 458ea44
+  baseline: 3528ff8
 ---
 
 # Claude skill edit grant
