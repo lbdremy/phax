@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2609231215-claude-skill-edit-grant.md
+approved:
+  date: 2026-09-23
+  baseline: e9074fe
 ---
 
 # Claude skill edit grant
