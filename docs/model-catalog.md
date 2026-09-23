@@ -50,13 +50,22 @@ to `claude-fable-5-1`. Adding a version means prepending it, never appending.
 
 ### codex-cli
 
-| Id              | Efforts                            | Read from                                                                 | Since     |
-| --------------- | ---------------------------------- | ------------------------------------------------------------------------- | --------- |
-| `gpt-5.5`       | `low medium high xhigh`            | codex registry                                                            | initial   |
-| `gpt-5.6-sol`   | `low medium high xhigh max ultra`  | codex registry (0.144.x); still `visibility: list`, no `upgrade`, in 0.153.4's bundled catalog even though the account registry read 2026-09-07 omitted it | `0667c17` |
-| `gpt-5.6-terra` | `low medium high xhigh max ultra`  | codex registry                                                            | `0667c17` |
-| `gpt-5.6-luna`  | `low medium high xhigh max`        | codex registry (caps at `max`)                                            | `0667c17` |
-| `gpt-6-astra`   | `low medium high xhigh max ultra`  | codex 0.153.4 bundled catalog; `minimal_client_version` 0.153.0; released 2026-09-03 | phase-02 |
+Rows are newest-first, same rule as the Claude families.
+
+| Id              | Efforts                            | Status       | Read from                                                                 | Since     |
+| --------------- | ---------------------------------- | ------------ | ------------------------------------------------------------------------- | --------- |
+| `gpt-6-sol`     | `low medium high xhigh max ultra`  | `active`     | codex 0.156.1 bundled catalog (`npm @openai/codex`, published 2026-09-23, `darwin-arm64`); "Workhorse model for coding and everyday work", default `medium`, `visibility: list`, `minimal_client_version` 0.155.0 | phase-02 (catalog-opus-5-5-gpt-6-sol-luna) |
+| `gpt-6-luna`    | `low medium high xhigh max`        | `active`     | codex 0.156.1 bundled catalog; "Fast and affordable model for easier tasks", default `medium`, `visibility: list`, `minimal_client_version` 0.155.0 | phase-02 |
+| `gpt-6-astra`   | `low medium high xhigh max ultra`  | `active`     | codex 0.153.4 bundled catalog; `minimal_client_version` 0.153.0; released 2026-09-03; unchanged in 0.156.1 | 2026-09-07 refresh |
+| `gpt-5.6-luna`  | `low medium high xhigh max`        | `deprecated` | codex registry (caps at `max`); 0.156.1 gives it `upgrade.model: gpt-6-luna`, `retirement_at: null` | `0667c17`; deprecated phase-02 |
+| `gpt-5.6-terra` | `low medium high xhigh max ultra`  | `deprecated` | codex registry; 0.156.1 gives it `upgrade.model: gpt-6-sol`                | `0667c17`; deprecated phase-02 |
+| `gpt-5.6-sol`   | `low medium high xhigh max ultra`  | `deprecated` | codex registry (0.144.x); 0.156.1 gives it `upgrade.model: gpt-6-sol`     | `0667c17`; deprecated phase-02 |
+| `gpt-5.5`       | `low medium high xhigh`            | `active`     | codex registry; no `upgrade` pointer in 0.156.1, so it stays active        | initial   |
+
+The installed codex is 0.153.4 and its account registry
+(`~/.codex/models_cache.json`, fetched 2026-09-20) lists neither GPT-6 Sol nor
+Luna; both were read from 0.156.1's bundled catalog. They need codex ≥ 0.155.0
+to run, so no live e2e covers them yet.
 
 Not catalogued on purpose: `gpt-5.4` / `gpt-5.4-mini` (upstream `upgrade`
 pointers to Terra / Luna), `gpt-5.6-pro` and `gpt-5.5-pro` (not in the codex
@@ -80,18 +89,39 @@ spoke → hub lookups. Rules that have held since July 2026:
 - `equivalent` is used when the two sit within about one index point;
   otherwise the honest relation is stored and `allowDowngrade` decides.
 
+The Intelligence Index was **re-scaled** between the 2026-09-07 and the
+2026-09-23 reads (Fable 5.1 at max was 57, now 53), so numbers are only
+comparable within a single read.
+
 | Spoke           | Anchor              | Relation     | Basis                                                                                                                                                             | Since     |
 | --------------- | ------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | `gpt-5.5`       | `claude-sonnet-4-6` (low/medium/high), `claude-opus-4-8` medium (xhigh) | `equivalent` | Original spec §12 table                                                                                                                                            | initial   |
-| `gpt-5.6-sol`   | `claude-fable-5`    | `equivalent` | AA Agentic Index, July 2026: Sol 54.0 vs Fable 5 52.8                                                                                                             | `0667c17` |
-| `gpt-5.6-terra` | `claude-opus-4-8`   | `equivalent` | AA Agentic Index, July 2026: Terra 47.4 vs Opus 4.8 47.2                                                                                                          | `0667c17` |
-| `gpt-5.6-luna`  | `claude-sonnet-5`   | `equivalent` | AA Agentic Index, July 2026: Luna 45.6 vs Sonnet 5 46.7                                                                                                           | `0667c17` |
-| `gpt-6-astra`   | `claude-fable-5-1`  | `downgrade`  | AA Intelligence Index, 2026-09-07, low/medium/high/xhigh/max: Astra 49/52/53/54/55 vs Fable 5.1 51/53/54/56/57 (1–2 under at every effort). Opus 5 (44/50/52/53/54) was rejected: it would leave Fable 5.1 with no codex route. | phase-02 |
+| `gpt-6-sol`     | `claude-opus-5-5`   | `downgrade`  | AA Intelligence Index, 2026-09-23, low/medium/high/xhigh/max: Sol 34/40/43/44/48 vs Opus 5.5 42/51/54/56/58. Sol sits between Sonnet 5 (24/28/32/34/38) and Opus 5.5 with no Claude entry within a point; anchoring high gives Opus 5.5, the default phase model, a codex route under `allowDowngrade: true`. | phase-02 |
+| `gpt-6-luna`    | `claude-sonnet-5`   | `downgrade` at `low`, else `equivalent` | AA Intelligence Index, 2026-09-23: Luna 21/29/32/34/37 vs Sonnet 5 24/28/32/34/38 — within a point from `medium` up, 3 points under at `low`. | phase-02 |
+| `gpt-6-astra`   | `claude-fable-5-1`  | `equivalent` | AA Intelligence Index, 2026-09-23: Astra 46/50/51/52/53 vs Fable 5.1 47/49/51/53/53 — within 1 point everywhere. Was `downgrade` on the 2026-09-07 revision (Astra 49/52/53/54/55 vs Fable 5.1 51/53/54/56/57). | 2026-09-07 refresh; `equivalent` phase-02 |
+| `gpt-5.6-sol`   | `claude-fable-5`    | `equivalent` | AA Agentic Index, July 2026: Sol 54.0 vs Fable 5 52.8. Spoke deprecated — edge kept for fallback only.                                                            | `0667c17` |
+| `gpt-5.6-terra` | `claude-opus-4-8`   | `equivalent` | AA Agentic Index, July 2026: Terra 47.4 vs Opus 4.8 47.2. Spoke deprecated — edge kept for fallback only.                                                         | `0667c17` |
+| `gpt-5.6-luna`  | `claude-sonnet-5`   | `equivalent` | AA Agentic Index, July 2026: Luna 45.6 vs Sonnet 5 46.7. Spoke deprecated — edge kept for fallback only.                                                          | `0667c17` |
 
-Consequence of the one `downgrade` edge: with `allowDowngrade: true` (the
-default) a Fable 5.1 phase still reaches codex when it is first in priority,
-labelled `downgrade`; with `false` it stays on Claude. An Astra phase falling
-back to Claude lands on Fable 5.1 as an `upgrade` in both settings.
+**Deprecated spokes are one-way.** `hubToSpoke`
+(`src/domain/routing/catalog.ts`) skips any spoke whose catalog entry is
+`status: "deprecated"`, so a Claude phase is never routed onto a retired
+provider model; `spokeToHub` does not check status, so a phase that still
+names a deprecated id falls back to its Claude anchor. (Naming one in a plan
+is a separate preflight failure.)
+
+Which Claude entries lost their codex route when the GPT-5.6 variants were
+deprecated: `claude-fable-5` (its only codex anchor was `gpt-5.6-sol`) and
+`claude-opus-4-8` at `low`/`high`/`xhigh`/`max` (anchored only by
+`gpt-5.6-terra`). Opus 4.8 keeps `medium`, via `gpt-5.5` at `xhigh`.
+
+Consequence of the `downgrade` edges — all of Sol, and Luna at `low`: with
+`allowDowngrade: true` (the default) an Opus 5.5 phase reaches codex as
+`gpt-6-sol` when codex is first in priority, labelled `downgrade`; with
+`false` it stays on Claude. In the other direction a Sol phase falling back to
+Claude lands on Opus 5.5 as an `upgrade` under both settings. Astra ↔ Fable
+5.1 and Luna ↔ Sonnet 5 above `low` are `equivalent`, so those route under
+both settings.
 
 ## 4. Cost basis and phax's built-in defaults
 

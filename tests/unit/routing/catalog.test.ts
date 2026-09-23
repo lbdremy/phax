@@ -53,6 +53,8 @@ describe("familyOfId", () => {
 
   it("returns the family for a spoke id", () => {
     expect(familyOfId("gpt-5.5", DEFAULT_PROVIDER_CONFIG)).toBe("openai-gpt");
+    expect(familyOfId("gpt-6-sol", DEFAULT_PROVIDER_CONFIG)).toBe("openai-gpt");
+    expect(familyOfId("gpt-6-luna", DEFAULT_PROVIDER_CONFIG)).toBe("openai-gpt");
     expect(familyOfId("phax-mistral-medium-3.5-medium", DEFAULT_PROVIDER_CONFIG)).toBe(
       "mistral-medium",
     );
@@ -126,6 +128,12 @@ describe("isDeprecated", () => {
 
   it("returns false for an unknown id (missing is not deprecated)", () => {
     expect(isDeprecated("nope", DEFAULT_PROVIDER_CONFIG)).toBe(false);
+  });
+
+  it("marks the GPT-5.6 variants deprecated in the shipped catalog", () => {
+    expect(isDeprecated("gpt-5.6-sol", DEFAULT_PROVIDER_CONFIG)).toBe(true);
+    expect(isDeprecated("gpt-5.6-terra", DEFAULT_PROVIDER_CONFIG)).toBe(true);
+    expect(isDeprecated("gpt-5.6-luna", DEFAULT_PROVIDER_CONFIG)).toBe(true);
   });
 });
 
@@ -284,7 +292,7 @@ describe("equivalentFor (star lookup)", () => {
     expect(sub).toBeUndefined();
   });
 
-  it("hub → spoke: claude-fable-5-1/xhigh anchors to gpt-6-astra/xhigh (downgrade)", () => {
+  it("hub → spoke: claude-fable-5-1/xhigh anchors to gpt-6-astra/xhigh (equivalent)", () => {
     const sub = equivalentFor(
       "claude-fable-5-1",
       "xhigh",
@@ -294,10 +302,10 @@ describe("equivalentFor (star lookup)", () => {
     );
     expect(sub?.id).toBe("gpt-6-astra");
     expect(sub?.effort).toBe("xhigh");
-    expect(sub?.relation).toBe("downgrade");
+    expect(sub?.relation).toBe("equivalent");
   });
 
-  it("spoke → hub: gpt-6-astra/max inverts to claude-fable-5-1/max as an upgrade", () => {
+  it("spoke → hub: gpt-6-astra/max inverts to claude-fable-5-1/max (equivalent is self-inverse)", () => {
     const sub = equivalentFor(
       "gpt-6-astra",
       "max",
@@ -307,10 +315,10 @@ describe("equivalentFor (star lookup)", () => {
     );
     expect(sub?.id).toBe("claude-fable-5-1");
     expect(sub?.effort).toBe("max");
-    expect(sub?.relation).toBe("upgrade");
+    expect(sub?.relation).toBe("equivalent");
   });
 
-  it("spoke → hub: gpt-6-astra/ultra anchors to claude-fable-5-1/max as an upgrade", () => {
+  it("spoke → hub: gpt-6-astra/ultra anchors to claude-fable-5-1/max (equivalent)", () => {
     const sub = equivalentFor(
       "gpt-6-astra",
       "ultra",
@@ -320,7 +328,7 @@ describe("equivalentFor (star lookup)", () => {
     );
     expect(sub?.id).toBe("claude-fable-5-1");
     expect(sub?.effort).toBe("max");
-    expect(sub?.relation).toBe("upgrade");
+    expect(sub?.relation).toBe("equivalent");
   });
 
   it("hub → spoke: claude-fable-5-1/ultracode has no anchor into openai-gpt", () => {
@@ -332,5 +340,68 @@ describe("equivalentFor (star lookup)", () => {
       DEFAULT_PROVIDER_CONFIG,
     );
     expect(sub).toBeUndefined();
+  });
+
+  it("hub → spoke: claude-opus-5-5/high anchors to gpt-6-sol/high (downgrade)", () => {
+    const sub = equivalentFor(
+      "claude-opus-5-5",
+      "high",
+      "openai-gpt",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub?.id).toBe("gpt-6-sol");
+    expect(sub?.effort).toBe("high");
+    expect(sub?.relation).toBe("downgrade");
+  });
+
+  it("hub → spoke: claude-sonnet-5/medium anchors to gpt-6-luna, not the deprecated gpt-5.6-luna", () => {
+    const sub = equivalentFor(
+      "claude-sonnet-5",
+      "medium",
+      "openai-gpt",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub?.id).toBe("gpt-6-luna");
+    expect(sub?.effort).toBe("medium");
+    expect(sub?.relation).toBe("equivalent");
+  });
+
+  it("hub → spoke: claude-sonnet-5/low anchors to gpt-6-luna/low as a downgrade", () => {
+    const sub = equivalentFor(
+      "claude-sonnet-5",
+      "low",
+      "openai-gpt",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub?.id).toBe("gpt-6-luna");
+    expect(sub?.effort).toBe("low");
+    expect(sub?.relation).toBe("downgrade");
+  });
+
+  it("hub → spoke: claude-fable-5 has no codex route now that gpt-5.6-sol is deprecated", () => {
+    const sub = equivalentFor(
+      "claude-fable-5",
+      "high",
+      "openai-gpt",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub).toBeUndefined();
+  });
+
+  it("spoke → hub: a deprecated spoke still falls back to its Claude anchor", () => {
+    const sub = equivalentFor(
+      "gpt-5.6-terra",
+      "high",
+      "claude-opus",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub?.id).toBe("claude-opus-4-8");
+    expect(sub?.effort).toBe("high");
+    expect(sub?.relation).toBe("equivalent");
   });
 });

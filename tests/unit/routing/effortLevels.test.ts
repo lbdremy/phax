@@ -100,6 +100,16 @@ describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
     expect(effortsFor("gpt-6-astra", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
   });
 
+  it("gpt-6-sol supports low|medium|high|xhigh|max|ultra", () => {
+    const expected: readonly ThinkingLevel[] = ["low", "medium", "high", "xhigh", "max", "ultra"];
+    expect(effortsFor("gpt-6-sol", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
+  });
+
+  it("gpt-6-luna supports low|medium|high|xhigh|max (no ultra)", () => {
+    const expected: readonly ThinkingLevel[] = ["low", "medium", "high", "xhigh", "max"];
+    expect(effortsFor("gpt-6-luna", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
+  });
+
   it("claude-sonnet-4-6 still lacks xhigh and ultracode", () => {
     const efforts = effortsFor("claude-sonnet-4-6", DEFAULT_PROVIDER_CONFIG);
     expect(efforts).not.toContain("xhigh");
@@ -132,6 +142,8 @@ describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
       "claude-sonnet-5",
       "gpt-5.5",
       "gpt-6-astra",
+      "gpt-6-sol",
+      "gpt-6-luna",
       "phax-mistral-medium-3.5-off",
       "phax-mistral-medium-3.5-low",
       "phax-mistral-medium-3.5-medium",
@@ -141,6 +153,19 @@ describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
     for (const id of ids) {
       const loc = entryFor(id, DEFAULT_PROVIDER_CONFIG);
       expect(loc?.entry.status).toBe("active");
+    }
+  });
+
+  it("the GPT-5.6 variants are kept, marked deprecated, with their efforts intact", () => {
+    const deprecated = [
+      { id: "gpt-5.6-sol", efforts: ["low", "medium", "high", "xhigh", "max", "ultra"] },
+      { id: "gpt-5.6-terra", efforts: ["low", "medium", "high", "xhigh", "max", "ultra"] },
+      { id: "gpt-5.6-luna", efforts: ["low", "medium", "high", "xhigh", "max"] },
+    ];
+    for (const { id, efforts } of deprecated) {
+      const loc = entryFor(id, DEFAULT_PROVIDER_CONFIG);
+      expect(loc?.entry.status).toBe("deprecated");
+      expect(loc?.entry.efforts).toEqual(efforts);
     }
   });
 });
