@@ -75,6 +75,11 @@ phase gets permission to edit skill files.
     paths stay denied.
   - A plan that declares skill files must be run with
     `phax run --allow-skill-edits`, or the preflight refuses it.
+  - The rule is the same for headless-authored plans. The
+    `plannedFilesToCreate` / `plannedFilesToEdit` / `optionalFilesToEdit`
+    arrays of the plan document are the declaration. Add one sentence to the
+    "Headless authoring" section pointing back to this note, rather than
+    repeating it.
 - Edit `.claude/skills/phax-cli/SKILL.md`. After the
   "Canonical end-to-end flow" paragraph, add one short paragraph saying that
   plans touching `.claude/skills/` files need `--allow-skill-edits` on

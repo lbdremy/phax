@@ -61,6 +61,16 @@ file write.
   precedent. It is a knowing exception to "new fields are required": a
   required field would break decoding of every existing run's `status.json`
   (`phax ls`, `phax resume`), and there is no run-state migration.
+- **Both new in-process options are optional, and absent means nothing is
+  granted.** These are `executePlan`'s `allowSkillEdits?` and
+  `AgentRunOptions.skillEditGrants?`, following the existing `securityMode?`
+  and `agentCommands?` idiom. `pnpm test:type` now typechecks the whole test
+  suite in every phase. Required fields would force edits to about 21 test
+  files that call `executePlan`, plus the new `authorArtifact.ts` call site, all
+  outside the planned lists. We give up compile-time pressure on each caller to
+  decide; the preflight and the integration tests cover that risk. The
+  no-shim rule targets persisted schemas: `security.json`'s `skillEditGrants`
+  stays required.
 - **Four phases.** Consent (CLI, run state, preflight) is separate from the
   adapter wiring. We give up one extra phase of wall-clock time.
 - **The real-provider e2e test runs by hand** (`test:e2e:real`), not in the
@@ -238,7 +248,7 @@ without consent. The dry-run shows the same information before a run starts.
 - `src/cli/program.ts`: register `--allow-skill-edits` on `run`, with help
   text "Allow phases to edit the .claude/skills files the plan declares". Carry
   it through `src/cli/commands/run.ts` into `executePlan` as
-  `allowSkillEdits: boolean`.
+  `allowSkillEdits`.
 - `src/schemas/status.ts`: add
   `allowSkillEdits: Schema.optionalWith(Schema.Boolean, { exact: true })` to
   `RunStatusSchema`, with a comment explaining why it is optional (the
@@ -249,14 +259,15 @@ without consent. The dry-run shows the same information before a run starts.
 - `src/cli/commands/resume.ts`: pass
   `allowSkillEdits: runStatus.allowSkillEdits === true` to `executePlan`. Add no
   new flag.
-- `src/app/executePlan.ts`: add a required `allowSkillEdits: boolean` to the
-  options. Run `checkSkillEditConsent` in the preflight block, right after
+- `src/app/executePlan.ts`: add `readonly allowSkillEdits?: boolean | undefined`
+  to the options, documented next to `securityMode` (absent means no consent).
+  Do not make it required: see Technical arbitrations. Existing tests that
+  call `executePlan` must compile unchanged. Run `checkSkillEditConsent` in the preflight block, right after
   `checkRequiredCommands` and before any branch or worktree work. On a
   non-empty result, fail with `SkillEditConsentError`. Its message follows spec
   §6: a first line naming `--allow-skill-edits`, one line per phase listing its
   files, and a re-run hint. The check runs on resume too, so an old run without
-  recorded consent is refused rather than failing silently. Fix every other
-  `executePlan` caller the typechecker flags.
+  recorded consent is refused rather than failing silently.
 - `src/app/dryRun.ts`: add `allowSkillEdits` to the inputs, per-phase
   `skillEditGrants` to `DryRunPhase`, and a report-level `skillEditConsentMissing`
   boolean. `formatDryRunReport` prints the grants per phase and a warning line
@@ -295,7 +306,8 @@ without consent. The dry-run shows the same information before a run starts.
 
 ### Boundary contracts
 
-- CLI → app: `executePlan` receives `allowSkillEdits: boolean`. `run.ts`
+- CLI → app: `executePlan` receives the optional `allowSkillEdits` (absent
+  means false). `run.ts`
   gets it from the flag, and `resume.ts` gets it from `status.json`.
 - Run state: optional `allowSkillEdits` in `status.json`; absent means false.
 - Consumer in phase-03: `executePlan` has `allowSkillEdits` in scope when it
@@ -368,12 +380,15 @@ inline `--settings`, and record them in `security.json`.
 
 ### Detailed instructions
 
-- `src/ports/backend.ts`: add `readonly skillEditGrants: readonly string[]` to
-  `AgentRunOptions`. Make it **required**, and document it like
-  `agentCommands`: repo-relative, consumed by the Claude provider in secure
-  mode, and recorded in `security.json` for every provider. Update every
-  construction site the typechecker flags: `reviewCompliance.ts` and other
-  non-phase callers pass `[]`.
+- `src/ports/backend.ts`: add
+  `readonly skillEditGrants?: readonly string[] | undefined` to
+  `AgentRunOptions`, documented like `agentCommands`: repo-relative, consumed
+  by the Claude provider in secure mode, recorded in `security.json` for every
+  provider, and absent means nothing is granted.
+  - Do not touch non-phase callers. `reviewCompliance.ts` and headless
+    authoring (`src/app/authorArtifact.ts`) run with a no-write review policy
+    and must never carry a grant; leaving the field absent is the contract.
+  - The Claude adapter reads `options.skillEditGrants ?? []`.
 - `src/app/executePlan.ts`: at both `agentOptions` construction sites (the
   fresh phase near `agentCommands: frozenResult...`, and resume near
   `resumeFrozenResult`), set `skillEditGrants` as follows:
@@ -420,7 +435,6 @@ inline `--settings`, and record them in `security.json`.
 
 ### Optional files that may be edited
 
-- `src/app/reviewCompliance.ts`
 - `src/app/fixLoop.ts`
 - `src/app/handoffGeneration.ts`
 - `src/app/finalReport.ts`
@@ -428,6 +442,8 @@ inline `--settings`, and record them in `security.json`.
 - `tests/integration/executePlan.test.ts`
 - `tests/unit/providers/codexCli.test.ts`
 - `tests/unit/providers/mistralVibe.test.ts`
+- `tests/unit/providerDispatcher.test.ts`
+- `src/infra/fakes/backend.ts`
 
 ### Boundary contracts
 
@@ -446,7 +462,9 @@ Write these tests before the implementation.
     parses to the phase-01 shape;
   - secure mode with `[]` produces the same argv as before, with no
     `--settings`;
-  - unsafe mode with grants has no `--settings`.
+  - unsafe mode with grants has no `--settings`;
+  - options with `skillEditGrants` absent, which is how review and headless
+    authoring call it, produce no `--settings`.
 - `tests/integration/skillEditGrants.test.ts` (fake `Backend`, run with
   consent):
   - A phase declaring `.claude/skills/foo/SKILL.md` and `src/x.ts` passes
