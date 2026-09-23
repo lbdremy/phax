@@ -3,7 +3,7 @@ status: Approved
 source-spec: null
 approved:
   date: 2026-09-23
-  baseline: b59a0fc
+  baseline: af45353
 ---
 
 # Skill edit grant skill docs
