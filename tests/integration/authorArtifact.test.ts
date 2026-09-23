@@ -174,6 +174,7 @@ function input(overrides: Partial<AuthorArtifactInput> = {}): AuthorArtifactInpu
     extractPlanEffort: "medium",
     nowIso: NOW,
     records: RECORDS_OFF,
+    output: { warn: () => {} },
     ...overrides,
   };
 }
@@ -535,6 +536,26 @@ describe("authorArtifact — authoring record", () => {
     const writes = recordWrites(git);
     expect(writes).toHaveLength(1);
     expect(writes[0]?.message).toMatch(/^records\(authoring\): failed\n/);
+  });
+
+  it("a failed session's record warning goes to the output port", async () => {
+    const { run } = setup("not json");
+    const warnings: string[] = [];
+
+    const result = await run(
+      input({
+        records: {
+          ...RECORDS_IN_REPO,
+          destination: { kind: "repo", remote: "https://example.com/records.git" },
+        },
+        output: { warn: (message) => warnings.push(message) },
+      }),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    expect(warnings).toEqual([
+      "authoring record not written — the dedicated records clone is not configured (run `phax records sync`)",
+    ]);
   });
 
   it("a refusal before the session records nothing", async () => {
