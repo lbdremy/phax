@@ -16,6 +16,7 @@ import {
   UsageLimitError,
 } from "../domain/errors.js";
 import { formatParseError } from "../schemas/formatError.js";
+import { stripJsonCodeFence } from "../domain/authoring/jsonText.js";
 
 const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
@@ -99,13 +100,4 @@ export function extractPlanLlm(
 
     return decoded.right;
   });
-}
-
-// Claude sometimes wraps JSON output in a ```json fence despite the prompt
-// forbidding it. Strip a single leading/trailing fence so JSON.parse succeeds.
-function stripJsonCodeFence(text: string): string {
-  const trimmed = text.trim();
-  const fence = /^```(?:json)?\s*\n([\s\S]*?)\n?```$/i;
-  const match = trimmed.match(fence);
-  return match?.[1]?.trim() ?? trimmed;
 }

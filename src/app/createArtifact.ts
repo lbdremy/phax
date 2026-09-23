@@ -23,7 +23,29 @@ export interface CreateArtifactResult {
   readonly sourceSpec: string | null;
 }
 
-function specSkeleton(nowIso: string): string {
+export interface ArtifactTargetInput {
+  readonly kind: ArtifactKind;
+  readonly slug: string;
+  readonly sourceSpec: string | null;
+  readonly nowIso: string;
+}
+
+/** A validated source spec: its repo-relative path and its Markdown. */
+export interface ResolvedSourceSpec {
+  readonly path: string;
+  readonly markdown: string;
+}
+
+export interface ArtifactTarget {
+  /** Repo-relative directory the artifact lands in (`docs/specs` or `docs/plans`). */
+  readonly dir: string;
+  /** Repo-relative path of the artifact to create. */
+  readonly path: string;
+  /** A plan's validated source spec, or null (always null for a spec). */
+  readonly sourceSpec: ResolvedSourceSpec | null;
+}
+
+export function specSkeleton(nowIso: string): string {
   const date = nowIso.split("T")[0] ?? nowIso;
   return `---
 status: Draft
@@ -34,7 +56,7 @@ scope: functional behavior and consumption surface
 `;
 }
 
-function planSkeleton(sourceSpec: string | null): string {
+export function planSkeleton(sourceSpec: string | null): string {
   return `---
 status: Draft
 source-spec: ${sourceSpec ?? "null"}
@@ -47,7 +69,7 @@ source-spec: ${sourceSpec ?? "null"}
 // the same checks a plan approval later relies on when reading its source spec.
 function resolveSourceSpec(
   sourceSpecPath: string,
-): Effect.Effect<string, ArtifactCreationError | FsError, FileSystem> {
+): Effect.Effect<ResolvedSourceSpec, ArtifactCreationError | FsError, FileSystem> {
   return Effect.gen(function* () {
     const classification = classifyArtifactPath(sourceSpecPath);
     if (classification === null || classification.kind !== "spec") {
@@ -76,16 +98,16 @@ function resolveSourceSpec(
       );
     }
 
-    return sourceSpecPath;
+    return { path: sourceSpecPath, markdown: specMd };
   });
 }
 
-// Creates a `Draft` spec or plan skeleton named from the current UTC minute
-// and the given slug. Every refusal (bad slug, existing target, missing or
-// invalid source spec) fails before anything is written.
-export function createArtifact(
-  input: CreateArtifactInput,
-): Effect.Effect<CreateArtifactResult, ArtifactCreationError | FsError, FileSystem> {
+// The refusals shared by the interactive and headless `artifact new` paths —
+// bad slug, off-grammar name, existing target, missing or invalid source spec —
+// resolved without writing anything.
+export function resolveArtifactTarget(
+  input: ArtifactTargetInput,
+): Effect.Effect<ArtifactTarget, ArtifactCreationError | FsError, FileSystem> {
   return Effect.gen(function* () {
     if (!isSlug(input.slug)) {
       return yield* Effect.fail(
@@ -119,10 +141,25 @@ export function createArtifact(
         ? yield* resolveSourceSpec(input.sourceSpec)
         : null;
 
-    const content = input.kind === "spec" ? specSkeleton(input.nowIso) : planSkeleton(sourceSpec);
-    yield* fs.mkdirp(dir);
-    yield* fs.writeAtomic(path, content);
+    return { dir, path, sourceSpec };
+  });
+}
 
-    return { path, sourceSpec };
+// Creates a `Draft` spec or plan skeleton named from the current UTC minute
+// and the given slug. Every refusal (bad slug, existing target, missing or
+// invalid source spec) fails before anything is written.
+export function createArtifact(
+  input: CreateArtifactInput,
+): Effect.Effect<CreateArtifactResult, ArtifactCreationError | FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const target = yield* resolveArtifactTarget(input);
+    const sourceSpec = target.sourceSpec?.path ?? null;
+
+    const content = input.kind === "spec" ? specSkeleton(input.nowIso) : planSkeleton(sourceSpec);
+    const fs = yield* FileSystem;
+    yield* fs.mkdirp(target.dir);
+    yield* fs.writeAtomic(target.path, content);
+
+    return { path: target.path, sourceSpec };
   });
 }
