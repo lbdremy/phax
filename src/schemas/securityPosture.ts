@@ -30,6 +30,8 @@ export const SecurityPostureSchema = Schema.Struct({
       degraded: Schema.Boolean,
     }),
   ),
+  // Repo-relative `.claude/skills/**` files the phase may edit (--allow-skill-edits).
+  skillEditGrants: Schema.Array(Schema.NonEmptyString),
   providerSkippedForSecurity: Schema.Array(
     Schema.Struct({
       provider: ProviderIdSchema,

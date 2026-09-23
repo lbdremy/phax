@@ -78,6 +78,7 @@ import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import {
   checkSkillEditConsent,
   formatSkillEditConsentRefusal,
+  phaseSkillEditGrants,
 } from "../domain/security/skillEditGrants.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
@@ -639,6 +640,9 @@ export function executePlan(
       const isResumeFromCommit = i === startIndex && resumeFromCommit;
       const isResumeFromCleanup = i === startIndex && resumeFromCleanup;
       const isResumeFromCompletion = i === startIndex && resumeFromCompletion;
+      // The preflight already refused skill-declaring phases without consent,
+      // so the `[]` branch is defense in depth only.
+      const skillEditGrants = allowSkillEdits ? phaseSkillEditGrants(phase) : [];
 
       // Resolve the phase branch before creating the phase folder so the
       // initial status.json can include branchName (required by the schema).
@@ -749,6 +753,7 @@ export function executePlan(
           cwd: worktreePath as string,
           security: securityPolicy,
           agentCommands: resumeFrozenResult.records.map((r) => r.command),
+          skillEditGrants,
           outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
           phaseFolderPath,
         };
@@ -985,6 +990,7 @@ export function executePlan(
           downgraded: evaluation.downgraded,
           marks: postureMarks,
           agentCommands: frozenResult.records,
+          skillEditGrants,
           providerSkippedForSecurity: resolution.skippedForSecurity ?? [],
         };
         yield* fs.writeAtomic(
@@ -1041,6 +1047,7 @@ export function executePlan(
           cwd: worktreePath as string,
           security: securityPolicy,
           agentCommands: frozenResult.records.map((r) => r.command),
+          skillEditGrants,
           outputJsonlPath: join(phaseFolderPath, "output.jsonl"),
           phaseFolderPath,
         };

@@ -36,6 +36,14 @@ export interface AgentRunOptions {
    * (codex/vibe). Recorded in security.json regardless of provider.
    */
   readonly agentCommands?: readonly string[] | undefined;
+  /**
+   * The repo-relative `.claude/skills/**` files this phase may edit, granted by
+   * `--allow-skill-edits`. In secure mode the claude provider lets exactly
+   * these files through its protected-path check. Recorded in security.json
+   * regardless of provider. Absent/empty means nothing is granted; review and
+   * headless authoring never set it.
+   */
+  readonly skillEditGrants?: readonly string[] | undefined;
   readonly outputJsonlPath?: string | undefined;
   readonly phaseFolderPath?: string | undefined;
 }
