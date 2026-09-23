@@ -50,8 +50,12 @@ describe.skipIf(!shouldRun)("phax headless authoring E2E", () => {
           "--headless",
           "--brief",
           "brief.md",
+          // Sonnet, not haiku: the spec document's traceability refinement
+          // (every requirement covered by a criterion) is strict enough that
+          // haiku at low effort breaks it often, failing the test on model
+          // output rather than on phax.
           "--model",
-          "claude-haiku-4-5-20251001",
+          "claude-sonnet-5",
           "--effort",
           "low",
         ],
