@@ -131,6 +131,14 @@ desktop — none is promised by the announcement.
          take spec 23's decision-request shape), renders the Markdown, stamps, commits,
          records. Moves two of the four model-invocation points inside phax; the spec
          schema is a new format, shipped experimental.
+         **Shipped 2026-09-23** (spec + plan `headless-authoring`, now Completed):
+         `artifact new spec|plan --headless --brief <file|->` with `--model`/`--effort`
+         and `authoring.{spec,plan}` config defaults; spec and plan document schemas
+         (`phax artifact schema spec|plan`), deterministic renderers, a JSON sidecar that
+         travels with transitions and blocks `approve` when diverged, an extraction-cache
+         seed keyed on the plan body, and one authoring record per session resolved by
+         `records explain`. The skills teach the document shape; all three formats are
+         experimental (README "Experimental formats").
       2. **`review-as-plan`** — `docs/ideas/headless-code-review.md`: `review-code
          --headless` (JSON only: `code-review.json` + `review-plan.json`/`.md`), `run
          --append <run> <plan>` (a new run transition: appended phases, same records

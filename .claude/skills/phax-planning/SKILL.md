@@ -493,6 +493,55 @@ is a token-prefix of the required command (`deno` covers `deno fmt`).
   Technical arbitrations). Symmetric pros/cons lists are the same smell in
   disguise.
 
+## Headless authoring
+
+Everything above describes the Markdown plan you write in an interactive session. When the
+session is spawned by `phax artifact new plan <slug> --headless --brief <file|->`, the
+deliverable changes: you return the **plan document** — a JSON object — and phax renders it
+deterministically to the phase structure above, writes the `.md` with its JSON sidecar
+beside it, seeds the extraction cache so `phax run` never re-extracts it, and commits both.
+The planning doctrine does not change; only the container does.
+
+- **The JSON object is your final message**, alone: no code fence, no commentary before or
+  after it. The prompt carries the authoritative JSON Schema; `phax artifact schema plan`
+  prints the same schema.
+- **Write no files.** phax writes, renders and commits; a file you write is not the artifact.
+- **Every key is required.** Unknown keys are rejected.
+- **Lists are plain arrays.** An empty list is `[]`: phax renders it as `- (none)`. Paths,
+  required commands and the commit subject are plain strings — phax renders them as code
+  spans; do not add backticks.
+
+Top-level keys:
+
+- `version`: `1`; `kind`: `"plan"`.
+- `sourceSpec`: the `--spec` path given to phax, or `null` without one (the prompt says
+  which). phax sets it from `--spec` regardless, so frontmatter and sidecar agree.
+- `run`: `{ shortName, title, requiredCommands }` — the extracted run fields
+  (`# <Title>`, `## Required commands`).
+- `preamble`: `{ summary, requiredCommandsNote, technicalArbitrations }` — the prose under
+  the title, the note after the required-commands list, and one string per arbitration
+  (rendered as `## Technical arbitrations`, omitted when empty).
+- `phases`: a non-empty array, one object per phase.
+
+Each phase carries the **extracted fields** — exactly what `phax run` reads, and exactly
+the cache seed:
+
+- `id` (`phase-NN`), `model`, `effort` (see the model catalog), `planMarkdownAnchor`
+  (`#phase-NN-<slug>`, rendered as the heading's `{#phase-NN-<slug>}`).
+- `plannedFilesToCreate`, `plannedFilesToEdit`, `optionalFilesToEdit`: string arrays.
+- `commit`: `{ subject, body }`.
+
+and the fields that only render the phase:
+
+- `title` — the heading text after `phase-NN — `; phax derives the run's phase title from
+  the rendered heading, as for any plan.md, so it is not part of the seed.
+- `objective` — the paragraph under the model/effort lines.
+- `detailedInstructions`, `implementationOrder` (rendered numbered), `excludedScope`:
+  string arrays.
+- `boundaryContracts`: a string, or `null` for a phase that crosses no boundary — the
+  section is then omitted rather than filled.
+- `testStrategy`, `verification`, `expectedHandoff`: strings.
+
 ## Example well-formed phase
 
 ```markdown
