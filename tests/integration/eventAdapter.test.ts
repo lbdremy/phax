@@ -2,6 +2,7 @@ import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import type { BranchName, PhaseId, RunId, WorktreePath } from "../../src/domain/branded.js";
 import type { PhaxEventBase } from "../../src/domain/events.js";
+import type { SecurityPolicy } from "../../src/domain/security/types.js";
 import {
   AgentInvocationError,
   PhaseHadNoChangesError,
@@ -43,6 +44,15 @@ const runStatusSeed = JSON.stringify({
   currentPhaseIndex: 0,
 });
 
+const security: SecurityPolicy = {
+  mode: "unsafe",
+  filesystem: { allowRead: [], allowWrite: [] },
+  network: { profile: "open" },
+  mcp: { mode: "provider-default", allow: [] },
+  agentCommands: [],
+  failClosed: false,
+};
+
 const base: PhaxEventBase = {
   eventId: "evt-1",
   occurredAt: "2026-05-21T00:00:00.000Z",
@@ -76,7 +86,7 @@ describe("adaptAgentRun", () => {
     const event = await Effect.runPromise(
       adaptAgentRun(
         "prompt",
-        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/", security },
         base,
       ).pipe(Effect.provide(layer)),
     );
@@ -95,7 +105,7 @@ describe("adaptAgentRun", () => {
     const event = await Effect.runPromise(
       adaptAgentRun(
         "prompt",
-        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/", security },
         base,
       ).pipe(Effect.provide(layer)),
     );
@@ -115,7 +125,7 @@ describe("adaptAgentRun", () => {
     const event = await Effect.runPromise(
       adaptAgentRun(
         "prompt",
-        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/", security },
         base,
       ).pipe(Effect.provide(layer)),
     );
@@ -134,7 +144,7 @@ describe("adaptAgentRun", () => {
       Effect.either(
         adaptAgentRun(
           "prompt",
-          { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+          { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/", security },
           base,
         ).pipe(Effect.provide(layer)),
       ),
@@ -164,7 +174,7 @@ describe("adaptAgentResume", () => {
       adaptAgentResume(
         sessionId,
         "prompt",
-        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/", security },
         base,
       ).pipe(Effect.provide(layer)),
     );
@@ -183,7 +193,7 @@ describe("adaptAgentResume", () => {
       adaptAgentResume(
         sessionId,
         "prompt",
-        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/", security },
         base,
       ).pipe(Effect.provide(layer)),
     );
@@ -203,7 +213,7 @@ describe("adaptAgentResume", () => {
       adaptAgentResume(
         sessionId,
         "prompt",
-        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+        { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/", security },
         base,
       ).pipe(Effect.provide(layer)),
     );
@@ -222,7 +232,7 @@ describe("adaptAgentResume", () => {
         adaptAgentResume(
           sessionId,
           "prompt",
-          { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/" },
+          { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/", security },
           base,
         ).pipe(Effect.provide(layer)),
       ),

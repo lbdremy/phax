@@ -300,7 +300,7 @@ describe("publishRun: records push wiring", () => {
   });
 
   it("does not push records when autoPush is off", async () => {
-    const { fs, git, github, layers } = setupPublishLayers();
+    const { fs, git, layers } = setupPublishLayers();
     seedPublishPreconditions({ fs, git });
 
     const records: ResolvedRecordsConfig = {
@@ -324,7 +324,7 @@ describe("publishRun: records push wiring", () => {
   });
 
   it("pushes records to the source repo's publish remote for an in-repo destination", async () => {
-    const { fs, git, github, layers } = setupPublishLayers();
+    const { fs, git, layers } = setupPublishLayers();
     seedPublishPreconditions({ fs, git });
 
     const records: ResolvedRecordsConfig = {
@@ -350,7 +350,7 @@ describe("publishRun: records push wiring", () => {
   });
 
   it("pushes records to the local clone's origin for a dedicated repo destination", async () => {
-    const { fs, git, github, layers } = setupPublishLayers();
+    const { fs, git, layers } = setupPublishLayers();
     seedPublishPreconditions({ fs, git });
 
     const records: ResolvedRecordsConfig = {
@@ -381,7 +381,7 @@ describe("publishRun: records push wiring", () => {
   });
 
   it("a records push failure leaves the publish result successful", async () => {
-    const { fs, git, github, layers } = setupPublishLayers();
+    const { fs, git, layers } = setupPublishLayers();
     seedPublishPreconditions({ fs, git });
     git.impl.failNextPushBranch("remote rejected");
 

@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Either } from "effect";
 import { describe, expect, it } from "vitest";
 import { recordPhaseWorktreeAndBranch } from "../../src/app/phaseStatusUpdates.js";
 import type { BranchName, WorktreePath } from "../../src/domain/branded.js";

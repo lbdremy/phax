@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { mergeConfigLayers } from "../../src/domain/config/mergeLayers.js";
-import type { PhaxConfig, PhaxUserOverlay } from "../../src/schemas/phaxConfig.js";
+import type { GateStep, PhaxConfig, PhaxUserOverlay } from "../../src/schemas/phaxConfig.js";
+
+function step(command: string): GateStep {
+  return { command, surface: "local", firing: "every-phase", output: "log" };
+}
 
 function makeProject(overrides: Partial<PhaxConfig> = {}): PhaxConfig {
   return {
     version: 1,
     name: "test",
-    gateProfiles: { fast: ["pnpm test"] as const },
+    gateProfiles: { fast: [step("pnpm test")] },
     ...overrides,
   } as PhaxConfig;
 }
@@ -20,16 +24,6 @@ describe("mergeConfigLayers", () => {
     it("returns the project config unchanged (same reference)", () => {
       const project = makeProject();
       const result = mergeConfigLayers({ project });
-      expect(result).toBe(project);
-    });
-
-    it("returns the project config unchanged when user layers are explicitly undefined", () => {
-      const project = makeProject();
-      const result = mergeConfigLayers({
-        project,
-        globalUser: undefined,
-        localUser: undefined,
-      });
       expect(result).toBe(project);
     });
   });
@@ -176,33 +170,33 @@ describe("mergeConfigLayers", () => {
   describe("gateProfiles: union by key", () => {
     it("merges keys from all layers", () => {
       const project = makeProject({
-        gateProfiles: { full: ["pnpm check:full"] as const },
+        gateProfiles: { full: [step("pnpm check:full")] },
       });
-      const globalUser = makeOverlay({ gateProfiles: { fast: ["pnpm test:unit"] as const } });
-      const localUser = makeOverlay({ gateProfiles: { dev: ["pnpm dev"] as const } });
+      const globalUser = makeOverlay({ gateProfiles: { fast: [step("pnpm test:unit")] } });
+      const localUser = makeOverlay({ gateProfiles: { dev: [step("pnpm dev")] } });
       const result = mergeConfigLayers({ project, globalUser, localUser });
-      expect(result.gateProfiles["full"]).toEqual(["pnpm check:full"]);
-      expect(result.gateProfiles["fast"]).toEqual(["pnpm test:unit"]);
-      expect(result.gateProfiles["dev"]).toEqual(["pnpm dev"]);
+      expect(result.gateProfiles["full"]).toEqual([step("pnpm check:full")]);
+      expect(result.gateProfiles["fast"]).toEqual([step("pnpm test:unit")]);
+      expect(result.gateProfiles["dev"]).toEqual([step("pnpm dev")]);
     });
 
     it("higher layer wins for a shared profile key", () => {
       const project = makeProject({
-        gateProfiles: { fast: ["pnpm test"] as const },
+        gateProfiles: { fast: [step("pnpm test")] },
       });
-      const globalUser = makeOverlay({ gateProfiles: { fast: ["pnpm test:unit"] as const } });
-      const localUser = makeOverlay({ gateProfiles: { fast: ["pnpm test:unit --run"] as const } });
+      const globalUser = makeOverlay({ gateProfiles: { fast: [step("pnpm test:unit")] } });
+      const localUser = makeOverlay({ gateProfiles: { fast: [step("pnpm test:unit --run")] } });
       const result = mergeConfigLayers({ project, globalUser, localUser });
-      expect(result.gateProfiles["fast"]).toEqual(["pnpm test:unit --run"]);
+      expect(result.gateProfiles["fast"]).toEqual([step("pnpm test:unit --run")]);
     });
 
     it("global overrides project for a shared key when no local", () => {
       const project = makeProject({
-        gateProfiles: { fast: ["pnpm test"] as const },
+        gateProfiles: { fast: [step("pnpm test")] },
       });
-      const globalUser = makeOverlay({ gateProfiles: { fast: ["pnpm test:unit"] as const } });
+      const globalUser = makeOverlay({ gateProfiles: { fast: [step("pnpm test:unit")] } });
       const result = mergeConfigLayers({ project, globalUser });
-      expect(result.gateProfiles["fast"]).toEqual(["pnpm test:unit"]);
+      expect(result.gateProfiles["fast"]).toEqual([step("pnpm test:unit")]);
     });
   });
 

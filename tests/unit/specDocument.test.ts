@@ -173,7 +173,7 @@ describe("decodeSpecDocument", () => {
 
   it("rejects an unknown top-level key", () => {
     const doc: Mutable = validSpecDocument();
-    doc.summary = "not a spec field";
+    doc["summary"] = "not a spec field";
     expect(rejection(doc)).toMatch(/^summary: is unexpected/);
   });
 

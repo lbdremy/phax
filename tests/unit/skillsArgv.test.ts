@@ -72,7 +72,7 @@ describe("skills install subcommand registration", () => {
     await p.parseAsync(["node", "phax", "skills", "install", "--target", "claude"]);
 
     expect(installFn).toHaveBeenCalledOnce();
-    expect(installFn.mock.calls[0][0]).toMatchObject({ target: "claude", scope: "project" });
+    expect(installFn.mock.calls[0]?.[0]).toMatchObject({ target: "claude", scope: "project" });
   });
 
   it("--scope can be set to user", async () => {
@@ -101,7 +101,7 @@ describe("skills install subcommand registration", () => {
     ]);
 
     expect(installFn).toHaveBeenCalledOnce();
-    expect(installFn.mock.calls[0][0]).toMatchObject({ target: "codex", scope: "user" });
+    expect(installFn.mock.calls[0]?.[0]).toMatchObject({ target: "codex", scope: "user" });
   });
 });
 

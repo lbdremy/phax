@@ -104,16 +104,16 @@ beforeEach(() => {
   writeFileSync(join(repoDir, "brief.md"), "Prune archived runs.\nFree their slugs.\n");
 
   tempHome = mkdtempSync(join(tmpdir(), "phax-headless-cmd-home-"));
-  originalHome = process.env.HOME;
-  process.env.HOME = tempHome;
+  originalHome = process.env["HOME"];
+  process.env["HOME"] = tempHome;
 
   process.chdir(repoDir);
 });
 
 afterEach(() => {
   process.chdir(originalCwd);
-  if (originalHome === undefined) delete process.env.HOME;
-  else process.env.HOME = originalHome;
+  if (originalHome === undefined) delete process.env["HOME"];
+  else process.env["HOME"] = originalHome;
   removeTempDir(repoDir);
   removeTempDir(tempHome);
 });

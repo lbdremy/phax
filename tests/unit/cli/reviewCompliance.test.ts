@@ -2,6 +2,10 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
 import { runReviewCompliance } from "../../../src/cli/commands/reviewCompliance.js";
 import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
+import {
+  DEFAULT_MODEL_ROUTING,
+  DEFAULT_PROVIDER_CONFIG,
+} from "../../../src/domain/routing/defaults.js";
 import type { BranchName } from "../../../src/domain/branded.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 
@@ -56,7 +60,13 @@ function makeConfig(enabled: boolean): ResolvedConfig {
     extractPlanModel: "claude-haiku-4-5-20251001",
     extractPlanEffort: "low",
     fileReconciliationMode: "report_only",
-    security: { mode: "secure", enforcedGates: [], allowedPaths: [], blockedCommands: [] },
+    security: {
+      profile: "secure",
+      filesystem: { allowRead: [], allowWrite: [] },
+      network: { profile: "provider-only" },
+      mcp: { mode: "disabled", allow: [] },
+      agentCommands: [],
+    },
     publish: {
       auto: false,
       remote: "origin",
@@ -65,6 +75,17 @@ function makeConfig(enabled: boolean): ResolvedConfig {
       createPullRequest: true,
     },
     complianceReview: { enabled, model: "claude-sonnet-4-6", effort: "medium" },
+    codeReview: { model: "claude-opus-5-5", effort: "high" },
+    authoring: {
+      spec: { model: "claude-opus-5-5", effort: "high" },
+      plan: { model: "claude-opus-5-5", effort: "high" },
+    },
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" },
+      autoPush: false,
+    },
   };
 }
 
@@ -134,14 +155,14 @@ describe("runReviewCompliance", () => {
 
     const { reviewCompliance } = vi.mocked(await import("../../../src/app/reviewCompliance.js"));
     reviewCompliance.mockReturnValue(
-      Effect.succeed({ kind: "generated", verdict: "pass", structuredVerdictMissing: false }),
+      Effect.succeed({ kind: "generated", verdict: "conformant", structuredVerdictMissing: false }),
     );
 
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
       await import("../../../src/app/loadRouting.js"),
     );
-    loadModelRouting.mockReturnValue(Effect.succeed({ families: [] }));
-    loadProviderConfig.mockReturnValue(Effect.succeed({}));
+    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
+    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
 
     const { out, errors } = makeOutput();
     const code = await runReviewCompliance(QUALIFIED_NAME, {}, out);
@@ -186,14 +207,14 @@ describe("runReviewCompliance", () => {
 
     const { reviewCompliance } = vi.mocked(await import("../../../src/app/reviewCompliance.js"));
     reviewCompliance.mockReturnValue(
-      Effect.succeed({ kind: "generated", verdict: "pass", structuredVerdictMissing: false }),
+      Effect.succeed({ kind: "generated", verdict: "conformant", structuredVerdictMissing: false }),
     );
 
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
       await import("../../../src/app/loadRouting.js"),
     );
-    loadModelRouting.mockReturnValue(Effect.succeed({ families: [] }));
-    loadProviderConfig.mockReturnValue(Effect.succeed({}));
+    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
+    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
 
     const { out, lines } = makeOutput();
     await runReviewCompliance(FAKE_SHORT_NAME, {}, out);

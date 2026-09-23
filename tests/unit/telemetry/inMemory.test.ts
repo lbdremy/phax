@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { decodeRunId } from "../../../src/domain/branded.js";
 import {
   makeAdapterCallStartedTelemetryEvent,
-  makeAdapterCallSucceededTelemetryEvent,
   makeStateTransitionTelemetryEvent,
   makeStepCompletedTelemetryEvent,
   makeStepStartedTelemetryEvent,
@@ -36,7 +35,7 @@ describe("InMemoryTelemetry", () => {
         layer,
         SystemTelemetry.pipe(
           Effect.flatMap((t) =>
-            Effect.all([t.recordEvent(e1), t.recordEvent(e2)], { concurrency: "sequential" }),
+            Effect.all([t.recordEvent(e1), t.recordEvent(e2)], { concurrency: 1 }),
           ),
         ),
       );
@@ -115,7 +114,6 @@ describe("InMemoryTelemetry", () => {
     it("still records surrounding events even when operation fails", async () => {
       const { impl, layer } = makeInMemoryTelemetryLayer();
       const e1 = makeStepStartedTelemetryEvent({ runId, step: "pre" });
-      const e2 = makeStepStartedTelemetryEvent({ runId, step: "post" });
       class Boom {
         readonly _tag = "Boom";
       }
@@ -125,7 +123,7 @@ describe("InMemoryTelemetry", () => {
           SystemTelemetry.pipe(
             Effect.flatMap((t) =>
               Effect.all([t.recordEvent(e1), t.withOperation("op", {}, Effect.fail(new Boom()))], {
-                concurrency: "sequential",
+                concurrency: 1,
               }),
             ),
           ),
@@ -151,7 +149,7 @@ describe("InMemoryTelemetry", () => {
                 t.incrementCounter("my.counter"),
                 t.incrementCounter("my.counter"),
               ],
-              { concurrency: "sequential" },
+              { concurrency: 1 },
             ),
           ),
         ),
@@ -171,7 +169,7 @@ describe("InMemoryTelemetry", () => {
                 t.incrementCounter("my.counter", { env: "dev" }),
                 t.incrementCounter("my.counter", { env: "prod" }),
               ],
-              { concurrency: "sequential" },
+              { concurrency: 1 },
             ),
           ),
         ),
@@ -194,7 +192,7 @@ describe("InMemoryTelemetry", () => {
                 t.recordDuration("op.latency", 25),
                 t.recordDuration("op.latency", 5),
               ],
-              { concurrency: "sequential" },
+              { concurrency: 1 },
             ),
           ),
         ),

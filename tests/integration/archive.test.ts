@@ -15,6 +15,7 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { makeFakeLock } from "../../src/infra/fakes/lock.js";
 import type { ShortName } from "../../src/domain/branded.js";
+import type { PhaxState } from "../../src/domain/state.js";
 
 const stateRoot = "/fake-state";
 const repoRoot = "/fake-repo";
@@ -212,7 +213,7 @@ describe("archive — umbrella layout", () => {
   it("emits exactly two MoveRunToArchive effects when worktrees dir exists", async () => {
     // Test the reducer directly with the new event shape.
     const { interpret } = await import("../../src/domain/reducer.js");
-    const state = { run: "review_open" as const };
+    const state: PhaxState = { run: "review_open", phase: { state: "review_open" } };
 
     const worktreesFrom = join(stateRoot, "worktrees", shortName);
     const worktreesTo = join(stateRoot, "archive", shortName, "worktrees");
@@ -246,7 +247,7 @@ describe("archive — umbrella layout", () => {
 
   it("emits only one MoveRunToArchive effect when worktrees fields are absent", async () => {
     const { interpret } = await import("../../src/domain/reducer.js");
-    const state = { run: "review_open" as const };
+    const state: PhaxState = { run: "review_open", phase: { state: "review_open" } };
 
     const from = join(stateRoot, "runs", shortName);
     const to = join(stateRoot, "archive", shortName, "runs");

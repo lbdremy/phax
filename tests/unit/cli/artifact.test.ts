@@ -23,6 +23,7 @@ import {
   SpecRetirementBlockedError,
 } from "../../../src/domain/errors.js";
 import { sidecarRemedy } from "../../../src/domain/artifact/sidecar.js";
+import { DEFAULT_MODEL_ROUTING } from "../../../src/domain/routing/defaults.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 import type {
   AuthorArtifactResult,
@@ -602,7 +603,7 @@ describe("runCreateArtifactHeadless", () => {
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
       await import("../../../src/app/loadRouting.js"),
     );
-    loadModelRouting.mockReturnValue(Effect.succeed({ families: [], providerPriority: [] }));
+    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
     loadProviderConfig.mockReturnValue(Effect.succeed({ providers: {} }));
 
     const { resolveModel } = vi.mocked(await import("../../../src/domain/routing/resolve.js"));

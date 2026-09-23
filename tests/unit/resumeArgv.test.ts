@@ -45,31 +45,31 @@ describe("resume subcommand argv parsing", () => {
   it("passes --yes", async () => {
     const spy = await parseAndCapture(["resume", "foo", "--yes"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][1]).toMatchObject({ yes: true });
+    expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true });
   });
 
   it("passes -y short alias", async () => {
     const spy = await parseAndCapture(["resume", "foo", "-y"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][1]).toMatchObject({ yes: true });
+    expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true });
   });
 
   it("passes --yes --verbose --trace together", async () => {
     const spy = await parseAndCapture(["resume", "foo", "--yes", "--verbose", "--trace"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][1]).toMatchObject({ yes: true, verbose: true, trace: true });
+    expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true, verbose: true, trace: true });
   });
 
   it("merges global --verbose with subcommand --yes", async () => {
     const spy = await parseAndCapture(["--verbose", "resume", "foo", "--yes"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][1]).toMatchObject({ yes: true, verbose: true });
+    expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true, verbose: true });
   });
 
   it("calls runResume without yes when no flags given", async () => {
     const spy = await parseAndCapture(["resume", "foo"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][1].yes).toBeUndefined();
+    expect(spy.mock.calls[0]?.[1].yes).toBeUndefined();
   });
 
   it("forwards --provider-priority to runResume", async () => {
@@ -80,18 +80,18 @@ describe("resume subcommand argv parsing", () => {
       "codex-cli,claude-code",
     ]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][1]).toMatchObject({ providerPriority: "codex-cli,claude-code" });
+    expect(spy.mock.calls[0]?.[1]).toMatchObject({ providerPriority: "codex-cli,claude-code" });
   });
 
   it("passes a bare short name as-is", async () => {
     const spy = await parseAndCapture(["resume", "my-run"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toBe("my-run");
+    expect(spy.mock.calls[0]?.[0]).toBe("my-run");
   });
 
   it("passes a qualified name as-is", async () => {
     const spy = await parseAndCapture(["resume", "mynamespace.my-run"]);
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toBe("mynamespace.my-run");
+    expect(spy.mock.calls[0]?.[0]).toBe("mynamespace.my-run");
   });
 });

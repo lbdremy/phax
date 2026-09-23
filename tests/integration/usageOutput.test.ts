@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, readFileSync } from "node:fs";
@@ -8,7 +8,7 @@ const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
 const mainTs = join(repoRoot, "src/cli/main.ts");
 const specPath = join(repoRoot, "phax.usage.kdl");
 
-function runCli(args: string[]): ReturnType<typeof spawnSync> {
+function runCli(args: string[]): SpawnSyncReturns<string> {
   return spawnSync("tsx", [mainTs, ...args], {
     encoding: "utf8",
     env: { ...process.env },

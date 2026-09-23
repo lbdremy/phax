@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach } from "vitest";
-import { execSync, spawnSync, spawnSyncReturns } from "node:child_process";
+import { execSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,7 +9,7 @@ import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js"
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
 const mainTs = join(repoRoot, "src/cli/main.ts");
 
-function runCli(args: string[]): spawnSyncReturns<string> {
+function runCli(args: string[]): SpawnSyncReturns<string> {
   return spawnSync("tsx", [mainTs, ...args], {
     encoding: "utf8",
   });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Effect, Either, Option } from "effect";
+import { Effect, Option } from "effect";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import {
   readCacheEntry,

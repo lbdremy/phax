@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Either } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { resolvePhaseInfo } from "../../src/app/resolveRunInfo.js";
+import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 
 vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(() => ({ status: 0, error: undefined })),
@@ -171,23 +172,42 @@ describe("runEnterPhase", () => {
         repoRoot: stateRoot,
         maxFixAttempts: 3,
         extractPlanModel: "claude-haiku-4-5-20251001",
-        extractPlanEffort: "low" as const,
-        fileReconciliationMode: "report_only" as const,
-
+        extractPlanEffort: "low",
+        fileReconciliationMode: "report_only",
         security: {
           profile: "unsafe",
           filesystem: { allowRead: [], allowWrite: [] },
-          network: { profile: "provider-only", allowDomains: [] },
+          network: { profile: "provider-only" },
           mcp: { mode: "disabled", allow: [] },
+          agentCommands: [],
+        },
+        publish: {
+          auto: false,
+          remote: "origin",
+          provider: "github",
+          pushBranch: true,
+          createPullRequest: true,
+        },
+        complianceReview: { enabled: false, model: "claude-sonnet-5", effort: "medium" },
+        codeReview: { model: "claude-opus-5-5", effort: "high" },
+        authoring: {
+          spec: { model: "claude-opus-5-5", effort: "high" },
+          plan: { model: "claude-opus-5-5", effort: "high" },
+        },
+        records: {
+          enabled: false,
+          transcript: false,
+          destination: { kind: "in-repo" },
+          autoPush: false,
         },
         raw: {
-          version: 1 as const,
-          project: { name: "test", type: "single-package" as const },
+          version: 1,
+          name: "test",
           state: { root: stateRoot },
           gateProfiles: {},
           commands: { setup: ["true"] },
         },
-      }),
+      } satisfies ResolvedConfig),
     );
   });
 
@@ -213,7 +233,11 @@ describe("runEnterPhase", () => {
 
     const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
     const logs: string[] = [];
-    const out = { log: (m: string) => logs.push(m), error: (m: string) => logs.push(`ERR: ${m}`) };
+    const out = {
+      log: (m: string) => logs.push(m),
+      warn: (m: string) => logs.push(`WARN: ${m}`),
+      error: (m: string) => logs.push(`ERR: ${m}`),
+    };
 
     const exitCode = await runEnterPhase("my-run", "phase-01", out);
 
@@ -240,7 +264,7 @@ describe("runEnterPhase", () => {
 
     const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
     const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
+    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 
     const exitCode = await runEnterPhase("my-run", "phase-01", out);
 
@@ -258,7 +282,7 @@ describe("runEnterPhase", () => {
 
     const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
     const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
+    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 
     const exitCode = await runEnterPhase("my-run", "phase-01", out);
 
@@ -271,7 +295,7 @@ describe("runEnterPhase", () => {
 
     const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
     const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m) };
+    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 
     const exitCode = await runEnterPhase("my-run", "phase-99", out);
 

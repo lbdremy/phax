@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Layer } from "effect";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";

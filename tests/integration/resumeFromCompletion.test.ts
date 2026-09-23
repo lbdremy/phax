@@ -5,13 +5,25 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
-import { decodeShortName } from "../../src/domain/branded.js";
+import { decodeShortName, type RunId } from "../../src/domain/branded.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
-import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
-import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import type { Backend } from "../../src/ports/backend.js";
+import type { FileSystem } from "../../src/ports/fs.js";
+import type { Git } from "../../src/ports/git.js";
+import type { GitHub } from "../../src/ports/github.js";
+import type { Shell } from "../../src/ports/shell.js";
+import { NoopSystemTelemetryLayer, type SystemTelemetry } from "../../src/ports/systemTelemetry.js";
+import {
+  resolveAuthoringConfig,
+  resolveCodeReviewConfig,
+  resolveComplianceReviewConfig,
+  resolvePublishConfig,
+  type ResolvedConfig,
+} from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
 
 const HANDOFF_CONTENT = [
@@ -57,9 +69,11 @@ function makeConfig(stateRoot: string): ResolvedConfig {
   return {
     raw: {
       version: 1,
-      project: { name: "test-project", type: "single-package" },
+      name: "test-project",
       state: { root: stateRoot },
-      gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+      gateProfiles: {
+        full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+      },
       commands: { setup: ["true"], cleanup: ["true"] },
     },
     stateRoot,
@@ -69,6 +83,10 @@ function makeConfig(stateRoot: string): ResolvedConfig {
     extractPlanModel: "claude-haiku-4-5-20251001",
     extractPlanEffort: "low" as const,
     fileReconciliationMode: "report_only" as const,
+    publish: resolvePublishConfig(undefined),
+    complianceReview: resolveComplianceReviewConfig(undefined),
+    codeReview: resolveCodeReviewConfig(undefined),
+    authoring: resolveAuthoringConfig(undefined),
     records: {
       enabled: false,
       transcript: false,
@@ -78,7 +96,7 @@ function makeConfig(stateRoot: string): ResolvedConfig {
     security: {
       profile: "unsafe",
       filesystem: { allowRead: [], allowWrite: [] },
-      network: { profile: "provider-only", allowDomains: [] },
+      network: { profile: "provider-only" },
       mcp: { mode: "disabled", allow: [] },
       agentCommands: [],
     },
@@ -188,9 +206,9 @@ async function seedCompletionFailedRun(opts: {
 
 async function runResume(opts: {
   stateRoot: string;
-  layers: Layer.Layer<never, never, never>;
+  layers: Layer.Layer<Backend | FileSystem | Git | GitHub | Shell | SystemTelemetry>;
   runPath: string;
-  runId: string;
+  runId: RunId;
 }) {
   const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
   const config = makeConfig(opts.stateRoot);
@@ -208,7 +226,7 @@ async function runResume(opts: {
         runId: opts.runId,
         startIndex: 0,
         planRepoRelPath: PLAN_REL,
-      }).pipe(Effect.provide(opts.layers as never)),
+      }).pipe(Effect.provide(opts.layers)),
     ),
   );
 }
@@ -266,6 +284,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
       fakeGit.layer,
       fakeShell.layer,
       fakeBackend.layer,
+      makeFakeGitHub().layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
     );
@@ -280,7 +299,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
     expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
     // The gate command is not re-run.
-    const gateCalls = fakeShell.impl.calls.filter((c) => c.command === "true");
+    const gateCalls = fakeShell.impl.calls.filter((c) => c.command.join(" ") === "true");
     expect(gateCalls).toHaveLength(0);
 
     // The plan is completed on the branch and reported.
@@ -337,6 +356,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
       fakeGit.layer,
       fakeShell.layer,
       fakeBackend.layer,
+      makeFakeGitHub().layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
     );

@@ -248,7 +248,7 @@ describe("publishRun", () => {
   });
 
   it("missing review-handoff.md: returns failed result, does not push", async () => {
-    const { fs, git, github, layers } = setupLayers();
+    const { fs, git, layers } = setupLayers();
     // Note: skip handoff seeding
     git.impl.addExistingBranch(finalBranch);
     git.impl.addExistingRemote("origin");

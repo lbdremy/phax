@@ -19,7 +19,7 @@ const BASE_OPTS = {
   nowIso: NOW,
 };
 
-function makePlanMd(shortName: string, files: string[]): string {
+function makePlanMd(shortName: string): string {
   return [
     `# Plan — ${shortName}`,
     "",
@@ -88,14 +88,14 @@ describe("analyzePlanOverlap", () => {
   it("returns cleanPairs for two plans with disjoint footprints", async () => {
     const planA = {
       path: "/repo/plans/a.md",
-      md: makePlanMd("plan-a", []),
+      md: makePlanMd("plan-a"),
       shortName: "plan-a",
       creates: ["src/foo.ts"],
       edits: [],
     };
     const planB = {
       path: "/repo/plans/b.md",
-      md: makePlanMd("plan-b", []),
+      md: makePlanMd("plan-b"),
       shortName: "plan-b",
       creates: ["src/bar.ts"],
       edits: [],
@@ -116,14 +116,14 @@ describe("analyzePlanOverlap", () => {
   it("returns a medium edge for two plans sharing a source file via edit", async () => {
     const planA = {
       path: "/repo/plans/a.md",
-      md: makePlanMd("plan-a", []),
+      md: makePlanMd("plan-a"),
       shortName: "plan-a",
       creates: [],
       edits: ["src/shared.ts"],
     };
     const planB = {
       path: "/repo/plans/b.md",
-      md: makePlanMd("plan-b", []),
+      md: makePlanMd("plan-b"),
       shortName: "plan-b",
       creates: [],
       edits: ["src/shared.ts"],
@@ -143,14 +143,14 @@ describe("analyzePlanOverlap", () => {
   it("does not call backend on second call for already-cached plans (warm hit)", async () => {
     const planA = {
       path: "/repo/plans/a.md",
-      md: makePlanMd("plan-a", []),
+      md: makePlanMd("plan-a"),
       shortName: "plan-a",
       creates: ["src/foo.ts"],
       edits: [],
     };
     const planB = {
       path: "/repo/plans/b.md",
-      md: makePlanMd("plan-b", []),
+      md: makePlanMd("plan-b"),
       shortName: "plan-b",
       creates: ["src/bar.ts"],
       edits: [],
@@ -171,7 +171,7 @@ describe("analyzePlanOverlap", () => {
   it("fails with a message naming the offending path when a plan cannot be loaded", async () => {
     const planA = {
       path: "/repo/plans/a.md",
-      md: makePlanMd("plan-a", []),
+      md: makePlanMd("plan-a"),
       shortName: "plan-a",
       creates: ["src/foo.ts"],
       edits: [],
@@ -225,7 +225,7 @@ describe("analyzePlanOverlap", () => {
   it("fails with a two-or-more message when fewer than two distinct paths are given", async () => {
     const planA = {
       path: "/repo/plans/a.md",
-      md: makePlanMd("plan-a", []),
+      md: makePlanMd("plan-a"),
       shortName: "plan-a",
       creates: [],
       edits: [],
@@ -256,14 +256,14 @@ describe("analyzePlanOverlap", () => {
   it("label carries the run shortName and path", async () => {
     const planA = {
       path: "/repo/plans/a.md",
-      md: makePlanMd("my-feature", []),
+      md: makePlanMd("my-feature"),
       shortName: "my-feature",
       creates: ["src/foo.ts"],
       edits: [],
     };
     const planB = {
       path: "/repo/plans/b.md",
-      md: makePlanMd("other-plan", []),
+      md: makePlanMd("other-plan"),
       shortName: "other-plan",
       creates: ["src/bar.ts"],
       edits: [],

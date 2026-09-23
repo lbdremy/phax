@@ -8,15 +8,17 @@ import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.
 
 interface TestOutput {
   logs: string[];
+  warnings: string[];
   errors: string[];
 }
 
 function makeOutput(): TestOutput & { port: Parameters<typeof runReviewHandoff>[2] } {
-  const o: TestOutput = { logs: [], errors: [] };
+  const o: TestOutput = { logs: [], warnings: [], errors: [] };
   return {
     ...o,
     port: {
       log: (m: string) => o.logs.push(m),
+      warn: (m: string) => o.warnings.push(m),
       error: (m: string) => o.errors.push(m),
     },
   };
@@ -96,7 +98,9 @@ describe("runReviewHandoff command", () => {
         version: 1,
         name: "test",
         state: { root: stateRoot },
-        gateProfiles: { fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] },
+        gateProfiles: {
+          fast: [{ command: "pnpm test", surface: "local", firing: "every-phase", output: "log" }],
+        },
       }),
     );
 

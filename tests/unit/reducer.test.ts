@@ -1,6 +1,7 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import {
+  decodeBranchName,
   decodeClaudeSessionId,
   decodePhaseId,
   decodeRunId,
@@ -23,6 +24,7 @@ const runId = unwrap(decodeRunId("run-1"));
 const phaseId = unwrap(decodePhaseId("phase-01"));
 const sessionId = unwrap(decodeClaudeSessionId("session-1"));
 const worktreePath = unwrap(decodeWorktreePath("/tmp/wt"));
+const finalPhaseBranch = unwrap(decodeBranchName("ai/run-1--phase-01"));
 
 const base = {
   eventId: "evt-1",
@@ -40,7 +42,9 @@ const sampleReviewInfo: RunReviewInfo = {
   shortName: "run-1",
   runId: "run-1",
   runState: "running",
+  runTitle: undefined,
   branch: "ai/run-1",
+  finalPhaseBranch,
   stateRoot: "/tmp/state",
   runPath: "/tmp/state/runs/run-1",
   finalPhaseId: "phase-01",
@@ -113,7 +117,24 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     missingSections: ["## Summary"],
   },
   CommitCreated: { ...base, type: "CommitCreated", phase: phaseId, hash: "abc123" },
+  CommitFailed: {
+    ...base,
+    type: "CommitFailed",
+    phase: phaseId,
+    phaseId,
+    worktreePath,
+    sessionId,
+    reason: "commit failed",
+  },
   CleanupStarted: { ...base, type: "CleanupStarted", phase: phaseId },
+  CleanupFailed: {
+    ...base,
+    type: "CleanupFailed",
+    phase: phaseId,
+    phaseId,
+    worktreePath,
+    reason: "cleanup failed",
+  },
   CleanupCompleted: { ...base, type: "CleanupCompleted", phase: phaseId },
   PhaseHadNoChanges: {
     ...base,
@@ -123,6 +144,14 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     worktreePath,
     sessionId,
     reason: "Phase phase-01 produced no changes",
+  },
+  ArtifactCompletionFailed: {
+    ...base,
+    type: "ArtifactCompletionFailed",
+    phase: phaseId,
+    phaseId,
+    worktreePath,
+    reason: "artifact completion failed",
   },
   RateLimitDetected: {
     ...base,
@@ -152,6 +181,13 @@ const representativeState: { readonly [K in PhaxStateName]: PhaxState } = {
   archived: { run: "archived" },
 };
 
+/** Events a running run handles only from one phase substate — walked from that substate. */
+const runningStateFor: Partial<Record<PhaxEventType, PhaxState>> = {
+  CommitFailed: { run: "running", phase: { state: "passed" } },
+  CleanupFailed: { run: "running", phase: { state: "committed", hash: "abc123" } },
+  ArtifactCompletionFailed: { run: "running", phase: { state: "committed", hash: "abc123" } },
+};
+
 const runStateNames = Object.keys(representativeState) as readonly PhaxStateName[];
 const eventTypeNames = Object.keys(sampleEvents) as readonly PhaxEventType[];
 
@@ -167,7 +203,8 @@ describe("phaxDispositionMatrix", () => {
   it("agrees with the reducer on canonical (state, event) pairs", () => {
     for (const r of runStateNames) {
       for (const e of eventTypeNames) {
-        const disposition = interpret(representativeState[r], sampleEvents[e]);
+        const state = (r === "running" ? runningStateFor[e] : undefined) ?? representativeState[r];
+        const disposition = interpret(state, sampleEvents[e]);
         const expected: DispositionKind = phaxDispositionMatrix[r][e];
         expect(
           disposition.kind,

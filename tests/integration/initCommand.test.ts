@@ -6,13 +6,16 @@ import { runInit } from "../../src/cli/commands/init.js";
 
 const captureOutput = () => {
   const logs: string[] = [];
+  const warnings: string[] = [];
   const errors: string[] = [];
   return {
     out: {
       log: (msg: string) => logs.push(msg),
+      warn: (msg: string) => warnings.push(msg),
       error: (msg: string) => errors.push(msg),
     },
     logs,
+    warnings,
     errors,
   };
 };

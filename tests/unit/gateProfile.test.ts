@@ -3,18 +3,23 @@ import { Either } from "effect";
 import { resolveGateProfile } from "../../src/app/gates.js";
 import {
   decodePhaxConfig,
+  resolveAuthoringConfig,
+  resolveCodeReviewConfig,
+  resolveComplianceReviewConfig,
+  resolvePublishConfig,
   type GateStep,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
+import { resolveRecordsConfig } from "../../src/schemas/recordsConfig.js";
 
 function step(command: string, surface: GateStep["surface"] = "local"): GateStep {
   return { command, surface, firing: "every-phase", output: "log" };
 }
 
 function makeConfig(overrides?: Partial<ResolvedConfig["raw"]>): ResolvedConfig {
-  const raw = {
-    version: 1 as const,
-    project: { name: "test-project", type: "single-package" as const },
+  const raw: ResolvedConfig["raw"] = {
+    version: 1,
+    name: "test-project",
     state: { root: "~/.phax" },
     gateProfiles: {
       fast: [step("pnpm test")],
@@ -24,18 +29,25 @@ function makeConfig(overrides?: Partial<ResolvedConfig["raw"]>): ResolvedConfig 
   };
   return {
     raw,
+    namespace: "test-project",
     stateRoot: "/home/user/.phax",
     repoRoot: "/home/user/repo",
     maxFixAttempts: 1,
     extractPlanModel: "claude-haiku-4-5-20251001",
     extractPlanEffort: "low" as const,
     fileReconciliationMode: "report_only" as const,
+    publish: resolvePublishConfig(undefined),
+    complianceReview: resolveComplianceReviewConfig(undefined),
+    codeReview: resolveCodeReviewConfig(undefined),
+    authoring: resolveAuthoringConfig(undefined),
+    records: resolveRecordsConfig(undefined),
 
     security: {
       profile: "unsafe",
       filesystem: { allowRead: [], allowWrite: [] },
-      network: { profile: "provider-only", allowDomains: [] },
+      network: { profile: "provider-only" },
       mcp: { mode: "disabled", allow: [] },
+      agentCommands: [],
     },
   };
 }

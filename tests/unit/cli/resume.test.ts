@@ -3,6 +3,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Either } from "effect";
+import type { BranchName } from "../../../src/domain/branded.js";
+import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
+import type { PhaseState } from "../../../src/domain/state.js";
+import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
+import type { PhaseStatus } from "../../../src/schemas/status.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({ loadConfig: vi.fn() }));
 vi.mock("../../../src/app/loadTelemetryConfig.js", () => ({ loadTelemetryConfig: vi.fn() }));
@@ -54,7 +59,7 @@ function makeOutput() {
   };
 }
 
-function makeConfig(stateRoot: string) {
+function makeConfig(stateRoot: string): ResolvedConfig {
   return {
     raw: { gateProfiles: { full: {} } } as never,
     namespace: "test-ns",
@@ -62,26 +67,47 @@ function makeConfig(stateRoot: string) {
     repoRoot: stateRoot,
     maxFixAttempts: 3,
     extractPlanModel: "claude-haiku-4-5-20251001",
-    extractPlanEffort: "low" as const,
-    fileReconciliationMode: "report_only" as const,
+    extractPlanEffort: "low",
+    fileReconciliationMode: "report_only",
     security: {
-      profile: "secure" as const,
-      network: { profile: "provider-only" as const },
-      mcp: { mode: "disabled" as const },
+      profile: "secure",
+      filesystem: { allowRead: [], allowWrite: [] },
+      network: { profile: "provider-only" },
+      mcp: { mode: "disabled", allow: [] },
+      agentCommands: [],
+    },
+    publish: {
+      auto: false,
+      remote: "origin",
+      provider: "github",
+      pushBranch: true,
+      createPullRequest: true,
+    },
+    complianceReview: { enabled: false, model: "claude-sonnet-5", effort: "medium" },
+    codeReview: { model: "claude-opus-5-5", effort: "high" },
+    authoring: {
+      spec: { model: "claude-opus-5-5", effort: "high" },
+      plan: { model: "claude-opus-5-5", effort: "high" },
+    },
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" },
+      autoPush: false,
     },
   };
 }
 
-function makePhaseStatus(state: string, index = 0) {
+function makePhaseStatus(state: PhaseState, index = 0): PhaseStatus {
   const now = new Date().toISOString();
   return {
-    version: 1 as const,
+    version: 1,
     phaseId: `phase-0${index + 1}`,
     phaseIndex: index,
     state,
     model: "claude-sonnet-4-6",
-    effort: "low" as const,
-    branchName: `ai/my-run--phase-0${index + 1}`,
+    effort: "low",
+    branchName: `ai/my-run--phase-0${index + 1}` as BranchName,
     createdAt: now,
     updatedAt: now,
   };
@@ -109,7 +135,7 @@ describe("runResume — review_open early branch recap", () => {
     rmSync(stateRoot, { recursive: true, force: true });
   });
 
-  async function setupMocks(phaseStatuses: ReturnType<typeof makePhaseStatus>[]) {
+  async function setupMocks(phaseStatuses: PhaseStatus[]) {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     const { loadTelemetryConfig } = vi.mocked(
       await import("../../../src/app/loadTelemetryConfig.js"),
@@ -120,14 +146,14 @@ describe("runResume — review_open early branch recap", () => {
     loadConfig.mockReturnValue(Either.right(makeConfig(stateRoot)));
     loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
 
-    const info = {
+    const info: RunReviewInfo = {
       namespace: "test-ns",
       shortName: "my-run",
       runId: "run-123",
       runState: "review_open",
       branch: "ai/my-run",
       runTitle: "My Run",
-      finalPhaseBranch: "ai/my-run--phase-01",
+      finalPhaseBranch: "ai/my-run--phase-01" as BranchName,
       stateRoot,
       runPath,
       finalPhaseId: "phase-01",

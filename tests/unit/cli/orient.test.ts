@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
 import { runOrient } from "../../../src/cli/commands/orient.js";
-import { OrientProviderError } from "../../../src/domain/errors.js";
+import { ConfigValidationError, OrientProviderError } from "../../../src/domain/errors.js";
+import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -32,7 +33,7 @@ function makeOutput() {
   };
 }
 
-function makeConfig(orient: { command: string } | undefined) {
+function makeConfig(orient: { command: string } | undefined): ResolvedConfig {
   return {
     raw: {} as never,
     namespace: "myproject",
@@ -43,10 +44,11 @@ function makeConfig(orient: { command: string } | undefined) {
     extractPlanEffort: "low" as const,
     fileReconciliationMode: "report_only" as const,
     security: {
-      mode: "secure" as const,
-      enforcedGates: [],
-      allowedPaths: [],
-      blockedCommands: [],
+      profile: "secure",
+      filesystem: { allowRead: [], allowWrite: [] },
+      network: { profile: "provider-only" },
+      mcp: { mode: "disabled", allow: [] },
+      agentCommands: [],
     },
     publish: {
       auto: false,
@@ -59,6 +61,17 @@ function makeConfig(orient: { command: string } | undefined) {
       enabled: false,
       model: "claude-sonnet-4-6",
       effort: "medium" as const,
+    },
+    codeReview: { model: "claude-opus-5-5", effort: "high" },
+    authoring: {
+      spec: { model: "claude-opus-5-5", effort: "high" },
+      plan: { model: "claude-opus-5-5", effort: "high" },
+    },
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" },
+      autoPush: false,
     },
     ...(orient !== undefined ? { orient } : {}),
   };
@@ -86,7 +99,9 @@ describe("runOrient", () => {
   it("errors with exit 1 when config fails to load", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(
-      Either.left({ message: "no phax.json found", path: "/repo/phax.json" }),
+      Either.left(
+        new ConfigValidationError({ message: "no phax.json found", path: "/repo/phax.json" }),
+      ),
     );
 
     const { out, errors } = makeOutput();

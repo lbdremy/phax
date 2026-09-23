@@ -5,7 +5,6 @@ import {
   makeJsonFileTelemetryOps,
   makeJsonFileSystemTelemetryLayer,
 } from "../../../src/infra/telemetry/jsonFile.js";
-import { FileSystem } from "../../../src/ports/fs.js";
 import { SystemTelemetry } from "../../../src/ports/systemTelemetry.js";
 
 const TRACE_PATH = "/run/semantic.jsonl";
@@ -18,14 +17,14 @@ const readLines = (content: string): unknown[] =>
 
 describe("makeJsonFileTelemetryOps", () => {
   it("stamps every record with an ISO-8601 ts field", async () => {
-    const { impl: fs, layer: fsLayer } = makeFakeFileSystem();
+    const { impl: fs } = makeFakeFileSystem();
     let tick = 0;
     const now = () => new Date("2025-01-15T10:00:00.000Z").getTime() + tick++ * 1000;
     const ops = makeJsonFileTelemetryOps(TRACE_PATH, fs, now);
 
     await Effect.runPromise(
       Effect.all([ops.incrementCounter("test.counter"), ops.recordDuration("test.duration", 42)], {
-        concurrency: "sequential",
+        concurrency: 1,
       }),
     );
 

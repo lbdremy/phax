@@ -9,6 +9,7 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { makeScopesRequest } from "../../src/domain/plan/projection.js";
+import type { SecurityPolicy } from "../../src/domain/security/types.js";
 
 const runPath = "/fake/runs/my-run";
 const cwd = "/fake/worktrees/my-run/phase-01";
@@ -39,6 +40,15 @@ const runStatusJson = JSON.stringify({
   currentPhaseIndex: 0,
 });
 
+const security: SecurityPolicy = {
+  mode: "unsafe",
+  filesystem: { allowRead: [], allowWrite: [] },
+  network: { profile: "open" },
+  mcp: { mode: "provider-default", allow: [] },
+  agentCommands: [],
+  failClosed: false,
+};
+
 const baseOpts = {
   steps: [
     { command: "pnpm test", surface: "local", firing: "every-phase", output: "log" },
@@ -59,6 +69,7 @@ const baseOpts = {
     model: "claude-sonnet-4-6",
     effort: "medium",
     cwd,
+    security,
     phaseFolderPath,
   },
   maxFixAttempts: 1,

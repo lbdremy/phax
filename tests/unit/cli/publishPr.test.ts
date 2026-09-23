@@ -3,7 +3,13 @@ import { Effect, Either } from "effect";
 import { runPublishPr } from "../../../src/cli/commands/publishPr.js";
 import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
 import type { BranchName } from "../../../src/domain/branded.js";
-import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
+import { ConfigValidationError } from "../../../src/domain/errors.js";
+import {
+  resolveAuthoringConfig,
+  resolveCodeReviewConfig,
+  type ResolvedConfig,
+} from "../../../src/schemas/phaxConfig.js";
+import { resolveSecurityConfig } from "../../../src/schemas/securityConfig.js";
 
 const FAKE_SHORT_NAME = "my-run";
 const FAKE_PR_URL = "https://github.com/org/repo/pull/42";
@@ -41,7 +47,7 @@ function makeConfig(publishAuto: boolean): ResolvedConfig {
     extractPlanModel: "claude-haiku-4-5-20251001",
     extractPlanEffort: "low",
     fileReconciliationMode: "report_only",
-    security: { mode: "secure", enforcedGates: [], allowedPaths: [], blockedCommands: [] },
+    security: resolveSecurityConfig(undefined, "secure"),
     publish: {
       auto: publishAuto,
       remote: "origin",
@@ -50,6 +56,8 @@ function makeConfig(publishAuto: boolean): ResolvedConfig {
       createPullRequest: true,
     },
     complianceReview: { enabled: false, model: "claude-sonnet-4-6", effort: "medium" },
+    codeReview: resolveCodeReviewConfig(undefined),
+    authoring: resolveAuthoringConfig(undefined),
     records: {
       enabled: false,
       transcript: false,
@@ -90,7 +98,7 @@ describe("runPublishPr", () => {
 
   it("returns 1 and error when config load fails", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.left({ message: "no phax.json" }));
+    loadConfig.mockReturnValue(Either.left(new ConfigValidationError({ message: "no phax.json" })));
 
     const { out, errors } = makeOutput();
     const code = await runPublishPr(FAKE_SHORT_NAME, {}, out);

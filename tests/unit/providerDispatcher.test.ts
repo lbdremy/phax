@@ -34,8 +34,10 @@ const baseOptions: AgentRunOptions = {
   security: {
     mode: "unsafe",
     filesystem: { allowRead: [], allowWrite: [] },
-    network: { profile: "open", allowDomains: [] },
+    network: { profile: "open" },
     mcp: { mode: "provider-default", allow: [] },
+    agentCommands: [],
+
     failClosed: false,
   },
 };

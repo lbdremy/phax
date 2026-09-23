@@ -22,7 +22,14 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
-import type { OrientConfig, ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import {
+  resolveAuthoringConfig,
+  resolveCodeReviewConfig,
+  resolveComplianceReviewConfig,
+  resolvePublishConfig,
+  type OrientConfig,
+  type ResolvedConfig,
+} from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
 
 const HANDOFF_CONTENT = [
@@ -78,7 +85,7 @@ async function seedGatesExhaustedRun(opts: {
     worktreePath: opts.worktreePath,
   };
   if (opts.claudeSessionId !== undefined) {
-    phaseStatus.claudeSessionId = opts.claudeSessionId;
+    phaseStatus["claudeSessionId"] = opts.claudeSessionId;
   }
   await writeFile(join(phaseFolder, "status.json"), JSON.stringify(phaseStatus, null, 2));
 
@@ -172,9 +179,11 @@ describe("executePlan — happy-path 2-phase run", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
-        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+        },
         commands: { setup: ["true"], cleanup: ["true"] },
       },
       stateRoot,
@@ -194,10 +203,14 @@ describe("executePlan — happy-path 2-phase run", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
+      publish: resolvePublishConfig(undefined),
+      complianceReview: resolveComplianceReviewConfig(undefined),
+      codeReview: resolveCodeReviewConfig(undefined),
+      authoring: resolveAuthoringConfig(undefined),
     };
 
     const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
@@ -247,6 +260,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -341,9 +355,11 @@ describe("executePlan — happy-path 2-phase run", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
-        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+        },
         commands: { setup: ["true"], cleanup: ["true"] },
       },
       stateRoot,
@@ -363,10 +379,14 @@ describe("executePlan — happy-path 2-phase run", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
+      publish: resolvePublishConfig(undefined),
+      complianceReview: resolveComplianceReviewConfig(undefined),
+      codeReview: resolveCodeReviewConfig(undefined),
+      authoring: resolveAuthoringConfig(undefined),
     };
 
     const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
@@ -414,6 +434,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -456,9 +477,11 @@ describe("executePlan — happy-path 2-phase run", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
-        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+        },
         commands: { setup: ["true"], cleanup: ["true"] },
       },
       stateRoot,
@@ -477,10 +500,14 @@ describe("executePlan — happy-path 2-phase run", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
+      publish: resolvePublishConfig(undefined),
+      complianceReview: resolveComplianceReviewConfig(undefined),
+      codeReview: resolveCodeReviewConfig(undefined),
+      authoring: resolveAuthoringConfig(undefined),
     };
 
     const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
@@ -528,6 +555,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -574,9 +602,11 @@ describe("executePlan — happy-path 2-phase run", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
-        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+        },
         commands: { setup: ["true"], cleanup: ["true"] },
       },
       stateRoot,
@@ -595,10 +625,14 @@ describe("executePlan — happy-path 2-phase run", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
+      publish: resolvePublishConfig(undefined),
+      complianceReview: resolveComplianceReviewConfig(undefined),
+      codeReview: resolveCodeReviewConfig(undefined),
+      authoring: resolveAuthoringConfig(undefined),
     };
 
     const fakeGit = makeFakeGit();
@@ -615,6 +649,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -687,9 +722,11 @@ function makeStatusTestConfig(root: string): ResolvedConfig {
   return {
     raw: {
       version: 1,
-      project: { name: "test-project", type: "single-package" },
+      name: "test-project",
       state: { root },
-      gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+      gateProfiles: {
+        full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+      },
       commands: { setup: ["true"], cleanup: ["true"] },
     },
     stateRoot: root,
@@ -708,10 +745,14 @@ function makeStatusTestConfig(root: string): ResolvedConfig {
     security: {
       profile: "unsafe",
       filesystem: { allowRead: [], allowWrite: [] },
-      network: { profile: "provider-only", allowDomains: [] },
+      network: { profile: "provider-only" },
       mcp: { mode: "disabled", allow: [] },
       agentCommands: [],
     },
+    publish: resolvePublishConfig(undefined),
+    complianceReview: resolveComplianceReviewConfig(undefined),
+    codeReview: resolveCodeReviewConfig(undefined),
+    authoring: resolveAuthoringConfig(undefined),
   };
 }
 
@@ -739,12 +780,17 @@ describe("executePlan — firing scheduling", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
         gateProfiles: {
           full: [
-            { command: "true", surface: "local", firing: "every-phase" },
-            { command: "echo terminal-step", surface: "product", firing: "terminal" },
+            { command: "true", surface: "local", firing: "every-phase", output: "log" },
+            {
+              command: "echo terminal-step",
+              surface: "product",
+              firing: "terminal",
+              output: "log",
+            },
           ],
         },
         commands: { setup: ["true"], cleanup: ["true"] },
@@ -765,10 +811,14 @@ describe("executePlan — firing scheduling", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
+      publish: resolvePublishConfig(undefined),
+      complianceReview: resolveComplianceReviewConfig(undefined),
+      codeReview: resolveCodeReviewConfig(undefined),
+      authoring: resolveAuthoringConfig(undefined),
     };
 
     const phase01WorktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
@@ -817,6 +867,7 @@ describe("executePlan — firing scheduling", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -925,6 +976,7 @@ describe("executePlan — binding status lifecycle", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -975,6 +1027,7 @@ describe("executePlan — binding status lifecycle", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -1091,6 +1144,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -1176,6 +1230,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -1240,9 +1295,11 @@ describe("executePlan — resume from gates_exhausted", () => {
   const baseConfig = (): ResolvedConfig => ({
     raw: {
       version: 1,
-      project: { name: "test-project", type: "single-package" },
+      name: "test-project",
       state: { root: stateRoot },
-      gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+      gateProfiles: {
+        full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+      },
       commands: { setup: ["true"], cleanup: ["true"] },
     },
     stateRoot,
@@ -1261,10 +1318,14 @@ describe("executePlan — resume from gates_exhausted", () => {
     security: {
       profile: "unsafe",
       filesystem: { allowRead: [], allowWrite: [] },
-      network: { profile: "provider-only", allowDomains: [] },
+      network: { profile: "provider-only" },
       mcp: { mode: "disabled", allow: [] },
       agentCommands: [],
     },
+    publish: resolvePublishConfig(undefined),
+    complianceReview: resolveComplianceReviewConfig(undefined),
+    codeReview: resolveCodeReviewConfig(undefined),
+    authoring: resolveAuthoringConfig(undefined),
   });
 
   beforeEach(async () => {
@@ -1310,6 +1371,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -1383,6 +1445,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -1452,6 +1515,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -1523,6 +1587,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -1579,8 +1644,8 @@ describe("executePlan — resume from gates_exhausted", () => {
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
     // The bound provider/model must be used in the gate loop, not routing's "claude-code".
     expect(fakeBackend.impl.resumeCalls.length).toBeGreaterThan(0);
-    expect(fakeBackend.impl.resumeCalls[0].options.provider).toBe("codex-cli");
-    expect(fakeBackend.impl.resumeCalls[0].options.model).toBe("codex-mini-latest");
+    expect(fakeBackend.impl.resumeCalls[0]?.options.provider).toBe("codex-cli");
+    expect(fakeBackend.impl.resumeCalls[0]?.options.model).toBe("codex-mini-latest");
   });
 });
 
@@ -1624,9 +1689,11 @@ function makePublishBaseConfig(
   return {
     raw: {
       version: 1,
-      project: { name: "test-project", type: "single-package" },
+      name: "test-project",
       state: { root: stateRootPath },
-      gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+      gateProfiles: {
+        full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+      },
       commands: { setup: ["true"], cleanup: ["true"] },
     },
     stateRoot: stateRootPath,
@@ -1645,11 +1712,14 @@ function makePublishBaseConfig(
     security: {
       profile: "unsafe",
       filesystem: { allowRead: [], allowWrite: [] },
-      network: { profile: "provider-only", allowDomains: [] },
+      network: { profile: "provider-only" },
       mcp: { mode: "disabled", allow: [] },
       agentCommands: [],
     },
     publish,
+    complianceReview: resolveComplianceReviewConfig(undefined),
+    codeReview: resolveCodeReviewConfig(undefined),
+    authoring: resolveAuthoringConfig(undefined),
   };
 }
 
@@ -1910,10 +1980,12 @@ describe("executePlan — security preflight", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
-        gateProfiles: { full: [{ command: "pnpm test", surface: "local", firing: "every-phase" }] },
-        commands: { setup: [], cleanup: [] },
+        gateProfiles: {
+          full: [{ command: "pnpm test", surface: "local", firing: "every-phase", output: "log" }],
+        },
+        commands: {},
       },
       stateRoot,
       namespace: "test-project",
@@ -1931,10 +2003,14 @@ describe("executePlan — security preflight", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
+      publish: resolvePublishConfig(undefined),
+      complianceReview: resolveComplianceReviewConfig(undefined),
+      codeReview: resolveCodeReviewConfig(undefined),
+      authoring: resolveAuthoringConfig(undefined),
     };
 
     const fakeGit = makeFakeGit();
@@ -1948,6 +2024,7 @@ describe("executePlan — security preflight", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -2027,10 +2104,12 @@ describe("executePlan — security preflight", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
-        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
-        commands: { setup: [], cleanup: [] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+        },
+        commands: {},
       },
       stateRoot,
       namespace: "test-project",
@@ -2048,10 +2127,14 @@ describe("executePlan — security preflight", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: ["deno fmt"],
       },
+      publish: resolvePublishConfig(undefined),
+      complianceReview: resolveComplianceReviewConfig(undefined),
+      codeReview: resolveCodeReviewConfig(undefined),
+      authoring: resolveAuthoringConfig(undefined),
     };
 
     const fakeGit = makeFakeGit();
@@ -2170,10 +2253,12 @@ describe("executePlan — records destination refusal", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
-        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
-        commands: { setup: [], cleanup: [] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+        },
+        commands: {},
       },
       stateRoot,
       namespace: "test-project",
@@ -2193,10 +2278,14 @@ describe("executePlan — records destination refusal", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
+      publish: resolvePublishConfig(undefined),
+      complianceReview: resolveComplianceReviewConfig(undefined),
+      codeReview: resolveCodeReviewConfig(undefined),
+      authoring: resolveAuthoringConfig(undefined),
     };
 
     const fakeGit = makeFakeGit();
@@ -2329,6 +2418,7 @@ describe("executePlan — orient dispatch weaving", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       fakeTelemetry.layer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -2397,6 +2487,7 @@ describe("executePlan — orient dispatch weaving", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       fakeTelemetry.layer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(
@@ -2447,6 +2538,7 @@ describe("executePlan — orient dispatch weaving", () => {
       fakeBackend.layer,
       NodeFileSystemLayer,
       fakeTelemetry.layer,
+      makeFakeGitHub().layer,
     );
 
     const { runPath, runId } = await Effect.runPromise(

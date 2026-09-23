@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type GlobalFileEntry,
   type GlobalFileStatus,
@@ -8,10 +8,8 @@ import {
 import type { PhaseFileReconciliation } from "../../../src/domain/reconciliation/types.js";
 
 // Type-level assertions: verify the public shapes are correct
-type _StatusCheck = GlobalFileStatus extends string ? true : never;
-type _EntryCheck = GlobalFileEntry["attention"] extends "ok" | "review" ? true : never;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _UsedImports = [_StatusCheck, _EntryCheck];
+expectTypeOf<GlobalFileStatus>().toMatchTypeOf<string>();
+expectTypeOf<GlobalFileEntry["attention"]>().toMatchTypeOf<"ok" | "review">();
 
 const emptyPhase = (phaseId: string): PhaseFileReconciliation => ({
   phaseId,
@@ -39,8 +37,8 @@ describe("aggregateGlobalReconciliation", () => {
       const result = aggregateGlobalReconciliation(phases);
       expect(result.files).toHaveLength(1);
       const entry = result.files[0];
-      expect(entry.path).toBe("src/foo.ts");
-      expect(entry.touchedInPhases).toEqual(["phase-01", "phase-02"]);
+      expect(entry?.path).toBe("src/foo.ts");
+      expect(entry?.touchedInPhases).toEqual(["phase-01", "phase-02"]);
     });
 
     it("files are sorted by path", () => {
@@ -120,7 +118,7 @@ describe("aggregateGlobalReconciliation", () => {
       ];
       const result = aggregateGlobalReconciliation(phases);
       expect(result.missing).toHaveLength(1);
-      expect(result.missing[0].path).toBe("src/missing.ts");
+      expect(result.missing[0]?.path).toBe("src/missing.ts");
     });
   });
 
@@ -215,7 +213,7 @@ describe("aggregateGlobalReconciliation", () => {
       ];
       const result = aggregateGlobalReconciliation(phases);
       expect(result.attentionPoints).toHaveLength(1);
-      expect(result.attentionPoints[0].path).toBe("src/test.ts");
+      expect(result.attentionPoints[0]?.path).toBe("src/test.ts");
     });
   });
 
@@ -321,7 +319,7 @@ describe("aggregateGlobalReconciliation", () => {
         { ...emptyPhase("phase-01"), unplannedCreated: ["src/truly-unplanned.ts"] },
       ];
       const result = aggregateGlobalReconciliation(phases);
-      expect(result.files[0].status).toBe("unplanned");
+      expect(result.files[0]?.status).toBe("unplanned");
     });
   });
 
@@ -331,7 +329,7 @@ describe("aggregateGlobalReconciliation", () => {
         { ...emptyPhase("phase-01"), createdAsPlanned: ["src/ok.ts"] },
       ];
       const result = aggregateGlobalReconciliation(phases);
-      expect(result.files[0].attention).toBe("ok");
+      expect(result.files[0]?.attention).toBe("ok");
       expect(result.attentionPoints).toHaveLength(0);
     });
 

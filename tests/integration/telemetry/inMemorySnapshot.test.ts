@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Either } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeRunId } from "../../../src/domain/branded.js";
 import {
@@ -56,7 +56,7 @@ describe("InMemoryTelemetry snapshot projection", () => {
               }),
             ),
           ],
-          { concurrency: "sequential" },
+          { concurrency: 1 },
         ),
       ),
     );
@@ -93,7 +93,7 @@ describe("InMemoryTelemetry snapshot projection", () => {
                     }),
                   ),
                 ],
-                { concurrency: "sequential" },
+                { concurrency: 1 },
               ),
             ),
           ),

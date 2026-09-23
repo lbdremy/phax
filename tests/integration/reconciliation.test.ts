@@ -10,10 +10,17 @@ import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import type { PhaseFileReconciliation } from "../../src/domain/reconciliation/types.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
-import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import {
+  resolveAuthoringConfig,
+  resolveCodeReviewConfig,
+  resolveComplianceReviewConfig,
+  resolvePublishConfig,
+  type ResolvedConfig,
+} from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
 
 const HANDOFF_CONTENT = [
@@ -73,9 +80,11 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
-        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+        },
         commands: { setup: ["true"], cleanup: ["true"] },
       },
       stateRoot,
@@ -85,6 +94,10 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      publish: resolvePublishConfig(undefined),
+      complianceReview: resolveComplianceReviewConfig(undefined),
+      codeReview: resolveCodeReviewConfig(undefined),
+      authoring: resolveAuthoringConfig(undefined),
       records: {
         enabled: false,
         transcript: false,
@@ -95,7 +108,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
@@ -140,6 +153,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       fakeGit.layer,
       fakeShell.layer,
       fakeBackend.layer,
+      makeFakeGitHub().layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
     );
@@ -195,9 +209,11 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
     const config: ResolvedConfig = {
       raw: {
         version: 1,
-        project: { name: "test-project", type: "single-package" },
+        name: "test-project",
         state: { root: stateRoot },
-        gateProfiles: { full: [{ command: "true", surface: "local", firing: "every-phase" }] },
+        gateProfiles: {
+          full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+        },
         commands: { setup: ["true"], cleanup: ["true"] },
       },
       stateRoot,
@@ -207,6 +223,10 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
+      publish: resolvePublishConfig(undefined),
+      complianceReview: resolveComplianceReviewConfig(undefined),
+      codeReview: resolveCodeReviewConfig(undefined),
+      authoring: resolveAuthoringConfig(undefined),
       records: {
         enabled: false,
         transcript: false,
@@ -217,7 +237,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       security: {
         profile: "unsafe",
         filesystem: { allowRead: [], allowWrite: [] },
-        network: { profile: "provider-only", allowDomains: [] },
+        network: { profile: "provider-only" },
         mcp: { mode: "disabled", allow: [] },
         agentCommands: [],
       },
@@ -259,6 +279,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       fakeGit.layer,
       fakeShell.layer,
       fakeBackend.layer,
+      makeFakeGitHub().layer,
       NodeFileSystemLayer,
       NoopSystemTelemetryLayer,
     );

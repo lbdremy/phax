@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  decodeBranchName,
   decodeClaudeSessionId,
   decodePhaseId,
   decodeRunId,
   decodeWorktreePath,
 } from "../../src/domain/branded.js";
 import type { PhaxEvent, PhaxEventType } from "../../src/domain/events.js";
+import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import { RateLimitError } from "../../src/domain/errors.js";
 import { Either } from "effect";
 
@@ -18,6 +20,28 @@ const runId = unwrap(decodeRunId("run-1"));
 const phaseId = unwrap(decodePhaseId("phase-01"));
 const sessionId = unwrap(decodeClaudeSessionId("session-1"));
 const worktreePath = unwrap(decodeWorktreePath("/tmp/wt"));
+
+const reviewInfo: RunReviewInfo = {
+  namespace: "test",
+  shortName: "run-1",
+  runId: "run-1",
+  runState: "review_open",
+  branch: "ai/run-1",
+  runTitle: "Run 1",
+  finalPhaseBranch: unwrap(decodeBranchName("ai/run-1--phase-01")),
+  stateRoot: "/tmp/state",
+  runPath: "/tmp/state/runs/run-1",
+  finalPhaseId: "phase-01",
+  finalPhaseTitle: "Phase 01",
+  worktreePath: "/tmp/wt",
+  claudeSessionId: undefined,
+  gateProfileId: "full",
+  phaseStatuses: [],
+  planPhases: [],
+  updatedAt: "2026-05-20T12:00:00Z",
+  stoppedReason: undefined,
+  lastError: undefined,
+};
 
 const base = {
   eventId: "evt-1",
@@ -47,7 +71,7 @@ const samples = {
     to: "/tmp/state/archive/run-1",
   },
   RunFailed: { ...base, type: "RunFailed", cause: new Error("boom") },
-  FinalReviewOpened: { ...base, type: "FinalReviewOpened" },
+  FinalReviewOpened: { ...base, type: "FinalReviewOpened", info: reviewInfo },
   RunCompleted: { ...base, type: "RunCompleted" },
   PhaseStartRequested: { ...base, type: "PhaseStartRequested", phaseId },
   WorktreeCreated: { ...base, type: "WorktreeCreated", phase: phaseId, path: worktreePath },
@@ -92,8 +116,43 @@ const samples = {
     missingSections: ["## Summary"],
   },
   CommitCreated: { ...base, type: "CommitCreated", phase: phaseId, hash: "abc123" },
+  CommitFailed: {
+    ...base,
+    type: "CommitFailed",
+    phase: phaseId,
+    phaseId,
+    worktreePath,
+    sessionId,
+    reason: "hook rejected",
+  },
   CleanupStarted: { ...base, type: "CleanupStarted", phase: phaseId },
   CleanupCompleted: { ...base, type: "CleanupCompleted", phase: phaseId },
+  CleanupFailed: {
+    ...base,
+    type: "CleanupFailed",
+    phase: phaseId,
+    phaseId,
+    worktreePath,
+    reason: "cleanup command failed",
+  },
+  PhaseHadNoChanges: {
+    ...base,
+    type: "PhaseHadNoChanges",
+    phase: phaseId,
+    phaseId,
+    worktreePath,
+    sessionId,
+    reason: "empty diff",
+  },
+  ArtifactCompletionFailed: {
+    ...base,
+    type: "ArtifactCompletionFailed",
+    phase: phaseId,
+    phaseId,
+    worktreePath,
+    reason: "dirty artifact",
+  },
+  PhaseResetRequested: { ...base, type: "PhaseResetRequested", phaseId },
   RateLimitDetected: {
     ...base,
     type: "RateLimitDetected",
@@ -146,6 +205,13 @@ function visit(event: PhaxEvent): string {
       return `${event.type}:${event.missingSections.join(",")}`;
     case "CommitCreated":
       return `${event.type}:${event.hash}`;
+    case "CommitFailed":
+    case "CleanupFailed":
+    case "PhaseHadNoChanges":
+    case "ArtifactCompletionFailed":
+      return `${event.type}:${event.phaseId}:${event.reason}`;
+    case "PhaseResetRequested":
+      return `${event.type}:${event.phaseId}`;
     case "RateLimitDetected":
       return `${event.type}:${event.kind}`;
     default:

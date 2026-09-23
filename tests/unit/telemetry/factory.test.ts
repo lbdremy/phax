@@ -92,7 +92,7 @@ describe("makeSystemTelemetryLayer", () => {
         layer,
         SystemTelemetry.pipe(
           Effect.flatMap((t) =>
-            Effect.all([t.recordEvent(e1), t.recordEvent(e2)], { concurrency: "sequential" }),
+            Effect.all([t.recordEvent(e1), t.recordEvent(e2)], { concurrency: 1 }),
           ),
         ),
       );
@@ -154,7 +154,7 @@ describe("makeSystemTelemetryLayer", () => {
         layer,
         SystemTelemetry.pipe(
           Effect.flatMap((t) =>
-            Effect.all([t.recordEvent(e1), t.recordEvent(e2)], { concurrency: "sequential" }),
+            Effect.all([t.recordEvent(e1), t.recordEvent(e2)], { concurrency: 1 }),
           ),
         ),
       );
