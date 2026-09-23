@@ -69,6 +69,34 @@ Consequences of the library form:
   stability promise already covers, and a read-only consumer of records (the steme cockpit's
   first slice) gets typed parsing instead of a hand-written one.
 
+## Library readiness — what to clean up first
+
+Surveyed 2026-09-23 against `src/app` and `src/infra`. The app layer is already close to
+a library: Node project (`tsc` → `dist/`, `tsx`, vitest; Deno only builds binaries), 73
+Effect use cases taking their ports through `Context`, no `OutputPort` and no `console` in
+`app`, every `infra` adapter exposed as a `Layer`, an event adapter that turns a run into
+a stream. What remains, cheapest first:
+
+1. **An exported surface.** `package.json` has `bin` only — no `main`, no `exports`. Add
+   entry points `./app`, `./ports`, `./schemas`, `./infra/local` with one barrel per
+   layer, and configure `knip` so anything not exported is private. This is what a
+   consumer may import; nothing else.
+2. **A reusable composition root.** Each CLI command assembles its own `Layer`s. Provide a
+   single `LocalLive` composing every local adapter, consumed identically by the CLI and
+   by a host; `CloudLive` later. Without it a host re-copies each command's wiring.
+3. **Three `process` reads in `app`** (`loadConfig`: `cwd`/`env`; `providerProbe`) go
+   behind a port, or the use case depends on the host process.
+4. **The lock** is a file behind its port; check what a long-lived host holding it across
+   runs means.
+5. **Errors and exit codes**: confirm no use case maps an error to an exit code itself —
+   that is the CLI's job.
+6. **Persisted formats become wire formats** (see costs above), which is why all of this
+   waits for the 1.0 stability promise.
+
+Not on the steme item-0 critical path: during the experiment the cockpit reads records
+through the schemas package and never imports `app`. This list is the prerequisite of the
+after-1.0 cloud mode.
+
 ## What it unlocks
 
 - **The exception inbox works fully.** `prompt` as a persisted decision request is the
