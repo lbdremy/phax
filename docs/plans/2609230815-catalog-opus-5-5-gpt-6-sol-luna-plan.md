@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-09-23
+  baseline: 60d4183
 ---
 
 # Catalog: Opus 5.5, GPT-6 Sol and Luna
