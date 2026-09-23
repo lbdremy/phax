@@ -1,11 +1,17 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect, Either, Layer } from "effect";
+import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NodeShellLayer } from "../../src/infra/shell.js";
+import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
+import {
+  writeAuthoringRecord,
+  type WriteAuthoringRecordInput,
+} from "../../src/app/writeAuthoringRecord.js";
 import { Git, type GitError } from "../../src/ports/git.js";
 import { Shell, type ShellError } from "../../src/ports/shell.js";
 import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
@@ -305,9 +311,180 @@ describe("records explain and list (real git)", () => {
 
     expect(result.kind).toBe("listed");
     if (result.kind !== "listed") throw new Error("expected listed");
-    const byPhase = new Map(result.records.map((r) => [r.phaseId, r]));
+    const byPhase = new Map(
+      result.records.flatMap((r) => (r.kind === "phase" ? [[r.phaseId, r] as const] : [])),
+    );
     expect(byPhase.get("phase-04")?.outcome).toBe("failed");
     expect(byPhase.get("phase-05")?.outcome).toBe("committed");
     expect(byPhase.get("phase-04")?.verifiedSurfaces).toEqual([]);
+  });
+
+  describe("authoring records", () => {
+    let sessionFolder: string;
+
+    beforeEach(() => {
+      sessionFolder = mkdtempSync(join(tmpdir(), "phax-records-explain-session-"));
+    });
+
+    afterEach(() => {
+      removeTempDir(sessionFolder);
+    });
+
+    // An artifact commit as `artifact new --headless` makes it: the draft plus
+    // its sidecar, with the Artifact and Authoring-Id trailers.
+    function commitArtifact(authoringId: string, artifact: string): string {
+      writeFileSync(join(repoDir, artifact.replaceAll("/", "_")), `${authoringId}\n`);
+      execGit(["add", "."], repoDir);
+      execGit(
+        [
+          "commit",
+          "-m",
+          `docs(specs): draft ${authoringId}`,
+          "-m",
+          `Authored headless.\n\nArtifact: ${artifact}\nAuthoring-Id: ${authoringId}`,
+        ],
+        repoDir,
+      );
+      return execGit(["rev-parse", "HEAD"], repoDir).trim();
+    }
+
+    async function recordSession(
+      authoringId: string,
+      artifact: string,
+      overrides: Partial<WriteAuthoringRecordInput> = {},
+    ): Promise<void> {
+      writeFileSync(join(sessionFolder, "brief.md"), "the brief\n");
+      writeFileSync(join(sessionFolder, "prompt.md"), "p".repeat(64));
+      writeFileSync(join(sessionFolder, "document.json"), '{"kind":"spec"}\n');
+      writeFileSync(join(sessionFolder, "output.jsonl"), '{"type":"result"}\n');
+      const fakeGitHub = makeFakeGitHub();
+      await Effect.runPromise(
+        Effect.provide(
+          writeAuthoringRecord({
+            repoRoot: repoDir,
+            sessionFolder,
+            authoringId,
+            artifact,
+            artifactKind: "spec",
+            provider: "claude-code",
+            model: "claude-opus-5-5",
+            effort: "high",
+            outcome: "committed",
+            records: IN_REPO_CONFIG,
+            ...overrides,
+          }),
+          Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, fakeGitHub.layer),
+        ),
+      );
+    }
+
+    it("resolves an authoring record through the artifact commit's Authoring-Id trailer", async () => {
+      const artifact = "docs/specs/2609230835-plan-prune.md";
+      const sha = commitArtifact("2609230835-plan-prune", artifact);
+      await recordSession("2609230835-plan-prune", artifact, { sourceSha: sha });
+
+      const outcome = await run(
+        explainRecord({ sha, repoRoot: repoDir, records: IN_REPO_CONFIG, publishRemote: "origin" }),
+      );
+
+      expect(outcome.kind).toBe("found-authoring");
+      if (outcome.kind !== "found-authoring") throw new Error("expected found-authoring");
+      expect(outcome.record.authoringId).toBe("2609230835-plan-prune");
+      expect(outcome.record.manifest.artifact).toBe(artifact);
+      expect(outcome.record.manifest.outcome).toBe("committed");
+      expect(outcome.record.manifest.sourceSha).toBe(sha);
+      expect(outcome.record.sourceCommitReachable).toBe(true);
+      expect(outcome.record.foundVia).toBe("local");
+      expect(outcome.record.briefByteLength).toBe("the brief\n".length);
+      expect(outcome.record.promptByteLength).toBe(64);
+      expect(outcome.record.documentPresent).toBe(true);
+      expect(outcome.record.artifacts.has("output.jsonl")).toBe(true);
+    });
+
+    it("an id that is a prefix of a newer record's id still resolves its own record", async () => {
+      const shortSha = commitArtifact("2609230835-plan", "docs/specs/2609230835-plan.md");
+      await recordSession("2609230835-plan", "docs/specs/2609230835-plan.md", {
+        sourceSha: shortSha,
+      });
+      const longSha = commitArtifact(
+        "2609230835-plan-prune",
+        "docs/specs/2609230835-plan-prune.md",
+      );
+      await recordSession("2609230835-plan-prune", "docs/specs/2609230835-plan-prune.md", {
+        sourceSha: longSha,
+      });
+
+      const outcome = await run(
+        explainRecord({
+          sha: shortSha,
+          repoRoot: repoDir,
+          records: IN_REPO_CONFIG,
+          publishRemote: "origin",
+        }),
+      );
+
+      expect(outcome.kind).toBe("found-authoring");
+      if (outcome.kind !== "found-authoring") throw new Error("expected found-authoring");
+      expect(outcome.record.manifest.artifact).toBe("docs/specs/2609230835-plan.md");
+    });
+
+    it("an artifact commit without a record is not found under its authoring key", async () => {
+      const sha = commitArtifact("2609230835-orphan", "docs/specs/2609230835-orphan.md");
+      execGit(
+        ["remote", "add", "origin", join(tmpdir(), "phax-records-explain-no-such-remote")],
+        repoDir,
+      );
+
+      const outcome = await run(
+        explainRecord({ sha, repoRoot: repoDir, records: IN_REPO_CONFIG, publishRemote: "origin" }),
+      );
+
+      expect(outcome).toMatchObject({ kind: "not-found", key: "authoring/2609230835-orphan" });
+    });
+
+    it("records list shows an authoring record beside phase records", async () => {
+      const runId = "run-mixed-1786800000004";
+      await writeFullRecordCommit(
+        repoDir,
+        {
+          version: 2,
+          runId,
+          phaseId: "phase-01",
+          shape: "skeleton",
+          model: "claude-sonnet-5",
+          effort: "high",
+          provider: "claude-code",
+          outcome: "committed",
+          usage: { available: false },
+          verifiedSurfaces: ["local"],
+        },
+        { "prompt.md": "p" },
+      );
+      await recordSession("2609230835-plan-prune", "docs/specs/2609230835-plan-prune.md", {
+        outcome: "failed",
+      });
+
+      const all = await run(
+        listRecords({ records: IN_REPO_CONFIG, repoRoot: repoDir, publishRemote: "origin" }),
+      );
+
+      if (all.kind !== "listed") throw new Error("expected listed");
+      expect(all.records.map((r) => r.kind)).toEqual(["authoring", "phase"]);
+      expect(all.records[0]).toMatchObject({
+        kind: "authoring",
+        authoringId: "2609230835-plan-prune",
+        artifact: "docs/specs/2609230835-plan-prune.md",
+        artifactKind: "spec",
+        outcome: "failed",
+        shape: "full",
+      });
+
+      // Filtering by run keeps only that run's phase records.
+      const byRun = await run(
+        listRecords({ records: IN_REPO_CONFIG, repoRoot: repoDir, publishRemote: "origin", runId }),
+      );
+      if (byRun.kind !== "listed") throw new Error("expected listed");
+      expect(byRun.records.map((r) => r.kind)).toEqual(["phase"]);
+    });
   });
 });

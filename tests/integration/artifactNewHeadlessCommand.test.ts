@@ -152,6 +152,8 @@ describe("artifact new spec --headless (command)", () => {
     expect(lines.some((l) => l.includes("(Draft, headless)"))).toBe(true);
     expect(lines.some((l) => l.startsWith("sidecar "))).toBe(true);
     expect(lines.some((l) => l.startsWith("commit "))).toBe(true);
+    // No `records` block in phax.json: records are off.
+    expect(lines.at(-1)).toBe("record off");
 
     const specFiles = headCommitPaths().filter((p) => p.startsWith("docs/specs/"));
     expect(specFiles).toHaveLength(2);
@@ -197,6 +199,68 @@ describe("artifact new spec --headless (command)", () => {
     const specFiles = headCommitPaths().filter((p) => p.startsWith("docs/specs/"));
     expect(specFiles).toHaveLength(2);
     expect(backend.impl.runCalls[0]?.prompt).toContain("Prune archived runs.");
+  });
+
+  it("records on: writes the authoring record after the artifact commit and prints its key", async () => {
+    writeFileSync(
+      join(repoDir, "phax.json"),
+      JSON.stringify({
+        version: 1,
+        name: "test",
+        gateProfiles: { fast: [{ command: "true", surface: "local", firing: "every-phase" }] },
+        // Transcript off: a skeleton record is safe in-repo whatever the
+        // visibility, so the destination policy never asks `gh`.
+        records: { transcript: false, destination: { kind: "in-repo" }, autoPush: false },
+      }),
+    );
+    const backend = makeFakeBackend();
+    backend.impl.addRunResponse({
+      sessionId: "sess-authoring" as ClaudeSessionId,
+      outputPath: "output.jsonl",
+      finalText: JSON.stringify(SPEC_DOCUMENT),
+    });
+
+    const { out, lines, errors } = makeOutput();
+    const code = await runCreateArtifactHeadless(
+      "spec",
+      "plan-prune",
+      undefined,
+      { headless: true, brief: "brief.md" },
+      out,
+      { backendLayer: backend.layer },
+    );
+
+    expect(errors).toEqual([]);
+    expect(code).toBe(0);
+    const recordLine = lines.at(-1) ?? "";
+    expect(recordLine).toMatch(/^record authoring\/\d{10}-plan-prune$/);
+    const key = recordLine.slice("record ".length);
+
+    const recordFiles = execSync(`git ls-tree -r --name-only phax/records/v1`, { cwd: repoDir })
+      .toString("utf8")
+      .trim()
+      .split("\n");
+    expect(recordFiles).toEqual([
+      `${key}/brief.md`,
+      `${key}/document.json`,
+      `${key}/prompt.md`,
+      `${key}/record.json`,
+    ]);
+
+    const manifest = JSON.parse(
+      execSync(`git show phax/records/v1:${key}/record.json`, { cwd: repoDir }).toString("utf8"),
+    );
+    const artifactCommit = execSync("git rev-parse HEAD", { cwd: repoDir }).toString("utf8").trim();
+    expect(manifest).toMatchObject({
+      kind: "authoring",
+      outcome: "committed",
+      artifactKind: "spec",
+      sourceSha: artifactCommit,
+      shape: "skeleton",
+    });
+    // The artifact commit's Authoring-Id trailer names the record's key.
+    const body = execSync("git log -1 --format=%B HEAD", { cwd: repoDir }).toString("utf8");
+    expect(body).toContain(`Authoring-Id: ${key.slice("authoring/".length)}`);
   });
 
   it("--headless without --brief: refuses before spawning, exits 12", async () => {

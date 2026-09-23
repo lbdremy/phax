@@ -703,7 +703,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax records init [--force]` — Configure records for this project (transcript, destination, auto-push)
 - `phax records sync` — Bring the local records clone in line with its configured remote
 - `phax records status` — Show pending (unpushed) records, by run and phase
-- `phax records list [--run <id>]` — List records present, by run, phase, and verified surfaces
-- `phax records explain [FLAGS] <sha>` — Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage
+- `phax records list [--run <id>]` — List records present: phase records by run, phase, and verified surfaces; authoring records by id and artifact
+- `phax records explain [FLAGS] <sha>` — Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage — or, for a headless artifact commit, its authoring record
 
 <!-- END GENERATED CLI REFERENCE -->

@@ -963,7 +963,7 @@ Creates a Draft spec at docs/specs/<YYMMDDHHMM>-<slug>.md, with a frontmatter-on
 
 Side effects: writes the new spec file. Does not commit — transition commands (phax artifact approve) commit, creation does not.
 
-Pass --headless --brief <file|-> (experimental) to author the spec itself instead of writing a blank skeleton: phax spawns a recorded agent session with the phax-spec skill and the spec document JSON Schema, accepts a schema-valid document as the session's only output, renders it to the canonical Markdown, and writes the rendered spec plus its JSON sidecar. --model and --effort override the resolved authoring model/effort (flag, then phax.json's authoring.spec, then the catalog default). Side effects: spawns a provider session; on success, writes and commits the spec and its sidecar in one commit; nothing lands on a refusal or an invalid session result.
+Pass --headless --brief <file|-> (experimental) to author the spec itself instead of writing a blank skeleton: phax spawns a recorded agent session with the phax-spec skill and the spec document JSON Schema, accepts a schema-valid document as the session's only output, renders it to the canonical Markdown, and writes the rendered spec plus its JSON sidecar. --model and --effort override the resolved authoring model/effort (flag, then phax.json's authoring.spec, then the catalog default). Side effects: spawns a provider session; on success, writes and commits the spec and its sidecar in one commit; nothing lands on a refusal or an invalid session result. When records are configured, every session that ran — committed or failed — writes one authoring record (key authoring/<YYMMDDHHMM>-<slug>) on phax/records/v1, and `phax records explain <commit>` resolves it through the artifact commit's Authoring-Id trailer.
 
 ### Arguments
 
@@ -1007,7 +1007,7 @@ Creates a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md, with a frontmatt
 
 Side effects: writes the new plan file. Does not commit — transition commands (phax artifact approve) commit, creation does not.
 
-Pass --headless --brief <file|-> (experimental) to author the plan itself instead of writing a blank skeleton: phax spawns a recorded agent session with the phax-planning skill and the plan document JSON Schema (the extracted-plan shape plus informational content), accepts a schema-valid document as the session's only output, renders it to the phax-planning Markdown shape, writes the rendered plan plus its JSON sidecar, and seeds the extraction cache so phax run never re-extracts it. --model and --effort override the resolved authoring model/effort (flag, then phax.json's authoring.plan, then the catalog default). Side effects: spawns a provider session; on success, writes and commits the plan and its sidecar in one commit and seeds the extraction cache; nothing lands on a refusal or an invalid session result.
+Pass --headless --brief <file|-> (experimental) to author the plan itself instead of writing a blank skeleton: phax spawns a recorded agent session with the phax-planning skill and the plan document JSON Schema (the extracted-plan shape plus informational content), accepts a schema-valid document as the session's only output, renders it to the phax-planning Markdown shape, writes the rendered plan plus its JSON sidecar, and seeds the extraction cache so phax run never re-extracts it. --model and --effort override the resolved authoring model/effort (flag, then phax.json's authoring.plan, then the catalog default). Side effects: spawns a provider session; on success, writes and commits the plan and its sidecar in one commit and seeds the extraction cache; nothing lands on a refusal or an invalid session result. When records are configured, every session that ran — committed or failed — writes one authoring record (key authoring/<YYMMDDHHMM>-<slug>) on phax/records/v1, and `phax records explain <commit>` resolves it through the artifact commit's Authoring-Id trailer.
 
 ### Arguments
 
@@ -1243,7 +1243,7 @@ Show pending (unpushed) records, by run and phase
 
 - **Usage**: `phax records list [--run <id>]`
 
-List records present, by run, phase, and verified surfaces
+List records present: phase records by run, phase, and verified surfaces; authoring records by id and artifact
 
 ### Flags
 
@@ -1255,13 +1255,13 @@ Only show records for this run id
 
 - **Usage**: `phax records explain [FLAGS] <sha>`
 
-Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage
+Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage — or, for a headless artifact commit, its authoring record
 
 ### Arguments
 
 #### `<sha>`
 
-Commit sha in the source repository
+Commit sha in the source repository (a phase commit or an artifact commit)
 
 ### Flags
 

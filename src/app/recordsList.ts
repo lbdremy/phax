@@ -4,22 +4,36 @@ import { Shell, type ShellError } from "../ports/shell.js";
 import { ORIGIN } from "./recordsSync.js";
 import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
 import { RECORDS_REF } from "./recordsExplain.js";
+import type { RecordPhaseOutcome, RecordShape } from "../schemas/runRecord.js";
 import {
-  decodeRunRecordManifest,
-  type RecordPhaseOutcome,
-  type RecordShape,
-} from "../schemas/runRecord.js";
+  decodeRecordManifest,
+  isAuthoringRecordManifest,
+  type AuthoringRecordOutcome,
+} from "../schemas/authoringRecord.js";
+import type { ArtifactKind } from "../domain/artifact/status.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import type { Surface } from "../schemas/phaxConfig.js";
 
-export interface RecordListEntry {
-  readonly runId: string;
-  readonly phaseId: string;
-  readonly shape: RecordShape;
-  readonly outcome: RecordPhaseOutcome;
-  readonly recordCommitSha: string;
-  readonly verifiedSurfaces: readonly Surface[];
-}
+export type RecordListEntry =
+  | {
+      readonly kind: "phase";
+      readonly runId: string;
+      readonly phaseId: string;
+      readonly shape: RecordShape;
+      readonly outcome: RecordPhaseOutcome;
+      readonly recordCommitSha: string;
+      readonly verifiedSurfaces: readonly Surface[];
+    }
+  | {
+      readonly kind: "authoring";
+      readonly authoringId: string;
+      readonly shape: RecordShape;
+      readonly outcome: AuthoringRecordOutcome;
+      readonly recordCommitSha: string;
+      /** The artifact the session authored — where a phase record shows its verified surfaces. */
+      readonly artifact: string;
+      readonly artifactKind: ArtifactKind;
+    };
 
 export type ListRecordsResult =
   | { readonly kind: "disabled" }
@@ -31,7 +45,7 @@ export interface ListRecordsInput {
   readonly publishRemote: string;
   /** Required (and used) only when the destination is a dedicated `repo`. */
   readonly recordsClonePath?: string | undefined;
-  /** Restrict the listing to one run's records. */
+  /** Restrict the listing to one run's records (authoring records carry no run). */
   readonly runId?: string | undefined;
 }
 
@@ -40,7 +54,8 @@ export interface ListRecordsInput {
  * local branch yet, its remote-tracking ref — spec §5.9 never requires a
  * checked-out local branch). Records are not cumulative (see
  * `recordsExplain.ts`), so this walks the whole history rather than reading
- * one tree: every commit on `phax/records/v1` is itself exactly one record.
+ * one tree: every commit on `phax/records/v1` is itself exactly one record —
+ * a phase's or a headless authoring session's.
  */
 export function listRecords(
   input: ListRecordsInput,
@@ -87,10 +102,23 @@ export function listRecords(
         // schema-invalid one: skip it rather than crashing the whole listing.
         continue;
       }
-      const decoded = decodeRunRecordManifest(json);
+      const decoded = decodeRecordManifest(json);
       if (Either.isLeft(decoded)) continue;
       const manifest = decoded.right;
+      if (isAuthoringRecordManifest(manifest)) {
+        records.push({
+          kind: "authoring",
+          authoringId: manifest.authoringId,
+          shape: manifest.shape,
+          outcome: manifest.outcome,
+          recordCommitSha: sha,
+          artifact: manifest.artifact,
+          artifactKind: manifest.artifactKind,
+        });
+        continue;
+      }
       records.push({
+        kind: "phase",
         runId: manifest.runId,
         phaseId: manifest.phaseId,
         shape: manifest.shape,

@@ -11,9 +11,11 @@ import {
 import { computeRecordsPending, groupPendingByRun } from "../../app/recordsStatus.js";
 import {
   explainRecord,
+  type ExplainedAuthoringRecord,
   type ExplainedRecord,
   type ExplainOutcome,
 } from "../../app/recordsExplain.js";
+import type { RecordShape, TokenUsage } from "../../schemas/runRecord.js";
 import { listRecords } from "../../app/recordsList.js";
 import { readRegistry } from "../../app/registry.js";
 import { PromptCancelled } from "../../ports/prompt.js";
@@ -226,30 +228,87 @@ function renderExplainOutcome(
       return 1;
     case "not-phax-commit":
       out.error(
-        `Commit "${outcome.sha}" was not produced by a phax phase (no Run-Id/Phase-Id trailers).`,
+        `Commit "${outcome.sha}" was not produced by a phax phase or a headless authoring session (no Run-Id/Phase-Id or Authoring-Id trailers).`,
       );
       return 1;
     case "not-found":
       if (outcome.remoteConsulted) {
-        out.error(
-          `No record found for ${outcome.runId}/${outcome.phaseId} (checked local and remote).`,
-        );
+        out.error(`No record found for ${outcome.key} (checked local and remote).`);
       } else {
         out.error("No record found locally; the remote was not consulted (offline).");
       }
       return 1;
     case "found":
       return renderFoundRecord(outcome.record, opts, out);
+    case "found-authoring":
+      return renderFoundAuthoringRecord(outcome.record, opts, out);
   }
 }
 
-function printArtifact(record: ExplainedRecord, name: string, out: OutputPort): void {
+function printArtifact(
+  record: { readonly artifacts: ReadonlyMap<string, Uint8Array> },
+  name: string,
+  out: OutputPort,
+): void {
   const bytes = record.artifacts.get(name);
   if (bytes === undefined) {
     out.log(`(${name} not present in this record)`);
     return;
   }
   out.log(new TextDecoder().decode(bytes));
+}
+
+function shapeAndUsageLabel(record: {
+  readonly manifest: { readonly shape: RecordShape; readonly usage: TokenUsage };
+  readonly artifacts: ReadonlyMap<string, Uint8Array>;
+}): string {
+  const { manifest } = record;
+  const shapeLabel =
+    manifest.shape === "full"
+      ? `full (transcript ${formatBytes(record.artifacts.get("output.jsonl")?.length ?? 0)})`
+      : "skeleton (no transcript)";
+  const usageLabel = manifest.usage.available
+    ? `tokens ${manifest.usage.usage.inputTokens.toLocaleString()} in / ${manifest.usage.usage.outputTokens.toLocaleString()} out`
+    : "tokens unavailable";
+  return `${shapeLabel}   ${usageLabel}`;
+}
+
+function sizeLabel(byteLength: number | undefined): string {
+  return byteLength !== undefined ? `${byteLength} bytes` : "absent";
+}
+
+function renderFoundAuthoringRecord(
+  record: ExplainedAuthoringRecord,
+  opts: RecordsExplainOptions,
+  out: OutputPort,
+): number {
+  const { manifest } = record;
+
+  out.log(
+    `authoring ${record.authoringId} · ${manifest.provider} (${manifest.model}, ${manifest.effort})`,
+  );
+  out.log(`artifact ${manifest.artifact} (${manifest.artifactKind})`);
+  out.log(`record   ${shapeAndUsageLabel(record)}`);
+  out.log(`outcome  ${manifest.outcome}`);
+
+  if (manifest.sourceSha !== undefined) {
+    const reachability =
+      record.sourceCommitReachable === true ? "reachable" : "not reachable — rebased or squashed";
+    out.log(`source   ${manifest.sourceSha} (${reachability})`);
+  } else {
+    out.log("source   (none — session did not commit)");
+  }
+
+  out.log(
+    `brief    ${sizeLabel(record.briefByteLength)}   prompt  ${sizeLabel(record.promptByteLength)}   document  ${record.documentPresent ? "present" : "absent"}`,
+  );
+
+  if (opts.prompt === true) printArtifact(record, "prompt.md", out);
+  if (opts.diff === true) printArtifact(record, "diff.patch", out);
+  if (opts.transcript === true) printArtifact(record, "output.jsonl", out);
+  if (opts.gates === true) out.log("(an authoring record carries no gate logs)");
+
+  return 0;
 }
 
 function renderFoundRecord(
@@ -261,15 +320,7 @@ function renderFoundRecord(
 
   out.log(`${record.phaseId} · ${manifest.provider} (${manifest.model}, ${manifest.effort})`);
   out.log(`run      ${manifest.runId}`);
-
-  const shapeLabel =
-    manifest.shape === "full"
-      ? `full (transcript ${formatBytes(record.artifacts.get("output.jsonl")?.length ?? 0)})`
-      : "skeleton (no transcript)";
-  const usageLabel = manifest.usage.available
-    ? `tokens ${manifest.usage.usage.inputTokens.toLocaleString()} in / ${manifest.usage.usage.outputTokens.toLocaleString()} out`
-    : "tokens unavailable";
-  out.log(`record   ${shapeLabel}   ${usageLabel}`);
+  out.log(`record   ${shapeAndUsageLabel(record)}`);
 
   const surfacesLabel =
     manifest.verifiedSurfaces.length > 0 ? manifest.verifiedSurfaces.join(", ") : "(none)";
@@ -351,10 +402,18 @@ async function runRecordsList(opts: RecordsListOptions, out: OutputPort): Promis
   }
 
   for (const entry of outcome.records) {
-    const surfacesLabel =
-      entry.verifiedSurfaces.length > 0 ? entry.verifiedSurfaces.join(",") : "-";
+    // An authoring record lists under its key (`authoring <id>`), with the
+    // artifact path where a phase record shows its verified surfaces.
+    const [first, second, detail] =
+      entry.kind === "phase"
+        ? [
+            entry.runId,
+            entry.phaseId,
+            entry.verifiedSurfaces.length > 0 ? entry.verifiedSurfaces.join(",") : "-",
+          ]
+        : ["authoring", entry.authoringId, entry.artifact];
     out.log(
-      `${entry.runId}  ${entry.phaseId}  ${entry.shape}  ${entry.outcome}  ${entry.recordCommitSha.slice(0, 8)}  ${surfacesLabel}`,
+      `${first}  ${second}  ${entry.shape}  ${entry.outcome}  ${entry.recordCommitSha.slice(0, 8)}  ${detail}`,
     );
   }
   return 0;
@@ -408,7 +467,9 @@ export function registerRecordsCommand(program: Command, out: OutputPort): void 
 
   records
     .command("list")
-    .description("List records present, by run, phase, and verified surfaces")
+    .description(
+      "List records present: phase records by run, phase, and verified surfaces; authoring records by id and artifact",
+    )
     .option("--run <id>", "Only show records for this run id")
     .action(async (opts: RecordsListOptions) => {
       const exitCode = await runRecordsList(opts, out);
@@ -418,9 +479,9 @@ export function registerRecordsCommand(program: Command, out: OutputPort): void 
   records
     .command("explain")
     .description(
-      "Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage",
+      "Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage — or, for a headless artifact commit, its authoring record",
     )
-    .argument("<sha>", "Commit sha in the source repository")
+    .argument("<sha>", "Commit sha in the source repository (a phase commit or an artifact commit)")
     .option("--prompt", "Print the full prompt")
     .option("--diff", "Print the full diff")
     .option("--transcript", "Print the full transcript")

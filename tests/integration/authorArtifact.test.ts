@@ -20,6 +20,8 @@ import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
+import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
+import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { decodeExtractedPlanCacheEntry } from "../../src/schemas/extractedPlanCacheEntry.js";
 import { decodePlanDocument, projectExtractedPlan } from "../../src/schemas/planDocument.js";
 import { decodeSpecDocument } from "../../src/schemas/specDocument.js";
@@ -171,14 +173,30 @@ function input(overrides: Partial<AuthorArtifactInput> = {}): AuthorArtifactInpu
     extractPlanModel: "claude-sonnet-5",
     extractPlanEffort: "medium",
     nowIso: NOW,
+    records: RECORDS_OFF,
     ...overrides,
   };
 }
+
+const RECORDS_OFF: ResolvedRecordsConfig = {
+  enabled: false,
+  transcript: false,
+  destination: { kind: "in-repo" },
+  autoPush: false,
+};
+
+const RECORDS_IN_REPO: ResolvedRecordsConfig = {
+  enabled: true,
+  transcript: true,
+  destination: { kind: "in-repo" },
+  autoPush: false,
+};
 
 function setup(finalText?: string) {
   const fs = makeFakeFileSystem();
   const git = makeFakeGit();
   const backend = makeFakeBackend();
+  const github = makeFakeGitHub();
   if (finalText !== undefined) {
     backend.impl.addRunResponse({
       sessionId: "sess-authoring" as ClaudeSessionId,
@@ -187,7 +205,7 @@ function setup(finalText?: string) {
     });
   }
   git.impl.setHeadCommit("a1b2c3d4".repeat(5));
-  const layer = Layer.mergeAll(fs.layer, git.layer, backend.layer);
+  const layer = Layer.mergeAll(fs.layer, git.layer, backend.layer, github.layer);
   const run = (i: AuthorArtifactInput) =>
     Effect.runPromise(Effect.either(authorArtifact(i).pipe(Effect.provide(layer))));
   return { fs: fs.impl, git: git.impl, backend: backend.impl, run };
@@ -211,6 +229,7 @@ describe("authorArtifact — spec", () => {
       commit: { hash: "a1b2c3d4".repeat(5), subject: "docs(specs): draft plan-prune" },
       authoringId: "2609230835-plan-prune",
       sessionFolder: SESSION_FOLDER,
+      record: { kind: "records-off" },
     });
 
     const doc = decodeSpecDocument(SPEC_DOCUMENT);
@@ -443,6 +462,118 @@ describe("authorArtifact — failures land nothing", () => {
       }
     }
     expect(repoFiles(fs)).toEqual([SPEC_SIDECAR, SPEC_PATH]);
+  });
+});
+
+function recordWrites(git: ReturnType<typeof makeFakeGit>["impl"]) {
+  return git.calls.flatMap((call) => (call.method === "writeTreeCommit" ? [call] : []));
+}
+
+describe("authorArtifact — authoring record", () => {
+  const TRANSCRIPT = '{"type":"result","result":"{}"}\n';
+
+  it("a committed session writes its record after the artifact commit, pointing back to it", async () => {
+    const { fs, git, run } = setup(JSON.stringify(SPEC_DOCUMENT));
+    fs.setFile(`${SESSION_FOLDER}/output.jsonl`, TRANSCRIPT);
+
+    const result = await run(input({ records: RECORDS_IN_REPO }));
+
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isLeft(result)) return;
+    const writes = recordWrites(git);
+    expect(writes).toHaveLength(1);
+    const [write] = writes;
+    expect(write?.branch).toBe("phax/records/v1");
+    expect(write?.repo).toBe(REPO_ROOT);
+    expect(write?.paths).toEqual([
+      "authoring/2609230835-plan-prune/brief.md",
+      "authoring/2609230835-plan-prune/document.json",
+      "authoring/2609230835-plan-prune/output.jsonl",
+      "authoring/2609230835-plan-prune/prompt.md",
+      "authoring/2609230835-plan-prune/record.json",
+    ]);
+    expect(write?.message).toMatch(/^records\(authoring\): committed\n/);
+    expect(write?.message).toContain("\nAuthoring-Id: 2609230835-plan-prune\n");
+    expect(write?.message).toContain(`\nArtifact: ${SPEC_PATH}\n`);
+
+    // The artifact commit precedes the record write.
+    const commitIndex = git.calls.findIndex((call) => call.method === "commitPaths");
+    const recordIndex = git.calls.findIndex((call) => call.method === "writeTreeCommit");
+    expect(commitIndex).toBeGreaterThanOrEqual(0);
+    expect(recordIndex).toBeGreaterThan(commitIndex);
+
+    expect(result.right.record).toMatchObject({
+      kind: "written",
+      key: "authoring/2609230835-plan-prune",
+      shape: "full",
+    });
+  });
+
+  it("a failed session is still recorded — failed, no document — and the failure re-raised", async () => {
+    const { fs, git, run } = setup("Here is your spec: it is great.");
+    fs.setFile(`${SESSION_FOLDER}/output.jsonl`, TRANSCRIPT);
+
+    const result = await run(input({ records: RECORDS_IN_REPO }));
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+    expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
+    const writes = recordWrites(git);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.message).toMatch(/^records\(authoring\): failed\n/);
+    expect(writes[0]?.paths).not.toContain("authoring/2609230835-plan-prune/document.json");
+    expect(writes[0]?.paths).toContain("authoring/2609230835-plan-prune/prompt.md");
+  });
+
+  it("an agent failure is recorded as failed", async () => {
+    const { git, backend, run } = setup();
+    backend.failRunWithRateLimit(0, { kind: "rate_limit" });
+
+    const result = await run(input({ records: RECORDS_IN_REPO }));
+
+    expect(Either.isLeft(result) && result.left instanceof RateLimitError).toBe(true);
+    const writes = recordWrites(git);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.message).toMatch(/^records\(authoring\): failed\n/);
+  });
+
+  it("a refusal before the session records nothing", async () => {
+    const { fs, git, run } = setup(JSON.stringify(SPEC_DOCUMENT));
+    fs.setFile(SPEC_SIDECAR, "{}");
+
+    const result = await run(input({ records: RECORDS_IN_REPO }));
+
+    expect(Either.isLeft(result)).toBe(true);
+    expect(recordWrites(git)).toHaveLength(0);
+  });
+
+  it("records off writes no record", async () => {
+    const { git, run } = setup(JSON.stringify(SPEC_DOCUMENT));
+
+    const result = await run(input());
+
+    expect(Either.isRight(result) && result.right.record.kind).toBe("records-off");
+    expect(recordWrites(git)).toHaveLength(0);
+  });
+
+  it("a record that cannot be written never fails the authoring", async () => {
+    const { git, run } = setup(JSON.stringify(SPEC_DOCUMENT));
+
+    const result = await run(
+      input({
+        records: {
+          ...RECORDS_IN_REPO,
+          destination: { kind: "repo", remote: "https://example.com/records.git" },
+        },
+      }),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.record).toEqual({ kind: "deferred-destination", destination: "repo" });
+    }
+    expect(git.calls.some((call) => call.method === "commitPaths")).toBe(true);
+    expect(recordWrites(git)).toHaveLength(0);
   });
 });
 

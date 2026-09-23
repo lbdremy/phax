@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
+import type { GitHub } from "../ports/github.js";
 import {
   ArtifactCommitFailedError,
   ArtifactCreationError,
@@ -31,6 +32,8 @@ import {
   projectExtractedPlan,
   type PlanDocument,
 } from "../schemas/planDocument.js";
+import type { ProviderId } from "../schemas/providerId.js";
+import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import type { ResolvedSecurityConfig } from "../schemas/securityConfig.js";
 import {
   SpecDocumentSchema,
@@ -45,6 +48,7 @@ import {
   type ArtifactTarget,
 } from "./createArtifact.js";
 import { planMdSha256, writeCacheEntry } from "./planCacheStore.js";
+import { writeAuthoringRecord, type WriteAuthoringRecordResult } from "./writeAuthoringRecord.js";
 
 /** Files of an authoring session folder, `<stateRoot>/authoring/<authoringId>/`. */
 export const AUTHORING_BRIEF_FILENAME = "brief.md";
@@ -72,7 +76,20 @@ export interface AuthorArtifactInput {
   readonly extractPlanModel: string;
   readonly extractPlanEffort: string;
   readonly nowIso: string;
+  /** Where the session's authoring record goes (`records` off: nowhere). */
+  readonly records: ResolvedRecordsConfig;
+  /** The local records clone, required for a dedicated `repo` records destination. */
+  readonly recordsClonePath?: string | undefined;
 }
+
+/**
+ * What became of the session's authoring record. A record never fails the
+ * authoring: an I/O failure degrades to `write-failed`, a refused destination
+ * is reported, not raised.
+ */
+export type AuthoringRecordStatus =
+  | WriteAuthoringRecordResult
+  | { readonly kind: "write-failed"; readonly message: string };
 
 export interface AuthorArtifactResult {
   /** Repo-relative path of the rendered artifact. */
@@ -84,6 +101,8 @@ export interface AuthorArtifactResult {
   readonly authoringId: string;
   /** Absolute path of `<stateRoot>/authoring/<authoringId>/`. */
   readonly sessionFolder: string;
+  /** The authoring record, written after the artifact commit. */
+  readonly record: AuthoringRecordStatus;
 }
 
 export type AuthorArtifactError =
@@ -189,17 +208,28 @@ function renderArtifact(
 function runAuthoringSession(
   input: AuthorArtifactInput,
   target: ArtifactTarget,
-  session: { readonly authoringId: string; readonly folder: string; readonly prompt: string },
-): Effect.Effect<AuthorArtifactResult, AuthorArtifactError, FileSystem | Git | Backend> {
+  session: {
+    readonly authoringId: string;
+    readonly folder: string;
+    readonly prompt: string;
+    readonly binding: SessionBinding;
+    /** Set once the agent returns, so the record can locate a vibe session's usage. */
+    readonly observed: { sessionId?: string };
+  },
+): Effect.Effect<
+  Omit<AuthorArtifactResult, "record">,
+  AuthorArtifactError,
+  FileSystem | Git | Backend
+> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const git = yield* Git;
     const backend = yield* Backend;
 
     const agentResult = yield* backend.runAgent(session.prompt, {
-      provider: input.resolution.selected.provider,
-      model: input.resolution.selected.concreteModel,
-      effort: input.resolution.selected.thinking ?? input.effort,
+      provider: session.binding.provider,
+      model: session.binding.model,
+      effort: session.binding.effort,
       cwd: input.repoRoot,
       security: resolveReviewSecurityPolicy({
         mode: input.security.profile,
@@ -209,6 +239,7 @@ function runAuthoringSession(
       outputJsonlPath: join(session.folder, AUTHORING_TRANSCRIPT_FILENAME),
       phaseFolderPath: session.folder,
     });
+    session.observed.sessionId = agentResult.sessionId;
 
     const parsed = parseAuthoredDocument(input.kind, input.slug, agentResult.finalText);
     if (Either.isLeft(parsed)) return yield* Effect.fail(parsed.left);
@@ -279,15 +310,17 @@ function runAuthoringSession(
  * session under the read-only review posture rooted at the repository, accept a
  * schema-valid document as its final message, render the artifact with the
  * interactive frontmatter, write the JSON sidecar beside it, seed the extraction
- * cache for a plan, and commit exactly the two paths.
+ * cache for a plan, and commit exactly the two paths. Every session that ran —
+ * committed or failed — then writes one authoring record on `phax/records/v1`.
  *
  * Every refusal (the interactive path's, plus an existing sidecar) precedes the
- * session; a document failure writes nothing to the repository. The use case
+ * session and records nothing; a document failure writes nothing to the
+ * repository. The use case
  * never reads `phax.json`, stdin or the skill bundle: the caller resolves them.
  */
 export function authorArtifact(
   input: AuthorArtifactInput,
-): Effect.Effect<AuthorArtifactResult, AuthorArtifactError, FileSystem | Git | Backend> {
+): Effect.Effect<AuthorArtifactResult, AuthorArtifactError, FileSystem | Git | GitHub | Backend> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
 
@@ -313,14 +346,90 @@ export function authorArtifact(
     yield* fs.writeAtomic(join(folder, AUTHORING_BRIEF_FILENAME), input.brief.text);
     yield* fs.writeAtomic(join(folder, AUTHORING_PROMPT_FILENAME), prompt);
 
+    const binding: SessionBinding = {
+      provider: input.resolution.selected.provider,
+      model: input.resolution.selected.concreteModel,
+      effort: input.resolution.selected.thinking ?? input.effort,
+    };
+    const observed: { sessionId?: string } = {};
     const outcome = yield* Effect.either(
-      runAuthoringSession(input, target, { authoringId, folder, prompt }),
+      runAuthoringSession(input, target, { authoringId, folder, prompt, binding, observed }),
     );
-    // Seam: the session has ended, committed (Right) or failed (Left). The
-    // authoring record is written here for both outcomes, before a failure is
-    // re-raised; `folder` holds brief.md, prompt.md, output.jsonl and, on
-    // success only, document.json.
-    if (Either.isLeft(outcome)) return yield* Effect.fail(outcome.left);
-    return outcome.right;
+
+    // The session has ended, committed (Right) or failed (Left): record both,
+    // the committed one after the artifact commit it points back to, before a
+    // failure is re-raised. `folder` holds brief.md, prompt.md, output.jsonl
+    // and, when the document was accepted, document.json.
+    const record = yield* recordSession(input, {
+      authoringId,
+      folder,
+      artifact: target.path,
+      binding,
+      sessionId: observed.sessionId,
+      sourceSha: Either.isRight(outcome) ? outcome.right.commit.hash : undefined,
+    });
+    if (Either.isLeft(outcome)) {
+      const warning = recordWarning(record);
+      if (warning !== undefined) process.stderr.write(`[phax] Warning: ${warning}\n`);
+      return yield* Effect.fail(outcome.left);
+    }
+    return { ...outcome.right, record };
   });
+}
+
+/** The provider, concrete model and effort the session actually ran with. */
+interface SessionBinding {
+  readonly provider: ProviderId;
+  readonly model: string;
+  readonly effort: string;
+}
+
+function recordSession(
+  input: AuthorArtifactInput,
+  session: {
+    readonly authoringId: string;
+    readonly folder: string;
+    readonly artifact: string;
+    readonly binding: SessionBinding;
+    readonly sessionId: string | undefined;
+    /** The artifact commit, or undefined when the session did not commit. */
+    readonly sourceSha: string | undefined;
+  },
+): Effect.Effect<AuthoringRecordStatus, never, FileSystem | Git | GitHub> {
+  return writeAuthoringRecord({
+    repoRoot: input.repoRoot,
+    recordsClonePath: input.recordsClonePath,
+    sessionFolder: session.folder,
+    authoringId: session.authoringId,
+    artifact: session.artifact,
+    artifactKind: input.kind,
+    provider: session.binding.provider,
+    model: session.binding.model,
+    effort: session.binding.effort,
+    outcome: session.sourceSha === undefined ? "failed" : "committed",
+    records: input.records,
+    ...(session.sourceSha !== undefined ? { sourceSha: session.sourceSha } : {}),
+    ...(session.sessionId !== undefined ? { sessionId: session.sessionId } : {}),
+  }).pipe(
+    Effect.catchAll((e) => Effect.succeed({ kind: "write-failed", message: e.message } as const)),
+  );
+}
+
+/**
+ * The warning a record outcome deserves, or undefined when there is nothing to
+ * say (written, or records off). A refused destination names its remedy, as
+ * phase records do.
+ */
+export function recordWarning(record: AuthoringRecordStatus): string | undefined {
+  switch (record.kind) {
+    case "written":
+    case "records-off":
+      return undefined;
+    case "deferred-destination":
+      return "authoring record not written — the dedicated records clone is not configured (run `phax records sync`)";
+    case "refused":
+      return `authoring record refused: ${record.message} (remedy: ${record.remedy})`;
+    case "write-failed":
+      return `failed to write the authoring record (${record.message})`;
+  }
 }
