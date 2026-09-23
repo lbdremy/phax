@@ -25,7 +25,7 @@ function esc(s: string): string {
 // "--config <path>" → "<path>", "--profile [profile]" → "[profile]", "--verbose" → null
 function flagArgPlaceholder(option: Option): string | null {
   const m = /([<[][^>\]]+[>\]])/.exec(option.flags);
-  return m ? m[1] : null;
+  return m?.[1] ?? null;
 }
 
 function isAutoAdded(option: Option): boolean {

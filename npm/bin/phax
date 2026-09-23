@@ -9,7 +9,7 @@ const path = require("path");
 const os = require("os");
 
 // Binary names mirror RELEASE_TARGETS in scripts/build-binaries.ts
-// and resolveBinary.ts in npm/lib/
+// and resolveBinary.mts in npm/lib/
 const BINARY_NAMES = {
   darwin: { arm64: "phax-darwin-arm64", x64: "phax-darwin-x64" },
   linux: { x64: "phax-linux-x64", arm64: "phax-linux-arm64" },
