@@ -10,7 +10,7 @@ Update it in the same change that touches the catalog or a default, and append
 a row to the refresh log at the bottom.
 
 **State described:** the catalog as it stands after
-`docs/plans/2609230815-catalog-opus-5-5-gpt-6-sol-luna-plan.md` landed.
+`docs/plans/archive/2609230815-catalog-opus-5-5-gpt-6-sol-luna-plan.md` landed.
 
 ## 1. Sources of truth
 
@@ -34,13 +34,13 @@ Efforts are per entry, never per family. Status `active` unless stated.
 | Id                          | Family          | Efforts                                          | Read from                                                                                              | Since                    |
 | --------------------------- | --------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------ |
 | `claude-haiku-4-5-20251001` | `claude-haiku`  | `none`                                           | No effort ladder in Claude Code; still the newest Haiku (`latest_per_family.haiku`)                    | initial catalog          |
-| `claude-sonnet-5`           | `claude-sonnet` | `low medium high xhigh max ultracode`            | `xhigh_effort`; `ultracode` added when Claude Code 2.1.263 was confirmed to gate it on xhigh only     | `0667c17`; ultracode phase-01 |
+| `claude-sonnet-5`           | `claude-sonnet` | `low medium high xhigh max ultracode`            | `xhigh_effort`; `ultracode` added when Claude Code 2.1.263 was confirmed to gate it on xhigh only     | `0667c17`; ultracode 2026-09-07 refresh |
 | `claude-sonnet-4-6`         | `claude-sonnet` | `low medium high max`                            | No `xhigh_effort` capability, hence no `ultracode`                                                     | initial catalog          |
-| `claude-opus-5-5`           | `claude-opus`   | `low medium high xhigh max ultracode`            | Claude Code 2.1.280 table, `xhigh_effort`, knowledge cutoff June 2026, `latest_per_family.opus`         | phase-01 (catalog-opus-5-5-gpt-6-sol-luna) |
-| `claude-opus-5`             | `claude-opus`   | `low medium high xhigh max ultracode`            | Claude Code 2.1.263 table, `xhigh_effort`, knowledge cutoff May 2026; kept active — still served by Claude Code 2.1.280, no longer on the AA index | phase-01                 |
+| `claude-opus-5-5`           | `claude-opus`   | `low medium high xhigh max ultracode`            | Claude Code 2.1.280 table, `xhigh_effort`, knowledge cutoff June 2026, `latest_per_family.opus`         | 2026-09-23 refresh |
+| `claude-opus-5`             | `claude-opus`   | `low medium high xhigh max ultracode`            | Claude Code 2.1.263 table, `xhigh_effort`, knowledge cutoff May 2026; kept active — still served by Claude Code 2.1.280, no longer on the AA index | 2026-09-07 refresh                 |
 | `claude-opus-4-8`           | `claude-opus`   | `low medium high xhigh max ultracode`            | `xhigh_effort`                                                                                          | initial catalog          |
-| `claude-fable-5-1`          | `claude-fable`  | `low medium high xhigh max ultracode`            | Claude Code 2.1.257+ (`latest_per_family.fable`), released 2026-09-01, `xhigh_effort`                  | phase-01                 |
-| `claude-fable-5`            | `claude-fable`  | `low medium high xhigh max ultracode`            | `xhigh_effort`; ultracode added phase-01                                                                | `0667c17`; ultracode phase-01 |
+| `claude-fable-5-1`          | `claude-fable`  | `low medium high xhigh max ultracode`            | Claude Code 2.1.257+ (`latest_per_family.fable`), released 2026-09-01, `xhigh_effort`                  | 2026-09-07 refresh                 |
+| `claude-fable-5`            | `claude-fable`  | `low medium high xhigh max ultracode`            | `xhigh_effort`; ultracode added in the 2026-09-07 refresh                                                                | `0667c17`; ultracode 2026-09-07 refresh |
 
 Order inside a family is newest first: `pickActiveEntry` resolves an alias
 (`opus`, `sonnet`, `fable`, `gpt`, …) or any id it doesn't recognize to the
@@ -54,12 +54,12 @@ Rows are newest-first, same rule as the Claude families.
 
 | Id              | Efforts                            | Status       | Read from                                                                 | Since     |
 | --------------- | ---------------------------------- | ------------ | ------------------------------------------------------------------------- | --------- |
-| `gpt-6-sol`     | `low medium high xhigh max ultra`  | `active`     | codex 0.156.1 bundled catalog (`npm @openai/codex`, published 2026-09-23, `darwin-arm64`); "Workhorse model for coding and everyday work", default `medium`, `visibility: list`, `minimal_client_version` 0.155.0 | phase-02 (catalog-opus-5-5-gpt-6-sol-luna) |
-| `gpt-6-luna`    | `low medium high xhigh max`        | `active`     | codex 0.156.1 bundled catalog; "Fast and affordable model for easier tasks", default `medium`, `visibility: list`, `minimal_client_version` 0.155.0 | phase-02 |
+| `gpt-6-sol`     | `low medium high xhigh max ultra`  | `active`     | codex 0.156.1 bundled catalog (`npm @openai/codex`, published 2026-09-23, `darwin-arm64`); "Workhorse model for coding and everyday work", default `medium`, `visibility: list`, `minimal_client_version` 0.155.0 | 2026-09-23 refresh |
+| `gpt-6-luna`    | `low medium high xhigh max`        | `active`     | codex 0.156.1 bundled catalog; "Fast and affordable model for easier tasks", default `medium`, `visibility: list`, `minimal_client_version` 0.155.0 | 2026-09-23 refresh |
 | `gpt-6-astra`   | `low medium high xhigh max ultra`  | `active`     | codex 0.153.4 bundled catalog; `minimal_client_version` 0.153.0; released 2026-09-03; unchanged in 0.156.1 | 2026-09-07 refresh |
-| `gpt-5.6-luna`  | `low medium high xhigh max`        | `deprecated` | codex registry (caps at `max`); 0.156.1 gives it `upgrade.model: gpt-6-luna`, `retirement_at: null` | `0667c17`; deprecated phase-02 |
-| `gpt-5.6-terra` | `low medium high xhigh max ultra`  | `deprecated` | codex registry; 0.156.1 gives it `upgrade.model: gpt-6-sol`                | `0667c17`; deprecated phase-02 |
-| `gpt-5.6-sol`   | `low medium high xhigh max ultra`  | `deprecated` | codex registry (0.144.x); 0.156.1 gives it `upgrade.model: gpt-6-sol`     | `0667c17`; deprecated phase-02 |
+| `gpt-5.6-luna`  | `low medium high xhigh max`        | `deprecated` | codex registry (caps at `max`); 0.156.1 gives it `upgrade.model: gpt-6-luna`, `retirement_at: null` | `0667c17`; deprecated 2026-09-23 refresh |
+| `gpt-5.6-terra` | `low medium high xhigh max ultra`  | `deprecated` | codex registry; 0.156.1 gives it `upgrade.model: gpt-6-sol`                | `0667c17`; deprecated 2026-09-23 refresh |
+| `gpt-5.6-sol`   | `low medium high xhigh max ultra`  | `deprecated` | codex registry (0.144.x); 0.156.1 gives it `upgrade.model: gpt-6-sol`     | `0667c17`; deprecated 2026-09-23 refresh |
 | `gpt-5.5`       | `low medium high xhigh`            | `active`     | codex registry; no `upgrade` pointer in 0.156.1, so it stays active        | initial   |
 
 The installed codex is 0.153.4 and its account registry
@@ -96,9 +96,9 @@ comparable within a single read.
 | Spoke           | Anchor              | Relation     | Basis                                                                                                                                                             | Since     |
 | --------------- | ------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | `gpt-5.5`       | `claude-sonnet-4-6` (low/medium/high), `claude-opus-4-8` medium (xhigh) | `equivalent` | Original spec §12 table                                                                                                                                            | initial   |
-| `gpt-6-sol`     | `claude-opus-5-5`   | `downgrade`  | AA Intelligence Index, 2026-09-23, low/medium/high/xhigh/max: Sol 34/40/43/44/48 vs Opus 5.5 42/51/54/56/58. Sol sits between Sonnet 5 (24/28/32/34/38) and Opus 5.5 with no Claude entry within a point; anchoring high gives Opus 5.5, the default phase model, a codex route under `allowDowngrade: true`. | phase-02 |
-| `gpt-6-luna`    | `claude-sonnet-5`   | `downgrade` at `low`, else `equivalent` | AA Intelligence Index, 2026-09-23: Luna 21/29/32/34/37 vs Sonnet 5 24/28/32/34/38 — within a point from `medium` up, 3 points under at `low`. | phase-02 |
-| `gpt-6-astra`   | `claude-fable-5-1`  | `equivalent` | AA Intelligence Index, 2026-09-23: Astra 46/50/51/52/53 vs Fable 5.1 47/49/51/53/53 — within 1 point everywhere. Was `downgrade` on the 2026-09-07 revision (Astra 49/52/53/54/55 vs Fable 5.1 51/53/54/56/57). | 2026-09-07 refresh; `equivalent` phase-02 |
+| `gpt-6-sol`     | `claude-opus-5-5`   | `downgrade`  | AA Intelligence Index, 2026-09-23, low/medium/high/xhigh/max: Sol 34/40/43/44/48 vs Opus 5.5 42/51/54/56/58. Sol sits between Sonnet 5 (24/28/32/34/38) and Opus 5.5 with no Claude entry within a point; anchoring high gives Opus 5.5, the default phase model, a codex route under `allowDowngrade: true`. | 2026-09-23 refresh |
+| `gpt-6-luna`    | `claude-sonnet-5`   | `downgrade` at `low`, else `equivalent` | AA Intelligence Index, 2026-09-23: Luna 21/29/32/34/37 vs Sonnet 5 24/28/32/34/38 — within a point from `medium` up, 3 points under at `low`. | 2026-09-23 refresh |
+| `gpt-6-astra`   | `claude-fable-5-1`  | `equivalent` | AA Intelligence Index, 2026-09-23: Astra 46/50/51/52/53 vs Fable 5.1 47/49/51/53/53 — within 1 point everywhere. Was `downgrade` on the 2026-09-07 revision (Astra 49/52/53/54/55 vs Fable 5.1 51/53/54/56/57). | 2026-09-07 refresh; `equivalent` 2026-09-23 refresh |
 | `gpt-5.6-sol`   | `claude-fable-5`    | `equivalent` | AA Agentic Index, July 2026: Sol 54.0 vs Fable 5 52.8. Spoke deprecated — edge kept for fallback only.                                                            | `0667c17` |
 | `gpt-5.6-terra` | `claude-opus-4-8`   | `equivalent` | AA Agentic Index, July 2026: Terra 47.4 vs Opus 4.8 47.2. Spoke deprecated — edge kept for fallback only.                                                         | `0667c17` |
 | `gpt-5.6-luna`  | `claude-sonnet-5`   | `equivalent` | AA Agentic Index, July 2026: Luna 45.6 vs Sonnet 5 46.7. Spoke deprecated — edge kept for fallback only.                                                          | `0667c17` |
@@ -133,6 +133,17 @@ max-effort variant (read 2026-09-07). AA's cost-per-task figures come from
 different index revisions and are **not comparable across models**; they are
 listed for completeness, not used to rank.
 
+`claude-opus-5-5` is the exception: its figure is from the 2026-09-23 read,
+after AA **re-scaled** the index (Fable 5.1 at max went from 57 to 53), so it
+is not comparable with the 2026-09-07 figures in the rest of the column. On
+the 2026-09-23 scale, low/medium/high/xhigh/max: Opus 5.5 42/51/54/56/58,
+Fable 5.1 47/49/51/53/53. Claude Code does not publish an
+`effort_cost_index` for Opus 5.5 yet; token spend comes from Anthropic's
+launch page (<https://www.anthropic.com/claude-opus-5-5>, read 2026-09-23):
+~40% lower cost than Opus 5 on typical workloads, and one customer matched
+Opus 5's quality in about half the output tokens. These are vendor figures,
+not independent measurements.
+
 | Model                       | $/1M in / out | AA Intelligence (max) | AA $/task | Output tokens on index run | effort_cost_index low / medium / high / xhigh / max |
 | --------------------------- | ------------- | --------------------- | --------- | -------------------------- | --------------------------------------------------- |
 | `claude-haiku-4-5-20251001` | 1 / 5         | —                     | —         | —                          | no ladder                                           |
@@ -140,6 +151,7 @@ listed for completeness, not used to rank.
 | `claude-sonnet-5`           | 2 / 10        | 45                    | 3.31      | 320M                       | 0.47 / 0.74 / 1 / 2.41 / 5.59                       |
 | `claude-opus-4-8`           | 5 / 25        | 48                    | 2.60      | 130M                       | 0.72 / 0.90 / 1 / 1.65 / 1.88                       |
 | `claude-opus-5`             | 5 / 25        | 54                    | 4.21      | 120M                       | 0.67 / 0.76 / 1 / 1.60 / 1.70                       |
+| `claude-opus-5-5`           | 4 / 20 (cache read 0.20) | 58 (2026-09-23 scale) | —   | —                          | not published                                       |
 | `claude-fable-5`            | 10 / 50       | 53                    | —         | —                          | 0.60 / 0.77 / 1 / 1.74 / 1.91                       |
 | `claude-fable-5-1`          | 10 / 50 (cache read 0.25) | 57        | 6.12      | 160M                       | 0.60 / 0.77 / 1 / 1.74 / 1.91                       |
 
@@ -150,10 +162,10 @@ data says so.
 
 | Job                | Where                                                      | Default                        | Effort   | Justification                                                                                                                                                          | Previous            |
 | ------------------ | ---------------------------------------------------------- | ------------------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| Code review        | `DEFAULT_CODE_REVIEW_MODEL`, `src/schemas/phaxConfig.ts`   | `claude-opus-5`                | `high`   | Same per-token tier as Opus 4.8, fewer generated tokens (120M vs 130M), +6 index points, cheaper low/medium curve. Fable 5.1 rejected: 2× per token, a third more tokens, +3 points. | `claude-opus-4-8`   |
-| Plan adjustment    | `DEFAULT_MODEL`, `src/cli/commands/adjustPlan.ts`          | `claude-opus-5`                | `high`   | Same reasoning as code review.                                                                                                                                         | `claude-opus-4-8`   |
-| Compliance review  | `DEFAULT_COMPLIANCE_REVIEW_MODEL`, `src/schemas/phaxConfig.ts` | `claude-sonnet-5`          | `medium` | A third cheaper per token than Sonnet 4.6, +16 points, identical effort-cost curve; AA lists Sonnet 4.6 deprecated. Effort stays `medium`: Sonnet 5 at `max` generates 2.7× Opus 5's tokens. | `claude-sonnet-4-6` |
-| Plan extraction    | `DEFAULT_EXTRACT_MODEL`, `src/schemas/phaxConfig.ts`       | `claude-haiku-4-5-20251001`    | `low`    | Cheapest tier; no newer Haiku; next candidate (`claude-sonnet-5` low) is 2× per token for a structured-extraction job Haiku passes.                                    | unchanged           |
+| Code review        | `DEFAULT_CODE_REVIEW_MODEL`, `src/schemas/phaxConfig.ts`   | `claude-opus-5-5`              | `high`   | 20% cheaper per token than Opus 5 (4/20 vs 5/25). On the 2026-09-23 index it beats Fable 5.1 from `medium` up (54 vs 51 at `high`); Opus 5 is no longer listed. Fewer tokens too: Anthropic's launch page reports a ~40% cost drop vs Opus 5 on typical workloads and Opus 5 quality in about half the output tokens. Fable 5.1 rejected: 2.5× per token for a lower score at `high`; a customer migration on the launch page cost 51% less on Opus 5.5. | `claude-opus-5`     |
+| Plan adjustment    | `DEFAULT_MODEL`, `src/cli/commands/adjustPlan.ts`          | `claude-opus-5-5`              | `high`   | Same reasoning as code review.                                                                                                                                         | `claude-opus-5`     |
+| Compliance review  | `DEFAULT_COMPLIANCE_REVIEW_MODEL`, `src/schemas/phaxConfig.ts` | `claude-sonnet-5`          | `medium` | A third cheaper per token than Sonnet 4.6, +16 points, identical effort-cost curve; AA lists Sonnet 4.6 deprecated. Effort stays `medium`: Sonnet 5 at `max` generates 2.7× Opus 5's tokens. Re-checked 2026-09-23, unchanged: no newer Sonnet, and Opus 5.5 is 2× per token. | `claude-sonnet-4-6` |
+| Plan extraction    | `DEFAULT_EXTRACT_MODEL`, `src/schemas/phaxConfig.ts`       | `claude-haiku-4-5-20251001`    | `low`    | Cheapest tier; no newer Haiku; next candidate (`claude-sonnet-5` low) is 2× per token for a structured-extraction job Haiku passes. Re-checked 2026-09-23, unchanged: still no newer Haiku. | unchanged           |
 
 Explicit `review.code`, `review.compliance` and `agent.extractPlan` settings
 in `phax.json` always win over these defaults.
@@ -183,3 +195,4 @@ Run through this each time a provider ships or retires a model:
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
 | 2026-07-13 | GPT-5.6 Sol/Terra/Luna, Claude Fable 5, Claude Sonnet 5, `ultra` effort; anchors on AA Agentic Index                              | `0667c17`                                 |
 | 2026-09-07 | Claude Fable 5.1, Claude Opus 5, GPT-6 Astra (→ Fable 5.1, `downgrade`); `ultracode` on every xhigh-capable Claude entry; defaults re-pointed on cost (Opus 5, Sonnet 5) | `phax/catalog-fable-5-1-opus-5-gpt-6-astra` |
+| 2026-09-23 | Claude Opus 5.5; Claude families newest-first (aliases → current model); GPT-6 Sol → Opus 5.5 (downgrade), GPT-6 Luna → Sonnet 5; GPT-5.6 deprecated; Astra ↔ Fable 5.1 equivalent; review/adjust-plan defaults → Opus 5.5; planning skill recommends Opus 5.5 | `phax/catalog-opus-5-5-gpt-6-sol-and-luna` |

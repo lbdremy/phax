@@ -342,7 +342,7 @@ phax path  <short-name>         # print the worktree path (script-friendly)
 phax open  <short-name>         # open the worktree in the configured editor
 ```
 
-`phax review-code` launches the AI agent in the final worktree already primed with a code-review prompt — seeded with the file reconciliation and, if present, the compliance findings — so the review starts from context instead of a blank prompt. The session is resumable: re-running resumes it, `--new-session` starts fresh. Override the model/effort with `--model`/`--effort` (defaults from `review.code`, else `claude-opus-5` at `high` effort). You take over the session to investigate, discuss, and apply fixes.
+`phax review-code` launches the AI agent in the final worktree already primed with a code-review prompt — seeded with the file reconciliation and, if present, the compliance findings — so the review starts from context instead of a blank prompt. The session is resumable: re-running resumes it, `--new-session` starts fresh. Override the model/effort with `--model`/`--effort` (defaults from `review.code`, else `claude-opus-5-5` at `high` effort). You take over the session to investigate, discuss, and apply fixes.
 
 ## Compliance review & publishing
 

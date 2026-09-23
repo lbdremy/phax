@@ -340,6 +340,14 @@ because a spike's value is in judgment, not in compiling code. Reconcile it like
 
 Each entry below is a versioned model id from the provider catalog with its effort set and status. Plan phases reference concrete model ids (e.g. `claude-sonnet-4-6`); phax resolves them natively when the execution provider serves the same family, or translates through the Claude-hub equivalence table otherwise. The catalog is the source of truth — the run-start preflight rejects any phase whose id or effort is not listed here.
 
+### Choosing a model and effort
+
+- The default phase model is `claude-opus-5-5`: it is the cheapest Opus-tier entry and matches or beats `claude-fable-5-1` from `medium` effort up.
+- Use `claude-sonnet-5` for mechanical phases (catalog/table edits, renames, doc sweeps).
+- Use `claude-fable-5-1` only for a stated reason that Opus 5.5 cannot serve, and record that reason in Technical arbitrations.
+- Use the lowest effort that succeeds. Opus 5.5 is weakest at `low` (below Fable 5.1), so use `medium` or above for phases that need real reasoning.
+- A plan that changes the catalog itself must name only models already in the shipped catalog: the run-start preflight uses the running binary's catalog, not the one the plan adds.
+
 <!-- BEGIN generated: model-catalog -->
 | ID | Family | Status | Efforts |
 | --- | --- | --- | --- |
