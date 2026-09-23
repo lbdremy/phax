@@ -1004,6 +1004,32 @@ phax artifact new plan plan-prune --spec docs/specs/2609091412-plan-prune.md
 phax artifact new plan catalog-refresh
 ```
 
+## `phax artifact schema`
+
+- **Usage**: `phax artifact schema <kind>`
+
+Prints the JSON Schema of the experimental spec document (kind spec) or plan document (kind plan), pretty-printed to stdout, so a consumer can read the contract a headless authoring session must satisfy without a model call.
+
+Both formats are experimental: outside the version 1 stability promise, they may change between releases, and each schema is titled accordingly. The plan document's extracted fields are the extracted-plan shape phax run reads. The spec document additionally requires traceability — every acceptance criterion references existing requirements, every requirement is covered, every open question has two or more options and a recommendation among them — which the JSON Schema does not express and phax checks when it decodes a document.
+
+Side effects: none — read-only.
+
+### Arguments
+
+#### `<kind>`
+
+Document kind: spec or plan
+
+### Examples
+
+```
+phax artifact schema spec
+```
+
+```
+phax artifact schema plan
+```
+
 ## `phax plans`
 
 - **Usage**: `phax plans <SUBCOMMAND>`

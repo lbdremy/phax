@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect } from "effect";
+import { Command } from "commander";
 import {
+  registerArtifactCommand,
   runArtifactStatus,
   runArtifactTransition,
   runArtifactArchiveRefusal,
+  runArtifactSchema,
   runCreateArtifact,
 } from "../../../src/cli/commands/artifact.js";
 import {
@@ -420,5 +423,38 @@ describe("runCreateArtifact", () => {
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("Plan_Prune");
+  });
+});
+
+describe("runArtifactSchema", () => {
+  it.each([
+    ["spec", "phax spec document (experimental)"],
+    ["plan", "phax plan document (experimental)"],
+  ] as const)(
+    "%s: prints the document JSON Schema, titled experimental, exits 0",
+    (kind, title) => {
+      const { out, lines, errors } = makeOutput();
+      const code = runArtifactSchema(kind, out);
+
+      expect(code).toBe(0);
+      expect(errors).toEqual([]);
+      expect(lines).toHaveLength(1);
+      const schema = JSON.parse(lines[0]!) as { title: string; properties: { kind: unknown } };
+      expect(schema.title).toBe(title);
+      expect(schema.properties.kind).toEqual({ type: "string", enum: [kind] });
+      // Pretty-printed, not a single line.
+      expect(lines[0]).toContain('\n  "');
+    },
+  );
+
+  it("an unknown kind is a Commander usage error", async () => {
+    const program = new Command().exitOverride().configureOutput({ writeErr: () => {} });
+    const { out, lines } = makeOutput();
+    registerArtifactCommand(program, out);
+
+    await expect(
+      program.parseAsync(["node", "phax", "artifact", "schema", "idea"]),
+    ).rejects.toMatchObject({ code: "commander.invalidArgument" });
+    expect(lines).toEqual([]);
   });
 });
