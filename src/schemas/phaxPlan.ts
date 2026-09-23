@@ -17,7 +17,9 @@ const EffortSchema = Schema.Literal(
 // not round-tripped through the model's JSON. A `"` in a title would otherwise
 // derail the model into malformed output, which the strict `onExcessProperty`
 // decode rejects — keeping the trip-wire but removing the failure mode.
-const ExtractedPhaseSchema = Schema.Struct({
+// The fields are exported on their own so the plan document (planDocument.ts)
+// carries exactly these schemas rather than a copy that could drift.
+export const ExtractedPhaseFields = {
   id: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
   model: Schema.NonEmptyString,
   effort: EffortSchema,
@@ -29,6 +31,17 @@ const ExtractedPhaseSchema = Schema.Struct({
     subject: Schema.NonEmptyString,
     body: Schema.NonEmptyString,
   }),
+};
+
+const ExtractedPhaseSchema = Schema.Struct(ExtractedPhaseFields);
+
+export const ExtractedRunSchema = Schema.Struct({
+  // Loose on purpose: the model is unreliable at emitting a valid slug, so we
+  // accept any non-empty string here and slugify it ourselves in
+  // `finalizeExtractedPlan` (see `slugifyShortName`).
+  shortName: Schema.NonEmptyString,
+  title: Schema.NonEmptyString,
+  requiredCommands: Schema.Array(Schema.String),
 });
 
 // The persisted phase: the extracted fields plus the heading-derived `title`.
@@ -52,14 +65,7 @@ const PhaseSchema = Schema.Struct({
 // phax.json) so we never ask Claude to guess them.
 export const ExtractedPhaxPlanSchema = Schema.Struct({
   version: Schema.Literal(1),
-  run: Schema.Struct({
-    // Loose on purpose: the model is unreliable at emitting a valid slug, so we
-    // accept any non-empty string here and slugify it ourselves in
-    // `finalizeExtractedPlan` (see `slugifyShortName`).
-    shortName: Schema.NonEmptyString,
-    title: Schema.NonEmptyString,
-    requiredCommands: Schema.Array(Schema.String),
-  }),
+  run: ExtractedRunSchema,
   phases: Schema.NonEmptyArray(ExtractedPhaseSchema),
 });
 

@@ -543,6 +543,16 @@ cmd "artifact" {
             }
         }
     }
+
+    cmd "schema" {
+        help "Print the JSON Schema of the spec or plan document (experimental)"
+        long_help "Prints the JSON Schema of the experimental spec document (kind spec) or plan document (kind plan), pretty-printed to stdout, so a consumer can read the contract a headless authoring session must satisfy without a model call.\n\nBoth formats are experimental: outside the version 1 stability promise, they may change between releases, and each schema is titled accordingly. The plan document's extracted fields are the extracted-plan shape phax run reads. The spec document additionally requires traceability — every acceptance criterion references existing requirements, every requirement is covered, every open question has two or more options and a recommendation among them — which the JSON Schema does not express and phax checks when it decodes a document.\n\nSide effects: none — read-only."
+        example "phax artifact schema spec"
+        example "phax artifact schema plan"
+        arg "<kind>" {
+            help "Document kind: spec or plan"
+        }
+    }
 }
 
 cmd "plans" {

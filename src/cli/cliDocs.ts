@@ -203,6 +203,12 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     examples: ["phax artifact reopen docs/plans/2607101056-typescript-7-migration-plan.md"],
   },
 
+  "artifact schema": {
+    longHelp:
+      "Prints the JSON Schema of the experimental spec document (kind spec) or plan document (kind plan), pretty-printed to stdout, so a consumer can read the contract a headless authoring session must satisfy without a model call.\n\nBoth formats are experimental: outside the version 1 stability promise, they may change between releases, and each schema is titled accordingly. The plan document's extracted fields are the extracted-plan shape phax run reads. The spec document additionally requires traceability — every acceptance criterion references existing requirements, every requirement is covered, every open question has two or more options and a recommendation among them — which the JSON Schema does not express and phax checks when it decodes a document.\n\nSide effects: none — read-only.",
+    examples: ["phax artifact schema spec", "phax artifact schema plan"],
+  },
+
   "artifact new": {
     longHelp:
       "Parent command for creating a Draft spec or plan named from the current UTC minute: <YYMMDDHHMM>-<slug>.md for a spec, <YYMMDDHHMM>-<slug>-plan.md for a plan. The instant is captured when the command runs, never chosen or backdated. A bad slug, an existing target name, or (for a plan) a --spec that is missing or not a spec all refuse with exit code 12 before anything is written.",

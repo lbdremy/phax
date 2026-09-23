@@ -158,7 +158,7 @@ describe("buildProgram", () => {
     expect(subs).toContain("overlap");
   });
 
-  it("artifact's visible subcommands are exactly status, approve, stale, abandon, complete, reopen, new; archive is registered but hidden", () => {
+  it("artifact's visible subcommands are exactly status, approve, stale, abandon, complete, reopen, new, schema; archive is registered but hidden", () => {
     const program = buildProgram();
     const artifactCmd = program.commands.find((c) => c.name() === "artifact");
     expect(artifactCmd).toBeDefined();
@@ -173,6 +173,7 @@ describe("buildProgram", () => {
       "complete",
       "reopen",
       "new",
+      "schema",
     ]);
 
     const archiveCmd = subs.find((c) => c.name() === "archive");

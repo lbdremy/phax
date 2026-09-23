@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { Effect, Either, Layer } from "effect";
-import type { Command } from "commander";
+import { Argument, type Command } from "commander";
 import type { OutputPort } from "../../ports/output.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
@@ -10,6 +10,8 @@ import { Git } from "../../ports/git.js";
 import { inspectArtifact, transitionArtifact } from "../../app/artifactStatus.js";
 import { createArtifact } from "../../app/createArtifact.js";
 import type { ArtifactKind, ArtifactStatus } from "../../domain/artifact/status.js";
+import { getPlanDocumentJsonSchema } from "../../schemas/planDocument.js";
+import { getSpecDocumentJsonSchema } from "../../schemas/specDocument.js";
 import { exitCodeForError } from "./runLayers.js";
 
 function findGitRoot(startDir: string): string {
@@ -123,6 +125,16 @@ export async function runCreateArtifact(
   return 0;
 }
 
+const DOCUMENT_JSON_SCHEMAS: Readonly<Record<ArtifactKind, () => object>> = {
+  spec: getSpecDocumentJsonSchema,
+  plan: getPlanDocumentJsonSchema,
+};
+
+export function runArtifactSchema(kind: ArtifactKind, out: OutputPort): number {
+  out.log(JSON.stringify(DOCUMENT_JSON_SCHEMAS[kind](), null, 2));
+  return 0;
+}
+
 interface TransitionSpec {
   readonly name: string;
   readonly description: string;
@@ -203,6 +215,19 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
     .option("--spec <path>", "Path to the source spec to bind as source-spec")
     .action(async (slug: string, cmdOpts: { spec?: string }) => {
       const exitCode = await runCreateArtifact("plan", slug, cmdOpts.spec, out);
+      process.exit(exitCode);
+    });
+
+  artifactCmd
+    .command("schema")
+    .description("Print the JSON Schema of the spec or plan document (experimental)")
+    .addArgument(
+      new Argument("<kind>", "Document kind: spec or plan").choices(
+        Object.keys(DOCUMENT_JSON_SCHEMAS),
+      ),
+    )
+    .action((kind: ArtifactKind) => {
+      const exitCode = runArtifactSchema(kind, out);
       process.exit(exitCode);
     });
 
