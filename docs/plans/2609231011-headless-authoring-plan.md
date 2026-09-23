@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2609230835-headless-authoring.md
+approved:
+  date: 2026-09-23
+  baseline: 385c37d
 ---
 
 # Headless authoring

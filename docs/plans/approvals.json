@@ -12,6 +12,15 @@
       "approvedAt": "2026-08-11T07:59:18.912Z",
       "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
       "sourceSpec": null
+    },
+    "docs/plans/2609231011-headless-authoring-plan.md": {
+      "planFingerprint": "81ee277d35204a5bcbf98a55294610592705b7f157213b34be21139fd898bdae",
+      "approvedAt": "2026-09-23T10:18:50.234Z",
+      "baseline": "385c37d300c1b6e37042001f5eae41caae959b0e",
+      "sourceSpec": {
+        "path": "docs/specs/2609230835-headless-authoring.md",
+        "fingerprint": "a0b0e3b3b90277c726dd10dcf06a6af0b9b9b7404aa3c2dce46347a2b71037cb"
+      }
     }
   }
 }
