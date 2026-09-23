@@ -24,6 +24,10 @@ import {
 } from "../../../src/domain/errors.js";
 import { sidecarRemedy } from "../../../src/domain/artifact/sidecar.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
+import type {
+  AuthorArtifactResult,
+  AuthoringRecordStatus,
+} from "../../../src/app/authorArtifact.js";
 
 vi.mock("../../../src/app/artifactStatus.js", () => ({
   inspectArtifact: vi.fn(),
@@ -34,7 +38,8 @@ vi.mock("../../../src/app/createArtifact.js", () => ({
   createArtifact: vi.fn(),
 }));
 
-vi.mock("../../../src/app/authorArtifact.js", () => ({
+vi.mock("../../../src/app/authorArtifact.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../src/app/authorArtifact.js")>()),
   authorArtifact: vi.fn(),
 }));
 
@@ -518,6 +523,26 @@ const FAKE_SECURITY: ResolvedConfig["security"] = {
   agentCommands: [],
 };
 
+const WRITTEN_RECORD: AuthoringRecordStatus = {
+  kind: "written",
+  commitSha: "f".repeat(40),
+  branch: "phax/records/v1",
+  key: "authoring/2609230835-plan-prune",
+  shape: "full",
+  fileCount: 5,
+};
+
+function authoredResult(record: AuthoringRecordStatus): AuthorArtifactResult {
+  return {
+    path: "docs/specs/2609230835-plan-prune.md",
+    sidecarPath: "docs/specs/2609230835-plan-prune.json",
+    commit: { hash: "a1b2c3d4e5f6", subject: "docs(specs): draft plan-prune" },
+    authoringId: "2609230835-plan-prune",
+    sessionFolder: "/fake-state/authoring/2609230835-plan-prune",
+    record,
+  };
+}
+
 function makeHeadlessConfig(
   authoring: ResolvedConfig["authoring"] = {
     spec: { model: "config-spec-model", effort: "medium" },
@@ -595,18 +620,10 @@ describe("runCreateArtifactHeadless", () => {
     expect(authorArtifact).not.toHaveBeenCalled();
   });
 
-  it("success: prints the four lines and exits 0", async () => {
+  it("success: prints the five lines, ending with the record key, and exits 0", async () => {
     await mockHappyPathConfig();
     const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
-    authorArtifact.mockReturnValue(
-      Effect.succeed({
-        path: "docs/specs/2609230835-plan-prune.md",
-        sidecarPath: "docs/specs/2609230835-plan-prune.json",
-        commit: { hash: "a1b2c3d4e5f6", subject: "docs(specs): draft plan-prune" },
-        authoringId: "2609230835-plan-prune",
-        sessionFolder: "/fake-state/authoring/2609230835-plan-prune",
-      }),
-    );
+    authorArtifact.mockReturnValue(Effect.succeed(authoredResult(WRITTEN_RECORD)));
 
     const { out, lines } = makeOutput();
     const code = await runCreateArtifactHeadless(
@@ -624,7 +641,58 @@ describe("runCreateArtifactHeadless", () => {
       "created docs/specs/2609230835-plan-prune.md (Draft, headless)",
       "sidecar docs/specs/2609230835-plan-prune.json",
       "commit a1b2c3d — docs(specs): draft plan-prune",
+      "record authoring/2609230835-plan-prune",
     ]);
+  });
+
+  it("success with records off prints `record off`", async () => {
+    await mockHappyPathConfig();
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+    authorArtifact.mockReturnValue(Effect.succeed(authoredResult({ kind: "records-off" })));
+
+    const { out, lines } = makeOutput();
+    const code = await runCreateArtifactHeadless(
+      "spec",
+      "plan-prune",
+      undefined,
+      { headless: true, brief: "-" },
+      out,
+      { readStdin: async () => "brief" },
+    );
+
+    expect(code).toBe(0);
+    expect(lines.at(-1)).toBe("record off");
+  });
+
+  it("a refused records destination is a warning naming the remedy, never a failure", async () => {
+    await mockHappyPathConfig();
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+    authorArtifact.mockReturnValue(
+      Effect.succeed(
+        authoredResult({
+          kind: "refused",
+          reason: "public-source-in-repo",
+          destination: { kind: "in-repo" },
+          message: "the source repo is public",
+          remedy: "turn transcripts off",
+        }),
+      ),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runCreateArtifactHeadless(
+      "spec",
+      "plan-prune",
+      undefined,
+      { headless: true, brief: "-" },
+      out,
+      { readStdin: async () => "brief" },
+    );
+
+    expect(code).toBe(0);
+    expect(lines.at(-1)).toBe(
+      "WARN: authoring record refused: the source repo is public (remedy: turn transcripts off)",
+    );
   });
 
   it("failure: AuthoringDocumentError prints the message and exits 5", async () => {
@@ -701,15 +769,7 @@ describe("runCreateArtifactHeadless", () => {
   it("precedence: flag wins over config over catalog default for model and effort", async () => {
     await mockHappyPathConfig();
     const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
-    authorArtifact.mockReturnValue(
-      Effect.succeed({
-        path: "docs/specs/2609230835-plan-prune.md",
-        sidecarPath: "docs/specs/2609230835-plan-prune.json",
-        commit: { hash: "a1b2c3d4e5f6", subject: "docs(specs): draft plan-prune" },
-        authoringId: "2609230835-plan-prune",
-        sessionFolder: "/fake-state/authoring/2609230835-plan-prune",
-      }),
-    );
+    authorArtifact.mockReturnValue(Effect.succeed(authoredResult(WRITTEN_RECORD)));
 
     const { out } = makeOutput();
     await runCreateArtifactHeadless(
@@ -729,15 +789,7 @@ describe("runCreateArtifactHeadless", () => {
   it("precedence: config wins over catalog default when no flag is given", async () => {
     await mockHappyPathConfig();
     const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
-    authorArtifact.mockReturnValue(
-      Effect.succeed({
-        path: "docs/specs/2609230835-plan-prune.md",
-        sidecarPath: "docs/specs/2609230835-plan-prune.json",
-        commit: { hash: "a1b2c3d4e5f6", subject: "docs(specs): draft plan-prune" },
-        authoringId: "2609230835-plan-prune",
-        sessionFolder: "/fake-state/authoring/2609230835-plan-prune",
-      }),
-    );
+    authorArtifact.mockReturnValue(Effect.succeed(authoredResult(WRITTEN_RECORD)));
 
     const { out } = makeOutput();
     await runCreateArtifactHeadless(

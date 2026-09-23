@@ -74,8 +74,8 @@ Global options (on all commands): `--verbose`, `--trace`
 | `records init` | — | `--force` | Configure records for this project (transcript, destination, auto-push) |
 | `records sync` | — | — | Bring the local records clone in line with its configured remote |
 | `records status` | — | — | Show pending (unpushed) records, by run and phase |
-| `records list` | — | `--run <id>` | List records present, by run and phase |
-| `records explain` | `<sha>` | `--prompt`, `--diff`, `--transcript`, `--gates` | Explain a commit from its record: prompt, diff, gates, handoff, transcript, usage |
+| `records list` | — | `--run <id>` | List records present: phase records by run and phase, authoring records by id and artifact |
+| `records explain` | `<sha>` | `--prompt`, `--diff`, `--transcript`, `--gates` | Explain a commit from its record: prompt, diff, gates, handoff, transcript, usage — or a headless artifact commit's authoring record |
 
 ## Removed commands
 

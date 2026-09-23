@@ -1,5 +1,10 @@
 import type { ProviderId } from "../../schemas/providerId.js";
-import type { RecordPhaseOutcome, RunRecordManifest, TokenUsage } from "../../schemas/runRecord.js";
+import type {
+  RecordPhaseOutcome,
+  RecordShape,
+  RunRecordManifest,
+  TokenUsage,
+} from "../../schemas/runRecord.js";
 import type { Surface } from "../../schemas/phaxConfig.js";
 
 const TRANSCRIPT_FILE = "output.jsonl";
@@ -28,21 +33,30 @@ export interface AssembledRecord {
 }
 
 /**
- * Decide what a phase's record carries and assemble its manifest.
+ * Decide which of a session folder's files a record carries, and its shape.
  *
  * Skeleton = every artifact except `output.jsonl`. Full = skeleton plus
  * `output.jsonl`, and only when both the config enables the transcript and
- * the provider actually produced one. Assembly is pure: the writer performs
- * no selection of its own, it only hashes and commits what this returns.
+ * the provider actually produced one. Shared by phase and authoring records.
  */
-export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
-  const hasTranscript = input.files.includes(TRANSCRIPT_FILE);
-  const includeTranscript = input.transcriptEnabled && hasTranscript;
-  const shape = includeTranscript ? "full" : "skeleton";
-
-  const artifactPaths = input.files
+export function selectRecordArtifacts(
+  files: readonly string[],
+  transcriptEnabled: boolean,
+): { readonly shape: RecordShape; readonly artifactPaths: readonly string[] } {
+  const includeTranscript = transcriptEnabled && files.includes(TRANSCRIPT_FILE);
+  const artifactPaths = files
     .filter((file) => file !== TRANSCRIPT_FILE || includeTranscript)
     .toSorted((a, b) => a.localeCompare(b));
+  return { shape: includeTranscript ? "full" : "skeleton", artifactPaths };
+}
+
+/**
+ * Decide what a phase's record carries and assemble its manifest. Assembly is
+ * pure: the writer performs no selection of its own, it only hashes and
+ * commits what this returns.
+ */
+export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
+  const { shape, artifactPaths } = selectRecordArtifacts(input.files, input.transcriptEnabled);
 
   const manifest: RunRecordManifest = {
     version: 2,

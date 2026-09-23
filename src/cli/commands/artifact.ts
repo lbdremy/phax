@@ -5,18 +5,21 @@ import { Argument, type Command } from "commander";
 import type { OutputPort } from "../../ports/output.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
+import { NodeGitHubLayer } from "../../infra/github.js";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { Backend } from "../../ports/backend.js";
 import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
+import type { GitHub } from "../../ports/github.js";
 import {
   type ArtifactAuthoring,
   inspectArtifact,
   transitionArtifact,
 } from "../../app/artifactStatus.js";
 import { createArtifact } from "../../app/createArtifact.js";
-import { authorArtifact } from "../../app/authorArtifact.js";
+import { authorArtifact, recordWarning } from "../../app/authorArtifact.js";
 import { loadConfig } from "../../app/loadConfig.js";
+import { recordsClonePath } from "../../app/recordsSync.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
@@ -212,6 +215,8 @@ export interface HeadlessArtifactOptions {
 
 export interface HeadlessArtifactDeps {
   readonly backendLayer?: Layer.Layer<Backend>;
+  /** Repo visibility for the records destination policy (transcripts in-repo only). */
+  readonly githubLayer?: Layer.Layer<GitHub>;
   readonly readStdin?: () => Promise<string>;
 }
 
@@ -282,7 +287,7 @@ export async function runCreateArtifactHeadless(
   );
 
   const backendLayer = deps.backendLayer ?? makeNodeBackendLayer(providerConfig);
-  const layer = Layer.mergeAll(fsGitLayer, backendLayer);
+  const layer = Layer.mergeAll(fsGitLayer, backendLayer, deps.githubLayer ?? NodeGitHubLayer);
 
   const effect = Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -303,6 +308,10 @@ export async function runCreateArtifactHeadless(
       extractPlanModel: config.extractPlanModel,
       extractPlanEffort: config.extractPlanEffort,
       nowIso: new Date().toISOString(),
+      records: config.records,
+      ...(config.records.destination.kind === "repo"
+        ? { recordsClonePath: recordsClonePath(config.stateRoot, config.namespace) }
+        : {}),
     });
   }).pipe(Effect.provide(layer));
 
@@ -312,10 +321,13 @@ export async function runCreateArtifactHeadless(
     return exitCodeForAuthoringError(result.left);
   }
 
-  const { path, sidecarPath, commit } = result.right;
+  const { path, sidecarPath, commit, record } = result.right;
   out.log(`created ${path} (Draft, headless)`);
   out.log(`sidecar ${sidecarPath}`);
   out.log(`commit ${commit.hash.slice(0, 7)} — ${commit.subject}`);
+  if (record.kind === "written") out.log(`record ${record.key}`);
+  else if (record.kind === "records-off") out.log("record off");
+  else out.warn(recordWarning(record) ?? "authoring record not written");
   return 0;
 }
 
