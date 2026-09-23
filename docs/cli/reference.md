@@ -805,7 +805,7 @@ Regenerate phax.schema.json from the installed binary's config contract; never m
 
 - **Usage**: `phax artifact <SUBCOMMAND>`
 
-Parent command for inspecting and transitioning the lifecycle status of a spec (docs/specs/) or plan (docs/plans/). Specs carry Draft, Approved, Abandoned, or Completed; plans additionally carry Stale. Transitioning to a terminal status (Abandoned, Completed) moves the file into the artifact's archive/ subdirectory as part of the transition. Illegal transitions and validation failures (missing frontmatter block, unknown status, status/location disagreement) refuse with exit code 12.
+Parent command for inspecting and transitioning the lifecycle status of a spec (docs/specs/) or plan (docs/plans/). Specs carry Draft, Approved, Abandoned, or Completed; plans additionally carry Stale. Transitioning to a terminal status (Abandoned, Completed) moves the file into the artifact's archive/ subdirectory as part of the transition. A headless-authored artifact's JSON document sidecar (<name>.json beside the .md) travels with it: every transition's write-set includes it, and a terminal transition moves it into archive/ alongside the .md. Illegal transitions and validation failures (missing frontmatter block, unknown status, status/location disagreement) refuse with exit code 12.
 
 ### Examples
 
@@ -817,7 +817,7 @@ phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md
 
 - **Usage**: `phax artifact status <path>`
 
-Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status. For Approved specs, also reports the approval date and baseline, and whether the spec has been edited since that approval (recorded) or has no approval record (unrecorded). Read-only — no side effects.
+Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status. For Approved specs, also reports the approval date and baseline, and whether the spec has been edited since that approval (recorded) or has no approval record (unrecorded). Also reports how the artifact was authored: interactive (no sidecar), or headless with its JSON document sidecar and whether the body is still the sidecar's rendering (in sync), differs from it (diverged — the body was edited by hand), or the sidecar is not a valid document (invalid). Frontmatter changes never count as divergence. Read-only — no side effects.
 
 ### Arguments
 
@@ -843,8 +843,9 @@ Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stal
 
 For specs: stamps `approved: { date, baseline }` in the frontmatter and writes a record to docs/specs/approvals.json.
 For plans: stamps `approved: { date, baseline }` in the frontmatter and writes a record to docs/plans/approvals.json. Plan approval refuses with exit 12 if the declared Source-Spec is Approved but its approval is unrecorded or edited since approval — re-approve the spec first.
+For headless-authored artifacts (either kind): approval refuses with exit 12 when the JSON document sidecar is diverged (the body differs from the sidecar's rendering) or invalid, naming the two remedies — re-author the artifact with --headless, or delete the sidecar to demote the artifact to hand-authored.
 
-Side effects: writes the artifact file and commits the transition's write-set (the artifact file plus the approval record sidecar) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.
+Side effects: writes the artifact file and commits the transition's write-set (the artifact file, its JSON document sidecar when headless-authored, plus the approval record) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.
 
 ### Arguments
 

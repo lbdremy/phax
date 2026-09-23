@@ -4,6 +4,7 @@ import { Git, type GitError, type GitOps } from "../ports/git.js";
 import {
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
+  ArtifactSidecarDivergedError,
   ArtifactValidationError,
   InvalidArtifactTransitionError,
   PlanNotApprovedError,
@@ -33,6 +34,13 @@ import {
   stampApproved,
 } from "../domain/artifact/lineage.js";
 import { decodeArtifactFrontmatter, setFrontmatterKeys } from "../domain/artifact/frontmatter.js";
+import { parseArtifactName } from "../domain/artifact/name.js";
+import {
+  type SidecarAgreement,
+  sidecarAgreement,
+  sidecarPathFor,
+  sidecarRemedy,
+} from "../domain/artifact/sidecar.js";
 import { transitionCommitMessage, transitionWriteSet } from "../domain/artifact/writeSet.js";
 import {
   artifactFingerprint,
@@ -53,11 +61,54 @@ export type SpecApprovalInfo =
       readonly editedSinceApproval: boolean;
     };
 
+export type ArtifactAuthoring =
+  | { readonly kind: "interactive" }
+  | {
+      readonly kind: "headless";
+      readonly sidecarPath: string;
+      readonly agreement: SidecarAgreement;
+    };
+
 export interface ArtifactReport {
   readonly kind: ArtifactKind;
   readonly status: ArtifactStatus;
   readonly legalTargets: readonly ArtifactStatus[];
   readonly approval: SpecApprovalInfo;
+  readonly authoring: ArtifactAuthoring;
+}
+
+interface Sidecar {
+  readonly path: string;
+  readonly text: string;
+  readonly agreement: SidecarAgreement;
+}
+
+// A sidecar beside the artifact marks it headless-authored; its absence,
+// interactive. Agreement is computed from the two texts only.
+function readSidecar(
+  repoRelPath: string,
+  kind: ArtifactKind,
+  md: string,
+): Effect.Effect<Sidecar | null, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = sidecarPathFor(repoRelPath);
+    if (!(yield* fs.exists(path))) return null;
+    const text = yield* fs.readText(path);
+    return { path, text, agreement: sidecarAgreement({ md, sidecarJson: text, kind }) };
+  });
+}
+
+function authoringOf(sidecar: Sidecar | null): ArtifactAuthoring {
+  return sidecar === null
+    ? { kind: "interactive" }
+    : { kind: "headless", sidecarPath: sidecar.path, agreement: sidecar.agreement };
+}
+
+function describeDisagreement(agreement: Exclude<SidecarAgreement, "in-sync">): string {
+  return agreement === "diverged"
+    ? "has a body that differs from its sidecar's rendering"
+    : `has an invalid sidecar (${agreement.message})`;
 }
 
 function computeSpecApprovalInfo(
@@ -112,8 +163,9 @@ export function inspectArtifact(
 
     const approval: SpecApprovalInfo =
       kind === "spec" ? yield* computeSpecApprovalInfo(repoRelPath, md, status) : { kind: "none" };
+    const authoring = authoringOf(yield* readSidecar(repoRelPath, kind, md));
 
-    return { kind, status, legalTargets, approval };
+    return { kind, status, legalTargets, approval, authoring };
   });
 }
 
@@ -202,6 +254,7 @@ export function transitionArtifact(
   | SpecApprovalUnrecordedError
   | SpecEditedSinceApprovalError
   | SpecRetirementBlockedError
+  | ArtifactSidecarDivergedError
   | ArtifactDirtyWriteSetError
   | ArtifactCommitFailedError
   | GitError,
@@ -225,7 +278,26 @@ export function transitionArtifact(
       return yield* Effect.fail(requested.left);
     }
 
-    const writeSet = transitionWriteSet(kind, repoRelPath, target);
+    // A headless artifact is approved only while its body is its sidecar's
+    // rendering; other transitions carry the sidecar along whatever its state.
+    const sidecar = yield* readSidecar(repoRelPath, kind, md);
+    if (target === "Approved" && sidecar !== null && sidecar.agreement !== "in-sync") {
+      const slug =
+        parseArtifactName(kind, repoRelPath.slice(repoRelPath.lastIndexOf("/") + 1))?.slug ??
+        repoRelPath;
+      return yield* Effect.fail(
+        new ArtifactSidecarDivergedError({
+          path: repoRelPath,
+          sidecarPath: sidecar.path,
+          problem: describeDisagreement(sidecar.agreement),
+          remedy: sidecarRemedy(kind, slug, sidecar.path),
+        }),
+      );
+    }
+
+    const writeSet = transitionWriteSet(kind, repoRelPath, target, {
+      hasSidecar: sidecar !== null,
+    });
     if (opts.commit) {
       const dirty = yield* git.dirtyPaths(opts.repoRoot, writeSet);
       if (dirty.length > 0) {
@@ -373,12 +445,15 @@ export function transitionArtifact(
       const destination = archivePathFor(repoRelPath);
       // Never clobber an existing archived artifact (e.g. a reused plan number):
       // the move writes then deletes, so an overwrite here is silent data loss.
-      const destinationExists = yield* fs.exists(destination);
-      if (destinationExists) {
+      // The sidecar's destination gets the same guard, checked before either
+      // file moves.
+      const sidecarDestination = sidecar !== null ? sidecarPathFor(destination) : null;
+      for (const occupied of [destination, sidecarDestination]) {
+        if (occupied === null || !(yield* fs.exists(occupied))) continue;
         return yield* Effect.fail(
           new ArtifactValidationError({
             path: repoRelPath,
-            message: `Cannot archive ${repoRelPath}: destination ${destination} already exists. Remove or rename it first.`,
+            message: `Cannot archive ${repoRelPath}: destination ${occupied} already exists. Remove or rename it first.`,
           }),
         );
       }
@@ -386,6 +461,10 @@ export function transitionArtifact(
       yield* fs.mkdirp(archiveDir);
       yield* fs.writeAtomic(destination, updatedMd);
       yield* fs.remove(repoRelPath);
+      if (sidecar !== null && sidecarDestination !== null) {
+        yield* fs.writeAtomic(sidecarDestination, sidecar.text);
+        yield* fs.remove(sidecar.path);
+      }
       if (kind === "plan") yield* removeApprovalRecord(repoRelPath);
       if (kind === "spec") yield* removeSpecApprovalRecord(repoRelPath);
       const result: ArtifactTransitionResult = { status: target, path: destination };

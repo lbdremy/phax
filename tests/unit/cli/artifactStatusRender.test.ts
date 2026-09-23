@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect } from "effect";
 import { runArtifactStatus } from "../../../src/cli/commands/artifact.js";
+import type { ArtifactAuthoring } from "../../../src/app/artifactStatus.js";
 
 vi.mock("../../../src/app/artifactStatus.js", () => ({
   inspectArtifact: vi.fn(),
@@ -17,6 +18,8 @@ function makeOutput() {
   };
   return { out, lines, errors };
 }
+
+const INTERACTIVE: ArtifactAuthoring = { kind: "interactive" };
 
 describe("runArtifactStatus — approval rendering", () => {
   beforeEach(() => {
@@ -36,6 +39,7 @@ describe("runArtifactStatus — approval rendering", () => {
           baseline: "abc1234",
           editedSinceApproval: false,
         },
+        authoring: INTERACTIVE,
       }),
     );
 
@@ -61,6 +65,7 @@ describe("runArtifactStatus — approval rendering", () => {
           baseline: "abc1234",
           editedSinceApproval: true,
         },
+        authoring: INTERACTIVE,
       }),
     );
 
@@ -81,6 +86,7 @@ describe("runArtifactStatus — approval rendering", () => {
         status: "Approved",
         legalTargets: ["Approved", "Abandoned", "Completed"],
         approval: { kind: "unrecorded" },
+        authoring: INTERACTIVE,
       }),
     );
 
@@ -101,6 +107,7 @@ describe("runArtifactStatus — approval rendering", () => {
         status: "Approved",
         legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
         approval: { kind: "none" },
+        authoring: INTERACTIVE,
       }),
     );
 
@@ -111,5 +118,54 @@ describe("runArtifactStatus — approval rendering", () => {
     const text = lines.join("\n");
     expect(text).not.toContain("Approved:");
     expect(text).not.toContain("Edited since:");
+  });
+});
+
+describe("runArtifactStatus — authoring rendering", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const SIDECAR = "docs/specs/2609230835-plan-prune.json";
+
+  it.each<[string, ArtifactAuthoring, string]>([
+    ["interactive", INTERACTIVE, "Authored:          interactive (no sidecar)"],
+    [
+      "headless, in sync",
+      { kind: "headless", sidecarPath: SIDECAR, agreement: "in-sync" },
+      `Authored:          headless — sidecar ${SIDECAR} (in sync)`,
+    ],
+    [
+      "headless, diverged",
+      { kind: "headless", sidecarPath: SIDECAR, agreement: "diverged" },
+      `Authored:          headless — sidecar ${SIDECAR} (diverged — body differs from the sidecar's rendering)`,
+    ],
+    [
+      "headless, invalid sidecar",
+      {
+        kind: "headless",
+        sidecarPath: SIDECAR,
+        agreement: { kind: "invalid", message: "not JSON (Unexpected token)" },
+      },
+      `Authored:          headless — sidecar ${SIDECAR} (invalid sidecar — not JSON (Unexpected token))`,
+    ],
+  ])("%s: prints the Authored line", async (_label, authoring, expected) => {
+    const { inspectArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    inspectArtifact.mockReturnValue(
+      Effect.succeed({
+        kind: "spec",
+        status: "Draft",
+        legalTargets: ["Approved", "Abandoned"],
+        approval: { kind: "none" },
+        authoring,
+      }),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runArtifactStatus("docs/specs/2609230835-plan-prune.md", out);
+
+    expect(code).toBe(0);
+    expect(lines).toContain(expected);
+    expect(lines.indexOf(expected)).toBe(lines.findIndex((l) => l.startsWith("Status:")) + 1);
   });
 });

@@ -1,14 +1,20 @@
 import { archivePathFor } from "./document.js";
 import { APPROVALS_FILE_PATH, SPEC_APPROVALS_FILE_PATH } from "./lineage.js";
 import { parseArtifactName } from "./name.js";
+import { sidecarPathFor } from "./sidecar.js";
 import { type ArtifactKind, type ArtifactStatus, isTerminalStatus } from "./status.js";
 
+// A headless-authored artifact's sidecar travels with it: it joins the
+// write-set beside the `.md`, and on a terminal target its archived path joins
+// beside the archived `.md`.
 export function transitionWriteSet(
   kind: ArtifactKind,
   repoRelPath: string,
   target: ArtifactStatus,
+  { hasSidecar }: { readonly hasSidecar: boolean },
 ): readonly string[] {
   const paths = [repoRelPath];
+  if (hasSidecar) paths.push(sidecarPathFor(repoRelPath));
   if (
     kind === "plan" &&
     (target === "Approved" || target === "Draft" || isTerminalStatus(target))
@@ -20,6 +26,7 @@ export function transitionWriteSet(
   }
   if (isTerminalStatus(target)) {
     paths.push(archivePathFor(repoRelPath));
+    if (hasSidecar) paths.push(sidecarPathFor(archivePathFor(repoRelPath)));
   }
   return paths;
 }

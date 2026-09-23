@@ -7,17 +7,22 @@ import {
   APPROVALS_FILE_PATH,
   SPEC_APPROVALS_FILE_PATH,
 } from "../../../src/domain/artifact/lineage.js";
+import type { ArtifactStatus } from "../../../src/domain/artifact/status.js";
+
+const NO_SIDECAR = { hasSidecar: false };
+const SIDECAR = { hasSidecar: true };
 
 describe("transitionWriteSet", () => {
   it("spec approve: artifact path plus the spec approvals file", () => {
-    expect(transitionWriteSet("spec", "docs/specs/2609101221-foo.md", "Approved")).toEqual([
-      "docs/specs/2609101221-foo.md",
-      SPEC_APPROVALS_FILE_PATH,
-    ]);
+    expect(
+      transitionWriteSet("spec", "docs/specs/2609101221-foo.md", "Approved", NO_SIDECAR),
+    ).toEqual(["docs/specs/2609101221-foo.md", SPEC_APPROVALS_FILE_PATH]);
   });
 
   it("spec abandon: artifact path, spec approvals file, and archive destination", () => {
-    expect(transitionWriteSet("spec", "docs/specs/2609101221-foo.md", "Abandoned")).toEqual([
+    expect(
+      transitionWriteSet("spec", "docs/specs/2609101221-foo.md", "Abandoned", NO_SIDECAR),
+    ).toEqual([
       "docs/specs/2609101221-foo.md",
       SPEC_APPROVALS_FILE_PATH,
       "docs/specs/archive/2609101221-foo.md",
@@ -25,7 +30,9 @@ describe("transitionWriteSet", () => {
   });
 
   it("spec complete: artifact path, spec approvals file, and archive destination", () => {
-    expect(transitionWriteSet("spec", "docs/specs/2609101221-foo.md", "Completed")).toEqual([
+    expect(
+      transitionWriteSet("spec", "docs/specs/2609101221-foo.md", "Completed", NO_SIDECAR),
+    ).toEqual([
       "docs/specs/2609101221-foo.md",
       SPEC_APPROVALS_FILE_PATH,
       "docs/specs/archive/2609101221-foo.md",
@@ -33,33 +40,33 @@ describe("transitionWriteSet", () => {
   });
 
   it("plan approve: artifact path plus the approvals file", () => {
-    expect(transitionWriteSet("plan", "docs/plans/2609101240-thing-plan.md", "Approved")).toEqual([
-      "docs/plans/2609101240-thing-plan.md",
-      APPROVALS_FILE_PATH,
-    ]);
+    expect(
+      transitionWriteSet("plan", "docs/plans/2609101240-thing-plan.md", "Approved", NO_SIDECAR),
+    ).toEqual(["docs/plans/2609101240-thing-plan.md", APPROVALS_FILE_PATH]);
   });
 
   it("plan stale: just the artifact path (not Approved, not terminal)", () => {
-    expect(transitionWriteSet("plan", "docs/plans/2609101240-thing-plan.md", "Stale")).toEqual([
-      "docs/plans/2609101240-thing-plan.md",
-    ]);
+    expect(
+      transitionWriteSet("plan", "docs/plans/2609101240-thing-plan.md", "Stale", NO_SIDECAR),
+    ).toEqual(["docs/plans/2609101240-thing-plan.md"]);
   });
 
   it("plan reopen (Draft): artifact path plus the approvals file", () => {
-    expect(transitionWriteSet("plan", "docs/plans/2609101240-thing-plan.md", "Draft")).toEqual([
-      "docs/plans/2609101240-thing-plan.md",
-      APPROVALS_FILE_PATH,
-    ]);
+    expect(
+      transitionWriteSet("plan", "docs/plans/2609101240-thing-plan.md", "Draft", NO_SIDECAR),
+    ).toEqual(["docs/plans/2609101240-thing-plan.md", APPROVALS_FILE_PATH]);
   });
 
   it("spec reopen (Draft): just the artifact path, no approvals file", () => {
-    expect(transitionWriteSet("spec", "docs/specs/2609101221-foo.md", "Draft")).toEqual([
-      "docs/specs/2609101221-foo.md",
-    ]);
+    expect(transitionWriteSet("spec", "docs/specs/2609101221-foo.md", "Draft", NO_SIDECAR)).toEqual(
+      ["docs/specs/2609101221-foo.md"],
+    );
   });
 
   it("plan abandon: artifact path, approvals file, and archive destination", () => {
-    expect(transitionWriteSet("plan", "docs/plans/2609101240-thing-plan.md", "Abandoned")).toEqual([
+    expect(
+      transitionWriteSet("plan", "docs/plans/2609101240-thing-plan.md", "Abandoned", NO_SIDECAR),
+    ).toEqual([
       "docs/plans/2609101240-thing-plan.md",
       APPROVALS_FILE_PATH,
       "docs/plans/archive/2609101240-thing-plan.md",
@@ -67,11 +74,76 @@ describe("transitionWriteSet", () => {
   });
 
   it("plan complete: artifact path, approvals file, and archive destination", () => {
-    expect(transitionWriteSet("plan", "docs/plans/2609101240-thing-plan.md", "Completed")).toEqual([
+    expect(
+      transitionWriteSet("plan", "docs/plans/2609101240-thing-plan.md", "Completed", NO_SIDECAR),
+    ).toEqual([
       "docs/plans/2609101240-thing-plan.md",
       APPROVALS_FILE_PATH,
       "docs/plans/archive/2609101240-thing-plan.md",
     ]);
+  });
+
+  describe("with a sidecar", () => {
+    const spec = "docs/specs/2609101221-foo.md";
+    const specJson = "docs/specs/2609101221-foo.json";
+    const plan = "docs/plans/2609101240-thing-plan.md";
+    const planJson = "docs/plans/2609101240-thing-plan.json";
+
+    it.each<[ArtifactStatus, readonly string[]]>([
+      ["Draft", [spec, specJson]],
+      ["Approved", [spec, specJson, SPEC_APPROVALS_FILE_PATH]],
+      ["Stale", [spec, specJson]],
+      [
+        "Abandoned",
+        [
+          spec,
+          specJson,
+          SPEC_APPROVALS_FILE_PATH,
+          "docs/specs/archive/2609101221-foo.md",
+          "docs/specs/archive/2609101221-foo.json",
+        ],
+      ],
+      [
+        "Completed",
+        [
+          spec,
+          specJson,
+          SPEC_APPROVALS_FILE_PATH,
+          "docs/specs/archive/2609101221-foo.md",
+          "docs/specs/archive/2609101221-foo.json",
+        ],
+      ],
+    ])("spec → %s adds the sidecar beside every artifact path", (target, expected) => {
+      expect(transitionWriteSet("spec", spec, target, SIDECAR)).toEqual(expected);
+    });
+
+    it.each<[ArtifactStatus, readonly string[]]>([
+      ["Draft", [plan, planJson, APPROVALS_FILE_PATH]],
+      ["Approved", [plan, planJson, APPROVALS_FILE_PATH]],
+      ["Stale", [plan, planJson]],
+      [
+        "Abandoned",
+        [
+          plan,
+          planJson,
+          APPROVALS_FILE_PATH,
+          "docs/plans/archive/2609101240-thing-plan.md",
+          "docs/plans/archive/2609101240-thing-plan.json",
+        ],
+      ],
+      [
+        "Completed",
+        [
+          plan,
+          planJson,
+          APPROVALS_FILE_PATH,
+          "docs/plans/archive/2609101240-thing-plan.md",
+          "docs/plans/archive/2609101240-thing-plan.json",
+        ],
+      ],
+    ])("plan → %s adds the sidecar beside every artifact path", (target, expected) => {
+      expect(transitionWriteSet("plan", plan, target, SIDECAR)).toEqual(expected);
+    });
   });
 });
 

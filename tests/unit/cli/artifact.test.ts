@@ -14,6 +14,7 @@ import {
   ArtifactCommitFailedError,
   ArtifactCreationError,
   ArtifactDirtyWriteSetError,
+  ArtifactSidecarDivergedError,
   ArtifactValidationError,
   AuthoringDocumentError,
   InvalidArtifactTransitionError,
@@ -21,6 +22,7 @@ import {
   SpecNotApprovedError,
   SpecRetirementBlockedError,
 } from "../../../src/domain/errors.js";
+import { sidecarRemedy } from "../../../src/domain/artifact/sidecar.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 
 vi.mock("../../../src/app/artifactStatus.js", () => ({
@@ -73,6 +75,7 @@ describe("runArtifactStatus", () => {
         status: "Approved",
         legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
         approval: { kind: "none" },
+        authoring: { kind: "interactive" },
       }),
     );
 
@@ -227,6 +230,33 @@ describe("runArtifactTransition", () => {
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("approve the spec first");
+  });
+
+  it("returns exit code 12 and names both remedies when the sidecar diverged", async () => {
+    const { transitionArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    transitionArtifact.mockReturnValue(
+      Effect.fail(
+        new ArtifactSidecarDivergedError({
+          path: "docs/specs/2609230835-plan-prune.md",
+          sidecarPath: "docs/specs/2609230835-plan-prune.json",
+          problem: "has a body that differs from its sidecar's rendering",
+          remedy: sidecarRemedy("spec", "plan-prune", "docs/specs/2609230835-plan-prune.json"),
+        }),
+      ),
+    );
+
+    const { out, errors } = makeOutput();
+    const code = await runArtifactTransition(
+      "docs/specs/2609230835-plan-prune.md",
+      "Approved",
+      out,
+    );
+
+    expect(code).toBe(12);
+    const text = errors.join("\n");
+    expect(text).toContain("differs from its sidecar's rendering");
+    expect(text).toContain("--headless");
+    expect(text).toContain("delete docs/specs/2609230835-plan-prune.json");
   });
 
   it("returns exit code 12 when spec retirement is blocked by a live dependent", async () => {

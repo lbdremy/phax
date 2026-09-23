@@ -283,6 +283,24 @@ export class AuthoringDocumentError extends Data.TaggedError("AuthoringDocumentE
   message: string;
 }> {}
 
+/**
+ * `artifact approve` refused a headless-authored artifact whose body is no
+ * longer the rendering of its JSON sidecar (`problem` says how: the body
+ * diverged, or the sidecar is not a valid document). `remedy` names the two
+ * ways out: re-author headless, or delete the sidecar to demote the artifact
+ * to hand-authored.
+ */
+export class ArtifactSidecarDivergedError extends Data.TaggedError("ArtifactSidecarDivergedError")<{
+  path: string;
+  sidecarPath: string;
+  problem: string;
+  remedy: string;
+}> {
+  override get message(): string {
+    return `Approval refused: ${this.path} ${this.problem}. ${this.remedy}`;
+  }
+}
+
 export class PlanNotApprovedError extends Data.TaggedError("PlanNotApprovedError")<{
   path: string;
   status: string;

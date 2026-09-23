@@ -4,6 +4,7 @@ import { type Git, type GitError } from "../ports/git.js";
 import type {
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
+  ArtifactSidecarDivergedError,
   ArtifactValidationError,
   InvalidArtifactTransitionError,
   SpecApprovalUnrecordedError,
@@ -56,6 +57,7 @@ export type RunCompletionError =
   | SpecApprovalUnrecordedError
   | SpecEditedSinceApprovalError
   | SpecRetirementBlockedError
+  | ArtifactSidecarDivergedError
   | ArtifactDirtyWriteSetError
   | ArtifactCommitFailedError
   | GitError;

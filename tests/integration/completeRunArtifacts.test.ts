@@ -127,6 +127,27 @@ describe("completeRunArtifacts", () => {
     expect(diff).toContain(APPROVALS);
   });
 
+  it("carries a headless plan's JSON sidecar into archive/ in the same commit", async () => {
+    const sidecar = "docs/plans/2609101270-run-carry-plan.json";
+    const archivedSidecar = "docs/plans/archive/2609101270-run-carry-plan.json";
+    writeRepoFile(PLAN_PATH, planMd("Approved", "null"));
+    writeRepoFile(sidecar, "{}\n");
+    writeRepoFile(APPROVALS, approvalsJson(PLAN_PATH, SPEC_PATH));
+    commitAll();
+
+    const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
+
+    expect(Either.isRight(result)).toBe(true);
+    if (!Either.isRight(result)) return;
+    const [plan] = result.right.transitions;
+    expect(readRepoFile(archivedSidecar)).toBe("{}\n");
+    expect(readRepoFile(sidecar)).toBeUndefined();
+    const diff = git(["show", "--name-status", plan?.commit?.hash as string]);
+    expect(diff).toContain(sidecar);
+    expect(diff).toContain(archivedSidecar);
+    expect(git(["status", "--porcelain"]).trim()).toBe("");
+  });
+
   it("rides the source spec along in a second, separate commit", async () => {
     writeRepoFile(SPEC_PATH, specMd("Approved"));
     writeRepoFile(PLAN_PATH, planMd("Approved", SPEC_PATH));

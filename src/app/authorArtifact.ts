@@ -12,6 +12,7 @@ import {
   type SecurityEnforcementError,
   type UsageLimitError,
 } from "../domain/errors.js";
+import { sidecarPathFor } from "../domain/artifact/sidecar.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import { formatStamp } from "../domain/artifact/name.js";
 import { stripJsonCodeFence } from "../domain/authoring/jsonText.js";
@@ -99,11 +100,6 @@ export type AuthorArtifactError =
 type AuthoredDocument =
   | { readonly kind: "spec"; readonly doc: SpecDocument }
   | { readonly kind: "plan"; readonly doc: PlanDocument };
-
-// `docs/specs/<name>.md` → `docs/specs/<name>.json`.
-function sidecarPathOf(mdPath: string): string {
-  return mdPath.replace(/\.md$/, ".json");
-}
 
 export function authoringSessionFolder(stateRoot: string, authoringId: string): string {
   return join(stateRoot, "authoring", authoringId);
@@ -244,7 +240,7 @@ function runAuthoringSession(
       });
     }
 
-    const sidecarPath = sidecarPathOf(target.path);
+    const sidecarPath = sidecarPathFor(target.path);
     yield* fs.mkdirp(target.dir);
     yield* fs.writeAtomic(target.path, artifactMd);
     yield* fs
@@ -296,7 +292,7 @@ export function authorArtifact(
     const fs = yield* FileSystem;
 
     const target = yield* resolveArtifactTarget(input);
-    const sidecarPath = sidecarPathOf(target.path);
+    const sidecarPath = sidecarPathFor(target.path);
     if (yield* fs.exists(sidecarPath)) {
       return yield* Effect.fail(
         new ArtifactCreationError({ message: `${sidecarPath} already exists` }),

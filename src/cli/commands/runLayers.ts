@@ -34,6 +34,7 @@ import {
   ArtifactCreationError,
   AuthoringDocumentError,
   ArtifactDirtyWriteSetError,
+  ArtifactSidecarDivergedError,
   ArtifactValidationError,
   ConfigValidationError,
   GateFailedError,
@@ -154,6 +155,7 @@ export function exitCodeForError(err: unknown): number {
     err instanceof SpecRetirementBlockedError ||
     err instanceof PlanStaleError ||
     err instanceof ArtifactDirtyWriteSetError ||
+    err instanceof ArtifactSidecarDivergedError ||
     err instanceof ArtifactCreationError
   )
     return 12;
