@@ -145,4 +145,16 @@ describe("opus/ultracode has no default spoke equivalent", () => {
     expect(result.selected.family).toBe("claude-fable");
     expect(result.selected.thinking).toBe("ultracode");
   });
+
+  it("never silently downgrades claude-opus-5-5/ultracode to a non-Claude provider", () => {
+    const result = resolveModel(
+      { model: "claude-opus-5-5", effort: "ultracode" },
+      mistralPriority,
+      allEnabled,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-opus");
+    expect(result.selected.concreteModel).toBe("claude-opus-5-5");
+    expect(result.selected.thinking).toBe("ultracode");
+  });
 });

@@ -10,7 +10,7 @@ Update it in the same change that touches the catalog or a default, and append
 a row to the refresh log at the bottom.
 
 **State described:** the catalog as it stands after
-`docs/plans/2609070832-catalog-fable-5-1-opus-5-gpt-6-astra-plan.md` landed.
+`docs/plans/2609230815-catalog-opus-5-5-gpt-6-sol-luna-plan.md` landed.
 
 ## 1. Sources of truth
 
@@ -34,16 +34,19 @@ Efforts are per entry, never per family. Status `active` unless stated.
 | Id                          | Family          | Efforts                                          | Read from                                                                                              | Since                    |
 | --------------------------- | --------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------ |
 | `claude-haiku-4-5-20251001` | `claude-haiku`  | `none`                                           | No effort ladder in Claude Code; still the newest Haiku (`latest_per_family.haiku`)                    | initial catalog          |
-| `claude-sonnet-4-6`         | `claude-sonnet` | `low medium high max`                            | No `xhigh_effort` capability, hence no `ultracode`                                                     | initial catalog          |
 | `claude-sonnet-5`           | `claude-sonnet` | `low medium high xhigh max ultracode`            | `xhigh_effort`; `ultracode` added when Claude Code 2.1.263 was confirmed to gate it on xhigh only     | `0667c17`; ultracode phase-01 |
+| `claude-sonnet-4-6`         | `claude-sonnet` | `low medium high max`                            | No `xhigh_effort` capability, hence no `ultracode`                                                     | initial catalog          |
+| `claude-opus-5-5`           | `claude-opus`   | `low medium high xhigh max ultracode`            | Claude Code 2.1.280 table, `xhigh_effort`, knowledge cutoff June 2026, `latest_per_family.opus`         | phase-01 (catalog-opus-5-5-gpt-6-sol-luna) |
+| `claude-opus-5`             | `claude-opus`   | `low medium high xhigh max ultracode`            | Claude Code 2.1.263 table, `xhigh_effort`, knowledge cutoff May 2026; kept active — still served by Claude Code 2.1.280, no longer on the AA index | phase-01                 |
 | `claude-opus-4-8`           | `claude-opus`   | `low medium high xhigh max ultracode`            | `xhigh_effort`                                                                                          | initial catalog          |
-| `claude-opus-5`             | `claude-opus`   | `low medium high xhigh max ultracode`            | Claude Code 2.1.263 table, `xhigh_effort`, knowledge cutoff May 2026                                   | phase-01                 |
-| `claude-fable-5`            | `claude-fable`  | `low medium high xhigh max ultracode`            | `xhigh_effort`; ultracode added phase-01                                                                | `0667c17`; ultracode phase-01 |
 | `claude-fable-5-1`          | `claude-fable`  | `low medium high xhigh max ultracode`            | Claude Code 2.1.257+ (`latest_per_family.fable`), released 2026-09-01, `xhigh_effort`                  | phase-01                 |
+| `claude-fable-5`            | `claude-fable`  | `low medium high xhigh max ultracode`            | `xhigh_effort`; ultracode added phase-01                                                                | `0667c17`; ultracode phase-01 |
 
-Order inside a family is oldest first: `pickActiveEntry` resolves an alias
-(`opus`, `gpt`, …) to the first active entry, so prepending a new version
-silently changes what an alias means.
+Order inside a family is newest first: `pickActiveEntry` resolves an alias
+(`opus`, `sonnet`, `fable`, `gpt`, …) or any id it doesn't recognize to the
+first active entry, so the first entry is the family's current model. `opus`
+now resolves to `claude-opus-5-5`, `sonnet` to `claude-sonnet-5` and `fable`
+to `claude-fable-5-1`. Adding a version means prepending it, never appending.
 
 ### codex-cli
 
@@ -132,7 +135,8 @@ Run through this each time a provider ships or retires a model:
 1. Read the ground truth for each provider (section 1); note the client
    version you read it from. Check `upgrade` pointers and `visibility` for
    retirements; a retired id becomes `status: "deprecated"`, never deleted.
-2. Add entries oldest-first inside their family; efforts exactly as read.
+2. Add entries newest-first inside their family (prepend); the first active
+   entry is what an alias resolves to. Efforts exactly as read.
 3. Anchor every new spoke effort straight across to the closest Claude entry
    on one capability axis; record the numbers and the relation in section 3.
    Keep `ultracode` unanchored.

@@ -143,7 +143,20 @@ describe("resolveModel — cross-family translation via the Claude hub", () => {
   });
 });
 
-describe("resolveModel — Claude Fable 5.1 and Opus 5 native resolution", () => {
+describe("resolveModel — Claude Fable 5.1, Opus 5.5 and Opus 5 native resolution", () => {
+  it("claude-opus-5-5/xhigh resolves natively on claude-code (exact)", () => {
+    const result = resolveModel(
+      { model: "claude-opus-5-5", effort: "xhigh" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-opus");
+    expect(result.selected.concreteModel).toBe("claude-opus-5-5");
+    expect(result.selected.thinking).toBe("xhigh");
+    expect(result.relationship).toBe("exact");
+  });
+
   it("claude-opus-5/xhigh resolves natively on claude-code (exact)", () => {
     const result = resolveModel(
       { model: "claude-opus-5", effort: "xhigh" },
@@ -170,7 +183,7 @@ describe("resolveModel — Claude Fable 5.1 and Opus 5 native resolution", () =>
     expect(result.relationship).toBe("exact");
   });
 
-  it("claude-opus-4-8/ultracode still resolves to the older entry (order preserved)", () => {
+  it("claude-opus-4-8/ultracode still resolves to itself by exact id, despite not being first in family order", () => {
     const result = resolveModel(
       { model: "claude-opus-4-8", effort: "ultracode" },
       claudeOnly,
@@ -181,6 +194,60 @@ describe("resolveModel — Claude Fable 5.1 and Opus 5 native resolution", () =>
     expect(result.selected.concreteModel).toBe("claude-opus-4-8");
     expect(result.selected.thinking).toBe("ultracode");
     expect(result.relationship).toBe("exact");
+  });
+
+  it("claude-sonnet-4-6/medium still resolves to itself by exact id, despite not being first in family order", () => {
+    const result = resolveModel(
+      { model: "claude-sonnet-4-6", effort: "medium" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-4-6");
+    expect(result.selected.thinking).toBe("medium");
+    expect(result.relationship).toBe("exact");
+  });
+});
+
+describe("resolveModel — alias resolution picks the newest-first entry", () => {
+  it("opus/high resolves to claude-opus-5-5 via requestedModelNormalization", () => {
+    const result = resolveModel(
+      { model: "opus", effort: "high" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-opus");
+    expect(result.selected.concreteModel).toBe("claude-opus-5-5");
+    expect(result.selected.thinking).toBe("high");
+    expect(result.relationship).toBe("equivalent");
+  });
+
+  it("sonnet/medium resolves to claude-sonnet-5 via requestedModelNormalization", () => {
+    const result = resolveModel(
+      { model: "sonnet", effort: "medium" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5");
+    expect(result.selected.thinking).toBe("medium");
+    expect(result.relationship).toBe("equivalent");
+  });
+
+  it("fable/high resolves to claude-fable-5-1 via requestedModelNormalization", () => {
+    const result = resolveModel(
+      { model: "fable", effort: "high" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-fable");
+    expect(result.selected.concreteModel).toBe("claude-fable-5-1");
+    expect(result.selected.thinking).toBe("high");
+    expect(result.relationship).toBe("equivalent");
   });
 });
 
@@ -327,10 +394,11 @@ describe("resolveModel — terminal claude-code fallback", () => {
       claudeOnly,
       DEFAULT_PROVIDER_CONFIG,
     );
-    // Unknown id → familyOfId misses, fallback: claude-sonnet.
+    // Unknown id → familyOfId misses, fallback: claude-sonnet, newest-first entry.
     expect(result.requested.family).toBe("claude-sonnet");
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5");
   });
 
   it("preserves selected family when heuristic matches (e.g., unknown opus id)", () => {
@@ -341,7 +409,8 @@ describe("resolveModel — terminal claude-code fallback", () => {
     );
     expect(result.requested.family).toBe("claude-opus");
     expect(result.selected.family).toBe("claude-opus");
-    // Requested id not in catalog → equivalent (substitution).
+    // Requested id not in catalog → equivalent (substitution), newest-first entry.
+    expect(result.selected.concreteModel).toBe("claude-opus-5-5");
     expect(result.relationship).toBe("equivalent");
   });
 });
