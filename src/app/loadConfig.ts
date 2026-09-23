@@ -15,6 +15,7 @@ import {
   resolvePublishConfig,
   resolveComplianceReviewConfig,
   resolveCodeReviewConfig,
+  resolveAuthoringConfig,
 } from "../schemas/phaxConfig.js";
 import { resolveSecurityConfig, DEFAULT_SECURITY_PROFILE } from "../schemas/securityConfig.js";
 import { resolveRecordsConfig } from "../schemas/recordsConfig.js";
@@ -277,6 +278,7 @@ export function loadConfig(
     ...(config.planAuditor !== undefined ? { planAuditor: config.planAuditor } : {}),
     complianceReview: resolveComplianceReviewConfig(config.review?.compliance),
     codeReview: resolveCodeReviewConfig(config.review?.code),
+    authoring: resolveAuthoringConfig(config.authoring),
     records: resolveRecordsConfig(config.records),
   };
 
