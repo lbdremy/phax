@@ -10,6 +10,11 @@
       "specFingerprint": "9508e9c38f63c361a588de697fa91daaa7691e09c55fb7039cf73539d62a7c6e",
       "approvedAt": "2026-09-04T09:28:10.866Z",
       "baseline": "c545cb15a06301fc60d30abdacb2475d0458365e"
+    },
+    "docs/specs/2609230835-headless-authoring.md": {
+      "specFingerprint": "a0b0e3b3b90277c726dd10dcf06a6af0b9b9b7404aa3c2dce46347a2b71037cb",
+      "approvedAt": "2026-09-23T09:37:50.915Z",
+      "baseline": "7203048ce556d1b6e1dde372178b2cde4ab45106"
     }
   }
 }

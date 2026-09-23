@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-09-23
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-09-23
+  baseline: "7203048"
 ---
 
 # Headless Authoring — `artifact new spec|plan --headless`
