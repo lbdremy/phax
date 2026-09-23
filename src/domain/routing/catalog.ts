@@ -156,6 +156,8 @@ export interface EquivalentSubstitution {
  * - hub → spoke: search the equivalence table for an entry whose canonical
  *   {claude, effort} matches the request AND whose spoke id belongs to
  *   `targetFamily`. Return that spoke entry with the stored relation.
+ *   Deprecated spokes are skipped — a Claude phase is never routed onto a
+ *   retired provider model.
  * - spoke → hub: direct lookup `equivalence[id][effort]`; invert the relation.
  * - spoke → spoke: compose the two hops through the Claude hub.
  */
@@ -208,6 +210,9 @@ function hubToSpoke(
   for (const [spokeId, byEffort] of Object.entries(routing.equivalence)) {
     const spokeLocation = entryFor(spokeId, providerCfg);
     if (!spokeLocation || spokeLocation.family !== targetFamily) continue;
+    // A deprecated spoke keeps its edges for spoke → hub fallback, but is
+    // never a valid destination in this direction.
+    if (spokeLocation.entry.status === "deprecated") continue;
     for (const [spokeEffort, edge] of Object.entries(byEffort)) {
       if (edge.claude === claudeId && edge.effort === claudeEffort) {
         return {

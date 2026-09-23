@@ -78,7 +78,9 @@ Resolution uses this table in three directions:
 - **spoke → hub**: direct lookup `equivalence[id][effort]`; the relation is **inverted** (`downgrade ↔ upgrade`).
 - **spoke → spoke**: compose the two hops (spoke1 → hub, hub → spoke2). The resulting relation is the composition of both hops.
 
-The shipped table uses `downgrade` for `gpt-6-astra` → `claude-fable-5-1`: under `allowDowngrade: false` a `claude-fable-5-1` phase stays on Claude Code, while a `gpt-6-astra` phase still falls back to `claude-fable-5-1` because the inverted spoke → hub direction is an `upgrade`.
+A hub → spoke lookup **never selects a spoke whose catalog entry is `status: "deprecated"`**; the spoke → hub direction ignores status, so a phase that still names a retired id keeps its Claude fallback.
+
+The shipped table uses `downgrade` for `gpt-6-sol` → `claude-opus-5-5` (and for `gpt-6-luna` at `low`): under `allowDowngrade: false` a `claude-opus-5-5` phase stays on Claude Code, while a `gpt-6-sol` phase still falls back to `claude-opus-5-5` because the inverted spoke → hub direction is an `upgrade`. `gpt-6-astra` → `claude-fable-5-1` is `equivalent`, so it routes under both settings.
 
 ## Resolution algorithm
 
@@ -173,7 +175,7 @@ Config version 2. Old `tiers`, `normalization`, and `defaultTier` fields are rej
 
 Each `families` entry contains a `models` array of versioned entries with `id`, `efforts`, and `status`.
 
-`gpt-6-astra` requires codex ≥ 0.153.0 (its `minimal_client_version`); an older installed codex will not serve it even when `codex-cli` is enabled.
+`gpt-6-astra` requires codex ≥ 0.153.0 (its `minimal_client_version`), and `gpt-6-sol` / `gpt-6-luna` require codex ≥ 0.155.0; an older installed codex will not serve them even when `codex-cli` is enabled.
 
 ## Worked examples
 
@@ -219,13 +221,21 @@ If `codex-cli` is disabled, the terminal translates spoke → hub: `equivalence[
 - Falls to `claude-code` terminal → same-family natively
 - **Result**: `claude-code`, `claude-opus-4-8`, effort `ultracode`, relationship `exact`
 
-### Example 6 — gpt-6-astra/ultra, codex-cli disabled (spoke → hub upgrade)
+### Example 6 — gpt-6-astra/ultra, codex-cli disabled (spoke → hub)
 
 - Request: `gpt-6-astra` / `ultra`
 - Plan family: `openai-gpt` (catalog lookup)
 - `codex-cli` disabled → falls through to the `claude-code` terminal
-- Terminal translates spoke → hub: `equivalence["gpt-6-astra"]["ultra"]` → `{claude: "claude-fable-5-1", effort: "max"}`, stored relation `downgrade` inverted to `upgrade`
-- **Result**: `claude-code`, `claude-fable-5-1`, effort `max`, relationship `upgrade`
+- Terminal translates spoke → hub: `equivalence["gpt-6-astra"]["ultra"]` → `{claude: "claude-fable-5-1", effort: "max"}`, stored relation `equivalent` (self-inverse)
+- **Result**: `claude-code`, `claude-fable-5-1`, effort `max`, relationship `equivalent`
+
+### Example 7 — claude-sonnet-5/medium, codex-cli first (deprecated spoke skipped)
+
+- Request: `claude-sonnet-5` / `medium`
+- Plan family: `claude-sonnet`; `codex-cli` serves `openai-gpt` → hub → spoke lookup
+- Two spokes anchor `{claude: "claude-sonnet-5", effort: "medium"}`: `gpt-6-luna` and `gpt-5.6-luna`
+- `gpt-5.6-luna` is `status: "deprecated"` → skipped
+- **Result**: `codex-cli`, `gpt-6-luna`, effort `medium`, relationship `equivalent`
 
 ## Editing the routing config
 

@@ -367,7 +367,52 @@ describe("preflightPhaseModels — disabled provider", () => {
     expect(result.failures).toHaveLength(0);
   });
 
-  it("passes for gpt-6-astra/ultra when codex is disabled and allowDowngrade is false (spoke→hub is an upgrade)", () => {
+  it("fails a phase naming the deprecated gpt-5.6-terra", () => {
+    const result = preflightPhaseModels(
+      [{ id: "phase-01", model: "gpt-5.6-terra", effort: "high" }],
+      DEFAULT_MODEL_ROUTING,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]?.reasons.some((r) => r.includes("deprecated"))).toBe(true);
+  });
+
+  it("fails a claude-fable-5 phase when only codex is enabled: its only codex anchor is deprecated", () => {
+    const codexOnly: ProviderConfig = {
+      providers: {
+        ...DEFAULT_PROVIDER_CONFIG.providers,
+        "claude-code": { ...DEFAULT_PROVIDER_CONFIG.providers["claude-code"]!, enabled: false },
+        "codex-cli": { ...DEFAULT_PROVIDER_CONFIG.providers["codex-cli"]!, enabled: true },
+      },
+    };
+    const result = preflightPhaseModels(
+      [{ id: "phase-01", model: "claude-fable-5", effort: "high" }],
+      DEFAULT_MODEL_ROUTING,
+      codexOnly,
+    );
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]?.reasons.some((r) => r.includes("no permitted cross-family"))).toBe(
+      true,
+    );
+  });
+
+  it("passes a claude-fable-5-1 phase when only codex is enabled (gpt-6-astra route)", () => {
+    const codexOnly: ProviderConfig = {
+      providers: {
+        ...DEFAULT_PROVIDER_CONFIG.providers,
+        "claude-code": { ...DEFAULT_PROVIDER_CONFIG.providers["claude-code"]!, enabled: false },
+        "codex-cli": { ...DEFAULT_PROVIDER_CONFIG.providers["codex-cli"]!, enabled: true },
+      },
+    };
+    const result = preflightPhaseModels(
+      [{ id: "phase-01", model: "claude-fable-5-1", effort: "high" }],
+      DEFAULT_MODEL_ROUTING,
+      codexOnly,
+    );
+    expect(result.failures).toHaveLength(0);
+  });
+
+  it("passes for gpt-6-astra/ultra when codex is disabled and allowDowngrade is false (spoke→hub is equivalent)", () => {
     const routing: ModelRouting = {
       ...DEFAULT_MODEL_ROUTING,
       allowDowngrade: false,
