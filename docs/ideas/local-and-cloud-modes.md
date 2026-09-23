@@ -84,13 +84,30 @@ a stream. What remains, cheapest first:
 2. **A reusable composition root.** Each CLI command assembles its own `Layer`s. Provide a
    single `LocalLive` composing every local adapter, consumed identically by the CLI and
    by a host; `CloudLive` later. Without it a host re-copies each command's wiring.
-3. **Three `process` reads in `app`** (`loadConfig`: `cwd`/`env`; `providerProbe`) go
-   behind a port, or the use case depends on the host process.
-4. **The lock** is a file behind its port; check what a long-lived host holding it across
+3. **Two ports that do not exist: the clock and randomness.** `new Date()` / `Date.now()`
+   appear in about twenty `app` modules (`executePlan`, `resetPhase`, `resume`, `commit`,
+   `gates`, `fixLoop`, `runFolder`, `registry`, `archive`, …) and `randomUUID` 27 times
+   (session and run identities, `randomBytes` twice). A host cannot make a run
+   deterministic, replay it, or test it against a fixed instant while time and ids are
+   ambient. Add a `Clock` port (`now`, and the sleep the rate-limit wait uses) and an
+   `Ids` port (`uuid`, `bytes`), with a `Live` layer and a fake; `createHash` (4 sites) is
+   pure and stays. Effect already ships `Clock` and `Random` services — reuse them rather
+   than inventing.
+4. **Direct `node:fs` imports in ten `app` modules** bypass the `FileSystem` port
+   (`loadConfig`, `loadPlan`, `resolveRunInfo`, `resolveRunRef`, `initProject`,
+   `agentBinding`, `finalReport`, `resume`, `executePlan`, `loadTelemetryConfig` — mostly
+   `readFileSync`/`existsSync`). In cloud mode these read the host's disk instead of the
+   sandbox's. Route them through the port; the architectural-guard test should forbid
+   `node:fs` and `node:child_process` in `app` afterwards.
+5. **Environment reads** in `app` and one in `domain` (`loadConfig`: `cwd`/`env`;
+   `providerProbe`; `effectRunner`; `report`; `domain/whatsNext.ts` takes
+   `process.platform` as an argument, which is fine — its callers are not). Behind a
+   `Host`/`Env` port, or the use case depends on the host process.
+6. **The lock** is a file behind its port; check what a long-lived host holding it across
    runs means.
-5. **Errors and exit codes**: confirm no use case maps an error to an exit code itself —
+7. **Errors and exit codes**: confirm no use case maps an error to an exit code itself —
    that is the CLI's job.
-6. **Persisted formats become wire formats** (see costs above), which is why all of this
+8. **Persisted formats become wire formats** (see costs above), which is why all of this
    waits for the 1.0 stability promise.
 
 Not on the steme item-0 critical path: during the experiment the cockpit reads records
