@@ -1,6 +1,22 @@
-import type { PhaxConfig, PhaxUserOverlay } from "../../schemas/phaxConfig.js";
+import type { AuthoringKindConfig, PhaxConfig, PhaxUserOverlay } from "../../schemas/phaxConfig.js";
 
 type GateProfiles = PhaxConfig["gateProfiles"];
+
+// A `{ model?, effort? }` block (`review.code`, `authoring.spec|plan`), each field
+// overridden independently; undefined when no layer sets either.
+function mergeModelEffort(
+  project: AuthoringKindConfig | undefined,
+  globalUser: AuthoringKindConfig | undefined,
+  localUser: AuthoringKindConfig | undefined,
+): AuthoringKindConfig | undefined {
+  const model = localUser?.model ?? globalUser?.model ?? project?.model;
+  const effort = localUser?.effort ?? globalUser?.effort ?? project?.effort;
+  if (model === undefined && effort === undefined) return undefined;
+  return {
+    ...(model !== undefined ? { model } : {}),
+    ...(effort !== undefined ? { effort } : {}),
+  };
+}
 
 function unionStrings(...arrays: (readonly string[] | undefined)[]): readonly string[] | undefined {
   if (arrays.every((a) => a === undefined)) return undefined;
@@ -163,6 +179,34 @@ export function mergeConfigLayers(input: {
     globalUser?.review?.compliance?.effort ??
     project.review?.compliance?.effort;
 
+  const compliance =
+    hasCompliance && complianceEnabled !== undefined
+      ? {
+          enabled: complianceEnabled,
+          ...(complianceModel !== undefined ? { model: complianceModel } : {}),
+          ...(complianceEffort !== undefined ? { effort: complianceEffort } : {}),
+        }
+      : undefined;
+
+  // review.code: per-field scalar override
+  const codeReview = mergeModelEffort(
+    project.review?.code,
+    globalUser?.review?.code,
+    localUser?.review?.code,
+  );
+
+  // authoring.{spec,plan}: per-field scalar override, per kind
+  const authoringSpec = mergeModelEffort(
+    project.authoring?.spec,
+    globalUser?.authoring?.spec,
+    localUser?.authoring?.spec,
+  );
+  const authoringPlan = mergeModelEffort(
+    project.authoring?.plan,
+    globalUser?.authoring?.plan,
+    localUser?.authoring?.plan,
+  );
+
   // commands: per-field scalar override (higher layer replaces wholesale per field)
   const commandsSetup =
     localUser?.commands?.setup ?? globalUser?.commands?.setup ?? project.commands?.setup;
@@ -250,14 +294,19 @@ export function mergeConfigLayers(input: {
     ...(orientCommand !== undefined ? { orient: { command: orientCommand } } : {}),
     ...(scopesCommand !== undefined ? { scopes: { command: scopesCommand } } : {}),
     ...(planAuditorCommand !== undefined ? { planAuditor: { command: planAuditorCommand } } : {}),
-    ...(hasCompliance && complianceEnabled !== undefined
+    ...(compliance !== undefined || codeReview !== undefined
       ? {
           review: {
-            compliance: {
-              enabled: complianceEnabled,
-              ...(complianceModel !== undefined ? { model: complianceModel } : {}),
-              ...(complianceEffort !== undefined ? { effort: complianceEffort } : {}),
-            },
+            ...(compliance !== undefined ? { compliance } : {}),
+            ...(codeReview !== undefined ? { code: codeReview } : {}),
+          },
+        }
+      : {}),
+    ...(authoringSpec !== undefined || authoringPlan !== undefined
+      ? {
+          authoring: {
+            ...(authoringSpec !== undefined ? { spec: authoringSpec } : {}),
+            ...(authoringPlan !== undefined ? { plan: authoringPlan } : {}),
           },
         }
       : {}),
