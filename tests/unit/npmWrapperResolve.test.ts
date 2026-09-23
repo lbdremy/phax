@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { binaryName, checksumAssetUrl, releaseAssetUrl } from "../../npm/lib/resolveBinary.ts";
+import { binaryName, checksumAssetUrl, releaseAssetUrl } from "../../npm/lib/resolveBinary.mjs";
 
 describe("binaryName", () => {
   it.each([

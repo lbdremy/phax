@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { versionFromTag } from "../../scripts/prepare-npm.ts";
+import { versionFromTag } from "../../scripts/releaseVersion.js";
 
 const workflowPath = join(import.meta.dirname, "../../.github/workflows/release.yml");
 const workflow = readFileSync(workflowPath, "utf-8");

@@ -1,13 +1,6 @@
 // Prepare the npm wrapper for a release tag by version-matching npm/package.json.
-// Export: versionFromTag(tag) — pure, unit-tested by releaseWorkflow.test.ts
 import { join } from "node:path";
-
-export function versionFromTag(tag: string): string {
-  if (!/^v\d+\.\d+\.\d+$/.test(tag)) {
-    throw new Error(`Malformed tag: "${tag}". Expected format: v<major>.<minor>.<patch>`);
-  }
-  return tag.slice(1);
-}
+import { versionFromTag } from "./releaseVersion.ts";
 
 if (import.meta.main) {
   const tag = Deno.args[0];

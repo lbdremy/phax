@@ -12,27 +12,27 @@ export function buildCliSummary(referenceMarkdown: string): string {
   const lines = referenceMarkdown.split("\n");
   const rows: string[] = [];
 
-  for (let i = 0; i < lines.length; i++) {
-    if (!lines[i].startsWith("## `phax ")) continue;
+  for (const [i, heading] of lines.entries()) {
+    if (!heading.startsWith("## `phax ")) continue;
 
     let usage = "";
     let desc = "";
 
-    for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
-      if (lines[j].startsWith("## ")) break;
+    for (const line of lines.slice(i + 1, i + 8)) {
+      if (line.startsWith("## ")) break;
       if (usage === "") {
-        const m = /^- \*\*Usage\*\*: `(.+)`$/.exec(lines[j]);
-        if (m) {
+        const m = /^- \*\*Usage\*\*: `(.+)`$/.exec(line);
+        if (m?.[1] !== undefined) {
           usage = m[1];
           continue;
         }
       } else if (
-        lines[j].trim() &&
-        !lines[j].startsWith("-") &&
-        !lines[j].startsWith("|") &&
-        !lines[j].startsWith("#")
+        line.trim() &&
+        !line.startsWith("-") &&
+        !line.startsWith("|") &&
+        !line.startsWith("#")
       ) {
-        desc = lines[j].trim();
+        desc = line.trim();
         break;
       }
     }

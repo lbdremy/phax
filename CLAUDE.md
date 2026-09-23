@@ -23,7 +23,9 @@ phax gate profiles both invoke `pnpm`. Don't use `npm`/`yarn` or commit a
 - `pnpm build` — compile to `dist/`.
 - `pnpm test:unit` / `test:integration` / `test:e2e:real` — test tiers (e2e hits real
   provider CLIs; run deliberately).
-- `pnpm test:type` — type-level tests (`tsconfig.test.json`).
+- `pnpm test:type` — typechecks the whole test suite (`tests/**`, including the type-level
+  tests in `tests/type/`) against `src/` (`tsconfig.test.json`). The main `tsconfig.json`
+  excludes `tests/`, so this is the only thing that keeps fixtures in step with the types.
 - `pnpm audit:architecture` — enforces the layer boundaries below as a test.
 - `pnpm lint` / `lint:fix` — **oxlint** (not eslint).
 - `pnpm format` / `format:check` — **oxfmt** (not prettier).
