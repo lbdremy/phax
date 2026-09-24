@@ -11,7 +11,10 @@
     "phax.usage.kdl",
     ".claude/skills/phax-planning",
     ".claude/skills/phax-cli",
-    ".claude/skills/phax-spec"
+    ".claude/skills/phax-spec",
+    ".claude/skills/phax-decide-spec",
+    ".claude/skills/phax-decide-plan",
+    ".claude/skills/phax-decide-review"
   ],
   "type": "module",
   "scripts": {
