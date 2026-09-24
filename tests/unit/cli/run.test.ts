@@ -316,6 +316,76 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
   });
 });
 
+describe("runRun — skill edit consent is refused before the run is created", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function makeSkillPlan(): PhaxPlan {
+    const plan = makePlan("fixbug");
+    const [phase] = plan.phases;
+    if (phase === undefined) throw new Error("makePlan returned no phase");
+    return { ...plan, phases: [{ ...phase, plannedFilesToEdit: [".claude/skills/foo/SKILL.md"] }] };
+  }
+
+  async function mockRunDependencies(plan: PhaxPlan) {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+    const { loadTelemetryConfig } = vi.mocked(
+      await import("../../../src/app/loadTelemetryConfig.js"),
+    );
+    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+    loadOrExtractPlan.mockReturnValue(
+      Effect.succeed({ plan, warnings: [], detectedAnchors: [], fromCache: false }),
+    );
+    const { loadModelRouting, loadProviderConfig } = vi.mocked(
+      await import("../../../src/app/loadRouting.js"),
+    );
+    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
+    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
+    const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
+    createRunFolder.mockReturnValue(
+      Effect.succeed({ runPath: "/fake-state/runs/acme.fixbug", runId: "r1" as RunId }),
+    );
+    const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
+    executePlan.mockReturnValue(Effect.succeed(makeExecutePlanResult()));
+    return { createRunFolder, executePlan };
+  }
+
+  it("without --allow-skill-edits, refuses with the files and never creates the run folder", async () => {
+    const { createRunFolder, executePlan } = await mockRunDependencies(makeSkillPlan());
+    const { exitCodeForError } = vi.mocked(await import("../../../src/cli/commands/runLayers.js"));
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, lines, errors } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(code).toBe(1);
+    expect(exitCodeForError).toHaveBeenCalledWith(
+      expect.objectContaining({ _tag: "SkillEditConsentError" }),
+    );
+    expect(errors.join("\n")).toContain("requires --allow-skill-edits");
+    expect(errors.join("\n")).toContain("phase-01: .claude/skills/foo/SKILL.md");
+    expect(createRunFolder).not.toHaveBeenCalled();
+    expect(executePlan).not.toHaveBeenCalled();
+    // Refused before the run is named, so no "Run: …" line is printed.
+    expect(lines.join("\n")).not.toContain("Run: ");
+  });
+
+  it("with --allow-skill-edits, creates the run and records the consent", async () => {
+    const { createRunFolder } = await mockRunDependencies(makeSkillPlan());
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out } = makeOutput();
+    const code = await runRun({ plan: "plan.md", allowSkillEdits: true }, out);
+
+    expect(code).toBe(0);
+    expect(createRunFolder).toHaveBeenCalledOnce();
+    expect(createRunFolder.mock.calls[0]?.[5]).toBe(true);
+  });
+});
+
 describe("runRun — --plan resolves against process.cwd()", () => {
   beforeEach(() => {
     vi.clearAllMocks();

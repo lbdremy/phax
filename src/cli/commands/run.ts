@@ -15,6 +15,7 @@ import {
 } from "../../domain/errors.js";
 import { checkPlanRunnable } from "../../app/artifactStatus.js";
 import { computeStalenessForPlan } from "../../app/planStaleness.js";
+import { skillEditConsentRefusal } from "../../app/skillEditConsent.js";
 import { classifyArtifactPath } from "../../domain/artifact/document.js";
 import { buildFootprint } from "../../domain/planOverlap/compute.js";
 import { planInputFromPhaxPlan } from "../../domain/planOverlap/fromPhaxPlan.js";
@@ -334,6 +335,14 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
       ),
     );
     return 0;
+  }
+
+  // Refuse missing skill edit consent before the run is named or any state is
+  // written: a refused run must not leave a failed run holding the slug.
+  const skillEditRefusal = skillEditConsentRefusal(plan.phases, opts.allowSkillEdits ?? false);
+  if (skillEditRefusal !== undefined) {
+    out.error(skillEditRefusal.message);
+    return exitCodeForError(skillEditRefusal);
   }
 
   const namespace = config.namespace;

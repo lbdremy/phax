@@ -75,11 +75,8 @@ import {
   computeFrozenAgentCommands,
 } from "../domain/security/agentCommands.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
-import {
-  checkSkillEditConsent,
-  formatSkillEditConsentRefusal,
-  phaseSkillEditGrants,
-} from "../domain/security/skillEditGrants.js";
+import { phaseSkillEditGrants } from "../domain/security/skillEditGrants.js";
+import { skillEditConsentRefusal } from "./skillEditConsent.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
 import { writeRecord } from "./writeRecord.js";
@@ -447,17 +444,12 @@ export function executePlan(
     // Preflight: phases still to run that declare `.claude/skills/**` files need
     // skill edit consent. Runs on resume too, so a run with no recorded consent
     // is refused instead of having its skill edits silently denied.
-    const skillEditGaps = checkSkillEditConsent({
-      phases: plan.phases.slice(startIndex),
+    const skillEditRefusal = skillEditConsentRefusal(
+      plan.phases.slice(startIndex),
       allowSkillEdits,
-    });
-    if (skillEditGaps.length > 0) {
-      return yield* Effect.fail(
-        new SkillEditConsentError({
-          message: formatSkillEditConsentRefusal(skillEditGaps),
-          phases: skillEditGaps,
-        }),
-      );
+    );
+    if (skillEditRefusal !== undefined) {
+      return yield* Effect.fail(skillEditRefusal);
     }
 
     // Preflight: verify all mcp.allow entries resolve to readable files before
