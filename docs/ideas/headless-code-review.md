@@ -23,7 +23,25 @@ A loop has no developer. Two first ideas were wrong in instructive ways:
 The correction that comes out of a review should go through the same machinery as the
 implementation: phases, gates, records, compliance. So the review produces a **plan**.
 
-## Shape
+## Shape — two commands, revised 2026-09-24
+
+The report and the plan are two different things, and producing the plan must not
+disturb the review. So two commands, not one:
+
+1. **`phax review-code <run> --headless`** — the review only. Writes `code-review.json`
+   (findings) and stops. The session stays resumable.
+2. **`phax review-plan <run> --headless --doctrine <file> --min-severity <s>`** — the
+   plan from the report. Resumes the review session when it exists (the plan is the
+   consequence of the report, not a judgement on it, and the review's memory is worth
+   its tokens); starts from `code-review.json` otherwise. The doctrine says how fixes are
+   planned (phase size, oracle separation, what a fix may touch); `--min-severity` is the
+   caller's threshold, not a constant. Emits `review-plan.json` in the `phax-plan` shape,
+   renders `review-plan.md`, seeds the extraction cache, commits, records.
+
+Then `phax run --append <run> review-plan.md` as below. An interactive `review-plan` is
+the same session with the human choosing what to address.
+
+## Shape (original single-command sketch, kept for the record)
 
 - **`phax review-code <run> --headless`** — runs the same review in the run's worktree,
   with the same session record, without a terminal, and writes two artifacts under the
