@@ -69,6 +69,11 @@ structure, planned files and run readiness without running it. Each phase reques
 `model` + `effort` that phax resolves to a concrete provider — inspect routing
 under `phax agent` (see `--usage`).
 
+Plans that touch `.claude/skills/` files need `phax run --allow-skill-edits`; without it
+the preflight refuses (exit 11). `phax resume` inherits the consent, and the grant is
+recorded per phase in `security.json` (`skillEditGrants`). See `--usage` for the flag
+contract.
+
 ## Artifact lifecycle — specs and plans carry an enforced status
 
 Specs (`docs/specs/`) and plans (`docs/plans/`) each carry a `status` key in

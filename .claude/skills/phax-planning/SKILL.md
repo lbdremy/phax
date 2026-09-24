@@ -237,6 +237,15 @@ Write the file lists to make this signal useful:
 - Do not list files you only read. Reconciliation is about writes.
 - Use repo-relative POSIX paths, exactly as they appear in `git`.
 
+### Editing skill files
+
+Claude Code protects `.claude/`, so a secure phase can write a `.claude/skills/...` file
+only when that exact file is listed in the phase's planned-file sections. Declare every
+skill file the phase writes, including new files such as `references/*.md`; undeclared
+siblings, glob paths, and other `.claude/` paths stay denied. A plan that declares skill
+files must be run with `phax run --allow-skill-edits`, or the preflight refuses it (see
+`docs/security.md`).
+
 ## Boundary contracts (informational)
 
 When a phase crosses an architectural boundary (page/cli/surface → view-model,
@@ -501,6 +510,9 @@ deliverable changes: you return the **plan document** — a JSON object — and 
 deterministically to the phase structure above, writes the `.md` with its JSON sidecar
 beside it, seeds the extraction cache so `phax run` never re-extracts it, and commits both.
 The planning doctrine does not change; only the container does.
+
+Skill files follow the same rule (see "Editing skill files"): the `plannedFilesToCreate` /
+`plannedFilesToEdit` / `optionalFilesToEdit` arrays are the declaration.
 
 - **The JSON object is your final message**, alone: no code fence, no commentary before or
   after it. The prompt carries the authoritative JSON Schema; `phax artifact schema plan`
