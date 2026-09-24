@@ -116,6 +116,31 @@ the findings and the plan and keeps the decision; a loop sets both. Optional key
 the `version: 1` stability promise for `phax.json` is untouched. The interactive
 `review-code` is unaffected by either.
 
+## The PR description carries the trajectory (added 2026-09-24)
+
+Today `publish-pr` builds the PR body from `review-handoff.md` (plus the compliance
+review), capped at 60 KB and truncated from the tail. When the headless review and the
+appended fix passes run **before** `publish-pr` — which they do, the run reaches
+`review_open` after them — the body must show what happened, at the top, before any
+diff detail so truncation never eats it:
+
+1. **Review passes**, one table — per pass: findings by severity (`bug` / `deviation` /
+   `concern` / `info`), how many were fixed by the appended plan, escalated, or still
+   open, and the compliance verdict of that pass. A reviewer sees in ten lines whether the
+   run converged.
+2. **Decisions**, one table — every arbitration the trajectory recorded: the spec's §9
+   answers (`decide`, with the principles cited), the plan's technical arbitrations
+   (dominant loss accepted), the review escalations (`R1`–`R4`: what was *not* fixed and
+   why). Chosen, abandoned, why, reversibility, escalated or not.
+3. Then the existing handoff: plan-vs-actual reconciliation, per-phase handoffs, the
+   compliance review in full.
+
+Both tables are renderings of data phax already holds (`code-review.json` per pass, the
+decide sidecars, `Technical arbitrations`, the compliance documents) — no prose is
+written for them. The PR is consultable evidence, not a destination (`desktop-app.md`):
+these two tables are the evidence a human reads first, and the cockpit's run screen
+renders the same data.
+
 ## Same PR, not a stacked one
 
 Considered and set aside: opening a second PR based on the first (stacked). What it would
