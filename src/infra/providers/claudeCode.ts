@@ -1,6 +1,6 @@
 import { Effect, Either } from "effect";
 import { spawn } from "node:child_process";
-import { createWriteStream } from "node:fs";
+import { createWriteStream, realpathSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import type {
@@ -187,7 +187,10 @@ function buildSecureClaudeFlags(
 
   // Declared skill files get through Claude's protected-path check via an
   // inline PermissionRequest hook; with no grants the argv is unchanged.
-  const grantSettings = buildSkillEditGrantSettings(cwd, skillEditGrants);
+  const grantSettings =
+    skillEditGrants.length === 0
+      ? undefined
+      : buildSkillEditGrantSettings(resolveWorktreeRoot(cwd), skillEditGrants);
   const settingsFlags =
     grantSettings === undefined ? [] : ["--settings", JSON.stringify(grantSettings)];
 
@@ -199,6 +202,18 @@ function buildSecureClaudeFlags(
     ...mcpFlags,
     ...settingsFlags,
   ];
+}
+
+// The hook's absolute `if` rule must match the path Claude Code resolves, so a
+// worktree reached through a symlink (macOS $TMPDIR, a relocated state root)
+// is resolved first. A root that cannot be resolved is used as given: the rule
+// then fails closed (the edit is denied), same as no grant.
+function resolveWorktreeRoot(cwd: string): string {
+  try {
+    return realpathSync(cwd);
+  } catch {
+    return cwd;
+  }
 }
 
 export function buildArgs(options: AgentRunOptions, resumeSessionId?: string): string[] {
