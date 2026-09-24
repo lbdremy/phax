@@ -1,4 +1,4 @@
-Write the phax spec `review-as-plan`.
+Write the phax spec `headless-review` (title: "Review as a plan — headless code review, review-plan, run --append"; the slug avoids a `-plan` suffix, which the artifact name grammar reserves for plans).
 
 Ground to read first, in this order:
 - docs/ideas/headless-code-review.md — the idea, revised 2026-09-24: two commands (`review-code --headless` writes the report and stops; `review-plan --headless --doctrine <file> --min-severity <s>` produces the plan from the review session or the report), `run --append`, the `review.code.{enabled,append,maxPasses}` config, the per-pass order (compliance over the whole run, then headless code review with the compliance verdict in its brief, then a plan only if non-info findings remain; no plan on a `divergent` verdict), same PR never stacked, and the PR description opening on the review-passes table and the decisions table.
