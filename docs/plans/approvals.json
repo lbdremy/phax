@@ -6,12 +6,6 @@
       "approvedAt": "2026-09-08T08:19:41.314Z",
       "baseline": "322ba3a5795a658d8d7ee48200b14e9b61ad8933",
       "sourceSpec": null
-    },
-    "docs/plans/2609231236-skill-edit-grant-skill-docs-plan.md": {
-      "planFingerprint": "f125973d81e45799b80bc52fc773c99ffb0102385be988bb72664278dc5ebb08",
-      "approvedAt": "2026-09-23T16:05:12.087Z",
-      "baseline": "af453539aac48b59ae4efd02ec3973f7fcec038b",
-      "sourceSpec": null
     }
   }
 }
