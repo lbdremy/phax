@@ -1,0 +1,619 @@
+{
+  "version": 1,
+  "kind": "spec",
+  "title": "Schemas package: phax's persisted formats as a typed npm package",
+  "ground": [
+    {
+      "path": "NEXT_STEPS.md",
+      "note": "'Spec candidates' → 'Three additive specs…' item 3 (schemas-package: persisted-format schemas published alone, freezing nothing beyond the 1.0 promise, typed parsing for a read-only records consumer); 'Road to 1.0.0' → the persisted-format stability promise (phax.json, run status files, approvals.json, phax/records/v1) is a 1.0 blocker not yet written; 'Library readiness' → the app/ports library API waits for 1.0."
+    },
+    {
+      "path": "src/schemas/",
+      "note": "42 Effect Schema modules. The persisted formats a third party reads are registry.ts, status.ts (run and phase status), phaxPlan.ts, complianceReview.ts, approvalRecord.ts, specApprovalRecord.ts, runRecord.ts (phase record manifest, version 2), authoringRecord.ts (authoring record plus the record-manifest union), specDocument.ts and planDocument.ts. The rest are internal: provider output streams, config layers, gate and reconciliation documents, session bindings, the extraction cache, orient, plan-audit, scopes, telemetry events."
+    },
+    {
+      "path": "src/schemas/status.ts, src/schemas/runRecord.ts, src/domain/branded.ts",
+      "note": "The schema modules reach outside src/schemas in two places: status.ts imports BranchNameSchema from domain/branded.ts, which is pure and uses only effect, and runRecord.ts imports SurfaceSchema from phaxConfig.ts. vibeOutput.ts imports node:fs, so it must stay out of any published closure."
+    },
+    {
+      "path": "src/schemas/*.ts decode options",
+      "note": "Most decoders reject excess properties (onExcessProperty: error), but registry.ts and status.ts use the default and ignore them. Parity has to follow each format's own setting."
+    },
+    {
+      "path": "src/app/recordPlumbing.ts",
+      "note": "The records branch is phax/records/v1. A manifest is record.json, keyed <runId>/<phaseId> for a phase or authoring/<authoringId> for an authoring session, beside an optional output.jsonl."
+    },
+    {
+      "path": "package.json, tsconfig.json, tsconfig.build.json",
+      "note": "The root package is 'phax', built with tsc -p tsconfig.build.json to dist/ with declarations. src/ is ESM and uses node: built-ins and npm dependencies only. Its only runtime dependency relevant to schemas is effect ^3.14.0."
+    },
+    {
+      "path": "npm/package.json, scripts/prepare-npm.ts",
+      "note": "The package published to npm, @lbdremy/phax, is only a launcher: bin/phax plus a binary resolver. The release workflow sets its version to match the tag. The tsc output is published nowhere."
+    },
+    {
+      "path": "deno.json, docs/release.md",
+      "note": "Deno is used only to smoke-test and cross-compile the four release binaries."
+    },
+    {
+      "path": ".github/workflows/release.yml, scripts/release.sh",
+      "note": "On a tag, the workflow runs the gate, builds the binaries, version-matches npm/package.json and runs npm stage publish --provenance for one package; a maintainer approves the staged package by hand. release.sh bumps package.json and npm/package.json in one release commit."
+    },
+    {
+      "path": "README.md §Experimental formats",
+      "note": "Three formats sit outside the 'version: 1 stability promise that covers phax.json and the run formats': spec document, plan document and authoring record."
+    },
+    {
+      "path": "docs/specs/2609241219-headless-review.md",
+      "note": "Draft. It introduces code-review.json, pass.json and the review-plan document, all shipped experimental."
+    },
+    {
+      "path": "/Volumes/Work/steme/steme-doc/docs/doctrine/01-vision/roadmap-1.0.toml",
+      "note": "Not readable in this session (permission denied). The consumer's need is taken from the brief (item 0.9): a read-only cockpit reads records with these types and never with a hand-written parser, and a docs pipeline renders JSON Schemas as reference pages."
+    }
+  ],
+  "context": "phax writes its state as JSON documents that other tools can read later. The run registry lives at ~/.phax/registry.json. Each run directory holds run-status.json, a status.json per phase, phax-plan.json and, after a review, compliance-review.json. The repo holds the plan and spec approval files (docs/plans/approvals.json, docs/specs/approvals.json). The phax/records/v1 branch holds record manifests: <runId>/<phaseId>/record.json for a phase and authoring/<authoringId>/record.json for a headless authoring session. Since 0.16.0, headless authoring also writes a JSON sidecar beside each spec and plan it authors. phax decodes every one of these with an Effect Schema in src/schemas. That directory also holds many purely internal schemas: provider output streams, config layers, gate diagnostics and attribution, reconciliation, session bindings, the extraction cache, and orient and plan-audit responses. Four schemas are already rendered to JSON Schema: phax.json through phax schema upgrade, phax-plan, and the spec and plan documents through phax artifact schema spec|plan. phax builds with tsc to dist/ with declarations. src/ uses node: built-ins and npm dependencies and no Deno API; Deno only compiles the four release binaries. The npm package, @lbdremy/phax, is a launcher for those binaries. It is version-matched to the tag, staged with npm stage publish --provenance and approved by hand. The tsc output itself is published nowhere. The README names three experimental formats outside the 'version: 1' promise. NEXT_STEPS lists the persisted-format promise as a 1.0 blocker that is still to be written. The first consumer is the steme roadmap-1.0 experiment: a read-only cockpit that reads records with phax's types, and a docs pipeline that renders each format's JSON Schema as a reference page.",
+  "problem": "Today a tool that wants to read what phax wrote has two options, and both are wrong. The first is to write its own parser from phax's source. That creates a second decoder that drifts silently the first time phax bumps a format (the phase record manifest is already at version 2 and gained verifiedSurfaces in 0.10), and it will accept and reject documents differently from phax. The second is to depend on phax's source tree. That pulls in the CLI, the adapters and every internal schema, and says nothing about which formats are safe to depend on. Neither option gives the cockpit typed reads or gives the docs pipeline a JSON Schema per format. Neither tells a consumer which formats are experimental: the README table names three, but nothing in code carries that marking to where a consumer imports. There is also a risk on the other side. Publishing every schema in src/schemas as public API would freeze internal formats that the 1.0 promise never covered.",
+  "productGoal": {
+    "statement": "Publish phax's persisted-format decoders as a small, standalone, typed npm package, released at the same version as phax. The package ships the schemas phax actually uses, not a copy. A third-party reader then gets the same accept or reject verdict phax would give on any document, a TypeScript type for the decoded value, and a JSON Schema for its docs. The import path itself tells the reader whether the format it depends on is stable or experimental.",
+    "guidingRule": "The package is phax's own decoder, published: it accepts exactly what phax accepts, and exports exactly the formats phax promises (stable) or admits to (experimental), with nothing internal."
+  },
+  "terminology": [
+    {
+      "term": "Persisted format",
+      "definition": "A JSON document that phax writes and that a third party can read later. It is identified by where it lives and by its version literal, for example run-status.json with version 1."
+    },
+    {
+      "term": "Stable format",
+      "definition": "A persisted format inside phax's 'version: 1' stability promise. Any change to its shape bumps its version literal."
+    },
+    {
+      "term": "Experimental format",
+      "definition": "A persisted format that may change between releases without a version bump. The README lists every such format."
+    },
+    {
+      "term": "Schemas package",
+      "definition": "The npm package @lbdremy/phax-schemas described by this spec."
+    },
+    {
+      "term": "Entry",
+      "definition": "An import path of the schemas package. The root entry (@lbdremy/phax-schemas) carries the stable formats. The experimental entry (@lbdremy/phax-schemas/experimental) carries the experimental ones."
+    },
+    {
+      "term": "Parse function",
+      "definition": "A schemas-package function that takes an already-JSON-parsed value of unknown type and returns a Parsed result. The result is either the typed value or a failure with a path and a message."
+    },
+    {
+      "term": "Parity",
+      "definition": "A parse function has parity when it gives the same accept or reject verdict as phax's own decoder for that format on every document, including how it treats unknown keys."
+    },
+    {
+      "term": "Record manifest",
+      "definition": "A record.json on phax/records/v1. There are two kinds: a phase record (version 2, keyed <runId>/<phaseId>) and an authoring record (kind \"authoring\", version 1, keyed authoring/<authoringId>)."
+    },
+    {
+      "term": "Lockstep version",
+      "definition": "The schemas package's version always equals the version of the phax release whose tag produced it."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "package",
+      "title": "Standalone package",
+      "pattern": "ubiquitous",
+      "statement": "The system shall publish its persisted-format schemas as a standalone npm package, @lbdremy/phax-schemas, that installs and imports without the phax CLI, its binaries or its source tree."
+    },
+    {
+      "id": "dependencies",
+      "title": "Runtime dependencies",
+      "pattern": "ubiquitous",
+      "statement": "The schemas package shall declare effect as its only runtime dependency."
+    },
+    {
+      "id": "pure",
+      "title": "No side effects",
+      "pattern": "ubiquitous",
+      "statement": "The schemas package shall contain no code that reads files, spawns processes, opens network connections or references a node: or Deno built-in."
+    },
+    {
+      "id": "stable-set",
+      "title": "Stable formats on the root entry",
+      "pattern": "ubiquitous",
+      "statement": "The schemas package's root entry shall export a schema, a TypeScript type and a parse function for exactly these stable formats: run registry, run status, phase status, phax-plan, compliance review, plan approvals, spec approvals and phase record manifest."
+    },
+    {
+      "id": "experimental-set",
+      "title": "Experimental formats on the experimental entry",
+      "pattern": "ubiquitous",
+      "statement": "The schemas package's experimental entry shall export a schema, a TypeScript type and a parse function for exactly these experimental formats: spec document, plan document, authoring record manifest and the record-manifest union of phase and authoring records."
+    },
+    {
+      "id": "classification",
+      "title": "One stability classification",
+      "pattern": "ubiquitous",
+      "statement": "The schemas package's stable or experimental marking of each format shall equal that format's stability in the README persisted-formats table."
+    },
+    {
+      "id": "excluded",
+      "title": "Nothing internal",
+      "pattern": "ubiquitous",
+      "statement": "The schemas package shall export no internal schema and no module of phax's app, ports, infra or cli layers. Internal schemas are provider output streams, config layers (phax.json and the user overlay), gate, reconciliation and session documents, the extraction cache, and orient and plan-audit responses."
+    },
+    {
+      "id": "parity",
+      "title": "Same verdict as phax",
+      "pattern": "event",
+      "statement": "WHEN a schemas-package parse function is given a document THE schemas package SHALL accept it if and only if phax's own decoder for that format accepts it, applying the same excess-property handling."
+    },
+    {
+      "id": "failure",
+      "title": "Failures are values",
+      "pattern": "unwanted",
+      "statement": "IF a document fails to parse THEN the parse function SHALL return a failure carrying the path and message of the first violation, without throwing."
+    },
+    {
+      "id": "types",
+      "title": "Types match phax",
+      "pattern": "ubiquitous",
+      "statement": "The schemas package shall ship TypeScript declarations whose type for each exported format is the type phax decodes that format to."
+    },
+    {
+      "id": "json-schema",
+      "title": "JSON Schema per format",
+      "pattern": "ubiquitous",
+      "statement": "The schemas package shall ship one draft-07 JSON Schema file per exported format, generated at build time from the same schema that format's parse function uses."
+    },
+    {
+      "id": "json-stability",
+      "title": "JSON Schema carries stability",
+      "pattern": "ubiquitous",
+      "statement": "Each JSON Schema file in the schemas package shall declare its format's stability as stable or experimental."
+    },
+    {
+      "id": "json-build-fail",
+      "title": "No silent JSON Schema gap",
+      "pattern": "unwanted",
+      "statement": "IF an exported format's JSON Schema cannot be generated THEN the schemas package build SHALL fail naming that format."
+    },
+    {
+      "id": "lockstep",
+      "title": "Lockstep version",
+      "pattern": "ubiquitous",
+      "statement": "The schemas package shall be published at the same version as the phax release whose tag produced it."
+    },
+    {
+      "id": "release",
+      "title": "Released with phax",
+      "pattern": "event",
+      "statement": "WHEN a release tag is pushed THE release workflow SHALL stage-publish the schemas package beside @lbdremy/phax."
+    },
+    {
+      "id": "release-gate",
+      "title": "All or nothing",
+      "pattern": "unwanted",
+      "statement": "IF the schemas package build fails, or its packed tarball cannot be installed into an empty Node project and parse a phax-written document there, THEN the release workflow SHALL stage-publish neither package."
+    },
+    {
+      "id": "bump",
+      "title": "One release commit",
+      "pattern": "event",
+      "statement": "WHEN the release script bumps phax's version THE release script SHALL bump the schemas package manifest in the same release commit."
+    },
+    {
+      "id": "code-review",
+      "title": "Code-review document when it ships",
+      "pattern": "optional",
+      "statement": "WHERE a phax release carries the code-review document THE schemas package of that release SHALL export it from the experimental entry."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "package: @lbdremy/phax-schemas",
+      "binding": "normative",
+      "before": null,
+      "after": "npm install @lbdremy/phax-schemas\n\n# entries (normative)\n@lbdremy/phax-schemas                             stable formats\n@lbdremy/phax-schemas/experimental                experimental formats\n@lbdremy/phax-schemas/json/<format>.schema.json   one JSON Schema per exported format"
+    },
+    {
+      "surface": "package: @lbdremy/phax-schemas root entry exports",
+      "binding": "normative",
+      "before": null,
+      "after": "# format set normative; function, schema and type spellings indicative\nformat                 parse function          schema, type                                  document it reads\nrun registry           parseRegistry           RegistrySchema, Registry                      ~/.phax/registry.json\nrun status             parseRunStatus          RunStatusSchema, RunStatus                    <run-dir>/run-status.json\nphase status           parsePhaseStatus        PhaseStatusSchema, PhaseStatus                <run-dir>/<phase-id>/status.json\nphax-plan              parsePhaxPlan           PhaxPlanSchema, PhaxPlan                      <run-dir>/phax-plan.json\ncompliance review      parseComplianceReview   ComplianceReviewSchema, ComplianceReview      <run-dir>/compliance-review.json\nplan approvals         parsePlanApprovals      PlanApprovalsSchema, PlanApprovals            docs/plans/approvals.json\nspec approvals         parseSpecApprovals      SpecApprovalsSchema, SpecApprovals            docs/specs/approvals.json\nphase record manifest  parsePhaseRecord        PhaseRecordSchema, PhaseRecord                phax/records/v1:<runId>/<phaseId>/record.json\n\n# shared by every parse function\ntype Parsed<T>"
+    },
+    {
+      "surface": "package: @lbdremy/phax-schemas/experimental exports",
+      "binding": "normative",
+      "before": null,
+      "after": "# format set normative; spellings indicative\nformat                    parse function          document it reads\nspec document             parseSpecDocument       JSON sidecar beside a headless-authored spec\nplan document             parsePlanDocument       JSON sidecar beside a headless-authored plan\nauthoring record manifest parseAuthoringRecord    phax/records/v1:authoring/<authoringId>/record.json\nrecord manifest (either)  parseRecordManifest     any record.json on phax/records/v1\n# added from the release that ships review-as-plan:\ncode-review document      parseCodeReview         <run-dir>/review/pass-NN/code-review.json"
+    },
+    {
+      "surface": "package: Parsed result",
+      "binding": "normative",
+      "before": null,
+      "after": "// shape normative; the name Parsed and the message wording indicative\ntype Parsed<T> =\n  | { readonly ok: true; readonly value: T }\n  | { readonly ok: false; readonly error: { readonly path: string; readonly message: string } };\n\nparseRunStatus(input: unknown): Parsed<RunStatus>\n\n// run-status.json with \"state\": \"paused\"\n{ ok: false, error: { path: \"state\", message: \"Expected \\\"created\\\" | \\\"running\\\" | …, actual \\\"paused\\\"\" } }"
+    },
+    {
+      "surface": "package: Node consumer, end to end",
+      "binding": "indicative",
+      "before": null,
+      "after": "// read-record.mjs: Node 20+, phax not installed, only @lbdremy/phax-schemas\nimport { execFileSync } from \"node:child_process\";\nimport { parsePhaseRecord } from \"@lbdremy/phax-schemas\";\n\nconst key = process.argv[2]; // \"<runId>/phase-01\"\nconst raw = execFileSync(\"git\", [\"show\", `phax/records/v1:${key}/record.json`], { encoding: \"utf8\" });\n\nconst parsed = parsePhaseRecord(JSON.parse(raw));\nif (!parsed.ok) {\n  console.error(`record.json: ${parsed.error.path}: ${parsed.error.message}`);\n  process.exit(1);\n}\nconst { runId, phaseId, outcome, usage } = parsed.value; // typed PhaseRecord\nconsole.log(runId, phaseId, outcome, usage.available ? usage.usage.provider : \"no usage\");\n\n// walking the whole branch also meets authoring records:\n// import { parseRecordManifest } from \"@lbdremy/phax-schemas/experimental\";\n\n$ node read-record.mjs <runId>/phase-01\n<runId> phase-01 committed claude-code\n$ echo $?\n0"
+    },
+    {
+      "surface": "file: json/<format>.schema.json",
+      "binding": "indicative",
+      "before": null,
+      "after": "# one file per exported format and a stability declaration in each are normative;\n# file names and the keyword spelling are indicative\nnode_modules/@lbdremy/phax-schemas/json/run-status.schema.json\n{\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n  \"title\": \"phax run status\",\n  \"x-phax-stability\": \"stable\",\n  \"type\": \"object\",\n  \"required\": [\"version\", \"namespace\", \"shortName\", \"runId\", \"state\", \"createdAt\", \"updatedAt\", \"phasesCount\"],\n  …\n}\n\nnode_modules/@lbdremy/phax-schemas/json/spec-document.schema.json\n{ \"$schema\": \"…draft-07…\", \"title\": \"phax spec document (experimental)\", \"x-phax-stability\": \"experimental\", … }"
+    },
+    {
+      "surface": "file: @lbdremy/phax-schemas package.json",
+      "binding": "indicative",
+      "before": null,
+      "after": "# name, lockstep version and the single effect dependency normative; the rest indicative\n{\n  \"name\": \"@lbdremy/phax-schemas\",\n  \"version\": \"0.17.0\",\n  \"type\": \"module\",\n  \"exports\": {\n    \".\": { \"types\": \"./dist/index.d.ts\", \"default\": \"./dist/index.js\" },\n    \"./experimental\": { \"types\": \"./dist/experimental.d.ts\", \"default\": \"./dist/experimental.js\" },\n    \"./json/*\": \"./json/*\"\n  },\n  \"files\": [\"dist\", \"json\"],\n  \"dependencies\": { \"effect\": \"^3.14.0\" },\n  \"engines\": { \"node\": \">=20\" },\n  \"license\": \"Apache-2.0\"\n}"
+    },
+    {
+      "surface": "file: README.md persisted-formats table",
+      "binding": "indicative",
+      "before": "## Experimental formats\n\nThese formats are outside the `version: 1` stability promise that covers `phax.json` and the run formats: …\n\n| Format           | Where it lives                                       | Contract                        |\n| Spec document    | the `.json` sidecar beside a headless-authored spec  | `phax artifact schema spec`     |\n| Plan document    | the `.json` sidecar beside a headless-authored plan  | `phax artifact schema plan`     |\n| Authoring record | `authoring/<YYMMDDHHMM>-<slug>` on `phax/records/v1` | `phax records explain <commit>` |",
+      "after": "## Persisted formats\n\n# one row per exported format with its stability is normative; wording and columns indicative\n| Format                | Where it lives                                  | Stability    | Read it with                          |\n| Run registry          | `~/.phax/registry.json`                         | stable       | `@lbdremy/phax-schemas`               |\n| Run status            | `<run-dir>/run-status.json`                     | stable       | `@lbdremy/phax-schemas`               |\n| Phase status          | `<run-dir>/<phase-id>/status.json`              | stable       | `@lbdremy/phax-schemas`               |\n| phax-plan             | `<run-dir>/phax-plan.json`                      | stable       | `@lbdremy/phax-schemas`               |\n| Compliance review     | `<run-dir>/compliance-review.json`              | stable       | `@lbdremy/phax-schemas`               |\n| Plan approvals        | `docs/plans/approvals.json`                     | stable       | `@lbdremy/phax-schemas`               |\n| Spec approvals        | `docs/specs/approvals.json`                     | stable       | `@lbdremy/phax-schemas`               |\n| Phase record          | `<runId>/<phaseId>/record.json` on `phax/records/v1` | stable  | `@lbdremy/phax-schemas`               |\n| Spec document         | `.json` sidecar beside a headless-authored spec | experimental | `@lbdremy/phax-schemas/experimental`  |\n| Plan document         | `.json` sidecar beside a headless-authored plan | experimental | `@lbdremy/phax-schemas/experimental`  |\n| Authoring record      | `authoring/<id>/record.json` on `phax/records/v1` | experimental | `@lbdremy/phax-schemas/experimental` |"
+    },
+    {
+      "surface": "cli: scripts/release.sh",
+      "binding": "indicative",
+      "before": "$ scripts/release.sh 0.16.0\nbumping to 0.16.0\nregenerating usage spec and CLI docs\ncommitting\ntagging\npushing\ndone: v0.16.0 tagged and pushed\napprove the staged npm package at: https://www.npmjs.com/package/@lbdremy/phax",
+      "after": "$ scripts/release.sh 0.17.0\nbumping to 0.17.0            # package.json, npm/package.json and the schemas package manifest\nregenerating usage spec and CLI docs\ncommitting\ntagging\npushing\ndone: v0.17.0 tagged and pushed\napprove the staged npm packages at:\n  https://www.npmjs.com/package/@lbdremy/phax\n  https://www.npmjs.com/package/@lbdremy/phax-schemas"
+    },
+    {
+      "surface": "internal: release workflow on tag v0.17.0",
+      "binding": "indicative",
+      "before": "gate → build binaries → version-match npm/package.json → npm stage publish @lbdremy/phax → GitHub release",
+      "after": "gate → build binaries → build schemas package (JS, declarations, JSON Schemas) → install its packed tarball into an empty Node project and parse a phax-written record → version-match both manifests to the tag → npm stage publish @lbdremy/phax → npm stage publish @lbdremy/phax-schemas → GitHub release\n# every step that can fail runs before the first stage publish"
+    }
+  ],
+  "nonGoals": [
+    "The app and ports library API: exported use cases, adapter sets and a composition root. That work waits for 1.0 and the library-readiness item.",
+    "Exporting the phax.json or user-overlay config schemas. phax builds its effective config by merging layers, so decoding one file alone does not give the config phax would run with, and phax schema upgrade already delivers the JSON Schema for editors.",
+    "Writing the 1.0 stability contract itself (a frozen version plus a migration command, or a re-run-init policy). That stays with the Road to 1.0 item. This spec only classifies each exported format as stable or experimental today.",
+    "Any change to a persisted format's shape, to phax's own decoding, or to the CLI. The package republishes what phax already enforces.",
+    "Reading helpers: nothing walks the records branch, finds run directories or reads files. The consumer reads the bytes and hands the package a JSON value.",
+    "Migrating older documents. Under the no-shims policy, a document phax no longer accepts (for example a version-1 phase record) is rejected by the package too.",
+    "A CommonJS build, a JSR or Deno-native publish, or JSON Schemas hosted at a URL. The docs pipeline reads the files from the installed package.",
+    "Parsing spec and plan Markdown frontmatter.",
+    "Exporting the internal formats listed in §5 (provider output streams, gate, reconciliation and session documents, extraction cache, orient, plan-audit, publication, security posture, telemetry events)."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "ac-e2e",
+      "name": "A Node consumer parses a phase record end to end",
+      "given": "an empty Node 20 project with no phax installed, in a repo whose phax/records/v1 branch holds a phase record.json written by phax",
+      "when": "the packed @lbdremy/phax-schemas tarball is installed and the §6 consumer script runs with that record's <runId>/<phaseId> key",
+      "then": "it prints the record's runId, phaseId and outcome and exits 0, and the project's node_modules holds only @lbdremy/phax-schemas, effect and effect's own dependencies",
+      "refs": [
+        "package",
+        "dependencies"
+      ]
+    },
+    {
+      "id": "ac-pure",
+      "name": "The package does no I/O",
+      "given": "the packed @lbdremy/phax-schemas tarball",
+      "when": "every JavaScript file it contains is scanned for imports and globals",
+      "then": "none imports a node: built-in, fs, child_process or net, and none references Deno",
+      "refs": [
+        "pure"
+      ]
+    },
+    {
+      "id": "ac-stable",
+      "name": "The root entry exports exactly the stable formats",
+      "given": "the installed package",
+      "when": "the exports of @lbdremy/phax-schemas are listed",
+      "then": "there is a schema, a type and a parse function for run registry, run status, phase status, phax-plan, compliance review, plan approvals, spec approvals and phase record manifest, and none for any other format",
+      "refs": [
+        "stable-set"
+      ]
+    },
+    {
+      "id": "ac-experimental",
+      "name": "The experimental entry exports exactly the experimental formats",
+      "given": "the installed package, from a release that does not carry the code-review document",
+      "when": "the exports of @lbdremy/phax-schemas/experimental are listed",
+      "then": "there is a schema, a type and a parse function for spec document, plan document, authoring record manifest and the record-manifest union, and none for any stable format",
+      "refs": [
+        "experimental-set"
+      ]
+    },
+    {
+      "id": "ac-classification",
+      "name": "One classification everywhere",
+      "given": "the README persisted-formats table and the installed package",
+      "when": "each exported format's entry and its JSON Schema stability declaration are compared with its README row",
+      "then": "every exported format has exactly one README row, formats marked stable are on the root entry and declare stable, and formats marked experimental are on the experimental entry and declare experimental",
+      "refs": [
+        "classification",
+        "json-stability"
+      ]
+    },
+    {
+      "id": "ac-excluded",
+      "name": "Nothing internal leaks",
+      "given": "the packed @lbdremy/phax-schemas tarball",
+      "when": "its file list and the exports of every entry are inspected",
+      "then": "no export decodes a provider output stream, phax.json, the user overlay, a gate, reconciliation or session document, the extraction cache, or an orient or plan-audit response, and no file compiled from phax's app, ports, infra or cli layers is present",
+      "refs": [
+        "excluded"
+      ]
+    },
+    {
+      "id": "ac-parity",
+      "name": "Same verdict as phax on every document",
+      "given": "a corpus of accepted and rejected documents for every exported format, including a phase record.json with one unknown key and a registry.json with one unknown key",
+      "when": "each document is parsed by the package's parse function and by phax's own decoder",
+      "then": "the two verdicts agree on every document: the record with the unknown key is rejected by both, and the registry with the unknown key is accepted by both",
+      "refs": [
+        "parity"
+      ]
+    },
+    {
+      "id": "ac-failure",
+      "name": "A bad document is a value, not an exception",
+      "given": "a run-status.json whose state is \"paused\"",
+      "when": "parseRunStatus is called on its parsed JSON",
+      "then": "it returns ok: false with error.path \"state\" and a non-empty error.message, and no exception escapes",
+      "refs": [
+        "failure"
+      ]
+    },
+    {
+      "id": "ac-types",
+      "name": "Package types are phax's types",
+      "given": "phax's type-test suite and the package's declarations",
+      "when": "a value of each exported package type is assigned to phax's internal type for that format, and the reverse",
+      "then": "both assignments typecheck for every exported format",
+      "refs": [
+        "types"
+      ]
+    },
+    {
+      "id": "ac-json",
+      "name": "Every exported format has a usable JSON Schema",
+      "given": "the installed package and one phax-written document per exported format",
+      "when": "each json/<format>.schema.json is loaded into a standard draft-07 validator and the matching document is validated",
+      "then": "there is exactly one schema file per exported format and every phax-written document validates",
+      "refs": [
+        "json-schema"
+      ]
+    },
+    {
+      "id": "ac-json-exp",
+      "name": "Stability is readable from the JSON Schema",
+      "given": "the installed package",
+      "when": "json/spec-document.schema.json and json/run-status.schema.json are read",
+      "then": "the first declares its format experimental and the second declares it stable",
+      "refs": [
+        "json-stability"
+      ]
+    },
+    {
+      "id": "ac-json-fail",
+      "name": "A format without a JSON Schema fails the build",
+      "given": "an exported format whose schema carries a refinement that has no JSON Schema rendering",
+      "when": "the schemas package build runs",
+      "then": "it exits non-zero naming that format, and the build output has no schema file for that format",
+      "refs": [
+        "json-build-fail"
+      ]
+    },
+    {
+      "id": "ac-lockstep",
+      "name": "Both packages are staged at the tag's version",
+      "given": "a signed tag v0.17.0 on a commit whose release gate is green",
+      "when": "the release workflow runs",
+      "then": "@lbdremy/phax@0.17.0 and @lbdremy/phax-schemas@0.17.0 are both staged on npm",
+      "refs": [
+        "lockstep",
+        "release"
+      ]
+    },
+    {
+      "id": "ac-release-gate",
+      "name": "A broken package publishes nothing",
+      "given": "a release commit whose schemas-package tarball fails to install into an empty Node project or fails to parse the smoke document",
+      "when": "the release workflow runs on its tag",
+      "then": "the workflow fails before any npm stage publish step runs, and neither package is staged",
+      "refs": [
+        "release-gate"
+      ]
+    },
+    {
+      "id": "ac-bump",
+      "name": "One commit bumps all manifests",
+      "given": "a clean main at 0.16.0",
+      "when": "scripts/release.sh 0.17.0 runs",
+      "then": "the release commit sets version 0.17.0 in package.json, npm/package.json and the schemas package manifest, and the script's last lines name both staged packages",
+      "refs": [
+        "bump"
+      ]
+    },
+    {
+      "id": "ac-code-review",
+      "name": "The code-review document joins as experimental",
+      "given": "a phax release that carries the code-review document",
+      "when": "the exports of @lbdremy/phax-schemas/experimental and the package's json/ directory are listed",
+      "then": "there is a code-review parse function and a code-review JSON Schema that declares experimental, and the root entry exports no code-review parser",
+      "refs": [
+        "code-review"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "q-name",
+      "question": "Should the schemas ship as their own package or as a subpath of the existing @lbdremy/phax package?",
+      "options": [
+        {
+          "id": "separate",
+          "label": "A separate package, @lbdremy/phax-schemas",
+          "abandons": "single-package releases: every release stages, approves and version-matches a second npm package."
+        },
+        {
+          "id": "subpath",
+          "label": "A subpath, @lbdremy/phax/schemas",
+          "abandons": "a lightweight dependency: every schema consumer installs the CLI launcher and its platform-binary resolution, and every CLI user installs effect."
+        }
+      ],
+      "recommendation": "separate",
+      "rationale": "The launcher and the library have disjoint audiences and dependencies. A second staged publish is one more step in a workflow that is already automated and approved by hand, which is a cost worth paying to keep the consumer's install small."
+    },
+    {
+      "id": "q-effect",
+      "question": "How should the package depend on effect?",
+      "options": [
+        {
+          "id": "dependency",
+          "label": "A regular dependency on effect, with the same range as phax",
+          "abandons": "a guaranteed single copy: a consumer pinned to an incompatible Effect version gets a second copy, and Schema values from the two copies do not compose."
+        },
+        {
+          "id": "peer",
+          "label": "A peer dependency on effect",
+          "abandons": "a one-line install: a consumer that does not use Effect must add effect itself and match the range."
+        },
+        {
+          "id": "bundled",
+          "label": "Bundle effect into the package",
+          "abandons": "interoperability: the exported Schema values belong to a private copy of Effect, so an Effect consumer cannot compose them."
+        }
+      ],
+      "recommendation": "dependency",
+      "rationale": "The first consumer is not assumed to use Effect. With a regular dependency, npm install @lbdremy/phax-schemas is the whole install, and package managers dedupe within ^3 for consumers that do use Effect."
+    },
+    {
+      "id": "q-api",
+      "question": "What should a parse call return?",
+      "options": [
+        {
+          "id": "parsed",
+          "label": "A plain Parsed result ({ ok, value } or { ok, error: { path, message } }), with the Effect schemas also exported",
+          "abandons": "a single API: each format has both a parse wrapper and its schema, and they must stay in step."
+        },
+        {
+          "id": "either",
+          "label": "Effect's Either<T, ParseError>, the decodeX functions phax uses internally",
+          "abandons": "use without Effect: a non-Effect consumer must learn Either and how to format a ParseError before reading one field."
+        },
+        {
+          "id": "throw",
+          "label": "Return the value or throw",
+          "abandons": "failures as values: a consumer walking many records has to wrap each call in try/catch to keep going."
+        }
+      ],
+      "recommendation": "parsed",
+      "rationale": "The wrapper is generated from the same schema, so it can drift in spelling but not in verdict. Effect consumers still get the schemas directly, and non-Effect consumers get a result they can read without learning Effect."
+    },
+    {
+      "id": "q-excess",
+      "question": "Should parse functions reject unknown keys the way phax does?",
+      "options": [
+        {
+          "id": "parity",
+          "label": "Parity: each format keeps phax's own excess-property setting",
+          "abandons": "forward compatibility: an older package rejects a record that a newer phax wrote with a new key, so the reader has to upgrade to match the writer."
+        },
+        {
+          "id": "lenient",
+          "label": "Lenient: every parse function ignores unknown keys",
+          "abandons": "the package's central claim: it would accept documents phax itself rejects, and a mistyped or foreign key would go unnoticed."
+        }
+      ],
+      "recommendation": "parity",
+      "rationale": "The package exists to be phax's decoder rather than a second one. Lockstep versioning makes the upgrade path explicit: a reader pins the package to the phax version that writes its files."
+    },
+    {
+      "id": "q-marking",
+      "question": "How should the package mark a format as experimental?",
+      "options": [
+        {
+          "id": "subpath",
+          "label": "A separate experimental entry (@lbdremy/phax-schemas/experimental)",
+          "abandons": "a stable import path across graduation: when a format becomes stable, its import line moves and every consumer must edit it."
+        },
+        {
+          "id": "tag",
+          "label": "A JSDoc @experimental tag on root-entry exports",
+          "abandons": "visibility at the point of use: nothing in the import line or at compile time shows that a consumer depends on an experimental format."
+        }
+      ],
+      "recommendation": "subpath",
+      "rationale": "The import line is where a consumer takes on the dependency, so it is the right place to acknowledge the risk. A graduation that forces an edit is a feature, because the consumer sees the format change status."
+    },
+    {
+      "id": "q-stable-set",
+      "question": "While the 1.0 promise is still unwritten, should records, approvals and the compliance review be marked stable?",
+      "options": [
+        {
+          "id": "stable",
+          "label": "Stable: registry, run and phase status, phax-plan, compliance review, both approvals files and the phase record manifest",
+          "abandons": "freedom to reshape the record manifest, the approvals files or the compliance review before 1.0 without bumping their version literal."
+        },
+        {
+          "id": "experimental",
+          "label": "Experimental until the 1.0 promise is written",
+          "abandons": "a stable footing for the first consumer: the cockpit would be built on formats phax says may change without notice."
+        }
+      ],
+      "recommendation": "stable",
+      "rationale": "The promise draft in NEXT_STEPS already names approvals.json and phax/records/v1, and the README's 'run formats' covers the files in the run directory. The cockpit exists to read records. Stable already means only that a shape change bumps the version literal, and phax has done this before (the record manifest went from 1 to 2)."
+    },
+    {
+      "id": "q-version",
+      "question": "How should the package be versioned?",
+      "options": [
+        {
+          "id": "lockstep",
+          "label": "Lockstep: always the phax release version",
+          "abandons": "meaningful version numbers: the package publishes new versions with no schema change, so a version bump does not signal a format change."
+        },
+        {
+          "id": "independent",
+          "label": "Independent semver that moves only when a format changes",
+          "abandons": "the mapping from writer to reader: a consumer can no longer tell which package version reads the files a given phax release wrote."
+        }
+      ],
+      "recommendation": "lockstep",
+      "rationale": "The question a reader asks is which package reads what phax X.Y.Z wrote, and lockstep answers it with no lookup table. Extra releases with no change cost nothing to consume."
+    }
+  ],
+  "planningNote": {
+    "settled": [
+      "Package name @lbdremy/phax-schemas, with a root entry for stable formats, an experimental entry and a json/ directory.",
+      "The exact format sets in §5 and their stable or experimental classification, mirrored by a single README persisted-formats table.",
+      "The Parsed result shape; Effect schemas and types are exported too.",
+      "Parity with phax's own decoders, including per-format excess-property handling.",
+      "effect is a regular dependency with the same range as phax.",
+      "The version is lockstep with phax, bumped by release.sh and published by the release workflow as a staged publish beside @lbdremy/phax.",
+      "One draft-07 JSON Schema per exported format ships inside the package, each declaring its stability.",
+      "ESM only."
+    ],
+    "open": [
+      "Where the package manifest and its entry modules live in the repo, and how its build is driven (a second tsc project over the same sources, or equivalent).",
+      "Spellings of parse functions, schema and type aliases, JSON Schema file names and the stability keyword.",
+      "How the parity corpus is shared between phax's tests and the package's tests.",
+      "Whether the tarball install smoke also runs in pnpm check:full or only in the release workflow.",
+      "The README section title and its anchor, and how the headless-authoring section's link to 'Experimental formats' is updated."
+    ],
+    "constraints": [
+      "Build from the same src/schemas modules phax imports, with no copied schema. A change to a format must change the package in the same commit.",
+      "The entry closure reaches phaxConfig.ts (through runRecord's SurfaceSchema) and domain/branded.ts (through status's BranchNameSchema). Both must stay free of I/O, and vibeOutput.ts (node:fs) must be unreachable from any entry. An architectural guard should enforce this closure.",
+      "No persisted format changes shape, phax's own decoding is unchanged, and the CLI does not change. The no-shims policy holds.",
+      "In the release workflow, every step that can fail runs before the first npm stage publish. The hand-approval step now covers two packages.",
+      "knip must treat the package entries as public entry points, so it does not flag their exports as unused.",
+      "This spec does not decide the 1.0 migration policy. It only records today's stable or experimental split, which the Road to 1.0 promise will adopt or revise.",
+      "The code-review document joins the experimental entry in the release that ships the headless-review spec. The package must not export it before then."
+    ]
+  },
+  "docsPage": {
+    "kind": "page",
+    "page": "README.md §\"Read phax files from code\" (a section beside the persisted-formats table)",
+    "reader": "Someone writing a tool, such as a dashboard, a cockpit or a docs pipeline, that reads phax's registry, run files, approvals or records and wants phax's own types and verdicts instead of a hand-written parser.",
+    "example": "npm install @lbdremy/phax-schemas, then the §6 read-record.mjs script: git show phax/records/v1:<runId>/phase-01/record.json, parsePhaseRecord(JSON.parse(raw)), branch on parsed.ok, then read parsed.value.outcome. It ends with a pointer to json/<format>.schema.json for docs tooling and a note that /experimental formats may change between releases."
+  }
+}
