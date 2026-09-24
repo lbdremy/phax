@@ -1,0 +1,959 @@
+{
+  "version": 1,
+  "kind": "spec",
+  "title": "Review as a plan — headless code review, review-plan, run --append",
+  "ground": [
+    {
+      "path": "docs/ideas/headless-code-review.md",
+      "note": "the idea, revised 2026-09-24: two commands (review-code --headless, review-plan --headless), run --append, review.code.{enabled,append,maxPasses}, per-pass order, no plan on divergent, same PR, PR body opening on the two tables"
+    },
+    {
+      "path": "docs/ideas/skills/phax-decide-review.md",
+      "note": "default review doctrine R1–R7 that review-plan loads; severity scale and default treatment; decisions[] for escalations"
+    },
+    {
+      "path": "docs/ideas/change-gates-from-the-harness.md",
+      "note": "the oracle-separation lint the review plan must pass once it exists; test-file pairing as the cheap first convention"
+    },
+    {
+      "path": "src/schemas/complianceReview.ts",
+      "note": "the structured review shape to mirror: version 1, verdict conformant | conformant-with-deviations | divergent, per-phase findings with severity info | deviation | concern, strict decode"
+    },
+    {
+      "path": "src/app/reviewCode.ts",
+      "note": "interactive review-code today: final-phase worktree, code-review-session.json, resume unless --new-session, prompt built from global reconciliation plus compliance-review.json"
+    },
+    {
+      "path": "src/app/reviewCompliance.ts",
+      "note": "compliance review: agent writes md + json under .phax-context, phax copies them into the run directory; reads the run's single plan.md"
+    },
+    {
+      "path": "src/app/reviewHandoff.ts",
+      "note": "review-handoff.md content: run summary, global reconciliation, attention points, embedded compliance review, phase details"
+    },
+    {
+      "path": "src/app/publishRun.ts",
+      "note": "publish-pr: reuses an existing PR for the branch without updating it; builds pr-body.md from the handoff plus compliance review"
+    },
+    {
+      "path": "src/domain/publish/body.ts",
+      "note": "PR body = fixed header + handoff, capped at 60,000 bytes, truncated from the tail with a note"
+    },
+    {
+      "path": "src/domain/state.ts",
+      "note": "run states; running → review_open and review_open → archived exist, nothing returns a run to running"
+    },
+    {
+      "path": "src/app/resolveRunInfo.ts",
+      "note": "phase branches are phax/<slug>--phase-NN; the final phase is the highest-indexed phase folder"
+    },
+    {
+      "path": "src/schemas/phaxPlan.ts",
+      "note": "extracted-plan and persisted phax-plan shapes; phase ids phase-NN"
+    },
+    {
+      "path": "src/schemas/extractedPlanCacheEntry.ts",
+      "note": "content-addressed extraction cache entry the review plan projection seeds"
+    },
+    {
+      "path": "docs/specs/archive/2609230835-headless-authoring.md",
+      "note": "the shipped headless pattern reused here: JSON-only session, plan document, deterministic render, sidecar, cache seed, authoring record, exit families 12/5/8"
+    },
+    {
+      "path": "src/schemas/phaxConfig.ts",
+      "note": "review.compliance.{enabled,model,effort} and review.code.{model,effort} today; authoring keys optional at birth"
+    },
+    {
+      "path": "phax.usage.kdl",
+      "note": "review-code, review-compliance, publish-pr contracts today"
+    },
+    {
+      "path": "NEXT_STEPS.md",
+      "note": "Road to 1.0.0 (additive only) and Spec candidates → three additive specs, item 2 review-as-plan"
+    },
+    {
+      "path": "docs/briefs/artifact-decide.md",
+      "note": "sibling spec that ships the phax-decide-* doctrine skills, the decision shape and the machine-vs-human approval distinction this spec relies on"
+    }
+  ],
+  "context": "`phax review-code <run>` opens an interactive, pre-prompted session in a `review_open` run's final-phase worktree. It resumes the session named in `code-review-session.json` unless `--new-session` is given, and hands the terminal to a developer. It builds its prompt from the global file reconciliation and, when present, `compliance-review.json`. `phax review-compliance <run>` is its non-mutating, structured sibling. An agent writes `compliance-review.md` and `compliance-review.json`, and phax decodes the JSON strictly: `{ version: 1, verdict: conformant | conformant-with-deviations | divergent, summary, perPhase[{ phaseId, verdict, findings[{ dimension, severity: info | deviation | concern, message }] }], attentionPoints, pointers }`. `phax.json` has `review.compliance.{enabled, model, effort}` and only `review.code.{model, effort}`.\n\nEach phase of a run gets its own worktree on `phax/<slug>--phase-NN`, and phases run in sequence. The last phase stays open in `review_open`, where manual fixes land as ordinary commits. The run state machine allows `running → review_open` and `review_open → archived`, but no transition returns a run to `running`. `phax publish-pr` builds the PR body from a fixed header plus the review handoff with the compliance review embedded. The body is capped at 60,000 bytes and truncated from the tail. An existing PR for the branch is reused, not updated.\n\nHeadless authoring (0.16.0) set the pattern this spec reuses. A session spawned by phax returns only schema-validated JSON. phax then renders the Markdown deterministically and writes a JSON sidecar. It seeds the extraction cache with the plan projection, so no model re-extracts the plan, and it commits and records. The first consumer is the steme roadmap-1.0 conductor. It drives runs in a loop with no developer at the terminal and allows at most two review passes.",
+  "problem": "A loop has no developer, so it cannot run the only code review phax offers. Two shortcuts both fail. Printing the prompt for an outside agent moves the review out of phax: no run directory, no records, no resumable session, and the findings come back as prose. Resuming the review session with \"fix everything\" puts changes into the run without going through phases. Those changes get no gate of their own, no handoff and no reconciliation, and the session is free to edit the test that judges it.\n\nFixes that follow a review must go through the same machinery as the implementation, but a run cannot grow. Once a run is `review_open`, it cannot run another phase. A second run means a second PR and a second records lineage. Nothing bounds or reports the review–fix loop. The PR a human reads first shows diff detail, not whether the run converged or what was deliberately left unfixed. That diff detail is also the part tail truncation removes.",
+  "productGoal": {
+    "statement": "Make the code review a phax artifact and make its consequence a phax plan. A headless review writes structured findings and stops. A separate step turns those findings into a review plan in the phax-plan shape, following a doctrine and a severity threshold that the caller owns. `phax run --append` then executes that plan as more phases of the same run, with the same records and the same PR. A config setting can run this as a bounded loop at the end of a run. The PR then opens on the trajectory: one table of review passes and one table of decisions. Every change is additive to the CLI and to `phax.json`, and the interactive review stays as it is.",
+    "guidingRule": "A review changes code only through phases of the same run: findings in, a plan out, gates in between."
+  },
+  "terminology": [
+    {
+      "term": "Pass",
+      "definition": "One review round over a run, numbered from 1. A pass is a compliance review (when enabled), a headless code review, and at most one review plan. Its artifacts live under the run directory."
+    },
+    {
+      "term": "Finding",
+      "definition": "One entry of `code-review.json`: `id`, `severity` (`bug` | `deviation` | `concern` | `info`), `file`, `line` (a number or null), `message` and `suggestion`. The latest compliance review's `deviation` findings join a pass's findings under ids phax assigns (`C1`, `C2`, …)."
+    },
+    {
+      "term": "Severity order",
+      "definition": "`bug` > `deviation` > `concern` > `info`."
+    },
+    {
+      "term": "Threshold",
+      "definition": "The lowest severity a pass plans: `bug`, `deviation` or `concern`. `info` is never planned."
+    },
+    {
+      "term": "Review doctrine",
+      "definition": "The instructions a review-plan session follows: the default `phax-decide-review` doctrine (principles R1–R7), extended by the caller's `--doctrine` file."
+    },
+    {
+      "term": "Review plan",
+      "definition": "The plan a review-plan session emits for one pass. It is a plan document in the phax-plan shape whose phases name the finding ids they address, plus a `decisions[]` block and a handoff note. It is rendered as `review-plan.md` with `review-plan.json` beside it."
+    },
+    {
+      "term": "Escalation",
+      "definition": "A finding at or above the threshold that is deliberately not planned. It is recorded as a `decisions[]` entry that cites a doctrine principle (R1–R4) and says why."
+    },
+    {
+      "term": "Appended phase",
+      "definition": "A phase executed by `phax run --append`. It is numbered after the run's existing phases, runs under the same run id, and has the origin `from review pass N`."
+    },
+    {
+      "term": "Run footprint",
+      "definition": "The union of every file that any plan executed by the run declares (to create, to edit, or optional), plus the files the pass's findings name."
+    },
+    {
+      "term": "Oracle file",
+      "definition": "A file that judges the code a phase changes: a test, a fixture, or a disposition matrix. Until the oracle-separation lint exists, oracle files are identified as §9 Q5 decides."
+    },
+    {
+      "term": "Fixed / escalated / open",
+      "definition": "Counts per pass. Fixed: findings named by a phase of that pass's review plan that reached committed. Escalated: findings named by its `decisions[]`. Open: findings at or above the threshold that are neither."
+    },
+    {
+      "term": "Machine approval",
+      "definition": "An approval of a review plan granted by `review.code.append` rather than by an operator, and recorded as such."
+    },
+    {
+      "term": "Recorded decision",
+      "definition": "A decision phax holds as structured data: a decided question in a spec sidecar, a technical arbitration in a plan document, or a `decisions[]` entry in a review plan."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "HR-1",
+      "title": "Headless code review in the run's session",
+      "pattern": "optional",
+      "statement": "WHERE `--headless` is given to `phax review-code <run>` THE system SHALL run the code review in the run's review session, in the run's final-phase worktree, without attaching a terminal."
+    },
+    {
+      "id": "HR-2",
+      "title": "Compliance verdict in the review brief",
+      "pattern": "event",
+      "statement": "WHEN a compliance review exists for the run THE system SHALL give its verdict and findings to the headless review session."
+    },
+    {
+      "id": "HR-3",
+      "title": "JSON-only code-review result",
+      "pattern": "event",
+      "statement": "WHEN a headless review session ends THE system SHALL accept as its result only a JSON document valid against the code-review document schema."
+    },
+    {
+      "id": "HR-4",
+      "title": "An invalid review lands nothing",
+      "pattern": "unwanted",
+      "statement": "IF the headless review result is not JSON or fails validation THEN the system SHALL fail as a provider error naming the first violation path and write no `code-review.json`."
+    },
+    {
+      "id": "HR-5",
+      "title": "Write, record, stop",
+      "pattern": "event",
+      "statement": "WHEN the code-review document validates THE system SHALL write it as the current pass's `code-review.json` under the run directory and into the run's records, then stop, leaving the review session resumable and the run `review_open`."
+    },
+    {
+      "id": "HR-6",
+      "title": "Interactive review-code unchanged",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL leave `phax review-code <run>` without `--headless` unchanged."
+    },
+    {
+      "id": "RP-1",
+      "title": "Review-plan session continuity",
+      "pattern": "event",
+      "statement": "WHEN `phax review-plan <run>` starts THE system SHALL resume the run's review session if its record exists, and otherwise start a new session from the pass's `code-review.json`."
+    },
+    {
+      "id": "RP-2",
+      "title": "Default review doctrine",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL load the default review doctrine into every review-plan session."
+    },
+    {
+      "id": "RP-3",
+      "title": "Project doctrine extends the default",
+      "pattern": "optional",
+      "statement": "WHERE `--doctrine <file>` is given THE system SHALL append that file to the default review doctrine."
+    },
+    {
+      "id": "RP-4",
+      "title": "Threshold resolution",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL plan only findings at or above the threshold, resolved as `--min-severity`, else `review.code.minSeverity`, else `concern`."
+    },
+    {
+      "id": "RP-5",
+      "title": "Compliance deviations join the findings",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL add the latest compliance review's `deviation` findings to the findings a review plan considers."
+    },
+    {
+      "id": "RP-6",
+      "title": "Info and below-threshold findings go to the handoff note",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL write `info` findings and findings below the threshold to the review plan's handoff note and never to a phase."
+    },
+    {
+      "id": "RP-7",
+      "title": "JSON-only review plan",
+      "pattern": "event",
+      "statement": "WHEN a review-plan session ends THE system SHALL accept as its result only a JSON document valid against the review-plan document schema, whose projection is the extracted-plan schema."
+    },
+    {
+      "id": "RP-8",
+      "title": "An invalid review plan lands nothing",
+      "pattern": "unwanted",
+      "statement": "IF the review-plan result is not JSON or fails validation THEN the system SHALL fail as a provider error naming the first violation path and write nothing."
+    },
+    {
+      "id": "RP-9",
+      "title": "Every finding is planned or escalated",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL reject a review-plan document unless exactly one phase or exactly one `decisions[]` entry citing a doctrine principle names each finding at or above the threshold."
+    },
+    {
+      "id": "RP-10",
+      "title": "Phases continue the run's numbering",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL number the review plan's phases consecutively after the run's last phase."
+    },
+    {
+      "id": "RP-11",
+      "title": "Materialisation",
+      "pattern": "event",
+      "statement": "WHEN a review-plan document validates THE system SHALL render `review-plan.md` deterministically, write `review-plan.json` beside it, seed the extraction cache with its projection, persist both under the run directory and in the run's records, and record the session."
+    },
+    {
+      "id": "RP-12",
+      "title": "No plan on a divergent verdict",
+      "pattern": "unwanted",
+      "statement": "IF the run's latest compliance verdict is `divergent` THEN `phax review-plan` SHALL spawn no session, emit no plan, record the pass outcome `blocked-divergent`, and exit 1."
+    },
+    {
+      "id": "RP-13",
+      "title": "Clean pass",
+      "pattern": "event",
+      "statement": "WHEN a pass has no finding at or above the threshold THE system SHALL spawn no session, emit no plan, and record the pass outcome `clean`."
+    },
+    {
+      "id": "RP-14",
+      "title": "Interactive review-plan",
+      "pattern": "optional",
+      "statement": "WHERE `--headless` is not given to `phax review-plan <run>` THE system SHALL open the same session interactively, then validate and materialise the document it produces exactly as in headless mode."
+    },
+    {
+      "id": "AP-1",
+      "title": "The append transition",
+      "pattern": "event",
+      "statement": "WHEN `phax run --append <run> <plan>` is accepted THE system SHALL transition the run from `review_open` to `running` and execute the plan's phases after the run's existing phases."
+    },
+    {
+      "id": "AP-2",
+      "title": "Worktree lineage",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL branch each appended phase's worktree from the tip of the preceding phase's branch. The first appended phase branches from the previously final phase's branch, including commits made during review."
+    },
+    {
+      "id": "AP-3",
+      "title": "Same run identity and records lineage",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL run appended phases under the run's id and slug and write their records into the run's records lineage."
+    },
+    {
+      "id": "AP-4",
+      "title": "Final-phase handover",
+      "pattern": "event",
+      "statement": "WHEN an append starts THE system SHALL close the previously final phase the way a non-final phase is closed and make the last appended phase the kept-open final phase."
+    },
+    {
+      "id": "AP-5",
+      "title": "Appended phases are ordinary phases",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL execute appended phases with the same lifecycle as original phases: gates, fix loop, rate-limit handling, failure and `phax resume`."
+    },
+    {
+      "id": "AP-6",
+      "title": "Whole-range regeneration",
+      "pattern": "event",
+      "statement": "WHEN the appended phases complete THE system SHALL regenerate the global file reconciliation and `review-handoff.md` over every phase of the run and return the run to `review_open`."
+    },
+    {
+      "id": "AP-7",
+      "title": "Compliance per originating plan",
+      "pattern": "event",
+      "statement": "WHEN a compliance review runs on a run with appended phases THE system SHALL judge each phase against the plan that planned it."
+    },
+    {
+      "id": "AP-8",
+      "title": "Refuse an unapproved plan",
+      "pattern": "unwanted",
+      "statement": "IF the review plan is not Approved THEN `phax run --append` SHALL refuse before any phase starts."
+    },
+    {
+      "id": "AP-9",
+      "title": "Refuse a run that is not review_open",
+      "pattern": "unwanted",
+      "statement": "IF the run is not `review_open` THEN `phax run --append` SHALL refuse before any phase starts."
+    },
+    {
+      "id": "AP-10",
+      "title": "Refuse a stale or foreign plan",
+      "pattern": "unwanted",
+      "statement": "IF the plan is not the review plan of the run's latest pass, or its first phase does not follow the run's last phase, THEN `phax run --append` SHALL refuse before any phase starts."
+    },
+    {
+      "id": "AP-11",
+      "title": "Refuse files outside the run footprint",
+      "pattern": "unwanted",
+      "statement": "IF a phase of the review plan plans a file outside the run footprint THEN `phax run --append` SHALL refuse before any phase starts, naming the phase and the file."
+    },
+    {
+      "id": "AP-12",
+      "title": "Refuse oracle files",
+      "pattern": "unwanted",
+      "statement": "IF a phase of the review plan plans an oracle file THEN `phax run --append` SHALL refuse before any phase starts, naming the phase and the file."
+    },
+    {
+      "id": "AP-13",
+      "title": "Refuse a published run",
+      "pattern": "unwanted",
+      "statement": "IF the run already has a recorded pull request THEN `phax run --append` SHALL refuse before any phase starts."
+    },
+    {
+      "id": "CF-1",
+      "title": "review.code.enabled runs a pass",
+      "pattern": "optional",
+      "statement": "WHERE `review.code.enabled` is true THE system SHALL run one review pass when a run reaches `review_open` and leave the run `review_open` with the pass's artifacts."
+    },
+    {
+      "id": "CF-2",
+      "title": "review.code.append loops",
+      "pattern": "optional",
+      "statement": "WHERE `review.code.append` is true THE system SHALL approve and append each pass's review plan and then run the next pass, until a pass emits no plan."
+    },
+    {
+      "id": "CF-3",
+      "title": "The pass bound",
+      "pattern": "unwanted",
+      "statement": "IF `review.code.maxPasses` appends have run THEN the system SHALL stop appending and leave the last pass's review plan unappended, with the run `review_open`."
+    },
+    {
+      "id": "CF-4",
+      "title": "Machine approval recorded as such",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL record an approval granted by `review.code.append` as a machine approval naming that key, distinct from an operator approval."
+    },
+    {
+      "id": "CF-5",
+      "title": "Defaults keep today's behavior",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL default `review.code.enabled` and `review.code.append` to false and `review.code.maxPasses` to 1, so that a `phax.json` without these keys loads and behaves as it does today."
+    },
+    {
+      "id": "CF-6",
+      "title": "Inconsistent review config rejected",
+      "pattern": "unwanted",
+      "statement": "IF `review.code.append` is true while `review.code.enabled` is not, or `review.code.maxPasses` is outside 1–5, THEN config loading SHALL fail naming the key."
+    },
+    {
+      "id": "PO-1",
+      "title": "Per-pass order",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL run each pass in this order: the compliance review over the whole run when enabled, then the headless code review, then the review plan."
+    },
+    {
+      "id": "RE-1",
+      "title": "phax ls reports passes",
+      "pattern": "event",
+      "statement": "WHEN `phax ls` lists a run with review passes THE system SHALL show its pass count and its latest pass's outcome and compliance verdict."
+    },
+    {
+      "id": "RE-2",
+      "title": "artifact status reports a review plan",
+      "pattern": "event",
+      "statement": "WHEN `phax artifact status` inspects a review plan THE system SHALL report its run, pass, status, appended phases, and its approval with the approver kind."
+    },
+    {
+      "id": "PR-1",
+      "title": "The PR body opens on the trajectory",
+      "pattern": "event",
+      "statement": "WHEN `phax publish-pr` builds the body for a run with a review pass or a recorded decision THE system SHALL place the review-passes table and then the decisions table before the existing handoff."
+    },
+    {
+      "id": "PR-2",
+      "title": "Review-passes table content",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL render one review-passes row per pass, giving its findings by severity, its fixed, escalated and open counts, and its compliance verdict."
+    },
+    {
+      "id": "PR-3",
+      "title": "Decisions table content",
+      "pattern": "ubiquitous",
+      "statement": "The system SHALL render one decisions row for each recorded decision of the run's source spec, each technical arbitration recorded in its plans, and each review escalation, citing the decision's principles."
+    },
+    {
+      "id": "PR-4",
+      "title": "Truncation spares the tables",
+      "pattern": "unwanted",
+      "statement": "IF the body exceeds the size cap THEN the system SHALL truncate only the handoff part and keep both tables whole."
+    },
+    {
+      "id": "PR-5",
+      "title": "No trajectory, no change",
+      "pattern": "state",
+      "statement": "WHILE a run has no review pass and no recorded decision THE system SHALL build the PR body exactly as it does today."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "cli: `phax review-code <run> --headless`",
+      "binding": "normative",
+      "before": "phax review-code usage-cli [--new-session] [--model <model>] [--effort <effort>]\n  (opens an interactive, pre-prompted session; the developer takes over)",
+      "after": "phax review-code usage-cli --headless [--new-session] [--model <model>] [--effort <effort>]\n\n# output layout indicative; the flag name and exit families are normative\nreview-code usage-cli — pass 1 — claude-opus-5-5 / high (headless)\nfindings  bug 1 · deviation 1 · concern 1 · info 2\nwritten   <run-dir>/review/pass-01/code-review.json\nsession   resumable (code-review-session.json)\n$? = 0\n\nExit: 0 written · 1 run not review_open · 5 result not JSON or invalid · 8 rate/usage limit\n\n✗ review-code failed: code-review document rejected — findings[2].severity: \"style\" is not bug | deviation | concern | info\n  nothing written\n$? = 5"
+    },
+    {
+      "surface": "file: `code-review.json`",
+      "binding": "normative",
+      "before": null,
+      "after": "# at <run-dir>/review/pass-01/code-review.json — file name and keys normative, directory layout indicative\n{\n  \"version\": 1,\n  \"findings\": [\n    { \"id\": \"F1\", \"severity\": \"bug\", \"file\": \"src/app/prune.ts\", \"line\": 42,\n      \"message\": \"prune deletes a run whose worktree is still registered\",\n      \"suggestion\": \"refuse when the registry lists a live worktree\" },\n    { \"id\": \"F2\", \"severity\": \"info\", \"file\": \"src/cli/commands/prune.ts\", \"line\": null,\n      \"message\": \"help text says 'remove', output says 'prune'\",\n      \"suggestion\": \"use 'prune' in both\" }\n  ]\n}\n# severity: bug | deviation | concern | info; line: integer or null; unknown keys rejected"
+    },
+    {
+      "surface": "cli: `phax review-plan <run>`",
+      "binding": "normative",
+      "before": null,
+      "after": "phax review-plan usage-cli --headless [--doctrine <file>] [--min-severity bug|deviation|concern] [--model <model>] [--effort <effort>]\nphax review-plan usage-cli            # interactive: the same session, the human chooses what to address\n\n# output layout indicative; command, flags, allowed --min-severity values and exit families normative\nreview-plan usage-cli — pass 1 — resumed review session\nplanned   F1, C1 → phase-04 · F3 → phase-05\nescalated F4 (R4: the finding says the test is wrong)\nhandoff   F2, F5 (info)\nplan      <run-dir>/review/pass-01/review-plan.md (Draft)\n$? = 0\n\nreview-plan usage-cli — pass 2 — clean: no finding at or above concern\n$? = 0\n\n✗ review-plan refused: latest compliance verdict is divergent — no plan emitted (R1)\n$? = 1\n\nExit: 0 plan emitted or pass clean · 1 refused (run not review_open, divergent verdict, no code-review.json for the pass) · 5 result not JSON or invalid · 8 rate/usage limit"
+    },
+    {
+      "surface": "file: `review-plan.json` / `review-plan.md`",
+      "binding": "normative",
+      "before": null,
+      "after": "# at <run-dir>/review/pass-01/ — the extracted-plan projection (version, run.{shortName,title,requiredCommands},\n# phases[].{id,model,effort,planMarkdownAnchor,plannedFilesToCreate,plannedFilesToEdit,optionalFilesToEdit,commit})\n# is normative and IS the extracted-plan schema; phases[].findings, decisions[], handoffNote and review.pass normative;\n# decisions[] nested fields follow the artifact-decide decision shape (indicative here)\n{\n  \"version\": 1,\n  \"kind\": \"plan\",\n  \"sourceSpec\": \"docs/specs/2609240900-usage-cli.md\",\n  \"review\": { \"pass\": 1, \"ground\": \"review/pass-01/code-review.json\", \"minSeverity\": \"concern\",\n              \"doctrine\": [\"phax-decide-review\", \"docs/review-doctrine.md\"] },\n  \"run\": { \"shortName\": \"usage-cli\", \"title\": \"usage-cli — review pass 1\", \"requiredCommands\": [] },\n  \"preamble\": { \"summary\": \"…\", \"requiredCommandsNote\": \"…\", \"technicalArbitrations\": [] },\n  \"phases\": [\n    { \"id\": \"phase-04\", \"title\": \"Guard prune against live worktrees\", \"findings\": [\"F1\", \"C1\"],\n      \"model\": \"claude-opus-5-5\", \"effort\": \"high\", \"planMarkdownAnchor\": \"#phase-04-guard-prune\",\n      \"plannedFilesToCreate\": [], \"plannedFilesToEdit\": [\"src/app/prune.ts\"], \"optionalFilesToEdit\": [],\n      \"commit\": { \"subject\": \"fix(prune): refuse a run with a live worktree\", \"body\": \"Addresses F1, C1.\" },\n      \"objective\": \"…\", \"detailedInstructions\": [\"…\"], \"testStrategy\": \"…\", \"excludedScope\": [\"…\"] }\n  ],\n  \"decisions\": [\n    { \"id\": \"F4\", \"chosen\": \"escalate\", \"abandoned\": [\"fix in this run\"], \"why\": \"the finding says tests/prune.test.ts is wrong\",\n      \"principles\": [\"R4\"], \"reversibility\": \"reversible\", \"escalate\": true }\n  ],\n  \"handoffNote\": [ { \"finding\": \"F2\", \"severity\": \"info\", \"message\": \"help text says 'remove', output says 'prune'\" } ]\n}\n\nreview-plan.md: the phax-planning shape rendered from this document (Draft frontmatter), plus a\n\"Findings addressed\" line per phase, an \"Escalations\" section and a \"Handoff note\" section;\npasses `phax plans lint` with no structure error and parses on the deterministic path."
+    },
+    {
+      "surface": "file: pass record `pass.json`",
+      "binding": "normative",
+      "before": null,
+      "after": "# at <run-dir>/review/pass-01/pass.json — `outcome` values and `mode` values normative; other keys and layout indicative\n{\n  \"version\": 1,\n  \"pass\": 1,\n  \"mode\": \"headless\",\n  \"complianceVerdict\": \"conformant-with-deviations\",\n  \"outcome\": \"planned\",\n  \"appendedPhases\": [\"phase-04\", \"phase-05\"],\n  \"approval\": { \"by\": \"machine\", \"grant\": \"review.code.append\", \"at\": \"2026-09-25T10:12:00Z\" }\n}\n# mode: headless | interactive; complianceVerdict: a compliance verdict or null (compliance disabled)\n# outcome: planned | clean | blocked-divergent; approval: null until approved, by: machine | operator"
+    },
+    {
+      "surface": "cli: `phax run --append <run> <plan>`",
+      "binding": "normative",
+      "before": "phax run <plan.md>\n  (a run ends review_open; no command returns it to running)",
+      "after": "phax run --append usage-cli <run-dir>/review/pass-01/review-plan.md\n\n# output layout indicative; flag, arguments, state transition and exit families normative\nappend usage-cli — review pass 1 — phase-04..phase-05 after phase-03\nphase-04  from review pass 1   phax/usage-cli--phase-04 ← phax/usage-cli--phase-03\nphase-05  from review pass 1   phax/usage-cli--phase-05 ← phax/usage-cli--phase-04\nusage-cli review_open — handoff and reconciliation regenerated over phase-01..phase-05\n$? = 0\n\nState: review_open → running → review_open (failed / rate_limited / interrupted exactly as for any phase)\n\nRefusals — exit 1, nothing created, run state unchanged (wording indicative):\n✗ append refused: review plan is Draft, not Approved\n✗ append refused: run usage-cli is failed, not review_open\n✗ append refused: plan is for pass 1 but the run's latest pass is 2\n✗ append refused: plan starts at phase-04 but the run's last phase is phase-05\n✗ append refused: phase-04 plans src/app/other.ts, outside the run footprint (R2)\n✗ append refused: phase-04 plans tests/prune.test.ts, an oracle file (R4)\n✗ append refused: run usage-cli already has pull request https://github.com/o/r/pull/12\nOther exits as `phax run`: 2 gate failure · 3 lock conflict · 4 dirty final worktree · 5 agent error · 8 rate/usage limit"
+    },
+    {
+      "surface": "config: `phax.json` `review.code.{enabled,append,maxPasses}`",
+      "binding": "normative",
+      "before": "\"review\": {\n  \"compliance\": { \"enabled\": true },\n  \"code\": { \"model\": \"claude-opus-5-5\", \"effort\": \"high\" }\n}",
+      "after": "\"review\": {\n  \"compliance\": { \"enabled\": true },\n  \"code\": {\n    \"enabled\": true,     // one headless pass when the run reaches review_open; the run stays review_open\n    \"append\": true,      // machine-approve and append each pass's review plan…\n    \"maxPasses\": 2,      // …at most this many times, re-reviewing after each (1–5, default 1)\n    \"model\": \"claude-opus-5-5\", \"effort\": \"high\"\n  }\n}\n// all optional; enabled and append default false; append requires enabled"
+    },
+    {
+      "surface": "config: `phax.json` `review.code.{doctrine,minSeverity}`",
+      "binding": "indicative",
+      "before": "\"code\": { \"model\": \"claude-opus-5-5\", \"effort\": \"high\" }",
+      "after": "\"code\": {\n  \"enabled\": true,\n  \"doctrine\": \"docs/review-doctrine.md\",   // default for --doctrine (the project extension)\n  \"minSeverity\": \"concern\",                 // default for --min-severity: bug | deviation | concern\n  \"model\": \"claude-opus-5-5\", \"effort\": \"high\"\n}"
+    },
+    {
+      "surface": "cli: `phax artifact approve|status` on a review plan",
+      "binding": "indicative",
+      "before": "phax artifact status docs/plans/2609240900-usage-cli-plan.md\nPath:              docs/plans/2609240900-usage-cli-plan.md\nKind:              plan\nStatus:            Approved",
+      "after": "phax artifact approve <run-dir>/review/pass-01/review-plan.md\n\nphax artifact status <run-dir>/review/pass-01/review-plan.md\nPath:              <run-dir>/review/pass-01/review-plan.md\nKind:              review-plan (run usage-cli, pass 1)\nStatus:            Approved\nApproved:          2026-09-25 by machine (review.code.append)      # or: by operator\nAppended:          phase-04..phase-05                               # or: not appended"
+    },
+    {
+      "surface": "cli: `phax ls` review-pass report",
+      "binding": "indicative",
+      "before": null,
+      "after": "phax ls --review-open\nusage-cli   review_open   5 phases   passes 2 (last: clean, conformant)\n\nphax ls --json   # each run gains:\n\"reviewPasses\": [\n  { \"pass\": 1, \"outcome\": \"planned\", \"complianceVerdict\": \"conformant-with-deviations\",\n    \"findings\": { \"bug\": 1, \"deviation\": 1, \"concern\": 1, \"info\": 2 } },\n  { \"pass\": 2, \"outcome\": \"clean\", \"complianceVerdict\": \"conformant\",\n    \"findings\": { \"bug\": 0, \"deviation\": 0, \"concern\": 0, \"info\": 1 } }\n]"
+    },
+    {
+      "surface": "file: `pr-body.md` (the pull request description)",
+      "binding": "normative",
+      "before": "# PHAX Run Review Handoff\n\nGenerated by PHAX.\n\n# Run Review Handoff\n## Run summary\n…\n## Plan compliance review\n…\n## Phase details\n…\n(the whole body truncated from the tail past 60,000 bytes)",
+      "after": "# PHAX Run Review Handoff\n\nGenerated by PHAX.\n\n## Review passes\n\n| Pass | bug | deviation | concern | info | Fixed | Escalated | Open | Compliance |\n|---|---|---|---|---|---|---|---|---|\n| 1 | 1 | 1 | 1 | 2 | 2 | 1 | 0 | conformant-with-deviations |\n| 2 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | conformant |\n\n## Decisions\n\n| Source | Subject | Chosen | Abandoned | Why (principles) | Reversibility | Escalated |\n|---|---|---|---|---|---|---|\n| spec §9 Q1 | pruning manual or automatic | manual | auto | records keep the trajectory (S3) | reversible | no |\n| plan arbitration | lock scope | per run | global lock | … | — | no |\n| review pass 1 · F4 | tests/prune.test.ts is wrong | escalate | fix in this run | an oracle is not a fix target (R4) | reversible | yes |\n\n# Run Review Handoff\n… (unchanged; the only part truncated past 60,000 bytes)\n\n# headings, column set and order normative; cell wording indicative; both tables omitted, and the body\n# byte-identical to today's, when the run has no pass and no recorded decision"
+    }
+  ],
+  "nonGoals": [
+    "Stacked pull requests: the correction ships in the run's one PR. A second PR based on the first is set aside until a team must approve corrections separately (multi-human decision queue).",
+    "A `coverage` provider or any new review provider. The review uses the run's provider through the existing review session.",
+    "The cockpit UI and any trajectory screen. This spec supplies the data (pass records, tables) a UI would render, and nothing more.",
+    "Appending an arbitrary plan: `--append` accepts only the review plan of the run's latest pass.",
+    "Appending to a published run, and updating an existing pull request's body.",
+    "The oracle-separation `plans lint` rule and the per-phase diff-budget gate. The append refusal uses the §9 Q5 identification until that lint exists.",
+    "Answering a spec's or plan's open questions, and shipping the doctrine skills. Both belong to the `artifact-decide` spec. This spec only reads recorded decisions and loads `phax-decide-review`.",
+    "Re-reviewing inside `review-plan`: the report is the judge, and the plan is its consequence.",
+    "Any change to the interactive `review-code`, to the compliance review's document schema, or to `review-compliance` beyond judging appended phases against their own plan.",
+    "Retrying a failed appended phase automatically. The loop stops, and a human resumes with `phax resume`.",
+    "Autopilot beyond the bounded passes: no roadmap, no supervisor, no budget other than `maxPasses`."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "name": "Headless review writes findings and stops",
+      "given": "a `review_open` run `usage-cli` with no review pass",
+      "when": "`phax review-code usage-cli --headless` runs and the session returns a valid code-review document",
+      "then": "`review/pass-01/code-review.json` holds exactly the returned findings; the run's records carry it; no worktree file outside `.phax-context/` changed; the run is still `review_open`; `code-review-session.json` names the session; a later `phax review-code usage-cli` resumes that session id; and the exit code is 0",
+      "refs": [
+        "HR-1",
+        "HR-5"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "name": "Compliance verdict reaches the review",
+      "given": "a run whose `compliance-review.json` has verdict `conformant-with-deviations` and one `deviation` finding",
+      "when": "`phax review-code <run> --headless` runs",
+      "then": "the recorded prompt of the session contains that verdict and that finding's message",
+      "refs": [
+        "HR-2"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "name": "Invalid review lands nothing",
+      "given": "a headless review session that returns prose, or a finding with severity `style`",
+      "when": "the session ends",
+      "then": "the command exits 5 naming the violation path (e.g. `findings[0].severity`), and no `code-review.json` exists for the pass",
+      "refs": [
+        "HR-3",
+        "HR-4"
+      ]
+    },
+    {
+      "id": "AC-4",
+      "name": "Interactive review unchanged",
+      "given": "a `review_open` run",
+      "when": "`phax review-code <run>` runs without `--headless`",
+      "then": "the prompt file, the session record and the interactive provider invocation are identical to those produced before this change",
+      "refs": [
+        "HR-6"
+      ]
+    },
+    {
+      "id": "AC-5",
+      "name": "Review plan from the report",
+      "given": "a pass whose `code-review.json` holds `F1` (bug), `F2` (concern) and `F3` (info), a run with no review session record, and a doctrine file `d.md`",
+      "when": "`phax review-plan <run> --headless --doctrine d.md --min-severity concern` runs and the session returns a valid document",
+      "then": "a new session was started whose prompt contains `code-review.json`, the default review doctrine and `d.md`; `review-plan.json` and `review-plan.md` exist for the pass; a phase or a decision names each of `F1` and `F2`; `F3` appears only in the handoff note; and the exit code is 0",
+      "refs": [
+        "RP-1",
+        "RP-2",
+        "RP-3",
+        "RP-6",
+        "RP-11"
+      ]
+    },
+    {
+      "id": "AC-6",
+      "name": "The review session is resumed",
+      "given": "a run whose review session record names session `S`",
+      "when": "`phax review-plan <run> --headless` runs",
+      "then": "the provider invocation resumes session `S` and starts no new session",
+      "refs": [
+        "RP-1"
+      ]
+    },
+    {
+      "id": "AC-7",
+      "name": "Threshold resolution",
+      "given": "a pass with one `bug`, one `deviation` and one `concern` finding",
+      "when": "`phax review-plan <run> --headless` runs three times: with `--min-severity deviation`; with no flag and `review.code.minSeverity: \"bug\"`; and with neither",
+      "then": "the set of planned or escalated findings is {bug, deviation}, then {bug}, then all three, and every other finding appears in the handoff note",
+      "refs": [
+        "RP-4",
+        "RP-6"
+      ]
+    },
+    {
+      "id": "AC-8",
+      "name": "Compliance deviations are planned too",
+      "given": "a pass whose latest compliance review has a `deviation` finding on `phase-02` and whose code review has none",
+      "when": "`phax review-plan <run> --headless` runs with the default threshold",
+      "then": "the review plan names that finding as `C1`, either in a phase or in `decisions[]`",
+      "refs": [
+        "RP-5",
+        "RP-9"
+      ]
+    },
+    {
+      "id": "AC-9",
+      "name": "Every finding is planned or escalated",
+      "given": "a session that returns a review plan in which finding `F1` (bug) is named by neither a phase nor a decision, or is named by two phases",
+      "when": "the session ends",
+      "then": "the command exits 5 naming `F1`, and neither `review-plan.json` nor `review-plan.md` exists for the pass",
+      "refs": [
+        "RP-7",
+        "RP-8",
+        "RP-9"
+      ]
+    },
+    {
+      "id": "AC-10",
+      "name": "Phases continue the run's numbering",
+      "given": "a run with phases `phase-01` to `phase-03`",
+      "when": "`phax review-plan <run> --headless` emits a two-phase plan",
+      "then": "the plan's phases are `phase-04` and `phase-05`",
+      "refs": [
+        "RP-10"
+      ]
+    },
+    {
+      "id": "AC-11",
+      "name": "The review plan is never re-extracted",
+      "given": "a review plan that was just materialised",
+      "when": "`phax plans lint` and then `phax run --append` read `review-plan.md`",
+      "then": "lint reports no structure error; rendering the same document twice yields identical Markdown; the structured plan equals the projection in `review-plan.json`; no extraction session is spawned; and the run's records carry `review-plan.json`, `review-plan.md` and the session record",
+      "refs": [
+        "RP-7",
+        "RP-11"
+      ]
+    },
+    {
+      "id": "AC-12",
+      "name": "No plan on a divergent verdict",
+      "given": "a run whose latest compliance verdict is `divergent`",
+      "when": "`phax review-plan <run> --headless` runs",
+      "then": "no provider session is spawned, no review plan exists for the pass, the outcome in `pass.json` is `blocked-divergent`, and the exit code is 1",
+      "refs": [
+        "RP-12"
+      ]
+    },
+    {
+      "id": "AC-13",
+      "name": "Clean pass emits no plan",
+      "given": "a pass whose findings are all `info`",
+      "when": "`phax review-plan <run> --headless` runs",
+      "then": "no session is spawned, no review plan exists, the outcome in `pass.json` is `clean`, and the exit code is 0",
+      "refs": [
+        "RP-13"
+      ]
+    },
+    {
+      "id": "AC-14",
+      "name": "Interactive review-plan",
+      "given": "a run whose pass 1 was reviewed headless",
+      "when": "`phax review-plan <run>` runs without `--headless`, the agent produces a document, and the human ends the session",
+      "then": "the interactive invocation resumed the review session; the document is validated and materialised as `review-plan.json` and `review-plan.md` exactly as a headless one would be; and `pass.json` records mode `interactive`",
+      "refs": [
+        "RP-14"
+      ]
+    },
+    {
+      "id": "AC-15",
+      "name": "Append continues the same run",
+      "given": "a `review_open` run `usage-cli` with `phase-01`..`phase-03`, a commit added on `phax/usage-cli--phase-03` during review, and an Approved pass-1 review plan with `phase-04` and `phase-05`",
+      "when": "`phax run --append usage-cli <review-plan.md>` runs to completion",
+      "then": "the run state goes `review_open` → `running` → `review_open`; `phax/usage-cli--phase-04` descends from the tip of `phax/usage-cli--phase-03`, including the review commit, and `phase-05` descends from `phase-04`; the run id is unchanged; the records for `phase-04` and `phase-05` sit under the same run id; `phase-03` is no longer `review_open`; and `phase-05` is the kept-open final phase",
+      "refs": [
+        "AP-1",
+        "AP-2",
+        "AP-3",
+        "AP-4"
+      ]
+    },
+    {
+      "id": "AC-16",
+      "name": "Appended phases are ordinary phases",
+      "given": "an appended phase whose gate stays red after the fix loop",
+      "when": "`phax run --append` runs",
+      "then": "it exits 2, the run is `failed`, and `phax resume <run>` resumes at that appended phase",
+      "refs": [
+        "AP-5"
+      ]
+    },
+    {
+      "id": "AC-17",
+      "name": "The whole run is regenerated and judged",
+      "given": "a run after a completed append of `phase-04`..`phase-05`",
+      "when": "the append finishes and `phax review-compliance <run>` runs",
+      "then": "`review-handoff.md` and the global file reconciliation cover `phase-01`..`phase-05` and the files of both plans; the compliance review judges `phase-04` and `phase-05` against the review plan and `phase-01`..`phase-03` against the original plan",
+      "refs": [
+        "AP-6",
+        "AP-7"
+      ]
+    },
+    {
+      "id": "AC-18",
+      "name": "Append refusals",
+      "given": "in turn: a review plan in Draft; a run in state `failed`; the pass-1 plan when pass 2 exists; a plan starting at `phase-04` on a run whose last phase is `phase-05`; and a run with a recorded pull request",
+      "when": "`phax run --append <run> <plan>` runs",
+      "then": "it exits 1 naming the condition, no worktree or branch is created, and the run's state is unchanged",
+      "refs": [
+        "AP-8",
+        "AP-9",
+        "AP-10",
+        "AP-13"
+      ]
+    },
+    {
+      "id": "AC-19",
+      "name": "Footprint and oracle refusals",
+      "given": "an Approved review plan whose `phase-04` plans either `src/app/other.ts` (named by no finding and by no plan of the run) or `tests/prune.test.ts`",
+      "when": "`phax run --append <run> <plan>` runs",
+      "then": "it exits 1 naming `phase-04`, the file, and R2 or R4; no worktree is created; and the run stays `review_open`",
+      "refs": [
+        "AP-11",
+        "AP-12"
+      ]
+    },
+    {
+      "id": "AC-20",
+      "name": "Enabled review leaves the pass for a human",
+      "given": "`review.code.enabled: true` with `review.code.append` absent, compliance enabled, and a plan whose run produces a `bug` finding",
+      "when": "`phax run <plan>` completes its phases",
+      "then": "the run is `review_open` with pass 1's `compliance-review.json`, `code-review.json`, `review-plan.json` and `review-plan.md` (Draft); no phase was appended; and the recorded pass shows compliance ran before the code review and the code review before the review plan",
+      "refs": [
+        "CF-1",
+        "PO-1"
+      ]
+    },
+    {
+      "id": "AC-21",
+      "name": "Bounded automatic passes",
+      "given": "`review.code.enabled: true`, `append: true`, `maxPasses: 2`, and a review that reports a `bug` on every pass",
+      "when": "`phax run <plan>` runs",
+      "then": "the plans of passes 1 and 2 are appended; pass 3 is reviewed and its plan left unappended in Draft; the run ends `review_open`; each pass ran the compliance review, the code review, then the review plan, in that order; and the approvals of passes 1 and 2 are recorded as machine approvals naming `review.code.append`",
+      "refs": [
+        "CF-2",
+        "CF-3",
+        "CF-4",
+        "PO-1"
+      ]
+    },
+    {
+      "id": "AC-22",
+      "name": "The loop stops early",
+      "given": "`review.code.enabled: true`, `append: true` and `maxPasses: 2`",
+      "when": "pass 1's review reports only `info` findings, or pass 1's compliance verdict is `divergent`",
+      "then": "no phase is appended, the run is `review_open`, and pass 1's outcome is `clean` or `blocked-divergent` respectively",
+      "refs": [
+        "CF-2",
+        "RP-12",
+        "RP-13"
+      ]
+    },
+    {
+      "id": "AC-23",
+      "name": "Config defaults and validation",
+      "given": "in turn: a `phax.json` without `review.code.enabled`, `append` or `maxPasses`; one with `append: true` and no `enabled`; and one with `maxPasses: 0`",
+      "when": "`phax run` loads it",
+      "then": "the first behaves as it did before this change and produces no review pass; the second and third fail config loading with exit 1, naming `review.code.append` and `review.code.maxPasses` respectively",
+      "refs": [
+        "CF-5",
+        "CF-6"
+      ]
+    },
+    {
+      "id": "AC-24",
+      "name": "Passes are visible",
+      "given": "a run with two passes, the last `clean` with compliance `conformant`, and pass 1's plan machine-approved and appended as `phase-04`..`phase-05`",
+      "when": "`phax ls`, `phax ls --json` and `phax artifact status <pass-1 review-plan.md>` run",
+      "then": "`phax ls` shows 2 passes with `clean` and `conformant` for the last one; `phax ls --json` carries one `reviewPasses` entry per pass; and `artifact status` reports the run, pass 1, Approved, `phase-04`..`phase-05`, and approver kind machine",
+      "refs": [
+        "RE-1",
+        "RE-2",
+        "CF-4"
+      ]
+    },
+    {
+      "id": "AC-25",
+      "name": "The PR opens on the trajectory",
+      "given": "a `review_open` run with two passes and one escalation, whose source spec has one recorded decision",
+      "when": "`phax publish-pr <run>` creates the pull request",
+      "then": "`pr-body.md` puts `## Review passes` (two rows, counts equal to those in the pass documents) and then `## Decisions` (one spec row and one review-escalation row citing its principle) before the run review handoff",
+      "refs": [
+        "PR-1",
+        "PR-2",
+        "PR-3"
+      ]
+    },
+    {
+      "id": "AC-26",
+      "name": "Truncation spares the tables",
+      "given": "the same run with a handoff larger than 60,000 bytes",
+      "when": "`phax publish-pr <run>` builds the body",
+      "then": "the body is at most 60,000 bytes, contains both tables whole, and carries the truncation note after the truncated handoff",
+      "refs": [
+        "PR-4"
+      ]
+    },
+    {
+      "id": "AC-27",
+      "name": "No trajectory, no change",
+      "given": "a run with no review pass and no recorded decision",
+      "when": "`phax publish-pr <run>` builds the body",
+      "then": "`pr-body.md` is byte-identical to the body built before this change",
+      "refs": [
+        "PR-5"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "Q1",
+      "question": "Do `info` findings accumulate across passes in the handoff note?",
+      "options": [
+        {
+          "id": "per-pass",
+          "label": "each pass lists its own info findings under that pass",
+          "abandons": "a single list the human reads once; the same style note repeats on every pass"
+        },
+        {
+          "id": "accumulate",
+          "label": "one handoff note, deduplicated by file and message across passes, each entry tagged with the first pass that raised it (doctrine R7)",
+          "abandons": "seeing directly that a later pass still raised a style note"
+        },
+        {
+          "id": "last-only",
+          "label": "only the last pass's info findings",
+          "abandons": "earlier passes' style notes, which vanish silently (against R6)"
+        }
+      ],
+      "recommendation": "accumulate",
+      "rationale": "R7 already states it, and a human reads style notes once. The per-pass count stays in the review-passes table, so nothing is hidden."
+    },
+    {
+      "id": "Q2",
+      "question": "How is a decision request raised inside an appended phase attributed?",
+      "options": [
+        {
+          "id": "as-any-phase",
+          "label": "like any phase: run id plus phase id; the pass and findings are derived from the pass records",
+          "abandons": "reading the pass and finding ids in the request itself, without a lookup"
+        },
+        {
+          "id": "extend-record",
+          "label": "add the pass and finding ids to the decision-request record",
+          "abandons": "an unchanged spec 23 record: a persisted format gains a required field"
+        },
+        {
+          "id": "to-review-plan",
+          "label": "attribute it to the review plan as an artifact-level question",
+          "abandons": "answering the request in its phase's context and resuming the phase from it"
+        }
+      ],
+      "recommendation": "as-any-phase",
+      "rationale": "Phase ids are unique within a run, and `pass.json` maps appended phases to their pass, so the attribution can be derived without touching a persisted format."
+    },
+    {
+      "id": "Q3",
+      "question": "May `review-plan` run interactively on a run whose review was headless?",
+      "options": [
+        {
+          "id": "resume",
+          "label": "yes, resuming the headless review session in a terminal",
+          "abandons": "a machine-only transcript for a session the loop started; the records mix human and machine turns"
+        },
+        {
+          "id": "fresh",
+          "label": "yes, in a fresh session given `code-review.json`",
+          "abandons": "the review's memory of why each finding was raised"
+        },
+        {
+          "id": "refuse",
+          "label": "no",
+          "abandons": "a human taking over a pass the loop left unappended (after the bound, or on an escalation)"
+        }
+      ],
+      "recommendation": "resume",
+      "rationale": "Taking over after the bound is the main human use. `pass.json` records `mode: interactive`, so the mixed transcript stays attributable."
+    },
+    {
+      "id": "Q4",
+      "question": "Where is a review plan approved and recorded?",
+      "options": [
+        {
+          "id": "run-scoped",
+          "label": "`phax artifact approve` accepts the review plan in the run directory; the approval is recorded in the pass record (by operator or machine), not in `docs/plans/approvals.json`",
+          "abandons": "a single approvals ledger in the repository"
+        },
+        {
+          "id": "repo-plan",
+          "label": "the review plan is committed under `docs/plans/` on the run branch and approved like any plan",
+          "abandons": "a run branch that carries only the work: every pass adds bookkeeping to the PR, and the approval commit must land on the run branch, not on the checkout"
+        },
+        {
+          "id": "implicit",
+          "label": "no separate approval: invoking `run --append` is the approval",
+          "abandons": "the \"plan not Approved\" refusal, and a machine approval that can be told apart from an operator's"
+        }
+      ],
+      "recommendation": "run-scoped",
+      "rationale": "The review plan is the run's own consequence and is consumed only by `--append` on that run. Keeping its approval with the run keeps the repository ledger for plans a human authored, and the transition verb stays the same."
+    },
+    {
+      "id": "Q5",
+      "question": "How does `--append` identify oracle files before the oracle-separation lint exists?",
+      "options": [
+        {
+          "id": "convention",
+          "label": "a built-in convention (`*.test.*`, `*.spec.*`, files under `tests/` or `__fixtures__/`), replaced by the lint when it lands",
+          "abandons": "oracles outside the convention (matrices, fixtures elsewhere), which only compliance guards until then"
+        },
+        {
+          "id": "compliance-only",
+          "label": "no refusal until the lint exists; compliance alone checks R4",
+          "abandons": "the mechanical \"never edits what judges it\" guarantee the first consumer relies on from the first pass"
+        },
+        {
+          "id": "declared",
+          "label": "a declared glob list in `phax.json` (`review.code.oracles`)",
+          "abandons": "zero configuration, and it adds one more config key right before the 1.0 freeze"
+        }
+      ],
+      "recommendation": "convention",
+      "rationale": "The convention covers the common case mechanically today, compliance catches the rest, and the lint replaces the convention without any change to the surface."
+    }
+  ],
+  "planningNote": {
+    "settled": [
+      "Two headless commands (`review-code --headless` writes findings and stops; `review-plan` turns them into a plan) plus an interactive `review-plan`; the interactive `review-code` is untouched.",
+      "`code-review.json` keys and severity enum; the review plan is a plan document whose projection is the extracted-plan schema, plus `phases[].findings`, `decisions[]`, `handoffNote` and `review.pass`.",
+      "Every finding at or above the threshold appears in exactly one phase or one decision; `info` and below-threshold findings go to the handoff note; compliance `deviation` findings join as `C<n>`.",
+      "No session and no plan on a `divergent` verdict (exit 1, `blocked-divergent`) or on a clean pass (exit 0, `clean`).",
+      "`run --append` is the new transition `review_open → running` with appended phases numbered after the run, worktrees chained from the previous tip, the same run id and records lineage, the previous final phase closed, handoff and reconciliation regenerated over the whole run, and one PR. It has seven refusals (six before any phase starts, plus dirty worktree via exit 4).",
+      "`review.code.enabled` / `append` / `maxPasses` (default false/false/1, `maxPasses` 1–5, `append` requires `enabled`); machine approval recorded with the granting key.",
+      "Pass order: compliance, then code review, then review plan. The loop stops on a clean pass, a divergent verdict, or the bound.",
+      "PR body: the review-passes table and the decisions table come first and are never truncated; the body is unchanged for runs with no pass and no recorded decision."
+    ],
+    "open": [
+      "Q1–Q5 carry recommended defaults; they must be decided before approval.",
+      "Cell wording of both tables, output layouts, the run-directory layout (`review/pass-NN/`), and the spelling of the indicative `doctrine` / `minSeverity` keys.",
+      "How the interactive `review-plan` session hands its document back to phax (a file under `.phax-context/`, as compliance does, is the obvious route).",
+      "The steme protocol (§3.2, §5.6, §5.7, §6, §12.3) and steme-lab's `phax.schema.json` could not be read in the authoring session. The review config shape was taken from `src/schemas/phaxConfig.ts`. A reviewer should check §5.6/§5.7 against the pass order and bound given here."
+    ],
+    "constraints": [
+      "Compose the headless-authoring machinery (JSON-only session, plan document schema, deterministic renderer, cache seed, session record); do not fork it. The review plan's projection must be the extracted-plan schema itself.",
+      "Add the `review_open → running` transition through the state reducer and name it and test it there; appended phases reuse the existing phase lifecycle unchanged.",
+      "Existing run-status and phase-status persisted formats gain no field. Pass data lives in new versioned documents (`code-review.json`, `pass.json`) with required fields only, and a phase's origin is derived from them.",
+      "The new `review.code` keys are optional at birth so a `version: 1` config keeps loading. This is the same deliberate exception as the `authoring` keys, not a shim.",
+      "`code-review.json`, `pass.json` and the review-plan document ship experimental (README \"Experimental formats\"), like the headless-authoring documents.",
+      "The headless review and review-plan sessions run under the read-only review security posture and write nothing to the worktree outside `.phax-context/`.",
+      "The default doctrine is the `phax-decide-review` skill, with its content taken unchanged from `docs/ideas/skills/phax-decide-review.md`. The `artifact-decide` spec owns its packaging. If this spec lands first, ship it the way `phax-spec` ships.",
+      "The machine-versus-operator approval form must match the one the `artifact-decide` spec defines; whichever spec lands second adopts the first's form.",
+      "When the oracle-separation lint lands, it replaces the Q5 convention in the append refusal.",
+      "Both PR tables are rendered from persisted data only, with no model call."
+    ]
+  },
+  "docsPage": {
+    "kind": "page",
+    "page": "docs/review-as-plan.md",
+    "reader": "an operator or loop author who wants phax to review its own run and fix what the review finds, through phases, before the PR is opened",
+    "example": "Automatic: in `phax.json` set \"review\": { \"compliance\": { \"enabled\": true }, \"code\": { \"enabled\": true, \"append\": true, \"maxPasses\": 2 } }; `phax run <plan>` then ends `review_open` after at most two fix passes, and `phax publish-pr usage-cli` opens with the review-passes and decisions tables. By hand: `phax review-compliance usage-cli` → `phax review-code usage-cli --headless` → `phax review-plan usage-cli --headless --min-severity concern` → read and `phax artifact approve <run-dir>/review/pass-01/review-plan.md` → `phax run --append usage-cli <run-dir>/review/pass-01/review-plan.md` → repeat, or `phax publish-pr usage-cli`."
+  }
+}
