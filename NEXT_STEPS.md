@@ -67,6 +67,11 @@ desktop — none is promised by the announcement.
       `phax plans lint` now catches the `commands` and `models` causes before a run is
       started, but `src/cli/commands/run.ts` still calls `createRunFolder` before
       `executePlan`, so a refusal from any other preflight still burns the slug.
+      Partly done 2026-09-24 (claude-skill-edit-grant review): the skill edit consent
+      check now runs in `run.ts` before the run is named, through
+      `src/app/skillEditConsent.ts`, and `executePlan` keeps its copy to guard resume.
+      Follow that pattern for the rest, starting with the required-commands preflight
+      (`SecurityPreflightError`, plan + config only), then mcp, records and clean-tree.
 
 - [ ] **A plan whose footprint names `docs/plans/approvals.json` is stale at its own
       approval.** Found 2026-09-10 launching the artifact-timestamp-naming plan: `phax
