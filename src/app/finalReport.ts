@@ -43,7 +43,7 @@ function tryReadSecurityPosture(runPath: string, phaseId: string): SecurityPostu
   return null;
 }
 
-function formatSecurityPosture(posture: SecurityPosture): string {
+function formatSecurityPosture(phaseId: string, posture: SecurityPosture): string {
   const readPaths =
     posture.filesystem.allowRead.length > 0 ? posture.filesystem.allowRead.join(", ") : "(none)";
   const writePaths =
@@ -55,9 +55,7 @@ function formatSecurityPosture(posture: SecurityPosture): string {
       ? posture.providerSkippedForSecurity.map((s) => `${s.provider}: ${s.reason}`).join("; ")
       : "none";
 
-  return `
-| ${posture.mode} | ${posture.provider} | ${posture.sandboxEnabled} | ${posture.network.profile} | ${posture.mcp.mode} | ${readPaths} | ${writePaths} | ${mcpAllow} | ${posture.downgraded} | ${marks} | ${skipped} |
-`;
+  return `| ${phaseId} | ${posture.mode} | ${posture.provider} | ${posture.sandboxEnabled} | ${posture.network.profile} | ${posture.mcp.mode} | ${readPaths} | ${writePaths} | ${mcpAllow} | ${posture.downgraded} | ${marks} | ${skipped} |`;
 }
 
 function buildEntrySection(info: RunReviewInfo): string {
@@ -200,8 +198,10 @@ function buildFinalReportMarkdown(
       : "(mixed)";
 
   const securityRows = hasSecurityData
-    ? securityPosturePairs.map((pair) => formatSecurityPosture(pair.posture)).join("")
-    : "| (no security data) | | | | | | | | | | | |\n";
+    ? securityPosturePairs
+        .map((pair) => formatSecurityPosture(pair.phaseId, pair.posture))
+        .join("\n")
+    : "| (no security data) | | | | | | | | | | | |";
 
   const agentCommandsSection = securityPosturePairs
     .filter((pair) => pair.posture.agentCommands.length > 0)
@@ -215,6 +215,20 @@ function buildFinalReportMarkdown(
       return `### ${pair.phaseId}\n\n| Command | Source | Explicit | Required | Enforcement | Degraded |\n|---------|--------|----------|----------|-------------|----------|\n${rows}`;
     })
     .join("\n\n");
+
+  // Declared `.claude/skills/**` files each phase was granted (--allow-skill-edits),
+  // so a reviewer sees which protected skill files the agent could write.
+  const skillEditGrantRows = securityPosturePairs
+    .filter((pair) => pair.posture.skillEditGrants.length > 0)
+    .map(
+      (pair) =>
+        `| ${pair.phaseId} | ${pair.posture.skillEditGrants.map((f) => `\`${f}\``).join(", ")} |`,
+    )
+    .join("\n");
+  const skillEditGrantsSection =
+    skillEditGrantRows.length > 0
+      ? `\n### Skill Edit Grants\n\n| Phase | Files |\n|-------|-------|\n${skillEditGrantRows}\n`
+      : "";
 
   const publicationSection =
     publication !== undefined ? `\n${renderPublicationSection(publication)}` : "";
@@ -246,10 +260,10 @@ ${phaseRows}
 
 - **Run Security Mode**: ${runSecurityMode}
 
-| Phase | Provider | Sandbox | Network Profile | MCP Mode | Allow Read | Allow Write | MCP Allow | Downgraded | Marks | Skipped for Security |
-|-------|----------|---------|----------------|----------|------------|-------------|-----------|------------|-------|---------------------|
+| Phase | Mode | Provider | Sandbox | Network Profile | MCP Mode | Allow Read | Allow Write | MCP Allow | Downgraded | Marks | Skipped for Security |
+|-------|------|----------|---------|----------------|----------|------------|-------------|-----------|------------|-------|---------------------|
 ${securityRows}
-${agentCommandsSection.length > 0 ? `\n### Agent Commands\n\n${agentCommandsSection}\n` : ""}
+${agentCommandsSection.length > 0 ? `\n### Agent Commands\n\n${agentCommandsSection}\n` : ""}${skillEditGrantsSection}
 ## Per-Phase Artifacts
 
 ${artifactLinks}
