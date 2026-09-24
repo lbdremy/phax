@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   buildArgs,
   buildCompletionArgs,
@@ -158,18 +161,40 @@ describe("buildArgs — secure mode", () => {
 describe("buildArgs — skill edit grants", () => {
   const grants = [".claude/skills/foo/SKILL.md", ".claude/skills/new/SKILL.md"];
 
+  // A root that does not exist is used as given (realpath cannot resolve it).
+  const missingRoot = "/phax-test-missing-root/work";
+
   it("secure mode with grants appends exactly one --settings with the PermissionRequest hook", () => {
-    const args = buildArgs({ ...baseOptions(securePolicy), skillEditGrants: grants });
+    const args = buildArgs({
+      ...baseOptions(securePolicy),
+      cwd: missingRoot,
+      skillEditGrants: grants,
+    });
     const indexes = args.reduce<number[]>((acc, v, i) => {
       if (v === "--settings") acc.push(i);
       return acc;
     }, []);
     expect(indexes).toHaveLength(1);
     const settings = JSON.parse(args[(indexes[0] ?? -1) + 1] ?? "");
-    expect(settings).toEqual(buildSkillEditGrantSettings("/tmp/work", grants));
+    expect(settings).toEqual(buildSkillEditGrantSettings(missingRoot, grants));
     const handlers = settings.hooks.PermissionRequest[0].hooks;
     expect(handlers).toHaveLength(6);
-    expect(handlers[0].if).toBe("Edit(//tmp/work/.claude/skills/foo/SKILL.md)");
+    expect(handlers[0].if).toBe("Edit(//phax-test-missing-root/work/.claude/skills/foo/SKILL.md)");
+  });
+
+  it("scopes the rules to the symlink-resolved worktree root", () => {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), "phax-grant-root-")));
+    try {
+      const real = join(base, "real");
+      const link = join(base, "link");
+      mkdirSync(real);
+      symlinkSync(real, link);
+      const args = buildArgs({ ...baseOptions(securePolicy), cwd: link, skillEditGrants: grants });
+      const settings = JSON.parse(args[args.indexOf("--settings") + 1] ?? "");
+      expect(settings).toEqual(buildSkillEditGrantSettings(real, grants));
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
   });
 
   it("secure mode with [] produces the same argv as before, with no --settings", () => {
