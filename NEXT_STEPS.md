@@ -129,6 +129,11 @@ desktop — none is promised by the announcement.
       §3.2 and its item-0 schedule). None holds the 1.0 tag — all are additive to the CLI
       and to `phax.json` — but the experiment pins the release that carries them, so
       they come before that release and after nothing:
+      **Drafted 2026-09-24 by headless authoring** (`phax artifact new spec … --headless --brief
+      docs/briefs/<slug>.md`, Opus 5.5 high, one session each, sidecars and authoring records
+      committed): `docs/specs/2609241219-headless-review.md` (slug `headless-review` — a
+      `-plan` suffix is reserved for plan files), `2609241227-artifact-decide.md`,
+      `2609241238-schemas-package.md`. All Draft; their §9 await arbitration.
       1. **`headless-authoring`** — `docs/ideas/headless-authoring.md`: `artifact new
          spec|plan --headless --brief <file>`; phax spawns the authoring session with the
          skill and an output schema, receives JSON only (plan in the `phax-plan.json`
