@@ -48,6 +48,22 @@ phax artifact decide <artifact> --question <id> --reopen   # what STEERING `rouv
 - **`--reopen`**: marks a decided question open again with a note; the next `decide`
   sees it first. This is what a steering instruction like `rouvre Q3` becomes.
 
+## The doctrines ship as skills
+
+Like `phax-spec` and `phax-planning`, the arbitration doctrines are **skills phax ships
+by default** — proposals nobody is obliged to adopt, that spare each project writing its
+own: `phax-decide-spec`, `phax-decide-plan`, `phax-decide-review` (drafts in
+[`skills/`](./skills/)). The `decide` session loads the matching skill; `--doctrine
+<file>` appends the project's own principles; every decision cites ids from either
+(`S*`, `P*`, `R*`, or the project's). A project that wants to replace a doctrine installs
+its own skill under the same name (`phax skills install --scope project`). The review
+doctrine is what `review-plan` loads, not only `decide`.
+
+Nearly everything in the drafts is generic phax engineering doctrine (adopt the default,
+deviate toward completeness, refuse don't warn, one source, total on inputs, no scalar,
+nothing destructive without a gesture); the steme-specific parts are stated generically
+("changes the public surface", "erases attribution").
+
 ## What it gives
 
 - A loop's decision policy becomes a phax command with a caller-owned doctrine, not an
