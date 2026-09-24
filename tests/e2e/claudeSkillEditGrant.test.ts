@@ -26,6 +26,41 @@ const FOO = ".claude/skills/foo/SKILL.md";
 const BAR = ".claude/skills/bar/SKILL.md";
 const NEW = ".claude/skills/new/SKILL.md";
 
+// Tool calls, tool results and permission denials from Claude's stream-json output.
+function toolTrace(stdout: string): string {
+  const lines: string[] = [];
+  for (const raw of stdout.split("\n")) {
+    let event: {
+      type?: string;
+      subtype?: string;
+      decision_reason?: string;
+      message?: { content?: unknown };
+    };
+    try {
+      event = JSON.parse(raw);
+    } catch {
+      continue;
+    }
+    if (event.type === "system" && event.subtype === "permission_denied") {
+      lines.push(`denied: ${event.decision_reason ?? ""}`);
+    }
+    const content = Array.isArray(event.message?.content) ? event.message.content : [];
+    for (const block of content as {
+      type?: string;
+      name?: string;
+      input?: unknown;
+      content?: unknown;
+      text?: string;
+    }[]) {
+      if (block.type === "tool_use") lines.push(`${block.name}: ${JSON.stringify(block.input)}`);
+      if (block.type === "tool_result")
+        lines.push(`  -> ${JSON.stringify(block.content).slice(0, 300)}`);
+      if (block.type === "text") lines.push(`text: ${block.text?.slice(0, 300) ?? ""}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 describe.skipIf(!shouldRun)("claude-code skill edit grant (real provider)", () => {
   let repoDir: string;
 
@@ -55,7 +90,7 @@ describe.skipIf(!shouldRun)("claude-code skill edit grant (real provider)", () =
     };
     const args = buildArgs({
       provider: "claude-code",
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-5",
       effort: "low",
       cwd: repoDir,
       security,
@@ -64,9 +99,9 @@ describe.skipIf(!shouldRun)("claude-code skill edit grant (real provider)", () =
 
     const prompt = [
       "Do exactly these three file operations, one after another, and continue even if one is denied:",
-      `1. Edit ${FOO}: replace its content with "# foo edited".`,
-      `2. Edit ${BAR}: replace its content with "# bar edited".`,
-      `3. Create ${NEW} with the content "# new skill".`,
+      `1. Use the Edit tool on ${FOO}: replace the exact text "# original" with "# foo edited".`,
+      `2. Use the Edit tool on ${BAR}: replace the exact text "# original" with "# bar edited".`,
+      `3. Use the Write tool to create ${NEW} with the content "# new skill".`,
       "Do not use any other tools. Then reply DONE.",
     ].join("\n");
 
@@ -78,8 +113,16 @@ describe.skipIf(!shouldRun)("claude-code skill edit grant (real provider)", () =
     });
     expect(result.status, result.stderr).toBe(0);
 
-    expect(readFileSync(join(repoDir, FOO), "utf8")).not.toBe(ORIGINAL);
-    expect(existsSync(join(repoDir, NEW))).toBe(true);
-    expect(readFileSync(join(repoDir, BAR), "utf8")).toBe(ORIGINAL);
+    // On failure, show what the agent attempted and what each call returned, so
+    // a model that skipped a step is told apart from a grant that did not apply.
+    const trace = toolTrace(result.stdout);
+    expect(readFileSync(join(repoDir, FOO), "utf8"), trace).not.toBe(ORIGINAL);
+    expect(existsSync(join(repoDir, NEW)), trace).toBe(true);
+    expect(readFileSync(join(repoDir, BAR), "utf8"), trace).toBe(ORIGINAL);
+    // BAR must be unchanged because the protected-path check denied it, not
+    // because the agent never reached a permission decision.
+    expect(trace).toContain(
+      `denied: Claude requested permissions to write to ${join(repoDir, BAR)}`,
+    );
   });
 });
