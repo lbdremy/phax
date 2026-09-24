@@ -133,7 +133,7 @@ To let a phase edit skill files:
 - List each `.claude/skills/...` file in the phase's planned-file sections (create, edit, or optional).
 - Start the run with `phax run --allow-skill-edits`.
 
-The phase, including its fix loop and handoff generation, may then edit or create exactly the declared files. Without the flag, a plan that declares skill files is refused at preflight (exit code 11) with a message naming the phases and files. `phax resume` has no flag of its own: it inherits the consent recorded in the run's `run-status.json`, and a run without recorded consent is refused again.
+The phase, including its fix loop and handoff generation, may then edit or create exactly the declared files. Without the flag, a plan that declares skill files is refused before the run is created (exit code 11), with a message naming the phases and files, so re-running with the flag keeps the plan's run name. `phax resume` has no flag of its own: it inherits the consent recorded in the run's `run-status.json`, and a run without recorded consent is refused again.
 
 **Mechanism.** The Claude adapter passes an inline `--settings` JSON with a `PermissionRequest` hook. There is one handler per declared file and per edit tool (`Edit`, `Write`, `MultiEdit`). Each handler is scoped by an absolute `if` permission rule and echoes an allow decision. The grants are recorded in `security.json` as `skillEditGrants` for every provider. Only the Claude adapter acts on them, because Codex and Vibe do not block `.claude/`. With no grants, the argv is unchanged.
 
