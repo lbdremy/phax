@@ -1,5 +1,13 @@
 Write the phax spec `headless-review` (title: "Review as a plan — headless code review, review-plan, run --append"; the slug avoids a `-plan` suffix, which the artifact name grammar reserves for plans).
 
+This is the second draft: the first (`docs/specs/archive/2609241219-headless-review.md`, Abandoned 2026-09-25) predates the decisions below; read it for structure, not for content those decisions change.
+
+Revised on 2026-09-25 — decisions the spec must reflect:
+- **A finding can be dismissed, not only fixed or left open.** `review-plan` may propose `dismissed` with a reason ("not a bug, because …") for a finding it judges wrong; in headless mode that is an escalation (propose and escalate, the proposal never wins by itself), in interactive mode the human confirms. `code-review.json` findings carry an outcome (`fixed` | `open` | `dismissed` | `escalated`) across passes; the review-passes table in the PR body and `phax ls` show dismissed counts; a dismissed finding is a decision in the ledger (`decisions[]`), never a silent drop.
+- **Two modes only**, interactive and headless; no "headless total" (deferred).
+- **The review doctrine skill already exists** at `.claude/skills/phax-decide-review` (landed by hand 2026-09-25; R1–R7 under the five pairs C1–C5, ground E0). `review-plan` loads it and appends `--doctrine`; the spec does not write its text. The `artifact-decide` spec (new draft, same day) registers all three doctrine skills in the catalog; this spec depends on that registration.
+- Reversibility is a cost: a fix phase prefers the change cheaper to reverse; anything destructive stops.
+
 Ground to read first, in this order:
 - docs/ideas/headless-code-review.md — the idea, revised 2026-09-24: two commands (`review-code --headless` writes the report and stops; `review-plan --headless --doctrine <file> --min-severity <s>` produces the plan from the review session or the report), `run --append`, the `review.code.{enabled,append,maxPasses}` config, the per-pass order (compliance over the whole run, then headless code review with the compliance verdict in its brief, then a plan only if non-info findings remain; no plan on a `divergent` verdict), same PR never stacked, and the PR description opening on the review-passes table and the decisions table.
 - docs/ideas/skills/phax-decide-review.md — the default review doctrine (R1–R7) that `review-plan` loads; a project extends it with `--doctrine`.
@@ -17,6 +25,6 @@ What the spec must cover:
 - `phax.json` `review.code.enabled` (headless review runs at the end of a run; the run stays `review_open` with its artifacts) and `review.code.append` + `review.code.maxPasses` (approve and run the review plan without intervention, bounded); both default false; machine approval of the appended plan recorded as such.
 - The per-pass order and the bound; what `phax ls` and `phax artifact status` report about passes.
 - The PR description: `publish-pr` opens the body with the review-passes table (per pass: findings by severity, fixed, escalated, open, compliance verdict) and the decisions table (spec §9 decisions with principles cited, plan technical arbitrations, review escalations), both rendered from data phax holds, before the existing handoff, so truncation never removes them.
-- Open questions in §9 with options, what each abandons, and a recommended default: whether `info` findings accumulate across passes; how a decision request raised inside an appended phase is attributed; whether `review-plan` may run interactively on a run whose review was headless.
+- Open questions in §9 with options, what each abandons, and a recommended default: whether `info` findings accumulate across passes; how a decision request raised inside an appended phase is attributed; whether `review-plan` may run interactively on a run whose review was headless; where the review plan's approval is recorded (run directory vs `docs/plans/approvals.json`) and how a machine approval is marked; how `--append` recognises oracle files before the oracle-separation lint exists.
 
 Constraints: additive CLI and config only; the interactive `review-code` is unchanged; `--append` is a real transition with its own acceptance criteria; keep to what the first consumer needs and name what is deliberately out of scope (stacked PRs, a `coverage` provider, the cockpit UI).
