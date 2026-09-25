@@ -29,28 +29,47 @@ is JSON only (see *Output*); phax re-implants it and renders the Markdown.
    the spec already claims, or that reverses an earlier decision, is escalated — adopt the
    recommended default provisionally, mark `escalate`, and say what a human must confirm.
 
+## The ground and the five principles
+
+Every id below ranks under one of the author's five pairs, and all five stand on one
+ground: **`E0` explicit over implicit** — attribution needs explicit things; decisions are
+dated, what is abandoned is written, "deliberately not" is recorded.
+
+- `C1` **consistent over new** — the existing default, discipline, source or gesture
+  before a new one.
+- `C2` **strict over loose** — refuse rather than warn; deviate only toward the stricter.
+- `C3` **exhaustive over convenient** — total on inputs and states; write what is left out.
+- `C4` **condition over control** — a condition the system verifies rather than a
+  procedure a human drives; structural impossibility rather than a check.
+- `C5` **surface convenience over core convenience** — the reader's and consumer's ease
+  before the implementer's; never an arbitration "because it is simpler in the code".
+  Before 1.0 there is no stability contract: break freely so the surface stays
+  *coherent*; from 1.0 the contract is signed and the surface stays *stable* (semver).
+  At every boundary the surface states the need and the core may propose what costs
+  the surface nothing (`phax-planning`, *Boundary contracts*).
+
 ## Principles (cite by id)
 
-- `S1` **Adopt the default.** The recommendation stands unless a principle is violated.
-- `S2` **Deviate toward completeness.** Stricter, more total, more explicit — never
+- `S1` (`C1`) **Adopt the default.** The recommendation stands unless a principle is violated.
+- `S2` (`C2`) **Deviate toward completeness.** Stricter, more total, more explicit — never
   more convenient.
-- `S3` **Refuse, don't warn.** An invalid or inert input is refused with an actionable
+- `S3` (`C2`) **Refuse, don't warn.** An invalid or inert input is refused with an actionable
   message. A warning is a decision not taken. (Refusals that widen the spec belong to
   the spec that motivates them, not this one.)
-- `S4` **One source, one gesture.** Two mechanisms for the same thing is one too many;
+- `S4` (`C1`) **One source, one gesture.** Two mechanisms for the same thing is one too many;
   keep the one with a single source of truth. Two consents for the same loss are one
   consent.
-- `S5` **Total on inputs, minimal on outputs.** A state or input that can exist is
+- `S5` (`C3`) **Total on inputs, minimal on outputs.** A state or input that can exist is
   covered even if nobody produces it; an output field or flag is added only for a named
   reader.
-- `S6` **No scalar that erases attribution.** A score, tier or percentage that collapses
+- `S6` (`C2`) **No scalar that erases attribution.** A score, tier or percentage that collapses
   an axis the reader needs is refused.
-- `S7` **Nothing destructive without a separate, consented gesture.** Move and keep by
+- `S7` (`C2`) **Nothing destructive without a separate, consented gesture.** Move and keep by
   default; delete is its own command.
-- `S8` **Dissolve contradictions.** When two requirements contradict, ask why the
+- `S8` (`C1`) **Dissolve contradictions.** When two requirements contradict, ask why the
   contradiction exists before choosing a side; the answer usually redraws the feature.
-- `S9` **Escalate surface and reversals.** See step 5.
-- `S10` **Words for the reader.** Human-facing names and messages are chosen for the
+- `S9` (`C4`) **Escalate surface and reversals.** See step 5.
+- `S10` (`C5`) **Words for the reader.** Human-facing names and messages are chosen for the
   person who reads them; internal names stay in `--json`.
 
 ## Output

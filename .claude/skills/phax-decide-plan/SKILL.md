@@ -26,14 +26,33 @@ things. Without a human, classify first, mechanically:
   doctrine, fresh session); do not resolve it in the plan.
 - Otherwise resolve it by dominant loss and record it in `## Technical arbitrations`.
 
+## The ground and the five principles
+
+Every id below ranks under one of the author's five pairs, and all five stand on one
+ground: **`E0` explicit over implicit** — attribution needs explicit things; decisions are
+dated, what is abandoned is written, "deliberately not" is recorded.
+
+- `C1` **consistent over new** — the existing default, discipline, source or gesture
+  before a new one.
+- `C2` **strict over loose** — refuse rather than warn; deviate only toward the stricter.
+- `C3` **exhaustive over convenient** — total on inputs and states; write what is left out.
+- `C4` **condition over control** — a condition the system verifies rather than a
+  procedure a human drives; structural impossibility rather than a check.
+- `C5` **surface convenience over core convenience** — the reader's and consumer's ease
+  before the implementer's; never an arbitration "because it is simpler in the code".
+  Before 1.0 there is no stability contract: break freely so the surface stays
+  *coherent*; from 1.0 the contract is signed and the surface stays *stable* (semver).
+  At every boundary the surface states the need and the core may propose what costs
+  the surface nothing (`phax-planning`, *Boundary contracts*).
+
 ## Principles (cite by id)
 
-- `P1` **Classify, then decide.** Surface or §9 → escalate; else dominant loss.
-- `P2` **Split by surface, not by size.** Each plan ships a piece of surface that is
+- `P1` (`C4`) **Classify, then decide.** Surface or §9 → escalate; else dominant loss.
+- `P2` (`C5`) **Split by surface, not by size.** Each plan ships a piece of surface that is
   useful on its own; split when two pieces are useful separately, never split a piece
   that is only useful whole. Six phases or eleven planned files in one phase are
   *smells* that make you ask the question; they are not the rule.
-- `P3` **Oracle first, when the surface is shown.** When the spec shows the surface with
+- `P3` (`C4`) **Oracle first, when the surface is shown.** When the spec shows the surface with
   real before/after artifacts, write tests and disposition matrices in an
   `oracle-authoring` phase that precedes the implementing phase, and list those files
   as read-only for the implementing phase. When the surface is only described, keep
@@ -41,22 +60,22 @@ things. Without a human, classify first, mechanically:
   an oracle written first turns out wrong, the implementing phase must not touch it: the
   run pauses and the disagreement goes back to the spec — that is the intended
   behaviour, not a failure.
-- `P4` **A fix stays inside the run's footprint.** A correction phase may touch the
+- `P4` (`C2`) **A fix stays inside the run's footprint.** A correction phase may touch the
   files the findings name plus the run's declared footprint. A root cause outside it is
   not fixed here: it becomes a `deviation` to escalate (a spec amendment or a new plan).
-- `P5` **Optional files: three per phase, named.** Regenerated artifacts (lockfiles,
+- `P5` (`C3`) **Optional files: three per phase, named.** Regenerated artifacts (lockfiles,
   generated references, renders) are declared once at plan level as *regenerated
   files*, outside the quota. A phase that needs more splits or declares.
-- `P6` **Model and effort are the planner's.** No doctrine fixes effort by phase kind.
+- `P6` (`C4`) **Model and effort are the planner's.** No doctrine fixes effort by phase kind.
   Follow the catalog rule of the planning skill (default Opus-tier, Sonnet for
   mechanical work, a stated reason for anything above, the lowest effort that
   succeeds); the usage guard protects the operator's margin.
-- `P7` **Docs last.** The item's explanatory docs page is the last phase, fed by the
+- `P7` (`C5`) **Docs last.** The item's explanatory docs page is the last phase, fed by the
   generated reference and the previous phases' handoffs; it also closes the item's
   explanatory hole.
-- `P8` **Inside-out to implement, outside-in to plan and verify** (from the planning
+- `P8` (`C1`) **Inside-out to implement, outside-in to plan and verify** (from the planning
   skill; kept here so a decision can cite it).
-- `P9` **Amend, don't drift.** When execution shows the spec was wrong, the plan does not
+- `P9` (`C1`) **Amend, don't drift.** When execution shows the spec was wrong, the plan does not
   quietly deviate; the spec gets a dated amendment and the plan is adjusted against it.
 
 ## Output
