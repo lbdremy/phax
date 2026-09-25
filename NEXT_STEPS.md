@@ -131,9 +131,13 @@ desktop — none is promised by the announcement.
       they come before that release and after nothing:
       **Drafted 2026-09-24 by headless authoring** (`phax artifact new spec … --headless --brief
       docs/briefs/<slug>.md`, Opus 5.5 high, one session each, sidecars and authoring records
-      committed): `docs/specs/2609241219-headless-review.md` (slug `headless-review` — a
-      `-plan` suffix is reserved for plan files), `2609241227-artifact-decide.md`,
-      `2609241238-schemas-package.md`. All Draft; their §9 await arbitration.
+      committed): `docs/specs/2609241238-schemas-package.md` (Draft). `headless-review` (the
+      slug avoids a `-plan` suffix, reserved for plan files) and `artifact-decide` were
+      **re-drafted on 2026-09-25** after that morning's arbitration decisions (two modes,
+      propose-and-escalate, dismissed findings, the doctrine skills landed by hand, the
+      doctrine format): first drafts Abandoned in `archive/`, second drafts
+      `2609250815-artifact-decide.md` (7 §9) and `2609250823-headless-review.md` (7 §9).
+      All Draft; their §9 await arbitration.
       1. **`headless-authoring`** — `docs/ideas/headless-authoring.md`: `artifact new
          spec|plan --headless --brief <file>`; phax spawns the authoring session with the
          skill and an output schema, receives JSON only (plan in the `phax-plan.json`
