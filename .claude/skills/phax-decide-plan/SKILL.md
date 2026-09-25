@@ -45,6 +45,26 @@ dated, what is abandoned is written, "deliberately not" is recorded.
   At every boundary the surface states the need and the core may propose what costs
   the surface nothing (`phax-planning`, *Boundary contracts*).
 
+**Attention is the cost of reading, not writing.** Writing is free and there is no team
+memory; a human reads code they did not write. Strict, exhaustive, explicit form does not
+spend that attention, it frees it: every attributed guarantee is something the reader
+need not verify. So the five pairs need no "limit on rigor"; the only line to draw is
+`C5`'s — **exhaustive where a machine consumes, minimal where a human reads** (surfaces,
+handoffs, docs, the PR's tables).
+
+**Precedence when two pairs conflict.**
+
+1. `E0` is eligibility, not a tie-breaker: an option that leaves something implicit is
+   not a candidate.
+2. Ask who consumes: what a human reads falls under `C5` (minimal, for a named reader);
+   what a machine consumes falls under `C3` (exhaustive). They partition, they do not
+   conflict.
+3. `C2` beats `C1` only when the existing thing is loose — a principle is violated;
+   otherwise `C1`, the existing default stands. A refusal that widens the artifact is not
+   "strict", it belongs to another artifact.
+4. Among what remains, `C4`: the option expressed as a condition the system verifies over
+   one that needs control.
+
 ## Principles (cite by id)
 
 - `P1` (`C4`) **Classify, then decide.** Surface or §9 → escalate; else dominant loss.
