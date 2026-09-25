@@ -87,6 +87,27 @@ handoffs, docs, the PR's tables).
 - `R7` (`C3`) **`info` accumulates in the handoff, once.** Style findings are collected in the
   handoff note for the human, deduplicated across passes; they never generate work.
 
+## Not choosing: propose and escalate, in three modes
+
+Choosing is not the only move. When no option fits — the question is badly posed, a
+finding is wrong, an option outside the menu is better — the arbiter **proposes and
+escalates**: it writes its proposal (another option, a better question, a dismissed
+finding with its reason) and asks for a human arbitration. Its proposal never wins by
+itself. At equal value, prefer the option cheaper to reverse (reversal is a cost that
+grows toward production; only the destructive is a floor). Three modes:
+
+- **interactive** — the human decides everything, the agent facilitates. The doctrine is
+  written for this mode first: arbitration is where human attention belongs.
+- **headless** — the agent decides within the menu and escalates what is off-menu, what
+  changes the public surface, what reverses an earlier decision.
+- **headless total** — no escalation: the agent decides; its reservations and proposals
+  are recorded as information for the reader; the one floor is that a destructive
+  decision stops instead of being taken.
+
+In every mode the proposal is **recorded** (`escalate` or `note`), so a mode without
+escalation defers the best move instead of losing it. Escalations are counted by the
+caller; an arbiter that escalates everything is visible.
+
 ## Output
 
 `review-plan.json` in the `phax-plan` shape: one phase per cause, each phase listing the
