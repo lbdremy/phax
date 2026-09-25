@@ -23,7 +23,7 @@ Ground read:
 - `.github/workflows/release.yml, scripts/release.sh` — On a tag, the workflow runs the gate, builds the binaries, version-matches npm/package.json and runs npm stage publish --provenance for one package; a maintainer approves the staged package by hand. release.sh bumps package.json and npm/package.json in one release commit.
 - `README.md §Experimental formats` — Three formats sit outside the 'version: 1 stability promise that covers phax.json and the run formats': spec document, plan document and authoring record.
 - `docs/specs/2609241219-headless-review.md` — Draft. It introduces code-review.json, pass.json and the review-plan document, all shipped experimental.
-- `/Volumes/Work/steme/steme-doc/docs/doctrine/01-vision/roadmap-1.0.toml` — Not readable in this session (permission denied). The consumer's need is taken from the brief (item 0.9): a read-only cockpit reads records with these types and never with a hand-written parser, and a docs pipeline renders JSON Schemas as reference pages.
+- `/Volumes/Work/steme/steme-corpus/docs/doctrine/01-vision/roadmap-1.0.toml` — Not readable in this session (permission denied). The consumer's need is taken from the brief (item 0.9): a read-only cockpit reads records with these types and never with a hand-written parser, and a docs pipeline renders JSON Schemas as reference pages.
 
 ## 2. Problem
 

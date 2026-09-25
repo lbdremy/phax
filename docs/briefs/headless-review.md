@@ -16,7 +16,7 @@ Ground to read first, in this order:
 - src/schemas/phaxPlan.ts and src/schemas/extractedPlanCacheEntry.ts, plus the headless-authoring implementation landed in 0.16.0 (JSON-only session, deterministic render, sidecar, cache seed, authoring records): the review plan is emitted in the phax-plan shape by the same machinery.
 - /Volumes/Work/steme/steme-lab/phax.schema.json → `review` (existing `review.compliance.enabled`, `review.code.{model,effort}`).
 - NEXT_STEPS.md §"Road to 1.0.0" (additive only; optional `phax.json` keys are compatible with the `version: 1` promise) and §"Spec candidates" → "Three additive specs…" item 2.
-- The first consumer's contract: /Volumes/Work/steme/steme-doc/docs/corpus/01-vision/roadmap-1.0-experiment-protocol.md §3.2, §5.6, §5.7, §6, §12.3.
+- The first consumer's contract: /Volumes/Work/steme/steme-corpus/docs/corpus/01-vision/roadmap-1.0-experiment-protocol.md §3.2, §5.6, §5.7, §6, §12.3.
 
 What the spec must cover:
 - `phax review-code <run> --headless`: the review in the run's own session (worktree, records), no terminal; the agent emits JSON only; phax validates and writes `code-review.json` (findings: severity `bug` | `deviation` | `concern` | `info`, file, line, message, suggestion), writes it into records, and stops. The session stays resumable. The interactive command is unchanged.

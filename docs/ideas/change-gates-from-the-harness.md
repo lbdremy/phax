@@ -1,6 +1,6 @@
 # Idea: two gates on the *change*, from "the harness is the product"
 
-> Status: **brainstorm**. Captured 2026-09-22 from the steme-doc notes
+> Status: **brainstorm**. Captured 2026-09-22 from the steme-corpus notes
 > `09-blog-articles/encode-the-system/next/the-harness-is-the-product.md` and
 > `recovery-over-prevention.md` — not a spec, not a plan. Nothing below is committed.
 > Related: [`autopilot.md`](./autopilot.md) (the loop these gates would protect), spec 23

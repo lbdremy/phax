@@ -16,7 +16,7 @@ Ground to read first, in this order:
 - src/app/ around `artifact approve` / `artifact status` and `docs/specs/approvals.json` / `docs/plans/approvals.json`: how approvals are recorded today, so the spec can say how a machine approval is distinguished from a human one (the autopilot idea requires it; see below).
 - The skills mechanism (package.json `files`, `phax skills install --target claude --scope project`) so the three doctrine skills ship and install like `phax-spec` and `phax-planning`.
 - NEXT_STEPS.md §"Road to 1.0.0" (additive only) and §"Spec candidates" → "Three additive specs…".
-- The first consumer's contract: /Volumes/Work/steme/steme-doc/docs/corpus/01-vision/roadmap-1.0-experiment-protocol.md §3.3, §5.2, §8 (the `rouvre` steering instruction), and the evidence note /Volumes/Work/steme/steme-doc/docs/corpus/01-vision/roadmap-1.0-arbitration-reflexes.md (the reflexes the doctrines distil; decisions P1–P7 on plans).
+- The first consumer's contract: /Volumes/Work/steme/steme-corpus/docs/corpus/01-vision/roadmap-1.0-experiment-protocol.md §3.3, §5.2, §8 (the `rouvre` steering instruction), and the evidence note /Volumes/Work/steme/steme-corpus/docs/corpus/01-vision/roadmap-1.0-arbitration-reflexes.md (the reflexes the doctrines distil; decisions P1–P7 on plans).
 
 What the spec must cover:
 - `phax artifact decide <artifact> [--headless --doctrine <file>] [--model … --effort …] [--resume-authoring]` and `phax artifact decide <artifact> --question <id> --reopen [--note …]`.

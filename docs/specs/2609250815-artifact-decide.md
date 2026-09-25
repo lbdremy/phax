@@ -55,7 +55,7 @@ Ground read:
 - `docs/ideas/autopilot.md` — Decision policy: a loop is a decision answerer with a policy, and a machine-distinguishable approval is a prerequisite.
 - `docs/specs/2608091526-phase-decision-requests.md` — Spec 23: the decision-request shape, and the rule that run decision requests are human-answered.
 - `NEXT_STEPS.md` — Road to 1.0.0: additive only, and the persisted-format promise is still undecided. Three additive specs for the steme experiment; headless-authoring shipped 2026-09-23.
-- `/Volumes/Work/steme/steme-doc/docs/doctrine/01-vision/roadmap-1.0-experiment-protocol.md` — Not readable from this session (permission denied). The first consumer's contract (§3.3, §5.2, §8 rouvre) is taken from the brief, the idea note and NEXT_STEPS.
+- `/Volumes/Work/steme/steme-corpus/docs/doctrine/01-vision/roadmap-1.0-experiment-protocol.md` — Not readable from this session (permission denied). The first consumer's contract (§3.3, §5.2, §8 rouvre) is taken from the brief, the idea note and NEXT_STEPS.
 
 ## 2. Problem
 

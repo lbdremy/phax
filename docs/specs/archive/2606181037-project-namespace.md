@@ -55,7 +55,7 @@ Examples:
 
 - `louloupress`
 - `louloupapers`
-- `steme-doc`
+- `steme-corpus`
 - `phax`
 
 ### Run short name
@@ -126,7 +126,7 @@ Examples of valid namespace values:
 
 - `louloupress`
 - `louloupapers`
-- `steme-doc`
+- `steme-corpus`
 - `phax`
 
 ### 5.4 Missing namespace behavior

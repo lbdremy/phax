@@ -48,7 +48,7 @@
       "note": "Draft. It introduces code-review.json, pass.json and the review-plan document, all shipped experimental."
     },
     {
-      "path": "/Volumes/Work/steme/steme-doc/docs/doctrine/01-vision/roadmap-1.0.toml",
+      "path": "/Volumes/Work/steme/steme-corpus/docs/doctrine/01-vision/roadmap-1.0.toml",
       "note": "Not readable in this session (permission denied). The consumer's need is taken from the brief (item 0.9): a read-only cockpit reads records with these types and never with a hand-written parser, and a docs pipeline renders JSON Schemas as reference pages."
     }
   ],
