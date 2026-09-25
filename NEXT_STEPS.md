@@ -125,7 +125,7 @@ desktop — none is promised by the announcement.
       approval. First target: the steme CLI from its corpus.
 - [ ] **Three additive specs the steme roadmap-1.0 experiment needs before it starts**
       (raised 2026-09-22/23, the steme conductor is the first consumer; see
-      `/Volumes/Work/steme/steme-doc/docs/doctrine/01-vision/roadmap-1.0-experiment-protocol.md`
+      `/Volumes/Work/steme/steme-doc/docs/corpus/01-vision/roadmap-1.0-experiment-protocol.md`
       §3.2 and its item-0 schedule). None holds the 1.0 tag — all are additive to the CLI
       and to `phax.json` — but the experiment pins the release that carries them, so
       they come before that release and after nothing:

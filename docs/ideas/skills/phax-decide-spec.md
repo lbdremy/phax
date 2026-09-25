@@ -5,7 +5,7 @@ description: Default arbitration doctrine for `phax artifact decide` on a spec â
 
 > **Draft, not installed.** Ground for the `artifact-decide` spec (`../artifact-decide.md`).
 > Distilled 2026-09-24 from the author's recorded decisions in phax and steme specs
-> (`steme-doc/docs/doctrine/01-vision/roadmap-1.0-arbitration-reflexes.md`). A project
+> (`steme-doc/docs/corpus/01-vision/roadmap-1.0-arbitration-reflexes.md`). A project
 > extends it with `--doctrine <file>`; decisions cite principle ids from both.
 
 # phax decide â€” spec doctrine

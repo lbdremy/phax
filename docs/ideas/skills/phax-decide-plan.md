@@ -7,7 +7,7 @@ description: Default arbitration doctrine for `phax artifact decide` on a plan a
 > Distilled 2026-09-24 from the `phax-planning` skill's *Technical arbitrations* rule, 79
 > archived phax plans (2–6 phases typical; median 5 planned files per phase, p90 11), and
 > the author's decisions P1–P7 in
-> `steme-doc/docs/doctrine/01-vision/roadmap-1.0-arbitration-reflexes.md`. A project
+> `steme-doc/docs/corpus/01-vision/roadmap-1.0-arbitration-reflexes.md`. A project
 > extends it with `--doctrine <file>`.
 
 # phax decide — plan doctrine
