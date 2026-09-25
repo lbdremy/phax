@@ -163,6 +163,17 @@ desktop — none is promised by the announcement.
          run status, records, approvals, compliance and code-review documents, phax-plan)
          published alone as a typed npm package, freezing nothing beyond the 1.0 promise;
          a read-only records consumer gets typed parsing.
+- [ ] **The docs site, in the release pipeline** — decided 2026-09-25 with the author.
+      `docs.phax.run` is a rendering of what the repo already holds (`docs/cli/reference.md`
+      generated from `phax.usage.kdl`, the README, `security.md`, `release.md`, the model
+      catalog, `docs/blog/`), built with rspress from a `site/` folder — not an app, not a
+      workspace: the same deliverable as the binaries and the npm publish, deployed on the
+      release tag. Hosting: **Cloudflare Workers Static Assets** (Cloudflare's stated
+      recommendation for new projects as of 2026-09; Pages keeps working but gets no new
+      features): a `wrangler.jsonc` with `assets.directory` on the rspress output, no Worker
+      script, preview URLs per version. This is the pipeline steme's docs site (roadmap
+      item 0.6) copies afterwards. The marketing site `www.phax.run` and the cockpit
+      `app.phax.run` live in the private `phax-cockpit` monorepo, not here.
 - [ ] **Library readiness, then local and cloud modes** — `docs/ideas/local-and-cloud-modes.md`
       (2026-09-22/23). After 1.0, beside autopilot. The consumption form is decided: a
       **library** (`app` + `ports` exported, adapter sets shipped by phax, the CLI one
