@@ -105,9 +105,10 @@ grows toward production; only the destructive is a floor). Three modes:
   written for this mode first: arbitration is where human attention belongs.
 - **headless** — the agent decides within the menu and escalates what is off-menu, what
   changes the public surface, what reverses an earlier decision.
-- **headless total** — no escalation: the agent decides; its reservations and proposals
-  are recorded as information for the reader; the one floor is that a destructive
-  decision stops instead of being taken.
+- **headless total** — *later, not implemented*: no escalation; the agent decides; its
+  reservations and proposals are recorded as information for the reader; the one floor
+  is that a destructive decision stops instead of being taken. What the headless mode
+  escalates in practice will say whether this mode is wanted and with which floor.
 
 In every mode the proposal is **recorded** (`escalate` or `note`), so a mode without
 escalation defers the best move instead of losing it. Escalations are counted by the
