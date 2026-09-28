@@ -63,6 +63,13 @@ desktop — none is promised by the announcement.
       a leading sentence. Workaround in use: a closing line in the brief ("your final
       message is the spec document JSON and nothing else"). Fix: tell the session so in
       the authoring prompt itself, or accept the last top-level JSON object of the message.
+- [ ] **Headless authoring's commit fails under a repo's formatter hook.** Found 2026-09-28
+      authoring `oracle-markers` in steme-lab: lefthook's `oxfmt --check` rejected the
+      sidecar (`JSON.stringify(…, 2)` layout), so phax exited 12 with both files staged and
+      uncommitted. Committed by hand after `oxfmt` (formatting the sidecar keeps it in sync,
+      since agreement compares the parsed document). Fix: write the sidecar in the repo's
+      format (run the configured formatter on it before committing), or name this remedy in
+      the refusal.
 
 - [ ] **`phax run` allocates the run before its preflight.** Found 2026-09-08: `run`
       creates the run folder and the registry entry, then `executePlan` runs the
