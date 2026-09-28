@@ -56,6 +56,14 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **Headless authoring rejects a document preceded by a sentence.** Found 2026-09-28
+      authoring `oracle-phases`: two of three sessions ended with "Ground read. Writing the
+      spec document now." followed by a valid document, and `authorArtifact.ts` refused it
+      as "not JSON" (exit 5, nothing written). `stripJsonCodeFence` handles a fence but not
+      a leading sentence. Workaround in use: a closing line in the brief ("your final
+      message is the spec document JSON and nothing else"). Fix: tell the session so in
+      the authoring prompt itself, or accept the last top-level JSON object of the message.
+
 - [ ] **`phax run` allocates the run before its preflight.** Found 2026-09-08: `run`
       creates the run folder and the registry entry, then `executePlan` runs the
       required-commands, mcp, records and clean-tree preflights. A preflight refusal leaves
