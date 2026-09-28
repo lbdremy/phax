@@ -384,7 +384,7 @@ Given a phax release that carries the code-review document, when the exports of 
 - A separate package, @lbdremy/phax-schemas — abandons: single-package releases: every release stages, approves and version-matches a second npm package.
 - A subpath, @lbdremy/phax/schemas — abandons: a lightweight dependency: every schema consumer installs the CLI launcher and its platform-binary resolution, and every CLI user installs effect.
 
-Recommendation: A separate package, @lbdremy/phax-schemas — The launcher and the library have disjoint audiences and dependencies. A second staged publish is one more step in a workflow that is already automated and approved by hand, which is a cost worth paying to keep the consumer's install small.
+Recommendation: A separate package, @lbdremy/phax-schemas — Decided by the author on 2026-09-28, as recommended. The launcher and the library have disjoint audiences and dependencies. A second staged publish is one more step in a workflow that is already automated and approved by hand, which is a cost worth paying to keep the consumer's install small.
 
 ### Q2 — How should the package depend on effect?
 
@@ -392,7 +392,7 @@ Recommendation: A separate package, @lbdremy/phax-schemas — The launcher and t
 - A peer dependency on effect — abandons: a one-line install: a consumer that does not use Effect must add effect itself and match the range.
 - Bundle effect into the package — abandons: interoperability: the exported Schema values belong to a private copy of Effect, so an Effect consumer cannot compose them.
 
-Recommendation: A regular dependency on effect, with the same range as phax — The first consumer is not assumed to use Effect. With a regular dependency, npm install @lbdremy/phax-schemas is the whole install, and package managers dedupe within ^3 for consumers that do use Effect.
+Recommendation: A regular dependency on effect, with the same range as phax — Decided by the author on 2026-09-28, as recommended. The first consumer is not assumed to use Effect. With a regular dependency, npm install @lbdremy/phax-schemas is the whole install, and package managers dedupe within ^3 for consumers that do use Effect.
 
 ### Q3 — What should a parse call return?
 
@@ -400,35 +400,35 @@ Recommendation: A regular dependency on effect, with the same range as phax — 
 - Effect's Either<T, ParseError>, the decodeX functions phax uses internally — abandons: use without Effect: a non-Effect consumer must learn Either and how to format a ParseError before reading one field.
 - Return the value or throw — abandons: failures as values: a consumer walking many records has to wrap each call in try/catch to keep going.
 
-Recommendation: A plain Parsed result ({ ok, value } or { ok, error: { path, message } }), with the Effect schemas also exported — The wrapper is generated from the same schema, so it can drift in spelling but not in verdict. Effect consumers still get the schemas directly, and non-Effect consumers get a result they can read without learning Effect.
+Recommendation: A plain Parsed result ({ ok, value } or { ok, error: { path, message } }), with the Effect schemas also exported — Decided by the author on 2026-09-28, as recommended. The wrapper is generated from the same schema, so it can drift in spelling but not in verdict. Effect consumers still get the schemas directly, and non-Effect consumers get a result they can read without learning Effect.
 
 ### Q4 — Should parse functions reject unknown keys the way phax does?
 
 - Parity: each format keeps phax's own excess-property setting — abandons: forward compatibility: an older package rejects a record that a newer phax wrote with a new key, so the reader has to upgrade to match the writer.
 - Lenient: every parse function ignores unknown keys — abandons: the package's central claim: it would accept documents phax itself rejects, and a mistyped or foreign key would go unnoticed.
 
-Recommendation: Parity: each format keeps phax's own excess-property setting — The package exists to be phax's decoder rather than a second one. Lockstep versioning makes the upgrade path explicit: a reader pins the package to the phax version that writes its files.
+Recommendation: Parity: each format keeps phax's own excess-property setting — Decided by the author on 2026-09-28, as recommended. The package exists to be phax's decoder rather than a second one. Lockstep versioning makes the upgrade path explicit: a reader pins the package to the phax version that writes its files.
 
 ### Q5 — How should the package mark a format as experimental?
 
 - A separate experimental entry (@lbdremy/phax-schemas/experimental) — abandons: a stable import path across graduation: when a format becomes stable, its import line moves and every consumer must edit it.
 - A JSDoc @experimental tag on root-entry exports — abandons: visibility at the point of use: nothing in the import line or at compile time shows that a consumer depends on an experimental format.
 
-Recommendation: A separate experimental entry (@lbdremy/phax-schemas/experimental) — The import line is where a consumer takes on the dependency, so it is the right place to acknowledge the risk. A graduation that forces an edit is a feature, because the consumer sees the format change status.
+Recommendation: A separate experimental entry (@lbdremy/phax-schemas/experimental) — Decided by the author on 2026-09-28, as recommended. The import line is where a consumer takes on the dependency, so it is the right place to acknowledge the risk. A graduation that forces an edit is a feature, because the consumer sees the format change status.
 
 ### Q6 — While the 1.0 promise is still unwritten, should records, approvals and the compliance review be marked stable?
 
 - Stable: registry, run and phase status, phax-plan, compliance review, both approvals files and the phase record manifest — abandons: freedom to reshape the record manifest, the approvals files or the compliance review before 1.0 without bumping their version literal.
 - Experimental until the 1.0 promise is written — abandons: a stable footing for the first consumer: the cockpit would be built on formats phax says may change without notice.
 
-Recommendation: Stable: registry, run and phase status, phax-plan, compliance review, both approvals files and the phase record manifest — The promise draft in NEXT_STEPS already names approvals.json and phax/records/v1, and the README's 'run formats' covers the files in the run directory. The cockpit exists to read records. Stable already means only that a shape change bumps the version literal, and phax has done this before (the record manifest went from 1 to 2).
+Recommendation: Stable: registry, run and phase status, phax-plan, compliance review, both approvals files and the phase record manifest — Decided by the author on 2026-09-28, as recommended. The promise draft in NEXT_STEPS already names approvals.json and phax/records/v1, and the README's 'run formats' covers the files in the run directory. The cockpit exists to read records. Stable already means only that a shape change bumps the version literal, and phax has done this before (the record manifest went from 1 to 2).
 
 ### Q7 — How should the package be versioned?
 
 - Lockstep: always the phax release version — abandons: meaningful version numbers: the package publishes new versions with no schema change, so a version bump does not signal a format change.
 - Independent semver that moves only when a format changes — abandons: the mapping from writer to reader: a consumer can no longer tell which package version reads the files a given phax release wrote.
 
-Recommendation: Lockstep: always the phax release version — The question a reader asks is which package reads what phax X.Y.Z wrote, and lockstep answers it with no lookup table. Extra releases with no change cost nothing to consume.
+Recommendation: Lockstep: always the phax release version — Decided by the author on 2026-09-28, as recommended. The question a reader asks is which package reads what phax X.Y.Z wrote, and lockstep answers it with no lookup table. Extra releases with no change cost nothing to consume.
 
 ## 10. Implementation-planning note
 

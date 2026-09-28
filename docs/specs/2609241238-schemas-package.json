@@ -461,7 +461,7 @@
         }
       ],
       "recommendation": "separate",
-      "rationale": "The launcher and the library have disjoint audiences and dependencies. A second staged publish is one more step in a workflow that is already automated and approved by hand, which is a cost worth paying to keep the consumer's install small."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. The launcher and the library have disjoint audiences and dependencies. A second staged publish is one more step in a workflow that is already automated and approved by hand, which is a cost worth paying to keep the consumer's install small."
     },
     {
       "id": "q-effect",
@@ -484,7 +484,7 @@
         }
       ],
       "recommendation": "dependency",
-      "rationale": "The first consumer is not assumed to use Effect. With a regular dependency, npm install @lbdremy/phax-schemas is the whole install, and package managers dedupe within ^3 for consumers that do use Effect."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. The first consumer is not assumed to use Effect. With a regular dependency, npm install @lbdremy/phax-schemas is the whole install, and package managers dedupe within ^3 for consumers that do use Effect."
     },
     {
       "id": "q-api",
@@ -507,7 +507,7 @@
         }
       ],
       "recommendation": "parsed",
-      "rationale": "The wrapper is generated from the same schema, so it can drift in spelling but not in verdict. Effect consumers still get the schemas directly, and non-Effect consumers get a result they can read without learning Effect."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. The wrapper is generated from the same schema, so it can drift in spelling but not in verdict. Effect consumers still get the schemas directly, and non-Effect consumers get a result they can read without learning Effect."
     },
     {
       "id": "q-excess",
@@ -525,7 +525,7 @@
         }
       ],
       "recommendation": "parity",
-      "rationale": "The package exists to be phax's decoder rather than a second one. Lockstep versioning makes the upgrade path explicit: a reader pins the package to the phax version that writes its files."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. The package exists to be phax's decoder rather than a second one. Lockstep versioning makes the upgrade path explicit: a reader pins the package to the phax version that writes its files."
     },
     {
       "id": "q-marking",
@@ -543,7 +543,7 @@
         }
       ],
       "recommendation": "subpath",
-      "rationale": "The import line is where a consumer takes on the dependency, so it is the right place to acknowledge the risk. A graduation that forces an edit is a feature, because the consumer sees the format change status."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. The import line is where a consumer takes on the dependency, so it is the right place to acknowledge the risk. A graduation that forces an edit is a feature, because the consumer sees the format change status."
     },
     {
       "id": "q-stable-set",
@@ -561,7 +561,7 @@
         }
       ],
       "recommendation": "stable",
-      "rationale": "The promise draft in NEXT_STEPS already names approvals.json and phax/records/v1, and the README's 'run formats' covers the files in the run directory. The cockpit exists to read records. Stable already means only that a shape change bumps the version literal, and phax has done this before (the record manifest went from 1 to 2)."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. The promise draft in NEXT_STEPS already names approvals.json and phax/records/v1, and the README's 'run formats' covers the files in the run directory. The cockpit exists to read records. Stable already means only that a shape change bumps the version literal, and phax has done this before (the record manifest went from 1 to 2)."
     },
     {
       "id": "q-version",
@@ -579,7 +579,7 @@
         }
       ],
       "recommendation": "lockstep",
-      "rationale": "The question a reader asks is which package reads what phax X.Y.Z wrote, and lockstep answers it with no lookup table. Extra releases with no change cost nothing to consume."
+      "rationale": "Decided by the author on 2026-09-28, as recommended. The question a reader asks is which package reads what phax X.Y.Z wrote, and lockstep answers it with no lookup table. Extra releases with no change cost nothing to consume."
     }
   ],
   "planningNote": {
