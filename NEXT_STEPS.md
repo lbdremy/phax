@@ -152,7 +152,16 @@ desktop — none is promised by the announcement.
       propose-and-escalate, dismissed findings, the doctrine skills landed by hand, the
       doctrine format): first drafts Abandoned in `archive/`, second drafts
       `2609250815-artifact-decide.md` (7 §9) and `2609250823-headless-review.md` (7 §9).
-      All Draft; their §9 await arbitration.
+      **Arbitrated and Approved 2026-09-28** with a fourth, `2609281159-oracle-phases.md`
+      (oracle-first phases behind a pluggable `oracles` provider; steme roadmap 0.12): §9
+      answers written into each sidecar and re-rendered with `scripts/rerender-spec.ts`
+      (artifact-decide reworked: decide on Draft only, `artifact reopen` from Approved, the
+      approval lock on every artifact, the hand-authored §9 format, `--by`; schemas-package
+      reads every format version ever written, with `producedBy`, snapshots and a history
+      corpus). **Plan order:** schemas-package (its snapshot gate then catches the others'
+      format changes) → artifact-decide → headless-review (reuses decide's approver form,
+      skill and escalation block) → oracle-phases (no consumer before steme item 1.1).
+      Sequential, not parallel: each builds on the formats the previous one changes.
       1. **`headless-authoring`** — `docs/ideas/headless-authoring.md`: `artifact new
          spec|plan --headless --brief <file>`; phax spawns the authoring session with the
          skill and an output schema, receives JSON only (plan in the `phax-plan.json`
