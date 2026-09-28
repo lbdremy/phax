@@ -5,7 +5,7 @@ audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 approved:
   date: 2026-09-28
-  baseline: 3fb22b8
+  baseline: d8d9243
 ---
 # Review as a plan — headless code review, review-plan, run --append
 
