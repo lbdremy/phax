@@ -28,3 +28,5 @@ What the spec must cover:
 - Open questions in §9 with options, losses and a recommended default; at least: the plan syntax for the declaration; whether a discharge may span several phases (several discharging phases, or one designated); whether an oracle phase with no provider registered is a lint error or runs without the check; the surface under which the verdict is recorded.
 
 Constraints: additive; nothing changes for a plan with no oracle phase; phax gains no knowledge of any test framework; keep to what the first consumer (steme's `oracles` provider and the steme conductor) needs and name what is out of scope (a generic oracle concept for non-test oracles such as matrices, read-only enforcement at the file-system level, the full change-gates lint).
+
+Output: your final message is the spec document JSON and nothing else — no sentence before or after it, no code fence.
