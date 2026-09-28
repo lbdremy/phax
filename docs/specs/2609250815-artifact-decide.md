@@ -70,7 +70,7 @@ The doctrines exist, but phax neither installs nor loads them, so no citation of
 
 ## 3. Product goal
 
-phax answers an artifact's open questions itself, in two modes. `phax artifact decide` gives the questions to a session that loads a doctrine: the default skill for the artifact kind, which a project skill of the same name can replace and a caller-owned file can extend. In interactive mode the operator decides and the agent facilitates. In headless mode the agent decides within the menu and escalates the rest, with its proposal written down. phax accepts decisions only as schema-validated JSON whose cited principles exist. It writes each decision into its question's history in the sidecar, re-renders the artifact, commits and records. decide runs on Draft only; `phax artifact reopen` brings an Approved artifact back to Draft, and `--question` re-arbitrates one question. Approval refuses while any question is undecided or escalated, for headless and hand-authored artifacts alike. Every decision and every approval names its arbiter, so nothing a machine decided or approved reads as a human's. The CLI changes are additive except `--by`, required when approve or reopen runs without a terminal; the document formats stay experimental.
+phax answers an artifact's open questions itself, in two modes. `phax artifact decide` gives the questions to a session that loads a doctrine: the default skill for the artifact kind, which a project skill of the same name can replace and a caller-owned file can extend. In interactive mode the operator decides and the agent facilitates. In headless mode the agent decides within the menu and escalates the rest, with its proposal written down. phax accepts decisions only as schema-validated JSON whose cited principles exist. It writes each decision into its question's history in the sidecar, re-renders the artifact, commits and records. decide runs on Draft only; `phax artifact reopen` brings an Approved artifact back to Draft, and `--question` re-arbitrates one question. Approval refuses while any question is undecided or escalated, for headless and hand-authored artifacts alike. Every decision and every approval names its arbiter, so nothing a machine decided or approved reads as a human's. The CLI changes are additive except `--by`, required when approve or reopen runs without a terminal; every new or changed format carries `$schema` and stays readable in every shape (schemas-package).
 
 > Every answer names its arbiter and its principle. A machine never decides off the menu: its proposal waits for a human instead of being lost.
 
@@ -672,7 +672,7 @@ after:
 - Answering run decision requests (spec 23) or any autopilot loop. Run decision requests stay human-answered.
 - Parsing a steering file. Mapping `rouvre Q3` to `phax artifact reopen` plus `decide --question Q3` is the caller's job.
 - The approver in the frontmatter `approved` stamp. The approvals ledger is the single source of who approved.
-- Stability of the question-history, decisions and approver formats. They are experimental, like the documents that carry them.
+- A stability promise for the question-history, decisions and approver formats beyond schemas-package's: they are new shapes, identified by `$schema` and readable in every shape, like every persisted format.
 - Extracting open questions from a free-form Markdown layout. A hand-authored artifact follows the §9 format, converted once by hand.
 
 ## 8. Acceptance criteria
@@ -892,7 +892,7 @@ Constraints:
 
 - Compose the headless-authoring machinery: prompt assembly, the JSON-only provider session, boundary decoding, deterministic renderers, the path-scoped commit, the record writer and the sidecar agreement check. Do not fork it.
 - For a headless-authored artifact the sidecar's history is the single source of a question's state; for a hand-authored one, its §9 in the §9 format is, parsed deterministically. §9, the decision log, `artifact status`, the approve refusal and the escalation counts derive from that source.
-- `history` is required on every question, and `openQuestions` is required in the plan document; no optional-for-back-compat fields. Existing in-repo sidecars are migrated in the same change. The authoring output emits no history (rejected otherwise), and the formats stay experimental (schema titles, README note).
+- `history` is required on every question, and `openQuestions` is required in the plan document; no optional-for-back-compat fields. Existing in-repo sidecars are migrated in the same change. The authoring output emits no history (rejected otherwise); every new or changed format carries `$schema` and is recorded as a new shape by schemas-package's snapshot gate.
 - `approvedBy` is required on every approvals record. phax's own ledgers are rewritten to `unattributed` in the same change (Q4).
 - The decisions schema must accept exactly what the landed doctrine skills instruct the agent to emit. Change the schema, never the skill text.
 - The machine/operator approval form is shared with the headless-review spec; whichever spec lands second adopts the first's form.

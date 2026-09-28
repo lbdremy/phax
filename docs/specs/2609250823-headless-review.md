@@ -726,7 +726,7 @@ after:
 - Any change to the interactive `review-code`, to the compliance review's document schema, or to `review-compliance` beyond judging appended phases against their own plan.
 - Retrying a failed appended phase automatically. The loop stops, and a human resumes with `phax resume` and runs any later pass by hand.
 - Autopilot beyond the bounded passes: no roadmap, no supervisor, and no budget other than `maxPasses`.
-- Stability of `code-review.json`, `pass.json` and the review-plan document. They ship experimental, like the headless-authoring documents.
+- A stability promise for `code-review.json`, `pass.json` and the review-plan document beyond schemas-package's: they carry `$schema` and stay readable in every shape, like every persisted format.
 
 ## 8. Acceptance criteria
 
