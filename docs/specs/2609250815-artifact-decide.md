@@ -5,7 +5,7 @@ audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 approved:
   date: 2026-09-28
-  baseline: e8bd242
+  baseline: 71f758b
 ---
 # Artifact decide — arbitrating a spec's or plan's open questions
 
