@@ -28,3 +28,16 @@ What the spec must cover:
 - Open questions in §9 with options, what each abandons, and a recommended default: whether `info` findings accumulate across passes; how a decision request raised inside an appended phase is attributed; whether `review-plan` may run interactively on a run whose review was headless; where the review plan's approval is recorded (run directory vs `docs/plans/approvals.json`) and how a machine approval is marked; how `--append` recognises oracle files before the oracle-separation lint exists.
 
 Constraints: additive CLI and config only; the interactive `review-code` is unchanged; `--append` is a real transition with its own acceptance criteria; keep to what the first consumer needs and name what is deliberately out of scope (stacked PRs, a `coverage` provider, the cockpit UI).
+
+
+Decisions taken by the author on 2026-09-28 on the previous draft's §9 — the spec must reflect them, not reopen them. Fold each into the requirements, surface and acceptance criteria. Keep each in §9 as a decided question: the chosen option is the recommendation, and the rationale opens with "Decided by the author on 2026-09-28." Where the author answered off-menu, the answer becomes an option of its own.
+- Q1 (off-menu answer): the code review covers the whole change set, not a pass or a phase; `info` findings form one list over the run, deduplicated by file and message, with no tag of the pass or phase that raised them.
+- Q2: a decision request inside an appended phase is attributed like any phase (run id + phase id); pass and finding ids are derived from `pass.json`.
+- Q3: yes — interactive `review-plan` on a headless review resumes the headless review session.
+- Q4 (differs from the previous recommendation): the review plan is committed under `docs/plans/` on the run branch and approved like any plan, in `docs/plans/approvals.json`, with the approver form of artifact-decide (`--machine <grant>` or the operator). Specify what that commit adds to the PR and how the approval commit lands on the run branch.
+- Q5 (differs from the previous recommendation): no oracle-file refusal in `--append` before the oracle-separation lint exists; the compliance review alone checks R4. The `oracle-phases` spec (Draft) is the later mechanical piece; name it, do not depend on it.
+- Q6 (differs from the previous recommendation): an escalated finding blocks approval and append of the review plan that carries it, as artifact-decide blocks an artifact with an escalated question. Specify what the loop does while blocked (stops and reports) and how the operator unblocks it.
+- Q7: a finding is `fixed` when an appended phase naming it reaches `committed`.
+
+
+Output: your final message is the spec document JSON and nothing else — no sentence before or after it, no code fence.
