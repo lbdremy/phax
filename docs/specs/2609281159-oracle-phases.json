@@ -850,7 +850,7 @@
       "Keep the exit families of src/cli/commands/runLayers.ts: 2 for ill-formed pairs or a missing provider at run/resume, and 4 for an exhausted gate. The README exit-code table is stale on these and should be corrected where this change documents them.",
       "Update the phax-planning skill (the declaration line, oracle-first phase shape, stubs allowed in the oracle phase outside the listed oracle files) and the phax-decide-plan skill's P3 wording ('read-only for the implementing phase' becomes 'changed only by a proved-minimal edit, judged by the oracles provider').",
       "Document the provider contract in `phax --usage` (cmd run and cmd plans lint) and in README §Oracle provider, beside §Scope provider.",
-      "The `oracle` surface widens a persisted enum (gate-attribution.json, run records, run summary). The schemas-package spec lists the phase record manifest as stable, so the widening lands before that package ships, or bumps the manifest's version literal."
+      "The `oracle` surface widens a persisted enum (gate-attribution.json, run records, run summary). Under schemas-package's `$schema` identification, that is a new shape of the phase record at the release that ships it, recorded by its snapshot gate; older records stay readable."
     ]
   },
   "docsPage": {

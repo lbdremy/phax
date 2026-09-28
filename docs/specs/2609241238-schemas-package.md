@@ -41,8 +41,8 @@ Publish phax's persisted-format decoders as a small, standalone, typed npm packa
 
 ## 4. Terminology
 
-- **Persisted format** — A JSON document that phax writes and that a third party can read later. It is identified by where it lives and by its version literal, for example run-status.json with version 1.
-- **Stable format** — A persisted format inside phax's 'version: 1' stability promise. Any change to its shape bumps its version literal.
+- **Persisted format** — A JSON document that phax writes and that a third party can read later. It is identified by its `$schema`: the format id and the phax release that wrote it. A legacy document, written before `$schema`, is identified by where it lives and by its `version` literal, for example run-status.json with version 1.
+- **Stable format** — A persisted format inside phax's stability promise. Any change to its shape is recorded as a new shape at the release that makes it (a new snapshot), and older shapes stay readable.
 - **Experimental format** — A persisted format that may change between releases without a version bump. The README lists every such format.
 - **Schemas package** — The npm package @lbdremy/phax-schemas described by this spec.
 - **Entry** — An import path of the schemas package. The root entry (@lbdremy/phax-schemas) carries the stable formats. The experimental entry (@lbdremy/phax-schemas/experimental) carries the experimental ones.
@@ -50,11 +50,15 @@ Publish phax's persisted-format decoders as a small, standalone, typed npm packa
 - **Parity** — A parse function has parity when it gives the same accept or reject verdict as phax's own decoder for that format on every document, including how it treats unknown keys. Parity holds for the version phax currently writes; older versions are read by historical decoders phax no longer carries.
 - **Record manifest** — A record.json on phax/records/v1. There are two kinds: a phase record (version 2, keyed <runId>/<phaseId>) and an authoring record (kind "authoring", version 1, keyed authoring/<authoringId>).
 - **Lockstep version** — The schemas package's version always equals the version of the phax release whose tag produced it.
-- **Format version** — The `version` literal a persisted format carries. Every change to a format's shape bumps it, for stable and experimental formats alike.
-- **Producer** — The phax release that wrote a document, carried in the document as `producedBy: "phax@<version>"`. Documents written before this spec carry none and are identified by their format version and shape.
-- **Historical decoder** — The decoder of a format version phax no longer writes. It lives in the package, one module per format version, and is never modified after the release that froze it.
-- **Snapshot** — The committed JSON Schema of one format version. The snapshot of the version phax currently writes must equal the schema generated from phax's decoder.
-- **History corpus** — Real documents extracted from git history (the records branch, the approvals ledgers, the spec and plan sidecars) by a committed script, one directory per format version, committed in the repo.
+- **Format id** — The stable name of a persisted format, independent of any file name or location: registry, run-status, phase-status, phax-plan, compliance-review, plan-approvals, spec-approvals, phase-record, spec-document, plan-document, authoring-record, code-review.
+- **Schema URL** — The `$schema` value phax writes as the first key of every document: `https://docs.phax.run/schemas/<format id>/<release>.json`. It names the format and the release that wrote the document, and it is the only version marker a new document carries.
+- **Historical decoder** — The decoder of a shape phax no longer writes. It lives in the package, one module per shape, and is never modified after the release that froze it.
+- **Snapshot** — The committed JSON Schema of one shape, stored as `<format id>/<shape release>.schema.json` (or `<format id>/v<n>.schema.json` for a legacy shape). The latest snapshot of a format must equal the schema generated from phax's decoder.
+- **History corpus** — Real documents extracted from git history (the records branch, the approvals ledgers, the spec and plan sidecars) by a committed script, one directory per format and shape, committed in the repo.
+- **Format id** — The stable name of a persisted format, independent of any file name or location: registry, run-status, phase-status, phax-plan, compliance-review, plan-approvals, spec-approvals, phase-record, spec-document, plan-document, authoring-record, code-review.
+- **Schema URL** — The `$schema` value phax writes as the first key of every document: `https://docs.phax.run/schemas/<format id>/<release>.json`. It names the format and the release that wrote the document, and it is the only version marker a new document carries.
+- **Shape** — One JSON shape of a format. A shape is named by the release that first wrote it (its shape release); a legacy shape by its `version` literal (`v1`, `v2`). A document written by release X has the latest shape released at or before X.
+- **Legacy document** — A document written before `$schema` existed. It carries a `version` literal and is identified by where it lives and by that literal.
 
 ## 5. Functional requirements
 
@@ -88,7 +92,7 @@ The schemas package shall export no internal schema and no module of phax's app,
 
 ### 5.8 Same verdict as phax
 
-WHEN a schemas-package parse function is given a document of the format version phax currently writes THE schemas package SHALL accept it if and only if phax's own decoder for that format accepts it.
+WHEN a schemas-package parse function is given a document of the shape phax currently writes THE schemas package SHALL accept it if and only if phax's own decoder for that format accepts it.
 
 ### 5.9 Failures are values
 
@@ -96,73 +100,77 @@ IF a document fails to parse THEN the parse function SHALL return a failure carr
 
 ### 5.10 Every version ever written is readable
 
-WHEN a parse function is given a document of any format version phax has ever written THE schemas package SHALL decode it with that version's decoder and return its exact shape, discriminated by `version`.
+WHEN a parse function is given a document of any shape phax has ever written THE schemas package SHALL decode it with that shape's decoder — the latest shape released at or before the release its `$schema` names, or, for a legacy document, the shape its `version` literal names — and return its exact shape with the shape's id.
 
-### 5.11 A newer version is named, not guessed
+### 5.11 A document is identified by itself
 
-IF a document's format version or producer is newer than the package THEN the parse function SHALL return a failure naming that version and the package version, and stating that the package must be upgraded.
+WHEN `parseDocument` is given a document carrying `$schema` THE schemas package SHALL identify its format from `$schema` alone, whatever the file's name or location, and return the format id, the shape id and the parsed value.
 
-### 5.12 Upgrading to the latest shape
+### 5.12 A newer version is named, not guessed
+
+IF a document's `$schema` names a release newer than the package, or a format id the package does not know, THEN the parse function SHALL return a failure naming the URL and the package version, and stating that the package must be upgraded.
+
+### 5.13 Upgrading to the latest shape
 
 The schemas package shall export, for each format, a pure function that upgrades a decoded document of any version to the latest shape, marking every fact the older version did not carry as `{ kind: "unknown" }` and never inventing a value.
 
-### 5.13 Legacy shapes under one version
+### 5.14 Legacy shapes under one version
 
-WHERE a document carries no producer and its format version covers several shapes found in the history corpus THE historical decoder of that version SHALL accept each of those shapes.
+WHERE a legacy document's `version` literal covers several shapes found in the history corpus THE historical decoder of that literal SHALL accept each of those shapes.
 
-### 5.14 Every document names its producer
+### 5.15 Every document names its format and release
 
-phax shall write `producedBy: "phax@<release version>"` in every persisted format it writes, stable and experimental, and each format's version shall be bumped once for that addition.
+phax shall write `$schema: "https://docs.phax.run/schemas/<format id>/<release>.json"` as the first key of every persisted format it writes, stable and experimental, and shall write no `version` literal in those formats.
 
-### 5.15 Historical decoders are frozen
+### 5.16 Historical decoders are frozen
 
-The schemas package shall hold one decoder module per format version phax no longer writes, and phax shall import only the decoder of the version it writes. A historical decoder shall not change once released.
+The schemas package shall hold one decoder module per shape phax no longer writes, and phax shall import only the decoder of the shape it writes. A historical decoder shall not change once released.
 
-### 5.16 A shape change without a bump fails the gate
+### 5.17 A shape change is recorded at its release
 
-IF the JSON Schema generated for the format version phax currently writes differs from that version's committed snapshot THEN phax's gate SHALL fail, naming the format and the next version literal.
+IF the JSON Schema generated for a format differs from that format's latest committed snapshot and no snapshot exists for the current release THEN phax's gate SHALL fail, naming the format and the snapshot to record (`<format id>/<release>.schema.json`).
 
-### 5.17 The history corpus is parsed at every release
+### 5.18 The history corpus is parsed at every release
 
 IF any document of the committed history corpus fails to parse with the package THEN the release gate SHALL fail, naming the document and its first violation.
 
-### 5.18 The corpus is extracted by a committed script
+### 5.19 The corpus is extracted by a committed script
 
-The repository shall hold a committed script that walks git history — every commit of the records branch, and every commit touching the approvals ledgers or a spec or plan sidecar — and writes the distinct documents it finds, per format version, into the history corpus.
+The repository shall hold a committed script that walks git history — every commit of the records branch, and every commit touching the approvals ledgers or a spec or plan sidecar — and writes the distinct documents it finds, per format and shape, into the history corpus.
 
-### 5.19 Types match phax
+### 5.20 Types match phax
 
 The schemas package shall ship TypeScript declarations whose type for each exported format is the type phax decodes that format to.
 
-### 5.20 JSON Schema per format
+### 5.21 JSON Schema per format
 
 The schemas package shall ship one draft-07 JSON Schema file per exported format, generated at build time from the same schema that format's parse function uses.
 
-### 5.21 JSON Schema carries stability
+### 5.22 JSON Schema carries stability
 
 Each JSON Schema file in the schemas package shall declare its format's stability as stable or experimental.
 
-### 5.22 No silent JSON Schema gap
+### 5.23 No silent JSON Schema gap
 
 IF an exported format's JSON Schema cannot be generated THEN the schemas package build SHALL fail naming that format.
 
-### 5.23 Lockstep version
+### 5.24 Lockstep version
 
 The schemas package shall be published at the same version as the phax release whose tag produced it.
 
-### 5.24 Released with phax
+### 5.25 Released with phax
 
 WHEN a release tag is pushed THE release workflow SHALL stage-publish the schemas package beside @lbdremy/phax.
 
-### 5.25 All or nothing
+### 5.26 All or nothing
 
 IF the schemas package build fails, or its packed tarball cannot be installed into an empty Node project and parse a phax-written document there, THEN the release workflow SHALL stage-publish neither package.
 
-### 5.26 One release commit
+### 5.27 One release commit
 
 WHEN the release script bumps phax's version THE release script SHALL bump the schemas package manifest in the same release commit.
 
-### 5.27 Code-review document when it ships
+### 5.28 Code-review document when it ships
 
 WHERE a phax release carries the code-review document THE schemas package of that release SHALL export it from the experimental entry.
 
@@ -225,19 +233,21 @@ before:
 
 after:
 
-    import { parsePhaseRecord, toLatestPhaseRecord } from "@lbdremy/phax-schemas";
+    import { parseDocument, parsePhaseRecord, toLatestPhaseRecord } from "@lbdremy/phax-schemas";
 
-    const r = parsePhaseRecord(raw);          // PhaseRecordV1 | PhaseRecordV2 | PhaseRecordV3, discriminated by `version`
-    if (!r.ok) throw new Error(r.error.message);
+    const any = parseDocument(raw);            // identified by `$schema` alone, whatever the file's name
+    // { ok: true, format: "phase-record", shape: "0.17.0", value: PhaseRecord_0_17 }
+
+    const r = parsePhaseRecord(raw);           // PhaseRecordV1 | PhaseRecordV2 | PhaseRecord_0_17, with its shape id
     const latest = toLatestPhaseRecord(r.value);
-    // from a version-1 record: verifiedSurfaces: { kind: "unknown" }, producedBy: { kind: "unknown" }
+    // from a legacy v1 record: verifiedSurfaces: { kind: "unknown" }
 
-    parsePhaseRecord({ version: 4, producedBy: "phax@0.19.0", … });
-    // { ok: false, error: { path: ["version"], message: "phase record version 4 (phax@0.19.0) is newer than @lbdremy/phax-schemas 0.17.0 — upgrade the package" } }
+    parseDocument({ "$schema": "https://docs.phax.run/schemas/phase-record/0.19.0.json", … });
+    // { ok: false, error: { path: ["$schema"], message: "phase-record written by phax 0.19.0 is newer than @lbdremy/phax-schemas 0.17.0 — upgrade the package" } }
 
-    # normative: every historical version parses, the exact shape per version, toLatest never invents a value, the newer-version failure
+    # normative: identification by `$schema` alone, every historical shape parses, toLatest never invents a value, the newer-release failure
 
-### file: producedBy in every persisted format — normative
+### file: `$schema` in every persisted format — normative
 
 before:
 
@@ -245,23 +255,24 @@ before:
 
 after:
 
-    { "version": 3, "producedBy": "phax@0.17.0", "runId": "…", "phaseId": "phase-02", "outcome": "committed", … }
+    { "$schema": "https://docs.phax.run/schemas/phase-record/0.17.0.json", "runId": "…", "phaseId": "phase-02", "outcome": "committed", … }
 
-    # every stable and experimental format gains required `producedBy` and bumps its version once; phax writes only the new version
+    # every stable and experimental format: `$schema` first, no `version`; the URL serves that release's JSON Schema of the format
 
 ### file: snapshots, historical decoders and history corpus — indicative
 
     packages/schemas/
-      src/history/phaseRecord.v1.ts            frozen; phax never imports it
-      src/history/phaseRecord.v2.ts            frozen at the release that moves phax to v3
-      src/history/authoringRecord.v1.ts        frozen; accepts both legacy shapes (with and without sourceSha)
-      snapshots/phase-record.v1.schema.json    one committed JSON Schema per format version
-      snapshots/phase-record.v3.schema.json    must equal the schema generated from phax's current decoder
-      corpus/phase-record/v1/*.json            extracted from git history by scripts/extract-history-corpus.ts
+      src/history/phase-record/v1.ts            legacy shape, frozen; phax never imports it
+      src/history/phase-record/v2.ts            legacy shape, frozen
+      src/history/authoring-record/v1.ts        legacy, frozen; accepts both shapes (with and without sourceSha)
+      snapshots/phase-record/v1.schema.json     one committed JSON Schema per shape
+      snapshots/phase-record/v2.schema.json
+      snapshots/phase-record/0.17.0.schema.json the latest: must equal the schema generated from phax's current decoder
+      corpus/phase-record/v1/*.json             extracted from git history by scripts/extract-history-corpus.ts
       corpus/phase-record/v2/*.json
 
     $ pnpm schemas:check
-    ✗ phase record: the schema of version 3 differs from snapshots/phase-record.v3.schema.json — bump to version 4
+    ✗ phase-record: the generated schema differs from snapshots/phase-record/0.17.0.schema.json and no snapshot exists for 0.18.0 — record snapshots/phase-record/0.18.0.schema.json
     $? = 1
 
 ### package: Node consumer, end to end — indicative
@@ -397,7 +408,7 @@ after:
 - The app and ports library API: exported use cases, adapter sets and a composition root. That work waits for 1.0 and the library-readiness item.
 - Exporting the phax.json or user-overlay config schemas. phax builds its effective config by merging layers, so decoding one file alone does not give the config phax would run with, and phax schema upgrade already delivers the JSON Schema for editors.
 - Writing the 1.0 stability contract itself (a frozen version plus a migration command, or a re-run-init policy). That stays with the Road to 1.0 item. This spec only classifies each exported format as stable or experimental today.
-- Any change to a persisted format's shape other than the `producedBy` field, or to the CLI. For the version it writes, the package republishes what phax already enforces.
+- Any change to a persisted format's shape other than adding `$schema` and dropping `version`, or to the CLI. For the shape it writes, the package republishes what phax already enforces.
 - Reading helpers: nothing walks the records branch, finds run directories or reads files. The consumer reads the bytes and hands the package a JSON value.
 - Rewriting documents on disk. The package reads every version and upgrades in memory; phax, the writer, writes only the latest version and keeps its no-shims rule.
 - A CommonJS build, a JSR or Deno-native publish, or JSON Schemas hosted at a URL. The docs pipeline reads the files from the installed package.
@@ -424,7 +435,7 @@ Given the installed package, from a release that does not carry the code-review 
 
 ### One classification everywhere
 
-Given the README persisted-formats table and the installed package, when each exported format's entry and its JSON Schema stability declaration are compared with its README row, then every exported format has exactly one README row, formats marked stable are on the root entry and declare stable, and formats marked experimental are on the experimental entry and declare experimental. (refs §5.6, §5.21)
+Given the README persisted-formats table and the installed package, when each exported format's entry and its JSON Schema stability declaration are compared with its README row, then every exported format has exactly one README row, formats marked stable are on the root entry and declare stable, and formats marked experimental are on the experimental entry and declare experimental. (refs §5.6, §5.22)
 
 ### Nothing internal leaks
 
@@ -440,67 +451,71 @@ Given a run-status.json whose state is "paused", when parseRunStatus is called o
 
 ### Package types are phax's types
 
-Given phax's type-test suite and the package's declarations, when a value of each exported package type is assigned to phax's internal type for that format, and the reverse, then both assignments typecheck for every exported format. (refs §5.19)
+Given phax's type-test suite and the package's declarations, when a value of each exported package type is assigned to phax's internal type for that format, and the reverse, then both assignments typecheck for every exported format. (refs §5.20)
 
 ### Every exported format has a usable JSON Schema
 
-Given the installed package and one phax-written document per exported format, when each json/<format>.schema.json is loaded into a standard draft-07 validator and the matching document is validated, then there is exactly one schema file per exported format and every phax-written document validates. (refs §5.20)
+Given the installed package and one phax-written document per exported format, when each json/<format>.schema.json is loaded into a standard draft-07 validator and the matching document is validated, then there is exactly one schema file per exported format and every phax-written document validates. (refs §5.21)
 
 ### Stability is readable from the JSON Schema
 
-Given the installed package, when json/spec-document.schema.json and json/run-status.schema.json are read, then the first declares its format experimental and the second declares it stable. (refs §5.21)
+Given the installed package, when json/spec-document.schema.json and json/run-status.schema.json are read, then the first declares its format experimental and the second declares it stable. (refs §5.22)
 
 ### A format without a JSON Schema fails the build
 
-Given an exported format whose schema carries a refinement that has no JSON Schema rendering, when the schemas package build runs, then it exits non-zero naming that format, and the build output has no schema file for that format. (refs §5.22)
+Given an exported format whose schema carries a refinement that has no JSON Schema rendering, when the schemas package build runs, then it exits non-zero naming that format, and the build output has no schema file for that format. (refs §5.23)
 
 ### Both packages are staged at the tag's version
 
-Given a signed tag v0.17.0 on a commit whose release gate is green, when the release workflow runs, then @lbdremy/phax@0.17.0 and @lbdremy/phax-schemas@0.17.0 are both staged on npm. (refs §5.23, §5.24)
+Given a signed tag v0.17.0 on a commit whose release gate is green, when the release workflow runs, then @lbdremy/phax@0.17.0 and @lbdremy/phax-schemas@0.17.0 are both staged on npm. (refs §5.24, §5.25)
 
 ### A broken package publishes nothing
 
-Given a release commit whose schemas-package tarball fails to install into an empty Node project or fails to parse the smoke document, when the release workflow runs on its tag, then the workflow fails before any npm stage publish step runs, and neither package is staged. (refs §5.25)
+Given a release commit whose schemas-package tarball fails to install into an empty Node project or fails to parse the smoke document, when the release workflow runs on its tag, then the workflow fails before any npm stage publish step runs, and neither package is staged. (refs §5.26)
 
 ### One commit bumps all manifests
 
-Given a clean main at 0.16.0, when scripts/release.sh 0.17.0 runs, then the release commit sets version 0.17.0 in package.json, npm/package.json and the schemas package manifest, and the script's last lines name both staged packages. (refs §5.26)
+Given a clean main at 0.16.0, when scripts/release.sh 0.17.0 runs, then the release commit sets version 0.17.0 in package.json, npm/package.json and the schemas package manifest, and the script's last lines name both staged packages. (refs §5.27)
 
 ### The code-review document joins as experimental
 
-Given a phax release that carries the code-review document, when the exports of @lbdremy/phax-schemas/experimental and the package's json/ directory are listed, then there is a code-review parse function and a code-review JSON Schema that declares experimental, and the root entry exports no code-review parser. (refs §5.27)
+Given a phax release that carries the code-review document, when the exports of @lbdremy/phax-schemas/experimental and the package's json/ directory are listed, then there is a code-review parse function and a code-review JSON Schema that declares experimental, and the root entry exports no code-review parser. (refs §5.28)
 
 ### A mixed history parses
 
-Given the history corpus's phase records at versions 1 and 2, when each is given to parsePhaseRecord, then every call returns ok; the value's `version` is 1 or 2 and its type is the exact shape of that version. (refs §5.10, §5.17)
+Given the history corpus's phase records at versions 1 and 2, when each is given to parsePhaseRecord, then every call returns ok; the value's `version` is 1 or 2 and its type is the exact shape of that version. (refs §5.10, §5.18)
 
 ### A newer document is named
 
-Given a phase record whose version is one above the latest the package knows, when parsePhaseRecord runs, then it returns a failure naming that version and the package version and saying to upgrade the package, without throwing. (refs §5.11)
+Given a phase record whose `$schema` names release 0.19.0, and a document whose `$schema` names an unknown format id, when each is given to parseDocument, then each returns a failure naming the URL and the package version and saying to upgrade the package, without throwing. (refs §5.12)
 
 ### Upgrading marks the unknown
 
-Given a version-1 phase record from the corpus, when it is parsed and upgraded to the latest shape, then the result has the latest shape; `verifiedSurfaces` is `{ kind: "unknown" }`; every field the version-1 record carried keeps its value. (refs §5.12)
+Given a version-1 phase record from the corpus, when it is parsed and upgraded to the latest shape, then the result has the latest shape; `verifiedSurfaces` is `{ kind: "unknown" }`; every field the version-1 record carried keeps its value. (refs §5.13)
 
 ### Both legacy authoring shapes parse
 
-Given the two authoring records at version 1 from the corpus, one with `sourceSha` and one without, when each is parsed, then both return ok. (refs §5.13)
+Given the two authoring records at version 1 from the corpus, one with `sourceSha` and one without, when each is parsed, then both return ok. (refs §5.14)
 
-### Every written document names its producer
+### Every written document names its format and release
 
-Given a phax built at 0.17.0, when a run, an approval and a headless authoring session each write their documents, then every document phax wrote carries `producedBy: "phax@0.17.0"` and its format's bumped version. (refs §5.14)
+Given a phax built at 0.17.0, when a run, an approval and a headless authoring session each write their documents, then every document phax wrote starts with `$schema` set to `https://docs.phax.run/schemas/<its format id>/0.17.0.json` and carries no `version` key. (refs §5.15)
 
 ### phax imports only the current decoder
 
-Given the built package and phax's source, when their imports are inspected, then phax's src/ imports no historical decoder module, and each historical module is byte-identical to its first released copy. (refs §5.15)
+Given the built package and phax's source, when their imports are inspected, then phax's src/ imports no historical decoder module, and each historical module is byte-identical to its first released copy. (refs §5.16)
 
-### A shape change without a bump is refused
+### A shape change must be recorded at its release
 
-Given a change that adds a key to the phase record decoder without bumping its version literal, when phax's gate runs, then it fails naming the phase record and the next version literal. (refs §5.16)
+Given a change that adds a key to the phase record decoder, with no `phase-record/0.17.0.schema.json` snapshot yet, when phax's gate runs, then it fails naming the phase record and `phase-record/0.17.0.schema.json`; once that snapshot is written, it passes. (refs §5.17)
 
 ### The corpus is extracted and parsed
 
-Given a repository with records and approvals history, when the corpus script runs, then the release gate, then the corpus holds one directory per format version with the distinct documents found, and the release gate parses every one; a document that fails stops the release naming it. (refs §5.18, §5.17)
+Given a repository with records and approvals history, when the corpus script runs, then the release gate, then the corpus holds one directory per format and shape with the distinct documents found, and the release gate parses every one; a document that fails stops the release naming it. (refs §5.19, §5.18)
+
+### A renamed file is still identified
+
+Given a phase record written by phax 0.17.0, copied to `exports/a.json`, and an approvals ledger copied to `exports/b.json`, when each is given to parseDocument, then the first returns format `phase-record`, shape `0.17.0`; the second `plan-approvals`; no path is consulted. (refs §5.11)
 
 ## 9. Open questions for implementation planning
 
@@ -570,20 +585,21 @@ Recommendation: Every version ever written, each with its frozen decoder — Dec
 
 Recommendation: The exact shape of the document's version, plus a pure toLatest that marks missing facts `unknown` — Decided by the author on 2026-09-28, as recommended.
 
-### Q10 — Where is the phax release that produced a document recorded?
+### Q10 — How does a document say which format it is and which phax release produced it?
 
 - A required `producedBy` field in every persisted format — abandons: unchanged formats: each format bumps its version once to add the field
 - A `Phax-Version` trailer on phax's commits — abandons: provenance for files never committed (run directory, registry), and a lookup of the commit for every document
 - Both — abandons: a single place: the trailer duplicates the field
+- One `$schema` URL per document, `https://docs.phax.run/schemas/<format id>/<release>.json`: format id and producing release together — abandons: a version marker independent of phax releases, and a URL host that must stay stable
 
-Recommendation: A required `producedBy` field in every persisted format — Decided by the author on 2026-09-28. The author proposed stamping the producing phax version; in the document itself it covers files that are never committed, and with the lockstep version it names the exact package release that decodes it.
+Recommendation: One `$schema` URL per document, `https://docs.phax.run/schemas/<format id>/<release>.json`: format id and producing release together — Decided by the author on 2026-09-28, after a second look: a file name or location does not identify a format (renames, several files of one format, one schema for a set of files), so every document carries its format id, and the producing release goes in the same identifier. The `$schema` URL is the convention phax.json already follows, and editors and validators can resolve it once docs.phax.run serves the schemas.
 
 ### Q11 — Must experimental formats bump their version on every shape change too?
 
 - Yes: experimental means no promise that a shape lasts, not no version — abandons: changing an experimental shape freely under the same version
 - Only stable formats bump — abandons: a readable history for experimental formats
 
-Recommendation: Yes: experimental means no promise that a shape lasts, not no version — Decided on 2026-09-28: the author stated no preference and the recommendation stands. The authoring record already shows the cost of not bumping: two shapes under version 1. The snapshot gate enforces it.
+Recommendation: Yes: experimental means no promise that a shape lasts, not no version — Superseded on 2026-09-28 by q-format-version: with the release in `$schema`, every shape change of every format, experimental included, is recorded by the snapshot gate at the release that makes it; no manual bump remains. The authoring record shows the cost of the old way: two shapes under version 1.
 
 ### Q12 — How is it guaranteed that no shape change escapes a bump and that the whole history stays readable?
 
@@ -600,6 +616,13 @@ Recommendation: Committed JSON Schema snapshots per version checked by the gate,
 
 Recommendation: Frozen in the package, one module per version; phax imports only the current one — Decided by the author on 2026-09-28, as recommended.
 
+### Q14 — With `$schema`, does each format keep its own `version` literal?
+
+- No: the release in `$schema` is the only version of a new document; the package maps releases to shapes — abandons: a per-format counter a human reads at a glance; legacy documents keep theirs
+- Keep `version` and bump it on every shape change, beside `$schema` — abandons: a single source: two version markers that can disagree, and a bump to remember
+
+Recommendation: No: the release in `$schema` is the only version of a new document; the package maps releases to shapes — Decided by the author on 2026-09-28, as recommended.
+
 ## 10. Implementation-planning note
 
 Settled:
@@ -613,8 +636,8 @@ Settled:
 - One draft-07 JSON Schema per exported format ships inside the package, each declaring its stability.
 - ESM only.
 - Reading history (2026-09-28): every format version ever written parses with its frozen decoder and returns its exact shape; toLatest upgrades in memory and marks absent facts unknown; a newer version fails naming the package to upgrade.
-- Every persisted format gains a required `producedBy` and bumps its version once; every later shape change bumps again, experimental formats included, enforced by the snapshot gate. The authoring record's two legacy version-1 shapes are both accepted by its historical decoder.
 - The history corpus is extracted from git by a committed script and parsed at every release.
+- Identification (2026-09-28): every document phax writes starts with `$schema: https://docs.phax.run/schemas/<format id>/<release>.json` and carries no `version`; `parseDocument` identifies a document by it alone; shapes are named by their release, legacy shapes by their literal; a shape change is recorded as a snapshot at its release by the gate. The authoring record's two legacy version-1 shapes are both accepted.
 
 Left open:
 
@@ -623,7 +646,7 @@ Left open:
 - How the parity corpus is shared between phax's tests and the package's tests.
 - Whether the tarball install smoke also runs in pnpm check:full or only in the release workflow.
 - The README section title and its anchor, and how the headless-authoring section's link to 'Experimental formats' is updated.
-- The spelling of `producedBy` and of the unknown marker, and whether the marker carries the version it was upgraded from.
+- The exact URL path under docs.phax.run and the spelling of the unknown marker.
 - Where the corpus script finds the records history when records live in another repository (the phax-records destination): a path argument, or the records configuration.
 
 Constraints:
@@ -635,8 +658,9 @@ Constraints:
 - knip must treat the package entries as public entry points, so it does not flag their exports as unused.
 - This spec does not decide the 1.0 migration policy. It only records today's stable or experimental split, which the Road to 1.0 promise will adopt or revise.
 - The code-review document joins the experimental entry in the release that ships the headless-review spec. The package must not export it before then.
-- Coordinate the one-time bumps with the specs that change the same formats in the same release (oracle-phases: phax-plan `oracle`, the `oracle` surface in the phase record; artifact-decide: `approvedBy` in both approvals files, `history` in the spec and plan documents; headless-review: its new documents) so each format bumps once per release, not once per spec.
 - With approvals files versioned, artifact-decide's unattributed approvals need no rewrite of history: phax migrates the live ledger, and the package reads older ledger versions as they are.
+- Several Approved specs change formats this package exports (oracle-phases, artifact-decide, headless-review). Whatever lands in one release forms one shape at that release: its snapshot is rewritten until the release is cut, never after.
+- The `$schema` URLs must resolve: the docs.phax.run release pipeline (NEXT_STEPS) serves every release's schema of every format at `/schemas/<format id>/<release>.json`, and never removes one.
 
 ## 11. Docs page
 
