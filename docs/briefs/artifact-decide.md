@@ -29,18 +29,3 @@ What the spec must cover:
 - Open questions in §9 with options, losses and a recommended default: whether `decide` may run after `approve` and what becomes of the approval; whether plans need a structured open-questions section in their document schema; how `--machine` (or an equivalent) distinguishes a machine approval in `approvals.json` and what a record without attribution reads as; what `artifact status` shows for an artifact with an escalated proposal pending.
 
 Constraints: additive; nothing changes for artifacts authored by hand without a sidecar beyond the extractor path; keep to what the first consumer (the steme conductor) needs and name what is deliberately out of scope (the decision queue UI, multi-human arbitration).
-
-
-Decisions taken by the author on 2026-09-28 on the previous draft's §9 — the spec must reflect them, not reopen them. Fold each into the requirements, surface and acceptance criteria. Keep each in §9 as a decided question: the chosen option is the recommendation, and the rationale opens with "Decided by the author on 2026-09-28." Where the author answered off-menu, the answer becomes an option of its own.
-- Q1: in place — decide and reopen are allowed on Draft and Approved; an Approved artifact stays Approved and reads edited since approval (spec) / self-changed (plan) until re-approved.
-- Q2: add `openQuestions` to the plan preamble (decision-request shape plus `history`), rendered before the first phase; settled arbitrations stay prose in `technicalArbitrations`.
-- Q3: `--machine <grant>`; without it the gesture is the operator's.
-- Q4: `approvedBy` required with an explicit `{ kind: unattributed }` variant; in-repo ledgers rewritten in the same change; a record lacking the key is refused with the one-line fix.
-- Q5 (differs from the previous recommendation): `artifact status` prints each pending escalated proposal under the Questions line. State how the output stays readable (the proposal text as written, one block per question) and that the artifact remains the source.
-- Q6: refuse a hand-authored artifact with no sidecar, naming the remedies.
-- Q7 (off-menu answer): the operator adopts a proposal by re-running decide in interactive mode; there, each proposal escalated by a machine arbitration surfaces among the questions, tagged as a proposal, and the operator may choose it. A headless arbiter can never choose a proposal. Specify the tag, how the interactive session presents it, and how the choice is recorded (attributed to the operator, logged in the question's history).
-
-
-Output: your final message is the spec document JSON and nothing else — no sentence before or after it, no code fence.
-
-Previous draft: `docs/specs/archive/2609250815-artifact-decide.md` (Abandoned 2026-09-28, with its sidecar). Reuse its structure and every part the decisions above do not change; re-read the ground only where a decision reaches.

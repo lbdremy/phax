@@ -1,5 +1,5 @@
 ---
-status: Abandoned
+status: Draft
 date: 2026-09-28
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface

@@ -30,16 +30,3 @@ What the spec must cover:
 Constraints: additive; nothing changes for a plan with no oracle phase; phax gains no knowledge of any test framework; keep to what the first consumer (steme's `oracles` provider and the steme conductor) needs and name what is out of scope (a generic oracle concept for non-test oracles such as matrices, read-only enforcement at the file-system level, the full change-gates lint).
 
 Output: your final message is the spec document JSON and nothing else — no sentence before or after it, no code fence.
-
-
-Decisions taken by the author on 2026-09-28 on the previous draft's §9 — the spec must reflect them, not reopen them. Fold each into the requirements, surface and acceptance criteria. Keep each in §9 as a decided question: the chosen option is the recommendation, and the rationale opens with "Decided by the author on 2026-09-28." Where the author answered off-menu, the answer becomes an option of its own.
-- Q1: the declaration is a bold header line on the oracle phase (`**Oracle phase:** yes`, or `discharged by phase-NN`); the discharging role is derived and shown by lint, the prompt and the handoff.
-- Q2: exactly one discharging phase per oracle phase; no phase in both roles.
-- Q3: an oracle phase with no provider registered is a lint error, and `run`/`resume` refuse (exit family 2).
-- Q4 (differs from the previous recommendation): a new `oracle` surface value, recorded in gate-attribution.json, run records and the run summary. Say what the widening costs (the persisted enum, the schemas-package spec's stable formats) and that no configured gate step may declare it.
-- Q5 (differs from the previous recommendation): the declaration lists the oracle files explicitly, as a subset of the oracle phase's planned files (so the oracle phase may also carry stubs). Lint checks the list is a subset of the planned files; only the listed files are sent to the provider and guarded between the pair.
-
-
-Output: your final message is the spec document JSON and nothing else — no sentence before or after it, no code fence.
-
-Previous draft: `docs/specs/archive/2609281159-oracle-phases.md` (Abandoned 2026-09-28, with its sidecar). Reuse its structure and every part the decisions above do not change; re-read the ground only where a decision reaches.
