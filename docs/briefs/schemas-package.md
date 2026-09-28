@@ -18,3 +18,5 @@ Decisions taken by the author on 2026-09-28 on the previous draft's §9 — the 
 
 
 Output: your final message is the spec document JSON and nothing else — no sentence before or after it, no code fence.
+
+Previous draft: `docs/specs/archive/2609241238-schemas-package.md` (Abandoned 2026-09-28, with its sidecar). Reuse its structure and every part the decisions above do not change; re-read the ground only where a decision reaches.
