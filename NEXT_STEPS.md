@@ -162,6 +162,12 @@ desktop — none is promised by the announcement.
       format changes) → artifact-decide → headless-review (reuses decide's approver form,
       skill and escalation block) → oracle-phases (no consumer before steme item 1.1).
       Sequential, not parallel: each builds on the formats the previous one changes.
+      **schemas-package ships in five plans** (decided 2026-09-28; each useful alone, each
+      authored after the previous one lands, since `plans lint` walks the tree as it is):
+      1 read the phase record (the example validated before generalising) → 2 read every
+      format → 3 guards (snapshots, `next`, history corpus) → 4 phax writes `$schema` →
+      5 publication. All carry the slug `schemas-package`, named by title ("… 1/5 — …").
+      Brief: `docs/briefs/schemas-package-plan.md`, rewritten before each plan.
       1. **`headless-authoring`** — `docs/ideas/headless-authoring.md`: `artifact new
          spec|plan --headless --brief <file>`; phax spawns the authoring session with the
          skill and an output schema, receives JSON only (plan in the `phax-plan.json`
