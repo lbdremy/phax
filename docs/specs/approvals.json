@@ -15,6 +15,11 @@
       "specFingerprint": "ebb23442b97d981930de02fc813c01dfb998ea6e84b4922cf8a0c780913f58e4",
       "approvedAt": "2026-09-28T13:23:53.149Z",
       "baseline": "e4a6563bc13cd2b95ad52c2fd5200dec8c180d7c"
+    },
+    "docs/specs/2609250815-artifact-decide.md": {
+      "specFingerprint": "a0f5333e74981e6bf1a08240df95386ca2a6167775c4380d5c7f1db8ef4010a0",
+      "approvedAt": "2026-09-28T13:23:53.327Z",
+      "baseline": "e8bd242cea481147011da730d450bbfa1fd4d6c8"
     }
   }
 }
