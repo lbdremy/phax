@@ -20,6 +20,11 @@
       "specFingerprint": "a0f5333e74981e6bf1a08240df95386ca2a6167775c4380d5c7f1db8ef4010a0",
       "approvedAt": "2026-09-28T13:23:53.327Z",
       "baseline": "e8bd242cea481147011da730d450bbfa1fd4d6c8"
+    },
+    "docs/specs/2609250823-headless-review.md": {
+      "specFingerprint": "eec61d0c5ea686fe16baee92be49ecef802326001ee709d7664a9f7e81c9bd1f",
+      "approvedAt": "2026-09-28T13:23:53.499Z",
+      "baseline": "3fb22b89373175f134efd25b5e04101699f745de"
     }
   }
 }

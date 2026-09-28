@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-09-25
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-09-28
+  baseline: 3fb22b8
 ---
 # Review as a plan — headless code review, review-plan, run --append
 
