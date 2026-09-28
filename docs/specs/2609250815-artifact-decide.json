@@ -111,7 +111,7 @@
   "context": "Headless authoring (0.16.0) made a spec's open questions data. The spec document's `openQuestions[]` use spec 23's decision-request shape, `{ id, question, options[{ id, label, abandons }], recommendation, rationale }`. phax writes the document as a JSON sidecar (`<stamp>-<slug>.json`) beside the Markdown it renders from it. The sidecar travels with every lifecycle transition, and `artifact approve` refuses with exit 12 when the body diverges from the sidecar's rendering.\n\nThe plan document has no question structure. `preamble.technicalArbitrations` is a list of plain strings, rendered as a `## Technical arbitrations` bullet list. No code reads open questions back out of Markdown. The only extractor turns plan.md into the extracted plan and carries no arbitrations. The authoring record does not keep the provider session id, so no authoring session can be resumed today. `adjust-plan` is the precedent for a session id kept locally and resumed.\n\nApprovals are recorded in two places:\n- an `approved: { date, baseline }` frontmatter stamp;\n- a record in `docs/specs/approvals.json` (`specFingerprint`, `approvedAt`, `baseline`) or `docs/plans/approvals.json` (the same plus `sourceSpec`).\n\nNeither records who approved. Re-approving an Approved spec or plan is legal and is the supported in-place revision. An edited spec reads `Edited since: yes` and blocks plan approval against it. An edited plan is stale with `self-changed` evidence. The name `phax artifact reopen` is already taken: it moves a Stale plan back to Draft.\n\nThe three arbitration doctrines landed by hand on 2026-09-25 at `.claude/skills/phax-decide-spec`, `phax-decide-plan` and `phax-decide-review`, and `package.json` `files` already ships them. The skill catalog behind `phax skills install` still lists only `phax-planning`, `phax-cli` and `phax-spec`. Each doctrine rests on the ground `E0` (explicit over implicit) and five pairs, `C1`–`C5`, with a precedence order. Each adds its own principles: `S1`–`S10`, `P1`–`P9` or `R1`–`R7`. Every principle is a list item that opens with a backticked id.\n\nThe doctrines name two live modes:\n- **interactive**: the human decides everything and the agent facilitates;\n- **headless**: the agent decides within the menu and escalates three things: what is off-menu, what changes the public surface, and what reverses an earlier decision.\n\nA third mode, headless total, is marked later. When no option fits, the arbiter writes its proposal and escalates. The proposal never wins by itself, but it is always recorded, so it is deferred rather than lost. Reversal is a cost, not a state: at equal value the arbiter prefers the option that is cheaper to reverse, and destruction is a floor that stops. The doctrines' output is `{ decisions: [{ id, chosen, abandoned[], advocate, why, principles[], reversibility, escalate }] }`, and the plan variant adds `phase`.\n\nThe first consumer is the steme roadmap-1.0 conductor. It authors every spec and plan headless, hands their open questions to a separate arbitration session and approves. When an answer must be reconsidered, it relays a human steering instruction, `rouvre <question>`.",
   "problem": "The open questions are data, but nothing answers them. A loop that wants them decided runs its own arbitration session outside phax. That session is unrecorded, its policy is a private brief, and it returns prose. The loop must splice the prose into the Markdown by hand, which diverges the sidecar and blocks `approve`.\n\nThe answers land nowhere structured. Neither `artifact status` nor a later reader can tell which questions are open or decided, on what principle, what was given up, or what the arbiter declined to decide. An arbiter that sees a better option than the menu offers has nowhere to put it, so the proposal is lost or, worse, silently adopted. A reconsideration such as `rouvre Q3` has no command.\n\nThe doctrines exist, but phax neither installs nor loads them, so no citation of `S1` or `P3` can be checked. Finally, an approval issued by a loop is recorded exactly like a human's. The approvals ledger cannot say that no human looked, and an unattended pipeline must never hide that.",
   "productGoal": {
-    "statement": "phax answers an artifact's open questions itself, in two modes. `phax artifact decide` gives the questions to a session that loads a doctrine: the default skill for the artifact kind, which a project skill of the same name can replace and a caller-owned file can extend. In interactive mode the operator decides and the agent facilitates. In headless mode the agent decides within the menu and escalates the rest, with its proposal written down. phax accepts decisions only as schema-validated JSON whose cited principles exist. It writes each decision into its question's history in the sidecar, re-renders the artifact, commits and records. A decided question reopens by command. Every decision and every approval names its arbiter, so nothing a machine decided or approved reads as a human's. The CLI changes are additive, and the document formats stay experimental.",
+    "statement": "phax answers an artifact's open questions itself, in two modes. `phax artifact decide` gives the questions to a session that loads a doctrine: the default skill for the artifact kind, which a project skill of the same name can replace and a caller-owned file can extend. In interactive mode the operator decides and the agent facilitates. In headless mode the agent decides within the menu and escalates the rest, with its proposal written down. phax accepts decisions only as schema-validated JSON whose cited principles exist. It writes each decision into its question's history in the sidecar, re-renders the artifact, commits and records. decide runs on Draft only; `phax artifact reopen` brings an Approved artifact back to Draft, and `--question` re-arbitrates one question. Approval refuses while any question is undecided or escalated, for headless and hand-authored artifacts alike. Every decision and every approval names its arbiter, so nothing a machine decided or approved reads as a human's. The CLI changes are additive except `--by`, required when approve or reopen runs without a terminal; the document formats stay experimental.",
     "guidingRule": "Every answer names its arbiter and its principle. A machine never decides off the menu: its proposal waits for a human instead of being lost."
   },
   "terminology": [
@@ -133,15 +133,15 @@
     },
     {
       "term": "History",
-      "definition": "The append-only list of a question's entries in the sidecar. Each entry is either decided or reopened. The last entry gives the question's state."
+      "definition": "The append-only list of a question's decided entries. The last entry gives the question's state. For a headless-authored artifact it lives in the sidecar; for a hand-authored artifact it is the Decision / Escalated blocks under the question and the decision log, in the §9 format."
     },
     {
       "term": "Question state",
-      "definition": "Undecided: no entry. Decided: the last entry is a decision without an escalation. Escalated: the last entry is a decision with an escalation. Reopened: the last entry is a reopen."
+      "definition": "Undecided: no entry. Decided: the last entry is a decision without an escalation. Escalated: the last entry is a decision with an escalation."
     },
     {
       "term": "Awaiting decision",
-      "definition": "The questions a decide session is given. In headless mode these are the reopened and undecided questions. In interactive mode, escalated questions are added."
+      "definition": "The questions a decide session is given. With `--question <id>`: that question alone, whatever its state. Otherwise, in headless mode, the undecided questions; in interactive mode, the escalated questions are added."
     },
     {
       "term": "Interactive mode",
@@ -165,27 +165,31 @@
     },
     {
       "term": "Arbiter",
-      "definition": "Who produced a decision, an approval or a reopen: a machine or the operator."
+      "definition": "Who produced a decision, an approval or an artifact reopen: a machine or the operator."
     },
     {
       "term": "Grant",
-      "definition": "The label a caller declares with --machine to name the machine performing an approval or a reopen, e.g. steme-conductor."
+      "definition": "The label a caller declares with `--by machine:<grant>` to name the machine performing an approval or an artifact reopen, e.g. steme-conductor."
     },
     {
       "term": "Machine / operator / unattributed approval",
       "definition": "An approval recorded with a grant, an approval recorded with the committing git identity, or an approval that predates attribution and is recorded explicitly as unattributed."
     },
     {
-      "term": "Question reopen",
-      "definition": "`phax artifact decide <artifact> --question <id> --reopen`. It makes a decided or escalated question open again, with a note. It is distinct from `phax artifact reopen` (Stale plan → Draft)."
-    },
-    {
-      "term": "Arbitrated artifact",
-      "definition": "An artifact with at least one history entry on any of its questions."
-    },
-    {
       "term": "Decision record",
       "definition": "The record phax writes on phax/records/v1 for one decide session."
+    },
+    {
+      "term": "Artifact reopen",
+      "definition": "`phax artifact reopen <path>`: today a Stale plan back to Draft; extended here to an Approved spec or plan back to Draft. It is the only way to arbitrate an approved artifact again."
+    },
+    {
+      "term": "§9 format",
+      "definition": "The layout the renderer already gives open questions, which a hand-authored artifact must follow for phax to read it: under the open-questions section, each question is a `### Q<n> — <question>` heading, then one bullet per option `- <option id> — <label> — abandons: <loss>`, then a `Recommendation: <option id> — <rationale>` line, then, once arbitrated, the Decision or Escalated block that decide writes. For a plan the section is `## Open questions` in the preamble."
+    },
+    {
+      "term": "Operator gesture",
+      "definition": "An approval or an artifact reopen given with `--by operator`, or given without `--by` from a terminal. The operator is named by the committing git identity."
     }
   ],
   "requirements": [
@@ -239,21 +243,27 @@
     },
     {
       "id": "r-no-sidecar",
-      "title": "Hand-authored artifacts refused",
-      "pattern": "unwanted",
-      "statement": "IF the artifact has no sidecar THEN the system SHALL refuse `decide` and question reopen before any session, naming the remedy: re-author the artifact headless, or answer its questions by hand."
+      "title": "Questions from a hand-authored §9",
+      "pattern": "event",
+      "statement": "WHEN `decide` reads an artifact that has no sidecar THE system SHALL take its questions and their history from its open-questions section in the §9 format, and SHALL refuse before any session, naming the first line that departs from the format, if that section does not parse."
+    },
+    {
+      "id": "r-hand-write",
+      "title": "Hand-authored decisions written in place",
+      "pattern": "event",
+      "statement": "WHEN decisions land on a hand-authored artifact THE system SHALL write each question's Decision or Escalated block under it and append the entries to the decision log, changing no other line of the artifact."
     },
     {
       "id": "r-preconditions",
       "title": "Artifact preconditions",
       "pattern": "unwanted",
-      "statement": "IF the sidecar is diverged or invalid, the artifact or its sidecar has uncommitted changes, or the artifact is Completed or Abandoned THEN the system SHALL refuse `decide` and question reopen before any session."
+      "statement": "IF the artifact is not Draft, its sidecar is diverged or invalid, or the artifact or its sidecar has uncommitted changes THEN the system SHALL refuse `decide` before any session; for an Approved or Stale artifact the refusal names `phax artifact reopen <path>`."
     },
     {
       "id": "r-presentation",
       "title": "Presentation order",
       "pattern": "event",
-      "statement": "WHEN `decide` selects the questions awaiting decision THE system SHALL present, in order: the reopened questions, each with its reopen note and prior decision; then the undecided questions; then, in interactive mode only, the escalated questions, each with its proposal."
+      "statement": "WHEN `decide` selects the questions awaiting decision THE system SHALL present, in order: the question named by `--question`, with its prior decision when it has one; then the undecided questions; then, in interactive mode only, the escalated questions, each with its proposal offered as a choice tagged as a machine proposal."
     },
     {
       "id": "r-nothing-to-decide",
@@ -319,7 +329,7 @@
       "id": "r-reversal-escalates",
       "title": "Reversals escalate",
       "pattern": "unwanted",
-      "statement": "IF a headless decision on a reopened question chooses an option other than the question's previous decision without an escalation THEN the system SHALL reject the decisions document."
+      "statement": "IF a headless decision on a question that already has a decision chooses an option other than its previous decision without an escalation THEN the system SHALL reject the decisions document."
     },
     {
       "id": "r-operator-no-escalate",
@@ -331,7 +341,7 @@
       "id": "r-operator-proposal",
       "title": "Operator may adopt a proposal",
       "pattern": "optional",
-      "statement": "WHERE an interactive decision answers an escalated question THE system SHALL accept `chosen: \"proposal\"`, recording the escalated proposal as the answer with every listed option abandoned."
+      "statement": "WHERE an interactive decision answers an escalated question THE system SHALL accept `chosen: \"proposal\"` — the escalated proposal, presented among the choices and tagged as a machine proposal — recording it as the answer with every listed option abandoned and the operator as arbiter."
     },
     {
       "id": "r-rate-limit",
@@ -373,7 +383,7 @@
       "id": "r-one-commit",
       "title": "One commit",
       "pattern": "event",
-      "statement": "WHEN `decide` or a question reopen writes the artifact and its sidecar THE system SHALL commit exactly those two paths in one commit."
+      "statement": "WHEN `decide` writes an artifact THE system SHALL commit exactly the paths it wrote in one commit: the artifact and its sidecar, or the hand-authored artifact alone."
     },
     {
       "id": "r-commit-failure",
@@ -397,49 +407,61 @@
       "id": "r-plan-cache",
       "title": "Re-rendered plan never re-extracted",
       "pattern": "event",
-      "statement": "WHEN `decide` or a question reopen re-renders a plan THE system SHALL re-seed the extraction cache with the plan's projection, so that `phax run` never extracts it through a model."
+      "statement": "WHEN `decide` re-renders or rewrites a plan THE system SHALL re-seed the extraction cache with the plan's projection, so that `phax run` never extracts it through a model."
     },
     {
-      "id": "r-reopen",
-      "title": "Question reopen",
+      "id": "r-rearbitrate",
+      "title": "Re-arbitrating one question",
+      "pattern": "optional",
+      "statement": "WHERE `--question <id>` is given THE system SHALL present that question alone, decided, escalated or undecided, with its prior decision, and SHALL append the new decision to its history."
+    },
+    {
+      "id": "r-rearbitrate-unknown",
+      "title": "Unknown question refused",
+      "pattern": "unwanted",
+      "statement": "IF `--question` names a question the artifact does not have THEN the system SHALL refuse before any session and write nothing."
+    },
+    {
+      "id": "r-reopen-approved",
+      "title": "Artifact reopen from Approved",
       "pattern": "event",
-      "statement": "WHEN `--question <id> --reopen` names a decided or escalated question THE system SHALL append to that question's history a reopened entry carrying the note and its arbiter."
+      "statement": "WHEN `phax artifact reopen` is given an Approved spec or plan THE system SHALL move it to Draft, remove its record from the approvals ledger, and commit the write-set in one commit whose trailer names the gesture's arbiter. Stale → Draft for plans is unchanged."
     },
     {
       "id": "r-reopen-refused",
-      "title": "Reopen refusals",
+      "title": "Artifact reopen refusals",
       "pattern": "unwanted",
-      "statement": "IF `--reopen` names an unknown question, or a question that is undecided or already reopened, THEN the system SHALL refuse and write nothing."
+      "statement": "IF `phax artifact reopen` is given a Draft, Completed or Abandoned artifact THEN the system SHALL refuse with exit 12 and write nothing."
     },
     {
-      "id": "r-approved-in-place",
-      "title": "Approved artifact revised in place",
-      "pattern": "event",
-      "statement": "WHEN `decide` or a question reopen rewrites an Approved artifact THE system SHALL leave its status Approved. The existing approval-fingerprint checks then read the artifact as edited since approval until it is re-approved."
-    },
-    {
-      "id": "r-approve-blocked",
-      "title": "Approval blocked while arbitration is incomplete",
+      "id": "r-approve-all-decided",
+      "title": "Approval requires every question decided",
       "pattern": "unwanted",
-      "statement": "IF an artifact is arbitrated and any of its questions is undecided, reopened or escalated THEN `phax artifact approve` SHALL refuse, naming those questions and the remedy."
+      "statement": "IF any open question of a spec or plan — from its sidecar, or from its §9 format when hand-authored — is undecided or escalated THEN `phax artifact approve` SHALL refuse with exit 12, naming those questions and `phax artifact decide <path>`."
     },
     {
-      "id": "r-approve-unarbitrated",
-      "title": "Unarbitrated artifacts approve as today",
-      "pattern": "state",
-      "statement": "WHILE an artifact is not arbitrated THE system SHALL approve it exactly as today, even if it has open questions."
+      "id": "r-approve-hand-format",
+      "title": "A hand-authored §9 must parse",
+      "pattern": "unwanted",
+      "statement": "IF a hand-authored artifact has an open-questions section that does not parse in the §9 format THEN `phax artifact approve` SHALL refuse with exit 12, naming the first line that departs. An artifact with no open-questions section approves with no question check."
     },
     {
-      "id": "r-machine-gesture",
+      "id": "r-by-machine",
       "title": "Machine gestures",
       "pattern": "optional",
-      "statement": "WHERE `--machine <grant>` is given to `phax artifact approve` or to a question reopen THE system SHALL record that approval or reopen as performed by a machine, naming the grant."
+      "statement": "WHERE `--by machine:<grant>` is given to `phax artifact approve` or `phax artifact reopen` THE system SHALL record that gesture as performed by a machine, naming the grant."
     },
     {
-      "id": "r-operator-gesture",
+      "id": "r-by-operator",
       "title": "Operator gestures",
-      "pattern": "ubiquitous",
-      "statement": "The system SHALL record every approval or question reopen given without `--machine` as performed by the operator, named by the committing git identity."
+      "pattern": "event",
+      "statement": "WHEN `--by operator` is given, or no `--by` is given and the command runs from a terminal, THE system SHALL record the approval or reopen as performed by the operator, named by the committing git identity."
+    },
+    {
+      "id": "r-by-required",
+      "title": "No terminal, no default",
+      "pattern": "unwanted",
+      "statement": "IF `phax artifact approve` or `phax artifact reopen` runs without `--by` and not from a terminal THEN the system SHALL refuse with exit 12, naming `--by operator` and `--by machine:<grant>`."
     },
     {
       "id": "r-ledger-approver-required",
@@ -457,7 +479,7 @@
       "id": "r-status-questions",
       "title": "Status reports questions",
       "pattern": "event",
-      "statement": "WHEN `phax artifact status` inspects an artifact that has a sidecar THE system SHALL report its questions as open (naming the reopened ones), decided (split into machine and operator) and escalated (naming them, with the command that answers them)."
+      "statement": "WHEN `phax artifact status` inspects an artifact that has open questions THE system SHALL report them as open, decided (split into machine and operator) and escalated (naming them), print each escalated question's proposal under that line, and name the decide command that answers them."
     },
     {
       "id": "r-status-approver",
@@ -489,7 +511,7 @@
       "surface": "cli: phax artifact decide",
       "binding": "normative",
       "before": null,
-      "after": "phax artifact decide <artifact> --headless [--doctrine <file>] [--model <model>] [--effort <effort>] [--resume-authoring]\nphax artifact decide <artifact> [--doctrine <file>] [--model <model>] [--effort <effort>]           # interactive\nphax artifact decide <artifact> --question <id> --reopen [--note <text>] [--machine <grant>]\n\n$ phax artifact decide docs/specs/2609251400-plan-prune.md --headless --doctrine docs/doctrine/spec.md\ndecide spec plan-prune — 3 questions — headless, new session — claude-opus-5-5 / high\ndoctrine   phax-decide-spec (bundled) + docs/doctrine/spec.md\nQ1         decided    manual    (S1, C4)\nQ2         decided    keep-10   (S2, S5) — departs from the recommendation\nQ3         escalated  manual    (S9) — proposal: a `--keep` flag on `phax prune`, not an `archive.prune` key\nescalated  1 of 3\ncommit     a1b2c3d — docs(specs): decide plan-prune Q1, Q2, Q3\nrecord     decision/2609251400-plan-prune/01\n$? = 0\n\n$ phax artifact decide docs/specs/2609251400-plan-prune.md --headless\ndecide spec plan-prune — nothing to decide (open 0 · decided 2 · escalated 1: Q3 waits for an interactive decide)\n$? = 0\n\n$ phax artifact decide docs/specs/2609251400-plan-prune.md --question Q1 --reopen --note \"auto is cheap now that records keep the trajectory\" --machine steme-conductor\nreopened   Q1 — by machine (steme-conductor)\ncommit     b2c3d4e — docs(specs): reopen plan-prune Q1\n$? = 0\n\n✗ decide refused: docs/specs/2609010900-legacy.md has no sidecar — decide needs a headless-authored artifact\n  re-author it with `phax artifact new spec legacy --headless --brief <file|->`, or answer its §9 by hand\n$? = 12\n\n✗ decide failed: decisions document rejected — decisions[1].principles[0]: \"S12\" is defined by no loaded doctrine\n  nothing written; the session is recorded as failed\n$? = 5\n\nInert combinations (refused, exit 12): --resume-authoring without --headless; --question, --note or --machine without --reopen;\n  --reopen with --headless, --doctrine, --model, --effort or --resume-authoring.\nExit: 0  decided and committed, reopened, or nothing to decide\n      5  no decisions document, not JSON, or rejected by the decisions schema or its checks\n      8  provider rate or usage limit\n      12 artifact refusal: no sidecar, diverged/invalid sidecar, uncommitted changes, terminal status, inert flags,\n         bad doctrine file, authoring session not resumable, bad --reopen target, artifact changed during the session, commit failed\n\n# normative: command and flag names (except --machine, spelling indicative per §9 Q3), the exit families, the escalation count line;\n# output layout and wording indicative"
+      "after": "phax artifact decide <artifact> --headless [--question <id>] [--doctrine <file>] [--model <model>] [--effort <effort>] [--resume-authoring]\nphax artifact decide <artifact> [--question <id>] [--doctrine <file>] [--model <model>] [--effort <effort>]   # interactive\n\n$ phax artifact decide docs/specs/2609251400-plan-prune.md --headless --doctrine docs/doctrine/spec.md\ndecide spec plan-prune — 3 questions — headless, new session — claude-opus-5-5 / high\ndoctrine   phax-decide-spec (bundled) + docs/doctrine/spec.md\nQ1         decided    manual    (S1, C4)\nQ2         decided    keep-10   (S2, S5) — departs from the recommendation\nQ3         escalated  manual    (S9) — proposal: a `--keep` flag on `phax prune`, not an `archive.prune` key\nescalated  1 of 3\ncommit     a1b2c3d — docs(specs): decide plan-prune Q1, Q2, Q3\nrecord     decision/2609251400-plan-prune/01\n$? = 0\n\n$ phax artifact decide docs/specs/2609251400-plan-prune.md --headless --question Q1\ndecide spec plan-prune — Q1 (decided: manual) — headless, new session — claude-opus-5-5 / high\nQ1         escalated  auto      (S7) — a reversal: a human must confirm\n$? = 0\n\n$ phax artifact decide docs/specs/2609060715-design-system-package.md      # hand-authored, interactive\ndecide spec design-system-package — hand-authored §9, 6 questions — interactive, new session\ncommit     c3d4e5f — docs(specs): decide design-system-package Q1–Q6   (the .md only)\n$? = 0\n\n✗ decide refused: docs/specs/2609251400-plan-prune.md is Approved — reopen it first with `phax artifact reopen docs/specs/2609251400-plan-prune.md`\n$? = 12\n\n✗ decide refused: docs/specs/2609010900-legacy.md §9 line 212 departs from the §9 format — expected `### Q<n> — <question>`\n$? = 12\n\n✗ decide failed: decisions document rejected — decisions[1].principles[0]: \"S12\" is defined by no loaded doctrine\n  nothing written; the session is recorded as failed\n$? = 5\n\nInert combination (refused, exit 12): --resume-authoring without --headless.\nExit: 0  decided and committed, or nothing to decide\n      5  no decisions document, not JSON, or rejected by the decisions schema or its checks\n      8  provider rate or usage limit\n      12 artifact refusal: not Draft, diverged/invalid sidecar, a hand-authored §9 that does not parse, uncommitted changes,\n         inert flags, bad doctrine file, authoring session not resumable, unknown --question, artifact changed during the session, commit failed\n\n# normative: command and flag names, the exit families, the escalation count line; output layout and wording indicative"
     },
     {
       "surface": "file: decisions document (the decide session's final message)",
@@ -501,13 +523,19 @@
       "surface": "file: docs/specs/<stamp>-<slug>.json question history",
       "binding": "normative",
       "before": "\"openQuestions\": [\n  { \"id\": \"Q1\", \"question\": \"Is pruning manual or automatic past `keep`?\",\n    \"options\": [ { \"id\": \"manual\", \"label\": \"an explicit `phax prune`\", \"abandons\": \"the registry ever shrinking on its own\" },\n                 { \"id\": \"auto\", \"label\": \"prune past `keep` at archive time\", \"abandons\": \"an archived run being inspectable after the fact\" } ],\n    \"recommendation\": \"manual\",\n    \"rationale\": \"records already keep the trajectory; the run folder is disposable but not silently.\" } ]",
-      "after": "\"openQuestions\": [\n  { \"id\": \"Q1\", \"question\": \"Is pruning manual or automatic past `keep`?\",\n    \"options\": [ … unchanged … ],\n    \"recommendation\": \"manual\",\n    \"rationale\": \"…\",\n    \"history\": [\n      { \"kind\": \"decided\", \"at\": \"2026-09-25T10:02:11Z\",\n        \"by\": { \"kind\": \"machine\",\n                \"doctrine\": [ { \"kind\": \"skill\", \"name\": \"phax-decide-spec\", \"source\": \"bundled\" },\n                              { \"kind\": \"file\", \"path\": \"docs/doctrine/spec.md\" } ],\n                \"provider\": \"claude\", \"model\": \"claude-opus-5-5\", \"effort\": \"high\" },\n        \"chosen\": \"manual\", \"abandoned\": [\"auto\"], \"advocate\": \"…\", \"why\": \"…\",\n        \"principles\": [\"S1\", \"C4\"], \"reversibility\": \"cheap\", \"escalate\": null },\n      { \"kind\": \"reopened\", \"at\": \"2026-09-26T08:40:00Z\",\n        \"by\": { \"kind\": \"machine\", \"grant\": \"steme-conductor\" },\n        \"note\": \"auto is cheap now that records keep the trajectory\" }\n    ] } ]\n\n# normative: every question carries `history` (required, empty until the first entry — no optional-for-back-compat);\n# entry kinds decided | reopened; `by` kinds machine | operator ({ \"kind\": \"operator\", \"name\": \"<git user.name>\" });\n# a machine `by` is the session form above for a decision, or { kind, grant } for a reopen; the state is the last entry.\n# Nested key spellings indicative. The plan sidecar's questions carry the same history."
+      "after": "\"openQuestions\": [\n  { \"id\": \"Q1\", \"question\": \"Is pruning manual or automatic past `keep`?\",\n    \"options\": [ … unchanged … ],\n    \"recommendation\": \"manual\",\n    \"rationale\": \"…\",\n    \"history\": [\n      { \"kind\": \"decided\", \"at\": \"2026-09-25T10:02:11Z\",\n        \"by\": { \"kind\": \"machine\",\n                \"doctrine\": [ { \"kind\": \"skill\", \"name\": \"phax-decide-spec\", \"source\": \"bundled\" },\n                              { \"kind\": \"file\", \"path\": \"docs/doctrine/spec.md\" } ],\n                \"provider\": \"claude\", \"model\": \"claude-opus-5-5\", \"effort\": \"high\" },\n        \"chosen\": \"manual\", \"abandoned\": [\"auto\"], \"advocate\": \"…\", \"why\": \"…\",\n        \"principles\": [\"S1\", \"C4\"], \"reversibility\": \"cheap\", \"escalate\": null }\n    ] } ]\n\n# normative: every question carries `history` (required, empty until the first entry — no optional-for-back-compat);\n# entry kind decided; `by` kinds machine (the session form above) | operator ({ \"kind\": \"operator\", \"name\": \"<git user.name>\" });\n# the state is the last entry.\n# Nested key spellings indicative. The plan sidecar's questions carry the same history."
     },
     {
       "surface": "file: rendered spec — §9 answered and a decision log",
       "binding": "normative",
       "before": "## 9. Open questions for implementation planning\n\n### Q3 — Is the prune policy a config key?\n\n- manual — … — abandons: …\n- auto — … — abandons: …\n\nRecommendation: manual — …",
-      "after": "## 9. Open questions for implementation planning\n\n### Q1 — Is pruning manual or automatic past `keep`?\n\n- manual — an explicit `phax prune` — abandons: the registry ever shrinking on its own\n- auto — prune past `keep` at archive time — abandons: an archived run being inspectable after the fact\n\nRecommendation: manual — records already keep the trajectory; the run folder is disposable but not silently.\n\nDecision: manual — by machine (phax-decide-spec + docs/doctrine/spec.md; claude-opus-5-5 / high), 2026-09-25\nWhy: … Principles: S1, C4. Reversibility: cheap.\nAdvocate for auto: …\n\n### Q3 — Is the prune policy a config key?\n\n…\n\nEscalated: manual, provisionally — by machine (…), 2026-09-25\nProposal: a `--keep` flag on `phax prune` instead of an `archive.prune` config key — a surface change a human must confirm.\n\n## 10. Implementation-planning note\n…\n## 11. Docs page\n…\n\n## 12. Decision log\n\n- 2026-09-25 Q1 decided manual — machine (phax-decide-spec + docs/doctrine/spec.md; claude-opus-5-5 / high)\n- 2026-09-25 Q3 escalated (manual, provisionally) — machine (…)\n- 2026-09-26 Q1 reopened — machine (steme-conductor): auto is cheap now that records keep the trajectory\n\n# normative: under each question with history, a Decision / Escalated (+ Proposal) / Reopened block naming the arbiter;\n# a final Decision log section only when any question has history; the rest of the rendering unchanged. Wording indicative."
+      "after": "## 9. Open questions for implementation planning\n\n### Q1 — Is pruning manual or automatic past `keep`?\n\n- manual — an explicit `phax prune` — abandons: the registry ever shrinking on its own\n- auto — prune past `keep` at archive time — abandons: an archived run being inspectable after the fact\n\nRecommendation: manual — records already keep the trajectory; the run folder is disposable but not silently.\n\nDecision: manual — by machine (phax-decide-spec + docs/doctrine/spec.md; claude-opus-5-5 / high), 2026-09-25\nWhy: … Principles: S1, C4. Reversibility: cheap.\nAdvocate for auto: …\n\n### Q3 — Is the prune policy a config key?\n\n…\n\nEscalated: manual, provisionally — by machine (…), 2026-09-25\nProposal: a `--keep` flag on `phax prune` instead of an `archive.prune` config key — a surface change a human must confirm.\n\n## 10. Implementation-planning note\n…\n## 11. Docs page\n…\n\n## 12. Decision log\n\n- 2026-09-25 Q1 decided manual — machine (phax-decide-spec + docs/doctrine/spec.md; claude-opus-5-5 / high)\n- 2026-09-25 Q3 escalated (manual, provisionally) — machine (…)\n\n# normative: under each question with history, a Decision / Escalated (+ Proposal) block naming the arbiter;\n# a final Decision log section only when any question has history; the rest of the rendering unchanged. This is the §9 format a hand-authored artifact follows. Wording indicative."
+    },
+    {
+      "surface": "file: hand-authored §9 in the §9 format",
+      "binding": "normative",
+      "before": "## 9. Open questions for implementation planning\n\n**Q2 — Fonts: self-hosted in the package, or loaded from Google Fonts?**\n\n- Google Fonts link — abandons: no-third-party-request pages …\n- Self-hosted files (both faces are OFL) — abandons: package weight …\n\nRecommendation: self-host in `brand/fonts/` …",
+      "after": "## 9. Open questions for implementation planning\n\n### Q2 — Fonts: self-hosted in the package, or loaded from Google Fonts?\n\n- google — a Google Fonts link — abandons: no-third-party-request pages …\n- self-hosted — self-hosted files (both faces are OFL) — abandons: package weight …\n\nRecommendation: self-hosted — self-host in `brand/fonts/` …\n\nDecision: self-hosted — by operator (Rémy Loubradou), 2026-09-28      ← written by decide, or by hand\nWhy: … Principles: … Reversibility: cheap.\n\n## 12. Decision log\n\n- 2026-09-28 Q2 decided self-hosted — operator (Rémy Loubradou)\n\n# normative: the heading, option-bullet, Recommendation and Decision/Escalated line shapes; a hand-authored artifact is\n# converted to them once. Approve counts a question decided when its last block is a Decision block. Wording indicative."
     },
     {
       "surface": "file: docs/plans/<stamp>-<slug>-plan.json open questions",
@@ -519,19 +547,25 @@
       "surface": "cli: phax artifact status",
       "binding": "normative",
       "before": "Path:              docs/specs/2609251400-plan-prune.md\nKind:              spec\nStatus:            Approved\nAuthored:          headless — sidecar docs/specs/2609251400-plan-prune.json (in sync)\nApproved:          2026-09-25 @ a1b2c3d\nEdited since:      no\nLegal transitions: Completed, Abandoned",
-      "after": "Path:              docs/specs/2609251400-plan-prune.md\nKind:              spec\nStatus:            Approved\nAuthored:          headless — sidecar docs/specs/2609251400-plan-prune.json (in sync)\nQuestions:         4 — open 1 (Q4 reopened) · decided 2 (machine 1, operator 1) · escalated 1 (Q3)\n                   answer escalated questions with `phax artifact decide docs/specs/2609251400-plan-prune.md`\nApproved:          2026-09-25 @ a1b2c3d by machine (steme-conductor)\nEdited since:      yes\nLegal transitions: Approved, Completed, Abandoned\n\n# other approver forms:  by operator (Ada Lovelace)  |  unattributed\n# a hand-authored artifact prints no Questions line; plans gain the same Questions and Approved lines.\n# normative: the three counts, the machine/operator split, the named reopened and escalated ids, the approver kind and\n# identity; the proposal text is not printed (§9 Q5); layout indicative"
+      "after": "Path:              docs/specs/2609251400-plan-prune.md\nKind:              spec\nStatus:            Approved\nAuthored:          headless — sidecar docs/specs/2609251400-plan-prune.json (in sync)\nQuestions:         3 — open 0 · decided 2 (machine 1, operator 1) · escalated 1 (Q3)\n  Q3 — proposal (machine, S9): a `--keep` flag on `phax prune` instead of an `archive.prune` config key —\n       a surface change a human must confirm\n  answer with `phax artifact decide docs/specs/2609251400-plan-prune.md`\nApproved:          2026-09-25 @ a1b2c3d by machine (steme-conductor)\nEdited since:      no\nLegal transitions: Draft (reopen), Completed, Abandoned\n\n# other approver forms:  by operator (Ada Lovelace)  |  unattributed\n# a hand-authored artifact whose §9 parses prints the same Questions line; plans gain the same Questions and Approved lines.\n# normative: the three counts, the machine/operator split, the escalated ids with their proposals (§9 Q5), the approver\n# kind and identity; layout indicative"
     },
     {
       "surface": "cli: phax artifact approve",
       "binding": "normative",
       "before": "phax artifact approve <path>\nStatus:   Approved\nBaseline: a1b2c3d\nCommit:   c3d4e5f — …",
-      "after": "phax artifact approve <path> [--machine <grant>]\n\n$ phax artifact approve docs/specs/2609251400-plan-prune.md --machine steme-conductor\nStatus:   Approved\nApprover: machine (steme-conductor)\nBaseline: a1b2c3d\nCommit:   c3d4e5f — docs(specs): approve plan-prune\n$? = 0\n\n$ phax artifact approve docs/specs/2609251400-plan-prune.md\nStatus:   Approved\nApprover: operator (Ada Lovelace)\n…\n\n✗ Approval refused: docs/specs/2609251400-plan-prune.md still owes decisions — escalated Q3, reopened Q4\n  answer them with `phax artifact decide docs/specs/2609251400-plan-prune.md`\n$? = 12\n\n# normative: that a machine declaration exists and is recorded with its grant, the operator default, the refusal naming\n# the questions with exit 12; --machine spelling and wording indicative (§9 Q3)"
+      "after": "phax artifact approve <path> [--by operator | --by machine:<grant>]\n\n$ phax artifact approve docs/specs/2609251400-plan-prune.md --by machine:steme-conductor\nStatus:   Approved\nApprover: machine (steme-conductor)\nBaseline: a1b2c3d\nCommit:   c3d4e5f — docs(specs): approve plan-prune\n$? = 0\n\n$ phax artifact approve docs/specs/2609251400-plan-prune.md           # from a terminal\nStatus:   Approved\nApprover: operator (Ada Lovelace)\n…\n\n✗ Approval refused: docs/specs/2609251400-plan-prune.md still owes decisions — escalated Q3, undecided Q4\n  answer them with `phax artifact decide docs/specs/2609251400-plan-prune.md`\n$? = 12\n\n✗ Approval refused: no terminal and no --by — pass `--by operator` or `--by machine:<grant>`\n$? = 12\n\n# normative: the --by values, the terminal default, the refusals with exit 12; wording indicative"
+    },
+    {
+      "surface": "cli: phax artifact reopen",
+      "binding": "normative",
+      "before": "phax artifact reopen <plan>        # Stale plan → Draft only",
+      "after": "phax artifact reopen <path> [--by operator | --by machine:<grant>]   # Approved spec or plan → Draft; Stale plan → Draft\n\n$ phax artifact reopen docs/specs/2609251400-plan-prune.md --by machine:steme-conductor\nStatus:   Draft (was Approved; approval record removed)\nCommit:   d4e5f6a — chore(specs): reopen plan-prune   [Reopened-By: machine (steme-conductor)]\n$? = 0\n\n✗ reopen refused: docs/specs/2609251400-plan-prune.md is Draft\n$? = 12\n\n# normative: the transitions, the removed approval record, the arbiter in the commit; trailer spelling indicative"
     },
     {
       "surface": "file: docs/specs/approvals.json and docs/plans/approvals.json records",
       "binding": "normative",
       "before": "\"docs/specs/2609251400-plan-prune.md\": {\n  \"specFingerprint\": \"b19da59f…\",\n  \"approvedAt\": \"2026-09-25T09:28:11.427Z\",\n  \"baseline\": \"67e20c37…\"\n}",
-      "after": "\"docs/specs/2609251400-plan-prune.md\": {\n  \"specFingerprint\": \"b19da59f…\",\n  \"approvedAt\": \"2026-09-25T09:28:11.427Z\",\n  \"baseline\": \"67e20c37…\",\n  \"approvedBy\": { \"kind\": \"machine\", \"grant\": \"steme-conductor\" }\n}\n\n# or { \"kind\": \"operator\", \"name\": \"Ada Lovelace\" }, or { \"kind\": \"unattributed\" } for a record that predates this change;\n# required on every record (§9 Q4); the same key joins plan records. Kinds normative; key spelling indicative;\n# the form is shared with the headless-review spec.\n\n✗ docs/plans/approvals.json: record \"docs/plans/2609010900-legacy-plan.md\" has no approvedBy —\n  add \"approvedBy\": { \"kind\": \"unattributed\" } to records that predate approver attribution\n$? = 12"
+      "after": "\"docs/specs/2609251400-plan-prune.md\": {\n  \"specFingerprint\": \"b19da59f…\",\n  \"approvedAt\": \"2026-09-25T09:28:11.427Z\",\n  \"baseline\": \"67e20c37…\",\n  \"approvedBy\": { \"kind\": \"machine\", \"grant\": \"steme-conductor\" }\n}\n\n# or { \"kind\": \"operator\", \"name\": \"Ada Lovelace\" }, or { \"kind\": \"unattributed\" } for a record that predates this change;\n# required on every record (§9 Q4); the same key joins plan records. Kinds normative; key spelling indicative;\n# the form is shared with the headless-review spec. The grant comes from `--by machine:<grant>`.\n\n✗ docs/plans/approvals.json: record \"docs/plans/2609010900-legacy-plan.md\" has no approvedBy —\n  add \"approvedBy\": { \"kind\": \"unattributed\" } to records that predate approver attribution\n$? = 12"
     },
     {
       "surface": "file: decision record on phax/records/v1",
@@ -550,7 +584,6 @@
     "Headless total mode (no escalation, the destructive floor only). The doctrines mark it as later, and what headless mode escalates in practice will decide whether it is wanted.",
     "A decision queue UI or desktop inbox. This spec provides the data and the status line, nothing visual.",
     "Multi-human arbitration: several operators, votes, required reviewers or per-question owners. The operator is whoever commits.",
-    "Arbitrating hand-authored artifacts, or extracting questions from Markdown (§9 Q6). An artifact without a sidecar is refused, and sidecars are not back-filled.",
     "Automatic routing of an escalation, e.g. running decide on the spec when a plan decision escalates under P1. The escalation blocks approval, and the caller routes it.",
     "Editing a question, its options, or the artifact's requirements from within decide. The only departure from the menu is an operator adopting an escalated proposal (§9 Q7).",
     "Writing or rewriting the doctrine skills' text. They landed by hand and ship as they are.",
@@ -558,9 +591,10 @@
     "Changing how headless authoring loads `phax-spec` and `phax-planning`. The project-skill override applies to the decide doctrines only.",
     "A `phax.json` key for the decide model and effort. One can be added later without breaking anything.",
     "Answering run decision requests (spec 23) or any autopilot loop. Run decision requests stay human-answered.",
-    "Parsing a steering file. Mapping `rouvre Q3` to a question reopen is the caller's job.",
+    "Parsing a steering file. Mapping `rouvre Q3` to `phax artifact reopen` plus `decide --question Q3` is the caller's job.",
     "The approver in the frontmatter `approved` stamp. The approvals ledger is the single source of who approved.",
-    "Stability of the question-history, decisions and approver formats. They are experimental, like the documents that carry them."
+    "Stability of the question-history, decisions and approver formats. They are experimental, like the documents that carry them.",
+    "Extracting open questions from a free-form Markdown layout. A hand-authored artifact follows the §9 format, converted once by hand."
   ],
   "acceptanceCriteria": [
     {
@@ -619,40 +653,45 @@
       "id": "a-inert",
       "name": "Inert flags refused",
       "given": "a headless-authored spec",
-      "when": "`decide` runs with `--question Q1` without `--reopen`, with `--resume-authoring` without `--headless`, with `--machine x` without `--reopen`, or with `--reopen --headless`",
-      "then": "each run exits 12 naming the flag, and no session is spawned",
+      "when": "`decide` runs with `--resume-authoring` without `--headless`",
+      "then": "it exits 12 naming the flag, and no session is spawned",
       "refs": [
         "r-inert-flags"
       ]
     },
     {
       "id": "a-no-sidecar",
-      "name": "Hand-authored artifact refused",
-      "given": "a spec with no sidecar",
-      "when": "`phax artifact decide <spec> --headless` or `phax artifact decide <spec> --question Q1 --reopen` runs",
-      "then": "it exits 12 naming the remedy, no session is spawned, and the working tree and HEAD are unchanged",
+      "name": "Hand-authored artifact decided in place",
+      "given": "a spec with no sidecar whose §9 follows the §9 format with undecided Q1 and Q2, and another whose §9 uses bold headings",
+      "when": "interactive `phax artifact decide` runs on the first and the operator decides Q1, then `phax artifact approve` runs on it, then decide runs on the second",
+      "then": "Only Q1's Decision block and one decision-log entry are added to the first spec; the new HEAD commit holds that file alone. Approve exits 12 naming Q2. Decide on the second exits 12 naming the first bold heading, and no session is spawned.",
       "refs": [
-        "r-no-sidecar"
+        "r-no-sidecar",
+        "r-hand-write",
+        "r-one-commit",
+        "r-approve-all-decided"
       ]
     },
     {
       "id": "a-preconditions",
       "name": "Preconditions refuse before the session",
-      "given": "a spec whose sidecar has diverged, a spec with an uncommitted change, and a Completed spec",
+      "given": "a spec whose sidecar has diverged, a spec with an uncommitted change, a Completed spec, and an Approved spec",
       "when": "`phax artifact decide <spec> --headless` runs on each",
-      "then": "each run exits 12 and no session is spawned",
+      "then": "each run exits 12 and no session is spawned; the Approved spec's refusal names `phax artifact reopen`",
       "refs": [
         "r-preconditions"
       ]
     },
     {
       "id": "a-presentation",
-      "name": "Reopened questions come first; escalated only interactively",
-      "given": "a spec where Q2 is reopened with a note, Q3 is undecided and Q1 is escalated with a proposal",
-      "when": "headless decide runs, and then interactive decide runs",
-      "then": "The headless prompt presents Q2 with its note and prior decision, then Q3, and not Q1. The interactive prompt presents Q2, then Q3, then Q1 with its proposal.",
+      "name": "Re-arbitrating one question; escalated only interactively",
+      "given": "a Draft spec where Q1 is decided, Q3 is undecided and Q2 is escalated with a proposal",
+      "when": "headless decide runs with `--question Q1`, then headless decide runs, then interactive decide runs, then decide runs with `--question Q9`",
+      "then": "The first prompt presents Q1 alone with its prior decision. The second presents Q3 only. The third presents Q3, then Q2 with its proposal offered as a choice tagged as a machine proposal. The fourth exits 12 and writes nothing.",
       "refs": [
-        "r-presentation"
+        "r-presentation",
+        "r-rearbitrate",
+        "r-rearbitrate-unknown"
       ]
     },
     {
@@ -701,7 +740,7 @@
     {
       "id": "a-per-arbiter",
       "name": "Per-arbiter rules",
-      "given": "these decisions: a headless decision with empty `principles`; a headless decision rated `irreversible` with `escalate: null`; a headless decision on a reopened question that switches option with `escalate: null`; an interactive decision carrying an `escalate` string; and an interactive decision with empty `principles`",
+      "given": "these decisions: a headless decision with empty `principles`; a headless decision rated `irreversible` with `escalate: null`; a headless decision on an already decided question that switches option with `escalate: null`; an interactive decision carrying an `escalate` string; and an interactive decision with empty `principles`",
       "when": "each document is validated",
       "then": "the first four are rejected with exit 5 and nothing written, and the fifth is accepted",
       "refs": [
@@ -716,11 +755,11 @@
       "name": "A proposal waits for a human",
       "given": "a spec on which headless decide escalates Q3, provisionally naming `manual`, with a proposal",
       "when": "`phax artifact approve <spec>` runs, then interactive decide runs and the operator chooses `proposal` for Q3, then approve runs again",
-      "then": "Q3 is counted as escalated, not decided, and §9 shows its proposal. The first approve exits 12 naming Q3. The operator decision lands with every listed option abandoned and the proposal as the answer, and Q3 reads decided (operator). The second approve succeeds.",
+      "then": "Q3 is counted as escalated, not decided, and §9 shows its proposal. The first approve exits 12 naming Q3. The interactive session offers the proposal as a choice tagged as a machine proposal. The operator decision lands with every listed option abandoned and the proposal as the answer, and Q3 reads decided (operator). The second approve succeeds.",
       "refs": [
         "r-escalated-state",
         "r-operator-proposal",
-        "r-approve-blocked"
+        "r-approve-all-decided"
       ]
     },
     {
@@ -766,9 +805,9 @@
     {
       "id": "a-status",
       "name": "Status counts questions by state and arbiter",
-      "given": "a spec with Q1 decided by machine, Q2 decided by operator, Q3 escalated and Q4 reopened, approved earlier with `--machine steme-conductor`",
+      "given": "a spec with Q1 decided by machine, Q2 decided by operator and Q3 escalated with a proposal, approved earlier with `--by machine:steme-conductor`",
       "when": "`phax artifact status <spec>` runs",
-      "then": "It prints: open 1, naming Q4 as reopened; decided 2, split machine 1 and operator 1; escalated 1, naming Q3 with the decide command; and `by machine (steme-conductor)` on the Approved line. A plan in the same situation prints the same lines.",
+      "then": "It prints: open 0; decided 2, split machine 1 and operator 1; escalated 1, naming Q3 with its proposal text and the decide command; and `by machine (steme-conductor)` on the Approved line. A plan in the same situation prints the same lines.",
       "refs": [
         "r-status-questions",
         "r-status-approver"
@@ -776,23 +815,25 @@
     },
     {
       "id": "a-approve-unarbitrated",
-      "name": "Unarbitrated artifacts approve as today",
-      "given": "a headless-authored spec with undecided open questions and no history on any question",
-      "when": "`phax artifact approve <spec>` runs",
-      "then": "it approves exactly as today",
+      "name": "Approval requires every question decided",
+      "given": "a headless-authored spec with undecided questions and no history, a hand-authored spec whose §9 is in the §9 format with every question decided, and a hand-authored spec with no open-questions section",
+      "when": "`phax artifact approve` runs on each",
+      "then": "The first exits 12 naming its undecided questions and `phax artifact decide`. The second and third approve.",
       "refs": [
-        "r-approve-unarbitrated"
+        "r-approve-all-decided",
+        "r-approve-hand-format"
       ]
     },
     {
       "id": "a-approvers",
       "name": "Approvals name their approver",
       "given": "a spec ready for approval",
-      "when": "`phax artifact approve <spec> --machine steme-conductor` runs, and separately the same command runs without `--machine`",
-      "then": "The approvals.json record carries `approvedBy` `{ kind: machine, grant: steme-conductor }` in the first case and `{ kind: operator, name: <git user.name> }` in the second. `phax artifact status` prints `by machine (steme-conductor)` or `by operator (<name>)` accordingly.",
+      "when": "`phax artifact approve <spec> --by machine:steme-conductor` runs; separately the same command runs from a terminal without `--by`; separately it runs without `--by` from a script with no terminal",
+      "then": "The approvals.json record carries `approvedBy` `{ kind: machine, grant: steme-conductor }` in the first case and `{ kind: operator, name: <git user.name> }` in the second; `phax artifact status` prints `by machine (steme-conductor)` or `by operator (<name>)` accordingly. The third exits 12 naming `--by`, and nothing is written.",
       "refs": [
-        "r-machine-gesture",
-        "r-operator-gesture",
+        "r-by-machine",
+        "r-by-operator",
+        "r-by-required",
         "r-status-approver"
       ]
     },
@@ -809,27 +850,15 @@
     },
     {
       "id": "a-reopen",
-      "name": "Reopen appends and re-renders",
-      "given": "a spec where Q1 is decided",
-      "when": "`phax artifact decide <spec> --question Q1 --reopen --note \"auto is cheap now\" --machine steme-conductor` runs, then the same command names Q9, then an undecided Q2",
-      "then": "Q1's history gains a reopened entry with the note and a machine `by` naming the grant. §9 shows Q1 as reopened, the decision log gains the entry, and a single commit contains the artifact and its sidecar. The Q9 and Q2 runs exit 12 and write nothing.",
+      "name": "Artifact reopen returns an Approved artifact to Draft",
+      "given": "an Approved spec, a Draft spec, and a Stale plan",
+      "when": "`phax artifact reopen <path> --by machine:steme-conductor` runs on each, then `decide --headless --question Q1` runs on the reopened spec",
+      "then": "The Approved spec is Draft, its record is gone from docs/specs/approvals.json, and the transition commit names `machine (steme-conductor)`. The Draft spec's reopen exits 12 and writes nothing. The Stale plan reopens to Draft as today. The decide then runs on the reopened spec.",
       "refs": [
-        "r-reopen",
+        "r-reopen-approved",
         "r-reopen-refused",
-        "r-re-render",
-        "r-one-commit",
-        "r-machine-gesture"
-      ]
-    },
-    {
-      "id": "a-approved-in-place",
-      "name": "Approved artifact revised in place",
-      "given": "an Approved spec whose questions are all decided",
-      "when": "a question reopen runs on Q1",
-      "then": "The spec's status stays Approved and `Edited since` reads yes. Approving a plan against it exits 12, and re-approving the spec exits 12 naming Q1. After decide answers Q1, re-approving the spec and then approving the plan both succeed.",
-      "refs": [
-        "r-approved-in-place",
-        "r-approve-blocked"
+        "r-by-machine",
+        "r-preconditions"
       ]
     },
     {
@@ -852,7 +881,7 @@
         "r-plan-questions",
         "r-plan-cache",
         "r-doctrine-kind",
-        "r-approve-blocked"
+        "r-approve-all-decided"
       ]
     },
     {
@@ -885,10 +914,15 @@
           "id": "refuse",
           "label": "Refuse decide and reopen once the artifact is Approved.",
           "abandons": "steering after approval: a `rouvre` on an approved spec would force abandoning and re-authoring it"
+        },
+        {
+          "id": "reopen-draft",
+          "label": "Decide runs on Draft only; `phax artifact reopen` moves an Approved spec or plan back to Draft, removing its approval record",
+          "abandons": "steering an approved artifact without voiding its approval: every re-arbitration first costs a reopen and a re-approval"
         }
       ],
-      "recommendation": "in-place",
-      "rationale": "Re-approving an Approved artifact is already the supported way to revise it. The fingerprint checks already stop a plan from being approved against an edited spec, and they stop a changed plan from running. The approve refusal on a reopened or escalated question keeps the revision from being approved over, so no new transition is needed. This follows C1: the existing gesture before a new one."
+      "recommendation": "reopen-draft",
+      "rationale": "Decided by the author on 2026-09-28. An approved artifact is not arbitrated: `decide` runs on Draft only, and `phax artifact reopen` — extended from Stale plans to Approved specs and plans — is the one gesture back to Draft. The approval is voided visibly instead of lingering as an in-place revision."
     },
     {
       "id": "Q2",
@@ -911,7 +945,7 @@
         }
       ],
       "recommendation": "add",
-      "rationale": "Today the plan document has no question structure, so decide on plans needs one. Adding it beside the settled list keeps decided things as prose and gives open things the same shape as a spec's §9 (C1). Rendering in the preamble keeps plan lint and the deterministic projection untouched."
+      "rationale": "Decided by the author on 2026-09-28. Today the plan document has no question structure, so decide on plans needs one. Adding it beside the settled list keeps decided things as prose and gives open things the same shape as a spec's §9 (C1). Rendering in the preamble keeps plan lint and the deterministic projection untouched."
     },
     {
       "id": "Q3",
@@ -931,10 +965,15 @@
           "id": "by-required",
           "label": "`phax artifact approve` always requires `--by operator|machine:<grant>`.",
           "abandons": "every existing `artifact approve` invocation: a breaking CLI change against the additive constraint"
+        },
+        {
+          "id": "by-tty",
+          "label": "`--by operator | machine:<grant>`, required when not run from a terminal; from a terminal without it, the operator",
+          "abandons": "an unchanged scripted `approve`: every non-terminal caller must add `--by`"
         }
       ],
-      "recommendation": "machine-flag",
-      "rationale": "The first consumer is a cooperating loop that wants its approvals marked. phax cannot tell a human from a script without guessing, and a guess is worse than a declared, recorded grant (E0). The flag is additive."
+      "recommendation": "by-tty",
+      "rationale": "Decided by the author on 2026-09-28. At a terminal the operator is the honest default; without one, phax refuses to guess and asks `--by`. A loop that forgets to declare itself is refused rather than recorded as a human. A machine inside a pseudo-terminal would still default to the operator; the risk is accepted as far narrower than 'no flag means human'. Scripted approvals must add `--by`."
     },
     {
       "id": "Q4",
@@ -957,7 +996,7 @@
         }
       ],
       "recommendation": "explicit-unattributed",
-      "rationale": "Unknown is the only honest reading of a record that predates attribution, and E0 says to write it rather than infer it. phax's rule is that new persisted fields are required, not optional-for-old-data. approvals.json is not yet under a stability promise (Road to 1.0 leaves that open). The steme experiment pins the release that carries this change and has not started, so the ledgers that need migrating are phax's own, rewritten in the same change. The refusal names the exact fix for any other repo."
+      "rationale": "Decided by the author on 2026-09-28. Unknown is the only honest reading of a record that predates attribution, and E0 says to write it rather than infer it. phax's rule is that new persisted fields are required, not optional-for-old-data. approvals.json is not yet under a stability promise (Road to 1.0 leaves that open). The steme experiment pins the release that carries this change and has not started, so the ledgers that need migrating are phax's own, rewritten in the same change. The refusal names the exact fix for any other repo."
     },
     {
       "id": "Q5",
@@ -979,8 +1018,8 @@
           "abandons": "a later reader or loop learning of pending escalations without re-running decide"
         }
       ],
-      "recommendation": "ids-and-remedy",
-      "rationale": "Status is triage for a human reader (C5: minimal, for a named reader). It must say that a human is owed a decision and how to give it. The proposal is read where it is decided: the rendered artifact and the interactive decide session, which presents it (S4: one source)."
+      "recommendation": "print-proposals",
+      "rationale": "Decided by the author on 2026-09-28. Status is where an operator looks first; the proposal text is printed there so no escalation waits unseen. The rendered artifact stays the source of the text."
     },
     {
       "id": "Q6",
@@ -995,10 +1034,15 @@
           "id": "extract-and-splice",
           "label": "A new model extraction of §9 or the plan's arbitrations, with decisions kept in a file beside the artifact and decision lines spliced into the hand-written Markdown.",
           "abandons": "one home for decisions and the rule that phax edits Markdown only by rendering it: decisions would live in the sidecar for one artifact and in another file for the next"
+        },
+        {
+          "id": "hand-format",
+          "label": "decide reads and writes a hand-authored §9 in the §9 format",
+          "abandons": "phax editing Markdown only by rendering it: for a hand-authored artifact it writes the question blocks and the decision log in place"
         }
       ],
-      "recommendation": "refuse",
-      "rationale": "The brief assumed an extractor that headless authoring already uses, but none exists. The only extractor turns plan.md into the extracted plan and carries no arbitrations, and parsing Markdown back was a headless-authoring non-goal. The first consumer authors everything headless. Refusing leaves hand-authored artifacts unchanged, which is exactly the brief's constraint."
+      "recommendation": "hand-format",
+      "rationale": "Decided by the author on 2026-09-28. Every question is answered before approval, whatever authored the artifact, so phax must read a hand-written §9. It does so deterministically in the layout the renderer already produces, and decide writes only the question blocks and the decision log."
     },
     {
       "id": "Q7",
@@ -1021,24 +1065,85 @@
         }
       ],
       "recommendation": "choose-proposal",
-      "rationale": "The doctrines make the proposal deferred, not lost, and interactive mode means the human decides everything. A human must therefore be able to adopt it in the same gesture that answers the escalation. The adoption is attributed to the operator and logged, and a headless arbiter can never choose `proposal`, so a proposal still never wins by itself."
+      "rationale": "Decided by the author on 2026-09-28. The operator re-runs decide interactively; the escalated proposal appears among the choices, tagged as a machine proposal, and choosing it is an operator decision. A headless arbiter never chooses a proposal."
+    },
+    {
+      "id": "Q8",
+      "question": "How is an already decided question arbitrated again?",
+      "options": [
+        {
+          "id": "question-flag",
+          "label": "On a Draft, `decide --question <id>` re-arbitrates it; the new decision joins its history, and a machine reversal escalates",
+          "abandons": "a note-carrying reopened state that waits for the next decide"
+        },
+        {
+          "id": "reopen-flag",
+          "label": "Keep `decide --question <id> --reopen --note`, a reopened state presented first",
+          "abandons": "one fewer state and flag, and a name distinct from `phax artifact reopen`"
+        }
+      ],
+      "recommendation": "question-flag",
+      "rationale": "Decided by the author on 2026-09-28. With decide on Draft only, reopening the artifact is the gesture; a question needs no state of its own."
+    },
+    {
+      "id": "Q9",
+      "question": "Which artifacts does the approval lock cover?",
+      "options": [
+        {
+          "id": "all",
+          "label": "Every spec and plan: undecided or escalated questions refuse approval, with or without a sidecar",
+          "abandons": "approving a hand-authored artifact whose §9 is not in the §9 format until it is converted"
+        },
+        {
+          "id": "sidecar",
+          "label": "Every artifact with a sidecar",
+          "abandons": "the guarantee for hand-authored artifacts"
+        },
+        {
+          "id": "arbitrated",
+          "label": "Only artifacts already arbitrated",
+          "abandons": "the guarantee for any artifact never passed through decide"
+        }
+      ],
+      "recommendation": "all",
+      "rationale": "Decided by the author on 2026-09-28. The choice taken is now recorded in every case — interactive, by hand or headless — so every open question is answered before approval."
+    },
+    {
+      "id": "Q10",
+      "question": "How does approve know that a hand-authored question is decided?",
+      "options": [
+        {
+          "id": "decision-line",
+          "label": "Each question follows the §9 format and is decided when its last block is a `Decision:` block",
+          "abandons": "free-form §9 layouts: hand-authored artifacts are converted once"
+        },
+        {
+          "id": "empty-section",
+          "label": "A hand-authored artifact approves only with no open-questions section left",
+          "abandons": "the arbitration trail in the document"
+        }
+      ],
+      "recommendation": "decision-line",
+      "rationale": "Decided by the author on 2026-09-28. The same layout the renderer produces keeps one format for both kinds of artifact, and the trail stays in the document."
     }
   ],
   "planningNote": {
     "settled": [
       "Two modes only. Headless: a new session by default, `--resume-authoring` on request; the agent decides within the menu and escalates. Interactive: the operator decides, the agent facilitates, and the authoring session is resumed when kept. Headless total is out.",
       "The three invocations and their flags as in §6, with the inert combinations refused.",
-      "The input is the sidecar only; an artifact with no sidecar is refused (Q6). With nothing awaiting decision, decide exits 0 with no session.",
       "Doctrine resolution: `phax-decide-spec` or `phax-decide-plan` by kind; a project-scope copy of the same name wins over the bundled one; `--doctrine` is appended after it. Principle ids are the backticked ids that open list items, and every citation is validated. This format is decided, not open.",
       "The decisions document is the landed skills' output shape (`id, chosen, abandoned[], advocate, why, principles[], reversibility, escalate`, plus `phase` for plans). It is validated at the boundary with these checks: total, complement, citation, phase, per-arbiter, the irreversible floor and the reversal escalation. Nothing is written on failure.",
       "An escalation never wins by itself. It blocks approval until an operator decision, which may adopt the proposal (Q7). Escalations are counted in decide's output, the decision record and status.",
       "Each decision is appended to its question's `history` in the sidecar. Then: the deterministic re-render (§9 answered plus a decision log), one path-scoped commit, one decision record (a failed session is recorded too), and a plan extraction-cache re-seed.",
-      "Approver attribution in both approvals ledgers: machine with grant, operator with name, or explicit unattributed (Q3, Q4). Decide and reopen on Approved artifacts are in-place revisions (Q1). Plans gain structured `openQuestions` (Q2).",
-      "The three doctrine skills are registered in the skill catalog and install like `phax-spec`, with their text unchanged."
+      "The three doctrine skills are registered in the skill catalog and install like `phax-spec`, with their text unchanged.",
+      "The input is the sidecar, or for a hand-authored artifact its §9 in the §9 format (Q6, Q10). With nothing awaiting decision, decide exits 0 with no session.",
+      "decide runs on Draft only; `phax artifact reopen` extends to Approved → Draft and removes the approval record (Q1). `--question` re-arbitrates one question; there is no reopened state (Q8).",
+      "Approval refuses while any question is undecided or escalated, for every artifact with an open-questions section (Q9).",
+      "Approver attribution in both approvals ledgers: `--by machine:<grant>`, `--by operator`, the operator by default from a terminal, a refusal without a terminal, and explicit unattributed for old records (Q3, Q4). Status prints escalated proposals (Q5). Plans gain structured `openQuestions` (Q2)."
     ],
     "open": [
-      "Rendering prose for the Decision, Escalated/Proposal and Reopened blocks and the decision-log entries; the plan preamble section names.",
-      "The spelling of `--machine`, `history` and `approvedBy` and their nested keys; the decision record key and manifest layout.",
+      "Rendering prose for the Decision and Escalated/Proposal blocks and the decision-log entries; the plan preamble section names.",
+      "The spelling of the `--by` values, the reopen trailer, `history` and `approvedBy` and their nested keys; the decision record key and manifest layout.",
       "How the interactive session hands its decisions document to phax: a phax-named output file read on exit, or an in-session phax command. The document and its validation are the same either way.",
       "Where the authoring session id is kept within local state (the adjust-plan session precedent).",
       "How a provider whose skills live in `.agents/skills` resolves the project override. This follows `phax skills install`'s target mapping.",
@@ -1046,14 +1151,14 @@
     ],
     "constraints": [
       "Compose the headless-authoring machinery: prompt assembly, the JSON-only provider session, boundary decoding, deterministic renderers, the path-scoped commit, the record writer and the sidecar agreement check. Do not fork it.",
-      "The history in the sidecar is the single source of a question's state. §9, the decision log, `artifact status`, the approve refusal and the escalation counts all derive from it, never from Markdown.",
+      "For a headless-authored artifact the sidecar's history is the single source of a question's state; for a hand-authored one, its §9 in the §9 format is, parsed deterministically. §9, the decision log, `artifact status`, the approve refusal and the escalation counts derive from that source.",
       "`history` is required on every question, and `openQuestions` is required in the plan document; no optional-for-back-compat fields. Existing in-repo sidecars are migrated in the same change. The authoring output emits no history (rejected otherwise), and the formats stay experimental (schema titles, README note).",
       "`approvedBy` is required on every approvals record. phax's own ledgers are rewritten to `unattributed` in the same change (Q4).",
       "The decisions schema must accept exactly what the landed doctrine skills instruct the agent to emit. Change the schema, never the skill text.",
       "The machine/operator approval form is shared with the headless-review spec; whichever spec lands second adopts the first's form.",
       "A re-rendered plan must still pass `phax plans lint`, parse on the deterministic path to the same projection, and have its extraction cache re-seeded.",
       "The local authoring session id never goes to the records branch, so the authoring record format is unchanged.",
-      "Transitions keep carrying the sidecar in their write-set, and the clean-file precondition of artifact auto-commits applies to decide and reopen.",
+      "Transitions keep carrying the sidecar in their write-set, and the clean-file precondition of artifact auto-commits applies to decide and to artifact reopen.",
       "A project that installs the default skills at project scope pins that copy. The decision record's skill source and fingerprint make that drift visible; nothing else is added for it."
     ]
   },
@@ -1061,6 +1166,6 @@
     "kind": "page",
     "page": "docs/arbitration.md",
     "reader": "A loop author or operator who wants a spec's or plan's open questions answered under a written doctrine. They need to see what a machine escalated and why, reconsider an answer on demand, and tell a machine's answer or approval from a human's.",
-    "example": "phax artifact new spec plan-prune --headless --brief brief.md\nphax artifact decide docs/specs/2609251400-plan-prune.md --headless --doctrine docs/doctrine/spec.md\n  escalated  1 of 3\nphax artifact status docs/specs/2609251400-plan-prune.md\n  Questions: 3 — open 0 · decided 2 (machine 2, operator 0) · escalated 1 (Q3)\nphax artifact decide docs/specs/2609251400-plan-prune.md          # interactive: the operator answers Q3, may adopt the proposal\nphax artifact approve docs/specs/2609251400-plan-prune.md --machine steme-conductor\nphax artifact decide docs/specs/2609251400-plan-prune.md --question Q1 --reopen --note \"auto is cheap now\" --machine steme-conductor\nphax artifact decide docs/specs/2609251400-plan-prune.md --headless   # Q1 comes first, with its note; a changed answer escalates"
+    "example": "phax artifact new spec plan-prune --headless --brief brief.md\nphax artifact decide docs/specs/2609251400-plan-prune.md --headless --doctrine docs/doctrine/spec.md\n  escalated  1 of 3\nphax artifact status docs/specs/2609251400-plan-prune.md\n  Questions: 3 — open 0 · decided 2 (machine 2, operator 0) · escalated 1 (Q3)\n    Q3 — proposal (machine, S9): a `--keep` flag on `phax prune` …\nphax artifact decide docs/specs/2609251400-plan-prune.md          # interactive: the operator answers Q3, may choose the tagged proposal\nphax artifact approve docs/specs/2609251400-plan-prune.md --by machine:steme-conductor\nphax artifact reopen docs/specs/2609251400-plan-prune.md --by machine:steme-conductor   # back to Draft to reconsider\nphax artifact decide docs/specs/2609251400-plan-prune.md --headless --question Q1        # a changed answer escalates"
   }
 }

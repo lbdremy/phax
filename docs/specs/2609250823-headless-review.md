@@ -35,7 +35,7 @@ The review doctrine landed by hand on 2026-09-25 as the skill `phax-decide-revie
 The `artifact-decide` spec (Draft, same day) registers the three doctrine skills in the catalog. It also fixes three shapes this spec reuses:
 - the decision `{ id, chosen, abandoned[], advocate, why, principles[], reversibility: cheap | costly | irreversible, escalate }`;
 - principle ids, which are the backticked ids that open a doctrine's list items;
-- the approver `{ kind: machine, grant } | { kind: operator, name }`, declared with `--machine <grant>`.
+- the approver `{ kind: machine, grant } | { kind: operator, name }`, declared with `--by machine:<grant>`.
 
 The first consumer is the steme roadmap-1.0 conductor. It is a loop with no developer at the terminal, and it allows at most two review passes.
 
@@ -104,7 +104,7 @@ A config setting runs this as a bounded loop at the end of a run. The PR then op
 - **Run footprint** — The union of every file declared by any plan the run executed (to create, to edit, or optional), plus the files named by the findings under consideration.
 - **Oracle file** — A file that judges the code a phase changes: a test, a fixture or a disposition matrix. `--append` does not identify oracle files; until the oracle-separation lint exists, the compliance review alone checks that a fix did not edit one (R4).
 - **Reversibility** — The cost of undoing a change or a decision: `cheap` | `costly` | `irreversible`. A review-plan phase is never `irreversible`, because destructive work stops. A decision rated `irreversible` must escalate.
-- **Machine approval** — An approval of a review plan recorded in `docs/plans/approvals.json` on the run branch as `{ kind: machine, grant }`. The grant comes from `--machine <grant>`, or is `review.code.append` when the loop approves. An operator approval is `{ kind: operator, name }`.
+- **Machine approval** — An approval of a review plan recorded in `docs/plans/approvals.json` on the run branch as `{ kind: machine, grant }`. The grant comes from `--by machine:<grant>`, or is `review.code.append` when the loop approves. An operator approval is `{ kind: operator, name }`.
 - **Recorded decision** — A decision phax holds as data. It is one of: a decided question in the source spec's sidecar history, a technical arbitration in a plan document, or a finding decision in a finding's history.
 
 ## 5. Functional requirements
@@ -292,7 +292,7 @@ WHEN a review-plan session lands a plan with phases THE system SHALL write it an
 
 ### 5.45 Review-plan approval in the plans ledger
 
-WHEN a review plan is approved THE system SHALL record the approval in `docs/plans/approvals.json` on the run's final branch, through the ordinary plan approval with the approver form of artifact-decide: a machine with its grant when `--machine <grant>` is given, otherwise the operator. The approval commit SHALL land on the run branch, in the final phase's worktree, and never on the checkout.
+WHEN a review plan is approved THE system SHALL record the approval in `docs/plans/approvals.json` on the run's final branch, through the ordinary plan approval with the approver form of artifact-decide: a machine with its grant when `--by machine:<grant>` is given, otherwise the operator. The approval commit SHALL land on the run branch, in the final phase's worktree, and never on the checkout.
 
 ### 5.46 An escalation blocks the review plan
 
@@ -623,7 +623,7 @@ before:
 
 after:
 
-    phax artifact approve docs/plans/2609251010-usage-cli-review-01-plan.md [--machine <grant>]
+    phax artifact approve docs/plans/2609251010-usage-cli-review-01-plan.md [--by operator | --by machine:<grant>]
     Status:   Approved
     Approver: operator (Ada Lovelace)
     Record:   docs/plans/approvals.json (run branch)
@@ -636,7 +636,7 @@ after:
     Appended: phase-04..phase-05                               # or: not appended
     Findings: 4 considered — fixed 3 · escalated 1 (F2) · dismissed 0 · open 0
 
-    # normative: that approve accepts a review plan, the --machine grant (per artifact-decide), and the approver kind and identity in status
+    # normative: that approve accepts a review plan, the `--by` values (per artifact-decide), and the approver kind and identity in status
     # indicative: layout and wording
 
 ### cli: phax ls review-pass report — indicative
@@ -829,7 +829,7 @@ Given An Approved review plan whose `phase-04` plans `src/app/other.ts`, named b
 
 ### Approval names its approver in the plans ledger of the run branch
 
-Given A Draft pass-1 review plan., when `phax artifact approve <review-plan.md> --machine steme-conductor` runs, and separately the same command runs without `--machine` on a fresh copy., then `docs/plans/approvals.json` on the run's final branch records `approvedBy` as `{ kind: machine, grant: steme-conductor }` in the first case and as the operator in the second. The approval commit is on the run branch, and no commit is made on the checkout. (refs §5.45, §5.44)
+Given A Draft pass-1 review plan., when `phax artifact approve <review-plan.md> --by machine:steme-conductor` runs, and separately the same command runs from a terminal without `--by` on a fresh copy., then `docs/plans/approvals.json` on the run's final branch records `approvedBy` as `{ kind: machine, grant: steme-conductor }` in the first case and as the operator in the second. The approval commit is on the run branch, and no commit is made on the checkout. (refs §5.45, §5.44)
 
 ### An escalation blocks the review plan
 
@@ -896,7 +896,7 @@ Recommendation: Yes, resuming the headless review session in a terminal — Deci
 
 ### Q4 — Where is a review plan's approval recorded, and how is a machine approval marked?
 
-- `phax artifact approve` accepts the review plan in the run directory. `approvedBy` is recorded in `pass.json` in the artifact-decide form: `{ kind: machine, grant }` from `--machine`, or grant `review.code.append` for the loop, or `{ kind: operator, name }` — abandons: A single approvals ledger in the repository: review-plan approvals live with the run and its records, not in `docs/plans/approvals.json`
+- `phax artifact approve` accepts the review plan in the run directory. `approvedBy` is recorded in `pass.json` in the artifact-decide form: `{ kind: machine, grant }` from `--by machine:<grant>`, or grant `review.code.append` for the loop, or `{ kind: operator, name }` — abandons: A single approvals ledger in the repository: review-plan approvals live with the run and its records, not in `docs/plans/approvals.json`
 - Commit the review plan under `docs/plans/` on the run branch and approve it like any plan — abandons: A run branch that carries only the work: every pass adds bookkeeping to the PR, and the approval commit must land on the run branch rather than the checkout
 - No separate approval: invoking `run --append` is the approval — abandons: The 'plan not Approved' refusal, and a machine approval that can be told apart from an operator's
 
