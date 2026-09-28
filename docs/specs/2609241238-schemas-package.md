@@ -5,7 +5,7 @@ audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 approved:
   date: 2026-09-28
-  baseline: e4a6563
+  baseline: f55afc3
 ---
 # Schemas package: phax's persisted formats as a typed npm package
 
