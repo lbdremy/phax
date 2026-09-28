@@ -10,6 +10,11 @@
       "specFingerprint": "9508e9c38f63c361a588de697fa91daaa7691e09c55fb7039cf73539d62a7c6e",
       "approvedAt": "2026-09-04T09:28:10.866Z",
       "baseline": "c545cb15a06301fc60d30abdacb2475d0458365e"
+    },
+    "docs/specs/2609241238-schemas-package.md": {
+      "specFingerprint": "ebb23442b97d981930de02fc813c01dfb998ea6e84b4922cf8a0c780913f58e4",
+      "approvedAt": "2026-09-28T13:23:53.149Z",
+      "baseline": "e4a6563bc13cd2b95ad52c2fd5200dec8c180d7c"
     }
   }
 }
