@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2609241238-schemas-package.md
+approved:
+  date: 2026-09-29
+  baseline: ecaa18b
 ---
 # schemas-package 1/5 — read the phase record manifest
 
