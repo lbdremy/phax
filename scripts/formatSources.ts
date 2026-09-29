@@ -136,15 +136,19 @@ function runNamespace(dir: string): string | undefined {
 /** The registry text, keeping only `namespace`'s runs when a namespace is given. */
 function registryText(text: string, namespace: string | undefined): string {
   if (namespace === undefined) return text;
-  const value = JSON.parse(text) as { runs?: Record<string, { namespace?: unknown }> };
-  if (value.runs === undefined || typeof value.runs !== "object") return text;
-  const runs = Object.fromEntries(
-    Object.entries(value.runs).filter(([, run]) => run.namespace === undefined || run.namespace === namespace),
+  const value = JSON.parse(text) as { runs?: unknown };
+  if (!Array.isArray(value.runs)) return text;
+  const runs = (value.runs as Array<{ namespace?: unknown }>).filter(
+    (run) => run.namespace === undefined || run.namespace === namespace,
   );
   return JSON.stringify({ ...value, runs }, null, 2) + "\n";
 }
 
-function walkRunDirs(phaxHome: string, home: string, namespace: string | undefined): FormatSourceDocument[] {
+function walkRunDirs(
+  phaxHome: string,
+  home: string,
+  namespace: string | undefined,
+): FormatSourceDocument[] {
   const docs: FormatSourceDocument[] = [];
   const reg = join(phaxHome, "registry.json");
   if (existsSync(reg))

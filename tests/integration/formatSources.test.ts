@@ -161,6 +161,46 @@ describe("collectFormatDocuments", () => {
     for (const d of docs) expect(d.source.startsWith("~/")).toBe(true);
   });
 
+  it("keeps only one namespace's runs and registry entries when a namespace is given", () => {
+    const phaxHome = join(root, ".phax");
+    write(
+      phaxHome,
+      "registry.json",
+      JSON.stringify({
+        version: 1,
+        runs: [
+          { namespace: "phax", shortName: "a" },
+          { namespace: "private-repo", shortName: "b" },
+        ],
+      }),
+    );
+    write(phaxHome, "runs/phax.a/run-status.json", '{"namespace":"phax"}\n');
+    write(phaxHome, "runs/phax.a/phase-01/status.json", '{"phase":"a"}\n');
+    write(phaxHome, "runs/private-repo.b/run-status.json", '{"namespace":"private-repo"}\n');
+    write(phaxHome, "runs/private-repo.b/phase-01/status.json", '{"phase":"b"}\n');
+    write(phaxHome, "archive/old/runs/run-status.json", '{"legacy":true}\n');
+    const docs = collectFormatDocuments({
+      phaxHome: "~/.phax",
+      namespace: "phax",
+      records: [],
+      repos: [],
+      home: root,
+    });
+    const sources = docs.map((d) => d.source).toSorted();
+    expect(sources).toEqual(
+      [
+        "~/.phax/archive/old/runs/run-status.json",
+        "~/.phax/registry.json",
+        "~/.phax/runs/phax.a/phase-01/status.json",
+        "~/.phax/runs/phax.a/run-status.json",
+      ].toSorted(),
+    );
+    const registry = docs.find((d) => d.format === "registry");
+    expect(JSON.parse(registry?.text ?? "{}").runs).toEqual([
+      { namespace: "phax", shortName: "a" },
+    ]);
+  });
+
   it("returns sources in order: phax home, records, then repositories", () => {
     write(join(root, ".phax"), "registry.json", "{}\n");
     makeRecordsRepo(join(root, "records"));
