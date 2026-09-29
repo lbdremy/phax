@@ -7,6 +7,7 @@ import {
   MISSING_SCHEMA_MESSAGE,
   makeDocumentParser,
 } from "../../../packages/schemas/src/document.js";
+import { PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import { parseDocument } from "../../../packages/schemas/src/index.js";
 import type { Parsed } from "../../../packages/schemas/src/parsed.js";
 import {
@@ -29,6 +30,9 @@ const v2Manifest = JSON.parse(readFileSync(join(v2Dir, firstV2 ?? ""), "utf8")) 
   unknown
 >;
 
+// Derived from the package version, so a release bump never breaks these tests.
+const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
+
 function expectFailure(result: Parsed<unknown>, path: string, message?: string) {
   expect(result.ok).toBe(false);
   if (result.ok) return;
@@ -47,30 +51,34 @@ describe("parseDocument", () => {
   it("fails an unknown format id, naming the URL and the package version", () => {
     const url = "https://docs.phax.run/schemas/launch-codes/0.16.0.json";
     const result = parseDocument({ $schema: url });
-    expectFailure(result, "$schema", unknownFormatMessage(url, "0.16.0"));
+    expectFailure(result, "$schema", unknownFormatMessage(url, PACKAGE_VERSION));
     expect(result.ok ? "" : result.error.message).toBe(
-      `${url} names a format unknown to @lbdremy/phax-schemas 0.16.0 — upgrade the package`,
+      `${url} names a format unknown to @lbdremy/phax-schemas ${PACKAGE_VERSION} — upgrade the package`,
     );
   });
 
   it("fails a manifest written by a newer release with the spec's message", () => {
     const result = parseDocument({
       ...v2Manifest,
-      $schema: schemaUrl("phase-record-manifest", "0.19.0"),
+      $schema: schemaUrl("phase-record-manifest", NEWER_RELEASE),
     });
     expectFailure(
       result,
       "$schema",
-      "phase-record-manifest written by phax 0.19.0 is newer than @lbdremy/phax-schemas 0.16.0 — upgrade the package",
+      `phase-record-manifest written by phax ${NEWER_RELEASE} is newer than @lbdremy/phax-schemas ${PACKAGE_VERSION} — upgrade the package`,
     );
     expect(result.ok ? "" : result.error.message).toBe(
-      newerReleaseMessage("phase-record-manifest", "0.19.0", "0.16.0"),
+      newerReleaseMessage("phase-record-manifest", NEWER_RELEASE, PACKAGE_VERSION),
     );
   });
 
   it("fails a known format the package does not read yet with the upgrade message", () => {
     const url = schemaUrl("registry", "0.16.0");
-    expectFailure(parseDocument({ $schema: url }), "$schema", unknownFormatMessage(url, "0.16.0"));
+    expectFailure(
+      parseDocument({ $schema: url }),
+      "$schema",
+      unknownFormatMessage(url, PACKAGE_VERSION),
+    );
   });
 
   it("finds no phase-record-manifest $schema shape at 0.16.0, for now", () => {
