@@ -184,8 +184,9 @@ desktop — none is promised by the announcement.
       **Plan 1/5 landed 2026-09-29** (read the phase record manifest; PR #104 merged, run
       archived; the run completed the spec by mistake, reverted in `1e40621b`). **Plan 2/5 landed 2026-09-29** (read every
       format, from the committed shape survey; PR #105 merged, run archived; the run again
-      completed the spec by mistake, reverted). Next action: plan 3/5 (guards: snapshots, the
-      `next` mechanism, the scrubbed history corpus), authored headless from the brief.
+      completed the spec by mistake, reverted). **Plan 3/5 Approved 2026-09-29**
+      (`docs/plans/2609291425-schemas-package-plan.md`, guards: snapshots, the `next` mechanism,
+      the scrubbed history corpus, 4 phases); running.
       Deferred with the author (2026-09-29), not in plans 2–5: **a Standard Schema export**
       per format (only if a consumer needs to hand the schemas to a non-Effect validator;
       the cockpit parses with Effect, losslessly); **deterministic JSON Schema annotations**
