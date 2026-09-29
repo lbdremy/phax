@@ -1,6 +1,7 @@
 import { JSONSchema, Schema } from "effect";
 import { SecurityConfigSchema, type ResolvedSecurityConfig } from "./securityConfig.js";
 import { RecordsConfigSchema, type ResolvedRecordsConfig } from "./recordsConfig.js";
+import { SurfaceSchema } from "./surface.js";
 
 export const PublishConfigSchema = Schema.Struct({
   auto: Schema.Boolean,
@@ -67,9 +68,6 @@ const NonEmptyCommandArray = Schema.NonEmptyArray(Schema.NonEmptyString);
 
 const FiringSchema = Schema.Literal("every-phase", "terminal");
 export type Firing = Schema.Schema.Type<typeof FiringSchema>;
-
-export const SurfaceSchema = Schema.Literal("local", "structural", "product");
-export type Surface = Schema.Schema.Type<typeof SurfaceSchema>;
 
 const GateOutputSchema = Schema.Literal("log", "diagnostics");
 export type GateOutput = Schema.Schema.Type<typeof GateOutputSchema>;

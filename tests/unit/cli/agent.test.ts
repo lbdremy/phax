@@ -29,6 +29,18 @@ vi.mock("../../../src/app/vibeSetup.js", async (importOriginal) => {
   };
 });
 
+// Every spawn fails as a missing executable would, so the probe never depends
+// on which provider CLIs happen to be installed on the host.
+vi.mock("../../../src/infra/shell.js", async () => {
+  const { Layer } = await import("effect");
+  const { Shell, ShellError } = await import("../../../src/ports/shell.js");
+  return {
+    NodeShellLayer: Layer.succeed(Shell, {
+      run: ({ command }) => Effect.fail(new ShellError({ message: `spawn ${command[0]} ENOENT` })),
+    }),
+  };
+});
+
 // Mock providerSetup for the setup providers tests
 vi.mock("../../../src/app/providerSetup.js", () => ({
   providerSetup: vi.fn(),
@@ -160,8 +172,8 @@ describe("runAgentProbe", () => {
 
   it("reports a status for each provider and exits 0 even when none are available", async () => {
     const { out, lines } = makeOutput();
-    // Real NodeShellLayer is used — claude/vibe/codex won't be found in test env,
-    // so all will be "unavailable". This validates the no-throw guarantee.
+    // The mocked NodeShellLayer finds none of claude/vibe/codex, so all will be
+    // "unavailable". This validates the no-throw guarantee.
     const code = await runAgentProbe(out);
     expect(code).toBe(0);
     const text = lines.join("\n");

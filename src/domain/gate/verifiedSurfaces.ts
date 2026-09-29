@@ -1,5 +1,5 @@
 import type { GateAttribution } from "../../schemas/gateAttribution.js";
-import type { Surface } from "../../schemas/phaxConfig.js";
+import type { Surface } from "../../schemas/surface.js";
 
 /**
  * A surface is verified when at least one step of it ran and every step of

@@ -4,6 +4,6 @@
     "noEmit": true,
     "rootDir": "."
   },
-  "include": ["src/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "dist", "tests/e2e/fixtures"]
+  "include": ["src/**/*", "tests/**/*", "packages/schemas/**/*"],
+  "exclude": ["node_modules", "dist", "packages/schemas/dist", "tests/e2e/fixtures"]
 }
