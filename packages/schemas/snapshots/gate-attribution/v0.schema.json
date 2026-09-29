@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax gate attribution",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "phase",
+    "steps"
+  ],
+  "properties": {
+    "phase": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "command",
+          "surface",
+          "result"
+        ],
+        "properties": {
+          "command": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "surface": {
+            "type": "string",
+            "enum": [
+              "local",
+              "structural",
+              "product"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "fail",
+              "pending"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

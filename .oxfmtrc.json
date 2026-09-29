@@ -11,6 +11,7 @@
     "packages/schemas/src/generated",
     "packages/schemas/history.lock.json",
     "packages/schemas/json",
+    "packages/schemas/snapshots",
     "tests/unit/schemasPackage/fixtures"
   ]
 }

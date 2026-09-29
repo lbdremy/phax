@@ -1,0 +1,220 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax phase record manifest",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "version",
+    "runId",
+    "phaseId",
+    "shape",
+    "model",
+    "effort",
+    "provider",
+    "outcome",
+    "usage"
+  ],
+  "properties": {
+    "version": {
+      "type": "number",
+      "enum": [
+        1
+      ]
+    },
+    "runId": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "phaseId": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "shape": {
+      "type": "string",
+      "enum": [
+        "full",
+        "skeleton"
+      ]
+    },
+    "sourceSha": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "model": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "effort": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "claude-code",
+        "codex-cli",
+        "mistral-vibe"
+      ]
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "committed",
+        "failed",
+        "abandoned",
+        "interrupted"
+      ]
+    },
+    "usage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "available",
+            "usage"
+          ],
+          "properties": {
+            "available": {
+              "type": "boolean",
+              "enum": [
+                true
+              ]
+            },
+            "usage": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "provider",
+                    "inputTokens",
+                    "cacheCreationInputTokens",
+                    "cacheReadInputTokens",
+                    "outputTokens",
+                    "totalCostUsd"
+                  ],
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "claude-code"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": "number"
+                    },
+                    "cacheCreationInputTokens": {
+                      "type": "number"
+                    },
+                    "cacheReadInputTokens": {
+                      "type": "number"
+                    },
+                    "outputTokens": {
+                      "type": "number"
+                    },
+                    "totalCostUsd": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "provider",
+                    "inputTokens",
+                    "cachedInputTokens",
+                    "outputTokens",
+                    "reasoningOutputTokens"
+                  ],
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "codex-cli"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": "number"
+                    },
+                    "cachedInputTokens": {
+                      "type": "number"
+                    },
+                    "outputTokens": {
+                      "type": "number"
+                    },
+                    "reasoningOutputTokens": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "provider",
+                    "inputTokens",
+                    "outputTokens",
+                    "sessionCostUsd",
+                    "toolCallsAgreed",
+                    "toolCallsRejected",
+                    "toolCallsFailed",
+                    "toolCallsSucceeded"
+                  ],
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "mistral-vibe"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": "number"
+                    },
+                    "outputTokens": {
+                      "type": "number"
+                    },
+                    "sessionCostUsd": {
+                      "type": "number"
+                    },
+                    "toolCallsAgreed": {
+                      "type": "number"
+                    },
+                    "toolCallsRejected": {
+                      "type": "number"
+                    },
+                    "toolCallsFailed": {
+                      "type": "number"
+                    },
+                    "toolCallsSucceeded": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "available"
+          ],
+          "properties": {
+            "available": {
+              "type": "boolean",
+              "enum": [
+                false
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}
