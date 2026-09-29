@@ -12,7 +12,7 @@
         "phasesCount": 12,
         "createdAt": "2026-05-28T07:24:43.882Z",
         "updatedAt": "2026-05-29T15:25:50.176Z",
-        "archivePath": "/Users/remyloubradou/.phax/archive/observability"
+        "archivePath": "~/.phax/archive/observability"
       },
       {
         "namespace": "phax",
@@ -24,7 +24,7 @@
         "phasesCount": 11,
         "createdAt": "2026-06-01T07:10:51.072Z",
         "updatedAt": "2026-06-06T11:26:15.847Z",
-        "archivePath": "/Users/remyloubradou/.phax/archive/model-routing"
+        "archivePath": "~/.phax/archive/model-routing"
       },
       {
         "namespace": "phax",
