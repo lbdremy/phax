@@ -80,6 +80,19 @@ function describe(value: unknown): string {
   return `a value of type ${typeof value}`;
 }
 
+export function malformedSchemaUrlMessage(url: unknown): string {
+  return `expected ${SCHEMA_URL_BASE}/<format-id>/<X.Y.Z>.json, got ${describe(url)}`;
+}
+
+export function notAnObjectMessage(label: string, value: unknown): string {
+  return `a ${label} is a JSON object, got ${describe(value)}`;
+}
+
+/** A JSON object: not null, not an array. */
+export function isDocumentObject(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 type AnyShape = Shape<unknown>;
 type Decoded =
   | { readonly ok: true; readonly shape: string; readonly value: unknown }
@@ -124,10 +137,7 @@ export function defineFormat<M>(
   function bySchemaUrl(url: unknown, input: object): Decoded {
     const parsed = parseSchemaUrl(url);
     if (parsed === undefined) {
-      return failure(
-        "$schema",
-        `expected ${SCHEMA_URL_BASE}/<format-id>/<X.Y.Z>.json, got ${describe(url)}`,
-      );
+      return failure("$schema", malformedSchemaUrlMessage(url));
     }
     const { formatId, release } = parsed;
     const href = url as string;
@@ -165,12 +175,9 @@ export function defineFormat<M>(
   }
 
   function parse(input: unknown): Decoded {
-    if (typeof input !== "object" || input === null || Array.isArray(input)) {
-      return failure("", `a ${label} is a JSON object, got ${describe(input)}`);
-    }
-    const document = input as Readonly<Record<string, unknown>>;
-    if (Object.hasOwn(document, "$schema")) return bySchemaUrl(document["$schema"], input);
-    if (Object.hasOwn(document, "version")) return byLiteral(document["version"], input);
+    if (!isDocumentObject(input)) return failure("", notAnObjectMessage(label, input));
+    if (Object.hasOwn(input, "$schema")) return bySchemaUrl(input["$schema"], input);
+    if (Object.hasOwn(input, "version")) return byLiteral(input["version"], input);
     return failure(
       "$schema",
       `missing $schema — a ${label} names its shape with a $schema URL or a version literal`,
