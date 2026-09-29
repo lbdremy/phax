@@ -1,0 +1,519 @@
+{
+  "inputs": {
+    "phaxHome": "~/.phax",
+    "records": [
+      "~/.phax/records/phax",
+      "/Volumes/Work/steme/steme-lab"
+    ],
+    "repos": [
+      "/Volumes/Work/github/phax",
+      "/Volumes/Work/steme/steme-lab"
+    ]
+  },
+  "formats": {
+    "registry": {
+      "documents": 1,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "1",
+          "keys": "runs[{archivePath,branch,createdAt,namespace,phasesCount,projectName,runId,shortName,state,updatedAt}] version",
+          "count": 1,
+          "accepted": 1,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/registry.json"
+          ]
+        }
+      ]
+    },
+    "run-status": {
+      "documents": 118,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "1",
+          "keys": "createdAt gateProfileId namespace phasesCount runId shortName state updatedAt version",
+          "count": 57,
+          "accepted": 57,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/phax.agent-binding-hardening/runs/run-status.json",
+            "~/.phax/archive/phax.agent-binding/runs/run-status.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "createdAt gateProfileId namespace phasesCount planRepoRelPath runId shortName state updatedAt version",
+          "count": 21,
+          "accepted": 21,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/phax.artifact-timestamp-naming/runs/run-status.json",
+            "~/.phax/archive/phax.catalog-fable-5-1-opus-5-gpt-6-astra/runs/run-status.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "createdAt gateProfileId lastError namespace phasesCount runId shortName state stoppedReason updatedAt version",
+          "count": 16,
+          "accepted": 16,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/louloupapers.article-series-taxonomy/runs/run-status.json",
+            "~/.phax/archive/louloupapers.louloupress-features-2/runs/run-status.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "createdAt namespace phasesCount runId shortName state updatedAt version",
+          "count": 7,
+          "accepted": 7,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/phax.artifact-lifecycle-status/runs/run-status.json",
+            "~/.phax/archive/phax.brief-profile-orient/runs/run-status.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "createdAt gateProfileId lastError phasesCount runId shortName state stoppedReason updatedAt version",
+          "count": 4,
+          "accepted": 0,
+          "rejected": 4,
+          "firstRejection": "namespace: is missing",
+          "examples": [
+            "~/.phax/archive/model-routing/runs/run-status.json",
+            "~/.phax/archive/observability/runs/run-status.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "createdAt gateProfileId namespace phasesCount runId shortName state stoppedReason updatedAt version",
+          "count": 4,
+          "accepted": 4,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/phax.compliance-handoff-resume/runs/run-status.json",
+            "~/.phax/archive/phax.handoff/runs/run-status.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "createdAt gateProfileId phasesCount runId shortName state updatedAt version",
+          "count": 4,
+          "accepted": 0,
+          "rejected": 4,
+          "firstRejection": "namespace: is missing",
+          "examples": [
+            "~/.phax/archive/gate-first-resume/runs/run-status.json",
+            "~/.phax/archive/provider-priority-override/runs/run-status.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "createdAt gateProfileId lastError namespace phasesCount planRepoRelPath runId shortName state stoppedReason updatedAt version",
+          "count": 2,
+          "accepted": 2,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/phax.archive-unfinished-runs/runs/run-status.json",
+            "~/.phax/archive/phax.phax-run-records/runs/run-status.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "createdAt namespace phasesCount planRepoRelPath runId shortName state updatedAt version",
+          "count": 2,
+          "accepted": 2,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/phax.gate-step-scheduling/runs/run-status.json",
+            "~/.phax/archive/steme-lab.lazy-guides-and-doctrine-check/runs/run-status.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "allowSkillEdits createdAt gateProfileId namespace phasesCount planRepoRelPath runId shortName state updatedAt version",
+          "count": 1,
+          "accepted": 1,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/runs/phax.skill-edit-grant-skill-docs/run-status.json"
+          ]
+        }
+      ]
+    },
+    "phase-status": {
+      "documents": 491,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "1",
+          "keys": "branchName claudeSessionId commitHash createdAt effort model phaseId phaseIndex state updatedAt version worktreePath",
+          "count": 482,
+          "accepted": 482,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "/Volumes/Work/steme/steme-lab@git:public-surface-imports-1787312936156/phase-01/status.json",
+            "/Volumes/Work/steme/steme-lab@git:public-surface-imports-1787312936156/phase-02/status.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "branchName claudeSessionId createdAt effort model phaseId phaseIndex state updatedAt version worktreePath",
+          "count": 7,
+          "accepted": 7,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/louloupapers.louloupress-features/runs/phase-01/status.json",
+            "~/.phax/archive/observability/runs/phase-01/status.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "branchName createdAt effort model phaseId phaseIndex state updatedAt version worktreePath",
+          "count": 2,
+          "accepted": 2,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/phax.deno-runtime/runs/phase-02/status.json",
+            "~/.phax/archive/phax.schemas-package-2-5-read-every-format/runs/phase-01/status.json"
+          ]
+        }
+      ]
+    },
+    "phax-plan": {
+      "documents": 118,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "1",
+          "keys": "phases[{commit,effort,id,model,optionalFilesToEdit,planMarkdownAnchor,plannedFilesToCreate,plannedFilesToEdit,title}] run{branch,requiredCommands,shortName,title} version",
+          "count": 101,
+          "accepted": 101,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/louloupapers.article-series-taxonomy/runs/phax-plan.json",
+            "~/.phax/archive/louloupapers.louloupress-features-2/runs/phax-plan.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "phases[{commit,effort,id,model,optionalFilesToEdit,planMarkdownAnchor,plannedFilesToCreate,plannedFilesToEdit,title}] run{branch,shortName,title} version",
+          "count": 9,
+          "accepted": 0,
+          "rejected": 9,
+          "firstRejection": "run.requiredCommands: is missing",
+          "examples": [
+            "~/.phax/archive/gate-first-resume/runs/phax-plan.json",
+            "~/.phax/archive/phax.deno-runtime/runs/phax-plan.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "phases[{commit,effort,id,model,planMarkdownAnchor,title}] run{backend,branch,shortName,title} version",
+          "count": 6,
+          "accepted": 0,
+          "rejected": 6,
+          "firstRejection": "run.backend: is unexpected, expected: \"shortName\" | \"title\" | \"branch\" | \"requiredCommands\"",
+          "examples": [
+            "~/.phax/archive/model-routing/runs/phax-plan.json",
+            "~/.phax/archive/observability/runs/phax-plan.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "phases[{commit,effort,id,model,optionalFilesToEdit,planMarkdownAnchor,plannedFilesToCreate,plannedFilesToEdit,title}] run{backend,branch,shortName,title} version",
+          "count": 2,
+          "accepted": 0,
+          "rejected": 2,
+          "firstRejection": "run.backend: is unexpected, expected: \"shortName\" | \"title\" | \"branch\" | \"requiredCommands\"",
+          "examples": [
+            "~/.phax/archive/run-jail/runs/phax-plan.json",
+            "~/.phax/archive/update-provider-effort/runs/phax-plan.json"
+          ]
+        }
+      ]
+    },
+    "compliance-review": {
+      "documents": 72,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "1",
+          "keys": "attentionPoints perPhase[{findings,phaseId,verdict}] pointers summary verdict version",
+          "count": 72,
+          "accepted": 72,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/louloupapers.article-series-taxonomy/runs/compliance-review.json",
+            "~/.phax/archive/phax.archive-unfinished-runs/runs/compliance-review.json"
+          ]
+        }
+      ]
+    },
+    "plan-approvals": {
+      "documents": 54,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "1",
+          "keys": "records{*:{approvedAt,baseline,planFingerprint,sourceSpec}} version",
+          "count": 53,
+          "accepted": 53,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "/Volumes/Work/github/phax@git:docs/plans/approvals.json",
+            "/Volumes/Work/github/phax@git:docs/plans/approvals.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "records{} version",
+          "count": 1,
+          "accepted": 1,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "/Volumes/Work/steme/steme-lab@git:docs/plans/approvals.json"
+          ]
+        }
+      ]
+    },
+    "spec-approvals": {
+      "documents": 33,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "1",
+          "keys": "records{*:{approvedAt,baseline,specFingerprint}} version",
+          "count": 32,
+          "accepted": 32,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "/Volumes/Work/github/phax@git:docs/specs/approvals.json",
+            "/Volumes/Work/github/phax@git:docs/specs/approvals.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "records{} version",
+          "count": 1,
+          "accepted": 1,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "/Volumes/Work/github/phax@git:docs/specs/approvals.json"
+          ]
+        }
+      ]
+    },
+    "phase-record-manifest": {
+      "documents": 64,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "1",
+          "keys": "effort model outcome phaseId provider runId shape sourceSha usage{available,usage} version",
+          "count": 6,
+          "accepted": 0,
+          "rejected": 6,
+          "firstRejection": "version: Expected 2, actual 1",
+          "examples": [
+            "~/.phax/records/phax@git:gate-profile-as-attributed-steps-implementation-plan-2-1787299050237/phase-01/record.json",
+            "~/.phax/records/phax@git:gate-profile-as-attributed-steps-implementation-plan-2-1787299050237/phase-02/record.json"
+          ]
+        },
+        {
+          "version": "2",
+          "keys": "effort model outcome phaseId provider runId shape sourceSha usage{available,usage} verifiedSurfaces version",
+          "count": 58,
+          "accepted": 58,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "/Volumes/Work/steme/steme-lab@git:public-surface-imports-1787312936156/phase-01/record.json",
+            "/Volumes/Work/steme/steme-lab@git:public-surface-imports-1787312936156/phase-02/record.json"
+          ]
+        }
+      ]
+    },
+    "authoring-record-manifest": {
+      "documents": 15,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "1",
+          "keys": "artifact artifactKind authoringId effort kind model outcome provider shape sourceSha usage{available,usage} version",
+          "count": 12,
+          "accepted": 12,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/records/phax@git:authoring/2609241219-headless-review/record.json",
+            "~/.phax/records/phax@git:authoring/2609241227-artifact-decide/record.json"
+          ]
+        },
+        {
+          "version": "1",
+          "keys": "artifact artifactKind authoringId effort kind model outcome provider shape usage{available,usage} version",
+          "count": 3,
+          "accepted": 3,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "/Volumes/Work/steme/steme-lab@git:authoring/2609281300-oracle-markers/record.json",
+            "~/.phax/records/phax@git:authoring/2609281130-oracle-phases/record.json"
+          ]
+        }
+      ]
+    },
+    "spec-document": {
+      "documents": 25,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "1",
+          "keys": "acceptanceCriteria[{given,id,name,refs,then,when}] context docsPage{example,kind,page,reader} ground[{note,path}] kind nonGoals openQuestions[{id,options,question,rationale,recommendation}] planningNote{constraints,open,settled} problem productGoal{guidingRule,statement} requirements[{id,pattern,statement,title}] surface[{after,before,binding,surface}] terminology[{definition,term}] title version",
+          "count": 25,
+          "accepted": 25,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "/Volumes/Work/github/phax@git:docs/specs/2609241238-schemas-package.json",
+            "/Volumes/Work/github/phax@git:docs/specs/2609241238-schemas-package.json"
+          ]
+        }
+      ]
+    },
+    "plan-document": {
+      "documents": 6,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "1",
+          "keys": "kind phases[{boundaryContracts,commit,detailedInstructions,effort,excludedScope,expectedHandoff,id,implementationOrder,model,objective,optionalFilesToEdit,planMarkdownAnchor,plannedFilesToCreate,plannedFilesToEdit,testStrategy,title,verification}] preamble{requiredCommandsNote,summary,technicalArbitrations} run{requiredCommands,shortName,title} sourceSpec version",
+          "count": 6,
+          "accepted": 6,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "/Volumes/Work/github/phax@git:docs/plans/2609290843-schemas-package-plan.json",
+            "/Volumes/Work/github/phax@git:docs/plans/archive/2609281325-schemas-package-plan.json"
+          ]
+        }
+      ]
+    },
+    "gate-attribution": {
+      "documents": 17,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "none",
+          "keys": "phase steps[{command,result,surface}]",
+          "count": 17,
+          "accepted": 17,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/phax.archive-unfinished-runs/runs/phase-02/gate-attribution.json",
+            "~/.phax/archive/phax.artifact-timestamp-naming/runs/phase-05/gate-attribution.json"
+          ]
+        }
+      ]
+    },
+    "phase-file-reconciliation": {
+      "documents": 371,
+      "unparseable": 0,
+      "groups": [
+        {
+          "version": "none",
+          "keys": "createdAsPlanned createdButPlannedEdit deletions editedAsPlanned editedButPlannedCreate hasDeviations missingPlannedCreate missingPlannedEdit optionalTouched phaseId renames unplannedCreated unplannedEdited",
+          "count": 251,
+          "accepted": 251,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/louloupapers.article-series-taxonomy/runs/phase-01/file-reconciliation.json",
+            "~/.phax/archive/louloupapers.article-series-taxonomy/runs/phase-02/file-reconciliation.json"
+          ]
+        },
+        {
+          "version": "none",
+          "keys": "createdAsPlanned deletions editedAsPlanned hasDeviations missingPlannedCreate missingPlannedEdit optionalTouched phaseId renames unplannedCreated unplannedEdited",
+          "count": 85,
+          "accepted": 0,
+          "rejected": 85,
+          "firstRejection": "createdButPlannedEdit: is missing",
+          "examples": [
+            "~/.phax/archive/phax.agent-binding-hardening/runs/phase-02/file-reconciliation.json",
+            "~/.phax/archive/phax.agent-binding-hardening/runs/phase-03/file-reconciliation.json"
+          ]
+        },
+        {
+          "version": "none",
+          "keys": "createdAsPlanned deletions editedAsPlanned hasDeviations missingPlannedCreate missingPlannedEdit optionalTouched renames unplannedCreated unplannedEdited",
+          "count": 29,
+          "accepted": 0,
+          "rejected": 29,
+          "firstRejection": "phaseId: is missing",
+          "examples": [
+            "~/.phax/archive/gate-first-resume/runs/phase-01/file-reconciliation.json",
+            "~/.phax/archive/gate-first-resume/runs/phase-02/file-reconciliation.json"
+          ]
+        },
+        {
+          "version": "none",
+          "keys": "createdAsPlanned createdButPlannedEdit deletions editedAsPlanned editedButPlannedCreate hasDeviations missingPlannedCreate missingPlannedEdit optionalTouched phaseId renames[{from,to}] unplannedCreated unplannedEdited",
+          "count": 4,
+          "accepted": 4,
+          "rejected": 0,
+          "firstRejection": null,
+          "examples": [
+            "~/.phax/archive/phax.artifact-lifecycle-status-2/runs/phase-05/file-reconciliation.json",
+            "~/.phax/archive/phax.artifact-timestamp-naming/runs/phase-02/file-reconciliation.json"
+          ]
+        },
+        {
+          "version": "none",
+          "keys": "createdAsPlanned deletions editedAsPlanned hasDeviations missingPlannedCreate missingPlannedEdit optionalTouched phaseId renames[{from,to}] unplannedCreated unplannedEdited",
+          "count": 2,
+          "accepted": 0,
+          "rejected": 2,
+          "firstRejection": "createdButPlannedEdit: is missing",
+          "examples": [
+            "~/.phax/archive/phax.agent-binding-hardening/runs/phase-01/file-reconciliation.json",
+            "~/.phax/archive/phax.install-planning-skill/runs/phase-02/file-reconciliation.json"
+          ]
+        }
+      ]
+    },
+    "gate-diagnostics": {
+      "documents": 0,
+      "unparseable": 0,
+      "groups": []
+    },
+    "gate-pending": {
+      "documents": 0,
+      "unparseable": 0,
+      "groups": []
+    }
+  }
+}
