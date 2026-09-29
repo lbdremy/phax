@@ -6,15 +6,6 @@
       "approvedAt": "2026-09-08T08:19:41.314Z",
       "baseline": "322ba3a5795a658d8d7ee48200b14e9b61ad8933",
       "sourceSpec": null
-    },
-    "docs/plans/2609290843-schemas-package-plan.md": {
-      "planFingerprint": "bcc8533bdeb1e03a38b63b85c92ef66b4c6763c0d86c7c63ad090e2bda6d9bac",
-      "approvedAt": "2026-09-29T09:36:21.452Z",
-      "baseline": "f28eb6474ca76ad88e2ec4d6495a5c0ab15c28a1",
-      "sourceSpec": {
-        "path": "docs/specs/2609241238-schemas-package.md",
-        "fingerprint": "d1a632ed556506f153db92bf3fa859b25f1f286ce127271460417093287daf65"
-      }
     }
   }
 }
