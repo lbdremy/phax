@@ -12,7 +12,7 @@ import {
 } from "../schemas/authoringRecord.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
-import type { Surface } from "../schemas/phaxConfig.js";
+import type { Surface } from "../schemas/surface.js";
 
 export type RecordListEntry =
   | {

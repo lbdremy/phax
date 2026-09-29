@@ -5,7 +5,7 @@ import type {
   RunRecordManifest,
   TokenUsage,
 } from "../../schemas/runRecord.js";
-import type { Surface } from "../../schemas/phaxConfig.js";
+import type { Surface } from "../../schemas/surface.js";
 
 const TRANSCRIPT_FILE = "output.jsonl";
 

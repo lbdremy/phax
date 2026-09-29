@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
-import { SurfaceSchema } from "./phaxConfig.js";
+import { SurfaceSchema } from "./surface.js";
 
 /**
  * Full = skeleton plus `output.jsonl`. Skeleton is produced both when the

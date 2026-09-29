@@ -4,7 +4,8 @@ import { runGates, type GateScheduling } from "../../src/app/gates.js";
 import { GateFailedError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
-import type { GateStep, Surface } from "../../src/schemas/phaxConfig.js";
+import type { GateStep } from "../../src/schemas/phaxConfig.js";
+import type { Surface } from "../../src/schemas/surface.js";
 import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
 import { makeScopesRequest } from "../../src/domain/plan/projection.js";
 

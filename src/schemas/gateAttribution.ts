@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { SurfaceSchema } from "./phaxConfig.js";
+import { SurfaceSchema } from "./surface.js";
 
 const GateStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,

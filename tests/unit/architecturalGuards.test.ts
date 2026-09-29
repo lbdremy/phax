@@ -496,3 +496,108 @@ describe("architectural guard: single status writer", () => {
     }
   });
 });
+
+// ── Schemas package closure ──────────────────────────────────────────────────
+// @lbdremy/phax-schemas is built by tsc from its entry alone, so everything
+// the entry reaches through relative imports is published. The closure must
+// stay pure schema code: no layer with side effects, no Node or Deno I/O, no
+// dependency other than effect, and none of phax's config or provider-output
+// schemas.
+
+const SCHEMAS_PACKAGE_ENTRY = "packages/schemas/src/index.ts";
+
+const CLOSURE_ALLOWED_DIRS = ["packages/schemas/src/", "src/schemas/", "src/domain/"];
+const CLOSURE_FORBIDDEN_DIRS = ["src/app/", "src/ports/", "src/infra/", "src/cli/"];
+const CLOSURE_FORBIDDEN_FILES = ["src/schemas/vibeOutput.ts", "src/schemas/phaxConfig.ts"];
+const CLOSURE_FORBIDDEN_SPECIFIER =
+  /^(node:.*|fs|fs\/.*|child_process|net|os|path|path\/.*|@effect\/platform.*)$/;
+const CLOSURE_ALLOWED_BARE = /^effect(\/.*)?$/;
+
+// Every module specifier in `import … from`, `export … from`, side-effect
+// `import "…"` and dynamic `import("…")`.
+const MODULE_SPECIFIER = /(?:\bfrom\s+|\bimport\s*\(?\s*)["']([^"']+)["']/g;
+
+function moduleSpecifiers(content: string): string[] {
+  return [...content.matchAll(MODULE_SPECIFIER)].map((match) => match[1] ?? "");
+}
+
+function schemasPackageClosure(): { files: string[]; bare: Map<string, string[]> } {
+  const seen = new Set<string>();
+  const bare = new Map<string, string[]>();
+  const queue = [SCHEMAS_PACKAGE_ENTRY];
+  while (queue.length > 0) {
+    const rel = queue.shift() ?? "";
+    if (seen.has(rel)) continue;
+    seen.add(rel);
+    const content = readFileSync(join(repoRoot, rel), "utf8");
+    for (const specifier of moduleSpecifiers(content)) {
+      if (specifier.startsWith(".")) {
+        const target = resolve(repoRoot, dirname(rel), specifier.replace(/\.js$/, ".ts"));
+        queue.push(relative(repoRoot, target).split("\\").join("/"));
+      } else {
+        bare.set(rel, [...(bare.get(rel) ?? []), specifier]);
+      }
+    }
+  }
+  return { files: [...seen].toSorted(), bare };
+}
+
+describe("architectural guard: schemas package closure", () => {
+  const { files, bare } = schemasPackageClosure();
+
+  it("reaches the entry and the phase record manifest's schema", () => {
+    expect(files).toContain(SCHEMAS_PACKAGE_ENTRY);
+    expect(files).toContain("src/schemas/runRecord.ts");
+  });
+
+  it("reaches only packages/schemas/src/, src/schemas/ and src/domain/", () => {
+    const outside = files.filter(
+      (rel) =>
+        !CLOSURE_ALLOWED_DIRS.some((dir) => rel.startsWith(dir)) ||
+        CLOSURE_FORBIDDEN_DIRS.some((dir) => rel.startsWith(dir)),
+    );
+    expect(outside).toEqual([]);
+  });
+
+  it("imports no Node or @effect/platform module and references no Deno global", () => {
+    const violations: string[] = [];
+    for (const rel of files) {
+      for (const specifier of bare.get(rel) ?? []) {
+        if (CLOSURE_FORBIDDEN_SPECIFIER.test(specifier))
+          violations.push(`${rel}: imports ${specifier}`);
+      }
+      if (/\bDeno\b/.test(readFileSync(join(repoRoot, rel), "utf8"))) {
+        violations.push(`${rel}: references Deno`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("imports no bare specifier other than effect and effect/*", () => {
+    const violations = [...bare].flatMap(([rel, specifiers]) =>
+      specifiers.filter((s) => !CLOSURE_ALLOWED_BARE.test(s)).map((s) => `${rel}: imports ${s}`),
+    );
+    expect(violations).toEqual([]);
+  });
+
+  it("never reaches vibeOutput.ts or phaxConfig.ts", () => {
+    expect(files.filter((rel) => CLOSURE_FORBIDDEN_FILES.includes(rel))).toEqual([]);
+  });
+
+  it("the specifier scanner sees static, re-export, side-effect and dynamic imports", () => {
+    const source = [
+      `import { a } from "./a.js";`,
+      `import type {\n  B,\n} from "../b.js";`,
+      `export { c } from "effect/Schema";`,
+      `import "node:fs";`,
+      `const d = await import("path");`,
+    ].join("\n");
+    expect(moduleSpecifiers(source)).toEqual([
+      "./a.js",
+      "../b.js",
+      "effect/Schema",
+      "node:fs",
+      "path",
+    ]);
+  });
+});
