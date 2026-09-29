@@ -1,6 +1,9 @@
 import type {
+  AnyDocument,
+  DocumentFormatId,
   LatestPhaseRecordManifest,
   Parsed,
+  ParsedDocument,
   ParsedShape,
   PhaseRecordManifest,
   PhaseRecordManifestShape,
@@ -8,7 +11,7 @@ import type {
   PhaseRecordManifestV2,
   Unknown,
 } from "../../packages/schemas/src/index.js";
-import { parsePhaseRecordManifest } from "../../packages/schemas/src/index.js";
+import { parseDocument, parsePhaseRecordManifest } from "../../packages/schemas/src/index.js";
 import type { RunRecordManifest } from "../../src/schemas/runRecord.js";
 import type { Surface } from "../../src/schemas/surface.js";
 
@@ -96,3 +99,25 @@ const sameFields: Equals<
   Omit<PhaseRecordManifest, "version" | "verifiedSurfaces">
 > = true;
 void sameFields;
+
+// parseDocument names the format and the shape, and narrows to the exact type
+const document = parseDocument({});
+const documentAsParsed: Parsed<AnyDocument["value"]> = document;
+void documentAsParsed;
+const formats: Equals<DocumentFormatId, "phase-record-manifest"> = true;
+void formats;
+if (document.ok) {
+  const format: DocumentFormatId = document.format;
+  void format;
+  if (document.shape === "v1") {
+    const exact: Equals<typeof document.value, PhaseRecordManifestV1> = true;
+    void exact;
+  }
+}
+const oneParameter: Equals<Parameters<typeof parseDocument>, [input: unknown]> = true;
+void oneParameter;
+declare const parsedDocument: ParsedDocument<{ "gate-pending": { "0.12.0": { a: string } } }>;
+if (parsedDocument.ok) {
+  const toyShape: Equals<typeof parsedDocument.shape, "0.12.0"> = true;
+  void toyShape;
+}

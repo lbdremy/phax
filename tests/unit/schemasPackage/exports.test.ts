@@ -14,11 +14,12 @@ const packageRoot = resolve(
 );
 
 describe("schemas package entry", () => {
-  it("exports exactly the phase record manifest's schema, parse and upgrade, and the unknown marker at runtime", () => {
+  it("exports exactly parseDocument, the phase record manifest's schema, parse and upgrade, and the unknown marker at runtime", () => {
     expect(Object.keys(entry).toSorted()).toEqual([
       "PhaseRecordManifestSchema",
       "UNKNOWN",
       "isUnknown",
+      "parseDocument",
       "parsePhaseRecordManifest",
       "toLatestPhaseRecordManifest",
     ]);

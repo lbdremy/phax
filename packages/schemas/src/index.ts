@@ -14,10 +14,18 @@ import {
   decodePhaseRecordManifestV2,
   type PhaseRecordManifestV2,
 } from "./history/phase-record-manifest/v2.js";
-import type { Parsed, ParsedShape } from "./parsed.js";
+import { makeDocumentParser } from "./document.js";
+import type { IdentifiedDocument, Parsed, ParsedDocument, ParsedShape } from "./parsed.js";
 import { UNKNOWN, defineFormat, isUnknown, type Unknown } from "./shapes.js";
 
-export type { Parsed, ParsedShape, PhaseRecordManifestV1, PhaseRecordManifestV2, Unknown };
+export type {
+  Parsed,
+  ParsedDocument,
+  ParsedShape,
+  PhaseRecordManifestV1,
+  PhaseRecordManifestV2,
+  Unknown,
+};
 export { UNKNOWN, isUnknown };
 
 /** A phase record's `record.json` (format id `phase-record-manifest`), as phax writes it. */
@@ -51,6 +59,24 @@ const phaseRecordManifest = defineFormat<PhaseRecordManifestShapes>({
 /** Reads a phase record manifest of any shape phax has written. Never throws. */
 export const parsePhaseRecordManifest: (input: unknown) => ParsedShape<PhaseRecordManifestShapes> =
   phaseRecordManifest.parse;
+
+type DocumentShapes = {
+  "phase-record-manifest": PhaseRecordManifestShapes;
+};
+
+/** The id of every format `parseDocument` reads. */
+export type DocumentFormatId = keyof DocumentShapes;
+
+/** A document identified by its `$schema`: its format, its shape and its value. */
+export type AnyDocument = IdentifiedDocument<DocumentShapes>;
+
+/**
+ * Identifies a document by its `$schema` URL alone and reads it. A legacy
+ * document without `$schema` is read with its format's parse function. Never
+ * throws.
+ */
+export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
+  makeDocumentParser<DocumentShapes>({ "phase-record-manifest": phaseRecordManifest });
 
 /**
  * The latest phase record manifest, upgraded from any shape: no `version`,

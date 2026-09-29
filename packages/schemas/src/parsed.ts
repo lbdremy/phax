@@ -25,6 +25,38 @@ export type ParsedShape<M> =
     }[keyof M & string]
   | ParseFailure;
 
+/**
+ * A document identified by its `$schema`, over `M`: format id → (shape id →
+ * value type). One variant per format and shape.
+ */
+export type IdentifiedDocument<M> = {
+  [F in keyof M & string]: {
+    [S in keyof M[F] & string]: {
+      readonly format: F;
+      readonly shape: S;
+      readonly value: M[F][S];
+    };
+  }[keyof M[F] & string];
+}[keyof M & string];
+
+/**
+ * The result of reading a document of any format: a success names its format
+ * and its shape and carries that shape's exact type. Assignable to
+ * `Parsed<IdentifiedDocument<M>["value"]>`.
+ */
+export type ParsedDocument<M> =
+  | {
+      [F in keyof M & string]: {
+        [S in keyof M[F] & string]: {
+          readonly ok: true;
+          readonly format: F;
+          readonly shape: S;
+          readonly value: M[F][S];
+        };
+      }[keyof M[F] & string];
+    }[keyof M & string]
+  | ParseFailure;
+
 export function failure(path: string, message: string): ParseFailure {
   return { ok: false, error: { path, message } };
 }
