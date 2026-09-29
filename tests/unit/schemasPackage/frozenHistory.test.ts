@@ -55,7 +55,7 @@ describe("schemas-check on the committed tree", () => {
 
 describe("schemas-check findings", () => {
   it("fails a stale generated index, naming the --write command", () => {
-    const findings = checkSchemas({ ...state, packageVersion: "0.17.0" });
+    const findings = checkSchemas({ ...state, packageVersion: `${PACKAGE_VERSION}9` });
     expect(findings).toHaveLength(1);
     expect(findings[0]).toMatch(/^✗ packages\/schemas\/src\/generated\/index\.ts /);
     expect(findings[0]).toContain(WRITE_COMMAND);

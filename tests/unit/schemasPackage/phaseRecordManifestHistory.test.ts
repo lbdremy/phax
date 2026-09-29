@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
   UNKNOWN,
   parsePhaseRecordManifest,
@@ -72,17 +73,18 @@ describe("parsePhaseRecordManifest over the real history", () => {
 
   it("fails a manifest written by a newer phax, naming the release, without throwing", () => {
     const [[, content] = ["", "{}"]] = v2;
+    // Derived from the package version, so a release bump never breaks this test.
+    const release = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
     const newer = {
       ...parseFixture(content),
-      $schema: "https://docs.phax.run/schemas/phase-record-manifest/0.19.0.json",
+      $schema: `https://docs.phax.run/schemas/phase-record-manifest/${release}.json`,
     };
     expect(() => parsePhaseRecordManifest(newer)).not.toThrow();
     expect(parsePhaseRecordManifest(newer)).toEqual({
       ok: false,
       error: {
         path: "$schema",
-        message:
-          "phase-record-manifest written by phax 0.19.0 is newer than @lbdremy/phax-schemas 0.16.0 — upgrade the package",
+        message: `phase-record-manifest written by phax ${release} is newer than @lbdremy/phax-schemas ${PACKAGE_VERSION} — upgrade the package`,
       },
     });
   });
