@@ -1,10 +1,10 @@
-import { JSONSchema, Schema } from "effect";
-
-// The spec document: the JSON a headless spec authoring session returns, from
-// which phax renders the Markdown spec deterministically. Experimental — outside
-// the `version: 1` stability promise of phax.json and the run formats. Every
-// field is required; an absent section is an empty list or an explicit variant
-// (`before: null`, `docsPage.kind: "none"`), never a missing key.
+// Frozen: a headless-authored spec's JSON sidecar as phax wrote it with
+// `version: 1` (copied from src/schemas/specDocument.ts at 2fa9c90a, with the
+// traceability filter's jsonSchema description added beside this module).
+// Pinned by hash in packages/schemas/history.lock.json — never edit.
+// Self-contained: imports only effect, so later changes to phax's
+// src/schemas cannot reach it.
+import { Schema } from "effect";
 
 const RequirementPatternSchema = Schema.Literal(
   "ubiquitous",
@@ -31,9 +31,6 @@ const RequirementSchema = Schema.Struct({
   statement: Schema.NonEmptyString,
 });
 
-// `Schema.String` rather than `NonEmptyString` under the pattern: the prefix
-// already rules out the empty string, and a `$ref`-plus-`pattern` pair in the
-// exported JSON Schema would have its pattern ignored by draft-07 validators.
 const SurfaceElementSchema = Schema.Struct({
   surface: Schema.String.pipe(Schema.pattern(/^(cli|config|file|api|package|internal): /)),
   binding: Schema.Literal("normative", "indicative"),
@@ -132,10 +129,6 @@ function firstDuplicateId(
   return undefined;
 }
 
-// Spec §5.3 traceability, checked in a fixed order so the first violation
-// reported for a given document is stable. Each violation carries the path of
-// the offending value; `formatFirstViolation` renders it as
-// `acceptanceCriteria[2].refs[0]: "5.9" names no requirement`.
 function firstTraceabilityViolation(doc: SpecDocumentShape): Violation | undefined {
   const duplicateRequirement = firstDuplicateId(doc.requirements, ["requirements"], "requirement");
   if (duplicateRequirement !== undefined) return duplicateRequirement;
@@ -187,24 +180,17 @@ function firstTraceabilityViolation(doc: SpecDocumentShape): Violation | undefin
   return undefined;
 }
 
-// JSON Schema cannot express the traceability checks: the annotation declares
-// the gap in the exported schema rather than dropping the filter silently. It
-// adds no constraint, and decoding is unchanged.
 const TRACEABILITY_DESCRIPTION =
   "Checked by phax's parser, not by this JSON Schema: requirement ids, question ids and each question's option ids are unique; every acceptance criterion `refs` entry names an existing requirement; every requirement is referenced by at least one acceptance criterion; and each open question's `recommendation` names one of its options.";
 
-export const SpecDocumentSchema = SpecDocumentStruct.pipe(
+export const SpecDocumentV1Schema = SpecDocumentStruct.pipe(
   Schema.filter(firstTraceabilityViolation, {
     jsonSchema: { description: TRACEABILITY_DESCRIPTION },
   }),
 );
 
-export type SpecDocument = Schema.Schema.Type<typeof SpecDocumentSchema>;
+export type SpecDocumentV1 = Schema.Schema.Type<typeof SpecDocumentV1Schema>;
 
-export const decodeSpecDocument = Schema.decodeUnknownEither(SpecDocumentSchema, {
+export const decodeSpecDocumentV1 = Schema.decodeUnknownEither(SpecDocumentV1Schema, {
   onExcessProperty: "error",
 });
-
-export function getSpecDocumentJsonSchema(): object {
-  return JSONSchema.make(SpecDocumentSchema);
-}

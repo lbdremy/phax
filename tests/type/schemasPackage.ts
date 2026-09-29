@@ -10,7 +10,11 @@ import type {
   LatestPhaxPlan,
   LatestPhaxPlanPhase,
   LatestRegistry,
+  LatestPlanApprovals,
+  LatestPlanDocument,
   LatestRunStatus,
+  LatestSpecApprovals,
+  LatestSpecDocument,
   Parsed,
   ParsedDocument,
   ParsedShape,
@@ -24,12 +28,24 @@ import type {
   PhaxPlan,
   PhaxPlanShape,
   PhaxPlanV1,
+  PlanApprovals,
+  PlanApprovalsShape,
+  PlanApprovalsV1,
+  PlanDocument,
+  PlanDocumentShape,
+  PlanDocumentV1,
   Registry,
   RegistryShape,
   RegistryV1,
   RunStatus,
   RunStatusShape,
   RunStatusV1,
+  SpecApprovals,
+  SpecApprovalsShape,
+  SpecApprovalsV1,
+  SpecDocument,
+  SpecDocumentShape,
+  SpecDocumentV1,
   Unknown,
 } from "../../packages/schemas/src/index.js";
 import {
@@ -38,13 +54,22 @@ import {
   parsePhaseRecordManifest,
   parsePhaseStatus,
   parsePhaxPlan,
+  parsePlanApprovals,
+  parsePlanDocument,
   parseRegistry,
   parseRunStatus,
+  parseSpecApprovals,
+  parseSpecDocument,
   toLatestPhaxPlan,
   toLatestRunStatus,
+  toLatestSpecDocument,
 } from "../../packages/schemas/src/index.js";
+import type { ApprovalRecordFile } from "../../src/schemas/approvalRecord.js";
 import type { ComplianceReview as PhaxComplianceReview } from "../../src/schemas/complianceReview.js";
 import type { PhaxPlan as PhaxPhaxPlan } from "../../src/schemas/phaxPlan.js";
+import type { PlanDocument as PhaxPlanDocument } from "../../src/schemas/planDocument.js";
+import type { SpecApprovalRecordFile } from "../../src/schemas/specApprovalRecord.js";
+import type { SpecDocument as PhaxSpecDocument } from "../../src/schemas/specDocument.js";
 import type { Registry as PhaxRegistry } from "../../src/schemas/registry.js";
 import type { RunRecordManifest } from "../../src/schemas/runRecord.js";
 import type {
@@ -150,6 +175,10 @@ const formats: Equals<
   | "phase-status"
   | "phax-plan"
   | "compliance-review"
+  | "plan-approvals"
+  | "spec-approvals"
+  | "spec-document"
+  | "plan-document"
 > = true;
 void formats;
 if (document.ok) {
@@ -282,3 +311,79 @@ const upgradedRunStatus: LatestRunStatus = toLatestRunStatus(olderRunStatus);
 const upgradedPhaxPlan: LatestPhaxPlan = toLatestPhaxPlan(olderPhaxPlan);
 void upgradedRunStatus;
 void upgradedPhaxPlan;
+
+// ── repository formats
+
+// Each package type is phax's own type, both ways, under the spec's names (§5.20)
+const planApprovalsIsPhax: Equals<PlanApprovals, ApprovalRecordFile> = true;
+const specApprovalsIsPhax: Equals<SpecApprovals, SpecApprovalRecordFile> = true;
+const specDocumentIsPhax: Equals<SpecDocument, PhaxSpecDocument> = true;
+const planDocumentIsPhax: Equals<PlanDocument, PhaxPlanDocument> = true;
+void planApprovalsIsPhax;
+void specApprovalsIsPhax;
+void specDocumentIsPhax;
+void planDocumentIsPhax;
+declare const phaxPlanApprovals: ApprovalRecordFile;
+declare const packagePlanApprovals: PlanApprovals;
+const planApprovalsToPackage: PlanApprovals = phaxPlanApprovals;
+const planApprovalsToPhax: ApprovalRecordFile = packagePlanApprovals;
+void planApprovalsToPackage;
+void planApprovalsToPhax;
+
+// Each format has one signature, so its frozen v1 twin has exactly phax's type
+const planApprovalsTwin: Equals<PlanApprovalsV1, ApprovalRecordFile> = true;
+const specApprovalsTwin: Equals<SpecApprovalsV1, SpecApprovalRecordFile> = true;
+const specDocumentTwin: Equals<SpecDocumentV1, PhaxSpecDocument> = true;
+const planDocumentTwin: Equals<PlanDocumentV1, PhaxPlanDocument> = true;
+void planApprovalsTwin;
+void specApprovalsTwin;
+void specDocumentTwin;
+void planDocumentTwin;
+
+// Each parse function names its shape and narrows to the exact type
+const shapeIds2: Equals<
+  PlanApprovalsShape | SpecApprovalsShape | SpecDocumentShape | PlanDocumentShape,
+  "v1"
+> = true;
+void shapeIds2;
+const planApprovalsResult = parsePlanApprovals({});
+const specApprovalsResult = parseSpecApprovals({});
+const specDocumentResult = parseSpecDocument({});
+const planDocumentResult = parsePlanDocument({});
+if (planApprovalsResult.ok) {
+  const value: Equals<typeof planApprovalsResult.value, PlanApprovalsV1> = true;
+  void value;
+}
+if (specApprovalsResult.ok) {
+  const value: Equals<typeof specApprovalsResult.value, SpecApprovalsV1> = true;
+  void value;
+}
+if (specDocumentResult.ok) {
+  const value: Equals<typeof specDocumentResult.value, SpecDocumentV1> = true;
+  void value;
+}
+if (planDocumentResult.ok) {
+  const value: Equals<typeof planDocumentResult.value, PlanDocumentV1> = true;
+  void value;
+}
+if (document.ok && document.format === "spec-approvals") {
+  const exact: Equals<typeof document.value, SpecApprovalsV1> = true;
+  void exact;
+}
+
+// The latest shapes drop version and keep everything else
+const latestPlanApprovals: Equals<LatestPlanApprovals, Omit<ApprovalRecordFile, "version">> = true;
+const latestSpecApprovals: Equals<
+  LatestSpecApprovals,
+  Omit<SpecApprovalRecordFile, "version">
+> = true;
+const latestSpecDocument: Equals<LatestSpecDocument, Omit<PhaxSpecDocument, "version">> = true;
+const latestPlanDocument: Equals<LatestPlanDocument, Omit<PhaxPlanDocument, "version">> = true;
+void latestPlanApprovals;
+void latestSpecApprovals;
+void latestSpecDocument;
+void latestPlanDocument;
+declare const olderSpecDocument: SpecDocumentV1;
+const upgradedSpecDocument: LatestSpecDocument = toLatestSpecDocument(olderSpecDocument);
+// @ts-expect-error: the latest spec document carries no version
+void upgradedSpecDocument.version;

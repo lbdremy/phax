@@ -205,4 +205,12 @@ describe("getSpecDocumentJsonSchema", () => {
     expect(schema.required).toContain("acceptanceCriteria");
     expect(schema.required).toContain("docsPage");
   });
+
+  it("declares the traceability checks it cannot express in its root description", () => {
+    const schema = getSpecDocumentJsonSchema() as { description: string };
+    expect(schema.description).toMatch(/^Checked by phax's parser, not by this JSON Schema: /);
+    for (const check of ["unique", "`refs` entry", "referenced by", "`recommendation`"]) {
+      expect(schema.description).toContain(check);
+    }
+  });
 });

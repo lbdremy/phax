@@ -5,14 +5,22 @@ import {
   parsePhaseRecordManifest,
   parsePhaseStatus,
   parsePhaxPlan,
+  parsePlanApprovals,
+  parsePlanDocument,
   parseRegistry,
   parseRunStatus,
+  parseSpecApprovals,
+  parseSpecDocument,
 } from "../../../packages/schemas/src/index.js";
+import { decodeApprovalRecordFile } from "../../../src/schemas/approvalRecord.js";
 import { decodeComplianceReview } from "../../../src/schemas/complianceReview.js";
 import { decodePhaxPlan } from "../../../src/schemas/phaxPlan.js";
+import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
 import { decodeRegistry } from "../../../src/schemas/registry.js";
 import { decodeRunRecordManifest } from "../../../src/schemas/runRecord.js";
 import type { FormatId } from "../../../src/schemas/schemaUrl.js";
+import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
+import { decodeSpecDocument } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatus, decodeRunStatus } from "../../../src/schemas/status.js";
 import { readSurveyedFixtures } from "./surveyedFixtures.js";
 
@@ -141,7 +149,7 @@ function first(list: unknown): Doc {
   return (list as ReadonlyArray<Doc>)[0] as Doc;
 }
 
-interface RunDirectoryParity {
+interface FormatParity {
   readonly id: FormatId;
   readonly parse: Parse;
   readonly phax: Decode;
@@ -156,7 +164,7 @@ const complianceReview = currentShape("compliance-review", decodeComplianceRevie
 
 // Each rejected case is one no frozen module admits either, so the package's
 // fallback never changes the verdict on a current-shape document.
-const RUN_DIRECTORY: ReadonlyArray<RunDirectoryParity> = [
+const RUN_DIRECTORY: ReadonlyArray<FormatParity> = [
   {
     id: "registry",
     parse: parseRegistry,
@@ -305,6 +313,144 @@ describe("parity: one unknown key", () => {
     const results = [
       parsePhaxPlan({ ...phaxPlan, owner: "remy" }),
       parseComplianceReview({ ...complianceReview, owner: "remy" }),
+    ];
+    for (const result of results) {
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.path).toBe("owner");
+    }
+  });
+});
+
+const planApprovals = currentShape("plan-approvals", decodeApprovalRecordFile);
+const specApprovals = currentShape("spec-approvals", decodeSpecApprovalRecordFile);
+const specDocument = currentShape("spec-document", decodeSpecDocument);
+const planDocument = currentShape("plan-document", decodePlanDocument);
+
+/** A ledger whose first record has `fields` merged over it. */
+function withFirstRecord(ledger: Doc, fields: Doc): Doc {
+  const [[key, value], ...rest] = Object.entries(ledger["records"] as Record<string, Doc>) as [
+    [string, Doc],
+    ...Array<[string, Doc]>,
+  ];
+  return { ...ledger, records: Object.fromEntries([[key, { ...value, ...fields }], ...rest]) };
+}
+
+/** A document whose first element of `list` has `fields` merged over it. */
+function withFirst(document: Doc, list: string, fields: Doc): Doc {
+  const [head, ...rest] = document[list] as ReadonlyArray<Doc>;
+  return { ...document, [list]: [{ ...head, ...fields }, ...rest] };
+}
+
+// Every repository format is decoded with `onExcessProperty: "error"`, so one
+// unknown key is rejected by both.
+const REPOSITORY: ReadonlyArray<FormatParity> = [
+  {
+    id: "plan-approvals",
+    parse: parsePlanApprovals,
+    phax: decodeApprovalRecordFile,
+    cases: [
+      ["a real plan approvals ledger", planApprovals, "accepted"],
+      ["an empty plan approvals ledger", { version: 1, records: {} }, "accepted"],
+      ["a ledger with one unknown key", { ...planApprovals, owner: "remy" }, "rejected"],
+      [
+        "a record with one unknown key",
+        withFirstRecord(planApprovals, { owner: "remy" }),
+        "rejected",
+      ],
+      [
+        "a record whose baseline is not 40-hex",
+        withFirstRecord(planApprovals, { baseline: "76d8ab0" }),
+        "rejected",
+      ],
+      [
+        "a record whose sourceSpec lacks its fingerprint",
+        withFirstRecord(planApprovals, { sourceSpec: { path: "docs/specs/x.md" } }),
+        "rejected",
+      ],
+      ["a version-2 ledger", { ...planApprovals, version: 2 }, "rejected"],
+    ],
+  },
+  {
+    id: "spec-approvals",
+    parse: parseSpecApprovals,
+    phax: decodeSpecApprovalRecordFile,
+    cases: [
+      ["a real spec approvals ledger", specApprovals, "accepted"],
+      ["an empty spec approvals ledger", { version: 1, records: {} }, "accepted"],
+      ["a ledger with one unknown key", { ...specApprovals, owner: "remy" }, "rejected"],
+      [
+        "a record whose baseline is upper-case hex",
+        withFirstRecord(specApprovals, { baseline: "ABCDEF0123".repeat(4) }),
+        "rejected",
+      ],
+      [
+        "a record with an empty specFingerprint",
+        withFirstRecord(specApprovals, { specFingerprint: "" }),
+        "rejected",
+      ],
+      ["a ledger whose records is an array", { ...specApprovals, records: [] }, "rejected"],
+    ],
+  },
+  {
+    id: "spec-document",
+    parse: parseSpecDocument,
+    phax: decodeSpecDocument,
+    cases: [
+      ["a real spec document", specDocument, "accepted"],
+      ["a spec document with one unknown key", { ...specDocument, owner: "remy" }, "rejected"],
+      ["a spec document of another kind", { ...specDocument, kind: "plan" }, "rejected"],
+      [
+        "a requirement with an unknown pattern",
+        withFirst(specDocument, "requirements", { pattern: "sometimes" }),
+        "rejected",
+      ],
+      [
+        "a docs page of kind none without a reason",
+        { ...specDocument, docsPage: { kind: "none" } },
+        "rejected",
+      ],
+    ],
+  },
+  {
+    id: "plan-document",
+    parse: parsePlanDocument,
+    phax: decodePlanDocument,
+    cases: [
+      ["a real plan document", planDocument, "accepted"],
+      ["a plan document with one unknown key", { ...planDocument, owner: "remy" }, "rejected"],
+      [
+        "a phase whose id breaks the pattern",
+        withFirst(planDocument, "phases", { id: "phase-1" }),
+        "rejected",
+      ],
+      [
+        "a phase with an unknown effort",
+        withFirst(planDocument, "phases", { effort: "extreme" }),
+        "rejected",
+      ],
+      ["a plan document without phases", { ...planDocument, phases: [] }, "rejected"],
+    ],
+  },
+];
+
+describe.each(REPOSITORY)("parity: the package agrees with phax's decoder on $id", (format) => {
+  const { parse, phax } = format;
+  it.each(format.cases)("%s", (_label, input, verdict) => {
+    const decoded = phax(input);
+    const result = parse(input);
+    expect(Either.isRight(decoded)).toBe(verdict === "accepted");
+    expect(result.ok).toBe(verdict === "accepted");
+    if (result.ok && Either.isRight(decoded)) expect(result.value).toEqual(decoded.right);
+  });
+});
+
+describe("parity: one unknown key on a repository format", () => {
+  it("is rejected by both for each ledger and document, at the key", () => {
+    const results = [
+      parsePlanApprovals({ ...planApprovals, owner: "remy" }),
+      parseSpecApprovals({ ...specApprovals, owner: "remy" }),
+      parseSpecDocument({ ...specDocument, owner: "remy" }),
+      parsePlanDocument({ ...planDocument, owner: "remy" }),
     ];
     for (const result of results) {
       expect(result.ok).toBe(false);
