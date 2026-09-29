@@ -63,6 +63,13 @@ desktop — none is promised by the announcement.
       a leading sentence. Workaround in use: a closing line in the brief ("your final
       message is the spec document JSON and nothing else"). Fix: tell the session so in
       the authoring prompt itself, or accept the last top-level JSON object of the message.
+- [ ] **A run completes its source spec even when more plans are to come.** Found
+      2026-09-29 on `schemas-package` plan 1/5 (PR #104): at run end phax completed the
+      plan (correct) and the spec (`f8d2366`, spec moved to `archive/`, its approval
+      record removed), although plans 2–5 remain. Reverted by hand on the PR branch
+      (`a77ce12b`). Fix: complete a spec only when no other live plan names it and the
+      caller says it is the last (e.g. a plan-level `completes-spec: true`, or
+      `phax artifact complete` left to the operator), and never silently.
 - [ ] **Authoring records are not auto-pushed.** Found 2026-09-29: with `records.autoPush`
       true in phax and steme-lab, `phax records status` still listed 13 (phax) and 1
       (steme-lab) authoring records from headless `artifact new` sessions as pending; pushed
