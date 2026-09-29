@@ -72,8 +72,15 @@ describe("parseDocument", () => {
     );
   });
 
-  it("fails a known format the package does not read yet with the upgrade message", () => {
-    const url = schemaUrl("gate-pending", "0.16.0");
+  it("fails an unversioned timeline file without $schema, pointing to its parse function", () => {
+    const result = parseDocument({ phase: "phase-01", steps: [] });
+    expectFailure(result, "$schema", MISSING_SCHEMA_MESSAGE);
+    expect(result.ok ? "" : result.error.message).toContain("parseGateAttribution");
+  });
+
+  it("fails a format the package does not read yet with the upgrade message", () => {
+    // code-review joins FORMAT_IDS with the headless-review plan.
+    const url = "https://docs.phax.run/schemas/code-review/0.16.0.json";
     expectFailure(
       parseDocument({ $schema: url }),
       "$schema",
@@ -91,6 +98,10 @@ describe("parseDocument", () => {
     "spec-approvals",
     "spec-document",
     "plan-document",
+    "gate-attribution",
+    "phase-file-reconciliation",
+    "gate-diagnostics",
+    "gate-pending",
   ] as const)(
     "reaches the %s definition, which knows no $schema shape at 0.16.0 yet",
     (formatId) => {

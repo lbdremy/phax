@@ -15,6 +15,16 @@ import {
   type PhaseRecordManifestShapes,
 } from "./formats/recordManifests.js";
 import {
+  gateAttributionFormat,
+  gateDiagnosticsFormat,
+  gatePendingFormat,
+  phaseFileReconciliationFormat,
+  type GateAttributionShapes,
+  type GateDiagnosticsShapes,
+  type GatePendingShapes,
+  type PhaseFileReconciliationShapes,
+} from "./formats/recordTimeline.js";
+import {
   complianceReviewFormat,
   phaseStatusFormat,
   phaxPlanFormat,
@@ -136,6 +146,48 @@ export {
   type RecordManifestFormat,
 } from "./formats/recordManifests.js";
 
+// A phase record's timeline files, each read as the unversioned shape v0.
+// Each schema and type is phax's own; the two gate documents take the names
+// the spec gives them.
+export {
+  GateAttributionSchema,
+  type GateAttribution,
+} from "../../../src/schemas/gateAttribution.js";
+export {
+  PhaseFileReconciliationSchema,
+  type PhaseFileReconciliation,
+} from "../../../src/schemas/reconciliation.js";
+export {
+  GateDiagnosticsDocumentSchema as GateDiagnosticsSchema,
+  type GateDiagnosticsDocument as GateDiagnostics,
+} from "../../../src/schemas/gateDiagnostics.js";
+export {
+  GatePendingDocumentSchema as GatePendingSchema,
+  type GatePendingDocument as GatePending,
+} from "../../../src/schemas/gatePending.js";
+export {
+  parseGateAttribution,
+  parseGateDiagnostics,
+  parseGatePending,
+  parsePhaseFileReconciliation,
+  toLatestGateAttribution,
+  toLatestGateDiagnostics,
+  toLatestGatePending,
+  toLatestPhaseFileReconciliation,
+  type GateAttributionShape,
+  type GateAttributionV0,
+  type GateDiagnosticsShape,
+  type GateDiagnosticsV0,
+  type GatePendingShape,
+  type GatePendingV0,
+  type LatestGateAttribution,
+  type LatestGateDiagnostics,
+  type LatestGatePending,
+  type LatestPhaseFileReconciliation,
+  type PhaseFileReconciliationShape,
+  type PhaseFileReconciliationV0,
+} from "./formats/recordTimeline.js";
+
 type DocumentShapes = {
   "phase-record-manifest": PhaseRecordManifestShapes;
   "authoring-record-manifest": AuthoringRecordManifestShapes;
@@ -148,6 +200,10 @@ type DocumentShapes = {
   "spec-approvals": SpecApprovalsShapes;
   "spec-document": SpecDocumentShapes;
   "plan-document": PlanDocumentShapes;
+  "gate-attribution": GateAttributionShapes;
+  "phase-file-reconciliation": PhaseFileReconciliationShapes;
+  "gate-diagnostics": GateDiagnosticsShapes;
+  "gate-pending": GatePendingShapes;
 };
 
 /** The id of every format `parseDocument` reads. */
@@ -158,8 +214,8 @@ export type AnyDocument = IdentifiedDocument<DocumentShapes>;
 
 /**
  * Identifies a document by its `$schema` URL alone and reads it. A legacy
- * document without `$schema` is read with its format's parse function. Never
- * throws.
+ * document without `$schema`, including every unversioned timeline file, is
+ * read with its format's parse function. Never throws.
  */
 export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
   makeDocumentParser<DocumentShapes>({
@@ -174,4 +230,8 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "spec-approvals": specApprovalsFormat,
     "spec-document": specDocumentFormat,
     "plan-document": planDocumentFormat,
+    "gate-attribution": gateAttributionFormat,
+    "phase-file-reconciliation": phaseFileReconciliationFormat,
+    "gate-diagnostics": gateDiagnosticsFormat,
+    "gate-pending": gatePendingFormat,
   });
