@@ -16,18 +16,21 @@ const packageRoot = resolve(
 describe("schemas package entry", () => {
   it("exports exactly parseDocument, each format's schema, parse and upgrade, and the unknown marker at runtime", () => {
     expect(Object.keys(entry).toSorted()).toEqual([
+      "AuthoringRecordManifestSchema",
       "ComplianceReviewSchema",
       "PhaseRecordManifestSchema",
       "PhaseStatusSchema",
       "PhaxPlanSchema",
       "PlanApprovalsSchema",
       "PlanDocumentSchema",
+      "RecordManifestSchema",
       "RegistrySchema",
       "RunStatusSchema",
       "SpecApprovalsSchema",
       "SpecDocumentSchema",
       "UNKNOWN",
       "isUnknown",
+      "parseAuthoringRecordManifest",
       "parseComplianceReview",
       "parseDocument",
       "parsePhaseRecordManifest",
@@ -35,10 +38,12 @@ describe("schemas package entry", () => {
       "parsePhaxPlan",
       "parsePlanApprovals",
       "parsePlanDocument",
+      "parseRecordManifest",
       "parseRegistry",
       "parseRunStatus",
       "parseSpecApprovals",
       "parseSpecDocument",
+      "toLatestAuthoringRecordManifest",
       "toLatestComplianceReview",
       "toLatestPhaseRecordManifest",
       "toLatestPhaseStatus",
@@ -74,6 +79,15 @@ describe("schemas package entry", () => {
     expect(entry.SpecApprovalsSchema).toBe(SpecApprovalRecordFileSchema);
     expect(entry.SpecDocumentSchema).toBe(SpecDocumentSchema);
     expect(entry.PlanDocumentSchema).toBe(PlanDocumentSchema);
+  });
+
+  it("re-exports phax's record manifest schemas, never a copy", async () => {
+    const { AuthoringRecordManifestSchema, RecordManifestSchema } =
+      await import("../../../src/schemas/authoringRecord.js");
+    const { RunRecordManifestSchema } = await import("../../../src/schemas/runRecord.js");
+    expect(entry.AuthoringRecordManifestSchema).toBe(AuthoringRecordManifestSchema);
+    expect(entry.RecordManifestSchema).toBe(RecordManifestSchema);
+    expect(entry.PhaseRecordManifestSchema).toBe(RunRecordManifestSchema);
   });
 
   it("is the only subpath in the package manifest's exports", () => {

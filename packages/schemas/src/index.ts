@@ -1,10 +1,4 @@
 import {
-  RunRecordManifestSchema,
-  decodeRunRecordManifest,
-  type RunRecordManifest,
-} from "../../../src/schemas/runRecord.js";
-import type { Surface } from "../../../src/schemas/surface.js";
-import {
   planApprovalsFormat,
   planDocumentFormat,
   specApprovalsFormat,
@@ -14,6 +8,12 @@ import {
   type SpecApprovalsShapes,
   type SpecDocumentShapes,
 } from "./formats/repository.js";
+import {
+  authoringRecordManifestFormat,
+  phaseRecordManifestFormat,
+  type AuthoringRecordManifestShapes,
+  type PhaseRecordManifestShapes,
+} from "./formats/recordManifests.js";
 import {
   complianceReviewFormat,
   phaseStatusFormat,
@@ -26,28 +26,11 @@ import {
   type RegistryShapes,
   type RunStatusShapes,
 } from "./formats/runDirectory.js";
-import {
-  PhaseRecordManifestV1Schema,
-  decodePhaseRecordManifestV1,
-  type PhaseRecordManifestV1,
-} from "./history/phase-record-manifest/v1.js";
-import {
-  PhaseRecordManifestV2Schema,
-  decodePhaseRecordManifestV2,
-  type PhaseRecordManifestV2,
-} from "./history/phase-record-manifest/v2.js";
 import { makeDocumentParser } from "./document.js";
 import type { IdentifiedDocument, Parsed, ParsedDocument, ParsedShape } from "./parsed.js";
-import { UNKNOWN, defineFormat, isUnknown, type Unknown } from "./shapes.js";
+import { UNKNOWN, isUnknown, type Unknown } from "./shapes.js";
 
-export type {
-  Parsed,
-  ParsedDocument,
-  ParsedShape,
-  PhaseRecordManifestV1,
-  PhaseRecordManifestV2,
-  Unknown,
-};
+export type { Parsed, ParsedDocument, ParsedShape, Unknown };
 export { UNKNOWN, isUnknown };
 
 // The files of a run directory. Each schema and type is phax's own.
@@ -127,40 +110,35 @@ export {
   type SpecDocumentV1,
 } from "./formats/repository.js";
 
-/** A phase record's `record.json` (format id `phase-record-manifest`), as phax writes it. */
-export const PhaseRecordManifestSchema = RunRecordManifestSchema;
-export type PhaseRecordManifest = RunRecordManifest;
-
-type PhaseRecordManifestShapes = {
-  v1: PhaseRecordManifestV1;
-  v2: PhaseRecordManifest;
-};
-
-/** The id of every phase record manifest shape the package reads. */
-export type PhaseRecordManifestShape = keyof PhaseRecordManifestShapes;
-
-// While phax still writes version 2, its own decoder reads v2 documents; the
-// frozen v2 twin takes over once the current shape moves on.
-const phaseRecordManifest = defineFormat<PhaseRecordManifestShapes>({
-  id: "phase-record-manifest",
-  label: "phase record manifest",
-  legacy: {
-    1: { schema: PhaseRecordManifestV1Schema, decode: decodePhaseRecordManifestV1 },
-    2: { schema: PhaseRecordManifestV2Schema, decode: decodePhaseRecordManifestV2 },
-  },
-  releases: [],
-  current: {
-    name: "v2",
-    shape: { schema: RunRecordManifestSchema, decode: decodeRunRecordManifest },
-  },
-});
-
-/** Reads a phase record manifest of any shape phax has written. Never throws. */
-export const parsePhaseRecordManifest: (input: unknown) => ParsedShape<PhaseRecordManifestShapes> =
-  phaseRecordManifest.parse;
+// The manifests on phax/records/v1. Each schema and type is phax's own; the
+// union has no format id, so parseDocument does not read it.
+export {
+  AuthoringRecordManifestSchema,
+  RecordManifestSchema,
+  type AuthoringRecordManifest,
+  type RecordManifest,
+} from "../../../src/schemas/authoringRecord.js";
+export {
+  PhaseRecordManifestSchema,
+  parseAuthoringRecordManifest,
+  parsePhaseRecordManifest,
+  parseRecordManifest,
+  toLatestAuthoringRecordManifest,
+  toLatestPhaseRecordManifest,
+  type AuthoringRecordManifestShape,
+  type AuthoringRecordManifestV1,
+  type LatestAuthoringRecordManifest,
+  type LatestPhaseRecordManifest,
+  type PhaseRecordManifest,
+  type PhaseRecordManifestShape,
+  type PhaseRecordManifestV1,
+  type PhaseRecordManifestV2,
+  type RecordManifestFormat,
+} from "./formats/recordManifests.js";
 
 type DocumentShapes = {
   "phase-record-manifest": PhaseRecordManifestShapes;
+  "authoring-record-manifest": AuthoringRecordManifestShapes;
   registry: RegistryShapes;
   "run-status": RunStatusShapes;
   "phase-status": PhaseStatusShapes;
@@ -185,7 +163,8 @@ export type AnyDocument = IdentifiedDocument<DocumentShapes>;
  */
 export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
   makeDocumentParser<DocumentShapes>({
-    "phase-record-manifest": phaseRecordManifest,
+    "phase-record-manifest": phaseRecordManifestFormat,
+    "authoring-record-manifest": authoringRecordManifestFormat,
     registry: registryFormat,
     "run-status": runStatusFormat,
     "phase-status": phaseStatusFormat,
@@ -196,26 +175,3 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "spec-document": specDocumentFormat,
     "plan-document": planDocumentFormat,
   });
-
-/**
- * The latest phase record manifest, upgraded from any shape: no `version`,
- * and every fact the source shape never recorded marked `Unknown`.
- */
-export type LatestPhaseRecordManifest = Omit<
-  PhaseRecordManifest,
-  "version" | "verifiedSurfaces"
-> & {
-  readonly verifiedSurfaces: ReadonlyArray<Surface> | Unknown;
-};
-
-/** Upgrades a parsed manifest in memory. Keeps every recorded fact; never invents one. */
-export function toLatestPhaseRecordManifest(
-  value: PhaseRecordManifestV1 | PhaseRecordManifest,
-): LatestPhaseRecordManifest {
-  if (value.version === 1) {
-    const { version: _version, ...recorded } = value;
-    return { ...recorded, verifiedSurfaces: UNKNOWN };
-  }
-  const { version: _version, ...recorded } = value;
-  return recorded;
-}
