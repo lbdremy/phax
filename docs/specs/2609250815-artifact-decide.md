@@ -70,24 +70,21 @@ The doctrines exist, but phax neither installs nor loads them, so no citation of
 
 ## 3. Product goal
 
-phax arbitrates an artifact's open questions with the operator. A spec or plan carries two sections: open questions and arbitrated questions. `phax artifact decide --headless` pre-arbitrates: a session under the doctrine writes, on each open question, the case for each abandoned option, its recommendation, its answers to the framing questions `F1`–`F5` and any off-menu proposal, and decides nothing. `phax artifact decide` without `--headless` is where questions are decided: the agent raises the framing questions first, the operator chooses, and the session returns the revised document — each decided question moved to the arbitrated section with its verdict, and the body revised where the verdict departs from the recommendation. phax checks the document deterministically, shows the body diff, and writes only what the operator accepts. decide runs on Draft only; `phax artifact reopen` brings an Approved artifact back to Draft, and `--question` re-arbitrates one question. Approval refuses while the open-questions section is not empty, for headless and hand-authored artifacts alike. Every verdict and every approval names its arbiter. The CLI changes are additive except `--by`, required when approve or reopen runs without a terminal; every new or changed format carries `$schema` and stays readable in every shape (schemas-package).
+phax arbitrates an artifact's open questions with the operator, interactively. A spec or plan carries two sections: open questions and arbitrated questions. `phax artifact decide` opens a session under the doctrine: the agent raises the framing questions `F1`–`F5` first, then presents the open questions; the operator decides; the session returns the revised document — each decided question moved to the arbitrated section with its verdict, and the body revised where the verdict departs from the recommendation. phax checks the document deterministically, shows the body diff, and writes only what the operator accepts. decide runs on Draft only; `phax artifact reopen` brings an Approved artifact back to Draft, and `--question` re-arbitrates one question. Approval refuses while the open-questions section is not empty, for headless-authored and hand-authored artifacts alike. Every verdict and every approval names its arbiter. A headless mode is not specified: it will be built from the decision records these sessions leave. The CLI changes are additive except `--by`, required when approve or reopen runs without a terminal; every new or changed format carries `$schema` and stays readable in every shape (schemas-package).
 
-> A machine prepares, the operator decides. A question is open or arbitrated, never in between, and an arbitration that departs from the recommendation revises the body in the same gesture.
+> The operator decides. A question is open or arbitrated, never in between, and an arbitration that departs from the recommendation revises the body in the same gesture.
 
 ## 4. Terminology
 
-- **Open question** — A question in `openQuestions`, in the decision-request shape { id, question, options[{ id, label, abandons }], recommendation, rationale }, plus its pre-arbitration notes (empty until a headless session writes them).
-- **Arbitrated question** — An open question moved to `arbitratedQuestions` with its verdict. It keeps every field it had as an open question, pre-arbitration notes included, and adds the verdict. Earlier verdicts of a re-arbitrated question stay in its `history`.
-- **Verdict** — The operator's answer to one question: `chosen` (an option id, or `proposal`), `abandoned` (exactly the options not chosen), `why`, `advocate` (the strongest case for an abandoned option), `principles` (cited ids), `reversibility`, the arbiter and date, and `revised` (the body sections the verdict changed; empty when the verdict is the recommendation and nothing needed to change). A plan verdict also carries `phase`.
-- **Pre-arbitration** — What a headless decide session writes on each open question it is given: the case for each abandoned option, its recommendation, its answers to the framing questions `F1`–`F5`, and any off-menu proposal, each note citing principle ids. It moves no question and decides nothing.
+- **Open question** — A question in `openQuestions`, in the decision-request shape { id, question, options[{ id, label, abandons }], recommendation, rationale }.
+- **Arbitrated question** — An open question moved to `arbitratedQuestions` with its verdict, keeping every field it had. Earlier verdicts of a re-arbitrated question stay in its `history`.
+- **Verdict** — The operator's answer to one question: `chosen` (an option id), `abandoned` (exactly the options not chosen), `why`, `advocate` (the strongest case for an abandoned option), `principles` (cited ids), `reversibility`, the arbiter and date, and `revised` (the body sections the verdict changed; empty when the verdict is the recommendation and nothing needed to change). A plan verdict also carries `phase`.
 - **Framing questions** — `F1` who consumes this and what exactly does it read; `F2` what persists and how it is read in a year; `F3` how a thing is identified without its location; `F4` what can be removed; `F5` does the cited doctrine still say the operator's intent. From steme-corpus `roadmap-1.0-arbitration-reflexes.md` (2026-09-28/29): the decisive changes of the first real arbitrations came from these, never from the menus.
-- **Proposal** — An off-menu option a pre-arbitration writes on an open question. It is never a verdict by itself; the operator may choose it (`chosen: "proposal"`).
 - **Revised document** — What an interactive session returns: the artifact's document with the decided questions moved to `arbitratedQuestions` and the body revised as their verdicts imply.
-- **Interactive mode** — `phax artifact decide` without `--headless`: the framing questions, then the open questions with their pre-arbitration notes; the operator decides, the agent facilitates and returns the revised document.
-- **Headless mode** — `phax artifact decide --headless`: pre-arbitration only.
-- **Headless arbitration** — A machine choosing verdicts. Named as later: steme's roadmap protocol measures, per artifact, the share of recommendations the operator follows and the number of framing corrections, and that measure decides when.
-- **Arbiter** — Who produced a verdict (the operator), a pre-arbitration note (a machine), an approval or an artifact reopen (a machine or the operator).
-- **Reversibility** — The cost of undoing a verdict, on the scale cheap | costly | irreversible. It is a cost, not a state: at equal value the cheaper option is preferred. A pre-arbitration notes it for each option.
+- **Interactive mode** — `phax artifact decide`: the framing questions, then the open questions; the operator decides, the agent facilitates and returns the revised document. The only mode.
+- **Headless mode** — Not specified. It will be built from the decision records interactive sessions leave (verdicts, departures from the recommendation, framing corrections); steme's roadmap protocol measures when it is warranted.
+- **Arbiter** — Who produced a verdict (the operator), an approval or an artifact reopen (a machine or the operator).
+- **Reversibility** — The cost of undoing a verdict, on the scale cheap | costly | irreversible. It is a cost, not a state: at equal value the cheaper option is preferred.
 - **Doctrine** — The instructions a decide session follows: the doctrine skill for the artifact kind, plus the optional --doctrine file appended after it.
 - **Principle id** — A backticked id that opens a list item in a loaded doctrine, e.g. `S1`, `C4`, `P3`, or a project's `X1`. Decisions cite principle ids, and phax checks each citation.
 - **Grant** — The label a caller declares with `--by machine:<grant>` to name the machine performing an approval or an artifact reopen, e.g. steme-conductor.
@@ -99,264 +96,214 @@ phax arbitrates an artifact's open questions with the operator. A spec or plan c
 
 ## 5. Functional requirements
 
-### 5.1 Headless pre-arbitrates
+### 5.1 An interactive session
 
-WHERE `--headless` is given THE system SHALL spawn a new decide session, not the artifact's authoring session, in which the agent writes pre-arbitration notes on each open question it is given and decides nothing.
+WHEN `phax artifact decide` runs THE system SHALL open an interactive session where the agent first raises the framing questions `F1`–`F5`, then presents the open questions; the operator decides and the agent returns the revised document. The session resumes the artifact's authoring session when its id is kept and starts a new one otherwise, and prints which it did.
 
-### 5.2 Resuming the authoring session on request
-
-WHERE `--headless` and `--resume-authoring` are both given THE system SHALL run the decide session by resuming the artifact's authoring session instead of spawning a new one.
-
-### 5.3 Unresumable authoring session refused
-
-IF `--resume-authoring` is given and no authoring session id is kept for the artifact THEN the system SHALL refuse before spawning, stating that the authoring session is not resumable.
-
-### 5.4 Interactive session
-
-WHEN `phax artifact decide` runs without `--headless` THE system SHALL open an interactive session where the agent first raises the framing questions `F1`–`F5`, then presents the open questions with their pre-arbitration notes; the operator decides and the agent returns the revised document. The session resumes the artifact's authoring session when its id is kept and starts a new one otherwise, and prints which it did.
-
-### 5.5 Authoring session id kept locally
+### 5.2 Authoring session id kept locally
 
 WHEN a headless authoring session is spawned THE system SHALL keep its provider session id in local state outside the records branch.
 
-### 5.6 Model and effort
+### 5.3 Model and effort
 
 The system SHALL resolve the decide session's model and effort from `--model` and `--effort` when given, and from the built-in catalog default otherwise.
 
-### 5.7 Inert flags refused
-
-IF an inert flag combination listed in §6 is given THEN the system SHALL refuse before any session, naming the flag.
-
-### 5.8 Questions come from the sidecar
+### 5.4 Questions come from the sidecar
 
 WHEN `decide` reads an artifact that has an in-sync sidecar THE system SHALL take the questions from the sidecar's `openQuestions` and `arbitratedQuestions`.
 
-### 5.9 Questions from a hand-authored §9
+### 5.5 Questions from a hand-authored §9
 
 WHEN `decide` reads an artifact that has no sidecar THE system SHALL take its open and arbitrated questions from its two sections in the §9 format, and SHALL refuse before any session, naming the first line that departs from the format, if they do not parse.
 
-### 5.10 Hand-authored decisions written in place
+### 5.6 Hand-authored decisions written in place
 
 WHEN verdicts land on a hand-authored artifact THE system SHALL move each decided question's block from the open-questions section to the arbitrated-questions section with its `Decision:` block, apply the body edits the operator accepted, and append the entries to the decision log, changing no other line.
 
-### 5.11 Artifact preconditions
+### 5.7 Artifact preconditions
 
 IF the artifact is not Draft, its sidecar is diverged or invalid, or the artifact or its sidecar has uncommitted changes THEN the system SHALL refuse `decide` before any session; for an Approved or Stale artifact the refusal names `phax artifact reopen <path>`.
 
-### 5.12 Presentation order
+### 5.8 Presentation order
 
-WHEN `decide` starts THE system SHALL present, in order: in interactive mode, the framing questions `F1`–`F5`; then the question named by `--question`, with its verdict when it is arbitrated; then the open questions, each with its pre-arbitration notes and any proposal offered as a choice tagged as a machine proposal.
+WHEN `decide` starts THE system SHALL present, in order: the framing questions `F1`–`F5`; then the question named by `--question`, with its verdict when it is arbitrated; then the open questions.
 
-### 5.13 Nothing to decide
+### 5.9 Nothing to decide
 
 IF the open-questions section is empty and `--question` is not given THEN the system SHALL spawn no session, write nothing, and exit 0 stating that there is nothing to decide.
 
-### 5.14 Doctrine skill by artifact kind
+### 5.10 Doctrine skill by artifact kind
 
 The system SHALL load the doctrine skill `phax-decide-spec` into a decide session on a spec and `phax-decide-plan` into a decide session on a plan.
 
-### 5.15 Project skill replaces the default
+### 5.11 Project skill replaces the default
 
 WHERE a skill of the same name is installed at project scope for the session's provider THE system SHALL load it in place of the bundled doctrine skill.
 
-### 5.16 Doctrine file appended
+### 5.12 Doctrine file appended
 
 WHERE `--doctrine <file>` is given THE system SHALL append the file's content after the doctrine skill in the session prompt.
 
-### 5.17 Principle ids collected
+### 5.13 Principle ids collected
 
 The system SHALL take as the citable principle ids the backticked ids that open list items in the loaded doctrine skill and in the `--doctrine` file.
 
-### 5.18 Doctrine file refused
+### 5.14 Doctrine file refused
 
 IF the `--doctrine` file cannot be read, defines no principle id, or defines a principle id that the loaded skill also defines THEN the system SHALL refuse before spawning.
 
-### 5.19 JSON-only decisions
+### 5.15 JSON-only decisions
 
-WHEN a decide session ends THE system SHALL land only a document that validates against the artifact kind's document schema: pre-arbitration notes (headless) or the revised document (interactive).
+WHEN a decide session ends THE system SHALL land only a revised document that validates against the artifact kind's document schema.
 
-### 5.20 Invalid decisions land nothing
+### 5.16 Invalid decisions land nothing
 
-IF the session returns no document, returns something that is not JSON or fails the schema, or returns a document that does any of the following THEN the system SHALL fail, naming the first violation by path, and SHALL leave the working tree and HEAD unchanged: moves a question that was not presented; changes an open question it did not decide, or an arbitrated question other than one re-arbitrated; chooses an option the question does not list (other than a proposal the question carries); lists as abandoned anything other than exactly the unchosen options; cites a principle id no loaded doctrine defines; breaks traceability (an acceptance criterion without its requirement, a requirement uncovered); or, on a plan, names a phase the plan does not have.
+IF the session returns no document, returns something that is not JSON or fails the schema, or returns a document that does any of the following THEN the system SHALL fail, naming the first violation by path, and SHALL leave the working tree and HEAD unchanged: moves a question that was not presented; changes an open question it did not decide, or an arbitrated question other than one re-arbitrated; chooses an option the question does not list; lists as abandoned anything other than exactly the unchosen options; cites a principle id no loaded doctrine defines; breaks traceability (an acceptance criterion without its requirement, a requirement uncovered); or, on a plan, names a phase the plan does not have.
 
-### 5.21 Pre-arbitration notes cite a principle
-
-IF a pre-arbitration note cites no principle id THEN the system SHALL reject the document.
-
-### 5.22 Operator may adopt a proposal
-
-WHERE an open question carries a proposal THE interactive session SHALL offer it among the choices, tagged as a machine proposal, and SHALL accept `chosen: "proposal"`, recording the proposal as the verdict with every listed option abandoned and the operator as arbiter.
-
-### 5.23 Pre-arbitration moves nothing
-
-IF a headless document moves a question, carries a verdict, or changes anything but the pre-arbitration notes of the open questions it was given THEN the system SHALL reject it.
-
-### 5.24 A decided question moves with its verdict
+### 5.17 A decided question moves with its verdict
 
 WHEN the operator decides a question THE system SHALL move it from `openQuestions` to `arbitratedQuestions` with its verdict, keeping every field it had.
 
-### 5.25 A verdict revises the body it implies
+### 5.18 A verdict revises the body it implies
 
 WHEN a verdict departs from its question's recommendation THE revised document SHALL carry the body changes the verdict implies — requirements, surface, acceptance criteria, planning note — and the verdict SHALL name the sections it revised in `revised`.
 
-### 5.26 The operator accepts the body diff
+### 5.19 The operator accepts the body diff
 
 WHEN an interactive session returns its revised document THE system SHALL show the operator the diff of the rendered body before writing anything, and SHALL write nothing unless the operator accepts it.
 
-### 5.27 Rate and usage limits
+### 5.20 Rate and usage limits
 
 IF a decide session ends on a provider rate or usage limit THEN the system SHALL fail in the existing rate-limit exit family with nothing written.
 
-### 5.28 Artifact changed during the session
+### 5.21 Artifact changed during the session
 
 IF the artifact or its sidecar changed while the decide session ran THEN the system SHALL refuse to write the decisions back, leaving those changes in place and committing nothing.
 
-### 5.29 Decision attribution
+### 5.22 Decision attribution
 
-The system SHALL attribute each verdict to the operator, named by the committing git identity, and each pre-arbitration note to the machine, naming the loaded doctrine sources, provider, model and effort.
+The system SHALL attribute each verdict to the operator, named by the committing git identity, and record the loaded doctrine sources, provider, model and effort of the session.
 
-### 5.30 Artifact re-rendered
+### 5.23 Artifact re-rendered
 
-WHEN a decide document lands THE system SHALL re-render the artifact with its deterministic renderer: the open questions with their pre-arbitration notes, then the arbitrated questions with their verdicts, then a decision log listing every verdict in order.
+WHEN a decide document lands THE system SHALL re-render the artifact with its deterministic renderer: the open questions, then the arbitrated questions with their verdicts, then a decision log listing every verdict in order.
 
-### 5.31 One commit
+### 5.24 One commit
 
 WHEN `decide` writes an artifact THE system SHALL commit exactly the paths it wrote in one commit: the artifact and its sidecar, or the hand-authored artifact alone.
 
-### 5.32 Commit failure
+### 5.25 Commit failure
 
 IF that commit fails THEN the system SHALL report an artifact error and leave both files written but uncommitted.
 
-### 5.33 Decision record
+### 5.26 Decision record
 
-WHEN a decide session ends after spawning and records are enabled THE system SHALL write a decision record. The record SHALL carry: the prompt; the doctrine sources with their fingerprints; the questions presented; the landed document and the body diff the operator accepted; the counts of questions arbitrated and of proposals written; the transcript (per the records transcript setting); provider, model, effort and usage; the outcome, committed or failed; and the commit when there is one.
+WHEN a decide session ends after spawning and records are enabled THE system SHALL write a decision record. The record SHALL carry: the prompt; the doctrine sources with their fingerprints; the questions presented; the landed document and the body diff the operator accepted; the count of questions arbitrated and of verdicts that departed from the recommendation; the transcript (per the records transcript setting); provider, model, effort and usage; the outcome, committed or failed; and the commit when there is one.
 
-### 5.34 Re-rendered plan never re-extracted
+### 5.27 Re-rendered plan never re-extracted
 
 WHEN `decide` re-renders or rewrites a plan THE system SHALL re-seed the extraction cache with the plan's projection, so that `phax run` never extracts it through a model.
 
-### 5.35 Re-arbitrating one question
+### 5.28 Re-arbitrating one question
 
 WHERE `--question <id>` names an arbitrated question THE system SHALL present it with its verdict and, on a new verdict, keep the previous one in its history; WHERE it names an open question THE session SHALL take that question alone.
 
-### 5.36 Unknown question refused
+### 5.29 Unknown question refused
 
 IF `--question` names a question the artifact does not have THEN the system SHALL refuse before any session and write nothing.
 
-### 5.37 Artifact reopen from Approved
+### 5.30 Artifact reopen from Approved
 
 WHEN `phax artifact reopen` is given an Approved spec or plan THE system SHALL move it to Draft, remove its record from the approvals ledger, and commit the write-set in one commit whose trailer names the gesture's arbiter. Stale → Draft for plans is unchanged.
 
-### 5.38 Artifact reopen refusals
+### 5.31 Artifact reopen refusals
 
 IF `phax artifact reopen` is given a Draft, Completed or Abandoned artifact THEN the system SHALL refuse with exit 12 and write nothing.
 
-### 5.39 Approval requires no open question
+### 5.32 Approval requires no open question
 
 IF the open-questions section of a spec or plan — in its sidecar, or in the §9 format when hand-authored — is not empty THEN `phax artifact approve` SHALL refuse with exit 12, naming the open questions and `phax artifact decide <path>`.
 
-### 5.40 A hand-authored §9 must parse
+### 5.33 A hand-authored §9 must parse
 
 IF a hand-authored artifact has question sections that do not parse in the §9 format THEN `phax artifact approve` SHALL refuse with exit 12, naming the first line that departs. An artifact with neither section approves with no question check.
 
-### 5.41 Machine gestures
+### 5.34 Machine gestures
 
 WHERE `--by machine:<grant>` is given to `phax artifact approve` or `phax artifact reopen` THE system SHALL record that gesture as performed by a machine, naming the grant.
 
-### 5.42 Operator gestures
+### 5.35 Operator gestures
 
 WHEN `--by operator` is given, or no `--by` is given and the command runs from a terminal, THE system SHALL record the approval or reopen as performed by the operator, named by the committing git identity.
 
-### 5.43 No terminal, no default
+### 5.36 No terminal, no default
 
 IF `phax artifact approve` or `phax artifact reopen` runs without `--by` and not from a terminal THEN the system SHALL refuse with exit 12, naming `--by operator` and `--by machine:<grant>`.
 
-### 5.44 Every approval record names its approver
+### 5.37 Every approval record names its approver
 
 IF an approvals ledger record carries no approver THEN the system SHALL refuse to read the ledger, naming the record and the fix.
 
-### 5.45 Unattributed approvals stay unattributed
+### 5.38 Unattributed approvals stay unattributed
 
 WHEN phax reads an approval recorded as unattributed THE system SHALL present it as unattributed, never as an operator approval.
 
-### 5.46 Status reports questions
+### 5.39 Status reports questions
 
-WHEN `phax artifact status` inspects an artifact that has question sections THE system SHALL report the number of open and arbitrated questions, name the open ones, print each proposal an open question carries, and name the decide command that answers them.
+WHEN `phax artifact status` inspects an artifact that has question sections THE system SHALL report the number of open and arbitrated questions, name the open ones, and name the decide command that answers them.
 
-### 5.47 Status names the approver
+### 5.40 Status names the approver
 
 WHEN `phax artifact status` reports an approval of a spec or a plan THE system SHALL name the approver's kind and identity.
 
-### 5.48 Doctrine skills ship and install
+### 5.41 Doctrine skills ship and install
 
 The system SHALL list `phax-decide-spec`, `phax-decide-plan` and `phax-decide-review` in its bundled skill catalog, so that `phax skills install` installs them exactly as it installs `phax-spec`.
 
-### 5.49 Plan open questions
+### 5.42 Plan open questions
 
 WHERE the artifact is a plan THE system SHALL read its questions from the plan document's `openQuestions` and `arbitratedQuestions` in the preamble, in the same shapes as a spec's.
 
-### 5.50 Authoring emits open questions only
+### 5.43 Authoring emits open questions only
 
-IF the document returned by an authoring session carries an arbitrated question or pre-arbitration notes THEN the system SHALL reject it as an invalid document.
+IF the document returned by an authoring session carries an arbitrated question THEN the system SHALL reject it as an invalid document.
 
 ## 6. Surface
 
 ### cli: phax artifact decide — normative
 
-    phax artifact decide <artifact> --headless [--question <id>] [--doctrine <file>] [--model <model>] [--effort <effort>] [--resume-authoring]
-    phax artifact decide <artifact> [--question <id>] [--doctrine <file>] [--model <model>] [--effort <effort>]   # interactive: decides
+    phax artifact decide <artifact> [--question <id>] [--doctrine <file>] [--model <model>] [--effort <effort>]
 
-    $ phax artifact decide docs/specs/2609251400-plan-prune.md --headless --doctrine docs/doctrine/spec.md
-    pre-arbitrate spec plan-prune — 3 open questions — headless, new session — claude-opus-5-5 / high
-    doctrine   phax-decide-spec (bundled) + docs/doctrine/spec.md
-    Q1         notes   recommends manual   (S1, C4)
-    Q2         notes   recommends keep-10  (S2, S5)
-    Q3         notes   recommends manual   (S9) — proposal: a `--keep` flag on `phax prune`, not an `archive.prune` key
-    framing    F1 cockpit reads the registry after prune · F4 `archive.prune` can go
-    commit     a1b2c3d — docs(specs): pre-arbitrate plan-prune Q1–Q3
-    $? = 0
-
-    $ phax artifact decide docs/specs/2609251400-plan-prune.md          # interactive
+    $ phax artifact decide docs/specs/2609251400-plan-prune.md
     decide spec plan-prune — framing F1–F5, then Q1–Q3 — interactive, resumed authoring session
     Q1         arbitrated  manual       (recommended)
     Q2         arbitrated  keep-20      — departs: revises §5.4, §6 prune output, AC "keep bound"
-    Q3         arbitrated  proposal     (operator adopts the machine proposal) — revises §5.2, §6 config
+    Q3         open        (not decided this session)
     body diff  3 sections — accept? [y/N] y
-    commit     b2c3d4e — docs(specs): decide plan-prune Q1–Q3
+    commit     b2c3d4e — docs(specs): decide plan-prune Q1, Q2
     $? = 0
 
     ✗ decide refused: docs/specs/2609251400-plan-prune.md is Approved — reopen it first with `phax artifact reopen docs/specs/2609251400-plan-prune.md`
     $? = 12
 
-    Inert combination (refused, exit 12): --resume-authoring without --headless.
-    Exit: 0  pre-arbitrated or decided and committed, declined diff, or nothing to decide
+    Exit: 0  decided and committed, declined diff, or nothing to decide
           5  no document, not JSON, or rejected by the schema or its checks
           8  provider rate or usage limit
           12 artifact refusal: not Draft, diverged/invalid sidecar, a hand-authored §9 that does not parse, uncommitted changes,
-             inert flags, bad doctrine file, authoring session not resumable, unknown --question, artifact changed during the session, commit failed
+             bad doctrine file, unknown --question, artifact changed during the session, commit failed
 
-    # normative: command and flag names, the exit families, pre-arbitration deciding nothing, the diff accepted before writing;
-    # output layout and wording indicative
+    # normative: command and flag names, the exit families, the diff accepted before writing; output layout and wording indicative
+    # no --headless: a headless mode is built later from the decision records
 
-### file: decide documents (the session's final message) — normative
+### file: revised document (the session's final message) — normative
 
-    # headless: pre-arbitration notes, per open question presented
-    { "notes": [
-      { "id": "Q3",
-        "advocates": [ { "option": "auto", "case": "The registry would shrink without anyone remembering to prune." } ],
-        "recommendation": "manual",
-        "framing": { "F1": "the cockpit reads the registry after prune", "F4": "`archive.prune` can go" },
-        "proposal": "a `--keep` flag on `phax prune` instead of an `archive.prune` config key",
-        "principles": ["S9", "C4"],
-        "reversibility": { "manual": "cheap", "auto": "costly" } } ] }
-
-    # interactive: the revised document — the artifact's full spec (or plan) document, with
-    #   openQuestions minus the decided ones, arbitratedQuestions plus them, each with its verdict:
+    # the artifact's full spec (or plan) document, with openQuestions minus the decided ones and
+    # arbitratedQuestions plus them, each with its verdict:
     "verdict": { "chosen": "keep-20", "abandoned": ["keep-10"], "why": "…", "advocate": "…",
                  "principles": ["S2"], "reversibility": "cheap", "by": { "kind": "operator", "name": "Ada Lovelace" },
                  "at": "2026-09-29T08:02:11Z", "revised": ["§5.4", "§6 phax prune output", "AC keep bound"] }
 
-    # every key required, unknown keys rejected; chosen: a listed option id or "proposal"; plan verdicts add phase
+    # every key required, unknown keys rejected; chosen: a listed option id; plan verdicts add phase
 
 ### file: docs/specs/<stamp>-<slug>.json open and arbitrated questions — normative
 
@@ -368,19 +315,16 @@ before:
 after:
 
     "openQuestions": [
-      { "id": "Q4", "question": "…", "options": [ … ], "recommendation": "…", "rationale": "…",
-        "preArbitration": null } ],
+      { "id": "Q4", "question": "…", "options": [ … ], "recommendation": "…", "rationale": "…" } ],
     "arbitratedQuestions": [
       { "id": "Q2", "question": "…", "options": [ … ], "recommendation": "keep-10", "rationale": "…",
-        "preArbitration": { "by": { "kind": "machine", "doctrine": [ … ], "provider": "claude", "model": "claude-opus-5-5", "effort": "high" },
                             "advocates": [ … ], "framing": { … }, "proposal": null, "principles": ["S2", "S5"], "reversibility": { … } },
         "verdict": { "chosen": "keep-20", "abandoned": ["keep-10"], "why": "…", "advocate": "…", "principles": ["S2"],
                      "reversibility": "cheap", "by": { "kind": "operator", "name": "Ada Lovelace" }, "at": "…",
                      "revised": ["§5.4", "§6 phax prune output", "AC keep bound"] },
         "history": [] } ]
 
-    # normative: the two arrays, both required (empty when nothing), a question in exactly one of them; preArbitration
-    # null until written; history holds earlier verdicts of a re-arbitrated question. Nested key spellings indicative.
+    # normative: the two arrays, both required (empty when nothing), a question in exactly one of them; history holds earlier verdicts of a re-arbitrated question. Nested key spellings indicative.
 
 ### file: rendered spec — §9 answered and a decision log — normative
 
@@ -406,9 +350,6 @@ after:
 
     Recommendation: a — …
 
-    Pre-arbitration (machine: phax-decide-spec; claude-opus-5-5 / high): recommends a (S1).
-    For b: … Framing: F1 …; F4 …. Proposal: …
-
     ## 9b. Arbitrated questions
 
     ### Q2 — …
@@ -425,7 +366,7 @@ after:
 
     - 2026-09-29 Q2 decided keep-20 — operator (Ada Lovelace) — revised 3 sections
 
-    # normative: two sections, open then arbitrated; under an open question its pre-arbitration; under an arbitrated one its
+    # normative: two sections, open then arbitrated; under an arbitrated question its
     # Decision block with the revised sections; a final Decision log when any question is arbitrated. Wording indicative.
 
 ### file: hand-authored §9 in the §9 format — normative
@@ -490,7 +431,7 @@ after:
         { "id": "Q1", "question": "Does phase-02 or phase-03 own the registry write?",
           "options": [ { "id": "p2", "label": "phase-02 writes it", "abandons": "…" },
                        { "id": "p3", "label": "phase-03 writes it", "abandons": "…" } ],
-          "recommendation": "p2", "rationale": "…", "preArbitration": null } ],
+          "recommendation": "p2", "rationale": "…" } ],
           "arbitratedQuestions": []
     }
 
@@ -517,13 +458,12 @@ after:
     Status:            Draft
     Authored:          headless — sidecar docs/specs/2609251400-plan-prune.json (in sync)
     Questions:         4 — open 2 (Q3, Q4) · arbitrated 2
-      Q3 — proposal (machine, S9): a `--keep` flag on `phax prune` instead of an `archive.prune` config key
       decide with `phax artifact decide docs/specs/2609251400-plan-prune.md`
     Legal transitions: Approved (once no question is open), Abandoned
 
     # an Approved artifact prints `Approved: <date> @ <sha> by machine (steme-conductor)` (or operator (…) | unattributed);
     # a hand-authored artifact whose §9 parses prints the same Questions line; plans print the same lines.
-    # normative: open and arbitrated counts, the open ids, each proposal's text (§9 Q5), the approver kind and identity; layout indicative
+    # normative: open and arbitrated counts, the open ids, the approver kind and identity; layout indicative
 
 ### cli: phax artifact approve — normative
 
@@ -610,10 +550,10 @@ after:
 
     decision/2609251400-plan-prune/01/
       record.json   { version: 1, kind: "decision", artifact: "docs/specs/2609251400-plan-prune.md", artifactKind: "spec",
-                      mode: "headless" | "interactive", session: "new" | "resumed-authoring",
+                      mode: "interactive", session: "new" | "resumed-authoring",
                       doctrine: [ { kind: "skill", name: "phax-decide-spec", source: "bundled" | "project", fingerprint: "…" },
                                   { kind: "file", path: "docs/doctrine/spec.md", fingerprint: "…" } ],
-                      questions: ["Q1", "Q2", "Q3"], arbitrated: 3, proposals: 1, sourceSha: "…", provider, model, effort,
+                      questions: ["Q1", "Q2", "Q3"], arbitrated: 3, departed: 1, sourceSha: "…", provider, model, effort,
                       outcome: "committed" | "failed", commit: "…" | null, usage: { … } }
       prompt.md  document.json  body.diff  output.jsonl
 
@@ -643,12 +583,11 @@ after:
 
 ## 7. Non-goals
 
-- Headless arbitration (a machine choosing verdicts). Named as later; steme's roadmap protocol measure — recommendations followed versus framing corrections, per artifact — decides when.
+- A headless mode. It will be built from the decision records interactive sessions leave (verdicts, departures from the recommendation, framing corrections); steme's roadmap protocol measures when.
 - A decision queue UI or desktop inbox. This spec provides the data and the status line, nothing visual.
 - Multi-human arbitration: several operators, votes, required reviewers or per-question owners. The operator is whoever commits.
-- Automatic routing of a plan proposal that belongs to the spec (P1): the proposal is shown, and the caller reopens and decides the spec.
 - Editing a question's wording or its options from within decide. The body is revised only as a verdict implies, and only once the operator accepts the diff.
-- Writing the doctrine skills' text. It is the author's; the revision their headless sections need (see the planning note) is the author's too.
+- Writing the doctrine skills' text. It is the author's; their headless sections stay unused until a headless mode is specified.
 - Loading `phax-decide-review` from decide. It ships here and is consumed by review-plan (headless-review spec).
 - Changing how headless authoring loads `phax-spec` and `phax-planning`. The project-skill override applies to the decide doctrines only.
 - A `phax.json` key for the decide model and effort. One can be added later without breaking anything.
@@ -660,113 +599,97 @@ after:
 
 ## 8. Acceptance criteria
 
-### Pre-arbitration writes notes and decides nothing
+### An interactive session lands the revised document and names the operator
 
-Given a headless-authored spec whose `openQuestions` holds Q1 and Q2 and whose `arbitratedQuestions` is empty, when `phax artifact decide <spec> --headless` runs and the session returns a valid document, then A new session (not the authoring session) ran with `phax-decide-spec`. Q1 and Q2 each gain pre-arbitration notes — the case for each abandoned option, a recommendation, answers to `F1`–`F5`, and any proposal — attributed to the machine with its doctrine sources, provider, model and effort. Both stay in `openQuestions`; nothing is arbitrated. §9 renders the notes. The artifact and its sidecar are the only paths in the new HEAD commit, the sidecar is in sync, and the exit code is 0. (refs §5.1, §5.8, §5.14, §5.19, §5.29, §5.30, §5.31, §5.23)
-
-### Resume authoring only when kept
-
-Given a spec authored headless on this machine, and another whose local authoring state is gone, when `phax artifact decide <spec> --headless --resume-authoring` runs on each, then The first run resumes the provider session id kept from authoring, and that id appears nowhere on the records branch. The second run exits 12 stating the authoring session is not resumable, and no session is spawned. (refs §5.2, §5.3, §5.5)
-
-### Interactive resumes or starts new and names the operator
-
-Given a headless-authored spec with a kept authoring session id, and one without, when `phax artifact decide <spec>` runs without `--headless` on each, the operator decides one of two presented questions in the first run, and the operator ends the second session without a decisions document, then The first run resumes the authoring session and the second starts a new one, and each prints which it did. In the first run the agent raised the framing questions first; the decided question moves to `arbitratedQuestions` with a verdict attributed to the operator by the committing git identity, and the other stays open. The second run exits without writing anything. (refs §5.4, §5.29, §5.20, §5.24)
+Given a headless-authored spec with a kept authoring session id and open questions Q1 and Q2, and another spec whose local authoring state is gone, when `phax artifact decide <spec>` runs on each; in the first the operator decides Q1 and accepts the diff, in the second the operator ends the session without a document, then The first run resumes the kept authoring session, the second starts a new one, and each prints which it did; the kept id appears nowhere on the records branch. In the first run the agent raised the framing questions first; Q1 moves to `arbitratedQuestions` with a verdict attributed to the operator by the committing git identity; Q2 stays open; §9 is re-rendered; the artifact and its sidecar are the only paths in the new HEAD commit. The second run writes nothing. (refs §5.1, §5.2, §5.4, §5.10, §5.15, §5.22, §5.23, §5.24, §5.17, §5.16)
 
 ### Model resolves from flag, then catalog
 
-Given a headless-authored spec, when `phax artifact decide <spec> --headless` runs without `--model`, and again with `--model` and `--effort`, then The first session uses the catalog default and prints it. The second uses the flags. (refs §5.6)
-
-### Inert flags refused
-
-Given a headless-authored spec, when `decide` runs with `--resume-authoring` without `--headless`, then it exits 12 naming the flag, and no session is spawned. (refs §5.7)
+Given a headless-authored spec, when `phax artifact decide <spec>` runs without `--model`, and again with `--model` and `--effort`, then The first session uses the catalog default and prints it. The second uses the flags. (refs §5.3)
 
 ### Hand-authored artifact decided in place
 
-Given a spec with no sidecar whose §9 format holds open Q1 and Q2, and another whose questions use bold headings, when interactive `phax artifact decide` runs on the first and the operator decides Q1 and accepts the body diff, then `phax artifact approve` runs on it, then decide runs on the second, then Q1's block moves to the arbitrated-questions section with its `Decision:` block, the accepted body edits apply, and one decision-log entry is added; the new HEAD commit holds that file alone. Approve exits 12 naming Q2. Decide on the second exits 12 naming the first bold heading, and no session is spawned. (refs §5.9, §5.10, §5.31, §5.39)
+Given a spec with no sidecar whose §9 format holds open Q1 and Q2, and another whose questions use bold headings, when interactive `phax artifact decide` runs on the first and the operator decides Q1 and accepts the body diff, then `phax artifact approve` runs on it, then decide runs on the second, then Q1's block moves to the arbitrated-questions section with its `Decision:` block, the accepted body edits apply, and one decision-log entry is added; the new HEAD commit holds that file alone. Approve exits 12 naming Q2. Decide on the second exits 12 naming the first bold heading, and no session is spawned. (refs §5.5, §5.6, §5.24, §5.32)
 
 ### Preconditions refuse before the session
 
-Given a spec whose sidecar has diverged, a spec with an uncommitted change, a Completed spec, and an Approved spec, when `phax artifact decide <spec> --headless` runs on each, then each run exits 12 and no session is spawned; the Approved spec's refusal names `phax artifact reopen`. (refs §5.11)
+Given a spec whose sidecar has diverged, a spec with an uncommitted change, a Completed spec, and an Approved spec, when `phax artifact decide <spec>` runs on each, then each run exits 12 and no session is spawned; the Approved spec's refusal names `phax artifact reopen`. (refs §5.7)
 
 ### Framing first; re-arbitrating one question
 
-Given a Draft spec where Q1 is arbitrated, and Q2 and Q3 are open, Q3 with a proposal, when interactive decide runs, then interactive decide runs with `--question Q1`, then with `--question Q9`, then The first session raises `F1`–`F5` first, then presents Q2 and Q3 with their notes and Q3's proposal as a tagged choice. The second presents Q1 alone with its verdict; a new verdict keeps the previous one in Q1's history. The third exits 12 and writes nothing. (refs §5.12, §5.35, §5.36)
+Given a Draft spec where Q1 is arbitrated and Q2 and Q3 are open, when interactive decide runs, then interactive decide runs with `--question Q1`, then with `--question Q9`, then The first session raises `F1`–`F5` first, then presents Q2 and Q3. The second presents Q1 alone with its verdict; a new verdict keeps the previous one in Q1's history. The third exits 12 and writes nothing. (refs §5.8, §5.28, §5.29)
 
 ### Nothing to decide
 
-Given a headless-authored spec whose `openQuestions` is empty (every question arbitrated), when `phax artifact decide <spec> --headless` runs, and again without `--headless`, then each run exits 0 stating that there is nothing to decide, no session is spawned, and no commit is made. (refs §5.13)
+Given a headless-authored spec whose `openQuestions` is empty (every question arbitrated), when `phax artifact decide <spec>` runs, then it exits 0 stating that there is nothing to decide, no session is spawned, and no commit is made. (refs §5.9)
 
 ### Project skill replaces the default and the doctrine file is appended
 
-Given a project-scoped `.claude/skills/phax-decide-spec/SKILL.md` that differs from the bundled one, and a `docs/doctrine/spec.md` whose list item opens with `X1`, when `phax artifact decide <spec> --headless --doctrine docs/doctrine/spec.md` runs, then The prompt contains the project skill's text followed by the doctrine file. Decisions citing `X1` or `C4` are accepted. A decision citing `S0` (named only inside a step, never opening a list item) is rejected. The decision record names the skill source as project, with its fingerprint. (refs §5.15, §5.16, §5.17)
+Given a project-scoped `.claude/skills/phax-decide-spec/SKILL.md` that differs from the bundled one, and a `docs/doctrine/spec.md` whose list item opens with `X1`, when `phax artifact decide <spec> --doctrine docs/doctrine/spec.md` runs, then The prompt contains the project skill's text followed by the doctrine file. Decisions citing `X1` or `C4` are accepted. A decision citing `S0` (named only inside a step, never opening a list item) is rejected. The decision record names the skill source as project, with its fingerprint. (refs §5.11, §5.12, §5.13)
 
 ### Bad doctrine file refused
 
-Given a `--doctrine` file that is unreadable, one that defines no principle id, and one whose list item opens with `S1`, when headless decide runs with each, then each run exits 12 and no session is spawned. (refs §5.18)
+Given a `--doctrine` file that is unreadable, one that defines no principle id, and one whose list item opens with `S1`, when decide runs with each, then each run exits 12 and no session is spawned. (refs §5.14)
 
 ### Invalid decisions land nothing
 
-Given records enabled, and sessions that return, respectively: prose; a note citing `S12`; a revised document moving a question that was not presented; a `chosen` option the question does not list; an `abandoned` list that is not exactly the unchosen options; a plan verdict naming a phase the plan lacks, when each session ends, then Each run exits 5 naming the violation path. The working tree and HEAD are unchanged. A decision record exists with outcome `failed`. (refs §5.20, §5.33)
+Given records enabled, and sessions that return, respectively: prose; a verdict citing `S12`; a revised document moving a question that was not presented; a `chosen` option the question does not list; an `abandoned` list that is not exactly the unchosen options; a plan verdict naming a phase the plan lacks, when each session ends, then Each run exits 5 naming the violation path. The working tree and HEAD are unchanged. A decision record exists with outcome `failed`. (refs §5.16, §5.26)
 
-### Pre-arbitration and revision rules
+### Revision rules
 
-Given these documents: a headless document whose note cites no principle; a headless document that moves Q1 to `arbitratedQuestions`; an interactive revised document that edits open question Q2, which the operator did not decide; an interactive revised document that drops arbitrated question Q3; an interactive revised document whose acceptance criterion references a requirement it removed, when each is validated, then each is rejected with exit 5, naming the violating path, and nothing is written. (refs §5.21, §5.23, §5.20)
-
-### A proposal is chosen by the operator, never by itself
-
-Given a spec on which headless decide wrote a proposal on open question Q3, when `phax artifact approve <spec>` runs, then interactive decide runs and the operator chooses the proposal for Q3, then approve runs again, then The first approve exits 12 naming Q3 as open. The interactive session offers the proposal as a choice tagged as a machine proposal. Q3 moves to `arbitratedQuestions` with `chosen: "proposal"`, every listed option abandoned and the operator as arbiter. The second approve succeeds. (refs §5.22, §5.39, §5.24)
+Given these revised documents: one that edits open question Q2, which the operator did not decide; one that drops arbitrated question Q3; one whose acceptance criterion references a requirement it removed, when each is validated, then each is rejected with exit 5, naming the violating path, and nothing is written. (refs §5.16)
 
 ### Rate limit lands nothing
 
-Given a headless decide session that ends on a provider usage limit, when the session ends, then the run exits 8 and nothing is written or committed. (refs §5.27)
+Given a headless decide session that ends on a provider usage limit, when the session ends, then the run exits 8 and nothing is written or committed. (refs §5.20)
 
 ### Concurrent edit refused
 
-Given an interactive decide session during which the artifact file is modified, when the session returns a valid decisions document, then the run exits 12, the modification is left in place, and no commit is made. (refs §5.28)
+Given an interactive decide session during which the artifact file is modified, when the session returns a valid decisions document, then the run exits 12, the modification is left in place, and no commit is made. (refs §5.21)
 
 ### Commit failure leaves the files
 
-Given a valid decisions document and a commit that fails, when decide writes the artifact and sidecar, then the run exits 12, and both files are written but uncommitted. (refs §5.32)
+Given a valid decisions document and a commit that fails, when decide writes the artifact and sidecar, then the run exits 12, and both files are written but uncommitted. (refs §5.25)
 
 ### Record explains the decisions
 
-Given records enabled and an interactive decide commit at `<sha>` that arbitrated two questions and revised one requirement, when `phax records explain <sha>` runs, then It shows the prompt, the doctrine sources with fingerprints, the questions presented, the landed document, the accepted body diff, `arbitrated: 2`, model, effort, usage and outcome `committed`. (refs §5.33)
+Given records enabled and an interactive decide commit at `<sha>` that arbitrated two questions and revised one requirement, when `phax records explain <sha>` runs, then It shows the prompt, the doctrine sources with fingerprints, the questions presented, the landed document, the accepted body diff, `arbitrated: 2`, `departed: 1`, model, effort, usage and outcome `committed`. (refs §5.26)
 
 ### Status counts questions by state and arbiter
 
-Given a spec with Q1 and Q2 arbitrated and Q3 and Q4 open, Q3 carrying a proposal, approved earlier with `--by machine:steme-conductor`, when `phax artifact status <spec>` runs, then It prints: open 2, naming Q3 and Q4, with Q3's proposal text; arbitrated 2; the decide command; and `by machine (steme-conductor)` on the Approved line. A plan in the same situation prints the same lines. (refs §5.46, §5.47)
+Given a spec with Q1 and Q2 arbitrated and Q3 and Q4 open, approved earlier with `--by machine:steme-conductor`, when `phax artifact status <spec>` runs, then It prints: open 2, naming Q3 and Q4; arbitrated 2; the decide command; and `by machine (steme-conductor)` on the Approved line. A plan in the same situation prints the same lines. (refs §5.39, §5.40)
 
 ### Approval requires no open question
 
-Given a headless-authored spec with open questions, a hand-authored spec whose §9 format has an empty open section and every question arbitrated, and a hand-authored spec with no question section, when `phax artifact approve` runs on each, then The first exits 12 naming its open questions and `phax artifact decide`. The second and third approve. (refs §5.39, §5.40)
+Given a headless-authored spec with open questions, a hand-authored spec whose §9 format has an empty open section and every question arbitrated, and a hand-authored spec with no question section, when `phax artifact approve` runs on each, then The first exits 12 naming its open questions and `phax artifact decide`. The second and third approve. (refs §5.32, §5.33)
 
 ### Approvals name their approver
 
-Given a spec ready for approval, when `phax artifact approve <spec> --by machine:steme-conductor` runs; separately the same command runs from a terminal without `--by`; separately it runs without `--by` from a script with no terminal, then The approvals.json record carries `approvedBy` `{ kind: machine, grant: steme-conductor }` in the first case and `{ kind: operator, name: <git user.name> }` in the second; `phax artifact status` prints `by machine (steme-conductor)` or `by operator (<name>)` accordingly. The third exits 12 naming `--by`, and nothing is written. (refs §5.41, §5.42, §5.43, §5.47)
+Given a spec ready for approval, when `phax artifact approve <spec> --by machine:steme-conductor` runs; separately the same command runs from a terminal without `--by`; separately it runs without `--by` from a script with no terminal, then The approvals.json record carries `approvedBy` `{ kind: machine, grant: steme-conductor }` in the first case and `{ kind: operator, name: <git user.name> }` in the second; `phax artifact status` prints `by machine (steme-conductor)` or `by operator (<name>)` accordingly. The third exits 12 naming `--by`, and nothing is written. (refs §5.34, §5.35, §5.36, §5.40)
 
 ### Pre-attribution records are explicit
 
-Given an approvals.json record with `approvedBy: { kind: unattributed }`, and a ledger with a record lacking `approvedBy`, when `phax artifact status` inspects the first record's artifact, and `phax artifact approve` runs on a plan whose ledger is the second, then Status prints the first approval as unattributed, never as operator. The approve exits 12 naming the record and the fix. (refs §5.45, §5.44)
+Given an approvals.json record with `approvedBy: { kind: unattributed }`, and a ledger with a record lacking `approvedBy`, when `phax artifact status` inspects the first record's artifact, and `phax artifact approve` runs on a plan whose ledger is the second, then Status prints the first approval as unattributed, never as operator. The approve exits 12 naming the record and the fix. (refs §5.38, §5.37)
 
 ### Artifact reopen returns an Approved artifact to Draft
 
-Given an Approved spec, a Draft spec, and a Stale plan, when `phax artifact reopen <path> --by machine:steme-conductor` runs on each, then `decide --headless --question Q1` runs on the reopened spec, then The Approved spec is Draft, its record is gone from docs/specs/approvals.json, and the transition commit names `machine (steme-conductor)`. The Draft spec's reopen exits 12 and writes nothing. The Stale plan reopens to Draft as today. The decide then runs on the reopened spec. (refs §5.37, §5.38, §5.41, §5.11)
+Given an Approved spec, a Draft spec, and a Stale plan, when `phax artifact reopen <path> --by machine:steme-conductor` runs on each, then `decide --question Q1` runs on the reopened spec, then The Approved spec is Draft, its record is gone from docs/specs/approvals.json, and the transition commit names `machine (steme-conductor)`. The Draft spec's reopen exits 12 and writes nothing. The Stale plan reopens to Draft as today. The decide then runs on the reopened spec. (refs §5.30, §5.31, §5.34, §5.7)
 
 ### Doctrine skills ship and install
 
-Given an installed phax package, when `phax skills install --target claude --scope project` runs in an empty project, then `.claude/skills/phax-decide-spec/SKILL.md`, `phax-decide-plan/SKILL.md` and `phax-decide-review/SKILL.md` exist, each byte-identical to the landed copy in the phax repository. (refs §5.48)
+Given an installed phax package, when `phax skills install --target claude --scope project` runs in an empty project, then `.claude/skills/phax-decide-spec/SKILL.md`, `phax-decide-plan/SKILL.md` and `phax-decide-review/SKILL.md` exist, each byte-identical to the landed copy in the phax repository. (refs §5.41)
 
 ### Plan decide keeps the plan executable
 
-Given a headless plan whose preamble holds open questions Q1 and Q2, when headless decide runs, then interactive decide runs and the operator decides Q1 with `phase: phase-02`, then The headless session loads `phax-decide-plan` and writes notes only. After the interactive session, Q1 is in `arbitratedQuestions` with `phase: phase-02`. The re-rendered plan passes `phax plans lint` with no structure error, and `phax run` finds its projection without spawning an extraction session. `phax artifact approve <plan>` exits 12 naming Q2. (refs §5.49, §5.34, §5.14, §5.39)
+Given a headless plan whose preamble holds open questions Q1 and Q2, when interactive decide runs and the operator decides Q1 with `phase: phase-02`, then The session loads `phax-decide-plan`. Q1 is in `arbitratedQuestions` with `phase: phase-02`. The re-rendered plan passes `phax plans lint` with no structure error, and `phax run` finds its projection without spawning an extraction session. `phax artifact approve <plan>` exits 12 naming Q2. (refs §5.42, §5.27, §5.10, §5.32)
 
 ### Authoring emits open questions only
 
-Given a headless authoring session whose document carries an arbitrated question, or pre-arbitration notes on an open question, when the session ends, then the run exits 5 and nothing is written. (refs §5.50)
+Given a headless authoring session whose document carries an arbitrated question, when the session ends, then the run exits 5 and nothing is written. (refs §5.43)
 
 ### A departing verdict revises the body, after the operator accepts the diff
 
-Given a spec whose open question Q4 recommends `structural`, a requirement written for that recommendation, and an acceptance criterion referencing it, when interactive decide runs and the operator chooses `oracle` for Q4; the session returns the revised document; the operator first declines the diff, then runs again and accepts it, then The declined run writes nothing. The accepted run commits Q4 in `arbitratedQuestions` with `chosen: "oracle"` and `revised` naming the requirement and the criterion, both rewritten for `oracle`, and traceability intact. A verdict equal to the recommendation lands with `revised: []` and no body diff. (refs §5.25, §5.26, §5.24)
+Given a spec whose open question Q4 recommends `structural`, a requirement written for that recommendation, and an acceptance criterion referencing it, when interactive decide runs and the operator chooses `oracle` for Q4; the session returns the revised document; the operator first declines the diff, then runs again and accepts it, then The declined run writes nothing. The accepted run commits Q4 in `arbitratedQuestions` with `chosen: "oracle"` and `revised` naming the requirement and the criterion, both rewritten for `oracle`, and traceability intact. A verdict equal to the recommendation lands with `revised: []` and no body diff. (refs §5.18, §5.19, §5.17)
 
 ## 9. Open questions for implementation planning
 
@@ -810,7 +733,7 @@ Recommendation: `approvedBy` is required on every record, with an explicit `{ ki
 - Print each pending proposal under the Questions line. — abandons: a status whose length stays bounded, and one reading surface for the proposal: the text is duplicated between status and the artifact
 - No status change: escalations appear only in decide's output. — abandons: a later reader or loop learning of pending escalations without re-running decide
 
-Recommendation: Print each pending proposal under the Questions line. — Decided by the author on 2026-09-28. Status is where an operator looks first; the proposal text is printed there so no escalation waits unseen. The rendered artifact stays the source of the text.
+Recommendation: Print each pending proposal under the Questions line. — Superseded on 2026-09-29 by Q14: with no headless mode, no machine proposal exists. Decided by the author on 2026-09-28. Status is where an operator looks first; the proposal text is printed there so no escalation waits unseen. The rendered artifact stays the source of the text.
 
 ### Q6 — What does decide do with a hand-authored artifact that has no sidecar?
 
@@ -826,7 +749,7 @@ Recommendation: decide reads and writes a hand-authored §9 in the §9 format �
 - A proposal is adopted only by re-authoring the artifact with a brief that folds it in. — abandons: the question's history, and a cheap path for an accepted proposal: one accepted idea costs a whole re-authoring
 - The operator chooses within the menu only, and the proposal stays a record. — abandons: the better move the arbiter found: the proposal is recorded but can never win
 
-Recommendation: An interactive decision on an escalated question may set `chosen: "proposal"`: the escalated proposal becomes the answer, and every listed option is abandoned. — Decided by the author on 2026-09-28. The operator re-runs decide interactively; the escalated proposal appears among the choices, tagged as a machine proposal, and choosing it is an operator decision. A headless arbiter never chooses a proposal.
+Recommendation: An interactive decision on an escalated question may set `chosen: "proposal"`: the escalated proposal becomes the answer, and every listed option is abandoned. — Superseded on 2026-09-29 by Q14: with no headless mode, no machine proposal exists. Decided by the author on 2026-09-28. The operator re-runs decide interactively; the escalated proposal appears among the choices, tagged as a machine proposal, and choosing it is an operator decision. A headless arbiter never chooses a proposal.
 
 ### Q8 — How is an already decided question arbitrated again?
 
@@ -871,17 +794,23 @@ Recommendation: The interactive session returns the revised document; phax check
 - The same, plus a prepared body revision for every option — abandons: a small output: much generated text for options that will not be taken
 - Machine verdicts within the menu, escalating the rest (the previous design) — abandons: the author's framing judgement, which made the decisive changes of the first arbitrations
 
-Recommendation: Pre-arbitration: the case for each abandoned option, a recommendation, answers to `F1`–`F5`, proposals; it decides nothing — Decided by the author on 2026-09-29 (steme-corpus protocol §5 complement): arbitration stays interactive until the measure says otherwise.
+Recommendation: Pre-arbitration: the case for each abandoned option, a recommendation, answers to `F1`–`F5`, proposals; it decides nothing — Superseded on 2026-09-29 by Q14. Decided by the author on 2026-09-29 (steme-corpus protocol §5 complement): arbitration stays interactive until the measure says otherwise.
+
+### Q14 — Is there a headless mode at all in this spec?
+
+- No: decide is interactive only; a headless mode is built later from the recorded sessions — abandons: any unattended arbitration for now
+- Headless pre-arbitration (Q13) — abandons: not redoing work: the authoring session already wrote the options, their losses and a recommendation, and the operator arbitrates again anyway
+
+Recommendation: No: decide is interactive only; a headless mode is built later from the recorded sessions — Decided by the author on 2026-09-29: pre-arbitration repeats what authoring already did, and the operator redoes it; the recorded interactive sessions are what a headless mode will be built from.
 
 ## 10. Implementation-planning note
 
 Settled:
 
-- Two modes. Headless pre-arbitrates (notes, `F1`–`F5` answers, proposals) and decides nothing; interactive raises the framing questions, the operator decides, and the session returns the revised document (Q13).
+- One mode, interactive: the framing questions `F1`–`F5`, the operator's verdicts, the revised document, the body diff accepted before writing (Q14). No `--headless`, no `--resume-authoring`, no machine proposal.
 - Two sections, `openQuestions` and `arbitratedQuestions`; a decided question moves with its verdict; approval requires the open section to be empty (Q11, Q9).
 - A verdict that departs from the recommendation revises the body in the same document; phax checks what moved, what stayed and traceability, shows the body diff, and writes only what the operator accepts (Q12).
 - The three doctrine skills are registered in the skill catalog and install like `phax-spec`.
-- The three invocations and their flags as in §6, with the inert combinations refused.
 - Doctrine resolution: `phax-decide-spec` or `phax-decide-plan` by kind; a project-scope copy of the same name wins over the bundled one; `--doctrine` is appended after it. Principle ids are the backticked ids that open list items, and every citation is validated. This format is decided, not open.
 - The input is the sidecar, or for a hand-authored artifact its §9 in the §9 format (Q6, Q10). With nothing awaiting decision, decide exits 0 with no session.
 - decide runs on Draft only; `phax artifact reopen` extends to Approved → Draft and removes the approval record (Q1). `--question` re-arbitrates one question; there is no reopened state (Q8).
@@ -889,7 +818,7 @@ Settled:
 
 Left open:
 
-- Rendering prose for the pre-arbitration notes, the Decision block and the decision-log entries; the plan preamble section names.
+- Rendering prose for the Decision block and the decision-log entries; the plan preamble section names.
 - The spelling of the `--by` values, the reopen trailer, `history` and `approvedBy` and their nested keys; the decision record key and manifest layout.
 - How the interactive session hands its revised document to phax, and how the body diff is shown and accepted: a phax-named output file read on exit, or an in-session phax command. The document and its validation are the same either way.
 - Where the authoring session id is kept within local state (the adjust-plan session precedent).
@@ -907,21 +836,18 @@ Constraints:
 - The local authoring session id never goes to the records branch, so the authoring record format is unchanged.
 - Transitions keep carrying the sidecar in their write-set, and the clean-file precondition of artifact auto-commits applies to decide and to artifact reopen.
 - A project that installs the default skills at project scope pins that copy. The decision record's skill source and fingerprint make that drift visible; nothing else is added for it.
-- The landed doctrine skills (`phax-decide-spec`, `phax-decide-plan`) describe a headless mode that decides within the menu and escalates. Before this spec's plan runs, the author revises their headless sections to pre-arbitration and adds the framing questions F1–F5; phax ships what lands and validates against it.
-- headless-review reuses the previous decision shape for review-plan (machine decisions that always escalate). Whether review-plan also pre-arbitrates is that spec's question, not this one's.
+- The landed doctrine skills describe a headless mode that decides and escalates; decide loads them for the interactive session, whose facilitation they guide, and their headless sections stay unused until a headless mode is specified.
 
 ## 11. Docs page
 
 Page: docs/arbitration.md
 
-Reader: A loop author or operator who wants a spec's or plan's open questions prepared by a machine and decided by a human. They need to read the machine's case and proposals, decide with the framing questions first, see what each verdict changed in the body, and tell a machine's approval from a human's.
+Reader: An operator who wants a spec's or plan's open questions decided under a written doctrine: framing first, then each question, seeing what each verdict changed in the body, and telling a machine's approval from a human's.
 
 Example: phax artifact new spec plan-prune --headless --brief brief.md
-phax artifact decide docs/specs/2609251400-plan-prune.md --headless --doctrine docs/doctrine/spec.md   # pre-arbitrate: notes, framing, proposals
 phax artifact status docs/specs/2609251400-plan-prune.md
   Questions: 3 — open 3 (Q1, Q2, Q3) · arbitrated 0
-    Q3 — proposal (machine, S9): a `--keep` flag on `phax prune` …
-phax artifact decide docs/specs/2609251400-plan-prune.md          # interactive: framing F1–F5, then decide; accept the body diff
-phax artifact approve docs/specs/2609251400-plan-prune.md --by machine:steme-conductor
+phax artifact decide docs/specs/2609251400-plan-prune.md          # framing F1–F5, then decide; accept the body diff
+phax artifact approve docs/specs/2609251400-plan-prune.md --by operator
 phax artifact reopen docs/specs/2609251400-plan-prune.md --by operator     # back to Draft to reconsider
 phax artifact decide docs/specs/2609251400-plan-prune.md --question Q1     # re-arbitrate one question; the old verdict stays in its history
