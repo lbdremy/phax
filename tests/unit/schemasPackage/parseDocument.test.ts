@@ -16,7 +16,7 @@ import {
   unknownFormatMessage,
   type Shape,
 } from "../../../packages/schemas/src/shapes.js";
-import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
+import { FORMAT_IDS, schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
 const v2Dir = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -109,6 +109,22 @@ describe("parseDocument", () => {
         parseDocument({ version: 1, $schema: schemaUrl(formatId, "0.16.0") }),
         "$schema",
         `no ${formatId} shape is known at release 0.16.0`,
+      );
+    },
+  );
+
+  it.each(FORMAT_IDS)(
+    "reads every format id: a %s written by a newer release is named, never unknown",
+    (formatId) => {
+      const url = schemaUrl(formatId, NEWER_RELEASE);
+      const result = parseDocument({ $schema: url });
+      expectFailure(
+        result,
+        "$schema",
+        newerReleaseMessage(formatId, NEWER_RELEASE, PACKAGE_VERSION),
+      );
+      expect(result.ok ? "" : result.error.message).not.toBe(
+        unknownFormatMessage(url, PACKAGE_VERSION),
       );
     },
   );

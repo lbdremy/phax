@@ -3,6 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import * as entry from "../../../packages/schemas/src/index.js";
+import { FORMAT_IDS } from "../../../src/schemas/schemaUrl.js";
 
 const packageRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -69,6 +70,25 @@ describe("schemas package entry", () => {
     ]);
   });
 
+  it("exports a schema, a parse function and an upgrade for every format id, plus the union, parseDocument and the unknown marker", () => {
+    const names = FORMAT_IDS.map((id) =>
+      id
+        .split("-")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(""),
+    );
+    expect(Object.keys(entry).toSorted()).toEqual(
+      [
+        ...names.flatMap((name) => [`${name}Schema`, `parse${name}`, `toLatest${name}`]),
+        "RecordManifestSchema",
+        "parseRecordManifest",
+        "parseDocument",
+        "UNKNOWN",
+        "isUnknown",
+      ].toSorted(),
+    );
+  });
+
   it("re-exports phax's own schemas, never a copy", async () => {
     const { ComplianceReviewSchema } = await import("../../../src/schemas/complianceReview.js");
     const { PhaxPlanSchema } = await import("../../../src/schemas/phaxPlan.js");
@@ -115,10 +135,10 @@ describe("schemas package entry", () => {
     expect(entry.GatePendingSchema).toBe(GatePendingDocumentSchema);
   });
 
-  it("is the only subpath in the package manifest's exports", () => {
+  it("is the only code subpath in the package manifest's exports; ./json/* holds data", () => {
     const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as {
       exports: Record<string, unknown>;
     };
-    expect(Object.keys(manifest.exports)).toEqual(["."]);
+    expect(Object.keys(manifest.exports)).toEqual([".", "./json/*"]);
   });
 });

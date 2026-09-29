@@ -507,6 +507,28 @@ describe("architectural guard: single status writer", () => {
 const SCHEMAS_PACKAGE_ENTRY = "packages/schemas/src/index.ts";
 
 const CLOSURE_ALLOWED_DIRS = ["packages/schemas/src/", "src/schemas/", "src/domain/"];
+// §5.6: exactly the schema modules of the exported formats, and what they
+// import. A new src/ file in the closure is published, so it is named here.
+const CLOSURE_SRC_ALLOWLIST = [
+  "src/domain/branded.ts",
+  "src/schemas/approvalRecord.ts",
+  "src/schemas/authoringRecord.ts",
+  "src/schemas/complianceReview.ts",
+  "src/schemas/gateAttribution.ts",
+  "src/schemas/gateDiagnostics.ts",
+  "src/schemas/gatePending.ts",
+  "src/schemas/phaxPlan.ts",
+  "src/schemas/planDocument.ts",
+  "src/schemas/providerId.ts",
+  "src/schemas/reconciliation.ts",
+  "src/schemas/registry.ts",
+  "src/schemas/runRecord.ts",
+  "src/schemas/schemaUrl.ts",
+  "src/schemas/specApprovalRecord.ts",
+  "src/schemas/specDocument.ts",
+  "src/schemas/status.ts",
+  "src/schemas/surface.ts",
+];
 const CLOSURE_FORBIDDEN_DIRS = ["src/app/", "src/ports/", "src/infra/", "src/cli/"];
 const CLOSURE_FORBIDDEN_FILES = ["src/schemas/vibeOutput.ts", "src/schemas/phaxConfig.ts"];
 const CLOSURE_FORBIDDEN_SPECIFIER =
@@ -557,6 +579,10 @@ describe("architectural guard: schemas package closure", () => {
         CLOSURE_FORBIDDEN_DIRS.some((dir) => rel.startsWith(dir)),
     );
     expect(outside).toEqual([]);
+  });
+
+  it("reaches exactly the allowlisted src/ modules", () => {
+    expect(files.filter((rel) => rel.startsWith("src/"))).toEqual(CLOSURE_SRC_ALLOWLIST);
   });
 
   it("imports no Node or @effect/platform module and references no Deno global", () => {

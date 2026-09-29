@@ -7,3 +7,6 @@ phax.local.json
 
 # Use pnpm, not npm — never commit npm lockfiles
 package-lock.json
+
+# Build output of scripts/schemas-json.ts
+packages/schemas/json/

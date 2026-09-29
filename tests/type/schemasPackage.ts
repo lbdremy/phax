@@ -110,6 +110,7 @@ import type { SpecApprovalRecordFile } from "../../src/schemas/specApprovalRecor
 import type { SpecDocument as PhaxSpecDocument } from "../../src/schemas/specDocument.js";
 import type { Registry as PhaxRegistry } from "../../src/schemas/registry.js";
 import type { RunRecordManifest } from "../../src/schemas/runRecord.js";
+import type { FormatId } from "../../src/schemas/schemaUrl.js";
 import type {
   PhaseStatus as PhaxPhaseStatus,
   RunStatus as PhaxRunStatus,
@@ -224,6 +225,9 @@ const formats: Equals<
   | "gate-pending"
 > = true;
 void formats;
+// parseDocument is complete: it reads every persisted format id, and no other
+const complete: Equals<DocumentFormatId, FormatId> = true;
+void complete;
 if (document.ok) {
   const format: DocumentFormatId = document.format;
   void format;

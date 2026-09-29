@@ -3,14 +3,16 @@
   "version": "0.16.0",
   "license": "Apache-2.0",
   "files": [
-    "dist"
+    "dist",
+    "json"
   ],
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/packages/schemas/src/index.d.ts",
       "default": "./dist/packages/schemas/src/index.js"
-    }
+    },
+    "./json/*": "./json/*"
   },
   "dependencies": {
     "effect": "^3.14.0"

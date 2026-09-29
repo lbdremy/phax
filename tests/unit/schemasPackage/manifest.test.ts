@@ -32,17 +32,30 @@ describe("schemas package manifest", () => {
     expect(pkg).not.toHaveProperty("peerDependencies");
   });
 
-  it("exports only the entry, as types and default from the tsc output", () => {
+  it("exports the entry, as types and default from the tsc output, and the JSON Schemas", () => {
     expect(pkg["exports"]).toEqual({
       ".": {
         types: "./dist/packages/schemas/src/index.d.ts",
         default: "./dist/packages/schemas/src/index.js",
       },
+      "./json/*": "./json/*",
     });
   });
 
-  it("publishes only dist", () => {
-    expect(pkg["files"]).toEqual(["dist"]);
+  it("publishes only dist and json", () => {
+    expect(pkg["files"]).toEqual(["dist", "json"]);
+  });
+
+  it("builds json after the package's tsc output, in the root build script", () => {
+    const scripts = root["scripts"] as Record<string, string>;
+    expect(scripts["build"]).toBe(
+      "tsc -p tsconfig.build.json && tsc -p packages/schemas/tsconfig.build.json && tsx scripts/schemas-json.ts",
+    );
+  });
+
+  it("never commits the built json", () => {
+    const ignored = readFileSync(join(repoRoot, ".gitignore"), "utf8").split("\n");
+    expect(ignored).toContain("packages/schemas/json/");
   });
 
   it("is an ESM package for Node 20 and later, under Apache-2.0", () => {
