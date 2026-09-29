@@ -85,7 +85,7 @@
     },
     {
       "term": "Record manifest",
-      "definition": "A record.json on phax/records/v1. There are two kinds: a phase record (version 2, keyed <runId>/<phaseId>) and an authoring record (kind \"authoring\", version 1, keyed authoring/<authoringId>)."
+      "definition": "The `record.json` at the root of a record: its index card (run, phase, model, outcome, usage, verified surfaces). Two kinds: the phase record manifest (format id `phase-record-manifest`, legacy versions 1 and 2) and the authoring record manifest (`authoring-record-manifest`, kind \"authoring\", legacy version 1)."
     },
     {
       "term": "Lockstep version",
@@ -93,7 +93,7 @@
     },
     {
       "term": "Format id",
-      "definition": "The stable name of a persisted format, independent of any file name or location: registry, run-status, phase-status, phax-plan, compliance-review, plan-approvals, spec-approvals, phase-record, spec-document, plan-document, authoring-record, code-review."
+      "definition": "The stable name of a persisted format, independent of any file name or location: registry, run-status, phase-status, phax-plan, compliance-review, plan-approvals, spec-approvals, phase-record-manifest, authoring-record-manifest, gate-attribution, phase-file-reconciliation, gate-diagnostics, gate-pending, spec-document, plan-document, code-review."
     },
     {
       "term": "Schema URL",
@@ -122,6 +122,14 @@
     {
       "term": "Release version",
       "definition": "The version in phax's root `package.json`. phax writes it in `$schema`; a development build therefore names the last cut release, and its documents are not meant to be read before a release names their shape."
+    },
+    {
+      "term": "Record",
+      "definition": "A folder on phax/records/v1 for one phase (`<runId>/<phaseId>/`) or one headless authoring session (`authoring/<authoringId>/`). It holds the record manifest and the files the phase produced: the diff, the gate logs, `gate-attribution.json`, `file-reconciliation.json`, the gate diagnostics and pending documents, the handoff, the transcript, and technical files. \"Record\" always means the folder, never one file."
+    },
+    {
+      "term": "Unversioned legacy document",
+      "definition": "A legacy document of a format that never carried a `version` literal (the gate attribution, the phase file reconciliation, the gate diagnostics and pending documents). Its single legacy shape is `v0`, read by the format's own parse function."
     }
   ],
   "requirements": [
@@ -147,13 +155,19 @@
       "id": "formats",
       "title": "Every persisted format on one entry",
       "pattern": "ubiquitous",
-      "statement": "The schemas package's entry shall export a schema, a TypeScript type and a parse function for exactly these formats: run registry, run status, phase status, phax-plan, compliance review, plan approvals, spec approvals, phase record, spec document, plan document, authoring record, and the record-manifest union of phase and authoring records."
+      "statement": "The schemas package's entry shall export a schema, a TypeScript type and a parse function for exactly these formats: run registry, run status, phase status, phax-plan, compliance review, plan approvals, spec approvals, spec document, plan document; from a record, the phase record manifest, the authoring record manifest, the record-manifest union, the gate attribution, the phase file reconciliation, the gate diagnostics document and the gate pending document."
+    },
+    {
+      "id": "record-files",
+      "title": "A record's timeline files are read like any format",
+      "pattern": "ubiquitous",
+      "statement": "The schemas package shall read the files a record carries for a phase's timeline — its manifest, `gate-attribution.json`, `file-reconciliation.json`, and each gate attempt's diagnostics and pending documents — each with its own parse function, so a reader rebuilds a phase's gate, fix loops and reconciliation without a parser of its own."
     },
     {
       "id": "excluded",
       "title": "Nothing internal",
       "pattern": "ubiquitous",
-      "statement": "The schemas package shall export no internal schema and no module of phax's app, ports, infra or cli layers. Internal schemas are provider output streams, config layers (phax.json and the user overlay), gate, reconciliation and session documents, the extraction cache, and orient and plan-audit responses."
+      "statement": "The schemas package shall export no internal schema and no module of phax's app, ports, infra or cli layers. Internal schemas are provider output streams (a record's transcript), config layers (phax.json and the user overlay), the global reconciliation, session and agent-binding documents, model resolution, security posture, the extraction cache, and orient and plan-audit responses."
     },
     {
       "id": "parity",
@@ -171,7 +185,7 @@
       "id": "history-read",
       "title": "Every version ever written is readable",
       "pattern": "event",
-      "statement": "WHEN a parse function is given a document of any shape phax has ever written THE schemas package SHALL decode it with that shape's decoder — the latest shape released at or before the release its `$schema` names, or, for a legacy document, the shape its `version` literal names — and return its exact shape with the shape's id."
+      "statement": "WHEN a parse function is given a document of any shape phax has ever written THE schemas package SHALL decode it with that shape's decoder — the latest shape released at or before the release its `$schema` names; for a legacy document, the shape its `version` literal names, or `v0` when its format never carried one — and return its exact shape with the shape's id."
     },
     {
       "id": "identify-alone",
@@ -293,7 +307,7 @@
       "surface": "package: @lbdremy/phax-schemas exports",
       "binding": "normative",
       "before": null,
-      "after": "# format set normative; function, schema and type spellings indicative\nformat                 parse function          schema, type                                  document it reads\nrun registry           parseRegistry           RegistrySchema, Registry                      ~/.phax/registry.json\nrun status             parseRunStatus          RunStatusSchema, RunStatus                    <run-dir>/run-status.json\nphase status           parsePhaseStatus        PhaseStatusSchema, PhaseStatus                <run-dir>/<phase-id>/status.json\nphax-plan              parsePhaxPlan           PhaxPlanSchema, PhaxPlan                      <run-dir>/phax-plan.json\ncompliance review      parseComplianceReview   ComplianceReviewSchema, ComplianceReview      <run-dir>/compliance-review.json\nplan approvals         parsePlanApprovals      PlanApprovalsSchema, PlanApprovals            docs/plans/approvals.json\nspec approvals         parseSpecApprovals      SpecApprovalsSchema, SpecApprovals            docs/specs/approvals.json\nphase record manifest  parsePhaseRecord        PhaseRecordSchema, PhaseRecord                phax/records/v1:<runId>/<phaseId>/record.json\nspec document          parseSpecDocument       SpecDocumentSchema, SpecDocument              JSON sidecar beside a headless-authored spec\nplan document          parsePlanDocument       PlanDocumentSchema, PlanDocument              JSON sidecar beside a headless-authored plan\nauthoring record       parseAuthoringRecord    AuthoringRecordSchema, AuthoringRecord        phax/records/v1:authoring/<authoringId>/record.json\nrecord manifest        parseRecordManifest     RecordManifestSchema, RecordManifest          any record.json on phax/records/v1\nany document           parseDocument           —                                             any file carrying `$schema`\n# added from the release that ships review-as-plan:\ncode-review document   parseCodeReview         CodeReviewSchema, CodeReview                  <run-dir>/review/pass-NN/code-review.json\n\n# shared by every parse function\ntype Parsed<T>"
+      "after": "# format set normative; function, schema and type spellings indicative\nformat                 parse function          schema, type                                  document it reads\nrun registry           parseRegistry           RegistrySchema, Registry                      ~/.phax/registry.json\nrun status             parseRunStatus          RunStatusSchema, RunStatus                    <run-dir>/run-status.json\nphase status           parsePhaseStatus        PhaseStatusSchema, PhaseStatus                <run-dir>/<phase-id>/status.json\nphax-plan              parsePhaxPlan           PhaxPlanSchema, PhaxPlan                      <run-dir>/phax-plan.json\ncompliance review      parseComplianceReview   ComplianceReviewSchema, ComplianceReview      <run-dir>/compliance-review.json\nplan approvals         parsePlanApprovals      PlanApprovalsSchema, PlanApprovals            docs/plans/approvals.json\nspec approvals         parseSpecApprovals      SpecApprovalsSchema, SpecApprovals            docs/specs/approvals.json\nphase record manifest  parsePhaseRecordManifest        PhaseRecordManifestSchema, PhaseRecordManifest                phax/records/v1:<runId>/<phaseId>/record.json\nspec document          parseSpecDocument       SpecDocumentSchema, SpecDocument              JSON sidecar beside a headless-authored spec\nplan document          parsePlanDocument       PlanDocumentSchema, PlanDocument              JSON sidecar beside a headless-authored plan\nauthoring rec. manifest parseAuthoringRecordManifest    AuthoringRecordManifestSchema, AuthoringRecordManifest        phax/records/v1:authoring/<authoringId>/record.json\nrecord manifest        parseRecordManifest     RecordManifestSchema, RecordManifest          any record.json on phax/records/v1\ngate attribution       parseGateAttribution    GateAttributionSchema, GateAttribution        <record>/gate-attribution.json\nphase file reconcil.   parsePhaseFileReconciliation PhaseFileReconciliationSchema, …       <record>/file-reconciliation.json\ngate diagnostics       parseGateDiagnostics    GateDiagnosticsSchema, GateDiagnostics        <record>/checks-attempt-NN.diagnostics.json\ngate pending           parseGatePending        GatePendingSchema, GatePending                <record>/checks-attempt-NN.pending.json\nany document           parseDocument           —                                             any file carrying `$schema`\n# added from the release that ships review-as-plan:\ncode-review document   parseCodeReview         CodeReviewSchema, CodeReview                  <run-dir>/review/pass-NN/code-review.json\n\n# shared by every parse function\ntype Parsed<T>"
     },
     {
       "surface": "package: Parsed result",
@@ -304,26 +318,26 @@
     {
       "surface": "package: reading history",
       "binding": "normative",
-      "before": "const r = parsePhaseRecord(raw)\n// only version 2 is accepted; a version-1 record from the history is rejected",
-      "after": "import { parseDocument, parsePhaseRecord, toLatestPhaseRecord } from \"@lbdremy/phax-schemas\";\n\nconst any = parseDocument(raw);            // identified by `$schema` alone, whatever the file's name\n// { ok: true, format: \"phase-record\", shape: \"0.17.0\", value: PhaseRecord_0_17 }\n\nconst r = parsePhaseRecord(raw);           // PhaseRecordV1 | PhaseRecordV2 | PhaseRecord_0_17, with its shape id\nconst latest = toLatestPhaseRecord(r.value);\n// from a legacy v1 record: verifiedSurfaces: { kind: \"unknown\" }\n\nparseDocument({ \"$schema\": \"https://docs.phax.run/schemas/phase-record/0.19.0.json\", … });\n// { ok: false, error: { path: [\"$schema\"], message: \"phase-record written by phax 0.19.0 is newer than @lbdremy/phax-schemas 0.17.0 — upgrade the package\" } }\n\n# normative: identification by `$schema` alone, every historical shape parses, toLatest never invents a value, the newer-release failure"
+      "before": "const r = parsePhaseRecordManifest(raw)\n// only version 2 is accepted; a version-1 record from the history is rejected",
+      "after": "import { parseDocument, parsePhaseRecordManifest, toLatestPhaseRecordManifest } from \"@lbdremy/phax-schemas\";\n\nconst any = parseDocument(raw);            // identified by `$schema` alone, whatever the file's name\n// { ok: true, format: \"phase-record-manifest\", shape: \"0.17.0\", value: PhaseRecordManifest_0_17 }\n\nconst r = parsePhaseRecordManifest(raw);           // PhaseRecordManifestV1 | PhaseRecordManifestV2 | PhaseRecordManifest_0_17, with its shape id\nconst latest = toLatestPhaseRecordManifest(r.value);\n// from a legacy v1 record: verifiedSurfaces: { kind: \"unknown\" }\n\nparseDocument({ \"$schema\": \"https://docs.phax.run/schemas/phase-record-manifest/0.19.0.json\", … });\n// { ok: false, error: { path: [\"$schema\"], message: \"phase-record written by phax 0.19.0 is newer than @lbdremy/phax-schemas 0.17.0 — upgrade the package\" } }\n\n# normative: identification by `$schema` alone, every historical shape parses, toLatest never invents a value, the newer-release failure"
     },
     {
       "surface": "file: `$schema` in every persisted format",
       "binding": "normative",
       "before": "{ \"version\": 2, \"runId\": \"…\", \"phaseId\": \"phase-02\", \"outcome\": \"committed\", … }",
-      "after": "{ \"$schema\": \"https://docs.phax.run/schemas/phase-record/0.17.0.json\", \"runId\": \"…\", \"phaseId\": \"phase-02\", \"outcome\": \"committed\", … }\n\n# every persisted format: `$schema` first, no `version`; the URL serves that release's JSON Schema of the format"
+      "after": "{ \"$schema\": \"https://docs.phax.run/schemas/phase-record-manifest/0.17.0.json\", \"runId\": \"…\", \"phaseId\": \"phase-02\", \"outcome\": \"committed\", … }\n\n# every persisted format: `$schema` first, no `version`; the URL serves that release's JSON Schema of the format"
     },
     {
       "surface": "file: snapshots, historical decoders and history corpus",
       "binding": "indicative",
       "before": null,
-      "after": "packages/schemas/\n  src/history/phase-record/v1.ts            legacy shape, frozen; phax never imports it\n  src/history/phase-record/v2.ts            legacy shape, frozen\n  src/history/authoring-record/v1.ts        legacy, frozen; accepts both shapes (with and without sourceSha)\n  snapshots/phase-record/v1.schema.json     one committed JSON Schema per shape\n  snapshots/phase-record/v2.schema.json\n  snapshots/phase-record/next.schema.json   unreleased shape; release.sh renames it to the version it cuts\n  corpus/phase-record/v1/*.json             extracted from git history by scripts/extract-history-corpus.ts\n  corpus/phase-record/v2/*.json\n\n$ pnpm schemas:check\n✗ phase-record: the generated schema differs from the latest released snapshot and from snapshots/phase-record/next.schema.json — record next.schema.json\n$? = 1"
+      "after": "packages/schemas/\n  src/history/phase-record-manifest/v1.ts            legacy shape, frozen; phax never imports it\n  src/history/phase-record-manifest/v2.ts            legacy shape, frozen\n  src/history/authoring-record-manifest/v1.ts        legacy, frozen; accepts both shapes (with and without sourceSha)\n  snapshots/phase-record-manifest/v1.schema.json     one committed JSON Schema per shape\n  snapshots/phase-record-manifest/v2.schema.json\n  snapshots/phase-record-manifest/next.schema.json   unreleased shape; release.sh renames it to the version it cuts\n  corpus/phase-record-manifest/v1/*.json             extracted from git history by scripts/extract-history-corpus.ts\n  corpus/phase-record-manifest/v2/*.json\n\n$ pnpm schemas:check\n✗ phase-record: the generated schema differs from the latest released snapshot and from snapshots/phase-record-manifest/next.schema.json — record next.schema.json\n$? = 1"
     },
     {
       "surface": "package: Node consumer, end to end",
       "binding": "indicative",
       "before": null,
-      "after": "// read-record.mjs: Node 20+, phax not installed, only @lbdremy/phax-schemas\nimport { execFileSync } from \"node:child_process\";\nimport { parsePhaseRecord } from \"@lbdremy/phax-schemas\";\n\nconst key = process.argv[2]; // \"<runId>/phase-01\"\nconst raw = execFileSync(\"git\", [\"show\", `phax/records/v1:${key}/record.json`], { encoding: \"utf8\" });\n\nconst parsed = parsePhaseRecord(JSON.parse(raw));\nif (!parsed.ok) {\n  console.error(`record.json: ${parsed.error.path}: ${parsed.error.message}`);\n  process.exit(1);\n}\nconst { runId, phaseId, outcome, usage } = parsed.value; // typed PhaseRecord\nconsole.log(runId, phaseId, outcome, usage.available ? usage.usage.provider : \"no usage\");\n\n// walking the whole branch also meets authoring records:\n// import { parseRecordManifest } from \"@lbdremy/phax-schemas\";\n\n$ node read-record.mjs <runId>/phase-01\n<runId> phase-01 committed claude-code\n$ echo $?\n0"
+      "after": "// read-record.mjs: Node 20+, phax not installed, only @lbdremy/phax-schemas\nimport { execFileSync } from \"node:child_process\";\nimport { parsePhaseRecordManifest } from \"@lbdremy/phax-schemas\";\n\nconst key = process.argv[2]; // \"<runId>/phase-01\"\nconst raw = execFileSync(\"git\", [\"show\", `phax/records/v1:${key}/record.json`], { encoding: \"utf8\" });\n\nconst parsed = parsePhaseRecordManifest(JSON.parse(raw));\nif (!parsed.ok) {\n  console.error(`record.json: ${parsed.error.path}: ${parsed.error.message}`);\n  process.exit(1);\n}\nconst { runId, phaseId, outcome, usage } = parsed.value; // typed PhaseRecord\nconsole.log(runId, phaseId, outcome, usage.available ? usage.usage.provider : \"no usage\");\n\n// walking the whole branch also meets authoring records:\n// import { parseRecordManifest } from \"@lbdremy/phax-schemas\";\n\n$ node read-record.mjs <runId>/phase-01\n<runId> phase-01 committed claude-code\n$ echo $?\n0"
     },
     {
       "surface": "file: json/<format>.schema.json",
@@ -341,7 +355,7 @@
       "surface": "file: README.md persisted-formats table",
       "binding": "indicative",
       "before": "## Experimental formats\n\nThese formats are outside the `version: 1` stability promise that covers `phax.json` and the run formats: …\n\n| Format           | Where it lives                                       | Contract                        |\n| Spec document    | the `.json` sidecar beside a headless-authored spec  | `phax artifact schema spec`     |\n| Plan document    | the `.json` sidecar beside a headless-authored plan  | `phax artifact schema plan`     |\n| Authoring record | `authoring/<YYMMDDHHMM>-<slug>` on `phax/records/v1` | `phax records explain <commit>` |",
-      "after": "## Persisted formats\n\n# one row per exported format is normative; wording and columns indicative\nEvery document phax writes starts with `$schema` (format and release); every shape it has ever written stays readable.\n| Format                | Where it lives                                    | Read it with            |\n| Run registry          | `~/.phax/registry.json`                           | `parseRegistry`         |\n| Run status            | `<run-dir>/run-status.json`                       | `parseRunStatus`        |\n| Phase status          | `<run-dir>/<phase-id>/status.json`                | `parsePhaseStatus`      |\n| phax-plan             | `<run-dir>/phax-plan.json`                        | `parsePhaxPlan`         |\n| Compliance review     | `<run-dir>/compliance-review.json`                | `parseComplianceReview` |\n| Plan approvals        | `docs/plans/approvals.json`                       | `parsePlanApprovals`    |\n| Spec approvals        | `docs/specs/approvals.json`                       | `parseSpecApprovals`    |\n| Phase record          | `<runId>/<phaseId>/record.json` on `phax/records/v1` | `parsePhaseRecord`   |\n| Spec document         | `.json` sidecar beside a headless-authored spec   | `parseSpecDocument`     |\n| Plan document         | `.json` sidecar beside a headless-authored plan   | `parsePlanDocument`     |\n| Authoring record      | `authoring/<id>/record.json` on `phax/records/v1` | `parseAuthoringRecord`  |\n(all from `@lbdremy/phax-schemas`; any of them: `parseDocument`)"
+      "after": "## Persisted formats\n\n# one row per exported format is normative; wording and columns indicative\nEvery document phax writes starts with `$schema` (format and release); every shape it has ever written stays readable.\n| Format                | Where it lives                                    | Read it with            |\n| Run registry          | `~/.phax/registry.json`                           | `parseRegistry`         |\n| Run status            | `<run-dir>/run-status.json`                       | `parseRunStatus`        |\n| Phase status          | `<run-dir>/<phase-id>/status.json`                | `parsePhaseStatus`      |\n| phax-plan             | `<run-dir>/phax-plan.json`                        | `parsePhaxPlan`         |\n| Compliance review     | `<run-dir>/compliance-review.json`                | `parseComplianceReview` |\n| Plan approvals        | `docs/plans/approvals.json`                       | `parsePlanApprovals`    |\n| Spec approvals        | `docs/specs/approvals.json`                       | `parseSpecApprovals`    |\n| Phase record manifest | `<runId>/<phaseId>/record.json` on `phax/records/v1` | `parsePhaseRecordManifest`   |\n| Spec document         | `.json` sidecar beside a headless-authored spec   | `parseSpecDocument`     |\n| Plan document         | `.json` sidecar beside a headless-authored plan   | `parsePlanDocument`     |\n| Gate attribution      | `gate-attribution.json` in a phase record         | `parseGateAttribution`  |\n| File reconciliation   | `file-reconciliation.json` in a phase record      | `parsePhaseFileReconciliation` |\n| Gate diagnostics      | `checks-attempt-NN.diagnostics.json` in a record  | `parseGateDiagnostics`  |\n| Gate pending          | `checks-attempt-NN.pending.json` in a record      | `parseGatePending`      |\n| Authoring rec. manifest | `authoring/<id>/record.json` on `phax/records/v1` | `parseAuthoringRecordManifest`  |\n(all from `@lbdremy/phax-schemas`; any of them: `parseDocument`)"
     },
     {
       "surface": "cli: scripts/release.sh",
@@ -394,7 +408,7 @@
       "name": "The entry exports every persisted format",
       "given": "the installed package",
       "when": "the exports of @lbdremy/phax-schemas are listed",
-      "then": "there is a schema, a type and a parse function for run registry, run status, phase status, phax-plan, compliance review, plan approvals, spec approvals, phase record, spec document, plan document, authoring record and the record-manifest union; the package has no other entry; none exists for an internal format",
+      "then": "there is a schema, a type and a parse function for run registry, run status, phase status, phax-plan, compliance review, plan approvals, spec approvals, spec document, plan document, the phase and authoring record manifests, the record-manifest union, the gate attribution, the phase file reconciliation, the gate diagnostics and the gate pending document; the package has no other entry; none exists for an internal format",
       "refs": [
         "formats"
       ]
@@ -504,7 +518,7 @@
       "id": "ac-history-read",
       "name": "A mixed history parses",
       "given": "the history corpus's phase records at versions 1 and 2",
-      "when": "each is given to parsePhaseRecord",
+      "when": "each is given to parsePhaseRecordManifest",
       "then": "every call returns ok; the value's `version` is 1 or 2 and its type is the exact shape of that version",
       "refs": [
         "history-read",
@@ -564,9 +578,9 @@
     {
       "id": "ac-snapshot-gate",
       "name": "A shape change must be recorded at its release",
-      "given": "a change that adds a key to the phase record decoder, with no `phase-record/next.schema.json` yet",
+      "given": "a change that adds a key to the phase record decoder, with no `phase-record-manifest/next.schema.json` yet",
       "when": "phax's gate runs",
-      "then": "it fails naming the phase record and `phase-record/next.schema.json`; once that snapshot is written, it passes",
+      "then": "it fails naming the phase record and `phase-record-manifest/next.schema.json`; once that snapshot is written, it passes",
       "refs": [
         "snapshot-gate"
       ]
@@ -587,7 +601,7 @@
       "name": "A renamed file is still identified",
       "given": "a phase record written by phax 0.17.0, copied to `exports/a.json`, and an approvals ledger copied to `exports/b.json`",
       "when": "each is given to parseDocument",
-      "then": "the first returns format `phase-record`, shape `0.17.0`; the second `plan-approvals`; no path is consulted",
+      "then": "the first returns format `phase-record-manifest`, shape `0.17.0`; the second `plan-approvals`; no path is consulted",
       "refs": [
         "identify-alone"
       ]
@@ -595,9 +609,9 @@
     {
       "id": "ac-release-names-shapes",
       "name": "The release names the next shapes",
-      "given": "`phase-record/next.schema.json` and `registry/next.schema.json` committed",
+      "given": "`phase-record-manifest/next.schema.json` and `registry/next.schema.json` committed",
       "when": "scripts/release.sh 0.17.0 runs",
-      "then": "the release commit renames them to `phase-record/0.17.0.schema.json` and `registry/0.17.0.schema.json`, and no `next` snapshot remains",
+      "then": "the release commit renames them to `phase-record-manifest/0.17.0.schema.json` and `registry/0.17.0.schema.json`, and no `next` snapshot remains",
       "refs": [
         "release-names-shapes"
       ]
@@ -611,6 +625,17 @@
       "refs": [
         "history-frozen",
         "schema-url"
+      ]
+    },
+    {
+      "id": "ac-record-files",
+      "name": "A record's timeline files parse",
+      "given": "a record folder from phax/records/v1 whose phase ran one diagnostics step twice: `record.json`, `gate-attribution.json`, `file-reconciliation.json`, `checks-attempt-01.diagnostics.json` and `checks-attempt-02.pending.json`, all written before `$schema` (no `version` on the four gate and reconciliation files)",
+      "when": "each is given to its parse function",
+      "then": "every call returns ok; the four unversioned files report shape `v0`; the attempts' diagnostics are available in order, so the two fix-loop attempts can be shown",
+      "refs": [
+        "record-files",
+        "history-read"
       ]
     }
   ],
@@ -955,6 +980,47 @@
       ],
       "recommendation": "via-package",
       "rationale": "Decided by the author on 2026-09-28, as recommended."
+    },
+    {
+      "id": "q-record-files",
+      "question": "Beyond its manifest, which files of a record does the package read?",
+      "options": [
+        {
+          "id": "timeline",
+          "label": "The ones the cockpit's run timeline reads: gate attribution, file reconciliation, gate diagnostics and pending documents",
+          "abandons": "technical files (agent binding, model resolution, orient brief, security posture) staying free to change without a published shape"
+        },
+        {
+          "id": "all",
+          "label": "Every JSON file of the folder",
+          "abandons": "freedom over technical files nobody reads"
+        },
+        {
+          "id": "manifest-only",
+          "label": "The manifest only",
+          "abandons": "the cockpit's timeline without a parser of its own — the reason the package exists"
+        }
+      ],
+      "recommendation": "timeline",
+      "rationale": "Decided by the author on 2026-09-29. A record is a folder, and the cockpit's first slice shows each phase's gate, fix loops and reconciliation, which live in those files."
+    },
+    {
+      "id": "q-manifest-name",
+      "question": "What is the `record.json` format called?",
+      "options": [
+        {
+          "id": "manifest",
+          "label": "`phase-record-manifest` / `authoring-record-manifest` (`parsePhaseRecordManifest`, …)",
+          "abandons": "shorter names"
+        },
+        {
+          "id": "record",
+          "label": "`phase-record` / `authoring-record`",
+          "abandons": "the distinction between a record (the folder) and its manifest (one file)"
+        }
+      ],
+      "recommendation": "manifest",
+      "rationale": "Decided by the author on 2026-09-29: \"record\" names the folder; its index file is the manifest."
     }
   ],
   "planningNote": {
@@ -968,7 +1034,8 @@
       "The history corpus is extracted from git by a committed script and parsed at every release.",
       "Identification (2026-09-28): every document phax writes starts with `$schema: https://docs.phax.run/schemas/<format id>/<release>.json` and carries no `version`; `parseDocument` identifies a document by it alone; shapes are named by their release, legacy shapes by their literal; a shape change is recorded as a snapshot at its release by the gate. The authoring record's two legacy version-1 shapes are both accepted.",
       "Package name @lbdremy/phax-schemas: one entry carrying every persisted format (§5 list) and a json/ directory with one draft-07 JSON Schema per format, describing its latest shape; no stable/experimental split (q-no-experimental).",
-      "`$schema` names the root package.json version; unreleased shapes are `next` snapshots renamed by release.sh (q-release-name). phax reads its own older files through the package (q-own-legacy)."
+      "`$schema` names the root package.json version; unreleased shapes are `next` snapshots renamed by release.sh (q-release-name). phax reads its own older files through the package (q-own-legacy).",
+      "A record is a folder; its `record.json` is the manifest (`phase-record-manifest`, `authoring-record-manifest`). The package also reads the record's timeline files: gate attribution, phase file reconciliation, gate diagnostics and pending documents, whose unversioned legacy shape is `v0` (2026-09-29)."
     ],
     "open": [
       "Where the package manifest and its entry modules live in the repo, and how its build is driven (a second tsc project over the same sources, or equivalent).",
@@ -994,6 +1061,6 @@
     "kind": "page",
     "page": "README.md §\"Read phax files from code\" (a section beside the persisted-formats table)",
     "reader": "Someone writing a tool, such as a dashboard, a cockpit or a docs pipeline, that reads phax's registry, run files, approvals or records and wants phax's own types and verdicts instead of a hand-written parser.",
-    "example": "npm install @lbdremy/phax-schemas, then the §6 read-record.mjs script: git show phax/records/v1:<runId>/phase-01/record.json, parsePhaseRecord(JSON.parse(raw)), branch on parsed.ok, then read parsed.value.outcome. It ends with a pointer to json/<format>.schema.json for docs tooling and a note that every document stays readable: an older shape parses, a newer release asks to upgrade the package."
+    "example": "npm install @lbdremy/phax-schemas, then the §6 read-record.mjs script: git show phax/records/v1:<runId>/phase-01/record.json, parsePhaseRecordManifest(JSON.parse(raw)), branch on parsed.ok, then read parsed.value.outcome. It ends with a pointer to json/<format>.schema.json for docs tooling and a note that every document stays readable: an older shape parses, a newer release asks to upgrade the package."
   }
 }
