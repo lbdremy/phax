@@ -36,6 +36,7 @@ import {
   type RegistryShapes,
   type RunStatusShapes,
 } from "./formats/runDirectory.js";
+import type { FormatId } from "../../../src/schemas/schemaUrl.js";
 import { makeDocumentParser } from "./document.js";
 import type { IdentifiedDocument, Parsed, ParsedDocument, ParsedShape } from "./parsed.js";
 import { UNKNOWN, isUnknown, type Unknown } from "./shapes.js";
@@ -188,7 +189,10 @@ export {
   type PhaseFileReconciliationV0,
 } from "./formats/recordTimeline.js";
 
-type DocumentShapes = {
+// Fails to compile when a format id has no entry: parseDocument reads every one.
+type EveryFormat<M extends { readonly [F in FormatId]: unknown }> = M;
+
+type DocumentShapes = EveryFormat<{
   "phase-record-manifest": PhaseRecordManifestShapes;
   "authoring-record-manifest": AuthoringRecordManifestShapes;
   registry: RegistryShapes;
@@ -204,9 +208,9 @@ type DocumentShapes = {
   "phase-file-reconciliation": PhaseFileReconciliationShapes;
   "gate-diagnostics": GateDiagnosticsShapes;
   "gate-pending": GatePendingShapes;
-};
+}>;
 
-/** The id of every format `parseDocument` reads. */
+/** The id of every format `parseDocument` reads: every `FormatId`. */
 export type DocumentFormatId = keyof DocumentShapes;
 
 /** A document identified by its `$schema`: its format, its shape and its value. */
