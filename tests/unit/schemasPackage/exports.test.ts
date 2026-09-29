@@ -20,8 +20,12 @@ describe("schemas package entry", () => {
       "PhaseRecordManifestSchema",
       "PhaseStatusSchema",
       "PhaxPlanSchema",
+      "PlanApprovalsSchema",
+      "PlanDocumentSchema",
       "RegistrySchema",
       "RunStatusSchema",
+      "SpecApprovalsSchema",
+      "SpecDocumentSchema",
       "UNKNOWN",
       "isUnknown",
       "parseComplianceReview",
@@ -29,14 +33,22 @@ describe("schemas package entry", () => {
       "parsePhaseRecordManifest",
       "parsePhaseStatus",
       "parsePhaxPlan",
+      "parsePlanApprovals",
+      "parsePlanDocument",
       "parseRegistry",
       "parseRunStatus",
+      "parseSpecApprovals",
+      "parseSpecDocument",
       "toLatestComplianceReview",
       "toLatestPhaseRecordManifest",
       "toLatestPhaseStatus",
       "toLatestPhaxPlan",
+      "toLatestPlanApprovals",
+      "toLatestPlanDocument",
       "toLatestRegistry",
       "toLatestRunStatus",
+      "toLatestSpecApprovals",
+      "toLatestSpecDocument",
     ]);
   });
 
@@ -50,6 +62,18 @@ describe("schemas package entry", () => {
     expect(entry.RegistrySchema).toBe(RegistrySchema);
     expect(entry.PhaseStatusSchema).toBe(PhaseStatusSchema);
     expect(entry.RunStatusSchema).toBe(RunStatusSchema);
+  });
+
+  it("re-exports phax's repository schemas under the spec's names, never a copy", async () => {
+    const { ApprovalRecordFileSchema } = await import("../../../src/schemas/approvalRecord.js");
+    const { SpecApprovalRecordFileSchema } =
+      await import("../../../src/schemas/specApprovalRecord.js");
+    const { SpecDocumentSchema } = await import("../../../src/schemas/specDocument.js");
+    const { PlanDocumentSchema } = await import("../../../src/schemas/planDocument.js");
+    expect(entry.PlanApprovalsSchema).toBe(ApprovalRecordFileSchema);
+    expect(entry.SpecApprovalsSchema).toBe(SpecApprovalRecordFileSchema);
+    expect(entry.SpecDocumentSchema).toBe(SpecDocumentSchema);
+    expect(entry.PlanDocumentSchema).toBe(PlanDocumentSchema);
   });
 
   it("is the only subpath in the package manifest's exports", () => {

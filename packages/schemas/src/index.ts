@@ -5,6 +5,16 @@ import {
 } from "../../../src/schemas/runRecord.js";
 import type { Surface } from "../../../src/schemas/surface.js";
 import {
+  planApprovalsFormat,
+  planDocumentFormat,
+  specApprovalsFormat,
+  specDocumentFormat,
+  type PlanApprovalsShapes,
+  type PlanDocumentShapes,
+  type SpecApprovalsShapes,
+  type SpecDocumentShapes,
+} from "./formats/repository.js";
+import {
   complianceReviewFormat,
   phaseStatusFormat,
   phaxPlanFormat,
@@ -82,6 +92,41 @@ export {
   type RunStatusV1,
 } from "./formats/runDirectory.js";
 
+// The files of a repository. Each schema and type is phax's own; the two
+// ledgers take the names the spec gives them.
+export {
+  ApprovalRecordFileSchema as PlanApprovalsSchema,
+  type ApprovalRecordFile as PlanApprovals,
+} from "../../../src/schemas/approvalRecord.js";
+export {
+  SpecApprovalRecordFileSchema as SpecApprovalsSchema,
+  type SpecApprovalRecordFile as SpecApprovals,
+} from "../../../src/schemas/specApprovalRecord.js";
+export { SpecDocumentSchema, type SpecDocument } from "../../../src/schemas/specDocument.js";
+export { PlanDocumentSchema, type PlanDocument } from "../../../src/schemas/planDocument.js";
+export {
+  parsePlanApprovals,
+  parsePlanDocument,
+  parseSpecApprovals,
+  parseSpecDocument,
+  toLatestPlanApprovals,
+  toLatestPlanDocument,
+  toLatestSpecApprovals,
+  toLatestSpecDocument,
+  type LatestPlanApprovals,
+  type LatestPlanDocument,
+  type LatestSpecApprovals,
+  type LatestSpecDocument,
+  type PlanApprovalsShape,
+  type PlanApprovalsV1,
+  type PlanDocumentShape,
+  type PlanDocumentV1,
+  type SpecApprovalsShape,
+  type SpecApprovalsV1,
+  type SpecDocumentShape,
+  type SpecDocumentV1,
+} from "./formats/repository.js";
+
 /** A phase record's `record.json` (format id `phase-record-manifest`), as phax writes it. */
 export const PhaseRecordManifestSchema = RunRecordManifestSchema;
 export type PhaseRecordManifest = RunRecordManifest;
@@ -121,6 +166,10 @@ type DocumentShapes = {
   "phase-status": PhaseStatusShapes;
   "phax-plan": PhaxPlanShapes;
   "compliance-review": ComplianceReviewShapes;
+  "plan-approvals": PlanApprovalsShapes;
+  "spec-approvals": SpecApprovalsShapes;
+  "spec-document": SpecDocumentShapes;
+  "plan-document": PlanDocumentShapes;
 };
 
 /** The id of every format `parseDocument` reads. */
@@ -142,6 +191,10 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "phase-status": phaseStatusFormat,
     "phax-plan": phaxPlanFormat,
     "compliance-review": complianceReviewFormat,
+    "plan-approvals": planApprovalsFormat,
+    "spec-approvals": specApprovalsFormat,
+    "spec-document": specDocumentFormat,
+    "plan-document": planDocumentFormat,
   });
 
 /**

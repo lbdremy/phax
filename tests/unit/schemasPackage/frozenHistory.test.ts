@@ -35,8 +35,12 @@ describe("schemas-check on the committed tree", () => {
       "src/history/phase-record-manifest/v2.ts",
       "src/history/phase-status/v1.ts",
       "src/history/phax-plan/v1.ts",
+      "src/history/plan-approvals/v1.ts",
+      "src/history/plan-document/v1.ts",
       "src/history/registry/v1.ts",
       "src/history/run-status/v1.ts",
+      "src/history/spec-approvals/v1.ts",
+      "src/history/spec-document/v1.ts",
     ]);
   });
 

@@ -81,7 +81,17 @@ describe("parseDocument", () => {
     );
   });
 
-  it.each(["registry", "run-status", "phase-status", "phax-plan", "compliance-review"] as const)(
+  it.each([
+    "registry",
+    "run-status",
+    "phase-status",
+    "phax-plan",
+    "compliance-review",
+    "plan-approvals",
+    "spec-approvals",
+    "spec-document",
+    "plan-document",
+  ] as const)(
     "reaches the %s definition, which knows no $schema shape at 0.16.0 yet",
     (formatId) => {
       expectFailure(

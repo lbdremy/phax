@@ -4,6 +4,10 @@
   "src/history/phase-record-manifest/v2.ts": "987b651dd71d361d0ad87143a3b8fd767df13e226ce97e322aba0573b7f6033d",
   "src/history/phase-status/v1.ts": "9286a74e72c895c57b559716833c5d23af90a76f728fff69e34cc21c814306dd",
   "src/history/phax-plan/v1.ts": "38a34f473ea76665feaae58b616411c36f27ed415bb3c56a6e17a91c52cd1f41",
+  "src/history/plan-approvals/v1.ts": "0550c5f21b16ecb3bb9ba1e84579b972d924991e7992867745698c6d5046d52a",
+  "src/history/plan-document/v1.ts": "4e6b9d6c87b453d6f71b5b1372b7fd734bb24ca78661c0ce4626b6aca779057f",
   "src/history/registry/v1.ts": "fe5da4f30dee3d90e51865b9e295fe57317c551a16f7c370d954c672aa1a84ee",
-  "src/history/run-status/v1.ts": "be838667f589a13a76b3fe829ae7ccbf382bb38c33d1828e3b3bbe17ac2e4199"
+  "src/history/run-status/v1.ts": "be838667f589a13a76b3fe829ae7ccbf382bb38c33d1828e3b3bbe17ac2e4199",
+  "src/history/spec-approvals/v1.ts": "fdab5e462e50792e8cfcda27ae836d51fd6ec73277d2abacbd8c8163f0cbcf99",
+  "src/history/spec-document/v1.ts": "b0c44bf3573a793b1add4a29e8bafb66f923367c081e8e0435976c0a618dc3d1"
 }
