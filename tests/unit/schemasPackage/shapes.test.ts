@@ -338,9 +338,114 @@ describe("defineFormat: the literal fallback", () => {
   });
 });
 
+// A toy unversioned format: its current shape and its frozen module are both
+// v0, and the frozen module also admits documents written before `b` existed.
+const CURRENT_V0 = Schema.Struct({ a: Schema.String, b: Schema.Number });
+const FROZEN_V0 = Schema.Struct({
+  a: Schema.String,
+  b: Schema.optionalWith(Schema.Number, { exact: true }),
+});
+
+const unversioned = defineFormat<{ v0: typeof FROZEN_V0.Type }>(
+  {
+    id: "gate-pending",
+    label: "toy document",
+    legacy: { 0: shape(FROZEN_V0) },
+    releases: [],
+    current: { name: "v0", shape: shape(CURRENT_V0) },
+  },
+  { packageVersion: "0.13.0" },
+);
+
+describe("defineFormat: the unversioned shape v0", () => {
+  it("reads a document with neither marker with the current v0 decoder", () => {
+    expect(unversioned.parse({ a: "x", b: 1 })).toEqual({
+      ok: true,
+      shape: "v0",
+      value: { a: "x", b: 1 },
+    });
+  });
+
+  it("falls back to the frozen v0 module when the current decoder rejects the document", () => {
+    expect(unversioned.parse({ a: "x" })).toEqual({ ok: true, shape: "v0", value: { a: "x" } });
+  });
+
+  it("returns the current decoder's failure when both reject the document", () => {
+    // The current decoder fails at `b`; this frozen module would fail at `z`.
+    const OTHER_V0 = Schema.Struct({ a: Schema.String, z: Schema.String });
+    const both = defineFormat<{ v0: typeof OTHER_V0.Type | typeof CURRENT_V0.Type }>(
+      {
+        id: "gate-pending",
+        label: "toy document",
+        legacy: { 0: shape(OTHER_V0) },
+        releases: [],
+        current: { name: "v0", shape: shape(CURRENT_V0) },
+      },
+      { packageVersion: "0.13.0" },
+    );
+    expectFailure(both.parse({ a: "x" }), "b");
+    expectFailure(unversioned.parse({ a: 1, b: 1 }), "a");
+  });
+
+  it("never treats version: 0 as a known literal", () => {
+    expectFailure(
+      unversioned.parse({ version: 0, a: "x", b: 1 }),
+      "version",
+      "unknown toy document version 0 — a toy document carries no version literal",
+    );
+  });
+
+  it("names a version literal on a format that has none", () => {
+    expectFailure(
+      unversioned.parse({ version: 1, a: "x", b: 1 }),
+      "version",
+      "unknown toy document version 1 — a toy document carries no version literal",
+    );
+  });
+
+  it("reads a frozen v0 below a versioned current shape, and still resolves literals by version", () => {
+    const later = defineFormat<{ v0: typeof FROZEN_V0.Type; v1: typeof V1.Type }>(
+      {
+        id: "gate-pending",
+        label: "toy document",
+        legacy: { 0: shape(FROZEN_V0), 1: shape(V1) },
+        releases: [],
+        current: { name: "v1", shape: shape(V1) },
+      },
+      { packageVersion: "0.13.0" },
+    );
+    expect(later.parse({ a: "x" })).toEqual({ ok: true, shape: "v0", value: { a: "x" } });
+    expect(later.parse({ version: 1, a: "x" })).toMatchObject({ ok: true, shape: "v1" });
+    expectFailure(
+      later.parse({ version: 0, a: "x" }),
+      "version",
+      "unknown toy document version 0 — known versions are 1",
+    );
+  });
+
+  it("still reads a $schema document by its URL", () => {
+    expectFailure(
+      unversioned.parse({ $schema: url("0.12.0"), a: "x", b: 1 }),
+      "$schema",
+      "no gate-pending shape is known at release 0.12.0",
+    );
+  });
+
+  it("never throws", () => {
+    for (const input of [{}, { a: Symbol("x") }, { b: 10n }, { version: 0 }, Object.create(null)]) {
+      expect(() => unversioned.parse(input)).not.toThrow();
+    }
+  });
+});
+
 describe("defineFormat: neither marker", () => {
-  it("fails a document with neither $schema nor version at $schema", () => {
-    expectFailure(toy.parse({ a: "x" }), "$schema");
+  it("fails a document with neither $schema nor version at $schema, for a format without v0", () => {
+    expectFailure(
+      toy.parse({ a: "x" }),
+      "$schema",
+      "missing $schema — a toy document names its shape with a $schema URL or a version literal",
+    );
+    expectFailure(fallback.parse({ a: "x", b: 1 }), "$schema");
   });
 
   it.each([42, "doc", null, undefined, true, [{ version: 1, a: "x" }]])(

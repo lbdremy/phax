@@ -116,8 +116,11 @@ function decodeAs(shape: string, entry: AnyShape, input: unknown): Decoded {
  *    and `legacy[N]` exists, the frozen module reads it as the same shape
  *    `v<N>`, and if both reject it the current decoder's failure is returned.
  *    Any other literal is read by `legacy[N]`; an unknown literal fails at
- *    `version`;
- * 4. a document with neither fails at `$schema`.
+ *    `version`. `0` is never a known literal: shape `v0` has no marker;
+ * 4. a document with neither resolves to `v0` when the format has that
+ *    unversioned shape (`current.name === "v0"` or `legacy[0]`), read as in
+ *    step 3: the current decoder first, then the frozen module;
+ * 5. otherwise a document with neither fails at `$schema`.
  */
 export function defineFormat<M>(
   spec: FormatSpec<M>,
@@ -131,11 +134,13 @@ export function defineFormat<M>(
   const releaseShapes = isRelease(current.name)
     ? [...releases, [current.name, current.shape] as const]
     : releases;
-  const knownLiterals = [
+  const shapeLiterals = [
     ...Object.keys(legacy).map(Number),
     ...(/^v\d+$/.test(current.name) ? [Number(current.name.slice(1))] : []),
-  ]
-    .filter((literal, index, all) => all.indexOf(literal) === index)
+  ];
+  const hasUnversionedShape = shapeLiterals.includes(0);
+  const knownLiterals = shapeLiterals
+    .filter((literal, index, all) => literal !== 0 && all.indexOf(literal) === index)
     .toSorted((a, b) => a - b);
 
   function bySchemaUrl(url: unknown, input: object): Decoded {
@@ -164,27 +169,38 @@ export function defineFormat<M>(
     return decodeAs(latest[0], latest[1], input);
   }
 
-  function byLiteral(version: unknown, input: object): Decoded {
-    const entry = typeof version === "number" ? legacy[version] : undefined;
-    if (typeof version === "number" && current.name === `v${version}`) {
-      const read = decodeAs(current.name, current.shape, input);
+  /** Reads shape `v<literal>`: the current decoder first when it is that shape, then the frozen module. */
+  function byShapeLiteral(literal: number, input: object): Decoded {
+    const name = `v${literal}`;
+    const entry = legacy[literal];
+    if (current.name === name) {
+      const read = decodeAs(name, current.shape, input);
       if (read.ok || entry === undefined) return read;
-      const older = decodeAs(current.name, entry, input);
+      const older = decodeAs(name, entry, input);
       return older.ok ? older : read;
     }
-    if (entry === undefined) {
-      return failure(
-        "version",
-        `unknown ${label} version ${describe(version)} — known versions are ${knownLiterals.join(", ")}`,
-      );
+    return entry === undefined
+      ? failure("version", `no ${label} shape ${name} is known`)
+      : decodeAs(name, entry, input);
+  }
+
+  function byLiteral(version: unknown, input: object): Decoded {
+    if (typeof version === "number" && knownLiterals.includes(version)) {
+      return byShapeLiteral(version, input);
     }
-    return decodeAs(`v${version as number}`, entry, input);
+    return failure(
+      "version",
+      knownLiterals.length === 0
+        ? `unknown ${label} version ${describe(version)} — a ${label} carries no version literal`
+        : `unknown ${label} version ${describe(version)} — known versions are ${knownLiterals.join(", ")}`,
+    );
   }
 
   function parse(input: unknown): Decoded {
     if (!isDocumentObject(input)) return failure("", notAnObjectMessage(label, input));
     if (Object.hasOwn(input, "$schema")) return bySchemaUrl(input["$schema"], input);
     if (Object.hasOwn(input, "version")) return byLiteral(input["version"], input);
+    if (hasUnversionedShape) return byShapeLiteral(0, input);
     return failure(
       "$schema",
       `missing $schema — a ${label} names its shape with a $schema URL or a version literal`,

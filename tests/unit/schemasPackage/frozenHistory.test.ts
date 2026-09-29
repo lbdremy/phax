@@ -32,6 +32,10 @@ describe("schemas-check on the committed tree", () => {
     expect(Object.keys(state.lock)).toEqual([
       "src/history/authoring-record-manifest/v1.ts",
       "src/history/compliance-review/v1.ts",
+      "src/history/gate-attribution/v0.ts",
+      "src/history/gate-diagnostics/v0.ts",
+      "src/history/gate-pending/v0.ts",
+      "src/history/phase-file-reconciliation/v0.ts",
       "src/history/phase-record-manifest/v1.ts",
       "src/history/phase-record-manifest/v2.ts",
       "src/history/phase-status/v1.ts",

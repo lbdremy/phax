@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   parseAuthoringRecordManifest,
   parseComplianceReview,
+  parseGateAttribution,
+  parseGateDiagnostics,
+  parseGatePending,
+  parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
   parsePhaxPlan,
@@ -21,8 +25,12 @@ import {
   isAuthoringRecordManifest,
 } from "../../../src/schemas/authoringRecord.js";
 import { decodeComplianceReview } from "../../../src/schemas/complianceReview.js";
+import { decodeGateAttribution } from "../../../src/schemas/gateAttribution.js";
+import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnostics.js";
+import { decodeGatePendingDocument } from "../../../src/schemas/gatePending.js";
 import { decodePhaxPlan } from "../../../src/schemas/phaxPlan.js";
 import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
+import { decodePhaseFileReconciliation } from "../../../src/schemas/reconciliation.js";
 import { decodeRegistry } from "../../../src/schemas/registry.js";
 import { decodeRunRecordManifest } from "../../../src/schemas/runRecord.js";
 import type { FormatId } from "../../../src/schemas/schemaUrl.js";
@@ -144,8 +152,8 @@ type Parse = (input: unknown) => { readonly ok: boolean; readonly value?: unknow
 type Doc = Readonly<Record<string, unknown>>;
 
 /** The first fixture phax's current decoder accepts: a document of the current shape. */
-function currentShape(id: FormatId, decode: Decode): Doc {
-  const found = readSurveyedFixtures(id, "v1").find(({ document }) =>
+function currentShape(id: FormatId, decode: Decode, shape = "v1"): Doc {
+  const found = readSurveyedFixtures(id, shape).find(({ document }) =>
     Either.isRight(decode(document)),
   );
   if (found === undefined) throw new Error(`no current-shape ${id} fixture`);
@@ -534,5 +542,204 @@ describe("parity: parseRecordManifest agrees with phax's union", () => {
     expect(formats).toContain("phase-record-manifest");
     expect(formats).toContain("authoring-record-manifest");
     expect(results.some((result) => !result.ok)).toBe(true);
+  });
+});
+
+const gateAttribution = currentShape("gate-attribution", decodeGateAttribution, "v0");
+const reconciliation = currentShape(
+  "phase-file-reconciliation",
+  decodePhaseFileReconciliation,
+  "v0",
+);
+
+// No diagnostics or pending document exists anywhere, so these are written here.
+const completionDiagnostic = {
+  class: "completion",
+  scopes: ["phase-02"],
+  rule: "planned-file-missing",
+  location: { file: "src/domain/timeline.ts", line: 1 },
+  message: "the planned file is missing",
+  repair: "create it",
+};
+const gateDiagnostics: Doc = {
+  diagnostics: [
+    {
+      class: "invariant",
+      rule: "no-io-in-domain",
+      location: { file: "src/domain/record.ts" },
+      message: "imports node:fs",
+      repair: "use the fs port",
+    },
+    completionDiagnostic,
+  ],
+};
+const gatePending: Doc = {
+  closed: [],
+  steps: [
+    {
+      command: "pnpm test",
+      pending: [{ diagnostic: completionDiagnostic, openScopes: ["phase-02"] }],
+    },
+  ],
+};
+
+/** A pending document whose one pending entry has `fields` merged over it. */
+function withPendingEntry(fields: Doc): Doc {
+  const entry = { diagnostic: completionDiagnostic, openScopes: ["phase-02"], ...fields };
+  return { ...gatePending, steps: [{ command: "pnpm test", pending: [entry] }] };
+}
+
+// Every timeline format keeps phax's default excess-property setting, so one
+// unknown key is accepted by both. Each rejected case is one the frozen v0
+// module rejects too.
+const TIMELINE: ReadonlyArray<FormatParity> = [
+  {
+    id: "gate-attribution",
+    parse: parseGateAttribution,
+    phax: decodeGateAttribution,
+    cases: [
+      ["a real gate attribution", gateAttribution, "accepted"],
+      [
+        "a gate attribution with one unknown key",
+        { ...gateAttribution, owner: "remy" },
+        "accepted",
+      ],
+      ["a gate attribution without steps", { ...gateAttribution, steps: [] }, "accepted"],
+      [
+        "a step whose result is outside its literals",
+        withFirst(gateAttribution, "steps", { result: "skipped" }),
+        "rejected",
+      ],
+      [
+        "a step on an unknown surface",
+        withFirst(gateAttribution, "steps", { surface: "cloud" }),
+        "rejected",
+      ],
+      ["a gate attribution with an empty phase", { ...gateAttribution, phase: "" }, "rejected"],
+    ],
+  },
+  {
+    id: "phase-file-reconciliation",
+    parse: parsePhaseFileReconciliation,
+    phax: decodePhaseFileReconciliation,
+    cases: [
+      ["a real file reconciliation", reconciliation, "accepted"],
+      [
+        "a file reconciliation with one unknown key",
+        { ...reconciliation, owner: "remy" },
+        "accepted",
+      ],
+      [
+        "a file reconciliation with a rename",
+        { ...reconciliation, renames: [{ from: "a.ts", to: "b.ts" }] },
+        "accepted",
+      ],
+      [
+        "a file reconciliation whose hasDeviations is a string",
+        { ...reconciliation, hasDeviations: "yes" },
+        "rejected",
+      ],
+      [
+        "a rename without its target",
+        { ...reconciliation, renames: [{ from: "a.ts" }] },
+        "rejected",
+      ],
+      [
+        "a file reconciliation with an empty phaseId",
+        { ...reconciliation, phaseId: "" },
+        "rejected",
+      ],
+      [
+        "a file reconciliation whose deletions is not an array",
+        { ...reconciliation, deletions: "a.ts" },
+        "rejected",
+      ],
+    ],
+  },
+  {
+    id: "gate-diagnostics",
+    parse: parseGateDiagnostics,
+    phax: decodeGateDiagnosticsDocument,
+    cases: [
+      ["invariant and completion diagnostics", gateDiagnostics, "accepted"],
+      ["no diagnostics", { diagnostics: [] }, "accepted"],
+      [
+        "a diagnostics document with one unknown key",
+        { ...gateDiagnostics, owner: "remy" },
+        "accepted",
+      ],
+      [
+        "a diagnostic at line 0",
+        { diagnostics: [{ ...completionDiagnostic, location: { file: "a.ts", line: 0 } }] },
+        "rejected",
+      ],
+      [
+        "a diagnostic at a fractional line",
+        { diagnostics: [{ ...completionDiagnostic, location: { file: "a.ts", line: 1.5 } }] },
+        "rejected",
+      ],
+      [
+        "a diagnostic of an unknown class",
+        { diagnostics: [{ ...completionDiagnostic, class: "warning" }] },
+        "rejected",
+      ],
+      [
+        "a completion diagnostic without scopes",
+        { diagnostics: [{ ...completionDiagnostic, scopes: [] }] },
+        "rejected",
+      ],
+    ],
+  },
+  {
+    id: "gate-pending",
+    parse: parseGatePending,
+    phax: decodeGatePendingDocument,
+    cases: [
+      ["a pending completion diagnostic", gatePending, "accepted"],
+      ["nothing pending", { closed: ["phase-01"], steps: [] }, "accepted"],
+      ["a pending document with one unknown key", { ...gatePending, owner: "remy" }, "accepted"],
+      [
+        "a step with nothing pending",
+        { ...gatePending, steps: [{ command: "pnpm test", pending: [] }] },
+        "rejected",
+      ],
+      [
+        "a pending diagnostic of class invariant",
+        withPendingEntry({ diagnostic: { ...completionDiagnostic, class: "invariant" } }),
+        "rejected",
+      ],
+      [
+        "a pending diagnostic without open scopes",
+        withPendingEntry({ openScopes: [] }),
+        "rejected",
+      ],
+      ["an empty closed scope", { ...gatePending, closed: [""] }, "rejected"],
+    ],
+  },
+];
+
+describe.each(TIMELINE)("parity: the package agrees with phax's decoder on $id", (format) => {
+  const { parse, phax } = format;
+  it.each(format.cases)("%s", (_label, input, verdict) => {
+    const decoded = phax(input);
+    const result = parse(input);
+    expect(Either.isRight(decoded)).toBe(verdict === "accepted");
+    expect(result.ok).toBe(verdict === "accepted");
+    if (result.ok && Either.isRight(decoded)) expect(result.value).toEqual(decoded.right);
+  });
+});
+
+describe("parity: one unknown key on a timeline format", () => {
+  it("is accepted by both for each timeline format, and dropped from the value", () => {
+    const results = [
+      parseGateAttribution({ ...gateAttribution, owner: "remy" }),
+      parsePhaseFileReconciliation({ ...reconciliation, owner: "remy" }),
+      parseGateDiagnostics({ ...gateDiagnostics, owner: "remy" }),
+      parseGatePending({ ...gatePending, owner: "remy" }),
+    ];
+    for (const result of results) {
+      expect(result).toMatchObject({ ok: true, shape: "v0" });
+      if (result.ok) expect(Object.hasOwn(result.value, "owner")).toBe(false);
+    }
   });
 });

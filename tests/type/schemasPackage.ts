@@ -7,8 +7,21 @@ import type {
   ComplianceReviewShape,
   ComplianceReviewV1,
   DocumentFormatId,
+  GateAttribution,
+  GateAttributionShape,
+  GateAttributionV0,
+  GateDiagnostics,
+  GateDiagnosticsShape,
+  GateDiagnosticsV0,
+  GatePending,
+  GatePendingShape,
+  GatePendingV0,
   LatestAuthoringRecordManifest,
   LatestComplianceReview,
+  LatestGateAttribution,
+  LatestGateDiagnostics,
+  LatestGatePending,
+  LatestPhaseFileReconciliation,
   LatestPhaseRecordManifest,
   LatestPhaseStatus,
   LatestPhaxPlan,
@@ -22,6 +35,9 @@ import type {
   Parsed,
   ParsedDocument,
   ParsedShape,
+  PhaseFileReconciliation,
+  PhaseFileReconciliationShape,
+  PhaseFileReconciliationV0,
   PhaseRecordManifest,
   PhaseRecordManifestShape,
   PhaseRecordManifestV1,
@@ -58,6 +74,10 @@ import {
   parseAuthoringRecordManifest,
   parseComplianceReview,
   parseDocument,
+  parseGateAttribution,
+  parseGateDiagnostics,
+  parseGatePending,
+  parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
   parsePhaxPlan,
@@ -69,6 +89,7 @@ import {
   parseSpecApprovals,
   parseSpecDocument,
   toLatestAuthoringRecordManifest,
+  toLatestPhaseFileReconciliation,
   toLatestPhaxPlan,
   toLatestRunStatus,
   toLatestSpecDocument,
@@ -79,6 +100,10 @@ import type {
   RecordManifest as PhaxRecordManifest,
 } from "../../src/schemas/authoringRecord.js";
 import type { ComplianceReview as PhaxComplianceReview } from "../../src/schemas/complianceReview.js";
+import type { GateAttribution as PhaxGateAttribution } from "../../src/schemas/gateAttribution.js";
+import type { GateDiagnosticsDocument } from "../../src/schemas/gateDiagnostics.js";
+import type { GatePendingDocument } from "../../src/schemas/gatePending.js";
+import type { PhaseFileReconciliation as PhaxPhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
 import type { PhaxPlan as PhaxPhaxPlan } from "../../src/schemas/phaxPlan.js";
 import type { PlanDocument as PhaxPlanDocument } from "../../src/schemas/planDocument.js";
 import type { SpecApprovalRecordFile } from "../../src/schemas/specApprovalRecord.js";
@@ -193,6 +218,10 @@ const formats: Equals<
   | "spec-approvals"
   | "spec-document"
   | "plan-document"
+  | "gate-attribution"
+  | "phase-file-reconciliation"
+  | "gate-diagnostics"
+  | "gate-pending"
 > = true;
 void formats;
 if (document.ok) {
@@ -474,3 +503,96 @@ if (document.ok && document.format === "authoring-record-manifest") {
   const exact: Equals<typeof document.value, AuthoringRecordManifestV1> = true;
   void exact;
 }
+
+// ── record timeline files
+
+// Each package type is phax's own type, both ways, under the spec's names (§5.20)
+const gateAttributionIsPhax: Equals<GateAttribution, PhaxGateAttribution> = true;
+const reconciliationIsPhax: Equals<PhaseFileReconciliation, PhaxPhaseFileReconciliation> = true;
+const gateDiagnosticsIsPhax: Equals<GateDiagnostics, GateDiagnosticsDocument> = true;
+const gatePendingIsPhax: Equals<GatePending, GatePendingDocument> = true;
+void gateAttributionIsPhax;
+void reconciliationIsPhax;
+void gateDiagnosticsIsPhax;
+void gatePendingIsPhax;
+declare const phaxGateDiagnostics: GateDiagnosticsDocument;
+declare const packageGateDiagnostics: GateDiagnostics;
+const gateDiagnosticsToPackage: GateDiagnostics = phaxGateDiagnostics;
+const gateDiagnosticsToPhax: GateDiagnosticsDocument = packageGateDiagnostics;
+void gateDiagnosticsToPackage;
+void gateDiagnosticsToPhax;
+
+// A single-signature format's frozen v0 twin has exactly phax's type
+const gateAttributionTwin: Equals<GateAttributionV0, PhaxGateAttribution> = true;
+const gateDiagnosticsTwin: Equals<GateDiagnosticsV0, GateDiagnosticsDocument> = true;
+const gatePendingTwin: Equals<GatePendingV0, GatePendingDocument> = true;
+void gateAttributionTwin;
+void gateDiagnosticsTwin;
+void gatePendingTwin;
+
+// The frozen reconciliation v0 is wider: phax's type is assignable to it, not the other way
+declare const phaxReconciliation: PhaxPhaseFileReconciliation;
+const reconciliationIntoV0: PhaseFileReconciliationV0 = phaxReconciliation;
+void reconciliationIntoV0;
+declare const olderReconciliation: PhaseFileReconciliationV0;
+// @ts-expect-error: an older reconciliation may lack phaseId and the mismatch lists
+const reconciliationFromV0: PhaxPhaseFileReconciliation = olderReconciliation;
+void reconciliationFromV0;
+
+// Each parse function names shape v0 and narrows to the exact type
+const shapeIds0: Equals<
+  GateAttributionShape | PhaseFileReconciliationShape | GateDiagnosticsShape | GatePendingShape,
+  "v0"
+> = true;
+void shapeIds0;
+const gateAttributionResult = parseGateAttribution({});
+const reconciliationResult = parsePhaseFileReconciliation({});
+const gateDiagnosticsResult = parseGateDiagnostics({});
+const gatePendingResult = parseGatePending({});
+if (gateAttributionResult.ok) {
+  const value: Equals<typeof gateAttributionResult.value, GateAttributionV0> = true;
+  void value;
+}
+if (reconciliationResult.ok && reconciliationResult.shape === "v0") {
+  const value: Equals<typeof reconciliationResult.value, PhaseFileReconciliationV0> = true;
+  void value;
+}
+if (gateDiagnosticsResult.ok) {
+  const value: Equals<typeof gateDiagnosticsResult.value, GateDiagnosticsV0> = true;
+  void value;
+}
+if (gatePendingResult.ok) {
+  const value: Equals<typeof gatePendingResult.value, GatePendingV0> = true;
+  void value;
+}
+if (document.ok && document.format === "phase-file-reconciliation") {
+  const shape: Equals<typeof document.shape, "v0"> = true;
+  const exact: Equals<typeof document.value, PhaseFileReconciliationV0> = true;
+  void shape;
+  void exact;
+}
+
+// The latest shapes: each fact an older reconciliation lacked is T | Unknown;
+// the other three are phax's current type
+const latestReconciliationFacts: Equals<
+  LatestPhaseFileReconciliation["phaseId" | "createdButPlannedEdit" | "editedButPlannedCreate"],
+  string | ReadonlyArray<string> | Unknown
+> = true;
+const latestReconciliationRest: Equals<
+  Omit<
+    LatestPhaseFileReconciliation,
+    "phaseId" | "createdButPlannedEdit" | "editedButPlannedCreate"
+  >,
+  Omit<PhaxPhaseFileReconciliation, "phaseId" | "createdButPlannedEdit" | "editedButPlannedCreate">
+> = true;
+const latestGateAttribution: Equals<LatestGateAttribution, PhaxGateAttribution> = true;
+const latestGateDiagnostics: Equals<LatestGateDiagnostics, GateDiagnosticsDocument> = true;
+const latestGatePending: Equals<LatestGatePending, GatePendingDocument> = true;
+void latestReconciliationFacts;
+void latestReconciliationRest;
+void latestGateAttribution;
+void latestGateDiagnostics;
+void latestGatePending;
+const upgradedReconciliation: LatestPhaseFileReconciliation =
+  toLatestPhaseFileReconciliation(olderReconciliation);
+void upgradedReconciliation;

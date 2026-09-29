@@ -18,6 +18,10 @@ describe("schemas package entry", () => {
     expect(Object.keys(entry).toSorted()).toEqual([
       "AuthoringRecordManifestSchema",
       "ComplianceReviewSchema",
+      "GateAttributionSchema",
+      "GateDiagnosticsSchema",
+      "GatePendingSchema",
+      "PhaseFileReconciliationSchema",
       "PhaseRecordManifestSchema",
       "PhaseStatusSchema",
       "PhaxPlanSchema",
@@ -33,6 +37,10 @@ describe("schemas package entry", () => {
       "parseAuthoringRecordManifest",
       "parseComplianceReview",
       "parseDocument",
+      "parseGateAttribution",
+      "parseGateDiagnostics",
+      "parseGatePending",
+      "parsePhaseFileReconciliation",
       "parsePhaseRecordManifest",
       "parsePhaseStatus",
       "parsePhaxPlan",
@@ -45,6 +53,10 @@ describe("schemas package entry", () => {
       "parseSpecDocument",
       "toLatestAuthoringRecordManifest",
       "toLatestComplianceReview",
+      "toLatestGateAttribution",
+      "toLatestGateDiagnostics",
+      "toLatestGatePending",
+      "toLatestPhaseFileReconciliation",
       "toLatestPhaseRecordManifest",
       "toLatestPhaseStatus",
       "toLatestPhaxPlan",
@@ -88,6 +100,19 @@ describe("schemas package entry", () => {
     expect(entry.AuthoringRecordManifestSchema).toBe(AuthoringRecordManifestSchema);
     expect(entry.RecordManifestSchema).toBe(RecordManifestSchema);
     expect(entry.PhaseRecordManifestSchema).toBe(RunRecordManifestSchema);
+  });
+
+  it("re-exports phax's timeline schemas under the spec's names, never a copy", async () => {
+    const { GateAttributionSchema } = await import("../../../src/schemas/gateAttribution.js");
+    const { PhaseFileReconciliationSchema } =
+      await import("../../../src/schemas/reconciliation.js");
+    const { GateDiagnosticsDocumentSchema } =
+      await import("../../../src/schemas/gateDiagnostics.js");
+    const { GatePendingDocumentSchema } = await import("../../../src/schemas/gatePending.js");
+    expect(entry.GateAttributionSchema).toBe(GateAttributionSchema);
+    expect(entry.PhaseFileReconciliationSchema).toBe(PhaseFileReconciliationSchema);
+    expect(entry.GateDiagnosticsSchema).toBe(GateDiagnosticsDocumentSchema);
+    expect(entry.GatePendingSchema).toBe(GatePendingDocumentSchema);
   });
 
   it("is the only subpath in the package manifest's exports", () => {

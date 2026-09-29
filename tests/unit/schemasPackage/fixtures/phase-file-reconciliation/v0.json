@@ -1,0 +1,262 @@
+{
+  "createdAsPlanned createdButPlannedEdit deletions editedAsPlanned editedButPlannedCreate hasDeviations missingPlannedCreate missingPlannedEdit optionalTouched phaseId renames unplannedCreated unplannedEdited": {
+    "phaseId": "phase-01",
+    "createdAsPlanned": [
+      "apps/le-secretaire-de-fernand/src/site/content/taxonomy/series.json",
+      "packages/louloupress/tests/content-series-taxonomy-contracts.test.ts"
+    ],
+    "editedAsPlanned": [
+      "packages/louloupress/src/modules/content/shared/contracts/taxonomy.ts",
+      "apps/le-secretaire-de-fernand/src/site/data.ts"
+    ],
+    "missingPlannedCreate": [],
+    "missingPlannedEdit": [],
+    "createdButPlannedEdit": [],
+    "editedButPlannedCreate": [],
+    "unplannedCreated": [
+      "packages/louloupress/src/modules/ui/portrait-toggle.tsx"
+    ],
+    "unplannedEdited": [
+      "apps/le-secretaire-de-fernand/public/content-index.json",
+      "apps/le-secretaire-de-fernand/public/en/about.md",
+      "apps/le-secretaire-de-fernand/public/llms-full.txt",
+      "apps/le-secretaire-de-fernand/src/web/modules/content/components/mdx/AiWritingPortrait.tsx",
+      "phax.schema.json",
+      "phax.user.schema.json"
+    ],
+    "optionalTouched": [],
+    "deletions": [],
+    "renames": [],
+    "hasDeviations": true
+  },
+  "createdAsPlanned deletions editedAsPlanned hasDeviations missingPlannedCreate missingPlannedEdit optionalTouched phaseId renames unplannedCreated unplannedEdited": {
+    "phaseId": "phase-02",
+    "createdAsPlanned": [],
+    "editedAsPlanned": [
+      "src/infra/providers/sessionWriter.ts",
+      "tests/integration/executePlan.test.ts"
+    ],
+    "missingPlannedCreate": [],
+    "missingPlannedEdit": [],
+    "unplannedCreated": [],
+    "unplannedEdited": [
+      "tests/unit/architecturalGuards.test.ts"
+    ],
+    "optionalTouched": [
+      "src/app/executePlan.ts"
+    ],
+    "deletions": [],
+    "renames": [],
+    "hasDeviations": true
+  },
+  "createdAsPlanned deletions editedAsPlanned hasDeviations missingPlannedCreate missingPlannedEdit optionalTouched renames unplannedCreated unplannedEdited": {
+    "createdAsPlanned": [],
+    "editedAsPlanned": [
+      "src/domain/events.ts",
+      "src/domain/effects.ts",
+      "src/domain/reducer.ts",
+      "tests/unit/reducer.test.ts",
+      "tests/integration/stateMachineContract.test.ts"
+    ],
+    "missingPlannedCreate": [],
+    "missingPlannedEdit": [],
+    "unplannedCreated": [],
+    "unplannedEdited": [
+      "src/app/fixLoop.ts",
+      "tests/integration/fixLoop.test.ts",
+      "tests/unit/events.test.ts"
+    ],
+    "optionalTouched": [],
+    "deletions": [],
+    "renames": [],
+    "hasDeviations": true
+  },
+  "createdAsPlanned createdButPlannedEdit deletions editedAsPlanned editedButPlannedCreate hasDeviations missingPlannedCreate missingPlannedEdit optionalTouched phaseId renames[{from,to}] unplannedCreated unplannedEdited": {
+    "phaseId": "phase-05",
+    "createdAsPlanned": [],
+    "editedAsPlanned": [
+      "docs/plans/39-smolvm-isolation-spike-plan.md",
+      "docs/plans/41-claude-protected-path-approval-hook-plan.md",
+      "docs/plans/44-gate-profile-attributed-steps-plan.md",
+      "docs/plans/45-typescript-7-migration-plan.md",
+      "docs/plans/archive/01-plan.md",
+      "docs/plans/archive/02-phax-planning-skill-update-plan.md",
+      "docs/plans/archive/03-update-provider-effort-plan.md",
+      "docs/plans/archive/03b-provider-e2e-validation.md",
+      "docs/plans/archive/04-run-jail-plan.md",
+      "docs/plans/archive/04b-run-jail-provider-validation.md",
+      "docs/plans/archive/05-model-routing-enabled-gating-plan.md",
+      "docs/plans/archive/06-model-routing-plan.md",
+      "docs/plans/archive/07-observability-plan.md",
+      "docs/plans/archive/08-provider-priority-override-plan.md",
+      "docs/plans/archive/09-agent-commands.md",
+      "docs/plans/archive/09-rename-claude-backend-errors-plan.md",
+      "docs/plans/archive/10-init-command-plan.md",
+      "docs/plans/archive/10-opus-frontier-tiers-plan.md",
+      "docs/plans/archive/11-lock-agent-binding-phase-plan.md",
+      "docs/plans/archive/11-review-handoff-plan.md",
+      "docs/plans/archive/12-gate-first-resume-plan.md",
+      "docs/plans/archive/12-project-namespace-plan.md",
+      "docs/plans/archive/13-reset-phase-command-plan.md",
+      "docs/plans/archive/13-usage-cli-plan.md",
+      "docs/plans/archive/14-push-branch-pr-plan.md",
+      "docs/plans/archive/14-remove-last-commands-plan.md",
+      "docs/plans/archive/15-agent-binding-hardening-plan.md",
+      "docs/plans/archive/15-typescript-6-migration-plan.md",
+      "docs/plans/archive/16-deno-runtime-plan.md",
+      "docs/plans/archive/16-enforce-architecture-boundaries-plan.md",
+      "docs/plans/archive/17-install-planning-skill-plan.md",
+      "docs/plans/archive/17-sealed-completion-extraction-plan.md",
+      "docs/plans/archive/18-local-telemetry-report-plan.md",
+      "docs/plans/archive/19-whats-next-guidance-plan.md",
+      "docs/plans/archive/20-compliance-review-plan.md",
+      "docs/plans/archive/20-model-catalog-equivalence-routing-plan.md",
+      "docs/plans/archive/21-usage-spec-generation-hardening-plan.md",
+      "docs/plans/archive/22-config-user-project-split-plan.md",
+      "docs/plans/archive/23-handoff-deviation-justification-plan.md",
+      "docs/plans/archive/24-interactive-init-plan.md",
+      "docs/plans/archive/25-namespace-compliance-followups-plan.md",
+      "docs/plans/archive/26-run-recap-and-reset-date-plan.md",
+      "docs/plans/archive/27-compliance-handoff-access-and-resume-recap-plan.md",
+      "docs/plans/archive/28-completions-binary-stdin-fix-plan.md",
+      "docs/plans/archive/29-compliance-review-before-phase-details-plan.md",
+      "docs/plans/archive/30-validate-config-only-plan.md",
+      "docs/plans/archive/31-error-logging-and-reset-fixes-plan.md",
+      "docs/plans/archive/32-resumable-handoff-failure-plan.md",
+      "docs/plans/archive/33-resumable-postgate-failures.md",
+      "docs/plans/archive/34-decouple-manual-publish-from-config.md",
+      "docs/plans/archive/35-remove-last-commands.md",
+      "docs/plans/archive/36-review-code-command-plan.md",
+      "docs/specs/archive/01-feedback_ingest_spec.md",
+      "docs/specs/archive/02-phax-planning-skill-update.md",
+      "docs/specs/archive/03-update-provider-effort.md",
+      "docs/specs/archive/04-run-jail.md",
+      "docs/specs/archive/05-review-handoff.md",
+      "docs/specs/archive/06-deno-runtime.md",
+      "docs/specs/archive/07-push-branch-pr.md",
+      "docs/specs/archive/08-install-planning-skill.md",
+      "docs/specs/archive/09-agent-commands.md",
+      "docs/specs/archive/10-init-command.md",
+      "docs/specs/archive/11-lock-agent-binding-phase.md",
+      "docs/specs/archive/12-project-namespace.md",
+      "docs/specs/archive/13-usage-cli.md",
+      "docs/specs/archive/14-remove-network-controls.md"
+    ],
+    "missingPlannedCreate": [
+      "docs/plans/archive/17-brief-profile-orient-plan.md",
+      "docs/plans/archive/37-plans-overlap-command-plan.md",
+      "docs/plans/archive/38-plan-extraction-cache-plan.md",
+      "docs/plans/archive/40-deterministic-plan-extraction-plan.md",
+      "docs/plans/archive/42-review-compliance-qualified-name-plan.md",
+      "docs/plans/archive/43-security-hardening-plan.md"
+    ],
+    "missingPlannedEdit": [
+      "docs/plans/17-brief-profile-orient-plan.md",
+      "docs/plans/37-plans-overlap-command-plan.md",
+      "docs/plans/38-plan-extraction-cache-plan.md",
+      "docs/plans/40-deterministic-plan-extraction-plan.md",
+      "docs/plans/42-review-compliance-qualified-name-plan.md",
+      "docs/plans/43-security-hardening-plan.md"
+    ],
+    "createdButPlannedEdit": [],
+    "editedButPlannedCreate": [],
+    "unplannedCreated": [],
+    "unplannedEdited": [],
+    "optionalTouched": [],
+    "deletions": [],
+    "renames": [
+      {
+        "from": "docs/plans/17-brief-profile-orient-plan.md",
+        "to": "docs/plans/archive/17-brief-profile-orient-plan.md"
+      },
+      {
+        "from": "docs/plans/37-plans-overlap-command-plan.md",
+        "to": "docs/plans/archive/37-plans-overlap-command-plan.md"
+      },
+      {
+        "from": "docs/plans/38-plan-extraction-cache-plan.md",
+        "to": "docs/plans/archive/38-plan-extraction-cache-plan.md"
+      },
+      {
+        "from": "docs/plans/40-deterministic-plan-extraction-plan.md",
+        "to": "docs/plans/archive/40-deterministic-plan-extraction-plan.md"
+      },
+      {
+        "from": "docs/plans/42-review-compliance-qualified-name-plan.md",
+        "to": "docs/plans/archive/42-review-compliance-qualified-name-plan.md"
+      },
+      {
+        "from": "docs/plans/43-security-hardening-plan.md",
+        "to": "docs/plans/archive/43-security-hardening-plan.md"
+      }
+    ],
+    "hasDeviations": true
+  },
+  "createdAsPlanned deletions editedAsPlanned hasDeviations missingPlannedCreate missingPlannedEdit optionalTouched phaseId renames[{from,to}] unplannedCreated unplannedEdited": {
+    "phaseId": "phase-02",
+    "createdAsPlanned": [],
+    "editedAsPlanned": [
+      "tests/unit/skills.test.ts",
+      "tests/unit/architecturalGuards.telemetry.test.ts"
+    ],
+    "missingPlannedCreate": [
+      ".claude/skills/phax-planning/SKILL.md",
+      ".claude/skills/boundaries/SKILL.md",
+      ".claude/skills/cli-view-layer/SKILL.md",
+      ".claude/skills/effect-services/SKILL.md",
+      ".claude/skills/infrastructure-adapters/SKILL.md",
+      ".claude/skills/model-routing/SKILL.md",
+      ".claude/skills/observability/SKILL.md",
+      ".claude/skills/state-machines/SKILL.md",
+      ".claude/skills/validation-boundaries/SKILL.md"
+    ],
+    "missingPlannedEdit": [],
+    "unplannedCreated": [],
+    "unplannedEdited": [
+      "docs/observability.md"
+    ],
+    "optionalTouched": [
+      "README.md"
+    ],
+    "deletions": [],
+    "renames": [
+      {
+        "from": ".skills/boundaries.md",
+        "to": ".claude/skills/boundaries/SKILL.md"
+      },
+      {
+        "from": ".skills/cli-view-layer.md",
+        "to": ".claude/skills/cli-view-layer/SKILL.md"
+      },
+      {
+        "from": ".skills/effect-services.md",
+        "to": ".claude/skills/effect-services/SKILL.md"
+      },
+      {
+        "from": ".skills/infrastructure-adapters.md",
+        "to": ".claude/skills/infrastructure-adapters/SKILL.md"
+      },
+      {
+        "from": ".skills/model-routing.md",
+        "to": ".claude/skills/model-routing/SKILL.md"
+      },
+      {
+        "from": ".skills/observability.md",
+        "to": ".claude/skills/observability/SKILL.md"
+      },
+      {
+        "from": ".skills/phax-planning.md",
+        "to": ".claude/skills/phax-planning/SKILL.md"
+      },
+      {
+        "from": ".skills/state-machines.md",
+        "to": ".claude/skills/state-machines/SKILL.md"
+      },
+      {
+        "from": ".skills/validation-boundaries.md",
+        "to": ".claude/skills/validation-boundaries/SKILL.md"
+      }
+    ],
+    "hasDeviations": true
+  }
+}
