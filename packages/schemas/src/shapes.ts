@@ -111,8 +111,12 @@ function decodeAs(shape: string, entry: AnyShape, input: unknown): Decoded {
  *    another format and newer-than-the-package fail at `$schema`; a `next`
  *    current shape decodes first when the release is the package's own; else
  *    the latest release-named shape at or below the release decodes it;
- * 3. a document with a `version` literal resolves by it: the current shape
- *    when it is `v<N>`, else `legacy[N]`; an unknown literal fails at `version`;
+ * 3. a document with a `version` literal resolves by it. When the current
+ *    shape is `v<N>`, phax's own decoder reads it first; if that rejects it
+ *    and `legacy[N]` exists, the frozen module reads it as the same shape
+ *    `v<N>`, and if both reject it the current decoder's failure is returned.
+ *    Any other literal is read by `legacy[N]`; an unknown literal fails at
+ *    `version`;
  * 4. a document with neither fails at `$schema`.
  */
 export function defineFormat<M>(
@@ -161,10 +165,13 @@ export function defineFormat<M>(
   }
 
   function byLiteral(version: unknown, input: object): Decoded {
-    if (typeof version === "number" && current.name === `v${version}`) {
-      return decodeAs(current.name, current.shape, input);
-    }
     const entry = typeof version === "number" ? legacy[version] : undefined;
+    if (typeof version === "number" && current.name === `v${version}`) {
+      const read = decodeAs(current.name, current.shape, input);
+      if (read.ok || entry === undefined) return read;
+      const older = decodeAs(current.name, entry, input);
+      return older.ok ? older : read;
+    }
     if (entry === undefined) {
       return failure(
         "version",

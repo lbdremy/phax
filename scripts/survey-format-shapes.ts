@@ -121,7 +121,7 @@ function blobsAcrossHistory(repo: string, revs: string[], classify: (p: string) 
       if (format && !seen.has(sha)) seen.set(sha, { format, path });
     }
   }
-  const shas = [...seen.keys()].sort();
+  const shas = [...seen.keys()].toSorted();
   if (shas.length === 0) return [];
   const batch = git(repo, ["cat-file", "--batch"], shas.join("\n") + "\n");
   const docs: Doc[] = [];
@@ -147,16 +147,17 @@ function walkRunDirs(home: string): Doc[] {
   const archive = join(home, "archive");
   const runDirs: string[] = [];
   for (const root of runRoots)
-    if (existsSync(root)) for (const run of readdirSync(root).sort()) runDirs.push(join(root, run));
+    if (existsSync(root))
+      for (const run of readdirSync(root).toSorted()) runDirs.push(join(root, run));
   // an archived run keeps its run directory as <archive>/<name>/runs itself
   if (existsSync(archive))
-    for (const a of readdirSync(archive).sort()) runDirs.push(join(archive, a, "runs"));
+    for (const a of readdirSync(archive).toSorted()) runDirs.push(join(archive, a, "runs"));
   {
     for (const dir of runDirs) {
       if (!existsSync(dir) || !statSync(dir).isDirectory()) continue;
       const files: string[] = [];
       const walk = (rel: string) => {
-        for (const e of readdirSync(join(dir, rel)).sort()) {
+        for (const e of readdirSync(join(dir, rel)).toSorted()) {
           const r = rel ? `${rel}/${e}` : e;
           if (statSync(join(dir, r)).isDirectory()) {
             if (/^phase-\d+$/.test(e)) walk(r);
@@ -185,7 +186,7 @@ function signature(value: unknown): { version: string; keys: string } {
   const o = value as Record<string, unknown>;
   const version = "$schema" in o ? "$schema" : "version" in o ? String(o.version) : "none";
   const parts = Object.keys(o)
-    .sort()
+    .toSorted()
     .map((k) => {
       const v = o[k];
       if (v && typeof v === "object" && !Array.isArray(v)) {
@@ -195,9 +196,9 @@ function signature(value: unknown): { version: string; keys: string } {
           const u = new Set<string>();
           for (const x of Object.values(v))
             if (x && typeof x === "object") for (const kk of Object.keys(x)) u.add(kk);
-          return `${k}{*:{${[...u].sort().join(",")}}}`;
+          return `${k}{*:{${[...u].toSorted().join(",")}}}`;
         }
-        return `${k}{${inner.sort().join(",")}}`;
+        return `${k}{${inner.toSorted().join(",")}}`;
       }
       if (
         Array.isArray(v) &&
@@ -206,7 +207,7 @@ function signature(value: unknown): { version: string; keys: string } {
       ) {
         const u = new Set<string>();
         for (const x of v) for (const kk of Object.keys(x as object)) u.add(kk);
-        return `${k}[{${[...u].sort().join(",")}}]`;
+        return `${k}[{${[...u].toSorted().join(",")}}]`;
       }
       return k;
     });
@@ -257,7 +258,7 @@ interface Group {
   examples: string[];
 }
 const report: Record<string, { documents: number; unparseable: number; groups: Group[] }> = {};
-for (const d of [...unique.values()].sort((a, b) =>
+for (const d of [...unique.values()].toSorted((a, b) =>
   (a.format + a.source).localeCompare(b.format + b.source),
 )) {
   const f = (report[d.format] ??= { documents: 0, unparseable: 0, groups: [] });
@@ -298,7 +299,11 @@ writeFileSync(
   `${out}.json`,
   JSON.stringify(
     {
-      inputs: { phaxHome: phaxHome ? short(expand(phaxHome)) : null, records: many("--records").map((p) => short(expand(p))), repos: many("--repo").map((p) => short(expand(p))) },
+      inputs: {
+        phaxHome: phaxHome ? short(expand(phaxHome)) : null,
+        records: many("--records").map((p) => short(expand(p))),
+        repos: many("--repo").map((p) => short(expand(p))),
+      },
       formats: sorted,
     },
     null,

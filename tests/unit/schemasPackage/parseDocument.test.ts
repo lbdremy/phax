@@ -73,13 +73,24 @@ describe("parseDocument", () => {
   });
 
   it("fails a known format the package does not read yet with the upgrade message", () => {
-    const url = schemaUrl("registry", "0.16.0");
+    const url = schemaUrl("gate-pending", "0.16.0");
     expectFailure(
       parseDocument({ $schema: url }),
       "$schema",
       unknownFormatMessage(url, PACKAGE_VERSION),
     );
   });
+
+  it.each(["registry", "run-status", "phase-status", "phax-plan", "compliance-review"] as const)(
+    "reaches the %s definition, which knows no $schema shape at 0.16.0 yet",
+    (formatId) => {
+      expectFailure(
+        parseDocument({ version: 1, $schema: schemaUrl(formatId, "0.16.0") }),
+        "$schema",
+        `no ${formatId} shape is known at release 0.16.0`,
+      );
+    },
+  );
 
   it("finds no phase-record-manifest $schema shape at 0.16.0, for now", () => {
     const result = parseDocument({

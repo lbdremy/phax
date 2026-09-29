@@ -1,4 +1,9 @@
 {
+  "src/history/compliance-review/v1.ts": "3908e9f82d1bd107af550b3ce62c8925cdbe77880d4eadcae789ae0c5a5d06a7",
   "src/history/phase-record-manifest/v1.ts": "36fd2ae6f05362ad8d490dfdd5be246f08117bd640b03ca2c67fb2c9dd4553d6",
-  "src/history/phase-record-manifest/v2.ts": "987b651dd71d361d0ad87143a3b8fd767df13e226ce97e322aba0573b7f6033d"
+  "src/history/phase-record-manifest/v2.ts": "987b651dd71d361d0ad87143a3b8fd767df13e226ce97e322aba0573b7f6033d",
+  "src/history/phase-status/v1.ts": "9286a74e72c895c57b559716833c5d23af90a76f728fff69e34cc21c814306dd",
+  "src/history/phax-plan/v1.ts": "38a34f473ea76665feaae58b616411c36f27ed415bb3c56a6e17a91c52cd1f41",
+  "src/history/registry/v1.ts": "fe5da4f30dee3d90e51865b9e295fe57317c551a16f7c370d954c672aa1a84ee",
+  "src/history/run-status/v1.ts": "be838667f589a13a76b3fe829ae7ccbf382bb38c33d1828e3b3bbe17ac2e4199"
 }

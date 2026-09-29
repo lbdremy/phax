@@ -1,6 +1,7 @@
-import { Either } from "effect";
+import { Either, JSONSchema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
+  BranchNameSchema,
   decodeBranchName,
   decodeClaudeSessionId,
   decodeGateProfileId,
@@ -229,6 +230,44 @@ describe("decodeBranchName", () => {
   it("rejects control characters", () => {
     expect(Either.isLeft(decodeBranchName("name\x00null"))).toBe(true);
     expect(Either.isLeft(decodeBranchName("\x01start"))).toBe(true);
+  });
+});
+
+describe("BranchNameSchema's JSON Schema", () => {
+  const jsonSchema = JSONSchema.make(BranchNameSchema) as {
+    readonly pattern: string;
+    readonly minLength: number;
+    readonly maxLength: number;
+  };
+  const pattern = new RegExp(jsonSchema.pattern);
+
+  it("carries the pattern and both length bounds", () => {
+    expect(jsonSchema.pattern).toBe("^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$");
+    expect(jsonSchema.minLength).toBe(1);
+    expect(jsonSchema.maxLength).toBe(255);
+  });
+
+  it.each([
+    ["the empty name", ""],
+    ["a leading dash", "-x"],
+    ["a space", "a b"],
+    ["a tab", "a\tb"],
+    ["a DEL", "\x7f"],
+    ["a DEL after a letter", "x\x7f"],
+    ["a NUL", "a\x00"],
+    ["a slash", "feat/x"],
+    ["a dash and a dot", "a-b.c"],
+    ["a non-ASCII letter", "résumé"],
+    ["a 255-character name", "a".repeat(255)],
+    ["a 256-character name", "a".repeat(256)],
+  ])("agrees with the decoder on %s", (_label, name) => {
+    const bySchema =
+      name.length >= jsonSchema.minLength &&
+      name.length <= jsonSchema.maxLength &&
+      pattern.test(name);
+    expect(bySchema).toBe(Either.isRight(decodeBranchName(name)));
+    // JSON Schema validators may compile patterns in unicode mode.
+    expect(new RegExp(jsonSchema.pattern, "u").test(name)).toBe(pattern.test(name));
   });
 });
 

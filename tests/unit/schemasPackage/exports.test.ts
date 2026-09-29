@@ -14,15 +14,42 @@ const packageRoot = resolve(
 );
 
 describe("schemas package entry", () => {
-  it("exports exactly parseDocument, the phase record manifest's schema, parse and upgrade, and the unknown marker at runtime", () => {
+  it("exports exactly parseDocument, each format's schema, parse and upgrade, and the unknown marker at runtime", () => {
     expect(Object.keys(entry).toSorted()).toEqual([
+      "ComplianceReviewSchema",
       "PhaseRecordManifestSchema",
+      "PhaseStatusSchema",
+      "PhaxPlanSchema",
+      "RegistrySchema",
+      "RunStatusSchema",
       "UNKNOWN",
       "isUnknown",
+      "parseComplianceReview",
       "parseDocument",
       "parsePhaseRecordManifest",
+      "parsePhaseStatus",
+      "parsePhaxPlan",
+      "parseRegistry",
+      "parseRunStatus",
+      "toLatestComplianceReview",
       "toLatestPhaseRecordManifest",
+      "toLatestPhaseStatus",
+      "toLatestPhaxPlan",
+      "toLatestRegistry",
+      "toLatestRunStatus",
     ]);
+  });
+
+  it("re-exports phax's own schemas, never a copy", async () => {
+    const { ComplianceReviewSchema } = await import("../../../src/schemas/complianceReview.js");
+    const { PhaxPlanSchema } = await import("../../../src/schemas/phaxPlan.js");
+    const { RegistrySchema } = await import("../../../src/schemas/registry.js");
+    const { PhaseStatusSchema, RunStatusSchema } = await import("../../../src/schemas/status.js");
+    expect(entry.ComplianceReviewSchema).toBe(ComplianceReviewSchema);
+    expect(entry.PhaxPlanSchema).toBe(PhaxPlanSchema);
+    expect(entry.RegistrySchema).toBe(RegistrySchema);
+    expect(entry.PhaseStatusSchema).toBe(PhaseStatusSchema);
+    expect(entry.RunStatusSchema).toBe(RunStatusSchema);
   });
 
   it("is the only subpath in the package manifest's exports", () => {

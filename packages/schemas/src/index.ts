@@ -5,6 +5,18 @@ import {
 } from "../../../src/schemas/runRecord.js";
 import type { Surface } from "../../../src/schemas/surface.js";
 import {
+  complianceReviewFormat,
+  phaseStatusFormat,
+  phaxPlanFormat,
+  registryFormat,
+  runStatusFormat,
+  type ComplianceReviewShapes,
+  type PhaseStatusShapes,
+  type PhaxPlanShapes,
+  type RegistryShapes,
+  type RunStatusShapes,
+} from "./formats/runDirectory.js";
+import {
   PhaseRecordManifestV1Schema,
   decodePhaseRecordManifestV1,
   type PhaseRecordManifestV1,
@@ -27,6 +39,48 @@ export type {
   Unknown,
 };
 export { UNKNOWN, isUnknown };
+
+// The files of a run directory. Each schema and type is phax's own.
+export {
+  ComplianceReviewSchema,
+  type ComplianceReview,
+} from "../../../src/schemas/complianceReview.js";
+export { PhaxPlanSchema, type PhaxPlan } from "../../../src/schemas/phaxPlan.js";
+export { RegistrySchema, type Registry } from "../../../src/schemas/registry.js";
+export {
+  PhaseStatusSchema,
+  RunStatusSchema,
+  type PhaseStatus,
+  type RunStatus,
+} from "../../../src/schemas/status.js";
+export {
+  parseComplianceReview,
+  parsePhaseStatus,
+  parsePhaxPlan,
+  parseRegistry,
+  parseRunStatus,
+  toLatestComplianceReview,
+  toLatestPhaseStatus,
+  toLatestPhaxPlan,
+  toLatestRegistry,
+  toLatestRunStatus,
+  type ComplianceReviewShape,
+  type ComplianceReviewV1,
+  type LatestComplianceReview,
+  type LatestPhaseStatus,
+  type LatestPhaxPlan,
+  type LatestPhaxPlanPhase,
+  type LatestRegistry,
+  type LatestRunStatus,
+  type PhaseStatusShape,
+  type PhaseStatusV1,
+  type PhaxPlanShape,
+  type PhaxPlanV1,
+  type RegistryShape,
+  type RegistryV1,
+  type RunStatusShape,
+  type RunStatusV1,
+} from "./formats/runDirectory.js";
 
 /** A phase record's `record.json` (format id `phase-record-manifest`), as phax writes it. */
 export const PhaseRecordManifestSchema = RunRecordManifestSchema;
@@ -62,6 +116,11 @@ export const parsePhaseRecordManifest: (input: unknown) => ParsedShape<PhaseReco
 
 type DocumentShapes = {
   "phase-record-manifest": PhaseRecordManifestShapes;
+  registry: RegistryShapes;
+  "run-status": RunStatusShapes;
+  "phase-status": PhaseStatusShapes;
+  "phax-plan": PhaxPlanShapes;
+  "compliance-review": ComplianceReviewShapes;
 };
 
 /** The id of every format `parseDocument` reads. */
@@ -76,7 +135,14 @@ export type AnyDocument = IdentifiedDocument<DocumentShapes>;
  * throws.
  */
 export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
-  makeDocumentParser<DocumentShapes>({ "phase-record-manifest": phaseRecordManifest });
+  makeDocumentParser<DocumentShapes>({
+    "phase-record-manifest": phaseRecordManifest,
+    registry: registryFormat,
+    "run-status": runStatusFormat,
+    "phase-status": phaseStatusFormat,
+    "phax-plan": phaxPlanFormat,
+    "compliance-review": complianceReviewFormat,
+  });
 
 /**
  * The latest phase record manifest, upgraded from any shape: no `version`,

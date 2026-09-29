@@ -63,11 +63,13 @@ function isSafeBranchName(s: string): boolean {
 export type BranchName = string & Brand.Brand<"BranchName">;
 // Rejects empty, leading `-` (arg-injection vector), and ASCII whitespace/controls.
 // Accepts all other chars including `/`, `.`, and `-` in non-leading position.
+// The JSON Schema pattern accepts exactly what `isSafeBranchName` accepts.
 export const BranchNameSchema = Schema.String.pipe(
   Schema.minLength(1),
   Schema.maxLength(255),
   Schema.filter(isSafeBranchName, {
     message: () => "branch name must not start with '-' or contain whitespace/control characters",
+    jsonSchema: { pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" },
   }),
   Schema.brand("BranchName"),
 );
