@@ -1,5 +1,7 @@
 // Keeps every committed fixture and corpus file public-safe: no home-directory
-// path, and no session id other than the placeholder scrubDocument writes.
+// path, no session id other than the placeholder scrubDocument writes, and no
+// run of another repository — a phax home holds the runs of every repository
+// phax drives, private ones included, and this repository is public.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
@@ -45,6 +47,21 @@ function sessionIds(value: unknown, into: unknown[] = []): unknown[] {
 
 const home = homedir();
 
+/** The only namespace whose runs may appear in this public repository. */
+const PUBLIC_NAMESPACE = "phax";
+
+/** Every `namespace` value, at any depth. */
+function namespaces(value: unknown, into: unknown[] = []): unknown[] {
+  if (Array.isArray(value)) for (const item of value) namespaces(item, into);
+  else if (typeof value === "object" && value !== null) {
+    for (const [key, child] of Object.entries(value)) {
+      if (key === "namespace") into.push(child);
+      else namespaces(child, into);
+    }
+  }
+  return into;
+}
+
 describe("committed fixtures and corpus files hold no private data", () => {
   it("finds files to check", () => {
     expect(files.length).toBeGreaterThan(0);
@@ -57,8 +74,12 @@ describe("committed fixtures and corpus files hold no private data", () => {
       expect(text.includes(home), `${file} holds this machine's home directory`).toBe(false);
     }
     if (file.endsWith(".json")) {
-      for (const id of sessionIds(JSON.parse(text))) {
+      const value: unknown = JSON.parse(text);
+      for (const id of sessionIds(value)) {
         expect(id, `${file} holds a session id`).toBe(SESSION_ID_PLACEHOLDER);
+      }
+      for (const ns of namespaces(value)) {
+        expect(ns, `${file} holds a run of another repository`).toBe(PUBLIC_NAMESPACE);
       }
     }
   });

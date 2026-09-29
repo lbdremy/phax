@@ -7,11 +7,12 @@
 // Additive: a file already in the corpus is never rewritten or deleted. All-or-nothing: when any
 // document fails to parse, every failure is printed and nothing is written.
 //
-// pnpm exec tsx scripts/extract-history-corpus.ts --records ~/.phax/records/phax --repo . --phax-home ~/.phax
+// pnpm exec tsx scripts/extract-history-corpus.ts --records ~/.phax/records/phax --repo . --phax-home ~/.phax --namespace phax
 //
 //   --records <repo>   a local clone of the records repository (repeatable)
 //   --repo <repo>      a repository whose docs/specs and docs/plans history is read (repeatable)
 //   --phax-home <dir>  a phax home: its registry and every live and archived run directory
+//   --namespace <name> required with --phax-home: only this namespace's runs and registry entries
 //   --out <dir>        the corpus directory (default: packages/schemas/corpus)
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -24,6 +25,8 @@ export interface HistoryCorpusSources {
   readonly records: ReadonlyArray<string>;
   readonly repos: ReadonlyArray<string>;
   readonly phaxHome?: string;
+  /** Required with phaxHome: only this namespace's runs reach the corpus (see formatSources). */
+  readonly namespace?: string;
   readonly home: string;
   readonly outDir: string;
 }
@@ -40,6 +43,7 @@ export function extractHistoryCorpus(sources: HistoryCorpusSources): HistoryCorp
   const { home, outDir } = sources;
   const documents = collectFormatDocuments({
     ...(sources.phaxHome === undefined ? {} : { phaxHome: sources.phaxHome }),
+    ...(sources.namespace === undefined ? {} : { namespace: sources.namespace }),
     records: sources.records,
     repos: sources.repos,
     home,
@@ -65,12 +69,13 @@ export function extractHistoryCorpus(sources: HistoryCorpusSources): HistoryCorp
 }
 
 const USAGE =
-  "usage: extract-history-corpus.ts [--records <repo>]... [--repo <repo>]... [--phax-home <dir>] [--out <dir>]";
+  "usage: extract-history-corpus.ts [--records <repo>]... [--repo <repo>]... [--phax-home <dir> --namespace <name>] [--out <dir>]";
 
 function parseArgs(argv: ReadonlyArray<string>, home: string, repoRoot: string) {
   const records: string[] = [];
   const repos: string[] = [];
   let phaxHome: string | undefined;
+  let namespace: string | undefined;
   let outDir = join(repoRoot, "packages/schemas/corpus");
   for (let i = 0; i < argv.length; i += 2) {
     const flag = argv[i];
@@ -79,11 +84,20 @@ function parseArgs(argv: ReadonlyArray<string>, home: string, repoRoot: string) 
     if (flag === "--records") records.push(expandHome(value, home));
     else if (flag === "--repo") repos.push(expandHome(value, home));
     else if (flag === "--phax-home") phaxHome = expandHome(value, home);
+    else if (flag === "--namespace") namespace = value;
     else if (flag === "--out") outDir = expandHome(value, home);
     else return undefined;
   }
   if (records.length === 0 && repos.length === 0 && phaxHome === undefined) return undefined;
-  return { records, repos, ...(phaxHome === undefined ? {} : { phaxHome }), outDir };
+  // a phax home holds every repository's runs, private ones included: never read it unfiltered
+  if (phaxHome !== undefined && namespace === undefined) return undefined;
+  return {
+    records,
+    repos,
+    ...(phaxHome === undefined ? {} : { phaxHome }),
+    ...(namespace === undefined ? {} : { namespace }),
+    outDir,
+  };
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);

@@ -19,6 +19,13 @@ export interface FormatSourceDocument {
 
 export interface FormatSources {
   readonly phaxHome?: string;
+  /**
+   * When set, the phax home yields only this namespace's runs: a run directory whose
+   * run-status.json names another namespace is skipped (a run from before namespaces existed
+   * names none and is kept), and the registry keeps only this namespace's entries. A phax home
+   * holds the runs of every repository phax drives, private ones included.
+   */
+  readonly namespace?: string;
   readonly records: ReadonlyArray<string>;
   readonly repos: ReadonlyArray<string>;
   readonly home: string;
@@ -114,14 +121,37 @@ function recordsBranch(repo: string): string | null {
 }
 
 // ── phax home: run directories, live and archived, and the registry
-function walkRunDirs(phaxHome: string, home: string): FormatSourceDocument[] {
+/** The namespace a run-status.json names, or undefined when it names none or cannot be read. */
+function runNamespace(dir: string): string | undefined {
+  const status = join(dir, "run-status.json");
+  if (!existsSync(status)) return undefined;
+  try {
+    const value = JSON.parse(readFileSync(status, "utf8")) as { namespace?: unknown };
+    return typeof value.namespace === "string" ? value.namespace : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The registry text, keeping only `namespace`'s runs when a namespace is given. */
+function registryText(text: string, namespace: string | undefined): string {
+  if (namespace === undefined) return text;
+  const value = JSON.parse(text) as { runs?: Record<string, { namespace?: unknown }> };
+  if (value.runs === undefined || typeof value.runs !== "object") return text;
+  const runs = Object.fromEntries(
+    Object.entries(value.runs).filter(([, run]) => run.namespace === undefined || run.namespace === namespace),
+  );
+  return JSON.stringify({ ...value, runs }, null, 2) + "\n";
+}
+
+function walkRunDirs(phaxHome: string, home: string, namespace: string | undefined): FormatSourceDocument[] {
   const docs: FormatSourceDocument[] = [];
   const reg = join(phaxHome, "registry.json");
   if (existsSync(reg))
     docs.push({
       format: "registry",
       source: shortenHome(reg, home),
-      text: readFileSync(reg, "utf8"),
+      text: registryText(readFileSync(reg, "utf8"), namespace),
     });
   const runRoots = [join(phaxHome, "runs")];
   const archive = join(phaxHome, "archive");
@@ -134,6 +164,10 @@ function walkRunDirs(phaxHome: string, home: string): FormatSourceDocument[] {
     for (const a of readdirSync(archive).toSorted()) runDirs.push(join(archive, a, "runs"));
   for (const dir of runDirs) {
     if (!existsSync(dir) || !statSync(dir).isDirectory()) continue;
+    if (namespace !== undefined) {
+      const ns = runNamespace(dir);
+      if (ns !== undefined && ns !== namespace) continue;
+    }
     const files: string[] = [];
     const walk = (rel: string) => {
       for (const e of readdirSync(join(dir, rel)).toSorted()) {
@@ -165,7 +199,8 @@ function walkRunDirs(phaxHome: string, home: string): FormatSourceDocument[] {
 export function collectFormatDocuments(sources: FormatSources): FormatSourceDocument[] {
   const { home } = sources;
   const docs: FormatSourceDocument[] = [];
-  if (sources.phaxHome) docs.push(...walkRunDirs(expandHome(sources.phaxHome, home), home));
+  if (sources.phaxHome)
+    docs.push(...walkRunDirs(expandHome(sources.phaxHome, home), home, sources.namespace));
   for (const r of sources.records) {
     const repo = expandHome(r, home);
     const branch = recordsBranch(repo);
