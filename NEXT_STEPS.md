@@ -181,9 +181,9 @@ desktop — none is promised by the announcement.
       format → 3 guards (snapshots, `next`, history corpus) → 4 phax writes `$schema` →
       5 publication. All carry the slug `schemas-package`, named by title ("… 1/5 — …").
       Brief: `docs/briefs/schemas-package-plan.md`, rewritten before each plan.
-      **Plan 1/5 Approved 2026-09-29**: `docs/plans/2609290541-schemas-package-plan.md` (read
-      the phase record manifest, 3 phases). Next action: `phax run --plan` it; its end is the
-      review point before plan 2 is written.
+      **Plan 1/5 landed 2026-09-29** (read the phase record manifest; PR #104 merged, run
+      archived; the run completed the spec by mistake, reverted in `1e40621b`). Next action:
+      plan 2/5 (read every format), authored headless from the brief.
       1. **`headless-authoring`** — `docs/ideas/headless-authoring.md`: `artifact new
          spec|plan --headless --brief <file>`; phax spawns the authoring session with the
          skill and an output schema, receives JSON only (plan in the `phax-plan.json`
