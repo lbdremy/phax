@@ -63,6 +63,12 @@ desktop — none is promised by the announcement.
       a leading sentence. Workaround in use: a closing line in the brief ("your final
       message is the spec document JSON and nothing else"). Fix: tell the session so in
       the authoring prompt itself, or accept the last top-level JSON object of the message.
+- [ ] **Authoring records are not auto-pushed.** Found 2026-09-29: with `records.autoPush`
+      true in phax and steme-lab, `phax records status` still listed 13 (phax) and 1
+      (steme-lab) authoring records from headless `artifact new` sessions as pending; pushed
+      by hand with `git push origin phax/records/v1`. Phase records are pushed at run end;
+      the authoring path writes its record but never pushes. Fix: push after an authoring
+      record is written, as the run path does.
 - [ ] **Headless authoring's commit fails under a repo's formatter hook.** Found 2026-09-28
       authoring `oracle-markers` in steme-lab: lefthook's `oxfmt --check` rejected the
       sidecar (`JSON.stringify(…, 2)` layout), so phax exited 12 with both files staged and
