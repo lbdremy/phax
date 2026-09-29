@@ -30,6 +30,7 @@ describe("schemas-check on the committed tree", () => {
 
   it("pins every frozen module", () => {
     expect(Object.keys(state.lock)).toEqual([
+      "src/history/authoring-record-manifest/v1.ts",
       "src/history/compliance-review/v1.ts",
       "src/history/phase-record-manifest/v1.ts",
       "src/history/phase-record-manifest/v2.ts",

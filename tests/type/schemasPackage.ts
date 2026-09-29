@@ -1,9 +1,13 @@
 import type {
   AnyDocument,
+  AuthoringRecordManifest,
+  AuthoringRecordManifestShape,
+  AuthoringRecordManifestV1,
   ComplianceReview,
   ComplianceReviewShape,
   ComplianceReviewV1,
   DocumentFormatId,
+  LatestAuthoringRecordManifest,
   LatestComplianceReview,
   LatestPhaseRecordManifest,
   LatestPhaseStatus,
@@ -34,6 +38,8 @@ import type {
   PlanDocument,
   PlanDocumentShape,
   PlanDocumentV1,
+  RecordManifest,
+  RecordManifestFormat,
   Registry,
   RegistryShape,
   RegistryV1,
@@ -49,6 +55,7 @@ import type {
   Unknown,
 } from "../../packages/schemas/src/index.js";
 import {
+  parseAuthoringRecordManifest,
   parseComplianceReview,
   parseDocument,
   parsePhaseRecordManifest,
@@ -56,15 +63,21 @@ import {
   parsePhaxPlan,
   parsePlanApprovals,
   parsePlanDocument,
+  parseRecordManifest,
   parseRegistry,
   parseRunStatus,
   parseSpecApprovals,
   parseSpecDocument,
+  toLatestAuthoringRecordManifest,
   toLatestPhaxPlan,
   toLatestRunStatus,
   toLatestSpecDocument,
 } from "../../packages/schemas/src/index.js";
 import type { ApprovalRecordFile } from "../../src/schemas/approvalRecord.js";
+import type {
+  AuthoringRecordManifest as PhaxAuthoringRecordManifest,
+  RecordManifest as PhaxRecordManifest,
+} from "../../src/schemas/authoringRecord.js";
 import type { ComplianceReview as PhaxComplianceReview } from "../../src/schemas/complianceReview.js";
 import type { PhaxPlan as PhaxPhaxPlan } from "../../src/schemas/phaxPlan.js";
 import type { PlanDocument as PhaxPlanDocument } from "../../src/schemas/planDocument.js";
@@ -170,6 +183,7 @@ void documentAsParsed;
 const formats: Equals<
   DocumentFormatId,
   | "phase-record-manifest"
+  | "authoring-record-manifest"
   | "registry"
   | "run-status"
   | "phase-status"
@@ -387,3 +401,76 @@ declare const olderSpecDocument: SpecDocumentV1;
 const upgradedSpecDocument: LatestSpecDocument = toLatestSpecDocument(olderSpecDocument);
 // @ts-expect-error: the latest spec document carries no version
 void upgradedSpecDocument.version;
+
+// ── record manifests
+
+// The authoring manifest and the union are phax's own types, both ways (§5.20)
+const authoringIsPhax: Equals<AuthoringRecordManifest, PhaxAuthoringRecordManifest> = true;
+const recordManifestIsPhax: Equals<RecordManifest, PhaxRecordManifest> = true;
+void authoringIsPhax;
+void recordManifestIsPhax;
+declare const phaxAuthoring: PhaxAuthoringRecordManifest;
+declare const packageAuthoring: AuthoringRecordManifest;
+declare const phaxRecordManifest: PhaxRecordManifest;
+declare const packageRecordManifest: RecordManifest;
+const authoringToPackage: AuthoringRecordManifest = phaxAuthoring;
+const authoringToPhax: PhaxAuthoringRecordManifest = packageAuthoring;
+const recordManifestToPackage: RecordManifest = phaxRecordManifest;
+const recordManifestToPhax: PhaxRecordManifest = packageRecordManifest;
+void authoringToPackage;
+void authoringToPhax;
+void recordManifestToPackage;
+void recordManifestToPhax;
+
+// One frozen v1 accepts both legacy signatures, so it has exactly phax's type
+const authoringTwin: Equals<AuthoringRecordManifestV1, PhaxAuthoringRecordManifest> = true;
+const authoringShapes: Equals<AuthoringRecordManifestShape, "v1"> = true;
+void authoringTwin;
+void authoringShapes;
+const authoringResult = parseAuthoringRecordManifest({});
+if (authoringResult.ok) {
+  const value: Equals<typeof authoringResult.value, AuthoringRecordManifestV1> = true;
+  void value;
+}
+
+// The latest authoring manifest drops version and keeps sourceSha optional
+const latestAuthoring: Equals<
+  LatestAuthoringRecordManifest,
+  Omit<PhaxAuthoringRecordManifest, "version">
+> = true;
+void latestAuthoring;
+const upgradedAuthoring = toLatestAuthoringRecordManifest(packageAuthoring);
+const sourceShaStaysOptional: Equals<typeof upgradedAuthoring.sourceSha, string | undefined> = true;
+void sourceShaStaysOptional;
+
+// parseRecordManifest names the format and the shape, and narrows to the exact type
+const recordManifestFormats: Equals<
+  RecordManifestFormat,
+  "phase-record-manifest" | "authoring-record-manifest"
+> = true;
+void recordManifestFormats;
+const anyManifest = parseRecordManifest({});
+const anyManifestAsParsed: Parsed<
+  PhaseRecordManifestV1 | PhaseRecordManifest | AuthoringRecordManifestV1
+> = anyManifest;
+void anyManifestAsParsed;
+if (anyManifest.ok) {
+  const format: RecordManifestFormat = anyManifest.format;
+  void format;
+  if (anyManifest.format === "authoring-record-manifest") {
+    const shape: Equals<typeof anyManifest.shape, "v1"> = true;
+    const exact: Equals<typeof anyManifest.value, AuthoringRecordManifestV1> = true;
+    void shape;
+    void exact;
+  } else if (anyManifest.shape === "v1") {
+    const exact: Equals<typeof anyManifest.value, PhaseRecordManifestV1> = true;
+    void exact;
+  } else {
+    const exact: Equals<typeof anyManifest.value, PhaseRecordManifest> = true;
+    void exact;
+  }
+}
+if (document.ok && document.format === "authoring-record-manifest") {
+  const exact: Equals<typeof document.value, AuthoringRecordManifestV1> = true;
+  void exact;
+}

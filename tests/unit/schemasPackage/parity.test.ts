@@ -1,18 +1,25 @@
 import { Either, type ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
 import {
+  parseAuthoringRecordManifest,
   parseComplianceReview,
   parsePhaseRecordManifest,
   parsePhaseStatus,
   parsePhaxPlan,
   parsePlanApprovals,
   parsePlanDocument,
+  parseRecordManifest,
   parseRegistry,
   parseRunStatus,
   parseSpecApprovals,
   parseSpecDocument,
 } from "../../../packages/schemas/src/index.js";
 import { decodeApprovalRecordFile } from "../../../src/schemas/approvalRecord.js";
+import {
+  decodeAuthoringRecordManifest,
+  decodeRecordManifest,
+  isAuthoringRecordManifest,
+} from "../../../src/schemas/authoringRecord.js";
 import { decodeComplianceReview } from "../../../src/schemas/complianceReview.js";
 import { decodePhaxPlan } from "../../../src/schemas/phaxPlan.js";
 import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
@@ -456,5 +463,76 @@ describe("parity: one unknown key on a repository format", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.path).toBe("owner");
     }
+  });
+});
+
+const authoring = readSurveyedFixtures("authoring-record-manifest", "v1")[0]?.document as Doc;
+const { sourceSha: _authoringSourceSha, ...authoringWithoutSourceSha } = authoring;
+
+// The authoring manifest is decoded with `onExcessProperty: "error"`, so one
+// unknown key is rejected by both.
+const AUTHORING_CASES: ReadonlyArray<readonly [string, unknown, "accepted" | "rejected"]> = [
+  ["a real authoring manifest", authoring, "accepted"],
+  ["an authoring manifest without sourceSha", authoringWithoutSourceSha, "accepted"],
+  [
+    "a failed plan session with unavailable usage",
+    { ...authoring, artifactKind: "plan", outcome: "failed", usage: { available: false } },
+    "accepted",
+  ],
+  ["an authoring manifest with one unknown key", { ...authoring, reviewer: "human" }, "rejected"],
+  ["an interrupted authoring session", { ...authoring, outcome: "interrupted" }, "rejected"],
+  ["an authoring manifest of another kind", { ...authoring, kind: "phase" }, "rejected"],
+  ["an authoring manifest for a review", { ...authoring, artifactKind: "review" }, "rejected"],
+  ["an authoring manifest with an empty sourceSha", { ...authoring, sourceSha: "" }, "rejected"],
+  ["a version-2 authoring manifest", { ...authoring, version: 2 }, "rejected"],
+];
+
+describe("parity: parseAuthoringRecordManifest agrees with phax's decoder", () => {
+  it.each(AUTHORING_CASES)("%s", (_label, input, verdict) => {
+    const decoded = decodeAuthoringRecordManifest(input);
+    const result = parseAuthoringRecordManifest(input);
+    expect(Either.isRight(decoded)).toBe(verdict === "accepted");
+    expect(result.ok).toBe(verdict === "accepted");
+    if (result.ok && Either.isRight(decoded)) expect(result.value).toEqual(decoded.right);
+  });
+
+  it("rejects one unknown key at the key, as phax does", () => {
+    const result = parseAuthoringRecordManifest({ ...authoring, reviewer: "human" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.path).toBe("reviewer");
+  });
+});
+
+// Every current-shape manifest, phase or authoring. A version-1 phase
+// manifest is left out: the package reads it and phax's union does not (§5.7
+// promises parity only for the shape phax writes).
+const RECORD_MANIFEST_CASES: ReadonlyArray<readonly [string, unknown]> = [
+  ...cases,
+  ...AUTHORING_CASES.map(([label, input]) => [label, input] as const),
+  ["a phase manifest that claims kind authoring", { ...base, kind: "authoring" }],
+  ["an authoring manifest without kind", { ...authoring, kind: undefined }],
+];
+
+describe("parity: parseRecordManifest agrees with phax's union", () => {
+  it.each(RECORD_MANIFEST_CASES)("%s", (_label, input) => {
+    const decoded = decodeRecordManifest(input);
+    const result = parseRecordManifest(input);
+    expect(result.ok).toBe(Either.isRight(decoded));
+    if (result.ok && Either.isRight(decoded)) {
+      expect(result.value).toEqual(decoded.right);
+      expect(result.format).toBe(
+        isAuthoringRecordManifest(decoded.right)
+          ? "authoring-record-manifest"
+          : "phase-record-manifest",
+      );
+    }
+  });
+
+  it("covers accepted phase and authoring manifests, and rejected ones", () => {
+    const results = RECORD_MANIFEST_CASES.map(([, input]) => parseRecordManifest(input));
+    const formats = results.flatMap((result) => (result.ok ? [result.format] : []));
+    expect(formats).toContain("phase-record-manifest");
+    expect(formats).toContain("authoring-record-manifest");
+    expect(results.some((result) => !result.ok)).toBe(true);
   });
 });
