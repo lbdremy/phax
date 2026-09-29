@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2609241238-schemas-package.md
+approved:
+  date: 2026-09-29
+  baseline: 76d8ab0
 ---
 # schemas-package 2/5 — read every format
 
