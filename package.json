@@ -57,6 +57,7 @@
   "devDependencies": {
     "@types/mdast": "^4.0.4",
     "@types/node": "^25.9.3",
+    "ajv": "^8.20.0",
     "esbuild": "^0.28.1",
     "knip": "^6.12.2",
     "oxfmt": "^0.49.0",
