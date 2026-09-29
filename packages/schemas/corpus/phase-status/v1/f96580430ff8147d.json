@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-07-10T13:03:16.455Z",
+  "updatedAt": "2026-07-10T13:05:29.433Z",
+  "branchName": "phax/plan-03-migrate-the-workspace-to-typescript-7-stable--phase-01",
+  "worktreePath": "~/.phax/worktrees/steme-lab.plan-03-migrate-the-workspace-to-typescript-7-stable/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "917e831b64fb74f3c54cadc9161c61a052023290"
+}

@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/ports/backend.ts",
+    "src/app/executePlan.ts",
+    "src/infra/providers/claudeCode.ts",
+    "tests/unit/providers/claudeCode.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "src/infra/providers/codexCli.ts",
+    "src/infra/providers/mistralVibe.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

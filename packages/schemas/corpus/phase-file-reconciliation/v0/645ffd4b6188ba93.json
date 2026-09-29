@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "packages/louloupress/src/modules/site-core/shared/navigation.ts",
+    "packages/louloupress/src/modules/site-core/runtime/navigation.ts",
+    "packages/louloupress/src/modules/content/shared/contracts/taxonomy.ts",
+    "apps/le-secretaire-de-fernand/tests/navigation/navigation-resolver.test.ts",
+    "apps/le-secretaire-de-fernand/tests/navigation/navigation-config.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "apps/le-secretaire-de-fernand/src/shared/site-runtime.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "apps/le-secretaire-de-fernand/public/content-index.json",
+    "apps/le-secretaire-de-fernand/tests/support/current-site-data.ts",
+    "packages/louloupress/src/modules/site-core/runtime/create-site-runtime.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

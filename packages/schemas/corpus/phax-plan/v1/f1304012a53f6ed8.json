@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "observability",
+    "title": "Implementation plan — PHAX observability & telemetry doctrine",
+    "branch": "phax/observability",
+    "backend": "claude-code-cli"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Semantic telemetry domain types",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-semantic-domain",
+      "commit": {
+        "subject": "ai(phase-01): add semantic telemetry domain types and snapshot projection",
+        "body": "Introduce the pure-domain semantic telemetry vocabulary under `src/domain/telemetry/` — the `SemanticTelemetryEvent` discriminated union, the `SystemErrorReport` value type, and the `SemanticTraceSnapshot` projection — plus matching Effect Schemas. No Effect, OpenTelemetry, or IO; this is the source of truth every later observability phase maps to or from."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "SystemTelemetry application port",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-02-system-telemetry-port",
+      "commit": {
+        "subject": "ai(phase-02): add SystemTelemetry application port and noop layer",
+        "body": "Define the `SystemTelemetry` Context.Tag that covers traces, semantic events, errors, counters, and durations behind one stable interface; ship a `NoopSystemTelemetryLayer` as the safe default. The port lives alongside the existing `Tracer` — no callers are migrated in this phase."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "InMemoryTelemetry adapter and snapshot projection",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-in-memory",
+      "commit": {
+        "subject": "ai(phase-03): add InMemoryTelemetry adapter and snapshot projection",
+        "body": "Implement the in-memory `SystemTelemetry` adapter that collects semantic events, counters, and durations in deterministic order and exposes a stable `SemanticTraceSnapshot` projection; ship the matching fake under `src/infra/fakes/systemTelemetry.ts`. A scripted integration test pins the snapshot shape so later phases preserve it."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "JsonFileTelemetry adapter",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-04-json-file",
+      "commit": {
+        "subject": "ai(phase-04): add JsonFileTelemetry adapter for local semantic traces",
+        "body": "Add a `SystemTelemetry` implementation that appends one JSON line per semantic event to a configurable path through the existing `FileSystem` port. All IO failures are swallowed inside the adapter so telemetry never fails a run, and the on-disk format round-trips through the phase-01 Effect Schemas."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "OpenTelemetrySystemTelemetry adapter",
+      "model": "claude-opus-4-7",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-05-opentelemetry",
+      "commit": {
+        "subject": "ai(phase-05): add OpenTelemetry SystemTelemetry adapter (envelope)",
+        "body": "Implement the `OpenTelemetrySystemTelemetry` adapter that maps `runId` to traces, `withOperation` to spans, semantic events to span events, structured errors to span status + recorded exceptions, and counters/durations to OTel metrics, per doctrine §6. OTel imports are confined to this single infrastructure module; unit tests exercise the mapping through in-memory exporters."
+      }
+    },
+    {
+      "id": "phase-06",
+      "title": "CompositeTelemetry + layer factory + CLI flag wiring",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-06-composite-and-factory",
+      "commit": {
+        "subject": "ai(phase-06): add CompositeTelemetry and SystemTelemetry layer factory",
+        "body": "Add `CompositeTelemetry` so multiple `SystemTelemetry` implementations can run in lockstep, plus a `makeSystemTelemetryLayer` factory that composes in-memory / verbose-renderer / JSON-file / OpenTelemetry layers from a single options record. Application call sites are untouched; the legacy `Tracer` still serves the CLI flags."
+      }
+    },
+    {
+      "id": "phase-07",
+      "title": "Migrate application orchestration to SystemTelemetry",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-07-app-migration",
+      "commit": {
+        "subject": "ai(phase-07): migrate application orchestration to SystemTelemetry",
+        "body": "Switch every call site in `src/app/` from `Tracer` to `SystemTelemetry`: dispatcher transitions use `recordTransition`, adapter calls use `withOperation`, and the legacy event names are mapped 1:1 to `SemanticTelemetryEvent` variants. The `Tracer` port stays present (wired to a noop) so CLI flag handling still compiles; phase-09 removes it. Existing tests now assert on both ports as a transitional safety net."
+      }
+    },
+    {
+      "id": "phase-08",
+      "title": "Structured SystemErrorReport at adapter boundaries",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-08-error-reports",
+      "commit": {
+        "subject": "ai(phase-08): emit SystemErrorReport for adapter boundary failures",
+        "body": "Enrich the typed errors raised by Shell, Git, and Claude-CLI adapters with the contract fields (argv, exit code, stderr excerpt, expected) the doctrine requires, then build `SystemErrorReport` values in the application layer and emit them through `SystemTelemetry.recordError`. Adapter modules stay decoupled from telemetry — reports are constructed where the operation context is known."
+      }
+    },
+    {
+      "id": "phase-09",
+      "title": "Remove legacy Tracer port and migrate CLI flags fully",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-09-remove-tracer",
+      "commit": {
+        "subject": "ai(phase-09): remove legacy Tracer port and unify on SystemTelemetry",
+        "body": "Delete `src/ports/tracer.ts` and its three implementations, fold the verbose / trace CLI flags onto the `SystemTelemetry` factory, and migrate every remaining test from `FakeTracer` to `InMemoryTelemetry`. The codebase now has a single observability port; `@opentelemetry/*` stays opt-in via `PHAX_OTEL` and is the doctrine's standard envelope."
+      }
+    },
+    {
+      "id": "phase-10",
+      "title": "Happy-path E2E semantic snapshot test",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-10-e2e-snapshot",
+      "commit": {
+        "subject": "ai(phase-10): pin happy-path semantic trace via snapshot test",
+        "body": "Add an end-to-end test that drives the real happy path while capturing semantic events through `InMemoryTelemetry`, then asserts the `SemanticTraceSnapshot` projection. The snapshot is the proof artifact the doctrine prescribes — future refactors must replay it identically or explicitly promote a new baseline."
+      }
+    },
+    {
+      "id": "phase-11",
+      "title": "Architectural guards + .skills/observability.md",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-11-guards-and-skill",
+      "commit": {
+        "subject": "ai(phase-11): add telemetry doctrine guards and observability skill",
+        "body": "Add four `PHAX_TELEMETRY_*` architectural guard tests that freeze the doctrine in code — domain isolation, OTel confinement, application port-only access, and snapshot-projection purity — and ship `.skills/observability.md` so agents and reviewers have a single correction guide when a guard fires."
+      }
+    },
+    {
+      "id": "phase-12",
+      "title": "Doctrine docs (docs/observability.md, state-machine, README)",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-12-docs",
+      "commit": {
+        "subject": "ai(phase-12): document the observability doctrine and SystemTelemetry",
+        "body": "Ship `docs/observability.md` summarising the doctrine, the `SystemTelemetry` port, the four implementations, the CLI flags / env vars, the snapshot rule, the adapter-boundary failure contract, and the `PHAX_TELEMETRY_*` guards; update `docs/state-machine.md` and `README.md` to point at `SystemTelemetry` as the canonical observability surface. Documentation-only commit."
+      }
+    }
+  ]
+}

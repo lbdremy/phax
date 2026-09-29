@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "runId": "gate-step-scheduling-2-1788767989425",
+  "phaseId": "phase-01",
+  "shape": "full",
+  "sourceSha": "d746986c3393f5e70da96992405a460350addbeb",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 106,
+      "cacheCreationInputTokens": 114707,
+      "cacheReadInputTokens": 5579354,
+      "outputTokens": 25909,
+      "totalCostUsd": 1.8518088
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "structural"
+  ]
+}

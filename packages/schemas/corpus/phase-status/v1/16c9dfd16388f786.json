@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-04",
+  "phaseIndex": 3,
+  "state": "review_open",
+  "model": "claude-opus-4-8",
+  "effort": "high",
+  "createdAt": "2026-08-14T10:18:03.337Z",
+  "updatedAt": "2026-08-14T10:37:07.996Z",
+  "branchName": "phax/run-carries-completion--phase-04",
+  "worktreePath": "~/.phax/worktrees/phax.run-carries-completion/phase-04",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "6692367ffc4ed0ddfede33de08739e43d663a478"
+}

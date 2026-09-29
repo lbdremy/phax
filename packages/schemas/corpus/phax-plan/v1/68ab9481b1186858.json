@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "steme-audit-baseline-and-drift-governance",
+    "title": "steme audit — Baseline and Drift Governance",
+    "requiredCommands": [],
+    "branch": "phax/steme-audit-baseline-and-drift-governance"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-fingerprint",
+      "plannedFilesToCreate": [
+        "apps/steme/src/core/fingerprint.ts",
+        "apps/steme/src/core/fingerprint.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/contracts/diagnostic.ts",
+        "apps/steme/src/core/evaluate/diagnostics.ts",
+        "apps/steme/src/core/evaluate/diagnostics.test.ts",
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/src/cli/audit-harness.e2e.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/cli/render.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): compute frozen v1 violation fingerprints and dedupe identities",
+        "body": "Add the v1 violation fingerprint — sha256 over rule id, source scope, violated\ntarget designation (concept over scope), repo-relative source file and\nresolved target, explicitly excluding line numbers and import kind — carried\non every diagnostic and emitted in JSON output. Same-identity edges\ndeduplicate to one diagnostic. A frozen-value unit test pins the exact hash so\nthe formula (future SARIF partialFingerprints) can never drift silently; any\nchange requires a v2 prefix."
+      },
+      "title": "Violation fingerprints in every diagnostic"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-baseline-store",
+      "plannedFilesToCreate": [
+        "apps/steme/src/contracts/baseline.ts",
+        "apps/steme/src/core/baseline/store.ts",
+        "apps/steme/src/core/baseline/store.test.ts",
+        "apps/steme/src/core/baseline/classify.ts",
+        "apps/steme/src/core/baseline/classify.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/contracts/index.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(steme): add the baseline store and known/new/touched/resolved classifier",
+        "body": "Add the baseline contract (seven-field entries, schemaVersion 1, strictly\nparsed with named config errors — an expiry field is a rejection, not a\nfeature), deterministic serialization sorted by ruleId/file/fingerprint for\nreviewable diffs, per-app entry scoping, and the drift classifier: exact\nfingerprint match is known, same rule and file with a changed fingerprint is\ntouched (claiming its entry), anything else is new, and unclaimed unmatched\nentries are resolved. Pure modules with exhaustive unit tests; no CLI change\nyet."
+      },
+      "title": "Baseline store and drift classifier"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-audit-modes",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/src/cli/render.ts",
+        "apps/steme/src/contracts/diagnostic.ts",
+        "apps/steme/steme.usage.kdl",
+        "apps/steme/docs/cli.md"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/cli/render.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): add --write-baseline adoption and --fail-on-new drift enforcement",
+        "body": "Wire the baseline into steme audit: --write-baseline runs the full audit and\naccepts every current violation of the app into steme-baseline.json (exit 0,\nrefusing with exit 2 if the app is already covered — accepting more drift is\nthe governance command's job), and --fail-on-new compares against the register\nand fails only when new drift exists. Known violations are summarized, never\nitemized; new and touched are itemized with state tags and a\nknown/new/touched/resolved drift line in both renderings. Missing or malformed\nbaselines and contradictory flags are cannot-run refusals (exit 2). Committed\ncompletions and CLI reference regenerated."
+      },
+      "title": "Audit modes: --write-baseline and --fail-on-new"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-04-governance-accept-drift",
+      "plannedFilesToCreate": [
+        "apps/steme/src/cli/audit-pipeline.ts",
+        "apps/steme/src/cli/commands/governance.ts",
+        "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/steme.usage.kdl",
+        "apps/steme/docs/cli.md"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/src/cli/audit-harness.e2e.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): add steme governance accept-drift and the baseline lifecycle harness",
+        "body": "Accepting drift becomes an explicit governance operation: steme governance\naccept-drift runs the audit, keeps exactly-matched baseline entries with their\noriginal acceptance metadata, adds every unmatched current violation with a\nmandatory --reason, and prunes resolved debt — deterministic, byte-stable\noutput, exit 0 always (a governance write, never a policy verdict). A\ndisposable-copy E2E harness proves the whole adoption lifecycle: adopt,\nprotect, new drift fails, identity survives line moves and type flips, touched\nis signaled without failing, resolved is pruned, refusals exit 2, and foreign\napps' entries survive every write byte-identically."
+      },
+      "title": "steme governance accept-drift and the lifecycle harness"
+    }
+  ]
+}

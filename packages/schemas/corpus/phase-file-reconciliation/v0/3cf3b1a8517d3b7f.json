@@ -1,0 +1,32 @@
+{
+  "phaseId": "phase-10",
+  "createdAsPlanned": [
+    "vitest.config.ts",
+    "packages/example-utility/src/core/identity.test.ts",
+    "libraries/result/tests/result.test.ts",
+    "apps/sandbox/src/adapters/db/drizzle/schema/schema.test.ts"
+  ],
+  "editedAsPlanned": [
+    "package.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [
+    "libraries/result/vitest.config.ts"
+  ],
+  "unplannedEdited": [
+    "apps/sandbox/package.json",
+    "libraries/result/package.json",
+    "packages/example-utility/package.json"
+  ],
+  "optionalTouched": [
+    "apps/sandbox/vitest.config.ts",
+    "packages/example-utility/vitest.config.ts",
+    "pnpm-lock.yaml"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases delivered their core objectives. Phase-01 and phase-02 are fully conformant: the deterministic extractor, unit tests, app wiring, and wiring tests all match the plan exactly, and commit subjects match verbatim. Phase-03 delivered the example canonicalization and regression test but the planned edit to `.agents/skills/phax-planning/SKILL.md` did not survive the commit gate — oxfmt reformatted the inserted prose and the gate reverted it. The `.claude/skills/` skip was plan-sanctioned. The deno.lock unplanned touch in phase-01 is a gate-driven side effect, not a source change.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "deno.lock was regenerated (unplanned) when the gate ran pnpm deno:smoke after mdast npm modules were added. Handoff explains this as a gate-driven side effect, not a source change."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "The implementation also attaches the fallback warning on the cache-hit path (not explicitly stated in the plan but consistent with the intent); explained in the handoff."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": ".agents/skills/phax-planning/SKILL.md was planned to be edited but was not modified in the committed diff. The handoff explains the edit was applied during the session but oxfmt (run by the commit gate) reverted the inserted prose. The documentation objective for this file was not delivered."
+        },
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "The skill documentation goal (documenting deterministic-first extraction and the run.title/shortName convention) was not achieved because the oxfmt gate reverted the SKILL.md edit. The example canonicalization and regression test were both delivered."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": ".claude/skills/phax-planning/SKILL.md was intentionally skipped; the plan's own Dependencies section sanctions this omission when the protected-path approval-hook is not active."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Skill documentation follow-up: .agents/skills/phax-planning/SKILL.md needs the deterministic-first extraction prose reapplied in a way that passes pnpm format:check (run pnpm format after editing and verify before committing).",
+    "Protected-path follow-up: .claude/skills/phax-planning/SKILL.md needs the same skill wording applied manually once the protected-path approval-hook (docs/plans/41-...) is active and .claude/skills/ is in security.filesystem.allowWriteProtected."
+  ],
+  "pointers": []
+}

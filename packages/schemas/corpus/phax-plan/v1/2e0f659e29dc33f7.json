@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "typescript-6-migration",
+    "title": "Upgrade to TypeScript 6",
+    "branch": "phax/typescript-6-migration",
+    "requiredCommands": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Upgrade the project to TypeScript 6",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-typescript-6",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "package.json",
+        "tsconfig.json",
+        "pnpm-lock.yaml"
+      ],
+      "optionalFilesToEdit": [
+        "package-lock.json"
+      ],
+      "commit": {
+        "subject": "chore(deps): upgrade to TypeScript 6",
+        "body": "Bump typescript to ^6.0.3 and @types/node to ^25.9.3, and set compilerOptions.types to [\"node\"] in the base tsconfig. TypeScript 6.0 no longer auto-includes @types packages, so the explicit types entry is required for Node globals and node:* module resolution; the build and test tsconfigs inherit it via extends. No source changes. This aligns the project's authoritative type-check with the TypeScript version Deno bundles, unblocking the Deno runtime work."
+      }
+    }
+  ]
+}

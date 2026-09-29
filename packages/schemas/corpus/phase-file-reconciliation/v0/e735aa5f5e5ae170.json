@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "tests/unit/resolvePolicyProtected.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/securityConfig.ts",
+    "src/domain/security/types.ts",
+    "src/domain/security/resolvePolicy.ts",
+    "phax.schema.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/domain/security/resolveReviewPolicy.ts",
+    "tests/unit/security/resolvePolicy.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

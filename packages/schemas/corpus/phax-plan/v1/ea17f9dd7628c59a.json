@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "harden-usage-kdl",
+    "title": "Harden the generated `phax.usage.kdl` pipeline",
+    "requiredCommands": [
+      "usage"
+    ],
+    "branch": "phax/harden-usage-kdl"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-drift-gate",
+      "plannedFilesToCreate": [
+        "tests/integration/usageSpecDrift.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "scripts/generate-usage-spec.ts",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/cli/inventory.md"
+      ],
+      "commit": {
+        "subject": "test(cli): add a regeneration drift gate for phax.usage.kdl",
+        "body": "Extract the spec text into a pure generateUsageSpec() function and add an integration test asserting the committed phax.usage.kdl is byte-identical to its output, so a CLI change without `pnpm gen:usage-spec` now fails the gate. The generator script becomes a thin runner; emitted bytes are unchanged. Documents phax.usage.kdl as a generated, drift-gated artifact intended for downstream derivation."
+      },
+      "title": "Regeneration drift gate for the generated spec"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-arg-help",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "src/cli/commands/resumeRegister.ts",
+        "src/cli/commands/resetPhaseRegister.ts",
+        "scripts/generate-usage-spec.ts",
+        "phax.usage.kdl"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(cli): add argument and root help to the generated Usage spec",
+        "body": "Add descriptions to every positional CLI argument in the Commander program and emit the program description as the spec's root help, then teach the generator to project argument help and root help into phax.usage.kdl. Regenerates the spec and closes all 19 usage-lint info messages, with code remaining the source of truth."
+      },
+      "title": "Argument and root help in the Commander layer and generator"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-03-long-help-examples",
+      "plannedFilesToCreate": [
+        "src/cli/cliDocs.ts",
+        "tests/integration/usageSpecExamples.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "scripts/generate-usage-spec.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "scripts/docs-cli.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): add code-owned long help and examples to the CLI surface",
+        "body": "Add src/cli/cliDocs.ts as the single typed source of per-command long help and runnable examples for the documentation-heavy commands, wire it into both Commander --help and the spec generator, and regenerate phax.usage.kdl and the CLI docs. Delivers the original plan's examples/long-help/side-effect intent with code as the source of truth. Covered by an integration test asserting the generated spec carries the metadata."
+      },
+      "title": "Command long help and examples as code-owned metadata"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-04-enforce-and-reframe",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "tests/integration/usageSpecLint.test.ts",
+        "tests/integration/usageParity.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "docs/cli/reference.md",
+        "README.md"
+      ],
+      "commit": {
+        "subject": "test(cli): fail the spec lint on infos and reframe the parity gate",
+        "body": "Make tests/integration/usageSpecLint.test.ts treat usage-lint info messages as failures so a new argument or command without help cannot regress the now info-clean spec, and correct the parity test's header comment to describe its real role as a name-level drift guard over the generated spec rather than an independent contract check."
+      },
+      "title": "Enforce an info-clean spec and reframe the parity gate"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-embed-spec",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "scripts/build-binaries.ts",
+        "scripts/smoke-binary.sh",
+        "deno.json",
+        "package.json",
+        "pnpm-lock.yaml",
+        "knip.json",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "fix(build): bundle the CLI so single-file binaries are small and --usage works",
+        "body": "deno compile does not tree-shake, so pointing it at the raw source embedded ~274 MB of node_modules into each binary (~360 MB) and still left phax.usage.kdl absent, breaking --usage. Bundle the CLI with esbuild first (tree-shaken to ~1.5 MB) and deno compile --include package.json / phax.usage.kdl / .claude/skills, dropping the artifacts to the ~74 MB Deno-runtime floor and making --usage, completions, --version, and skills install work inside the binary with no source changes. The bundle is emitted three directories deep so the CLI's import.meta relative reads resolve to the VFS root where --include drops the files. Adds esbuild as a devDependency (knip-ignored, spawned not imported), routes deno task compile through the bundle path, and extends the binary smoke test to assert --usage and a size bound."
+      },
+      "title": "Shrink the single-file binaries and make `--usage` work in them"
+    },
+    {
+      "id": "phase-06",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-06-short-name-completers",
+      "plannedFilesToCreate": [
+        "src/cli/cliCompleters.ts",
+        "tests/integration/usageSpecCompleters.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "src/cli/commands/ls.ts",
+        "scripts/generate-usage-spec.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/usageParity.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): complete run short-names via a usage spec completer",
+        "body": "Add a code-owned completer map (src/cli/cliCompleters.ts) and teach the spec generator to emit usage `complete` nodes, so shell completion offers live run short-names for every command that takes one. Add a fast `phax ls --complete` output as the completion source, regenerate phax.usage.kdl, the embedded spec constant, and the CLI docs, and document short-name completion in the README. Covered by an integration test asserting the completer node and the ls --complete output."
+      },
+      "title": "Dynamic shell completion of run short-names via a usage completer"
+    }
+  ]
+}

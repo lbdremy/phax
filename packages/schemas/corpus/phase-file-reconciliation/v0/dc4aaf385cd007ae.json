@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "tests/integration/usageSpecLint.test.ts",
+    "tests/integration/usageParity.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

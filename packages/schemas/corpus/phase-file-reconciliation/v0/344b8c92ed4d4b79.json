@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/domain/security/protectedPaths.ts",
+    "tests/unit/protectedPaths.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

@@ -1,0 +1,20 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "tests/integration/extractPlanSealed.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/extractPlan.ts",
+    "src/cli/commands/run.ts",
+    "src/cli/commands/extractPlan.ts",
+    "tests/integration/extractPlanTitles.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

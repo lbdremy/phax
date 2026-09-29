@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "phax-run-records",
+  "runId": "phax-run-records-1787232157827",
+  "state": "archived",
+  "createdAt": "2026-08-20T13:22:37.844Z",
+  "updatedAt": "2026-09-03T07:46:58.770Z",
+  "phasesCount": 9,
+  "gateProfileId": "full",
+  "stoppedReason": "rate_limited",
+  "lastError": "Claude Code stopped: usage limit reached.",
+  "planRepoRelPath": "docs/plans/52-phax-run-records-plan.md"
+}

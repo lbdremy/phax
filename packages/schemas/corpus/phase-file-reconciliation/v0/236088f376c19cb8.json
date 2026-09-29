@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "apps/steme/src/core/ports/file-system-port.ts",
+    "apps/steme/src/adapters/file-system/node-file-system-adapter.ts",
+    "apps/steme/src/adapters/file-system/node-file-system-adapter.test.ts",
+    "apps/steme/src/core/modules/audit/ports/import-graph-port.ts",
+    "apps/steme/src/adapters/import-graph/import-graph-adapter.ts",
+    "apps/steme/src/adapters/import-graph/import-graph-adapter.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/package.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "pnpm-lock.yaml"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

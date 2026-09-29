@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "apps/steme/src/cli/register-path.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/cli/program.ts",
+    "apps/steme/src/cli/commands/baseline.ts",
+    "apps/steme/src/cli/refusals.ts",
+    "apps/steme/src/core/modules/audit/capability.ts",
+    "apps/steme/src/cli/main.test.ts",
+    "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts",
+    "apps/steme/src/cli/preflight-ordering.e2e.test.ts",
+    "apps/steme/steme.usage.kdl",
+    "apps/steme/docs/cli.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "verdict": "conformant",
+  "summary": "Both phases were delivered as planned. Phase-01 extracted readActiveRulepacks and rejectDuplicateRuleIds, implemented DoctrineModule.check with the resolveWorkspacePolicy shared prefix, added human/JSON renders, registered --for/--check either-or CLI, and regenerated the usage spec and CLI docs — with error-order precedence, all invariant suites, and the 11-case e2e test confirmed. Phase-02 made guide resolution in query lazy (root, matched scope, matched concepts only), rewrote the two posture comments, replaced e2e case (9) with (9a)–(9d), and split the guide-refusal capability test into surfaced (still refuses) and unsurfaced (exists never called, asserted via call log). All planned files were touched in the correct phases; the one optional edit (contracts/index.ts) was justified; no unplanned files were modified; both commit subjects match the plan verbatim; and all invariant suites passed unmodified.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "loadActiveRulepacks does not internally call the batch readActiveRulepacks — it keeps its own per-ref read→parse→skill-refusal loop to preserve error-order precedence. This is documented in the handoff as a deliberate decision, not a deviation."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All three optional files (program.ts, steme.usage.kdl, docs/cli.md) were left untouched; justified in the handoff because --for's option description never mentioned guide validation."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [],
+  "pointers": []
+}

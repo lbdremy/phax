@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All four phases delivered their stated objectives. The two unplanned files (src/domain/errors.ts and src/cli/commands/runLayers.ts) and the re-touching of the three phase-01 provider adapters in phase-02 are all documented in the handoffs with clear technical justifications: adding phaseFolderPath to AgentInvocationError was the cleanest way for the CLI to render the log path without filesystem access, and runLayers.ts was the natural shared home for exit-code mapping and the CLI formatter. No unjustified scope creep was found. One attention point exists in docs/security.md: the example JSON snippet still shows a name-style mcp.allow entry that contradicts the corrected table row.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "writeAgentErrorLog implemented and wired into both failure paths (spawn error + non-zero exit) of all three provider adapters as specified."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Four unit tests present: file content shape, unknown exitCode, no-op on undefined path, no-throw on unwritable path — matches test strategy exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all required content: exact path and signature, agent-error.log format, rate-limit exclusion, completion-call exclusion, and pointer for phase-02."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/domain/errors.ts edited (unplanned) to add phaseFolderPath?: string | undefined to AgentInvocationError. Justified: CLI has no reliable way to reconstruct the log path at render time without this field; adapters already hold the value."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/infra/providers/claudeCode.ts, codexCli.ts, and mistralVibe.ts (phase-01 files) re-touched to pass phaseFolderPath in error constructors. Justified: one-line additive change per site; no logic altered."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "src/cli/commands/runLayers.ts used for renderAgentInvocationError (listed as optional); both run.ts and resume.ts already import from it, making it the correct location."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "10 unit tests in describeCause.test.ts covering enrichment, fallback, excerpt bounding, whitespace-only excerpt, and other cause types — matches test strategy."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "loadRunReviewInfo tolerates empty phaseStatuses, reconstructs finalPhase* from last plan phase, sets worktreePath to empty string and claudeSessionId/commitHash to undefined as specified."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "6 integration tests present: reset→resolvable, reset→resumable (phase-01 as next), no-live-folder, happy-path unchanged, missing run-status.json still fails, empty phaseStatuses with no plan still fails — matches test strategy."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff confirms happy-path is unchanged, notes resolvePhaseInfo still fails for reset runs (correct), and provides clean pointer for phase-04."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "mcpAllowlistPreflight added to executePlan.ts and called after required-commands preflight; fails with SecurityPreflightError naming offending entries; skips for non-allowlist modes. docs/security.md line 50 corrected to state path contract and note name-based allowlisting is unsupported."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "src/cli/commands/runLayers.ts touched (listed as optional): SecurityPreflightError mapped to exit code 11, consistent with the existing SecurityEnforcementError entry. Justified and additive."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "5 unit tests present covering all required cases: all-missing, partial-missing, all-present, empty allow, non-allowlist mode skip — matches test strategy exactly."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "mcpAllowlistPreflight lives in src/app/ and routes filesystem check through the FileSystem port — correct per architecture rules; no direct node:fs in app layer."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "docs/security.md example JSON snippet (line 34) still shows \"allow\": [\"my-trusted-mcp\"] — a name-style entry that contradicts the corrected table row at line 50 and the allowlist mode description at line 68. A reader consulting only the example may still misconfigure the field. The example should use a path like \"/path/to/mcp-server.json\"."
+  ],
+  "pointers": [
+    "Possible documentation inconsistency: docs/security.md example config at line 34 uses a name-style mcp.allow entry (\"my-trusted-mcp\") while the corrected prose at lines 50 and 68 requires file paths — confirm via a doc review pass."
+  ]
+}

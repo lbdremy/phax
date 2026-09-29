@@ -1,0 +1,20 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "src/cli/commands/skills.ts",
+    "tests/unit/skillsArgv.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/main.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [
+    ".agents/skills/phax-planning/SKILL.md"
+  ],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

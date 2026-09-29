@@ -1,0 +1,32 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/app/gates.ts",
+    "src/app/fixLoop.ts",
+    "src/app/eventAdapter.ts",
+    "src/app/executePlan.ts",
+    "src/domain/errors.ts",
+    "src/domain/events.ts",
+    "tests/integration/gates.test.ts",
+    "tests/integration/eventAdapter.test.ts",
+    "tests/integration/fixLoop.test.ts",
+    "tests/unit/events.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/telemetry/adapterFailures.test.ts",
+    "tests/unit/telemetry/reportBuilders.test.ts"
+  ],
+  "optionalTouched": [
+    "tests/integration/dispatcher.test.ts",
+    "tests/unit/reducer.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

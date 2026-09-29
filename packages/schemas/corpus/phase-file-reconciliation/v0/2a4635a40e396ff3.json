@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "CONTRIBUTING.md"
+  ],
+  "editedAsPlanned": [
+    "package.json"
+  ],
+  "missingPlannedCreate": [
+    "lefthook.yml"
+  ],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [
+    "lefthook.json"
+  ],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "pnpm-lock.yaml"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

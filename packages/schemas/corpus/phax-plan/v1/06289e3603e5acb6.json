@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "vibe-target-flag-and-review-code-worklist-fixes",
+    "title": "Vibe target flag and review-code worklist fixes",
+    "requiredCommands": [],
+    "branch": "phax/vibe-target-flag-and-review-code-worklist-fixes"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-01-drop-vibe-target-flag",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/infra/providers/mistralVibe.ts",
+        "tests/unit/providers/mistralVibe.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "docs/model-routing.md"
+      ],
+      "commit": {
+        "subject": "fix(vibe): drop the --target flag vibe does not accept",
+        "body": "`buildVibeArgs` appended `--target <model>` to every invocation; `vibe` has no such flag\nand exits 2 with \"unrecognized arguments: --target\", so no mistral-vibe phase could spawn.\nModel selection already goes through the `VIBE_ACTIVE_MODEL` env var `spawnVibe` sets from\n`modelEnvVar`, so the flag is dropped rather than replaced. Present since the adapter was\nwritten; unnoticed because mistral-vibe ships disabled and no e2e exercises it. Unit tests\nnow assert the flag is absent."
+      },
+      "title": "Drop the unsupported `--target` flag from the Vibe argv"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-4-8",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-review-code-worklist",
+      "plannedFilesToCreate": [
+        "src/domain/review/codeReviewWorklist.ts",
+        "tests/unit/review/codeReviewWorklist.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/review/codeReviewPrompt.ts",
+        "src/app/reviewCode.ts",
+        "tests/unit/review/codeReviewPrompt.test.ts",
+        "tests/integration/reviewCode.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/schemas/globalReconciliation.ts",
+        "tests/integration/reviewCodeCommand.test.ts"
+      ],
+      "commit": {
+        "subject": "fix(review): feed the review-code worklist from the reconciliation JSON",
+        "body": "`buildCodeReviewPrompt` accepted a `reconciliationMd` it never read, and\n`prepareCodeReviewSession` hardcoded `attentionPoints: []`, so every review-code prompt\nrendered \"No attention points recorded\" under its primary worklist while the\nreconciliation md was read and discarded. The worklist is now built from\n`global-file-reconciliation.json` — decoded through the existing schema and mapped by a\npure domain helper to path / status / phases — and the dead md input is removed. A missing\nor malformed JSON degrades to an empty worklist rather than refusing, matching how the\ncompliance block is handled. Covered by a unit test on the mapping and integration tests\non the populated, absent, and malformed cases."
+      },
+      "title": "Feed the review-code worklist from the reconciliation JSON"
+    }
+  ]
+}

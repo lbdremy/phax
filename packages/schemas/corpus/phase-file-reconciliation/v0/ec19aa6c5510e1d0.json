@@ -1,0 +1,37 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "apps/le-secretaire-de-fernand/src/site/content/en/tech/20260610-stronger-feedback-loops-start-with-explicit-code.mdx",
+    "apps/le-secretaire-de-fernand/src/site/content/fr/tech/20260610-stronger-feedback-loops-start-with-explicit-code.mdx"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "apps/le-secretaire-de-fernand/src/site/content/generated/section-usage.json",
+    "apps/le-secretaire-de-fernand/src/site/content/generated/tag-usage.json"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "apps/le-secretaire-de-fernand/src/site/content/en/entrepreneurship/11052026-letting-go-does-not-mean-stopping-acting.mdx",
+    "apps/le-secretaire-de-fernand/src/site/content/en/entrepreneurship/13052026-letting-go-in-our-relationship-with-others.mdx",
+    "apps/le-secretaire-de-fernand/src/site/content/en/entrepreneurship/21052026-letting-go-relationship-production.mdx",
+    "apps/le-secretaire-de-fernand/src/site/content/en/tech/20260621-outgrow-your-taste-dont-defend-it.mdx",
+    "apps/le-secretaire-de-fernand/src/site/content/en/tech/21052026-how-ai-is-changing-our-relationship-to-work-in-software-engineering.mdx",
+    "apps/le-secretaire-de-fernand/src/site/content/fr/entrepreneurship/11052026-letting-go-does-not-mean-stopping-acting.mdx",
+    "apps/le-secretaire-de-fernand/src/site/content/fr/entrepreneurship/13052026-letting-go-in-our-relationship-with-others.mdx",
+    "apps/le-secretaire-de-fernand/src/site/content/fr/entrepreneurship/21052026-letting-go-relationship-production.mdx",
+    "apps/le-secretaire-de-fernand/src/site/content/fr/tech/20260621-outgrow-your-taste-dont-defend-it.mdx",
+    "apps/le-secretaire-de-fernand/src/site/content/fr/tech/21052026-how-ai-is-changing-our-relationship-to-work-in-software-engineering.mdx",
+    "apps/le-secretaire-de-fernand/tests/navigation/navigation-resolver.test.ts"
+  ],
+  "optionalTouched": [
+    "apps/le-secretaire-de-fernand/src/site/content/navigation/menu.json",
+    "apps/le-secretaire-de-fernand/src/site/content/taxonomy/sections.json",
+    "apps/le-secretaire-de-fernand/public/content-index.json"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

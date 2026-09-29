@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "composition-root-ports-and-typed-results-for-apps-steme",
+    "title": "Composition Root, Ports, and Typed Results for apps/steme",
+    "requiredCommands": [],
+    "branch": "phax/composition-root-ports-and-typed-results-for-apps-steme"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-ports-and-adapters",
+      "plannedFilesToCreate": [
+        "apps/steme/src/core/ports/file-system-port.ts",
+        "apps/steme/src/adapters/file-system/node-file-system-adapter.ts",
+        "apps/steme/src/adapters/file-system/node-file-system-adapter.test.ts",
+        "apps/steme/src/core/modules/audit/ports/import-graph-port.ts",
+        "apps/steme/src/adapters/import-graph/import-graph-adapter.ts",
+        "apps/steme/src/adapters/import-graph/import-graph-adapter.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/package.json"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(steme): add FileSystemPort and ImportGraphPort with Result-wrapped adapters",
+        "body": "Add @steme-lab/result as a dependency and introduce the two ports this app's\ncomposition root will need: FileSystemPort (shared, core/ports/) wrapping\nnode:fs reads/writes as Result plus a plain exists() boolean, and\nImportGraphPort (core/modules/audit/ports/) wrapping the existing, unchanged\nbuildImportGraph as Result instead of a thrower. Concrete adapters\n(node-file-system-adapter, import-graph-adapter) are fully unit-tested against\nreal files/dirs. Nothing is wired into cli/ yet."
+      },
+      "title": "Ports and adapters: FileSystemPort, ImportGraphPort"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-02-parse-rulepack-result",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/src/contracts/rulepack.ts",
+        "apps/steme/src/core/rules/parse-rulepack.ts",
+        "apps/steme/src/core/rules/parse-rulepack.test.ts",
+        "apps/steme/src/cli/audit-pipeline.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "refactor(steme): return Result from parseRulepack instead of a hand-rolled union",
+        "body": "Replace ParseRulepackResult's ad-hoc {ok:true,rulepack}|{ok:false,errors}\nunion with @steme-lab/result's Result<Rulepack, ConfigError[]>. Pure type and\ncall-site rename — no change to what a rulepack must look like to parse, or\nto any ConfigError message."
+      },
+      "title": "parse-rulepack.ts returns Result"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-audit-capability",
+      "plannedFilesToCreate": [
+        "apps/steme/src/core/composition/index.ts",
+        "apps/steme/src/core/composition/index.test.ts",
+        "apps/steme/src/core/modules/audit/capability.ts",
+        "apps/steme/src/cli/self-audit.e2e.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/src/cli/commands/governance.ts",
+        "apps/steme/src/cli/audit-harness.e2e.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "refactor(steme): route audit through a composition root and capability, fixing self-audit",
+        "body": "apps/steme was violating its own shipped rulepack (TS_BOUNDARY_007:\ncli/audit-pipeline.ts imported adapters/index.ts directly). Fix it the way\nthe tool requires of every other app: core/composition/index.ts becomes the\nonly file allowed to reach adapters/ (wiring FileSystemPort and\nImportGraphPort from phase-01), core/modules/audit/capability.ts exposes a\nResult-returning computeAudit that cli consumes instead of adapters/\ndirectly, and cli/audit-pipeline.ts is deleted. program.ts and\ngovernance.ts's shared computeAudit call site now branches on Result instead\nof catching a thrown AuditPipelineError, with every existing message and\nexit code preserved byte-for-byte. A new self-audit E2E test makes \"steme\naudit apps/steme exits 0\" a permanent regression check, and a new fixture\ncase proves the boundary rules still fire correctly elsewhere."
+      },
+      "title": "Composition root and the audit capability"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-04-governance-capability",
+      "plannedFilesToCreate": [
+        "apps/steme/src/core/modules/governance/capability.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/contracts/baseline.ts",
+        "apps/steme/src/core/baseline/store.ts",
+        "apps/steme/src/core/baseline/store.test.ts",
+        "apps/steme/src/core/composition/index.ts",
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/src/cli/commands/governance.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "refactor(steme): route baseline I/O through FileSystemPort and a governance capability",
+        "body": "Move program.ts's and commands/governance.ts's direct readFileSync /\nwriteFileSync / existsSync calls for the baseline register behind\ncore/modules/governance/capability.ts, built on the same FileSystemPort as\nthe audit capability. parseBaseline now returns Result<Baseline,\nConfigError[]> for consistency with parseRulepack (phase-02) — a type change\nonly, no change to what a baseline file must look like. Every existing exit\ncode, stderr message, and baseline-lifecycle E2E scenario is unchanged; cli/\nnow contains zero direct node:fs calls anywhere in apps/steme."
+      },
+      "title": "Governance capability and FileSystemPort for baseline I/O"
+    }
+  ]
+}

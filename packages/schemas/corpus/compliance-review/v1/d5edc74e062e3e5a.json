@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Both phases delivered their stated objectives. All 26 planned files were created or edited exactly as listed in the global reconciliation; no unplanned files were touched. All promised tests are present at the stated layers: findUnitRoot with 6 cases, within-segment glob matching with 6 cases, 11 doctrine e2e scenarios, and 12 capability unit tests. Both commit subjects match the plan verbatim. One minor deviation: PolicyResolution was placed in core/policy/resolve-policy.ts rather than contracts/distribution.ts as the plan directed; the handoff documents this placement explicitly and the choice is semantically defensible. No scope creep was observed in either phase.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "All six planned deliverables shipped: concept vocabulary updated, matchGlob extended with within-segment *, parseStackpack guides field added, resolvePolicy return type updated, loadActiveRulepacks extracted, findUnitRoot implemented."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "PolicyResolution type placed in core/policy/resolve-policy.ts rather than contracts/distribution.ts as the plan directed ('Add the type to contracts/distribution.ts'). ResolvedStackpackRef and StackpackGuides are in distribution.ts as planned. The handoff explicitly documents the actual location."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "find-unit.test.ts has 6 cases covering all planned scenarios including nonexistent-leaf and stopDir bounding. glob-match.test.ts has a dedicated within-segment * describe block with 6 cases matching the plan's examples. No test file for loadActiveRulepacks — none was planned."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "resolvePolicy returns PolicyResolution = { rulepacks, stackpack | null } and loadActiveRulepacks returns Result<ActiveRulepack[], { message }> — both match the declared boundary contracts."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the planned subject exactly: 'feat(steme): align concept keys; add guides parsing and unit discovery, unwired'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all required content: exact export names and paths, resolvePolicy return type, confirmation that only the two named test files changed among existing suites, and the PolicyResolution placement deviation with rationale."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No CLI changes, no doctrine capability, no usage-spec or docs edits in this phase — excluded scope respected."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "All planned components shipped: DoctrineIndex contract, doctrine capability with query(), human and JSON renders, CLI registration, usage spec and docs regenerated, e2e and unit test suites green."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All 6 planned-create files exist; all 4 planned-edit files were edited. No optional files (test-workspace.ts, main.test.ts) needed changes, consistent with the handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "doctrine.e2e.test.ts covers all 11 planned scenarios plus bare-rulepack-policy. capability.test.ts covers path-only resolution, refusal precedence, and rules-only for bare rulepack — all planned test strategy items present."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "DoctrineIndex serialized shape matches Surface contract (rootGuide, workSurface, guides, rules). CLI maps err to stderr+exit 2 and ok to render+exit 0 as specified."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the planned subject exactly: 'feat(steme): add steme doctrine --for returning the workspace doctrine index'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all required content: final DoctrineIndex shape, command help text, regenerated artifacts, no optional file changes, fixture bug documented, exactOptionalPropertyTypes constraint noted."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No --for-new, no doctrine guide subcommand, no multi-path queries, no real stackpack-steme guides, no audit behavior changes — excluded scope respected."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "PolicyResolution type lives in core/policy/resolve-policy.ts rather than contracts/distribution.ts as the plan directed. If the contracts layer is the intended single source of truth for cross-module types, consider migrating in a follow-up. If co-location with the producer is the preferred convention, update the plan template.",
+    "loadActiveRulepacks has no dedicated unit test file. The plan relied on unmodified audit suites as the invariance proof, which is conformant. Future refactors to this shared loader would benefit from direct unit coverage."
+  ],
+  "pointers": []
+}

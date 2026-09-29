@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "review_open",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-07-16T14:47:26.804Z",
+  "updatedAt": "2026-07-16T14:50:47.074Z",
+  "branchName": "phax/baseline-commands-and-read-only-audit-for-apps-steme--phase-03",
+  "worktreePath": "~/.phax/worktrees/steme-lab.baseline-commands-and-read-only-audit-for-apps-steme/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "8f6af894593b5dde3fa15c3c840eb805ee5eef7e"
+}

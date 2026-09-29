@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/artifact/frontmatter.ts",
+    "src/domain/artifact/lineage.ts",
+    "src/domain/artifact/writeSet.ts",
+    "src/app/artifactStatus.ts",
+    "tests/unit/artifact/writeSet.test.ts",
+    "tests/unit/artifact/frontmatter.test.ts",
+    "tests/integration/artifactStatus.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "tests/unit/artifact/lineage.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "tests/unit/cli/reviewCompliance.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/commands/reviewCompliance.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    ".agents/skills/phax-planning/SKILL.md"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

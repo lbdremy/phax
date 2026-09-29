@@ -1,0 +1,15 @@
+{
+  "createdAsPlanned": [
+    "src/domain/security/capabilities.ts",
+    "tests/unit/security/capabilities.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

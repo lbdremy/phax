@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-06",
+  "phaseIndex": 5,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-11T12:10:12.728Z",
+  "updatedAt": "2026-06-11T12:18:55.728Z",
+  "branchName": "phax/plan-12--phase-06",
+  "worktreePath": "~/.phax/worktrees/plan-12/phase-06",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "0ba0dc421900a677985243014bc155c9ebbaf95f"
+}

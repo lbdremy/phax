@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "src/domain/skills/types.ts",
+    "src/domain/skills/catalog.ts",
+    "src/domain/skills/destination.ts",
+    "tests/unit/skills/destination.test.ts",
+    "tests/unit/skills/catalog.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

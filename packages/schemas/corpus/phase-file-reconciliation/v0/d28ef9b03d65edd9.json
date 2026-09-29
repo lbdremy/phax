@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "tests/unit/mcpAllowlistPreflight.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/executePlan.ts",
+    "docs/security.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "src/cli/commands/runLayers.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

@@ -1,0 +1,28 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/domain/artifact/writeSet.ts",
+    "tests/unit/artifact/writeSet.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/errors.ts",
+    "src/app/artifactStatus.ts",
+    "tests/integration/artifactStatus.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/planStaleness.ts",
+    "src/cli/commands/artifact.ts",
+    "src/cli/commands/plans.ts",
+    "src/infra/fakes/git.ts",
+    "tests/integration/planStaleness.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

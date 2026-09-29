@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "tests/unit/phaxUserOverlaySchema.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/phaxConfig.ts",
+    "src/app/loadConfig.ts",
+    "phax.schema.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/unit/phaxConfigJsonSchema.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

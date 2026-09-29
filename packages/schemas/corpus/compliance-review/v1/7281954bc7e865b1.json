@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases delivered their stated objectives. Phase-01 deviated from the plan's technical arbitration by keeping the import-graph build in execute rather than moving it to preflight, justified by five pre-existing tests that explicitly guard the invariant that CLI baseline-register refusals must fire before graph construction. Phase-02 added an unplanned edit to cli/commands/baseline.ts, forced by the mandated Violation discriminated union making the prior expression ill-typed. Both deviations are recorded and justified in their respective handoffs. Phase-03 conforms fully with no deviations. No excluded scope was violated. All planned artifacts, tests, and documentation are present.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Objective fully delivered: per-type dispatch, AnalysisCapabilities record, ScopeImportViolation discriminated union, requiredCapabilities, per-type module, fingerprint/diagnostics switch on kind, stub builders, resolvePackageDir on port and adapter. No new rule type introduced."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "apps/steme/src/adapters/package-resolver/node-package-resolver.test.ts was planned as CREATE but already existed at the baseline commit; it was extended with resolvePackageDir cases instead. The test coverage is present and correct. Acknowledged in the handoff."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Boundary contract respected: evaluateRules receives a closed AnalysisCapabilities record and never touches ports, filesystem, or process.cwd(). Graph build and resolver creation remain in the audit module."
+        },
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "Plan arbitration specified that preflight builds the import graph as its last step and that AuditPreflight carries graph and capabilities. This was not followed: the graph build remained in execute. Reason: moving it to preflight broke five pre-existing tests (main.test.ts, three in preflight-ordering.e2e.test.ts, baseline-lifecycle.e2e.test.ts) that are deliberate regression guards for the ordering invariant. Justified and recorded in the handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised tests present: inference.test.ts (renamed field, requiredCapabilities), evaluate-rules.test.ts (missing-capability err case), node-package-resolver.test.ts (resolvePackageDir cases), capability.test.ts (graph build in execute, existing cases unmodified)."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject and body match the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all required content: exported names and paths, suite pass confirmation, and explicit recording of the preflight/execute deviation with the invariance constraint that any future relocation must satisfy."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Objective fully delivered: EnforcePublicSurfaceImportsRule and Rule union; strict parser branch; inference with three capabilities and package-import-edge fingerprint; evaluator with all four reasons in priority order; PackageSurfaceViolation; capability builders (single cached pass for both packageGraph and publicSurfaceIndex); AuditPreflight.anchorReal; fingerprint and diagnostics branches; doctrine relevance; 13-case e2e suite."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Excluded scope respected: no rulepack or skill changes in this phase. Engine and CLI changes are limited to what the mandated Violation union strictly required."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "apps/steme/src/cli/commands/baseline.ts was edited but not in the planned file lists. The Violation discriminated union made v.violatedConcept ?? v.toScopeKey ill-typed (those fields do not exist on PackageSurfaceViolation); the code now calls violationTarget(v). The plan mandated the union; the edit is a forced consequence. Justified and recorded in the handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised tests present at the stated layers: public-surface.e2e.test.ts (13 cases covering all reasons, third-party, shadow, fingerprint dedup, lazy+strict manifest, doctrine), enforce-public-surface-imports.test.ts, build-capabilities.test.ts, fingerprint.test.ts, parse-rulepack.test.ts, inference.test.ts."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Boundary contracts respected: evaluator only reads PackageImport/SiblingUnit values, never resolves or reads files; builder never judges; CLI/audit interface unchanged."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject and body match the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all required content: shipped reason→problem wording for all four reasons, invalid-sibling-manifest refusal text, rule-count update note for phase-03, baseline.ts deviation with explanation, and test-only edits characterization."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Objective fully delivered: PACKAGE_SURFACE_001 appended to steme.rulepack.json; SKILL.md written with four violation reasons, correction recipes, and anti-gaming notes; self-audit.e2e.test.ts proves a seeded deep import triggers the rule (exit 1) and the corrected import passes (exit 0); audit-harness rule-count updated 12→13; CONVENTIONS.md section updated to name PACKAGE_SURFACE_001 and summarize enforcement."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Excluded scope respected: no engine or CLI source touched; no separate rulepack-package-surfaces package created."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "No deviations. Every planned file touched as planned. audit-harness.e2e.test.ts is listed as optional and was touched for the rule-count update. No unplanned non-optional file was changed."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Seeded deep-import e2e case present in self-audit.e2e.test.ts using makeSelfGoverningWorkspace with the real shipped rulepack. pnpm steme:audit (13 rules, 0 violations, 3 units) is the clean-lab proof per the handoff."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "No engine/CLI source touched; only rulepack, skill, tests, and docs."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject and body match the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all required content: rule position, skill path, no lab import or manifest changes needed, all eight gate commands pass. States this is the final phase."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Graph build is in execute, not preflight: the plan's technical arbitration called for moving it to preflight, but five pre-existing tests guard the invariant that CLI baseline-register refusals fire before graph construction. Any future plan that wants to move this earlier must explicitly account for preflight-ordering.e2e.test.ts's control tests.",
+    "node-package-resolver.test.ts pre-existed at the baseline commit despite being planned as a new file; it was extended rather than created. The reconciliation table flags this as action-mismatch. No correctness concern, but tooling that diffs planned-vs-actual file actions will flag it.",
+    "The PACKAGE_SURFACE_001 self-audit test seeds unused concepts (core.composition, core.capabilities) in the app manifest to prevent other active rulepack rules from refusing the audit with a concept-not-declared error before PACKAGE_SURFACE_001 evaluates. Correct workaround, but a future reader may find the extra manifest fields surprising without context."
+  ],
+  "pointers": [
+    "build-capabilities.ts splitPackageSpecifier: verify the subpath extraction for a scoped specifier with exactly two segments (e.g. @scope/name — subpath should be '.'); check the off-by-one on the join. Confirm via unit test in build-capabilities.test.ts.",
+    "self-audit.e2e.test.ts seeds concepts.core.composition and concepts.core.capabilities which are not the concepts exercised by the PACKAGE_SURFACE_001 test case — if CORE_ADAPTER_001 or CORE_COMPOSITION_001 rule logic changes and starts requiring different concept declarations, this fixture could start failing for unrelated reasons. Confirm the fixture is minimal-correct and comment the reason for the extra fields."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "low",
+  "createdAt": "2026-06-29T13:40:00.387Z",
+  "updatedAt": "2026-06-29T13:43:53.279Z",
+  "branchName": "phax/deterministic-plan-extraction-with-llm-fallback--phase-03",
+  "worktreePath": "~/.phax/worktrees/phax.deterministic-plan-extraction-with-llm-fallback/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "1996a0292d8b0910fb29b8b330373af532577688"
+}

@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/domain/plan/parsePlanMarkdown.ts",
+    "tests/unit/parsePlanMarkdown.test.ts"
+  ],
+  "editedAsPlanned": [
+    "package.json",
+    "pnpm-lock.yaml"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "deno.lock"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

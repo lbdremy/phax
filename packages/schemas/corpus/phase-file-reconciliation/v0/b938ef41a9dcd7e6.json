@@ -1,0 +1,32 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "src/domain/telemetry/report.ts",
+    "src/app/report.ts",
+    "src/cli/commands/report.ts",
+    "tests/unit/telemetry/report.test.ts",
+    "tests/integration/report.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/ports/github.ts",
+    "src/infra/github.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "src/cli/main.ts"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "docs/cli/reference.md",
+    "phax.usage.kdl",
+    "src/cli/program.ts",
+    "src/infra/fakes/github.ts",
+    "tests/integration/cliProgram.test.ts"
+  ],
+  "optionalTouched": [
+    "README.md"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

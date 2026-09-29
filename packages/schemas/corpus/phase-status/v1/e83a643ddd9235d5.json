@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "high",
+  "createdAt": "2026-07-10T13:36:03.407Z",
+  "updatedAt": "2026-07-10T13:39:59.509Z",
+  "branchName": "phax/plan-04-steme-cli-commander-and-usage-spec--phase-01",
+  "worktreePath": "~/.phax/worktrees/steme-lab.plan-04-steme-cli-commander-and-usage-spec/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "ac85d2061ca81e779d4690cf8b1023940e0cb64e"
+}

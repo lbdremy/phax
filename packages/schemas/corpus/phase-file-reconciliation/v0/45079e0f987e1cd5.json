@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/branded.ts",
+    "src/infra/git.ts",
+    "tests/unit/branded.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    ".agents/skills/phax-planning/SKILL.md",
+    "tests/integration/gitDiffNameStatus.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

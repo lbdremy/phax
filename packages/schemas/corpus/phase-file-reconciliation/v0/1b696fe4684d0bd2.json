@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/schemas/phaxConfig.ts",
+    "src/app/gates.ts",
+    "phax.schema.json",
+    "phax.user.schema.json",
+    "tests/unit/phaxConfigJsonSchema.test.ts",
+    "tests/integration/gates.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

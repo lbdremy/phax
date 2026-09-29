@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "phax-config-split",
+    "title": "Split `phax.json` into project vs. user configuration layers",
+    "requiredCommands": [],
+    "branch": "phax/phax-config-split"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-overlay-schema",
+      "plannedFilesToCreate": [
+        "tests/unit/phaxUserOverlaySchema.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/app/loadConfig.ts",
+        "phax.schema.json"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/loadConfig.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas): add user-overlay config schema and optional state root",
+        "body": "Add PhaxUserOverlaySchema (a strict deep-partial of the overridable config fields, excluding repo identity) and make the project file's state block optional, defaulting the state root to ~/.phax. Regenerate phax.schema.json. Groundwork for layered project/user configuration; no layering behavior yet."
+      },
+      "title": "User-overlay schema and optional project state root"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-02-merge-layers",
+      "plannedFilesToCreate": [
+        "src/domain/config/mergeLayers.ts",
+        "tests/unit/mergeLayers.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(domain): add pure config-layer merge with union allowlists",
+        "body": "Add mergeConfigLayers, a pure domain function merging project, global-user, and local-user configuration. Scalars override (most specific wins); security allowlists and gateProfiles union so user layers can only extend the project baseline, never silently drop it. Fully unit-tested."
+      },
+      "title": "Pure config-layer merge in the domain"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-03-load-layers",
+      "plannedFilesToCreate": [
+        "tests/integration/loadConfigLayers.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/loadConfig.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/loadConfig.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(app): load and merge global and per-project user config layers",
+        "body": "loadConfig now discovers ~/.phax/config.json (global user) and phax.local.json (per-project user, sibling of phax.json), decodes them as strict overlays, and merges them over the committed phax.json via mergeConfigLayers before resolving. Absent user files are empty overlays; an invalid one is a hard error."
+      },
+      "title": "Load and merge the three configuration layers"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-surface",
+      "plannedFilesToCreate": [
+        "phax.user.schema.json"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/initProject.ts",
+        "src/cli/commands/schema.ts",
+        ".gitignore",
+        "phax.json",
+        "phax.schema.json",
+        "README.md",
+        "tests/unit/initProject.test.ts",
+        "tests/unit/upgradeConfigSchema.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/cli/schemaUpgrade.test.ts",
+        "tests/unit/phaxConfigJsonSchema.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(config): finalize user/project config split across init, schema, and docs",
+        "body": "Stop writing the state root into generated project config, emit phax.user.schema.json for the user layers, gitignore phax.local.json, and migrate this repo's phax.json to the new shape (drop the machine-specific state block and the default-valued maxFixAttempts; keep the deliberate ~/.phax write grant). Document the four configuration layers and their precedence in the README."
+      },
+      "title": "Surface: init, gitignore, schema emission, repo migration, docs"
+    }
+  ]
+}

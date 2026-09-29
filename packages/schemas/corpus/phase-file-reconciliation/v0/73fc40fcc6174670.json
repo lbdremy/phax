@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "docs/security/protected-path-edits.md"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    ".agents/skills/phax-planning/SKILL.md"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

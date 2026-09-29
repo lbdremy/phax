@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/app/handoffGuidance.ts",
+    "tests/unit/handoffGuidance.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/handoffGeneration.ts",
+    "src/app/promptGeneration.ts",
+    "tests/unit/skills.test.ts",
+    "tests/unit/__snapshots__/promptGeneration.test.ts.snap"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [
+    ".skills/phax-phase-handoff.md"
+  ],
+  "renames": [],
+  "hasDeviations": true
+}

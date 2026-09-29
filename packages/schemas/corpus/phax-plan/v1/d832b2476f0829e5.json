@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "lazy-guides-and-doctrine-check-2",
+    "title": "Lazy Guides and Doctrine Check",
+    "requiredCommands": [],
+    "branch": "phax/lazy-guides-and-doctrine-check-2"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-doctrine-check",
+      "plannedFilesToCreate": [
+        "apps/steme/src/cli/doctrine-check.e2e.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/core/policy/load-active-rulepacks.ts",
+        "apps/steme/src/core/policy/load-active-rulepacks.test.ts",
+        "apps/steme/src/contracts/doctrine.ts",
+        "apps/steme/src/core/modules/doctrine/capability.ts",
+        "apps/steme/src/core/modules/doctrine/capability.test.ts",
+        "apps/steme/src/cli/render-doctrine.ts",
+        "apps/steme/src/cli/commands/doctrine.ts",
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/steme.usage.kdl",
+        "apps/steme/docs/cli.md"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/contracts/index.ts",
+        "apps/steme/src/cli/render.test.ts",
+        "apps/steme/src/cli/main.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): add steme doctrine --check validating every guide and skill reference",
+        "body": "Split the shared rulepack loader into readActiveRulepacks +\nrejectDuplicateRuleIds with loadActiveRulepacks composing them in the\nunchanged order (its suite passes unmodified). Add DoctrineModule.check:\nfrom any path in a workspace, resolve the active policy and report every\nmissing stackpack guide and rule skill at once — exit 0 when all resolve,\n1 when any is broken, 2 when it cannot run. Register --check on the\ndoctrine command (exactly one of --for/--check), add human and JSON\nrenders, regenerate the usage spec and CLI docs. The query's eager guide\ncheck is untouched in this commit."
+      },
+      "title": "Loader split, doctrine check capability, CLI `--check`"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-lazy-guides",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/src/core/modules/doctrine/capability.ts",
+        "apps/steme/src/core/modules/doctrine/capability.test.ts",
+        "apps/steme/src/cli/doctrine.e2e.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/steme.usage.kdl",
+        "apps/steme/docs/cli.md"
+      ],
+      "commit": {
+        "subject": "feat(steme): doctrine --for resolves only the guides it surfaces",
+        "body": "A doctrine query now existence-checks only the root guide and the guides\nbound to its matched scope and concepts. An unsurfaced declared guide\nwhose file is missing no longer refuses unrelated queries; a surfaced one\nstill refuses at exit 2 naming the key. The every-reference guarantee the\nquery gives up lives in steme doctrine --check (previous commit). e2e case\n(9) rewritten into surfaced/unsurfaced proofs; audit untouched."
+      },
+      "title": "Lazy guide resolution in the query"
+    }
+  ]
+}

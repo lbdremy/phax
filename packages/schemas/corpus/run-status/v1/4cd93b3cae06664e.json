@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "shortName": "run-jail",
+  "runId": "run-jail-1780575423874",
+  "state": "archived",
+  "createdAt": "2026-06-04T12:17:03.890Z",
+  "updatedAt": "2026-06-06T11:26:47.722Z",
+  "phasesCount": 9,
+  "gateProfileId": "full",
+  "stoppedReason": "rate_limited",
+  "lastError": "Claude Code stopped: rate limit hit."
+}

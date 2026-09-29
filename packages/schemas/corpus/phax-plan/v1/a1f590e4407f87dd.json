@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "plan-27-2",
+    "title": "Compliance handoff access and resume recap follow-ups",
+    "requiredCommands": [],
+    "branch": "phax/plan-27-2"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-inline-handoffs",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/review/compliancePrompt.ts",
+        "src/app/reviewCompliance.ts",
+        "tests/unit/review/compliancePrompt.test.ts",
+        "tests/integration/reviewCompliance.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(compliance): inline phase handoffs into the review prompt",
+        "body": "The compliance reviewer runs jailed to the final phase worktree, so it could\nread only that phase's handoff; earlier phases' phase-handoff.md files live under\nthe run folder, outside the jail, and the handoff dimension silently degraded to\n\"assessed from code only\". Read every phase's handoff in the application layer\nthrough the FileSystem port and inline it into the prompt, mirroring how plan.md\nand the global reconciliation are already passed. Missing handoffs become an\nexplicit in-prompt marker and never fail the advisory step. Covered by domain\nunit tests and an application integration test."
+      },
+      "title": "Inline phase handoffs into the compliance review prompt"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-02-resume-recap",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/commands/resume.ts",
+        "tests/unit/resume.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/resume.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(resume): enrich review-open recap with PR URL and phase count",
+        "body": "When phax resume is run against an already-review-open run, the early refusal\nbranch rendered the recap with no PR URL and no phase count, suggesting\npublish-pr even when a PR was already published. Populate the recap from\npersisted artifacts the command already references: the committed-phase count\nfrom the phase statuses and the PR URL from publication.json (non-fatal when\nabsent). The resume recap now matches what phax run prints. Covered by CLI tests."
+      },
+      "title": "Enrich the resume review-open recap from persisted artifacts"
+    }
+  ]
+}

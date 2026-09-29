@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Both phases delivered their stated objectives. Phase-01 is fully conformant: makeSelfGoverningWorkspace was added with the exact planned signature, both fixture suites were migrated, and all assertions passed unmodified. Phase-02 flipped the discovery origin to appAbsPath in capability.ts, added all planned unit and e2e proofs (relative-path rendering, cwd-independence, workspace-less refusal, preflight-ordering pins), and updated baseline-lifecycle rendering. Two optional files (policy.e2e.test.ts and main.test.ts) were edited beyond the primary planned list but are both explicitly named in the plan's 'Optional files that may be edited' section; the handoff explains the root cause (cwd-injection fixtures incompatible with target-owned discovery) and the fix applied. No unjustified deviations; full gate green at 396/396.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "makeSelfGoverningWorkspace() delivered with the exact planned signature and layout. Both audit-harness.e2e.test.ts and baseline-lifecycle.e2e.test.ts migrated; all assertions passed unmodified under cwd-based discovery."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No production code touched. preflight-ordering.e2e.test.ts left untouched as planned."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Exactly the three planned files edited; optional file not needed and not touched."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "No new assertions added per strategy; unmodified suites passing is itself the proof."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject 'test(steme): give e2e temp units their own governing workspace' matches plan exactly. Body could not be verified via available tools."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all required content: helper signature, layout produced, suite pass confirmation, and forward pointer for phase-02."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Discovery flip confirmed at capability.ts line 144: findWorkspaceRoot(deps.fs, appAbsPath). All four red-first proofs implemented and present in the code."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "policy.e2e.test.ts and main.test.ts edited (7 and 4 tests respectively). Both files are listed under 'Optional files that may be edited' in the phase-02 plan section, so this is within sanctioned scope. The global reconciliation marks them 'unplanned' because they are not in the primary planned-files list, but the optional-files section anticipated this. Handoff explains root cause: cwd-injection fixture pattern incompatible with target-owned discovery."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised tests present: relative-path rendering and cwd-independence in audit-harness, workspace-less refusal fixture, workspace-preflight-step block in preflight-ordering, three unit proofs in capability.test.ts (no-workspace-above-target, cwd-not-consulted, nearest-wins). 396/396 pass."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "renderReportPath, fingerprint recipe, register format, drift classification, buildDiagnostic, render layout, and all user-facing discovery overrides untouched."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "AuditPreflight/classifyDrift call shapes unchanged. No new port surface. Diagnostic JSON field set frozen."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject 'feat(steme): discover the governing workspace from the audit target' matches plan exactly. Body could not be verified via available tools."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers discovery call site, preflight step order confirmation, invariance suite results (with explained edits to optional files), register byte-identity assertion, and a forward caution about cwd-dependent fixtures. Deviations explicitly flagged rather than elided."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Reconciliation labels policy.e2e.test.ts and main.test.ts as 'unplanned' but both are in the phase-02 optional-files list. Future runs may benefit from reconciliation distinguishing 'optional-but-edited' from 'truly unplanned'.",
+    "Commit bodies could not be verified via available tools (git log inaccessible from the worktree environment). Verify manually if body fidelity is required for record-keeping.",
+    "The pre-existing 'ordered preflight' describe block in preflight-ordering.e2e.test.ts now uses makeSelfGoverningWorkspace() in its beforeEach (fixture setup changed; assertions unmodified). This is correct behavior but reviewers checking 'pre-existing tests unmodified' should note the setup change is intentional."
+  ],
+  "pointers": []
+}

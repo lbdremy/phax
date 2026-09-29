@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "verdict": "conformant",
+  "summary": "All three phases delivered their stated objectives, respected excluded-scope boundaries, produced required tests at the domain-unit layer, honored boundary contracts, and matched planned commit subjects. The two optional files touched beyond the required list (.claude/skills/model-routing/SKILL.md in phase-01 as a gen:model-catalog side-effect, and tests/integration/adjustPlanCommand.test.ts in phase-03 for a literal expectation that relied on the module constant) are both listed as optional in the plan and justified in the phase handoffs. No unjustified deviations were found.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": ".claude/skills/model-routing/SKILL.md was touched as a side-effect of pnpm gen:model-catalog rewriting an embedded template. The plan listed it as optional and the handoff explains the mechanism. No new content was manually introduced."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "tests/integration/adjustPlanCommand.test.ts (optional in the plan) was touched because one literal expectation relied on the adjustPlan module constant rather than an explicit config value; the handoff justifies this and names the specific change."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [],
+  "pointers": [
+    "Stale mock value in tests/integration/adjustPlanCommand.test.ts line 52: codeReview.model is still 'claude-opus-4-8' in the loadConfig mock, while DEFAULT_CODE_REVIEW_MODEL is now 'claude-opus-5'. The adjustPlan command does not read codeReview.model for its own default (the assertion at line 257 correctly expects claude-opus-5), so this is functionally harmless — but worth tidying to avoid reader confusion."
+  ]
+}

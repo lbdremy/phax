@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "plan-26",
+    "title": "Plan 26 — End-of-run recap and rate-limit reset-date fix",
+    "requiredCommands": [],
+    "branch": "phax/plan-26"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-reset-date",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/claudeOutput.ts",
+        "tests/unit/claudeOutput.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "fix(rate-limit): normalize reset time to ISO or drop it",
+        "body": "Reset-time extraction captured arbitrary trailing words (e.g. \"date\") and rendered them verbatim, and the unparseable value silently disabled auto-resume. Normalize every candidate to an ISO-8601 instant — accepting real dates and Unix epochs (including Claude Code's `|<epoch>` form) and dropping anything else — so the console never shows a non-date and secondsUntil can compute a real delay. Covered by unit tests at the schema boundary."
+      },
+      "title": "Normalize the rate-limit reset time at the schema boundary"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-review-recap",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/whatsNext.ts",
+        "tests/unit/whatsNext.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(whats-next): richer end-of-run review recap",
+        "body": "Expand the review_open what's-next block into a complete recap: a phase-count headline plus follow-ups for viewing the PR (URL when published, else publish-pr), opening the editor, opening a shell, resuming the agent session, and archiving. New scenario fields are optional so resume keeps compiling. Pure domain change covered by unit tests."
+      },
+      "title": "Enrich the review-open recap in whatsNext"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-03-pr-url-return",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(run): return published PR URL from executePlan",
+        "body": "Capture the auto-publish result instead of discarding it and add an optional prUrl to executePlan's success value, keeping publish failures non-fatal. This lets the CLI recap link the PR directly. No behavior change to publishing or the review_open transition."
+      },
+      "title": "Surface the published PR URL from executePlan"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-cli-recap",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts",
+        "src/cli/interruptHandler.ts",
+        "tests/unit/cli/run.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/cli/resume.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(run): show end-of-run recap and announce interrupts",
+        "body": "On a successful run/resume, print a stdout summary, the enriched review recap (PR link or publish-pr, open, shell, enter, archive), and a pointer to final-report.md. Give Ctrl+C a voice: the interrupt handler now tells the user the state was saved and how to resume. Covered by CLI output tests."
+      },
+      "title": "Wire the recap into run/resume and announce interrupts"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/app/executePlan.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

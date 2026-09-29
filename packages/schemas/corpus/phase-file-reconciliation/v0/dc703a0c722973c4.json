@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "examples/hello-world/audit-plan.mjs"
+  ],
+  "editedAsPlanned": [
+    "README.md",
+    "examples/hello-world/phax.json",
+    "tests/integration/exampleProviders.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    ".claude/skills/phax-planning/SKILL.md"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

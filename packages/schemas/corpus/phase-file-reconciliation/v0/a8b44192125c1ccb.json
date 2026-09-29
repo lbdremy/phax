@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "src/app/publishRun.ts",
+    "tests/integration/publishRun.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/runReviewInfo.ts",
+    "src/app/resolveRunInfo.ts",
+    "src/app/finalReport.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/domain/publish/types.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

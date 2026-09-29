@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "committed",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-09-03T08:32:37.565Z",
+  "updatedAt": "2026-09-03T08:50:24.890Z",
+  "branchName": "phax/spec-approval-ground--phase-01",
+  "worktreePath": "~/.phax/worktrees/phax.spec-approval-ground/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "d605b030d1b92adef91ad55a7f679382540df1fe"
+}

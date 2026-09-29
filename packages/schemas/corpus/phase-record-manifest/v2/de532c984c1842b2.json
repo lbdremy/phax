@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "runId": "plan-completeness-advisory-1788944962551",
+  "phaseId": "phase-03",
+  "shape": "full",
+  "sourceSha": "dd17cca31c54e78eb3346aace7fa53316e2b811f",
+  "model": "claude-sonnet-5",
+  "effort": "high",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 98,
+      "cacheCreationInputTokens": 100533,
+      "cacheReadInputTokens": 4696288,
+      "outputTokens": 22049,
+      "totalCostUsd": 1.5774816
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "structural"
+  ]
+}

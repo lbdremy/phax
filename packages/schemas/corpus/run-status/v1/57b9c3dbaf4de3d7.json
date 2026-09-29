@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "steme-lab",
+  "shortName": "lazy-guides-and-doctrine-check",
+  "runId": "lazy-guides-and-doctrine-check-1787231508199",
+  "state": "archived",
+  "createdAt": "2026-08-20T13:11:48.214Z",
+  "updatedAt": "2026-09-04T14:37:28.152Z",
+  "phasesCount": 2,
+  "planRepoRelPath": "docs/plans/16-lazy-guides-and-doctrine-check-plan.md"
+}

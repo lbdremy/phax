@@ -1,0 +1,50 @@
+{
+  "phase": "phase-04",
+  "steps": [
+    {
+      "command": "pnpm format",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm typecheck",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm test:type",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm lint",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm format:check",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm test",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm knip",
+      "surface": "structural",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm audit:architecture",
+      "surface": "structural",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm gen:model-catalog --check",
+      "surface": "structural",
+      "result": "pass"
+    }
+  ]
+}

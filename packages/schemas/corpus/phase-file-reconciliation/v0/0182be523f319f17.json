@@ -1,0 +1,17 @@
+{
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    ".skills/phax-planning.md",
+    ".skills/model-routing.md",
+    "docs/model-routing.md",
+    "tests/unit/skills.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

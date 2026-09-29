@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/domain/gate/selectSteps.ts",
+    "tests/unit/selectGateSteps.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/executePlan.ts",
+    "tests/integration/executePlan.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

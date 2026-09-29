@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/events.ts",
+    "src/domain/reducer.ts",
+    "tests/unit/reducer.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "tests/integration/stateMachineContract.test.ts"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/domain/matrix.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

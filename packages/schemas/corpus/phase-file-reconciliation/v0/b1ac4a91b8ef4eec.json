@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "tests/unit/reviewHandoffContent.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/reviewHandoff.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

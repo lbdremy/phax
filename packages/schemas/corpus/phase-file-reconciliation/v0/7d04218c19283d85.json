@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "apps/steme/src/core/fingerprint.ts",
+    "apps/steme/src/core/fingerprint.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/contracts/diagnostic.ts",
+    "apps/steme/src/core/evaluate/diagnostics.ts",
+    "apps/steme/src/core/evaluate/diagnostics.test.ts",
+    "apps/steme/src/cli/program.ts",
+    "apps/steme/src/cli/main.test.ts",
+    "apps/steme/src/cli/audit-harness.e2e.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

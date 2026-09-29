@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/domain/artifact/frontmatter.ts",
+    "src/schemas/artifactFrontmatter.ts",
+    "tests/unit/artifact/frontmatter.test.ts"
+  ],
+  "editedAsPlanned": [
+    "package.json",
+    "pnpm-lock.yaml",
+    "src/domain/plan/parsePlanMarkdown.ts",
+    "tests/unit/parsePlanMarkdown.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "deno.lock"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

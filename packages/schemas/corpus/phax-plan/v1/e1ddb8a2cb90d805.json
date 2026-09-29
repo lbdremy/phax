@@ -1,0 +1,337 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "steme-lab",
+    "title": "Plan 01 — steme-lab Repository Scaffolding",
+    "requiredCommands": [
+      "pnpm",
+      "nx",
+      "oxlint",
+      "oxfmt",
+      "lefthook",
+      "drizzle-kit",
+      "vitest"
+    ],
+    "branch": "phax/steme-lab"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-nx-orchestration",
+      "plannedFilesToCreate": [
+        "nx.json"
+      ],
+      "plannedFilesToEdit": [
+        "package.json",
+        ".gitignore"
+      ],
+      "optionalFilesToEdit": [
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "build(nx): add Nx task orchestration over the pnpm workspace",
+        "body": "Add nx and nx.json at the root, delegate root task scripts to nx run-many where a target exists, and ignore the .nx local cache. Establishes the target-exposure convention for future projects. Green and vacuous on the zero-project workspace; pnpm remains the package manager."
+      },
+      "title": "Nx task orchestration"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-typescript-baseline",
+      "plannedFilesToCreate": [
+        "tsconfig.base.json",
+        "tsconfig.json"
+      ],
+      "plannedFilesToEdit": [
+        "package.json"
+      ],
+      "optionalFilesToEdit": [
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "build(ts): add strict tsconfig baseline and project-reference root",
+        "body": "Add tsconfig.base.json with strict mode and the bundler/ESNext/verbatim-module settings every workspace extends, plus a root tsconfig.json that builds the project-reference world (empty for now). Swap the typecheck placeholder for tsc -b. Vacuously green on zero inputs."
+      },
+      "title": "TypeScript baseline"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-lint-format-oxc",
+      "plannedFilesToCreate": [
+        ".oxlintrc.json",
+        ".editorconfig"
+      ],
+      "plannedFilesToEdit": [
+        "package.json"
+      ],
+      "optionalFilesToEdit": [
+        "oxfmt.json",
+        ".oxlintrc.fast.json",
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "build(oxc): add oxlint and oxfmt lint/format toolchain",
+        "body": "Add the OXC lint/format config at the repo root, an .editorconfig aligned with oxfmt, and swap the lint/format/format:check placeholders for oxlint/oxfmt. Establish the relaxed (fast) and strict (full) lint rulesets, and disable rules that duplicate the strict TypeScript compiler settings. Green on the empty repo."
+      },
+      "title": "Lint and format (OXC)"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-git-hooks",
+      "plannedFilesToCreate": [
+        "lefthook.yml",
+        "CONTRIBUTING.md"
+      ],
+      "plannedFilesToEdit": [
+        "package.json"
+      ],
+      "optionalFilesToEdit": [
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "chore(hooks): add lefthook pre-commit and commit-msg gates",
+        "body": "Add lefthook with a pre-commit hook running oxlint and oxfmt on staged files and a commit-msg hook validating conventional commits, wired to install on pnpm install via a prepare script. Add CONTRIBUTING.md documenting the commit format and hook stack. Hooks stay under ~3s on small changes."
+      },
+      "title": "Git hygiene and commit conventions"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-05-manifest-schema",
+      "plannedFilesToCreate": [
+        "steme.workspace.json",
+        "schemas/steme.package.schema.json",
+        "schemas/examples/app.steme.package.json",
+        "schemas/examples/package.steme.package.json",
+        "scripts/validate-manifests.mjs",
+        "docs/CONVENTIONS.md"
+      ],
+      "plannedFilesToEdit": [
+        "package.json"
+      ],
+      "optionalFilesToEdit": [
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "feat(manifest): add steme workspace config and package manifest schema",
+        "body": "Add steme.workspace.json declaring the five unit roots, a JSON schema for steme.package.json modeling scopes, scope-nested concepts with referential integrity, publicSurface, and integrations, plus app and package example fixtures and a node-based validate:manifests script (swapping its placeholder). Add docs/CONVENTIONS.md summarizing scopes, concepts, and naming."
+      },
+      "title": "steme manifest convention and workspace config"
+    },
+    {
+      "id": "phase-06",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-06-sandbox-app",
+      "plannedFilesToCreate": [
+        "apps/sandbox/package.json",
+        "apps/sandbox/steme.package.json",
+        "apps/sandbox/tsconfig.json",
+        "apps/sandbox/README.md",
+        "apps/sandbox/src/site/index.ts",
+        "apps/sandbox/src/web/index.ts",
+        "apps/sandbox/src/web-rpc/index.ts",
+        "apps/sandbox/src/webhooks/index.ts",
+        "apps/sandbox/src/jobs/index.ts",
+        "apps/sandbox/src/cli/index.ts",
+        "apps/sandbox/src/core/index.ts",
+        "apps/sandbox/src/contracts/index.ts",
+        "apps/sandbox/src/adapters/index.ts",
+        "apps/sandbox/src/utils/index.ts",
+        "apps/sandbox/src/build/index.ts",
+        "apps/sandbox/src/core/composition/index.ts",
+        "apps/sandbox/src/core/modules/example/module.ts",
+        "apps/sandbox/src/core/modules/example/capability.ts",
+        "apps/sandbox/src/core/modules/example/ports/index.ts",
+        "apps/sandbox/src/core/modules/example/domain/index.ts",
+        "apps/sandbox/src/web-rpc/composition/index.ts"
+      ],
+      "plannedFilesToEdit": [
+        "tsconfig.json"
+      ],
+      "optionalFilesToEdit": [
+        "apps/sandbox/.gitignore",
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "feat(sandbox): scaffold apps/sandbox exercising all scopes",
+        "body": "Scaffold apps/sandbox with a placeholder index.ts per canonical src scope, the pure module-factory/capability/composition skeleton from the composition-root model (Appendix B), and a steme.package.json declaring all scopes and nested concepts. Register it as a root tsconfig project reference. Typechecks and validates against the manifest schema; no real domain code."
+      },
+      "title": "First app scaffold (apps/sandbox)"
+    },
+    {
+      "id": "phase-07",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-07-example-package",
+      "plannedFilesToCreate": [
+        "packages/example-utility/package.json",
+        "packages/example-utility/steme.package.json",
+        "packages/example-utility/tsconfig.json",
+        "packages/example-utility/README.md",
+        "packages/example-utility/src/core/index.ts",
+        "packages/example-utility/src/contracts/index.ts",
+        "apps/sandbox/src/core/uses-example-utility.ts"
+      ],
+      "plannedFilesToEdit": [
+        "tsconfig.json",
+        "apps/sandbox/package.json"
+      ],
+      "optionalFilesToEdit": [
+        "apps/sandbox/tsconfig.json",
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "feat(example-utility): scaffold first package with public surface",
+        "body": "Add packages/example-utility with an aligned package.json#exports and steme.package.json#publicSurface, a trivial pure identity function in core, a branded Id Zod schema in contracts, and a sandbox consumer importing it through the public surface only. Resolves as a workspace import without paths hacks."
+      },
+      "title": "First package scaffold (packages/example-utility)"
+    },
+    {
+      "id": "phase-08",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-08-result-library",
+      "plannedFilesToCreate": [
+        "libraries/result/README.md",
+        "libraries/result/src/index.ts",
+        "libraries/result/src/result.ts",
+        "libraries/result/tsconfig.json",
+        "libraries/result/tests/.gitkeep",
+        "apps/sandbox/src/core/uses-result.ts"
+      ],
+      "plannedFilesToEdit": [
+        "tsconfig.json"
+      ],
+      "optionalFilesToEdit": [
+        "libraries/result/package.json",
+        "apps/sandbox/package.json",
+        "apps/sandbox/tsconfig.json",
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "feat(result): scaffold libraries/result source-owned primitive",
+        "body": "Add libraries/result with a minimal, self-contained Result/Ok/Err primitive, explicit types, and a README stating what it is and guarantees. Wire it into the typecheck graph and consume it from apps/sandbox by source ownership, proving the libraries folder participates in the root build."
+      },
+      "title": "First library scaffold (libraries/result)"
+    },
+    {
+      "id": "phase-09",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-09-drizzle-composition",
+      "plannedFilesToCreate": [
+        "apps/sandbox/src/adapters/db/drizzle/schema/index.ts",
+        "apps/sandbox/src/adapters/db/drizzle/drizzle-client.ts",
+        "apps/sandbox/src/adapters/db/drizzle/drizzle-unit-of-work-runner.ts",
+        "apps/sandbox/src/adapters/db/drizzle/things-repository.ts",
+        "apps/sandbox/src/core/modules/things/ports/things-repository.ts",
+        "apps/sandbox/src/core/modules/things/ports/unit-of-work.ts",
+        "apps/sandbox/src/core/modules/things/module.ts",
+        "apps/sandbox/src/core/modules/things/capability.ts",
+        "apps/sandbox/src/core/modules/things/domain/thing.ts",
+        "apps/sandbox/src/core/composition/database.ts",
+        "apps/sandbox/src/core/composition/repositories.ts",
+        "apps/sandbox/src/core/composition/unit-of-work.ts",
+        "apps/sandbox/src/web-rpc/things.functions.ts",
+        "apps/sandbox/drizzle.config.ts",
+        "apps/sandbox/migrations/drizzle/.gitkeep",
+        "apps/sandbox/.env.example"
+      ],
+      "plannedFilesToEdit": [
+        "apps/sandbox/package.json",
+        "apps/sandbox/steme.package.json",
+        "apps/sandbox/src/core/composition/index.ts",
+        "apps/sandbox/src/adapters/index.ts",
+        "package.json",
+        "apps/sandbox/src/core/modules/example/module.ts",
+        "apps/sandbox/src/core/modules/example/capability.ts",
+        "apps/sandbox/src/core/modules/example/ports/index.ts",
+        "apps/sandbox/src/core/modules/example/domain/index.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/sandbox/migrations/drizzle/0000_*.sql",
+        "apps/sandbox/migrations/drizzle/meta/_journal.json",
+        "apps/sandbox/src/web-rpc/composition/index.ts",
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "feat(sandbox): wire Drizzle adapter and composition root end to end",
+        "body": "Add the Drizzle adapter (things schema, typed client, unit-of-work runner, repository) under src/adapters/db/drizzle, a pure things module factory with its ports, the single composition root that chooses the concrete world, the bound capability, and a thin web-rpc entry adapter calling it. Add drizzle.config.ts, the first generated migration outside src/, and .env.example. Swap the db:* placeholders and retire the now-superseded example module. Demonstrates the composition-root decision on real code with the import rules enforced."
+      },
+      "title": "Database adapter scaffolding and composition root (Drizzle + Postgres)"
+    },
+    {
+      "id": "phase-10",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-10-vitest",
+      "plannedFilesToCreate": [
+        "vitest.config.ts",
+        "packages/example-utility/src/core/identity.test.ts",
+        "libraries/result/tests/result.test.ts",
+        "apps/sandbox/src/adapters/db/drizzle/schema/schema.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "package.json"
+      ],
+      "optionalFilesToEdit": [
+        "libraries/result/tests/.gitkeep",
+        "apps/sandbox/vitest.config.ts",
+        "packages/example-utility/vitest.config.ts",
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "test(vitest): add root Vitest project mode and first tests",
+        "body": "Add vitest and @vitest/coverage-v8 with a root project-mode config covering apps, packages, and libraries, plus a test per workspace: the package identity function, the result primitive's guarantee, and a connectionless things-schema shape assertion. Swap the test placeholder and add test:watch. At least three tests pass; no workspace is excluded."
+      },
+      "title": "Test runner (Vitest)"
+    },
+    {
+      "id": "phase-11",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-11-ci",
+      "plannedFilesToCreate": [
+        ".github/workflows/ci.yml"
+      ],
+      "plannedFilesToEdit": [
+        "README.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "ci(actions): add GitHub Actions full-gate workflow",
+        "body": "Add .github/workflows/ci.yml running pnpm install --frozen-lockfile then the full gate task set (nx affected -t lint typecheck test build, run-many on main, plus validate:manifests and the db:generate determinism check), with pnpm store and Nx cache restore so unchanged projects are skipped, and a status badge in the README. Green on a feature-branch push; warm runs beat cold."
+      },
+      "title": "CI"
+    },
+    {
+      "id": "phase-12",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-12-documentation-seed",
+      "plannedFilesToCreate": [
+        "LICENSE"
+      ],
+      "plannedFilesToEdit": [
+        "README.md",
+        "CONTRIBUTING.md",
+        "docs/CONVENTIONS.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "docs(repo): seed README, CONTRIBUTING, CONVENTIONS, and LICENSE",
+        "body": "Expand the README (what steme-lab is, the five folders, the commands, the steme-doc pointer), extend CONTRIBUTING (branch/commit conventions, hook stack, package-vs-library-vs-app guidance, promotion path), finalize docs/CONVENTIONS, and add a private all-rights-reserved LICENSE distinct from steme's future MIT so promotion is a conscious license swap. A cold reader can run the repo from the README."
+      },
+      "title": "Documentation seed"
+    }
+  ]
+}

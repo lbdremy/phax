@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "examples/hello-world/orient.mjs",
+    "examples/hello-world/audit.mjs",
+    "tests/integration/exampleProviders.test.ts"
+  ],
+  "editedAsPlanned": [
+    "README.md",
+    "examples/hello-world/phax.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

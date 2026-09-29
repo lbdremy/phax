@@ -1,0 +1,20 @@
+{
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/errors.ts",
+    "src/app/fixLoop.ts",
+    "tests/integration/fixLoop.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/telemetry/adapterFailures.test.ts"
+  ],
+  "optionalTouched": [
+    "src/app/executePlan.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "plan-extraction-cache",
+    "title": "Content-addressed plan-extraction cache + `.md` loader",
+    "requiredCommands": [
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ],
+    "branch": "phax/plan-extraction-cache"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-split-extract",
+      "plannedFilesToCreate": [
+        "tests/unit/extractPlanFinalize.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/extractPlan.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/extractPlanSealed.test.ts",
+        "tests/integration/extractPlanTitles.test.ts"
+      ],
+      "commit": {
+        "subject": "refactor(extract): split extraction into LLM step and deterministic finalize",
+        "body": "Factor extractPlanCore into extractPlanLlm (the cacheable backend.complete call returning a validated ExtractedPhaxPlan) and finalizeExtractedPlan (the pure title/slug/branch/anchor post-processing). extractPlanCore now composes them with its signature and behavior unchanged, so later phases can cache the LLM output and re-finalize on read. Covered by a finalize unit test; existing extraction integration tests unchanged."
+      },
+      "title": "Split extraction into an LLM step and a deterministic finalize"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-cache-store",
+      "plannedFilesToCreate": [
+        "src/domain/planCache/key.ts",
+        "src/schemas/extractedPlanCacheEntry.ts",
+        "src/app/planCacheStore.ts",
+        "tests/unit/planCacheKey.test.ts",
+        "tests/unit/extractedPlanCacheEntry.test.ts",
+        "tests/integration/planCacheStore.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(cache): add plan-extraction cache key, entry schema, and store",
+        "body": "Add planCacheKey (content address over plan.md + model + effort + extractor version), the strict ExtractedPlanCacheEntrySchema, and FileSystem-port store helpers that read/write an ExtractedPhaxPlan under <stateRoot>/cache/plans. A missing or undecodable entry reads as a miss and never throws, so schema drift self-invalidates. Covered by key, schema, and store round-trip tests."
+      },
+      "title": "Cache key, cache entry schema, and store helpers"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-load-or-extract",
+      "plannedFilesToCreate": [
+        "src/app/loadOrExtractPlan.ts",
+        "tests/integration/loadOrExtractPlan.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(app): add loadOrExtractPlan cache-aware plan loader",
+        "body": "Add loadOrExtractPlan, which returns a finalized PhaxPlan for a plan.md from the extraction cache on a hit or extracts-and-caches on a miss, honoring refresh and noExtract. It composes extractPlanLlm + finalizeExtractedPlan with the phase-02 store, exposing a fromCache flag. Covered by integration tests asserting backend calls happen only on cold/refresh/edited misses and never on a warm hit."
+      },
+      "title": "`loadOrExtractPlan` cache-aware loader"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-adopt",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/commands/run.ts",
+        "src/app/extractPlan.ts",
+        "src/cli/commands/extractPlan.ts",
+        "src/cli/cliDocs.ts",
+        "tests/integration/run.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/extractPlanSealed.test.ts",
+        "tests/integration/cliProgram.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): reuse cached extractions in run and extract-plan",
+        "body": "Route phax run and phax extract-plan through loadOrExtractPlan so they reuse a cached extraction instead of re-calling the LLM, and add --refresh/--no-cache to force a fresh extraction. The run folder still receives its own phax-plan.json as the provenance record; the cache is only the source. Regenerates the CLI usage spec and docs for the new flags. Covered by a run integration test asserting a warm cache skips the backend and --refresh re-extracts."
+      },
+      "title": "Adopt the cache in `phax run` and `phax extract-plan`"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "README.md",
+    "docs/cli/reference.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "phax.usage.kdl",
+    "src/cli/cliDocs.ts",
+    "src/cli/commands/records.ts"
+  ],
+  "optionalTouched": [
+    "docs/security.md"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

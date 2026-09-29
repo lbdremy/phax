@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "louloupapers",
+  "shortName": "louloupress-features",
+  "runId": "louloupress-features-1782399695979",
+  "state": "archived",
+  "createdAt": "2026-06-25T15:01:35.995Z",
+  "updatedAt": "2026-09-04T14:42:31.028Z",
+  "phasesCount": 6,
+  "gateProfileId": "full",
+  "stoppedReason": "gates_exhausted",
+  "lastError": "Gate failed: pnpm nx affected --uncommitted -t knip --parallel=3"
+}

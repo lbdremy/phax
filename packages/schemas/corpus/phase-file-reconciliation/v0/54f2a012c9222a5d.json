@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/app/resolveRunRef.ts",
+    "tests/unit/resolveRunRef.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/commands/resume.ts",
+    "tests/unit/resumeArgv.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "src/app/resume.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

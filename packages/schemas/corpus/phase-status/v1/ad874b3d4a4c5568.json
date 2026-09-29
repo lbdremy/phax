@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "committed",
+  "model": "claude-opus-4-8",
+  "effort": "medium",
+  "createdAt": "2026-08-21T15:15:53.481Z",
+  "updatedAt": "2026-08-21T15:21:53.915Z",
+  "branchName": "phax/external-gate-steps-structured-diagnostics--phase-02",
+  "worktreePath": "~/.phax/worktrees/phax.external-gate-steps-structured-diagnostics/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "b31892d2ad30d999db99f50d8313fc571e53f0eb"
+}

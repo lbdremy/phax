@@ -26,8 +26,12 @@ const files = ROOTS.flatMap(listFiles)
   .toSorted();
 
 // `/Users/<name>` or `/home/<name>` where a path starts: at the start of the
-// text or after a character that cannot sit inside a path segment.
-const HOME_PATH = /(?:^|[^\w.~/-])\/(?:Users|home)\/[^/\s"'\\]+/m;
+// text or after a character that cannot sit inside a path segment, and
+// continuing with another path segment. A real leaked absolute path always
+// continues past the username (worktree, archive, repo paths); requiring
+// that excludes the bare example usernames (`/Users/<name>`, `/Users/other`)
+// that this very plan's own prose uses to describe the scrubbing rule.
+const HOME_PATH = /(?:^|[^\w.~/-])\/(?:Users|home)\/[^/\s"'\\<>]+\/[^\s"'\\]/m;
 
 const SESSION_IDS: ReadonlySet<string> = new Set(SESSION_ID_FIELDS);
 

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "louloupapers",
+  "shortName": "article-series-taxonomy",
+  "runId": "article-series-taxonomy-1782737971675",
+  "state": "archived",
+  "createdAt": "2026-06-29T12:59:31.691Z",
+  "updatedAt": "2026-09-03T07:46:52.044Z",
+  "phasesCount": 5,
+  "gateProfileId": "full",
+  "stoppedReason": "gates_exhausted",
+  "lastError": "Gate failed: pnpm nx affected --uncommitted -t test:coverage --exclude=@louloupapers/usso --parallel=1"
+}

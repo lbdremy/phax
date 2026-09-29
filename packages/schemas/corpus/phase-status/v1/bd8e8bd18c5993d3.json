@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-29T12:59:31.780Z",
+  "updatedAt": "2026-06-30T11:22:06.569Z",
+  "branchName": "phax/article-series-taxonomy--phase-01",
+  "worktreePath": "~/.phax/worktrees/louloupapers.article-series-taxonomy/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "b2108ebce9f8e6ad1aac1de4da6947b6d1359f45"
+}

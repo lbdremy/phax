@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-12",
+  "createdAsPlanned": [
+    "LICENSE"
+  ],
+  "editedAsPlanned": [
+    "README.md",
+    "CONTRIBUTING.md",
+    "docs/CONVENTIONS.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

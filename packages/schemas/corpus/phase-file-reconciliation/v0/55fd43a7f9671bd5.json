@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/telemetry/events.ts",
+    "src/schemas/telemetryEvents.ts",
+    "tests/unit/telemetry/events.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/domain/telemetry/snapshot.ts",
+    "src/infra/telemetry/layer.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/domain/publish/types.ts",
+    "src/domain/publish/title.ts",
+    "src/domain/publish/body.ts",
+    "src/schemas/publication.ts",
+    "tests/unit/publish/title.test.ts",
+    "tests/unit/publish/body.test.ts",
+    "tests/unit/schemas/publication.test.ts"
+  ],
+  "editedAsPlanned": [
+    "tests/unit/architecturalGuards.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

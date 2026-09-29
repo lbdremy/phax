@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "resumable-handoff-failures",
+  "runId": "resumable-handoff-failures-1782399023138",
+  "state": "archived",
+  "createdAt": "2026-06-25T14:50:23.154Z",
+  "updatedAt": "2026-09-03T07:46:50.468Z",
+  "phasesCount": 2,
+  "gateProfileId": "full",
+  "stoppedReason": "rate_limited",
+  "lastError": "Claude Code stopped: usage limit reached."
+}

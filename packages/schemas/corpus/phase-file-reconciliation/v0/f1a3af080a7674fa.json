@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-08",
+  "createdAsPlanned": [
+    "tests/e2e/headlessAuthoring.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    ".claude/skills/phax-spec/SKILL.md",
+    ".claude/skills/phax-planning/SKILL.md",
+    "README.md",
+    "NEXT_STEPS.md"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

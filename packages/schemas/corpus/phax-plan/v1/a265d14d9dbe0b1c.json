@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "model-routing",
+    "title": "Simplified multi-provider model routing",
+    "branch": "phax/model-routing",
+    "backend": "claude-code-cli"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Routing vocabulary and config schemas",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-routing-schemas",
+      "commit": {
+        "subject": "feat(routing): add model-routing vocabulary and config schemas",
+        "body": "Introduce the pure-domain routing literals (ProviderId, ModelFamily, ThinkingLevel, RoutingTier, Relationship) and the RoutingRequest / RoutingResolution contracts under src/domain/routing/types.ts, plus the Effect Schemas for ~/.phax/model-routing.json and ~/.phax/providers.json under src/schemas/. Schemas reject unknown keys and decode the spec's default example files. No resolution logic or IO yet."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Default tables and global config loader",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-02-config-loader",
+      "commit": {
+        "subject": "feat(routing): add default routing tables and global config loader",
+        "body": "Add DEFAULT_MODEL_ROUTING and DEFAULT_PROVIDER_CONFIG (spec §12/§13) under src/domain/routing/defaults.ts and a FileSystem-port loader (src/app/loadRouting.ts) that reads ~/.phax/model-routing.json and ~/.phax/providers.json, decodes them through the phase-01 schemas, and falls back to the built-in defaults when the files are absent. Malformed or invalid files fail with ConfigValidationError."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Pure model-resolution algorithm",
+      "model": "claude-opus-4-7",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-03-resolve",
+      "commit": {
+        "subject": "feat(routing): implement pure model-resolution algorithm",
+        "body": "Add resolveModel under src/domain/routing/resolve.ts: a total, pure function mapping a RoutingRequest to a RoutingResolution. It normalizes the requested model id to a family, maps family+effort to a PHAX tier, walks providerPriority, classifies the substitution (exact|equivalent|fallback|downgrade|no_equivalent), enforces the no-silent-Opus-downgrade rule, and resolves the concrete model or Vibe alias from provider config. Covers all four spec §15 resolution examples."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "`agent.model.resolved` telemetry event",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-04-telemetry-event",
+      "commit": {
+        "subject": "feat(telemetry): add agent.model.resolved semantic event",
+        "body": "Add the ModelResolvedTelemetryEvent (\"agent.model.resolved\", spec §16) through the full observability stack: domain event + factory, snapshot projection, Effect Schema for JSON-file round-trip, and OpenTelemetry attribute mapping. The event is defined but not yet emitted; phase-08 will record it from a RoutingResolution. Telemetry still never fails a run."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "Provider dispatcher backend and Claude adapter extraction",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-dispatcher",
+      "commit": {
+        "subject": "refactor(backend): make the backend a provider dispatcher",
+        "body": "Add a provider field to AgentRunOptions and turn makeNodeBackendLayer into a dispatcher keyed on options.provider. Extract the existing claude spawn logic into src/infra/providers/claudeCode.ts unchanged, add src/infra/providers/dispatcher.ts, and keep src/infra/claudeCli.ts as a thin re-export so existing import sites keep working. The layer now takes a ProviderConfig. Claude behavior is identical; Mistral/Codex providers fail with a clear \"not yet wired\" error until phases 06/07. Guard allowlist updated for the moved status writer."
+      }
+    },
+    {
+      "id": "phase-06",
+      "title": "Mistral Vibe provider adapter",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-06-mistral-vibe",
+      "commit": {
+        "subject": "feat(providers): add Mistral Vibe backend adapter",
+        "body": "Implement src/infra/providers/mistralVibe.ts: spawn the vibe CLI headlessly with the resolved PHAX alias selected via VIBE_ACTIVE_MODEL and the auto-approve agent, stream output to the phase folder, decode the session id and final text through a schema boundary, and persist the session id atomically. Wire the mistral-vibe branch of the dispatcher. Tests drive the argv builder and output parser over recorded samples without a real vibe process."
+      }
+    },
+    {
+      "id": "phase-07",
+      "title": "OpenAI Codex provider adapter",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-07-codex",
+      "commit": {
+        "subject": "feat(providers): add OpenAI Codex backend adapter",
+        "body": "Implement src/infra/providers/codexCli.ts: spawn the codex CLI headlessly with the resolved openai-chatgpt model and normalized reasoning/thinking level, stream output to the phase folder, decode the session id and final text through a schema boundary, and persist the session id atomically. Wire the codex-cli branch of the dispatcher. Tests drive the argv builder and parser over recorded samples without a real codex process."
+      }
+    },
+    {
+      "id": "phase-08",
+      "title": "Wire resolution into executePlan and extract-plan",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-08-wire-execute",
+      "commit": {
+        "subject": "feat(routing): resolve per-phase model through the routing layer",
+        "body": "Load ~/.phax/model-routing.json and providers.json in the run path, thread them into executePlan and the backend dispatcher, and resolve each phase's requested model+effort through resolveModel before invoking the agent. Emit the agent.model.resolved telemetry event, build AgentRunOptions from the resolution (provider + concrete model/alias + thinking), label adapter telemetry with the real provider, and persist a per-phase model-resolution artifact. extract-plan stays Claude-only."
+      }
+    },
+    {
+      "id": "phase-09",
+      "title": "`phax agent setup mistral-vibe` alias installer",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-09-vibe-setup",
+      "commit": {
+        "subject": "feat(routing): add Mistral Vibe alias setup helper",
+        "body": "Add src/app/vibeSetup.ts and src/schemas/vibeConfig.ts implementing spec §14 with an append-only strategy: a read-only scan extracts the mistral-medium-3.5 base model's scalar fields, then five phax-mistral-medium-3.5-* [[models]] blocks are appended changing only alias and thinking. Existing bytes are never rewritten, so active_model and user entries cannot be corrupted. Idempotent (appends only missing aliases), backs up before writing, and writes atomically. No TOML parser dependency. Exercised directly by tests; CLI wiring lands in phase-10."
+      }
+    },
+    {
+      "id": "phase-10",
+      "title": "`phax agent models | resolve | probe` commands",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-10-agent-cli",
+      "commit": {
+        "subject": "feat(cli): add phax agent models/resolve/probe/setup commands",
+        "body": "Add the phax agent command group (spec §17): `agent models` prints the routing table and provider priority, `agent resolve --model --effort [--json]` explains a resolution via resolveModel, `agent probe` reports per-provider executable availability through the Shell port without throwing, and `agent setup mistral-vibe [--dry-run|--install-model-aliases]` drives the phase-09 installer. Registered in main.ts; all output goes through the output port."
+      }
+    },
+    {
+      "id": "phase-11",
+      "title": "Architectural guards, docs, and routing skill",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-11-guards-docs",
+      "commit": {
+        "subject": "docs(routing): add architectural guards, docs, and routing skill",
+        "body": "Freeze the routing boundaries with architectural guard tests (domain stays pure, only src/infra/providers may spawn provider CLIs, resolveModel imports no IO), add docs/model-routing.md and .skills/model-routing.md documenting the families, tiers, default table, resolution pipeline, relationship semantics, and the four spec §15 worked examples, and update the README with the multi-provider routing section and the phax agent command list."
+      }
+    }
+  ]
+}

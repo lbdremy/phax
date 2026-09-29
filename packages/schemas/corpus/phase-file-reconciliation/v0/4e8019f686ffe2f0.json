@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "tests/integration/rootedFileSystem.test.ts",
+    "tests/unit/fakeRootedFileSystem.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/ports/fs.ts",
+    "src/infra/fs.ts",
+    "src/infra/fakes/fs.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

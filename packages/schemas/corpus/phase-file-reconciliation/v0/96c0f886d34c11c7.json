@@ -1,0 +1,40 @@
+{
+  "phaseId": "phase-07",
+  "createdAsPlanned": [
+    "src/schemas/authoringRecord.ts",
+    "src/app/writeAuthoringRecord.ts",
+    "src/app/recordPlumbing.ts",
+    "tests/unit/authoringRecord.test.ts",
+    "tests/integration/writeAuthoringRecord.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/writeRecord.ts",
+    "src/app/authorArtifact.ts",
+    "src/app/recordsExplain.ts",
+    "src/app/recordsList.ts",
+    "src/cli/commands/records.ts",
+    "src/cli/commands/artifact.ts",
+    "tests/integration/recordsExplain.test.ts",
+    "tests/integration/authorArtifact.test.ts",
+    "tests/integration/artifactNewHeadlessCommand.test.ts",
+    "phax.usage.kdl",
+    "docs/cli/reference.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "README.md",
+    "src/cli/cliDocs.ts"
+  ],
+  "optionalTouched": [
+    "src/domain/records/assemble.ts",
+    "tests/unit/cli/artifact.test.ts",
+    "docs/cli/inventory.md"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

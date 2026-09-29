@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "provider-contract-discoverability",
+    "title": "Provider contract discoverability",
+    "requiredCommands": [
+      "node"
+    ],
+    "branch": "phax/provider-contract-discoverability"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-orient-usage-contract",
+      "plannedFilesToCreate": [
+        "tests/unit/cli/orientContractDocs.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/cliDocs.ts",
+        "src/cli/commands/orient.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md",
+        "tests/unit/cli/orient.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/usageOutput.test.ts"
+      ],
+      "commit": {
+        "subject": "docs(orient): document the provider contract in the usage spec",
+        "body": "Add a cliDocs entry for `phax orient` carrying the full provider contract\n(config key, no-shell tokenization, request/response shapes, exit-code rule,\nimplicit allowlist grant) and two examples; regenerate phax.usage.kdl, the\nCLI reference and the README command list. The unconfigured error now points\nat the usage entry. Pinned by a unit test on the normative tokens."
+      },
+      "title": "Orient contract in the usage spec"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-schema-descriptions",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/app/gates.ts",
+        "phax.schema.json",
+        "phax.user.schema.json",
+        "tests/unit/phaxConfigJsonSchema.test.ts",
+        "tests/integration/gates.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/schemas/gateDiagnostics.ts",
+        "tests/unit/schemas/orientConfig.test.ts",
+        "tests/unit/upgradeConfigSchema.test.ts"
+      ],
+      "commit": {
+        "subject": "docs(schema): describe the orient command and diagnostics output contracts",
+        "body": "Annotate `orient.command` and the gate step `output` field so the generated\nphax.schema.json states each provider contract next to its key: the orient\ncommand's no-shell tokenization and JSON transport (pointing at `phax --usage`\nfor the full contract), and the diagnostics document shape with its verdict\nrules. A diagnostic step that returns no decodable document now fails with an\nerror that names the expected document shape. Root schemas regenerated."
+      },
+      "title": "Schema descriptions and the diagnostics error"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-readme-and-example",
+      "plannedFilesToCreate": [
+        "examples/hello-world/orient.mjs",
+        "examples/hello-world/audit.mjs",
+        "tests/integration/exampleProviders.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "README.md",
+        "examples/hello-world/phax.json"
+      ],
+      "optionalFilesToEdit": [
+        "knip.json",
+        ".oxlintrc.json"
+      ],
+      "commit": {
+        "subject": "docs(examples): add orient provider and diagnostic step to hello-world",
+        "body": "Document the orient provider under Configure in the README next to the\ndiagnostics bullet, and ship two dependency-free Node scripts in\nexamples/hello-world: an orient provider serving a small row table and a\ndiagnostic gate step that reports `node:` imports under src/. An integration\ntest runs both through node and decodes their output with phax's own\ndecoders, so the example stays a conforming reference for each contract."
+      },
+      "title": "README orient section and hello-world providers"
+    }
+  ]
+}

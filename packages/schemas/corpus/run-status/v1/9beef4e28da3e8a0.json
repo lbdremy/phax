@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "migrate-to-typescript-7",
+  "runId": "migrate-to-typescript-7-1786790794377",
+  "state": "archived",
+  "createdAt": "2026-08-15T10:46:34.392Z",
+  "updatedAt": "2026-09-03T07:46:57.994Z",
+  "phasesCount": 2,
+  "gateProfileId": "full",
+  "planRepoRelPath": "docs/plans/45-typescript-7-migration-plan.md"
+}

@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "publish-pr-decouple",
+    "title": "Decouple manual `publish-pr` from the publish config flag",
+    "requiredCommands": [],
+    "branch": "phax/publish-pr-decouple"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-manual-ignores-flag",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/commands/publishPr.ts",
+        "src/app/publishRun.ts",
+        "tests/unit/cli/publishPr.test.ts",
+        "tests/integration/publishRun.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/executePlan.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(publish): let manual publish-pr run without the config flag",
+        "body": "Manual `phax publish-pr` no longer requires a `publish` block in phax.json. The explicit command is intent enough; the config flag is reserved for automatic publishing on review. Removes the flag gate from the CLI command and the inner `disabled` short-circuit from publishRun, dropping the now-unreachable `\"disabled\"` PublicationResultKind. Tests updated to the two-outcome contract."
+      },
+      "title": "Manual publish-pr ignores the publish flag"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-rename-enabled-to-auto",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/domain/config/mergeLayers.ts",
+        "src/app/executePlan.ts",
+        "src/app/initWizard.ts",
+        "src/domain/init/buildConfig.ts",
+        "README.md",
+        "tests/unit/schemas/publishConfig.test.ts",
+        "tests/unit/mergeLayers.test.ts",
+        "tests/unit/buildConfig.test.ts",
+        "tests/integration/initWizard.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/cli/run.test.ts",
+        "tests/integration/executePlan.test.ts",
+        "tests/integration/publishRun.test.ts"
+      ],
+      "commit": {
+        "subject": "refactor(publish): rename publish.enabled to publish.auto",
+        "body": "The publish config flag now governs automatic publishing on review only, so rename it from `enabled` to `auto` to match. Updates the config schema, resolved config, config-layer merge, the executePlan auto-publish gate, the init wizard prompt and buildConfig output, and the README. Breaking change with no back-compat shim: phax.json files using `publish.enabled` must switch to `publish.auto`."
+      },
+      "title": "Rename `publish.enabled` to `publish.auto`"
+    }
+  ]
+}

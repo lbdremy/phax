@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "steme-audit-scope-boundary-rule-family",
+    "title": "steme audit — Scope Boundary Rule Family",
+    "requiredCommands": [],
+    "branch": "phax/steme-audit-scope-boundary-rule-family"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-rulepack-schema-v2",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/src/contracts/rulepack.ts",
+        "apps/steme/src/core/rules/parse-rulepack.ts",
+        "apps/steme/src/core/rules/parse-rulepack.test.ts",
+        "apps/steme/src/cli/main.test.ts",
+        "rulepacks/boundaries/steme.rulepack.json"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/core/rules/inference.ts",
+        "apps/steme/src/core/evaluate/evaluate-rules.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): move the rulepack schema to v2 with multi-source and concept clauses",
+        "body": "Bump the rulepack contract to schemaVersion 2: fromScope accepts one scope or\na non-empty array, forbiddenScopes becomes optional alongside a new\nforbiddenConcepts list, and exceptSourceConcepts declares source-concept\nexceptions. The strict parser pins schemaVersion === 2 and validates every new\nfield against the canonical scope and concept key sets, accumulating named\nconfig errors that keep exiting 2. The shipped boundaries rulepack and test\nfixtures move to v2 unchanged in content."
+      },
+      "title": "Rulepack schema v2: multi-source and concept clauses"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-concept-map",
+      "plannedFilesToCreate": [
+        "apps/steme/src/utils/glob-match.ts",
+        "apps/steme/src/utils/glob-match.test.ts",
+        "apps/steme/src/core/concept-map.ts",
+        "apps/steme/src/core/concept-map.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/utils/index.ts",
+        "apps/steme/src/cli/main.ts",
+        "apps/steme/src/cli/main.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(steme): add the hardcoded concept map with glob matching and integrity preflight",
+        "body": "Add a dependency-free segment glob matcher (* one segment, ** any depth) and a\nhardcoded concept map binding core.composition and core.capabilities to their\ncanonical globs. The audit preflight validates containment (a concept's files\nlive inside its owning scope) and refuses rules referencing undeclared\nconcepts with a named config error and exit 2, so concept clauses can never\nhalf-run."
+      },
+      "title": "Concept map, glob matcher, and integrity preflight"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-concept-evaluation",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/src/core/evaluate/evaluate-rules.ts",
+        "apps/steme/src/core/evaluate/evaluate-rules.test.ts",
+        "apps/steme/src/core/evaluate/diagnostics.ts",
+        "apps/steme/src/core/evaluate/diagnostics.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/cli/main.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): evaluate multi-source rules, source-concept exceptions, and concept targets",
+        "body": "Extend rule evaluation to the v2 semantics: fromScope arrays, source-concept\nexceptions checked before targets, and forbiddenConcepts matching edges that\nresolve into a concept's files — including same-scope edges such as core\ndomain reaching core/composition. Violations carry the violated concept and\ndiagnostics name it in the concept field and repair texts. Unit tests pin the\nexception-first ordering and the single-violation rule for scope+concept\ndouble matches."
+      },
+      "title": "Evaluate concept clauses: exceptions and concept targets"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-04-rule-family-content",
+      "plannedFilesToCreate": [
+        "rulepacks/boundaries/skills/scope-boundaries/SKILL.md",
+        "rulepacks/boundaries/skills/composition-root/SKILL.md"
+      ],
+      "plannedFilesToEdit": [
+        "rulepacks/boundaries/steme.rulepack.json",
+        "apps/steme/src/cli/audit-harness.e2e.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/sandbox/src/web-rpc/composition/index.ts",
+        "apps/sandbox/src/core/index.ts",
+        "apps/steme/src/cli/main.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): ship the full scope-boundary rule family with composition-root exceptions",
+        "body": "Replace the single walking-skeleton rule with the decided 12-rule boundary\nfamily: per-source inter-scope prohibitions for core, web, webRpc, contracts,\nadapters, utils, cli, webhooks and jobs, plus three composition-root rules —\nonly core/composition may import adapters, core must not reach the composition\nroot except from capability files, and entry surfaces must never reach it.\nTwo shared skills (scope-boundaries, composition-root) replace the subsumed\ncore-must-not-import-web skill. The E2E harness proves every rule\nseed → flag → fix → pass, both exceptions silent, and the pristine sandbox\ngreen under all 12 rules."
+      },
+      "title": "Ship the boundary rule family, skills, and the full seed matrix"
+    }
+  ]
+}

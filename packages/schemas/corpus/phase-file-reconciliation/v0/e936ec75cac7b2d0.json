@@ -1,0 +1,29 @@
+{
+  "phaseId": "phase-08",
+  "createdAsPlanned": [
+    "libraries/result/README.md",
+    "libraries/result/src/index.ts",
+    "libraries/result/src/result.ts",
+    "libraries/result/tsconfig.json",
+    "libraries/result/tests/.gitkeep",
+    "apps/sandbox/src/core/uses-result.ts"
+  ],
+  "editedAsPlanned": [
+    "tsconfig.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "libraries/result/package.json",
+    "apps/sandbox/package.json",
+    "apps/sandbox/tsconfig.json",
+    "pnpm-lock.yaml"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

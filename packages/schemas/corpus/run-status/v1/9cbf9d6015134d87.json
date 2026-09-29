@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "handoff",
+  "runId": "handoff-1781885727321",
+  "state": "archived",
+  "createdAt": "2026-06-19T16:15:27.337Z",
+  "updatedAt": "2026-09-03T07:49:11.914Z",
+  "phasesCount": 2,
+  "gateProfileId": "full",
+  "stoppedReason": "phase_reset"
+}

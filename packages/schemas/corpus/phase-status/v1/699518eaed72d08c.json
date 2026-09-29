@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-25T13:33:42.277Z",
+  "updatedAt": "2026-06-25T13:39:10.593Z",
+  "branchName": "phax/durable-agent-errors--phase-01",
+  "worktreePath": "~/.phax/worktrees/phax.durable-agent-errors/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "e3ce11471713400f2222d64016198609932d8196"
+}

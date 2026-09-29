@@ -1,0 +1,39 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "apps/steme/src/core/evaluate/rules/enforce-public-surface-imports.ts",
+    "apps/steme/src/core/evaluate/rules/enforce-public-surface-imports.test.ts",
+    "apps/steme/src/core/modules/audit/build-capabilities.test.ts",
+    "apps/steme/src/cli/public-surface.e2e.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/contracts/rulepack.ts",
+    "apps/steme/src/core/rules/parse-rulepack.ts",
+    "apps/steme/src/core/rules/parse-rulepack.test.ts",
+    "apps/steme/src/core/rules/inference.ts",
+    "apps/steme/src/core/rules/inference.test.ts",
+    "apps/steme/src/core/policy/load-active-rulepacks.ts",
+    "apps/steme/src/core/modules/audit/build-capabilities.ts",
+    "apps/steme/src/core/modules/audit/capability.ts",
+    "apps/steme/src/core/evaluate/evaluate-rules.ts",
+    "apps/steme/src/core/fingerprint.ts",
+    "apps/steme/src/core/fingerprint.test.ts",
+    "apps/steme/src/core/evaluate/diagnostics.ts",
+    "apps/steme/src/core/modules/doctrine/capability.ts",
+    "apps/steme/src/core/modules/doctrine/capability.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "apps/steme/src/cli/commands/baseline.ts"
+  ],
+  "optionalTouched": [
+    "apps/steme/src/core/evaluate/evaluate-rules.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

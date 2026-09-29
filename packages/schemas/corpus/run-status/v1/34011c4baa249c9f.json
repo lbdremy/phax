@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "init",
+  "runId": "init-1782283266268",
+  "state": "archived",
+  "createdAt": "2026-06-24T06:41:06.283Z",
+  "updatedAt": "2026-09-03T07:46:49.502Z",
+  "phasesCount": 4,
+  "gateProfileId": "full",
+  "stoppedReason": "gates_exhausted",
+  "lastError": "Gate failed: pnpm deno:smoke"
+}

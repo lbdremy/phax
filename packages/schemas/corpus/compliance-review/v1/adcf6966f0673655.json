@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Both phases delivered their objectives as specified. Phase-01 added ConfigSources and describeConfigSources to src/app/loadConfig.ts without touching loadConfig itself, with all four planned unit test cases present. Phase-02 reshaped phax validate to be config-first, removed the dead --config flag, made --plan optional with no default, and wired in layer reporting — covered by all five planned CLI unit tests. Two unplanned files were touched in phase-02 (docs/cli/reference.md and phax.usage.kdl), both are generated/derived artifacts whose regeneration was required to pass the docsCliDrift integration test; both are justified in the handoff. No unjustified scope creep was found.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "ConfigSources interface and describeConfigSources(cwd?: string): ConfigSources | undefined added to src/app/loadConfig.ts with the three required readonly fields. loadConfig signature, return type, and behavior are unchanged."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No CLI wiring and no changes to loadConfig itself. Export intentionally unconsumed; knip excluded from fast gate profile as planned."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Exactly the two planned files touched (src/app/loadConfig.ts, tests/unit/loadConfig.test.ts). No unplanned files."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All four planned unit test cases present under describe('describeConfigSources'): no phax.json, phax.json with no overlays, local overlay present, not in a git repo. The globalOverlay test checks string|undefined rather than a fixed path — justified in handoff as a CI portability trade-off."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "describeConfigSources reuses findGitRoot, findPhaxConfig, and localUserConfigPath without introducing a second discovery algorithm. Placement is adjacent to locatePhaxConfig as specified."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches exactly: 'feat(config): add describeConfigSources to report validated config layers'. Body covers additive helper, backing the reshaped validate, and unit test coverage."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers exact signature and field names/types, confirms export is unused as of this phase, and reports no file-plan deviations."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "phax validate now always validates the config stack with layer reporting; loadPlan called only when --plan is given; --config removed; no implicit default for --plan. Fully delivered."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No plan.md validation, no changes to extract-plan, loadPlan, or the plan schema. Respected."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Two unplanned files touched: docs/cli/reference.md (generated artifact regenerated to pass docsCliDrift integration test) and phax.usage.kdl (--config already removed before phase-01; picked up by diff detection during gate run with no content change in this phase). Both justified in the handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All five planned CLI unit tests present in tests/unit/cli/validate.test.ts: config valid/no-plan, config invalid, config valid+plan valid, config valid+plan invalid, describeConfigSources returning undefined. Pattern matches ls.test.ts style as specified."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "validate.ts is a thin CLI view: orchestrates loadConfig, describeConfigSources, and loadPlan; renders through the injected OutputPort; no business logic, no direct I/O."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches exactly: 'feat(cli): make phax validate config-first with optional plan check'. Body covers config-first behavior, layer reporting, --plan opt-in, --config removal, no markdown validation, and the loadPlan-never-called guarantee."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers final CLI surface (flags removed/changed), both unplanned edits with justification, and the loadPlan-never-called invariant. Complete."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "phax.usage.kdl appears in the unplanned-files list — the handoff states no content change was made in this phase (--config was already removed in a prior commit). A quick git diff on that file would confirm the claim definitively.",
+    "The globalOverlay unit test in tests/unit/loadConfig.test.ts does not exercise the globalOverlay-present branch directly (it checks string|undefined for CI portability). The globalOverlay-present case is not pinned by any test; this is a coverage gap within the scope the plan allowed."
+  ],
+  "pointers": []
+}

@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "verdict": "conformant",
+  "summary": "All five phases delivered exactly what was planned. The global file reconciliation shows all ten files matched to their planned phases with no extras and no missing artifacts. No source files (src/, phax.json, package.json) were touched. Commit subjects and bodies match the plan verbatim. Handoffs cover all required content. The three probe findings docs intentionally have empty Results/Verdict sections per the plan's execution-model caveat, and the synthesis correctly marks itself provisional — this is the designed end state, not a deviation.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "All three planned artifacts delivered: README with three unknowns, execution-model caveat, six-step observed-run procedure, safety protocol and teardown contract; read-only preflight covering install check, enablement state, push-safety context, and phax ground facts; findings template with correct section names."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all required items: exact paths, template section names verbatim, confirmation that 'entire --version'/'entire --help' are in security.agentCommands, oxfmt Markdown normalization note, no deviations."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Harness covers all five cases with the two decisive ones (worktree visibility, allowlist reachability) explicitly identified. Findings doc frames the capture question, five-row results table present, Results/Verdict intentionally empty, Teardown section appended as required, assumed entire flags documented with exact syntax."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Optional README.md edit not taken; justified by the probe table already accurately describing the harness."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Harness covers all five plan steps plus shadow-branch repo weight. Findings doc frames the two verdict questions, Results/Verdict intentionally empty, no Teardown section (correctly deferred to probe 01)."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Optional README.md edit not taken; justified identically to phase-02."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Harness covers all five steps: raw-git read without the entire binary, field inventory, stability signals, join in both directions, size per run. Transcript values not pasted in (REDACT VALUES warning). Findings doc provides field inventory and join tables; Results/Verdict intentionally empty."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Optional README.md edit not taken; justified by the README already accurately describing the harness."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Synthesis doc assembles per-probe summaries (all marked provisional with a status header), frames both options by dominant loss, sketches the phax/records/v1 pattern-only alternative, provides both consumption-path sketches with real code symbols, closes the provenance chain with join hazards, lists all five residual risks, and ends with the consolidated teardown checklist. Verdict is empty with a directing comment."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No recommendation written, Verdict empty, no src/phax.json/package.json/NEXT_STEPS.md changes, no follow-up implementation plan. Excluded scope fully respected."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "All three probe Results/Verdict sections are intentionally empty per the execution-model caveat. The remaining work is human: run the observed-run procedure, fill each Results/Verdict, update the synthesis's provisional summaries, write the synthesis verdict, then execute the teardown checklist.",
+    "Repo-weight figures in the synthesis residual-risks section are placeholders pending probe 02's Results. Update after the observed run.",
+    "The safety window is open: entire/checkpoints/v1 is a local branch on a public repo. Do not run git push --all or --mirror until teardown is complete."
+  ],
+  "pointers": []
+}

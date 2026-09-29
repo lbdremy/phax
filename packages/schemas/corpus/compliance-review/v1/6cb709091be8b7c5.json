@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases delivered their stated objectives. Phase-01 is fully conformant: the Zod rewrite preserves the 30-case parser oracle exactly, only the three planned files were touched. Phase-02 has one justified unplanned file (main.test.ts, edited because the sandbox manifest now declares all 13 canonical concepts, making the pre-existing undeclared-concept fixture untestable against it). Phase-03 has one class of justified deviation: four files listed as 'planned to edit' (scope-map.ts, scope-map.test.ts, concept-map.ts, concept-map.test.ts) were deleted rather than edited, which is exactly what the plan's own instructions called for. No unjustified deviations, no missing promised tests or artifacts.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "parse-rulepack.ts internals rewritten on Zod leaf schemas (ScopeKeySchema, ConceptKeySchema, NonEmptyStringSchema, PlainObjectSchema); surrounding control flow and all error message strings remain hand-written to stay byte-identical with the 30-case test oracle. Exported surface (parseRulepack, CANONICAL_CONCEPT_KEYS) unchanged. zod: ^3.25.64 added to apps/steme dependencies."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject/body could not be verified: the git volume (/Volumes/Work) was not readable in the review environment. Handoff describes the planned wording and reports no deviations."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "apps/steme/src/cli/main.test.ts was edited (unplanned). Justification: the pre-existing undeclared-concept test targeted apps/sandbox, which now declares all 13 canonical concepts after the manifest updates; the fixture was moved to a purpose-built temp unit with a concepts-free manifest. The malformed-baseline fixture also required a manifest to be seeded. The edit was forced by the phase-02 change itself, not by scope creep."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject/body could not be verified: git volume unavailable in review environment."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised tests confirmed present: parse-manifest.test.ts (structural/containment/integrity/aggregation), schema-parity.test.ts (AJV vs Zod parity over 2 examples + 3 real manifests + 8 invalid payloads), capability.test.ts extensions (missing/invalid manifest, undeclared concept reference), preflight-ordering.e2e.test.ts extensions (4 new manifest ordering cases). Handoff confirms 7 red-first failures before wiring, all green at commit."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "scope-map.ts, scope-map.test.ts, concept-map.ts, concept-map.test.ts were listed as 'planned files to edit' but were deleted instead. Justified: the plan's own Detailed Instructions say 'Delete apps/steme/src/core/scope-map.ts, scope-map.test.ts, concept-map.ts, concept-map.test.ts.' Deletion is the correct landing for those planned edits. The reconciliation table records them as 'deleted', not 'matched'. Handoff confirms grep found zero remaining importers."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject/body could not be verified: git volume unavailable in review environment."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised tests confirmed present: resolver.test.ts (scope match, vacuous no-match, concept composition, non-canonical name filtering, conflict detection), manifest-bindings.e2e.test.ts (vacuous-scope flip, 13-concept reachability, overlap rejection), evaluate-rules.test.ts updated with inline-manifest resolvers, capability.test.ts updated with overlap-rejection and manifest-driven evaluation cases. Red-first (vacuous-scope flip exit-0 half) confirmed failing before resolver wiring."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Commit subjects and bodies for all three phases could not be verified: the git volume (/Volumes/Work) was not readable in the review environment. Run `git log --oneline -3` in the worktree to confirm subjects match the plan.",
+    "ConceptKey is not re-exported from contracts/index.ts (ScopeKey is). This is not a plan deviation but worth confirming via code review that all consumers import ConceptKey directly from contracts/rulepack.ts.",
+    "apps/steme/src/cli/main.test.ts was edited in phase-02 (unplanned, justified) and is not mentioned in the phase-03 handoff. It is correctly absent from the phase-03 reconciliation. No action required."
+  ],
+  "pointers": [
+    "resolver.ts findScopeConflicts runs against graph.nodes in execute(), after the graph is built — confirm via code review that the error path exits cleanly (exit 2) without proceeding to rule evaluation when conflicts are found.",
+    "parse-manifest.ts concept containment check uses a probe-path derived from the glob literal prefix; confirm via code review that globs with no wildcard character (literal paths) are handled correctly by this probe-path derivation."
+  ]
+}

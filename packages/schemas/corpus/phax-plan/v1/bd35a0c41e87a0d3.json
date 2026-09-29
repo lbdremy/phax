@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "skill-edit-grant-skill-docs",
+    "title": "Skill edit grant skill docs",
+    "requiredCommands": [],
+    "branch": "phax/skill-edit-grant-skill-docs"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-01-skill-docs",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        ".claude/skills/phax-planning/SKILL.md",
+        ".claude/skills/phax-cli/SKILL.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "docs(skills): document skill edit grants and --allow-skill-edits",
+        "body": "Tell plan authors (phax-planning) that a phase can write a .claude/skills file\nonly by declaring that exact file, and only when the run is started with\n--allow-skill-edits. Tell operators (phax-cli) that the flag is required, that\nresume inherits it, and that the grant is recorded in security.json. This is\nthe first run to exercise the skill edit grant end to end."
+      },
+      "title": "Document skill edit grants in the shipped skills"
+    }
+  ]
+}

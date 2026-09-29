@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-18T14:13:16.533Z",
+  "updatedAt": "2026-06-18T14:20:29.413Z",
+  "branchName": "phax/agent-binding-hardening--phase-01",
+  "worktreePath": "~/.phax/worktrees/agent-binding-hardening/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "867d7111e49c7228ef95a6c1778df752f4f25d06"
+}

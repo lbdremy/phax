@@ -1,0 +1,40 @@
+{
+  "phase": "phase-02",
+  "steps": [
+    {
+      "command": "pnpm lint",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm format:check",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm typecheck",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm test",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm validate:manifests",
+      "surface": "structural",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm db:generate",
+      "surface": "structural",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm steme:audit",
+      "surface": "structural",
+      "result": "pass"
+    }
+  ]
+}

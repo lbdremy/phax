@@ -1,0 +1,39 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [
+    "apps/sandbox/package.json",
+    "apps/sandbox/steme.package.json",
+    "apps/sandbox/tsconfig.json",
+    "apps/sandbox/README.md",
+    "apps/sandbox/src/site/index.ts",
+    "apps/sandbox/src/web/index.ts",
+    "apps/sandbox/src/web-rpc/index.ts",
+    "apps/sandbox/src/webhooks/index.ts",
+    "apps/sandbox/src/jobs/index.ts",
+    "apps/sandbox/src/cli/index.ts",
+    "apps/sandbox/src/core/index.ts",
+    "apps/sandbox/src/contracts/index.ts",
+    "apps/sandbox/src/adapters/index.ts",
+    "apps/sandbox/src/utils/index.ts",
+    "apps/sandbox/src/build/index.ts",
+    "apps/sandbox/src/core/composition/index.ts",
+    "apps/sandbox/src/core/modules/example/module.ts",
+    "apps/sandbox/src/core/modules/example/capability.ts",
+    "apps/sandbox/src/core/modules/example/ports/index.ts",
+    "apps/sandbox/src/core/modules/example/domain/index.ts",
+    "apps/sandbox/src/web-rpc/composition/index.ts"
+  ],
+  "editedAsPlanned": [
+    "tsconfig.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

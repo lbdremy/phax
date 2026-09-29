@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-29T08:12:39.102Z",
+  "updatedAt": "2026-06-29T08:39:31.035Z",
+  "branchName": "phax/plan-extraction-cache--phase-02",
+  "worktreePath": "~/.phax/worktrees/phax.plan-extraction-cache/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "9e34bdf6eb2ad89e865661c1aee9d41d411f8a8e"
+}

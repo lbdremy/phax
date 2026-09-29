@@ -1,0 +1,35 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "apps/steme/src/core/manifest/resolver.ts",
+    "apps/steme/src/core/manifest/resolver.test.ts",
+    "apps/steme/src/cli/manifest-bindings.e2e.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/core/evaluate/evaluate-rules.ts",
+    "apps/steme/src/core/evaluate/evaluate-rules.test.ts",
+    "apps/steme/src/core/modules/audit/capability.ts",
+    "apps/steme/src/core/modules/audit/capability.test.ts",
+    "apps/steme/src/core/index.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "apps/steme/src/core/scope-map.ts",
+    "apps/steme/src/core/scope-map.test.ts",
+    "apps/steme/src/core/concept-map.ts",
+    "apps/steme/src/core/concept-map.test.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [
+    "apps/steme/src/core/concept-map.test.ts",
+    "apps/steme/src/core/concept-map.ts",
+    "apps/steme/src/core/scope-map.test.ts",
+    "apps/steme/src/core/scope-map.ts"
+  ],
+  "renames": [],
+  "hasDeviations": true
+}

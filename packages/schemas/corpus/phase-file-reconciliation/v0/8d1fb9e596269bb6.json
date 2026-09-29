@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/schemas/orient.ts",
+    "src/app/orient.ts",
+    "tests/unit/schemas/orient.test.ts",
+    "tests/integration/orient.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/domain/errors.ts"
+  ],
+  "optionalTouched": [
+    "src/ports/shell.ts",
+    "src/infra/shell.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

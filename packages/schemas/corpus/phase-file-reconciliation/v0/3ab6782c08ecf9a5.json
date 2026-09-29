@@ -1,0 +1,30 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "packages/louloupress/tests/content-secret-visibility.test.ts"
+  ],
+  "editedAsPlanned": [
+    "packages/louloupress/src/modules/content/server/content-reader/create-content-reader.ts",
+    "packages/louloupress/src/modules/content/server/application/route-data/create-content-route-data.ts",
+    "packages/louloupress/src/modules/content/build/generated-indexes/content-indexing.ts",
+    "packages/louloupress/src/modules/seo/build/published-artifacts.ts",
+    "packages/louloupress/src/modules/llm/build/llms.ts",
+    "apps/le-secretaire-de-fernand/src/web/routes/$lang/$.tsx"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "packages/louloupress/tests/seo.test.ts",
+    "packages/louloupress/tests/llm.test.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "apps/le-secretaire-de-fernand/public/content-index.json",
+    "packages/louloupress/src/modules/seo/build/rss.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

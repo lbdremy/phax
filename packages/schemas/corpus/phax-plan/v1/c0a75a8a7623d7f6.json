@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "article-series-taxonomy",
+    "title": "Article Series Taxonomy — Implementation Plan",
+    "requiredCommands": [],
+    "branch": "phax/article-series-taxonomy"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-series-contract",
+      "plannedFilesToCreate": [
+        "apps/le-secretaire-de-fernand/src/site/content/taxonomy/series.json",
+        "packages/louloupress/tests/content-series-taxonomy-contracts.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/louloupress/src/modules/content/shared/contracts/taxonomy.ts",
+        "apps/le-secretaire-de-fernand/src/site/data.ts"
+      ],
+      "optionalFilesToEdit": [
+        "packages/louloupress/src/modules/content/shared/contracts/index.ts",
+        "apps/le-secretaire-de-fernand/src/shared/site-runtime.ts"
+      ],
+      "commit": {
+        "subject": "feat(content): add series taxonomy store contract and data wiring",
+        "body": "Add SeriesStore/SeriesDefinition types and parseSeriesStore to the shared content contracts, seed an empty series.json, and expose the parsed store from the site data layer. Structural validation is covered by contract tests; cross-document validation lands with the build artifact in the next phase."
+      },
+      "title": "Series store contract and data wiring"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-02-series-usage",
+      "plannedFilesToCreate": [
+        "packages/louloupress/src/modules/content/shared/contracts/generated-series-index.ts",
+        "apps/le-secretaire-de-fernand/tests/content/series-usage.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/le-secretaire-de-fernand/src/build/modules/seo/content-index.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/le-secretaire-de-fernand/src/build/pipelines/published-artifact-recipes.ts",
+        "apps/le-secretaire-de-fernand/tests/content/generate-content-indexes.test.ts",
+        "packages/louloupress/src/modules/content/shared/contracts/index.ts",
+        "apps/le-secretaire-de-fernand/src/site/content/generated/series-usage.json"
+      ],
+      "commit": {
+        "subject": "feat(build): generate series usage artifact with prev/next resolution",
+        "body": "Emit series-usage.json during content index generation with ordered, per-locale resolved members and precomputed previous/next links, and enforce build-time validation that referenced documents exist and no document belongs to two series. Covered by an integration test over a fixture document set."
+      },
+      "title": "Generated series usage artifact"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-series-route-data",
+      "plannedFilesToCreate": [
+        "apps/le-secretaire-de-fernand/tests/server/series-route-data.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/louloupress/src/modules/content/shared/contracts/route-data.ts",
+        "packages/louloupress/src/modules/content/server/application/route-data/create-content-route-data.ts",
+        "apps/le-secretaire-de-fernand/src/web-rpc/modules/content/functions/route-data-functions.ts",
+        "apps/le-secretaire-de-fernand/src/shared/site-runtime.ts",
+        "apps/le-secretaire-de-fernand/src/web/modules/public-site/routing/public-site-links.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/le-secretaire-de-fernand/src/shared/contracts/route-search.ts"
+      ],
+      "commit": {
+        "subject": "feat(content): add series route data resolver and RPC",
+        "body": "Add the localized series route-data contract, a resolver and resolveSeriesForDocument helper over the series usage artifact, the getLocalizedSeriesRouteData RPC, and series URL helpers. Covered by server tests for slug resolution, document lookup, and locale alternates."
+      },
+      "title": "Series route data and RPC"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-series-index-page",
+      "plannedFilesToCreate": [
+        "apps/le-secretaire-de-fernand/src/web/routes/$lang/series/$seriesSlug.tsx",
+        "packages/louloupress/src/modules/content/web/pages/series-index/page.tsx",
+        "apps/le-secretaire-de-fernand/tests/ui/series-index-page.test.tsx"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "apps/le-secretaire-de-fernand/src/routeTree.gen.ts",
+        "packages/louloupress/src/modules/content/web/pages/index.ts",
+        "apps/le-secretaire-de-fernand/tests/seo/content-index-route.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(web): add localized series index route and page",
+        "body": "Add the /:lang/series/:seriesSlug route and a SeriesIndexPage that lists parts in reading order with Part N labels, description, SEO alternates, and a localized empty state, reusing ArticleCard. Covered by a component test over fixture route data."
+      },
+      "title": "Series index route and page"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-in-article-nav",
+      "plannedFilesToCreate": [
+        "packages/louloupress/src/modules/content/web/components/mdx/SeriesNav.tsx",
+        "apps/le-secretaire-de-fernand/tests/ui/series-nav.test.tsx"
+      ],
+      "plannedFilesToEdit": [
+        "apps/le-secretaire-de-fernand/src/web/modules/content/pages/mdx-content/page.tsx",
+        "packages/louloupress/src/modules/content/web/components/mdx/MdxPage.tsx"
+      ],
+      "optionalFilesToEdit": [
+        "packages/louloupress/src/modules/content/web/components/mdx/index.ts",
+        "apps/le-secretaire-de-fernand/src/web/modules/content/pages/mdx-content/page.tsx"
+      ],
+      "commit": {
+        "subject": "feat(web): add in-article series previous/next navigation",
+        "body": "Add a SeriesNav banner near the article header linking to the previous part and a next-part CTA after the body via renderAfterContent, both localized and composing with the reader-feedback surface. Series context comes from resolveSeriesForDocument. Covered by a component test across first/middle/last positions."
+      },
+      "title": "In-article series navigation"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [
+    "apps/steme/src/cli/audit-harness.e2e.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

@@ -1,0 +1,24 @@
+{
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/schemas/status.ts",
+    "src/domain/state.ts",
+    "tests/unit/state.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "README.md",
+    "docs/plans/04b-run-jail-provider-validation.md",
+    "docs/plans/10-opus-frontier-tiers-plan.md",
+    "docs/plans/11-review-handoff-plan.md",
+    "docs/specs/05-review-handoff.md",
+    "src/app/phaxState.ts",
+    "tests/e2e/semanticTrace.providers.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

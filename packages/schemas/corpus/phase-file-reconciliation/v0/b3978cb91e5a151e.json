@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "rulepacks/boundaries/skills/scope-boundaries/SKILL.md",
+    "rulepacks/boundaries/skills/composition-root/SKILL.md"
+  ],
+  "editedAsPlanned": [
+    "rulepacks/boundaries/steme.rulepack.json",
+    "apps/steme/src/cli/audit-harness.e2e.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [
+    "rulepacks/boundaries/skills/core-must-not-import-web/SKILL.md"
+  ],
+  "renames": [],
+  "hasDeviations": true
+}

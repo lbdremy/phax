@@ -1,0 +1,54 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "tests/unit/registryNamespace.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/registry.ts",
+    "src/schemas/status.ts",
+    "src/app/registry.ts",
+    "src/app/runFolder.ts",
+    "src/domain/runReviewInfo.ts",
+    "src/app/resolveRunInfo.ts",
+    "src/app/effectRunner.ts",
+    "src/cli/commands/run.ts",
+    "src/app/archive.ts",
+    "src/app/dryRun.ts",
+    "tests/unit/schemas.test.ts",
+    "tests/unit/dryRun.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "tests/unit/runArgv.test.ts"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/archive.test.ts",
+    "tests/integration/dispatcher.test.ts",
+    "tests/integration/enter.test.ts",
+    "tests/integration/enterPhase.test.ts",
+    "tests/integration/eventAdapter.test.ts",
+    "tests/integration/executePlan.test.ts",
+    "tests/integration/finalReview.test.ts",
+    "tests/integration/fixLoop.test.ts",
+    "tests/integration/perPhaseBranch.test.ts",
+    "tests/integration/publishRun.test.ts",
+    "tests/integration/rateLimit.test.ts",
+    "tests/integration/registry.test.ts",
+    "tests/integration/resetPhase.test.ts",
+    "tests/integration/resume.test.ts",
+    "tests/integration/reviewCompliance.test.ts",
+    "tests/integration/reviewComplianceCommand.test.ts",
+    "tests/integration/reviewHandoff.test.ts",
+    "tests/integration/reviewHandoffCommand.test.ts",
+    "tests/integration/sessionInfo.test.ts",
+    "tests/integration/telemetry/adapterFailures.test.ts",
+    "tests/unit/cli/publishPr.test.ts",
+    "tests/unit/reducer.test.ts",
+    "tests/unit/resume.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

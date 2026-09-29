@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "src/domain/gate/fixPrompt.ts",
+    "tests/unit/fixPrompt.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/fixLoop.ts",
+    "tests/integration/fixLoop.test.ts",
+    "README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

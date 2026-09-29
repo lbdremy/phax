@@ -1,0 +1,16 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "README.md",
+    "docs/specs/06-deno-runtime.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

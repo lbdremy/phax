@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-5",
+  "effort": "high",
+  "createdAt": "2026-08-13T12:16:39.682Z",
+  "updatedAt": "2026-08-13T12:26:12.120Z",
+  "branchName": "phax/rename-archived-to-completed--phase-02",
+  "worktreePath": "~/.phax/worktrees/phax.rename-archived-to-completed/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "3c9b8f73a5796adce8beb1087331ea14bd1aa8b2"
+}

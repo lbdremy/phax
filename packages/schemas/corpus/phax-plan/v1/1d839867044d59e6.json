@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "plan-02-steme-audit-walking-skeleton-phax-run",
+    "title": "Plan 02 — steme audit Walking Skeleton (phax run)",
+    "requiredCommands": [
+      "pnpm",
+      "nx",
+      "oxlint",
+      "oxfmt",
+      "vitest"
+    ],
+    "branch": "phax/plan-02-steme-audit-walking-skeleton-phax-run"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-steme-app-skeleton",
+      "plannedFilesToCreate": [
+        "apps/steme/package.json",
+        "apps/steme/tsconfig.json",
+        "apps/steme/vitest.config.ts",
+        "apps/steme/steme.package.json",
+        "apps/steme/README.md",
+        "apps/steme/src/cli/index.ts",
+        "apps/steme/src/core/index.ts",
+        "apps/steme/src/contracts/index.ts",
+        "apps/steme/src/adapters/index.ts",
+        "apps/steme/src/utils/index.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "feat(steme): scaffold the apps/steme CLI app skeleton",
+        "body": "Create apps/steme as a node-runnable workspace app: @steme-lab/steme, ESM,\nper-project scripts (typecheck via plain tsc), a typecheck-only leaf tsconfig\n(noEmit + allowImportingTsExtensions so Node 24 runs the .ts source directly),\nVitest config, a steme.package.json declaring the CLI scope set\n(cli/core/contracts/adapters/utils), and placeholder scope barrels. No audit\nlogic yet."
+      },
+      "title": "Scaffold the apps/steme CLI app"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-rule-model",
+      "plannedFilesToCreate": [
+        "apps/steme/src/contracts/rulepack.ts",
+        "apps/steme/src/core/rules/parse-rulepack.ts",
+        "apps/steme/src/core/rules/parse-rulepack.test.ts",
+        "apps/steme/src/core/rules/inference.ts",
+        "apps/steme/src/core/rules/inference.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/contracts/index.ts",
+        "apps/steme/src/core/index.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(steme): add declarative rule model with strict rulepack validation",
+        "body": "Pure-core rulepack parsing for the forbidScopeImport rule type: required fields\nonly (id, title, type, fromScope, forbiddenScopes, skill), with unknown types,\nmissing fields, extra fields, and non-canonical scope keys rejected as config\nerrors naming the rule and field. Runtime inference (importGraph capability,\nscope-import-edge fingerprint strategy, error signal) is derived from the type.\nFully unit-tested; no I/O."
+      },
+      "title": "Rule model, rulepack parsing, strict validation, inference"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-import-graph",
+      "plannedFilesToCreate": [
+        "apps/steme/src/contracts/import-graph.ts",
+        "apps/steme/src/adapters/import-graph/build-import-graph.ts",
+        "apps/steme/src/adapters/import-graph/build-import-graph.test.ts",
+        "apps/steme/src/core/scope-map.ts",
+        "apps/steme/src/core/scope-map.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/package.json",
+        "apps/steme/src/contracts/index.ts",
+        "apps/steme/src/adapters/index.ts",
+        "apps/steme/src/core/index.ts",
+        "pnpm-lock.yaml"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(steme): build the Oxc import graph and hardcoded scope map",
+        "body": "Adapter walking one app's src/, parsing with oxc-parser, and emitting a typed\nimport graph: value, type-only, and literal-dynamic edges, each with its source\nline; relative specifiers resolved (including the repo's .js-to-.ts rewrite),\nbare and unresolvable specifiers kept as external. Pure-core scope map mirroring\nthe 12 canonical scope globs with a minimal matcher. Integration-tested against\na generated fixture app."
+      },
+      "title": "Oxc import graph over one app, hardcoded scope map"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-04-evaluation-diagnostics",
+      "plannedFilesToCreate": [
+        "apps/steme/src/core/evaluate/evaluate-rules.ts",
+        "apps/steme/src/core/evaluate/evaluate-rules.test.ts",
+        "apps/steme/src/core/evaluate/diagnostics.ts",
+        "apps/steme/src/core/evaluate/diagnostics.test.ts",
+        "apps/steme/src/contracts/diagnostic.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/contracts/index.ts",
+        "apps/steme/src/core/index.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/contracts/import-graph.ts",
+        "apps/steme/src/adapters/import-graph/build-import-graph.ts",
+        "apps/steme/src/adapters/import-graph/build-import-graph.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): evaluate scope-boundary rules into complete diagnostics",
+        "body": "Pure evaluation of forbidScopeImport rules over the import graph: internal edges\nfrom the rule's fromScope into any forbidden scope become violations (type-only\nand literal-dynamic edges included; unmapped and external files excluded). Each\nviolation yields a nine-field diagnostic (rule, concept=protected scope,\nseverity, file, line, problem, why, fix, skill) and the run aggregates into the\nAuditReport JSON contract. Unit-tested from hand-built graphs."
+      },
+      "title": "Boundary evaluation and diagnostics"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-05-cli-audit",
+      "plannedFilesToCreate": [
+        "rulepacks/boundaries/steme.rulepack.json",
+        "rulepacks/boundaries/skills/core-must-not-import-web/SKILL.md",
+        "apps/steme/src/cli/main.ts",
+        "apps/steme/src/cli/render.ts",
+        "apps/steme/src/cli/exit-codes.ts",
+        "apps/steme/src/cli/main.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/package.json",
+        "apps/steme/src/cli/index.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/core/index.ts",
+        "apps/steme/src/contracts/index.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): wire the steme audit CLI with rulepack, skill and exit contract",
+        "body": "Runnable audit chain: rulepacks/boundaries ships TS_BOUNDARY_001 (core must not\nimport web) with its prose skill; the CLI loads and strictly validates the pack,\npreflights skill resolution, builds the import graph over the target app,\nevaluates, and renders human or --json output. Exit contract: 0 clean, 1\nviolations, 2 cannot-run, with 2 never masquerading as 1. Smoke-tested end to\nend against apps/sandbox."
+      },
+      "title": "The `steme audit` command, rulepack artifact, exit contract"
+    },
+    {
+      "id": "phase-06",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-06-seeded-harness",
+      "plannedFilesToCreate": [
+        "apps/steme/src/cli/audit-harness.e2e.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "apps/steme/vitest.config.ts",
+        "apps/steme/src/cli/main.test.ts"
+      ],
+      "commit": {
+        "subject": "test(steme): add the seeded-violation E2E harness for steme audit",
+        "body": "End-to-end acceptance harness proving detect → diagnose → explain → repair →\nverify: a core → web import seeded into a disposable copy of apps/sandbox is\nflagged with a complete, skill-linked diagnostic and exit 1; removing it yields\nexit 0; JSON and human outputs agree; type-only imports are flagged; unmapped\nfiles are out of surface; and the committed tree audits clean."
+      },
+      "title": "Seeded-violation harness: seed → flag → fix → pass"
+    }
+  ]
+}

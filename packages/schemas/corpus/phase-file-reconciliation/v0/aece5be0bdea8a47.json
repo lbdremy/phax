@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "apps/steme/src/cli/refusals.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/cli/program.ts",
+    "apps/steme/src/cli/commands/baseline.ts",
+    "apps/steme/src/cli/main.test.ts",
+    "apps/steme/src/cli/preflight-ordering.e2e.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

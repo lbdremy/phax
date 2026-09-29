@@ -1,0 +1,33 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "apps/steme/src/core/policy/find-unit.ts",
+    "apps/steme/src/core/policy/find-unit.test.ts",
+    "apps/steme/src/core/policy/load-active-rulepacks.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/contracts/rulepack.ts",
+    "apps/steme/src/contracts/distribution.ts",
+    "apps/steme/src/core/rules/parse-rulepack.ts",
+    "apps/steme/src/utils/glob-match.ts",
+    "apps/steme/src/utils/glob-match.test.ts",
+    "apps/steme/src/core/policy/parse-stackpack.ts",
+    "apps/steme/src/core/policy/parse-stackpack.test.ts",
+    "apps/steme/src/core/policy/resolve-policy.ts",
+    "apps/steme/src/core/policy/resolve-policy.test.ts",
+    "apps/steme/src/core/modules/audit/capability.ts",
+    "apps/steme/src/cli/manifest-bindings.e2e.test.ts",
+    "apps/sandbox/steme.package.json",
+    "schemas/examples/app.steme.package.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

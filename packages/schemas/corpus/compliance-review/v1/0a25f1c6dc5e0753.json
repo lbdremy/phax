@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "verdict": "conformant",
+  "summary": "Both phases delivered their stated objectives without scope creep. Phase-01 colocated the register, removed --baseline from all three commands, regenerated derived artifacts, and migrated the E2E suites register-path-and-invocation-only; one test-strategy adaptation (scenario 6) was forced by the derived-location constraint and correctly documented. Phase-02 keyed fingerprints and entries unit-relative, deleted the partitioning machinery, introduced the containment refusal, rewrote the fingerprint comment, and shipped the rename-survival E2E scenario as the load-bearing falsifiability criterion — confirmed red before and green after the keying change. All planned files match, no optional files were touched, excluded scope was respected in both phases, boundary contracts are correct, commit subjects match, and handoffs cover all required content.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Scenario 6's 'accept-drift against a missing baseline' test was restructured to use a separate unregisteredApp fixture rather than pointing --baseline at a different path — an approach that is unrepresentable once the register location is derived. The adaptation is justified by the change itself and documented in the handoff."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "In baseline-lifecycle.e2e.test.ts, scenario 8 (rename-survival) appears before scenario 7 (entry-outside-unit refusal) in source order because scenario 8 was written first and appended, then the original scenario 7 was replaced in place. Both tests are correct and complete; the numbering is cosmetically reversed in file order only."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Scenario ordering in baseline-lifecycle.e2e.test.ts: scenario 8 (lines 486-537) precedes scenario 7 (lines 539-584) in source order due to write-first-then-replace sequencing. No functional impact; noted for readability."
+  ],
+  "pointers": []
+}

@@ -1,0 +1,40 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "apps/steme/src/contracts/capabilities.ts",
+    "apps/steme/src/core/evaluate/capabilities.ts",
+    "apps/steme/src/core/evaluate/rules/forbid-scope-import.ts",
+    "apps/steme/src/core/modules/audit/build-capabilities.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/contracts/index.ts",
+    "apps/steme/src/contracts/manifest.ts",
+    "apps/steme/src/core/rules/inference.ts",
+    "apps/steme/src/core/rules/inference.test.ts",
+    "apps/steme/src/core/evaluate/evaluate-rules.ts",
+    "apps/steme/src/core/evaluate/diagnostics.ts",
+    "apps/steme/src/core/fingerprint.ts",
+    "apps/steme/src/core/modules/audit/capability.ts",
+    "apps/steme/src/core/modules/audit/capability.test.ts",
+    "apps/steme/src/core/ports/package-resolver-port.ts",
+    "apps/steme/src/adapters/package-resolver/node-package-resolver.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [
+    "apps/steme/src/adapters/package-resolver/node-package-resolver.test.ts"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "apps/steme/src/core/evaluate/evaluate-rules.test.ts",
+    "apps/steme/src/core/evaluate/diagnostics.test.ts",
+    "apps/steme/src/core/fingerprint.test.ts",
+    "apps/steme/src/core/modules/doctrine/capability.test.ts",
+    "apps/steme/src/core/policy/resolve-policy.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

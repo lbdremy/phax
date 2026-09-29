@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "tests/unit/loadOrExtractPlan.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/loadOrExtractPlan.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

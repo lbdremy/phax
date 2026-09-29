@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "cleaned_up",
+  "model": "claude-opus-4-8",
+  "effort": "medium",
+  "createdAt": "2026-09-07T08:14:45.362Z",
+  "updatedAt": "2026-09-07T08:31:24.474Z",
+  "branchName": "phax/gate-step-scheduling-2--phase-03",
+  "worktreePath": "~/.phax/worktrees/phax.gate-step-scheduling-2/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "854e268eae0c0669699d2a7638243a5751b78591"
+}

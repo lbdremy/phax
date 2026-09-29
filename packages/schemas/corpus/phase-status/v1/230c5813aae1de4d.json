@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "review_open",
+  "model": "claude-fable-5",
+  "effort": "high",
+  "createdAt": "2026-07-17T13:04:27.342Z",
+  "updatedAt": "2026-07-17T13:14:54.046Z",
+  "branchName": "phax/unit-scoped-baseline-registers--phase-02",
+  "worktreePath": "~/.phax/worktrees/steme-lab.unit-scoped-baseline-registers/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "5a90731c26ae3a949e1e87a2ef92257b52ed01db"
+}

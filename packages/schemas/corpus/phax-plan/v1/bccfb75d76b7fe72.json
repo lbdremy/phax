@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "doctrine-index-and-guides",
+    "title": "Doctrine Index and Guides",
+    "requiredCommands": [],
+    "branch": "phax/doctrine-index-and-guides"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-guides-parsing-unwired",
+      "plannedFilesToCreate": [
+        "apps/steme/src/core/policy/find-unit.ts",
+        "apps/steme/src/core/policy/find-unit.test.ts",
+        "apps/steme/src/core/policy/load-active-rulepacks.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/contracts/rulepack.ts",
+        "apps/steme/src/contracts/distribution.ts",
+        "apps/steme/src/core/rules/parse-rulepack.ts",
+        "apps/steme/src/utils/glob-match.ts",
+        "apps/steme/src/utils/glob-match.test.ts",
+        "apps/steme/src/core/policy/parse-stackpack.ts",
+        "apps/steme/src/core/policy/parse-stackpack.test.ts",
+        "apps/steme/src/core/policy/resolve-policy.ts",
+        "apps/steme/src/core/policy/resolve-policy.test.ts",
+        "apps/steme/src/core/modules/audit/capability.ts",
+        "apps/steme/src/cli/manifest-bindings.e2e.test.ts",
+        "apps/sandbox/steme.package.json",
+        "schemas/examples/app.steme.package.json"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/core/modules/audit/capability.test.ts",
+        "apps/steme/src/core/manifest/resolver.test.ts",
+        "apps/steme/src/core/rules/parse-rulepack.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): align concept keys; add guides parsing and unit discovery, unwired",
+        "body": "Rename web.uiPrimitives to web.designSystemComponents and add\nweb.businessPresentationComponents and web.viewModels to the canonical\nconcept keys; teach matchGlob within-segment stars so file-shape concept\nglobs like modules/**/*view-model.ts can bind. Stackpack manifests gain an\noptional strict guides field (root/scopes/concepts, canonical keys);\nresolvePolicy now exposes the policy stackpack alongside the rulepack\nrefs; the audit preflight's rulepack-loading loop moves to a shared\nloadActiveRulepacks used verbatim; findUnitRoot walks up from a (possibly\nnonexistent) path to the nearest steme.package.json bounded by the\nworkspace root. No CLI change; audit behavior byte-identical with every\nsuite green unmodified except the mechanical key-rename and return-shape\nupdates."
+      },
+      "title": "Concept vocabulary, guides parsing, unit discovery — unwired"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-doctrine-command",
+      "plannedFilesToCreate": [
+        "apps/steme/src/contracts/doctrine.ts",
+        "apps/steme/src/core/modules/doctrine/capability.ts",
+        "apps/steme/src/core/modules/doctrine/capability.test.ts",
+        "apps/steme/src/cli/commands/doctrine.ts",
+        "apps/steme/src/cli/render-doctrine.ts",
+        "apps/steme/src/cli/doctrine.e2e.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/contracts/index.ts",
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/steme.usage.kdl",
+        "apps/steme/docs/cli.md"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/cli/test-workspace.ts",
+        "apps/steme/src/cli/main.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): add steme doctrine --for returning the workspace doctrine index",
+        "body": "New read-only command: steme doctrine --for <path> [--json] resolves the\ngoverning workspace from the path (never cwd), the unit by the same walk,\nand the path's scope and concepts from the unit manifest's declared globs\nalone — nonexistent paths resolve identically and file contents are never\nread. The index lists the policy stackpack's root/scope/concept guide\nreferences (workspace-anchored paths; every declared guide must exist or\nthe query refuses at exit 2) and the rules whose fromScope contains the\npath, with their skills. A bare-rulepack policy yields a rules-only\nindex; exits are 0/2, never 1. Proven red-first by doctrine.e2e with the\naudit/policy/baseline suites unmodified as the invariance proof;\nsteme.usage.kdl and docs/cli.md regenerated under their drift gates."
+      },
+      "title": "The doctrine command: index, renders, e2e"
+    }
+  ]
+}

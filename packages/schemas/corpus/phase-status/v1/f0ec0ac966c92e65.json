@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-02T17:15:31.506Z",
+  "updatedAt": "2026-06-02T17:19:52.846Z",
+  "branchName": "phax/provider-priority-override--phase-01",
+  "worktreePath": "~/.phax/worktrees/provider-priority-override/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "ca4c85a7f6fabc5e22d3d7c113de8f67d833f966"
+}

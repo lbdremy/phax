@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "steme-lab",
+  "shortName": "plan-03-migrate-the-workspace-to-typescript-7-stable",
+  "runId": "plan-03-migrate-the-workspace-to-typescript-7-stable-1783688596367",
+  "state": "archived",
+  "createdAt": "2026-07-10T13:03:16.382Z",
+  "updatedAt": "2026-09-03T07:46:53.772Z",
+  "phasesCount": 1,
+  "gateProfileId": "full"
+}

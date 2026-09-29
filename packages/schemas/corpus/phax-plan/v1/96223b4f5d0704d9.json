@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "workspace-anchored-diagnostic-paths",
+    "title": "Workspace-Anchored Diagnostic Paths",
+    "requiredCommands": [],
+    "branch": "phax/workspace-anchored-diagnostic-paths"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-report-path-core",
+      "plannedFilesToCreate": [
+        "apps/steme/src/core/report-path.ts",
+        "apps/steme/src/core/report-path.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/core/ports/file-system-port.ts",
+        "apps/steme/src/adapters/file-system/node-file-system-adapter.ts",
+        "apps/steme/src/adapters/file-system/node-file-system-adapter.test.ts",
+        "apps/steme/src/core/modules/audit/capability.test.ts",
+        "apps/steme/src/core/policy/find-workspace.test.ts",
+        "apps/steme/src/core/policy/resolve-policy.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(steme): add report-path anchoring rule and realpath port, unwired",
+        "body": "Introduce renderReportPath — the single rule that renders a path relative\nto an anchor when inside it and honestly absolute when not — plus a\nrealpath method on FileSystemPort with its node adapter implementation.\nPure and unwired: the audit pipeline still anchors to the engine's\nrepoRoot until the next phase flips it."
+      },
+      "title": "Report-path rule and realpath port, unwired"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-workspace-anchor-flip",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/src/core/modules/audit/capability.ts",
+        "apps/steme/src/core/modules/audit/capability.test.ts",
+        "apps/steme/src/core/composition/index.ts",
+        "apps/steme/src/core/composition/index.test.ts",
+        "apps/steme/src/adapters/package-resolver/node-package-resolver.test.ts",
+        "apps/steme/src/core/baseline/classify.ts",
+        "apps/steme/src/core/baseline/classify.test.ts",
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/src/cli/commands/baseline.ts",
+        "apps/steme/src/cli/policy.e2e.test.ts",
+        "apps/steme/src/cli/audit-harness.e2e.test.ts",
+        "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/src/cli/manifest-bindings.e2e.test.ts",
+        "apps/steme/src/cli/preflight-ordering.e2e.test.ts",
+        "apps/steme/src/cli/render.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): anchor diagnostic paths to the workspace root",
+        "body": "Diagnostic file and skill paths now render relative to the workspace root\n— the audited project's own boundary — through one rule: realpathed,\nworkspace-relative when inside, honestly absolute when not, never a ../\ntraversal. The engine's repoRoot constant is deleted; its location can no\nlonger leak into a diagnostic. Fingerprints, registers, and drift are\nbyte-identical (identity was already unit-relative), proven by the\nunmodified baseline suites plus a cwd-invariance scenario."
+      },
+      "title": "Anchor diagnostics to the workspace root; drop repoRoot from the audit path"
+    }
+  ]
+}

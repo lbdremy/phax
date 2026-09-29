@@ -1,0 +1,20 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/app/agentBinding.ts",
+    "src/app/executePlan.ts",
+    "src/app/archive.ts",
+    "tests/unit/agentBinding.test.ts",
+    "tests/integration/executePlan.test.ts",
+    "tests/integration/sessionInfo.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

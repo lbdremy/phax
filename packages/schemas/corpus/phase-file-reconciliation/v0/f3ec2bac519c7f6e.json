@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "deno.json"
+  ],
+  "editedAsPlanned": [
+    "package.json",
+    "phax.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [
+    "deno.lock"
+  ],
+  "unplannedEdited": [
+    "knip.json",
+    "tests/integration/executePlan.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

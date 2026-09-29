@@ -1,0 +1,29 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/schemas/claudeHookPayload.ts",
+    "src/cli/commands/approveProtectedPath.ts",
+    "src/infra/providers/protectedPathHookSettings.ts",
+    "tests/integration/claudeProtectedPathHook.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/infra/providers/claudeCode.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "src/cli/main.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "scripts/generate-usage-spec.ts",
+    "src/cli/introspect.ts",
+    "src/cli/program.ts",
+    "tests/integration/cliProgram.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

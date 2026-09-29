@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-06",
+  "phaseIndex": 5,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "low",
+  "createdAt": "2026-06-26T13:28:45.687Z",
+  "updatedAt": "2026-06-26T13:43:38.197Z",
+  "branchName": "phax/louloupress-features-2--phase-06",
+  "worktreePath": "~/.phax/worktrees/louloupapers.louloupress-features-2/phase-06",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "560d11f0379c48d8c97e4ebed3215cfab66b7fd2"
+}

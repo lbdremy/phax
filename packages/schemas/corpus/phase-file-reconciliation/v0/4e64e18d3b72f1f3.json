@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "src/domain/init/buildConfig.ts",
+    "src/app/initWizard.ts",
+    "tests/unit/buildConfig.test.ts",
+    "tests/integration/initWizard.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/initProject.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

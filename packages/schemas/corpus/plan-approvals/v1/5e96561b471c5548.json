@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "records": {
+    "docs/plans/2606291247-smolvm-isolation-spike-plan.md": {
+      "planFingerprint": "cd102b226246db5b78cc17a5d6af93da05342ba9894258044f019e3bcd5bf028",
+      "approvedAt": "2026-09-08T08:19:41.314Z",
+      "baseline": "322ba3a5795a658d8d7ee48200b14e9b61ad8933",
+      "sourceSpec": null
+    },
+    "docs/plans/2609290541-schemas-package-plan.md": {
+      "planFingerprint": "0645f869d1d2f4318a03942dae501c01cdf9cc01a24bd6b1f455312f3fa33e06",
+      "approvedAt": "2026-09-29T05:56:59.604Z",
+      "baseline": "ecaa18b9f7fc8c00cbaa2adf29562fff597dd7a8",
+      "sourceSpec": {
+        "path": "docs/specs/2609241238-schemas-package.md",
+        "fingerprint": "d1a632ed556506f153db92bf3fa859b25f1f286ce127271460417093287daf65"
+      }
+    }
+  }
+}

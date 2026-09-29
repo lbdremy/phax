@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "tests/integration/scopesScheduling.test.ts",
+    "examples/hello-world/scopes.mjs"
+  ],
+  "editedAsPlanned": [
+    "src/domain/gate/fixPrompt.ts",
+    "src/app/fixLoop.ts",
+    "src/app/executePlan.ts",
+    "tests/unit/fixPrompt.test.ts",
+    "tests/integration/fixLoop.test.ts",
+    "tests/integration/exampleProviders.test.ts",
+    "examples/hello-world/phax.json",
+    "README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

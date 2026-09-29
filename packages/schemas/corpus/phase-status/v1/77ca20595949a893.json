@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-5",
+  "effort": "high",
+  "createdAt": "2026-08-15T11:52:24.884Z",
+  "updatedAt": "2026-08-15T11:58:15.131Z",
+  "branchName": "phax/reconciliation-and-reopen-cleanups--phase-01",
+  "worktreePath": "~/.phax/worktrees/phax.reconciliation-and-reopen-cleanups/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "d72b691170e3ef9201adc949ff4b1d03ef221663"
+}

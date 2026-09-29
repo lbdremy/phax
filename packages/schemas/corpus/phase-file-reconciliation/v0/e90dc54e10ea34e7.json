@@ -1,0 +1,30 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "apps/steme/src/cli/doctrine-check.e2e.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/core/policy/load-active-rulepacks.ts",
+    "apps/steme/src/core/policy/load-active-rulepacks.test.ts",
+    "apps/steme/src/contracts/doctrine.ts",
+    "apps/steme/src/core/modules/doctrine/capability.ts",
+    "apps/steme/src/core/modules/doctrine/capability.test.ts",
+    "apps/steme/src/cli/render-doctrine.ts",
+    "apps/steme/src/cli/commands/doctrine.ts",
+    "apps/steme/src/cli/program.ts",
+    "apps/steme/steme.usage.kdl",
+    "apps/steme/docs/cli.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "apps/steme/src/contracts/index.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

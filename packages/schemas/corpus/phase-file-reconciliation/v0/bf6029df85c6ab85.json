@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "tests/unit/phaxConfigJsonSchema.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/phaxConfig.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [
+    ".agents/skills/phax-planning/SKILL.md"
+  ],
+  "unplannedEdited": [
+    "README.md",
+    "phax.schema.json"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

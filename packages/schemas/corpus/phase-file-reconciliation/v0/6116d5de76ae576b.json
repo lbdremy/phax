@@ -1,0 +1,30 @@
+{
+  "createdAsPlanned": [
+    "src/schemas/securityPosture.ts",
+    "tests/unit/security/posture.test.ts",
+    "docs/security.md"
+  ],
+  "editedAsPlanned": [
+    "src/domain/telemetry/events.ts",
+    "src/schemas/telemetryEvents.ts",
+    "src/app/executePlan.ts",
+    "src/app/finalReport.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "README.md"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/domain/telemetry/snapshot.ts",
+    "src/infra/telemetry/layer.ts",
+    "tests/integration/__snapshots__/stateMachineContract.test.ts.snap"
+  ],
+  "optionalTouched": [
+    "tests/integration/telemetry/__snapshots__/end-to-end.test.ts.snap",
+    "tests/unit/telemetry/events.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

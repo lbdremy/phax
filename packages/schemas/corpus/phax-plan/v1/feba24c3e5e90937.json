@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "preflight-input-validation-for-apps-steme",
+    "title": "Preflight Input Validation for apps/steme",
+    "requiredCommands": [],
+    "branch": "phax/preflight-input-validation-for-apps-steme"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-split-preflight-execute",
+      "plannedFilesToCreate": [
+        "apps/steme/src/core/modules/audit/capability.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/core/modules/audit/capability.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "refactor(steme): split audit capability into preflight and execute",
+        "body": "Split core/modules/audit/capability.ts's computeAudit into two composable\nmethods: preflight (app path + rulepack + config + skill/concept reference\nvalidation, no app source read) returning a validated AuditPreflight, and\nexecute (import-graph build + rule evaluation) consuming it. computeAudit stays\nas a thin preflight→execute wrapper so every call site and all output is\nbyte-identical. New fake-port unit tests prove preflight performs no execution.\nThis isolates the seam the ordered-preflight reorder builds on next."
+      },
+      "title": "Split audit preflight from execution"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-ordered-preflight",
+      "plannedFilesToCreate": [
+        "apps/steme/src/cli/preflight-ordering.e2e.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/core/modules/audit/capability.ts",
+        "apps/steme/src/core/modules/audit/capability.test.ts",
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/src/cli/commands/governance.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(steme): validate all inputs in an ordered preflight before audit execution",
+        "body": "Add an audit-target existence precheck as preflight's first step and reorder\nboth CLI callers so the baseline register is validated and the missing-baseline\nrefusals (--fail-on-new, accept-drift) fire before execute() builds the import\ngraph. Establishes the spec's ordered preflight — target → config → rulepack →\nbaseline → refusals → execution — with first-failing-step precedence, restoring\nfail-fast for the guaranteed-refusal cases and defining which error wins when\nmultiple inputs are bad. computeAudit is removed in favour of preflight/execute.\nEvery single-bad-input scenario stays byte-identical; new E2E scenarios cover\nthe multi-input ordering deltas."
+      },
+      "title": "Ordered preflight: target precheck and baseline before execution"
+    }
+  ]
+}

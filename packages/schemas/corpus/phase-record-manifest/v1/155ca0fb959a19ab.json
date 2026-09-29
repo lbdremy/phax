@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "runId": "gate-profile-as-attributed-steps-implementation-plan-2-1787299050237",
+  "phaseId": "phase-03",
+  "shape": "full",
+  "sourceSha": "1436da8200b95e7e6aabe01ff625297fce2e983e",
+  "model": "claude-sonnet-5",
+  "effort": "high",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 68,
+      "cacheCreationInputTokens": 99560,
+      "cacheReadInputTokens": 3461373,
+      "outputTokens": 22454,
+      "totalCostUsd": 1.9896799
+    }
+  }
+}

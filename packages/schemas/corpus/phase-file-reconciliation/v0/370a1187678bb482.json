@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "tests/unit/reducerArtifactCompletionPause.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/events.ts",
+    "src/domain/errors.ts",
+    "src/domain/effects.ts",
+    "src/domain/reducer.ts",
+    "src/domain/matrix.ts",
+    "src/app/resumeInstructions.ts",
+    "docs/state-machine.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

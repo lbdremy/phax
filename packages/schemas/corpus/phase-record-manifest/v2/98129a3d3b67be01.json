@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "runId": "spec-approval-ground-1788424357486",
+  "phaseId": "phase-02",
+  "shape": "full",
+  "sourceSha": "9d40da2f7528bdd98d96855a6ea738f32bad5c30",
+  "model": "claude-sonnet-4-6",
+  "effort": "high",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 49,
+      "cacheCreationInputTokens": 150015,
+      "cacheReadInputTokens": 5820705,
+      "outputTokens": 66076,
+      "totalCostUsd": 3.6483765000000026
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "structural"
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "plan-completeness-advisory",
+    "title": "Plan-completeness advisory",
+    "requiredCommands": [],
+    "branch": "phax/plan-completeness-advisory"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-auditor-config",
+      "plannedFilesToCreate": [
+        "tests/unit/schemas/planAuditorConfig.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/domain/config/mergeLayers.ts",
+        "src/app/loadConfig.ts",
+        "phax.schema.json",
+        "phax.user.schema.json",
+        "tests/unit/phaxConfigJsonSchema.test.ts",
+        "tests/unit/phaxUserOverlaySchema.test.ts",
+        "tests/unit/mergeLayers.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/loadConfig.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(config): register a plan auditor next to orient and scopes",
+        "body": "`phax.json` and the user overlay may register `planAuditor: { command }`,\nmerged as the same scalar override as `orient` and `scopes` and passed through\n`ResolvedConfig.planAuditor`. Nothing reads it yet; the lint wiring follows.\nJSON schemas regenerated from the Effect schemas."
+      },
+      "title": "Plan auditor registration"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-request-query-findings",
+      "plannedFilesToCreate": [
+        "src/schemas/planAudit.ts",
+        "src/app/planAuditor.ts",
+        "tests/unit/schemas/planAudit.test.ts",
+        "tests/integration/planAuditor.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/plan/projection.ts",
+        "src/domain/plan/lint.ts",
+        "src/domain/errors.ts",
+        "tests/unit/planProjection.test.ts",
+        "tests/unit/planLint.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/plan/lintRender.ts",
+        "tests/unit/planLintRender.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(plan): add the plan-audit request, auditor query and advisory findings",
+        "body": "Introduce the pieces the advisory check composes: `makePlanAuditRequest`\n(the shared phase projection, no gated phase), the auditor response schema\n(`{\"findings\": [{\"message\", \"phases\"}]}`), a typed `queryPlanAuditor` on the\nshared provider transport, `advisory` as a fifth lint check, and the pure\nmapping from a response (one warning per named phase, `null` when none) or a\nprovider failure (one warning) to lint findings. Nothing is wired into\n`lintPlan` yet. Covered by unit and integration tests."
+      },
+      "title": "Projection request, auditor query and advisory findings"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-lint-wiring",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/lintPlan.ts",
+        "src/cli/commands/plans.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "tests/integration/lintPlan.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "README.md",
+        "tests/unit/cli/plans.test.ts",
+        "docs/cli/inventory.md"
+      ],
+      "commit": {
+        "subject": "feat(plan): run the registered plan auditor as an advisory lint check",
+        "body": "`phax plans lint` now hands the plan projection — ordered phases with their\nplanned create/edit files, nothing else — to the `planAuditor` command\nregistered in `phax.json`, once the deterministic extraction succeeds, and\nappends its findings as `advisory` warnings, one per phase named. A failing\nauditor is one warning; no auditor leaves the report unchanged; the exit\ncode never depends on the advisory check. The CLI provides the shell next to\nthe repo-rooted filesystem; still no Backend. Long help and its generated\ncontract updated."
+      },
+      "title": "Advisory check in plans lint"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-docs-example",
+      "plannedFilesToCreate": [
+        "examples/hello-world/audit-plan.mjs"
+      ],
+      "plannedFilesToEdit": [
+        "README.md",
+        "examples/hello-world/phax.json",
+        "tests/integration/exampleProviders.test.ts",
+        ".claude/skills/phax-planning/SKILL.md"
+      ],
+      "optionalFilesToEdit": [
+        ".claude/skills/phax-cli/SKILL.md",
+        "docs/plan-extraction-model.md",
+        "NEXT_STEPS.md",
+        "examples/hello-world/plan.md"
+      ],
+      "commit": {
+        "subject": "docs(plan): document the plan auditor and ship a hello-world example",
+        "body": "README gains a \"Plan auditor\" subsection next to the orient and scope\nproviders (registration, when the lint queries it, the projection it receives\nand nothing else, the findings it returns, the warnings-only posture) and the\nlint section names the fifth check. The planning skill tells authors to read\nadvisory findings as advice. `examples/hello-world` registers `audit-plan.mjs`,\nwhich flags a `src/<name>.ts` no later phase pairs with `tests/<name>.test.ts`,\ncovered by the example-providers test."
+      },
+      "title": "Docs, planning skill and hello-world auditor"
+    }
+  ]
+}

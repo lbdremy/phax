@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/domain/artifact/lineage.ts",
+    "src/schemas/approvalRecord.ts",
+    "tests/unit/artifact/lineage.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/artifact/document.ts",
+    "src/domain/errors.ts",
+    "tests/unit/artifact/document.test.ts",
+    "tests/integration/artifactStatus.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

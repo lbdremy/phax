@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases delivered their stated objectives. Phase-01 made two unplanned test-file touches required by the write-set change and a macOS git-add constraint, both justified. Phase-02 made two unplanned source-file edits forced by TypeScript union widening on the expanded error channel, both justified. Phase-03 delivered all renderers, docs, and tests but could not update the two planned skill files due to sandbox write restrictions; the handoff documents the exact content to apply manually. No unjustified scope creep was found across any phase.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/integration/artifactStatus.test.ts was touched (unplanned). The existing test asserting commitPaths for a spec terminal transition hardcoded two paths; the write-set change added docs/specs/approvals.json as a third. The touch was required to keep the suite green and is justified in the handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/integration/completeRunArtifacts.test.ts was touched (unplanned). Two tests that archive a spec needed an empty docs/specs/approvals.json fixture so git add -A does not fail fatally on macOS when the path was never tracked. Justified; phase-02 makes it unnecessary once putSpecApprovalRecord creates the file on first write."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "fingerprintSource needed no change — it already strips the approved key for both kinds, confirmed in the handoff."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/app/completeRunArtifacts.ts was edited (unplanned). The RunCompletionError union is typed over transitionArtifact's error channel; when that channel grew, the compiler rejected the narrower union. Widening was mandatory with no new business logic. Justified in the handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/app/planStaleness.ts was edited (unplanned). The applyStalenessReport return-type union has the same relationship to transitionArtifact's error channel. Same justification."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Five existing tests (one in artifactStatus.test.ts, four in planStaleness.test.ts) were updated to approve specs via transitionArtifact before approving plans, because the new chain gate enforces the record. This is correct behavioral alignment, not workarounds."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": ".claude/skills/phax-spec/SKILL.md was planned but not touched. The phax session sandbox blocked all writes to .claude/skills/. The handoff documents the exact paragraphs to add manually. Requires human follow-up."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": ".claude/skills/phax-cli/SKILL.md was planned but not touched. Same sandbox restriction. Requires human follow-up."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/cli/artifact.test.ts was touched (unplanned). The existing inspectArtifact mock lacked the now-required approval field on ArtifactReport. Adding approval: { kind: 'none' } was necessary to keep types sound; no test logic changed. Justified in the handoff."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Skill files .claude/skills/phax-spec/SKILL.md and .claude/skills/phax-cli/SKILL.md were not updated because the phax session sandbox blocked writes. The phase-03 handoff documents the exact paragraphs to add to each file. Apply before the next spec or plan authoring session.",
+    "Live Approved specs 18, 19, 23, 24, and 30 have no approval record. inspectArtifact will report them unrecorded, and plan approval against any of them will fail with exit 12. Run phax artifact approve on each, then restore the original date value in a follow-up commit series, per spec §10.",
+    "docs/specs/approvals.json must exist as a tracked file before any spec approve or terminal transition. Phase-02's putSpecApprovalRecord creates it on first write, but git add -A on a never-tracked path fails fatally on macOS. Verify it is committed (empty {\"version\":1,\"records\":{}}) before approving any spec."
+  ],
+  "pointers": [
+    "tests/integration/providerDispatcher.test.ts — the mistral-vibe case times out at 30s waiting for a real vibe binary; pre-existing flaky test, unrelated to this run (noted in phase-03 handoff)."
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "tests/unit/describeCause.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/reducer.ts",
+    "src/cli/commands/run.ts",
+    "src/cli/commands/resume.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/domain/errors.ts",
+    "src/infra/providers/claudeCode.ts",
+    "src/infra/providers/codexCli.ts",
+    "src/infra/providers/mistralVibe.ts"
+  ],
+  "optionalTouched": [
+    "src/cli/commands/runLayers.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

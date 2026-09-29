@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "apps/steme/src/cli/program.ts",
+    "apps/steme/src/cli/main.test.ts",
+    "apps/steme/src/cli/render.ts",
+    "apps/steme/src/contracts/diagnostic.ts",
+    "apps/steme/steme.usage.kdl",
+    "apps/steme/docs/cli.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "apps/steme/src/cli/render.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

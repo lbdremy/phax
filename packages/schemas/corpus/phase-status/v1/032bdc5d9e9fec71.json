@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-05",
+  "phaseIndex": 4,
+  "state": "cleaned_up",
+  "model": "claude-opus-4-7",
+  "effort": "high",
+  "createdAt": "2026-05-28T07:48:06.472Z",
+  "updatedAt": "2026-05-28T12:49:38.518Z",
+  "branchName": "phax/observability--phase-05",
+  "worktreePath": "~/.phax/worktrees/observability/phase-05",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "b484186e416d3559971332df6fa89713a8a1a255"
+}

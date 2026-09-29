@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "init",
+    "title": "Interactive `phax init` (npm-init-style wizard)",
+    "requiredCommands": [],
+    "branch": "phax/init"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-prompt-port",
+      "plannedFilesToCreate": [
+        "src/ports/prompt.ts",
+        "src/infra/prompt.ts",
+        "src/infra/fakes/prompt.ts",
+        "tests/unit/fakePrompt.test.ts",
+        "tests/type/prompt.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/infra/fakes/index.ts",
+        "package.json",
+        "pnpm-lock.yaml"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(ports): add Prompt port with clack adapter and fake",
+        "body": "Add a Prompt port (text/confirm/select/multiselect/note/intro/outro) returning Effects, a @clack/prompts-backed adapter that maps cancellation to a PromptCancelled error, and a scripted fake for tests. No command consumes it yet; it backs the interactive init wizard in a later phase."
+      },
+      "title": "Prompt port, clack adapter, and fake"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-detect-defaults",
+      "plannedFilesToCreate": [
+        "src/schemas/packageJson.ts",
+        "src/domain/init/detect.ts",
+        "tests/unit/initDetect.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(init): add package.json schema and gate-command detection",
+        "body": "Add a lenient package.json schema decoder and pure detection helpers that derive the suggested slug name, package manager, and gate-command suggestions from existing scripts. The name suggestion is slugified to satisfy the Namespace brand. Pure domain + boundary decoder, fully unit-tested; consumed by the interactive init wizard in a later phase."
+      },
+      "title": "package.json schema and default detection"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-03-wizard",
+      "plannedFilesToCreate": [
+        "src/domain/init/buildConfig.ts",
+        "src/app/initWizard.ts",
+        "tests/unit/buildConfig.test.ts",
+        "tests/integration/initWizard.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/initProject.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(init): add interactive init wizard orchestration",
+        "body": "Add an Effect-based init wizard that reads package.json via the FileSystem port, prompts via the Prompt port for the top-level name slug (validated via the Namespace brand), gate commands, and the compliance-review / publish toggles, then assembles and writes phax.json (no state block, per plan 22) plus both phax.schema.json and phax.user.schema.json. A non-interactive path reuses the same code with detected defaults and no prompts. Covered by domain unit tests and fake-port integration tests."
+      },
+      "title": "Interactive wizard orchestration"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-cli-wiring",
+      "plannedFilesToCreate": [
+        "tests/integration/initCommand.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/init.ts",
+        "src/cli/program.ts",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/cliProgram.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): make phax init an interactive wizard",
+        "body": "Wire the init wizard into the CLI: provide the clack Prompt and node FileSystem layers, decide interactivity from process.stdin.isTTY and a new --yes flag, render cancellation cleanly, and keep --force for reconfiguration. Update the README and add an integration smoke test for the non-interactive path. Verified by the full gate profile."
+      },
+      "title": "CLI wiring, TTY/--yes handling, and docs"
+    }
+  ]
+}

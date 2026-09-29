@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "low",
+  "createdAt": "2026-06-12T12:02:13.801Z",
+  "updatedAt": "2026-06-12T12:05:09.593Z",
+  "branchName": "phax/typescript-6-upgrade--phase-01",
+  "worktreePath": "~/.phax/worktrees/typescript-6-upgrade/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "065b62814ca90877e8455b87814fec6dbffd1da2"
+}

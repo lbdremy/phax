@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/app/executePlan.ts",
+    "src/domain/publish/body.ts",
+    "src/app/publishRun.ts",
+    "tests/unit/publish/body.test.ts",
+    "tests/integration/publishRun.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

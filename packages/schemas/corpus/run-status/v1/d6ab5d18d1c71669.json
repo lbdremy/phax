@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "steme-lab",
+  "shortName": "plan-02-steme-audit-walking-skeleton-phax-run",
+  "runId": "plan-02-steme-audit-walking-skeleton-phax-run-1783679585336",
+  "state": "archived",
+  "createdAt": "2026-07-10T10:33:05.354Z",
+  "updatedAt": "2026-09-03T07:46:53.403Z",
+  "phasesCount": 6,
+  "gateProfileId": "full"
+}

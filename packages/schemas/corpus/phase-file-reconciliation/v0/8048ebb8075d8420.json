@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "apps/steme/src/contracts/import-graph.ts",
+    "apps/steme/src/adapters/import-graph/build-import-graph.ts",
+    "apps/steme/src/adapters/import-graph/build-import-graph.test.ts",
+    "apps/steme/src/core/scope-map.ts",
+    "apps/steme/src/core/scope-map.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/package.json",
+    "apps/steme/src/contracts/index.ts",
+    "apps/steme/src/adapters/index.ts",
+    "apps/steme/src/core/index.ts",
+    "pnpm-lock.yaml"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

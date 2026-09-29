@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "steme-lab",
+  "shortName": "preflight-input-validation-for-apps-steme",
+  "runId": "preflight-input-validation-for-apps-steme-1784194565328",
+  "state": "archived",
+  "createdAt": "2026-07-16T09:36:05.345Z",
+  "updatedAt": "2026-09-03T07:46:55.054Z",
+  "phasesCount": 2,
+  "gateProfileId": "full"
+}

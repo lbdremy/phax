@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-15T11:07:43.490Z",
+  "updatedAt": "2026-06-15T11:17:05.529Z",
+  "branchName": "phax/deno-runtime-2--phase-01",
+  "worktreePath": "~/.phax/worktrees/deno-runtime-2/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "109049878e9f0cc3765939770bbc7d8e2d9cbfe9"
+}

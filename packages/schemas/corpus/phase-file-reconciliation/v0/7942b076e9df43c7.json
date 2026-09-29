@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/domain/planOverlap/types.ts",
+    "src/domain/planOverlap/generatedArtifacts.ts",
+    "src/domain/planOverlap/compute.ts",
+    "src/domain/planOverlap/render.ts",
+    "tests/unit/planOverlap/compute.test.ts",
+    "tests/unit/planOverlap/render.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

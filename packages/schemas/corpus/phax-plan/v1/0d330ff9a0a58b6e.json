@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "plan-04-steme-cli-commander-and-usage-spec",
+    "title": "Plan 04 — steme CLI: Commander and Usage Spec",
+    "requiredCommands": [
+      "usage"
+    ],
+    "branch": "phax/plan-04-steme-cli-commander-and-usage-spec"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-commander-migration",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/src/cli/main.ts",
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/package.json"
+      ],
+      "optionalFilesToEdit": [
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "refactor(steme): parse the CLI with Commander, preserving the exit contract",
+        "body": "Replace the hand-rolled argv parser in apps/steme with a Commander program\nexposing `steme audit <app-path> [--json]` plus --help/--version. The audit\npipeline is extracted unchanged into the audit command's action. exitOverride\nmaps help/version to exit 0 and every Commander parse error (unknown command or\noption, missing argument) to EXIT_CANNOT_RUN (2), so a bad invocation never\nmasquerades as the \"violations found\" code (1). Existing smoke and E2E suites\nstay green; two cases cover --help/--version exiting 0."
+      },
+      "title": "Migrate the CLI to Commander, preserving the exit contract"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-usage-spec",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/src/cli/main.ts",
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/package.json"
+      ],
+      "optionalFilesToEdit": [
+        "pnpm-lock.yaml"
+      ],
+      "commit": {
+        "subject": "feat(steme): emit a usage KDL spec via steme --usage",
+        "body": "Add a hidden --usage meta flag that prints the usage KDL spec generated from the\nCommander program (via @usage-spec/commander) and exits 0 without running an\naudit, mirroring `phax --usage`. The Commander program remains the single source\nof truth; the spec is a derived view. Covered by an E2E test asserting the spec\ncovers the audit command and --json option and runs no audit."
+      },
+      "title": "Emit the usage KDL spec via `steme --usage`"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-cli-artifacts",
+      "plannedFilesToCreate": [
+        "apps/steme/scripts/gen-cli-artifacts.mjs",
+        "apps/steme/completions/steme.bash",
+        "apps/steme/completions/steme.zsh",
+        "apps/steme/completions/steme.fish",
+        "apps/steme/docs/cli.md",
+        "apps/steme/src/cli/cli-artifacts.e2e.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/package.json"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(steme): generate and commit CLI completions and reference from the usage spec",
+        "body": "Add a committed gen-cli-artifacts script that pipes `steme --usage` into the\nusage binary to produce bash/zsh/fish completions and a markdown CLI reference,\nall committed under apps/steme. A --check mode regenerates and diffs against the\ncommitted files; a Vitest test runs it under pnpm test so stale artifacts fail\nthe full gate, keeping the derived files honest without a hand-maintained spec.\nRequires the `usage` binary (added to phax agentCommands)."
+      },
+      "title": "Generate and commit completions + a markdown reference, staleness-gated"
+    }
+  ]
+}

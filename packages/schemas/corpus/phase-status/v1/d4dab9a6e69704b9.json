@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "high",
+  "createdAt": "2026-06-26T10:19:34.447Z",
+  "updatedAt": "2026-06-26T10:48:06.924Z",
+  "branchName": "phax/resumable-post-gate--phase-03",
+  "worktreePath": "~/.phax/worktrees/phax.resumable-post-gate/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "f27a362cbe57bd7083689db0e909100b9ca217df"
+}

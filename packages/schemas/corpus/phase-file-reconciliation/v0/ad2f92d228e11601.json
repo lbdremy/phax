@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "tests/unit/extractPlanFinalize.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/extractPlan.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [
+    "src/domain/plan/finalize.ts"
+  ],
+  "unplannedEdited": [
+    "phax.json",
+    "phax.schema.json",
+    "phax.user.schema.json"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "runId": "catalog-fable-5-1-opus-5-gpt-6-astra-1788774297078",
+  "phaseId": "phase-03",
+  "shape": "full",
+  "sourceSha": "a136e7e476067c8914207b8ecd3df27465686511",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 108,
+      "cacheCreationInputTokens": 88273,
+      "cacheReadInputTokens": 4666000,
+      "outputTokens": 17826,
+      "totalCostUsd": 1.4825960000000005
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "product",
+    "structural"
+  ]
+}

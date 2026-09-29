@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "plan-completeness-advisory",
+  "runId": "plan-completeness-advisory-1788944962551",
+  "state": "archived",
+  "createdAt": "2026-09-09T09:09:22.567Z",
+  "updatedAt": "2026-09-09T10:21:49.996Z",
+  "phasesCount": 4,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/60-plan-completeness-advisory-plan.md"
+}

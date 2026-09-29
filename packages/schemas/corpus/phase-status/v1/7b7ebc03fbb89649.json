@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-5",
+  "effort": "high",
+  "createdAt": "2026-08-11T09:24:45.506Z",
+  "updatedAt": "2026-08-11T09:34:46.972Z",
+  "branchName": "phax/artifact-transition-auto-commit--phase-02",
+  "worktreePath": "~/.phax/worktrees/phax.artifact-transition-auto-commit/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "40421bf437bc071de9b3ccf537acec600351ce82"
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-05",
+  "phaseIndex": 4,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-19T15:15:44.464Z",
+  "updatedAt": "2026-06-19T15:32:14.829Z",
+  "branchName": "phax/telemetry-report-2--phase-05",
+  "worktreePath": "~/.phax/worktrees/telemetry-report-2/phase-05",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "3158f73fd0c618e46b545f8b3b000e789b17890c"
+}

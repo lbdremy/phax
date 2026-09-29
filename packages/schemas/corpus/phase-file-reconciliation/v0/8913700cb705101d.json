@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "apps/steme/src/utils/glob-match.ts",
+    "apps/steme/src/utils/glob-match.test.ts",
+    "apps/steme/src/core/concept-map.ts",
+    "apps/steme/src/core/concept-map.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/utils/index.ts",
+    "apps/steme/src/cli/main.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "apps/steme/src/cli/main.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "apps/steme/src/cli/program.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

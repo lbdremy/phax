@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "apps/steme/src/cli/test-workspace.ts",
+    "apps/steme/src/cli/audit-harness.e2e.test.ts",
+    "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

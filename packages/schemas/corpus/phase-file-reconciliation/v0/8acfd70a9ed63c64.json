@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "docs/model-routing.md",
+    ".claude/skills/model-routing/SKILL.md",
+    ".claude/skills/phax-planning/SKILL.md",
+    ".agents/skills/phax-planning/SKILL.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "src/cli/commands/agent.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "scripts/generate-model-catalog.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

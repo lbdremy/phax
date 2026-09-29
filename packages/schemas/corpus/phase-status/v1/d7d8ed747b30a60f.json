@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-05",
+  "phaseIndex": 4,
+  "state": "review_open",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "createdAt": "2026-09-29T13:23:55.996Z",
+  "updatedAt": "2026-09-29T13:32:43.701Z",
+  "branchName": "phax/schemas-package-2-5-read-every-format-2--phase-05",
+  "worktreePath": "~/.phax/worktrees/phax.schemas-package-2-5-read-every-format-2/phase-05",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "2bfdc4806977da1372d724521cd91cdec9e55429"
+}

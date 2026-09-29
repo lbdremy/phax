@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "plan-lint",
+    "title": "Plan lint",
+    "requiredCommands": [],
+    "branch": "phax/plan-lint"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-parser-accumulates",
+      "plannedFilesToCreate": [
+        "src/domain/plan/lint.ts",
+        "tests/unit/planLint.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/plan/parsePlanMarkdown.ts",
+        "tests/unit/parsePlanMarkdown.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/examplePlanDeterministic.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(plan): accumulate structural errors in the deterministic parser",
+        "body": "Refactor the deterministic plan parser to collect every structural error in\ndocument order and expose them through collectPlanStructureErrors, keeping\nextractPlanDeterministic's first-error contract intact for the run's fast\npath. Introduce the lint finding vocabulary (severity, check, phase, message)\nand the structure check that maps parser errors to findings. Groundwork for\nspec 33's plan lint."
+      },
+      "title": "Parser reports every structural error"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-file-plan-rule",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/plan/lint.ts",
+        "tests/unit/planLint.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(plan): add the sequence-aware file-plan lint rule",
+        "body": "Add filePlanFindings: walk the phases in order over a known-existing set seeded\nfrom the working tree, flagging edits of unreachable files, creates of existing\nor already-created files, and a phase that both creates and edits a path; warn\non a path listed both to create and as optional. Optional files are never\nchecked. Pure domain code with one unit test per spec 33 acceptance criterion."
+      },
+      "title": "File-plan rule over the known-existing set"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-readiness-and-use-case",
+      "plannedFilesToCreate": [
+        "src/app/lintPlan.ts",
+        "tests/integration/lintPlan.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/plan/lint.ts",
+        "tests/unit/planLint.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/loadRouting.ts"
+      ],
+      "commit": {
+        "subject": "feat(plan): lint use case with run-readiness checks",
+        "body": "Add commandFindings and modelFindings as thin domain wrappers over the\nrun-start preflight functions, and lintPlan, the read-only app use case that\nreads a plan, reports structural errors without ever falling back to the model,\nprobes the planned paths through the FileSystem port for the file-plan rule,\nand runs the required-commands and model-catalog checks with the same inputs\nexecutePlan uses. Requires FileSystem only, which is what keeps it side-effect\nfree by construction."
+      },
+      "title": "Run-readiness rules and the lint use case"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-opus-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-cli-command",
+      "plannedFilesToCreate": [
+        "src/domain/plan/lintRender.ts",
+        "tests/unit/planLintRender.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/plans.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "docs/cli/inventory.md",
+        "README.md",
+        "tests/unit/cli/plans.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/cliProgram.test.ts",
+        "src/cli/cliCompleters.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): add phax plans lint",
+        "body": "Add `phax plans lint <plan> [--json]`: renders the lint report or emits it as\nJSON and exits 1 when any finding is an error. Read-only, model-free: the\ncommand provides the filesystem layer only. Long help in cliDocs; usage spec,\nCLI reference, README generated block and the hand-maintained inventory\nupdated. Implements spec 33 §5.10, §5.11 and §6."
+      },
+      "title": "`phax plans lint` command, rendering and JSON"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-05-remove-extract-plan",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "src/app/extractPlan.ts",
+        "src/app/loadOrExtractPlan.ts",
+        "src/cli/commands/orient.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "docs/cli/inventory.md",
+        "README.md",
+        "tests/integration/cliProgram.test.ts",
+        "tests/integration/loadOrExtractPlan.test.ts",
+        "tests/integration/run.test.ts",
+        "tests/e2e/realFlow.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/cliDocs.ts",
+        "src/cli/cliCompleters.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli)!: remove extract-plan",
+        "body": "Remove the standalone extract-plan command and the app wrapper that wrote\nphax-plan.json and extract-report.md; phax run keeps extracting inline with\nthe cache and the model fallback, and phax plans lint is the way to check a\nplan. Update the cache-miss hint, the command-list and e2e tests, and\nregenerate the usage spec and CLI reference. Implements spec 33 §5.12.\n\nBREAKING CHANGE: `phax extract-plan` no longer exists; use `phax plans lint`\nto check a plan, and read a run's phax-plan.json from its run folder."
+      },
+      "title": "Remove extract-plan from code and generated docs"
+    },
+    {
+      "id": "phase-06",
+      "model": "claude-sonnet-5",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-06-docs-and-skills",
+      "plannedFilesToCreate": [
+        "docs/plan-extraction-model.md"
+      ],
+      "plannedFilesToEdit": [
+        "README.md",
+        ".claude/skills/phax-planning/SKILL.md",
+        ".claude/skills/phax-cli/SKILL.md",
+        ".claude/skills/phax-spec/SKILL.md",
+        "examples/hello-world/plan.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/extract-plan-model.md"
+      ],
+      "commit": {
+        "subject": "docs: document the write → lint → run flow and retire extract-plan",
+        "body": "Rewrite the README flow around phax plans lint, rename the extraction-model\ndoc to describe the extraction phax run performs, and update the\nphax-planning, phax-cli and phax-spec skills and the hello-world example so\nno shipped document tells an agent to run extract-plan. Completes spec 33."
+      },
+      "title": "Docs, skills and example follow the lint"
+    }
+  ]
+}

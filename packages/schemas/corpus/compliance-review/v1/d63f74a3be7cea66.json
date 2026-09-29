@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All four phases delivered their stated objectives. The Prompt port, package.json schema and detection helpers, interactive wizard orchestration, and CLI wiring are present and correct. Every deviation is minor, technically sound, and documented in the respective phase handoff: clack API type bridging and the inert 'required' field in phase-01; a broader error channel (FsError | PromptError | PromptCancelled rather than PromptCancelled alone) in phase-03; and unplanned edits to deno.lock, docs/cli/reference.md, phax.usage.kdl, and tests/unit/cli/init.test.ts in phase-04, each with clear rationale. No unjustified scope creep, no missing promised artifacts, no boundary violations.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Prompt port, clack adapter, and fake fully delivered. PromptOps interface (text/confirm/select/multiselect/note/intro/outro), PromptError, PromptCancelled, Prompt tag, makeClackPromptLayer, FakePromptImpl, makeFakePrompt, and FAKE_PROMPT_CANCEL all present and match plan."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "deno.lock touched but not planned. Justified: Deno cached @clack/prompts and transitive deps during the deno:smoke gate. Correct and expected."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "@clack/prompts imported only in src/infra/prompt.ts. No clack types leak through the port. Boundary contract respected."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/fakePrompt.test.ts (scripted answers, all types, cancel, queue exhaustion, validate, layer provision) and tests/type/prompt.ts (compile-time signatures and assignability) both present and complete."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "deviation",
+          "message": "validate bridging (port vs clack 1.6.0 type), inert required field, fake validate behaviour, note/intro/outro non-consuming, and deno.lock all documented. Covers all required handoff content."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan: 'feat(ports): add Prompt port with clack adapter and fake'."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "PackageJsonSchema (lenient, three optional fields), decodePackageJson, slugify, detectName, detectPackageManager, suggestGateCommands, and GateCommandSuggestion all present and match plan."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All three planned files created; no planned files edited; no unplanned changes."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/initDetect.test.ts covers slugify, detectName, detectPackageManager, suggestGateCommands (including test:unit vs test preference and stable ordering), and a realistic schema-decode round-trip with extra keys."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "All functions are pure with no I/O. decodePackageJson accepts already-parsed input. No existing domain files touched."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan: 'feat(init): add package.json schema and gate-command detection'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers exact paths and exported names, Namespace brand compliance note, empty-array edge case for suggestGateCommands, and gate-command format (<pm> <script>, no run keyword)."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "buildPhaxConfig, runInitWizard (interactive + non-interactive + force + reconfigure + cancel paths), and serializePhaxConfigSchema / serializePhaxUserOverlaySchema all delivered. Both schema files written. No state block written."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All four planned creates present. src/app/initProject.ts edited as planned (two additive exports only). No unplanned files."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/buildConfig.test.ts (12 tests: version/schema/name, no state/project/type, fast profile, placeholder fallback, toggles, decode round-trips) and tests/integration/initWizard.test.ts (19 tests: non-interactive, interactive, cancel, already-initialized, reconfigure) both present."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "runInitWizard requires Prompt | FileSystem in R. buildPhaxConfig is pure domain. No direct fs/shell calls in app or domain."
+        },
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "runInitWizard error channel is Effect<InitResult, FsError | PromptError | PromptCancelled, Prompt | FileSystem> rather than the plan's Effect<InitResult, PromptCancelled, Prompt | FileSystem>. Justified: codebase convention lists all typed errors explicitly; CLI handles all three."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan: 'feat(init): add interactive init wizard orchestration'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff documents the broader error channel, R requirements, prompt queue order for test authors, no-state requirement, and that initProject remains in place."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "runInit is async, computes interactive correctly, provides real layers, handles all result variants with correct exit codes, and prints Next: guidance only when non-interactive. program.ts has --yes and async action. README updated."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "docs/cli/reference.md touched but not planned. Justified: generated file regenerated to include [--yes] to satisfy the docsCliDrift.test.ts gate. Mandatory maintenance."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "phax.usage.kdl touched but not planned. Justified: was pre-edited correctly by a prior phase; drift gate confirmed no further change needed in phase-04. Appears as unplanned only in reconciliation accounting."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/cli/init.test.ts touched but not planned. Justified: four pre-existing synchronous runInit call sites broke when runInit became async; updated to await runInit(). Assertions unchanged."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/integration/initCommand.test.ts (4 smoke tests): non-interactive --yes path, exit code, phax.json with no state block, both schema files, slug from fixture, gate commands, --force reconfigure, already-initialized path."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "init.ts is thin: parses opts, computes interactive, provides layers, calls runInitWizard, renders via OutputPort. No business logic."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "deviation",
+          "message": "PromptCancelled imported as a value (not import type) to enable instanceof check. import type caused TS1361 under tsconfig.build.json. Justified technical deviation."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan: 'feat(cli): make phax init an interactive wizard'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff documents final runInit signature, layer provision, PromptCancelled exit-code 0 decision, full gate pass, and all unplanned file changes with rationale."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "runInitWizard error channel is broader than the plan specified (FsError | PromptError | PromptCancelled instead of PromptCancelled alone). The CLI handles all three correctly. Confirm the plan's stated signature was aspirational; any other callers of runInitWizard must also handle FsError and PromptError.",
+    "tests/unit/cli/init.test.ts was updated (unplanned) to fix breakage from runInit becoming async. Confirm test suite ran green after the fix.",
+    "phax.usage.kdl appears as unplanned in phase-04 but the handoff says it was pre-edited by a prior phase. The reconciliation table shows no earlier phase touching it. Confirm the file's committed state is correct and matches the Commander tree."
+  ],
+  "pointers": []
+}

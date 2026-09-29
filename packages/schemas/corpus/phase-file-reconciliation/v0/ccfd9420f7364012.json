@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/cli/commands/run.ts",
+    "tests/unit/cli/run.test.ts",
+    "tests/integration/cliErrors.test.ts",
+    "tests/e2e/fixtures/minimal-repo/plan.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/loadOrExtractPlan.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

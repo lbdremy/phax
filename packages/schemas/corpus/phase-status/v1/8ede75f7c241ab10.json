@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-04",
+  "phaseIndex": 3,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "high",
+  "createdAt": "2026-07-15T08:51:50.962Z",
+  "updatedAt": "2026-07-15T09:05:02.507Z",
+  "branchName": "phax/steme-audit-scope-boundary-rule-family--phase-04",
+  "worktreePath": "~/.phax/worktrees/steme-lab.steme-audit-scope-boundary-rule-family/phase-04",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "23f893ded61058ed5c58275fdbd83ef21d2dd93f"
+}

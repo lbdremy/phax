@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-opus-4-8",
+  "effort": "high",
+  "createdAt": "2026-07-16T14:43:13.956Z",
+  "updatedAt": "2026-07-16T14:47:26.785Z",
+  "branchName": "phax/baseline-commands-and-read-only-audit-for-apps-steme--phase-02",
+  "worktreePath": "~/.phax/worktrees/steme-lab.baseline-commands-and-read-only-audit-for-apps-steme/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "bc4428a90550bc1508559e7fa29b8d4324ef88e7"
+}

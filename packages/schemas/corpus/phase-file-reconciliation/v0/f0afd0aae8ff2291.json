@@ -1,0 +1,32 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/schemas/globalReconciliation.ts",
+    "tests/unit/globalReconciliation.test.ts",
+    "tests/unit/planOverlap/impact.test.ts",
+    "tests/integration/plansOverlapLanded.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/planOverlap/types.ts",
+    "src/domain/planOverlap/compute.ts",
+    "src/domain/planOverlap/render.ts",
+    "src/app/analyzePlanOverlap.ts",
+    "src/cli/commands/plansOverlap.ts",
+    "src/cli/program.ts",
+    "src/cli/cliDocs.ts",
+    "tests/integration/cliProgram.test.ts",
+    "phax.usage.kdl",
+    "docs/cli/reference.md",
+    "README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

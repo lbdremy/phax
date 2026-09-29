@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "docs/security.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "README.md"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

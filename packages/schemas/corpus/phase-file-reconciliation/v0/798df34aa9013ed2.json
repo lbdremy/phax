@@ -1,0 +1,32 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/cli/commands/orient.ts",
+    "tests/unit/cli/orient.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/program.ts",
+    "src/domain/security/agentCommands.ts",
+    "src/app/executePlan.ts",
+    "tests/unit/security/agentCommands.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "README.md",
+    "docs/cli/reference.md",
+    "phax.usage.kdl",
+    "src/cli/commands/usage.ts",
+    "src/cli/main.ts",
+    "src/schemas/securityPosture.ts"
+  ],
+  "optionalTouched": [
+    "tests/integration/cliProgram.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

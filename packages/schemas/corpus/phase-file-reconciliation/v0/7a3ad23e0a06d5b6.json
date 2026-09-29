@@ -1,0 +1,17 @@
+{
+  "createdAsPlanned": [
+    "src/domain/reconciliation/global.ts",
+    "tests/unit/reconciliation/global.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [
+    "tests/unit/reconciliation/__snapshots__/global.test.ts.snap"
+  ],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

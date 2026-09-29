@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "install-planning-skill",
+  "runId": "install-planning-skill-1781516740981",
+  "state": "archived",
+  "createdAt": "2026-06-15T09:45:40.997Z",
+  "updatedAt": "2026-09-04T12:28:10.870Z",
+  "phasesCount": 6,
+  "gateProfileId": "full",
+  "stoppedReason": "no_changes",
+  "lastError": "Phase phase-02 produced no changes — the worktree is clean after the agent finished."
+}

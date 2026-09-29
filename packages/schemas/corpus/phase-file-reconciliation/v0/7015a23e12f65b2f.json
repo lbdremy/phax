@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "apps/steme/scripts/gen-cli-artifacts.mjs",
+    "apps/steme/completions/steme.bash",
+    "apps/steme/completions/steme.zsh",
+    "apps/steme/completions/steme.fish",
+    "apps/steme/docs/cli.md",
+    "apps/steme/src/cli/cli-artifacts.e2e.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/package.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

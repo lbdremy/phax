@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "runId": "claude-skill-edit-grant-1790181005998",
+  "phaseId": "phase-02",
+  "shape": "full",
+  "sourceSha": "e789ee3a9e6a12b3d5854f087b994d4e3a17c636",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 80,
+      "cacheCreationInputTokens": 115567,
+      "cacheReadInputTokens": 3293966,
+      "outputTokens": 24643,
+      "totalCostUsd": 2.0765092
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "structural"
+  ]
+}

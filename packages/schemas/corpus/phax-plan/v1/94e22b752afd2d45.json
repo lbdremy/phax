@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "gate-step-scheduling-2",
+    "title": "Gate step scheduling",
+    "requiredCommands": [],
+    "branch": "phax/gate-step-scheduling-2"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-class-and-scopes-config",
+      "plannedFilesToCreate": [
+        "tests/unit/schemas/scopesConfig.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/gateDiagnostics.ts",
+        "src/schemas/phaxConfig.ts",
+        "src/domain/config/mergeLayers.ts",
+        "src/app/loadConfig.ts",
+        "src/app/gates.ts",
+        "phax.schema.json",
+        "phax.user.schema.json",
+        "examples/hello-world/audit.mjs",
+        "tests/unit/schemas/gateDiagnostics.test.ts",
+        "tests/unit/phaxConfigJsonSchema.test.ts",
+        "tests/unit/phaxUserOverlaySchema.test.ts",
+        "tests/unit/mergeLayers.test.ts",
+        "tests/unit/fixPrompt.test.ts",
+        "tests/integration/gates.test.ts",
+        "tests/integration/fixLoop.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/loadConfig.test.ts",
+        "tests/integration/exampleProviders.test.ts",
+        "tests/unit/schemas/orientConfig.test.ts",
+        "src/app/initProject.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): classify diagnostics and register a scopes provider",
+        "body": "Every diagnostic now declares `class: \"invariant\" | \"completion\"`; a completion\ndiagnostic must name at least one scope token and is rejected at decode without\none. `phax.json` (and the user overlay) may register a `scopes: { command }`\nprovider next to `orient`, merged and resolved the same way. Behaviour-\npreserving: the runner still fails a step on any diagnostic. JSON schemas\nregenerated; the hello-world audit example declares its diagnostic invariant."
+      },
+      "title": "Diagnostic class and scope provider registration"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-projection-query-rule",
+      "plannedFilesToCreate": [
+        "src/domain/plan/projection.ts",
+        "src/schemas/scopes.ts",
+        "src/schemas/gatePending.ts",
+        "src/app/providerQuery.ts",
+        "src/app/scopes.ts",
+        "src/domain/gate/scheduleDiagnostics.ts",
+        "tests/unit/planProjection.test.ts",
+        "tests/unit/scheduleDiagnostics.test.ts",
+        "tests/unit/schemas/scopes.test.ts",
+        "tests/unit/schemas/gatePending.test.ts",
+        "tests/integration/scopes.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/orient.ts",
+        "src/domain/errors.ts",
+        "src/schemas/gateAttribution.ts",
+        "src/domain/gate/diagnosticsPath.ts",
+        "tests/unit/diagnosticsPath.test.ts",
+        "tests/unit/gateAttribution.test.ts",
+        "tests/unit/verifiedSurfaces.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/executePlan.ts",
+        "tests/integration/orient.test.ts",
+        "tests/unit/gateAttribution.reader.test.ts",
+        "src/domain/gate/verifiedSurfaces.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): add the plan projection, scopes query and scheduling rule",
+        "body": "Introduce the pieces gate scheduling composes: `projectPhases` /\n`makeScopesRequest` (ordered phase ids with their planned create+edit files\nand the gated phase — the projection spec 19 will share), a `scopes` provider\nquery on the transport extracted from orient (`runProviderQuery`), the pure\n`scheduleDiagnostics` rule (invariant always fails; completion fails when every\nnamed scope is closed or at the terminal phase, otherwise pending; no provider\nplus a completion diagnostic is a missing-provider outcome), `pending` as a\nthird attribution result that never verifies a surface, and the persisted\npending-document schema with its `checks-attempt-NN.pending.json` path.\nNothing is wired into the runner yet. Covered by unit and integration tests."
+      },
+      "title": "Plan projection, scope provider query and scheduling rule"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-4-8",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-runner-scheduling",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/gates.ts",
+        "src/app/fixLoop.ts",
+        "src/app/eventAdapter.ts",
+        "src/app/executePlan.ts",
+        "src/domain/errors.ts",
+        "src/domain/events.ts",
+        "tests/integration/gates.test.ts",
+        "tests/integration/eventAdapter.test.ts",
+        "tests/integration/fixLoop.test.ts",
+        "tests/unit/events.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/executePlan.test.ts",
+        "tests/integration/orientBriefArtifact.test.ts",
+        "tests/integration/dispatcher.test.ts",
+        "tests/integration/stateMachineContract.test.ts",
+        "tests/unit/reducer.test.ts",
+        "docs/state-machine.md"
+      ],
+      "commit": {
+        "subject": "feat(gate): schedule completion diagnostics against closed scopes",
+        "body": "Before a non-terminal gate that has a diagnostic step, `runGates` asks the\nregistered `scopes` provider which scopes are closed (the plan projection on\nstdin) and splits each diagnostics document: invariants and completion\ndiagnostics whose scopes are all closed fail the step; the rest are pending.\nA step with only pending diagnostics records `pending` in the attribution and\ndoes not fail the phase; pending findings are persisted as\n`checks-attempt-NN.pending.json`. The terminal phase closes every scope without\na query. A provider failure, or a completion diagnostic with no provider\nregistered, fails the gate through the fix loop with the reason in the attempt\nlog. `GateFailedError`, `GatePassed`, `GateFailed` and the gate outcome carry\nthe pending list. Covered by integration tests on the runner."
+      },
+      "title": "Schedule diagnostics in the runner"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-prompt-summary-docs",
+      "plannedFilesToCreate": [
+        "tests/integration/scopesScheduling.test.ts",
+        "examples/hello-world/scopes.mjs"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/gate/fixPrompt.ts",
+        "src/app/fixLoop.ts",
+        "src/app/executePlan.ts",
+        "tests/unit/fixPrompt.test.ts",
+        "tests/integration/fixLoop.test.ts",
+        "tests/integration/exampleProviders.test.ts",
+        "examples/hello-world/phax.json",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "docs/state-machine.md",
+        "examples/hello-world/plan.md",
+        "examples/hello-world/audit.mjs"
+      ],
+      "commit": {
+        "subject": "feat(gate): surface pending diagnostics as optional work and document scopes",
+        "body": "The fix prompt lists pending completion diagnostics under a \"Pending\" section\nmarked optional and not required to pass, and asks the agent to fix only the\ndiagnostics listed as failing; prompts without pending are unchanged. After a\ngreen gate that left pending work, phax prints a one-line summary naming the\nopen scopes. An end-to-end test proves the scope provider receives exactly the\nordered phases with their planned create+edit files and the gated phase id,\nand is not consulted at the terminal phase. The hello-world example gains a\n`scopes.mjs` provider; the README documents the diagnostic classes, the\npending rules and the scope provider contract."
+      },
+      "title": "Pending in the fix prompt, run summary, docs and example"
+    }
+  ]
+}

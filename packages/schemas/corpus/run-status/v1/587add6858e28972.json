@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "gate-profile-as-attributed-steps-implementation-plan-2",
+  "runId": "gate-profile-as-attributed-steps-implementation-plan-2-1787299050237",
+  "state": "archived",
+  "createdAt": "2026-08-21T07:57:30.252Z",
+  "updatedAt": "2026-09-03T07:46:58.985Z",
+  "phasesCount": 6,
+  "gateProfileId": "full",
+  "planRepoRelPath": "docs/plans/44-gate-profile-attributed-steps-plan.md"
+}

@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Both phases delivered their stated objectives without violating excluded scope. Phase-01 correctly adds 'optional-touched' status, 'optionalInPhases' field, and updated schema; three unplanned integration test files were edited to satisfy the no-back-compat-shim policy (fixture required the new required field), and one optional file was touched without explicit mention in the handoff. Phase-02 correctly implements removeFrontmatterKeys, clearApproved, the extended transitionWriteSet condition, and the transitionArtifact reopen branch; one optional file (lineage.test.ts) was touched but the handoff inaccurately claims no file-plan deviations. All promised tests are present at their stated layers. Both commit subjects match the plan exactly.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Objective fully delivered: 'optional-touched' added to GlobalFileStatus, optionalInPhases added to GlobalFileEntry, deriveStatus precedence and allTouchedPlanned union correct, renderer and schema updated, attention:ok for optional-touched, consumers confirmed unchanged."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Excluded scope respected: reconcile.ts, planOverlap/compute.ts, adjustPlan.ts, analyzePlanOverlap.ts, and reviewHandoff.ts all left untouched per handoff confirmation."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Three integration test files not in any planned or optional list were edited (tests/integration/adjustPlan.test.ts, adjustPlanCommand.test.ts, plansOverlapLanded.test.ts). All build literal global-file-reconciliation.json fixtures that required optionalInPhases: [] once the field became required under the no-back-compat-shim policy. Justified in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "tests/unit/globalReconciliation.test.ts is in the phase-01 optional list and was touched (shown as 'unplanned' in the reconciliation table, a pre-fix artefact). Handoff does not call this out as a deviation; it is within optional scope and not a conformance failure."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised unit tests present: existing 'optional touched → unplanned' case flipped to expect 'optional-touched', attention:ok, unplanned:false, optionalInPhases:[phase-01]; five additional cases covering absence from result.unplanned/attentionPoints, optional+planned cross-phase resolves to matched, extra-touch not triggered by optional touch, unplanned regression guard, and renderer output."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Boundary contracts respected: GlobalFileEntry shape change is additive, schema/domain agreement enforced by pnpm test:type, consumers confirmed needing no edit."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan exactly: 'fix(reconciliation): classify touched optional files as optional-touched'. Body not independently verified (no Bash tool available to reviewer)."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "deviation",
+          "message": "Handoff covers all required content but does not explicitly acknowledge tests/unit/globalReconciliation.test.ts (optional, touched in phase-01) in the deviation list — only the three integration tests are called out."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Objective fully delivered: removeFrontmatterKeys exists as a standalone operation (not a FrontmatterEdit variant), clearApproved delegates to it, transitionWriteSet condition matches plan verbatim, transitionArtifact reopen branch clears both the frontmatter stamp and the sidecar record before finalizeTransition."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Excluded scope respected: terminal path retention, Approved→Stale record retention, planStaleness.ts, and CLI interface all left untouched per handoff confirmation."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All seven planned files edited. tests/unit/artifact/lineage.test.ts is optional in the plan, was touched, and is shown as 'unplanned' in the reconciliation table (pre-fix artefact). Within optional scope."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "deviation",
+          "message": "Handoff states 'No file-plan deviations: all planned files edited, no unplanned files touched' but tests/unit/artifact/lineage.test.ts (optional) was in fact touched. The implementation is correct; the handoff wording is imprecise."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised tests present: writeSet.test.ts has plan-Draft includes approvals, spec-Draft does not, plan-Stale does not (pinned arbitration); frontmatter.test.ts has 4 removeFrontmatterKeys cases (delete, no-op, missing-block, yaml-syntax); artifactStatus.test.ts has 3-case reopen suite (Stale→Draft drops stamp+record, Approved→Stale retains, reopen commit carries write-set and leaves clean tree); lineage.test.ts (optional) has 4 clearApproved cases including fingerprint-neutrality round-trip."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Boundary contracts respected: transitionWriteSet condition verbatim matches plan; clearApproved and removeApprovalRecord called together; spec-reopen guard proven by write-set unit test; auto-commit contract proven by integration test asserting clean working tree after reopen."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan exactly: 'fix(artifact): clear the approval when a plan is reopened'. Body not independently verified (no Bash tool available to reviewer)."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers all required content: exact signatures and module paths for removeFrontmatterKeys and clearApproved, verbatim transitionWriteSet condition, spec-reopen confirmation, Approved→Stale retention confirmation with test proof, clean-tree assertion."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Reconciliation table shows optional files (tests/unit/globalReconciliation.test.ts in phase-01, tests/unit/artifact/lineage.test.ts in phase-02) as 'unplanned' rather than 'optional-touched', despite phase-01 being specifically tasked with fixing this classification. If the table was generated after phase-01's commit, these entries should read 'optional-touched'. Investigate whether the reconciliation generator was invoked with the updated code, or whether there is a remaining bug in how optional file lists are threaded from the plan into the aggregator at run time.",
+    "Commit bodies for both phases were not independently verified by this review — no Bash tool was available to inspect git log output. Manual verification of both commit bodies against the plan's 'Commit body' sections is recommended before closing the run."
+  ],
+  "pointers": [
+    "tests/unit/artifact/lineage.test.ts line 147 — the no-op case asserts `cleared.right === md` (referential equality). This passes when the key is absent, but may be worth confirming that the yaml parser does not re-emit the document when no changes are made, to avoid a spurious test pass if the equality check ever loosens."
+  ]
+}

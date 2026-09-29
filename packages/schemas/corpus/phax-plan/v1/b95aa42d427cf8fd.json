@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "planning-skill-update",
+    "title": "Implementation plan — Planned file intent and end-of-phase file reconciliation",
+    "branch": "phax/planning-skill-update",
+    "backend": "claude-code-cli"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Add planned-file fields to the phase schema",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-schema-fields",
+      "commit": {
+        "subject": "feat(schema): add planned-file fields to the phase schema",
+        "body": "Add required `plannedFilesToCreate`, `plannedFilesToEdit`, and `optionalFilesToEdit` string arrays to `PhaseSchema`, flowing into both the extracted and persisted plan schemas. Update the root sample plan, every phase fixture, the prompt snapshot, and the schema tests so the full gate profile stays green. No runtime behavior yet — later phases consume these fields."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Pure reconciliation domain and name-status parser",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-reconciliation-domain",
+      "commit": {
+        "subject": "feat(reconciliation): add pure file-reconciliation domain",
+        "body": "Add `src/domain/reconciliation/` with a name-status parser, a pure `reconcile` comparing planned file lists against actual changes, and a Markdown renderer for the reconciliation report. The module is pure (guarded by the architectural purity test) and its unit tests make the exports reachable for knip. Nothing calls it yet."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Git port `diffNameStatus` method",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-git-diff-name-status",
+      "commit": {
+        "subject": "feat(git): add diffNameStatus to the Git port",
+        "body": "Add `Git.diffNameStatus(worktree)` returning the parsed name-status entries for `HEAD^..HEAD`, the same range `commit.ts` uses for `diff.patch`. Implement it in the Node adapter (runs `git diff --name-status` and parses via the reconciliation domain) and in the fake (queue + `enqueueDiffNameStatus` helper), with a real-git integration test. No lifecycle wiring yet."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "Wire reconciliation into the phase lifecycle",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-lifecycle-wiring",
+      "commit": {
+        "subject": "feat(run): write a file-reconciliation report per phase",
+        "body": "After each successful phase commit, compute the planned-vs-actual file reconciliation from `git diff --name-status HEAD^ HEAD` and write `file-reconciliation.json` and `file-reconciliation.md` into the phase folder, emitting an artifact telemetry event. Report-only — deviations are recorded, the phase never fails. Covered by an integration test using the fake Git."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "Reconciliation mode, warnings, and cross-phase context",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-mode-and-injection",
+      "commit": {
+        "subject": "feat(run): add reconciliation mode, warnings, and cross-phase context",
+        "body": "Add an optional `fileReconciliation.mode` (`report_only` | `warn`) to phax.json, resolve it onto ResolvedConfig (default `report_only`), warn on deviations in `warn` mode without failing the phase, inject the previous phase's `file-reconciliation.md` into the next phase's prompt, and instruct the agent — in the prompt and the handoff skill — to explain file-plan deviations. Covered by config, loadConfig, and prompt-snapshot tests."
+      }
+    }
+  ]
+}

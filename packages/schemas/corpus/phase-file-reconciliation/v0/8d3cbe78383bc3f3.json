@@ -1,0 +1,37 @@
+{
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/ports/backend.ts",
+    "src/domain/errors.ts",
+    "src/infra/providers/dispatcher.ts",
+    "src/app/executePlan.ts",
+    "src/app/fixLoop.ts",
+    "src/app/extractPlan.ts",
+    "src/cli/commands/runLayers.ts",
+    "tests/integration/executePlan.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/eventAdapter.ts",
+    "src/app/handoffGeneration.ts",
+    "tests/e2e/semanticTrace.test.ts",
+    "tests/integration/enterPhase.test.ts",
+    "tests/integration/perPhaseBranch.test.ts",
+    "tests/integration/rateLimit.test.ts",
+    "tests/integration/reconciliation.test.ts",
+    "tests/integration/resume.test.ts",
+    "tests/integration/routing.test.ts",
+    "tests/integration/runFolder.test.ts",
+    "tests/integration/sessionInfo.test.ts",
+    "tests/integration/setupFailure.test.ts",
+    "tests/integration/stateMachineContract.test.ts",
+    "tests/integration/telemetry/end-to-end.test.ts",
+    "tests/unit/gateProfile.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

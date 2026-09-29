@@ -1,0 +1,25 @@
+{
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/app/effectRunner.ts",
+    "src/domain/reducer.ts",
+    "src/domain/effects.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "tests/integration/finalReview.test.ts",
+    "tests/integration/__snapshots__/stateMachineContract.test.ts.snap"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/perPhaseBranch.test.ts",
+    "tests/integration/rateLimit.test.ts",
+    "tests/integration/resume.test.ts"
+  ],
+  "optionalTouched": [
+    "src/app/finalReview.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,30 @@
+{
+  "createdAsPlanned": [
+    "tests/unit/routing/effortLevels.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/routing/types.ts",
+    "src/schemas/modelRouting.ts",
+    "src/schemas/phaxPlan.ts",
+    "src/schemas/status.ts",
+    "src/domain/routing/defaults.ts",
+    "src/domain/routing/resolve.ts",
+    "src/infra/providers/codexCli.ts",
+    "src/cli/commands/agent.ts",
+    "tests/unit/routing/schemas.test.ts",
+    "tests/unit/routing/resolve.test.ts",
+    "tests/unit/routing/providerSetup.test.ts",
+    "tests/unit/providers/codexCli.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "docs/plans/03-update-provider-effort-plan.md",
+    "docs/specs/03-update-provider-effort.md"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

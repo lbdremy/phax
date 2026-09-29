@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "agent-binding",
+  "runId": "agent-binding-1781782103161",
+  "state": "archived",
+  "createdAt": "2026-06-18T11:28:23.178Z",
+  "updatedAt": "2026-09-03T07:49:10.786Z",
+  "phasesCount": 6,
+  "gateProfileId": "full"
+}

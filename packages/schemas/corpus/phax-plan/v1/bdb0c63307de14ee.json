@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "schemas-package-1-5-read-the-phase-record-manifest",
+    "title": "schemas-package 1/5 — read the phase record manifest",
+    "requiredCommands": [
+      "pnpm exec tsx",
+      "node",
+      "git log",
+      "git show-ref",
+      "git cat-file",
+      "git ls-tree"
+    ],
+    "branch": "phax/schemas-package-1-5-read-the-phase-record-manifest"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-package-skeleton",
+      "plannedFilesToCreate": [
+        "packages/schemas/package.json",
+        "packages/schemas/tsconfig.build.json",
+        "packages/schemas/src/index.ts",
+        "packages/schemas/src/parsed.ts",
+        "src/schemas/surface.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/parse.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/manifest.test.ts",
+        "tests/type/schemasPackage.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/schemas/runRecord.ts",
+        "src/schemas/gateAttribution.ts",
+        "package.json",
+        "knip.json",
+        "tsconfig.test.json",
+        "tests/unit/architecturalGuards.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        ".oxlintrc.json",
+        ".oxfmtrc.json"
+      ],
+      "commit": {
+        "subject": "feat(schemas-package): add @lbdremy/phax-schemas with one entry and a Parsed API",
+        "body": "Add the schemas package under packages/schemas. A second tsc project builds it from the entry module alone, so tsc emits only that module's import closure. The entry exports the phase record manifest's schema, its type and parsePhaseRecordManifest. parsePhaseRecordManifest wraps phax's own decoder and returns a Parsed result instead of throwing, so its verdict is phax's, including the rejection of unknown keys.\n\nMove SurfaceSchema to src/schemas/surface.ts, so the published closure no longer reaches phax.json's config schemas. Add an architectural guard that pins the closure: no file from app, ports, infra or cli, no Node or Deno I/O, no bare import other than effect, and neither vibeOutput.ts nor phaxConfig.ts."
+      },
+      "title": "Package skeleton, one entry, Parsed API for the phase record manifest"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-manifest-history",
+      "plannedFilesToCreate": [
+        "src/schemas/schemaUrl.ts",
+        "packages/schemas/src/shapes.ts",
+        "packages/schemas/src/history/phase-record-manifest/v1.ts",
+        "packages/schemas/src/history/phase-record-manifest/v2.ts",
+        "packages/schemas/src/generated/index.ts",
+        "packages/schemas/history.lock.json",
+        "packages/schemas/build/generated.ts",
+        "scripts/schemas-check.ts",
+        "tests/unit/schemaUrl.test.ts",
+        "tests/unit/schemasPackage/shapes.test.ts",
+        "tests/unit/schemasPackage/phaseRecordManifestHistory.test.ts",
+        "tests/unit/schemasPackage/frozenHistory.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/schemas/src/index.ts",
+        "packages/schemas/src/parsed.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        ".oxfmtrc.json",
+        "knip.json"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/schemasPackage/parse.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/type/schemasPackage.ts",
+        "tsconfig.test.json",
+        ".oxlintrc.json"
+      ],
+      "commit": {
+        "subject": "feat(schemas-package): read phase record manifest v1 and v2, upgrade to latest",
+        "body": "Validate the reading-history pattern on one format before repeating it. A shape table maps a document to its shape. A legacy document maps by its version literal. A document carrying $schema maps to the latest shape released at or before the release its URL names.\n\nparsePhaseRecordManifest now reads v1 through a frozen, self-contained decoder and v2 through phax's own decoder, and returns the exact shape with its shape id. A $schema naming a release newer than the package, or an unknown format id, fails without throwing and says to upgrade the package. toLatestPhaseRecordManifest upgrades a v1 manifest in memory and marks verifiedSurfaces as { kind: \"unknown\" }; it never invents a value.\n\nThe package version comes from the root package.json through a generated module, which scripts/schemas-check.ts writes and checks. history.lock.json pins the bytes of every frozen module, and a guard keeps phax's src/ from importing any of them. The test fixtures are real v1 and v2 manifests copied from the records branch."
+      },
+      "title": "Phase record manifest history: shape table, frozen v1 and v2, toLatest, newer-release failure"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-parse-document",
+      "plannedFilesToCreate": [
+        "packages/schemas/src/document.ts",
+        "tests/unit/schemasPackage/parseDocument.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/schemas/src/index.ts",
+        "packages/schemas/src/parsed.ts",
+        "tests/unit/schemasPackage/exports.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "packages/schemas/src/shapes.ts",
+        "tests/type/schemasPackage.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas-package): identify a document by its $schema alone with parseDocument",
+        "body": "Add parseDocument. It reads the format id and the release from a document's $schema URL, never from a file name or location, and returns the format id, the shape id and the parsed value. For now it recognises the phase record manifest; plan 2 adds every other format.\n\nAn unknown format id or a newer release fails, naming the URL and the package version and saying to upgrade the package. A legacy document without $schema fails and points to the format's own parse function. No call throws.\n\nThe parser takes a value only. A toy format with a $schema shape proves that a document is identified whatever its file is named; the real manifest follows once phax writes $schema."
+      },
+      "title": "parseDocument: identification by $schema alone, for the phase record manifest"
+    }
+  ]
+}

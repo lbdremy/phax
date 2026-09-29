@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "docs/spikes/smolvm-isolation-findings.md"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "spikes/smolvm/README.md"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

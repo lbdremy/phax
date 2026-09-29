@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "apps/steme/package.json",
+    "pnpm-lock.yaml",
+    "apps/steme/src/core/rules/parse-rulepack.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

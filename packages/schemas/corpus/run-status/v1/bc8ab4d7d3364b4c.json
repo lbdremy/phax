@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "seal-extraction",
+  "runId": "seal-extraction-1781796057390",
+  "state": "archived",
+  "createdAt": "2026-06-18T15:20:57.407Z",
+  "updatedAt": "2026-09-03T07:49:11.204Z",
+  "phasesCount": 3,
+  "gateProfileId": "full"
+}

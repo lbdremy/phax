@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "compliance-review-2",
+    "title": "Compliance review before phase details in the PR body",
+    "requiredCommands": [],
+    "branch": "phax/compliance-review-2"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-compliance-renderer",
+      "plannedFilesToCreate": [
+        "tests/unit/reviewHandoffContent.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/reviewHandoff.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(review): render plan compliance review before phase details",
+        "body": "Add an optional complianceReviewMd parameter to buildReviewHandoffContent and\nexport it. When present, the renderer inserts a Plan compliance review section\nbetween the global deviations section and Phase details, making one pure\nfunction the single owner of section order. Existing callers pass no compliance,\nso the written review-handoff.md artifact is unchanged. Covered by unit tests\nasserting the section order and a byte-identical regression for the\nno-compliance path."
+      },
+      "title": "Compliance-aware handoff renderer"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-02-recompute-pr-body",
+      "plannedFilesToCreate": [
+        "src/app/loadReviewHandoffInputs.ts",
+        "tests/integration/loadReviewHandoffInputs.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/publishRun.ts",
+        "src/app/reviewHandoff.ts",
+        "src/domain/publish/body.ts",
+        "tests/unit/publish/body.test.ts",
+        "tests/integration/publishRun.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(publish): place compliance review before phase details in the PR body",
+        "body": "Assemble the PR body by recomputing the review handoff from persisted per-phase\nartifacts and passing the compliance markdown into buildReviewHandoffContent, so\nthe Plan compliance review appears before Phase details. Add a read-only\nloadReviewHandoffInputs loader plus a shared loadPhaseContents helper reused by\ngenerateReviewHandoff, and narrow buildPrBody back to header + truncation. The\non-disk review-handoff.md artifact stays compliance-free. Covered by an\nintegration test for the loader, updated body unit tests, and a publishRun\nintegration test asserting the new section order."
+      },
+      "title": "Recompute the PR body with compliance inline"
+    }
+  ]
+}

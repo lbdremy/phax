@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "rename-backend-errors-telemetry",
+    "title": "Rename Claude-specific backend errors/telemetry → agent-generic",
+    "branch": "phax/rename-backend-errors-telemetry",
+    "backend": "claude-code-cli"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Rename the two domain error classes",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-rename-error-classes",
+      "commit": {
+        "subject": "refactor(errors): rename Claude backend errors to agent-generic",
+        "body": "Rename `ClaudeInvocationError → AgentInvocationError` and `ClaudeSessionIdMissingError → AgentSessionIdMissingError`, including the `Data.TaggedError` tag strings, across all `src` and `tests` references. No behaviour change; adapter and provider identifiers are untouched."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Rename the telemetry surface",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-02-rename-telemetry-surface",
+      "commit": {
+        "subject": "refactor(telemetry): rename Claude failure report to agent-generic",
+        "body": "Rename `reportClaudeFailure → reportAgentFailure` and the emitted report type `adapter.claude_failed → adapter.agent_failed`, updating callers and assertions. No behaviour change beyond the renamed identifier and string literal."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Sync live docs and skill",
+      "model": "claude-haiku-4-5-20251001",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-03-sync-docs-and-skill",
+      "commit": {
+        "subject": "docs: sync agent-generic error and telemetry names",
+        "body": "Update `docs/observability.md` and `.skills/observability.md` to reference the renamed `reportAgentFailure` helper and `adapter.agent_failed` report type. Historical plan records under `docs/plans/` are left unchanged."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "Provider-config reconciliation builder",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-provider-config-builder",
+      "commit": {
+        "subject": "feat(routing): add provider-config reconciliation builder",
+        "body": "Add `planProviderConfig`, a pure function that reconciles a `ProviderConfig`'s `enabled` flags against executable-probe results and reports the enabled / disabled / unchanged providers. Only-enable by default; `prune` also disables providers whose executable is unavailable. Custom entry fields are preserved."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "`phax agent setup providers` command",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-agent-setup-providers",
+      "commit": {
+        "subject": "feat(cli): add probe-driven `phax agent setup providers`",
+        "body": "Add `phax agent setup providers`, which reconciles `~/.phax/providers.json` `enabled` flags from live executable probes via `planProviderConfig`. Dry-run by default; `--write` persists (with a timestamped backup), `--prune` disables unavailable providers, and `--with-routing` scaffolds `model-routing.json` from defaults when absent. The probe loop is extracted into a shared helper reused by `phax agent probe`."
+      }
+    },
+    {
+      "id": "phase-06",
+      "title": "Parameterize the real E2E flow by backend",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-06-parameterize-e2e-backend",
+      "commit": {
+        "subject": "test(e2e): parameterize real flow by agent backend",
+        "body": "Add a `PHAX_E2E_BACKEND` selector (default `claude-code-cli`) and a backend registry to the real E2E suite so it can drive `claude-code-cli`, `mistral-vibe`, or `codex-cli`. Probe the selected backend's executable for availability, patch the fixture `phax.json` backend and `plan.md` model accordingly, and assert against the selected backend. Absent executables skip the suite, keeping CI behaviour unchanged."
+      }
+    }
+  ]
+}

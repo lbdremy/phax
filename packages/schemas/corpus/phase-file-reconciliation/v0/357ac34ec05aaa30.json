@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/app/approvalRecordStore.ts",
+    "src/app/artifactStatus.ts",
+    "src/domain/errors.ts",
+    "src/cli/commands/runLayers.ts",
+    "tests/integration/artifactStatus.test.ts",
+    "tests/integration/planStaleness.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/completeRunArtifacts.ts",
+    "src/app/planStaleness.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

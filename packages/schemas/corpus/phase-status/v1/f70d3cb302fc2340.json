@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "review_open",
+  "model": "claude-sonnet-5",
+  "effort": "high",
+  "createdAt": "2026-07-24T15:47:31.819Z",
+  "updatedAt": "2026-07-24T15:59:30.399Z",
+  "branchName": "phax/doctrine-index-and-guides--phase-02",
+  "worktreePath": "~/.phax/worktrees/steme-lab.doctrine-index-and-guides/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "61abfcb05e22e9f2d4ab355b4a70bbc2f8656f1d"
+}

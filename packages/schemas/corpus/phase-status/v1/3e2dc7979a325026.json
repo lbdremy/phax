@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-18T15:26:32.634Z",
+  "updatedAt": "2026-06-18T15:33:58.625Z",
+  "branchName": "phax/seal-extraction--phase-02",
+  "worktreePath": "~/.phax/worktrees/seal-extraction/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "c30c56b08f4ce6b3cbf5c5dfc86c09ac6ce0d539"
+}

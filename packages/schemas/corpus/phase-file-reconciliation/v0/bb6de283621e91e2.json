@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "scripts/build-binaries.ts",
+    "scripts/smoke-binary.sh",
+    "deno.json",
+    "package.json",
+    "knip.json",
+    "README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "pnpm-lock.yaml"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "deno.lock"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

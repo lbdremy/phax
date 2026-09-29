@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-05",
+  "phaseIndex": 4,
+  "state": "cleaned_up",
+  "model": "claude-opus-4-8",
+  "effort": "high",
+  "createdAt": "2026-06-12T10:04:11.820Z",
+  "updatedAt": "2026-06-12T10:20:07.754Z",
+  "branchName": "phax/push-branch-pr--phase-05",
+  "worktreePath": "~/.phax/worktrees/push-branch-pr/phase-05",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "f462ecb69b6f61747d9eeca6e1d43a1f214bb2d5"
+}

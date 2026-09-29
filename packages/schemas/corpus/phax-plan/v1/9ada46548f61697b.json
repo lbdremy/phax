@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "target-owned-workspace-discovery",
+    "title": "Target-Owned Workspace Discovery",
+    "requiredCommands": [],
+    "branch": "phax/target-owned-workspace-discovery"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-self-governing-fixtures",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/src/cli/test-workspace.ts",
+        "apps/steme/src/cli/audit-harness.e2e.test.ts",
+        "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/cli/preflight-ordering.e2e.test.ts"
+      ],
+      "commit": {
+        "subject": "test(steme): give e2e temp units their own governing workspace",
+        "body": "Migrate the audit-harness and baseline-lifecycle temp fixtures from bare\ntmpdir copies to self-governing units: each app copy now sits at\n<workspace>/app under a seeded steme.workspace.json whose policy is the\nreal @steme-lab/rulepack-boundaries package copied into the workspace's\nnode_modules. Inert by construction — discovery still walks up from cwd,\nso the repo workspace keeps governing and every suite passes unmodified.\nPrepares the discovery-origin flip."
+      },
+      "title": "Self-governing e2e fixtures, inert under cwd-discovery"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-target-discovery-flip",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/src/core/modules/audit/capability.ts",
+        "apps/steme/src/core/modules/audit/capability.test.ts",
+        "apps/steme/src/cli/audit-harness.e2e.test.ts",
+        "apps/steme/src/cli/preflight-ordering.e2e.test.ts",
+        "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/core/policy/find-workspace.ts",
+        "apps/steme/src/core/policy/find-workspace.test.ts",
+        "apps/steme/src/cli/policy.e2e.test.ts",
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/src/cli/manifest-bindings.e2e.test.ts",
+        "apps/steme/src/cli/self-audit.e2e.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): discover the governing workspace from the audit target",
+        "body": "The governing workspace — policy source and reporting anchor — is now\nfound by walking up from the audited target instead of the invocation's\ncwd: a unit is judged by the workspace it belongs to, from any working\ndirectory, and its diagnostic paths render relative to that workspace. A\ntarget with no steme.workspace.json at or above it is refused in\npreflight (exit 2) instead of silently borrowing the cwd's policy.\nFingerprints, registers, and drift are byte-identical; proven red-first\nvia relative-path and cwd-independence e2e assertions, the refusal\nfixture, and the unmodified policy/self-audit/baseline suites."
+      },
+      "title": "Discover the workspace from the target; refuse workspace-less targets"
+    }
+  ]
+}

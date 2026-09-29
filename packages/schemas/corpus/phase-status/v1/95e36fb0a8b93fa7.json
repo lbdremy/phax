@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-06",
+  "phaseIndex": 5,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-10T12:49:36.602Z",
+  "updatedAt": "2026-06-10T12:56:20.547Z",
+  "branchName": "phax/gate-first-resume--phase-06",
+  "worktreePath": "~/.phax/worktrees/gate-first-resume/phase-06",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "32f429f42d5646ed5fe44fd306a6b17295ed3076"
+}

@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/domain/artifact/status.ts",
+    "src/domain/artifact/document.ts",
+    "src/schemas/artifactStatus.ts",
+    "tests/unit/artifact/status.test.ts",
+    "tests/unit/artifact/document.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/errors.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

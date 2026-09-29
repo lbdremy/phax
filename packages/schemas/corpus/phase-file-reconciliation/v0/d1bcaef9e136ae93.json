@@ -1,0 +1,17 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/reconciliation/global.ts",
+    "tests/unit/reconciliation/global.test.ts",
+    "tests/unit/reconciliation/__snapshots__/global.test.ts.snap"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

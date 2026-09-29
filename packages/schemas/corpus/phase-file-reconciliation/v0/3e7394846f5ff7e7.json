@@ -1,0 +1,28 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/schemas/phaxConfig.ts",
+    "src/cli/commands/adjustPlan.ts",
+    "src/cli/program.ts",
+    "phax.usage.kdl",
+    "docs/cli/reference.md",
+    "tests/unit/loadConfig.test.ts",
+    "tests/unit/cli/adjustPlanDefaults.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    ".claude/skills/phax-planning/SKILL.md",
+    "docs/model-catalog.md"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "tests/integration/adjustPlanCommand.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

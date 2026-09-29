@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "apps/steme/src/core/modules/governance/capability.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/contracts/baseline.ts",
+    "apps/steme/src/core/baseline/store.ts",
+    "apps/steme/src/core/baseline/store.test.ts",
+    "apps/steme/src/cli/program.ts",
+    "apps/steme/src/cli/commands/governance.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "apps/steme/src/core/composition/index.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "protected-path-approval",
+    "title": "Scoped approval hook for declared Claude-Code protected-path edits",
+    "requiredCommands": [],
+    "branch": "phax/protected-path-approval"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-4-8",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-protected-domain",
+      "plannedFilesToCreate": [
+        "src/domain/security/protectedPaths.ts",
+        "tests/unit/protectedPaths.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(security): add protected-path approval domain logic",
+        "body": "Add src/domain/security/protectedPaths.ts: a pure module that detects Claude-Code protected paths, resolves a phase's declared protected paths against operator-configured allowWriteProtected prefixes (returning approved absolute paths and uncovered violations), and decides a single PreToolUse approval at runtime. No I/O. Covered by unit tests for detection, resolution, and the runtime decision."
+      },
+      "title": "Protected-path domain logic"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-config-policy",
+      "plannedFilesToCreate": [
+        "tests/unit/resolvePolicyProtected.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/securityConfig.ts",
+        "src/domain/security/types.ts",
+        "src/domain/security/resolvePolicy.ts",
+        "phax.schema.json"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/securityConfig.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(security): add allowWriteProtected to security config and policy",
+        "body": "Add an optional security.filesystem.allowWriteProtected string array to the phax.json security schema, thread it through ResolvedSecurityConfig (default []) into the secure SecurityPolicy, and mirror it in phax.schema.json. This is the operator opt-in that scopes which protected path-prefixes a run may be granted to edit. Covered by config-resolution and policy-resolution unit tests."
+      },
+      "title": "Config field and security policy"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-app-wiring",
+      "plannedFilesToCreate": [
+        "tests/integration/protectedPathApprovals.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/backend.ts",
+        "src/app/executePlan.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/dryRun.ts",
+        "src/app/finalReport.ts"
+      ],
+      "commit": {
+        "subject": "feat(app): compute and transport per-phase protected-path approvals",
+        "body": "Compute each phase's approvedProtectedPaths from its planned files and the resolved allowWriteProtected prefixes, pass them through a new optional AgentRunOptions field to the backend, fail preflight when a phase declares a protected path the operator has not opted into, and record approvals in security.json. Covered by integration tests for the granted, uncovered, and non-protected cases."
+      },
+      "title": "Per-phase approvals, port, and preflight"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-04-claude-hook",
+      "plannedFilesToCreate": [
+        "src/schemas/claudeHookPayload.ts",
+        "src/cli/commands/approveProtectedPath.ts",
+        "src/infra/providers/protectedPathHookSettings.ts",
+        "tests/integration/claudeProtectedPathHook.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/main.ts",
+        "src/infra/providers/claudeCode.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/claudeArgs.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(claude): grant declared protected-path edits via a scoped PreToolUse hook",
+        "body": "Generate a PreToolUse approval hook scoped to a phase's approvedProtectedPaths and pass it to claude via --settings, so the agent can edit declared .claude/** files while the rest of the secure jail stays intact. Adds a stdin-payload schema, a thin hidden CLI hook command backed by the phase-01 domain decision, and a pure settings builder; the adapter writes the settings file and appends --settings only when approvals exist. Claude-only; codex/vibe unchanged. Covered by settings-builder, arg, and hook-decision tests."
+      },
+      "title": "Claude approval hook and `--settings` wiring"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-05-docs",
+      "plannedFilesToCreate": [
+        "docs/security/protected-path-edits.md"
+      ],
+      "plannedFilesToEdit": [
+        ".agents/skills/phax-planning/SKILL.md"
+      ],
+      "optionalFilesToEdit": [
+        ".claude/skills/phax-planning/SKILL.md"
+      ],
+      "commit": {
+        "subject": "docs(security): document scoped protected-path edit grants",
+        "body": "Document the protected-path approval feature: how declaring a .claude/** file in a phase plus a security.filesystem.allowWriteProtected opt-in in phax.json grants a scoped edit, why Claude Code's protected paths block headless acceptEdits, and the plan-declares/config-grants trust model. Updates the .agents phax-planning skill mirror and adds docs/security/protected-path-edits.md; the .claude mirror is a noted manual follow-up."
+      },
+      "title": "Documentation"
+    }
+  ]
+}

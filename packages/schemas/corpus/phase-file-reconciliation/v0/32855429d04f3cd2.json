@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/cli/commands/schema.ts",
+    "tests/unit/cli/schemaUpgrade.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/initProject.ts",
+    "src/app/loadConfig.ts",
+    "src/cli/main.ts",
+    "README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [
+    "tests/unit/upgradeConfigSchema.test.ts"
+  ],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "nx.json"
+  ],
+  "editedAsPlanned": [
+    "package.json",
+    ".gitignore"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "pnpm-lock.yaml"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

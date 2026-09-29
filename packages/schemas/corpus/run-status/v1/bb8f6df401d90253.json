@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "catalog-opus-5-5-gpt-6-sol-and-luna",
+  "runId": "catalog-opus-5-5-gpt-6-sol-and-luna-1790152173930",
+  "state": "review_open",
+  "createdAt": "2026-09-23T08:29:33.944Z",
+  "updatedAt": "2026-09-23T08:42:06.852Z",
+  "phasesCount": 3,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/2609230815-catalog-opus-5-5-gpt-6-sol-luna-plan.md"
+}

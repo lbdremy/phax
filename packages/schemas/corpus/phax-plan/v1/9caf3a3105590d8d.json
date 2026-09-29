@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "policy-driven-rulepack-distribution",
+    "title": "Policy-Driven Rulepack Distribution",
+    "requiredCommands": [],
+    "branch": "phax/policy-driven-rulepack-distribution"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-packages-and-resolution-core",
+      "plannedFilesToCreate": [
+        "rulepacks/boundaries/package.json",
+        "stackpacks/steme/package.json",
+        "stackpacks/steme/steme.stackpack.json",
+        "apps/steme/src/contracts/distribution.ts",
+        "apps/steme/src/core/ports/package-resolver-port.ts",
+        "apps/steme/src/adapters/package-resolver/node-package-resolver.ts",
+        "apps/steme/src/adapters/package-resolver/node-package-resolver.test.ts",
+        "apps/steme/src/core/policy/find-workspace.ts",
+        "apps/steme/src/core/policy/find-workspace.test.ts",
+        "apps/steme/src/core/policy/parse-workspace-manifest.ts",
+        "apps/steme/src/core/policy/parse-workspace-manifest.test.ts",
+        "apps/steme/src/core/policy/parse-stackpack.ts",
+        "apps/steme/src/core/policy/parse-stackpack.test.ts",
+        "apps/steme/src/core/policy/resolve-policy.ts",
+        "apps/steme/src/core/policy/resolve-policy.test.ts",
+        "apps/steme/src/cli/test-workspace.ts"
+      ],
+      "plannedFilesToEdit": [
+        "package.json",
+        "pnpm-lock.yaml",
+        "steme.workspace.json",
+        "apps/steme/src/contracts/index.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/core/composition/index.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): add steme packages and policy-resolution core, unwired",
+        "body": "Package the shipped rulepack as @steme-lab/rulepack-boundaries, create\n@steme-lab/stackpack-steme composing it (rulepacks as real npm\ndependencies), install the stackpack at the workspace root, and declare\nthe policy line in steme.workspace.json — all inert, nothing reads them\nyet. Add the policy-resolution machinery behind a PackageResolverPort\n(createRequire + realpath node adapter): workspace-manifest walk-up\ndiscovery, minimal workspace parse, Zod stackpack parse, and policy →\nordered rulepack refs. Integration tests prove resolution against the real\npnpm symlink layout and against the hand-built temp-workspace layout the\nE2E migration will use — retiring the riskiest unknown before the flip."
+      },
+      "title": "Packages, policy resolution core, and the temp-workspace proof"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-fable-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-policy-flip",
+      "plannedFilesToCreate": [
+        "apps/steme/src/cli/policy.e2e.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/core/modules/audit/capability.ts",
+        "apps/steme/src/core/modules/audit/capability.test.ts",
+        "apps/steme/src/core/composition/index.ts",
+        "apps/steme/src/cli/manifest-bindings.e2e.test.ts",
+        "apps/steme/src/cli/audit-harness.e2e.test.ts",
+        "apps/steme/src/cli/preflight-ordering.e2e.test.ts",
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/src/cli/test-workspace.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/core/evaluate/diagnostics.ts",
+        "apps/steme/src/contracts/distribution.ts",
+        "apps/steme/src/core/policy/resolve-policy.ts",
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/src/cli/self-audit.e2e.test.ts",
+        "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): load rules through the workspace policy; refuse STEME_RULEPACK",
+        "body": "The audit preflight's rulepack step now resolves the workspace policy —\nnearest steme.workspace.json above cwd, policy package via the resolver\nport, stackpack expansion in declared order — with the hardcoded default\npath deleted and a set STEME_RULEPACK refused with an actionable message\nrather than honored or ignored. Multiple rulepacks evaluate as an ordered\nunion with per-rule skill provenance, per-pack validation, and\nduplicate-rule-id rejection. All temp-rulepack fixtures migrate to\ntemporary workspaces exercising the real resolver; the non-override E2E\nsuites pass unmodified, pinning identical diagnostics and fingerprints\nthrough the policy path."
+      },
+      "title": "Policy becomes the sole rule source; the override is refused"
+    }
+  ]
+}

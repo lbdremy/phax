@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "opus-frontier-tiers",
+    "title": "Per-effort frontier tiers for the full Opus ladder",
+    "branch": "phax/opus-frontier-tiers"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Expand Opus tiers into a frontier ladder",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-01-frontier-ladder",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/routing/types.ts",
+        "src/schemas/modelRouting.ts",
+        "src/domain/routing/defaults.ts",
+        "tests/unit/routing/resolve.test.ts",
+        "tests/unit/routing/schemas.test.ts",
+        "tests/integration/routing.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/type/routing.ts",
+        "tests/unit/routing/sameFamilyPreservation.test.ts",
+        "tests/unit/telemetry/modelResolved.test.ts",
+        "tests/e2e/__snapshots__/semanticTrace.test.ts.snap"
+      ],
+      "commit": {
+        "subject": "feat(routing): split Opus band into per-effort frontier tiers",
+        "body": "Replace the coarse frontier/max/ultra tiers with a six-rung frontier ladder (frontier-low … frontier-ultra) so every claude-opus effort (low|medium|high|xhigh|max|ultracode) routes to its own tier. Set the codex-cli (gpt-5.5) relationship on each rung strictly from the reference routing artifact (equivalent at opus/low–xhigh, downgrade at opus/max, no peer at opus/ultracode), correcting the prior fallback/downgrade parity error. Mistral stays out of the Opus band per the artifact's keep_mistral_out_of_opus_tier policy. No new providers, families, relationships, or phase-type taxonomy."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Sync docs and skills",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-02-docs-sync",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        ".skills/model-routing.md",
+        "docs/model-routing.md"
+      ],
+      "optionalFilesToEdit": [
+        "README.md"
+      ],
+      "commit": {
+        "subject": "docs(routing): describe per-effort frontier tier ladder",
+        "body": "Update .skills/model-routing.md and docs/model-routing.md to document the six-rung frontier ladder (frontier-low … frontier-ultra) that replaced the coarse frontier/max/ultra tiers, including the routing-tier table and the Opus worked examples with the corrected gpt-5.5 parity relationships."
+      }
+    }
+  ]
+}

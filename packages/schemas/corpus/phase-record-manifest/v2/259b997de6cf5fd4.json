@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "runId": "skill-edit-grant-skill-docs-1790248307813",
+  "phaseId": "phase-01",
+  "shape": "full",
+  "sourceSha": "9c8127eeec3678df39fb12ff92c97b6cd8fcb0b5",
+  "model": "claude-sonnet-5",
+  "effort": "low",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 10,
+      "cacheCreationInputTokens": 29483,
+      "cacheReadInputTokens": 144898,
+      "outputTokens": 3682,
+      "totalCostUsd": 0.18375160000000001
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "product",
+    "structural"
+  ]
+}

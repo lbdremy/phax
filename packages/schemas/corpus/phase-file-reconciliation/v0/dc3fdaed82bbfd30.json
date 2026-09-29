@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/domain/reconciliation/explained.ts",
+    "tests/unit/reconciliation/explained.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/handoffGeneration.ts",
+    "src/app/reviewHandoff.ts",
+    "tests/integration/reviewHandoff.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/__snapshots__/finalReview.test.ts.snap"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

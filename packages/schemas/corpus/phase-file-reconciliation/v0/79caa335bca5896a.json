@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "apps/steme/src/contracts/rulepack.ts",
+    "apps/steme/src/core/rules/parse-rulepack.ts",
+    "apps/steme/src/core/rules/parse-rulepack.test.ts",
+    "apps/steme/src/cli/main.test.ts",
+    "rulepacks/boundaries/steme.rulepack.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "apps/steme/src/cli/audit-harness.e2e.test.ts",
+    "apps/steme/src/core/evaluate/diagnostics.ts"
+  ],
+  "optionalTouched": [
+    "apps/steme/src/core/evaluate/evaluate-rules.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "louloupapers",
+  "shortName": "louloupress-new-features",
+  "runId": "louloupress-new-features-1782392279042",
+  "state": "archived",
+  "createdAt": "2026-06-25T12:57:59.057Z",
+  "updatedAt": "2026-09-04T14:42:31.571Z",
+  "phasesCount": 6,
+  "gateProfileId": "full",
+  "stoppedReason": "phase_reset",
+  "lastError": "Security preflight failed: 2 mcp.allow entries do not resolve to a readable file.\nMissing: \"nx-mcp\", \"shadcn\"\nmcp.allow entries must be paths to MCP server config files (not server names)."
+}

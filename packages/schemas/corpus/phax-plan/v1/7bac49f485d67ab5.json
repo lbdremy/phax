@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "plan-12",
+    "title": "Plan 12 — Gate-first resume on gate exhaustion",
+    "branch": "phax/plan-12"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Add `gates_exhausted` phase state",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-gates-exhausted-state",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/status.ts",
+        "src/domain/state.ts",
+        "tests/unit/state.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/type/stateTransitions.ts"
+      ],
+      "commit": {
+        "subject": "feat(state): add non-terminal gates_exhausted phase state",
+        "body": "Add a gates_exhausted phase state to the persisted status schema and the\nhierarchical domain state as a non-terminal, attempt-carrying substate. This is\nthe parking state for a phase whose fix attempts are exhausted but which a human\ncan recover and resume. Covered by unit tests asserting non-terminality and\nstatus round-tripping."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Reducer: pause on exhaustion, lift on resume",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-02-reducer",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/events.ts",
+        "src/domain/effects.ts",
+        "src/domain/reducer.ts",
+        "tests/unit/reducer.test.ts",
+        "tests/integration/stateMachineContract.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/__snapshots__/stateMachineContract.test.ts.snap"
+      ],
+      "commit": {
+        "subject": "feat(reducer): pause run on gate exhaustion and lift it on resume",
+        "body": "Rework FixAttemptsExhausted to pause the run as a resumable gates_exhausted\nphase (writing resume instructions and emitting traces) instead of failing it,\nmirroring the rate-limit path. Lift a resumed gates_exhausted phase back to\nrunning so the gate loop's existing transitions apply. Enrich the\nFixAttemptsExhausted event and ResumeContext accordingly. Covered by reducer\nunit tests and the state-machine contract test."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Render gate-exhaustion resume instructions",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-resume-instructions",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/resumeInstructions.ts",
+        "src/app/effectRunner.ts",
+        "tests/unit/resume.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/eventAdapter.ts"
+      ],
+      "commit": {
+        "subject": "feat(resume): render resume instructions for gate exhaustion",
+        "body": "Map the gates_exhausted ResumeContext through the effect runner and render a\nresume-instructions body that explains the gate-first resume, the manual-fix\nworkflow, and the reset-phase escape hatch. Covered by a resume unit test."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "Gate loop: start attempt, fresh budget, exhaustion error",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-04-fix-loop",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/errors.ts",
+        "src/app/fixLoop.ts",
+        "tests/integration/fixLoop.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/executePlan.ts"
+      ],
+      "commit": {
+        "subject": "feat(fix-loop): resumable gate loop with start attempt and fresh budget",
+        "body": "Add a startAttempt index and a per-invocation fix budget to runGatesWithFixLoop\nso resume re-runs the gate first without clobbering prior attempt artifacts and\ngets a fresh maxFixAttempts budget. Emit an enriched FixAttemptsExhausted event\nand fail with a dedicated GateAttemptsExhaustedError so the caller can pause the\nrun. Covered by fix-loop integration tests including a startAttempt=1 regression."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "executePlan: skip agent on resume, pause on exhaustion",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-05-execute-plan",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts",
+        "tests/integration/executePlan.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/resolveRunInfo.ts",
+        "src/domain/errors.ts"
+      ],
+      "commit": {
+        "subject": "feat(execute-plan): gate-first resume for exhausted phases",
+        "body": "On resume of a gates_exhausted phase, skip the implementation agent and re-enter\nthe gate loop at the next attempt index using the persisted Claude session,\nfailing loudly toward reset-phase when the session is lost. Catch\nGateAttemptsExhaustedError to pause the run as resumable instead of failing it.\nCovered by executePlan integration tests for the pass, re-exhaust, and\nlost-session cases."
+      }
+    },
+    {
+      "id": "phase-06",
+      "title": "Resume selection wording and end-to-end",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-06-resume-e2e",
+      "plannedFilesToCreate": [
+        "tests/e2e/gateExhaustionResume.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/resume.ts",
+        "tests/unit/resume.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/e2e/helpers"
+      ],
+      "commit": {
+        "subject": "test(resume): end-to-end gate-first resume after exhaustion",
+        "body": "Confirm resume selection accepts an interrupted run parked in gates_exhausted and\nupdate the failed-run refusal to point at phax reset-phase. Add an e2e test\ncovering pause-on-exhaustion through gate-first resume committing without a fresh\nagent invocation."
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-07",
+  "phaseIndex": 6,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-01T17:02:03.399Z",
+  "updatedAt": "2026-06-01T17:12:00.541Z",
+  "branchName": "phax/model-routing--phase-07",
+  "worktreePath": "~/.phax/worktrees/model-routing/phase-07",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "20b82f0c4f3202c327e71619f94a8605d9516dd2"
+}

@@ -1,0 +1,28 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "apps/steme/package.json",
+    "apps/steme/tsconfig.json",
+    "apps/steme/vitest.config.ts",
+    "apps/steme/steme.package.json",
+    "apps/steme/README.md",
+    "apps/steme/src/cli/index.ts",
+    "apps/steme/src/core/index.ts",
+    "apps/steme/src/contracts/index.ts",
+    "apps/steme/src/adapters/index.ts",
+    "apps/steme/src/utils/index.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "pnpm-lock.yaml"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

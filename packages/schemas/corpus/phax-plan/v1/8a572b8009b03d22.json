@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "public-surface-imports",
+    "title": "Public Surface Imports",
+    "requiredCommands": [],
+    "branch": "phax/public-surface-imports"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-capability-dispatch",
+      "plannedFilesToCreate": [
+        "apps/steme/src/contracts/capabilities.ts",
+        "apps/steme/src/core/evaluate/capabilities.ts",
+        "apps/steme/src/core/evaluate/rules/forbid-scope-import.ts",
+        "apps/steme/src/core/modules/audit/build-capabilities.ts",
+        "apps/steme/src/adapters/package-resolver/node-package-resolver.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/contracts/index.ts",
+        "apps/steme/src/contracts/manifest.ts",
+        "apps/steme/src/core/rules/inference.ts",
+        "apps/steme/src/core/rules/inference.test.ts",
+        "apps/steme/src/core/evaluate/evaluate-rules.ts",
+        "apps/steme/src/core/evaluate/diagnostics.ts",
+        "apps/steme/src/core/fingerprint.ts",
+        "apps/steme/src/core/modules/audit/capability.ts",
+        "apps/steme/src/core/modules/audit/capability.test.ts",
+        "apps/steme/src/core/ports/package-resolver-port.ts",
+        "apps/steme/src/adapters/package-resolver/node-package-resolver.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/core/index.ts",
+        "apps/steme/src/core/manifest/parse-manifest.ts",
+        "apps/steme/src/core/evaluate/evaluate-rules.test.ts",
+        "apps/steme/src/core/evaluate/diagnostics.test.ts",
+        "apps/steme/src/core/fingerprint.test.ts",
+        "apps/steme/src/core/modules/doctrine/capability.test.ts",
+        "apps/steme/src/core/policy/resolve-policy.test.ts",
+        "apps/steme/src/core/policy/load-active-rulepacks.test.ts"
+      ],
+      "commit": {
+        "subject": "refactor(steme): dispatch rule evaluation by type over inferred analysis capabilities",
+        "body": "Move the forbidScopeImport evaluator into its own module behind a\ntype-dispatching evaluateRules that receives a typed AnalysisCapabilities\nrecord. The audit preflight now builds the import graph as its last step\nand the capabilities each active rule type infers; execute only evaluates.\nViolation becomes a discriminated union with the scope-import member\nunchanged, so fingerprints and diagnostics are byte-identical. The\npackage-resolver port gains resolvePackageDir (exports-map independent)\nfor the next phase. All existing suites pass unmodified."
+      },
+      "title": "Rule-type dispatch and analysis capabilities"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-public-surface-rule",
+      "plannedFilesToCreate": [
+        "apps/steme/src/core/evaluate/rules/enforce-public-surface-imports.ts",
+        "apps/steme/src/core/evaluate/rules/enforce-public-surface-imports.test.ts",
+        "apps/steme/src/core/modules/audit/build-capabilities.test.ts",
+        "apps/steme/src/cli/public-surface.e2e.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/contracts/rulepack.ts",
+        "apps/steme/src/core/rules/parse-rulepack.ts",
+        "apps/steme/src/core/rules/parse-rulepack.test.ts",
+        "apps/steme/src/core/rules/inference.ts",
+        "apps/steme/src/core/rules/inference.test.ts",
+        "apps/steme/src/core/policy/load-active-rulepacks.ts",
+        "apps/steme/src/core/modules/audit/build-capabilities.ts",
+        "apps/steme/src/core/modules/audit/capability.ts",
+        "apps/steme/src/core/evaluate/evaluate-rules.ts",
+        "apps/steme/src/core/fingerprint.ts",
+        "apps/steme/src/core/fingerprint.test.ts",
+        "apps/steme/src/core/evaluate/diagnostics.ts",
+        "apps/steme/src/core/modules/doctrine/capability.ts",
+        "apps/steme/src/core/modules/doctrine/capability.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/core/evaluate/evaluate-rules.test.ts",
+        "apps/steme/src/core/evaluate/diagnostics.test.ts",
+        "apps/steme/src/core/modules/audit/capability.test.ts",
+        "apps/steme/src/cli/test-workspace.ts",
+        "apps/steme/src/cli/doctrine.e2e.test.ts",
+        "apps/steme/src/contracts/index.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): add enforcePublicSurfaceImports rule type",
+        "body": "A second declarative rule type. A bare import that resolves, from the\nimporting file, to a sibling unit inside the governing workspace must name\none of the sibling's declared publicSurface entries, and the importing\nfile's scope must be in that surface's consumableBy; apps and packages\nwithout a surface are never consumable; third-party packages are ignored;\nsibling manifests are read lazily and an invalid one refuses the audit at\nexit 2. Fingerprint v1 over rule, file, package, subpath. Doctrine lists\nthe rule for every scoped path. Proven red-first by public-surface.e2e;\nexisting suites unmodified."
+      },
+      "title": "`enforcePublicSurfaceImports` end to end"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-lab-rule",
+      "plannedFilesToCreate": [
+        "rulepacks/boundaries/skills/public-surface-imports/SKILL.md"
+      ],
+      "plannedFilesToEdit": [
+        "rulepacks/boundaries/steme.rulepack.json",
+        "apps/steme/src/cli/self-audit.e2e.test.ts",
+        "docs/CONVENTIONS.md"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/cli/audit-harness.e2e.test.ts",
+        "apps/steme/src/cli/test-workspace.ts",
+        "apps/steme/src/cli/doctrine-check.e2e.test.ts",
+        "apps/sandbox/steme.package.json",
+        "packages/example-utility/steme.package.json"
+      ],
+      "commit": {
+        "subject": "feat(rulepack-boundaries): add PACKAGE_SURFACE_001 public-surface import rule",
+        "body": "Ship enforcePublicSurfaceImports in the lab's own policy with its skill,\nprove the self-governing workspace flags a seeded deep import and passes\nonce the import goes through the declared surface, and document the\nenforcement next to the publicSurface convention. The lab audits clean."
+      },
+      "title": "Ship `PACKAGE_SURFACE_001` in the lab"
+    }
+  ]
+}

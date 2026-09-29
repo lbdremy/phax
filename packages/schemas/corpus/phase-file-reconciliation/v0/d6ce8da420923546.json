@@ -1,0 +1,28 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "apps/steme/src/core/fingerprint.ts",
+    "apps/steme/src/core/fingerprint.test.ts",
+    "apps/steme/src/core/evaluate/diagnostics.ts",
+    "apps/steme/src/core/baseline/classify.ts",
+    "apps/steme/src/core/baseline/classify.test.ts",
+    "apps/steme/src/core/baseline/store.ts",
+    "apps/steme/src/core/baseline/store.test.ts",
+    "apps/steme/src/core/modules/governance/capability.ts",
+    "apps/steme/src/cli/program.ts",
+    "apps/steme/src/cli/commands/baseline.ts",
+    "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts",
+    "apps/steme/src/cli/preflight-ordering.e2e.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

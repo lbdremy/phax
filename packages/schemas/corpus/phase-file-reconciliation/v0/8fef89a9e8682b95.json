@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-11",
+  "createdAsPlanned": [
+    ".github/workflows/ci.yml"
+  ],
+  "editedAsPlanned": [
+    "README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

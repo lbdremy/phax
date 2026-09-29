@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "review_open",
+  "model": "claude-fable-5",
+  "effort": "high",
+  "createdAt": "2026-07-20T15:23:45.184Z",
+  "updatedAt": "2026-07-20T15:32:38.141Z",
+  "branchName": "phax/manifest-driven-bindings--phase-03",
+  "worktreePath": "~/.phax/worktrees/steme-lab.manifest-driven-bindings/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "cbb6e2cf6487d89dd15e9ae894ea92b6119b16c2"
+}

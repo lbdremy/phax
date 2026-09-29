@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "apps/steme/src/core/evaluate/evaluate-rules.ts",
+    "apps/steme/src/core/evaluate/evaluate-rules.test.ts",
+    "apps/steme/src/core/evaluate/diagnostics.ts",
+    "apps/steme/src/core/evaluate/diagnostics.test.ts",
+    "apps/steme/src/contracts/diagnostic.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/contracts/index.ts",
+    "apps/steme/src/core/index.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

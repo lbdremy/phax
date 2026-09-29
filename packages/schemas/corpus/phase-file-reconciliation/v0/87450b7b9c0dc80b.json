@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/cli/commands/resume.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "tests/unit/resume.test.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [
+    "tests/unit/cli/resume.test.ts"
+  ],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

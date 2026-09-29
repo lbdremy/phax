@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "usage-cli",
+  "runId": "usage-cli-1781862718121",
+  "state": "archived",
+  "createdAt": "2026-06-19T09:51:58.139Z",
+  "updatedAt": "2026-09-03T07:49:11.482Z",
+  "phasesCount": 7,
+  "gateProfileId": "full",
+  "stoppedReason": "gates_exhausted",
+  "lastError": "Gate failed: pnpm test"
+}

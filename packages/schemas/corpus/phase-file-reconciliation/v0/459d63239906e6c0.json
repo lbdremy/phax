@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "tests/integration/runCarriesCompletion.test.ts",
+    "tests/integration/resumeFromCompletion.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/executePlan.ts",
+    "src/cli/commands/run.ts",
+    "tests/unit/cli/run.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/runFolder.ts",
+    "src/cli/commands/resume.ts",
+    "src/schemas/status.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

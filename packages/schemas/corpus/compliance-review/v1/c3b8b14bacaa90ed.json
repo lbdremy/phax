@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases delivered their core objectives. Phase-01 substituted a hand-rolled line tokenizer for the planned mdast library (sandbox blocked pnpm add), leaving package.json and pnpm-lock.yaml unmodified; the functional contract — same ExtractedPhaxPlan shape decoded through the strict schema — is fully preserved and covered by 8 unit tests. Phase-02 wired the deterministic-first/LLM-fallback path with all planned flag interactions and 5 unit tests; no deviations. Phase-03 rewrote the hello-world example plan and added the regression test, but .claude/skills/phax-planning/SKILL.md was not edited because the permission prompt was not approved; the exact prose and insertion point are documented in the handoff for manual follow-up.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Core objective delivered: extractPlanDeterministic is exported from src/domain/plan/parsePlanMarkdown.ts, is pure, decodes through ExtractedPhaxPlanSchema with onExcessProperty error, and returns Either.left with phase- and field-scoped messages on all failure paths."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "package.json and pnpm-lock.yaml were not edited. Justified: the agent sandbox blocked all forms of pnpm add / pnpm install. A hand-rolled tokenizer replaces mdast; no mdast imports exist in the module. Deviation is documented in the phase-01 handoff with explicit reason."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Technical approach deviation: mdast-util-from-markdown was not used; a bespoke tokenize() function is used instead. The functional contract (same ExtractedPhaxPlan output, same schema decode) is preserved. Tokenizer is intentionally minimal — non-conforming markdown falls through to the LLM fallback by design."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "8 unit tests present at tests/unit/parsePlanMarkdown.test.ts, matching the plan's test strategy: whole-object assertion, (none) handling, backtick-wrapped subject unwrap, dash separators, missing model, missing anchor, missing planned-file section, invalid effort."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No app wiring or example/skill documentation changes. Excluded scope respected."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Function is pure; reuses existing ExtractedPhaxPlanSchema, ExtractedPhaxPlan, and PlanValidationError. No new ports introduced."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'feat(plan): add mdast-based deterministic plan extractor' matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers exact export signature and module path, anchor format, PlanValidationError.message structure, and the package.json/pnpm-lock.yaml deviation with reason."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Objective fully delivered. loadOrExtractPlan calls extractPlanDeterministic before the cache; Either.right returns immediately with fromCache: false, no cache or backend access; Either.left falls through to the existing path and appends the canonical fallback warning."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All matched. src/app/extractPlan.ts (optional) not modified — no change was needed."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "5 unit tests at tests/unit/loadOrExtractPlan.test.ts using makeFakeFileSystem and an inline BackendOps call-counter. All five scenarios from the plan's test strategy covered: conforming (backend not called, fromCache false), conforming shape, non-conforming (backend called once, warning present), --no-extract + conforming, --no-extract + non-conforming + no cache."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No parser changes, no example or skill documentation changes. Excluded scope respected."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "LLM path still routes through extractPlanLlm; Backend port contract unchanged. LoadOrExtractResult shape unchanged — warnings field reused as planned."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'feat(app): try deterministic plan extraction before the LLM' matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers the canonical fallback warning string verbatim, --refresh and --no-extract interactions with the deterministic path, that extractPlan.ts was not modified, and confirms the full gate is green."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "Partially delivered. examples/hello-world/plan.md was rewritten to canonical format and the regression test was added, but .claude/skills/phax-planning/SKILL.md was not edited — the permission prompt was not approved during execution. Deterministic-first behavior, run.title/shortName convention, and fallback warning string are not documented in the skill."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": ".claude/skills/phax-planning/SKILL.md is listed as missing in the global reconciliation. Reason documented in handoff: permission prompt not approved. Exact prose and insertion point are provided verbatim in the handoff for manual follow-up."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "4 regression tests at tests/unit/examplePlanDeterministic.test.ts: parses without LLM, phase ids, anchors, requiredCommands. Matches the plan's test strategy."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No parser changes, no wiring changes, no e2e fixture touched. Excluded scope respected."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'docs(plan): canonicalize hello-world example and document deterministic extraction' matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff clearly documents the SKILL.md deviation, its cause, the exact insertion point, and the verbatim prose to add. Fulfills the expected handoff content despite the missing delivery."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    ".claude/skills/phax-planning/SKILL.md was not edited in phase-03 (permission prompt not approved). The deterministic-first/LLM-fallback documentation, run.title/shortName convention, and fallback warning string need to be added manually. The exact prose and insertion point are in the phase-03 handoff.",
+    "mdast dependencies (mdast-util-from-markdown, mdast-util-to-string, @types/mdast) were never added to package.json. The hand-rolled tokenizer is the sole implementation. If the tokenizer proves insufficient for edge-case plan formats, this is a known open item.",
+    "The tokenizer does not support setext headings or lazy continuations — non-conforming plan formats fall through to the LLM fallback by design, but this behavior is not explicitly tested."
+  ],
+  "pointers": []
+}

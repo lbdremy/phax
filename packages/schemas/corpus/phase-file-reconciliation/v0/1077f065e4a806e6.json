@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "apps/steme/src/contracts/rulepack.ts",
+    "apps/steme/src/core/rules/parse-rulepack.ts",
+    "apps/steme/src/core/rules/parse-rulepack.test.ts",
+    "apps/steme/src/core/rules/inference.ts",
+    "apps/steme/src/core/rules/inference.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/contracts/index.ts",
+    "apps/steme/src/core/index.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

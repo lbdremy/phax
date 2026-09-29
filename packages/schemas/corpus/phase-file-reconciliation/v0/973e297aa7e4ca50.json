@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "apps/steme/src/core/composition/index.ts",
+    "apps/steme/src/core/composition/index.test.ts",
+    "apps/steme/src/core/modules/audit/capability.ts",
+    "apps/steme/src/cli/self-audit.e2e.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/cli/program.ts",
+    "apps/steme/src/cli/commands/governance.ts",
+    "apps/steme/src/cli/audit-harness.e2e.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [
+    "apps/steme/src/cli/audit-pipeline.ts"
+  ],
+  "renames": [],
+  "hasDeviations": true
+}

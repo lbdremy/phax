@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-05",
+  "phaseIndex": 4,
+  "state": "review_open",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-08-10T10:42:02.254Z",
+  "updatedAt": "2026-08-10T10:55:42.483Z",
+  "branchName": "phax/artifact-lifecycle-status-2--phase-05",
+  "worktreePath": "~/.phax/worktrees/phax.artifact-lifecycle-status-2/phase-05",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "de4e1ecfb8d8907f655e3f2291f92cf233488be6"
+}

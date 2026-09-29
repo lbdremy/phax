@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "gate-profile-as-attributed-steps-implementation-plan-2",
+    "title": "Gate Profile as Attributed Steps — implementation plan",
+    "requiredCommands": [],
+    "branch": "phax/gate-profile-as-attributed-steps-implementation-plan-2"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-attributed-step-schema",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/app/gates.ts",
+        "src/app/executePlan.ts",
+        "src/app/fixLoop.ts",
+        "src/app/eventAdapter.ts",
+        "src/app/dryRun.ts",
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts",
+        "src/domain/init/buildConfig.ts",
+        "src/app/initProject.ts",
+        "phax.json",
+        "examples/hello-world/phax.json",
+        "tests/e2e/fixtures/minimal-repo/phax.json",
+        "phax.schema.json",
+        "phax.user.schema.json",
+        "tests/unit/gateProfile.test.ts",
+        "tests/integration/gates.test.ts",
+        "tests/integration/fixLoop.test.ts",
+        "tests/integration/eventAdapter.test.ts",
+        "tests/integration/executePlan.test.ts",
+        "tests/unit/dryRun.test.ts",
+        "tests/unit/cli/run.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/initWizard.ts",
+        "src/app/promptGeneration.ts",
+        "src/domain/init/buildConfig.test.ts",
+        "tests/unit/architecturalGuards.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): model gate profiles as attributed steps",
+        "body": "Replace the flat command-string gate profile with a named set of attributed\nsteps { command, surface, firing } and thread GateStep objects from config\nresolution through the gate runner (executing step.command). Surface is a\nclosed enum (local | structural | product). Remove the fast/full depth-scalar\nselection and reject the old flat-array form at validation, naming the\nprofile — no back-compat shim, per phax schema policy. Behavior is otherwise\nunchanged: surface and firing are carried but not yet acted upon. Migrate the\ndogfood config, example, and e2e fixture to the new shape and regenerate the\nJSON schemas."
+      },
+      "title": "Attributed gate-step schema and profile resolution"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-firing-scheduling",
+      "plannedFilesToCreate": [
+        "src/domain/gate/selectSteps.ts",
+        "tests/unit/selectGateSteps.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts",
+        "tests/integration/executePlan.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/promptGeneration.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): schedule steps by firing (every-phase vs terminal)",
+        "body": "Add a pure selectGateSteps helper and apply it in the phase loop so only\nevery-phase steps run before the terminal phase and terminal steps additionally\nrun at the final phase gate. The security preflight continues to cover every\nstep's command, since terminal steps still execute at run end. Surface remains\npure attribution."
+      },
+      "title": "Firing: every-phase vs terminal scheduling"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-attribution-record",
+      "plannedFilesToCreate": [
+        "src/schemas/gateAttribution.ts",
+        "tests/unit/gateAttribution.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/gates.ts",
+        "src/app/fixLoop.ts",
+        "src/app/eventAdapter.ts",
+        "tests/integration/gates.test.ts",
+        "tests/integration/fixLoop.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/eventAdapter.test.ts",
+        "src/app/executePlan.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): record per-phase gate attribution",
+        "body": "Record, after each phase gate, which steps ran with their surface and pass/fail\nresult in a gate-attribution.json under the phase folder. runGates accumulates a\nresult per executed step and writes the record on both the success and failure\npaths, preserving fail-fast semantics (steps after the first failure are not\nrun and not recorded). Surface is copied verbatim and never branched on. Adds\nthe GateAttribution schema; the artifact automatically rides the phase's run\nrecord."
+      },
+      "title": "Per-phase attribution record"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-run-end-surfaces",
+      "plannedFilesToCreate": [
+        "src/domain/gate/verifiedSurfaces.ts",
+        "src/app/gateAttribution.ts",
+        "tests/unit/verifiedSurfaces.test.ts",
+        "tests/unit/gateAttribution.reader.test.ts",
+        "tests/integration/finalReport.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/finalReport.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/executePlan.ts",
+        "src/app/reviewCode.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): report verified surfaces at run end",
+        "body": "Aggregate the per-phase gate attribution records into the set of surfaces\nverified during the run and render it in the final report's run summary. A\nsurface counts as verified only when every step of it that ran passed; a run\nthat exercised no surfaces renders an explicit empty state so unverified\nsurfaces are visible rather than hidden. The per-record derivation is a pure\ndomain helper reused by the record manifest in phase-05."
+      },
+      "title": "Run-end surface legibility"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-05-record-surfaces",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/runRecord.ts",
+        "src/domain/records/assemble.ts",
+        "src/app/writeRecord.ts",
+        "src/app/recordsList.ts",
+        "src/app/recordsExplain.ts",
+        "tests/unit/runRecord.test.ts",
+        "tests/unit/recordsAssemble.test.ts",
+        "tests/integration/writeRecord.test.ts",
+        "tests/integration/recordsExplain.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/recordsPush.test.ts",
+        "src/app/executePlan.ts"
+      ],
+      "commit": {
+        "subject": "feat(records): name verified surfaces in the phase record manifest",
+        "body": "Bump the run-record manifest to version 2 with a required verifiedSurfaces\nfield derived from the phase's gate-attribution.json at write time, using the\nsame verified-surface semantics as the final report (every executed step of\nthe surface passed). The attribution artifact itself already rides the record;\nthe manifest field makes surface coverage queryable across runs without\nopening artifacts. Records list and explain render the new field."
+      },
+      "title": "Verified surfaces in the run record"
+    },
+    {
+      "id": "phase-06",
+      "model": "claude-sonnet-5",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-06-docs",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "README.md",
+        "docs/cli/reference.md"
+      ],
+      "optionalFilesToEdit": [
+        "CLAUDE.md",
+        "docs/security.md"
+      ],
+      "commit": {
+        "subject": "docs(gate): document attributed gate-step profiles",
+        "body": "Update the README and CLI reference to describe gate profiles as attributed\nsteps carrying surface (closed enum) and firing, the every-phase vs terminal\nscheduling, per-phase attribution, run-end surface legibility, the verified\nsurfaces in record manifests, and the removal of the fast/full depth\nconvention."
+      },
+      "title": "Documentation and reference"
+    }
+  ]
+}

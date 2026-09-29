@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "apps/steme/src/contracts/baseline.ts",
+    "apps/steme/src/core/baseline/store.ts",
+    "apps/steme/src/core/baseline/store.test.ts",
+    "apps/steme/src/core/baseline/classify.ts",
+    "apps/steme/src/core/baseline/classify.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/contracts/index.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

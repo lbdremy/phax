@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "handoff",
+    "title": "Make the agent actually justify file-plan deviations, and surface the ones it skips",
+    "requiredCommands": [],
+    "branch": "phax/handoff"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-reorder-inject",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/reconcilePhaseFiles.ts",
+        "src/app/executePlan.ts",
+        "src/app/handoffGeneration.ts",
+        "src/app/handoffGuidance.ts",
+        "tests/integration/executePlan.test.ts",
+        "tests/integration/reconciliation.test.ts",
+        "tests/integration/eventAdapter.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/handoffGuidance.test.ts",
+        "tests/integration/perPhaseBranch.test.ts"
+      ],
+      "commit": {
+        "subject": "fix(handoff): inject computed deviations into the handoff prompt",
+        "body": "Reorder the per-phase pipeline to commit -> reconcile -> handoff so the file reconciliation is computed before the handoff prompt is built, and render the concrete list of deviating files into that prompt. Previously the handoff ran before reconciliation, so the agent was asked to justify deviations that had not been computed yet and routinely justified nothing. reconcilePhaseFiles now returns the ReconciliationResult for the handoff step to consume."
+      },
+      "title": "Reorder so reconciliation precedes the handoff and inject deviations into the prompt"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-surface-unexplained",
+      "plannedFilesToCreate": [
+        "src/domain/reconciliation/explained.ts",
+        "tests/unit/reconciliation/explained.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/handoffGeneration.ts",
+        "src/app/reviewHandoff.ts",
+        "tests/integration/reviewHandoff.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/executePlan.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(handoff): surface file-plan deviations left unexplained",
+        "body": "Add a pure domain helper that finds deviating files a handoff did not mention, and surface them non-blockingly: a warning while the run executes and a \"Deviations not explained in any handoff\" section in the run review handoff. The run never fails on a missing justification, consistent with fileReconciliation having no fail mode."
+      },
+      "title": "Detect and surface deviations left unexplained in the handoff"
+    }
+  ]
+}

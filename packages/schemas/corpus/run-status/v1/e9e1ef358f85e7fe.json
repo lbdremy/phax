@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "model-catalog-and-equivalence-routing-2",
+  "runId": "model-catalog-and-equivalence-routing-2-1783691464241",
+  "state": "archived",
+  "createdAt": "2026-07-10T13:51:04.257Z",
+  "updatedAt": "2026-09-03T07:46:54.143Z",
+  "phasesCount": 4,
+  "gateProfileId": "full",
+  "stoppedReason": "rate_limited",
+  "lastError": "Claude Code stopped: rate limit hit."
+}

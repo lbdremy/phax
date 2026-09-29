@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-25T13:29:34.765Z",
+  "updatedAt": "2026-06-25T13:31:33.229Z",
+  "branchName": "phax/steme-lab--phase-02",
+  "worktreePath": "~/.phax/worktrees/steme-lab.steme-lab/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "dd31561fecb4ced29ad36db47721ad6e49479e48"
+}

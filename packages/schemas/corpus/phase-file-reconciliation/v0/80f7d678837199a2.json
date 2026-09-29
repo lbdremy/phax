@@ -1,0 +1,39 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "packages/schemas/src/formats/recordTimeline.ts",
+    "packages/schemas/src/history/gate-attribution/v0.ts",
+    "packages/schemas/src/history/phase-file-reconciliation/v0.ts",
+    "packages/schemas/src/history/gate-diagnostics/v0.ts",
+    "packages/schemas/src/history/gate-pending/v0.ts",
+    "tests/unit/schemasPackage/recordTimeline.test.ts",
+    "tests/unit/schemasPackage/fixtures/gate-attribution/v0.json",
+    "tests/unit/schemasPackage/fixtures/phase-file-reconciliation/v0.json",
+    "tests/unit/schemasPackage/fixtures/record-timeline/record.json",
+    "tests/unit/schemasPackage/fixtures/record-timeline/gate-attribution.json",
+    "tests/unit/schemasPackage/fixtures/record-timeline/file-reconciliation.json"
+  ],
+  "editedAsPlanned": [
+    "packages/schemas/src/shapes.ts",
+    "packages/schemas/src/index.ts",
+    "packages/schemas/history.lock.json",
+    "tests/unit/schemasPackage/shapes.test.ts",
+    "tests/unit/schemasPackage/parity.test.ts",
+    "tests/unit/schemasPackage/exports.test.ts",
+    "tests/unit/schemasPackage/frozenHistory.test.ts",
+    "tests/unit/schemasPackage/parseDocument.test.ts",
+    "tests/type/schemasPackage.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "packages/schemas/src/document.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

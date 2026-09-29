@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "verdict": "conformant",
+  "summary": "All three phases delivered their stated objectives without unjustified deviations. Phase-01 migrated the CLI to Commander with correct exit-contract mapping and two new help/version tests. Phase-02 added the --usage meta flag piping the KDL spec to stdout. Phase-03 created the generation script, committed all four artifacts, added two package scripts, and wired a Vitest staleness test into pnpm test. The only files touched beyond the phase-level planned lists were pnpm-lock.yaml in phases 01 and 02, which both plan sections explicitly listed as optional expected edits.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "pnpm-lock.yaml was updated in this phase. It is listed under 'Optional files that may be edited' in the phase plan and confirmed in the handoff; the reconciliation tool classifies it as unplanned because it treats optional separately from planned, but no deviation is present."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "pnpm-lock.yaml was updated in this phase. Same rationale as phase-01: explicitly listed as an optional anticipated edit."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "The plan's 'expected shape' for usage subcommands was marked 'to verify not assume'. The implementation found two differences from the expected shape: the completion subcommand requires a bin-name positional ('steme'), and the markdown subcommand is 'markdown' (not 'md') and requires --out-file with no stdout mode. Both were adapted correctly and documented in the handoff, which is exactly the intended behaviour of that plan note."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "usage binary version pinning: committed artifacts were generated with usage-cli 3.5.2. A different local usage version could produce different output and flap the staleness test. No automated version check exists in the script or test; consider documenting the pin in apps/steme or adding a version assertion.",
+    "@usage-spec/commander@1.1.0 bundles its own commander@^14 while the program object is built with commander@15. The handoff confirms interface compatibility, but the cross-major interop is not type-checked. Monitor if either package is upgraded."
+  ],
+  "pointers": []
+}

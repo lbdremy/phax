@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "apps/steme/src/contracts/doctrine.ts",
+    "apps/steme/src/core/modules/doctrine/capability.ts",
+    "apps/steme/src/core/modules/doctrine/capability.test.ts",
+    "apps/steme/src/cli/commands/doctrine.ts",
+    "apps/steme/src/cli/render-doctrine.ts",
+    "apps/steme/src/cli/doctrine.e2e.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/contracts/index.ts",
+    "apps/steme/src/cli/program.ts",
+    "apps/steme/steme.usage.kdl",
+    "apps/steme/docs/cli.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

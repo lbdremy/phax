@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-05",
+  "phaseIndex": 4,
+  "state": "cleaned_up",
+  "model": "claude-opus-4-8",
+  "effort": "high",
+  "createdAt": "2026-06-10T09:02:27.309Z",
+  "updatedAt": "2026-06-10T12:49:36.565Z",
+  "branchName": "phax/gate-first-resume--phase-05",
+  "worktreePath": "~/.phax/worktrees/gate-first-resume/phase-05",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "451318d9a75cfc3bc1c17485254c525579a8661e"
+}

@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "src/cli/commands/completions.ts",
+    "tests/integration/completions.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/program.ts",
+    "phax.usage.kdl",
+    "docs/cli/reference.md",
+    "README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/cliProgram.test.ts",
+    "tests/unit/architecturalGuards.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

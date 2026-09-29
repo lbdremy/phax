@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-04",
+  "phaseIndex": 3,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "high",
+  "createdAt": "2026-07-15T13:26:08.399Z",
+  "updatedAt": "2026-07-15T13:40:41.274Z",
+  "branchName": "phax/steme-audit-baseline-and-drift-governance--phase-04",
+  "worktreePath": "~/.phax/worktrees/steme-lab.steme-audit-baseline-and-drift-governance/phase-04",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "492610c6ee92bcaeaf97742bc82df600c59af604"
+}

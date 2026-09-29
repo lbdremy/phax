@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "deno.json"
+  ],
+  "editedAsPlanned": [
+    "package.json",
+    "phax.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

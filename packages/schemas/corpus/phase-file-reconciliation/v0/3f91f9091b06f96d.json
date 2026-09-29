@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "rulepacks/boundaries/skills/public-surface-imports/SKILL.md"
+  ],
+  "editedAsPlanned": [
+    "rulepacks/boundaries/steme.rulepack.json",
+    "apps/steme/src/cli/self-audit.e2e.test.ts",
+    "docs/CONVENTIONS.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "apps/steme/src/cli/audit-harness.e2e.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

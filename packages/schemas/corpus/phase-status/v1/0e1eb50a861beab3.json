@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-5",
+  "effort": "high",
+  "createdAt": "2026-07-22T10:43:37.156Z",
+  "updatedAt": "2026-07-22T10:55:41.099Z",
+  "branchName": "phax/policy-driven-rulepack-distribution--phase-01",
+  "worktreePath": "~/.phax/worktrees/steme-lab.policy-driven-rulepack-distribution/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "7344abad9b123583b721dda2552f191b47fb284c"
+}

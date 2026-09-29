@@ -1,0 +1,65 @@
+{
+  "phase": "phase-02",
+  "steps": [
+    {
+      "command": "pnpm format",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm typecheck",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm test:type",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm lint",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm format:check",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm test",
+      "surface": "local",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm knip",
+      "surface": "structural",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm audit:architecture",
+      "surface": "structural",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm gen:model-catalog --check",
+      "surface": "structural",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm build",
+      "surface": "product",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm deno:smoke",
+      "surface": "product",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm deno:smoke-binary",
+      "surface": "product",
+      "result": "pass"
+    }
+  ]
+}

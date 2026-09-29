@@ -1,0 +1,22 @@
+{
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/events.ts",
+    "src/domain/effects.ts",
+    "src/domain/reducer.ts",
+    "tests/unit/reducer.test.ts",
+    "tests/integration/stateMachineContract.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/fixLoop.ts",
+    "tests/integration/fixLoop.test.ts",
+    "tests/unit/events.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-06",
+  "phaseIndex": 5,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "high",
+  "createdAt": "2026-07-10T11:58:37.328Z",
+  "updatedAt": "2026-07-10T12:05:49.355Z",
+  "branchName": "phax/plan-02-steme-audit-walking-skeleton-phax-run--phase-06",
+  "worktreePath": "~/.phax/worktrees/steme-lab.plan-02-steme-audit-walking-skeleton-phax-run/phase-06",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "9635e352db1dbdbe82f2de270ede59f8ec0b99d3"
+}

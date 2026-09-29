@@ -1,0 +1,15 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "tests/unit/cli/enterPhase.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All four phases delivered their stated objectives. Phase-01 introduced FileSystemPort and ImportGraphPort with fully-tested adapters; the only deviation was a pnpm-lock.yaml touch (unavoidable) and a test-fixture substitution for the ImportGraph Err path (oxc-parser does not throw on malformed syntax). Phase-02 migrated parseRulepack to Result and incidentally fixed a pre-existing libraries/result module-resolution bug that only surfaced once a raw-node code path began importing the package. Phase-03 built the composition root and audit capability, correctly diverging from the plan's prose instruction to import from core/composition in cli/ — SURFACE_COMPOSITION_001 forbids that import with no exception; the capability is the sanctioned seam, as the plan's own Boundary Contracts section states. Phase-04 moved baseline I/O behind a governance capability, with the same justified wiring deviation for core/composition/index.ts and a minor over-statement in the commit body regarding node:fs usage in usageSpec.ts. Every deviation is documented and explained in the corresponding handoff; all 231 tests pass with no test-file changes beyond mechanical property renames.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "pnpm-lock.yaml was touched but not in the planned file list. Justified: pnpm install always updates the lockfile when a workspace dependency is added. Disclosed in the handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "deviation",
+          "message": "The ImportGraph adapter's Err-path test uses a missing src/ directory fixture rather than 'invalid syntax that makes parseSync throw' as the plan specified. Justified: oxc-parser's parseSync does not throw on malformed TypeScript — it returns parse diagnostics in result.errors and proceeds without throwing. The actual throw path is readdirSync failing on a missing directory. The adapter's Err-wrapping behavior is unaffected. Disclosed and empirically verified in the handoff."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "libraries/result/src/index.ts and libraries/result/tsconfig.json were edited but not in the planned file list. Justified: a pre-existing bug in libraries/result (barrel re-exported from ./result.js, unresolvable by plain node) was invisible until audit-pipeline.ts — exercised via raw node in the CLI E2E suite — began importing @steme-lab/result through parseRulepack. Without the fix, the full gate failed with wrong exit codes. The fix is load-bearing for all subsequent phases. Fully disclosed and root-caused in the handoff."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "boundaries",
+          "severity": "deviation",
+          "message": "The plan's detailed-instructions prose said cli/program.ts and cli/commands/governance.ts should import { audit, repoRoot } from ../core/composition/index.ts. The execution imports from ../core/modules/audit/capability.ts instead. Justified: SURFACE_COMPOSITION_001 forbids cli from importing the core.composition concept with no exception. The plan's own Boundary Contracts section correctly states this invariant ('cli depends on it and on nothing under core/composition/ or adapters/ directly'). The prose was a plan bug; the execution followed the correct rule. Fully disclosed in the handoff, which names SURFACE_COMPOSITION_001 explicitly."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "apps/steme/src/core/composition/index.ts was listed as a planned file to edit but was not touched (recorded as partially-matched in the global reconciliation). Justified: adding 'export const governance = createGovernanceModule(...)' to composition/index.ts would produce a dead export since SURFACE_COMPOSITION_001 blocks cli from importing core.composition. The governance module is wired inside the core.capabilities file, mirroring phase-03's identical pattern for audit. Disclosed in the handoff and summary."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "The commit body states 'cli/ now contains zero direct node:fs calls anywhere in apps/steme' but apps/steme/src/cli/commands/usageSpec.ts still imports readFileSync to read the shipped steme.usage.kdl spec file. This file was not in the plan's file list and is unrelated to baseline/audit I/O. The handoff correctly scopes it as out-of-plan. The commit body wording is slightly over-broad."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "The --fail-on-new pre-check and governance.ts's 'baseline not found' refusal now execute after audit.computeAudit() rather than before. This changed internal ordering was required because readBaselineForApp needs appRelPath from the audit result. Observable behavior is unchanged; all refusal-matrix tests pass. Disclosed in the handoff and summary."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Commit body over-statement in phase-04: 'cli/ now contains zero direct node:fs calls anywhere in apps/steme' does not account for apps/steme/src/cli/commands/usageSpec.ts, which retains a readFileSync call for reading the shipped steme.usage.kdl spec file. The handoff correctly notes this as out-of-scope, but the commit body wording does not reflect the exception.",
+    "Recurring plan-prose bug in phases 03 and 04: the plan's detailed-instructions prose for both phases described wiring audit/governance instances inside core/composition/index.ts and having cli/ import them from there. SURFACE_COMPOSITION_001 forbids this (no exception). Both executions correctly followed the Boundary Contracts section instead. Future plans for apps/steme should not repeat this wiring pattern in prose; capabilities are the correct seam for cli-consumable, composition-wired instances."
+  ],
+  "pointers": []
+}

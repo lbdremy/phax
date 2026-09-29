@@ -1,0 +1,34 @@
+{
+  "phaseId": "phase-08",
+  "createdAsPlanned": [
+    "src/app/recordsStatus.ts",
+    "tests/integration/recordsPush.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/publishRun.ts",
+    "src/app/recordsSync.ts",
+    "src/cli/commands/records.ts",
+    "src/cli/commands/ls.ts",
+    "phax.usage.kdl",
+    "docs/cli/inventory.md",
+    "docs/cli/reference.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "src/cli/program.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "README.md",
+    "src/app/executePlan.ts",
+    "src/cli/commands/publishPr.ts",
+    "tests/unit/cli/ls.test.ts",
+    "tests/unit/cli/publishPr.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

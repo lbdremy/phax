@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "agent-binding-hardening",
+    "title": "Agent-binding architecture hardening",
+    "requiredCommands": [],
+    "branch": "phax/agent-binding-hardening"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "SessionPort and pure adapter dispatch in domain",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-session-port",
+      "plannedFilesToCreate": [
+        "src/domain/session/types.ts",
+        "src/domain/session/claude.ts",
+        "src/domain/session/codex.ts",
+        "src/domain/session/mistral.ts",
+        "src/domain/session/index.ts",
+        "src/ports/session.ts",
+        "src/infra/session.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/enter.ts",
+        "src/cli/commands/enterPhase.ts",
+        "src/cli/commands/sessionInfo.ts",
+        "tests/unit/sessionAdapters.test.ts",
+        "tests/integration/enter.test.ts",
+        "tests/integration/enterPhase.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/integration/sessionInfo.test.ts"
+      ],
+      "commit": {
+        "subject": "refactor(session): route interactive resume through a SessionPort",
+        "body": "Move the pure session adapters to src/domain/session and add a Session port with a Node spawn layer, so enter/enter-phase resume through Effect DI instead of calling infra spawnSync directly. Mirrors the Editor port/layer pattern."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Restore binding-state ownership to the app layer",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-binding-ownership",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/infra/providers/sessionWriter.ts",
+        "tests/integration/executePlan.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/executePlan.ts",
+        "src/app/agentBinding.ts",
+        "src/infra/atomicWrite.ts",
+        "tests/unit/agentBinding.test.ts"
+      ],
+      "commit": {
+        "subject": "refactor(binding): make the app layer the sole owner of binding writes",
+        "body": "Remove the infra → app import in sessionWriter; rely on executePlan's app-layer patch (which covers the real-provider session-capture path) for the launching → running transition. Add a regression test and optionally dedup the atomic-write helper behind an infra module."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Wire the full binding-status lifecycle",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-status-lifecycle",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/agentBinding.ts",
+        "src/app/executePlan.ts",
+        "src/app/archive.ts",
+        "tests/unit/agentBinding.test.ts",
+        "tests/integration/executePlan.test.ts",
+        "tests/integration/sessionInfo.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/archive.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(binding): wire the full binding-status lifecycle",
+        "body": "Drive the binding status to completed, awaiting_manual_review, failed, and archived at the existing phase/run transitions via a new status-only patch, so session-info reports the real lifecycle instead of always showing running."
+      }
+    }
+  ]
+}

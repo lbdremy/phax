@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "tests/unit/cli/validate.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/commands/validate.ts",
+    "src/cli/program.ts",
+    "README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "docs/cli/reference.md",
+    "phax.usage.kdl"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "runId": "headless-authoring-1790158748005",
+  "phaseId": "phase-03",
+  "shape": "full",
+  "sourceSha": "bd3a065ce90e4248db33d3a7dca448a5660ca350",
+  "model": "claude-sonnet-5",
+  "effort": "high",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 104,
+      "cacheCreationInputTokens": 116443,
+      "cacheReadInputTokens": 5495899,
+      "outputTokens": 22286,
+      "totalCostUsd": 1.7880198000000003
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "structural"
+  ]
+}

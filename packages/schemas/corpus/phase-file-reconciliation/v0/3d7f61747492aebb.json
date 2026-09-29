@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/app/loadReviewHandoffInputs.ts",
+    "tests/integration/loadReviewHandoffInputs.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/publishRun.ts",
+    "src/app/reviewHandoff.ts",
+    "src/domain/publish/body.ts",
+    "tests/unit/publish/body.test.ts",
+    "tests/integration/publishRun.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

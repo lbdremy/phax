@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/cli/commands/usageSpec.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/commands/completions.ts",
+    "src/cli/commands/usage.ts",
+    "scripts/smoke-binary.sh"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/unit/architecturalGuards.test.ts"
+  ],
+  "optionalTouched": [
+    "tests/integration/completions.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

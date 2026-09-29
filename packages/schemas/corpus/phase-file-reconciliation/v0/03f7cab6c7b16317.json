@@ -1,0 +1,33 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "packages/louloupress/src/modules/content/shared/contracts/generated-series-index.ts",
+    "apps/le-secretaire-de-fernand/tests/content/series-usage.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "apps/le-secretaire-de-fernand/src/build/modules/seo/content-index.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "apps/le-secretaire-de-fernand/public/content-index.json",
+    "apps/le-secretaire-de-fernand/src/build/modules/content/indexing/content-indexing.ts",
+    "apps/le-secretaire-de-fernand/src/site/data.ts",
+    "packages/louloupress/src/modules/content/build/generated-indexes/content-indexing.ts",
+    "packages/louloupress/src/modules/content/shared/public.ts",
+    "packages/louloupress/src/modules/site-core/shared/site-content-roots.ts",
+    "packages/louloupress/src/modules/site-core/shared/site-definition.ts",
+    "packages/louloupress/tests/site-core.test.ts",
+    "scripts/generate-content-indexes.ts"
+  ],
+  "optionalTouched": [
+    "apps/le-secretaire-de-fernand/tests/content/generate-content-indexes.test.ts",
+    "apps/le-secretaire-de-fernand/src/site/content/generated/series-usage.json"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

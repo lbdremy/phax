@@ -1,0 +1,38 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "packages/louloupress/src/modules/content/shared/visibility/article-visibility.ts",
+    "packages/louloupress/tests/content-article-visibility.test.ts"
+  ],
+  "editedAsPlanned": [
+    "packages/louloupress/src/modules/content/shared/frontmatter/content-frontmatter.ts",
+    "packages/louloupress/src/modules/content/shared/public.ts",
+    "packages/louloupress/tests/content-frontmatter-roundtrip.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    ".gitignore",
+    ".mcp.json",
+    "apps/le-secretaire-de-fernand/public/content-index.json",
+    "apps/le-secretaire-de-fernand/public/fr/llms-full.txt",
+    "apps/le-secretaire-de-fernand/public/llms-full.txt",
+    "apps/le-secretaire-de-fernand/src/site/content/en/tech/index.mdx",
+    "apps/le-secretaire-de-fernand/src/site/content/fr/tech/index.mdx",
+    "apps/le-secretaire-de-fernand/src/site/content/generated/section-usage.json",
+    "apps/le-secretaire-de-fernand/src/site/content/generated/tag-usage.json",
+    "apps/le-secretaire-de-fernand/tests/smoke/core-flows.spec.ts",
+    "packages/louloupress/src/modules/admin-cms/web/components/DocumentCreateForm.tsx",
+    "packages/louloupress/src/modules/admin-cms/web/components/DocumentEditor.tsx",
+    "packages/louloupress/src/modules/admin-cms/web/view-models/document-form-utils.ts",
+    "phax.schema.json",
+    "phax.user.schema.json"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

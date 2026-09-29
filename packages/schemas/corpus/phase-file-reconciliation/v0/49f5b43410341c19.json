@@ -1,0 +1,31 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    ".oxlintrc.json",
+    ".editorconfig"
+  ],
+  "editedAsPlanned": [
+    "package.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [
+    ".oxfmtrc.json"
+  ],
+  "unplannedEdited": [
+    "docs/plans/00-steme-lab-bootstrap-manual.md",
+    "docs/plans/01-steme-lab-scaffolding-plan.md",
+    "phax.json",
+    "phax.schema.json",
+    "phax.user.schema.json"
+  ],
+  "optionalTouched": [
+    ".oxlintrc.fast.json",
+    "pnpm-lock.yaml"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "louloupress-new-features",
+    "title": "Louloupress New Features — Indexes, Article Metadata, Secret Posts, Reading Time, Menu Visibility",
+    "requiredCommands": [],
+    "branch": "phax/louloupress-new-features"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-frontmatter-visibility",
+      "plannedFilesToCreate": [
+        "packages/louloupress/src/modules/content/shared/visibility/article-visibility.ts",
+        "packages/louloupress/tests/content-article-visibility.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/louloupress/src/modules/content/shared/frontmatter/content-frontmatter.ts",
+        "packages/louloupress/src/modules/content/shared/public.ts",
+        "packages/louloupress/tests/content-frontmatter-roundtrip.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "packages/louloupress/tests/content.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(content): add secret status, updated and readingTime frontmatter, visibility helpers",
+        "body": "Extend the shared content frontmatter schema with the `secret` status value and optional `updated` and `readingTime` fields, and add an `article-visibility` module centralizing the published/secret/draft/discoverable/directly-accessible predicates and `getArticleDisplayDate`. Backward compatible; no surface behavior changes yet. Covered by unit and frontmatter round-trip tests."
+      },
+      "title": "Frontmatter schema and visibility helpers"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-02-visibility-surfaces",
+      "plannedFilesToCreate": [
+        "packages/louloupress/tests/content-secret-visibility.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/louloupress/src/modules/content/server/content-reader/create-content-reader.ts",
+        "packages/louloupress/src/modules/content/server/application/route-data/create-content-route-data.ts",
+        "packages/louloupress/src/modules/content/build/generated-indexes/content-indexing.ts",
+        "packages/louloupress/src/modules/seo/build/published-artifacts.ts",
+        "packages/louloupress/src/modules/llm/build/llms.ts",
+        "apps/le-secretaire-de-fernand/src/web/routes/$lang/$.tsx",
+        "packages/louloupress/tests/seo.test.ts",
+        "packages/louloupress/tests/llm.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "packages/louloupress/src/modules/seo/build/robots.ts",
+        "packages/louloupress/tests/content.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(content): exclude secret articles from discovery while keeping direct access",
+        "body": "Route every visibility check through the shared predicates so `secret` articles are directly accessible by URL with a `noindex, nofollow` directive yet excluded from indexes, tag pages, sitemap, RSS, content-index, generated usage indexes, and LLM files. Drafts keep their existing exclusion. Covered by route-data and build-artifact integration tests."
+      },
+      "title": "Centralize visibility across discovery and direct-access surfaces"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-article-card",
+      "plannedFilesToCreate": [
+        "packages/louloupress/src/modules/content/shared/formatting/format-date.ts",
+        "packages/louloupress/src/modules/content/web/components/mdx/ArticleCard.tsx",
+        "packages/louloupress/tests/content-article-card.test.tsx",
+        "packages/louloupress/tests/content-article-labels.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/louloupress/src/modules/site-core/shared/copy-contracts.ts",
+        "packages/louloupress/src/modules/site-core/shared/copy-defaults.ts",
+        "packages/louloupress/src/modules/content/shared/visibility/article-visibility.ts",
+        "packages/louloupress/src/modules/content/shared/public.ts"
+      ],
+      "optionalFilesToEdit": [
+        "packages/louloupress/src/modules/content/web/components/mdx/CardLink.tsx",
+        "packages/louloupress/src/modules/content/web/pages/tag-index/page.tsx",
+        "packages/louloupress/tests/site-core.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(content): add ArticleCard with date, tags, and reading-time labels",
+        "body": "Add a localized `card` copy block, a shared date-format util, and `getArticleDateLabel`/`getArticleReadingTimeLabel`, plus an `ArticleCard` that shows title, description, a Published/Updated date, tag labels, and reading time (each conditionally rendered). Covered by component and helper tests."
+      },
+      "title": "Card copy, date/reading-time labels, and richer ArticleCard"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-04-section-index",
+      "plannedFilesToCreate": [
+        "packages/louloupress/src/modules/content/web/pages/section-index/page.tsx",
+        "apps/le-secretaire-de-fernand/src/shared/contracts/route-search.ts",
+        "packages/louloupress/tests/content-section-index-route-data.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/louloupress/src/modules/content/shared/contracts/route-data.ts",
+        "packages/louloupress/src/modules/content/server/application/route-data/create-content-route-data.ts",
+        "packages/louloupress/src/modules/content/shared/public.ts",
+        "apps/le-secretaire-de-fernand/src/web/routes/$lang/$.tsx",
+        "apps/le-secretaire-de-fernand/src/web-rpc/modules/content/public.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/le-secretaire-de-fernand/src/server/composition/server-services.ts",
+        "apps/le-secretaire-de-fernand/src/server/modules/content/private.ts",
+        "packages/louloupress/src/modules/content/build/generated-indexes/index-generation.ts",
+        "apps/le-secretaire-de-fernand/tests/navigation/navigation-resolver.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(content): replace scope landing pages with chronological section-filtered index",
+        "body": "Add a scope-index route-data resolver and a `SectionFilteredIndexPage` that lists all discoverable articles in a scope newest-first (by publication date) with an `All` + per-section `?section=` filter bar, and wire the Fernand catch-all route to render it for scope-root pages while leaving normal pages on the MDX renderer. Empty sections are dropped from the filter. Covered by route-data integration tests and the prod smoke gate."
+      },
+      "title": "Chronological section-filtered scope index"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-05-menu-visibility",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "packages/louloupress/src/modules/site-core/shared/navigation.ts",
+        "packages/louloupress/src/modules/site-core/runtime/navigation.ts",
+        "packages/louloupress/src/modules/content/shared/contracts/taxonomy.ts",
+        "apps/le-secretaire-de-fernand/src/shared/site-runtime.ts",
+        "apps/le-secretaire-de-fernand/tests/navigation/navigation-resolver.test.ts",
+        "apps/le-secretaire-de-fernand/tests/navigation/navigation-config.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/le-secretaire-de-fernand/src/server/composition/server-services.ts",
+        "apps/le-secretaire-de-fernand/src/server/composition/server-site-context.ts",
+        "apps/le-secretaire-de-fernand/src/site/data.ts",
+        "packages/louloupress/src/modules/admin-cms/shared/contracts/navigation.ts",
+        "packages/louloupress/tests/site-core.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(site-core): add menu visibility control and empty-section hiding",
+        "body": "Add an optional `visibleInMenu` flag (default true) to main menu items and section taxonomy items, and hide sections with no published articles from the navigation resolver, injecting per-section published counts from the section usage runtime. Footer navigation built from the same tree inherits the behavior. Covered by navigation resolver and config tests."
+      },
+      "title": "Menu visibility control"
+    },
+    {
+      "id": "phase-06",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-06-fernand-migration",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/le-secretaire-de-fernand/src/site/content/en/tech/20260610-stronger-feedback-loops-start-with-explicit-code.mdx",
+        "apps/le-secretaire-de-fernand/src/site/content/fr/tech/20260610-stronger-feedback-loops-start-with-explicit-code.mdx",
+        "apps/le-secretaire-de-fernand/src/site/content/generated/section-usage.json",
+        "apps/le-secretaire-de-fernand/src/site/content/generated/tag-usage.json"
+      ],
+      "optionalFilesToEdit": [
+        "apps/le-secretaire-de-fernand/src/site/content/en/**/*.mdx",
+        "apps/le-secretaire-de-fernand/src/site/content/fr/**/*.mdx",
+        "apps/le-secretaire-de-fernand/src/site/content/navigation/menu.json",
+        "apps/le-secretaire-de-fernand/src/site/content/taxonomy/sections.json",
+        "apps/le-secretaire-de-fernand/src/site/content/{en,fr}/tech/index.mdx",
+        "apps/le-secretaire-de-fernand/src/site/content/{en,fr}/{body,entrepreneurship}/index.mdx",
+        "apps/le-secretaire-de-fernand/public/content-index.json",
+        "apps/le-secretaire-de-fernand/public/rss.xml"
+      ],
+      "commit": {
+        "subject": "chore(fernand): migrate content to readingTime/updated and hide preparatory sections",
+        "body": "Populate `readingTime` on published Fernand articles, add `updated` to revised ones, hide any preparatory sections from the menu via `visibleInMenu: false`, and regenerate the section/tag usage indexes, scope index pages, content-index, RSS, and LLM artifacts to match. No field is mandatory; existing content stays valid."
+      },
+      "title": "Le Secrétaire de Fernand content migration"
+    }
+  ]
+}

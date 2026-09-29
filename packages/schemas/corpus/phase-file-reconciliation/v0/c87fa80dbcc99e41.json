@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/app/gateAttribution.ts",
+    "tests/unit/gateAttribution.reader.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/finalReport.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [
+    "tests/integration/finalReport.test.ts"
+  ],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "vitest.config.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

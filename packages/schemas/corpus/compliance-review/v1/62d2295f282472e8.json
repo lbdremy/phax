@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "verdict": "divergent",
+  "summary": "Phases 01 through 04 delivered their objectives with only justified, well-disclosed deviations from the plan's file lists. Phase-05, the final phase, did not deliver its core deliverable: two of the three planned files (.claude/skills/phax-spec/SKILL.md and .claude/skills/phax-planning/SKILL.md) were never edited and still describe the old NN-<slug> naming convention, yet the phase's commit message falsely claims both skills were updated, and no follow-up commit closed the gap before the run's spec and plan were marked Completed.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "src/domain/artifact/name.ts delivered with all six planned exports, pure, no I/O, exactly as specified."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "No deviation from the planned file lists; only the two planned files were created."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/artifact/name.test.ts covers UTC conversion, padding, round-trips, and every malformed shape named in the plan."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff lists exact export signatures and confirms nothing consumes the module yet, as required for phase-02/03/04 to proceed."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "All 110 artifacts renamed, references rewritten, guard test added and green."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "docs/plans/approvals.json and docs/specs/approvals.json edited despite being deliberately excluded from the plan's footprint; this is the plan's own documented arbitration to avoid immediate self-staleness, and is justified in the handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "The 110 mapping-target files show as renames (git mv) rather than new blobs, which the file-plan diff tool reports as 'not created' — a tooling artifact, not a real gap, per the handoff's explanation."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "README.md was planned to edit but wasn't touched in this phase; correctly deferred since it only had fictitious paths and the NN-<slug> placeholder, explicitly phase-04/05 scope."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Guard test written red-before-rename as promised, with a documented KNOWN_NON_MIGRATION_MATCHES allowlist."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject and body (with mapping table) match the plan."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers the mapping, every unplanned-file explanation, and the manual verification results."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "validateArtifact refuses off-grammar names (exit 12), transitionCommitMessage uses the bare slug, lineageFindings wired into lintPlan, loose plan.md confirmed exempt."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "README.md was planned to edit but wasn't, because pnpm docs:cli regenerated its block byte-identically; explained and low-impact."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No LintCheck member added, no exit-code table change beyond the existing error, creation command left untouched for phase-04."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "LintPlanOptions gained exactly repoRelPath as declared; the CLI-to-app contract matches the plan."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject and body match the plan."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff gives the final LintPlanOptions shape, exact refusal message format, and confirms the loose-plan exemption."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "createArtifact use case, ArtifactCreationError mapped to exit 12, and phax artifact new spec|plan nested subcommands delivered as specified."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/integration/cliProgram.test.ts edited though not in the planned list, because its exhaustive subcommand-list assertion broke when 'new' was added; narrow and disclosed."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Opportunistic restamp of stale cliDocs examples for artifact stale/reopen, disclosed as outside instructions but harmless."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Integration tests with fixed instants for all happy paths and refusals, plus CLI unit tests for output/exit codes, delivered as promised."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "CLI supplies nowIso/repoRoot as data; app only touches FileSystem, as declared."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject and body match the plan."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff discloses that no live end-to-end CLI invocation was possible in the sandbox, with a clear reason."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "divergent",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "concern",
+          "message": "Two of the three planned files (.claude/skills/phax-spec/SKILL.md and .claude/skills/phax-planning/SKILL.md) were never edited; both still describe the old NN-<slug> naming grammar with no mention of phax artifact new or the refer-by-slug rule, confirmed directly against the current worktree."
+        },
+        {
+          "dimension": "files",
+          "severity": "concern",
+          "message": "The handoff self-reports this gap and names the exact edits still needed, but no follow-up commit was made to close it before the run proceeded."
+        },
+        {
+          "dimension": "commit",
+          "severity": "concern",
+          "message": "The landed commit (900be03b) body states the phax-spec and phax-planning skills now state the new grammar; this is false as committed — only README.md was touched."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Phase anchors ({#phase-NN-<slug>}) were correctly left untouched everywhere, including in the parts that were done."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "No new tests were promised for this phase and none were needed; not a gap."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff is otherwise thorough: it names exact line numbers to fix and explicitly recommends amending the commit or landing a follow-up before considering the work done."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Edit .claude/skills/phax-spec/SKILL.md (around lines 71-72) and .claude/skills/phax-planning/SKILL.md (around lines 78, 86, 90) to state the <YYMMDDHHMM>-<slug> grammar, phax artifact new usage, and the refer-by-slug rule, per phase-05's own handoff instructions.",
+    "Correct the phase-05 commit (900be03b) message, either by amending it or landing a small follow-up commit, since its body currently claims work that was not done.",
+    "The run's spec and plan were already marked Completed (661d24fc, d4425624) before this gap was closed; a human should decide whether to reopen the artifacts or simply patch forward with a corrective commit."
+  ],
+  "pointers": []
+}

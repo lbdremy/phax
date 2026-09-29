@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "routing-gating",
+    "title": "Enabled-gated routing + spec §12 default table (Option A)",
+    "branch": "phax/routing-gating",
+    "backend": "claude-code-cli"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Gate resolution on provider `enabled`",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-enabled-gate",
+      "commit": {
+        "subject": "feat(routing): skip disabled providers during resolution",
+        "body": "resolveModel now skips any provider in providerPriority whose providers.json entry is not enabled, so a disabled provider is never selected even when the routing table lists it first and its alias/model exists. The terminal claude-code fallback stays unconditional so resolveModel remains total and the no-silent-Opus-downgrade fall-through is preserved. Updates the §15 example and integration tests to run against enabled providers and adds a disabled-skip case. No schema or default-table changes."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Adopt spec §12 routing table as the default",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-spec12-default",
+      "commit": {
+        "subject": "feat(routing): default to the spec §12 multi-provider routing table",
+        "body": "DEFAULT_MODEL_ROUTING is now the spec §12 multi-provider table (providerPriority mistral-vibe, codex-cli, claude-code; allowDowngrade true; per-effort normalization for every family). DEFAULT_PROVIDER_CONFIG is unchanged, so on a clean install the disabled mistral-vibe/codex-cli providers are skipped by the enabled gate and every phase resolves to claude-code exactly as before. Enabling them via providers.json activates the richer table with no routing edit. Adds a clean-install default test pinning the non-breaking behaviour."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Sync docs and plan wording",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-03-docs-sync",
+      "commit": {
+        "subject": "docs: describe §12 default table and the enabled-gated routing walk",
+        "body": "Update docs/model-routing.md, README.md, and .skills/model-routing.md to describe the new §12 multi-provider default routing table and the enabled gate that keeps clean installs routing through Claude Code (mistral-vibe/codex-cli ship enabled: false). Correct docs/plans/model-routing-plan.md where it claimed the original shipped default was the \"exact §12 object\"; the §12 table became the default only once resolution honoured the enabled flag."
+      }
+    }
+  ]
+}

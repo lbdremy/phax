@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "tests/integration/gitBaseline.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/ports/git.ts",
+    "src/infra/git.ts",
+    "src/infra/fakes/git.ts",
+    "src/schemas/git.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

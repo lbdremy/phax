@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-fable-5",
+  "effort": "medium",
+  "createdAt": "2026-08-15T15:29:04.710Z",
+  "updatedAt": "2026-08-15T15:44:02.239Z",
+  "branchName": "phax/entire-checkpoint-spike--phase-02",
+  "worktreePath": "~/.phax/worktrees/phax.entire-checkpoint-spike/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "39080d3cbb3be6c589e824d22721e89098cc2994"
+}

@@ -1,0 +1,33 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "apps/steme/src/contracts/manifest.ts",
+    "apps/steme/src/core/manifest/parse-manifest.ts",
+    "apps/steme/src/core/manifest/parse-manifest.test.ts",
+    "apps/steme/src/core/manifest/schema-parity.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/contracts/index.ts",
+    "apps/steme/src/core/modules/audit/capability.ts",
+    "apps/steme/src/core/modules/audit/capability.test.ts",
+    "apps/steme/src/cli/preflight-ordering.e2e.test.ts",
+    "apps/steme/src/cli/audit-harness.e2e.test.ts",
+    "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts",
+    "apps/steme/steme.package.json",
+    "packages/example-utility/steme.package.json",
+    "apps/steme/package.json",
+    "pnpm-lock.yaml"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "apps/steme/src/cli/main.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

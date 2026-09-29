@@ -1,0 +1,33 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "tests/unit/schemas/scopesConfig.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/gateDiagnostics.ts",
+    "src/schemas/phaxConfig.ts",
+    "src/domain/config/mergeLayers.ts",
+    "src/app/loadConfig.ts",
+    "src/app/gates.ts",
+    "phax.schema.json",
+    "phax.user.schema.json",
+    "examples/hello-world/audit.mjs",
+    "tests/unit/schemas/gateDiagnostics.test.ts",
+    "tests/unit/phaxConfigJsonSchema.test.ts",
+    "tests/unit/phaxUserOverlaySchema.test.ts",
+    "tests/unit/mergeLayers.test.ts",
+    "tests/unit/fixPrompt.test.ts",
+    "tests/integration/gates.test.ts",
+    "tests/integration/fixLoop.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

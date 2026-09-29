@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/domain/plan/lint.ts",
+    "tests/unit/planLint.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/plan/parsePlanMarkdown.ts",
+    "tests/unit/parsePlanMarkdown.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

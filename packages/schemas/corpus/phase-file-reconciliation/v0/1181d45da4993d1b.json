@@ -1,0 +1,40 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "packages/schemas/build/snapshots.ts",
+    "packages/schemas/snapshots/authoring-record-manifest/v1.schema.json",
+    "packages/schemas/snapshots/compliance-review/v1.schema.json",
+    "packages/schemas/snapshots/gate-attribution/v0.schema.json",
+    "packages/schemas/snapshots/gate-diagnostics/v0.schema.json",
+    "packages/schemas/snapshots/gate-pending/v0.schema.json",
+    "packages/schemas/snapshots/phase-file-reconciliation/v0.schema.json",
+    "packages/schemas/snapshots/phase-record-manifest/v1.schema.json",
+    "packages/schemas/snapshots/phase-record-manifest/v2.schema.json",
+    "packages/schemas/snapshots/phase-status/v1.schema.json",
+    "packages/schemas/snapshots/phax-plan/v1.schema.json",
+    "packages/schemas/snapshots/plan-approvals/v1.schema.json",
+    "packages/schemas/snapshots/plan-document/v1.schema.json",
+    "packages/schemas/snapshots/registry/v1.schema.json",
+    "packages/schemas/snapshots/run-status/v1.schema.json",
+    "packages/schemas/snapshots/spec-approvals/v1.schema.json",
+    "packages/schemas/snapshots/spec-document/v1.schema.json",
+    "tests/unit/schemasPackage/snapshots.test.ts"
+  ],
+  "editedAsPlanned": [
+    "packages/schemas/build/jsonSchemas.ts",
+    "scripts/schemas-check.ts",
+    "packages/schemas/history.lock.json",
+    "tests/unit/schemasPackage/frozenHistory.test.ts",
+    ".oxfmtrc.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

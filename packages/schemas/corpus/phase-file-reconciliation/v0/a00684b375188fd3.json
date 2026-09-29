@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "spikes/smolvm/README.md",
+    "spikes/smolvm/00-preflight.sh",
+    "spikes/smolvm/findings/TEMPLATE.md"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "phax.json"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

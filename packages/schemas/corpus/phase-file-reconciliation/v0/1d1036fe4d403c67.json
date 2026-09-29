@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/infra/sessionAdapters/types.ts",
+    "src/infra/sessionAdapters/claude.ts",
+    "src/infra/sessionAdapters/codex.ts",
+    "src/infra/sessionAdapters/mistral.ts",
+    "src/infra/sessionAdapters/index.ts",
+    "src/app/inferLegacyBinding.ts",
+    "tests/unit/sessionAdapters.test.ts",
+    "tests/unit/inferLegacyBinding.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

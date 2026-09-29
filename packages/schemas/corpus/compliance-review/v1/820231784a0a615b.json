@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All five phases delivered their planned objectives. Phase-01 is fully conformant. Phases 02 and 03 have justified cascading deviations driven by TypeScript's structural type system: adding required fields to shared interfaces forced updates to resolveReviewPolicy.ts and ~36 test-fixture files across the suite, all explained in their handoffs. Phase-04 achieved its objective (subcommand registered, hook wired, settings builder and tests present) but deviates on file routing (program.ts used instead of planned main.ts) and touches three unplanned files (introspect.ts, scripts/generate-usage-spec.ts, cliProgram.test.ts) with no handoff produced to justify or explain them. Phase-05 delivered the security doc but the .agents/skills/phax-planning/SKILL.md edit exists only in the working tree, not committed; the handoff clearly flags this as a required follow-up.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/domain/security/resolveReviewPolicy.ts was touched but not planned. This file also returns SecurityPolicy; adding allowWriteProtected as a required field to the interface forced an update. Hardcoded to [] (review phase never grants protected writes). Justified in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/security/resolvePolicy.test.ts was touched but not planned. Existing ResolvedSecurityConfig fixture literals were missing the new required allowWriteProtected field; TypeScript enforced the update. No logic changed. Justified in handoff."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/schemas/securityPosture.ts was touched but not planned. The plan stated 'if schema-validated, update that schema too'; SecurityPosture is schema-validated and required the new approvedProtectedPaths field. Justified in handoff as within the stated conditional scope."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Approximately 36 test files were touched but not planned (integration and unit test suites). Required-field additions from phases 01-02 (allowWriteProtected on ResolvedSecurityConfig and SecurityPolicy) and from phase-03 (approvedProtectedPaths on SecurityPosture) forced fixture updates across the test suite. No logic changed in any of those files. Comprehensively justified in handoff."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "handoff",
+          "severity": "concern",
+          "message": "No phase-handoff.md was produced for phase-04. The plan's required handoff content (settings file path/name, hook shape, path-passing mechanism, hidden subcommand name, confirmation that empty approvals leave invocation unchanged) is entirely absent from the record."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/cli/main.ts was planned but not touched. The hidden subcommand (__approve-protected-path) was registered in src/cli/program.ts (line 390) instead. The objective is met through an equivalent file; program.ts is the actual CLI program builder. Not justified in writing due to missing handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/cli/program.ts was touched but not planned. This is where the subcommand was registered instead of main.ts. No handoff justification available."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/cli/introspect.ts was touched but not planned. Purpose unknown — no handoff produced. Requires operator inspection before merge."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "scripts/generate-usage-spec.ts was touched but not planned. Purpose unknown — no handoff produced. Requires operator inspection before merge."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/integration/cliProgram.test.ts was touched but not planned. Likely covers CLI program structure changes from the subcommand registration. No handoff to confirm scope."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": ".agents/skills/phax-planning/SKILL.md is planned-to-edit but marked missing in reconciliation. The edit (protected-path guidance subsection) was performed in-session but not committed — phax took the commit snapshot before the formatter's final pass. The edit exists in the working tree. Handoff clearly acknowledges this and calls out a required follow-up commit on main."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Commit the .agents/skills/phax-planning/SKILL.md working-tree change to main before merging (the protected-path guidance subsection was written but not staged in time for the phase-05 commit).",
+    "Sync .claude/skills/phax-planning/SKILL.md from the .agents mirror after merge and after phax.json is configured with security.filesystem.allowWriteProtected: [\".claude/skills/\"].",
+    "Inspect scripts/generate-usage-spec.ts and src/cli/introspect.ts — both were touched in phase-04 without a handoff explanation; confirm these changes are intentional.",
+    "Phase-04 handoff is missing entirely. If the settings file path, hook shape, env-var convention, or subcommand name are needed by a downstream phase or operator, reconstruct from the committed code in src/infra/providers/protectedPathHookSettings.ts and src/cli/commands/approveProtectedPath.ts.",
+    "Confirm that src/cli/program.ts is the correct registration point for hidden subcommands in this CLI (used instead of planned main.ts); update future plan templates if so."
+  ],
+  "pointers": [
+    "Possible test-coverage gap: phase-04 added tests/integration/cliProgram.test.ts (unplanned) — confirm it covers the __approve-protected-path subcommand registration and not just general program wiring, since the planned tests/unit/claudeArgs.test.ts (optional) may not have been touched.",
+    "Possible edge case in decideProtectedPathApproval: the phase-01 handoff states path comparison requires path.posix.isAbsolute(filePath); confirm claudeCode.ts passes the absolute path from the Claude hook payload without re-resolving relative to the worktree root."
+  ]
+}

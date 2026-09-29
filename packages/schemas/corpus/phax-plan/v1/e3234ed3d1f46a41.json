@@ -1,0 +1,252 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "headless-authoring",
+    "title": "Headless authoring",
+    "requiredCommands": [
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli",
+      "pnpm dev schema upgrade"
+    ],
+    "branch": "phax/headless-authoring"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-document-schemas",
+      "plannedFilesToCreate": [
+        "src/schemas/specDocument.ts",
+        "src/schemas/planDocument.ts",
+        "tests/unit/specDocument.test.ts",
+        "tests/unit/planDocument.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxPlan.ts",
+        "src/cli/commands/artifact.ts",
+        "tests/unit/cli/artifact.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/cli/inventory.md",
+        "tests/integration/usageSpecExamples.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas): spec and plan document schemas with phax artifact schema",
+        "body": "Add the experimental spec document and plan document formats as Effect Schemas\nwith traceability refinements (criteria reference existing requirements, every\nrequirement is covered, questions carry two or more options and a\nrecommendation among them), a strict projection from a plan document to the\nextracted-plan shape, and JSON Schema export. `phax artifact schema spec|plan`\nprints either schema, titled experimental. Unit-tested; usage spec and CLI\nreference regenerated."
+      },
+      "title": "Spec and plan document schemas, `artifact schema`"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-renderers-and-cache-key",
+      "plannedFilesToCreate": [
+        "src/domain/authoring/renderSpec.ts",
+        "src/domain/authoring/renderPlan.ts",
+        "tests/unit/renderSpec.test.ts",
+        "tests/unit/renderPlan.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/planCache/key.ts",
+        "tests/unit/planCacheKey.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/loadOrExtractPlan.test.ts",
+        "tests/integration/planCacheStore.test.ts",
+        "tests/integration/loadOrExtractPlan.test.ts",
+        "tests/unit/__snapshots__/renderSpec.test.ts.snap",
+        "tests/unit/__snapshots__/renderPlan.test.ts.snap"
+      ],
+      "commit": {
+        "subject": "feat(authoring): deterministic spec and plan renderers; key the extraction cache on the plan body",
+        "body": "Add pure renderers from a spec document to the canonical ten-section spec\n(plus a docs-page section, §6 as before/after blocks, §9 in the arbitration\nformat) and from a plan document to the phax-planning shape, proven by a\nround trip through the deterministic parser back to the document's\nprojection. Key the extraction cache on the plan body without its\nfrontmatter (extractor version 2) so a seed written at Draft still matches\nafter approval."
+      },
+      "title": "Deterministic renderers and body-keyed extraction cache"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-authoring-config",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/app/loadConfig.ts",
+        "phax.schema.json",
+        "tests/unit/loadConfig.test.ts",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "phax.user.schema.json",
+        "tests/unit/buildConfig.test.ts",
+        "tests/unit/phaxUserOverlaySchema.test.ts",
+        "tests/unit/upgradeConfigSchema.test.ts",
+        "tests/integration/loadConfigLayers.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(config): optional authoring.{spec,plan} model and effort defaults",
+        "body": "Add optional `authoring.spec` and `authoring.plan` blocks to `phax.json` and the\nuser overlay, resolved to Opus 5.5 / high when absent so a `version: 1` config\nkeeps loading unchanged, plus a pure flag → config → catalog selection used by\nthe headless authoring command. Schema files regenerated; README documents the\nblock."
+      },
+      "title": "Authoring config keys and default resolution"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-04-author-artifact",
+      "plannedFilesToCreate": [
+        "src/app/authorArtifact.ts",
+        "src/domain/authoring/prompt.ts",
+        "src/domain/authoring/jsonText.ts",
+        "tests/integration/authorArtifact.test.ts",
+        "tests/unit/authoringPrompt.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/createArtifact.ts",
+        "src/app/extractPlan.ts",
+        "src/domain/errors.ts",
+        "src/cli/commands/runLayers.ts",
+        "tests/integration/createArtifact.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/fakes/backend.ts",
+        "src/infra/fakes/git.ts",
+        "tests/unit/extractPlan.test.ts",
+        "tests/integration/cliErrors.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(authoring): headless authoring use case — JSON-only session, render, sidecar, commit, cache seed",
+        "body": "Add the use case behind `artifact new --headless`: refuse before spawning on\nthe interactive path's grounds plus an existing sidecar; run the authoring\nsession under the read-only review posture rooted at the repository with the\nskill, the output JSON Schema and the brief; accept a schema-valid document as\nthe session's final message or fail as a provider error with nothing written;\nrender the artifact with the interactive frontmatter, write the JSON sidecar\nbeside it, seed the extraction cache for a plan, and commit exactly the two\npaths with Artifact and Authoring-Id trailers. Integration-tested against the\nfake backend, filesystem and git."
+      },
+      "title": "Authoring use case: session, validation, materialisation, commit, cache seed"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-05-cli-headless",
+      "plannedFilesToCreate": [
+        "tests/integration/artifactNewHeadlessCommand.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/artifact.ts",
+        "src/cli/commands/skills.ts",
+        "tests/unit/cli/artifact.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/cli/inventory.md",
+        "tests/integration/usageSpecExamples.test.ts",
+        "tests/integration/cliProgram.test.ts",
+        "src/cli/commands/runLayers.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): artifact new --headless --brief for specs and plans",
+        "body": "Add `--headless`, `--brief <file|->`, `--model` and `--effort` to `phax artifact\nnew spec|plan`. Without `--headless` the command is unchanged. With it, the CLI\nreads the brief (file or stdin), resolves model and effort as flag, then\n`authoring` config, then catalog default, loads the matching bundled skill and\nruns the headless authoring use case, printing the created artifact, its\nsidecar and the commit. Usage spec, CLI reference and README updated."
+      },
+      "title": "CLI: `artifact new --headless --brief <file|-> --model --effort`"
+    },
+    {
+      "id": "phase-06",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-06-sidecar-lifecycle",
+      "plannedFilesToCreate": [
+        "src/domain/artifact/sidecar.ts",
+        "tests/unit/artifact/sidecar.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/artifact/writeSet.ts",
+        "src/app/artifactStatus.ts",
+        "src/cli/commands/artifact.ts",
+        "src/domain/errors.ts",
+        "src/cli/commands/runLayers.ts",
+        "tests/unit/artifact/writeSet.test.ts",
+        "tests/integration/artifactStatus.test.ts",
+        "tests/unit/cli/artifact.test.ts",
+        "tests/unit/cli/artifactStatusRender.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/artifact/document.ts",
+        "tests/integration/completeRunArtifacts.test.ts",
+        "tests/integration/runCarriesCompletion.test.ts",
+        "docs/cli/inventory.md"
+      ],
+      "commit": {
+        "subject": "feat(artifact): sidecar travels with transitions; divergence reported and blocks approve",
+        "body": "A headless-authored artifact's JSON sidecar is now part of every transition\nwrite-set, including the move to archive/. `artifact status` reports whether an\nartifact was authored headless and whether its sidecar still renders to its\nbody; `artifact approve` refuses a diverged or invalid sidecar with exit 12 and\nnames the remedies (re-author headless, or delete the sidecar to demote the\nartifact to hand-authored). Interactive artifacts are unaffected."
+      },
+      "title": "Sidecar lifecycle: write-set, divergence, `artifact status`"
+    },
+    {
+      "id": "phase-07",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-07-authoring-records",
+      "plannedFilesToCreate": [
+        "src/schemas/authoringRecord.ts",
+        "src/app/writeAuthoringRecord.ts",
+        "src/app/recordPlumbing.ts",
+        "tests/unit/authoringRecord.test.ts",
+        "tests/integration/writeAuthoringRecord.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/writeRecord.ts",
+        "src/app/authorArtifact.ts",
+        "src/app/recordsExplain.ts",
+        "src/app/recordsList.ts",
+        "src/cli/commands/records.ts",
+        "src/cli/commands/artifact.ts",
+        "tests/integration/recordsExplain.test.ts",
+        "tests/integration/authorArtifact.test.ts",
+        "tests/integration/artifactNewHeadlessCommand.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/records/assemble.ts",
+        "tests/integration/writeRecord.test.ts",
+        "tests/unit/cli/artifact.test.ts",
+        "docs/cli/inventory.md"
+      ],
+      "commit": {
+        "subject": "feat(records): authoring records — one per headless session, explained through the artifact commit",
+        "body": "Every headless authoring session writes a record of a distinct `authoring`\nkind on phax/records/v1 — brief, prompt, document, transcript per config,\nprovider, model, effort, usage and outcome — whether it committed an artifact\nor failed. The artifact commit's Authoring-Id trailer lets `records explain`\nresolve it, and `records list` shows it beside phase records. Shared record\nplumbing is factored out of writeRecord; the phase manifest is unchanged."
+      },
+      "title": "Authoring records, explained through the artifact commit"
+    },
+    {
+      "id": "phase-08",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-08-skills-and-docs",
+      "plannedFilesToCreate": [
+        "tests/e2e/headlessAuthoring.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        ".claude/skills/phax-spec/SKILL.md",
+        ".claude/skills/phax-planning/SKILL.md",
+        "README.md",
+        "NEXT_STEPS.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/e2e-testing.md",
+        "docs/plan-extraction-model.md",
+        "docs/cli/inventory.md"
+      ],
+      "commit": {
+        "subject": "docs(authoring): teach the skills the document shape; README headless section; experimental formats note",
+        "body": "The phax-spec and phax-planning skills now describe the JSON document a\nheadless session must return, alongside their unchanged Markdown-first\nguidance. The README documents `artifact new --headless` and lists the spec\ndocument, plan document and authoring record as experimental formats outside\nthe version 1 stability promise. NEXT_STEPS ticks the spec. A deliberate\nreal-provider e2e test authors a spec from a brief end to end."
+      },
+      "title": "Skills, README and the experimental-formats note"
+    }
+  ]
+}

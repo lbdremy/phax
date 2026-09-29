@@ -1,0 +1,53 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/app/runFolder.ts",
+    "src/app/resolveRunInfo.ts",
+    "src/app/resolveRunRef.ts",
+    "src/app/executePlan.ts",
+    "src/app/resetPhase.ts",
+    "src/app/resume.ts",
+    "src/app/archive.ts",
+    "src/app/worktree.ts",
+    "src/app/dryRun.ts",
+    "src/cli/interruptHandler.ts",
+    "src/cli/commands/run.ts",
+    "src/cli/commands/resume.ts",
+    "src/cli/commands/ls.ts",
+    "src/cli/commands/archive.ts",
+    "src/cli/commands/resetPhase.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "src/cli/commands/enterPhase.ts",
+    "tests/unit/resolveRunInfo.test.ts"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/cli/commands/reviewCompliance.ts",
+    "tests/integration/enter.test.ts",
+    "tests/integration/enterPhase.test.ts",
+    "tests/integration/executePlan.test.ts",
+    "tests/integration/perPhaseBranch.test.ts",
+    "tests/integration/rateLimit.test.ts",
+    "tests/integration/reconciliation.test.ts",
+    "tests/integration/resetPhase.test.ts",
+    "tests/integration/resume.test.ts",
+    "tests/integration/reviewHandoffCommand.test.ts",
+    "tests/integration/routing.test.ts",
+    "tests/integration/runFolder.test.ts",
+    "tests/integration/sessionInfo.test.ts",
+    "tests/integration/stateMachineContract.test.ts",
+    "tests/integration/telemetry/end-to-end.test.ts",
+    "tests/unit/cli/publishPr.test.ts",
+    "tests/unit/resolveRunRef.test.ts",
+    "tests/unit/resume.test.ts"
+  ],
+  "optionalTouched": [
+    "tests/integration/archive.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "external-gate-steps-structured-diagnostics",
+  "runId": "external-gate-steps-structured-diagnostics-1787324957525",
+  "state": "archived",
+  "createdAt": "2026-08-21T15:09:17.541Z",
+  "updatedAt": "2026-09-03T07:46:59.528Z",
+  "phasesCount": 3,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/54-external-gate-steps-plan.md"
+}

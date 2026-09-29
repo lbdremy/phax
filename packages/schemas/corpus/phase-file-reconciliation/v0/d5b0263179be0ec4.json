@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "src/app/reviewCompliance.ts",
+    "src/schemas/complianceReview.ts",
+    "tests/integration/reviewCompliance.test.ts",
+    "tests/unit/schemas/complianceReview.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

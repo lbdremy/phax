@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "review_open",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-08-21T12:24:28.499Z",
+  "updatedAt": "2026-08-21T12:28:03.051Z",
+  "branchName": "phax/public-surface-imports--phase-03",
+  "worktreePath": "~/.phax/worktrees/steme-lab.public-surface-imports/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "d39eeea78847910c52222fdefc8e41609c553191"
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "reconciliation-and-reopen-cleanups",
+  "runId": "reconciliation-and-reopen-cleanups-1786794744806",
+  "state": "archived",
+  "createdAt": "2026-08-15T11:52:24.824Z",
+  "updatedAt": "2026-09-03T07:46:58.175Z",
+  "phasesCount": 2,
+  "gateProfileId": "full",
+  "planRepoRelPath": "docs/plans/50-reconciliation-and-reopen-cleanups-plan.md"
+}

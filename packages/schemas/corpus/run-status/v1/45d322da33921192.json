@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "steme-lab",
+  "shortName": "policy-driven-rulepack-distribution",
+  "runId": "policy-driven-rulepack-distribution-1784717017082",
+  "state": "archived",
+  "createdAt": "2026-07-22T10:43:37.098Z",
+  "updatedAt": "2026-09-03T07:46:55.763Z",
+  "phasesCount": 2,
+  "gateProfileId": "full"
+}

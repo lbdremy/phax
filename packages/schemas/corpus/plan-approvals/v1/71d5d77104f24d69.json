@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "records": {
+    "docs/plans/39-smolvm-isolation-spike-plan.md": {
+      "planFingerprint": "8ef354c247c74bbc53efb10257ef22338ed1ccfe2c6d06d46c9d5718f90294e0",
+      "approvedAt": "2026-08-11T07:58:51.275Z",
+      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "sourceSpec": null
+    },
+    "docs/plans/41-claude-protected-path-approval-hook-plan.md": {
+      "planFingerprint": "dad5ed3b6398d8a3b21de411356cd667862608483c80d4fac72c0684290220c9",
+      "approvedAt": "2026-08-11T07:59:18.912Z",
+      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "sourceSpec": null
+    },
+    "docs/plans/54-external-gate-steps-plan.md": {
+      "planFingerprint": "62bc2392146c4289ce60e3ecf828f3444d5733840dc01e6a5af18bf0946f13e9",
+      "approvedAt": "2026-08-21T15:07:10.436Z",
+      "baseline": "7b04176f439d8a69053003ba4d1a1a020e2b7432",
+      "sourceSpec": {
+        "path": "docs/specs/16-external-gate-steps.md",
+        "fingerprint": "45d100e868bf5fb817ef758baba7eaae882fc4e82f55435fcd0c71e763a86d38"
+      }
+    }
+  }
+}

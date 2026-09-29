@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "packages/schemas/src/formats/recordManifests.ts",
+    "packages/schemas/src/history/authoring-record-manifest/v1.ts",
+    "tests/unit/schemasPackage/recordManifests.test.ts",
+    "tests/unit/schemasPackage/fixtures/authoring-record-manifest/v1.json"
+  ],
+  "editedAsPlanned": [
+    "packages/schemas/src/index.ts",
+    "packages/schemas/history.lock.json",
+    "tests/unit/schemasPackage/parity.test.ts",
+    "tests/unit/schemasPackage/exports.test.ts",
+    "tests/unit/schemasPackage/frozenHistory.test.ts",
+    "tests/type/schemasPackage.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "runId": "plan-lint-1788858296696",
+  "phaseId": "phase-03",
+  "shape": "full",
+  "sourceSha": "fb19ef445ce4cd87b6bf3e34eb4a227c193bea0b",
+  "model": "claude-opus-5",
+  "effort": "medium",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 90,
+      "cacheCreationInputTokens": 90957,
+      "cacheReadInputTokens": 3744656,
+      "outputTokens": 17514,
+      "totalCostUsd": 3.2365400000000006
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "structural"
+  ]
+}

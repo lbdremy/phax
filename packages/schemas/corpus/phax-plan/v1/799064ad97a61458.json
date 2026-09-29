@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "unit-scoped-baseline-registers",
+    "title": "Unit-Scoped Baseline Registers",
+    "requiredCommands": [],
+    "branch": "phax/unit-scoped-baseline-registers"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-colocate-register",
+      "plannedFilesToCreate": [
+        "apps/steme/src/cli/register-path.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/src/cli/commands/baseline.ts",
+        "apps/steme/src/cli/refusals.ts",
+        "apps/steme/src/core/modules/audit/capability.ts",
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts",
+        "apps/steme/src/cli/preflight-ordering.e2e.test.ts",
+        "apps/steme/steme.usage.kdl",
+        "apps/steme/docs/cli.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "refactor(steme): colocate the baseline register with its unit and drop --baseline",
+        "body": "The baseline register moves from one repo-root steme-baseline.json to a\nper-unit <unit>/steme.baseline.json, derived from the audit target the\ninvocation already supplies — and takes the manifest's naming family\n(steme.package.json / steme.baseline.json) now that the two are siblings.\nNothing needs a flag to find it anymore, so --baseline is removed from audit,\nbaseline write, and baseline accept-drift; stale invocations fail loudly as\nunknown options. The missing-register refusal stops naming an override that no\nlonger exists, and the inert-flag refusal is deleted with its subject.\n\nEntry keying is deliberately frozen: entries still carry repo-relative paths\nand fingerprints, and splitEntriesForApp still partitions per unit — that flips\nin the next commit, where a reviewer can see it in isolation. The E2E suites\ndrop ~46 --baseline call sites that existed only to isolate a register per\nfixture; the derived location makes tmpdir fixtures hermetic for free.\nsteme.usage.kdl and docs/cli.md are regenerated."
+      },
+      "title": "Colocate and rename the register; remove --baseline"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-fable-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-unit-relative-identity",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/src/core/fingerprint.ts",
+        "apps/steme/src/core/fingerprint.test.ts",
+        "apps/steme/src/core/evaluate/diagnostics.ts",
+        "apps/steme/src/core/baseline/classify.ts",
+        "apps/steme/src/core/baseline/classify.test.ts",
+        "apps/steme/src/core/baseline/store.ts",
+        "apps/steme/src/core/baseline/store.test.ts",
+        "apps/steme/src/core/modules/governance/capability.ts",
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/src/cli/commands/baseline.ts",
+        "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts",
+        "apps/steme/src/cli/preflight-ordering.e2e.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/src/contracts/baseline.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): key baseline entries unit-relative; one register, one unit",
+        "body": "Baseline entries are now keyed relative to the unit root: the entry file and\nthe fingerprint's two path inputs come straight from the violation's edge\n(src/core/a.ts), not from posix.join(appRelPath, …). Accepted debt therefore\nsurvives renaming or moving the unit — proven by a lifecycle scenario that\nseeds a register, renames the unit directory, and audits the new path: red\n(exit 1, all drift new) under repo-relative keying, green (exit 0, all known)\nunder unit-relative keying. An in-place audit passes under both designs, which\nis why the test moves the unit.\n\nThe fingerprint prefix stays v1: per the pre-ship versioning policy — the\nrecipe is redefined in place, registers are regenerated rather than migrated,\nand the fingerprint comment that mandated a v2: bump is rewritten to state the\nrecipe and the policy instead of contradicting it.\n\nA one-unit register has nothing to partition: splitEntriesForApp and the\notherEntries thread-through are deleted, the governance read drops its\nappRelPath parameter, and silent preservation of foreign entries is replaced\nby a refusal — a register holding an entry whose file escapes the unit\n(absolute, or normalizing to ../) exits 2 naming the entry, from all three\nregister-reading flows. The foreign-entries lifecycle scenario is deleted as\nunrepresentable and replaced by the refusal scenario. Drift classification\ncompares entries against the diagnostic's unit-relative file; diagnostics keep\ntheir repo-relative file for reporting."
+      },
+      "title": "Unit-relative entry identity; a register describes exactly one unit"
+    }
+  ]
+}

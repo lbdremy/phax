@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "tests/integration/resetResume.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/resolveRunInfo.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

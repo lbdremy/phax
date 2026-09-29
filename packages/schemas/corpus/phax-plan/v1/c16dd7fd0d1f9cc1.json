@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "compliance-review",
+    "title": "Plan-compliance review at end of run",
+    "requiredCommands": [],
+    "branch": "phax/compliance-review"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-config",
+      "plannedFilesToCreate": [
+        "tests/unit/schemas/complianceReviewConfig.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/app/loadConfig.ts",
+        "phax.schema.json"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/loadConfig.test.ts",
+        "tests/unit/schemas/phaxConfigJsonSchema.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(config): add opt-in review.compliance configuration block",
+        "body": "Add review.compliance { enabled, model?, effort? } to the phax config schema, a\nresolveComplianceReviewConfig resolver with advisory-friendly defaults (disabled,\nclaude-sonnet-4-6, medium), a ResolvedConfig.complianceReview field, and the regenerated\nphax.schema.json. No behavior yet — this is the contract later phases consume."
+      },
+      "title": "Compliance review config and schema export"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-domain",
+      "plannedFilesToCreate": [
+        "src/domain/review/compliancePrompt.ts",
+        "src/domain/security/resolveReviewPolicy.ts",
+        "tests/unit/review/compliancePrompt.test.ts",
+        "tests/unit/security/resolveReviewPolicy.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "src/domain/security/types.ts"
+      ],
+      "commit": {
+        "subject": "feat(review): add compliance prompt builder and read-only review policy",
+        "body": "Add pure-domain buildCompliancePrompt (plan + global reconciliation + phase list framed into a\nnon-mutating, conformance-only, per-phase review instruction naming both artifact paths and\nembedding the compliance-review.json shape) and resolveReviewSecurityPolicy (worktree readable,\nonly .phax-context writable, fail-closed). Covered by unit tests. No I/O and no callers yet."
+      },
+      "title": "Compliance prompt builder and read-only review policy"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-03-use-case",
+      "plannedFilesToCreate": [
+        "src/app/reviewCompliance.ts",
+        "src/schemas/complianceReview.ts",
+        "tests/integration/reviewCompliance.test.ts",
+        "tests/unit/schemas/complianceReview.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(review): add reviewCompliance use case and compliance-review verdict schema",
+        "body": "Add reviewCompliance, mirroring publishRun: it reads the plan and global reconciliation, runs a\nfresh read-only agent session in the final worktree to author compliance-review.md +\ncompliance-review.json, then decodes the agent-authored verdict through decodeComplianceReview\nat the boundary and carries it on the result. The md is the primary deliverable; a missing or\nundecodable json yields a generated result with verdict \"unknown\" rather than a failure (v1 is\nadvisory). Failures are returned, never thrown. Covered by integration and schema tests."
+      },
+      "title": "`reviewCompliance` use case"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-wiring",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts",
+        "src/domain/publish/body.ts",
+        "src/app/publishRun.ts",
+        "tests/unit/publish/body.test.ts",
+        "tests/integration/publishRun.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/executePlan.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(review): auto-run compliance review before publish and surface it in the PR body",
+        "body": "Run reviewCompliance at end of run when review.compliance.enabled, ordered before publishRun so\nthe verdict can be carried into the PR. Extend buildPrBody with an optional compliance section\n(within the existing size budget) and have publishRun pass compliance-review.md through when it\nexists. Review failures are non-fatal; the run stays in review_open. Covered by unit and\nintegration tests."
+      },
+      "title": "Auto-trigger in executePlan and PR-body surfacing"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-05-cli",
+      "plannedFilesToCreate": [
+        "src/cli/commands/reviewCompliance.ts",
+        "tests/integration/reviewComplianceCommand.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/main.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/commands/runLayers.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): add phax review-compliance command for on-demand plan-compliance review",
+        "body": "Add runReviewCompliance and register the review-compliance <short-name> command, mirroring\npublish-pr: it guards on review_open, builds an agent-capable layer (Backend + FileSystem +\nSystemTelemetry), resolves the reviewer model and security config, runs the reviewCompliance\nuse case, and renders the verdict path or failure reason. Covered by an integration test."
+      },
+      "title": "`phax review-compliance` CLI command"
+    }
+  ]
+}

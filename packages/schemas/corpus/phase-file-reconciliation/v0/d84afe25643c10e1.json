@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "package.json",
+    "tsconfig.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "pnpm-lock.yaml"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

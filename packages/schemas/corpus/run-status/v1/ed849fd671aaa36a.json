@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "planning-skill-update",
+  "runId": "planning-skill-update-1780471361324",
+  "state": "archived",
+  "createdAt": "2026-06-03T07:22:41.342Z",
+  "updatedAt": "2026-09-04T14:40:55.279Z",
+  "phasesCount": 5,
+  "gateProfileId": "full",
+  "stoppedReason": "rate_limited",
+  "lastError": "codex exited with code 2"
+}

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "smolvm-isolation-spike",
+  "runId": "smolvm-isolation-spike-1782738661332",
+  "state": "archived",
+  "createdAt": "2026-06-29T13:11:01.351Z",
+  "updatedAt": "2026-09-03T07:46:52.433Z",
+  "phasesCount": 5,
+  "gateProfileId": "full"
+}

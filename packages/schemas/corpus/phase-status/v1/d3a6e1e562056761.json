@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-23T17:18:48.775Z",
+  "updatedAt": "2026-06-23T17:24:49.473Z",
+  "branchName": "phax/phax-config-split--phase-01",
+  "worktreePath": "~/.phax/worktrees/phax.phax-config-split/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "44cc76a58fd8e76d21681c652dc60901ba5040a1"
+}

@@ -1,0 +1,31 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "packages/louloupress/src/modules/content/web/components/mdx/SeriesNav.tsx",
+    "apps/le-secretaire-de-fernand/tests/ui/series-nav.test.tsx"
+  ],
+  "editedAsPlanned": [
+    "apps/le-secretaire-de-fernand/src/web/modules/content/pages/mdx-content/page.tsx",
+    "packages/louloupress/src/modules/content/web/components/mdx/MdxPage.tsx"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "apps/le-secretaire-de-fernand/public/content-index.json",
+    "apps/le-secretaire-de-fernand/src/web-rpc/modules/content/functions/route-data-functions.ts",
+    "apps/le-secretaire-de-fernand/src/web-rpc/modules/content/public.ts",
+    "apps/le-secretaire-de-fernand/src/web/routes/$lang/$.tsx",
+    "packages/louloupress/src/modules/content/shared/contracts/route-data.ts",
+    "packages/louloupress/src/modules/content/web/pages/mdx-content/page.tsx",
+    "packages/louloupress/src/modules/content/web/public.ts"
+  ],
+  "optionalTouched": [
+    "apps/le-secretaire-de-fernand/src/web/modules/content/pages/mdx-content/page.tsx"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

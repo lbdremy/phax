@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "tests/integration/resumeHandoff.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/executePlan.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/domain/reducer.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

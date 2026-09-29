@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "tests/unit/reducerCleanupPause.test.ts",
+    "tests/integration/resumeFromCleanup.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/events.ts",
+    "src/domain/reducer.ts",
+    "src/domain/matrix.ts",
+    "src/domain/effects.ts",
+    "src/app/executePlan.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/resumeInstructions.ts",
+    "src/domain/errors.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

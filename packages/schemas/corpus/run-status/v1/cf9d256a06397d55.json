@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "louloupapers",
+  "shortName": "louloupress-features-2",
+  "runId": "louloupress-features-2-1782468225812",
+  "state": "archived",
+  "createdAt": "2026-06-26T10:03:45.831Z",
+  "updatedAt": "2026-09-03T07:55:19.105Z",
+  "phasesCount": 6,
+  "gateProfileId": "full",
+  "stoppedReason": "rate_limited",
+  "lastError": "Claude Code stopped: rate limit hit."
+}

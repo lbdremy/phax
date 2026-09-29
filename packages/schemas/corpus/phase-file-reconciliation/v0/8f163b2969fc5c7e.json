@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "apps/steme/src/cli/policy.e2e.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/core/modules/audit/capability.ts",
+    "apps/steme/src/core/modules/audit/capability.test.ts",
+    "apps/steme/src/core/composition/index.ts",
+    "apps/steme/src/cli/manifest-bindings.e2e.test.ts",
+    "apps/steme/src/cli/audit-harness.e2e.test.ts",
+    "apps/steme/src/cli/preflight-ordering.e2e.test.ts",
+    "apps/steme/src/cli/main.test.ts",
+    "apps/steme/src/cli/test-workspace.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

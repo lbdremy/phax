@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "telemetry-report",
+    "title": "Local-only telemetry and `phax report`",
+    "requiredCommands": [],
+    "branch": "phax/telemetry-report"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Remove the OpenTelemetry adapter and dependencies",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-remove-otel",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/infra/telemetry/layer.ts",
+        "src/cli/commands/runLayers.ts",
+        "tests/unit/architecturalGuards.telemetry.test.ts",
+        "package.json",
+        ".claude/skills/observability/SKILL.md",
+        "docs/observability.md"
+      ],
+      "optionalFilesToEdit": [
+        "pnpm-lock.yaml",
+        "tests/unit/telemetry/factory.test.ts"
+      ],
+      "commit": {
+        "subject": "refactor(telemetry): remove the no-op OpenTelemetry transport",
+        "body": "The OpenTelemetry adapter built spans and metrics with no exporter, so all of it was discarded at runtime while shipping ~22 MB of @opentelemetry/* packages (semantic-conventions alone, 12 MB, was imported nowhere). Delete the adapter, its test, the otelEnabled/PHAX_OTEL wiring, and the five dependencies. The SystemTelemetry port and the in-memory, JSON-file, and composite sinks are unchanged. Guard test and observability docs updated."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Enrich the JSON-file telemetry sink with timestamps and durations",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-02-enrich-sink",
+      "plannedFilesToCreate": [
+        "tests/unit/telemetry/jsonFile.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/infra/telemetry/jsonFile.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/telemetry/layer.ts",
+        "docs/observability.md"
+      ],
+      "commit": {
+        "subject": "feat(telemetry): stamp JSON-Lines sink records with timestamp and duration",
+        "body": "The JSON-file sink is now the sole telemetry transport, so give it the metadata OTel used to fabricate but never persisted: an ISO-8601 `ts` on every record and `durationMs` on step.completed. A clock is injected (default Date.now) for deterministic tests. Domain event types and the snapshot projection are unchanged — these are transport-only fields."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Global telemetry config at `~/.phax/telemetry.json`",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-global-config",
+      "plannedFilesToCreate": [
+        "src/schemas/telemetryConfig.ts",
+        "src/app/loadTelemetryConfig.ts",
+        "tests/unit/loadTelemetryConfig.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts",
+        "src/cli/commands/extractPlan.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/type/telemetryConfig.test-d.ts",
+        "docs/observability.md"
+      ],
+      "commit": {
+        "subject": "feat(telemetry): add global ~/.phax/telemetry.json enable switch",
+        "body": "Introduce phax's first global config file: ~/.phax/telemetry.json with a required `enabled` boolean (default true), decoded through an Effect Schema and scaffolded on first use without overwriting. run/resume/extract-plan now provide NoopSystemTelemetryLayer when telemetry is disabled. Covered by loader unit tests."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "Daily global telemetry journal with 7-day rotation",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-daily-journal",
+      "plannedFilesToCreate": [
+        "src/domain/telemetry/journal.ts",
+        "src/app/globalTelemetryJournal.ts",
+        "tests/unit/telemetry/journal.test.ts",
+        "tests/integration/globalTelemetryJournal.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/fs.ts",
+        "src/infra/fs.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/fakes/fs.ts",
+        "src/cli/commands/archive.ts",
+        "src/cli/commands/ls.ts",
+        "src/cli/commands/open.ts",
+        "src/cli/commands/path.ts",
+        "src/cli/commands/reviewHandoff.ts",
+        "src/cli/commands/resetPhase.ts",
+        "src/cli/commands/security.ts",
+        "src/cli/commands/agent.ts",
+        "tests/type/fs.test-d.ts",
+        "docs/observability.md"
+      ],
+      "commit": {
+        "subject": "feat(telemetry): add rotating daily global telemetry journal",
+        "body": "Small commands now append to ~/.phax/telemetry-YYYY-MM-DD.jsonl, retained for 7 days with day-based pruning; heavy runs keep their per-run semantic.jsonl. Adds pure filename/prune logic in domain, a FileSystem.list port method, and a gated journal layer that prunes on construction. Covered by domain unit tests and a journal integration test."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "`phax report`: GitHub issue + gist from local telemetry",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-report-command",
+      "plannedFilesToCreate": [
+        "src/domain/telemetry/report.ts",
+        "src/app/report.ts",
+        "src/cli/commands/report.ts",
+        "tests/unit/telemetry/report.test.ts",
+        "tests/integration/report.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/github.ts",
+        "src/infra/github.ts",
+        "src/cli/main.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/type/github.test-d.ts",
+        "src/app/telemetry/reportBuilders.ts",
+        "docs/observability.md",
+        "README.md"
+      ],
+      "commit": {
+        "subject": "feat(cli): add phax report to open a GitHub issue from local telemetry",
+        "body": "Add a user-triggered `phax report` command that assembles a structured issue body (version/OS/command metadata, error reports, recent events) from a run's semantic.jsonl or the latest daily journal, attaches the full log as a secret gist when it exceeds the issue body limit, and opens an issue via the gh CLI. Adds createIssue/createGist to the GitHub port and a pure domain body builder. Covered by domain unit tests and app integration tests with fake ports."
+      }
+    }
+  ]
+}

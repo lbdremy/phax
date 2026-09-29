@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "phax-init",
+    "title": "Implement phax init, JSON schema generation, and schema upgrade",
+    "requiredCommands": [],
+    "branch": "phax/phax-init"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Generate config JSON Schema from PhaxConfigSchema",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-config-json-schema",
+      "plannedFilesToCreate": [
+        "tests/unit/phaxConfigJsonSchema.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(schema): generate JSON Schema from PhaxConfigSchema",
+        "body": "Add getPhaxConfigJsonSchema(), returning JSONSchema.make(PhaxConfigSchema), mirroring the existing plan-schema generators. This lets phax init and phax schema upgrade write a local phax.schema.json that always matches the installed binary's config contract. Covered by a unit test asserting the emitted schema's properties and required fields."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Init project command and schema-file writer",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-init-app",
+      "plannedFilesToCreate": [
+        "src/app/initProject.ts",
+        "tests/unit/initProject.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(init): add initProject command and config-schema writer",
+        "body": "Add the application-layer initProject command (minimal valid phax.json plus a local ./phax.schema.json) and writeConfigSchemaFile, an idempotent writer reused by phax schema upgrade. initProject refuses to overwrite an existing config unless forced. Covered by unit tests for creation, the already-initialized no-overwrite path, force overwrite, and writer idempotency."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "`phax init` CLI command",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-03-init-cli",
+      "plannedFilesToCreate": [
+        "src/cli/commands/init.ts",
+        "tests/unit/cli/init.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/main.ts",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(cli): add phax init command",
+        "body": "Register `phax init` (with --force), wiring initProject to the output port and printing the created config path, the local schema reference, and the next command. Refuses to overwrite an existing config without --force. Documents the command in the README. Covered by a CLI unit test exercising create, already-initialized, and force-overwrite paths."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "`phax schema upgrade` command",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-schema-upgrade",
+      "plannedFilesToCreate": [
+        "src/cli/commands/schema.ts",
+        "tests/unit/cli/schemaUpgrade.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/initProject.ts",
+        "src/app/loadConfig.ts",
+        "src/cli/main.ts",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(cli): add phax schema upgrade command",
+        "body": "Add `phax schema upgrade`, which regenerates the project's phax.schema.json from the installed binary's config contract via the shared writeConfigSchemaFile. It locates phax.json (new locatePhaxConfig export) and writes the sibling schema only, never touching phax.json, and reports updated vs already-current. Covered by unit and CLI tests including the invalid-config and idempotency cases."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "Consistent config-validation error reporting",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-config-error-ux",
+      "plannedFilesToCreate": [
+        "src/cli/commands/reportConfigError.ts",
+        "tests/unit/cli/reportConfigError.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts",
+        "src/cli/commands/resetPhase.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/commands/validate.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): explain config validation failures and propose a fix",
+        "body": "Add reportConfigError, a single CLI-boundary renderer for ConfigValidationError that prints the field-level detail and proposes `phax validate` / `phax schema upgrade`. Wire it into run, resume, and reset-phase so a bad config stops the command with an actionable message. Covered by a unit test on the rendered output."
+      }
+    }
+  ]
+}

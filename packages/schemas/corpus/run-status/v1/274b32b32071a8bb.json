@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "shortName": "observability",
+  "runId": "observability-1779953083864",
+  "state": "archived",
+  "createdAt": "2026-05-28T07:24:43.882Z",
+  "updatedAt": "2026-05-29T15:25:50.143Z",
+  "phasesCount": 12,
+  "gateProfileId": "full",
+  "stoppedReason": "rate_limited",
+  "lastError": "Claude Code stopped: usage limit reached."
+}

@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/cli/program.ts",
+    "src/cli/commands/resumeRegister.ts",
+    "src/cli/commands/resetPhaseRegister.ts",
+    "scripts/generate-usage-spec.ts",
+    "phax.usage.kdl"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "docs/cli/reference.md"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

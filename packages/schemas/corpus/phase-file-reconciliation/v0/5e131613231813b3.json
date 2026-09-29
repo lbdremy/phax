@@ -1,0 +1,17 @@
+{
+  "createdAsPlanned": [
+    "tests/e2e/gateExhaustionResume.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/resume.ts",
+    "tests/unit/resume.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

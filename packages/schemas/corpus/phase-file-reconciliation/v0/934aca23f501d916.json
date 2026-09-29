@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/domain/authoring/renderSpec.ts",
+    "src/domain/authoring/renderPlan.ts",
+    "tests/unit/renderSpec.test.ts",
+    "tests/unit/renderPlan.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/planCache/key.ts",
+    "tests/unit/planCacheKey.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [
+    "src/domain/authoring/markdown.ts"
+  ],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "tests/unit/__snapshots__/renderSpec.test.ts.snap"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "runId": "artifact-timestamp-naming-1789034107833",
+  "phaseId": "phase-04",
+  "shape": "full",
+  "sourceSha": "d31ed989ccfacec09f6d32f653250dac509b3096",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 172,
+      "cacheCreationInputTokens": 157298,
+      "cacheReadInputTokens": 11922139,
+      "outputTokens": 34055,
+      "totalCostUsd": 3.3816197999999997
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "structural"
+  ]
+}

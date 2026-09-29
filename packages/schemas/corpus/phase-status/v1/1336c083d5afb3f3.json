@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-07",
+  "phaseIndex": 6,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "low",
+  "createdAt": "2026-06-19T12:00:25.860Z",
+  "updatedAt": "2026-06-19T12:03:48.294Z",
+  "branchName": "phax/usage-cli--phase-07",
+  "worktreePath": "~/.phax/worktrees/usage-cli/phase-07",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "6c9359f37307262e239b7a115327033420d38795"
+}

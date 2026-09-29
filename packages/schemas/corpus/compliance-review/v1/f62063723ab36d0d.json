@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "The run delivered its sole objective faithfully: `reviewCompliance.ts` now routes the raw argument through `resolveRunRef` with `effectiveStateRoot`, the dead `decodeShortName` and `resolveRun` imports were removed, and a five-test CLI unit suite covers the enabled-gate short-circuit, qualified-name regression, resolution-refusal, and cross-project scenarios. The single deviation is an unplanned touch of `.agents/skills/phax-planning/SKILL.md` caused by `pnpm format` (oxfmt) running during the full gate — no semantic content change — which the handoff explains clearly.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered as specified: `resolveRunRef(shortNameArg, config, stateRoot)` with `stateRoot = effectiveStateRoot(config)` replaces the old `decodeShortName` + `resolveRun` path; `crossProject` Target: log added; `info` used directly downstream; dead imports removed."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Respected: no changes to `resolveRunRef`, `parseRunRef`, `decodeShortName`, other commands, error wording, or retry hint."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "`.agents/skills/phax-planning/SKILL.md` was touched but not planned. The handoff explains this is a formatter (oxfmt) side-effect with no intentional content change — justified."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All four planned test scenarios present across five tests. Extra `resolveModel` mock added and justified (avoids brittle `ModelRouting` construction at the CLI layer)."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Boundary contract respected: command consumes `resolveRunRef` → `Either<ResolveRunRefRefusal, ResolveRunRefResult>` as declared; no new interface introduced."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject `fix(cli): accept qualified run names in review-compliance` matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all required content: `resolveRunRef` usage confirmed, dead imports removal confirmed, qualified-name test noted, unplanned file deviation explained with reason."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [],
+  "pointers": []
+}

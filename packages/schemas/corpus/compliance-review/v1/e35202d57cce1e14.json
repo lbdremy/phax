@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Both phases delivered their stated objectives. All planned files were touched, no unplanned files were modified, and both commit subjects match the plan exactly. Phase-01 is fully conformant. Phase-02 has two minor justified deviations: six E2E tests were shipped instead of the four scenarios the plan named (the extras provide a sharper ordering proof via an unauditable-target probe, documented in the handoff), and the implicit removal of phase-01's computeAudit composition tests from capability.test.ts was not explicitly noted in the phase-02 handoff (though it is an unavoidable consequence of deleting computeAudit itself). No deviation is unjustified or unexplained.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "computeAudit was kept as a thin preflight→execute wrapper after phase-01 (per plan) and removed in phase-02 (per that plan). The current file reflects the post-phase-02 state; the phase-01 handoff confirms all three methods were present after phase-01."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "The phase-01 handoff reports 6 tests. The current test file has 5 visible tests because the two computeAudit composition tests were removed in phase-02 when computeAudit was deleted. All other phase-01 promised tests are present."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "tests",
+          "severity": "deviation",
+          "message": "preflight-ordering.e2e.test.ts contains 6 tests across 3 describe blocks instead of the 4 scenarios the plan named. The two extra tests form a second describe ('baseline refusals precede execution') that uses an unauditable target to provide a sharper ordering proof — demonstrating the refusal message appears instead of 'Cannot build import graph'. The deviation is documented and justified in the phase-02 handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "deviation",
+          "message": "The phase-02 handoff says 'Extend capability.test.ts' but does not explicitly note the removal of the two computeAudit composition tests that phase-01 created. Net test count in capability.test.ts went from 6 (post phase-01) to 5 (post phase-02, before adding the new target-precondition test), then 5 after adding it. Removing tests for a deleted function is correct; the omission is in the handoff documentation only."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "deviation",
+          "message": "The handoff does not explicitly mention the removal of the computeAudit composition tests from capability.test.ts. All other required handoff content is present: spec §8 criterion enumeration, target-precondition message string, computeAudit removal confirmation, other E2E suite results, and justification for the extra E2E tests."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "--write-baseline's 'app already has N baseline entry(ies)' refusal still fires after execute(), not during preflight. The phase-02 handoff flags this as the natural next candidate if the ordering contract is extended. It is within spec scope exclusions for this run; a future plan should assign it a deliberate slot in the preflight order if completeness is required.",
+    "The extra E2E tests in 'baseline refusals precede execution' rely on the import-graph adapter failing with 'Cannot build import graph' when the target directory has no src/. If the adapter's path convention changes, these tests will silently stop proving the ordering guarantee without turning red."
+  ],
+  "pointers": [
+    "possible concern at preflight-ordering.e2e.test.ts:138 — the unauditable-target probe assumes the import-graph adapter scans <app>/src; if that convention changes, the test becomes a no-op without failing — confirm via code review of the ImportGraphPort adapter"
+  ]
+}

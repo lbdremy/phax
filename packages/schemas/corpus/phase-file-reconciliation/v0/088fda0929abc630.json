@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/schemas/planAudit.ts",
+    "src/app/planAuditor.ts",
+    "tests/unit/schemas/planAudit.test.ts",
+    "tests/integration/planAuditor.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/plan/projection.ts",
+    "src/domain/plan/lint.ts",
+    "src/domain/errors.ts",
+    "tests/unit/planProjection.test.ts",
+    "tests/unit/planLint.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

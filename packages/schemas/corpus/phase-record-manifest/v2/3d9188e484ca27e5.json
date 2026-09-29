@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "runId": "schemas-package-1-5-read-the-phase-record-manifest-1790662724320",
+  "phaseId": "phase-02",
+  "shape": "full",
+  "sourceSha": "178cbab917d2a589148d40177119c546551e68c8",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 84,
+      "cacheCreationInputTokens": 130839,
+      "cacheReadInputTokens": 4224305,
+      "outputTokens": 58934,
+      "totalCostUsd": 3.0705889999999996
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "structural"
+  ]
+}

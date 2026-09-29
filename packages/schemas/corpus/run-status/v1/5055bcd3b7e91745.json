@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "steme-lab",
+  "shortName": "public-surface-imports",
+  "runId": "public-surface-imports-1787312936156",
+  "state": "archived",
+  "createdAt": "2026-08-21T11:48:56.173Z",
+  "updatedAt": "2026-09-03T07:46:59.341Z",
+  "phasesCount": 3,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/17-public-surface-imports-plan.md"
+}

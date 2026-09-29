@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "review_open",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-08-12T15:16:42.011Z",
+  "updatedAt": "2026-08-12T15:22:48.748Z",
+  "branchName": "phax/artifact-frontmatter-metadata--phase-03",
+  "worktreePath": "~/.phax/worktrees/phax.artifact-frontmatter-metadata/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "c07301fa72f1045d15f0770a4d0f2baf8c7412b9"
+}

@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "src/schemas/orientBrief.ts",
+    "tests/unit/orientBrief.test.ts",
+    "tests/integration/orientBriefArtifact.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/executePlan.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/orient.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

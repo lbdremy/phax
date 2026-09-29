@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-23T10:42:27.329Z",
+  "updatedAt": "2026-06-23T11:08:13.823Z",
+  "branchName": "phax/harden-usage-kdl--phase-02",
+  "worktreePath": "~/.phax/worktrees/phax.harden-usage-kdl/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "79fe0d85341cae44b95e6865af34836edce9c4ec"
+}

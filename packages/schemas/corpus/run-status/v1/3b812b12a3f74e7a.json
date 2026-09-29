@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "compliance-review",
+  "runId": "compliance-review-1782125385110",
+  "state": "archived",
+  "createdAt": "2026-06-22T10:49:45.126Z",
+  "updatedAt": "2026-09-03T07:49:12.083Z",
+  "phasesCount": 5,
+  "gateProfileId": "full"
+}

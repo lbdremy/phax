@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases delivered their stated objectives. Phase-01 extended the Git port with dirtyPaths and commitPaths, covered by real-git integration and parser unit tests, with one unplanned test file (tests/unit/schemas/git.test.ts) justified by the test strategy. Phase-02 made transitionArtifact self-recording with a pure write-set domain module, required-boolean commit option, and six integration scenarios; multiple unplanned file touches were forced by the required boolean on TransitionArtifactOptions and disclosed in the handoff. Phase-03 wired --no-commit, Commit: output, exit-12 mapping, long-help text, and regenerated derived artifacts; src/cli/cliDocs.ts was unplanned but required by the plan's own instruction, and README.md was a mechanical script side effect. All commit subjects match the plan exactly. No scope creep across phase boundaries was observed.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "dirtyPaths and commitPaths are present on GitOps, implemented on NodeGitLayer via gitRun with pathspec-scoped add/commit, and covered by real-git integration tests and parser unit tests."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "tests/unit/schemas/git.test.ts created but not on the planned list. Justified: the test strategy explicitly required unit tests for parseDirtyPaths and no prior schema test file existed."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised test scenarios present: path-scoped commit leaving unrelated dirty file, archive-move delete+create pair, untracked file, empty-input short-circuit, and dirty-subset reporting at the integration layer; all porcelain parser cases at the unit layer."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "transitionArtifact, artifact domain, and CLI surface are untouched by phase-01 commits."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "parseDirtyPaths lives in src/schemas/git.ts alongside existing parsers; no artifact-domain vocabulary in the port."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan exactly: feat(git): add path-scoped dirty-status and commit to the Git port"
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers exact port signatures, GitCall variant shapes, knob names (setDirtyPaths, dirtyPathsSet), deviation disclosure, and guidance on enqueueDirtyPaths for phase-02."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "transitionWriteSet and transitionCommitMessage are pure domain functions; ArtifactDirtyWriteSetError and ArtifactCommitFailedError have computed messages matching spec wording; commit: boolean is required; pre-write and post-write dirtyPaths calls implement precondition and no-op detection correctly."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/cli/commands/artifact.ts extra-touched (also phase-02): required commit: boolean forced commit: true at the existing call site. No flag, rendering, or exit-code mapping added — those remain phase-03 scope. Disclosed in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/cli/commands/plans.ts unplanned: --apply path calls transitionArtifact; required field forced the same type-driven update. Disclosed in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/app/planStaleness.ts unplanned: applyStalenessReport's error union widened with the two new errors; type-only change, no behavior change. Disclosed in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "src/infra/fakes/git.ts extra-touched to add failNextCommitPaths and enqueueDirtyPaths knobs, required to distinguish pre-write and post-write dirtyPaths calls in integration tests. Disclosed in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "tests/integration/planStaleness.test.ts unplanned: added commit: false to keep prior non-committing behavior. Disclosed in handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All six required integration scenarios present in the auto-commit describe block: approve commits write-set, archive is one commit, dirty target refuses before write, commit:false skips entirely, no-op creates no commit, commit failure surfaces loudly with writes retained."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "CLI flag, output rendering, and exit-code mapping were not added. The commit:true hardcoding at existing call sites is the documented minimum required by the type system."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "writeSet.ts is pure domain with no I/O; the app layer alone talks to the Git port."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan exactly: feat(artifact): auto-commit transition write-set with clean-target precondition"
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers exported names, ArtifactTransitionResult.commit shape, new fake knobs and their semantics, and a complete deviation ledger."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "--no-commit registered on all five transition subcommands via the TRANSITIONS loop; default commit=true; Commit: line rendered with 7-char hash and subject when present; ArtifactDirtyWriteSetError exits 12; ArtifactCommitFailedError falls through to exit 1; phax.usage.kdl and docs/cli/reference.md regenerated via package scripts."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/cli/cliDocs.ts edited but not on the planned list. Justified: the plan's instruction to update long-help Side effects text targets this file — it is the source that gen:usage-spec and docs:cli read from. All five subcommands updated correctly. Disclosed in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "README.md modified as a mechanical side effect of pnpm docs:cli (CLI summary section); not a manual edit. Disclosed in handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/cli/artifact.test.ts covers all required cases: default commit:true, commit:false threading, Commit: line presence and absence, ArtifactDirtyWriteSetError exit 12 with --no-commit in error text, ArtifactCommitFailedError non-zero non-12."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No behavior changed in the use case or git port."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "CLI renders ArtifactTransitionResult.commit and maps errors to exit codes; contains no commit logic. Names match phase-02 handoff exactly."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan exactly: feat(cli): add --no-commit and commit reporting to artifact transitions"
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers flag spelling, rendered output lines (quoted), regeneration confirmation via scripts, and complete deviation ledger."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [],
+  "pointers": []
+}

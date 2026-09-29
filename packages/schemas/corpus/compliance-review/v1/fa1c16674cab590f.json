@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases delivered their stated objectives. Phase-01 executed a mechanical rename of governance.ts → baseline.ts and correctly wired the baseline command tree, migrated all three test files invocation-only, and regenerated both derived artifacts. Phase-02 moved the already-covered refusal before execute() and added the mandated probe+control in preflight-ordering.e2e.test.ts. Phase-03 added the inert-flag refusal and unified the missing-register message behind a shared builder consumed from two call sites. The single deviation — the reconciliation flagging governance.ts as missing and baseline.ts as renamed rather than a clean create — was anticipated by the plan in the phase-01 Expected handoff content and fully explained in the handoff. Commit subjects match the plan exactly. All 248 tests pass on the full gate profile.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "apps/steme/src/cli/commands/governance.ts is marked 'missing' in reconciliation (planned to edit, not touched) and baseline.ts is marked 'renamed' rather than a clean create. This is a git rename-detection artifact: governance.ts was deleted and baseline.ts was created, which is exactly what the plan's implementation order described. The phase-01 Expected handoff content anticipated this outcome explicitly, and the handoff covers it."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "baseline-lifecycle.e2e.test.ts line 546-555 confirms the mandated assertion update is present: 'baseline write when app already has entries → exit 2 naming baseline accept-drift' asserts toContain('steme baseline accept-drift'). The contradiction test in main.test.ts was deleted (not migrated) because its subject is unrepresentable after the command split, as the plan required."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Probe and control tests are present in preflight-ordering.e2e.test.ts under 'baseline write refusal precedes execution'. Fixture is created inside repo root (mkdtempSync(join(repoRoot, 'steme-covered-'))) so the seeded entry's file prefix matches splitEntriesForApp's repo-relative convention. Handoff confirms the probe was red before the move with the correct failure message."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "steme.usage.kdl and docs/cli.md were not regenerated (listed as optional in the plan). The handoff correctly explains that no help strings changed and the drift gates passed with a clean working tree for those files."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "governance.ts reconciliation flag: the global reconciliation shows governance.ts as 'missing' and baseline.ts as 'renamed'. This is expected and fully explained; no action needed. Future reconciliation tooling may benefit from treating git rename detection as a matched edit+create.",
+    "node_modules absent in fresh worktrees: both the phase-02 and phase-03 handoffs note that pnpm install was required before gates could run. Worth flagging for process — the phax run lifecycle may benefit from a pnpm install step when entering a fresh worktree."
+  ],
+  "pointers": []
+}

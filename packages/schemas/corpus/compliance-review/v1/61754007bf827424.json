@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All four phases delivered their stated objectives. Three files were touched outside the planned list in phase-01 (diagnostics.ts and evaluate-rules.ts as typecheck fixes for the fromScope type change, audit-harness.e2e.test.ts to prevent false-reason v1 fixture failures), and one file substitution occurred in phase-02 (program.ts edited instead of main.ts because plan-04 had already moved runAudit there). Every deviation is anticipated by the plan text or explicitly justified in the corresponding handoff. No planned deliverable is missing and no excluded scope was breached.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "ConceptKey (13-key union) and reshaped ForbidScopeImportRule delivered in contracts/rulepack.ts; CANONICAL_CONCEPT_KEYS exported from parse-rulepack.ts; parser pins schemaVersion === 2, validates all new fields with named ConfigErrors; shipped rulepack and test fixtures bumped to v2."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Three files not in the planned list were touched: diagnostics.ts and evaluate-rules.ts (typecheck fixes for the fromScope ScopeKey | ScopeKey[] change, covered by the plan's 'Optional files that may be edited' clause) and audit-harness.e2e.test.ts (three inline v1 fixture rulepacks bumped to v2 to prevent false-reason schemaVersion exits). All justified in the handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "parse-rulepack.test.ts updated with v2-specific cases: v1 rejection naming versions, fromScope array acceptance, empty-array rejection, absent target lists, non-canonical concept keys, exceptSourceConcepts acceptance, unknown-field rejection. main.test.ts fixtures bumped. Spawned-process E2E guard preserved."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Concept map, glob matching, containment check, and evaluation semantics are absent from this phase's changes. Compliant."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "CANONICAL_CONCEPT_KEYS exported so phase-02 can import it directly without redeclaring the 13-key set. Compliant with boundary contract."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the plan: 'feat(steme): move the rulepack schema to v2 with multi-source and concept clauses'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers final ForbidScopeImportRule type, ConfigError messages, green-suite confirmation, and all deviations with reasons. Required handoff content is present."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "matchGlob delivered in utils/glob-match.ts with * (one segment) and ** (zero-or-more greedy backtracking). concept-map.ts exports CONCEPT_GLOBS, conceptsOfFile, declaredConcepts, and validateConceptMap with containment check. Preflight wired into runAudit after skill-file check."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "main.ts (planned) was not touched; program.ts (unplanned) was edited instead. Justified in the handoff: plan-04 was already executed and runAudit lives in program.ts. The plan text itself anticipated this scenario ('inside runAudit if plan 04 is executed')."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "glob-match.test.ts covers both concept globs and edge cases. concept-map.test.ts covers real sandbox paths and validateConceptMap() === []. main.test.ts gains a spawned-process E2E case asserting exit 2 for a rule referencing undeclared concept web.routes. Layer matches the plan's test strategy."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Concept usage in evaluation and additional concept-map entries beyond the two needed are absent. Compliant."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "matchGlob imports nothing (pure). conceptsOfFile is the sole file-to-concept resolver. declaredConcepts() returns ReadonlySet<ConceptKey> without widening. Compliant."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the plan: 'feat(steme): add the hardcoded concept map with glob matching and integrity preflight'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers exported names, module paths, preflight landing in program.ts, two-pass preflight order, and the deviation with reason. Phase-03 prerequisites (same-scope edges, empty-array guard, Violation extension) are documented."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Violation gains violatedConcept?: ConceptKey. evaluateRules normalises fromScope to an array, applies exceptSourceConcepts before any target check, evaluates forbiddenConcepts via conceptsOfFile (same-scope edges flaggable), emits one violation when both conditions fire (concept wins). buildDiagnostic sets concept to violatedConcept ?? fromScopeKey with concept-specific prose."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Planned files only: evaluate-rules.ts, evaluate-rules.test.ts, diagnostics.ts, diagnostics.test.ts. No deviations."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Unit tests on synthetic graphs cover multi-source fromScope arrays, per-rule exception isolation, same-scope concept-target edges (core → core.composition), violatedConcept propagation, and single-violation guarantee for scope+concept double matches. Written at domain layer against hand-rolled ImportGraph fixtures, matching the plan's test strategy."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Shipping rules using the new semantics and fingerprint/baseline machinery are absent. Compliant."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Violation extension is additive (optional field). diagnostics.ts uses violation.fromScopeKey, not rule.fromScope. conceptsOfFile imported from concept-map.ts; CONCEPT_GLOBS not accessed directly. Compliant."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the plan: 'feat(steme): evaluate multi-source rules, source-concept exceptions, and concept targets'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Documents final Violation type verbatim, diagnostic text patterns, toScopeKey semantics in concept-only violations, and the program.ts residual from phase-02. No deviations to record."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "steme.rulepack.json holds exactly the 12-rule family from the plan (ids, titles, fromScope, forbiddenScopes, forbiddenConcepts, exceptSourceConcepts, and skill paths all verified). Both shared skills created with required sections. core-must-not-import-web/ deleted. E2E harness has seedEdge, 12-row flag matrix (seed→flag→fix→pass with rule+concept assertions), 2-case exception matrix, ownership assertion, and rulesEvaluated === 12."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Planned files only: steme.rulepack.json (edit), scope-boundaries/SKILL.md (create), composition-root/SKILL.md (create), audit-harness.e2e.test.ts (edit), old skill dir deleted. No sandbox files required modification. No deviations."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "audit-harness.e2e.test.ts covers all 12 rules in the flag matrix, both exception cases, ownership assertion (disjoint forbiddenScopes for the two core scope rules), and pristine-sandbox clean-run with rulesEvaluated === 12."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Package/SDK import prohibitions, adapters-to-core port restriction, site/build source profiles, obligation rules, and baseline/fingerprint machinery are absent. Compliant."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Rulepack consumed by CLI as a black box. Deleted core-must-not-import-web/SKILL.md is not referenced by any rule, so the skill preflight cannot be triggered by the stale path. Compliant."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the plan: 'feat(steme): ship the full scope-boundary rule family with composition-root exceptions'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Confirms final rule count (12) and ids, both skill paths, no sandbox files modified with explanation, all matrix rows passed, exceptions stayed silent, and no file-plan deviations."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [],
+  "pointers": []
+}

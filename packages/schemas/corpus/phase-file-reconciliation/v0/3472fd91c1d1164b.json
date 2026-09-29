@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [
+    "src/cli/cliCompleters.ts",
+    "tests/integration/usageSpecCompleters.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/program.ts",
+    "src/cli/commands/ls.ts",
+    "scripts/generate-usage-spec.ts",
+    "phax.usage.kdl",
+    "docs/cli/reference.md",
+    "README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "pnpm-lock.yaml"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

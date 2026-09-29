@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "review_open",
+  "model": "claude-sonnet-5",
+  "effort": "high",
+  "createdAt": "2026-07-23T14:42:50.615Z",
+  "updatedAt": "2026-07-23T15:00:53.350Z",
+  "branchName": "phax/target-owned-workspace-discovery--phase-02",
+  "worktreePath": "~/.phax/worktrees/steme-lab.target-owned-workspace-discovery/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "15010fa2fdecc0a7e6ea369ee23ff703a3421d34"
+}

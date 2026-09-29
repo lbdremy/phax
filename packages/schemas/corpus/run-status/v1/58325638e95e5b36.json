@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "steme-lab",
+  "shortName": "steme-audit-scope-boundary-rule-family",
+  "runId": "steme-audit-scope-boundary-rule-family-1784101253344",
+  "state": "archived",
+  "createdAt": "2026-07-15T07:40:53.358Z",
+  "updatedAt": "2026-09-03T07:46:54.509Z",
+  "phasesCount": 4,
+  "gateProfileId": "full"
+}

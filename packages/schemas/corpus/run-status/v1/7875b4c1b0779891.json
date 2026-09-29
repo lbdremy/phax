@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "phax-config-split",
+  "runId": "phax-config-split-1782235128679",
+  "state": "archived",
+  "createdAt": "2026-06-23T17:18:48.693Z",
+  "updatedAt": "2026-09-03T07:46:49.303Z",
+  "phasesCount": 4,
+  "gateProfileId": "full"
+}

@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "review-handoff",
+    "title": "Implementation plan — Run review handoff and global file reconciliation",
+    "branch": "phax/review-handoff"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Persist phaseId in per-phase reconciliation",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-persist-phase-id",
+      "plannedFilesToCreate": [
+        "src/schemas/reconciliation.ts",
+        "tests/unit/schemas/reconciliation.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/reconcilePhaseFiles.ts",
+        "src/domain/reconciliation/types.ts",
+        "tests/integration/reconciliation.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(reconciliation): persist phaseId in per-phase file-reconciliation.json",
+        "body": "Add a decode schema for the persisted per-phase reconciliation artifact and record the owning phaseId in file-reconciliation.json so later global aggregation can key on it without inferring from the folder name. The phaseId field is required; persisted schemas get required fields per project policy. Covered by a schema round-trip unit test and an integration assertion."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Global reconciliation aggregation domain",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-global-aggregation",
+      "plannedFilesToCreate": [
+        "src/domain/reconciliation/global.ts",
+        "tests/unit/reconciliation/global.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "src/domain/reconciliation/types.ts"
+      ],
+      "commit": {
+        "subject": "feat(reconciliation): add pure cross-phase global aggregation and renderer",
+        "body": "Add aggregateGlobalReconciliation and renderGlobalReconciliationMarkdown: a pure domain function that deduplicates files touched across phases, classifies each into the spec's status set (matched/missing/unplanned/extra-touch/partially-matched/deleted/renamed/unknown) with a documented precedence, and renders the global reconciliation table. No IO; fully unit-tested."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Generate global-file-reconciliation.{md,json} from the run folder",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-generate-global",
+      "plannedFilesToCreate": [
+        "src/app/generateGlobalReconciliation.ts",
+        "tests/integration/generateGlobalReconciliation.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/errors.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/reconciliation/global.ts"
+      ],
+      "commit": {
+        "subject": "feat(review): generate global file reconciliation artifacts from run folder",
+        "body": "Add generateGlobalReconciliation: reads each phase's file-reconciliation.json, decodes it at the boundary, aggregates via the pure domain function, and writes global-file-reconciliation.{md,json}. Missing artifacts fail with a clear diagnostic unless allowPartial is set, in which case a clearly-marked partial document is produced. Covered by integration tests for happy, failing, and partial paths."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "Review-handoff aggregation and entry-content relocation",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-review-handoff-builder",
+      "plannedFilesToCreate": [
+        "tests/integration/reviewHandoff.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/reviewHandoff.ts",
+        "src/app/finalReport.ts",
+        "tests/integration/finalReview.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/__snapshots__/finalReview.test.ts.snap"
+      ],
+      "commit": {
+        "subject": "feat(review): aggregate review-handoff.md and move entry content to final-report",
+        "body": "Rebuild review-handoff.md into the deterministic aggregated review entrypoint (run summary, global file reconciliation, global unplanned/missing/attention, and per-phase concatenated file-reconciliation.md + phase-handoff.md) and add a generateReviewHandoff orchestrator. Relocate the previous resume/entry/conductor content into final-report.md. Handoffs are concatenated verbatim — no LLM. Covered by a new integration test and updated finalReview snapshots."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "Generate the handoff before the run enters review_open",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-wire-final-review",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/effectRunner.ts",
+        "src/domain/reducer.ts",
+        "src/domain/effects.ts",
+        "tests/integration/finalReview.test.ts",
+        "tests/integration/__snapshots__/stateMachineContract.test.ts.snap"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/finalReview.ts",
+        "tests/integration/executePlan.test.ts",
+        "tests/integration/__snapshots__/finalReview.test.ts.snap"
+      ],
+      "commit": {
+        "subject": "feat(review): generate review handoff before entering review_open",
+        "body": "Rewrite the OpenRunReview effect to run generateReviewHandoff (global reconciliation + review-handoff.md + final-report.md) before flipping the registry to review_open, so a generation failure prevents a run from claiming review readiness. Remove the redundant WriteFinalReport effect now that final-report is produced by the orchestrator. Snapshots and finalReview integration tests updated."
+      }
+    },
+    {
+      "id": "phase-06",
+      "title": "`phax review-handoff` command",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-06-cli-command",
+      "plannedFilesToCreate": [
+        "src/cli/commands/reviewHandoff.ts",
+        "tests/integration/reviewHandoffCommand.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/main.ts"
+      ],
+      "optionalFilesToEdit": [
+        "README.md",
+        "tests/e2e/realFlow.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): add phax review-handoff command to regenerate the review handoff",
+        "body": "Add `phax review-handoff <short-name>` (with --allow-partial) that resolves a run in review_open and idempotently regenerates global-file-reconciliation.{md,json} and review-handoff.md via generateReviewHandoff. Runs in other states get a clear diagnostic and a non-zero exit. Covered by integration tests for the happy, wrong-state, and partial paths."
+      }
+    }
+  ]
+}

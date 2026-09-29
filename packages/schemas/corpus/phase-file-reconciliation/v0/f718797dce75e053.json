@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "tests/unit/telemetry/jsonFile.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/infra/telemetry/jsonFile.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "pnpm-lock.yaml"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All eight phases delivered their stated objectives. Deviations are present across phases but are mostly justified: unplanned test and integration files touched as routine consequences of schema changes, doc files updated alongside command changes, and three reconciliation false-negatives for newly-created test files (the reconciliation system does not track new file creation the same way it tracks edits). The one substantive gap is in phase-03, where the planned unit tests for run-command-level namespace behaviors (config missing `name` failure, namespace-scoped uniqueness, qualified output) are absent from `tests/unit/runArgv.test.ts` — which instead contains pre-existing argv parsing tests. One phase-06 planned file edit (`enterPhase.ts`) was superseded by the phase-05 implementation approach with no functional impact.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Several unplanned files were touched: src/app/initProject.ts, tests/e2e/fixtures/minimal-repo/phax.json, and multiple integration and unit test files. These are routine consequences of removing the project struct and adding the required name field — every file referencing the old shape needed updating."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "No phase-01 handoff file is retained in this worktree (only phase-08 handoff present). Assessment is based on the global reconciliation and current code state."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "tests",
+          "severity": "deviation",
+          "message": "tests/unit/runArgv.test.ts exists but its content covers --provider-priority and --security flag parsing, not the namespace-specific behaviors the plan required: (a) config missing `name` fails before run folder creation with the spec §5.4 message, (b) namespace-scoped uniqueness bumps within a namespace and never overwrites an existing folder, (c) run output shows the qualified name. tests/unit/cli/run.test.ts (the alternative mentioned in the plan) does not exist. The reconciliation shows runArgv.test.ts as planned but not touched in any phase, meaning the planned namespace tests were never written at the run-command unit level."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Many integration tests were touched but unplanned (archive.test.ts, dispatcher.test.ts, enter.test.ts, executePlan.test.ts, and others). These are mechanical updates required by the new required namespace field on registry and run-status schemas."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "src/app/resume.ts was extra-touched in phase-04 (planned only for phase-06). Expected: phase-04 adoption of the resolver in the resume command likely required touching the app-layer resume function for the info threading."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "tests/unit/resolveRunRef.test.ts was extra-touched in phase-06 beyond phase-04. Expected: the resolver's signature changed when qualified folder keys landed in phase-06."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Unplanned doc files touched: docs/cli/reference.md, phax.usage.kdl, README.md, src/cli/program.ts. CLI reference and usage docs are natural update targets when command interfaces change; acceptable scope."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Integration tests touched (unplanned): cliProgram.test.ts, sessionInfo.test.ts. Acceptable maintenance."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-06",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/cli/commands/enterPhase.ts is partially-matched: not touched in phase-06. The plan specified threading namespace to resolvePhaseInfo in this file. The current implementation uses resolveRunRef (wired in phase-05) and accesses phase info via info.phaseStatuses.find() directly, eliminating the need for a separate resolvePhaseInfo call. The functional goal (namespace-keyed phase lookup, qualified-name display) is met through a different path than planned."
+        },
+        {
+          "dimension": "tests",
+          "severity": "deviation",
+          "message": "tests/unit/resolveRunInfo.test.ts is listed as planned in phase-06 and not touched per the reconciliation. The file exists with three tests covering resolution by qualified key, cross-namespace independence, and not-found behavior — exactly the behaviors the plan required. This is a reconciliation false-negative for a newly-created file."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "src/cli/commands/reviewCompliance.ts was an unplanned touch in phase-06."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-07",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "tests",
+          "severity": "deviation",
+          "message": "tests/unit/lock.test.ts is listed as planned in phase-07 and not touched per the reconciliation. The file exists with four tests: acquire/status/release operate on the qualified key, two runs with the same short name in different namespaces hold independent locks, acquiring an already-active lock fails with LockConflictError, and lock file records the qualified key. These match exactly the plan's test strategy. This is the same reconciliation false-negative pattern as other newly-created test files."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-08",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/app/reviewHandoff.ts was unplanned. Justified: GenerateGlobalReconciliationOpts.qualifiedRunName became a required field and reviewHandoff.ts is its only caller, so it had to be updated. Mechanical consequence of the required-field addition, not scope expansion. Documented in the phase-08 handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "tests/integration/__snapshots__/finalReview.test.ts.snap unplanned — automatic snapshot update from the new **Run**: line in generated reconciliation output. No test logic changed."
+        },
+        {
+          "dimension": "tests",
+          "severity": "deviation",
+          "message": "tests/unit/cli/ls.test.ts shows as missing (not touched in phase-08) per the reconciliation. The file was created new in this phase with 6 tests covering all planned scenarios (qualified-name table display, cross-namespace distinctness, JSON namespace/qualifiedName fields, empty registry, config load failure). Phase-08 handoff explicitly explains this as a reconciliation false-negative for new file creation."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "renderGlobalReconciliationMarkdown takes qualifiedRunName?: string (optional) rather than required, preserving backward compatibility for test call sites. The handoff documents this decision."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Reconciliation false-negatives for new test files: lock.test.ts (phase-07), resolveRunInfo.test.ts (phase-06), and cli/ls.test.ts (phase-08) all show as not-touched despite existing with correct content. The phase-08 handoff explains this as a phax tracking limitation for newly-created (vs. edited) files. Consider whether the reconciliation tool should detect new file creation.",
+    "Phase-03 test gap at the run-command layer: tests/unit/runArgv.test.ts does not cover the namespace-specific scenarios the plan specified — config missing name surfacing the spec §5.4 error before folder creation, namespace-scoped uniqueness bumping, and qualified name in phax run output. Registry-level scoping is well-tested (registryNamespace.test.ts) and integration tests were written, but no unit test exercises these run-command-level behaviors.",
+    "enterPhase.ts did not receive the phase-06 planned edit to thread namespace to resolvePhaseInfo. The phase-05 resolver approach (direct info.phaseStatuses access via resolveRunRef result) superseded the planned change. Functional requirement is met but the sequencing deviated from the plan.",
+    "renderGlobalReconciliationMarkdown takes an optional qualifiedRunName parameter. Verify that all production call paths pass the value so reconciliation output always includes the qualified run identifier."
+  ],
+  "pointers": [
+    "possible bug: renderGlobalReconciliationMarkdown in src/domain/reconciliation/global.ts takes qualifiedRunName as optional — callers that omit it silently produce reconciliation markdown without a Run header. Confirm all production callers pass the value, not just reviewHandoff.ts."
+  ]
+}

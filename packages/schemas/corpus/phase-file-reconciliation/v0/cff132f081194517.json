@@ -1,0 +1,30 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "apps/le-secretaire-de-fernand/src/site/content/taxonomy/series.json",
+    "packages/louloupress/tests/content-series-taxonomy-contracts.test.ts"
+  ],
+  "editedAsPlanned": [
+    "packages/louloupress/src/modules/content/shared/contracts/taxonomy.ts",
+    "apps/le-secretaire-de-fernand/src/site/data.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [
+    "packages/louloupress/src/modules/ui/portrait-toggle.tsx"
+  ],
+  "unplannedEdited": [
+    "apps/le-secretaire-de-fernand/public/content-index.json",
+    "apps/le-secretaire-de-fernand/public/en/about.md",
+    "apps/le-secretaire-de-fernand/public/llms-full.txt",
+    "apps/le-secretaire-de-fernand/src/web/modules/content/components/mdx/AiWritingPortrait.tsx",
+    "phax.schema.json",
+    "phax.user.schema.json"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

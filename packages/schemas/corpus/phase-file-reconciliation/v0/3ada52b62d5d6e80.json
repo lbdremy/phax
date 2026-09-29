@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/infra/providers/agentErrorLog.ts",
+    "tests/unit/agentErrorLog.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/infra/providers/claudeCode.ts",
+    "src/infra/providers/codexCli.ts",
+    "src/infra/providers/mistralVibe.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

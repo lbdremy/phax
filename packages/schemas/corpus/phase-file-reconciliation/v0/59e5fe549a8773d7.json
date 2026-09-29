@@ -1,0 +1,43 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "packages/schemas/package.json",
+    "packages/schemas/tsconfig.build.json",
+    "packages/schemas/src/index.ts",
+    "packages/schemas/src/parsed.ts",
+    "src/schemas/surface.ts",
+    "tests/unit/schemasPackage/exports.test.ts",
+    "tests/unit/schemasPackage/parse.test.ts",
+    "tests/unit/schemasPackage/parity.test.ts",
+    "tests/unit/schemasPackage/manifest.test.ts",
+    "tests/type/schemasPackage.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/phaxConfig.ts",
+    "src/schemas/runRecord.ts",
+    "src/schemas/gateAttribution.ts",
+    "package.json",
+    "knip.json",
+    "tsconfig.test.json",
+    "tests/unit/architecturalGuards.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/finalReport.ts",
+    "src/app/gateAttribution.ts",
+    "src/app/recordsList.ts",
+    "src/app/writeRecord.ts",
+    "src/domain/gate/verifiedSurfaces.ts",
+    "src/domain/records/assemble.ts",
+    "tests/integration/gates.test.ts",
+    "tests/unit/cli/agent.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

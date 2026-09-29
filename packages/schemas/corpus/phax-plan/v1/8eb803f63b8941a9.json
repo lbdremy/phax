@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "baseline-commands-and-read-only-audit-for-apps-steme",
+    "title": "Baseline Commands and Read-Only Audit for apps/steme",
+    "requiredCommands": [],
+    "branch": "phax/baseline-commands-and-read-only-audit-for-apps-steme"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-reshape-command-tree",
+      "plannedFilesToCreate": [
+        "apps/steme/src/cli/commands/baseline.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/cli/commands/governance.ts",
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts",
+        "apps/steme/src/cli/preflight-ordering.e2e.test.ts",
+        "apps/steme/steme.usage.kdl",
+        "apps/steme/docs/cli.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "refactor(steme): move baseline mutation out of audit into a baseline command",
+        "body": "Split audit's two jobs at the surface. --write-baseline becomes \"steme baseline\nwrite\" and governance accept-drift becomes \"steme baseline accept-drift\"; the\ngovernance namespace and the --write-baseline/--fail-on-new contradiction check\nare removed, the latter being unrepresentable once the flags are separate\ncommands. audit keeps --json, --fail-on-new and --baseline, and is now\nread-only with a single exit contract.\n\nBehavior is deliberately frozen: baseline write reproduces today's flow exactly,\nincluding the already-covered refusal still firing after execute(), which\nphase-02 moves. Only two message substrings change, both forced by the rename —\nthe refusal now routes to \"steme baseline accept-drift\", and the\nmissing-register texts now name \"steme baseline write\". The E2E suites are\nmigrated invocation-only; the contradiction test is deleted because its subject\nno longer exists. steme.usage.kdl and docs/cli.md are regenerated."
+      },
+      "title": "Reshape the command tree, behavior frozen"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-refusal-precedes-execution",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/src/cli/commands/baseline.ts",
+        "apps/steme/src/cli/preflight-ordering.e2e.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "fix(steme): refuse an already-covered app before auditing it",
+        "body": "baseline write resolved appEntries before execute() but decided the\nalready-covered refusal after it, so an app already in the register paid a full\nimport-graph build and rule evaluation before a refusal that only ever depended\non appEntries.length. With an unauditable target the graph failure even won,\nreporting \"Cannot build import graph\" instead of the refusal.\n\nMove the refusal ahead of execute(), making the flow linear: preflight → read\nregister → refuse if covered → execute → write. Message and exit code are\nunchanged; only the timing is.\n\nCovered by a black-box probe using an unauditable target, so the refusal and the\nexecution failure produce different messages and the test is red before the move\nand green after — an auditable fixture cannot falsify this, since stdout is\nempty on any refusal either way. A control test pins the fixture's\nunauditability, which rests on the import-graph adapter scanning <app>/src."
+      },
+      "title": "Already-covered refusal precedes execution"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-honest-refusals",
+      "plannedFilesToCreate": [
+        "apps/steme/src/cli/refusals.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/src/cli/commands/baseline.ts",
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/src/cli/preflight-ordering.e2e.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/steme.usage.kdl",
+        "apps/steme/docs/cli.md"
+      ],
+      "commit": {
+        "subject": "feat(steme): refuse inert flags and make the missing-register refusal actionable",
+        "body": "audit silently ignored --baseline when --fail-on-new was absent, since plain\nfull mode reads no register: the user could point at a register that was never\nread and get no signal. Refuse instead, naming the flag and the condition it\nrequires.\n\nReplace the two missing-register refusal texts with one. They said neither where\nthey looked nor that --baseline could point elsewhere, and told the user to run a\ncommand with an un-substituted <app-path> placeholder in it, though the CLI knew\nthe real path — and they used two different wordings for one identical\ncondition. The register's location is a convention with an optional override, so\nthe message now names the resolved path it searched, the seed command with the\nreal app path interpolated, and the --baseline override, from a single shared\nbuilder used by both call sites."
+      },
+      "title": "Honest refusals: no inert flags, actionable messages"
+    }
+  ]
+}

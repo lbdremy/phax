@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "src/app/lintPlan.ts",
+    "tests/integration/lintPlan.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/plan/lint.ts",
+    "tests/unit/planLint.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

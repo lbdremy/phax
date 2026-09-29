@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "review-compliance",
+    "title": "review-compliance accepts qualified run names",
+    "requiredCommands": [],
+    "branch": "phax/review-compliance"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-resolve-run-ref",
+      "plannedFilesToCreate": [
+        "tests/unit/cli/reviewCompliance.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/reviewCompliance.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "fix(cli): accept qualified run names in review-compliance",
+        "body": "review-compliance decoded its argument with decodeShortName, whose ^[a-z][a-z0-9-]*$ pattern rejected the qualified <namespace>.<shortName> form that phax prints everywhere — e.g. `phax review-compliance louloupapers.article-series-taxonomy` failed with \"Invalid short name\". Route the raw argument through resolveRunRef instead, matching the review-code command, so both qualified and unqualified references resolve (including cross-project, registry-backed lookups). Add a CLI unit test covering the qualified-name regression and the resolution-refusal path."
+      },
+      "title": "Resolve run reference via resolveRunRef"
+    }
+  ]
+}

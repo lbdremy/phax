@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "manifest-driven-bindings",
+    "title": "Manifest-Driven Bindings",
+    "requiredCommands": [],
+    "branch": "phax/manifest-driven-bindings"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-rulepack-zod",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "apps/steme/package.json",
+        "pnpm-lock.yaml",
+        "apps/steme/src/core/rules/parse-rulepack.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "refactor(steme): migrate the rulepack parser to zod, behavior-preserving",
+        "body": "Replace parse-rulepack.ts's hand-rolled validation with a Zod core ahead of\nthe manifest validator (next phase), so apps/steme carries one validation\nlibrary, not two styles. Adds zod pinned to the workspace's existing\n^3.25.64. No observable change: the 30-case parser test file passes\nunmodified, same accepted/rejected rulepacks, same ConfigError fields."
+      },
+      "title": "Migrate the rulepack parser to Zod, behavior-preserving"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-fable-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-manifest-required-input",
+      "plannedFilesToCreate": [
+        "apps/steme/src/contracts/manifest.ts",
+        "apps/steme/src/core/manifest/parse-manifest.ts",
+        "apps/steme/src/core/manifest/parse-manifest.test.ts",
+        "apps/steme/src/core/manifest/schema-parity.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/contracts/index.ts",
+        "apps/steme/src/core/modules/audit/capability.ts",
+        "apps/steme/src/core/modules/audit/capability.test.ts",
+        "apps/steme/src/cli/preflight-ordering.e2e.test.ts",
+        "apps/steme/src/cli/audit-harness.e2e.test.ts",
+        "apps/steme/src/cli/baseline-lifecycle.e2e.test.ts",
+        "apps/steme/steme.package.json",
+        "packages/example-utility/steme.package.json",
+        "apps/steme/package.json",
+        "pnpm-lock.yaml"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/cli/program.ts",
+        "apps/steme/src/cli/main.test.ts",
+        "apps/steme/src/cli/self-audit.e2e.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): require and validate the unit manifest in the audit preflight",
+        "body": "steme audit (and both baseline commands via the shared preflight) now reads\n<app-path>/steme.package.json right after the target check: missing,\nstructurally invalid, containment-violating, or rulepack-undeclared-concept\nmanifests are cannot-run (exit 2) with config-error messages, ahead of the\nrulepack step, first-failing-step precedence unchanged. Validation is a Zod\nmirror of schemas/steme.package.schema.json, kept divergence-free by a\nparity test that runs shared fixtures through both validators.\napps/steme and packages/example-utility declare core.composition and\ncore.capabilities so every unit's audit gate stays green; the E2E temp\nunits now carry the sandbox manifest. Resolution itself still uses the\nhardcoded maps — replaced next commit."
+      },
+      "title": "The manifest becomes a required, validated audit input"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-fable-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-manifest-resolution",
+      "plannedFilesToCreate": [
+        "apps/steme/src/core/manifest/resolver.ts",
+        "apps/steme/src/core/manifest/resolver.test.ts",
+        "apps/steme/src/cli/manifest-bindings.e2e.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "apps/steme/src/core/evaluate/evaluate-rules.ts",
+        "apps/steme/src/core/evaluate/evaluate-rules.test.ts",
+        "apps/steme/src/core/modules/audit/capability.ts",
+        "apps/steme/src/core/modules/audit/capability.test.ts",
+        "apps/steme/src/core/index.ts",
+        "apps/steme/src/core/scope-map.ts",
+        "apps/steme/src/core/scope-map.test.ts",
+        "apps/steme/src/core/concept-map.ts",
+        "apps/steme/src/core/concept-map.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "apps/steme/src/cli/audit-harness.e2e.test.ts",
+        "apps/steme/src/cli/self-audit.e2e.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(steme): resolve scope and concept bindings from the unit manifest",
+        "body": "evaluateRules now takes a resolver built from the audited unit's\nsteme.package.json; the hardcoded scope-map.ts/concept-map.ts are deleted\nwith no fallback. A scope key absent from the manifest is vacuous (matches\nnothing, not an error); two scope globs matching one file is a config\nerror naming the file and both keys; all 13 canonical concepts are\nreachable wherever a manifest declares them. The load-bearing E2E flips a\ncore-to-web audit from exit 1 to exit 0 by shrinking the manifest alone,\nproving the manifest — not a hardcoded map — decides where rules apply."
+      },
+      "title": "Resolve bindings from the manifest; delete the hardcoded maps"
+    }
+  ]
+}

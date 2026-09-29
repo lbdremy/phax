@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "protected-path-approval",
+  "runId": "protected-path-approval-1782818550964",
+  "state": "archived",
+  "createdAt": "2026-06-30T11:22:30.980Z",
+  "updatedAt": "2026-09-03T07:46:52.639Z",
+  "phasesCount": 5,
+  "gateProfileId": "full"
+}

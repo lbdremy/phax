@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases delivered their stated objectives. Phase-01 is fully conformant; optional files touched are correctly listed as optional in the plan and the reconciliation-tool classification artifact does not represent real deviations. Phase-02 has two planned files not edited (agent.ts, report.ts) — both correctly allowlisted because they have no repoRoot and use only absolute paths — and three unplanned test files updated as a mechanical consequence of new exports being added to their mocks; pnpm test:type was not runnable in the agent's environment and should be confirmed before merge. Phase-03 has one unplanned file edit (orient.ts) that only exports a pre-existing helper with no behavior change, matching the plan's explicit instruction to reuse orient.ts's bounding logic. All deviations are acknowledged in handoffs with technically sound justifications and none contradict the plan's intent.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "tests/integration/adjustPlanCommand.test.ts and tests/unit/cli/run.test.ts are marked 'unplanned' in the reconciliation table, but both are listed as optional files in the plan. This is a reconciliation-tool classification artifact — optional files are not included in the 'Planned in' column — not a real deviation."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff correctly flags plansOverlap.ts as needing cwd-resolution in phase-02, threading the forward dependency cleanly."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/cli/commands/agent.ts and src/cli/commands/report.ts were planned for migration but not edited. Both are correctly placed on the identity-layer allowlist instead: neither has a resolved repoRoot, and both touch only absolute paths. The handoff justifies this with per-command rationale."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/cli/ls.test.ts and tests/unit/cli/resume.test.ts were edited though unplanned. Both mock runLayers/infra/fs and required the new makeRepoRootedFileSystemLayer/makeRootedNodeFileSystemLayer exports taught to their mocks to keep the suite passing. Mechanical and correct."
+        },
+        {
+          "dimension": "tests",
+          "severity": "concern",
+          "message": "pnpm test:type was not runnable in the agent's environment. The plan's verification requirement is the full gate profile, which includes test:type. This should be confirmed green before merging."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/app/orient.ts was edited though not in the planned or optional file lists. The only change was exporting the pre-existing excerpt helper (no behavior change), so executePlan.ts could bound the failed variant's error message using the same logic orient.ts already applies to provider stderr — exactly as the plan instructed ('bounded the same way orient.ts bounds a stderr excerpt'). Handoff calls this out with justification."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Phase-02: pnpm test:type was not runnable in the agent's environment. Confirm it passes green before merging.",
+    "Phase-01/reconciliation: optional files (tests/integration/adjustPlanCommand.test.ts, tests/unit/cli/run.test.ts) are classified as 'unplanned' by the reconciliation tool because it considers only the required planned lists, not the optional lists. Not a delivery gap, but a tooling gap worth noting for future reviewers."
+  ],
+  "pointers": []
+}

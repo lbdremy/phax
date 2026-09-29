@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Both phases delivered their stated objectives. Phase-01 correctly removed the publish flag gate from the manual publish-pr path and dropped the now-unreachable 'disabled' PublicationResultKind; it is fully conformant. Phase-02 completed the publish.enabled → publish.auto rename across schema, resolved config, merge layer, init wizard, buildConfig, and README, and all tests are present with correct field names. Deviations in phase-02 are all justified: the mistralVibe.ts change fixes a gate-blocking test timeout caused by the installed vibe binary requiring --target, and the additional test-fixture sweeps were mechanically required by the typecheck gate once the schema field was renamed.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "PublicationResultKind is now 'published' | 'failed'; the 'disabled' variant is gone. Both CLI gates in publishPr.ts and the inner gate in publishRun.ts are removed."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "executePlan.ts auto-publish gate was left as config.publish?.enabled; PublicationRecord.enabled:true at publishRun.ts:99 was untouched. No renaming occurred."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All planned files touched. Optional tests/integration/executePlan.test.ts was not touched, which is acceptable. No unplanned files."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Unit test for publishPr replaced 'disabled blocks the command' with a test asserting the command proceeds; integration test for publishRun replaced 'returns disabled' with kind === 'published'."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "PublicationResult contract reduced to two outcomes. publishPr.ts forwards resolved config unconditionally. No caller references publication.kind === 'disabled'."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'feat(publish): let manual publish-pr run without the config flag' matches plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers PublicationResultKind citation, removed code locations, key decisions with rationale, and what phase-02 needs to know."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Rename is complete end-to-end: schema, resolved config, merge layer, executePlan auto-gate, initWizard prompt and answer key, buildConfig output, and README. Clean grep of publish.enabled / publishEnabled in src/ returns no matches."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "PublicationRecord.enabled:true at publishRun.ts:99 is untouched. No migration helper or back-compat shim introduced. Manual publish-pr source behavior not re-touched."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/infra/providers/mistralVibe.ts was edited (unplanned) to add --target <model> to buildVibeArgs and wire clearTimeout on the kill timer, fixing a gate-blocking test timeout. Justified: the installed vibe binary hangs without this flag. Deviation is fully documented in the handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/providers/mistralVibe.test.ts edited (unplanned) to update exact-array assertion for buildVibeArgs. Required by the mistralVibe.ts change."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/integration/executePlan.test.ts touched (unplanned) as part of the fixture sweep for publish.enabled -> publish.auto. Required by typecheck gate; consistent with the plan's instruction to grep for remaining enabled fixtures. Not individually named in the handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Six additional test files swept for publish: { enabled } fixtures (run.test.ts, ls.test.ts, enterPhase.test.ts, validate.test.ts, dryRun.test.ts, resolveRunRef.test.ts). All carried ResolvedPublishConfig-typed objects that became typecheck errors after the schema rename. Handoff explicitly lists them."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "tests/integration/publishRun.test.ts and tests/unit/cli/publishPr.test.ts received extra touches in phase-02 to rename enabled -> auto in defaultConfig helpers; anticipated by the phase-01 handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised tests present: publishConfig.test.ts asserts auto decodes and enabled is rejected; mergeLayers.test.ts uses auto; buildConfig.test.ts uses publishAuto; initWizard.test.ts asserts config.publish?.auto."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "onExcessProperty: 'error' on decodePhaxConfig ensures legacy publish.enabled is rejected at decode time. Every consumer of ResolvedPublishConfig reads .auto."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'refactor(publish): rename publish.enabled to publish.auto' matches plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers clean-grep confirmation, new prompt wording, mistralVibe.ts deviation with root cause, full list of extra-touched test files, and publication.json exclusion."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "mistralVibe.ts change (--target <model> addition) is semantically out of scope for the publish rename plan. The fix is justified and documented, but reviewers should confirm it does not change observable behavior for any other provider dispatch path.",
+    "tests/integration/executePlan.test.ts extra touch is not individually named in the phase-02 handoff (covered only under the broad '13 files' sweep mention). Reviewers may want to confirm the only change in that file is the fixture rename from enabled to auto."
+  ],
+  "pointers": []
+}

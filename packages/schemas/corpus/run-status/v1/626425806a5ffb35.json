@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "entire-checkpoint-spike",
+  "runId": "entire-checkpoint-spike-1786807559589",
+  "state": "archived",
+  "createdAt": "2026-08-15T15:25:59.605Z",
+  "updatedAt": "2026-09-03T07:46:58.376Z",
+  "phasesCount": 5,
+  "gateProfileId": "full",
+  "planRepoRelPath": "docs/plans/51-entire-checkpoint-spike-plan.md"
+}

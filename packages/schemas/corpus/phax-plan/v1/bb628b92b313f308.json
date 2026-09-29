@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "phax-validate",
+    "title": "phax validate: config-first, plan optional",
+    "requiredCommands": [],
+    "branch": "phax/phax-validate"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-config-sources",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/loadConfig.ts",
+        "tests/unit/loadConfig.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(config): add describeConfigSources to report validated config layers",
+        "body": "Add an additive app-layer helper that reports which config files loadConfig would read for a cwd (project phax.json plus optional local and global overlays), reusing the existing discovery helpers. Backs the reshaped validate command. Covered by unit tests for the present/absent overlay cases and the no-config case."
+      },
+      "title": "Config sources reporter"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-validate-config-first",
+      "plannedFilesToCreate": [
+        "tests/unit/cli/validate.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/validate.ts",
+        "src/cli/program.ts",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(cli): make phax validate config-first with optional plan check",
+        "body": "phax validate now always validates the config stack (phax.json plus the local and global user overlays) and reports which layers it checked, and validates a phax-plan.json only when --plan is passed explicitly. Removes the dead --config flag and the implicit phax-plan.json default that made validate fail in projects without a plan. No markdown/plan.md validation is added. Covered by CLI unit tests, including that loadPlan is never called without --plan."
+      },
+      "title": "validate validates config, plan optional"
+    }
+  ]
+}

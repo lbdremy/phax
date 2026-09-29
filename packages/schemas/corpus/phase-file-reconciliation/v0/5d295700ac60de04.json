@@ -1,0 +1,20 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/infra/providers/sessionWriter.ts",
+    "tests/integration/executePlan.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/unit/architecturalGuards.test.ts"
+  ],
+  "optionalTouched": [
+    "src/app/executePlan.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

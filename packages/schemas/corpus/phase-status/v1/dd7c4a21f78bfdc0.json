@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-08-10T15:35:14.659Z",
+  "updatedAt": "2026-08-10T15:38:05.667Z",
+  "branchName": "phax/plan-staleness-and-lineage--phase-02",
+  "worktreePath": "~/.phax/worktrees/phax.plan-staleness-and-lineage/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "3f975e3c53bc5ad549648dd3e023ab6a16be2bc7"
+}

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "agent-binding-hardening",
+  "runId": "agent-binding-hardening-1781791996431",
+  "state": "archived",
+  "createdAt": "2026-06-18T14:13:16.448Z",
+  "updatedAt": "2026-09-03T07:49:11.064Z",
+  "phasesCount": 3,
+  "gateProfileId": "full"
+}

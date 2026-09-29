@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "cleaned_up",
+  "model": "claude-opus-4-7",
+  "effort": "high",
+  "createdAt": "2026-06-01T07:29:52.371Z",
+  "updatedAt": "2026-06-01T12:00:46.856Z",
+  "branchName": "phax/model-routing--phase-03",
+  "worktreePath": "~/.phax/worktrees/model-routing/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "9306f787e7d48bc697853e8faa311460ea49797b"
+}

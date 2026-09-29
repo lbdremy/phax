@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-opus-4-8",
+  "effort": "medium",
+  "createdAt": "2026-06-29T13:08:21.406Z",
+  "updatedAt": "2026-06-29T13:21:41.888Z",
+  "branchName": "phax/deterministic-plan-extraction-with-llm-fallback--phase-01",
+  "worktreePath": "~/.phax/worktrees/phax.deterministic-plan-extraction-with-llm-fallback/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "1ebe1c3b89a0548eb2d504491db57248d22c20c2"
+}

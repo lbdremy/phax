@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "src/schemas/telemetryConfig.ts",
+    "src/app/loadTelemetryConfig.ts",
+    "tests/unit/loadTelemetryConfig.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/commands/run.ts",
+    "src/cli/commands/resume.ts",
+    "src/cli/commands/extractPlan.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

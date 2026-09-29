@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "plan-03-migrate-the-workspace-to-typescript-7-stable",
+    "title": "Plan 03 — Migrate the workspace to TypeScript 7 (stable)",
+    "requiredCommands": [],
+    "branch": "phax/plan-03-migrate-the-workspace-to-typescript-7-stable"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-bump-typescript-7",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "package.json",
+        "pnpm-lock.yaml",
+        "docs/CONVENTIONS.md",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "build(deps): migrate the workspace to TypeScript 7",
+        "body": "Bump the root typescript dependency from ^6.0.3 to ^7 (the stable, GA native\ncompiler, which keeps the `tsc` binary name). All three units continue to\ntype-check with `tsc -b` — now backed by the native TypeScript 7 compiler —\nwith no tsconfig or source change. The shared tsconfig.base.json uses none of\nthe options TS7 removed, so no ignoreDeprecations shim is needed. Verified by the\nfull gate (typecheck across all units, tests, manifest validation, db:generate).\nDocs updated to record the TypeScript 7 toolchain."
+      },
+      "title": "Bump the workspace to TypeScript 7 and verify parity"
+    }
+  ]
+}

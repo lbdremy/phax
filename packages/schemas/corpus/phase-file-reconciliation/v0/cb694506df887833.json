@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "tests/unit/examplePlanDeterministic.test.ts"
+  ],
+  "editedAsPlanned": [
+    "examples/hello-world/plan.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    ".agents/skills/phax-planning/SKILL.md"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

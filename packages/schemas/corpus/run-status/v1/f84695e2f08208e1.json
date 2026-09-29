@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "steme-lab",
+  "shortName": "steme-audit-baseline-and-drift-governance",
+  "runId": "steme-audit-baseline-and-drift-governance-1784116221214",
+  "state": "archived",
+  "createdAt": "2026-07-15T11:50:21.227Z",
+  "updatedAt": "2026-09-03T07:46:54.691Z",
+  "phasesCount": 4,
+  "gateProfileId": "full",
+  "stoppedReason": "phase_reset"
+}

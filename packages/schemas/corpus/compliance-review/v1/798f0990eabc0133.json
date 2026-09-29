@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All five phases delivered their stated objectives and the run produces a working `phax review-code` command with correct new/resume semantics, session record persistence, pre-prompt assembly, and provider-adapter integration. Two deviations are present: phase-04 writes the prompt file before checking whether the adapter supports pre-prompted start (prompt is written even on the unsupported path, though no session record is persisted — minor, acknowledged in handoff); phase-05 omits `long_help` and `example` from the `review-code` block in `phax.usage.kdl` despite the plan explicitly requiring both and every neighboring command having them (not acknowledged in handoff). Unplanned changes to `docs/cli/reference.md` and `README.md` in phase-05 are justified as mandatory side effects of regenerating the CLI reference from `phax.usage.kdl`.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "On the new-session unsupported-provider path, the prompt file is written to the worktree before the adapter is called. The plan states the session record should not be persisted on unsupported (correctly implemented), but does not intend for the prompt file to be written either. The prompt file is written regardless. Acknowledged in the handoff; low impact."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Unplanned files docs/cli/reference.md and README.md were touched. Justified in handoff: running pnpm docs:cli after modifying phax.usage.kdl regenerates both files, and the docsCliDrift integration tests require them to be in sync."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Integration tests use mocked loadConfig + spawnSync rather than the plan's suggested fake FileSystem + fake Session. Justified in handoff: runReviewCode provides NodeFileSystemLayer internally, leaving no injection point for alternate layers without restructuring the command."
+        },
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "The review-code block in phax.usage.kdl is missing long_help and example. The plan explicitly requires both ('with help, a long_help describing the interactive, resumable, developer-takeover behavior and the side effect…, an example \"phax review-code usage-cli\"'). Every adjacent command (review-compliance, publish-pr, init) has both. This deviation is not mentioned in the phase-05 handoff."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "phax.usage.kdl review-code block is missing long_help and example — the plan required both and all neighboring commands have them; the command's usage documentation is incomplete and inconsistent with adjacent commands.",
+    "On the new-session unsupported-provider path (codex/mistral), code-review-prompt.md is written to the worktree's .phax-context/ directory before the adapter returns unsupported; the file is left on disk as leaked work even though no session record is persisted.",
+    "ProviderIdSchema is inlined in src/schemas/codeReviewSession.ts rather than imported from phaseAgentBinding.ts; adding a fourth provider requires updating both files in sync."
+  ],
+  "pointers": []
+}

@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "catalog-opus-5-5-gpt-6-sol-and-luna",
+    "title": "Catalog: Opus 5.5, GPT-6 Sol and Luna",
+    "requiredCommands": [
+      "pnpm gen:model-catalog",
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ],
+    "branch": "phax/catalog-opus-5-5-gpt-6-sol-and-luna"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-claude-opus-5-5",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/routing/defaults.ts",
+        "src/domain/routing/resolve.ts",
+        ".claude/skills/phax-planning/SKILL.md",
+        "docs/model-catalog.md",
+        "docs/model-routing.md",
+        "tests/unit/routing/effortLevels.test.ts",
+        "tests/unit/routing/catalog.test.ts",
+        "tests/unit/routing/resolve.test.ts",
+        "tests/unit/routing/sameFamilyPreservation.test.ts",
+        "tests/unit/skills.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/routing/preflight.test.ts",
+        "tests/unit/routing/securityFallback.test.ts",
+        "tests/unit/routing/providerSetup.test.ts",
+        ".claude/skills/model-routing/SKILL.md"
+      ],
+      "commit": {
+        "subject": "feat(routing): add Claude Opus 5.5, list Claude families newest-first so aliases track the current model",
+        "body": "Register claude-opus-5-5 (Claude Code 2.1.280, latest_per_family.opus) with\nthe low|medium|high|xhigh|max|ultracode ladder. List each Claude family\nnewest-first. pickActiveEntry resolves aliases and unknown ids to the first\nactive entry, so opus now means Opus 5.5, sonnet means Sonnet 5 and fable\nmeans Fable 5.1. claude-opus-5 stays active. Regenerates the planner table\nand records the order rule in docs/model-catalog.md."
+      },
+      "title": "Claude catalog: Opus 5.5, newest-first families"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-codex-gpt-6",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/routing/defaults.ts",
+        "src/domain/routing/catalog.ts",
+        ".claude/skills/phax-planning/SKILL.md",
+        "docs/model-catalog.md",
+        "docs/model-routing.md",
+        "tests/unit/routing/catalog.test.ts",
+        "tests/unit/routing/effortLevels.test.ts",
+        "tests/unit/routing/resolve.test.ts",
+        "tests/unit/routing/preflight.test.ts",
+        "tests/unit/routing/sameFamilyPreservation.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/routing/schemas.test.ts",
+        "tests/unit/routing/securityFallback.test.ts",
+        "tests/unit/routing/providerSetup.test.ts",
+        "tests/unit/skills.test.ts",
+        ".claude/skills/model-routing/SKILL.md",
+        "README.md"
+      ],
+      "commit": {
+        "subject": "feat(routing): add GPT-6 Sol and Luna, deprecate GPT-5.6, anchor Sol to Opus 5.5 and Astra equivalent to Fable 5.1",
+        "body": "Codex 0.156.1 ships gpt-6-sol and gpt-6-luna (client >= 0.155.0) and points\nevery GPT-5.6 variant at them. Register both newest-first, mark the three\nGPT-5.6 entries deprecated, and anchor on the 2026-09-23 Artificial Analysis\nindex:\n- Sol → Opus 5.5, downgrade;\n- Luna → Sonnet 5, equivalent (downgrade at low);\n- Astra → Fable 5.1, now equivalent.\nhubToSpoke skips deprecated spokes, so a Claude phase never routes to a\nretired Codex model. Their spoke → hub edges remain for fallback."
+      },
+      "title": "Codex catalog: GPT-6 Sol and Luna, GPT-5.6 deprecated, anchors"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-defaults-opus-5-5",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/cli/commands/adjustPlan.ts",
+        "src/cli/program.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        ".claude/skills/phax-planning/SKILL.md",
+        "docs/model-catalog.md",
+        "tests/unit/loadConfig.test.ts",
+        "tests/unit/cli/adjustPlanDefaults.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "README.md",
+        "tests/integration/adjustPlanCommand.test.ts",
+        "tests/unit/skills.test.ts",
+        "tests/integration/reviewCode.test.ts",
+        "tests/integration/reviewCodeCommand.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(defaults): default code review, plan adjustment and planning guidance to Opus 5.5",
+        "body": "Opus 5.5 is 20% cheaper per token than Opus 5 and scores above Fable 5.1\nfrom medium effort up. Point DEFAULT_CODE_REVIEW_MODEL and adjust-plan's\ndefault at claude-opus-5-5, keeping effort high. Update the --model help\nstrings and the generated usage spec and CLI reference. Add model-choice\nguidance to the phax-planning skill so new plans default to Opus 5.5.\nCompliance (Sonnet 5 medium) and extraction (Haiku 4.5 low) were re-checked\nand are unchanged."
+      },
+      "title": "Default phax jobs and planning guidance to Opus 5.5"
+    }
+  ]
+}

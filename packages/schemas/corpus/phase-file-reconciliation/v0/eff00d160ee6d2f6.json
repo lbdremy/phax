@@ -1,0 +1,32 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "tests/integration/skillEditConsent.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/security/skillEditGrants.ts",
+    "src/domain/errors.ts",
+    "src/cli/program.ts",
+    "src/cli/commands/run.ts",
+    "src/cli/commands/runLayers.ts",
+    "src/cli/commands/resume.ts",
+    "src/schemas/status.ts",
+    "src/app/runFolder.ts",
+    "src/app/executePlan.ts",
+    "src/app/dryRun.ts",
+    "tests/unit/security/skillEditGrants.test.ts",
+    "tests/unit/dryRun.test.ts",
+    "phax.usage.kdl",
+    "docs/cli/reference.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "reset-phase",
+  "runId": "reset-phase-1781252696057",
+  "state": "archived",
+  "createdAt": "2026-06-12T08:24:56.073Z",
+  "updatedAt": "2026-09-03T07:49:09.932Z",
+  "phasesCount": 4,
+  "gateProfileId": "full"
+}

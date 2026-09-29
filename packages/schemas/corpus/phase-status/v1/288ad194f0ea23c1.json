@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "low",
+  "createdAt": "2026-06-02T17:08:55.092Z",
+  "updatedAt": "2026-06-02T17:10:58.966Z",
+  "branchName": "phax/routing-gating--phase-03",
+  "worktreePath": "~/.phax/worktrees/routing-gating/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "b6ed90949ed9923b43df45e018a941757714133f"
+}

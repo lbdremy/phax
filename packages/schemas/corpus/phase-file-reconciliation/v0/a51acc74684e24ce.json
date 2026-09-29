@@ -1,0 +1,39 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "rulepacks/boundaries/package.json",
+    "stackpacks/steme/package.json",
+    "stackpacks/steme/steme.stackpack.json",
+    "apps/steme/src/contracts/distribution.ts",
+    "apps/steme/src/core/ports/package-resolver-port.ts",
+    "apps/steme/src/adapters/package-resolver/node-package-resolver.ts",
+    "apps/steme/src/adapters/package-resolver/node-package-resolver.test.ts",
+    "apps/steme/src/core/policy/find-workspace.ts",
+    "apps/steme/src/core/policy/find-workspace.test.ts",
+    "apps/steme/src/core/policy/parse-workspace-manifest.ts",
+    "apps/steme/src/core/policy/parse-workspace-manifest.test.ts",
+    "apps/steme/src/core/policy/parse-stackpack.ts",
+    "apps/steme/src/core/policy/parse-stackpack.test.ts",
+    "apps/steme/src/core/policy/resolve-policy.ts",
+    "apps/steme/src/core/policy/resolve-policy.test.ts",
+    "apps/steme/src/cli/test-workspace.ts"
+  ],
+  "editedAsPlanned": [
+    "package.json",
+    "pnpm-lock.yaml",
+    "steme.workspace.json",
+    "apps/steme/src/contracts/index.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [
+    "apps/steme/src/cli/test-workspace.test.ts"
+  ],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

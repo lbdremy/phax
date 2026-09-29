@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "high",
+  "createdAt": "2026-06-25T14:50:23.237Z",
+  "updatedAt": "2026-06-25T14:59:21.555Z",
+  "branchName": "phax/resumable-handoff-failures--phase-01",
+  "worktreePath": "~/.phax/worktrees/phax.resumable-handoff-failures/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "6a55312750a49b8a4511b279e88563e50ff71b8e"
+}

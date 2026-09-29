@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "verdict": "conformant",
+  "summary": "All four phases of plan-26 delivered their stated objectives without unjustified deviations. File touches match the global reconciliation table exactly. Tests are present at the correct layer for each phase. No scope creep was observed. Commit subjects match the plan verbatim. The one optional file deviation (tests/unit/cli/resume.test.ts not edited in phase-04) is documented and justified in the phase-04 handoff. Earlier phase handoffs (phase-01 through phase-03) were inaccessible due to worktree permission restrictions; handoff conformance for those phases was assessed from code evidence.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "normalizeResetAt implemented as specified: trims, rejects empty, handles 10-digit epoch seconds, 13-digit epoch milliseconds, Date.parse-parseable strings, returns undefined otherwise. extractResetAt threads all candidates through normalizeResetAt. RESET_PATTERNS extended with the |<epoch> form."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised test scenarios present: 'reset date' yields undefined resetAt; pipe-format epoch seconds and milliseconds yield correct ISO instants; explicit ISO timestamp passes through; kind-detection assertions preserved. Additional normalizeResetAt unit block covers edge cases not in the plan."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "phase-01 handoff file inaccessible due to worktree permission restrictions. Code evidence confirms required content (normalizeResetAt signature, normalization rules, ISO-or-undefined contract) is present in the implementation."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'fix(rate-limit): normalize reset time to ISO or drop it' matches plan exactly."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "review_open scenario extended with optional prUrl and phaseCount fields. buildWhatsNext produces 5 steps in the correct order: PR step, open editor, shell, enter, archive. Headline includes phaseCount when present, falls back to 'all phases are complete'."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised test scenarios present: without prUrl shows publish-pr command; with prUrl shows URL in detail with no command; all 5 steps in correct order; open/shell/enter/archive always present; headline with phaseCount; fallback headline without phaseCount."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "phase-02 handoff file inaccessible due to worktree permission restrictions. Code confirms updated scenario fields and step titles/commands are correct."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'feat(whats-next): richer end-of-run review recap' matches plan exactly."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "ExecutePlanResult gained optional prUrl field. publishRun result is captured into publishedPrUrl with Effect.catchAll keeping failures non-fatal. prUrl is set only when kind === 'published' and prUrl is non-undefined. Return value spreads prUrl only when defined."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "No new harness invented. Plan explicitly allowed relying on type-check and phase-04 CLI tests when no existing integration test covers the success path. Phase-04 run.test.ts exercises prUrl threading through the mocked executePlan return."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "phase-03 handoff file inaccessible due to worktree permission restrictions. Code confirms the widened return shape and non-fatal publish failure path."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'feat(run): return published PR URL from executePlan' matches plan exactly."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "run.ts success path: stdout summary line, enriched review_open recap on stderr, final-report.md pointer on stdout, exit code 0. resume.ts terminal success branch: enriched recap with prUrl and phaseCount; early refusal branch: minimal scenario (prUrl/phaseCount unavailable there, optional fields keep call valid). interruptHandler.ts: synchronous stderr write of interrupt message before process.exit(130)."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Optional file tests/unit/cli/resume.test.ts not edited. Handoff documents justification: no existing fixture to extend cheaply; the same buildWhatsNext call is already covered by whatsNext.test.ts. Deviation is justified."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Five test cases in 'runRun — success recap output': summary line with phase count, final-report.md pointer, recap steps (open/shell/enter/archive), publish-pr when prUrl absent, PR URL shown when prUrl present."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "phase-04 handoff covers: stream assignments (summary on stdout, recap/interrupt on stderr), interrupt message text and synchronous-write rationale, and documented deviation for resume.test.ts."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'feat(run): show end-of-run recap and announce interrupts' matches plan exactly."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Phase handoffs for phases 01–03 were inaccessible (worktree permission restrictions). Handoff conformance for those phases was assessed from implementation code only. A human reviewer should spot-check those handoff files directly if handoff traceability matters.",
+    "resume.ts early review_open refusal branch renders with only shortName (no phaseCount/prUrl). These values are genuinely unavailable on that code path. The plan's 'update both render sites' instruction is satisfied — the enriched optional fields are passed where the data exists. No action required, but worth noting for future plan authors."
+  ],
+  "pointers": []
+}

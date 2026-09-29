@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "rulepacks/boundaries/steme.rulepack.json",
+    "rulepacks/boundaries/skills/core-must-not-import-web/SKILL.md",
+    "apps/steme/src/cli/main.ts",
+    "apps/steme/src/cli/render.ts",
+    "apps/steme/src/cli/exit-codes.ts",
+    "apps/steme/src/cli/main.test.ts"
+  ],
+  "editedAsPlanned": [
+    "apps/steme/src/cli/index.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "apps/steme/package.json"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

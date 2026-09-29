@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "rename-archived-to-completed",
+  "runId": "rename-archived-to-completed-1786622598020",
+  "state": "archived",
+  "createdAt": "2026-08-13T12:03:18.036Z",
+  "updatedAt": "2026-09-03T07:46:57.436Z",
+  "phasesCount": 3,
+  "gateProfileId": "full"
+}

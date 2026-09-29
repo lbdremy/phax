@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "review_open",
+  "model": "claude-opus-4-8",
+  "effort": "high",
+  "createdAt": "2026-07-16T09:41:26.113Z",
+  "updatedAt": "2026-07-16T12:23:19.798Z",
+  "branchName": "phax/preflight-input-validation-for-apps-steme--phase-02",
+  "worktreePath": "~/.phax/worktrees/steme-lab.preflight-input-validation-for-apps-steme/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "ad793da2ac319bf06f345bd45d4b6b9aafcfe4f4"
+}

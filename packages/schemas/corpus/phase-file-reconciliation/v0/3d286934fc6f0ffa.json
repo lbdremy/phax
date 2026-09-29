@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "tests/integration/gitObjectPlumbing.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/ports/git.ts",
+    "src/infra/git.ts",
+    "src/infra/fakes/git.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/schemas/git.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

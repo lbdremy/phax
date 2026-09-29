@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-07-22T15:42:43.343Z",
+  "updatedAt": "2026-07-22T15:47:05.835Z",
+  "branchName": "phax/workspace-anchored-diagnostic-paths--phase-01",
+  "worktreePath": "~/.phax/worktrees/steme-lab.workspace-anchored-diagnostic-paths/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "3310d091adece45a0e37860f5178ee3f66c782c5"
+}

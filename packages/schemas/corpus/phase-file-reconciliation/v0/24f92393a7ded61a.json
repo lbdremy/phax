@@ -1,0 +1,33 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/reconciliation/types.ts",
+    "src/domain/reconciliation/reconcile.ts",
+    "src/domain/reconciliation/render.ts",
+    "src/domain/reconciliation/global.ts",
+    "tests/unit/reconciliation/reconcile.test.ts",
+    "tests/unit/reconciliation/render.test.ts",
+    "tests/unit/reconciliation/global.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/schemas/reconciliation.ts",
+    "tests/integration/eventAdapter.test.ts",
+    "tests/integration/finalReview.test.ts",
+    "tests/integration/generateGlobalReconciliation.test.ts",
+    "tests/integration/perPhaseBranch.test.ts",
+    "tests/integration/rateLimit.test.ts",
+    "tests/integration/resume.test.ts",
+    "tests/integration/reviewHandoff.test.ts",
+    "tests/integration/reviewHandoffCommand.test.ts",
+    "tests/unit/reconciliation/explained.test.ts",
+    "tests/unit/schemas/reconciliation.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

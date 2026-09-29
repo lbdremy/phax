@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Both phases delivered their objectives. Phase-01 added one unplanned file (apps/steme/src/cli/test-workspace.test.ts) because the plan's intended path — having the node-adapter integration test import cli/test-workspace.ts — was blocked by the repo's own TS_BOUNDARY_005 rule; the adapter test hand-builds its fixture inline instead, and the new file proves makeTempWorkspace within the cli scope where the import is legal. No behavioral gap resulted and all three integration resolution proofs pass. Phase-02 completed the flip with no deviations: STEME_RULEPACK is refused, policy resolution is the sole rule source, all 12 former override fixtures migrated, the non-override suites pass unmodified, and the full gate profile (370/370 tests, steme:audit through real policy) is green.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Objective delivered in full: both steme packages created and installed, all policy-core modules shipped (find-workspace, parse-workspace-manifest, parse-stackpack, resolve-policy), PackageResolverPort + node adapter shipped, contracts exported, makeTempWorkspace in cli/test-workspace.ts, steme.workspace.json gained policy — all inert, nothing wired to the audit yet."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "apps/steme/src/cli/test-workspace.test.ts was created but not listed in the plan. Justified: the plan assumed the node-package-resolver.test.ts (in adapters/) would import cli/test-workspace.ts, but adapters importing cli violates TS_BOUNDARY_005 — the repo's own self-audit enforces this on test files too. The adapter test hand-builds an equivalent layout inline; the new file proves makeTempWorkspace within the cli scope where the import is legal. The handoff documents the deviation and its cause."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised test layers present: unit tests per policy-core module with fake ports (find-workspace, parse-workspace-manifest, parse-stackpack, resolve-policy); node-adapter integration test with all three resolution proofs (repo stackpack, stackpack->rulepack, hand-built temp layout); test-workspace.test.ts proving makeTempWorkspace."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Excluded scope respected: no changes to the audit preflight, STEME_RULEPACK handling, or the hardcoded default rulepack path in this phase."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Boundary contracts respected: node adapter is the only createRequire consumer; policy-core modules use injected ports; composition/index.ts deliberately left untouched (no consumer yet); adapter test does not import cli/."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan exactly: 'feat(steme): add steme packages and policy-resolution core, unwired'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers required content: exact module paths and exported names for all phase-02 consumers, confirmation of all three resolution proofs, the file-deviation noted with cause and resolution."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Objective delivered in full: STEME_RULEPACK refused with actionable message; workspace root walked up from process.cwd(); policy resolved via resolver port; each rulepack read, parsed, skill-checked; duplicate rule ids rejected naming both packages; concept references checked across union; AuditPreflight carries rulepacks: ActiveRulepack[]; createAuditModule deps gained packageResolver; composition root exports the node adapter; non-override E2E suites pass unmodified."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised test layers present: red-first override-refusal E2E confirmed (red before flip, green after); capability.test.ts rewritten with fake resolver covering all refusals and read-order pinning; policy.e2e.test.ts with 11 cases covering all 9 plan-required scenarios plus one additional (no workspace manifest); all 12 STEME_RULEPACK fixtures migrated; preflight-ordering override-based case migrated to policy world."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Excluded scope respected: no new CLI flags or commands; program.ts, commands/baseline.ts, diagnostics.ts, steme.usage.kdl all untouched; no replacement escape hatch for the removed override."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "No deviations. All planned-to-create and planned-to-edit files touched. Optional files left untouched with explanation. test-workspace.ts updated with optional root parameter for nested-workspace testing."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Boundary contracts respected: audit.preflight(appPathArg) signature unchanged; all refusals surface through die(pre.error.message) exit-2 path; program.ts and baseline entrypoints required no logic change; resolve-policy consumed only by capability; node adapter produced only by composition root."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan exactly: 'feat(steme): load rules through the workspace policy; refuse STEME_RULEPACK'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers required content: red-first confirmation, AuditPreflight shape with per-rulepack provenance mechanism, full migration tally (12 sites), zero-edit suites named, full gate profile (370/370 tests, steme:audit green) confirmed, no file-plan deviations."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "capability.test.ts case count: handoff reports 22 cases; code-inspection summary shows at minimum 18 it() blocks (14 preflight + 4 execute). The discrepancy may reflect nested describes not visible in the high-level summary. Plan compliance is not affected (the plan specified coverage, not a count), but a manual read of the 815-line file would confirm completeness.",
+    "rulepackRelPath realpath dependency: phase-02 relies on manifestAbsPath arriving pre-realpathed from the node adapter so the repo policy renders rulepacks/boundaries/... and diagnostics stay byte-identical. This cross-phase coupling is documented in the phase-01 handoff and working as intended, but worth noting if diagnostic byte-equality ever fails unexpectedly in future changes to the resolver."
+  ],
+  "pointers": [
+    "possible untested edge in capability.ts: STEME_RULEPACK refusal fires after the target and unit-manifest checks, but if a test ever sets the env var and also passes a nonexistent target, the target error should win — verify that ordering case is covered in capability.test.ts (plan required it, handoff asserts it, but the specific test line was not read)."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "schemas-package-3-5-guards",
+  "runId": "schemas-package-3-5-guards-1790692518013",
+  "state": "running",
+  "createdAt": "2026-09-29T14:35:18.026Z",
+  "updatedAt": "2026-09-29T14:35:18.073Z",
+  "phasesCount": 4,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/2609291425-schemas-package-plan.md"
+}

@@ -1,0 +1,30 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/cli/program.ts",
+    "src/app/extractPlan.ts",
+    "src/app/loadOrExtractPlan.ts",
+    "src/cli/commands/orient.ts",
+    "phax.usage.kdl",
+    "docs/cli/reference.md",
+    "docs/cli/inventory.md",
+    "README.md",
+    "tests/integration/cliProgram.test.ts",
+    "tests/integration/loadOrExtractPlan.test.ts",
+    "tests/integration/run.test.ts",
+    "tests/e2e/realFlow.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [
+    "src/cli/commands/extractPlan.ts"
+  ],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,20 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "tests/integration/enter.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/commands/enter.ts",
+    "src/cli/commands/enterPhase.ts",
+    "src/cli/main.ts",
+    "tests/integration/enterPhase.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

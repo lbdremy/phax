@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-07-15T17:19:31.835Z",
+  "updatedAt": "2026-07-15T17:23:31.110Z",
+  "branchName": "phax/composition-root-ports-and-typed-results-for-apps-steme--phase-01",
+  "worktreePath": "~/.phax/worktrees/steme-lab.composition-root-ports-and-typed-results-for-apps-steme/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "14ec328d27be7e639bab0a164244df6a46395fb7"
+}

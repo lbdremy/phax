@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "frozen-agent-commands",
+    "title": "Frozen Agent Commands — Implementation Plan",
+    "branch": "phax/frozen-agent-commands"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Command-enforcement capability and frozen-set domain core",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-frozen-set-core",
+      "plannedFilesToCreate": [
+        "src/domain/security/agentCommands.ts",
+        "tests/unit/security/agentCommands.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/security/capabilities.ts",
+        "tests/unit/security/capabilities.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(security): add command-enforcement axis and frozen agent-command model",
+        "body": "Introduce a per-provider commandEnforcement precision axis (exact/prefix/executable/none) and a pure domain module that computes the frozen agentCommands record set (source, explicit, requiredByPlan, enforcement, degraded) and the provider-independent required-command preflight check. Pure functions only; no wiring. Covered by unit tests."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "`security.agentCommands` config and policy plumbing",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-02-config-policy",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/securityConfig.ts",
+        "src/domain/security/types.ts",
+        "src/domain/security/resolvePolicy.ts",
+        "tests/unit/security/resolvePolicy.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/loadConfig.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(security): add security.agentCommands config and policy carriage",
+        "body": "Add the developer-facing security.agentCommands list to the security config schema and resolved config, and carry it onto SecurityPolicy in both unsafe and secure branches. No frozen-set computation or provider wiring yet. Covered by resolvePolicy unit tests."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Plan-level `requiredCommands` extraction",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-03-required-commands-schema",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxPlan.ts",
+        "src/app/extractPlan.ts",
+        "tests/unit/extractPlan.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/executePlan.test.ts",
+        "tests/unit/dryRun.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(plan): add run-level requiredCommands to plan schema",
+        "body": "Add a required (possibly empty) run.requiredCommands array to the extracted and persisted plan schemas so plans can declare the commands they need, and surface the count in the extract report. Enables the phase-06 security preflight. Fixtures and tests updated."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "Record the frozen set in `security.json`",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-security-json",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/securityPosture.ts",
+        "src/app/executePlan.ts",
+        "src/app/finalReport.ts",
+        "tests/unit/security/posture.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/schemas/telemetryEvents.ts",
+        "src/domain/telemetry/events.ts",
+        "src/infra/telemetry/layer.ts",
+        "tests/integration/executePlan.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(security): record frozen agentCommands in phase security.json",
+        "body": "Extend SecurityPosture with a required agentCommands record array (command, source, explicit, requiredByPlan, enforcement, degraded) and a command-precision mark, compute the frozen set in executePlan before the agent spawns, and render it in the final report. Records why each command was allowed and whether enforcement was degraded. Covered by posture round-trip tests."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "Enforce the frozen set in the provider allowlist",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-provider-enforce",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/ports/backend.ts",
+        "src/app/executePlan.ts",
+        "src/infra/providers/claudeCode.ts",
+        "tests/unit/providers/claudeCode.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/providers/codexCli.ts",
+        "src/infra/providers/mistralVibe.ts",
+        "tests/integration/executePlan.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(security): enforce frozen agentCommands in provider allowlist",
+        "body": "Replace AgentRunOptions.gateCommands with the unified frozen agentCommands set (config ∪ gates) and feed it into Claude's --allowedTools Bash rules so the agent can run explicitly-allowed commands beyond the gates. Codex/Vibe record the set without command-level enforcement. Covered by provider flag tests."
+      }
+    },
+    {
+      "id": "phase-06",
+      "title": "Security preflight for required commands",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-06-preflight",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/errors.ts",
+        "src/app/executePlan.ts",
+        "src/app/dryRun.ts",
+        "tests/integration/executePlan.test.ts",
+        "tests/unit/dryRun.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/schemas/formatError.ts",
+        "src/cli/commands/run.ts",
+        "tests/unit/security/agentCommands.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(security): preflight required agent commands before run",
+        "body": "Validate that every plan-declared required command is covered by the frozen set (config ∪ gates) before any agent spawns, failing early with a SecurityPreflight error in the spec's diagnostic shape, and surface degradation warnings. Extend the dry-run report to preview coverage. Covered by integration and dry-run tests."
+      }
+    },
+    {
+      "id": "phase-07",
+      "title": "Planning skill: warn on new tools and emit required commands",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-07-planning-skill",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        ".skills/phax-planning.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "docs(skill): warn on new tools and require commands in planning skill",
+        "body": "Update the phax planning skill to document the plan-level required-commands declaration extracted into run.requiredCommands, detect plans that introduce a new tool or command family, and emit a pre-run security-configuration note so the phase-06 preflight passes. Documentation only."
+      }
+    }
+  ]
+}

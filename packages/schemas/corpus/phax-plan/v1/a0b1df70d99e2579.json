@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "smolvm-isolation-spike",
+    "title": "smolvm isolation spike",
+    "requiredCommands": [
+      "smolvm"
+    ],
+    "branch": "phax/smolvm-isolation-spike"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-scaffold",
+      "plannedFilesToCreate": [
+        "spikes/smolvm/README.md",
+        "spikes/smolvm/00-preflight.sh",
+        "spikes/smolvm/findings/TEMPLATE.md"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "chore(spike): scaffold smolvm isolation spike and preflight",
+        "body": "Add the spikes/smolvm harness directory: a README stating the three unknowns (network/filesystem/agents-in-guest) and the execution-model caveat, a preflight script that verifies a smolvm install and reports backend/arch, and a findings template. No src/ changes; this is groundwork for the isolation probes."
+      },
+      "title": "Spike scaffold and smolvm preflight"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-filesystem",
+      "plannedFilesToCreate": [
+        "spikes/smolvm/01-filesystem.sh",
+        "spikes/smolvm/findings/01-filesystem.md"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "spikes/smolvm/README.md"
+      ],
+      "commit": {
+        "subject": "test(spike): add smolvm filesystem isolation probe",
+        "body": "Add a harness that mounts one host dir as /workspace and asserts the rest of the host FS (HOME, repo root, /etc) is invisible to the guest, plus a read-only-mount check. Findings doc captures procedure; Results/Verdict are filled from a real run out-of-band per the spike's execution-model caveat."
+      },
+      "title": "Filesystem isolation probe"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-network",
+      "plannedFilesToCreate": [
+        "spikes/smolvm/02-network.sh",
+        "spikes/smolvm/findings/02-network.md"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "spikes/smolvm/README.md"
+      ],
+      "commit": {
+        "subject": "test(spike): add smolvm per-domain network allowlist probe",
+        "body": "Add the decisive network harness: a five-case matrix (allowed-by-name, denied-by-name, denied-by-hardcoded-IP, allowed-by-IP, ICMP) that determines whether smolvm's --allow-host is deny-by-default and a real egress boundary versus DNS-name filtering. Findings doc frames the two crux questions; Results/Verdict filled from a real run out-of-band."
+      },
+      "title": "Network per-domain allowlist probe"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-agents",
+      "plannedFilesToCreate": [
+        "spikes/smolvm/03-agents.sh",
+        "spikes/smolvm/findings/03-agents.md"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "spikes/smolvm/README.md"
+      ],
+      "commit": {
+        "subject": "test(spike): add smolvm in-guest agent execution probe",
+        "body": "Add a parameterized harness that runs Claude Code, Codex, and Mistral Vibe inside the libkrun Linux guest with env-injected creds and a per-provider network allowlist, confirming each edits the mounted worktree and observing denied-egress UX. Secrets are read from host env only. Per-provider findings table filled from a real run."
+      },
+      "title": "Agents-in-guest execution probe"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-05-synthesis",
+      "plannedFilesToCreate": [
+        "docs/spikes/smolvm-isolation-findings.md"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "spikes/smolvm/README.md"
+      ],
+      "commit": {
+        "subject": "docs(spike): synthesize smolvm isolation findings and go/no-go",
+        "body": "Add the synthesis doc: per-probe verdicts (filesystem, per-domain network, agents-in-guest), an explicit go/no-go on smolvm for phax's isolated mode driven by the hard-coded-IP egress result, and a non-implementing integration sketch (infra wrapper adapter, SecurityPolicy reuse, MCP domain declaration, capability-preamble prompt) plus residual risks and the recommended next step."
+      },
+      "title": "Synthesis and go/no-go recommendation"
+    }
+  ]
+}
