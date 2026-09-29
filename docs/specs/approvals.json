@@ -11,11 +11,6 @@
       "approvedAt": "2026-09-04T09:28:10.866Z",
       "baseline": "c545cb15a06301fc60d30abdacb2475d0458365e"
     },
-    "docs/specs/2609241238-schemas-package.md": {
-      "specFingerprint": "d1a632ed556506f153db92bf3fa859b25f1f286ce127271460417093287daf65",
-      "approvedAt": "2026-09-29T05:41:01.946Z",
-      "baseline": "31b004d2cda08ae94a54f1655b054bb29ba85d37"
-    },
     "docs/specs/2609250815-artifact-decide.md": {
       "specFingerprint": "0745665856d447831ea19ce47aafcfd0ccffceec3f1e23ecbd6ea5a90e72e8d5",
       "approvedAt": "2026-09-29T08:42:18.810Z",
