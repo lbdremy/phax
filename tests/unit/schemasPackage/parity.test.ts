@@ -60,7 +60,7 @@ const cases: ReadonlyArray<readonly [string, unknown]> = [
   ["a manifest with one unknown key", { ...base, reviewer: "human" }],
   ["a manifest missing verifiedSurfaces", withoutVerifiedSurfaces],
   ["a manifest whose outcome is paused", { ...base, outcome: "paused" }],
-  ["a version-1 manifest", { ...withoutVerifiedSurfaces, version: 1 }],
+  ["a version-3 manifest", { ...base, version: 3 }],
   ["a manifest with an empty runId", { ...base, runId: "" }],
   ["a manifest with an empty sourceSha", { ...base, sourceSha: "" }],
   ["a manifest with an unknown surface", { ...base, verifiedSurfaces: ["cloud"] }],
@@ -96,5 +96,17 @@ describe("parity: parsePhaseRecordManifest agrees with phax's decoder", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.path).toBe("reviewer");
+  });
+
+  it("reads a version-2 manifest through phax's decoder, as shape v2", () => {
+    expect(parsePhaseRecordManifest(base)).toMatchObject({ ok: true, shape: "v2" });
+  });
+
+  // §5.7 promises parity only for the shape phax currently writes: the
+  // package also reads the history phax itself no longer accepts.
+  it("accepts a version-1 manifest that phax's decoder rejects, by design", () => {
+    const v1 = { ...withoutVerifiedSurfaces, version: 1 };
+    expect(Either.isLeft(decodeRunRecordManifest(v1))).toBe(true);
+    expect(parsePhaseRecordManifest(v1)).toEqual({ ok: true, shape: "v1", value: v1 });
   });
 });

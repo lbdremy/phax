@@ -28,8 +28,8 @@ const manifest = {
 };
 
 describe("parsePhaseRecordManifest", () => {
-  it("returns ok with the value for a valid manifest", () => {
-    expect(parsePhaseRecordManifest(manifest)).toEqual({ ok: true, value: manifest });
+  it("returns ok with the shape and the value for a valid manifest", () => {
+    expect(parsePhaseRecordManifest(manifest)).toEqual({ ok: true, shape: "v2", value: manifest });
   });
 
   it("fails at outcome for a paused manifest", () => {

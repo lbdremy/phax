@@ -601,3 +601,37 @@ describe("architectural guard: schemas package closure", () => {
     ]);
   });
 });
+
+// §5.15: a frozen module reads history for the package's consumers only. phax
+// reads what it writes with its own current decoders, never a frozen one.
+const HISTORY_DIR = "packages/schemas/src/history/";
+
+function historyImports(rel: string, content: string): string[] {
+  return moduleSpecifiers(content).filter((specifier) => {
+    if (!specifier.startsWith(".")) return specifier.includes(HISTORY_DIR);
+    const target = relative(repoRoot, resolve(repoRoot, dirname(rel), specifier));
+    return `${target.split("\\").join("/")}/`.startsWith(HISTORY_DIR);
+  });
+}
+
+describe("architectural guard: phax imports no historical decoder", () => {
+  it("no module under src/ imports anything under packages/schemas/src/history/", () => {
+    const violations = listTsFiles(srcRoot).flatMap((file) => {
+      const rel = relative(repoRoot, file).split("\\").join("/");
+      return historyImports(rel, readFileSync(file, "utf8")).map((s) => `${rel}: imports ${s}`);
+    });
+    expect(violations).toEqual([]);
+  });
+
+  it("the history scanner sees a relative import of a frozen module", () => {
+    expect(
+      historyImports(
+        "src/app/readRecords.ts",
+        `import { decodePhaseRecordManifestV1 } from "../../packages/schemas/src/history/phase-record-manifest/v1.js";`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      historyImports("src/app/readRecords.ts", `import { x } from "../schemas/runRecord.js";`),
+    ).toEqual([]);
+  });
+});
