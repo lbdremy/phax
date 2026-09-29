@@ -170,8 +170,17 @@ for (const f of Object.values(report))
     (a, b) =>
       a.version.localeCompare(b.version) || b.count - a.count || a.keys.localeCompare(b.keys),
   );
+// Example locators name runs and specs of other repositories (a phax home holds every
+// repository's runs): they stay out of the committed report.
+const publicGroups = (f: { documents: number; unparseable: number; groups: Group[] }) => ({
+  ...f,
+  groups: f.groups.map(({ examples: _examples, ...g }) => g),
+});
 const sorted = Object.fromEntries(
-  Object.keys(DECODERS).map((k) => [k, report[k] ?? { documents: 0, unparseable: 0, groups: [] }]),
+  Object.keys(DECODERS).map((k) => [
+    k,
+    publicGroups(report[k] ?? { documents: 0, unparseable: 0, groups: [] }),
+  ]),
 );
 
 // ── write
@@ -214,9 +223,7 @@ for (const [format, f] of Object.entries(sorted)) {
   if (rej.length) {
     md.push("");
     for (const g of rej)
-      md.push(
-        `- version ${g.version}, rejected: ${g.firstRejection!.replace(/\n/g, " ")} — e.g. \`${g.examples[0]}\``,
-      );
+      md.push(`- version ${g.version}, rejected: ${g.firstRejection!.replace(/\n/g, " ")}`);
   }
   md.push("");
 }

@@ -21,10 +21,7 @@
           "count": 1,
           "accepted": 1,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/registry.json"
-          ]
+          "firstRejection": null
         }
       ]
     },
@@ -38,11 +35,7 @@
           "count": 57,
           "accepted": 57,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/phax.agent-binding-hardening/runs/run-status.json",
-            "~/.phax/archive/phax.agent-binding/runs/run-status.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -50,11 +43,7 @@
           "count": 21,
           "accepted": 21,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/phax.artifact-timestamp-naming/runs/run-status.json",
-            "~/.phax/archive/phax.catalog-fable-5-1-opus-5-gpt-6-astra/runs/run-status.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -62,11 +51,7 @@
           "count": 16,
           "accepted": 16,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/louloupapers.article-series-taxonomy/runs/run-status.json",
-            "~/.phax/archive/louloupapers.louloupress-features-2/runs/run-status.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -74,11 +59,7 @@
           "count": 7,
           "accepted": 7,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/phax.artifact-lifecycle-status/runs/run-status.json",
-            "~/.phax/archive/phax.brief-profile-orient/runs/run-status.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -86,11 +67,7 @@
           "count": 4,
           "accepted": 0,
           "rejected": 4,
-          "firstRejection": "namespace: is missing",
-          "examples": [
-            "~/.phax/archive/model-routing/runs/run-status.json",
-            "~/.phax/archive/observability/runs/run-status.json"
-          ]
+          "firstRejection": "namespace: is missing"
         },
         {
           "version": "1",
@@ -98,11 +75,7 @@
           "count": 4,
           "accepted": 4,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/phax.compliance-handoff-resume/runs/run-status.json",
-            "~/.phax/archive/phax.handoff/runs/run-status.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -110,11 +83,7 @@
           "count": 4,
           "accepted": 0,
           "rejected": 4,
-          "firstRejection": "namespace: is missing",
-          "examples": [
-            "~/.phax/archive/gate-first-resume/runs/run-status.json",
-            "~/.phax/archive/provider-priority-override/runs/run-status.json"
-          ]
+          "firstRejection": "namespace: is missing"
         },
         {
           "version": "1",
@@ -122,11 +91,7 @@
           "count": 2,
           "accepted": 2,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/phax.archive-unfinished-runs/runs/run-status.json",
-            "~/.phax/archive/phax.phax-run-records/runs/run-status.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -134,11 +99,7 @@
           "count": 2,
           "accepted": 2,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/phax.gate-step-scheduling/runs/run-status.json",
-            "~/.phax/archive/steme-lab.lazy-guides-and-doctrine-check/runs/run-status.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -146,10 +107,7 @@
           "count": 1,
           "accepted": 1,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/runs/phax.skill-edit-grant-skill-docs/run-status.json"
-          ]
+          "firstRejection": null
         }
       ]
     },
@@ -163,11 +121,7 @@
           "count": 482,
           "accepted": 482,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "/Volumes/Work/steme/steme-lab@git:public-surface-imports-1787312936156/phase-01/status.json",
-            "/Volumes/Work/steme/steme-lab@git:public-surface-imports-1787312936156/phase-02/status.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -175,11 +129,7 @@
           "count": 7,
           "accepted": 7,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/louloupapers.louloupress-features/runs/phase-01/status.json",
-            "~/.phax/archive/observability/runs/phase-01/status.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -187,11 +137,7 @@
           "count": 2,
           "accepted": 2,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/phax.deno-runtime/runs/phase-02/status.json",
-            "~/.phax/archive/phax.schemas-package-2-5-read-every-format/runs/phase-01/status.json"
-          ]
+          "firstRejection": null
         }
       ]
     },
@@ -205,11 +151,7 @@
           "count": 101,
           "accepted": 101,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/louloupapers.article-series-taxonomy/runs/phax-plan.json",
-            "~/.phax/archive/louloupapers.louloupress-features-2/runs/phax-plan.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -217,11 +159,7 @@
           "count": 9,
           "accepted": 0,
           "rejected": 9,
-          "firstRejection": "run.requiredCommands: is missing",
-          "examples": [
-            "~/.phax/archive/gate-first-resume/runs/phax-plan.json",
-            "~/.phax/archive/phax.deno-runtime/runs/phax-plan.json"
-          ]
+          "firstRejection": "run.requiredCommands: is missing"
         },
         {
           "version": "1",
@@ -229,11 +167,7 @@
           "count": 6,
           "accepted": 0,
           "rejected": 6,
-          "firstRejection": "run.backend: is unexpected, expected: \"shortName\" | \"title\" | \"branch\" | \"requiredCommands\"",
-          "examples": [
-            "~/.phax/archive/model-routing/runs/phax-plan.json",
-            "~/.phax/archive/observability/runs/phax-plan.json"
-          ]
+          "firstRejection": "run.backend: is unexpected, expected: \"shortName\" | \"title\" | \"branch\" | \"requiredCommands\""
         },
         {
           "version": "1",
@@ -241,11 +175,7 @@
           "count": 2,
           "accepted": 0,
           "rejected": 2,
-          "firstRejection": "run.backend: is unexpected, expected: \"shortName\" | \"title\" | \"branch\" | \"requiredCommands\"",
-          "examples": [
-            "~/.phax/archive/run-jail/runs/phax-plan.json",
-            "~/.phax/archive/update-provider-effort/runs/phax-plan.json"
-          ]
+          "firstRejection": "run.backend: is unexpected, expected: \"shortName\" | \"title\" | \"branch\" | \"requiredCommands\""
         }
       ]
     },
@@ -259,11 +189,7 @@
           "count": 72,
           "accepted": 72,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/louloupapers.article-series-taxonomy/runs/compliance-review.json",
-            "~/.phax/archive/phax.archive-unfinished-runs/runs/compliance-review.json"
-          ]
+          "firstRejection": null
         }
       ]
     },
@@ -277,11 +203,7 @@
           "count": 53,
           "accepted": 53,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "/Volumes/Work/github/phax@git:docs/plans/approvals.json",
-            "/Volumes/Work/github/phax@git:docs/plans/approvals.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -289,10 +211,7 @@
           "count": 1,
           "accepted": 1,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "/Volumes/Work/steme/steme-lab@git:docs/plans/approvals.json"
-          ]
+          "firstRejection": null
         }
       ]
     },
@@ -306,11 +225,7 @@
           "count": 32,
           "accepted": 32,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "/Volumes/Work/github/phax@git:docs/specs/approvals.json",
-            "/Volumes/Work/github/phax@git:docs/specs/approvals.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -318,10 +233,7 @@
           "count": 1,
           "accepted": 1,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "/Volumes/Work/github/phax@git:docs/specs/approvals.json"
-          ]
+          "firstRejection": null
         }
       ]
     },
@@ -335,11 +247,7 @@
           "count": 6,
           "accepted": 0,
           "rejected": 6,
-          "firstRejection": "version: Expected 2, actual 1",
-          "examples": [
-            "~/.phax/records/phax@git:gate-profile-as-attributed-steps-implementation-plan-2-1787299050237/phase-01/record.json",
-            "~/.phax/records/phax@git:gate-profile-as-attributed-steps-implementation-plan-2-1787299050237/phase-02/record.json"
-          ]
+          "firstRejection": "version: Expected 2, actual 1"
         },
         {
           "version": "2",
@@ -347,11 +255,7 @@
           "count": 58,
           "accepted": 58,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "/Volumes/Work/steme/steme-lab@git:public-surface-imports-1787312936156/phase-01/record.json",
-            "/Volumes/Work/steme/steme-lab@git:public-surface-imports-1787312936156/phase-02/record.json"
-          ]
+          "firstRejection": null
         }
       ]
     },
@@ -365,11 +269,7 @@
           "count": 12,
           "accepted": 12,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/records/phax@git:authoring/2609241219-headless-review/record.json",
-            "~/.phax/records/phax@git:authoring/2609241227-artifact-decide/record.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "1",
@@ -377,11 +277,7 @@
           "count": 3,
           "accepted": 3,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "/Volumes/Work/steme/steme-lab@git:authoring/2609281300-oracle-markers/record.json",
-            "~/.phax/records/phax@git:authoring/2609281130-oracle-phases/record.json"
-          ]
+          "firstRejection": null
         }
       ]
     },
@@ -395,11 +291,7 @@
           "count": 25,
           "accepted": 25,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "/Volumes/Work/github/phax@git:docs/specs/2609241238-schemas-package.json",
-            "/Volumes/Work/github/phax@git:docs/specs/2609241238-schemas-package.json"
-          ]
+          "firstRejection": null
         }
       ]
     },
@@ -413,11 +305,7 @@
           "count": 6,
           "accepted": 6,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "/Volumes/Work/github/phax@git:docs/plans/2609290843-schemas-package-plan.json",
-            "/Volumes/Work/github/phax@git:docs/plans/archive/2609281325-schemas-package-plan.json"
-          ]
+          "firstRejection": null
         }
       ]
     },
@@ -431,11 +319,7 @@
           "count": 17,
           "accepted": 17,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/phax.archive-unfinished-runs/runs/phase-02/gate-attribution.json",
-            "~/.phax/archive/phax.artifact-timestamp-naming/runs/phase-05/gate-attribution.json"
-          ]
+          "firstRejection": null
         }
       ]
     },
@@ -449,11 +333,7 @@
           "count": 251,
           "accepted": 251,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/louloupapers.article-series-taxonomy/runs/phase-01/file-reconciliation.json",
-            "~/.phax/archive/louloupapers.article-series-taxonomy/runs/phase-02/file-reconciliation.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "none",
@@ -461,11 +341,7 @@
           "count": 85,
           "accepted": 0,
           "rejected": 85,
-          "firstRejection": "createdButPlannedEdit: is missing",
-          "examples": [
-            "~/.phax/archive/phax.agent-binding-hardening/runs/phase-02/file-reconciliation.json",
-            "~/.phax/archive/phax.agent-binding-hardening/runs/phase-03/file-reconciliation.json"
-          ]
+          "firstRejection": "createdButPlannedEdit: is missing"
         },
         {
           "version": "none",
@@ -473,11 +349,7 @@
           "count": 29,
           "accepted": 0,
           "rejected": 29,
-          "firstRejection": "phaseId: is missing",
-          "examples": [
-            "~/.phax/archive/gate-first-resume/runs/phase-01/file-reconciliation.json",
-            "~/.phax/archive/gate-first-resume/runs/phase-02/file-reconciliation.json"
-          ]
+          "firstRejection": "phaseId: is missing"
         },
         {
           "version": "none",
@@ -485,11 +357,7 @@
           "count": 4,
           "accepted": 4,
           "rejected": 0,
-          "firstRejection": null,
-          "examples": [
-            "~/.phax/archive/phax.artifact-lifecycle-status-2/runs/phase-05/file-reconciliation.json",
-            "~/.phax/archive/phax.artifact-timestamp-naming/runs/phase-02/file-reconciliation.json"
-          ]
+          "firstRejection": null
         },
         {
           "version": "none",
@@ -497,11 +365,7 @@
           "count": 2,
           "accepted": 0,
           "rejected": 2,
-          "firstRejection": "createdButPlannedEdit: is missing",
-          "examples": [
-            "~/.phax/archive/phax.agent-binding-hardening/runs/phase-01/file-reconciliation.json",
-            "~/.phax/archive/phax.install-planning-skill/runs/phase-02/file-reconciliation.json"
-          ]
+          "firstRejection": "createdButPlannedEdit: is missing"
         }
       ]
     },
