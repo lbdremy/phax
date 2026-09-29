@@ -182,9 +182,11 @@ desktop — none is promised by the announcement.
       5 publication. All carry the slug `schemas-package`, named by title ("… 1/5 — …").
       Brief: `docs/briefs/schemas-package-plan.md`, rewritten before each plan.
       **Plan 1/5 landed 2026-09-29** (read the phase record manifest; PR #104 merged, run
-      archived; the run completed the spec by mistake, reverted in `1e40621b`). **Plan 2/5
-      Approved 2026-09-29** (`docs/plans/2609290843-schemas-package-plan.md`, read every
-      format, 5 phases); running.
+      archived; the run completed the spec by mistake, reverted in `1e40621b`). **Plan 2/5**
+      re-authored 2026-09-29 from a committed shape survey (`scripts/survey-format-shapes.ts`,
+      report `docs/briefs/schemas-package-shapes.md`) after the first draft left shape
+      discovery to the run: `docs/plans/2609290949-schemas-package-plan.md` (read every format,
+      5 phases), Approved; `ajv` added test-only on main beforehand.
       Deferred with the author (2026-09-29), not in plans 2–5: **a Standard Schema export**
       per format (only if a consumer needs to hand the schemas to a non-Effect validator;
       the cockpit parses with Effect, losslessly); **deterministic JSON Schema annotations**
