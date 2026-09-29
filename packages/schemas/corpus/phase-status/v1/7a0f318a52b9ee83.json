@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "low",
+  "createdAt": "2026-06-19T15:45:14.116Z",
+  "updatedAt": "2026-06-19T15:47:54.790Z",
+  "branchName": "phax/whats-next--phase-02",
+  "worktreePath": "~/.phax/worktrees/whats-next/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "168e596ac2d09ada6dd2c529353705b3bb38400a"
+}

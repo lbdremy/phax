@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "kind": "authoring",
+  "authoringId": "2609290941-schemas-package",
+  "artifact": "docs/plans/2609290941-schemas-package-plan.md",
+  "artifactKind": "plan",
+  "shape": "full",
+  "provider": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "outcome": "failed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 48,
+      "cacheCreationInputTokens": 149078,
+      "cacheReadInputTokens": 2827263,
+      "outputTokens": 54729,
+      "totalCostUsd": 2.8528485999999997
+    }
+  }
+}

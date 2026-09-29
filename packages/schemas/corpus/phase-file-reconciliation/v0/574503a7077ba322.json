@@ -1,0 +1,40 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/app/writeRecord.ts",
+    "tests/integration/writeRecord.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/executePlan.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/e2e/gateExhaustionResume.test.ts",
+    "tests/e2e/resetPhase.test.ts",
+    "tests/e2e/semanticTrace.providers.test.ts",
+    "tests/e2e/semanticTrace.test.ts",
+    "tests/integration/orientBriefArtifact.test.ts",
+    "tests/integration/perPhaseBranch.test.ts",
+    "tests/integration/rateLimit.test.ts",
+    "tests/integration/reconciliation.test.ts",
+    "tests/integration/resume.test.ts",
+    "tests/integration/resumeFromCleanup.test.ts",
+    "tests/integration/resumeFromCommit.test.ts",
+    "tests/integration/resumeFromCompletion.test.ts",
+    "tests/integration/resumeHandoff.test.ts",
+    "tests/integration/routing.test.ts",
+    "tests/integration/runCarriesCompletion.test.ts",
+    "tests/integration/stateMachineContract.test.ts",
+    "tests/integration/telemetry/end-to-end.test.ts"
+  ],
+  "optionalTouched": [
+    "tests/integration/executePlan.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

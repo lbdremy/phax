@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-22T10:55:15.951Z",
+  "updatedAt": "2026-06-22T11:01:01.313Z",
+  "branchName": "phax/compliance-review--phase-02",
+  "worktreePath": "~/.phax/worktrees/compliance-review/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "2233d2b08c5495707ad9433d26b08bbdcfee1a55"
+}

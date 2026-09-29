@@ -1,0 +1,20 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/ports/github.ts",
+    "src/infra/github.ts",
+    "src/infra/fakes/github.ts",
+    "tests/unit/publish/githubFake.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/infra/fakes/index.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

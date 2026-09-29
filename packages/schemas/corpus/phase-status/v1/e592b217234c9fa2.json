@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-04",
+  "phaseIndex": 3,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-15T09:09:59.049Z",
+  "updatedAt": "2026-06-15T09:21:24.030Z",
+  "branchName": "phax/frozen-agent-commands--phase-04",
+  "worktreePath": "~/.phax/worktrees/frozen-agent-commands/phase-04",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "373e62e71cf2b7f27c07cb7e2f878121eacafc68"
+}

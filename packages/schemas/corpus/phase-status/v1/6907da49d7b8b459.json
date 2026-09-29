@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-07-22T17:02:39.162Z",
+  "updatedAt": "2026-07-22T17:06:54.064Z",
+  "branchName": "phax/brief-profile-orient-2--phase-01",
+  "worktreePath": "~/.phax/worktrees/phax.brief-profile-orient-2/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "523ae0f80f398a04a92b5a7e14acf42ca364b872"
+}

@@ -1,0 +1,51 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/schemas/schemaUrl.ts",
+    "packages/schemas/src/shapes.ts",
+    "packages/schemas/src/history/phase-record-manifest/v1.ts",
+    "packages/schemas/src/history/phase-record-manifest/v2.ts",
+    "packages/schemas/src/generated/index.ts",
+    "packages/schemas/history.lock.json",
+    "packages/schemas/build/generated.ts",
+    "scripts/schemas-check.ts",
+    "tests/unit/schemaUrl.test.ts",
+    "tests/unit/schemasPackage/shapes.test.ts",
+    "tests/unit/schemasPackage/phaseRecordManifestHistory.test.ts",
+    "tests/unit/schemasPackage/frozenHistory.test.ts"
+  ],
+  "editedAsPlanned": [
+    "packages/schemas/src/index.ts",
+    "packages/schemas/src/parsed.ts",
+    "tests/unit/schemasPackage/exports.test.ts",
+    "tests/unit/architecturalGuards.test.ts",
+    ".oxfmtrc.json",
+    "knip.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [
+    "tests/unit/schemasPackage/fixtures/phase-record-manifest/v1/0984ccd25a2cfe63.json",
+    "tests/unit/schemasPackage/fixtures/phase-record-manifest/v1/11136515ae176b3a.json",
+    "tests/unit/schemasPackage/fixtures/phase-record-manifest/v1/155ca0fb959a19ab.json",
+    "tests/unit/schemasPackage/fixtures/phase-record-manifest/v1/3cb3a7c48ca8542f.json",
+    "tests/unit/schemasPackage/fixtures/phase-record-manifest/v1/6342fb8ffa99939e.json",
+    "tests/unit/schemasPackage/fixtures/phase-record-manifest/v1/6c32e77341e0c028.json",
+    "tests/unit/schemasPackage/fixtures/phase-record-manifest/v2/201fc93fb2b5fe4f.json",
+    "tests/unit/schemasPackage/fixtures/phase-record-manifest/v2/259b997de6cf5fd4.json",
+    "tests/unit/schemasPackage/fixtures/phase-record-manifest/v2/4c704f6f2745a790.json",
+    "tests/unit/schemasPackage/fixtures/phase-record-manifest/v2/82a850a2a6f38538.json",
+    "tests/unit/schemasPackage/fixtures/phase-record-manifest/v2/c97c13fbff55862e.json"
+  ],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "tests/unit/schemasPackage/parse.test.ts",
+    "tests/unit/schemasPackage/parity.test.ts",
+    "tests/type/schemasPackage.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

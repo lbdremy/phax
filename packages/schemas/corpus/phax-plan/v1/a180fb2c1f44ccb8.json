@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "plan-43",
+    "title": "Plan 43 — Security-audit follow-ups (defense-in-depth hardening)",
+    "requiredCommands": [],
+    "branch": "phax/plan-43"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-git-arg-injection",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/branded.ts",
+        "src/infra/git.ts",
+        "tests/unit/branded.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/perPhaseBranch.test.ts"
+      ],
+      "commit": {
+        "subject": "fix(git): reject option-like branch names and separate git operands with --",
+        "body": "Tighten BranchNameSchema to reject empty, leading-dash, and whitespace/control branch names, and add -- option/operand separators in the git adapter so a ref/path value beginning with - can never be parsed as a git flag. Defense in depth for the argument-injection margin flagged by the security audit; valid branch names (main, feature/my-thing) are unaffected. Covered by unit tests in branded.test.ts."
+      },
+      "title": "Harden the git adapter against argument injection"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-02-docs-cli-execfile",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "scripts/docs-cli.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "refactor(scripts): invoke usage via execFileSync instead of interpolated execSync",
+        "body": "Replace the string-interpolated execSync in docs-cli.ts with an execFileSync argv-array call to the usage CLI, matching the codebase's subprocess convention and clearing the static-analysis flag. Output is unchanged; the paths were already static, so this is hygiene, not a live fix."
+      },
+      "title": "Replace interpolated execSync in docs-cli with execFileSync"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-03-pin-actions",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "ci: pin GitHub Actions to commit SHAs",
+        "body": "Pin every third-party action in ci.yml and release.yml to a full commit SHA with a trailing version comment, removing the mutable-tag supply-chain link on CI and the privileged release job (contents: write, id-token: write). Addresses the LOW finding from the security audit. No workflow behavior changes."
+      },
+      "title": "Pin GitHub Actions to commit SHAs"
+    }
+  ]
+}

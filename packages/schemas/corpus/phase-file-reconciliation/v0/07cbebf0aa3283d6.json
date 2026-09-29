@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/cli/program.ts",
+    "tests/integration/cliProgram.test.ts",
+    "docs/cli/inventory.md"
+  ],
+  "editedAsPlanned": [
+    "src/cli/main.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

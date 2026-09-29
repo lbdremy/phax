@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "resumable-post-gate",
+    "title": "Resumable post-gate failures",
+    "requiredCommands": [],
+    "branch": "phax/resumable-post-gate"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-01-commit-pause",
+      "plannedFilesToCreate": [
+        "tests/unit/reducerCommitPause.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/events.ts",
+        "src/domain/reducer.ts",
+        "src/domain/matrix.ts",
+        "src/domain/effects.ts",
+        "src/app/executePlan.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(run): pause instead of failing the run on a commit-step failure",
+        "body": "When a phase's commit step fails after the gate has passed (e.g. a pre-commit hook rejection), the run now transitions to interrupted (resumable) with the phase left passed, instead of collapsing to RunFailed. Adds a CommitFailed event and reducer transition (running+passed → interrupted+passed) with resume instructions, fills the disposition matrix, and wraps the commitPhase call to dispatch the pause and end the run cleanly while excluding the existing no-changes path. Covered by a reducer unit test."
+      },
+      "title": "Pause (don't fail) the run on a commit-step failure"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-02-resume-from-commit",
+      "plannedFilesToCreate": [
+        "tests/integration/resumeFromCommit.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/resume.ts"
+      ],
+      "commit": {
+        "subject": "feat(run): resume re-runs the post-gate steps for a commit-paused phase",
+        "body": "Teach executePlan's resume entry to recognise a phase persisted as passed on an interrupted run, reuse its worktree/branch/session, skip the agent and gate loop, and re-run commitPhase then handoff then cleanup before continuing. findNextResumablePhase already selects the passed phase; the RunResumeRequested dispatch lifts the run to running with the phase substate preserved. Covered by a resume integration test including the manual-commit clean-worktree edge."
+      },
+      "title": "Resume re-runs commit → handoff → cleanup for a passed phase"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-03-cleanup-pause-resume",
+      "plannedFilesToCreate": [
+        "tests/unit/reducerCleanupPause.test.ts",
+        "tests/integration/resumeFromCleanup.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/events.ts",
+        "src/domain/reducer.ts",
+        "src/domain/matrix.ts",
+        "src/domain/effects.ts",
+        "src/app/executePlan.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/resume.ts"
+      ],
+      "commit": {
+        "subject": "feat(run): pause and resume on a cleanup-step failure instead of failing the run",
+        "body": "When a phase's cleanup step fails after the commit landed, the run now rests the phase in cleaning_up and the run in interrupted (resumable) instead of RunFailed, and resume re-runs only cleanup. Adds a CleanupFailed event and reducer transition (running+committed|cleaning_up → interrupted+cleaning_up) with resume instructions, fills the disposition matrix, wraps the cleanupPhase call to pause cleanly, and adds a resume-from-cleanup path that skips agent, gate, commit, and handoff. Covered by reducer unit tests and a resume integration test."
+      },
+      "title": "Pause and resume on a cleanup-step failure"
+    }
+  ]
+}

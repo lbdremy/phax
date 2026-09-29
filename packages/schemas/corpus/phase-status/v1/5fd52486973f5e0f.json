@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-19T16:15:27.418Z",
+  "updatedAt": "2026-06-19T16:24:58.591Z",
+  "branchName": "phax/handoff--phase-01",
+  "worktreePath": "~/.phax/worktrees/handoff/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "8c539708eaa4b54098aa6c912c85366cc3084231"
+}

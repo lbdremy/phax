@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "model-catalog-and-equivalence-routing-2",
+    "title": "Model catalog and equivalence routing",
+    "requiredCommands": [
+      "pnpm gen:model-catalog"
+    ],
+    "branch": "phax/model-catalog-and-equivalence-routing-2"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-4-8",
+      "effort": "xhigh",
+      "planMarkdownAnchor": "#phase-01-routing-core",
+      "plannedFilesToCreate": [
+        "src/domain/routing/catalog.ts",
+        "tests/unit/routing/catalog.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/modelRouting.ts",
+        "src/schemas/providerConfig.ts",
+        "src/domain/routing/types.ts",
+        "src/domain/routing/resolve.ts",
+        "src/domain/routing/defaults.ts",
+        "src/schemas/telemetryEvents.ts",
+        "src/app/executePlan.ts",
+        "src/cli/commands/agent.ts",
+        "tests/unit/routing/resolve.test.ts",
+        "tests/unit/routing/schemas.test.ts",
+        "tests/unit/routing/effortLevels.test.ts",
+        "tests/unit/routing/sameFamilyPreservation.test.ts",
+        "tests/unit/routing/securityFallback.test.ts",
+        "tests/unit/routing/loadRouting.test.ts",
+        "tests/type/routing.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/routing/priorityOverride.ts",
+        "src/domain/routing/providerSetup.ts",
+        "tests/unit/routing/priorityOverride.test.ts",
+        "tests/unit/routing/providerSetup.test.ts",
+        "tests/unit/telemetry/modelResolved.test.ts",
+        "tests/unit/cli/agent.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(routing): replace tier scale with versioned catalog and equivalence table",
+        "body": "Remove the abstract routing-tier scale (tiers, normalization, defaultTier) and\nresolve concrete versioned model ids natively, translating cross-family through a\nClaude-hub equivalence table with capability-only relations. Efforts are now\nper catalog entry. Config bumps to version 2 and rejects the legacy shape with no\nshim. allowDowngrade remains the sole policy knob. Covered by rewritten domain\nunit tests and the new catalog helper tests."
+      },
+      "title": "Replace routing schemas and resolution core"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-model-preflight",
+      "plannedFilesToCreate": [
+        "src/domain/routing/preflight.ts",
+        "tests/unit/routing/preflight.test.ts",
+        "tests/integration/modelPreflight.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/routing/catalog.ts",
+        "tests/integration/executePlan.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(routing): refuse unrunnable plans at run-start model preflight",
+        "body": "Validate every phase's concrete model and effort against the catalog and\nequivalence table before the first phase spawns, failing the run with the offending\nphases and catalog-derived alternatives so the planning agent can self-correct.\nCovered by domain unit tests and an executePlan integration test."
+      },
+      "title": "Run-start model preflight and actionable alternatives"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-catalog-codegen",
+      "plannedFilesToCreate": [
+        "scripts/generate-model-catalog.ts",
+        "tests/unit/generateModelCatalog.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "package.json",
+        "phax.json",
+        ".claude/skills/phax-planning/SKILL.md",
+        ".agents/skills/phax-planning/SKILL.md"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/routing/catalog.ts"
+      ],
+      "commit": {
+        "subject": "build(routing): generate the planner catalog table with a drift-checked script",
+        "body": "Add gen:model-catalog to render the model catalog into a marker-delimited region of\nthe phax-planning skill and a --check mode wired into check:full and the full gate\nprofile, so the planner's catalog view can never silently drift from the catalog.\nCovered by a generator unit test."
+      },
+      "title": "Catalog codegen and phax-planning skill sync"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-docs-cli-surface",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "docs/model-routing.md",
+        ".claude/skills/model-routing/SKILL.md",
+        ".claude/skills/phax-planning/SKILL.md",
+        ".agents/skills/phax-planning/SKILL.md",
+        "src/cli/commands/agent.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/cli/agent.test.ts"
+      ],
+      "commit": {
+        "subject": "docs(routing): describe catalog, equivalence, and preflight; drop the tier scale",
+        "body": "Rewrite the routing doc and the model-routing skill to the catalog + Claude-hub\nequivalence + preflight model, update the phax-planning prose around the generated\ncatalog region, and align the phax agent command output. No behavior change."
+      },
+      "title": "Docs and CLI surface refresh"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [
+    "src/domain/artifact/sidecar.ts",
+    "tests/unit/artifact/sidecar.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/artifact/writeSet.ts",
+    "src/app/artifactStatus.ts",
+    "src/cli/commands/artifact.ts",
+    "src/domain/errors.ts",
+    "src/cli/commands/runLayers.ts",
+    "tests/unit/artifact/writeSet.test.ts",
+    "tests/integration/artifactStatus.test.ts",
+    "tests/unit/cli/artifact.test.ts",
+    "tests/unit/cli/artifactStatusRender.test.ts",
+    "phax.usage.kdl",
+    "docs/cli/reference.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "README.md",
+    "src/app/authorArtifact.ts",
+    "src/app/completeRunArtifacts.ts",
+    "src/app/planStaleness.ts",
+    "src/cli/cliDocs.ts"
+  ],
+  "optionalTouched": [
+    "tests/integration/completeRunArtifacts.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

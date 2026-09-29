@@ -1,0 +1,20 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "scripts/formatSources.ts",
+    "tests/integration/formatSources.test.ts"
+  ],
+  "editedAsPlanned": [
+    "scripts/survey-format-shapes.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

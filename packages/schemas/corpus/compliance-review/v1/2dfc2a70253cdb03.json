@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "verdict": "conformant",
+  "summary": "Phase phase-01 delivered all planned changes exactly as specified: five *-last command registrations and their run*Last handlers removed, resolveLastReviewOpenRun export deleted (confirmed by grep returning zero matches across src/ and tests/), stale sessionInfo.ts import dropped, cliProgram.test.ts TOP_LEVEL_COMMANDS updated, and all three derived artifacts regenerated via pnpm gen:usage-spec and pnpm docs:cli. The sole undocumented action — removal of the decodeRegistry import alongside resolveLastReviewOpenRun in the already-planned resolveRunInfo.ts — was mechanically necessary to pass pnpm knip and is explicitly disclosed in the handoff. Commit subject matches verbatim. No unjustified deviations.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "The decodeRegistry import was removed from src/app/resolveRunInfo.ts alongside resolveLastReviewOpenRun. This was not mentioned in the plan but is within the already-planned file, mechanically required (sole consumer of the deleted function), and explicitly disclosed in the handoff. pnpm knip would have failed without it."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [],
+  "pointers": []
+}

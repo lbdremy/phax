@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "spec-approval-ground",
+  "runId": "spec-approval-ground-1788424357486",
+  "state": "archived",
+  "createdAt": "2026-09-03T08:32:37.502Z",
+  "updatedAt": "2026-09-04T09:53:32.649Z",
+  "phasesCount": 3,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/56-spec-approval-ground-plan.md"
+}

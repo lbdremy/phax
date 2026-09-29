@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "verdict": "conformant",
+  "summary": "All six phases delivered their stated objectives without unjustified deviation. Every planned file was created or edited, no unplanned files were touched, commit subjects match the plan verbatim, and the phase handoffs cover all required handoff content. The domain vocabulary (lineage, fingerprint, staleness), git port operations, chain-gated approval with sidecar record capture, staleness computation with report/apply use cases, plans command group (status + overlap migration), and run-time staleness gate were each delivered as specified. The only outstanding item is the post-merge operator re-approval of plans 39, 41, 44, and 45, which the plan explicitly scoped out of the run.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "All planned exports present in lineage.ts, approvalRecord.ts schema correct, validateArtifact extended for Source-Spec requirement, three error classes with message getters in errors.ts."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No I/O in lineage.ts, no CLI surface, no SHA-256 hashing in domain. Excluded scope fully respected."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "computeStaleness is pure; validateArtifact does not check declared spec existence as planned (deferred to phase-03/04)."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "All three GitOps methods present with correct signatures. FakeGitImpl extended with headCommitValue, existingCommits (defaults to contain headCommitValue), changedFilesSinceResults, setHeadCommit, setChangedFilesSince as specified."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/integration/gitBaseline.test.ts present with real-git coverage against a temp repo."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "src/domain/errors.ts was not edited — phase-01 had already added all three error classes. Correctly noted in handoff as a non-deviation."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "approvalRecordStore.ts created with all four exports; transitionArtifact chain-gate, retirement gate, and terminal cleanup delivered; exit-code-12 mapping for SpecNotApprovedError, SpecRetirementBlockedError, PlanStaleError confirmed in runLayers.ts."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "No planned files to edit; exactly three planned-to-create files delivered. Clean."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "computeStalenessForPlan has no Backend requirement (FileSystem | Git only), confirmed by signature. resolveSpecPath duplication with phase-03 is intentional per boundary contracts."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "plans-overlap removed from CLI surface; nested plans status and plans overlap registered; cliDocs.ts keys updated; phax.usage.kdl, docs/cli/reference.md, and README regenerated via package scripts."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "runPlansOverlap logic untouched; plansOverlap.ts not edited. Respected."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-06",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Gate inserted at correct position in run.ts (after planMd read, before shortName mismatch check); classifyArtifactPath guard correctly scopes gate to docs/plans/ paths; computeStalenessForPlan called with footprint.all; PlanStaleError.message used directly; exitCodeForError maps to 12."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "4 unit test cases in runRun — staleness gate describe block (fresh/stale/missing-record/non-artifact-path). Integration test in cliErrors.test.ts uses realpathSync to handle macOS /tmp symlink, asserts exit 12 and correct message content."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "resume and extract-plan paths are untouched. Loose plan files outside docs/plans/ skip the gate. Respected."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Post-merge operator step required: plans 39, 41, 44, and 45 carry no approval record and will compute stale after this branch lands. Each must be re-approved with 'phax artifact approve docs/plans/<plan>.md' after merge. Intentionally out of scope per the plan's Overview and phase-06 handoff."
+  ],
+  "pointers": []
+}

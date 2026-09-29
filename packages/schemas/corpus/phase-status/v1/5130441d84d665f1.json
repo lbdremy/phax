@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-18T13:44:43.006Z",
+  "updatedAt": "2026-06-18T13:48:29.182Z",
+  "branchName": "phax/enforce-architecture-boundaries--phase-01",
+  "worktreePath": "~/.phax/worktrees/enforce-architecture-boundaries/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "f415bbe179e0189aac45b8c3cd06c12fbad6598f"
+}

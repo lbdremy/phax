@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "records": {
+    "docs/plans/21-artifact-lifecycle-status-plan.md": {
+      "planFingerprint": "f18642cba0f1b7ee584e5355ea83407ced75a80d17af3b8f35d64dbea0348a78",
+      "approvedAt": "2026-08-11T07:56:41.748Z",
+      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "sourceSpec": {
+        "path": "docs/specs/21-artifact-lifecycle-status.md",
+        "fingerprint": "f690410024b03cf952261a83019b42ed9a675cf31186dd975643bbb38bc281fb"
+      }
+    },
+    "docs/plans/22-plan-staleness-lineage-plan.md": {
+      "planFingerprint": "a48c0f7f52785478f528b6580d1fc73d50593fd4f434938fa3e02bbbe4e1c5e4",
+      "approvedAt": "2026-08-11T07:57:00.086Z",
+      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "sourceSpec": {
+        "path": "docs/specs/22-plan-staleness-lineage.md",
+        "fingerprint": "04a1e4c791e5feea2b738291e568d92ce9fe9972c6f2de1e475d51bd588ef299"
+      }
+    },
+    "docs/plans/39-smolvm-isolation-spike-plan.md": {
+      "planFingerprint": "a839d6eaea2ebf49398fd4d3bb41779795dda242153143fcd9b15066dce41736",
+      "approvedAt": "2026-08-11T07:58:51.275Z",
+      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "sourceSpec": null
+    },
+    "docs/plans/41-claude-protected-path-approval-hook-plan.md": {
+      "planFingerprint": "eee1ce809979f540fa98bceb91e8f129f7daeacb6837626845e64f8b66566052",
+      "approvedAt": "2026-08-11T07:59:18.912Z",
+      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "sourceSpec": null
+    },
+    "docs/plans/44-gate-profile-attributed-steps-plan.md": {
+      "planFingerprint": "6a2d5b5308db83647ecd52b6b6987c1078915f93ffbbd49ccc657771437f353e",
+      "approvedAt": "2026-08-11T07:59:45.401Z",
+      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "sourceSpec": {
+        "path": "docs/specs/15-gate-profile-attributed-steps.md",
+        "fingerprint": "544c7860dbcf4ce54d98678621d34606cc7c40c5c72576f39561a868f859e8b6"
+      }
+    },
+    "docs/plans/45-typescript-7-migration-plan.md": {
+      "planFingerprint": "e2252b56c2d8c519c966ca8895a19dcd8946f535ece65b3c42edc0099bc22a44",
+      "approvedAt": "2026-08-11T07:57:20.361Z",
+      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "sourceSpec": null
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "skill-edit-grant-skill-docs",
+  "runId": "skill-edit-grant-skill-docs-1790248307813",
+  "state": "review_open",
+  "createdAt": "2026-09-24T11:11:47.828Z",
+  "updatedAt": "2026-09-24T11:12:53.763Z",
+  "phasesCount": 1,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/2609231236-skill-edit-grant-skill-docs-plan.md",
+  "allowSkillEdits": true
+}

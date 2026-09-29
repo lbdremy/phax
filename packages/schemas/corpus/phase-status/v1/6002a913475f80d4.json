@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-07-10T17:15:21.386Z",
+  "updatedAt": "2026-07-10T17:30:10.905Z",
+  "branchName": "phax/model-catalog-and-equivalence-routing-2--phase-03",
+  "worktreePath": "~/.phax/worktrees/phax.model-catalog-and-equivalence-routing-2/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "e9a6aedcd00fd92e03670e876210d90a7bac31dc"
+}

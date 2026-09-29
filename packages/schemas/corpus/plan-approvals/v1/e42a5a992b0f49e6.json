@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "records": {
+    "docs/plans/39-smolvm-isolation-spike-plan.md": {
+      "planFingerprint": "8ef354c247c74bbc53efb10257ef22338ed1ccfe2c6d06d46c9d5718f90294e0",
+      "approvedAt": "2026-08-11T07:58:51.275Z",
+      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "sourceSpec": null
+    },
+    "docs/plans/41-claude-protected-path-approval-hook-plan.md": {
+      "planFingerprint": "dad5ed3b6398d8a3b21de411356cd667862608483c80d4fac72c0684290220c9",
+      "approvedAt": "2026-08-11T07:59:18.912Z",
+      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "sourceSpec": null
+    },
+    "docs/plans/44-gate-profile-attributed-steps-plan.md": {
+      "planFingerprint": "c3c6f282a70d3391de65df1b03b962c6a3f82fb6ca85b6f7d99689307015a941",
+      "approvedAt": "2026-08-11T07:59:45.401Z",
+      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "sourceSpec": {
+        "path": "docs/specs/15-gate-profile-attributed-steps.md",
+        "fingerprint": "c2f1fbacd2a86db9bcce6fcbb0ced6e11504ebc8ff0f444aa7fe854246421e52"
+      }
+    },
+    "docs/plans/45-typescript-7-migration-plan.md": {
+      "planFingerprint": "3170b1eeb786905c0209750cce50f64bd41baf679e68fd405bebd7dcce6cb51d",
+      "approvedAt": "2026-08-11T07:57:20.361Z",
+      "baseline": "2843aa26cbf9fdc286e3f5973b4cb2fb30ad68e7",
+      "sourceSpec": null
+    },
+    "docs/plans/47-rename-archived-to-completed-plan.md": {
+      "planFingerprint": "ff55e2d17fe935239644ac4a42d397e4459f387dcf20f9d7d4cfc8063be46058",
+      "approvedAt": "2026-08-13T11:27:22.690Z",
+      "baseline": "1e286769425aadf980e3424560d0cea2250530c8",
+      "sourceSpec": {
+        "path": "docs/specs/28-rename-archived-to-completed.md",
+        "fingerprint": "58ef53320f8ab848944e3a6976bcfcd7b21b4996f007877a7dd3a4dfe4c60595"
+      }
+    }
+  }
+}

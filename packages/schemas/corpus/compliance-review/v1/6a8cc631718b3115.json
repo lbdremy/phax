@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases delivered their stated objectives. Phase-01 added the frontmatter primitives, schema, and frontmatter-aware extractor with full test coverage and a justified deno.lock side-effect. Phase-02 made frontmatter the sole metadata carrier, migrated all 90 artifacts plus the e2e fixture and approvals.json in one commit, and deleted the migration script before committing. Phase-03 updated the phax-spec and phax-planning skill templates, cliDocs.ts and its generated outputs, and the hello-world example plan. Every deviation is justified: deno.lock was an unavoidable Deno resolution side-effect; three .agents/skills/ files were changed by an automatic mirror mechanism, not by hand. Commit subjects and bodies match the plan exactly across all three phases.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "deno.lock was changed but not listed in the planned or optional file sets. The handoff explains this as an unavoidable side effect of pnpm deno:smoke / pnpm deno:smoke-binary resolving the new yaml dependency for Deno; both Deno smoke gates passed with it included."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "knip.json (optional) was not edited because knip reported zero new issues — correctly noted in the handoff."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": ".agents/skills/phax-spec/SKILL.md, .agents/skills/phax-planning/SKILL.md, and .agents/skills/phax-cli/SKILL.md were changed but are not in any planned or optional file list. The handoff explains these as automatic mirrors of the .claude/skills/ tree, not hand-edited, with identical diffs. The mechanism is outside the phase's control."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "phax-planning SKILL.md frontmatter code block (lines 56–60) is missing its closing --- delimiter. An author following the template would produce a document where the entire body is consumed as frontmatter. The optional approved mapping is also absent from the code block (documented only in prose below it). This is an authoring hazard in the primary deliverable of phase-03 and should be fixed before the skill is in active use.",
+    "The .agents/skills/ auto-mirror mechanism is undocumented. The handoff notes it is 'some mechanism outside this phase's control' but it is not described anywhere visible to future authors or reviewers. Consider documenting it in CLAUDE.md."
+  ],
+  "pointers": [
+    "Possible authoring bug in .claude/skills/phax-planning/SKILL.md lines 56–60: the frontmatter code-block example is missing its closing --- delimiter, and the optional approved mapping is not shown in the block — confirm via code review and fix."
+  ]
+}

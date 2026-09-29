@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "runId": "artifact-timestamp-naming-1789034107833",
+  "phaseId": "phase-03",
+  "shape": "full",
+  "sourceSha": "6e263749728186a38d28f8d2ecd6e2e7734898e1",
+  "model": "claude-opus-5",
+  "effort": "high",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 674,
+      "cacheCreationInputTokens": 180965,
+      "cacheReadInputTokens": 2727246,
+      "outputTokens": 43824,
+      "totalCostUsd": 4.30725
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "structural"
+  ]
+}

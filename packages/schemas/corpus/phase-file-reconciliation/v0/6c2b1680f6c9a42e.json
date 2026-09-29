@@ -1,0 +1,34 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "packages/schemas/build/jsonSchemas.ts",
+    "scripts/schemas-json.ts",
+    "tests/unit/schemasPackage/jsonSchemas.test.ts"
+  ],
+  "editedAsPlanned": [
+    "package.json",
+    "packages/schemas/package.json",
+    "packages/schemas/src/index.ts",
+    ".gitignore",
+    ".oxfmtrc.json",
+    "tests/unit/schemasPackage/manifest.test.ts",
+    "tests/unit/schemasPackage/exports.test.ts",
+    "tests/unit/schemasPackage/parseDocument.test.ts",
+    "tests/unit/architecturalGuards.test.ts",
+    "tests/type/schemasPackage.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "pnpm-lock.yaml"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "knip.json"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

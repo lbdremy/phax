@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-08",
+  "phaseIndex": 7,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-05-28T18:57:16.616Z",
+  "updatedAt": "2026-05-29T05:29:57.138Z",
+  "branchName": "phax/observability--phase-08",
+  "worktreePath": "~/.phax/worktrees/observability/phase-08",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "6cf432e184ce1feb7c750761e67cc92b67b954ae"
+}

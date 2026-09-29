@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All four phases delivered their stated objectives. Deviations are limited to process-level choices (hand-editing generated files instead of running a script) and one necessary unplanned test fix, all of which are documented in the phase handoffs. Semantic correctness is preserved in every case and independently verifiable via the test suite. The run-level verdict is conformant-with-deviations.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "phax.schema.json was updated via a targeted hand-edit rather than by running writeConfigSchemaFile/getPhaxConfigJsonSchema() as the plan required. The committed file is semantically correct and verified by tests/unit/phaxConfigJsonSchema.test.ts."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "tests/unit/phaxConfigJsonSchema.test.ts was modified but was not in the planned file list. The change was necessary to keep the gate green after making state optional (the existing test asserted state was in the required array). Documented in the handoff."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "All four required exports are present (PhaxUserOverlaySchema, type PhaxUserOverlay, decodePhaxUserOverlay with onExcessProperty: error, getPhaxUserOverlayJsonSchema). state is optional in PhaxConfigSchema. loadConfig.ts uses config.state?.root ?? ~/.phax."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/phaxUserOverlaySchema.test.ts provides 17 tests covering empty object, partial overlays, rejection of identity fields, and rejection of excess properties."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan exactly: feat(schemas): add user-overlay config schema and optional state root."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "src/domain/config/mergeLayers.ts exports mergeConfigLayers with correct signature. Pure function, no I/O. All merge semantics implemented: scalar override, allowlist union with de-duplication, gateProfiles union-by-key, commands/workspaces wholesale override."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/mergeLayers.test.ts has 31 tests covering all required contract points including state.root default, no-user-layers identity case, and boolean field preservation via nullish coalescing."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Only import type used for PhaxConfig and PhaxUserOverlay. No node:* or Effect imports in the domain function."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Exactly the two planned files created. No unplanned files touched."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan exactly: feat(domain): add pure config-layer merge with union allowlists."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "loadConfig.ts discovers phax.local.json (sibling of phax.json) and ~/.phax/config.json (via homedir()), decodes both, merges via mergeConfigLayers, and runs resolveSecurityConfig, resolvePublishConfig, and resolveComplianceReviewConfig on the merged config."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/integration/loadConfigLayers.test.ts has 16 integration tests using a real temp filesystem with isolated process.env.HOME. Covers scalar precedence, allowlist union with de-duplication, absent-file behavior, and ConfigValidationError for invalid user files."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Established node:fs direct-read pattern preserved. No new port introduced. ResolvedConfig output type unchanged."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No schema emission or phax.json migration occurred. tests/unit/loadConfig.test.ts was not modified (existing fixtures pass as-is)."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan exactly: feat(app): load and merge global and per-project user config layers."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "phax.schema.json is listed as a planned file to edit but was not touched. Phase-01 already regenerated it with state optional and the content was already byte-identical to getPhaxConfigJsonSchema() output. No change was needed; deviation is justified."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "phax.user.schema.json was hand-crafted rather than generated by running getPhaxUserOverlayJsonSchema() via a script. The handoff attributes this to shell approval unavailability. The file is semantically correct but may drift from the runtime schema if PhaxUserOverlaySchema changes."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "initProject no longer emits state or agent. upgradeConfigSchema writes both schema files. UpgradeResult and InitResult.created carry userSchemaPath. schema.ts CLI logs both paths. phax.json migrated (no state, no agent, ~/.phax write grant retained). .gitignore includes phax.local.json. README documents all four layers."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/initProject.test.ts and tests/unit/upgradeConfigSchema.test.ts updated to cover userSchemaPath in results, absence of state/agent in generated config, and current behavior when both schemas unchanged."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches plan exactly: feat(config): finalize user/project config split across init, schema, and docs."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "phax.user.schema.json is hand-crafted, not generated. If PhaxUserOverlaySchema changes, this file will silently drift. Consider adding a drift test and a generation script.",
+    "phax.schema.json was hand-edited in phase-01 instead of regenerated via writeConfigSchemaFile. Correctness is verified by the drift test, but the generation path was not exercised.",
+    "publish block in phax.user.schema.json has required: [enabled]. A user overlay specifying only publish.remote without publish.enabled would be flagged invalid by JSON Schema tooling (editor red-squiggles), even though the runtime decoder may accept it. Confirm intended behavior via code review."
+  ],
+  "pointers": [
+    "Possible schema mismatch at phax.user.schema.json publish block: required: [enabled] means editor tooling rejects a partial publish overlay (e.g. only remote set). Verify that PhaxUserOverlaySchema's runtime publish struct also requires enabled when the block is present, or fix the hand-crafted JSON schema to make enabled optional — confirm via code review."
+  ]
+}

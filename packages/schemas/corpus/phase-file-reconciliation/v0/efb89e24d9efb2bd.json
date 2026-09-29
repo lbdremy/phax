@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "packages/schemas/src/document.ts",
+    "tests/unit/schemasPackage/parseDocument.test.ts"
+  ],
+  "editedAsPlanned": [
+    "packages/schemas/src/index.ts",
+    "packages/schemas/src/parsed.ts",
+    "tests/unit/schemasPackage/exports.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "packages/schemas/src/shapes.ts",
+    "tests/type/schemasPackage.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

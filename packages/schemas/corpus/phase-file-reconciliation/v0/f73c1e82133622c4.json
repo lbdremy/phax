@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "phax.user.schema.json"
+  ],
+  "editedAsPlanned": [
+    "src/app/initProject.ts",
+    "src/cli/commands/schema.ts",
+    ".gitignore",
+    "phax.json",
+    "README.md",
+    "tests/unit/initProject.test.ts",
+    "tests/unit/upgradeConfigSchema.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "phax.schema.json"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

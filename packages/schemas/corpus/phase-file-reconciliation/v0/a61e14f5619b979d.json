@@ -1,0 +1,39 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "packages/schemas/src/formats/repository.ts",
+    "packages/schemas/src/history/plan-approvals/v1.ts",
+    "packages/schemas/src/history/spec-approvals/v1.ts",
+    "packages/schemas/src/history/spec-document/v1.ts",
+    "packages/schemas/src/history/plan-document/v1.ts",
+    "tests/unit/schemasPackage/repositoryFormats.test.ts",
+    "tests/unit/schemasPackage/fixtures/plan-approvals/v1.json",
+    "tests/unit/schemasPackage/fixtures/spec-approvals/v1.json",
+    "tests/unit/schemasPackage/fixtures/spec-document/v1.json",
+    "tests/unit/schemasPackage/fixtures/plan-document/v1.json"
+  ],
+  "editedAsPlanned": [
+    "packages/schemas/src/index.ts",
+    "packages/schemas/history.lock.json",
+    "src/schemas/specDocument.ts",
+    "tests/unit/schemasPackage/parity.test.ts",
+    "tests/unit/schemasPackage/exports.test.ts",
+    "tests/unit/schemasPackage/frozenHistory.test.ts",
+    "tests/type/schemasPackage.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/unit/artifactNamesGuard.test.ts"
+  ],
+  "optionalTouched": [
+    "tests/unit/specDocument.test.ts",
+    "tests/unit/schemasPackage/parseDocument.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

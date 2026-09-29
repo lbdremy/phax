@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/routing/defaults.ts",
+    ".claude/skills/phax-planning/SKILL.md",
+    "docs/model-routing.md",
+    "docs/model-catalog.md",
+    "tests/unit/routing/effortLevels.test.ts",
+    "tests/unit/routing/catalog.test.ts",
+    "tests/unit/routing/resolve.test.ts",
+    "tests/unit/routing/preflight.test.ts",
+    "tests/unit/routing/sameFamilyPreservation.test.ts",
+    "tests/unit/skills.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

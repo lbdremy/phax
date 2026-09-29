@@ -1,0 +1,18 @@
+{
+  "createdAsPlanned": [
+    "tests/unit/providers/fixtures/vibe-streaming-sample.jsonl"
+  ],
+  "editedAsPlanned": [
+    "src/infra/providers/mistralVibe.ts",
+    "src/schemas/vibeOutput.ts",
+    "tests/unit/providers/mistralVibe.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

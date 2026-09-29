@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "enforce-architecture-boundaries",
+    "title": "Enforce the architecture boundaries that slipped this run",
+    "requiredCommands": [],
+    "branch": "phax/enforce-architecture-boundaries"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Guard layer import direction (cli/infra/app)",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-import-direction-guards",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "tests/unit/architecturalGuards.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "test(arch): guard infra→app and cli→infra import direction",
+        "body": "Add architectural guard tests that fail on an infra→app import or a cli→infra import of non-layer business logic — the two boundaries the agent-binding run crossed. Known violations are captured in documented allowlists with kept-honest checks so they must be cleared when plan 15 removes them."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Guard the all-I/O-through-a-port rule",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-02-io-through-ports-guard",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "tests/unit/architecturalGuards.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "test(arch): guard against direct Node I/O in domain and cli",
+        "body": "Add an architectural guard forbidding direct node:fs/child_process/os imports in domain (strict) and cli (documented allowlist), codifying the all-I/O-through-a-port rule. app/ is deliberately excluded as a larger separate refactor, noted in the guard."
+      }
+    }
+  ]
+}

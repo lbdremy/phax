@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "runId": "vibe-target-flag-and-review-code-worklist-fixes-1787311069378",
+  "phaseId": "phase-02",
+  "shape": "full",
+  "sourceSha": "e02f95cd462760ae39fc529c45a116538fbf0063",
+  "model": "claude-opus-4-8",
+  "effort": "medium",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 64,
+      "cacheCreationInputTokens": 64254,
+      "cacheReadInputTokens": 2070328,
+      "outputTokens": 13847,
+      "totalCostUsd": 2.0329659999999996
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "product",
+    "structural"
+  ]
+}

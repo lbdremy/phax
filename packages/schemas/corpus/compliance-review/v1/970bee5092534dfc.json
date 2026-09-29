@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All four phases delivered their objectives and every planned file matched. Only two optional files were touched (README.md and tests/unit/security/posture.test.ts), both justified. The phase-03 real-provider e2e test was authored but not run, which the plan permitted if recorded. Phase-02 added helper exports and a resume-scoped check that the plan did not spell out.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Resolver and settings builder delivered with the planned signatures and paths."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All planned files matched; no deviations."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Both planned unit test files are present."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "The phase-01 commit was outside the recent-commit snapshot and Bash was unavailable, so the subject was not verified."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Flag, SkillEditConsentError (exit 11), optional status.json field, resume plumbing, preflight and dry-run all delivered."
+        },
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "Preflight checks only remaining phases (slice(startIndex)); extra exports phaseSkillEditGrants and formatSkillEditConsentRefusal were added. Both are documented in the handoff and stay within planned files."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "skillEditConsent integration test and the unit and dry-run tests are present."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the plan."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "skillEditGrants is wired through the port, executePlan, the posture schema and the Claude adapter's --settings argv."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Optional file tests/unit/security/posture.test.ts was edited because the new required field affected its fixtures. The handoff justifies this."
+        },
+        {
+          "dimension": "tests",
+          "severity": "concern",
+          "message": "The e2e test tests/e2e/claudeSkillEditGrant.test.ts was authored but not run. This was recorded in the handoff, as the plan allows, but the real Claude Code behavior remains unverified."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the plan."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "docs/security.md subsection and README flag example added."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "README.md was an allowed optional edit."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No .claude/skills edits were made."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the plan."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Run PHAX_E2E_RUN=1 pnpm test:e2e:real tests/e2e/claudeSkillEditGrant.test.ts by hand before merging.",
+    "The phax-planning skill follow-up run (with --allow-skill-edits) is still pending.",
+    "The new h4 in docs/security.md sits between the Claude and Codex bullet lists, so the Codex list now appears under it; check placement."
+  ],
+  "pointers": []
+}

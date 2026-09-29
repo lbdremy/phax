@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "verdict": "conformant",
+  "summary": "Both phases delivered exactly what the plan specified. Phase-01 removed the unsupported --target flag from buildVibeArgs and added the two regression assertions the plan required. Phase-02 wired the review-code worklist from global-file-reconciliation.json via a new pure domain helper, removed the dead reconciliationMd input, and covered the populated, absent, and malformed JSON cases with integration tests. No unplanned files were touched, no excluded scope was entered, and both commit subjects match the plan verbatim.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "buildVibeArgs no longer emits --target or the model alias; comment above the argv literal names the defect and states that model selection is env-only via modelEnvVar."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Both regression assertions present at the unit layer — not.toContain('--target') for both security modes, not.toContain('mistral-large') for the unsafe case — plus the updated exact-argv expectation."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No change to defaults.ts, spawnVibe, phax agent setup, or e2e suite. Docs sweep confirmed no stray --target mention; docs/model-routing.md correctly untouched."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Exactly the two planned files touched; no deviations."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'fix(vibe): drop the --target flag vibe does not accept' matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all required content: final argv shapes for both security modes, env-only model selection confirmation with spawnVibe line reference, and docs-sweep outcome."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "buildCodeReviewPrompt no longer accepts reconciliationMd; prepareCodeReviewSession reads global-file-reconciliation.json, decodes via existing schema, passes mapped worklist. Degraded JSON silently degrades to empty worklist."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised tests present: unit test on mapping helper (fixture, dedup/sort, fallback, order, empty input), updated prompt unit test, and three integration cases (populated, no-JSON, malformed-JSON) with names matching the handoff."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "GLOBAL_RECONCILIATION_FILENAME updated to global-file-reconciliation.json only in reviewCode.ts; reviewCompliance.ts and reviewHandoff.ts untouched. Domain imports schema type only; audit:architecture accepted it per handoff."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "reviewCompliance.ts, reviewHandoff.ts, GlobalFileReconciliationSchema, and all CLI/OutputPort files untouched. Optional tests/integration/reviewCodeCommand.test.ts left seeding the md as planned."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All four planned edits and two planned creates landed. No unplanned files touched."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'fix(review): feed the review-code worklist from the reconciliation JSON' matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all required content: BuildCodeReviewPromptInput shape, toCodeReviewAttentionPoints signature, phaseRef format, degraded-path confirmation with integration test names, audit:architecture outcome, and file-plan deviation status."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [],
+  "pointers": []
+}

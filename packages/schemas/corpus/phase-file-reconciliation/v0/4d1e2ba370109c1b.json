@@ -1,0 +1,24 @@
+{
+  "createdAsPlanned": [
+    "tests/integration/reviewHandoff.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/reviewHandoff.ts",
+    "src/app/finalReport.ts",
+    "tests/integration/finalReview.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/effectRunner.ts",
+    "tests/integration/__snapshots__/stateMachineContract.test.ts.snap",
+    "tests/integration/telemetry/__snapshots__/end-to-end.test.ts.snap"
+  ],
+  "optionalTouched": [
+    "tests/integration/__snapshots__/finalReview.test.ts.snap"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

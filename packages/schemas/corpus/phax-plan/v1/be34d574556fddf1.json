@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "deno-runtime-2",
+    "title": "Deno Runtime and Distribution",
+    "requiredCommands": [
+      "deno"
+    ],
+    "branch": "phax/deno-runtime-2"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Deno runtime config and run-under-Deno parity",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-deno-config",
+      "plannedFilesToCreate": [
+        "deno.json"
+      ],
+      "plannedFilesToEdit": [
+        "package.json",
+        "phax.json"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(build): add deno.json and run the phax CLI under Deno",
+        "body": "Add a deno.json that lets Deno execute the existing Node/TypeScript CLI via nodeModulesDir and the current package.json, with Deno's own fmt/lint kept out of the gates. Add a `deno:smoke` script that runs `phax --version` under Deno and wire it into the `full` gate profile so every phase verifies the source still runs under Deno. No application code changes; the Node toolchain stays authoritative."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Compiled binary with permission posture",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-compile-binary",
+      "plannedFilesToCreate": [
+        "scripts/build-binaries.ts"
+      ],
+      "plannedFilesToEdit": [
+        "deno.json",
+        "package.json",
+        "phax.json"
+      ],
+      "optionalFilesToEdit": [
+        ".gitignore"
+      ],
+      "commit": {
+        "subject": "feat(build): compile phax to a permissioned binary with release targets",
+        "body": "Add deno compile tasks that produce a single-file phax binary carrying the intended permission posture (filesystem yes, network denied, env for PATH, run restricted to an explicit executable allowlist), plus a build-binaries script that cross-compiles the four release targets and writes SHA-256 checksums. A new deno:smoke-binary gate compiles the host binary and asserts startup and executable-denial behavior."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "npm wrapper package",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-npm-wrapper",
+      "plannedFilesToCreate": [
+        "npm/package.json",
+        "npm/lib/resolveBinary.ts",
+        "npm/bin/phax.cjs",
+        "tests/unit/npmWrapperResolve.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "vitest.config.ts",
+        "knip.json"
+      ],
+      "commit": {
+        "subject": "feat(dist): add npm wrapper that resolves the platform phax binary",
+        "body": "Add an npm wrapper package whose launcher resolves and invokes the correct platform binary, downloading the matching GitHub Releases asset on first run. The pure platform→asset and asset-URL logic is unit-tested for every supported platform and rejects unsupported ones (including Windows). Prepare-only: no registry publish here."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "Continuous integration workflow",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-04-ci-workflow",
+      "plannedFilesToCreate": [
+        ".github/workflows/ci.yml",
+        "tests/unit/ciWorkflow.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "ci: add continuous integration workflow",
+        "body": "Add a GitHub Actions CI workflow that installs Node, pnpm, and Deno and runs the full gate (typecheck, tests, lint, format check, knip, build, architecture audit) plus the Deno smoke and host-binary compile, mirroring the phax.json full profile. A text-invariant unit test asserts the workflow keeps its required triggers and steps."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "Release workflow on Git tags",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-release-workflow",
+      "plannedFilesToCreate": [
+        ".github/workflows/release.yml",
+        "scripts/prepare-npm.ts",
+        "tests/unit/releaseWorkflow.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "npm/package.json"
+      ],
+      "commit": {
+        "subject": "ci: add tag-triggered release workflow with checksums and npm prepare",
+        "body": "Add a release workflow that runs on v* tags: it builds the four platform binaries with SHA-256 checksums, creates the GitHub Release and uploads the artifacts, and prepares the npm wrapper by version-matching it to the tag and running npm publish --dry-run (no live publish, no NPM_TOKEN). A pure versionFromTag helper and text-invariant workflow tests back the version-match and required steps."
+      }
+    },
+    {
+      "id": "phase-06",
+      "title": "Distribution and runtime posture docs",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-06-docs",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "README.md",
+        "docs/specs/06-deno-runtime.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "docs: document phax distribution, deno posture, and macOS sleep note",
+        "body": "Document the npm-wrapper and GitHub Releases install paths, the Deno permission posture (filesystem yes, network no, env for PATH, run allowlisted), and the explicit caveat that Deno sandboxes phax but not the provider CLIs it launches. Add the caffeinate recommendation for long-running runs and mark the Deno runtime spec implemented with its descoped criteria noted."
+      }
+    }
+  ]
+}

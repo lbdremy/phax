@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "external-gate-steps-structured-diagnostics",
+    "title": "External Gate Steps — structured diagnostics",
+    "requiredCommands": [],
+    "branch": "phax/external-gate-steps-structured-diagnostics"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-diagnostics-schema",
+      "plannedFilesToCreate": [
+        "src/schemas/gateDiagnostics.ts",
+        "tests/unit/schemas/gateDiagnostics.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "phax.schema.json",
+        "phax.user.schema.json",
+        "tests/unit/schemas/gateProfile.test.ts",
+        "tests/unit/phaxConfigJsonSchema.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/gates.test.ts",
+        "tests/integration/fixLoop.test.ts",
+        "tests/integration/eventAdapter.test.ts",
+        "tests/integration/executePlan.test.ts",
+        "tests/unit/selectGateSteps.test.ts",
+        "tests/unit/gateAttribution.test.ts",
+        "tests/unit/buildConfig.test.ts",
+        "src/domain/init/buildConfig.ts",
+        "src/app/initProject.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): add the diagnostic-step flag and diagnostics document schema",
+        "body": "A gate step may now declare `output: \"diagnostics\"` (absent decodes to `\"log\"`,\nthe closed enum rejects anything else). Add the schema for the diagnostics\ndocument such a step emits — rule, location (file, optional line), message,\nrepair pointer — decoded at the boundary like every other external input.\nBehavior-preserving: the runner does not read the flag yet. JSON schemas\nregenerated."
+      },
+      "title": "Diagnostic-step schema and diagnostics document"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-4-8",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-runner-verdict",
+      "plannedFilesToCreate": [
+        "src/domain/gate/diagnosticsPath.ts",
+        "tests/unit/diagnosticsPath.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/gates.ts",
+        "src/app/fixLoop.ts",
+        "src/app/eventAdapter.ts",
+        "src/domain/errors.ts",
+        "src/domain/events.ts",
+        "tests/integration/gates.test.ts",
+        "tests/integration/eventAdapter.test.ts",
+        "tests/unit/events.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/fixLoop.test.ts",
+        "tests/integration/dispatcher.test.ts",
+        "tests/integration/stateMachineContract.test.ts",
+        "tests/unit/reducer.test.ts",
+        "src/app/executePlan.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): take the verdict of a diagnostic step from its document",
+        "body": "For a step declaring `output: \"diagnostics\"`, decode a diagnostics document\nfrom stdout: a non-empty list fails the step whatever the exit code, exit 0\nwith an empty list passes, and a missing document or a non-zero exit with no\nfindings is a provider error that fails the step with the raw log. Failing\ndocuments are persisted as `checks-attempt-NN.diagnostics.json` next to the\nattempt log (so they ride the run record). `GateFailedError` and the\n`GateFailed` event carry the decoded diagnostics (empty for plain steps).\nAttribution is unchanged. Covered by integration tests on the runner."
+      },
+      "title": "Verdict from the diagnostics document"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-fix-prompt",
+      "plannedFilesToCreate": [
+        "src/domain/gate/fixPrompt.ts",
+        "tests/unit/fixPrompt.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/fixLoop.ts",
+        "tests/integration/fixLoop.test.ts",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/security.md",
+        "tests/unit/reducer.test.ts",
+        "tests/unit/resume.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): feed diagnostics into the fix prompt instead of the raw log",
+        "body": "When the failing step emitted a diagnostics document, the fix prompt lists each\ndiagnostic — rule, location, message, repair guide — and tells the agent to\nread every repair guide before changing code; the raw log block is replaced by\na pointer to the log on disk. Plain steps keep today's prompt byte-for-byte.\nThe builder is now a pure domain function with unit tests; the fix-loop\nintegration test covers the diagnostics path. README documents the `output`\nkey, the document shape and the verdict rules."
+      },
+      "title": "Diagnostics in the fix prompt and docs"
+    }
+  ]
+}

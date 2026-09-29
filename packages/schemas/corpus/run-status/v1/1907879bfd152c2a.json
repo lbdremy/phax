@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "opus-frontier-tiers",
+  "runId": "opus-frontier-tiers-1780995964791",
+  "state": "archived",
+  "createdAt": "2026-06-09T09:06:04.807Z",
+  "updatedAt": "2026-09-03T07:49:09.506Z",
+  "phasesCount": 2,
+  "gateProfileId": "full",
+  "stoppedReason": "rate_limited",
+  "lastError": "Gate command failed: pnpm format:check (exit 1)"
+}

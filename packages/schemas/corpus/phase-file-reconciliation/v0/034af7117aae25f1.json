@@ -1,0 +1,39 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/schemas/phaxConfig.ts",
+    "src/domain/config/mergeLayers.ts",
+    "src/app/executePlan.ts",
+    "src/app/initWizard.ts",
+    "src/domain/init/buildConfig.ts",
+    "README.md",
+    "tests/unit/schemas/publishConfig.test.ts",
+    "tests/unit/mergeLayers.test.ts",
+    "tests/unit/buildConfig.test.ts",
+    "tests/integration/initWizard.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/infra/providers/mistralVibe.ts",
+    "tests/unit/cli/enterPhase.test.ts",
+    "tests/unit/cli/ls.test.ts",
+    "tests/unit/cli/publishPr.test.ts",
+    "tests/unit/cli/validate.test.ts",
+    "tests/unit/dryRun.test.ts",
+    "tests/unit/providers/mistralVibe.test.ts",
+    "tests/unit/resolveRunRef.test.ts"
+  ],
+  "optionalTouched": [
+    "tests/unit/cli/run.test.ts",
+    "tests/integration/executePlan.test.ts",
+    "tests/integration/publishRun.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

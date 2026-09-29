@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "catalog-fable-5-1-opus-5-gpt-6-astra",
+    "title": "Catalog: Fable 5.1, Opus 5, GPT-6 Astra",
+    "requiredCommands": [
+      "pnpm gen:model-catalog",
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ],
+    "branch": "phax/catalog-fable-5-1-opus-5-gpt-6-astra"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-claude-catalog",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/routing/defaults.ts",
+        ".claude/skills/phax-planning/SKILL.md",
+        "docs/model-routing.md",
+        "docs/model-catalog.md",
+        "tests/unit/routing/effortLevels.test.ts",
+        "tests/unit/routing/catalog.test.ts",
+        "tests/unit/routing/resolve.test.ts",
+        "tests/unit/routing/sameFamilyPreservation.test.ts",
+        "tests/unit/skills.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        ".claude/skills/model-routing/SKILL.md",
+        "tests/unit/routing/preflight.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(routing): add Claude Fable 5.1 and Opus 5, advertise ultracode on xhigh-capable entries",
+        "body": "Register claude-fable-5-1 and claude-opus-5 on the claude-code provider with\nthe low|medium|high|xhigh|max|ultracode ladder, and list ultracode on\nclaude-fable-5 and claude-sonnet-5 as well: Claude Code gates ultracode on\nxhigh support, not on a specific model. Older entries stay first in each\nfamily so alias resolution is unchanged. Regenerates the planner catalog table\nand adds the claude-fable row to the routing doc's family table."
+      },
+      "title": "Claude catalog: Fable 5.1, Opus 5 and ultracode"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-codex-astra",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/routing/defaults.ts",
+        ".claude/skills/phax-planning/SKILL.md",
+        "docs/model-routing.md",
+        "docs/model-catalog.md",
+        "tests/unit/routing/effortLevels.test.ts",
+        "tests/unit/routing/catalog.test.ts",
+        "tests/unit/routing/resolve.test.ts",
+        "tests/unit/routing/preflight.test.ts",
+        "tests/unit/routing/sameFamilyPreservation.test.ts",
+        "tests/unit/skills.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        ".claude/skills/model-routing/SKILL.md",
+        "tests/unit/routing/schemas.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(routing): add GPT-6 Astra anchored to Fable 5.1 as a downgrade",
+        "body": "Register gpt-6-astra on the codex-cli provider with the\nlow|medium|high|xhigh|max|ultra ladder read from codex 0.153.4's bundled\ncatalog, and anchor every effort straight across to claude-fable-5-1 with a\nhub-centric downgrade relation (Astra trails Fable 5.1 by 1-2 points at every\neffort on the Artificial Analysis Intelligence Index); ultra anchors to max so\nultracode stays Claude-only. Under allowDowngrade:false a Fable 5.1 phase now\nstays on Claude while an Astra phase still falls back to Fable 5.1 as an\nupgrade. Regenerates the planner catalog table and documents the edge, the\ncodex >= 0.153.0 requirement, and a worked fallback example."
+      },
+      "title": "Codex catalog: GPT-6 Astra anchored to Fable 5.1"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-defaults-on-cost",
+      "plannedFilesToCreate": [
+        "tests/unit/cli/adjustPlanDefaults.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/cli/commands/adjustPlan.ts",
+        "src/cli/program.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md",
+        "docs/extract-plan-model.md",
+        "docs/model-catalog.md",
+        "tests/unit/loadConfig.test.ts",
+        "tests/unit/schemas/complianceReviewConfig.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/adjustPlanCommand.test.ts",
+        "tests/integration/reviewCodeCommand.test.ts",
+        "tests/integration/reviewComplianceCommand.test.ts",
+        "src/cli/cliDocs.ts"
+      ],
+      "commit": {
+        "subject": "feat(config): default reviews and plan adjustment to Opus 5 and Sonnet 5",
+        "body": "Code review and plan adjustment now default to claude-opus-5 at high effort\n(same per-token tier as Opus 4.8, fewer generated tokens, higher benchmark\nscores) and compliance review to claude-sonnet-5 at medium (a third cheaper\nper token than Sonnet 4.6 with the same effort curve). Plan extraction stays\non Haiku 4.5, the cheapest tier with no newer sibling. Explicit phax.json\nsettings are unaffected. Help strings, the generated usage spec, CLI\nreference, README and extract-plan doc follow; unit tests pin the new\ndefaults and check each one exists in the routing catalog."
+      },
+      "title": "Re-point built-in defaults on cost"
+    }
+  ]
+}

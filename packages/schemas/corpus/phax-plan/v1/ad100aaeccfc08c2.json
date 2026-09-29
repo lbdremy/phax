@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "migrate-to-typescript-7",
+    "title": "Migrate to TypeScript 7",
+    "requiredCommands": [],
+    "branch": "phax/migrate-to-typescript-7"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-bump",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "package.json",
+        "pnpm-lock.yaml"
+      ],
+      "optionalFilesToEdit": [
+        "tsconfig.json",
+        "tsconfig.test.json",
+        "tsconfig.build.json",
+        "knip.json"
+      ],
+      "commit": {
+        "subject": "build(deps): migrate to TypeScript 7",
+        "body": "Bump the typescript dev dependency from ^6.0.3 to ^7 (native TS7 compiler, GA at\n7.0.2). The tsc binary, tsconfig surface, and typecheck/build/test:type scripts\nare unchanged. Resolve any compiler diagnostics and emit differences surfaced by\nthe native compiler. Verified by the full gate — which now runs test:type, so the\ntype-level suites are covered mechanically — plus a run of the emitted bin."
+      },
+      "title": "Bump `typescript` to v7 and resolve compiler diffs"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-02-docs",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "CLAUDE.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "docs(ts): note the TypeScript 7 toolchain",
+        "body": "Record in the CLAUDE.md conventions that the repo compiles with TypeScript 7\n(native compiler). Documentation only; no script, config, or build behavior\nchange."
+      },
+      "title": "Document the TypeScript 7 toolchain"
+    }
+  ]
+}

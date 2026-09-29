@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Phases 01-05 of the phax.plan-lint run match their plan sections closely on objective, files, tests, boundaries and handoff content, with only justified optional-file touches. Phase-06 completed its README, extraction-model-doc-rename and hello-world-example edits as planned, but its core mandate to rewrite `phax extract-plan` mentions out of the three shipped skills (phax-planning, phax-cli, phax-spec) was not delivered at all -- confirmed by direct reads showing the exact pre-phase-06 wording still present at the plan-cited lines. The gap is honestly disclosed in the phase-06 handoff as a permission-denial blocker and corroborated by the global file reconciliation (all three skill files marked 'missing' for phase-06), so it reads as a real, well-documented shortfall rather than scope creep or a fabricated claim -- hence a run-level 'conformant-with-deviations' rather than 'divergent', even though phase-06 itself is scored divergent against its own plan section. This session had no shell/git tool available, so exact commit subject/body text could not be independently diffed against git log.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "collectPlanStructureErrors, StructureError, and the lint vocabulary (LintSeverity, LintCheck, LintFinding, structureFindings) all exist with the specified signatures; extractPlanDeterministic remains a thin first-error wrapper."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/parsePlanMarkdown.test.ts has describe(\"collectPlanStructureErrors\") and tests/unit/planLint.test.ts has describe(\"structureFindings\") with the conforming-plan and closed-vocabulary cases the plan required."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "File list matches the reconciliation exactly; the optional examplePlanDeterministic.test.ts was correctly left untouched."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "No shell/git access this session to diff the literal commit text; handoff content is consistent with the planned subject/body wording."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "plannedPaths and filePlanFindings exist in lint.ts with the exact message formats specified; tests/unit/planLint.test.ts has one test per spec acceptance criterion (missing-edit-target, create-exists, create-already-created, create+edit-same-phase, optional-files-ignored, create-and-optional warning)."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Matched exactly per reconciliation; no optional files needed."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Documents the known-map origin semantics and reused message strings verbatim, matching downstream phase needs."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "commandFindings, modelFindings, hasLintErrors in lint.ts; lintPlan in src/app/lintPlan.ts returning LintReport, verified against tests/integration/lintPlan.test.ts using makeFakeFileSystem."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "lintPlan's FileSystem-only requirement (no Backend/Shell/Lock/Git) is asserted in the handoff and structurally reflected in the integration test's fake-fs-only layer."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Matched per reconciliation; optional loadRouting.ts correctly left untouched with a stated reason (built-in-defaults fallback)."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "renderLintReport, runPlansLint, --json and exit-code behavior all verified directly; docs/cli/inventory.md gained the plans/lint row; cliProgram.test.ts asserts the <plan> argument and --json option."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/planLintRender.test.ts verified directly -- covers header count variants, per-finding line format, and the plan-level dash-phase case."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Matched per reconciliation; the optional touch to tests/integration/cliProgram.test.ts is explicitly justified in the handoff."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "CLI->app boundary respected: runPlansLint calls only lintPlan; rendering and exit-code derivation live in domain functions."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "extractPlan.ts's persistent-wrapper exports (extractPlan, ExtractPlanOptions/Result/Error, buildExtractReport) are gone; src/cli/commands/extractPlan.ts deleted; cliProgram.test.ts's TOP_LEVEL_COMMANDS has no extract-plan entry."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No prose/skill edits landed in this phase, correctly deferred to phase-06."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "No shell/git access this session to confirm the literal BREAKING CHANGE footer text; handoff content is consistent with a feat(cli)! breaking-change framing."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-06",
+      "verdict": "divergent",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "concern",
+          "message": "The plan's core mandate to rewrite phax extract-plan mentions out of .claude/skills/phax-planning/SKILL.md, .claude/skills/phax-cli/SKILL.md and .claude/skills/phax-spec/SKILL.md was not delivered; direct reads confirm all three files still contain the exact pre-phase-06 wording at the plan-cited lines (e.g. phax-cli/SKILL.md:66 and phax-spec/SKILL.md:19's pipeline diagram)."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Three of the five 'Planned files to edit' were never touched. The deviation is disclosed and justified in the handoff (Edit and Bash-write attempts under .claude/skills/ were denied all session), but the justification explains the gap without closing it."
+        },
+        {
+          "dimension": "commit",
+          "severity": "concern",
+          "message": "The plan's commit-body template states the commit updates 'the phax-planning, phax-cli and phax-spec skills'; per the reconciliation and direct file reads, that claim does not hold for the actual committed state. No git access this session to confirm whether the literal commit body was generated verbatim from that template."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "The handoff is explicit and honest about the deviation, naming the exact files, exact edits still needed, and calling it 'the actual open work of spec 33' -- but omits the plan's requested grep-proof expected-handoff item, correctly, since that grep would currently fail."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "The README 'Write a plan' / 'Lint the plan' sections, the docs/extract-plan-model.md -> docs/plan-extraction-model.md rename with retitled content, and the examples/hello-world/plan.md note were all completed and verified directly, matching the plan's described content."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Phase-06's remaining open work is precisely scoped: the plan's own 'Detailed instructions' for the three skill files is a ready-made punch list for a follow-up session with write access to .claude/skills/.",
+    "docs/plans/41-claude-protected-path-approval-hook-plan.md (status: Stale, unrelated to this run) already plans a scoped approval hook for exactly the capability that would unblock phase-06's remaining work -- worth surfacing to the operator as a candidate to revive.",
+    "This review had no shell/git tool available and could not independently diff commit subject/body text against git log; a follow-up with git access should confirm phase-06's actual commit body against the plan's template given the skills-not-updated finding.",
+    "A grep for extract-plan outside the plan's named exempt paths also turned up NEXT_STEPS.md:112 (a retrospective description of this run, low risk) and docs/plans/41-claude-protected-path-approval-hook-plan.md:13 (a Stale, not-yet-run plan for an unrelated feature that instructs 'Feed this file to phax extract-plan') -- neither is in spec 33's declared scope, but both would surface in an exhaustive extract-plan grep."
+  ],
+  "pointers": []
+}

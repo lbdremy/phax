@@ -1,0 +1,51 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/domain/session/index.ts",
+    "src/ports/session.ts",
+    "src/infra/session.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/commands/enter.ts",
+    "src/cli/commands/enterPhase.ts",
+    "src/cli/commands/sessionInfo.ts",
+    "tests/unit/sessionAdapters.test.ts"
+  ],
+  "missingPlannedCreate": [
+    "src/domain/session/types.ts",
+    "src/domain/session/claude.ts",
+    "src/domain/session/codex.ts",
+    "src/domain/session/mistral.ts"
+  ],
+  "missingPlannedEdit": [
+    "tests/integration/enter.test.ts",
+    "tests/integration/enterPhase.test.ts"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "tests/unit/architecturalGuards.test.ts"
+  ],
+  "deletions": [
+    "src/infra/sessionAdapters/index.ts"
+  ],
+  "renames": [
+    {
+      "from": "src/infra/sessionAdapters/claude.ts",
+      "to": "src/domain/session/claude.ts"
+    },
+    {
+      "from": "src/infra/sessionAdapters/codex.ts",
+      "to": "src/domain/session/codex.ts"
+    },
+    {
+      "from": "src/infra/sessionAdapters/mistral.ts",
+      "to": "src/domain/session/mistral.ts"
+    },
+    {
+      "from": "src/infra/sessionAdapters/types.ts",
+      "to": "src/domain/session/types.ts"
+    }
+  ],
+  "hasDeviations": true
+}

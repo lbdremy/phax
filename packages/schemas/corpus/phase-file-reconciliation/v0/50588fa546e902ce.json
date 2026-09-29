@@ -1,0 +1,35 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/domain/plan/projection.ts",
+    "src/schemas/scopes.ts",
+    "src/schemas/gatePending.ts",
+    "src/app/providerQuery.ts",
+    "src/app/scopes.ts",
+    "src/domain/gate/scheduleDiagnostics.ts",
+    "tests/unit/planProjection.test.ts",
+    "tests/unit/scheduleDiagnostics.test.ts",
+    "tests/unit/schemas/scopes.test.ts",
+    "tests/unit/schemas/gatePending.test.ts",
+    "tests/integration/scopes.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/orient.ts",
+    "src/domain/errors.ts",
+    "src/schemas/gateAttribution.ts",
+    "src/domain/gate/diagnosticsPath.ts",
+    "tests/unit/diagnosticsPath.test.ts",
+    "tests/unit/gateAttribution.test.ts",
+    "tests/unit/verifiedSurfaces.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

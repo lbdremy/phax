@@ -1,0 +1,17 @@
+{
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/app/executePlan.ts",
+    "tests/integration/executePlan.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/phaseStatusUpdates.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

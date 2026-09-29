@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-06",
+  "phaseIndex": 5,
+  "state": "review_open",
+  "model": "claude-sonnet-5",
+  "effort": "low",
+  "createdAt": "2026-08-21T08:54:55.183Z",
+  "updatedAt": "2026-08-21T08:59:00.725Z",
+  "branchName": "phax/gate-profile-as-attributed-steps-implementation-plan-2--phase-06",
+  "worktreePath": "~/.phax/worktrees/phax.gate-profile-as-attributed-steps-implementation-plan-2/phase-06",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "fa695d80b3fc87a88d6ad884dfce727702f65262"
+}

@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "claude-skill-edit-grant",
+    "title": "Claude skill edit grant",
+    "requiredCommands": [],
+    "branch": "phax/claude-skill-edit-grant"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-grant-core",
+      "plannedFilesToCreate": [
+        "src/domain/security/skillEditGrants.ts",
+        "src/infra/providers/claudeSkillEditSettings.ts",
+        "tests/unit/security/skillEditGrants.test.ts",
+        "tests/unit/providers/claudeSkillEditSettings.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(security): resolve skill edit grants and build Claude hook settings",
+        "body": "Add a pure resolver that selects a phase's declared .claude/skills/** files\n(normalized, exact, no traversal or glob metacharacters). Add a builder that\nturns them into a Claude settings object with one PermissionRequest handler per\nfile and edit tool. Each handler is scoped by an absolute `if` rule and echoes\nan allow decision. A PreToolUse allow does not bypass Claude's protected-path\ncheck; a PermissionRequest allow does."
+      },
+      "title": "Skill edit grant resolution and hook settings"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-consent",
+      "plannedFilesToCreate": [
+        "tests/integration/skillEditConsent.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/security/skillEditGrants.ts",
+        "src/domain/errors.ts",
+        "src/cli/program.ts",
+        "src/cli/commands/run.ts",
+        "src/cli/commands/runLayers.ts",
+        "src/cli/commands/resume.ts",
+        "src/schemas/status.ts",
+        "src/app/runFolder.ts",
+        "src/app/executePlan.ts",
+        "src/app/dryRun.ts",
+        "tests/unit/security/skillEditGrants.test.ts",
+        "tests/unit/dryRun.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/cli/inventory.md",
+        "tests/integration/cliProgram.test.ts",
+        "tests/integration/executePlan.test.ts",
+        "tests/integration/resume.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(run): require --allow-skill-edits for plans that edit skill files",
+        "body": "Add a phax run --allow-skill-edits flag. A plan whose phases declare\n.claude/skills files is refused at preflight (exit 11) without it, and the\nrefusal names the phases and files. Consent is recorded in the run status, so\nphax resume inherits it, and an absent field means no consent, so existing runs\nstill decode. The dry-run previews per-phase grants and missing consent."
+      },
+      "title": "Skill edit consent flag, preflight, and resume"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-grant-wiring",
+      "plannedFilesToCreate": [
+        "tests/integration/skillEditGrants.test.ts",
+        "tests/e2e/claudeSkillEditGrant.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/backend.ts",
+        "src/app/executePlan.ts",
+        "src/schemas/securityPosture.ts",
+        "src/infra/providers/claudeCode.ts",
+        "tests/unit/providers/claudeCode.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/fixLoop.ts",
+        "src/app/handoffGeneration.ts",
+        "src/app/finalReport.ts",
+        "tests/unit/security/posture.test.ts",
+        "tests/integration/executePlan.test.ts",
+        "tests/unit/providers/codexCli.test.ts",
+        "tests/unit/providers/mistralVibe.test.ts",
+        "tests/unit/providerDispatcher.test.ts",
+        "src/infra/fakes/backend.ts"
+      ],
+      "commit": {
+        "subject": "feat(claude): grant declared skill-file edits via inline PermissionRequest hook",
+        "body": "Compute each consented phase's skill edit grants from its planned-file lists,\ncarry them on AgentRunOptions, and record them in security.json. In secure mode\nthe Claude adapter passes them as an inline --settings PermissionRequest hook\nscoped to exactly those files, so a phase can edit the .claude/skills files it\ndeclares. The rest of the jail is unchanged, and the argv is unchanged when\nnothing is granted. Includes a real-provider e2e test that guards the Claude\nCode behavior."
+      },
+      "title": "Wire skill edit grants into secure Claude runs"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-5",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-04-docs",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "docs/security.md"
+      ],
+      "optionalFilesToEdit": [
+        "README.md"
+      ],
+      "commit": {
+        "subject": "docs(security): document skill edit grants and --allow-skill-edits",
+        "body": "Explain how declaring a .claude/skills file in a phase, plus running with\n--allow-skill-edits, grants a scoped edit through an inline PermissionRequest\nhook. Cover the preflight refusal without the flag, consent inheritance on\nresume, what the grant does not cover, and why PreToolUse allow and settings\nallow rules are not enough."
+      },
+      "title": "Document skill edit grants"
+    }
+  ]
+}

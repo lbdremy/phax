@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "tests/integration/loadConfigLayers.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/loadConfig.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

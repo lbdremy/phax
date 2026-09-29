@@ -1,0 +1,26 @@
+{
+  "createdAsPlanned": [
+    "src/domain/security/types.ts",
+    "src/domain/security/resolvePolicy.ts",
+    "src/schemas/securityConfig.ts",
+    "tests/unit/security/resolvePolicy.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/phaxConfig.ts",
+    "src/app/loadConfig.ts",
+    "tests/unit/architecturalGuards.test.ts",
+    "tests/unit/loadConfig.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "docs/plans/04-run-jail-plan.md",
+    "docs/specs/04-run-jail.md",
+    "tests/integration/providerDispatcher.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

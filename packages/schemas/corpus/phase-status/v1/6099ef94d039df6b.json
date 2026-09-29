@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "committed",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-09-03T07:53:03.195Z",
+  "updatedAt": "2026-09-03T07:58:50.458Z",
+  "branchName": "phax/provider-contract-discoverability--phase-03",
+  "worktreePath": "~/.phax/worktrees/phax.provider-contract-discoverability/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "a926a86117460f576fe8bd22ba8f252bbfeec15e"
+}

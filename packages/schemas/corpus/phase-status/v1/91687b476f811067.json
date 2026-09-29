@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "rate_limited",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-12T12:40:01.848Z",
+  "updatedAt": "2026-06-12T12:40:06.361Z",
+  "branchName": "phax/deno-runtime--phase-02",
+  "worktreePath": "~/.phax/worktrees/deno-runtime/phase-02"
+}

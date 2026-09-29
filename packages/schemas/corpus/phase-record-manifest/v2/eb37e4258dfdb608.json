@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "runId": "provider-contract-discoverability-1788421177745",
+  "phaseId": "phase-03",
+  "shape": "full",
+  "sourceSha": "a926a86117460f576fe8bd22ba8f252bbfeec15e",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 36,
+      "cacheCreationInputTokens": 53917,
+      "cacheReadInputTokens": 1810528,
+      "outputTokens": 12389,
+      "totalCostUsd": 1.0627493999999997
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "product",
+    "structural"
+  ]
+}

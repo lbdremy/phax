@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/app/planStaleness.ts",
+    "src/domain/artifact/render.ts",
+    "tests/integration/planStaleness.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

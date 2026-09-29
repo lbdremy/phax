@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-05",
+  "phaseIndex": 4,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-04T06:36:38.170Z",
+  "updatedAt": "2026-06-04T06:42:28.723Z",
+  "branchName": "phax/update-provider-effort--phase-05",
+  "worktreePath": "~/.phax/worktrees/update-provider-effort/phase-05",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "b2792a69a206b253aec56d90bccdcb8e4892399c"
+}

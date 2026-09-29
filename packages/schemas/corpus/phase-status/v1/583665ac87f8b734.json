@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "cleaned_up",
+  "model": "claude-opus-4-8",
+  "effort": "high",
+  "createdAt": "2026-06-12T08:34:50.338Z",
+  "updatedAt": "2026-06-12T08:47:39.428Z",
+  "branchName": "phax/reset-phase--phase-03",
+  "worktreePath": "~/.phax/worktrees/reset-phase/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "f4ab5f37729e36a06b809124aee2017d196ef93c"
+}

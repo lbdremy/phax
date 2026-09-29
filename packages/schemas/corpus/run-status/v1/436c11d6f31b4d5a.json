@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "plan-staleness-and-lineage",
+  "runId": "plan-staleness-and-lineage-1786375814850",
+  "state": "archived",
+  "createdAt": "2026-08-10T15:30:14.866Z",
+  "updatedAt": "2026-09-03T07:46:56.881Z",
+  "phasesCount": 6,
+  "gateProfileId": "full"
+}

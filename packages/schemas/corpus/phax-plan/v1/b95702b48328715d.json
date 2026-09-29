@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "artifact-transition-auto-commit",
+    "title": "Artifact Transition Auto-Commit",
+    "requiredCommands": [],
+    "branch": "phax/artifact-transition-auto-commit"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-git-port-path-ops",
+      "plannedFilesToCreate": [
+        "tests/integration/gitCommitPaths.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/git.ts",
+        "src/infra/git.ts",
+        "src/infra/fakes/git.ts",
+        "src/schemas/git.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/gitDiffNameStatus.test.ts",
+        "tests/unit/branded.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(git): add path-scoped dirty-status and commit to the Git port",
+        "body": "Add dirtyPaths and commitPaths to the Git port, implemented with porcelain\nstatus parsing and pathspec-scoped add/commit so a caller can commit an exact\nfile set while unrelated changes stay untouched. Covered by a real-git\nintegration test and fake-port recording."
+      },
+      "title": "Path-scoped git status and commit"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-transition-autocommit",
+      "plannedFilesToCreate": [
+        "src/domain/artifact/writeSet.ts",
+        "tests/unit/artifact/writeSet.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/errors.ts",
+        "src/app/artifactStatus.ts",
+        "tests/integration/artifactStatus.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/approvalRecordStore.ts",
+        "tests/unit/artifact/status.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(artifact): auto-commit transition write-set with clean-target precondition",
+        "body": "transitionArtifact now computes its write-set, refuses before writing when a\ntarget path is dirty, and commits exactly the write-set after a successful\ntransition — skipping empty commits and surfacing commit failures with the\npaths left uncommitted. Opt-out via the new required commit option.\nImplements spec 25 §5.1–§5.4 and §5.6–§5.8."
+      },
+      "title": "Transition write-set and auto-commit in the use case"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-cli-surface",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/commands/artifact.ts",
+        "src/cli/commands/runLayers.ts",
+        "tests/unit/cli/artifact.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/cliErrors.test.ts",
+        "tests/integration/usageSpecExamples.test.ts",
+        "tests/integration/docsCliDrift.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): add --no-commit and commit reporting to artifact transitions",
+        "body": "Artifact transition subcommands gain --no-commit, print the transition commit\nhash and subject on success, and refuse dirty write-set targets with exit\ncode 12. Usage spec and CLI reference regenerated. Completes spec 25 (§5.5,\n§6 surface)."
+      },
+      "title": "CLI flag, exit codes, and regenerated CLI docs"
+    }
+  ]
+}

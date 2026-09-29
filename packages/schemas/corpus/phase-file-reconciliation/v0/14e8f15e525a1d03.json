@@ -1,0 +1,20 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "src/schemas/adjustPlanSession.ts",
+    "src/domain/planOverlap/adjustPrompt.ts",
+    "tests/unit/adjustPlanSession.test.ts",
+    "tests/unit/planOverlap/adjustPrompt.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

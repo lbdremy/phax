@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Phases 01 and 02 fully match their plan sections: the Claude and Codex catalog reorders, new entries, deprecations, equivalence anchors and the deprecated-spoke guard were independently confirmed against src/domain/routing/defaults.ts and match the plan exactly. Phase 03 delivered its code-level objective (DEFAULT_CODE_REVIEW_MODEL and adjustPlan's DEFAULT_MODEL are both claude-opus-5-5/high, confirmed in source) but did not deliver the planning-skill guidance subsection in .claude/skills/phax-planning/SKILL.md or the dependent docs/model-catalog.md section 4/6 updates; this gap is self-disclosed and reasoned in the phase-03 handoff (a stuck Edit-tool permission prompt, and a deliberate decision to defer the two dependent doc edits together rather than commit an inconsistent state), but it leaves part of the plan's stated objective unmet and needs a human follow-up pass before the run is considered closed.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "claude-opus-5-5 registered with the low|medium|high|xhigh|max|ultracode ladder, and claude-opus/claude-sonnet/claude-fable families reordered newest-first, confirmed by reading src/domain/routing/defaults.ts directly."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All planned files for this phase are marked matched in the global reconciliation table; no deviation."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Handoff reports the planned effortLevels/catalog/resolve/sameFamilyPreservation/skills tests were written and pass, including dedicated coverage that exact-id resolution for older versions is preserved through the reorder."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Only defaults.ts (catalog data) and resolve.ts (doc comment only) were touched, matching the declared producer role for phase-02/phase-03 consumers."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Could not verify the literal commit subject/body against git history in this review environment (no shell access); handoff content is consistent with the planned commit text."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers committed arrays, changed tests with reasons, gen:model-catalog --check confirmation, full gate results, and explicitly scopes what was left for later phases."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "openai-gpt family confirmed as [gpt-6-sol, gpt-6-luna, gpt-6-astra, gpt-5.6-luna, gpt-5.6-terra, gpt-5.6-sol, gpt-5.5] with the three GPT-5.6 entries deprecated and correct anchors (gpt-6-sol -> claude-opus-5-5 downgrade, gpt-6-luna -> claude-sonnet-5, gpt-6-astra -> claude-fable-5-1 equivalent), confirmed by reading defaults.ts directly."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No GPT-5.6 entry or edge removed; live codex e2e correctly skipped since installed codex (0.153.4) is below the 0.155.0 minimum for the new ids, as the plan's excluded scope anticipated."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All planned files matched in the global reconciliation table; no deviation."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Handoff reports the deprecated-spoke guard, both hub<->spoke directions, and both allowDowngrade settings are covered, matching the Test strategy section."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "hubToSpoke gained the sole logic change (the deprecated-spoke guard); spokeToHub/spokeToHubAny/equivalentFor left untouched, matching the declared boundary contract."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "One existing resolve.test.ts case was flipped (claude-fable-5-1/high now routes to codex under allowDowngrade=false) as a direct, correct consequence of this same phase's own anchor change making gpt-6-astra equivalent -- not scope creep."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Could not verify the literal commit subject/body against git history in this review environment (no shell access); handoff content is consistent with the planned commit text."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff names the exact Claude entries that lost a codex route, confirms spokeToHub/spokeToHubAny intentionally ignore status, and correctly scopes docs/model-catalog.md section 4/6 as phase-03 work."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "Default-model half of the objective is delivered and confirmed (DEFAULT_CODE_REVIEW_MODEL and adjustPlan's DEFAULT_MODEL are both claude-opus-5-5/high in source), but the planning-guidance half is not: .claude/skills/phax-planning/SKILL.md has no '### Choosing a model and effort' subsection anywhere in the file, confirmed by reading it in full."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "SKILL.md and docs/model-catalog.md were planned files to edit but were not touched. docs/model-catalog.md section 4 still shows claude-opus-5 (not claude-opus-5-5) as the code-review/plan-adjustment default and section 6 has no 2026-09-23 refresh-log row, confirmed by reading the file. The handoff discloses and reasons this deviation (a stuck Edit-tool permission prompt on SKILL.md; both dependent doc edits deliberately deferred together to avoid an inconsistent state)."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Compliance and extraction defaults correctly left untouched and confirmed unchanged, as planned."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/loadConfig.test.ts, the renamed tests/unit/cli/adjustPlanDefaults.test.ts, and the relevant adjustPlanCommand.test.ts assertion were updated per the handoff and the reconciliation table; the decision to leave an inert fixture value untouched is correctly reasoned."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Only the two named constants and CLI help strings changed; no port/domain boundary crossed."
+        },
+        {
+          "dimension": "commit",
+          "severity": "concern",
+          "message": "Could not verify the actual commit message in this review environment (no shell/git access). If the phase-03 commit body used the plan's verbatim text claiming planning-skill guidance was added, that claim is currently false relative to what was delivered -- recommend a human check the real commit message."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff is complete and candid: states the deviation plainly, explains the reasoning for deferring both doc edits together, confirms which gates still passed despite the gap, and lists concrete follow-up tasks."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Add the 'Choosing a model and effort' subsection to .claude/skills/phax-planning/SKILL.md (text specified in the plan's phase-03 section), then update docs/model-catalog.md section 4 (defaults row, re-scaled-index caveat) and section 6 (2026-09-23 refresh-log row). No automated gate checks this hand-written prose.",
+    "Verify the actual phase-03 commit subject/body against what was really delivered -- this review had no shell/git access and could not check whether the commit text overstates the planning-skill-guidance deliverable.",
+    "GPT-6 Sol and Luna routes are exercised only by unit tests; the installed codex CLI (0.153.4) is below the 0.155.0 minimum for both new ids, so there is no live-provider confirmation yet -- expected and excluded by the plan, not a defect."
+  ],
+  "pointers": []
+}

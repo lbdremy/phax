@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All five phases delivered their core objectives. Every deviation from the planned file lists is documented and technically justified: initWizard.ts required no edit because the wizard delegates to buildConfig.ts (which was updated); tests/unit/cli/run.test.ts required no edit because it constructs no inline gate profiles; docs/cli/reference.md cannot be hand-edited because a drift test enforces byte-for-byte parity with a machine-generated file; tests/integration/finalReport.test.ts was created rather than edited because the file did not previously exist; vitest.config.ts was changed to pool:forks to fix a pre-existing hung-test issue. The 29 unplanned test-file edits in phase-01 are a necessary cascade of the repo-wide GateStep type break. One unmet promise — flat-array decode errors explicitly naming the profile key — could not be verified from available evidence and warrants a follow-up check.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "FiringSchema, GateStepSchema, GateStep, and Firing are present in src/schemas/phaxConfig.ts. GateProfilesSchema value is Schema.NonEmptyArray(GateStepSchema). resolveGateProfile returns readonly GateStep[]. runGates accepts steps: readonly GateStep[]. pickGateProfileId uses first-key selection. phax.json has a single standard profile with 10 attributed steps. JSON schemas were regenerated."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/app/initWizard.ts was planned for editing but not touched. Handoff justifies this: the wizard delegates to buildConfig.ts (which was updated) and has no direct reference to profile names or step shapes."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/cli/run.test.ts was planned for editing but not touched. Handoff justifies this: the test constructs no inline gateProfiles and calls no gate APIs directly; it passed without changes."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": ".agents/skills/phax-spec/SKILL.md was edited unplanned. Handoff attributes this to an incidental batch-agent touch with no functional content change."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "29 test files were edited unplanned (e2e, integration, and unit suites). These are mechanical cascade updates required to pass typecheck after the repo-wide GateStep value-type break."
+        },
+        {
+          "dimension": "tests",
+          "severity": "deviation",
+          "message": "Plan required a decode test asserting a flat-array profile entry is rejected and the error explicitly names the profile key. The handoff does not confirm this mapping was added. The error path (gateProfiles.<key>[0]) may name the profile but the human-readability of the message was not verified."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "selectGateSteps pure domain helper created in src/domain/gate/selectSteps.ts. executePlan.ts computes phaseSteps = selectGateSteps(gateSteps, isFinal) per phase and passes phaseSteps to runGatesWithFixLoop. Full gateCommandStrings retained for security preflight."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "8 unit tests in tests/unit/selectGateSteps.test.ts cover all branching paths. executePlan integration test asserts terminal step runs only at the final phase gate."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "GateAttributionSchema, GateStepResult, and GateAttribution in src/schemas/gateAttribution.ts. runGates accumulates step results and writes gate-attribution.json via fs.writeAtomic on both success and failure paths when attributionPath and phaseId are supplied. fixLoop.ts passes attributionPath and phaseId. eventAdapter.ts omits attribution (documented: no phase folder available at that call site)."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "8 schema unit tests in tests/unit/gateAttribution.test.ts. 4 new attribution integration tests in gates.test.ts. 2 new integration tests in fixLoop.test.ts covering success write and fix-loop overwrite semantics."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "readVerifiedSurfaces in src/app/gateAttribution.ts returns sorted verified surfaces skipping missing files. finalReport.ts renders '- **Surfaces Verified**: <comma-list or (none)>' in ## Run Summary between Gate Profile and Total Phases bullets."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/integration/finalReport.test.ts was planned as an edit but was created fresh. Handoff explains the file did not exist prior to this phase. Outcome is equivalent."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "vitest.config.ts was changed to pool:forks unplanned. Handoff justifies this as a fix for a pre-existing hung-test issue in providerDispatcher.test.ts (spawns real codex CLI with no credentials). No test-semantic impact."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "9 unit tests in tests/unit/gateAttribution.reader.test.ts. 6 integration tests in tests/integration/finalReport.test.ts covering all acceptance criteria including empty state."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "README.md updated with attributed-step gateProfiles example and Gate profiles table. CLAUDE.md updated with gate profile convention under Conventions. docs/security.md updated to note preflight covers all step commands regardless of firing."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "docs/cli/reference.md was planned for editing but not touched. Handoff justifies this: the file is fully machine-generated by pnpm docs:cli from phax.usage.kdl, and a drift test enforces byte-for-byte parity. Hand edits are overwritten on the next generation. Gate profile docs for this file require a code change to src/cli/commands/run.ts long_help, which is out of scope for a doc-only phase."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "docs/security.md was touched unplanned, but it was listed as an optional file in the plan. No deviation."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "docs/cli/reference.md gate profile docs were not added. Updating requires editing src/cli/commands/run.ts long_help and running pnpm gen:usage-spec && pnpm docs:cli. Track as a follow-on task if the CLI reference is a target user-facing surface.",
+    "Phase-01 plan required a decode-error mapping that names the offending profile key when a flat-array entry is rejected. The handoff is silent on whether this mapping was added. Recommend verifying with a targeted decode test that the error message includes the profile name legibly.",
+    "vitest.config.ts is now pool:forks. Any future contributor adding tests that rely on vitest threads behavior (e.g., shared module state across tests in the same worker) should be aware of this configuration change.",
+    "src/app/initWizard.ts was not audited for inline profile-construction logic. The no-edit justification holds if the wizard always delegates to buildConfig.generateGateProfiles, but should be confirmed by anyone who touches the wizard."
+  ],
+  "pointers": [
+    "Possible gap in flat-array rejection UX at src/schemas/phaxConfig.ts GateProfilesSchema: the Schema.NonEmptyArray(GateStepSchema) decoder will report a path like gateProfiles.<key>[0] on failure, but the plan specifically asked for a decode-error mapping if the default message is not legible. Confirm the error text is user-friendly via code review of the schema error output."
+  ]
+}

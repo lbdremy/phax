@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-05",
+  "phaseIndex": 4,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-18T12:06:29.946Z",
+  "updatedAt": "2026-06-18T12:15:16.287Z",
+  "branchName": "phax/agent-binding--phase-05",
+  "worktreePath": "~/.phax/worktrees/agent-binding/phase-05",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "eb00d6873c4b7558a43e7f56c2d6aea2f6fac142"
+}

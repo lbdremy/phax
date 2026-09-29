@@ -1,0 +1,20 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/ports/git.ts",
+    "src/infra/git.ts",
+    "src/infra/fakes/git.ts",
+    "tests/integration/gitDiffNameStatus.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/providerDispatcher.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

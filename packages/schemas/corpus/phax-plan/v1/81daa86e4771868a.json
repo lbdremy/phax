@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "run-carries-completion",
+    "title": "Run Carries Completion",
+    "requiredCommands": [],
+    "branch": "phax/run-carries-completion"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-rooted-filesystem",
+      "plannedFilesToCreate": [
+        "tests/integration/rootedFileSystem.test.ts",
+        "tests/unit/fakeRootedFileSystem.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/fs.ts",
+        "src/infra/fs.ts",
+        "src/infra/fakes/fs.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/telemetry/jsonFile.ts"
+      ],
+      "commit": {
+        "subject": "feat(fs): add rootedAt to the FileSystem port and its adapters",
+        "body": "Add `rootedAt(root)` to `FileSystemOps`, returning a view of the same filesystem whose\nrelative paths resolve against `root` while absolute paths pass through unchanged.\nImplemented in the Node adapter via a shared ops factory and on the fake by delegating to\nthe same backing maps. `NodeFileSystemLayer` behaviour is unchanged. This is the seam\nthat lets run completion apply artifact transitions inside a run worktree without\n`src/app/` importing `src/infra/`."
+      },
+      "title": "A rooted view of the FileSystem port"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-complete-run-artifacts",
+      "plannedFilesToCreate": [
+        "src/app/completeRunArtifacts.ts",
+        "tests/integration/completeRunArtifacts.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/artifactStatus.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/artifact/document.ts"
+      ],
+      "commit": {
+        "subject": "feat(run): add the completeRunArtifacts use case",
+        "body": "Add `completeRunArtifacts`, which applies a plan's `Approved → Completed` transition\ninside a run worktree and then rides the source spec's transition along when the chain\ngate allows, reporting a blocked spec as a skip rather than a failure. Transitions go\nthrough the existing `transitionArtifact` against a `rootedAt` view of the FileSystem\nport, so legality, the archive move and the path-scoped commit stay identical to\n`phax artifact complete`. Idempotent, and a no-op for plans outside `docs/plans/`."
+      },
+      "title": "The run-completion use case"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-completion-pause",
+      "plannedFilesToCreate": [
+        "tests/unit/reducerArtifactCompletionPause.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/events.ts",
+        "src/domain/errors.ts",
+        "src/domain/effects.ts",
+        "src/domain/reducer.ts",
+        "src/domain/matrix.ts",
+        "src/app/resumeInstructions.ts",
+        "docs/state-machine.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/events.test.ts",
+        "tests/unit/reducer.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(state): add the ArtifactCompletionFailed pause path",
+        "body": "Add `ArtifactCompletionFailed` as the fifth post-gate pause alongside handoff, commit and\ncleanup: on a `running` run whose final phase is `committed`, it pauses the run as\n`interrupted` with the phase left `committed`, persists the stop reason and writes resume\ninstructions. Adds the matching `ArtifactCompletionPausedError`, the\n`artifact_completion_failed` resume-instruction kind, exhaustive matrix rows and the\nstate-machine documentation. Nothing dispatches the event yet."
+      },
+      "title": "The artifact-completion pause path"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-04-wire-run-completion",
+      "plannedFilesToCreate": [
+        "tests/integration/runCarriesCompletion.test.ts",
+        "tests/integration/resumeFromCompletion.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts",
+        "src/cli/commands/run.ts",
+        "tests/unit/cli/run.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/executePlan.test.ts",
+        "docs/state-machine.md"
+      ],
+      "commit": {
+        "subject": "feat(run): carry artifact completion on the run branch",
+        "body": "Apply the plan's `Approved → Completed` transition on the run branch when the final\nphase's gates are green, before review opens, and ride the source spec's transition along\nwhen the chain gate allows. The reviewer sees the completion in the branch they review\nand the merge lands work and record together; an unpublished or rejected run completes\nnothing on `main`. A failed transition pauses the run as `interrupted` with the final\nphase `committed`, resumable at the completion step. Completed artifacts and their\ncommits are reported in the run's output. `phax publish-pr` is unchanged and no CLI\nsurface is added."
+      },
+      "title": "Run completion applies the transitions"
+    }
+  ]
+}

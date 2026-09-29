@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "records": {
+    "docs/specs/2608091526-batch-execution-disjoint-plans.md": {
+      "specFingerprint": "b19da59fbf82a781a6e034aef4fbe27507a63137cbc7c165d8ad8031cfd99c81",
+      "approvedAt": "2026-09-04T09:28:11.427Z",
+      "baseline": "67e20c372589e947257a71f941e43e4367a5abe4"
+    },
+    "docs/specs/2608091526-phase-decision-requests.md": {
+      "specFingerprint": "9508e9c38f63c361a588de697fa91daaa7691e09c55fb7039cf73539d62a7c6e",
+      "approvedAt": "2026-09-04T09:28:10.866Z",
+      "baseline": "c545cb15a06301fc60d30abdacb2475d0458365e"
+    },
+    "docs/specs/2609231215-claude-skill-edit-grant.md": {
+      "specFingerprint": "8b2af5284f34b3c55918e77064ac60f37655f6dcd64bdbf2195343265bffdc0f",
+      "approvedAt": "2026-09-23T12:33:25.724Z",
+      "baseline": "0b6473dcb3a982c0f5d9bbbd38e06d7cdb738d33"
+    }
+  }
+}

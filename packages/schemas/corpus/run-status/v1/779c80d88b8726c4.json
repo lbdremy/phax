@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "plan-extraction-cache",
+  "runId": "plan-extraction-cache-1782720396392",
+  "state": "archived",
+  "createdAt": "2026-06-29T08:06:36.407Z",
+  "updatedAt": "2026-09-03T07:46:51.584Z",
+  "phasesCount": 4,
+  "gateProfileId": "full"
+}

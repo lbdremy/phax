@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "committed",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-09-10T09:55:07.911Z",
+  "updatedAt": "2026-09-10T09:57:16.133Z",
+  "branchName": "phax/artifact-timestamp-naming--phase-01",
+  "worktreePath": "~/.phax/worktrees/phax.artifact-timestamp-naming/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "318d4918dbcf356048857d36a60e52199e34a253"
+}

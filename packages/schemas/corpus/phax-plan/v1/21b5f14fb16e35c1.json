@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "reconciliation-and-reopen-cleanups",
+    "title": "Reconciliation and Reopen Cleanups",
+    "requiredCommands": [],
+    "branch": "phax/reconciliation-and-reopen-cleanups"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-optional-touched-status",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/reconciliation/global.ts",
+        "src/schemas/globalReconciliation.ts",
+        "tests/unit/reconciliation/global.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/reconciliation/__snapshots__/global.test.ts.snap",
+        "tests/unit/globalReconciliation.test.ts",
+        "tests/integration/generateGlobalReconciliation.test.ts",
+        "tests/integration/reviewHandoff.test.ts",
+        "tests/unit/schemas/reconciliation.test.ts"
+      ],
+      "commit": {
+        "subject": "fix(reconciliation): classify touched optional files as optional-touched",
+        "body": "The global reconciliation aggregator added an optional file's phase to\ntouchedInPhases but never to a planned set, so deriveStatus classified a\nlegitimately delivered optional file as `unplanned` with a blank \"Planned in\"\ncolumn — contradicting the per-phase reconciler, which already unions the\noptional list into its plan set, and the footprint path, which unions it into\n`.all`.\n\nTrack optional phases in their own accumulator set, expose them as\n`optionalInPhases` on the entry, and give them a dedicated `optional-touched`\nstatus with `attention: ok` rather than folding them into `plannedInPhases` —\nan optional file carries no expected action, so folding would have resolved it\nto `action-mismatch`. A file optional in one phase and planned in another still\nresolves to `matched`. Covered by unit tests, including a flipped case that had\npinned the old behavior."
+      },
+      "title": "Classify touched optional files as `optional-touched`"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-clear-approval-on-reopen",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/artifact/frontmatter.ts",
+        "src/domain/artifact/lineage.ts",
+        "src/domain/artifact/writeSet.ts",
+        "src/app/artifactStatus.ts",
+        "tests/unit/artifact/writeSet.test.ts",
+        "tests/unit/artifact/frontmatter.test.ts",
+        "tests/integration/artifactStatus.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/artifact/lineage.test.ts"
+      ],
+      "commit": {
+        "subject": "fix(artifact): clear the approval when a plan is reopened",
+        "body": "Reopening a plan (Stale → Draft) cleared neither its approvals.json record nor\nits `approved:` frontmatter stamp, so a Draft plan kept an approval describing a\nversion of itself that was about to be rewritten. The completion path already\ncalls removeApprovalRecord, so the two exits from Approved disagreed.\n\nAdd removeFrontmatterKeys and a clearApproved mirror of stampApproved, clear\nboth artifacts of the approval on the reopen branch, and extend\ntransitionWriteSet so a plan reopen carries docs/plans/approvals.json — the\nwrite-set is both the dirty precondition and the path-scoped staging set, so\nomitting it would have left the file uncommitted.\n\nApproved → Stale deliberately retains the record: it is the fingerprint and\nbaseline the plan went stale against, and Stale → Approved is a legal direct\ntransition. A test pins that. Clearing is fingerprint-neutral, since\nfingerprintSource already strips `approved` before hashing."
+      },
+      "title": "Clear the approval on reopen"
+    }
+  ]
+}

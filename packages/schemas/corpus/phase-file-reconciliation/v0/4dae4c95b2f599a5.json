@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "tests/unit/resumeInstructions.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/resumeInstructions.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/unit/resume.test.ts"
+  ],
+  "optionalTouched": [
+    "src/app/effectRunner.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Three of four phases are fully conformant. Phase-02 touched eleven files not listed in the plan (a new schema file, its unit tests, tests for an adjacent module, and seven integration tests that required updating due to new required fields on PhaseFileReconciliation) and has no phase-02 handoff available in the phase-04 worktree to formally document the justification. The unplanned touches are pragmatically reasonable consequences of adding required fields to a shared type, but represent undocumented scope expansion. Phases 01, 03, and 04 deliver exactly their planned objectives with no unplanned changes.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "renderGlobalReconciliationMarkdown now takes qualifiedRunName: string (required) and unconditionally emits the **Run**: header. Confirmed at global.ts line 234."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "global.test.ts call sites pass \"acme.fixbug\" and assert the **Run**: header is always present. Snapshot was regenerated per the matched reconciliation entry."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Phase-01 handoff is not present in the phase-04 worktree due to per-phase worktree isolation. Not a delivery gap; all gates confirmed green in the phase-04 summary."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Objective delivered: ReconciliationResult carries createdButPlannedEdit and editedButPlannedCreate as required fields; reconcile.ts populates them and excludes mismatched files from missingPlanned*; action mismatches do not set hasDeviations; global status action-mismatch is distinct from missing."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Eleven files touched beyond the plan with no phase-02 handoff available to justify them: src/schemas/reconciliation.ts (created), tests/unit/schemas/reconciliation.test.ts (created), tests/unit/reconciliation/explained.test.ts (created), and seven integration test files (eventAdapter, finalReview, generateGlobalReconciliation, perPhaseBranch, rateLimit, resume, reviewHandoff, reviewHandoffCommand). Likely caused by new required fields on PhaseFileReconciliation propagating to callers and serialization boundaries, but undocumented."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "deviation",
+          "message": "Phase-02 handoff is not present in the phase-04 worktree. With 11 unplanned files, a handoff explaining them was required but is unavailable for review."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "nextAvailableShortName extracted as pure function in src/domain/runRef.ts; ensureUniqueShortName delegates to it. AP2-a (missing name fails before folder creation), AP2-b (bump logic), and AP2-c (qualified name output) are all covered by tests."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/runRef.test.ts covers nextAvailableShortName including cross-namespace independence. tests/unit/cli/run.test.ts covers missing-name early exit (AP2-a) and qualified-name output (AP2-c)."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Phase-03 handoff is not present in the phase-04 worktree due to per-phase worktree isolation. Implementation is directly observable and conforms to the plan."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "tests/unit/cli/enterPhase.test.ts created with 5 regression tests: namespace-scoped resolution via resolveRunRef, qualified-name display, phase lookup from info.phaseStatuses, missing-phase error path, and cross-namespace independence for same-short-name runs."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "enterPhase.ts was not functionally modified. No resolvePhaseInfo call reintroduced. Tests are purely additive, per plan."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff present and complete: covers enterPhase.ts unchanged, 5 tests and their scope, why tests stop at readAgentBinding, cross-namespace test design, and all 1502 tests green."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Phase-02 handoff absent: eleven unplanned files were touched in phase-02 with no phase-02 handoff in the phase-04 worktree to document justification. A standalone review of phase-02 would be blocked by this gap.",
+    "src/schemas/reconciliation.ts was created in phase-02 without being listed in the plan. If this schema is used for on-disk serialization of reconciliation artifacts, that is meaningful scope expansion that should have been explicit.",
+    "Confirm that src/domain/reconciliation/explained.ts was not itself modified in phase-02 — the explained.test.ts makeResult helper includes the two new fields, suggesting the module was touched, but it does not appear in the global reconciliation table."
+  ],
+  "pointers": [
+    "Possible silent modification: src/domain/reconciliation/explained.ts may have been updated in phase-02 to handle createdButPlannedEdit/editedButPlannedCreate — the test helper in explained.test.ts initialises both fields, which implies the module's type surface changed. Confirm via git blame or code review.",
+    "tests/unit/cli/enterPhase.test.ts stops at the readAgentBinding failure path and does not exercise the full Effect session pipeline. A future test covering the session-launch path would give stronger coverage — confirm via code review whether that gap is acceptable."
+  ]
+}

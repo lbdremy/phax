@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "spikes/entire/01-hooks-in-jail.sh",
+    "spikes/entire/findings/01-hooks-in-jail.md"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

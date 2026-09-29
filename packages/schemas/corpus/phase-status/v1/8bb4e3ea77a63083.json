@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "review_open",
+  "model": "claude-opus-4-8",
+  "effort": "high",
+  "createdAt": "2026-08-15T11:58:15.165Z",
+  "updatedAt": "2026-08-15T12:03:11.442Z",
+  "branchName": "phax/reconciliation-and-reopen-cleanups--phase-02",
+  "worktreePath": "~/.phax/worktrees/phax.reconciliation-and-reopen-cleanups/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "391c439e4c01fae226f1aa5cf6cdef18be04ca64"
+}

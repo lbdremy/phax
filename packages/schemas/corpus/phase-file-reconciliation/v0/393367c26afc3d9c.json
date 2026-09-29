@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "src/cli/commands/init.ts",
+    "tests/unit/cli/init.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/main.ts",
+    "README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

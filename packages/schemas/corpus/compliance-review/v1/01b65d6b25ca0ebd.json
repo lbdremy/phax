@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All five phases delivered their stated objectives and boundary contracts. Phases 01–04 are fully conformant. Phase-05 has justified file-level deviations: the plan incorrectly named src/cli/main.ts as the command registration target (the actual router is src/cli/program.ts), and four additional unplanned files were required by existing gate checks (usage-parity and docs-drift). One minor unresolved deviation: the --verbose global flag is not forwarded to runReviewCompliance in the program.ts action registration, causing silent loss of verbose diagnostics in the CLI command path.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "ComplianceReviewConfigSchema, ResolvedComplianceReviewConfig, and resolveComplianceReviewConfig are present with correct defaults (enabled: false, model: claude-sonnet-4-6, effort: medium). ResolvedConfig.complianceReview is populated in loadConfig.ts. phax.schema.json was regenerated."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/schemas/complianceReviewConfig.test.ts covers full/minimal decode, invalid effort rejection, unknown key rejection, resolver defaults, and JSON schema validation."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All four planned files matched; no unplanned files."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "buildCompliancePrompt embeds plan text, reconciliation text, both artifact paths, per-phase instructions, the full compliance-review.json shape, and a conformance-only instruction. COMPLIANCE_REVIEW_MD_FILENAME and COMPLIANCE_REVIEW_JSON_FILENAME constants exported. resolveReviewSecurityPolicy produces allowWrite limited to .phax-context/, failClosed: true, provider-only network, MCP disabled, git agent commands."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/review/compliancePrompt.test.ts and tests/unit/security/resolveReviewPolicy.test.ts are both present, covering the key contracts (artifact paths embedded, allowWrite only .phax-context, failClosed, worktree readable)."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All four planned files matched; no unplanned files."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "reviewCompliance implements the full flow: disabled short-circuit, missing reconciliation/plan returns failed, fresh Backend.runAgent invocation (no resume), artifact harvest from .phax-context/, durable copies to runPath, decodeComplianceReview at boundary, md+missing-json returns generated/unknown with structuredVerdictMissing, agent errors mapped to failed result. Telemetry events emitted."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Integration tests cover disabled, happy path, missing reconciliation, missing plan, no md (failed), md+no json (generated/unknown), md+bad json (generated/unknown). Schema unit tests cover well-formed decode and rejection of invalid literals and unknown keys."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All four planned files matched; no unplanned files."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "executePlan fires reviewCompliance after FinalReviewOpened and before the publish block with non-fatal error handling. buildPrBody accepts optional complianceReviewMd and appends a ## Plan compliance review section within the existing byte budget. publishRun reads compliance-review.md from runPath when it exists and passes it through."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All five planned files matched; no unplanned files."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/publish/body.test.ts and tests/integration/publishRun.test.ts both updated as planned."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/cli/main.ts was not edited (plan said to register the command there). src/cli/program.ts was edited instead — justified: main.ts only calls buildProgram(), all commands are registered in program.ts. Four additional unplanned files edited: docs/cli/reference.md, phax.usage.kdl, README.md (required by usage-parity and docs-drift gates), and tests/integration/cliProgram.test.ts (required by command-list assertion test). All deviations documented in handoff."
+        },
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "The review-compliance action in program.ts passes {} to runReviewCompliance instead of globalTraceOpts() as the plan specified. The --verbose global flag is silently not forwarded. The function and use case both support verbose; only the wiring is missing. Not documented in the handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "deviation",
+          "message": "tests/integration/reviewComplianceCommand.test.ts tests call reviewCompliance (the use case) directly rather than runReviewCompliance end-to-end as the plan described. Justified in handoff: runReviewCompliance calls loadConfig(process.cwd()) which requires real disk state. Functional coverage is equivalent but CLI-layer guards are not independently tested."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "No business logic in the CLI command file. Layer is Backend + FileSystem + SystemTelemetry with no Git layer, as required."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the plan: feat(cli): add phax review-compliance command for on-demand plan-compliance review."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "deviation",
+          "message": "Handoff covers the main.ts→program.ts decision, file deviations, and no-Git-layer rationale. Does not mention the missing --verbose propagation gap."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "--verbose not propagated in phase-05: src/cli/program.ts registers the review-compliance action with {} instead of globalTraceOpts(). The --verbose global flag is silently dropped. The runReviewCompliance function and the underlying reviewCompliance use case both accept and forward verbose — only the wiring is missing. Low impact (diagnostic aid, not correctness) but a gap worth fixing.",
+    "Phase-05 test approach: tests exercise reviewCompliance (the use case) directly rather than runReviewCompliance (the CLI entry point). The CLI-layer guards (enabled check, short-name decode, run-state guard, routing load) are not independently covered. Consistent with existing CLI test patterns but noted for future coverage tightening."
+  ],
+  "pointers": []
+}

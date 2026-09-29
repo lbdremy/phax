@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/domain/routing/preflight.ts",
+    "tests/unit/routing/preflight.test.ts",
+    "tests/integration/modelPreflight.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/executePlan.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/cli/commands/runLayers.ts",
+    "src/domain/errors.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

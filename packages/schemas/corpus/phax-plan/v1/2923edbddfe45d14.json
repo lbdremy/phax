@@ -1,0 +1,228 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "run-jail",
+    "title": "Implementation plan — Provider-native security mode (run jail)",
+    "branch": "phax/run-jail",
+    "backend": "claude-code-cli"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Security policy domain model and project config block",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-01-security-domain",
+      "plannedFilesToCreate": [
+        "src/domain/security/types.ts",
+        "src/domain/security/resolvePolicy.ts",
+        "src/schemas/securityConfig.ts",
+        "tests/unit/security/resolvePolicy.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/app/loadConfig.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/unit/loadConfig.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/type/security.ts",
+        "tests/unit/schemas.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(security): add security policy domain model and project config block",
+        "body": "Introduce a pure security domain (SecurityMode/NetworkProfile/McpMode, SecurityPolicy, PROVIDER_API_DOMAINS, resolveSecurityPolicy) and a project-level `security` block in phax.json resolved into a total ResolvedSecurityConfig. The resolved default profile stays `unsafe` so behavior is unchanged; the secure default flip lands in a later phase. Adds domain/security to the purity guard."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Provider security capability model",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-capabilities",
+      "plannedFilesToCreate": [
+        "src/domain/security/capabilities.ts",
+        "tests/unit/security/capabilities.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "tests/type/security.ts"
+      ],
+      "commit": {
+        "subject": "feat(security): add provider security capability model and evaluation",
+        "body": "Add an explicit per-provider capability map (Claude/Codex strong, Vibe partial) and a pure evaluateProviderSecurity verdict (satisfiesStrict, downgraded, marks, notes) including the Vibe partial-secured message. Pure domain, unit-tested; not yet wired into routing or execution."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Security-aware provider fallback in routing",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-03-routing-fallback",
+      "plannedFilesToCreate": [
+        "tests/unit/routing/securityFallback.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/routing/resolve.ts",
+        "src/domain/routing/types.ts",
+        "tests/unit/routing/resolve.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/type/routing.ts"
+      ],
+      "commit": {
+        "subject": "feat(routing): skip providers that cannot satisfy the security profile",
+        "body": "Add an optional securityFilter predicate to resolveModel so a provider that cannot meet a strict security profile is skipped to the next priority and recorded in RoutingResolution.skippedForSecurity, while terminal claude-code (the strong baseline) is never filtered. Inert until executePlan supplies the filter; no change to existing no-filter resolutions."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "Thread the security policy through execution",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-04-port-plumbing",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/ports/backend.ts",
+        "src/domain/errors.ts",
+        "src/infra/providers/dispatcher.ts",
+        "src/app/executePlan.ts",
+        "src/app/fixLoop.ts",
+        "src/app/extractPlan.ts",
+        "src/cli/commands/runLayers.ts",
+        "tests/integration/executePlan.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/fakes/backend.ts",
+        "tests/integration/fixLoop.test.ts",
+        "tests/unit/providers/codexCli.test.ts",
+        "tests/unit/providers/mistralVibe.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(security): thread resolved security policy through phase execution",
+        "body": "Carry a required SecurityPolicy on AgentRunOptions, build it per phase in executePlan (and pass the routing securityFilter), propagate it through the fix loop via option spread, and supply a host policy for plan extraction. Add a SecurityEnforcementError (exit 11) that flows through the dispatcher unwrapped. No adapter behavior change yet; default profile remains unsafe."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "Claude Code secure-mode enforcement",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-05-claude-enforce",
+      "plannedFilesToCreate": [
+        "tests/unit/providers/claudeCode.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/infra/providers/claudeCode.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/providers/dispatcher.ts",
+        "src/schemas/claudeOutput.ts"
+      ],
+      "commit": {
+        "subject": "feat(claude): enforce provider-native sandbox in secure mode, fail closed",
+        "body": "Map the resolved SecurityPolicy onto Claude Code flags: secure mode enables the sandbox, limits filesystem to the worktree and ~/.phax, applies a network allowlist, disables/allowlists MCP, and disallows unsandboxed commands; unsafe mode preserves bypassPermissions. A secure request that cannot be sandboxed fails closed with SecurityEnforcementError instead of running unrestricted. Unit-tested for both modes."
+      }
+    },
+    {
+      "id": "phase-06",
+      "title": "Codex CLI secure-mode enforcement",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-06-codex-enforce",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/infra/providers/codexCli.ts",
+        "tests/unit/providers/codexCli.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/schemas/codexOutput.ts"
+      ],
+      "commit": {
+        "subject": "feat(codex): enforce workspace-write sandbox in secure mode, fail closed",
+        "body": "Map the resolved SecurityPolicy onto a restrictive codex exec profile in secure mode (workspace-write sandbox, writable roots limited to the worktree and ~/.phax, network allowlist, MCP disabled/allowlisted, non-escaping approvals); unsafe mode preserves the danger-full-access bypass. An unenforceable secure profile fails closed with SecurityEnforcementError. Unit-tested for both modes."
+      }
+    },
+    {
+      "id": "phase-07",
+      "title": "Mistral Vibe hardening and partial-secured marking",
+      "model": "claude-opus-4-8",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-07-vibe-enforce",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/infra/providers/mistralVibe.ts",
+        "tests/unit/providers/mistralVibe.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/vibeSetup.ts"
+      ],
+      "commit": {
+        "subject": "feat(vibe): harden provider-native restrictions and mark partially secured",
+        "body": "Map the resolved SecurityPolicy onto vibe flags in secure mode (scoped --workdir, --add-dir only for ~/.phax, restricted tools/agent instead of blanket auto-approve, MCP allowlisting) while keeping the unsafe vector unchanged. Surface Vibe's weaker isolation as partially secured via the phase-02 marks and message; strict callers skip Vibe through the routing fallback. Unit-tested for both modes."
+      }
+    },
+    {
+      "id": "phase-08",
+      "title": "Default secure, --security flag, unsafe warning, isolated stub, status command",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-08-cli-default",
+      "plannedFilesToCreate": [
+        "src/app/securityStatus.ts",
+        "src/cli/commands/security.ts",
+        "tests/unit/security/defaultProfile.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/securityConfig.ts",
+        "src/cli/main.ts",
+        "src/cli/commands/run.ts",
+        "src/app/executePlan.ts",
+        "src/app/dryRun.ts",
+        "tests/unit/runArgv.test.ts",
+        "tests/unit/dryRun.test.ts",
+        "tests/unit/loadConfig.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "examples/*/phax.json",
+        "README.md",
+        "tests/unit/security/resolvePolicy.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(security): default to secure mode with --security flag and status command",
+        "body": "Flip the default security profile to secure, add `phax run --security secure|unsafe|isolated` (flag over config), print the host-unrestricted warning, stub isolated as not-yet-available, and surface the resolved mode in the dry-run report. Add `phax security status` reporting per-provider jail/network/MCP capabilities from live probes. Secure mode is now reachable and default."
+      }
+    },
+    {
+      "id": "phase-09",
+      "title": "Security posture artifact, telemetry, and final report",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-09-posture-report",
+      "plannedFilesToCreate": [
+        "src/schemas/securityPosture.ts",
+        "tests/unit/security/posture.test.ts",
+        "docs/security.md"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/telemetry/events.ts",
+        "src/schemas/telemetryEvents.ts",
+        "src/app/executePlan.ts",
+        "src/app/finalReport.ts",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/e2e/__snapshots__/semanticTrace.test.ts.snap",
+        "tests/e2e/semanticTrace.test.ts",
+        "tests/integration/telemetry/__snapshots__/end-to-end.test.ts.snap",
+        "tests/integration/finalReview.test.ts",
+        "tests/integration/__snapshots__/finalReview.test.ts.snap",
+        "tests/unit/telemetry/events.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(security): record applied posture in artifact, trace, and final report",
+        "body": "Persist a per-phase security.json posture artifact (all-required schema), emit a security.policy.applied semantic event for verbose output and trace logs, and add a Security section to final-report.md recording mode, applied filesystem/network/MCP policy, sandbox-enabled, downgrades, and providers skipped for security. Adds docs/security.md."
+      }
+    }
+  ]
+}

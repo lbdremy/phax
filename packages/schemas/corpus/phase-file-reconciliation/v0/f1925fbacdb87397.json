@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/cli/commands/run.ts",
+    "tests/unit/cli/run.test.ts",
+    "tests/integration/cliErrors.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

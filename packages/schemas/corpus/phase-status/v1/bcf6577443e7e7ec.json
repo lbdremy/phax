@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-09",
+  "phaseIndex": 8,
+  "state": "review_open",
+  "model": "claude-sonnet-5",
+  "effort": "high",
+  "createdAt": "2026-08-20T18:36:33.085Z",
+  "updatedAt": "2026-08-20T18:49:29.680Z",
+  "branchName": "phax/phax-run-records--phase-09",
+  "worktreePath": "~/.phax/worktrees/phax.phax-run-records/phase-09",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "a3205981762ca563463efe5a4713ab891191a4f1"
+}

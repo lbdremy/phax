@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/app/analyzePlanOverlap.ts",
+    "tests/integration/analyzePlanOverlap.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

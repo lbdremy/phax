@@ -1,0 +1,30 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/schemas/specApprovalRecord.ts",
+    "tests/unit/schemas/specApprovalRecord.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/artifactFrontmatter.ts",
+    "src/domain/artifact/status.ts",
+    "src/domain/artifact/lineage.ts",
+    "src/domain/artifact/writeSet.ts",
+    "tests/unit/artifact/frontmatter.test.ts",
+    "tests/unit/artifact/status.test.ts",
+    "tests/unit/artifact/lineage.test.ts",
+    "tests/unit/artifact/writeSet.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/artifactStatus.test.ts",
+    "tests/integration/completeRunArtifacts.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

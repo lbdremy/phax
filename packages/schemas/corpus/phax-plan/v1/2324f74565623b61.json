@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "usage-cli",
+    "title": "Usage-Based CLI Help, Documentation, and Completions",
+    "requiredCommands": [
+      "usage"
+    ],
+    "branch": "phax/usage-cli"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "CLI program factory and surface inventory",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-program-factory",
+      "plannedFilesToCreate": [
+        "src/cli/program.ts",
+        "tests/integration/cliProgram.test.ts",
+        "docs/cli/inventory.md"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/main.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "refactor(cli): extract buildProgram factory and capture surface inventory",
+        "body": "Move all Commander command registration out of main.ts into an exported buildProgram() factory that performs no side effects, leaving main.ts as a thin entry that builds and parses. Add an integration test asserting the top-level and nested (agent/security) command surface, and a docs/cli/inventory.md comparison of the current CLI against the intended Usage contract. Pure refactor — no behavior change. Enables the Usage spec, --usage exposure, and the parity gate in later phases."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Author the canonical phax.usage.kdl spec",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-02-usage-spec",
+      "plannedFilesToCreate": [
+        "phax.usage.kdl",
+        "tests/integration/usageSpecLint.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "docs/cli/inventory.md"
+      ],
+      "commit": {
+        "subject": "feat(cli): add canonical phax.usage.kdl spec covering all commands",
+        "body": "Add a hand-authored Usage KDL contract covering every public PHAX command, argument, flag, default, example, and long help, plus CLI metadata (name, bin, version, license, min usage version). Add an integration test that lints the spec with the usage CLI and treats warnings as errors. Establishes the canonical CLI contract consumed by --usage, docs generation, completions, and the parity gate."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Expose `phax --usage` and ship the spec",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-usage-output",
+      "plannedFilesToCreate": [
+        "src/cli/commands/usage.ts",
+        "tests/integration/usageOutput.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "package.json"
+      ],
+      "optionalFilesToEdit": [
+        "phax.usage.kdl"
+      ],
+      "commit": {
+        "subject": "feat(cli): expose phax --usage and ship the spec in the package",
+        "body": "Add a global --usage flag that prints the canonical phax.usage.kdl to stdout and exits 0 with no external dependency, plus --usage-format json that converts via the usage CLI and fails with an actionable error when usage is missing. Source the CLI version from package.json and reconcile it with the KDL metadata and --version. Add a files allowlist so the published package ships phax.usage.kdl, and resolve it for both dev and installed layouts. Covered by integration tests."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "Generated markdown docs and drift gate",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-docs-generation",
+      "plannedFilesToCreate": [
+        "scripts/docs-cli.ts",
+        "docs/cli/reference.md",
+        "tests/integration/docsCliDrift.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "package.json",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "phax.usage.kdl"
+      ],
+      "commit": {
+        "subject": "feat(docs): generate CLI reference from Usage spec with drift gate",
+        "body": "Add a docs:cli script that generates docs/cli/reference.md and a bounded README CLI section from phax.usage.kdl via the usage CLI, idempotently. Commit the generated reference and README section, and add an integration test that regenerates and asserts byte-equality so docs cannot drift from the contract. Routed through the existing pnpm test gate."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "Shell completion generation",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-completions",
+      "plannedFilesToCreate": [
+        "src/cli/commands/completions.ts",
+        "tests/integration/completions.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "scripts/docs-cli.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): add phax completions <shell> generated from the Usage spec",
+        "body": "Add a completions command that emits zsh/bash/fish completion scripts from phax.usage.kdl via the usage CLI to stdout, rejecting unsupported shells and failing with an actionable error when the usage CLI is missing. Add the completions command to the Usage spec, document installation (including the usage CLI requirement) in the README and generated reference, and cover the happy, invalid-shell, and missing-dependency paths with an integration test."
+      }
+    },
+    {
+      "id": "phase-06",
+      "title": "Commander↔Usage parity gate",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-06-parity-gate",
+      "plannedFilesToCreate": [
+        "src/cli/introspect.ts",
+        "tests/integration/usageParity.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "phax.usage.kdl",
+        "docs/cli/inventory.md"
+      ],
+      "commit": {
+        "subject": "feat(cli): add Commander/Usage parity gate",
+        "body": "Add extractCommandTree to introspect the runtime Commander program and an integration test that loads phax.usage.kdl as JSON and asserts bidirectional parity: every public Commander command/flag is in the Usage spec and vice versa, with readable diffs on failure. A command change without a matching spec update now fails the test gate. Any intentionally-internal command is held in a documented allowlist."
+      }
+    },
+    {
+      "id": "phase-07",
+      "title": "Discoverable error messages",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-07-error-ux",
+      "plannedFilesToCreate": [
+        "tests/integration/cliErrors.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/main.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): readable, actionable errors with did-you-mean suggestions",
+        "body": "Enable Commander suggestion-after-error and configure error output so unknown commands, unknown flags, missing arguments, and invalid choices report what was invalid, suggest the closest valid command, and point to the relevant --help without printing a stack trace, while preserving non-zero exit codes. Reserve the top-level catch for genuinely unexpected failures. Covered by an integration test for the invalid-input paths."
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/infra/providers/mistralVibe.ts",
+    "tests/unit/providers/mistralVibe.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

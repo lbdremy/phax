@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-12T09:47:52.536Z",
+  "updatedAt": "2026-06-12T09:54:36.938Z",
+  "branchName": "phax/push-branch-pr--phase-02",
+  "worktreePath": "~/.phax/worktrees/push-branch-pr/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "32eae50c9df40f90b65b94b8bc2f5ec6b63975cc"
+}

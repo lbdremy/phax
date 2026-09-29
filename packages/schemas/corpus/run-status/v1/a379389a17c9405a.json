@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "harden-usage-kdl",
+  "runId": "harden-usage-kdl-1782211068649",
+  "state": "archived",
+  "createdAt": "2026-06-23T10:37:48.663Z",
+  "updatedAt": "2026-09-03T07:46:48.559Z",
+  "phasesCount": 6,
+  "gateProfileId": "full"
+}

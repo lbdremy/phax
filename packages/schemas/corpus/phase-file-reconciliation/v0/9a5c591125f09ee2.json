@@ -1,0 +1,25 @@
+{
+  "createdAsPlanned": [
+    "src/app/securityStatus.ts",
+    "src/cli/commands/security.ts",
+    "tests/unit/security/defaultProfile.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/securityConfig.ts",
+    "src/cli/main.ts",
+    "src/cli/commands/run.ts",
+    "src/app/executePlan.ts",
+    "src/app/dryRun.ts",
+    "tests/unit/runArgv.test.ts",
+    "tests/unit/dryRun.test.ts",
+    "tests/unit/loadConfig.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

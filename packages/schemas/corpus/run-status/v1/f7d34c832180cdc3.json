@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "schemas-package-1-5-read-the-phase-record-manifest",
+  "runId": "schemas-package-1-5-read-the-phase-record-manifest-1790662724320",
+  "state": "archived",
+  "createdAt": "2026-09-29T06:18:44.335Z",
+  "updatedAt": "2026-09-29T08:43:06.983Z",
+  "phasesCount": 3,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/2609290541-schemas-package-plan.md"
+}

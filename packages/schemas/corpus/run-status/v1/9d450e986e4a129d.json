@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "artifact-timestamp-naming",
+  "runId": "artifact-timestamp-naming-1789034107833",
+  "state": "archived",
+  "createdAt": "2026-09-10T09:55:07.849Z",
+  "updatedAt": "2026-09-15T10:20:25.667Z",
+  "phasesCount": 5,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/2609100902-artifact-timestamp-naming-plan.md"
+}

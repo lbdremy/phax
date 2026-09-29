@@ -1,0 +1,47 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "packages/schemas/src/formats/runDirectory.ts",
+    "packages/schemas/src/history/registry/v1.ts",
+    "packages/schemas/src/history/run-status/v1.ts",
+    "packages/schemas/src/history/phase-status/v1.ts",
+    "packages/schemas/src/history/phax-plan/v1.ts",
+    "packages/schemas/src/history/compliance-review/v1.ts",
+    "tests/unit/schemasPackage/surveyedFixtures.ts",
+    "tests/unit/schemasPackage/runDirectoryFormats.test.ts",
+    "tests/unit/schemasPackage/fixtures/registry/v1.json",
+    "tests/unit/schemasPackage/fixtures/run-status/v1.json",
+    "tests/unit/schemasPackage/fixtures/phase-status/v1.json",
+    "tests/unit/schemasPackage/fixtures/phax-plan/v1.json",
+    "tests/unit/schemasPackage/fixtures/compliance-review/v1.json"
+  ],
+  "editedAsPlanned": [
+    "packages/schemas/src/shapes.ts",
+    "packages/schemas/src/index.ts",
+    "packages/schemas/history.lock.json",
+    "src/domain/branded.ts",
+    "tests/unit/schemasPackage/shapes.test.ts",
+    "tests/unit/schemasPackage/parity.test.ts",
+    "tests/unit/schemasPackage/parse.test.ts",
+    "tests/unit/schemasPackage/exports.test.ts",
+    "tests/unit/schemasPackage/frozenHistory.test.ts",
+    "tests/unit/schemasPackage/parseDocument.test.ts",
+    "tests/type/schemasPackage.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "deno.lock",
+    "knip.json",
+    "scripts/survey-format-shapes.ts"
+  ],
+  "optionalTouched": [
+    "tests/unit/branded.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

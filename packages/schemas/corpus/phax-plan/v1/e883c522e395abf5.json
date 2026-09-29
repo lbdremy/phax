@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "push-branch-pr",
+    "title": "Push branch and create pull request",
+    "branch": "phax/push-branch-pr"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Publish configuration block",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-01-publish-config",
+      "plannedFilesToCreate": [
+        "tests/unit/schemas/publishConfig.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/app/loadConfig.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/loadConfig.test.ts",
+        "README.md"
+      ],
+      "commit": {
+        "subject": "feat(config): add publish configuration block",
+        "body": "Add an optional `publish` block to phax.json (enabled, remote, provider, pushBranch, createPullRequest, baseBranch, title) and resolve it into ResolvedConfig.publish with defaults. Disabled by default; provider is the explicit literal \"github\". Covered by schema decode/resolve unit tests."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Publication domain model and artifact schema",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-publication-domain",
+      "plannedFilesToCreate": [
+        "src/domain/publish/types.ts",
+        "src/domain/publish/title.ts",
+        "src/domain/publish/body.ts",
+        "src/schemas/publication.ts",
+        "tests/unit/publish/title.test.ts",
+        "tests/unit/publish/body.test.ts",
+        "tests/unit/schemas/publication.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "tests/unit/architecturalGuards.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/publish/index.ts"
+      ],
+      "commit": {
+        "subject": "feat(publish): add publication domain model and PR body assembly",
+        "body": "Add pure publication domain (status types, deterministic PR title selection, PR body assembly with explicit oversize truncation) and the publication.json artifact schema. domain/publish/ is added to the purity architectural guard. Covered by unit tests for title priority, body truncation, and schema round-trip."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Git port: branch push and remote inspection",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-03-git-push",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/ports/git.ts",
+        "src/infra/git.ts",
+        "src/infra/fakes/git.ts",
+        "tests/integration/gitDiffNameStatus.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/schemas/git.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(git): add branch push and remote inspection to Git port",
+        "body": "Add remoteExists and idempotent pushBranch to the Git port, Node adapter, and fake. pushBranch uses `git push --set-upstream` and never force-pushes; a re-push of an up-to-date branch is a no-op. Covered by an integration test against a temp repo with a bare local remote."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "GitHub CLI port and adapter",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-github-port",
+      "plannedFilesToCreate": [
+        "src/ports/github.ts",
+        "src/infra/github.ts",
+        "src/infra/fakes/github.ts",
+        "tests/unit/publish/githubFake.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/infra/fakes/index.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/architecturalGuards.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(publish): add GitHub CLI port and adapter",
+        "body": "Add a GitHub port wrapping the gh CLI (availability, auth, repo recognition, default base branch, existing-PR lookup, PR creation), a Node execFile adapter using argv arrays and --body-file, and a fake. Covered by a fake-contract unit test; the live adapter is validated manually/e2e."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "publishRun application command",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-05-publish-run",
+      "plannedFilesToCreate": [
+        "src/app/publishRun.ts",
+        "tests/integration/publishRun.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/runReviewInfo.ts",
+        "src/app/resolveRunInfo.ts",
+        "src/app/finalReport.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/publish/index.ts",
+        "tests/integration/finalReview.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(publish): add publishRun application command",
+        "body": "Add publishRun, the single orchestrator for branch push + GitHub PR creation: precondition checks, idempotent push, reuse-or-create PR with the deterministic review-handoff body, publication.json metadata, and a Pull request section in final-report.md. Publication failures are returned (not thrown) so the run is never invalidated. Plumb run.title into RunReviewInfo. Covered by integration tests with fake Git/GitHub/FS ports."
+      }
+    },
+    {
+      "id": "phase-06",
+      "title": "`phax publish-pr` command",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-06-publish-pr-command",
+      "plannedFilesToCreate": [
+        "src/cli/commands/publishPr.ts",
+        "tests/unit/cli/publishPr.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/main.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/e2e/...",
+        "README.md"
+      ],
+      "commit": {
+        "subject": "feat(cli): add phax publish-pr command",
+        "body": "Add `phax publish-pr <short-name>`, the idempotent manual retry that resolves a review_open run and invokes publishRun with the real Git/GitHub/FS layers, printing the PR URL on success and the failure reason + retry hint otherwise. Registered in main.ts with --verbose support. Covered by a CLI unit test."
+      }
+    },
+    {
+      "id": "phase-07",
+      "title": "Auto-publish after final review",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-07-auto-publish",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts",
+        "src/cli/commands/run.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/commands/runLayers.ts",
+        "tests/integration/executePlan.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(run): auto-publish PR after final review when configured",
+        "body": "After a successful run enters review_open and the review handoff is written, invoke publishRun when publish.enabled, pushing the final branch and creating the GitHub PR with the review handoff as its body. Publication failures are non-fatal and recorded in publication.json/final-report.md; the run stays in review_open. Adds NodeGitHubLayer to the run layer stack. Covered by executePlan integration tests with fake Git/GitHub ports."
+      }
+    }
+  ]
+}

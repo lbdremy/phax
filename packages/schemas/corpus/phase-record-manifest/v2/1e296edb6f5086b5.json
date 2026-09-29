@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "runId": "catalog-opus-5-5-gpt-6-sol-and-luna-1790152173930",
+  "phaseId": "phase-03",
+  "shape": "full",
+  "sourceSha": "f1a56c2f8e0e0f8588eb0a65f6605f225ec723a7",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 46,
+      "cacheCreationInputTokens": 49253,
+      "cacheReadInputTokens": 1481428,
+      "outputTokens": 7327,
+      "totalCostUsd": 0.5666595999999998
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "product",
+    "structural"
+  ]
+}

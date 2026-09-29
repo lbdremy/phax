@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/app/authorArtifact.ts",
+    "src/domain/authoring/prompt.ts",
+    "src/domain/authoring/jsonText.ts",
+    "tests/integration/authorArtifact.test.ts",
+    "tests/unit/authoringPrompt.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/createArtifact.ts",
+    "src/app/extractPlan.ts",
+    "src/domain/errors.ts",
+    "src/cli/commands/runLayers.ts",
+    "tests/integration/createArtifact.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

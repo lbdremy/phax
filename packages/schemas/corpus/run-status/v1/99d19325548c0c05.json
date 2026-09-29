@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "durable-agent-errors",
+  "runId": "durable-agent-errors-1782394422175",
+  "state": "archived",
+  "createdAt": "2026-06-25T13:33:42.192Z",
+  "updatedAt": "2026-09-03T07:46:50.286Z",
+  "phasesCount": 4,
+  "gateProfileId": "full"
+}

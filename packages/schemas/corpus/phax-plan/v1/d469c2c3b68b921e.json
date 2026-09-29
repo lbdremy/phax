@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "seal-extraction",
+    "title": "Seal plan extraction behind a tool-less model-completion primitive",
+    "requiredCommands": [],
+    "branch": "phax/seal-extraction"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Sealed model-completion port primitive",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-01-complete-port",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/ports/backend.ts",
+        "src/infra/providers/claudeCode.ts",
+        "src/infra/providers/dispatcher.ts",
+        "src/infra/fakes/backend.ts",
+        "tests/unit/providers/claudeCode.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/providerAdapter.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(backend): add sealed model-completion port primitive",
+        "body": "Add Backend.complete — a tool-less, policy-free prompt→text operation distinct from runAgent — with a fully-sealed Claude argument builder (empty allowedTools, denied Bash/WebFetch/WebSearch, strict MCP, default permission mode, no add-dir). Wire it through the node dispatcher (codex/vibe rejected as not-yet-supported) and the fake backend. No SecurityPolicy and no resume surface: the sealing is intrinsic to the operation. Covered by adapter unit tests asserting the sealed flag set."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Route plan extraction through Backend.complete in a throwaway dir",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-extraction-sealed",
+      "plannedFilesToCreate": [
+        "tests/integration/extractPlanSealed.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/extractPlan.ts",
+        "src/cli/commands/run.ts",
+        "src/cli/commands/extractPlan.ts",
+        "tests/integration/extractPlanTitles.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/fakes/fs.ts"
+      ],
+      "commit": {
+        "subject": "refactor(extract): run plan extraction sealed in a throwaway directory",
+        "body": "Route extractPlanCore through Backend.complete instead of the unsafe runAgent path, running the agent tool-less in a temp directory created and removed around the call. Drops the unsafe security policy, the sentinel RunId, the contract.validate telemetry events, and the now-unused cwd option. Extraction no longer runs with blanket host access. Covered by an integration test asserting the sealed call and temp-dir cleanup."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Codex sealed completion (read-only sandbox, network off)",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-codex-completion",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/infra/providers/codexCli.ts",
+        "src/infra/providers/dispatcher.ts",
+        "tests/unit/providers/codexCli.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(backend): add Codex sealed completion path",
+        "body": "Implement Backend.complete for codex-cli with a read-only sandbox, never-approval policy, and network access disabled, reusing the existing Codex spawn/parse path. Forward-looking support so extraction can route off Claude later; extraction remains Claude-pinned. Covered by adapter unit tests asserting the sealed flags."
+      }
+    }
+  ]
+}

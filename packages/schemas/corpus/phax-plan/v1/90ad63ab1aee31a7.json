@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "schemas-package-2-5-read-every-format",
+    "title": "schemas-package 2/5 — read every format",
+    "requiredCommands": [
+      "pnpm exec tsx",
+      "pnpm add",
+      "node",
+      "git log",
+      "git show-ref",
+      "git cat-file",
+      "git ls-tree"
+    ],
+    "branch": "phax/schemas-package-2-5-read-every-format"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-run-directory",
+      "plannedFilesToCreate": [
+        "packages/schemas/src/formats/runDirectory.ts",
+        "packages/schemas/src/history/registry/v1.ts",
+        "packages/schemas/src/history/run-status/v1.ts",
+        "packages/schemas/src/history/phase-status/v1.ts",
+        "packages/schemas/src/history/phax-plan/v1.ts",
+        "packages/schemas/src/history/compliance-review/v1.ts",
+        "tests/unit/schemasPackage/fixtures.ts",
+        "tests/unit/schemasPackage/runDirectoryHistory.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/schemas/src/shapes.ts",
+        "packages/schemas/src/index.ts",
+        "packages/schemas/history.lock.json",
+        "src/domain/branded.ts",
+        "tests/unit/schemasPackage/shapes.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/parse.test.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/frozenHistory.test.ts",
+        "tests/type/schemasPackage.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/schemasPackage/phaseRecordManifestHistory.test.ts",
+        "tests/unit/schemasPackage/parseDocument.test.ts",
+        "tests/unit/branded.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas-package): read every run-directory format with its history",
+        "body": "Add the run registry, run status, phase status, phax-plan and compliance review to @lbdremy/phax-schemas. Each gets its schema and type, re-exported from phax's own module, a parse function that returns the shape id and the exact shape, a toLatest upgrade that marks absent facts unknown, and a registration with parseDocument.\n\nEach format gets a frozen v1 module that accepts every shape phax has written under version 1: run statuses without namespace, and phax-plans without requiredCommands or with the old run.backend. defineFormat now falls back from phax's current decoder to that frozen module when a document of the same literal is rejected, so an older shape stays readable while documents of the current shape keep phax's verdict.\n\nBranchNameSchema gets a jsonSchema pattern equal to its safe-name predicate. This is an annotation only; decoding does not change. Tests run over real documents copied from ~/.phax and the records branch, and they cover the spec's paused run status and the registry with an unknown key."
+      },
+      "title": "Run-directory formats: registry, run and phase status, phax-plan, compliance review"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-repository",
+      "plannedFilesToCreate": [
+        "packages/schemas/src/formats/repository.ts",
+        "packages/schemas/src/history/plan-approvals/v1.ts",
+        "packages/schemas/src/history/spec-approvals/v1.ts",
+        "packages/schemas/src/history/spec-document/v1.ts",
+        "packages/schemas/src/history/plan-document/v1.ts",
+        "tests/unit/schemasPackage/repositoryHistory.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/schemas/src/index.ts",
+        "packages/schemas/history.lock.json",
+        "src/schemas/specDocument.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/frozenHistory.test.ts",
+        "tests/type/schemasPackage.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/specDocument.test.ts",
+        "tests/unit/schemasPackage/parseDocument.test.ts",
+        "tests/unit/schemasPackage/fixtures.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas-package): read approvals ledgers and spec and plan documents",
+        "body": "Add the plan and spec approvals ledgers and the spec and plan documents to @lbdremy/phax-schemas. Each gets its schema and type from phax's own module, a frozen v1 module that accepts every shape written under version 1, a parse function, a toLatest upgrade and a registration with parseDocument.\n\nThe spec document's traceability filter gets a jsonSchema annotation. Its description names the cross-reference checks that JSON Schema cannot express and that the parser enforces, so the gap is declared rather than silent. Decoding does not change.\n\nTests run over real ledgers and sidecars read from this repository's git history."
+      },
+      "title": "Repository formats: approvals ledgers, spec and plan documents"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-record-manifests",
+      "plannedFilesToCreate": [
+        "packages/schemas/src/formats/recordManifests.ts",
+        "packages/schemas/src/history/authoring-record-manifest/v1.ts",
+        "tests/unit/schemasPackage/recordManifestHistory.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/schemas/src/index.ts",
+        "packages/schemas/history.lock.json",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/frozenHistory.test.ts",
+        "tests/type/schemasPackage.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/schemasPackage/phaseRecordManifestHistory.test.ts",
+        "tests/unit/schemasPackage/parseDocument.test.ts",
+        "tests/unit/schemasPackage/fixtures.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas-package): read the authoring record manifest and any record manifest",
+        "body": "Add the authoring record manifest to @lbdremy/phax-schemas, with a frozen v1 module that accepts both legacy shapes, with and without sourceSha. Add parseRecordManifest, which reads any record.json on phax/records/v1. It dispatches on $schema, then on kind \"authoring\", then falls back to the phase record manifest, and names the format it read. RecordManifestSchema is phax's own union.\n\nThe phase record manifest's definition moves beside the authoring one, and toLatestRecordManifest upgrades either kind. Tests cover the real authoring records from the records branch."
+      },
+      "title": "Record manifests: authoring record manifest and the record-manifest union"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-04-record-timeline",
+      "plannedFilesToCreate": [
+        "packages/schemas/src/formats/recordTimeline.ts",
+        "packages/schemas/src/history/gate-attribution/v0.ts",
+        "packages/schemas/src/history/phase-file-reconciliation/v0.ts",
+        "packages/schemas/src/history/gate-diagnostics/v0.ts",
+        "packages/schemas/src/history/gate-pending/v0.ts",
+        "tests/unit/schemasPackage/recordTimelineHistory.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/schemas/src/shapes.ts",
+        "packages/schemas/src/index.ts",
+        "packages/schemas/history.lock.json",
+        "tests/unit/schemasPackage/shapes.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/frozenHistory.test.ts",
+        "tests/type/schemasPackage.ts"
+      ],
+      "optionalFilesToEdit": [
+        "packages/schemas/src/document.ts",
+        "tests/unit/schemasPackage/parseDocument.test.ts",
+        "tests/unit/schemasPackage/fixtures.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas-package): read a record's timeline files as unversioned shape v0",
+        "body": "Add the gate attribution, phase file reconciliation, gate diagnostics and gate pending documents to @lbdremy/phax-schemas. A reader can now rebuild a phase's gate, fix loops and reconciliation from its record without a parser of its own.\n\nThese files never carried a version literal. defineFormat reads a document with neither $schema nor version as the format's v0 shape: phax's current decoder reads it first, then the frozen v0 module that accepts every shape phax wrote, such as diagnostics from before the class field. toLatest marks every fact an older shape lacked as unknown.\n\nTests cover real record folders from phax/records/v1, including one whose phase ran a diagnostics step twice."
+      },
+      "title": "Record timeline files: gate attribution, file reconciliation, gate diagnostics and pending (v0)"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-05-json-schemas",
+      "plannedFilesToCreate": [
+        "packages/schemas/build/jsonSchemas.ts",
+        "scripts/schemas-json.ts",
+        "tests/unit/schemasPackage/jsonSchemas.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "package.json",
+        "pnpm-lock.yaml",
+        "packages/schemas/package.json",
+        "packages/schemas/src/index.ts",
+        ".gitignore",
+        ".oxfmtrc.json",
+        "tests/unit/schemasPackage/manifest.test.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/parseDocument.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/type/schemasPackage.ts"
+      ],
+      "optionalFilesToEdit": [
+        "knip.json",
+        ".oxlintrc.json",
+        "packages/schemas/src/document.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas-package): ship one draft-07 JSON Schema per format and fail on gaps",
+        "body": "The build now writes packages/schemas/json/<format id>.schema.json for every persisted format, plus record-manifest.schema.json for the union, each generated from the schema its parse function uses. The package ships them under its ./json/* export.\n\nEffect's JSONSchema.make silently drops a refinement that has no jsonSchema annotation. The build therefore walks each schema and fails, naming the format and writing no file for it, on any unannotated refinement or rendering error. A format whose decoder ignores unknown keys renders with extra properties allowed, matching phax's verdict.\n\nparseDocument is pinned to read every format id, and the closure guard now refuses every internal schema module. Tests load each schema into ajv, a draft-07 validator, and validate real phax-written documents."
+      },
+      "title": "parseDocument complete and one draft-07 JSON Schema per format"
+    }
+  ]
+}

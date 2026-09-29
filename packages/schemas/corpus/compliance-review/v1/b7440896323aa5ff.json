@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Both phases delivered their stated objectives. Phase-01 inlines per-phase handoffs into the compliance review prompt via the FileSystem port in the application layer, keeping the domain function pure and the security jail unchanged — fully conformant. Phase-02 enriches the resume review-open recap with phaseCount and prUrl from persisted artifacts — also fully conformant in substance, with one justified file deviation: tests landed in tests/unit/cli/resume.test.ts instead of the planned tests/unit/resume.test.ts, because the existing file uses direct domain imports without vi.mock and mixing would have silently affected all tests there. The new location follows the established project convention for CLI command unit tests and was documented in the phase handoff.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "BuildCompliancePromptInput extended with phaseHandoffs array; prompt emits a ## Phase handoffs section with per-phase subheadings after the reconciliation block; handoff dimension instruction updated to reference the inlined text; function remains pure and deterministic."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Review security policy, compliance JSON schema, verdict enums, dimension set, and reviewHandoff.ts were not touched."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All four planned files touched; no unplanned files in the reconciliation for this phase."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Unit tests in tests/unit/review/compliancePrompt.test.ts cover handoff text, headings, updated dimension instruction, and determinism. Integration tests in tests/integration/reviewCompliance.test.ts cover prompt content with files present and unavailable-marker behavior with a missing file."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Handoffs read in the application layer via the FileSystem port using Effect.either for non-fatal missing-file handling. buildCompliancePrompt remains a pure domain function."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'feat(compliance): inline phase handoffs into the review prompt' matches the planned subject exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers the phaseHandoffs field shape, prompt section/heading titles, reviewCompliance.ts read pattern with non-fatal behavior, and security policy non-change confirmation — all required content present."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Early review_open branch now derives phaseCount (filtering out failed and skipped phases from info.phaseStatuses) and reads prUrl from publication.json via readFileSync + decodePublication; both passed into buildWhatsNext; read/decode failure leaves prUrl undefined without aborting the recap."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Terminal success branch untouched. Other refusal reasons untouched. buildWhatsNext and whatsNext domain unchanged."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/resume.test.ts (planned) was not modified. tests/unit/cli/resume.test.ts (unplanned) was created instead. Justified in phase handoff: the existing file uses direct imports without vi.mock; adding mocks would hoist and affect all existing tests. The cli/ subdirectory is the established pattern for CLI command unit tests."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Five unit tests in tests/unit/cli/resume.test.ts cover all three plan scenarios: phase count headline, failed/skipped exclusion from count, PR URL shown with publish-pr suppressed, publish-pr shown when no publication.json, publish-pr shown when publication.json has no pullRequestUrl."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "readFileSync used directly, matching the existing run-status.json pattern in the same function. No new port or Effect layer introduced. decodePublication used from src/schemas/publication.ts."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'feat(resume): enrich review-open recap with PR URL and phase count' matches the planned subject exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers phaseCount derivation, publication.json read pattern with non-fatal failure, which test file was used and why, and that the terminal success branch was not touched — all required handoff content present."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [],
+  "pointers": []
+}

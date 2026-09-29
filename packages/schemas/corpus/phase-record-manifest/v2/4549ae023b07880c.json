@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "runId": "external-gate-steps-structured-diagnostics-1787324957525",
+  "phaseId": "phase-03",
+  "shape": "full",
+  "sourceSha": "7041de600a1a2ab002269477a9b180974cc2656d",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 54,
+      "cacheCreationInputTokens": 65717,
+      "cacheReadInputTokens": 2040470,
+      "outputTokens": 11973,
+      "totalCostUsd": 1.1981640000000002
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "product",
+    "structural"
+  ]
+}

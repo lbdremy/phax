@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "schemas-package-2-5-read-every-format-2",
+  "runId": "schemas-package-2-5-read-every-format-2-1790685916874",
+  "state": "archived",
+  "createdAt": "2026-09-29T12:45:16.888Z",
+  "updatedAt": "2026-09-29T14:22:37.441Z",
+  "phasesCount": 5,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/2609290949-schemas-package-plan.md"
+}

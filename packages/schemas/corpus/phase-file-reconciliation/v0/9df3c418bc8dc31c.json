@@ -1,0 +1,52 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/domain/routing/catalog.ts",
+    "tests/unit/routing/catalog.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/modelRouting.ts",
+    "src/schemas/providerConfig.ts",
+    "src/domain/routing/types.ts",
+    "src/domain/routing/resolve.ts",
+    "src/domain/routing/defaults.ts",
+    "src/schemas/telemetryEvents.ts",
+    "src/app/executePlan.ts",
+    "src/cli/commands/agent.ts",
+    "tests/unit/routing/resolve.test.ts",
+    "tests/unit/routing/schemas.test.ts",
+    "tests/unit/routing/effortLevels.test.ts",
+    "tests/unit/routing/sameFamilyPreservation.test.ts",
+    "tests/unit/routing/securityFallback.test.ts",
+    "tests/unit/routing/loadRouting.test.ts",
+    "tests/type/routing.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    ".agents/skills/phax-spec/SKILL.md",
+    "src/domain/telemetry/events.ts",
+    "src/domain/telemetry/snapshot.ts",
+    "src/infra/providers/codexCli.ts",
+    "tests/integration/__snapshots__/stateMachineContract.test.ts.snap",
+    "tests/integration/reviewCompliance.test.ts",
+    "tests/integration/reviewComplianceCommand.test.ts",
+    "tests/integration/routing.test.ts",
+    "tests/integration/telemetry/__snapshots__/end-to-end.test.ts.snap",
+    "tests/unit/providers/codexCli.test.ts"
+  ],
+  "optionalTouched": [
+    "tests/unit/routing/providerSetup.test.ts",
+    "tests/unit/telemetry/modelResolved.test.ts",
+    "tests/unit/cli/agent.test.ts"
+  ],
+  "deletions": [
+    "tests/e2e/__snapshots__/semanticTrace.providers.test.ts.snap",
+    "tests/e2e/__snapshots__/semanticTrace.test.ts.snap"
+  ],
+  "renames": [],
+  "hasDeviations": true
+}

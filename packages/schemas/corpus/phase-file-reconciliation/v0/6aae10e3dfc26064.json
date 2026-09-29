@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/app/reviewCode.ts",
+    "tests/integration/reviewCode.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

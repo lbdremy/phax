@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "gate-profile-as-attributed-steps-implementation-plan",
+    "title": "Gate Profile as Attributed Steps — implementation plan",
+    "requiredCommands": [],
+    "branch": "phax/gate-profile-as-attributed-steps-implementation-plan"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-attributed-step-schema",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/app/gates.ts",
+        "src/app/executePlan.ts",
+        "src/app/fixLoop.ts",
+        "src/app/eventAdapter.ts",
+        "src/app/dryRun.ts",
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts",
+        "src/domain/init/buildConfig.ts",
+        "src/app/initProject.ts",
+        "src/app/initWizard.ts",
+        "phax.json",
+        "examples/hello-world/phax.json",
+        "tests/e2e/fixtures/minimal-repo/phax.json",
+        "phax.schema.json",
+        "phax.user.schema.json",
+        "tests/unit/gateProfile.test.ts",
+        "tests/integration/gates.test.ts",
+        "tests/integration/fixLoop.test.ts",
+        "tests/integration/eventAdapter.test.ts",
+        "tests/integration/executePlan.test.ts",
+        "tests/unit/dryRun.test.ts",
+        "tests/unit/cli/run.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/promptGeneration.ts",
+        "src/domain/init/buildConfig.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "src/schemas/phaxConfig.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): model gate profiles as attributed steps",
+        "body": "Replace the flat command-string gate profile with a named set of attributed\nsteps `{ command, surface, firing }` and thread GateStep objects from config\nresolution through the gate runner (executing step.command). Remove the\nfast/full depth-scalar selection and reject the old flat-array form at\nvalidation, naming the profile — no back-compat shim, per phax schema policy.\nBehavior is otherwise unchanged: surface and firing are carried but not yet\nacted upon. Migrate the dogfood config, example, and e2e fixture to the new\nshape and regenerate the JSON schemas."
+      },
+      "title": "Attributed gate-step schema and profile resolution"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-firing-scheduling",
+      "plannedFilesToCreate": [
+        "src/domain/gate/selectSteps.ts",
+        "tests/unit/selectGateSteps.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts",
+        "tests/integration/executePlan.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/promptGeneration.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): schedule steps by firing (every-phase vs terminal)",
+        "body": "Add a pure selectGateSteps helper and apply it in the phase loop so only\nevery-phase steps run before the terminal phase and terminal steps additionally\nrun at the final phase gate. The security preflight continues to cover every\nstep's command, since terminal steps still execute at run end. Surface remains\npure attribution."
+      },
+      "title": "Firing: every-phase vs terminal scheduling"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-attribution-record",
+      "plannedFilesToCreate": [
+        "src/schemas/gateAttribution.ts",
+        "tests/unit/gateAttribution.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/gates.ts",
+        "src/app/fixLoop.ts",
+        "src/app/eventAdapter.ts",
+        "tests/integration/gates.test.ts",
+        "tests/integration/fixLoop.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/eventAdapter.test.ts",
+        "src/app/executePlan.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): record per-phase gate attribution",
+        "body": "Record, after each phase gate, which steps ran with their surface and pass/fail\nresult in a gate-attribution.json under the phase folder. runGates accumulates a\nresult per executed step and writes the record on both the success and failure\npaths, preserving fail-fast semantics (steps after the first failure are not\nrun and not recorded). Surface is copied verbatim and never branched on. Adds\nthe GateAttribution schema."
+      },
+      "title": "Per-phase attribution record"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-run-end-surfaces",
+      "plannedFilesToCreate": [
+        "src/app/gateAttribution.ts",
+        "tests/unit/gateAttribution.reader.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/finalReport.ts",
+        "tests/integration/finalReport.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/finalReport.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate): report verified surfaces at run end",
+        "body": "Aggregate the per-phase gate attribution records into the set of surfaces\nverified during the run and render it in the final report's run summary. A\nsurface counts as verified when at least one of its steps passed; a run that\nexercised no surfaces renders an explicit empty state so unverified surfaces are\nvisible rather than hidden."
+      },
+      "title": "Run-end surface legibility"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-05-docs",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "README.md",
+        "docs/cli/reference.md",
+        "CLAUDE.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/security.md"
+      ],
+      "commit": {
+        "subject": "docs(gate): document attributed gate-step profiles",
+        "body": "Update the README, CLI reference, CLAUDE.md, and security doc to describe gate\nprofiles as attributed steps carrying surface and firing, the every-phase vs\nterminal scheduling, per-phase attribution, run-end surface legibility, and the\nremoval of the fast/full depth convention."
+      },
+      "title": "Documentation and reference"
+    }
+  ]
+}

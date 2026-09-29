@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All four planned deliverables were produced and the core objective — piping the KDL spec over stdin to the external `usage` CLI via a shared `readUsageSpec()` helper — was correctly implemented in `usageSpec.ts`, `completions.ts`, `usage.ts`, and `scripts/smoke-binary.sh`. Two deviations are present: (1) `tests/unit/architecturalGuards.test.ts` was edited to add `usageSpec.ts` to `CLI_DIRECT_IO_ALLOWLIST`, a mechanical necessity because the new file uses `node:fs` directly and the guard's \"kept honest\" sub-test would otherwise fail; (2) the smoke-binary.sh invocation for the JSON check uses `--usage --usage-format json` instead of the plan's `--usage-format json`, because `main.ts` only processes `--usage-format` inside the `--usage` dispatch branch. Both deviations are justified and fully documented in phase-handoff.md.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Objective fully delivered: readUsageSpec() created with the exact planned return shape; completions.ts and usage.ts JSON branch invoke `usage … -f -` with spec content via spawnSync input; KDL branch writes spec.content directly; smoke-binary.sh asserts both binary paths under a usage-available guard."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Excluded scope respected: no changes to spec generation, deno compile embedding, phax.usage.kdl, phax.json, or the phax --usage (KDL) path."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/architecturalGuards.test.ts was edited but not listed in any planned or optional file category. The edit adds usageSpec.ts to CLI_DIRECT_IO_ALLOWLIST, which is mandatory because usageSpec.ts imports node:fs directly and the guard's \"kept honest\" sub-test requires the allowlist entry. Justified and documented in phase-handoff.md."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "tests/integration/completions.test.ts was edited; it is listed as an optional file in the plan. The edit adds the #compdef phax|_phax marker assertion to the zsh test, matching the plan's \"optionally tighten an assertion\" guidance."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All promised test layers are present: smoke-binary.sh asserts completions zsh and --usage --usage-format json on the compiled binary with usage-available guard and SKIP lines; completions.test.ts retains all prior assertions and gains the zsh marker assertion."
+        },
+        {
+          "dimension": "tests",
+          "severity": "deviation",
+          "message": "smoke-binary.sh invokes `./dist/bin/phax --usage --usage-format json` instead of the plan's `./dist/bin/phax --usage-format json`. The --usage flag is required because main.ts only processes --usage-format inside the --usage dispatch branch. Justified and documented in phase-handoff.md."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "usageSpec.ts stays within src/cli/commands/; no architectural layer boundary crossed. infra/ports/app/domain layers are untouched."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject fix(cli): pipe usage spec over stdin so completions work in the binary matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "phase-handoff.md covers all required content: readUsageSpec() path and return shape, confirmation of stdin invocation in completions.ts and usage.ts, smoke-binary.sh guard and skip behaviour, and a documented explanation of the unplanned architecturalGuards.test.ts edit."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "--usage-format json requires --usage to be present on the command line (main.ts only processes --usage-format inside the --usage dispatch branch). The plan assumed standalone --usage-format json would work; the smoke script and real usage both need --usage --usage-format json. Worth verifying whether standalone --usage-format is intentionally unsupported or an undocumented coupling.",
+    "CI environments without `usage` on PATH skip both new binary smoke checks (completions zsh and --usage-format json), so the regression guard is not exercised in those environments. Consider ensuring usage is available in CI to get full coverage."
+  ],
+  "pointers": []
+}

@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "packages/schemas/build/corpus.ts",
+    "scripts/extract-history-corpus.ts",
+    "tests/unit/schemasPackage/corpusBuild.test.ts",
+    "tests/unit/schemasPackage/publicData.test.ts",
+    "tests/integration/extractHistoryCorpus.test.ts"
+  ],
+  "editedAsPlanned": [
+    "tests/unit/schemasPackage/fixtures/registry/v1.json",
+    "tests/unit/schemasPackage/fixtures/phase-status/v1.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

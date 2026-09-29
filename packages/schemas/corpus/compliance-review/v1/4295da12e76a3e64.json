@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases delivered their objectives. Phase-01 edited the correct gate-profile test file (the plan named a non-existent path) and made an unplanned but necessary edit to the init-wizard integration test due to the new required `output` field on encoded gate steps. Phase-02 touched one additional unplanned test file (`reportBuilders.test.ts`) solely to satisfy the new required `diagnostics` field on `GateFailedError`. Phase-03 had no deviations at all. Every deviation was justified by a real constraint and documented in the handoff.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Plan named `tests/unit/schemas/gateProfile.test.ts` as a planned edit; that path does not exist. The phase correctly edited `tests/unit/gateProfile.test.ts` instead. The reconciliation lists the planned path as missing and the actual path as unplanned — this is a plan naming error, not an execution gap."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "`tests/integration/initWizard.test.ts` was unplanned but required edits because the now-required `output` field on encoded gate steps broke deep-equality assertions in that test. The fix was additive (`output: \"log\"` added to expected objects) with no behaviour change."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "`tests/unit/telemetry/reportBuilders.test.ts` was unplanned. It constructs a `GateFailedError` literal; the now-required `diagnostics` field caused a typecheck failure. Adding `diagnostics: []` is a mechanical conformance fix with no behaviour change."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "The plan's `buildFixPrompt` signature omitted `logPath`, but the plan body requires `Full output: <logPath>` in the diagnostics branch. Adding `logPath` to `BuildFixPromptInput` is the only correct implementation; not scope creep."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "The reconciliation records `tests/unit/schemas/gateProfile.test.ts` as missing (not touched in phase-01). This is a plan naming error — the correct file `tests/unit/gateProfile.test.ts` was edited. Future plans should use the correct path.",
+    "All configured gates passed at the end of phase-03 (`pnpm check:full` equivalents: format, typecheck, test:type, lint, format:check, test, knip, audit:architecture, gen:model-catalog --check, build, deno:smoke, deno:smoke-binary)."
+  ],
+  "pointers": []
+}

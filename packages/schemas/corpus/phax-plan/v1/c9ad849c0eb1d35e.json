@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "remove-last-commands",
+    "title": "Remove the -last CLI command family",
+    "requiredCommands": [],
+    "branch": "phax/remove-last-commands"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Remove the -last sibling commands",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-remove-last-commands",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/main.ts",
+        "src/cli/commands/shell.ts",
+        "src/cli/commands/path.ts",
+        "src/cli/commands/open.ts",
+        "src/cli/commands/archive.ts",
+        "src/app/resolveRunInfo.ts",
+        "README.md",
+        "docs/acceptance-coverage.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "refactor(cli): remove the -last command variants",
+        "body": "Remove the shell-last, path-last, open-last, and archive-last convenience commands and their handlers, plus the now-unused resolveLastReviewOpenRun helper, to trim CLI-surface noise. The named-target commands cover the same need explicitly. README and acceptance-coverage docs updated; no behavior change to the remaining commands. (enter-last was already removed separately in the locked agent-binding work.)"
+      }
+    }
+  ]
+}

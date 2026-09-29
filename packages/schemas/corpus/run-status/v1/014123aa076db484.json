@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "enforce-architecture-boundaries",
+  "runId": "enforce-architecture-boundaries-1781790282904",
+  "state": "archived",
+  "createdAt": "2026-06-18T13:44:42.921Z",
+  "updatedAt": "2026-09-03T07:49:10.925Z",
+  "phasesCount": 2,
+  "gateProfileId": "full"
+}

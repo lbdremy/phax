@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-04",
+  "phaseIndex": 3,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "high",
+  "createdAt": "2026-06-10T08:55:57.794Z",
+  "updatedAt": "2026-06-10T09:02:27.269Z",
+  "branchName": "phax/gate-first-resume--phase-04",
+  "worktreePath": "~/.phax/worktrees/gate-first-resume/phase-04",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "34dda03622b82531387271d363bafe8cdb0b7f70"
+}

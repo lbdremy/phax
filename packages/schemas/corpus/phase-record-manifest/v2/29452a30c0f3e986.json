@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "runId": "schemas-package-3-5-guards-1790692518013",
+  "phaseId": "phase-04",
+  "shape": "full",
+  "sourceSha": "59258752002caad337691cec09ac118b0cec6a5e",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 120,
+      "cacheCreationInputTokens": 85323,
+      "cacheReadInputTokens": 4836942,
+      "outputTokens": 23089,
+      "totalCostUsd": 1.5398104
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "product",
+    "structural"
+  ]
+}

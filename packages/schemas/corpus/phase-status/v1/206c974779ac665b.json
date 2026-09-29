@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "cleaned_up",
+  "model": "claude-opus-4-8",
+  "effort": "xhigh",
+  "createdAt": "2026-08-20T14:12:02.728Z",
+  "updatedAt": "2026-08-20T14:56:02.333Z",
+  "branchName": "phax/phax-run-records--phase-03",
+  "worktreePath": "~/.phax/worktrees/phax.phax-run-records/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "fa0c53fed8e49b4cd29af8ebcb5ea3aa0525d485"
+}

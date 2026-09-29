@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-09-09T09:12:45.412Z",
+  "updatedAt": "2026-09-09T09:16:36.391Z",
+  "branchName": "phax/plan-completeness-advisory--phase-02",
+  "worktreePath": "~/.phax/worktrees/phax.plan-completeness-advisory/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "4d29d3abd912ec38a7be5030076a6420e3c307c9"
+}

@@ -1,0 +1,17 @@
+{
+  "phaseId": "phase-07",
+  "createdAsPlanned": [
+    "tests/integration/cliErrors.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/program.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

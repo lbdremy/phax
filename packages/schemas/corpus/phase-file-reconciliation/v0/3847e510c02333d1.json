@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/reconciliation/global.ts",
+    "src/schemas/globalReconciliation.ts",
+    "tests/unit/reconciliation/global.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/adjustPlan.test.ts",
+    "tests/integration/adjustPlanCommand.test.ts",
+    "tests/integration/plansOverlapLanded.test.ts"
+  ],
+  "optionalTouched": [
+    "tests/unit/globalReconciliation.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

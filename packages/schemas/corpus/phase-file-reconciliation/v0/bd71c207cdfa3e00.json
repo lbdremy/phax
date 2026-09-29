@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "tests/unit/schemas/publishConfig.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/phaxConfig.ts",
+    "src/app/loadConfig.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "docs/plans/14-push-branch-pr-plan.md",
+    "docs/plans/15-typescript-6-migration-plan.md",
+    "docs/plans/16-deno-runtime-plan.md",
+    "docs/specs/06-deno-runtime.md"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

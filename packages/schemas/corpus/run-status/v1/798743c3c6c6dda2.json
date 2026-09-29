@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "catalog-fable-5-1-opus-5-gpt-6-astra",
+  "runId": "catalog-fable-5-1-opus-5-gpt-6-astra-1788774297078",
+  "state": "archived",
+  "createdAt": "2026-09-07T09:44:57.097Z",
+  "updatedAt": "2026-09-07T10:28:28.644Z",
+  "phasesCount": 3,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/59-catalog-fable-5-1-opus-5-gpt-6-astra-plan.md"
+}

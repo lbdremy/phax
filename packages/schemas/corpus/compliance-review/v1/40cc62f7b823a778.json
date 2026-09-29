@@ -1,0 +1,191 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All four phases were delivered as planned. Deviations are present in phase-01 (unplanned finalize.ts creation, permitted by plan language; formatter touching three config files) and phase-04 (unplanned edits to program.ts and tests/unit/cli/run.test.ts required by the implementation, plus an extra touch on loadOrExtractPlan.ts to add detectedAnchors; README.md not edited because docs:cli produced no net diff). Every deviation is documented in the phase handoff and is either explicitly permitted by the plan or a mechanical necessity with no semantic impact on plan intent. Commit subjects match exactly for all four phases. No required deliverable is absent without explanation.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Objective fully delivered. extractPlanLlm and finalizeExtractedPlan present at declared locations; extractPlanCore signature and behavior unchanged."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/domain/plan/finalize.ts created but not in the planned file list. The plan explicitly permitted this move ('if cleaner, move it into src/domain/plan/finalize.ts — but only if that does not pull Backend/FileSystem into domain'). Architecture audit passes. Justified and documented in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "phax.json, phax.schema.json, phax.user.schema.json touched by oxfmt formatter during pnpm format. No semantic changes. Documented in handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "7-test unit file tests/unit/extractPlanFinalize.test.ts covers all scenarios from the plan (title derivation, slugification, branch naming, missing-title failure, anchor detection, warning generation, quote preservation). Existing integration tests confirmed unchanged."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "finalizeExtractedPlan is pure (no Backend, no FileSystem) in domain. extractPlanLlm receives md text not a file path. Boundary contracts respected."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject 'refactor(extract): split extraction into LLM step and deterministic finalize' matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers all required handoff content: signatures, file locations, what phase-03 must import from finalize.ts, and justification for the unplanned file."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "All three files delivered as specified: src/domain/planCache/key.ts, src/schemas/extractedPlanCacheEntry.ts, src/app/planCacheStore.ts."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No extract-on-miss logic, no --refresh/--no-extract flags, no adoption by callers. Scope respected."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "No unplanned file edits per reconciliation. All six planned test files present."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "planCacheKey unit tests (8), extractedPlanCacheEntry unit tests (7, including round-trip, missing-field and extra-field rejection), planCacheStore integration tests (10, including missing-file → Option.none, corrupt-entry → Option.none, write/read round-trip). All plan scenarios covered."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "key.ts uses node:crypto createHash (deterministic; accepted per plan). planCacheStore.ts routes I/O through the FileSystem port. Schema in src/schemas/ per convention."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject 'feat(cache): add plan-extraction cache key, entry schema, and store' matches exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers all required content: EXTRACTOR_VERSION value, what is hashed, schema field list, miss guarantee, entry assembly for writeCacheEntry."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "loadOrExtractPlan delivered as specified, exporting LoadOrExtractOptions, LoadOrExtractResult, and the main function. Hit/miss/refresh/noExtract semantics all implemented."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No CLI flags and no caller changes. Scope respected."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "src/app/loadOrExtractPlan.ts and tests/integration/loadOrExtractPlan.test.ts — both matched per reconciliation."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "5 integration tests covering exactly the 5 scenarios from the plan: cold miss, warm hit, edited-md miss, refresh: true, noExtract: true on a miss. Backend call counts verified."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Composes extractPlanLlm + finalizeExtractedPlan with phase-02 store helpers. Backend port only invoked on a miss. FileSystem port used for read and write. Boundary contracts respected."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject 'feat(app): add loadOrExtractPlan cache-aware plan loader' matches exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Documents a minor error-channel deviation: PlanValidationError not surfaced separately because it is already a member of ExtractPlanCacheError. Explained as technically equivalent; phase-04 callers instructed accordingly."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Objective fully delivered. Both run.ts and extractPlan.ts route through loadOrExtractPlan. --refresh added to both commands. 'using cached extraction' log line present. Run folder still receives phax-plan.json. Derived CLI artifacts regenerated."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/cli/program.ts edited but not in the planned file list. Justified: Commander flag registration for --refresh on run and extract-plan lives here; without this edit the flags are absent from the CLI. Documented in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/cli/run.test.ts edited but not in the planned file list. Justified: existing unit tests mocked extractPlanCore; after run.ts switched to loadOrExtractPlan those mocks became dead code and tests failed with 'Service not found: FileSystem'. Update was required. Documented in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/app/loadOrExtractPlan.ts received an extra touch in phase-04 (detectedAnchors added to LoadOrExtractResult). Justified: buildExtractReport in extractPlan.ts requires detectedAnchors; re-running finalizeExtractedPlan a second time would be wasteful. Documented in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "tests/integration/run.test.ts reconciliation shows action-mismatch (planned as edit, recorded as added). File contains the 3 required integration tests; functional coverage is not affected. See attention point."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "README.md listed as a planned edit but not touched. pnpm docs:cli ran but produced no net diff (README CLI section does not reference individual flags). No content gap."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "3 integration tests in run.test.ts cover warm-cache skip, --refresh re-extraction, and extract-plan-then-run single-backend-call scenarios. tests/unit/cli/run.test.ts updated for the mock change. usageSpecDrift gate validates the regenerated spec."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "loadOrExtractPlan replaces extractPlanCore in both callers. Run folder phax-plan.json remains the provenance record. extractPlanCore unchanged; sealed integration tests unaffected."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject 'feat(cli): reuse cached extractions in run and extract-plan' matches exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers all required handoff content: exact call sites changed, new flags, run-folder provenance confirmation, single-backend-call proof via test, artifact regeneration confirmation, detectedAnchors note, planMd-not-in-result note."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "tests/integration/run.test.ts action-mismatch: reconciliation records this file as 'added' not 'edited'. The plan referred to it as an existing file to edit. If a prior run integration test file existed and was replaced, verify no previously-passing test cases were silently dropped. Confirm via git history or code review.",
+    "Error channel narrowing in phase-03: loadOrExtractPlan exposes only ExtractPlanCoreError, not ExtractPlanCoreError | PlanValidationError as the plan specified. The handoff explains this is technically equivalent. Future callers expecting PlanValidationError as a distinct arm (e.g., plan 37) should be aware of this and a type alias comment may help."
+  ],
+  "pointers": []
+}

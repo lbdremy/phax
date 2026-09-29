@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "archive-unfinished-runs",
+  "runId": "archive-unfinished-runs-1788515698576",
+  "state": "archived",
+  "createdAt": "2026-09-04T09:54:58.592Z",
+  "updatedAt": "2026-09-04T12:23:19.104Z",
+  "phasesCount": 2,
+  "gateProfileId": "standard",
+  "stoppedReason": "artifact_completion_failed",
+  "lastError": "docs/specs/32-archive-unfinished-runs.md has invalid frontmatter (allowed for a spec: status, date, audience, scope):\n  approved: is unexpected, expected: \"status\" | \"date\" | \"audience\" | \"scope\"",
+  "planRepoRelPath": "docs/plans/57-archive-unfinished-runs-plan.md"
+}

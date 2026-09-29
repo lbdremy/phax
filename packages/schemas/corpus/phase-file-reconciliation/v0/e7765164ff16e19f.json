@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/domain/review/codeReviewWorklist.ts",
+    "tests/unit/review/codeReviewWorklist.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/review/codeReviewPrompt.ts",
+    "src/app/reviewCode.ts",
+    "tests/unit/review/codeReviewPrompt.test.ts",
+    "tests/integration/reviewCode.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

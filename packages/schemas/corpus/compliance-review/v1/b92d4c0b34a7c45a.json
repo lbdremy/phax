@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All eight phases delivered their objectives. The domain engine, use cases, CLI commands, schemas, session adapter rename, prompt builder, and derived artifacts are all present and match the plan's specified shapes, contracts, and test strategies. Three deviations were found: (1) phase-04's analyzeReadjustmentImpact accepts 0+ plan paths instead of requiring a 2-plan minimum, which is justified because a zero-plan comparison is semantically valid; (2) phase-07's adjustPlan.ts calls loadOrExtractPlan directly instead of reusing the loadAndMapPlanInput shared helper as the plan's boundary contract prescribed, duplicating the PhaxPlan-to-PlanInput mapping; and (3) phase-08 made an unplanned edit to tests/unit/architecturalGuards.test.ts to add adjustPlan.ts to CLI_DIRECT_IO_ALLOWLIST, which is required because the command reads plan.md via a direct node:fs/promises import — an established pattern documented in the handoff. All deviations are justified and documented.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "classifyShared is exported rather than unexported. The handoff justifies this: downstream unit tests call it directly rather than routing through computePlanOverlap. The plan did not specify its export visibility, so this is not a deviation."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "analyzeReadjustmentImpact accepts 0 or more plan paths with no minimum, while the plan's parallel function analyzePlanOverlap requires at least 2. The plan did not address this case for the landed mode. The handoff justifies the choice: comparing a landed run against zero plans is a valid operation that produces an empty result rather than an error."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-06",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "The codex and mistral unsupported messages were updated from review-specific wording to 'a pre-prompted session'. The plan said 'no behavior change' but the functional contract (returns unsupported refusal) is unchanged; only the message text changed. The handoff documents this. The change is appropriate given the method is no longer review-specific."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-07",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "boundaries",
+          "severity": "deviation",
+          "message": "adjustPlan.ts calls loadOrExtractPlan directly to obtain the target plan's footprint, then maps the PhaxPlan to PlanInput inline, rather than importing the loadAndMapPlanInput shared helper from analyzePlanOverlap.ts. Both the phase-02 boundary contract ('Factor the per-path load-and-map into a shared helper so phase-04 and phase-07 reuse it') and the phase-07 handoff ('loadAndMapPlanInput is the shared helper phase-07 uses') prescribe reuse. The mapping logic is duplicated. Functionally correct but violates the DRY intent of the plan. Note: the phase-07 detailed instructions also directly reference loadOrExtractPlan, creating an internal inconsistency in the plan itself that may have guided the implementation."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-08",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/architecturalGuards.test.ts was edited but is not listed in the planned files for phase-08. The cause: adjustPlan.ts imports readFile from node:fs/promises directly, triggering the existing architectural guard. The fix adds src/cli/commands/adjustPlan.ts to CLI_DIRECT_IO_ALLOWLIST — the same pattern used by eight other CLI commands. The global file reconciliation records this as 'unplanned' and the phase-08 handoff explains it fully. The edit is necessary, minimal, and load-bearing (the allowlist self-validates that entries actually import a Node I/O module)."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "loadAndMapPlanInput is not reused in adjustPlan.ts (phase-07): the shared helper exported from analyzePlanOverlap.ts was intended as the single point for the PhaxPlan-to-PlanInput mapping, but adjustPlan.ts duplicates this mapping by calling loadOrExtractPlan directly. Future changes to the mapping logic must be applied in both places. A cleanup pass to import and use loadAndMapPlanInput would eliminate the duplication.",
+    "TOP_LEVEL_COMMANDS count gap: phase-03 handoff reports 25 entries after adding plans-overlap; phase-08 handoff reports moving from 26 to 27. The actual code has 27. The intermediate count of 26 before phase-08 is unexplained by any handoff (no phase between 04 and 08 registered a new command). Low risk — all commands are present and correctly registered.",
+    "analyzeReadjustmentImpact accepts 0 plans (phase-04): callers expecting a minimum-count guard (matching analyzePlanOverlap) may be surprised by the asymmetry. The empty-result behavior is correct and documented but not covered by a dedicated test case asserting the stable empty output."
+  ],
+  "pointers": [
+    "possible DRY issue: adjustPlan.ts and loadAndMapPlanInput in analyzePlanOverlap.ts both map PhaxPlan to PlanInput — confirm via code review whether the mapping logic is truly identical and whether a refactor to share it is warranted"
+  ]
+}

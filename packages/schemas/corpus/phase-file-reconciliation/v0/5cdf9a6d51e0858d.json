@@ -1,0 +1,20 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/domain/security/skillEditGrants.ts",
+    "src/infra/providers/claudeSkillEditSettings.ts",
+    "tests/unit/security/skillEditGrants.test.ts",
+    "tests/unit/providers/claudeSkillEditSettings.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/cli/main.ts",
+    "src/cli/commands/shell.ts",
+    "src/cli/commands/path.ts",
+    "src/cli/commands/open.ts",
+    "src/cli/commands/archive.ts",
+    "src/app/resolveRunInfo.ts",
+    "README.md",
+    "docs/acceptance-coverage.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "package.json"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

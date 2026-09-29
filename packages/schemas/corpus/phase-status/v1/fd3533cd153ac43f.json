@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-05",
+  "phaseIndex": 4,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-02T08:25:01.176Z",
+  "updatedAt": "2026-06-02T12:09:03.994Z",
+  "branchName": "phax/rename-backend-errors-telemetry--phase-05",
+  "worktreePath": "~/.phax/worktrees/rename-backend-errors-telemetry/phase-05",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "6f09e2eb5633884347b81e20d563a3d255ee5180"
+}

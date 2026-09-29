@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "plan-12",
+  "runId": "plan-12-1781097854572",
+  "state": "archived",
+  "createdAt": "2026-06-10T13:24:14.588Z",
+  "updatedAt": "2026-09-03T07:49:09.651Z",
+  "phasesCount": 6,
+  "gateProfileId": "full",
+  "stoppedReason": "no_changes",
+  "lastError": "Phase phase-02 produced no changes — the worktree is clean after the agent finished."
+}

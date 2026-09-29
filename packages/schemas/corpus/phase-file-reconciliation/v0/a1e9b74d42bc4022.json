@@ -1,0 +1,20 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/app/completeRunArtifacts.ts",
+    "tests/integration/completeRunArtifacts.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/artifactStatus.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

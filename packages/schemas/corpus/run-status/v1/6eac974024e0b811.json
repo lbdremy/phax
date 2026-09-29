@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "deno-runtime",
+  "runId": "deno-runtime-1781267748396",
+  "state": "archived",
+  "createdAt": "2026-06-12T12:35:48.413Z",
+  "updatedAt": "2026-09-04T12:28:10.344Z",
+  "phasesCount": 6,
+  "gateProfileId": "full",
+  "stoppedReason": "rate_limited",
+  "lastError": "Claude Code stopped: rate limit hit."
+}

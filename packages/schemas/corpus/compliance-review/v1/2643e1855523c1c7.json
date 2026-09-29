@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All five phases delivered their stated objectives. Every planned file was touched; all file deviations are disclosed in the handoffs and carry credible structural justifications (exhaustive switch forcing, loadConfig wiring gap, errors.ts convention, usage-spec drift gate, closed securityPosture enum, stdout-truncation bug fix). No silent or unjustified departures were found. The spec-17 feature (brief-profile-orient) is fully implemented end-to-end, commit subjects match the plan exactly, and the full gate suite passes.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/app/loadConfig.ts was edited (unplanned). Justification: the plan requires orient to be 'resolved onto ResolvedConfig', which only happens in loadConfig.ts's config-assembly literal. Without this edit the field would always be undefined. Accepted as required for phase coherence."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": ".agents/skills/phax-planning/SKILL.md and .agents/skills/phax-spec/SKILL.md were swept into the commit. Both carried pre-existing uncommitted content unrelated to orient; not authored by the phase agent. No orient-feature content."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/domain/errors.ts was edited (not on planned or optional list). OrientProviderError was placed here following the repo convention that all typed domain errors live in this file. Justified by existing convention."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "src/infra/fakes/shell.ts (optional) was deliberately left untouched because FakeShellImpl.run already records the full ShellRunOptions object, making stdin directly assertable without changes."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/infra/telemetry/layer.ts and src/domain/telemetry/snapshot.ts were edited (not on planned/optional list). Both contain exhaustive switch (event.type) with no default case; adding new SemanticTelemetryEvent members structurally requires updating them or the build fails. Not a scope expansion."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "docs/cli/reference.md, phax.usage.kdl, and README.md were regenerated (unplanned). A usage-spec drift gate enforces these files match the live Commander tree; adding the orient command made them stale. Regeneration was not optional."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/cli/commands/usage.ts and src/cli/main.ts were edited (unplanned) to fix a real stdout-truncation bug: adding the orient command pushed the JSON usage payload over the 64KB async-write threshold, making a bare write-then-process.exit() pattern lose output. Fixed by exiting from the write callback."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/schemas/securityPosture.ts was edited (unplanned) to extend the AgentCommandRecord.source literal enum to include 'orient'. Required because the schema is closed and encodeSecurityPosture would throw at runtime on an unknown source value."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant",
+      "findings": []
+    }
+  ],
+  "attentionPoints": [
+    "mergeConfigLayers.ts gap: orient is not merged across config layers. A project-level phax.json orient block is silently dropped if any user overlay file exists. Pre-existing gap (same affects review.code), left deliberate, but should be documented before wider operator rollout.",
+    "phax orient telemetry uses placeholder RunId 'orient' — pull events in the global journal cannot be joined to the dispatching run by runId alone. Cross-referencing brief and pull events requires joining on phase/subject fields.",
+    "src/cli/commands/usage.ts stdout-truncation fix: the bare write(...); process.exit() anti-pattern for large CLI payloads is now documented as a hazard in the phase-04 handoff. Future large-payload commands must exit from the write callback."
+  ],
+  "pointers": []
+}

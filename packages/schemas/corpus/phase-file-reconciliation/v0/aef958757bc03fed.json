@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-07",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/ports/lock.ts",
+    "src/infra/lock.ts",
+    "src/infra/fakes/lock.ts",
+    "src/app/lock.ts",
+    "src/app/archive.ts",
+    "src/cli/commands/run.ts",
+    "src/cli/commands/resume.ts",
+    "src/cli/commands/ls.ts",
+    "src/cli/commands/unlock.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "tests/unit/lock.test.ts"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

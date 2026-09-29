@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "brief-profile-orient",
+    "title": "Brief Profile Orient",
+    "requiredCommands": [
+      "pnpm dev"
+    ],
+    "branch": "phax/brief-profile-orient"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-orient-config",
+      "plannedFilesToCreate": [
+        "tests/unit/schemas/orientConfig.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "phax.schema.json",
+        "phax.user.schema.json",
+        "tests/unit/phaxUserOverlaySchema.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/schemas.test.ts",
+        "tests/unit/phaxConfigJsonSchema.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(orient): add orient provider config block",
+        "body": "Add the optional `orient: { command }` block to phax.json (main config and\nuser overlay), resolved onto ResolvedConfig, with regenerated JSON schemas\nand unit coverage. Registration surface for the orient provider of spec 17;\nabsent block means the feature is off."
+      },
+      "title": "Orient provider config block"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-orient-protocol",
+      "plannedFilesToCreate": [
+        "src/schemas/orient.ts",
+        "src/app/orient.ts",
+        "tests/unit/schemas/orient.test.ts",
+        "tests/integration/orient.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "src/ports/shell.ts",
+        "src/infra/shell.ts",
+        "src/infra/fakes/shell.ts"
+      ],
+      "commit": {
+        "subject": "feat(orient): add provider protocol schemas and query use cases",
+        "body": "Add boundary schemas for the orient provider protocol (index rows with the\nexplicit severity enum, per-variant index/expand responses) and app use cases\nrunning the provider through the Shell port with typed, non-throwing failures.\nCovered by schema unit tests and fake-shell integration tests."
+      },
+      "title": "Provider protocol schemas and query use case"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-03-orient-telemetry",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/telemetry/events.ts",
+        "src/schemas/telemetryEvents.ts",
+        "tests/unit/telemetry/events.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/telemetry/eventMapping.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(orient): add orient telemetry events",
+        "body": "Add orient.brief.computed, orient.pull.served, and orient.pull.empty to the\nsemantic telemetry vocabulary (domain structs + schema union), with unit\nround-trip coverage. orient.pull.empty is the demand-without-supply record\nrequired by spec 17 §5.6."
+      },
+      "title": "Orient telemetry events"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-04-orient-cli",
+      "plannedFilesToCreate": [
+        "src/cli/commands/orient.ts",
+        "tests/unit/cli/orient.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "src/domain/security/agentCommands.ts",
+        "src/app/executePlan.ts",
+        "tests/unit/security/agentCommands.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/commands/runLayers.ts",
+        "tests/unit/security/posture.test.ts",
+        "tests/integration/cliProgram.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(orient): add phax orient pull command with implicit allowance",
+        "body": "Add the in-phase pull surface of spec 17: phax orient expands a brief row or\nreturns an index for an arbitrary file, exits 0 on empty results (advisory\nchannel), records served/empty pulls in telemetry, and is implicitly allowed\nto phase agents (narrow `phax orient` frozen-set entry) whenever an orient\nprovider is configured."
+      },
+      "title": "phax orient command and implicit allowance"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-05-dispatch-weave",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/promptGeneration.ts",
+        "src/app/executePlan.ts",
+        "tests/unit/promptGeneration.test.ts",
+        "tests/integration/executePlan.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/dispatcher.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(orient): weave orientation brief into the phase prompt",
+        "body": "Query the registered orient provider at phase dispatch with the phase's\nplanned files and weave the returned index into the phase prompt — index\nrows only, with the phax orient pull instructions. Absent provider leaves\nthe prompt byte-identical; provider failures warn and dispatch unchanged,\npreserving the strictly advisory posture of spec 17."
+      },
+      "title": "Weave the brief at dispatch"
+    }
+  ]
+}

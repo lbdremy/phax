@@ -1,0 +1,30 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "src/domain/records/destination.ts",
+    "tests/unit/recordsDestination.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/ports/github.ts",
+    "src/infra/github.ts",
+    "src/infra/fakes/github.ts",
+    "src/app/writeRecord.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/executePlan.ts",
+    "src/domain/errors.ts",
+    "tests/integration/executePlan.test.ts",
+    "tests/integration/writeRecord.test.ts"
+  ],
+  "optionalTouched": [
+    "src/schemas/recordsConfig.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/errors.ts",
+    "src/app/executePlan.ts",
+    "src/app/dryRun.ts",
+    "tests/integration/executePlan.test.ts",
+    "tests/unit/dryRun.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/setupFailure.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

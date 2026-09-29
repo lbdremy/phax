@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "scripts/generate-model-catalog.ts",
+    "tests/unit/generateModelCatalog.test.ts"
+  ],
+  "editedAsPlanned": [
+    "package.json",
+    "phax.json",
+    ".claude/skills/phax-planning/SKILL.md",
+    ".agents/skills/phax-planning/SKILL.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    ".oxfmtrc.json"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "tests/integration/skillEditGrants.test.ts",
+    "tests/e2e/claudeSkillEditGrant.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/ports/backend.ts",
+    "src/app/executePlan.ts",
+    "src/schemas/securityPosture.ts",
+    "src/infra/providers/claudeCode.ts",
+    "tests/unit/providers/claudeCode.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [
+    "tests/unit/security/posture.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

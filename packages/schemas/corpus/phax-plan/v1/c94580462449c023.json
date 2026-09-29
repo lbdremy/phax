@@ -1,0 +1,236 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "phax-run-records",
+    "title": "phax run records",
+    "requiredCommands": [
+      "git log",
+      "git show-ref",
+      "git cat-file",
+      "git ls-tree",
+      "pnpm test:integration"
+    ],
+    "branch": "phax/phax-run-records"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-records-config",
+      "plannedFilesToCreate": [
+        "src/schemas/recordsConfig.ts",
+        "tests/unit/recordsConfig.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts"
+      ],
+      "optionalFilesToEdit": [
+        "phax.schema.json"
+      ],
+      "commit": {
+        "subject": "feat(records): add the records configuration schema",
+        "body": "Describe records in phax.json: a transcript toggle, a two-variant destination discriminated on\nkind, and an auto-push flag. The records remote decodes only https, ssh and git@ forms, so a\nhostile ext:: URL in a project's config cannot reach git clone. An absent records block\nresolves to records off, so the feature ships dormant for every existing project."
+      },
+      "title": "Records configuration schema"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-record-schema",
+      "plannedFilesToCreate": [
+        "src/schemas/runRecord.ts",
+        "src/domain/records/assemble.ts",
+        "src/domain/records/usage.ts",
+        "tests/unit/runRecord.test.ts",
+        "tests/unit/recordsAssemble.test.ts",
+        "tests/unit/recordsUsage.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "tests/unit/providers/fixtures/codex-exec-sample.jsonl",
+        "tests/unit/providers/fixtures/vibe-streaming-sample.jsonl"
+      ],
+      "commit": {
+        "subject": "feat(records): define the record manifest and its assembly",
+        "body": "A record is a manifest plus the phase artifacts it carries: the skeleton always, output.jsonl\nwhen the transcript is enabled and the provider produced one. Assembly is pure and takes a\ndirectory listing, so the writer performs no selection of its own.\n\nToken usage is a declared-optional value rather than a number, because it is not uniform\nacross providers: Claude and codex carry it in the transcript stream, vibe carries none there\nand keeps it in its session meta.json. An unavailable usage is reported as unavailable, never\nas zero."
+      },
+      "title": "Record schema and assembly"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-4-8",
+      "effort": "xhigh",
+      "planMarkdownAnchor": "#phase-03-git-plumbing",
+      "plannedFilesToCreate": [
+        "tests/integration/gitObjectPlumbing.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/git.ts",
+        "src/infra/git.ts",
+        "src/infra/fakes/git.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/type/brands.ts"
+      ],
+      "commit": {
+        "subject": "feat(git): add object plumbing for tree-only commits",
+        "body": "Add the ability to write a commit from a set of files and move a branch to it without touching\nthe working tree or the index, plus the read side needed to get it back. Implemented with\nhash-object, a temp-index write-tree driven by GIT_INDEX_FILE, commit-tree and update-ref, so\nno checkout, add or stash is involved at any point.\n\nThe target is an ordinary branch rather than a custom ref namespace, because a namespace is\nneither cloned nor fetched by default, which would defeat records travelling with a clone.\nCovered by integration tests against real temporary repositories, asserting that a dirty\nworking tree is left byte-for-byte unchanged."
+      },
+      "title": "Git object plumbing behind GitPort"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-04-record-writer",
+      "plannedFilesToCreate": [
+        "src/app/writeRecord.ts",
+        "tests/integration/writeRecord.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/executePlan.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(records): write one record per phase into the source repo",
+        "body": "Assemble each phase's artifacts and write them as a record on phax/records/v1, keyed by the\nRun-Id and Phase-Id the commit message already carries, so no new trailer is needed and the key\nsurvives a rebase that rewrites the sha.\n\nCalled from the run at every terminal phase outcome rather than from the commit path, because a\nphase that failed without committing still deserves a record and never reaches a commit. The\nsource sha is recorded as a back-reference expected to go stale, never as an address. With no\nrecords block configured, nothing is written and the run behaves exactly as before."
+      },
+      "title": "Write a record per phase"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-05-destination-policy",
+      "plannedFilesToCreate": [
+        "src/domain/records/destination.ts",
+        "tests/unit/recordsDestination.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/github.ts",
+        "src/infra/github.ts",
+        "src/infra/fakes/github.ts",
+        "src/app/writeRecord.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/schemas/recordsConfig.ts"
+      ],
+      "commit": {
+        "subject": "feat(records): follow repo visibility and refuse unsafe destinations",
+        "body": "Decide the records destination from the source repo's visibility and refuse the one\ncombination that would publish transcripts with the code: transcripts on, records in-repo, and\na repo detected public. Where the host's visibility cannot be determined, an explicit\nacknowledgement is required instead.\n\nDetection guards the configured choice, it never makes one — a wrong guess in the unsafe\ndirection leaks transcripts, so there is no path where phax picks a destination on the user's\nbehalf. With transcripts off, in-repo is allowed whatever the visibility, since a skeleton\nrecord carries no agent transcript."
+      },
+      "title": "Destination policy and the visibility guard"
+    },
+    {
+      "id": "phase-06",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-06-records-sync",
+      "plannedFilesToCreate": [
+        "src/app/recordsSync.ts",
+        "tests/integration/recordsSync.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/git.ts",
+        "src/infra/git.ts",
+        "src/infra/fakes/git.ts",
+        "src/app/writeRecord.ts",
+        "src/app/executePlan.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/phaxState.ts"
+      ],
+      "commit": {
+        "subject": "feat(records): reconcile a local records clone with its remote",
+        "body": "Make the dedicated destination usable offline: a full persistent clone under the state root is\nthe read and write path, and the network is a sync concern only. One reconciliation function\ncovers every pairing of desired config and actual local state, refusing rather than guessing\nwhen the origin differs or when a local-only history meets a non-empty remote.\n\nA run configured for a dedicated destination with no local clone refuses before the first\nphase spawns, naming the command and the destination. phax does not clone on its own there:\nthe URL comes from a config someone else authored."
+      },
+      "title": "Local records clone and reconciliation"
+    },
+    {
+      "id": "phase-07",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-07-setup-surface",
+      "plannedFilesToCreate": [
+        "src/app/configureRecords.ts",
+        "src/cli/commands/records.ts",
+        "tests/integration/recordsInit.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/initWizard.ts",
+        "src/cli/program.ts",
+        "phax.usage.kdl",
+        "docs/cli/inventory.md",
+        "docs/cli/reference.md"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/commands/init.ts",
+        "tests/integration/initWizard.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(records): add the records setup surface",
+        "body": "Let a project turn records on, through the init wizard for new projects and phax records init\nfor existing ones, both behind a single use case so the CLI stays a view layer. The destination\nis announced rather than asked: it follows the source repo's visibility, and a select between\nin-repo and a dedicated repo would exist only to let someone pick the combination phax refuses.\n\nChoosing an in-repo destination with transcripts on states plainly that making the repo public\nlater republishes every transcript already in its history — the one residual risk of this\ndesign, disclosed where the choice is made."
+      },
+      "title": "Setup surface"
+    },
+    {
+      "id": "phase-08",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-08-push-and-pending",
+      "plannedFilesToCreate": [
+        "src/app/recordsStatus.ts",
+        "tests/integration/recordsPush.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/publishRun.ts",
+        "src/app/recordsSync.ts",
+        "src/cli/commands/records.ts",
+        "src/cli/commands/ls.ts",
+        "src/cli/program.ts",
+        "phax.usage.kdl",
+        "docs/cli/inventory.md",
+        "docs/cli/reference.md"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/registry.ts",
+        "tests/integration/publishRun.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(records): push records at publish and surface pending ones",
+        "body": "Share records exactly when the work is shared. The record is already committed locally when its\nphase commits, so deferring the push to publish loses nothing and keeps records from describing\ncommits that exist on no remote: phase commit to record committed, run publish to records\npushed.\n\nA failed push never fails the run, the phase or the publish — it leaves the records pending,\ncounted in ls and detailed in records status, because a push that silently never happened is\nthe failure mode this design has to avoid."
+      },
+      "title": "Push at publish and pending visibility"
+    },
+    {
+      "id": "phase-09",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-09-records-read",
+      "plannedFilesToCreate": [
+        "src/app/recordsExplain.ts",
+        "src/app/recordsList.ts",
+        "tests/integration/recordsExplain.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/records.ts",
+        "src/cli/program.ts",
+        "phax.usage.kdl",
+        "docs/cli/inventory.md",
+        "docs/cli/reference.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/acceptance-coverage.md"
+      ],
+      "commit": {
+        "subject": "feat(records): explain a commit from its record",
+        "body": "Turn a commit sha into the prompt, diff, gate outcome, handoff, transcript and token usage that\nproduced it, resolving the record through the Run-Id and Phase-Id trailers rather than by sha,\nso a rebase that rewrites history keeps the record reachable.\n\nReads from the local clone or the remote-tracking ref, so a fresh clone needs no sync first. A\nlocal miss refreshes when the remote is reachable and, when it is not, reports that no record\nwas found locally and the remote was not consulted — never that no record exists, which is the\nfalse negative this command must never produce."
+      },
+      "title": "Read a record back"
+    }
+  ]
+}

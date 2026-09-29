@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-06",
+  "phaseIndex": 5,
+  "state": "cleaned_up",
+  "model": "claude-opus-4-8",
+  "effort": "high",
+  "createdAt": "2026-06-04T23:01:11.954Z",
+  "updatedAt": "2026-06-04T23:07:36.991Z",
+  "branchName": "phax/run-jail--phase-06",
+  "worktreePath": "~/.phax/worktrees/run-jail/phase-06",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "79db0dc143277d834f53271c9a1319546ecc6708"
+}

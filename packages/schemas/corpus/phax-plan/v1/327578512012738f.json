@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "reset-phase",
+    "title": "Plan 13 — phax reset-phase command",
+    "branch": "phax/reset-phase"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Git port: delete branch",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-git-delete-branch",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/ports/git.ts",
+        "src/infra/git.ts",
+        "src/infra/fakes/git.ts",
+        "tests/integration/gitDiffNameStatus.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(git): add deleteBranch to the Git port and adapters",
+        "body": "Add a deleteBranch capability to the Git port with real and fake adapter implementations so phase reset can remove a phase branch after its worktree is gone. Covered by a git integration test."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Domain: PhaseResetRequested event",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-reset-event",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/events.ts",
+        "src/domain/reducer.ts",
+        "tests/unit/reducer.test.ts",
+        "tests/integration/stateMachineContract.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/__snapshots__/stateMachineContract.test.ts.snap"
+      ],
+      "commit": {
+        "subject": "feat(reducer): add PhaseResetRequested to make a stuck run resumable",
+        "body": "Add a PhaseResetRequested event and reducer arm that flips a failed or stuck phase back to an interrupted/pending resumable state, rejecting reset from committed or completed states. Covered by reducer unit tests and the state-machine contract test."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "App command: resetPhase",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-03-reset-phase-command",
+      "plannedFilesToCreate": [
+        "src/app/resetPhase.ts",
+        "tests/integration/resetPhase.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/index.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/resolveRunInfo.ts",
+        "src/app/phaseFolder.ts"
+      ],
+      "commit": {
+        "subject": "feat(app): add resetPhase command to redo a stuck phase",
+        "body": "Add resetPhase: validate the target phase, archive its folder, remove its worktree, delete its branch, and dispatch PhaseResetRequested so the run becomes resumable and the phase re-runs fresh off the last completed phase. Covered by integration tests for the reset, rejection, and missing-resource paths."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "CLI wiring and end-to-end",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-cli-e2e",
+      "plannedFilesToCreate": [
+        "src/cli/commands/resetPhase.ts",
+        "src/cli/commands/resetPhaseRegister.ts",
+        "tests/e2e/resetPhase.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/main.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/commands/runLayers.ts",
+        "tests/e2e/helpers"
+      ],
+      "commit": {
+        "subject": "feat(cli): add phax reset-phase command",
+        "body": "Expose phax reset-phase <short-name> [phase-id] to reset a stuck phase and make the run resumable, requiring --yes for the destructive worktree/branch removal. Covered by an e2e test driving reset through resume to a fresh re-execution."
+      }
+    }
+  ]
+}

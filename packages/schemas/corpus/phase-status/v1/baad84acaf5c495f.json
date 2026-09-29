@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-01",
+  "phaseIndex": 0,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "low",
+  "createdAt": "2026-06-19T09:28:35.440Z",
+  "updatedAt": "2026-06-19T09:33:47.662Z",
+  "branchName": "phax/remove-last-commands--phase-01",
+  "worktreePath": "~/.phax/worktrees/remove-last-commands/phase-01",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "c14b407f574f7eb4c2aa4ae0b2c323d54034aabc"
+}

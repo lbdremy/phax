@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "plan-27",
+  "runId": "plan-27-1782225361970",
+  "state": "archived",
+  "createdAt": "2026-06-23T14:36:01.987Z",
+  "updatedAt": "2026-09-04T14:40:30.936Z",
+  "phasesCount": 2,
+  "gateProfileId": "full",
+  "stoppedReason": "phase_reset"
+}

@@ -1,0 +1,35 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/schemas/phaxPlan.ts",
+    "src/app/extractPlan.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "tests/unit/extractPlan.test.ts"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/perPhaseBranch.test.ts",
+    "tests/integration/rateLimit.test.ts",
+    "tests/integration/reconciliation.test.ts",
+    "tests/integration/resume.test.ts",
+    "tests/integration/routing.test.ts",
+    "tests/integration/runFolder.test.ts",
+    "tests/integration/setupFailure.test.ts",
+    "tests/integration/stateMachineContract.test.ts",
+    "tests/integration/telemetry/end-to-end.test.ts",
+    "tests/unit/__snapshots__/promptGeneration.test.ts.snap",
+    "tests/unit/promptGeneration.test.ts",
+    "tests/unit/resume.test.ts",
+    "tests/unit/schemas.test.ts"
+  ],
+  "optionalTouched": [
+    "tests/integration/executePlan.test.ts",
+    "tests/unit/dryRun.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

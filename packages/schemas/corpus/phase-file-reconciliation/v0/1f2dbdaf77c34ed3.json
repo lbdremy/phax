@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "spikes/smolvm/02-network.sh",
+    "spikes/smolvm/findings/02-network.md"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "project-namespaces",
+    "title": "Project Namespaces and Repo-Scoped Run Names",
+    "requiredCommands": [],
+    "branch": "phax/project-namespaces"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-namespace-config",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/branded.ts",
+        "src/schemas/phaxConfig.ts",
+        "src/app/loadConfig.ts",
+        "src/cli/commands/validate.ts",
+        "src/app/dryRun.ts",
+        "src/app/runFolder.ts",
+        "phax.json",
+        "examples/hello-world/phax.json",
+        "tests/unit/branded.test.ts",
+        "tests/unit/loadConfig.test.ts",
+        "tests/unit/schemas.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/dryRun.test.ts",
+        "tests/unit/runFolder.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(config): replace project struct with a required top-level name",
+        "body": "Replace the nested `project` struct (`project.name` + the dead `project.type`) with a single required, slug-validated top-level `name` field that is the project namespace, and surface it as the required `ResolvedConfig.namespace`. Introduce a `Namespace` branded type matching the short-name slug rules so qualified run names can split on `.` unambiguously. Migrate the display readers (validate, dryRun, runFolder) and the bundled configs to the new shape. loadConfig fails with a clear `path: \"name\"` validation error when the field is absent or malformed. Covered by brand and loadConfig unit tests."
+      },
+      "title": "Namespace config field and validation"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-qualified-name-model",
+      "plannedFilesToCreate": [
+        "src/domain/runRef.ts",
+        "src/app/projectContext.ts",
+        "tests/unit/runRef.test.ts",
+        "tests/unit/projectContext.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "src/domain/branded.ts"
+      ],
+      "commit": {
+        "subject": "feat(domain): add qualified run-name model and project-context helpers",
+        "body": "Add pure helpers to compose (`runKey`), parse (`parseRunRef`, `parseRunKey`), and format qualified run names `<namespace>.<shortName>`, plus an `effectiveStateRoot` helper so qualified references can resolve outside a project. The current project's namespace is read directly from `ResolvedConfig.namespace` (required), so no missing-namespace gate is needed here. Covered by unit tests for parsing edge cases and the default state root."
+      },
+      "title": "Qualified-name domain model and project-context helper"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-03-namespace-at-creation",
+      "plannedFilesToCreate": [
+        "tests/unit/registryNamespace.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/registry.ts",
+        "src/schemas/status.ts",
+        "src/app/registry.ts",
+        "src/app/runFolder.ts",
+        "src/domain/runReviewInfo.ts",
+        "src/app/resolveRunInfo.ts",
+        "src/app/effectRunner.ts",
+        "src/cli/commands/run.ts",
+        "src/app/archive.ts",
+        "src/app/dryRun.ts",
+        "tests/unit/schemas.test.ts",
+        "tests/unit/runArgv.test.ts",
+        "tests/unit/dryRun.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/dispatcher.ts",
+        "src/app/eventAdapter.ts",
+        "src/app/phaseStatusUpdates.ts",
+        "tests/unit/runFolder.test.ts",
+        "tests/unit/cli/run.test.ts",
+        "tests/unit/resolveRunInfo.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(run): require and persist a project namespace for every run",
+        "body": "Add a required `namespace` to registry entries and run-status in place (version stays 1, no upgrader — pre-public), surface it on `RunReviewInfo`, key the registry index by (namespace, shortName), and stamp the namespace at creation (including the `effectRunner` review_open transition). `phax run` reads the namespace from config (missing `name` is rejected at config validation, outside a PHAX project the existing config-error path applies), scopes short-name uniqueness to the namespace via the registry (covering archived runs) while never overwriting an existing folder, and prints qualified run names. Covered by registry, schema, run-argv, and dry-run unit tests."
+      },
+      "title": "Namespace required and enforced at run creation"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-04-run-ref-resolver",
+      "plannedFilesToCreate": [
+        "src/app/resolveRunRef.ts",
+        "tests/unit/resolveRunRef.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/resume.ts",
+        "tests/unit/resumeArgv.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/resolveRunInfo.ts",
+        "src/app/resume.ts",
+        "tests/unit/resume.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): add run-reference resolver and adopt it in resume",
+        "body": "Introduce a shared run-reference resolver that returns the located run: unqualified names resolve against the current project namespace, qualified names resolve exactly (including outside a project via the global registry), and unqualified names outside a project are refused with qualified candidates. Adopt it in `phax resume`, which now accepts both forms and prints qualified names. Covered by resolver and resume-argv unit tests."
+      },
+      "title": "Run-reference resolver and resume adoption"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-resolver-fanout",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/resolveRunInfo.ts",
+        "src/cli/commands/enter.ts",
+        "src/cli/commands/sessionInfo.ts",
+        "src/cli/commands/path.ts",
+        "src/cli/commands/shell.ts",
+        "src/cli/commands/open.ts",
+        "src/cli/commands/enterPhase.ts",
+        "src/cli/commands/reviewHandoff.ts",
+        "src/cli/commands/publishPr.ts",
+        "src/cli/commands/resetPhase.ts",
+        "src/cli/commands/archive.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/resetPhase.ts",
+        "tests/unit/cli",
+        "tests/integration"
+      ],
+      "commit": {
+        "subject": "feat(cli): resolve run references by namespace across all run commands",
+        "body": "Wire enter(-last), session-info, path(-last), shell(-last), open(-last), enter-phase, review-handoff, publish-pr, reset-phase, and archive(-last) to the shared run-reference resolver and the namespace-scoped `last` selector, consuming the located run info and normalizing all output to qualified run names. No new resolution logic — this is the fan-out of the phase-04 contract. Covered by per-command argv tests and archive/reset-phase smoke tests."
+      },
+      "title": "Adopt the resolver across the remaining run commands"
+    },
+    {
+      "id": "phase-06",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-06-qualified-folder-keys",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/runFolder.ts",
+        "src/app/resolveRunInfo.ts",
+        "src/app/resolveRunRef.ts",
+        "src/app/executePlan.ts",
+        "src/app/resetPhase.ts",
+        "src/app/resume.ts",
+        "src/app/archive.ts",
+        "src/app/worktree.ts",
+        "src/app/dryRun.ts",
+        "src/cli/interruptHandler.ts",
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts",
+        "src/cli/commands/ls.ts",
+        "src/cli/commands/archive.ts",
+        "src/cli/commands/resetPhase.ts",
+        "src/cli/commands/enterPhase.ts",
+        "tests/unit/resolveRunInfo.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/runPaths.ts",
+        "tests/integration/archive.test.ts",
+        "tests/unit/architecturalGuards.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(run): key run, worktree, and archive folders by qualified name",
+        "body": "Route run, worktree, archive, and interrupt-write paths through a qualified-key helper built from `<namespace>.<shortName>` so two projects' identically named runs no longer collide on disk. Re-key the run-folder readers and thread the namespace through every caller (executePlan, resetPhase, resume, archive, worktree, the interrupt context, and createRunFolder). No migration of pre-existing folders is performed (pre-public). Covered by resolution unit tests plus an archive integration test."
+      },
+      "title": "Key run, worktree, and archive folders by qualified name"
+    },
+    {
+      "id": "phase-07",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-07-qualified-lock-key",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/ports/lock.ts",
+        "src/infra/lock.ts",
+        "src/infra/fakes/lock.ts",
+        "src/app/lock.ts",
+        "src/app/archive.ts",
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts",
+        "src/cli/commands/ls.ts",
+        "src/cli/commands/unlock.ts",
+        "tests/unit/lock.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/archive.test.ts",
+        "tests/unit/architecturalGuards.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(lock): scope the run lock by qualified run name",
+        "body": "Change the Lock port to key acquire/renew/release/status by the qualified run name `<namespace>.<shortName>` and record it in the lock file, so two projects' identically named runs no longer share a lock. Update the infra adapter, the fake, and all callers (withRunLock via run/resume, archive, ls reconcile, unlock). Covered by lock unit tests and an archive integration test."
+      },
+      "title": "Key the run lock by qualified name"
+    },
+    {
+      "id": "phase-08",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-08-qualified-listings",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/commands/ls.ts",
+        "src/app/generateGlobalReconciliation.ts",
+        "tests/unit/cli/ls.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/reconciliation/global.ts",
+        "src/domain/reconciliation/render.ts",
+        "tests/unit/reconciliation"
+      ],
+      "commit": {
+        "subject": "feat(ls): show qualified run names as the primary identity",
+        "body": "`phax ls` and the global reconciliation listing now show the qualified run name `<namespace>.<shortName>` as the primary, copyable identity and expose `namespace` and `qualifiedName` in JSON output. Two runs sharing a short name across projects are now unambiguous in listings. Covered by ls and reconciliation unit tests."
+      },
+      "title": "Listings show qualified names"
+    }
+  ]
+}

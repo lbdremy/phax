@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "plans-overlap",
+    "title": "Plan — phax plans-overlap — report which plans can run in parallel without merge conflict",
+    "requiredCommands": [
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ],
+    "branch": "phax/plans-overlap"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-domain-engine",
+      "plannedFilesToCreate": [
+        "src/domain/planOverlap/types.ts",
+        "src/domain/planOverlap/generatedArtifacts.ts",
+        "src/domain/planOverlap/compute.ts",
+        "src/domain/planOverlap/render.ts",
+        "tests/unit/planOverlap/compute.test.ts",
+        "tests/unit/planOverlap/render.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(domain): add plan-overlap computation engine",
+        "body": "Add a pure domain module that unions each plan's declared phase file-sets into a footprint, intersects footprints pairwise into a severity-graded conflict graph, and derives the clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule, plus a pure report renderer. Regenerated artifacts (phax.usage.kdl, docs/cli/reference.md) are a distinct hard-conflict class. Schema-free (PlanInput in, PlanOverlapResult out). Covered by unit tests for the severity ladder, clean/conflicting pairs, the independent-set search, and the large-input guard."
+      },
+      "title": "Plan-overlap domain engine"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-02-use-case",
+      "plannedFilesToCreate": [
+        "src/app/analyzePlanOverlap.ts",
+        "tests/integration/analyzePlanOverlap.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(app): add analyzePlanOverlap use case over plan.md paths",
+        "body": "Add analyzePlanOverlap, which obtains each given plan.md's structured form via the plan-38 extraction cache (loadOrExtractPlan), maps each plan's phase file lists into the domain PlanInput, and returns the PlanOverlapResult or an aggregated load/extract error naming each offending path. An Effect over Backend|FileSystem (the backend only on a cold cache miss); honors noExtract. Covered by integration tests over temp plan fixtures for the disjoint, conflicting, warm-hit, unextractable, and too-few-inputs cases."
+      },
+      "title": "`analyzePlanOverlap` application use case"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-cli-command",
+      "plannedFilesToCreate": [
+        "src/cli/commands/plansOverlap.ts",
+        "tests/integration/plansOverlapCommand.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "src/cli/cliDocs.ts",
+        "tests/integration/cliProgram.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/cli/inventory.md"
+      ],
+      "commit": {
+        "subject": "feat(cli): add plans-overlap command",
+        "body": "Add `phax plans-overlap <plan.md...>`, a read-only command that reports which of the given plan.md files can run in parallel without merge conflict. It obtains each plan via analyzePlanOverlap (the plan-38 extraction cache; a cold miss extracts once, --no-extract fails instead), prints the severity-graded conflict matrix, the clean pairs, the largest parallel-safe set, and a greedy wave schedule (or JSON with --json). Registers the command, documents it in cliDocs, and regenerates phax.usage.kdl, docs/cli/reference.md, and the README CLI section; updates the cliProgram command-set test. Covered by a command integration test over temp plan fixtures."
+      },
+      "title": "`plans-overlap` CLI command, registration, and usage spec"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-landed-impact",
+      "plannedFilesToCreate": [
+        "src/schemas/globalReconciliation.ts",
+        "tests/unit/globalReconciliation.test.ts",
+        "tests/unit/planOverlap/impact.test.ts",
+        "tests/integration/plansOverlapLanded.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/planOverlap/types.ts",
+        "src/domain/planOverlap/compute.ts",
+        "src/domain/planOverlap/render.ts",
+        "src/app/analyzePlanOverlap.ts",
+        "src/cli/commands/plansOverlap.ts",
+        "src/cli/program.ts",
+        "src/cli/cliDocs.ts",
+        "tests/integration/cliProgram.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/analyzePlanOverlap.test.ts",
+        "docs/cli/inventory.md"
+      ],
+      "commit": {
+        "subject": "feat(cli): add --landed re-adjustment impact mode to plans-overlap",
+        "body": "Add `phax plans-overlap --landed <run> <plan...>`, which reports which of the given plans need re-adjustment after a run's actual changes. The landed run's footprint is read from its persisted global-file-reconciliation.json (the real git diff across phases) via a new decode schema, then intersected against the remaining plans' declared footprints and graded by severity, so the result is actual-vs-declared with no false negatives from undeclared touches. Adds the schema, the domain landed-footprint + impact computation and renderer, the analyzeReadjustmentImpact use case, and the CLI flag; regenerates the derived CLI artifacts. Covered by schema, domain, and command tests."
+      },
+      "title": "`--landed` re-adjustment impact mode"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-adjust-schema-prompt",
+      "plannedFilesToCreate": [
+        "src/schemas/adjustPlanSession.ts",
+        "src/domain/planOverlap/adjustPrompt.ts",
+        "tests/unit/adjustPlanSession.test.ts",
+        "tests/unit/planOverlap/adjustPrompt.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(schemas): add adjust-plan session record and drift pre-prompt builder",
+        "body": "Add AdjustPlanSessionSchema (persisted record for the adjust-plan interactive session) and a pure builder that assembles the drift/proposal pre-prompt from the landed run's actual changes, the target plan.md, and an optional deterministic impact block, plus the short positional pointer. The prompt drives the agent to establish drift, ask questions, propose changes and wait for approval, and only then edit and commit the plan within the session. Covered by unit tests for decode and the with/without-impact prompt cases."
+      },
+      "title": "adjust-plan session record schema and drift pre-prompt builder"
+    },
+    {
+      "id": "phase-06",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-06-session-invocation",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/session/types.ts",
+        "src/domain/session/claude.ts",
+        "src/domain/session/codex.ts",
+        "src/domain/session/mistral.ts",
+        "src/app/reviewCode.ts",
+        "tests/unit/sessionAdapters.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "refactor(session): generalize buildReviewInvocation to buildPrePromptedInvocation",
+        "body": "Rename SessionAdapter.buildReviewInvocation to buildPrePromptedInvocation (and its opts' worktreePath field to cwd) so both review-code and the upcoming adjust-plan command share one pre-prompted interactive-session builder instead of two parallel methods. Pure rename across the three session adapters, the reviewCode use-case caller, and the session-adapter unit tests; the produced claude/codex/mistral argv is unchanged."
+      },
+      "title": "Generalize the session adapter's pre-prompted invocation"
+    },
+    {
+      "id": "phase-07",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-07-use-case",
+      "plannedFilesToCreate": [
+        "src/app/adjustPlan.ts",
+        "tests/integration/adjustPlan.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(app): add prepareAdjustPlanSession use case",
+        "body": "Add prepareAdjustPlanSession, which starts or resumes the adjust-plan interactive session: it reads the landed run's global-file-reconciliation.json and the target plan.md, computes the deterministic impact by extracting the target plan via the plan-38 cache (omitted if it cannot be extracted), writes the drift pre-prompt and a persisted session record under the run folder, and returns the provider invocation for the CLI to spawn. It mutates no plan and spawns nothing; the plan edit and commit happen interactively in the session after approval. Covered by integration tests over the new/resume/refused/unsupported branches with fake ports."
+      },
+      "title": "`prepareAdjustPlanSession` use case"
+    },
+    {
+      "id": "phase-08",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-08-cli-command",
+      "plannedFilesToCreate": [
+        "src/cli/commands/adjustPlan.ts",
+        "tests/integration/adjustPlanCommand.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "src/cli/cliDocs.ts",
+        "tests/integration/cliProgram.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/cli/inventory.md"
+      ],
+      "commit": {
+        "subject": "feat(cli): add adjust-plan interactive plan-adjustment session command",
+        "body": "Add `phax adjust-plan <plan.md> --landed <run>`, which opens an interactive, pre-prompted session seeded with a landed run's actual changes, the target plan, and an optional deterministic impact. The session establishes the drift, asks clarifying questions, proposes changes and waits for the developer's approval, and only then edits and commits the plan — all interactively within the session; the command itself mutates nothing. Re-invocation resumes; --new-session starts fresh. Registers the command, documents it in cliDocs/phax.usage.kdl, and reuses the existing fake Session layer for the command test."
+      },
+      "title": "`adjust-plan` CLI command, registration, and usage spec"
+    }
+  ]
+}

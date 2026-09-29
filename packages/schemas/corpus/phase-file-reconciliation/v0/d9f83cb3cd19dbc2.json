@@ -1,0 +1,16 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/domain/whatsNext.ts",
+    "tests/unit/whatsNext.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

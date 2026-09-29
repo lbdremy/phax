@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/events.ts",
+    "src/domain/reducer.ts",
+    "src/domain/errors.ts",
+    "src/app/archive.ts",
+    "tests/unit/reducer.test.ts",
+    "tests/unit/events.test.ts",
+    "tests/integration/dispatcher.test.ts",
+    "tests/integration/archive.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

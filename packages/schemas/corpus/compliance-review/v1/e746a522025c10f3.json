@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases delivered their stated objectives. Phase-01 touched two files outside its declared lists: tests/integration/gitDiffNameStatus.test.ts (justified — a snapshot had to be updated to match the new deleteBranch argv) and .agents/skills/phax-planning/SKILL.md (disclosed in handoff as a prior-run artifact; content appears correct but warrants human confirmation). Phase-02 and phase-03 are fully conformant with no deviations. All commit subjects match the plan exactly. The run is conformant overall.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered as specified. BranchNameSchema tightened with minLength(1), maxLength(255), and a Schema.filter using isSafeBranchName rejecting empty, leading-dash, and ASCII whitespace/control inputs. -- separators added to createBranch, branchExists, deleteBranch, addWorktree, removeWorktree, and pushBranch. BranchName brand type and decodeBranchName signature unchanged."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All required unit-test cases present in tests/unit/branded.test.ts: regression accepts (main, feature/my-thing, dots, slashes, mid-string dash) and rejections (empty, -x, --upload-pack=x, leading space, embedded space/tab, null byte, \\x01 control char)."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/integration/gitDiffNameStatus.test.ts was modified but not in the planned file lists. A command-string snapshot asserting 'git branch -d missing-branch' was updated to 'git branch -d -- missing-branch' to match the new deleteBranch argv. Justified: required to keep the gate green and directly caused by the planned adapter change."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": ".agents/skills/phax-planning/SKILL.md was modified but is outside this phase's scope. Handoff attributes it to a prior incomplete run of this phase. Content appears complete and well-formed. Deviation is disclosed; human review of the file content is recommended."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "BranchName brand type and decodeBranchName signature unchanged. All callers (resolveRunInfo.ts, resetPhase.ts, worktree.ts, executePlan.ts, git adapter) unaffected. isSafeBranchName is correctly module-private."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No changes to WorktreePath, Namespace, or ShortName schemas. No changes to branch-name generation in the app layer. No shell-based git path or changes to the execFile invocation model."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'fix(git): reject option-like branch names and separate git operands with --' matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers all required content: final BranchNameSchema pattern, enumeration of commands with and without --, confirmation that main and feature/my-thing are accepted, and explicit disclosure of both file deviations with reasons."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered exactly. scripts/docs-cli.ts imports execFileSync and invokes it as execFileSync('usage', ['generate', 'markdown', '-f', specPath, '--out-file', refPath], { stdio: 'inherit' }). Surrounding README-splicing logic is untouched."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "No unit test exists for this dev script, consistent with the plan's test strategy. Verification via typecheck, lint, and knip under the full gate."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Only scripts/docs-cli.ts was touched, matching the plan exactly."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'refactor(scripts): invoke usage via execFileSync instead of interpolated execSync' matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Confirms execFileSync replaces execSync, behavioral equivalence, and no file-plan deviations."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered exactly. All nine uses: lines across ci.yml and release.yml were pinned to the full commit SHAs from the plan table, with trailing # <tag> comments. No other lines modified."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Gate passes trivially for a workflow-only edit, as stated in the plan's test strategy. CI on the PR is the real verification signal."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Only .github/workflows/ci.yml and .github/workflows/release.yml were touched, matching the plan exactly."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No scope reduction on contents:write / id-token:write permissions. No Dependabot config, workflow linter, or changes to the usage CLI download step."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'ci: pin GitHub Actions to commit SHAs' matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Includes a full change table with old tags and new SHAs, explicitly notes the gate passed trivially and CI is the real signal, and confirms no file-plan deviations."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    ".agents/skills/phax-planning/SKILL.md was modified in phase-01 outside its declared scope. The handoff attributes this to a prior incomplete run being staged. The file's current content appears correct and complete. A reviewer should confirm the content accurately reflects current phax extract-plan behavior and that nothing was unintentionally overwritten relative to the authoritative version."
+  ],
+  "pointers": []
+}

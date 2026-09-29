@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    "docs/spikes/entire-checkpoint-findings.md"
+  ],
+  "editedAsPlanned": [
+    "spikes/entire/README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

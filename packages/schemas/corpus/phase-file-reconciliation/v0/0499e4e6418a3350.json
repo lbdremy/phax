@@ -1,0 +1,30 @@
+{
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/routing/types.ts",
+    "src/schemas/modelRouting.ts",
+    "src/domain/routing/defaults.ts",
+    "tests/unit/routing/resolve.test.ts",
+    "tests/unit/routing/schemas.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "tests/integration/routing.test.ts"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "README.md",
+    "docs/plans/04b-run-jail-provider-validation.md",
+    "docs/plans/10-opus-frontier-tiers-plan.md",
+    "docs/plans/11-review-handoff-plan.md",
+    "docs/specs/05-review-handoff.md",
+    "tests/e2e/semanticTrace.providers.test.ts"
+  ],
+  "optionalTouched": [
+    "tests/type/routing.ts",
+    "tests/unit/routing/sameFamilyPreservation.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

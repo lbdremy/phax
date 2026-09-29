@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All four phases delivered their stated objectives and respected excluded scope. Phase-03 touched two unplanned telemetry test files as mechanical compile fixes required by the new required fields on GateFailedError and RunGatesWithFixLoopOptions; both are fully justified. No phase introduced scope creep. All boundary contracts were honoured across phase boundaries. The phase-01 commit subject could not be verified from available git history (only the five most recent commits were visible), but downstream consumption confirms the work landed correctly.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Phase-01 commit subject could not be verified against the plan (planned: 'feat(gate): classify diagnostics and register a scopes provider') — the commit is outside the five most recent log entries visible to the reviewer. Downstream phase consumption confirms the work landed; a spot-check of git log is recommended."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Two unplanned test files were touched: tests/unit/telemetry/reportBuilders.test.ts (added pending: [] to a GateFailedError construction) and tests/integration/telemetry/adapterFailures.test.ts (added scheduling to a runGatesWithFixLoop options literal). Both are mechanical compile/runtime fixes caused by the new required fields; no behaviour change. Justified in the phase handoff."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "PendingStep was placed in src/domain/errors.ts rather than src/app/gates.ts as the plan text implied, because domain events import from errors.ts and domain cannot import app. Architecturally correct and justified in the handoff."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant",
+      "findings": []
+    }
+  ],
+  "attentionPoints": [
+    "Phase-01 commit subject not verified against the plan — only the five most recent commits were visible. Run: git log --format='%s' | grep 'classify diagnostics' to confirm.",
+    "PendingStep lives in src/domain/errors.ts, not src/app/gates.ts as the plan text implied. Architecturally correct (domain events import errors.ts; domain cannot import app), but note this if spec 18 traceability documentation references the planned location."
+  ],
+  "pointers": []
+}

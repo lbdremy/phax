@@ -1,0 +1,20 @@
+{
+  "createdAsPlanned": [
+    "tests/unit/providers/fixtures/codex-exec-sample.jsonl"
+  ],
+  "editedAsPlanned": [
+    "src/infra/providers/codexCli.ts",
+    "src/schemas/codexOutput.ts",
+    "tests/unit/providers/codexCli.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/providerDispatcher.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

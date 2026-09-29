@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/domain/security/agentCommands.ts",
+    "tests/unit/security/agentCommands.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/security/capabilities.ts",
+    "tests/unit/security/capabilities.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

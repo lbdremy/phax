@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/app/reconcilePhaseFiles.ts",
+    "src/app/executePlan.ts",
+    "src/app/handoffGeneration.ts",
+    "src/app/handoffGuidance.ts",
+    "tests/integration/eventAdapter.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "tests/integration/executePlan.test.ts",
+    "tests/integration/reconciliation.test.ts"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/__snapshots__/stateMachineContract.test.ts.snap",
+    "tests/integration/telemetry/__snapshots__/end-to-end.test.ts.snap",
+    "tests/unit/__snapshots__/promptGeneration.test.ts.snap"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

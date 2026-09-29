@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "runId": "headless-authoring-1790158748005",
+  "phaseId": "phase-07",
+  "shape": "full",
+  "sourceSha": "e65acd19a6c04e6e26a8467c0831286d776a02cb",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 136,
+      "cacheCreationInputTokens": 224123,
+      "cacheReadInputTokens": 11131246,
+      "outputTokens": 76944,
+      "totalCostUsd": 5.558657200000002
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "structural"
+  ]
+}

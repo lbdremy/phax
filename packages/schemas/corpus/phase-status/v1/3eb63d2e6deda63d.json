@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-05",
+  "phaseIndex": 4,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-15T10:41:35.079Z",
+  "updatedAt": "2026-06-15T10:45:37.767Z",
+  "branchName": "phax/install-planning-skill--phase-05",
+  "worktreePath": "~/.phax/worktrees/install-planning-skill/phase-05",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "6b095ad29d63aa3cfe2d07d89743c873cab33cbd"
+}

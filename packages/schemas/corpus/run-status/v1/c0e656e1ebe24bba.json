@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "shortName": "model-routing",
+  "runId": "model-routing-1780297851054",
+  "state": "archived",
+  "createdAt": "2026-06-01T07:10:51.072Z",
+  "updatedAt": "2026-06-06T11:26:15.823Z",
+  "phasesCount": 11,
+  "gateProfileId": "full",
+  "stoppedReason": "rate_limited",
+  "lastError": "Claude Code stopped: usage limit reached."
+}

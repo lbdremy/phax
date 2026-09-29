@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-08",
+  "phaseIndex": 7,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "high",
+  "createdAt": "2026-06-04T23:11:36.364Z",
+  "updatedAt": "2026-06-04T23:25:10.511Z",
+  "branchName": "phax/run-jail--phase-08",
+  "worktreePath": "~/.phax/worktrees/run-jail/phase-08",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "ef5920c1be7ed015b29088b746bdd61d726748b4"
+}

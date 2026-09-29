@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All six phases delivered their core objectives. The primary cross-cutting deviation spans phases 02 and 04: the plan promised `usage lint` would report 0 infos after phases 02–03, enabling phase-04 to enforce a fully zero-info gate. In practice, one `missing-cmd-help` info for the root `cmd phax` was not closed — the generator correctly emits `about` at the top KDL level, but `usage lint`'s missing-cmd-help check targets a `help` node inside a `cmd phax {}` block, which is a different node. Phase-04 accommodates this with a permanent carve-out rather than achieving the clean state the plan described. The technical reasoning is sound, but the stated plan outcome was not met. All other deviations are minor operational artifacts: `deno.lock` was updated as an expected side effect of changing `deno.json`, `docs/cli/reference.md` received an extra regeneration pass during phase-02, and `pnpm-lock.yaml` was reconciled in phase-06 rather than phase-05 (explained in the handoff). Commit subjects for phases 02–06 match the plan exactly; phase-01's commit is not verifiable from the final-phase worktree.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Phase-01 handoff is not present in the final-phase worktree; conformance of handoff content could not be verified."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Phase-01 commit subject is not visible in the recent git log available from the final-phase worktree; could not be verified against the planned subject."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "The plan stated 'Confirm usage lint phax.usage.kdl now reports 0 errors, 0 warnings, 0 infos.' One missing-cmd-help info for root cmd phax was not closed. The generator emits `about` at the KDL top level (the correct top-level binary description field), but usage lint's missing-cmd-help check requires a `help` node inside a `cmd phax {}` block. The technical constraint is real, but the deviation from the stated 0-info target is not acknowledged in any available handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "docs/cli/reference.md received an extra touch in phase-02 (planned only in phases 03 and 06). It was regenerated as a side effect of running the spec generator. Benign and not justified in any available handoff for this phase."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Phase-02 handoff is not present in the final-phase worktree; conformance of handoff content could not be verified."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Phase-03 handoff is not present in the final-phase worktree; conformance of handoff content could not be verified."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "Phase-04 introduced a permanent carve-out for the missing-cmd-help info on cmd phax in usageSpecLint.test.ts, meaning the gate enforces '0 infos except the root command one' rather than fully 0 infos. The plan stated 'After phases 02–03 the spec is info-clean'; this precondition was not met. The carve-out is technically justified but represents a weaker guarantee than the plan described."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Phase-04 handoff is not present in the final-phase worktree; conformance of handoff content could not be verified."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "deno.lock was updated in phase-05 (unplanned). This is an expected side effect of modifying deno.json; Deno always updates its lockfile. Benign."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "pnpm-lock.yaml was planned for phase-05 (via pnpm install) but was not updated until phase-06. The phase-06 handoff explains this: pnpm required interactive approval during phase-05 gate runs and the lockfile was reconciled automatically when gate commands ran in phase-06. The end state is correct."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Phase-05 handoff is not present in the final-phase worktree; conformance of handoff content could not be verified."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-06",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "pnpm-lock.yaml updated in phase-06 rather than phase-05 as planned. Explained in the phase-06 handoff (pnpm auto-reconciled the lockfile when gate commands ran). End state is correct."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "The missing-cmd-help info for cmd phax is permanently excepted in usageSpecLint.test.ts. If a future usage CLI version changes how it interprets top-level `about` vs. `help` inside cmd phax, the carve-out may need revisiting.",
+    "pnpm-lock.yaml was reconciled implicitly by running gate commands in phase-06 rather than by an explicit `pnpm install` in phase-05. The lockfile is correct, but the mechanism was implicit and not planned.",
+    "Phase-01 through phase-05 handoff files reside in their respective phase worktrees and were not available for review from the final-phase worktree. Handoff content conformance for those phases could not be fully assessed."
+  ],
+  "pointers": [
+    "usageSpecLint.test.ts lines 53-60: the unexpectedInfos filter logic excludes any info line that contains both '[missing-cmd-help]' and 'cmd phax' — confirm the filter uses &&, not ||, to avoid accidentally suppressing other cmd-help infos.",
+    "scripts/generate-usage-spec.ts line 119-120: the root description is emitted as `about` only when program.description() is non-empty — confirm the program has a description set in program.ts so the `about` node actually appears in the spec."
+  ]
+}

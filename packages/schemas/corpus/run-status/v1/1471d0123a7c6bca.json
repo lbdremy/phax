@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "claude-skill-edit-grant",
+  "runId": "claude-skill-edit-grant-1790181005998",
+  "state": "review_open",
+  "createdAt": "2026-09-23T16:30:06.012Z",
+  "updatedAt": "2026-09-23T16:42:45.586Z",
+  "phasesCount": 4,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/2609231209-claude-skill-edit-grant-plan.md"
+}

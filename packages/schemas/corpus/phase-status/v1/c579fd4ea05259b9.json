@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "committed",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "createdAt": "2026-09-23T16:32:07.549Z",
+  "updatedAt": "2026-09-23T16:36:58.168Z",
+  "branchName": "phax/claude-skill-edit-grant--phase-02",
+  "worktreePath": "~/.phax/worktrees/phax.claude-skill-edit-grant/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "e789ee3a9e6a12b3d5854f087b994d4e3a17c636"
+}

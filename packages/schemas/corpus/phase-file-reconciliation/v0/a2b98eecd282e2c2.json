@@ -1,0 +1,15 @@
+{
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/infra/providers/codexCli.ts",
+    "tests/unit/providers/codexCli.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

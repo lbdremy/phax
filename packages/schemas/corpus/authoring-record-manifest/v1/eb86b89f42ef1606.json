@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "kind": "authoring",
+  "authoringId": "2609250815-artifact-decide",
+  "artifact": "docs/specs/2609250815-artifact-decide.md",
+  "artifactKind": "spec",
+  "shape": "full",
+  "sourceSha": "cd0ba25b99a265ac2a7fcce4b5f67d7b5e6746e1",
+  "provider": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 32,
+      "cacheCreationInputTokens": 110536,
+      "cacheReadInputTokens": 1353310,
+      "outputTokens": 56050,
+      "totalCostUsd": 2.276078
+    }
+  }
+}

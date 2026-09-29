@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "verdict": "conformant",
+  "summary": "Both phases delivered exactly what the plan specified. Every planned file was touched in the correct phase, no unplanned files were modified, all promised tests are present at the declared layers, both commit subjects match the plan verbatim, and the phase handoffs cover all required content. No deviations were found.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered as specified: force field added to RunArchiveRequested, reducer rewritten with full state×force table, ArchiveRefusedError added, archive use case updated to pass force, gate dirty-worktree check on finished, and surface all rejected dispatches as ArchiveRefusedError."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "17 new reducer unit tests cover full state×force matrix. 14 new integration tests in 'archive — unfinished runs' cover all required scenarios including stoppedReason/lastError preservation and the review_open+dirty-worktree regression pin."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered as specified: program.ts description and --force help match plan wording verbatim; cliDocs.ts long help covers all required content; archive.ts prefixes ArchiveRefusedError with 'Archive refused:' via instanceof; usage and docs regenerated."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Usage content assertion present in usageOutput.test.ts: describe('phax.usage.kdl archive command content') asserts archive block contains '--force' and 'unfinished'. Drift tests confirmed passing per handoff."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [],
+  "pointers": [
+    "The dirty-worktree guard for finished runs uses resolveRun's result (raw Node FS) rather than the FileSystem port, meaning the guard silently skips in fake-FS integration tests — confirm via code review that this is intended test-isolation behavior and not a gap in coverage for the finished-run dirty-worktree path."
+  ]
+}

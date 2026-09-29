@@ -1,0 +1,31 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/domain/telemetry/journal.ts",
+    "tests/unit/telemetry/journal.test.ts",
+    "tests/integration/globalTelemetryJournal.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/ports/fs.ts",
+    "src/infra/fs.ts"
+  ],
+  "missingPlannedCreate": [
+    "src/app/globalTelemetryJournal.ts"
+  ],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [
+    "src/infra/telemetry/globalJournal.ts"
+  ],
+  "unplannedEdited": [
+    "src/app/loadTelemetryConfig.ts"
+  ],
+  "optionalTouched": [
+    "src/infra/fakes/fs.ts",
+    "src/cli/commands/archive.ts",
+    "src/cli/commands/reviewHandoff.ts",
+    "src/cli/commands/resetPhase.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-07",
+  "createdAsPlanned": [
+    "src/app/adjustPlan.ts",
+    "tests/integration/adjustPlan.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

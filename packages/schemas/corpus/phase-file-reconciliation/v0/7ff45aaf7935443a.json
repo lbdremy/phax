@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/domain/planCache/key.ts",
+    "src/schemas/extractedPlanCacheEntry.ts",
+    "src/app/planCacheStore.ts",
+    "tests/unit/planCacheKey.test.ts",
+    "tests/unit/extractedPlanCacheEntry.test.ts",
+    "tests/integration/planCacheStore.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

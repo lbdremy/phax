@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "typescript-6-upgrade",
+  "runId": "typescript-6-upgrade-1781265730165",
+  "state": "archived",
+  "createdAt": "2026-06-12T12:02:10.186Z",
+  "updatedAt": "2026-09-03T07:49:10.219Z",
+  "phasesCount": 1,
+  "gateProfileId": "full"
+}

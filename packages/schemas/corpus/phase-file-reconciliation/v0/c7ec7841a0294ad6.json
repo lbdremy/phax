@@ -1,0 +1,67 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "tests/unit/skills.test.ts",
+    "tests/unit/architecturalGuards.telemetry.test.ts"
+  ],
+  "missingPlannedCreate": [
+    ".claude/skills/phax-planning/SKILL.md",
+    ".claude/skills/boundaries/SKILL.md",
+    ".claude/skills/cli-view-layer/SKILL.md",
+    ".claude/skills/effect-services/SKILL.md",
+    ".claude/skills/infrastructure-adapters/SKILL.md",
+    ".claude/skills/model-routing/SKILL.md",
+    ".claude/skills/observability/SKILL.md",
+    ".claude/skills/state-machines/SKILL.md",
+    ".claude/skills/validation-boundaries/SKILL.md"
+  ],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "docs/observability.md"
+  ],
+  "optionalTouched": [
+    "README.md"
+  ],
+  "deletions": [],
+  "renames": [
+    {
+      "from": ".skills/boundaries.md",
+      "to": ".claude/skills/boundaries/SKILL.md"
+    },
+    {
+      "from": ".skills/cli-view-layer.md",
+      "to": ".claude/skills/cli-view-layer/SKILL.md"
+    },
+    {
+      "from": ".skills/effect-services.md",
+      "to": ".claude/skills/effect-services/SKILL.md"
+    },
+    {
+      "from": ".skills/infrastructure-adapters.md",
+      "to": ".claude/skills/infrastructure-adapters/SKILL.md"
+    },
+    {
+      "from": ".skills/model-routing.md",
+      "to": ".claude/skills/model-routing/SKILL.md"
+    },
+    {
+      "from": ".skills/observability.md",
+      "to": ".claude/skills/observability/SKILL.md"
+    },
+    {
+      "from": ".skills/phax-planning.md",
+      "to": ".claude/skills/phax-planning/SKILL.md"
+    },
+    {
+      "from": ".skills/state-machines.md",
+      "to": ".claude/skills/state-machines/SKILL.md"
+    },
+    {
+      "from": ".skills/validation-boundaries.md",
+      "to": ".claude/skills/validation-boundaries/SKILL.md"
+    }
+  ],
+  "hasDeviations": true
+}

@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/app/skills/installSkill.ts",
+    "tests/unit/skills/installSkill.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/errors.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

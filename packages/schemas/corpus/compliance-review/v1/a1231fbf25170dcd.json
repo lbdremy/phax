@@ -1,0 +1,188 @@
+{
+  "version": 1,
+  "verdict": "divergent",
+  "summary": "Phases 01 through 07 conform to their plan sections, with a series of small, consistently justified unplanned-file touches (mainly the hand-written src/cli/cliDocs.ts source feeding required regeneration commands, and two error-union propagations in phase-06). Phase-08, however, lands a commit whose subject and body claim the skills were taught the headless document shape, README gained an experimental-formats note, and NEXT_STEPS was ticked -- but verification against the worktree at HEAD shows none of those three things happened; only the planned e2e test was actually added. The phase's own handoff discloses this candidly (an Edit permission denial blocked the skill edits, and the session was redirected before attempting the rest), which is a mitigating factor, but the gap between the commit's claims and the tree's actual state is a significant, unjustified-in-effect deviation, so the run-level verdict is divergent rather than conformant-with-deviations.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Three unplanned files touched (src/cli/cliDocs.ts, src/schemas/formatError.ts, tests/integration/cliProgram.test.ts), each explained in the handoff as a mechanically-forced consequence of the plan's own required regeneration commands or violation-message format requirement."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Spec and plan document schemas, refinements, projection, and `phax artifact schema spec|plan` all delivered as specified."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject/body match the plan verbatim and accurately describe what was delivered."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "One unplanned file, src/domain/authoring/markdown.ts, holding shared rendering helpers; justified as avoiding duplication between the two renderers and required by knip."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Both renderers, the round-trip proof against the deterministic parser, and the re-keyed extraction cache (EXTRACTOR_VERSION 2) all delivered as specified."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject/body match the plan verbatim and accurately describe what was delivered."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Config keys, resolver, resolveAuthoringSelection, schema regeneration, and README paragraph all delivered as specified with no unplanned files."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff flags a pre-existing, out-of-scope gap: mergeConfigLayers does not propagate the new authoring key (like the existing review.code) through local/user config overlays."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Refusals, session folder, agent run, JSON-only decode, render, sidecar write, cache seed, and path-scoped commit all delivered as specified."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Cache seed is written before the .md/sidecar rather than after, reversing the plan's listed step order; handoff justifies this as safe since the entry is content-addressed and harmless if orphaned."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "exitCodeForError deliberately left ArtifactCommitFailedError's existing (non-12) mapping for transitions intact and added a separate exitCodeForAuthoringError for the headless path, explicitly flagged forward to phase-05 to avoid a regression in an existing test."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "One unplanned file, src/cli/cliDocs.ts, justified the same way as in phase-01."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "--headless, --brief, --model, --effort added to both subcommands; interactive path confirmed byte-identical when the flag is absent."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject/body match the plan verbatim and accurately describe what was delivered."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-06",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Two unplanned application-layer touches (src/app/completeRunArtifacts.ts, src/app/planStaleness.ts) required only to extend an error union for typechecking; neither call site can actually raise the new error since neither targets Approved."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Sidecar module, write-set change, approve divergence refusal, and artifact status reporting all delivered as specified."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Handoff notes one deliberately untested edge case: a sidecar that exists but was never committed relies on the dirty-write-set precondition rather than a direct test."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-07",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Authoring record manifest, writer, shared plumbing, records explain/list resolution, and the CLI record output line all delivered as specified."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "writeRecord's manifest and message are explicitly unchanged; shared logic factored into a new recordPlumbing.ts rather than duplicated, per the plan's instruction."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff discloses two deliberate, out-of-scope gaps: pending authoring records grouped under a pseudo-run in records status, and no auto-push of authoring records."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-08",
+      "verdict": "divergent",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "concern",
+          "message": "Only the e2e test was delivered; both skill-file 'Headless authoring' sections, the README '## Experimental formats' note, and the NEXT_STEPS.md tick were never applied, verified directly against the worktree at HEAD."
+        },
+        {
+          "dimension": "commit",
+          "severity": "concern",
+          "message": "The landed commit's subject and body assert that the skills were taught the document shape, README lists the three experimental formats, and NEXT_STEPS was ticked -- none of which is true of the tree at HEAD. This is a content mismatch, not merely a missed file."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Four of five planned edits are simply absent rather than substituted with a justified alternative."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "The handoff is unusually candid about the gap, explaining the cause (a denied Edit permission prompt on two attempts, then a redirect) and handing over drafted content and exact target locations for a follow-up pass -- this mitigates but does not cure the divergence."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/e2e/headlessAuthoring.test.ts is present and matches the planned shape (gated e2e, authors a spec headlessly, checks sidecar + HEAD contents + 'in sync' status)."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "phase-08's documentation objective (skill sections, README experimental-formats note, NEXT_STEPS tick) is unmet and should be completed before this run is considered done; the handoff hands over drafted content and exact target locations.",
+    "The phase-08 commit body overstates what it did; consider a corrective follow-up commit so the history matches the tree.",
+    "Pre-existing gap surfaced by phase-03: mergeConfigLayers does not propagate the new authoring config key (or the existing review.code) through local/user config overlays.",
+    "Pre-existing gap surfaced by phase-06: a sidecar that exists on disk but was never committed has no direct test coverage.",
+    "Deliberate, disclosed scope gaps from phase-07: pending authoring records are grouped under a pseudo-run named 'authoring' in records status, and authoring records are never auto-pushed."
+  ],
+  "pointers": []
+}

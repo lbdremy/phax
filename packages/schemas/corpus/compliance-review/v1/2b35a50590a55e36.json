@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases of the schemas-package plan 1/5 run delivered their stated objectives, respected their excluded scope, and produced commits whose subjects match the plan exactly. Every file touched outside the planned lists is either an explicitly anticipated unplanned creation (content-hash-named test fixtures) or a justified cascading edit (import-path repoints following the SurfaceSchema move, and one test-only mock fix to avoid a timeout), each documented in the corresponding phase's handoff. All promised tests, exports, and guards were independently confirmed present in the worktree. No unjustified or unexplained deviation was found.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Package skeleton, Parsed API, SurfaceSchema move, and closure guard all delivered as specified and verified in the worktree."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Eight files beyond the plan's list were touched (six app/domain modules plus two test files) to repoint Surface imports away from phaxConfig.ts after the no-shim move; explicitly permitted by the plan's 'any other importer tsc reports' instruction and documented in the handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "deviation",
+          "message": "tests/unit/cli/agent.test.ts was edited beyond the plan to mock src/infra/shell.js, preventing a probe test from spawning real provider binaries and exceeding its timeout; test-only change, documented and justified in the handoff."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the plan exactly: 'feat(schemas-package): add @lbdremy/phax-schemas with one entry and a Parsed API'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers dist paths, exports map, export names, guard's reached files, the SurfaceSchema move, and every deviation with a reason."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Shape table, frozen v1/v2 decoders, generated version module, lock file, check script, toLatestPhaseRecordManifest, and the historical-decoder import guard all delivered and verified in the worktree, including FORMAT_IDS containing exactly 15 ids with code-review correctly absent."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "The 11 fixture files under tests/unit/schemasPackage/fixtures/phase-record-manifest/{v1,v2}/ are unplanned but explicitly anticipated by the plan as content-hash-named files that cannot be known in advance; counts (6 v1, 5 v2) and naming contract verified."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "schemaUrl.test.ts, shapes.test.ts, phaseRecordManifestHistory.test.ts, and frozenHistory.test.ts all present as planned."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the plan exactly: 'feat(schemas-package): read phase record manifest v1 and v2, upgrade to latest'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers the shapes.ts API, schemaUrl exports, the check script's modes, the v1/v2 reconstruction, fixture counts/naming, and new entry exports."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "document.ts and its rule order (non-object, missing $schema, malformed URL, unknown format, delegate) match the plan exactly; parseDocument, DocumentFormatId, and AnyDocument are exported from the entry and verified."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No other format was wired into parseDocument, and the phase-record-manifest $schema path still fails with the 'no shape is known' message, as required until plan 4."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "No unplanned files; shapes.ts was edited as an optional file to add three shared message helpers, which the plan permits."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "parseDocument.test.ts exists and covers both the real parser and a toy-format parser per the test strategy."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject matches the plan exactly: 'feat(schemas-package): identify a document by its $schema alone with parseDocument'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers makeDocumentParser's signature, the rule order, which messages are shared vs. local, and states no deviations."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Commit bodies were not independently diffed word-for-word against the plan's prescribed bodies, only subjects were verified exactly; a human wanting byte-level commit-message conformance should check git show on each commit directly."
+  ],
+  "pointers": []
+}

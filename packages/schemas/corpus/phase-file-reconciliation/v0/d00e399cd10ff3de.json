@@ -1,0 +1,35 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/schemas/gateDiagnostics.ts",
+    "tests/unit/schemas/gateDiagnostics.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/phaxConfig.ts",
+    "phax.schema.json",
+    "phax.user.schema.json",
+    "tests/unit/phaxConfigJsonSchema.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "tests/unit/schemas/gateProfile.test.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/initWizard.test.ts",
+    "tests/unit/gateProfile.test.ts"
+  ],
+  "optionalTouched": [
+    "tests/integration/gates.test.ts",
+    "tests/integration/fixLoop.test.ts",
+    "tests/integration/eventAdapter.test.ts",
+    "tests/unit/selectGateSteps.test.ts",
+    "tests/unit/buildConfig.test.ts",
+    "src/domain/init/buildConfig.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

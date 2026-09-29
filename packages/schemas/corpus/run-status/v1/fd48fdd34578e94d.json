@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "plan-lint",
+  "runId": "plan-lint-1788858296696",
+  "state": "archived",
+  "createdAt": "2026-09-08T09:04:56.712Z",
+  "updatedAt": "2026-09-09T10:21:49.366Z",
+  "phasesCount": 6,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/33-plan-lint-plan.md"
+}

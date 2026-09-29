@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All six phases delivered their stated objectives. Phase 01 touched ~36 unplanned test files due to an atomic schema value-type change that broke every string-array profile fixture — anticipated in the plan's own seam note and justified. Phase 05 left the planned `src/app/recordsExplain.ts` unedited (the field became available through the schema change alone) and instead edited the unplanned `src/cli/commands/records.ts` (the only layer that renders structured data as user-visible text). Phase 06 edited three unplanned files (`src/cli/cliDocs.ts`, `phax.usage.kdl`, `src/cli/commands/records.ts`) because `phax.usage.kdl` and `docs/cli/reference.md` are generated artifacts; their source strings had to change first. All deviations are justified; no phase introduced unjustified scope creep or dropped a required deliverable. One attention point: the plan-required `pickGateProfileId` test was not found in `tests/unit/gateProfile.test.ts` and may reside in `tests/unit/cli/run.test.ts` — human verification recommended before closing.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "All schema symbols (GateStepSchema, SurfaceSchema, FiringSchema, GateStep, Surface, Firing), resolver and runner signature changes, depth-scalar removal, generator updates, fixture migrations, and JSON schema regeneration are present as specified."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "~36 unplanned test files were edited. Justified: the atomic GateProfilesSchema value-type change broke every fixture that built a profile as a string array or decoded through decodePhaxConfig. The plan's seam note explicitly anticipated this ('update every fixture/assertion … string array') and acknowledged the enumerated list was a subset."
+        },
+        {
+          "dimension": "tests",
+          "severity": "deviation",
+          "message": "The plan-required pickGateProfileId test (asserting fast/full preference is gone, first key selected) was not found in tests/unit/gateProfile.test.ts. It may reside in tests/unit/cli/run.test.ts (a planned edit, matched per reconciliation). Human verification needed."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Flat-array rejection test (naming the profile), unknown-surface rejection, unknown-firing rejection, and onExcessProperty tests are all present in tests/unit/gateProfile.test.ts."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "gateCommandStrings = gateSteps.map(s => s.command) feeds security preflight/posture and prompt; typed gateSteps feeds the gate runner. Frozen effective set includes all steps regardless of firing."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject feat(gate): model gate profiles as attributed steps matches plan."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers all required content: exported symbols and module paths, resolveGateProfile return type, runGates signature, command-string derivation location, depth-preference removal confirmation, full/standard key decision, and unplanned-file deviation explanation."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "selectGateSteps pure helper created; executePlan phase loop filters steps by firing using isFinal; security preflight remains over the full command set."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "No deviations. Exactly the planned create/edit files were touched; no optional files needed edits."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/selectGateSteps.test.ts has four unit tests (non-terminal, terminal, all-every-phase, all-terminal). executePlan.test.ts has the firing scheduling integration test (non-terminal omits terminal step; terminal phase includes both)."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Preflight uses unfiltered full set; only the per-phase gate invocation is filtered by firing. Surface remains pure attribution."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject feat(gate): schedule steps by firing (every-phase vs terminal) matches plan."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers selectGateSteps signature, security preflight confirmation, no deviations, and the key invariant for phase-03."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "GateAttributionSchema and GateStepResultSchema in src/schemas/gateAttribution.ts. runGates refactored to RunGatesOptions object with optional attributionPath/phaseId; writes gate-attribution.json on both success and failure paths. fixLoop.ts passes attributionPath and phaseId. adaptGateRun writes no attribution (no phase folder available)."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "No deviations. Optional files tests/integration/eventAdapter.test.ts and src/app/executePlan.ts correctly left untouched."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/gateAttribution.test.ts has schema round-trip, surface-enum rejection, and missing-field tests. Integration tests cover runGates attribution accumulation, fail-fast recording, and fix-loop overwrite semantics."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "gate-attribution.json at <runPath>/<phaseId>/gate-attribution.json, shape { phase, steps: [{ command, surface, result }] }, written via FileSystem port. adaptGateRun omits attribution target — documented in handoff."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject feat(gate): record per-phase gate attribution matches plan."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers exact file path and record shape, RunGatesOptions signature, both callers' behavior, and the adaptGateRun rationale. Phase-04/05 consumers are fully briefed."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "verifiedSurfaces pure domain helper in src/domain/gate/verifiedSurfaces.ts (all-pass-per-surface, sorted, deduped). aggregateVerifiedSurfaces Effect reader in src/app/gateAttribution.ts (missing files silently skipped). writeFinalReport computes and renders - **Surfaces Verified**: list or (none)."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "No deviations. Optional files src/app/executePlan.ts and src/app/reviewCode.ts correctly left untouched."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/verifiedSurfaces.test.ts has five unit tests. tests/unit/gateAttribution.reader.test.ts covers the reader with FileSystem fake. tests/integration/finalReport.test.ts (new file) tests both the surfaces-present and empty-state paths."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "buildFinalReportMarkdown stays a pure synchronous renderer; Effect-based read confined to writeFinalReport. Reader uses FileSystem port, not raw node:fs."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject feat(gate): report verified surfaces at run end matches plan."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers pure helper path and signature, reader signature, exact render format (including empty state), and the phase-05 reuse directive."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "RunRecordManifestSchema bumped to version 2 with required verifiedSurfaces field. assembleRecord copies verbatim. writeRecord reads gate-attribution.json via FileSystem port and falls back to [] on any failure. Records list and explain render the field."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/app/recordsExplain.ts (planned to edit) was not touched: ExplainedRecord already embeds the full RunRecordManifest, so no new code was needed once the schema gained the field. Justified."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/cli/commands/records.ts (unplanned) was edited: it is the only layer where structured data from recordsList/recordsExplain reaches the user as text. Without this edit the field would be computed but invisible. Justified."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/runRecord.test.ts has v2 decode, v1 rejection, surfaces array, and surface-enum rejection tests. tests/unit/recordsAssemble.test.ts covers verbatim copy. tests/integration/writeRecord.test.ts has three attribution tests (passing, missing, corrupt). tests/integration/recordsExplain.test.ts matched per reconciliation."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Same verifiedSurfaces helper as phase-04 — one definition of verified. writeRecord reads from FileSystem port. Per-phase only; no run-level aggregation in records."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Git log confirms feat(records): name verified surfaces in the phase record manifest. Matches plan."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers schema shape, fallback behavior, sample output lines for both records list and records explain, and the deviation justification."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-06",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "README.md updated with attributed-step gateProfiles example and prose covering surface, firing, depth-convention removal, flat-array rejection, per-phase attribution, and run-end surface legibility. docs/security.md notes all step commands (every-phase and terminal) are allowlisted regardless of firing. docs/cli/reference.md describes phax run scheduling and records list/explain surface columns. No code behavior changed."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No code or schema changes. Archived plans/specs untouched. CLAUDE.md correctly left unedited (no gate-profile or fast/full references)."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Three unplanned files edited: src/cli/cliDocs.ts, phax.usage.kdl, and src/cli/commands/records.ts. Justified: phax.usage.kdl and docs/cli/reference.md are generated files; tests/integration/usageSpecDrift.test.ts fails if phax.usage.kdl drifts from CLI source. Source strings in cliDocs.ts and records.ts had to change first, then pnpm gen:usage-spec and pnpm docs:cli regenerated the downstream files. All changes are documentation-string-only with no behavioral effect."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Git log confirms docs(gate): document attributed gate-step profiles. Matches plan."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers which docs were updated, generated-file deviation explanation, gate-step pass confirmation, and the open follow-up (profile key rename full -> standard)."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "pickGateProfileId test: the plan requires a unit test asserting the fast/full depth preference is gone and the first key is selected. This test was not found in tests/unit/gateProfile.test.ts. It may reside in tests/unit/cli/run.test.ts (a planned edit, matched per reconciliation). Verify before closing the run.",
+    "Dogfood profile key rename (full -> standard) is an explicit open follow-up noted in the Technical Arbitrations and phase-06 handoff. Track as a known post-run task."
+  ],
+  "pointers": [
+    "src/app/finalReport.ts contains a tryReadSecurityPosture helper that uses raw node:fs directly rather than the FileSystem port — predates this plan but is an architecture boundary violation. Confirm via code review and architecture audit."
+  ]
+}

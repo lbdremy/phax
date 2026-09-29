@@ -1,0 +1,43 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "tests/integration/repoRootedCli.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/infra/fs.ts",
+    "src/cli/commands/runLayers.ts",
+    "src/cli/commands/adjustPlan.ts",
+    "src/cli/commands/archive.ts",
+    "src/cli/commands/artifact.ts",
+    "src/cli/commands/extractPlan.ts",
+    "src/cli/commands/ls.ts",
+    "src/cli/commands/orient.ts",
+    "src/cli/commands/plans.ts",
+    "src/cli/commands/plansOverlap.ts",
+    "src/cli/commands/publishPr.ts",
+    "src/cli/commands/resetPhase.ts",
+    "src/cli/commands/resume.ts",
+    "src/cli/commands/reviewCode.ts",
+    "src/cli/commands/reviewCompliance.ts",
+    "src/cli/commands/reviewHandoff.ts",
+    "src/cli/commands/run.ts",
+    "tests/unit/architecturalGuards.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "src/cli/commands/agent.ts",
+    "src/cli/commands/report.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/unit/cli/ls.test.ts",
+    "tests/unit/cli/resume.test.ts",
+    "tests/unit/cli/run.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

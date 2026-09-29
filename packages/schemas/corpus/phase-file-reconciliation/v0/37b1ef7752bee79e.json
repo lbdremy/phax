@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "phax.usage.kdl",
+    "tests/integration/usageSpecLint.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [
+    "scripts/generate-usage-spec.ts"
+  ],
+  "unplannedEdited": [
+    "knip.json",
+    "package.json"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

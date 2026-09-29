@@ -1,0 +1,203 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All five phases of schemas-package plan 2/5 delivered their stated objectives, respected their excluded scope, and matched their planned commit subject/body, verified directly against git history and the current worktree state. Every file-plan deviation (three unplanned files across phase-01 and phase-02, plus one planned-but-untouched file in phase-05) is explicitly recorded and justified in its phase's handoff, and independent verification of the two highest-stakes claims — phase-05's untouched pnpm-lock.yaml and the ajv/knip.json cleanup loop opened in phase-01 and closed in phase-05 — confirms the handoffs' account. No unmet test or artifact promises were found, and no boundary-contract violation was observed.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Literal fallback in defineFormat, five frozen v1 modules, formats/runDirectory.ts, and the BranchNameSchema jsonSchema pattern annotation are all present and pinned in history.lock.json, matching the plan exactly."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Two unplanned files touched (scripts/survey-format-shapes.ts for a pre-existing lint fix with identical output, and deno.lock rewritten mechanically by a gate), both explicitly justified in the handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "knip.json was edited to add ajv to ignoreDependencies with an explicit note that phase-05 must remove it; independently verified that phase-05 did remove it."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "One fixture (phase-status commitHash signature) was substituted from a steme-lab example to a ~/.phax/archive document because reading steme-lab required approval; disclosed in the handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "shapes.test.ts, runDirectoryFormats.test.ts, branded.test.ts (optional), and parse.test.ts all exist and are non-empty, matching the planned test strategy."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit 2fa9c90a subject/body match the plan's 'feat(schemas-package): read every run-directory format with its history'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers the fallback rule, BranchNameSchema pattern, admission strategy, fixture locators, export names, and all deviations with reasons."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Four repository formats, four frozen v1 twins, and the traceability-filter jsonSchema description annotation are all present, matching the plan."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/artifactNamesGuard.test.ts was edited (unplanned) to skip tests/unit/schemasPackage/fixtures/, because real pre-migration-path fixtures from phase-01 started failing a tracked-file naming guard once committed. Justified and disclosed."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "repositoryFormats.test.ts and specDocument.test.ts (optional) both present and non-empty."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "specDocument.ts retains ownership of the traceability rule; the package only wraps it, per the declared boundary contract."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit 0bffb8ac subject/body match the plan's 'feat(schemas-package): read approvals ledgers and spec and plan documents'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff documents the additive-only phax artifact schema spec output change, fixture locators including the empty-ledger commit, and the guard-skip deviation with its cause."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "authoring-record-manifest format with sourceSha-optional frozen twin, parseRecordManifest's $schema-then-kind dispatch, and the unchanged move of the phase-record-manifest definition are all delivered as planned."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "No unplanned or missing files; all planned files touched, optional files left untouched."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "recordManifests.test.ts present and non-empty."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "RecordManifestSchema, decodeRecordManifest and isAuthoringRecordManifest remain owned by src/schemas/authoringRecord.ts; the package only re-exports and wraps, per the declared contract."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit bfb8385e subject/body match the plan's 'feat(schemas-package): read the authoring record manifest and any record manifest'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff records dispatch order, failure messages, fixture commit SHAs, and a disclosed process workaround for git access restrictions in the records clone (not a scope deviation)."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "The v0 unversioned-shape rule, four frozen v0 modules, formats/recordTimeline.ts, and parseDocument covering all 15 FORMAT_IDS are all delivered as planned."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "No unplanned files; optional document.ts was edited (message text only) and optional surveyedFixtures.ts left untouched, both within the plan's optional-file allowance."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "recordTimeline.test.ts present and non-empty."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Producer modules (gateAttribution.ts, reconciliation.ts, gateDiagnostics.ts, gatePending.ts) keep ownership of current schemas and excess-property settings, per the declared contract."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit 96079b4c subject/body match the plan's 'feat(schemas-package): read a record's timeline files as unversioned shape v0'."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff records the v0 rule, the five-signature reconciliation admission with no unexpected renames variant, real fixture sources with exact commit SHA, and a disclosed by-design divergence that never triggers on real phax output."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Independently verified: packages/schemas/json/ contains exactly 16 .schema.json files, the gap detector and renderer exist in build/jsonSchemas.ts, scripts/schemas-json.ts is wired into the root build script, parseDocument's completeness is pinned via EveryFormat<...> plus a type-level Equals assertion, and the closure guard is an exact 18-entry allowlist confirmed present in architecturalGuards.test.ts."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "pnpm-lock.yaml was planned as an edit target but not touched. Independently verified via git show --stat on commit 2bfdc480 (not in the changed-file list) and via the handoff's explanation that ajv@8.20.0 was already a locked devDependency, so pnpm add -D ajv was a no-op on the lockfile. Legitimate non-deviation, but worth flagging for a future audit reading the planned-files list literally."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "ajv independently confirmed removed from knip.json's ignoreDependencies, closing the follow-up phase-01 explicitly flagged."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "jsonSchemas.test.ts, manifest.test.ts, architecturalGuards.test.ts, exports.test.ts, parseDocument.test.ts, and tests/type/schemasPackage.ts all present and non-empty."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "The renderer takes each format's schema directly from its formats/*.ts definition, the same value its parse function decodes with, matching the declared producer/consumer contract."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit 2bfdc480 subject/body match the plan's 'feat(schemas-package): ship one draft-07 JSON Schema per format and fail on gaps'; the 14 actually-changed files line up with the plan minus the justified pnpm-lock.yaml exception."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff records the JSONSchema.fromAST/additionalPropertiesStrategy substitution for JSONSchema.make (installed Effect lacks the needed option), the gap detector's rules with no unexpected gap found, the final closure allowlist, and the pnpm-lock.yaml non-deviation with reasoning."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "pnpm-lock.yaml was planned as an edit target in phase-05 but never touched; verified legitimate (ajv was already locked at the correct version), but should be flagged so the planned-files list isn't read as a broken promise on a later audit.",
+    "tests/unit/artifactNamesGuard.test.ts (phase-02) and knip.json (phase-01/phase-05) were adjusted outside the plan to accommodate the plan's own fixture-realism requirement and its own dev-dependency addition; both are narrow, disclosed, and self-consistent across phases.",
+    "This review verified file presence, exports, commit contents, and configuration state directly, but did not execute the test suite or the build itself; a full pnpm check:full run would give stronger confidence but is outside the scope of a conformance-only review."
+  ],
+  "pointers": []
+}

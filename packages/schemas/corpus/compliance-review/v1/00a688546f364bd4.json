@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Phases 01-03 fully match plan.md: every planned file, promised test, and boundary contract was confirmed present with no unplanned changes anywhere in the run. Phase-04 delivered its README, hello-world example script, config registration, and example-provider tests exactly as specified, but never edited .claude/skills/phax-planning/SKILL.md as the plan required -- the file still documents four lint checks and omits the new advisory check entirely. The phase-04 handoff discloses this gap honestly (an Edit permission for that path was denied twice, with no further attempt), which is why the run is conformant-with-deviations rather than divergent, but the plan's objective for that file remains unmet in the shipped state.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "PlanAuditorConfigSchema/PlanAuditorConfig, the planAuditor key on both config schemas and ResolvedConfig, the merge rule, loadConfig pass-through, and both regenerated JSON schemas are all present exactly as planned."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All planned create/edit files matched in the global reconciliation; the optional tests/unit/loadConfig.test.ts was skipped with a specific justification in the handoff (coverage already exists elsewhere)."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject/body not independently verified via git log in this review session (no shell tool available); no deviation disclosed by the phase."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "makePlanAuditRequest, PlanAuditResponse schema/decoder, PlanAuditorError, queryPlanAuditor, widened LintCheck, advisoryFindings and auditorFailureFinding all confirmed present with the exact signatures and fan-out/null-phase/stderr-truncation behavior the plan specifies."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Producer/consumer contracts for phase-03's later consumption (queryPlanAuditor call shape, advisoryFindings/auditorFailureFinding usage) match exactly what phase-03 actually implemented."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject/body not independently verified via git log in this review session; no deviation disclosed by the phase."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "lintPlan requires FileSystem | Shell and wires queryPlanAuditor after modelFindings only when config.planAuditor is set; runPlansLint provides Layer.mergeAll with NodeShellLayer; phax.usage.kdl and docs/cli/reference.md both carry the updated five-check long help -- all confirmed by direct read."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/integration/lintPlan.test.ts extended with a describe(\"advisory check\") block covering no-auditor inertness, exact projection payload, finding fan-out order, failure mapping, and the structurally-broken-plan-never-spawns-auditor case, matching the plan's test strategy."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject/body not independently verified via git log in this review session; no deviation disclosed by the phase."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "The plan's second stated objective -- 'teach the planning skill the fifth check' -- was not delivered. .claude/skills/phax-planning/SKILL.md's 'Lint before you run' section still says 'Four checks' and never mentions the advisory check, confirmed by direct read of the file (lines 39-50)."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "The planned edit file .claude/skills/phax-planning/SKILL.md is marked 'missing' in the global file reconciliation table. The phase-04 handoff discloses the specific cause (Edit permission for that path denied twice by the harness, no further attempt made) rather than silently omitting it, so the deviation is disclosed but functionally unresolved."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": ".claude/skills/phax-cli/SKILL.md was correctly left untouched: it does not enumerate individual lint checks and defers to `phax --usage`, so the plan's conditional instruction correctly resulted in no edit, as the handoff states."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "README 'Plan auditor' subsection, the 'Lint the plan' fifth-check mention, examples/hello-world/audit-plan.mjs's same-or-later-phase pairing logic, and the phax.json planAuditor registration were all confirmed present and matching the plan's described content and positioning."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/integration/exampleProviders.test.ts contains the planned config.planAuditor?.command assertion and the describe(\"examples/hello-world plan auditor\") block with exactly the two specified cases (zero findings on the full projection; one finding naming phase-01 when phase-02 is dropped)."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "The handoff explicitly and specifically discloses the SKILL.md gap, its cause, and what a follow-up must do -- a well-formed disclosure even though the underlying deviation remains unresolved in the shipped state."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject/body not independently verified via git log in this review session; no deviation disclosed by the phase."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    ".claude/skills/phax-planning/SKILL.md still documents only four lint checks and omits the advisory check the run actually shipped; needs a follow-up edit mirroring the already-shipped README wording.",
+    "The phase-04 handoff attributes the missed SKILL.md edit to a harness Edit-permission denial on that path, repeated twice, with no further attempt or escalation noted -- worth checking whether this reflects a standing permission-scope restriction on .claude/skills/** that will block future plan-driven edits to skill files.",
+    "This review could not run git log/git status (no shell tool was available in this session), so the four commits' subject/body text was not independently verified against the plan's Commit subject/Commit body fields -- verify separately if commit-text conformance matters for downstream consumers of this review."
+  ],
+  "pointers": []
+}

@@ -1,0 +1,28 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/schemas/runRecord.ts",
+    "src/domain/records/assemble.ts",
+    "src/app/writeRecord.ts",
+    "src/app/recordsList.ts",
+    "tests/unit/runRecord.test.ts",
+    "tests/unit/recordsAssemble.test.ts",
+    "tests/integration/writeRecord.test.ts",
+    "tests/integration/recordsExplain.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "src/app/recordsExplain.ts"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/cli/commands/records.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

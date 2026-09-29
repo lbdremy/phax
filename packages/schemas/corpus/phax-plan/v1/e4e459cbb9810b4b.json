@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "entire-checkpoint-spike",
+    "title": "Entire Checkpoint Spike",
+    "requiredCommands": [
+      "entire --version",
+      "entire --help"
+    ],
+    "branch": "phax/entire-checkpoint-spike"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-fable-5",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-01-scaffold",
+      "plannedFilesToCreate": [
+        "spikes/entire/README.md",
+        "spikes/entire/00-preflight.sh",
+        "spikes/entire/findings/TEMPLATE.md"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "chore(spike): scaffold the entire.io checkpoint spike and preflight",
+        "body": "Add the spikes/entire harness directory: a README stating the three unknowns\n(hooks under the run-jail, checkpoint lifecycle through worktree/merge/publish, format\nand phase-to-transcript join), the execution-model caveat and the safety protocol for\nrunning this on a public repo, plus a read-only preflight script reporting entire's\ninstall state and the repo's enablement and push-safety context, and a findings\ntemplate. No src/ changes; groundwork for the probes."
+      },
+      "title": "Spike scaffold and entire preflight"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-fable-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-hooks-in-jail",
+      "plannedFilesToCreate": [
+        "spikes/entire/01-hooks-in-jail.sh",
+        "spikes/entire/findings/01-hooks-in-jail.md"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "spikes/entire/README.md"
+      ],
+      "commit": {
+        "subject": "test(spike): probe entire hook survival inside the phax run-jail",
+        "body": "Add the agent-side probe: a harness that records where entire enable wrote its settings,\nwhether that file is visible inside a phase worktree (a fresh checkout, so a gitignored\nsettings.local.json is not), which hook events fire in a headless --print session,\nwhether the hook command is reachable under the frozen agentCommands allowlist, and\nwhether a phase session was captured at all. Findings doc frames the capture question\nand carries the teardown record; Results/Verdict filled from a real run out-of-band per\nthe spike's execution-model caveat."
+      },
+      "title": "Agent-side hook survival probe"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-fable-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-lifecycle",
+      "plannedFilesToCreate": [
+        "spikes/entire/02-checkpoint-lifecycle.sh",
+        "spikes/entire/findings/02-checkpoint-lifecycle.md"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "spikes/entire/README.md"
+      ],
+      "commit": {
+        "subject": "test(spike): probe entire checkpoint lifecycle through worktree, merge and publish",
+        "body": "Add the git-side probe: a harness that walks a phax run's commits and reports whether\nprepare-commit-msg injected an Entire-Checkpoint trailer from inside a linked worktree,\nwhether post-commit condensed one checkpoint per phase commit onto\nentire/checkpoints/v1, how path-scoped artifact-transition commits are treated, and what\nsurvives merge and publish — plus the shadow branch's repo weight. Findings doc frames\nthe completeness and survival questions; Results/Verdict filled from a real run\nout-of-band."
+      },
+      "title": "Checkpoint lifecycle through worktree, merge and publish"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-fable-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-format-and-join",
+      "plannedFilesToCreate": [
+        "spikes/entire/03-format-and-join.sh",
+        "spikes/entire/findings/03-format-and-join.md"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "spikes/entire/README.md"
+      ],
+      "commit": {
+        "subject": "test(spike): probe entire checkpoint format readability and the phax join",
+        "body": "Add the format probe: a harness that reads a checkpoint tree straight out of git without\nthe entire binary, inventories metadata.json and transcript.jsonl fields against what a\ndesktop run-inspection screen needs, records format-stability signals, and joins phax's\nRun-Id/Phase-Id/Session-Id trailers to entire's Entire-Checkpoint/Entire-Session in both\ndirections, noting what breaks the join. Transcript values are redacted — this is a\npublic repo. Results/Verdict filled from a real run out-of-band."
+      },
+      "title": "Checkpoint format readability and the phax join"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-fable-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-05-synthesis",
+      "plannedFilesToCreate": [
+        "docs/spikes/entire-checkpoint-findings.md"
+      ],
+      "plannedFilesToEdit": [
+        "spikes/entire/README.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "docs(spike): synthesize the entire.io checkpoint findings",
+        "body": "Add the synthesis doc: per-probe verdicts (hooks under the run-jail, checkpoint\nlifecycle through worktree/merge/publish, format readability and the phase-to-transcript\njoin), the adopt-entire versus adopt-the-pattern options each framed by its dominant\nloss, sketches of the two consumption paths (compliance review as diff-vs-intent\nevidence, and the cross-run durable context layer feeding the orient provider), the\nprovenance chain the join would close, residual risks including public-repo transcript\nexposure and repo weight, and a consolidated teardown checklist. The verdict is left\nopen for the human, per the spike's execution-model caveat."
+      },
+      "title": "Synthesis and adopt-vs-pattern options"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/schemas/recordsConfig.ts",
+    "tests/unit/recordsConfig.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/phaxConfig.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/loadConfig.ts",
+    "src/domain/config/mergeLayers.ts"
+  ],
+  "optionalTouched": [
+    "phax.schema.json"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

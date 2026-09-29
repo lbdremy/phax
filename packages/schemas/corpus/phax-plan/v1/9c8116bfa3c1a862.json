@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "durable-agent-errors",
+    "title": "Durable agent error logging + reset-run resumability + MCP allowlist validation",
+    "requiredCommands": [],
+    "branch": "phax/durable-agent-errors"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-agent-error-log",
+      "plannedFilesToCreate": [
+        "src/infra/providers/agentErrorLog.ts",
+        "tests/unit/agentErrorLog.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/infra/providers/claudeCode.ts",
+        "src/infra/providers/codexCli.ts",
+        "src/infra/providers/mistralVibe.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/providers/sessionWriter.ts"
+      ],
+      "commit": {
+        "subject": "feat(infra): persist agent stderr to agent-error.log on failure",
+        "body": "When an agent process exits non-zero or fails to spawn, write the failing argv, exit code, and full captured stderr to agent-error.log in the phase folder. Until now stderr was captured into AgentInvocationError but never persisted, so a startup failure (empty output.jsonl) left no record of the reason. Wired into the claude, codex, and vibe adapters; covered by a unit test on the shared helper."
+      },
+      "title": "Persist agent stderr to a durable error log"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-surface-reason",
+      "plannedFilesToCreate": [
+        "tests/unit/describeCause.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/reducer.ts",
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/commands/runLayers.ts"
+      ],
+      "commit": {
+        "subject": "feat(errors): surface agent exit code and stderr in lastError and CLI",
+        "body": "describeCause now formats AgentInvocationError with its exit code and a bounded stderr excerpt instead of collapsing to \"claude exited with code 1\", so run-status.json's lastError records the actual reason. The run and resume CLI failure renderers show the same reason and point at agent-error.log. Covered by a describeCause unit test."
+      },
+      "title": "Carry the failure reason into lastError and the CLI"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-03-reset-resumable",
+      "plannedFilesToCreate": [
+        "tests/integration/resetResume.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/resolveRunInfo.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/resolveRunInfo.test.ts"
+      ],
+      "commit": {
+        "subject": "fix(resolve): keep reset runs resolvable with no live phase folder",
+        "body": "loadRunReviewInfo no longer hard-fails when no phase-NN directory exists. After reset-phase archives the only live phase folder, the run was unreadable (\"its files could not be read\"); now run-level facts are reconstructed from run-status.json and the plan so resume can pick the run back up. Covered by an integration test exercising reset -> resume."
+      },
+      "title": "Make reset runs resumable when no live phase folder remains"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-mcp-allowlist-validation",
+      "plannedFilesToCreate": [
+        "tests/unit/mcpAllowlistPreflight.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts",
+        "docs/security.md"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/errors.ts",
+        "src/cli/commands/runLayers.ts",
+        "src/cli/commands/run.ts"
+      ],
+      "commit": {
+        "subject": "fix(security): validate mcp.allow paths at preflight before spawning agents",
+        "body": "When security.mcp.mode is \"allowlist\", phax now verifies every mcp.allow entry resolves to a readable file during the run preflight, failing with a clear message that names offending entries instead of letting claude exit 1 opaquely on an unreadable --mcp-config path. docs/security.md is corrected to state that mcp.allow entries are paths to MCP server config files, not server names. Covered by a preflight unit test with a fake filesystem."
+      },
+      "title": "Validate mcp.allow at preflight and correct the docs"
+    }
+  ]
+}

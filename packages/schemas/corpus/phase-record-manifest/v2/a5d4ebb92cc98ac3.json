@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "runId": "plan-lint-1788858296696",
+  "phaseId": "phase-06",
+  "shape": "full",
+  "sourceSha": "f9c1854a5c3c457b5943eaf4b656256f9ec3e933",
+  "model": "claude-sonnet-5",
+  "effort": "low",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 36,
+      "cacheCreationInputTokens": 61635,
+      "cacheReadInputTokens": 1145040,
+      "outputTokens": 12250,
+      "totalCostUsd": 0.6146340000000001
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "product",
+    "structural"
+  ]
+}

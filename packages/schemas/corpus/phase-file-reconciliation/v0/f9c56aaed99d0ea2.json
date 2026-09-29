@@ -1,0 +1,32 @@
+{
+  "phaseId": "phase-07",
+  "createdAsPlanned": [
+    "src/app/configureRecords.ts",
+    "src/cli/commands/records.ts",
+    "tests/integration/recordsInit.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/initWizard.ts",
+    "src/cli/program.ts",
+    "phax.usage.kdl",
+    "docs/cli/inventory.md",
+    "docs/cli/reference.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "README.md",
+    "src/domain/init/buildConfig.ts",
+    "tests/integration/cliProgram.test.ts"
+  ],
+  "optionalTouched": [
+    "src/cli/commands/init.ts",
+    "tests/integration/initWizard.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

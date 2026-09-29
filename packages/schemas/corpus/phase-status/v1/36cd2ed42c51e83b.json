@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "committed",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "createdAt": "2026-09-29T14:46:20.774Z",
+  "updatedAt": "2026-09-29T14:51:38.764Z",
+  "branchName": "phax/schemas-package-3-5-guards--phase-03",
+  "worktreePath": "~/.phax/worktrees/phax.schemas-package-3-5-guards/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "e36418497fd3c2659798c69607f0b61942dfda0d"
+}

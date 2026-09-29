@@ -1,0 +1,19 @@
+{
+  "createdAsPlanned": [
+    "src/schemas/reconciliation.ts",
+    "tests/unit/schemas/reconciliation.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/reconcilePhaseFiles.ts",
+    "src/domain/reconciliation/types.ts",
+    "tests/integration/reconciliation.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

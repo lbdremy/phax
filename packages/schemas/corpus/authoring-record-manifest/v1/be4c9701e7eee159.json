@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "kind": "authoring",
+  "authoringId": "2609281130-oracle-phases",
+  "artifact": "docs/specs/2609281130-oracle-phases.md",
+  "artifactKind": "spec",
+  "shape": "full",
+  "provider": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "outcome": "failed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 44,
+      "cacheCreationInputTokens": 92347,
+      "cacheReadInputTokens": 1624503,
+      "outputTokens": 35306,
+      "totalCostUsd": 1.7699726
+    }
+  }
+}

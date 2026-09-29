@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All four phases of the schemas-package 3/5 (guards) plan delivered their stated objectives, respected their excluded scope, and matched their boundary contracts as verified by direct code and file inspection (snapshots.ts, jsonSchemas.ts, corpus.ts, extract-history-corpus.ts, schemas-check.ts, historyCorpus.test.ts, publicData.test.ts). The large 'unplanned' file set in the global reconciliation is entirely the phase-04 corpus payload (1,417 committed JSON files), which the plan itself anticipates as an unknowable-in-advance deliverable. The one real deviation is a disclosed, justified, narrowly-scoped edit to tests/unit/schemasPackage/publicData.test.ts in phase-04 to fix a false-positive regex match once the real corpus (which includes the plan document itself) was committed.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "packages/schemas/build/snapshots.ts and jsonSchemas.ts export the exact API described; all 16 planned snapshots exist under packages/schemas/snapshots/ with no next.schema.json, confirmed by direct file listing."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All planned create/edit files present and matched per the global reconciliation table; no optional files touched."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "snapshots.ts is pure (no fs imports observed); all I/O is confined to schemas-check.ts as specified."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers exported API, new SchemasState fields, exact unrecorded-change wording, and confirms 16 pinned snapshots with no next."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "scripts/formatSources.ts exists and scripts/survey-format-shapes.ts imports it; handoff states byte-identical survey output was confirmed via cmp."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit 5b90d06f matches the planned subject 'refactor(scripts): extract the persisted-format source walk from the shape survey' exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff discloses that the DECODERS FormatId-keyed typing in the survey was never compiler-verified since no tsconfig covers that file directly — an honestly-flagged caveat, not a scope deviation."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "packages/schemas/build/corpus.ts and scripts/extract-history-corpus.ts implement the full exported API and CLI flag set as specified, verified by direct code read."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit e3641849 matches the planned subject 'feat(schemas-package): add the history-corpus extraction script with scrubbing' exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff gives the exact command, sample output, and a full trial per-shape count (1413 docs, 0 failures), correctly deferring private-data verification of the real corpus to phase-04."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "packages/schemas/corpus/ contains exactly 1417 files matching the handoff's count; gate-diagnostics and gate-pending confirmed to have zero corpus documents via direct glob, matching the disclosed fact about the sources."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "historyCorpus.test.ts matches the plan's Test strategy point for point: directory-structure/hash-name checks, shape-match, and both named acceptance-criterion tests (mixed phase-record-manifest v1/v2, both legacy authoring-record shapes)."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/schemasPackage/publicData.test.ts (planned/created in phase-03, not on phase-04's file list) was edited in phase-04 to tighten its HOME_PATH regex, avoiding a false positive against this plan document's own prose once the real corpus was committed. Disclosed and justified in the phase-04 handoff with verification detail (full 1444-test suite green)."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "The ~1417 unplanned corpus files are explicitly anticipated by the plan's own Excluded-scope and Expected-handoff-content sections as an unknowable-in-advance deliverable, not scope creep."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit 59258752 matches the planned subject 'test(schemas-package): commit the history corpus and parse it on every gate' exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers the extraction command, both run summaries, zero-document formats, confirms no extraction failure, and discloses both deviations with reasons."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "gate-diagnostics and gate-pending have zero real-history documents across all three configured sources; worth confirming these two formats are genuinely new/rare rather than mis-classified by the walk.",
+    "The survey's DECODERS FormatId-keyed exhaustiveness typing (scripts/survey-format-shapes.ts, per phase-02 handoff) has never been compiler-checked because no tsconfig covers that file directly — the safety net may not fire when intended.",
+    "The plan document itself was scrubbed into the corpus as a plan-document/v1 entry, which triggered the publicData.test.ts regex fix — a self-referential detail worth knowing for future corpus provenance audits, though it does not affect gate correctness."
+  ],
+  "pointers": []
+}

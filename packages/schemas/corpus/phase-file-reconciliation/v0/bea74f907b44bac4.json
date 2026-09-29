@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "src/ports/prompt.ts",
+    "src/infra/prompt.ts",
+    "src/infra/fakes/prompt.ts",
+    "tests/unit/fakePrompt.test.ts",
+    "tests/type/prompt.ts"
+  ],
+  "editedAsPlanned": [
+    "src/infra/fakes/index.ts",
+    "package.json",
+    "pnpm-lock.yaml"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "deno.lock"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

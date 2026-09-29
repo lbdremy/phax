@@ -1,0 +1,586 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "tests/unit/artifactNamesGuard.test.ts"
+  ],
+  "editedAsPlanned": [
+    "NEXT_STEPS.md",
+    "docs/model-catalog.md",
+    "docs/security.md",
+    "docs/blog/announcing-phax-1.0.md",
+    "docs/spikes/entire-checkpoint-findings.md",
+    "src/cli/cliDocs.ts",
+    "src/domain/artifact/document.ts",
+    "phax.usage.kdl",
+    "docs/cli/reference.md"
+  ],
+  "missingPlannedCreate": [
+    "docs/specs/2608091526-phase-decision-requests.md",
+    "docs/specs/2608091526-batch-execution-disjoint-plans.md",
+    "docs/specs/archive/2605210819-feedback-ingest.md",
+    "docs/specs/archive/2606030721-phax-planning-skill-update.md",
+    "docs/specs/archive/2606031656-update-provider-effort.md",
+    "docs/specs/archive/2606041211-run-jail.md",
+    "docs/specs/archive/2606051414-review-handoff.md",
+    "docs/specs/archive/2606120941-deno-runtime.md",
+    "docs/specs/archive/2606120941-push-branch-pr.md",
+    "docs/specs/archive/2606150842-install-planning-skill.md",
+    "docs/specs/archive/2606150841-agent-commands.md",
+    "docs/specs/archive/2606181052-init-command.md",
+    "docs/specs/archive/2606181006-lock-agent-binding-phase.md",
+    "docs/specs/archive/2606181037-project-namespace.md",
+    "docs/specs/archive/2606181003-usage-cli.md",
+    "docs/specs/archive/2606171452-remove-network-controls.md",
+    "docs/specs/archive/2607031249-gate-profile-attributed-steps.md",
+    "docs/specs/archive/2607031249-external-gate-steps.md",
+    "docs/specs/archive/2607031249-brief-profile-orient.md",
+    "docs/specs/archive/2607031249-gate-step-scheduling.md",
+    "docs/specs/archive/2607031249-plan-completeness-advisory.md",
+    "docs/specs/archive/2607101341-model-catalog-equivalence-routing.md",
+    "docs/specs/archive/2608091526-artifact-lifecycle-status.md",
+    "docs/specs/archive/2608091526-plan-staleness-lineage.md",
+    "docs/specs/archive/2608110911-artifact-transition-autocommit.md",
+    "docs/specs/archive/2608110950-artifact-frontmatter-metadata.md",
+    "docs/specs/archive/2608121241-run-carries-archival.md",
+    "docs/specs/archive/2608121241-rename-archived-to-completed.md",
+    "docs/specs/archive/2608201245-phax-run-records.md",
+    "docs/specs/archive/2609030725-provider-contract-discoverability.md",
+    "docs/specs/archive/2609030749-spec-approval-ground.md",
+    "docs/specs/archive/2609030829-archive-unfinished-runs.md",
+    "docs/specs/archive/2609080848-plan-lint.md",
+    "docs/plans/2606291247-smolvm-isolation-spike-plan.md",
+    "docs/plans/2606301114-claude-protected-path-approval-hook-plan.md",
+    "docs/plans/archive/2605111617-phax-cli-plan.md",
+    "docs/plans/archive/2606030721-phax-planning-skill-update-plan.md",
+    "docs/plans/archive/2606031656-update-provider-effort-plan.md",
+    "docs/plans/archive/2606031656-provider-e2e-validation-plan.md",
+    "docs/plans/archive/2606041211-run-jail-plan.md",
+    "docs/plans/archive/2606041211-run-jail-provider-validation-plan.md",
+    "docs/plans/archive/2606021303-model-routing-enabled-gating-plan.md",
+    "docs/plans/archive/2606010707-model-routing-plan.md",
+    "docs/plans/archive/2605251225-observability-plan.md",
+    "docs/plans/archive/2606021307-provider-priority-override-plan.md",
+    "docs/plans/archive/2606150841-agent-commands-plan.md",
+    "docs/plans/archive/2606020811-rename-claude-backend-errors-plan.md",
+    "docs/plans/archive/2606181052-init-command-plan.md",
+    "docs/plans/archive/2606080819-opus-frontier-tiers-plan.md",
+    "docs/plans/archive/2606181006-lock-agent-binding-phase-plan.md",
+    "docs/plans/archive/2606090853-review-handoff-plan.md",
+    "docs/plans/archive/2606100823-gate-first-resume-plan.md",
+    "docs/plans/archive/2606181037-project-namespace-plan.md",
+    "docs/plans/archive/2606100823-reset-phase-command-plan.md",
+    "docs/plans/archive/2606181003-usage-cli-plan.md",
+    "docs/plans/archive/2606120941-push-branch-pr-plan.md",
+    "docs/plans/archive/2606181006-remove-last-commands-plan.md",
+    "docs/plans/archive/2606181309-agent-binding-hardening-plan.md",
+    "docs/plans/archive/2606120941-typescript-6-migration-plan.md",
+    "docs/plans/archive/2606120941-deno-runtime-plan.md",
+    "docs/plans/archive/2606181309-enforce-architecture-boundaries-plan.md",
+    "docs/plans/archive/2607221702-brief-profile-orient-plan.md",
+    "docs/plans/archive/2606150842-install-planning-skill-plan.md",
+    "docs/plans/archive/2606181519-sealed-completion-extraction-plan.md",
+    "docs/plans/archive/2606190939-local-telemetry-report-plan.md",
+    "docs/plans/archive/2606191404-whats-next-guidance-plan.md",
+    "docs/plans/archive/2606191439-compliance-review-plan.md",
+    "docs/plans/archive/2607101348-model-catalog-equivalence-routing-plan.md",
+    "docs/plans/archive/2608101018-artifact-lifecycle-status-plan.md",
+    "docs/plans/archive/2606191401-usage-spec-generation-hardening-plan.md",
+    "docs/plans/archive/2606191452-config-user-project-split-plan.md",
+    "docs/plans/archive/2608101529-plan-staleness-lineage-plan.md",
+    "docs/plans/archive/2606191529-handoff-deviation-justification-plan.md",
+    "docs/plans/archive/2606230730-interactive-init-plan.md",
+    "docs/plans/archive/2608110919-artifact-transition-autocommit-plan.md",
+    "docs/plans/archive/2606230858-namespace-compliance-followups-plan.md",
+    "docs/plans/archive/2606231323-run-recap-and-reset-date-plan.md",
+    "docs/plans/archive/2606231427-compliance-handoff-access-and-resume-recap-plan.md",
+    "docs/plans/archive/2606231521-completions-binary-stdin-fix-plan.md",
+    "docs/plans/archive/2606241213-compliance-review-before-phase-details-plan.md",
+    "docs/plans/archive/2606241246-validate-config-only-plan.md",
+    "docs/plans/archive/2606251332-error-logging-and-reset-fixes-plan.md",
+    "docs/plans/archive/2606251446-resumable-handoff-failure-plan.md",
+    "docs/plans/archive/2609080902-plan-lint-plan.md",
+    "docs/plans/archive/2606260810-resumable-postgate-failures-plan.md",
+    "docs/plans/archive/2606260810-decouple-manual-publish-from-config-plan.md",
+    "docs/plans/archive/2606260941-remove-last-commands-plan.md",
+    "docs/plans/archive/2606260951-review-code-command-plan.md",
+    "docs/plans/archive/2606261007-plans-overlap-command-plan.md",
+    "docs/plans/archive/2606261047-plan-extraction-cache-plan.md",
+    "docs/plans/archive/2606291222-deterministic-plan-extraction-plan.md",
+    "docs/plans/archive/2606301550-review-compliance-qualified-name-plan.md",
+    "docs/plans/archive/2607020808-security-hardening-plan.md",
+    "docs/plans/archive/2607101034-gate-profile-attributed-steps-plan.md",
+    "docs/plans/archive/2607101056-typescript-7-migration-plan.md",
+    "docs/plans/archive/2608121433-artifact-frontmatter-metadata-plan.md",
+    "docs/plans/archive/2608131111-rename-archived-to-completed-plan.md",
+    "docs/plans/archive/2608140954-run-carries-completion-plan.md",
+    "docs/plans/archive/2608141345-repo-rooting-and-orient-brief-plan.md",
+    "docs/plans/archive/2608151146-reconciliation-and-reopen-cleanups-plan.md",
+    "docs/plans/archive/2608151524-entire-checkpoint-spike-plan.md",
+    "docs/plans/archive/2608201318-phax-run-records-plan.md",
+    "docs/plans/archive/2608211104-vibe-target-flag-and-review-code-worklist-plan.md",
+    "docs/plans/archive/2608211502-external-gate-steps-plan.md",
+    "docs/plans/archive/2609030733-provider-contract-discoverability-plan.md",
+    "docs/plans/archive/2609030753-spec-approval-ground-plan.md",
+    "docs/plans/archive/2609040953-archive-unfinished-runs-plan.md",
+    "docs/plans/archive/2609070758-gate-step-scheduling-plan.md",
+    "docs/plans/archive/2609070832-catalog-fable-5-1-opus-5-gpt-6-astra-plan.md",
+    "docs/plans/archive/2609090908-plan-completeness-advisory-plan.md"
+  ],
+  "missingPlannedEdit": [
+    "README.md"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "docs/plans/approvals.json",
+    "docs/specs/approvals.json"
+  ],
+  "optionalTouched": [
+    "tests/unit/cli/artifact.test.ts"
+  ],
+  "deletions": [],
+  "renames": [
+    {
+      "from": "docs/plans/39-smolvm-isolation-spike-plan.md",
+      "to": "docs/plans/2606291247-smolvm-isolation-spike-plan.md"
+    },
+    {
+      "from": "docs/plans/41-claude-protected-path-approval-hook-plan.md",
+      "to": "docs/plans/2606301114-claude-protected-path-approval-hook-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/01-plan.md",
+      "to": "docs/plans/archive/2605111617-phax-cli-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/07-observability-plan.md",
+      "to": "docs/plans/archive/2605251225-observability-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/06-model-routing-plan.md",
+      "to": "docs/plans/archive/2606010707-model-routing-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/09-rename-claude-backend-errors-plan.md",
+      "to": "docs/plans/archive/2606020811-rename-claude-backend-errors-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/05-model-routing-enabled-gating-plan.md",
+      "to": "docs/plans/archive/2606021303-model-routing-enabled-gating-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/08-provider-priority-override-plan.md",
+      "to": "docs/plans/archive/2606021307-provider-priority-override-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/02-phax-planning-skill-update-plan.md",
+      "to": "docs/plans/archive/2606030721-phax-planning-skill-update-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/03b-provider-e2e-validation.md",
+      "to": "docs/plans/archive/2606031656-provider-e2e-validation-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/03-update-provider-effort-plan.md",
+      "to": "docs/plans/archive/2606031656-update-provider-effort-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/04-run-jail-plan.md",
+      "to": "docs/plans/archive/2606041211-run-jail-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/04b-run-jail-provider-validation.md",
+      "to": "docs/plans/archive/2606041211-run-jail-provider-validation-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/10-opus-frontier-tiers-plan.md",
+      "to": "docs/plans/archive/2606080819-opus-frontier-tiers-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/11-review-handoff-plan.md",
+      "to": "docs/plans/archive/2606090853-review-handoff-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/12-gate-first-resume-plan.md",
+      "to": "docs/plans/archive/2606100823-gate-first-resume-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/13-reset-phase-command-plan.md",
+      "to": "docs/plans/archive/2606100823-reset-phase-command-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/16-deno-runtime-plan.md",
+      "to": "docs/plans/archive/2606120941-deno-runtime-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/14-push-branch-pr-plan.md",
+      "to": "docs/plans/archive/2606120941-push-branch-pr-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/15-typescript-6-migration-plan.md",
+      "to": "docs/plans/archive/2606120941-typescript-6-migration-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/09-agent-commands.md",
+      "to": "docs/plans/archive/2606150841-agent-commands-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/17-install-planning-skill-plan.md",
+      "to": "docs/plans/archive/2606150842-install-planning-skill-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/13-usage-cli-plan.md",
+      "to": "docs/plans/archive/2606181003-usage-cli-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/11-lock-agent-binding-phase-plan.md",
+      "to": "docs/plans/archive/2606181006-lock-agent-binding-phase-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/14-remove-last-commands-plan.md",
+      "to": "docs/plans/archive/2606181006-remove-last-commands-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/12-project-namespace-plan.md",
+      "to": "docs/plans/archive/2606181037-project-namespace-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/10-init-command-plan.md",
+      "to": "docs/plans/archive/2606181052-init-command-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/15-agent-binding-hardening-plan.md",
+      "to": "docs/plans/archive/2606181309-agent-binding-hardening-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/16-enforce-architecture-boundaries-plan.md",
+      "to": "docs/plans/archive/2606181309-enforce-architecture-boundaries-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/17-sealed-completion-extraction-plan.md",
+      "to": "docs/plans/archive/2606181519-sealed-completion-extraction-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/18-local-telemetry-report-plan.md",
+      "to": "docs/plans/archive/2606190939-local-telemetry-report-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/21-usage-spec-generation-hardening-plan.md",
+      "to": "docs/plans/archive/2606191401-usage-spec-generation-hardening-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/19-whats-next-guidance-plan.md",
+      "to": "docs/plans/archive/2606191404-whats-next-guidance-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/20-compliance-review-plan.md",
+      "to": "docs/plans/archive/2606191439-compliance-review-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/22-config-user-project-split-plan.md",
+      "to": "docs/plans/archive/2606191452-config-user-project-split-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/23-handoff-deviation-justification-plan.md",
+      "to": "docs/plans/archive/2606191529-handoff-deviation-justification-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/24-interactive-init-plan.md",
+      "to": "docs/plans/archive/2606230730-interactive-init-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/25-namespace-compliance-followups-plan.md",
+      "to": "docs/plans/archive/2606230858-namespace-compliance-followups-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/26-run-recap-and-reset-date-plan.md",
+      "to": "docs/plans/archive/2606231323-run-recap-and-reset-date-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/27-compliance-handoff-access-and-resume-recap-plan.md",
+      "to": "docs/plans/archive/2606231427-compliance-handoff-access-and-resume-recap-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/28-completions-binary-stdin-fix-plan.md",
+      "to": "docs/plans/archive/2606231521-completions-binary-stdin-fix-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/29-compliance-review-before-phase-details-plan.md",
+      "to": "docs/plans/archive/2606241213-compliance-review-before-phase-details-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/30-validate-config-only-plan.md",
+      "to": "docs/plans/archive/2606241246-validate-config-only-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/31-error-logging-and-reset-fixes-plan.md",
+      "to": "docs/plans/archive/2606251332-error-logging-and-reset-fixes-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/32-resumable-handoff-failure-plan.md",
+      "to": "docs/plans/archive/2606251446-resumable-handoff-failure-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/34-decouple-manual-publish-from-config.md",
+      "to": "docs/plans/archive/2606260810-decouple-manual-publish-from-config-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/33-resumable-postgate-failures.md",
+      "to": "docs/plans/archive/2606260810-resumable-postgate-failures-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/35-remove-last-commands.md",
+      "to": "docs/plans/archive/2606260941-remove-last-commands-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/36-review-code-command-plan.md",
+      "to": "docs/plans/archive/2606260951-review-code-command-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/37-plans-overlap-command-plan.md",
+      "to": "docs/plans/archive/2606261007-plans-overlap-command-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/38-plan-extraction-cache-plan.md",
+      "to": "docs/plans/archive/2606261047-plan-extraction-cache-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/40-deterministic-plan-extraction-plan.md",
+      "to": "docs/plans/archive/2606291222-deterministic-plan-extraction-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/42-review-compliance-qualified-name-plan.md",
+      "to": "docs/plans/archive/2606301550-review-compliance-qualified-name-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/43-security-hardening-plan.md",
+      "to": "docs/plans/archive/2607020808-security-hardening-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/44-gate-profile-attributed-steps-plan.md",
+      "to": "docs/plans/archive/2607101034-gate-profile-attributed-steps-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/45-typescript-7-migration-plan.md",
+      "to": "docs/plans/archive/2607101056-typescript-7-migration-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/20-model-catalog-equivalence-routing-plan.md",
+      "to": "docs/plans/archive/2607101348-model-catalog-equivalence-routing-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/17-brief-profile-orient-plan.md",
+      "to": "docs/plans/archive/2607221702-brief-profile-orient-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/21-artifact-lifecycle-status-plan.md",
+      "to": "docs/plans/archive/2608101018-artifact-lifecycle-status-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/22-plan-staleness-lineage-plan.md",
+      "to": "docs/plans/archive/2608101529-plan-staleness-lineage-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/25-artifact-transition-autocommit-plan.md",
+      "to": "docs/plans/archive/2608110919-artifact-transition-autocommit-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/46-artifact-frontmatter-metadata-plan.md",
+      "to": "docs/plans/archive/2608121433-artifact-frontmatter-metadata-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/47-rename-archived-to-completed-plan.md",
+      "to": "docs/plans/archive/2608131111-rename-archived-to-completed-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/48-run-carries-completion-plan.md",
+      "to": "docs/plans/archive/2608140954-run-carries-completion-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/49-repo-rooting-and-orient-brief-plan.md",
+      "to": "docs/plans/archive/2608141345-repo-rooting-and-orient-brief-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/50-reconciliation-and-reopen-cleanups-plan.md",
+      "to": "docs/plans/archive/2608151146-reconciliation-and-reopen-cleanups-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/51-entire-checkpoint-spike-plan.md",
+      "to": "docs/plans/archive/2608151524-entire-checkpoint-spike-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/52-phax-run-records-plan.md",
+      "to": "docs/plans/archive/2608201318-phax-run-records-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/53-vibe-target-flag-and-review-code-worklist-plan.md",
+      "to": "docs/plans/archive/2608211104-vibe-target-flag-and-review-code-worklist-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/54-external-gate-steps-plan.md",
+      "to": "docs/plans/archive/2608211502-external-gate-steps-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/55-provider-contract-discoverability-plan.md",
+      "to": "docs/plans/archive/2609030733-provider-contract-discoverability-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/56-spec-approval-ground-plan.md",
+      "to": "docs/plans/archive/2609030753-spec-approval-ground-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/57-archive-unfinished-runs-plan.md",
+      "to": "docs/plans/archive/2609040953-archive-unfinished-runs-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/58-gate-step-scheduling-plan.md",
+      "to": "docs/plans/archive/2609070758-gate-step-scheduling-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/59-catalog-fable-5-1-opus-5-gpt-6-astra-plan.md",
+      "to": "docs/plans/archive/2609070832-catalog-fable-5-1-opus-5-gpt-6-astra-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/33-plan-lint-plan.md",
+      "to": "docs/plans/archive/2609080902-plan-lint-plan.md"
+    },
+    {
+      "from": "docs/plans/archive/60-plan-completeness-advisory-plan.md",
+      "to": "docs/plans/archive/2609090908-plan-completeness-advisory-plan.md"
+    },
+    {
+      "from": "docs/specs/24-batch-execution-disjoint-plans.md",
+      "to": "docs/specs/2608091526-batch-execution-disjoint-plans.md"
+    },
+    {
+      "from": "docs/specs/23-phase-decision-requests.md",
+      "to": "docs/specs/2608091526-phase-decision-requests.md"
+    },
+    {
+      "from": "docs/specs/archive/01-feedback_ingest_spec.md",
+      "to": "docs/specs/archive/2605210819-feedback-ingest.md"
+    },
+    {
+      "from": "docs/specs/archive/02-phax-planning-skill-update.md",
+      "to": "docs/specs/archive/2606030721-phax-planning-skill-update.md"
+    },
+    {
+      "from": "docs/specs/archive/03-update-provider-effort.md",
+      "to": "docs/specs/archive/2606031656-update-provider-effort.md"
+    },
+    {
+      "from": "docs/specs/archive/04-run-jail.md",
+      "to": "docs/specs/archive/2606041211-run-jail.md"
+    },
+    {
+      "from": "docs/specs/archive/05-review-handoff.md",
+      "to": "docs/specs/archive/2606051414-review-handoff.md"
+    },
+    {
+      "from": "docs/specs/archive/06-deno-runtime.md",
+      "to": "docs/specs/archive/2606120941-deno-runtime.md"
+    },
+    {
+      "from": "docs/specs/archive/07-push-branch-pr.md",
+      "to": "docs/specs/archive/2606120941-push-branch-pr.md"
+    },
+    {
+      "from": "docs/specs/archive/09-agent-commands.md",
+      "to": "docs/specs/archive/2606150841-agent-commands.md"
+    },
+    {
+      "from": "docs/specs/archive/08-install-planning-skill.md",
+      "to": "docs/specs/archive/2606150842-install-planning-skill.md"
+    },
+    {
+      "from": "docs/specs/archive/14-remove-network-controls.md",
+      "to": "docs/specs/archive/2606171452-remove-network-controls.md"
+    },
+    {
+      "from": "docs/specs/archive/13-usage-cli.md",
+      "to": "docs/specs/archive/2606181003-usage-cli.md"
+    },
+    {
+      "from": "docs/specs/archive/11-lock-agent-binding-phase.md",
+      "to": "docs/specs/archive/2606181006-lock-agent-binding-phase.md"
+    },
+    {
+      "from": "docs/specs/archive/12-project-namespace.md",
+      "to": "docs/specs/archive/2606181037-project-namespace.md"
+    },
+    {
+      "from": "docs/specs/archive/10-init-command.md",
+      "to": "docs/specs/archive/2606181052-init-command.md"
+    },
+    {
+      "from": "docs/specs/archive/17-brief-profile-orient.md",
+      "to": "docs/specs/archive/2607031249-brief-profile-orient.md"
+    },
+    {
+      "from": "docs/specs/archive/16-external-gate-steps.md",
+      "to": "docs/specs/archive/2607031249-external-gate-steps.md"
+    },
+    {
+      "from": "docs/specs/archive/15-gate-profile-attributed-steps.md",
+      "to": "docs/specs/archive/2607031249-gate-profile-attributed-steps.md"
+    },
+    {
+      "from": "docs/specs/archive/18-gate-step-scheduling.md",
+      "to": "docs/specs/archive/2607031249-gate-step-scheduling.md"
+    },
+    {
+      "from": "docs/specs/archive/19-plan-completeness-advisory.md",
+      "to": "docs/specs/archive/2607031249-plan-completeness-advisory.md"
+    },
+    {
+      "from": "docs/specs/archive/20-model-catalog-equivalence-routing.md",
+      "to": "docs/specs/archive/2607101341-model-catalog-equivalence-routing.md"
+    },
+    {
+      "from": "docs/specs/archive/21-artifact-lifecycle-status.md",
+      "to": "docs/specs/archive/2608091526-artifact-lifecycle-status.md"
+    },
+    {
+      "from": "docs/specs/archive/22-plan-staleness-lineage.md",
+      "to": "docs/specs/archive/2608091526-plan-staleness-lineage.md"
+    },
+    {
+      "from": "docs/specs/archive/25-artifact-transition-autocommit.md",
+      "to": "docs/specs/archive/2608110911-artifact-transition-autocommit.md"
+    },
+    {
+      "from": "docs/specs/archive/26-artifact-frontmatter-metadata.md",
+      "to": "docs/specs/archive/2608110950-artifact-frontmatter-metadata.md"
+    },
+    {
+      "from": "docs/specs/archive/28-rename-archived-to-completed.md",
+      "to": "docs/specs/archive/2608121241-rename-archived-to-completed.md"
+    },
+    {
+      "from": "docs/specs/archive/27-run-carries-archival.md",
+      "to": "docs/specs/archive/2608121241-run-carries-archival.md"
+    },
+    {
+      "from": "docs/specs/archive/29-phax-run-records.md",
+      "to": "docs/specs/archive/2608201245-phax-run-records.md"
+    },
+    {
+      "from": "docs/specs/archive/30-provider-contract-discoverability.md",
+      "to": "docs/specs/archive/2609030725-provider-contract-discoverability.md"
+    },
+    {
+      "from": "docs/specs/archive/31-spec-approval-ground.md",
+      "to": "docs/specs/archive/2609030749-spec-approval-ground.md"
+    },
+    {
+      "from": "docs/specs/archive/32-archive-unfinished-runs.md",
+      "to": "docs/specs/archive/2609030829-archive-unfinished-runs.md"
+    },
+    {
+      "from": "docs/specs/archive/33-plan-lint.md",
+      "to": "docs/specs/archive/2609080848-plan-lint.md"
+    }
+  ],
+  "hasDeviations": true
+}

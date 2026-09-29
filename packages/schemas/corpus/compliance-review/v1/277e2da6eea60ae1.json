@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "Both phases delivered their stated objectives. Phase-01 correctly pauses a run on post-commit handoff failure by broadening the reducer's HandoffMissing transition and wrapping generatePhaseHandoff with Effect.catchTags. Phase-02 correctly detects handoff_failed on resume, reuses the existing worktree/session, skips agent/gates/commit, and re-runs only the handoff against the persisted reconciliation. Two file deviations occurred: an unplanned src/domain/errors.ts creation in phase-01 (justified by project convention) and an extra touch of src/domain/reducer.ts in phase-02 (justified by three resume-path transitions that only became apparent after the resume design was finalised). All promised tests are present. The only notable design divergence from the plan text is that HandoffValidated is not dispatched after a successful resume; instead the reducer was broadened to accept handoff_failed as a source for CleanupStarted and FinalReviewOpened, which achieves equivalent progression. This is documented and justified in the phase-02 handoff and warrants human confirmation.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered as specified. Reducer HandoffMissing case broadened for running+committed → interrupted+handoff_failed. executePlan wraps generatePhaseHandoff with Effect.catchTags catching HandoffValidationError and AgentInvocationError, dispatches HandoffMissing, records step-failed telemetry, raises HandoffPausedError. tapError guard skips RunFailed for HandoffPausedError, mirroring the rate-limit pause pattern. Pre-commit passed-phase path is unchanged."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Respected. No resume logic introduced, commit ordering untouched, no retryable/non-retryable classification attempted."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/domain/errors.ts created (unplanned) to house the HandoffPausedError class. Justified by project convention that all tagged error classes live in that file. Optional files src/domain/matrix.ts and src/app/eventAdapter.ts were not edited; both omissions are documented with reasons in the handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/reducerHandoffPause.test.ts created as planned with 6 unit tests covering the new committed-phase transition, the preserved passed-phase path, unexpected-state cases, and the stale interrupted case."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Producer/consumer contract met: phase status.json in handoff_failed (retaining commitHash, worktreePath, claudeSessionId) and run-status.json in interrupted. Phase-02 can read exactly this shape."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject 'feat(run): pause instead of failing the run on a post-commit handoff error' matches plan exactly. Body content consistent with plan as described in handoff."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers all required content: exact reducer transition, confirmation passed-path untouched, on-disk shape after pause, adaptHandoffGenerate status with reason, errors.ts deviation with reason, and full what-next-phase-needs section."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered as specified. executePlan detects handoff_failed phase status at resume time, sets resumeFromHandoff flag, reuses worktree/branch/session via the shared isResumeFromGate||isResumeFromHandoff setup branch, skips runGatesWithFixLoop/commitPhase, reads persisted file-reconciliation.json (with empty-result fallback), and falls through to isFinal/next-phase logic normally."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Respected. No re-implementation of the pause/classification logic, no reset-phase changes, no automatic in-process retry."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/domain/reducer.ts was extra-touched (not planned for phase-02). Three transitions added: FinalReviewOpened accepting handoff_failed, CleanupStarted accepting handoff_failed, HandoffMissing on running+handoff_failed for second-failure pause. Justified in handoff: all three only became determinable after the resume execution design was finalised. Optional files src/app/resume.ts, src/cli/commands/run.ts, src/cli/commands/resume.ts were not edited, documented in handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/integration/resumeHandoff.test.ts created as planned with two integration tests: successful resume (asserts 1 runAgent call for phase-02 only, no second commit, final state review_open) and second-failure (asserts HandoffPausedError and run stays interrupted)."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Boundary contract met: resume reuses existing worktree/branch/session, skips agent/gates/commit, calls generatePhaseHandoff against persisted reconciliation. No second commit created. Confirmed in handoff."
+        },
+        {
+          "dimension": "objective",
+          "severity": "deviation",
+          "message": "Plan specified dispatching HandoffValidated after a successful handoff re-run. Implementation omits this dispatch; instead CleanupStarted and FinalReviewOpened were broadened to accept handoff_failed as a source phase. Justified in handoff: HandoffValidated from running+handoff_failed would be Unexpected in the reducer. Achieves equivalent progression but deviates from the literal plan instruction."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject 'feat(resume): re-run only the handoff for a handoff_failed phase' matches plan exactly. Body content consistent with plan as described in handoff."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers all required content: reconciliation reconstruction path (persisted file-reconciliation.json, named decode function), confirmation no second commit and no fresh worktree, resume-from-gate unaffected, HandoffValidated omission with reason, reducer extra-touch with justification, and optional-file non-edits."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "HandoffValidated not dispatched on successful resume: the phase remains in handoff_failed state while CleanupStarted/FinalReviewOpened now accept handoff_failed as a source. Confirm that leaving a phase in handoff_failed through cleanup and final-review is semantically acceptable and does not cause issues in run recap, publish, or archive logic that inspects per-phase state.",
+    "adaptHandoffGenerate remains dead on the live path and is retained only because tests/integration/eventAdapter.test.ts references it. If that test is removed, knip should catch the dead code automatically.",
+    "Git commit bodies were not directly verified (no shell execution available during review). Subjects match the plan exactly; handoff content is consistent with the planned bodies."
+  ],
+  "pointers": [
+    "Possible gap: the integration test does not include an explicit focused assertion that resume-from-gate behaviour is unchanged (the plan called for this). The existing test suite covers it implicitly — confirm a dedicated resume-from-gate scenario is tested elsewhere.",
+    "The empty-result fallback on decode failure for file-reconciliation.json (executePlan.ts ~839-852) means a corrupt or missing reconciliation file produces a handoff with hasDeviations=false rather than a hard failure — confirm this is the intended degradation behaviour."
+  ]
+}

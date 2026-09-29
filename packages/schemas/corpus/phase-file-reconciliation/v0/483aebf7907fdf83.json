@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [
+    "src/cli/commands/publishPr.ts",
+    "tests/unit/cli/publishPr.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/main.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

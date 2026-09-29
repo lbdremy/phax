@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "whats-next",
+    "title": "\"What's next\" guidance at run/resume terminal points",
+    "requiredCommands": [],
+    "branch": "phax/whats-next"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Pure \"what's next\" domain module",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-whats-next-domain",
+      "plannedFilesToCreate": [
+        "src/domain/whatsNext.ts",
+        "tests/unit/whatsNext.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(domain): add pure what's-next guidance builder",
+        "body": "Add src/domain/whatsNext.ts: a pure mapping from a terminal run/resume scenario (limit, gates_exhausted, phase_no_changes, review_open) to a structured list of next-step suggestions, plus a deterministic terminal renderer and a platform-aware wait-then-resume command computed from the limit reset time (caffeinate on macOS, systemd-inhibit on Linux, plain sleep elsewhere). Time and platform are injected so the module stays pure and unit-testable. Covered by unit tests for each scenario, platform, and the time math."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Carry phaseId on gate-exhaustion error",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-02-gate-error-phaseid",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/errors.ts",
+        "src/app/fixLoop.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/fixLoop.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(domain): carry phaseId on GateAttemptsExhaustedError",
+        "body": "Add a required phaseId field to GateAttemptsExhaustedError and populate it at the single construction site in fixLoop, so the CLI can render a precise `phax enter-phase` command when gates are exhausted without reading run state."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Emit the what's-next block in run/resume",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-cli-wiring",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts",
+        "src/cli/commands/runLayers.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/runArgv.test.ts",
+        "tests/unit/resumeArgv.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): print what's-next guidance on stderr at run/resume exits",
+        "body": "Render the structured what's-next block at every terminal point of phax run and phax resume (rate/usage limit, gate exhaustion, no-changes, review_open), emitting on stderr regardless of --verbose so stdout stays pipe-clean. Move the existing resume-instructions.md pointer off stdout and add the previously missing gate-exhaustion and no-changes guidance."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "Derive resume-instructions.md from the shared builder",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-md-reuse",
+      "plannedFilesToCreate": [
+        "tests/unit/resumeInstructions.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/resumeInstructions.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/effectRunner.ts",
+        "src/app/executePlan.ts"
+      ],
+      "commit": {
+        "subject": "refactor(app): source resume-instructions commands from what's-next builder",
+        "body": "Generate the actionable command sections of resume-instructions.md from the shared buildWhatsNext source so the durable file and the terminal block stay in lockstep. Keep the long-form prose and \"why it stopped\" context. Covered by a new unit test pinning the commands for both the limit and gate-exhaustion variants."
+      }
+    }
+  ]
+}

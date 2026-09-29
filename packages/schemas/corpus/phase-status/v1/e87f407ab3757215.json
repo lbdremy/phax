@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "review_open",
+  "model": "claude-sonnet-5",
+  "effort": "low",
+  "createdAt": "2026-08-15T10:50:04.758Z",
+  "updatedAt": "2026-08-15T10:51:26.763Z",
+  "branchName": "phax/migrate-to-typescript-7--phase-02",
+  "worktreePath": "~/.phax/worktrees/phax.migrate-to-typescript-7/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "cfd9f67c4ca3a0f69da989f1eb4d26e13d3f8b82"
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-05",
+  "phaseIndex": 4,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-29T10:13:02.913Z",
+  "updatedAt": "2026-06-29T10:30:03.675Z",
+  "branchName": "phax/plans-overlap--phase-05",
+  "worktreePath": "~/.phax/worktrees/phax.plans-overlap/phase-05",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "7c94f1f1d5bd1e23376493b90e67e1cddd35d6df"
+}

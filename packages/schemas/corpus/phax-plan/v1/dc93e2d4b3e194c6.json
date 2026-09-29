@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "resumable-handoff-failures",
+    "title": "Resumable handoff failures",
+    "requiredCommands": [],
+    "branch": "phax/resumable-handoff-failures"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-01-pause-on-handoff-failure",
+      "plannedFilesToCreate": [
+        "tests/unit/reducerHandoffPause.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/reducer.ts",
+        "src/app/executePlan.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/matrix.ts",
+        "src/app/eventAdapter.ts"
+      ],
+      "commit": {
+        "subject": "feat(run): pause instead of failing the run on a post-commit handoff error",
+        "body": "When phase handoff generation fails after the phase has already committed, the run now transitions the phase to handoff_failed and the run to interrupted (resumable) instead of collapsing to RunFailed. The reducer's HandoffMissing transition is broadened to accept a committed phase and move the run to interrupted; executePlan catches the handoff validation/invocation error and ends the run as a clean pause with the commit and worktree intact. Covered by a reducer unit test."
+      },
+      "title": "Pause (don't fail) the run on a post-commit handoff failure"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-02-resume-handoff-only",
+      "plannedFilesToCreate": [
+        "tests/integration/resumeHandoff.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/resume.ts",
+        "src/cli/commands/run.ts",
+        "src/cli/commands/resume.ts"
+      ],
+      "commit": {
+        "subject": "feat(resume): re-run only the handoff for a handoff_failed phase",
+        "body": "phax resume now recognises a phase paused in handoff_failed, reuses its existing worktree, branch, session, and commit, and re-runs only generatePhaseHandoff against the persisted reconciliation before continuing to the next phase. A transient handoff failure no longer requires reset-phase (which deletes the good commit and redoes the whole phase); resume recovers it cheaply. Covered by an integration test that asserts no second commit and no fresh agent body run."
+      },
+      "title": "Resume re-runs only the handoff for a handoff_failed phase"
+    }
+  ]
+}

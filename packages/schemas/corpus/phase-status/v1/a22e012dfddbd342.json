@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-04",
+  "phaseIndex": 3,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "high",
+  "createdAt": "2026-06-22T13:36:01.924Z",
+  "updatedAt": "2026-06-22T13:45:21.119Z",
+  "branchName": "phax/project-namespaces--phase-04",
+  "worktreePath": "~/.phax/worktrees/project-namespaces/phase-04",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "341906ebe04aa27cb8f003a86785cdab97624484"
+}

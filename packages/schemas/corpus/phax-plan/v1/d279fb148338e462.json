@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "phax-review-code",
+    "title": "phax review-code interactive code-review session",
+    "requiredCommands": [],
+    "branch": "phax/phax-review-code"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-schema-config",
+      "plannedFilesToCreate": [
+        "src/schemas/codeReviewSession.ts",
+        "tests/unit/codeReviewSession.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/app/loadConfig.ts",
+        "tests/unit/loadConfig.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/phaxConfigJsonSchema.test.ts",
+        "tests/unit/phaxUserOverlaySchema.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas): add code-review session record and review.code config",
+        "body": "Add CodeReviewSessionSchema (persisted record for the review-code interactive session) and an optional review.code config block resolved into config.codeReview, so a later phase can locate, resume, and model-pin the review-code session. Covered by unit tests for decode/resolve and loadConfig defaulting."
+      },
+      "title": "Code-review session record schema and `review.code` config"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-02-session-adapter",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/session/types.ts",
+        "src/domain/session/claude.ts",
+        "src/domain/session/codex.ts",
+        "src/domain/session/mistral.ts",
+        "tests/unit/sessionAdapters.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(session): add buildReviewInvocation to session adapters",
+        "body": "Add SessionAdapter.buildReviewInvocation so the review-code use case can start a pre-prompted interactive session (claude --session-id … prompt) or resume an existing review-code session (claude --resume …). codex/mistral return an unsupported refusal for the pre-prompted start. Covered by unit tests for the claude argv and the codex/mistral refusals."
+      },
+      "title": "Interactive review invocation in session adapters"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-prompt-builder",
+      "plannedFilesToCreate": [
+        "src/domain/review/codeReviewPrompt.ts",
+        "tests/unit/review/codeReviewPrompt.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(review): add code-review pre-prompt builder",
+        "body": "Add a pure builder that assembles the review-code pre-prompt from reconciliation attention points and (optionally) compliance-review findings, plus the short positional pointer the interactive agent receives on argv. Covered by unit tests for the with- and without-compliance cases."
+      },
+      "title": "Code-review pre-prompt builder"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-use-case",
+      "plannedFilesToCreate": [
+        "src/app/reviewCode.ts",
+        "tests/integration/reviewCode.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(app): add review-code session preparation use case",
+        "body": "Add prepareCodeReviewSession, which starts or resumes the review-code interactive session: it reads the run's reconciliation attention points and optional compliance findings, writes the pre-prompt and a persisted session record, and returns the provider invocation for the CLI to spawn. Session id is fixed via a generated UUID so resume is deterministic. Covered by integration tests over the new/resume/unsupported branches with fake ports."
+      },
+      "title": "`review-code` use case (prepare/resume session)"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-cli-command",
+      "plannedFilesToCreate": [
+        "src/cli/commands/reviewCode.ts",
+        "src/infra/fakes/session.ts",
+        "tests/integration/reviewCodeCommand.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "phax.usage.kdl",
+        "src/infra/fakes/index.ts",
+        "tests/integration/cliProgram.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "README.md"
+      ],
+      "commit": {
+        "subject": "feat(cli): add review-code interactive review session command",
+        "body": "Add `phax review-code <short-name>`, which opens an interactive, pre-prompted code-review session in a review_open run's final worktree, seeded from the run's attention points and compliance findings. Re-invocation resumes the same session; --new-session starts fresh. Registers the command, documents it in phax.usage.kdl, and adds a fake Session layer for the command integration test."
+      },
+      "title": "`review-code` CLI command, registration, and usage spec"
+    }
+  ]
+}

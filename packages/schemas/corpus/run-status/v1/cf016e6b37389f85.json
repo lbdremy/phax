@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "compliance-handoff-resume",
+  "runId": "compliance-handoff-resume-1782224977307",
+  "state": "archived",
+  "createdAt": "2026-06-23T14:29:37.324Z",
+  "updatedAt": "2026-09-04T14:40:30.352Z",
+  "phasesCount": 2,
+  "gateProfileId": "full",
+  "stoppedReason": "phase_reset"
+}

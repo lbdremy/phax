@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/cli/commands/resetPhase.ts",
+    "src/cli/commands/resetPhaseRegister.ts",
+    "tests/e2e/resetPhase.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/main.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

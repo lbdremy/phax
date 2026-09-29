@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "spec-approval-ground",
+    "title": "Spec approval ground",
+    "requiredCommands": [],
+    "branch": "phax/spec-approval-ground"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-domain-stamp-and-record",
+      "plannedFilesToCreate": [
+        "src/schemas/specApprovalRecord.ts",
+        "tests/unit/schemas/specApprovalRecord.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/artifactFrontmatter.ts",
+        "src/domain/artifact/status.ts",
+        "src/domain/artifact/lineage.ts",
+        "src/domain/artifact/writeSet.ts",
+        "tests/unit/artifact/frontmatter.test.ts",
+        "tests/unit/artifact/status.test.ts",
+        "tests/unit/artifact/lineage.test.ts",
+        "tests/unit/artifact/writeSet.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/artifact/document.test.ts",
+        "tests/type/*.ts"
+      ],
+      "commit": {
+        "subject": "feat(artifact): let specs carry an approval stamp and record shape",
+        "body": "Widen the spec frontmatter key set with the plan-style `approved` mapping,\nadd the spec approval record schema and its sidecar path, make\n`Approved → Approved` legal for specs, and add a pure verdict helper that\njudges a spec's current fingerprint against its record. Write-sets for spec\napprove and terminal transitions now include docs/specs/approvals.json."
+      },
+      "title": "Spec stamp, record schema and transition table"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-app-record-and-gate",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/approvalRecordStore.ts",
+        "src/app/artifactStatus.ts",
+        "src/domain/errors.ts",
+        "src/cli/commands/runLayers.ts",
+        "tests/integration/artifactStatus.test.ts",
+        "tests/integration/planStaleness.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/fakes/fs.ts",
+        "tests/integration/completeRunArtifacts.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(artifact): record spec approvals and chain plan approval on them",
+        "body": "Approving a spec now stamps `approved: { date, baseline }` and writes a record\nto docs/specs/approvals.json; re-approval replaces both; terminal transitions\nremove the record. `inspectArtifact` reports whether an Approved spec matches\nits record or is unrecorded. Approving a plan against a spec that is edited\nsince approval or unrecorded is refused with exit 12 and a re-approve remedy."
+      },
+      "title": "Record, re-approve, report and chain-gate"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-cli-and-docs",
+      "plannedFilesToCreate": [
+        "tests/unit/cli/artifactStatusRender.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/artifact.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md",
+        ".claude/skills/phax-spec/SKILL.md",
+        ".claude/skills/phax-cli/SKILL.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/cliProgram.test.ts",
+        "tests/integration/usageOutput.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): show spec approval in artifact status and document re-approval",
+        "body": "`phax artifact status` on a spec now prints its approval date and baseline\nand whether it is edited since approval or unrecorded. The artifact approve\nand status long help describe the spec stamp, the legal re-approval and the\nplan-approval refusal; usage spec, CLI reference and README regenerated; the\nphax-spec and phax-cli skills describe the `approved` key and the remedy for\nin-place revisions."
+      },
+      "title": "CLI rendering and documentation"
+    }
+  ]
+}

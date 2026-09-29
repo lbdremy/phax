@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "runId": "schemas-package-2-5-read-every-format-2-1790685916874",
+  "phaseId": "phase-04",
+  "shape": "full",
+  "sourceSha": "96079b4c783f1a85c8a826e65257422c29c4491f",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "provider": "claude-code",
+  "outcome": "committed",
+  "usage": {
+    "available": true,
+    "usage": {
+      "provider": "claude-code",
+      "inputTokens": 120,
+      "cacheCreationInputTokens": 191412,
+      "cacheReadInputTokens": 8879801,
+      "outputTokens": 58401,
+      "totalCostUsd": 4.4757562
+    }
+  },
+  "verifiedSurfaces": [
+    "local",
+    "structural"
+  ]
+}

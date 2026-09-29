@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All five phases delivered their stated objectives. Phase-01 is fully conformant. Phases 03 and 04 each contain unplanned file edits forced by gate failures — both are documented and justified (a latent test bug exposed by the first nested-command cliDocs entry in phase-03, an architectural allowlist entry and an extraction-not-gated test case placement in phase-04). Phase-05 has two deviations: the six executed-plan moves appear as git renames rather than separate create+edit operations (anticipated and explained by the plan and handoff), and the required sanity-pass output was not recorded in the handoff (a minor documentation gap, not a substantive miss). No phase has an unjustified deviation.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": []
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/integration/usageSpecExamples.test.ts was edited but not in the planned file list. Justified: a latent bug in findCmdBlock (full cliDocs key lookup) only became visible because artifact is the repo's first nested-command cliDocs entry; the fix was required to pass the gate."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/unit/architecturalGuards.test.ts was edited but not in the planned file list. Justified: src/cli/commands/artifact.ts imports node:child_process for the git-root lookup and required an entry in the existing CLI_DIRECT_IO_ALLOWLIST, identical to the mechanism already used for other command files."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "tests/integration/loadOrExtractPlan.test.ts was edited but not in the planned file list. Justified: the plan directed adding the extraction-not-gated test case 'wherever extraction is already integration-tested'; this file is the canonical location for loadOrExtractPlan integration tests."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Six source paths (docs/plans/17/37/38/40/42/43) show as 'missing' in the reconciliation and six archive destinations show as 'renamed' rather than 'matched'. This is the expected artifact of git mv: the plan anticipated this pairing explicitly and the handoff explains it. The destination files exist with correct Status: Archived and Source-Spec: content."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "deviation",
+          "message": "The plan's Expected handoff content required verbatim pnpm dev artifact status output for one artifact from each migrated group. The handoff notes gates passed but does not include this output. Minor documentation gap; the migration content is correct based on spot-checks."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Phase-05 handoff is missing the required sanity-pass output (pnpm dev artifact status on a sample from each migrated group). Reviewer can verify manually: `pnpm dev artifact status docs/plans/archive/37-plans-overlap-command-plan.md`, `pnpm dev artifact status docs/plans/39-smolvm-isolation-spike-plan.md`, `pnpm dev artifact status docs/specs/archive/01-feedback_ingest_spec.md`.",
+    "The six executed plans (17, 37, 38, 40, 42, 43) appear as git renames (R) in the phase-05 commit, not as separate modify+create pairs. This is expected and documented; reviewers should not interpret the reconciliation 'missing' entries as unexecuted work.",
+    "Optional skill files (phax-spec, phax-planning, phax-cli SKILL.md) were not updated. The artifact command group and enforced status lines are not yet reflected in those skills."
+  ],
+  "pointers": []
+}

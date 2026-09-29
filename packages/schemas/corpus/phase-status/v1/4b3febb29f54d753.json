@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-05",
+  "phaseIndex": 4,
+  "state": "committed",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-09-08T09:27:29.279Z",
+  "updatedAt": "2026-09-08T09:50:27.188Z",
+  "branchName": "phax/plan-lint--phase-05",
+  "worktreePath": "~/.phax/worktrees/phax.plan-lint/phase-05",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "02297537e1a4b27fbc3eb3483aca952cb71cc98e"
+}

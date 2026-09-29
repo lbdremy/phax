@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-04",
+  "phaseIndex": 3,
+  "state": "review_open",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-12T08:47:40.540Z",
+  "updatedAt": "2026-06-12T08:54:00.577Z",
+  "branchName": "phax/reset-phase--phase-04",
+  "worktreePath": "~/.phax/worktrees/reset-phase/phase-04",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "a4cb7b68a78ef5d6b94c83b7b710ac9d5abe5d87"
+}

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "deterministic-plan-extraction-with-llm-fallback",
+  "runId": "deterministic-plan-extraction-with-llm-fallback-1782738501305",
+  "state": "archived",
+  "createdAt": "2026-06-29T13:08:21.323Z",
+  "updatedAt": "2026-09-03T07:46:52.230Z",
+  "phasesCount": 3,
+  "gateProfileId": "full"
+}

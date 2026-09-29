@@ -1,0 +1,21 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "scripts/build-binaries.ts"
+  ],
+  "editedAsPlanned": [
+    "deno.json",
+    "package.json",
+    "phax.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [
+    "scripts/smoke-binary.sh"
+  ],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

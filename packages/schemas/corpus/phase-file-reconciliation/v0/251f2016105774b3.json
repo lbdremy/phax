@@ -1,0 +1,17 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [
+    "tests/unit/skills/bundled.test.ts"
+  ],
+  "editedAsPlanned": [
+    "package.json"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

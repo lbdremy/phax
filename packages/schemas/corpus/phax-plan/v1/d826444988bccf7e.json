@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "agent-binding",
+    "title": "Locked Agent Binding for Phase Sessions",
+    "requiredCommands": [],
+    "branch": "phax/agent-binding"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "PhaseAgentBinding schema and provider mapping",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-binding-schema",
+      "plannedFilesToCreate": [
+        "src/schemas/phaseAgentBinding.ts",
+        "src/domain/providerAdapter.ts",
+        "tests/unit/phaseAgentBinding.test.ts",
+        "tests/unit/providerAdapter.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "src/domain/routing/types.ts"
+      ],
+      "commit": {
+        "subject": "feat(schema): add PhaseAgentBinding schema and provider-adapter mapping",
+        "body": "Introduce the persisted PhaseAgentBinding schema (agent-binding.json contract) and a total ProviderId→adapter mapping so later phases can lock and re-enter a phase's exact provider session without consulting the router. Covered by unit tests for decode/encode validity and the provider mapping."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Persist the locked binding at phase launch",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-persist-binding",
+      "plannedFilesToCreate": [
+        "src/app/agentBinding.ts",
+        "tests/unit/agentBinding.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts",
+        "src/infra/providers/sessionWriter.ts",
+        "tests/integration/executePlan.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/dispatcher.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(run): persist locked agent binding at phase launch",
+        "body": "Write agent-binding.json when a fresh phase enters launching and patch it with the captured session id after the agent returns, via a new app/agentBinding helper and the shared session-write path so all providers are covered. Newly launched phases now carry a complete provider-aware locked binding. Covered by unit and integration tests."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Lock automated resume to the binding (no reroute)",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-03-resume-lock",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts",
+        "tests/integration/executePlan.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/dispatcher.test.ts"
+      ],
+      "commit": {
+        "subject": "fix(run): resume launched phases from the locked binding, never the router",
+        "body": "The resumed-phase branch in executePlan now reads the persisted PhaseAgentBinding for provider/model/effort instead of re-running model routing, so changing routing config after launch cannot re-route an already-launched phase. Covered by an integration test that mutates routing after launch and asserts the bound provider is still used."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "Provider session adapters and legacy inference",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "phase-04-session-adapters",
+      "plannedFilesToCreate": [
+        "src/infra/sessionAdapters/types.ts",
+        "src/infra/sessionAdapters/claude.ts",
+        "src/infra/sessionAdapters/codex.ts",
+        "src/infra/sessionAdapters/mistral.ts",
+        "src/infra/sessionAdapters/index.ts",
+        "src/app/inferLegacyBinding.ts",
+        "tests/unit/sessionAdapters.test.ts",
+        "tests/unit/inferLegacyBinding.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "src/infra/sessionAdapters/registry.ts"
+      ],
+      "commit": {
+        "subject": "feat(session): add provider session adapters and legacy binding inference",
+        "body": "Add per-provider interactive session adapters (claude/codex/mistral) behind an exhaustive registry, a shared interactive spawn helper, and a legacy-binding inference helper that reconstructs a legacy_inferred PhaseAgentBinding from existing phase artifacts. Unsupported providers return explicit messages rather than falling back to Claude. Covered by unit tests for adapter argv, registry exhaustiveness, and inference success/failure."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "Rewire enter / enter-phase to the binding; remove enter-last",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-enter-rewire",
+      "plannedFilesToCreate": [
+        "tests/integration/enter.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commands/enter.ts",
+        "src/cli/commands/enterPhase.ts",
+        "src/cli/main.ts",
+        "tests/integration/enterPhase.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(cli): enter launched phases via the locked binding; remove enter-last",
+        "body": "enter and enter-phase now read the persisted PhaseAgentBinding and dispatch to the provider session adapter (claude/codex/mistral) in the bound worktree, replacing the hardcoded claude --resume path. Legacy phases infer a legacy_inferred binding or fail with an explicit error; no command re-routes a launched phase. The enter-last command is removed as CLI-surface noise. Covered by integration tests for codex dispatch and the legacy paths."
+      }
+    },
+    {
+      "id": "phase-06",
+      "title": "session-info shows the locked binding",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-06-session-info",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/commands/sessionInfo.ts",
+        "src/cli/main.ts",
+        "tests/integration/sessionInfo.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(cli): show the locked provider/model in session-info",
+        "body": "session-info now renders the persisted PhaseAgentBinding — locked provider, model, adapter, session id, worktree, status, lock source — for the resolved phase. Provider/model are read from the binding, never inferred from current routing, with a legacy inference fallback and a --debug metadata dump. Covered by integration tests including a routing-changed regression."
+      }
+    }
+  ]
+}

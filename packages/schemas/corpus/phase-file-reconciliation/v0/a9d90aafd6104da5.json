@@ -1,0 +1,29 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "README.md",
+    "examples/hello-world/plan.md"
+  ],
+  "missingPlannedCreate": [
+    "docs/plan-extraction-model.md"
+  ],
+  "missingPlannedEdit": [
+    ".claude/skills/phax-planning/SKILL.md",
+    ".claude/skills/phax-cli/SKILL.md",
+    ".claude/skills/phax-spec/SKILL.md"
+  ],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [
+    {
+      "from": "docs/extract-plan-model.md",
+      "to": "docs/plan-extraction-model.md"
+    }
+  ],
+  "hasDeviations": true
+}

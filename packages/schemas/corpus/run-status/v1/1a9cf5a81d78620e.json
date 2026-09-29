@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "phax-validate",
+  "runId": "phax-validate-1782305301480",
+  "state": "archived",
+  "createdAt": "2026-06-24T12:48:21.499Z",
+  "updatedAt": "2026-09-03T07:46:49.865Z",
+  "phasesCount": 2,
+  "gateProfileId": "full"
+}

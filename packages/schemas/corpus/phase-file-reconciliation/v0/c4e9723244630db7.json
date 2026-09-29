@@ -1,0 +1,28 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/schemas/securityPosture.ts",
+    "src/app/executePlan.ts",
+    "src/app/finalReport.ts",
+    "tests/unit/security/posture.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/perPhaseBranch.test.ts",
+    "tests/integration/rateLimit.test.ts",
+    "tests/integration/reconciliation.test.ts",
+    "tests/integration/resume.test.ts",
+    "tests/integration/routing.test.ts",
+    "tests/integration/stateMachineContract.test.ts",
+    "tests/integration/telemetry/end-to-end.test.ts"
+  ],
+  "optionalTouched": [
+    "tests/integration/executePlan.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

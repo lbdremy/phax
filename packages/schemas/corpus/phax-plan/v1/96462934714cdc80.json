@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "plan-staleness-and-lineage",
+    "title": "Plan staleness and lineage",
+    "requiredCommands": [
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ],
+    "branch": "phax/plan-staleness-and-lineage"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-lineage-domain",
+      "plannedFilesToCreate": [
+        "src/domain/artifact/lineage.ts",
+        "src/schemas/approvalRecord.ts",
+        "tests/unit/artifact/lineage.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/artifact/document.ts",
+        "src/domain/errors.ts",
+        "tests/unit/artifact/document.test.ts",
+        "tests/integration/artifactStatus.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/schemas.test.ts",
+        "tests/unit/cli/artifact.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(artifact): add lineage, fingerprint, and staleness domain model",
+        "body": "Pure vocabulary for spec 22: Source-Spec declaration grammar with explicit (none) form,\nfingerprint input normalization excluding phax-managed header lines, Approved-stamp\nhelper, staleness computation over the closed reason set with per-reason evidence and\nmissing-record as the safe default, approval-record sidecar schema, and errors for the\ntwo chain gates and the run refusal. Plan validation now fails without a Source-Spec\ndeclaration. Unit coverage over the grammar, fingerprint invariance, and the full\nstaleness matrix."
+      },
+      "title": "Lineage, fingerprint, and staleness domain"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-git-baseline-ops",
+      "plannedFilesToCreate": [
+        "tests/integration/gitBaseline.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/git.ts",
+        "src/infra/git.ts",
+        "src/infra/fakes/git.ts",
+        "src/schemas/git.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/mergeLayers.test.ts",
+        "tests/unit/schemas.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(git): add headCommit, commitExists, and changedFilesSince port operations",
+        "body": "Three read operations backing spec 22's approval baseline: HEAD resolution for record\ncapture, commit-existence probing so a vanished baseline degrades to stale instead of\ncrashing, and baseline-to-working-tree changed-file listing (uncommitted edits included,\nuntracked files excluded) for ground-change detection. Implemented in the node adapter\nwith schema-parsed output, mirrored in the fake, covered by a real-git integration test."
+      },
+      "title": "Git port baseline operations"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-gated-approval",
+      "plannedFilesToCreate": [
+        "src/app/approvalRecordStore.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/artifactStatus.ts",
+        "src/cli/commands/artifact.ts",
+        "src/cli/commands/runLayers.ts",
+        "tests/integration/artifactStatus.test.ts",
+        "tests/unit/cli/artifact.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/errors.ts",
+        "tests/integration/cliErrors.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(artifact): chain-gate plan approval and capture approval records",
+        "body": "Plan approval now enforces spec 22's chain — the declared source spec must exist and be\nApproved — and records what the approval was given against: plan and spec content\nfingerprints plus the repository HEAD baseline, persisted in docs/plans/approvals.json\nwith a human-readable Approved stamp in the plan header. Spec retirement refuses while\nlive dependent plans exist; terminal plan transitions drop their sidecar entry. New\nrefusals exit 12. Covered by fake-fs/fake-git integration tests over §5.2–§5.5."
+      },
+      "title": "Chain-gated approval with record capture"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-04-staleness-usecases",
+      "plannedFilesToCreate": [
+        "src/app/planStaleness.ts",
+        "src/domain/artifact/render.ts",
+        "tests/integration/planStaleness.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "src/domain/errors.ts",
+        "src/app/approvalRecordStore.ts",
+        "tests/unit/artifact/lineage.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(plans): compute plan staleness and the report/apply use cases",
+        "body": "Staleness of an Approved plan is now computable: the approval record's fingerprints and\nbaseline are checked against the current spec content, plan content, and\nbaseline-to-working-tree changed files intersected with the extraction-derived footprint,\nyielding fresh or per-reason evidence, with missing or invalidated records reporting\nstale by design. A report sweep covers every live Approved plan without writing anything;\napply flips stale-computed plans Approved→Stale through the lifecycle transition. Covered\nby fake-port integration tests over §5.6–§5.14."
+      },
+      "title": "Staleness computation and report use cases"
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-05-plans-cli",
+      "plannedFilesToCreate": [
+        "src/cli/commands/plans.ts",
+        "tests/unit/cli/plans.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md",
+        "tests/integration/cliProgram.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/commands/plansOverlap.ts",
+        "tests/integration/plansOverlapCommand.test.ts",
+        "tests/integration/plansOverlapLanded.test.ts",
+        "src/cli/cliCompleters.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): add plans command group with staleness status and migrated overlap",
+        "body": "New nested plans command group: plans status reports every Approved plan as fresh or\nstale with per-reason evidence, and --apply flips the stale-computed ones\nApproved→Stale as an explicit gesture; the flat plans-overlap command migrates to plans\noverlap unchanged in behavior. Usage KDL, CLI reference, README, and the command-tree\ntest are regenerated and updated in the same commit."
+      },
+      "title": "plans command group: status, apply, overlap migration"
+    },
+    {
+      "id": "phase-06",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-06-run-staleness-gate",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/commands/run.ts",
+        "tests/unit/cli/run.test.ts",
+        "tests/integration/cliErrors.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/planStaleness.ts",
+        "tests/integration/run.test.ts",
+        "tests/e2e/helpers/runCli.ts"
+      ],
+      "commit": {
+        "subject": "feat(run): refuse to start runs from stale plans",
+        "body": "phax run now computes staleness for repo-tracked plans after extraction, reusing the\nrun's own footprint: spec-changed, ground-changed, and self-changed verdicts — and\nmissing approval records — refuse with exit 12, naming each reason with its evidence and\nre-approval as the remedy. Loose plan.md files outside docs/plans/ and the resume path\nstay ungated. Covered by CLI unit cases and a real-CLI integration refusal test."
+      },
+      "title": "Gate phax run on fresh plans"
+    }
+  ]
+}

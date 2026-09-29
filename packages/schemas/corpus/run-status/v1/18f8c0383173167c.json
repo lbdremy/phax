@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "telemetry-report-2",
+  "runId": "telemetry-report-2-1781880154646",
+  "state": "archived",
+  "createdAt": "2026-06-19T14:42:34.666Z",
+  "updatedAt": "2026-09-03T07:49:11.623Z",
+  "phasesCount": 5,
+  "gateProfileId": "full"
+}

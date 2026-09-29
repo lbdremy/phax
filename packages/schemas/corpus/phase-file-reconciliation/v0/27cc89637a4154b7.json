@@ -1,0 +1,24 @@
+{
+  "phaseId": "phase-03",
+  "createdAsPlanned": [
+    "src/cli/cliDocs.ts",
+    "tests/integration/usageSpecExamples.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/program.ts",
+    "scripts/generate-usage-spec.ts",
+    "phax.usage.kdl",
+    "docs/cli/reference.md",
+    "README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

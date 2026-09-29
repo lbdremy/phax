@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "deterministic-plan-extraction-with-llm-fallback-2",
+    "title": "Deterministic plan extraction with LLM fallback",
+    "requiredCommands": [
+      "pnpm add"
+    ],
+    "branch": "phax/deterministic-plan-extraction-with-llm-fallback-2"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-4-8",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-deterministic-extractor",
+      "plannedFilesToCreate": [
+        "src/domain/plan/parsePlanMarkdown.ts",
+        "tests/unit/parsePlanMarkdown.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "package.json",
+        "pnpm-lock.yaml"
+      ],
+      "optionalFilesToEdit": [
+        "knip.json"
+      ],
+      "commit": {
+        "subject": "feat(plan): add mdast-based deterministic plan extractor",
+        "body": "Add extractPlanDeterministic in src/domain/plan, a pure function that parses a conforming plan.md into a validated ExtractedPhaxPlan via an mdast syntax tree and returns Either<ExtractedPhaxPlan, PlanValidationError>. Output is decoded through the existing strict ExtractedPhaxPlanSchema so it is identical to the LLM path. Adds mdast-util-from-markdown, mdast-util-to-string, and @types/mdast. Covered by unit tests for conforming plans, (none) lists, dash variants, and the failure paths that trigger the fallback."
+      },
+      "title": "mdast-based deterministic extractor"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-fallback-wiring",
+      "plannedFilesToCreate": [
+        "tests/unit/loadOrExtractPlan.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/loadOrExtractPlan.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/extractPlan.ts"
+      ],
+      "commit": {
+        "subject": "feat(app): try deterministic plan extraction before the LLM",
+        "body": "Wire extractPlanDeterministic into loadOrExtractPlan as the first attempt: a conforming plan.md is parsed without any LLM call or cache access, and only a deterministic parse failure falls through to the existing cache/LLM path, with the failure reason surfaced as a warning. Covered by unit tests asserting the backend is not invoked for conforming plans and is invoked once on fallback."
+      },
+      "title": "Deterministic-first wiring with LLM fallback"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-03-example-and-docs",
+      "plannedFilesToCreate": [
+        "tests/unit/examplePlanDeterministic.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "examples/hello-world/plan.md",
+        ".agents/skills/phax-planning/SKILL.md"
+      ],
+      "optionalFilesToEdit": [
+        ".claude/skills/phax-planning/SKILL.md"
+      ],
+      "commit": {
+        "subject": "docs(plan): canonicalize hello-world example and document deterministic extraction",
+        "body": "Update examples/hello-world/plan.md to the current skill format (required commands, planned-file sections, unwrapped commit subjects) so it parses on the deterministic path, document the deterministic-first/LLM-fallback behavior and the run.title/shortName convention in the phax-planning skill, and add a unit test that reads the shipped example and asserts it extracts without the LLM."
+      },
+      "title": "Canonicalize the example plan and document the parser"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-07",
+  "phaseIndex": 6,
+  "state": "committed",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "createdAt": "2026-09-23T11:09:29.760Z",
+  "updatedAt": "2026-09-23T11:20:53.430Z",
+  "branchName": "phax/headless-authoring--phase-07",
+  "worktreePath": "~/.phax/worktrees/phax.headless-authoring/phase-07",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "e65acd19a6c04e6e26a8467c0831286d776a02cb"
+}

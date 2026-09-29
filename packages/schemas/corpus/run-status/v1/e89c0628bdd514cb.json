@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "gate-step-scheduling-2",
+  "runId": "gate-step-scheduling-2-1788767989425",
+  "state": "archived",
+  "createdAt": "2026-09-07T07:59:49.445Z",
+  "updatedAt": "2026-09-07T10:28:28.059Z",
+  "phasesCount": 4,
+  "gateProfileId": "standard",
+  "planRepoRelPath": "docs/plans/58-gate-step-scheduling-plan.md"
+}

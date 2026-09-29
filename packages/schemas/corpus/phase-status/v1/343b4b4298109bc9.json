@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-03",
+  "phaseIndex": 2,
+  "state": "committed",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-08-21T15:21:55.532Z",
+  "updatedAt": "2026-08-21T15:25:24.571Z",
+  "branchName": "phax/external-gate-steps-structured-diagnostics--phase-03",
+  "worktreePath": "~/.phax/worktrees/phax.external-gate-steps-structured-diagnostics/phase-03",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "7041de600a1a2ab002269477a9b180974cc2656d"
+}

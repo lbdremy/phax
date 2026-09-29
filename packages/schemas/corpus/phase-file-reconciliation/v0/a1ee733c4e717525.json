@@ -1,0 +1,19 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/schemas/packageJson.ts",
+    "src/domain/init/detect.ts",
+    "tests/unit/initDetect.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

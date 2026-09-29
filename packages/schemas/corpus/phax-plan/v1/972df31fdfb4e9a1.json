@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "repo-rooting-and-orient-brief",
+    "title": "Repo Rooting and Orient Brief",
+    "requiredCommands": [],
+    "branch": "phax/repo-rooting-and-orient-brief"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-cli-path-args",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/commands/adjustPlan.ts",
+        "src/cli/commands/validate.ts",
+        "tests/unit/cli/validate.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/adjustPlanCommand.test.ts",
+        "tests/unit/cli/run.test.ts"
+      ],
+      "commit": {
+        "subject": "fix(cli): resolve path arguments against the invocation directory",
+        "body": "Resolve the `adjust-plan` plan argument and `validate --plan` against process.cwd()\nexplicitly, matching what `run`, `extract-plan` and `artifact` already do. Today these\nwork only because the CLI is invoked from the repo root; once the FileSystem layer is\nrooted at repoRoot, a relative path reaching a port means repo-relative, so user input\nmust be absolute before it crosses that boundary.\n\nError messages keep quoting the path as typed."
+      },
+      "title": "CLI path arguments resolve against the invocation directory"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-repo-rooted-fs",
+      "plannedFilesToCreate": [
+        "tests/integration/repoRootedCli.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/infra/fs.ts",
+        "src/cli/commands/runLayers.ts",
+        "src/cli/commands/adjustPlan.ts",
+        "src/cli/commands/agent.ts",
+        "src/cli/commands/archive.ts",
+        "src/cli/commands/artifact.ts",
+        "src/cli/commands/extractPlan.ts",
+        "src/cli/commands/ls.ts",
+        "src/cli/commands/orient.ts",
+        "src/cli/commands/plans.ts",
+        "src/cli/commands/plansOverlap.ts",
+        "src/cli/commands/publishPr.ts",
+        "src/cli/commands/report.ts",
+        "src/cli/commands/resetPhase.ts",
+        "src/cli/commands/resume.ts",
+        "src/cli/commands/reviewCode.ts",
+        "src/cli/commands/reviewCompliance.ts",
+        "src/cli/commands/reviewHandoff.ts",
+        "src/cli/commands/run.ts",
+        "tests/unit/architecturalGuards.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/ports/fs.ts",
+        "src/cli/commands/init.ts",
+        "src/cli/commands/security.ts",
+        "src/cli/commands/skills.ts",
+        "tests/unit/cli/plans.test.ts",
+        "tests/unit/cli/artifact.test.ts"
+      ],
+      "commit": {
+        "subject": "fix(cli): root the filesystem layer at the repo root",
+        "body": "phax's git operations are rooted at config.repoRoot while the FileSystem port resolved\nrelative paths against process.cwd(), so invoking phax from a subdirectory made the two\ndisagree: the staleness gate read the real git baseline but missed\ndocs/plans/approvals.json, reported a spurious missing-record, and refused an approved\nrun.\n\nBuild the FileSystem layer rooted at repoRoot for every command that has a resolved\nconfig, through a single helper in runLayers.ts, using the rootedAt port method added by\nplan 48. Commands that run without a config, and layers whose paths are already absolute,\nstay on the identity layer and are named in an allowlist enforced by an architectural\nguard, so a new command cannot silently reintroduce cwd-rooting.\n\nCovered by an integration test invoking the CLI from a nested subdirectory."
+      },
+      "title": "Root the FileSystem layer at the repo root"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-orient-brief-artifact",
+      "plannedFilesToCreate": [
+        "src/schemas/orientBrief.ts",
+        "tests/unit/orientBrief.test.ts",
+        "tests/integration/orientBriefArtifact.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/promptGeneration.ts"
+      ],
+      "commit": {
+        "subject": "feat(orient): persist the orientation brief as a phase artifact",
+        "body": "The per-phase orientation index was woven into prompt.md and counted in one telemetry\nevent, then discarded: the rows the prompt truncated were unrecoverable, and a run whose\norient provider failed was indistinguishable afterwards from a run with no provider\nconfigured.\n\nWrite orient-brief.json next to prompt.md in the phase folder as a tagged record — ok\n(files queried, the full row set, how many rows the prompt wove), failed (bounded provider\nerror), or not-configured — for every phase, before dispatch. The channel stays advisory:\na provider failure, or a failure to write the brief, still never fails, blocks, or retries\nthe phase.\n\nNothing consumes the file yet."
+      },
+      "title": "Persist the orientation brief as an artifact"
+    }
+  ]
+}

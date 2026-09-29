@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All four phases delivered their stated objectives. Phase-01 replaced the routing schemas and resolution core as specified, with unplanned file touches that were all mandatory cascades of the schema change (telemetry events, codex adapter, integration snapshots). Phase-02 added the run-start preflight as a pure domain function wired through executePlan, with two unplanned files (errors.ts and runLayers.ts) justified as mandatory for cross-layer import and exit-code mapping. Phase-03 delivered the catalog codegen script with drift-check integration, with .oxfmtrc.json as an unplanned but necessary formatter exclusion. Phase-04 refreshed the docs and skills, with an extra touch to the generator (only viable write path due to permission gating) and a justified non-edit of agent.ts (already correct from phase-01). Every deviation is recorded and justified in the phase handoffs.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered. ModelRoutingSchema v2, ProviderConfigSchema with per-entry catalog, catalog.ts helpers, rewritten resolveModel, and removal of normalizedTier from all surfaces confirmed."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No preflight, codegen, or doc changes introduced. Excluded scope respected."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Ten unplanned files touched: telemetry events/snapshot (defined normalizedTier), codexCli infra/test (read old families[gpt].model shape), three integration tests (mocked RoutingResolution included normalizedTier), two integration snapshots (re-recorded), agent.test.ts, and modelResolved.test.ts. All are mandatory cascades of the schema change. .agents/skills/phax-spec/SKILL.md is a pre-existing dirty worktree file, not scope creep. All deviations justified in handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All planned test files confirmed: catalog.test.ts, resolve.test.ts, schemas.test.ts, effortLevels.test.ts, sameFamilyPreservation.test.ts, securityFallback.test.ts, loadRouting.test.ts, type/routing.ts."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "resolveModel signature unchanged. RoutingResolution shape minus normalizedTier as specified. Catalog and equivalence data enter only through decoded config."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject matches exactly: feat(routing): replace tier scale with versioned catalog and equivalence table."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers all required content: resolver signature, RoutingResolution fields, catalog.ts export names and signatures, equivalence star-lookup semantics, and deviation justifications."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered. preflightPhaseModels is pure, called in executePlan after mcpAllowlistPreflight and before the phase loop, and ModelPreflightError with exit code 11 is wired through runLayers.ts."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Resolution algorithm untouched. No codegen or doc changes. Excluded scope respected."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Two unplanned files: src/domain/errors.ts (ModelPreflightError must live here for cross-layer import without circulars) and src/cli/commands/runLayers.ts (must enumerate all ExecutePlanError variants for correct exit codes). Both justified in handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "All three promised test files confirmed: preflight.test.ts (16 unit tests) and modelPreflight.test.ts (4 integration tests). Test layer matches plan."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "preflightPhaseModels is domain-layer pure. executePlan renders only through OutputPort. No validation logic in the app layer."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject matches exactly: feat(routing): refuse unrunnable plans at run-start model preflight."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers preflightPhaseModels signature, failures shape, placement in executePlan, and deviation justifications for both unplanned files."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered. generate-model-catalog.ts renders a Markdown table from DEFAULT_PROVIDER_CONFIG into marker-delimited regions of both phax-planning skill files. --check mode diffs and exits non-zero on drift. Both gen:model-catalog and gen:model-catalog --check are wired into package.json and the phax full gate profile."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No prose rewrites reserved for phase-04, no routing behavior changes. Excluded scope respected."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": ".oxfmtrc.json was unplanned. Justified: oxfmt reformats .agents/ markdown tables (column-padding), causing generated content to diverge from committed content and breaking --check after every pnpm format. Excluding .agents mirrors the pre-existing .claude exclusion."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/generateModelCatalog.test.ts confirmed with all four exported helpers (renderCatalogTable, rewriteMarkerRegion, hasStaleRegion, applyToContent) under test."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Generator owns the marker region; humans own surrounding prose. --check is the drift gate. Contracts respected."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject matches exactly: build(routing): generate the planner catalog table with a drift-checked script."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers generator command names, marker strings, confirmation of both drift-check integrations (package.json and phax.json), and .oxfmtrc.json deviation justification."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered. docs/model-routing.md fully rewritten without tier language, documenting versioned catalog, Claude-hub star, allowDowngrade, and preflight. .claude/skills/model-routing/SKILL.md aligned. Both phax-planning skills have updated prose before the generated region."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No routing behavior, schema, preflight, or codegen behavior changes. The generator extension (applyPlanningSkillProse) is non-behavioral and does not affect --check mode. Excluded scope respected."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "Two deviations: scripts/generate-model-catalog.ts was an extra touch (justified: .claude/ writes are permission-gated; the generator is the only approved write path). src/cli/commands/agent.ts was NOT touched (justified: already correct from phase-01 with no tier output)."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/cli/agent.test.ts was optional and not needed since agent.ts required no change. No promised tests skipped without justification."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "No architectural boundary change. agent.ts remains a thin view over resolveModel."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject matches exactly: docs(routing): describe catalog, equivalence, and preflight; drop the tier scale."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers confirmation that docs/model-routing.md has no tier references, both file deviation justifications, and a forward-looking maintenance note for MODEL_ROUTING_SKILL_CONTENT."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Alternatives in preflight error output: ModelPreflightError.failures carries 'reasons' but not 'alternatives'. The plan specifies that the run-start failure message should print alternatives so the planning agent can self-correct. Whether alternatives reach the CLI output depends on how executePlan renders PreflightFailure results before constructing the error. Verify via code review or a real run with an invalid phase model.",
+    "MODEL_ROUTING_SKILL_CONTENT maintenance burden: Phase-04 embedded the model-routing skill prose as a hard-coded string in scripts/generate-model-catalog.ts. Future routing layer changes require a manual update to that string or the skill will drift.",
+    ".agents/skills/phax-spec/SKILL.md pre-existing dirty state: This file was modified before phase-01 began and was not reverted. The content change is unrelated to this plan. It should be reviewed and committed or reverted separately."
+  ],
+  "pointers": [
+    "Possible missing alternatives in CLI preflight output — preflightPhaseModels returns failures with alternatives, but ModelPreflightError.failures omits them; confirm whether executePlan surfaces alternatives in the rendered output before constructing the error (src/app/executePlan.ts, preflight rendering path)."
+  ]
+}

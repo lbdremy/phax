@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "verdict": "conformant",
+  "summary": "Both phases delivered exactly what the plan specified. Phase 01 exported buildReviewHandoffContent with an optional complianceReviewMd parameter and 10 unit tests; phase 02 added loadReviewHandoffInputs, extracted loadPhaseContents as a shared helper, rewired publishRun to recompute the handoff from persisted inputs, and narrowed buildPrBody to header + truncation. All file changes match the global reconciliation (every entry matched), all promised tests are present at the correct layers, all boundary contracts are respected, and both commit subjects match the plan verbatim. The PhaseContent move to loadReviewHandoffInputs.ts (to avoid circular imports) and the retained review-handoff.md existence sentinel in publishRun are minor implementation choices documented and justified in the handoffs.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "buildReviewHandoffContent exported with optional complianceReviewMd? fifth parameter; section inserted between deviations and phase details when provided; byte-identical path when omitted."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No changes to publishRun, buildPrBody, or the run pipeline. Scope boundary fully respected."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Exactly the planned files touched: src/app/reviewHandoff.ts (edited) and tests/unit/reviewHandoffContent.test.ts (created)."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "10 unit tests covering section order, verbatim content, blank-line invariant, and byte-identical regression guard for the no-compliance path."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "buildReviewHandoffContent remains pure; no port boundary crossed. Parameter contract (info, global, globalMd, phases, complianceReviewMd?) matches the plan exactly."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'feat(review): render plan compliance review before phase details' matches the plan verbatim."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers new signature, export status, PLAN_COMPLIANCE_REVIEW_HEADING naming decision, .trimEnd() guard, PhaseContent export rationale, and pointer to the per-phase loop for phase-02 extraction."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "loadReviewHandoffInputs created; loadPhaseContents extracted as shared helper used by both generateReviewHandoff and loadReviewHandoffInputs; publishRun rewired to recompute handoff from persisted inputs; buildPrBody narrowed to HEADER + reviewHandoffMd with truncation."
+        },
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "publishRun retains a review-handoff.md existence check as a precondition sentinel (not reading content). Plan said 'instead of reading the flat file' meaning not using it as content source — satisfied. Documented and justified in handoff."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "review-handoff.md on disk stays compliance-free; run pipeline order unchanged; no global-file-reconciliation.json decode schema introduced. All three exclusions respected."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "All seven planned files touched and only those (global reconciliation: all matched). PhaseContent moved to loadReviewHandoffInputs.ts to avoid circular import and re-exported from reviewHandoff.ts — documented in handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "Integration test for loadReviewHandoffInputs covers happy path, missing JSON, decode failure, missing markdown, empty phases, and phase ordering. publishRun integration test asserts compliance before phase details when present and absent when not."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "loadReviewHandoffInputs reads via FileSystem port and decodes via decodePhaseFileReconciliation before entering domain. buildPrBody contract narrowed to { reviewHandoffMd, branch, maxBytes? } as planned."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'feat(publish): place compliance review before phase details in the PR body' matches the plan verbatim."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all exported names/signatures, PhaseContent move rationale, review-handoff.md sentinel decision, narrowed buildPrBody, and 1722 passing tests."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [],
+  "pointers": []
+}

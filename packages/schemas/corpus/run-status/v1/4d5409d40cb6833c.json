@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "project-namespaces",
+  "runId": "project-namespaces-1782130756129",
+  "state": "archived",
+  "createdAt": "2026-06-22T12:19:16.146Z",
+  "updatedAt": "2026-09-03T07:49:12.269Z",
+  "phasesCount": 8,
+  "gateProfileId": "full",
+  "stoppedReason": "rate_limited",
+  "lastError": "Claude Code stopped: rate limit hit."
+}

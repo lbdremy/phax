@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "archive-unfinished-runs",
+    "title": "Archive unfinished runs",
+    "requiredCommands": [],
+    "branch": "phax/archive-unfinished-runs"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-archive-rule",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/events.ts",
+        "src/domain/reducer.ts",
+        "src/domain/errors.ts",
+        "src/app/archive.ts",
+        "tests/unit/reducer.test.ts",
+        "tests/unit/events.test.ts",
+        "tests/integration/dispatcher.test.ts",
+        "tests/integration/archive.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/matrix.ts",
+        "src/cli/commands/runLayers.ts",
+        "src/app/executePlan.ts",
+        "src/app/eventAdapter.ts"
+      ],
+      "commit": {
+        "subject": "feat(archive): archive unfinished runs with --force consent",
+        "body": "Widen the run state machine's archive rule: RunArchiveRequested carries a\nrequired `force` consent, and the reducer archives created, failed,\ninterrupted, rate_limited and stopped runs only when it is set, rejecting\notherwise with a reason naming the state and --force. running and archived\nstay refused regardless. The archive use case passes the flag, applies the\nfinal-worktree dirty guard to finished runs only, and surfaces every rejected\ndispatch as ArchiveRefusedError. Covered by per-state reducer and use-case\ntests, including stop-reason preservation and lock refusal. Implements spec 32\n§5.1–§5.7."
+      },
+      "title": "Consent-aware archive rule and refusal"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-cli-contract-and-docs",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "src/cli/cliDocs.ts",
+        "src/cli/commands/archive.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md",
+        "tests/integration/usageOutput.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/cliProgram.test.ts",
+        "tests/integration/usageSpecExamples.test.ts"
+      ],
+      "commit": {
+        "subject": "docs(archive): document archiving unfinished runs with --force",
+        "body": "Update the archive command's description, --force help, and long help to state\nthat any non-running run can be archived and that --force is required for an\nunfinished one; prefix state-based refusals with \"Archive refused\". Regenerate\nphax.usage.kdl, docs/cli/reference.md and the README CLI block, and rewrite the\nREADME archive section. Implements spec 32 §5.8 and the §6 usage surface."
+      },
+      "title": "CLI contract and generated documentation"
+    }
+  ]
+}

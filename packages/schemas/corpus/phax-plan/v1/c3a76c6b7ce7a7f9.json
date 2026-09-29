@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "install-planning-skill",
+    "title": "Install the PHAX planning skill into agent CLIs",
+    "requiredCommands": [],
+    "branch": "phax/install-planning-skill"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Inline phase-handoff guidance and remove the doc",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-inline-handoff",
+      "plannedFilesToCreate": [
+        "src/app/handoffGuidance.ts",
+        "tests/unit/handoffGuidance.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/handoffGeneration.ts",
+        "src/app/promptGeneration.ts",
+        "tests/unit/skills.test.ts",
+        "tests/unit/__snapshots__/promptGeneration.test.ts.snap"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/promptGeneration.test.ts",
+        "tests/unit/handoffGeneration.test.ts"
+      ],
+      "commit": {
+        "subject": "refactor(handoff): inline phase-handoff guidance into prompts, drop the doc",
+        "body": "Move the phase-handoff guidance into a new src/app/handoffGuidance.ts consumed by buildHandoffPrompt and the phase prompt builder, and delete .skills/phax-phase-handoff.md. The phase prompt no longer points at a repo-relative file that does not exist in user projects; the guidance now travels with the prompt. Snapshot and skills test updated."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Relocate `.skills/` into `.claude/skills/` Agent Skills format",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-skills-format",
+      "plannedFilesToCreate": [
+        ".claude/skills/phax-planning/SKILL.md",
+        ".claude/skills/boundaries/SKILL.md",
+        ".claude/skills/cli-view-layer/SKILL.md",
+        ".claude/skills/effect-services/SKILL.md",
+        ".claude/skills/infrastructure-adapters/SKILL.md",
+        ".claude/skills/model-routing/SKILL.md",
+        ".claude/skills/observability/SKILL.md",
+        ".claude/skills/state-machines/SKILL.md",
+        ".claude/skills/validation-boundaries/SKILL.md"
+      ],
+      "plannedFilesToEdit": [
+        "tests/unit/skills.test.ts",
+        "tests/unit/architecturalGuards.telemetry.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        ".skills/phax-planning.md",
+        ".skills/boundaries.md",
+        ".skills/cli-view-layer.md",
+        ".skills/effect-services.md",
+        ".skills/infrastructure-adapters.md",
+        ".skills/model-routing.md",
+        ".skills/observability.md",
+        ".skills/state-machines.md",
+        ".skills/validation-boundaries.md",
+        "README.md"
+      ],
+      "commit": {
+        "subject": "refactor(skills): relocate skills to .claude/skills in SKILL.md format",
+        "body": "Move each remaining flat `.skills/<name>.md` into `.claude/skills/<name>/SKILL.md` with `name`/`description` YAML frontmatter so they are valid, Claude-discoverable Agent Skills. Update the skills test and telemetry guard test to the new paths. Pure relocation; skill bodies are unchanged. Prerequisite for shipping `phax-planning` as an installable skill directory."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Domain: targets, scopes, destination paths, exposed-skill catalog",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-03-skills-domain",
+      "plannedFilesToCreate": [
+        "src/domain/skills/types.ts",
+        "src/domain/skills/catalog.ts",
+        "src/domain/skills/destination.ts",
+        "tests/unit/skills/destination.test.ts",
+        "tests/unit/skills/catalog.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(skills): add skill target/scope domain types and destination resolver",
+        "body": "Add the pure domain layer for skill installation: SkillTarget/SkillScope enums with parsers, the exposed-skill catalog (single source of truth, phax-planning only), and resolveSkillDestination mapping target+scope to the native skill directory. Covered by unit tests over all six target/scope combinations."
+      }
+    },
+    {
+      "id": "phase-04",
+      "title": "App use case: copy the bundled skill idempotently",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-04-install-usecase",
+      "plannedFilesToCreate": [
+        "src/app/skills/installSkill.ts",
+        "tests/unit/skills/installSkill.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/errors.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(skills): add installSkill use case with idempotent copy and validation",
+        "body": "Add the installSkill application use case: validate the bundled skill, copy its file manifest into the resolved destination through the FileSystem port, and return a created/updated/already-present status computed by content comparison. Adds SkillInstallError. Covered by temp-dir tests for create, idempotent re-run, update-on-diff, and missing-bundle/unknown-skill failures."
+      }
+    },
+    {
+      "id": "phase-05",
+      "title": "CLI: `phax skills install --target --scope`",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-05-skills-cli",
+      "plannedFilesToCreate": [
+        "src/cli/commands/skills.ts",
+        "tests/unit/skillsArgv.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/main.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "feat(skills): add `phax skills install` command for the planning skill",
+        "body": "Add `phax skills install --target <claude|codex|agent> [--scope <project|user>]`, which validates the flags (scope defaults to project), resolves the package-relative bundle root, runs the installSkill use case with NodeFileSystemLayer, and prints target/scope/skill/destination/status diagnostics. Wired into main.ts. Covered by an argv test for registration and invalid-flag rejection."
+      }
+    },
+    {
+      "id": "phase-06",
+      "title": "Package the bundle and verify it at release time",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-06-release-packaging",
+      "plannedFilesToCreate": [
+        "tests/unit/skills/bundled.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "package.json"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "chore(skills): package the bundled planning skill and verify it at release",
+        "body": "Add a package.json files whitelist (dist + .claude/skills/phax-planning) so releases include exactly the bundled phax-planning skill, and a guard test that fails the full gate if the bundled SKILL.md is missing or unpackaged. Satisfies the spec's release-packaging requirement."
+      }
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/app/createArtifact.ts",
+    "tests/integration/createArtifact.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/errors.ts",
+    "src/cli/commands/runLayers.ts",
+    "src/cli/commands/artifact.ts",
+    "src/cli/cliDocs.ts",
+    "phax.usage.kdl",
+    "docs/cli/reference.md",
+    "README.md",
+    "tests/unit/cli/artifact.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/cliProgram.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

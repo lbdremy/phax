@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "skipped",
+  "model": "claude-sonnet-4-6",
+  "effort": "low",
+  "createdAt": "2026-05-28T07:30:54.057Z",
+  "updatedAt": "2026-05-28T07:32:52.583Z",
+  "branchName": "phax/observability--phase-02",
+  "worktreePath": "~/.phax/worktrees/observability/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000"
+}

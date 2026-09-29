@@ -1,0 +1,18 @@
+{
+  "phaseId": "phase-02",
+  "createdAsPlanned": [
+    "src/domain/runRef.ts",
+    "src/app/projectContext.ts",
+    "tests/unit/runRef.test.ts",
+    "tests/unit/projectContext.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

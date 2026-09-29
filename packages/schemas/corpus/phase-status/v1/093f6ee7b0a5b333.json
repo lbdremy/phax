@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-02",
+  "phaseIndex": 1,
+  "state": "cleaned_up",
+  "model": "claude-opus-4-7",
+  "effort": "high",
+  "createdAt": "2026-06-03T22:43:32.910Z",
+  "updatedAt": "2026-06-03T22:58:07.342Z",
+  "branchName": "phax/update-provider-effort--phase-02",
+  "worktreePath": "~/.phax/worktrees/update-provider-effort/phase-02",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "55e942004cca43d129b9609d8e57c9b75e3b50cc"
+}

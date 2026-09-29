@@ -1,0 +1,15 @@
+{
+  "phaseId": "phase-07",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    ".skills/phax-planning.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

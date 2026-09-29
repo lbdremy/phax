@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "project-namespaces-2",
+    "title": "Address the attention points from the project-namespaces compliance review",
+    "requiredCommands": [],
+    "branch": "phax/project-namespaces-2"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-required-qualified-run-name",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/reconciliation/global.ts",
+        "tests/unit/reconciliation/global.test.ts",
+        "tests/unit/reconciliation/__snapshots__/global.test.ts.snap"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/generateGlobalReconciliation.ts"
+      ],
+      "commit": {
+        "subject": "refactor(reconciliation): require qualifiedRunName in global markdown renderer",
+        "body": "Drop the optional qualifiedRunName parameter from renderGlobalReconciliationMarkdown so the **Run** header is always emitted. The app-layer opts field was already required and the only production caller passes it; this removes a back-compat shim per project convention. Updates the unit-test call sites and regenerates the global reconciliation snapshot."
+      },
+      "title": "Make `renderGlobalReconciliationMarkdown` require the qualified run name"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-action-mismatch-tolerance",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/reconciliation/types.ts",
+        "src/domain/reconciliation/reconcile.ts",
+        "src/domain/reconciliation/render.ts",
+        "src/domain/reconciliation/global.ts",
+        "tests/unit/reconciliation/reconcile.test.ts",
+        "tests/unit/reconciliation/render.test.ts",
+        "tests/unit/reconciliation/global.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/reconciliation/__snapshots__/global.test.ts.snap"
+      ],
+      "commit": {
+        "subject": "fix(reconciliation): treat planned create/edit action mismatch as satisfied",
+        "body": "A file listed under planned-to-edit but actually created (common for new test files) was reported as missing/not-touched in both the per-phase and global reconciliation, even though git saw it as added. Record create/edit action mismatches as informational and exclude them from the missing sets and from touched-status derivation, so genuinely-delivered files stop showing as false-negative deviations. Truly-untouched planned files still flag. Covered by new unit tests across reconcile, render, and global."
+      },
+      "title": "Reconciliation tolerates a planned create/edit action mismatch"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-run-command-tests",
+      "plannedFilesToCreate": [
+        "tests/unit/cli/run.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/runRef.ts",
+        "src/cli/commands/run.ts",
+        "tests/unit/runRef.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/runArgv.test.ts"
+      ],
+      "commit": {
+        "subject": "test(run): cover namespace-scoped uniqueness and qualified-name output",
+        "body": "Extract the namespace-scoped short-name bump from phax run into a pure nextAvailableShortName domain helper and unit-test it (within-namespace bump, cross-namespace independence, never overwrites). Add a run-command test asserting a config missing `name` fails before any run folder is created and that run output shows the qualified name. Closes the phase-03 run-command-level test gap from the project-namespaces compliance review."
+      },
+      "title": "Close the phase-03 run-command namespace test gap"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-04-enterphase-regression",
+      "plannedFilesToCreate": [
+        "tests/unit/cli/enterPhase.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "src/cli/commands/enterPhase.ts"
+      ],
+      "commit": {
+        "subject": "test(enter-phase): pin namespace-scoped resolution and qualified-name display",
+        "body": "The phase-06 enterPhase edit was superseded by the phase-05 resolveRunRef approach with no functional impact. Add a regression test that pins the working behavior — namespace-scoped resolution via resolveRunRef, qualified-name display, and independence of same-short-name runs across namespaces — so a future refactor cannot silently regress it. Addresses the enterPhase attention point from the project-namespaces compliance review."
+      },
+      "title": "Pin `enterPhase` namespace-scoped resolution with a regression test"
+    }
+  ]
+}

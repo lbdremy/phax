@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-04",
+  "phaseIndex": 3,
+  "state": "cleaned_up",
+  "model": "claude-sonnet-4-6",
+  "effort": "medium",
+  "createdAt": "2026-06-29T13:25:07.306Z",
+  "updatedAt": "2026-06-29T13:44:25.401Z",
+  "branchName": "phax/smolvm-isolation-spike--phase-04",
+  "worktreePath": "~/.phax/worktrees/phax.smolvm-isolation-spike/phase-04",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "2daf10bfdb48ff9737e9e495887d6be0964d7523"
+}

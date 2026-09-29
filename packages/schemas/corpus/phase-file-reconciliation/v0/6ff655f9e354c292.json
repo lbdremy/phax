@@ -1,0 +1,29 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/infra/telemetry/layer.ts",
+    "src/cli/commands/runLayers.ts",
+    "tests/unit/architecturalGuards.telemetry.test.ts",
+    "package.json",
+    "docs/observability.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    ".claude/skills/observability/SKILL.md"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "deno.lock",
+    "knip.json"
+  ],
+  "optionalTouched": [
+    "tests/unit/telemetry/factory.test.ts"
+  ],
+  "deletions": [
+    "src/infra/telemetry/openTelemetry.ts",
+    "tests/unit/telemetry/openTelemetry.test.ts"
+  ],
+  "renames": [],
+  "hasDeviations": true
+}

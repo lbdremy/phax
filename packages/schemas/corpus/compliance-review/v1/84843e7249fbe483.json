@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All three phases delivered their stated objectives. Phase-01 adds the CommitFailed pause path (running+passed → interrupted+passed) and phase-02 adds the corresponding resume path (detecting a passed+interrupted phase and re-running commit/handoff/cleanup without re-invoking the agent). Phase-03 adds the CleanupFailed pause path (running+committed|cleaning_up → interrupted+cleaning_up) and its resume path (skipping agent, gate, commit, and handoff). Commit subjects match the plan exactly. Two recurring unplanned-file edits (src/domain/errors.ts and src/app/resumeInstructions.ts) appear in phases 01 and 03 and are justified in both handoffs as following established project patterns. Two undisclosed deviations are present: the CommitFailed matrix column uses 'Unexpected' for the rate_limited run state rather than the plan's specified 'Stale', and the cleanupPhase catch uses Effect.catchAll rather than the plan's specified Effect.catchIf. Neither undermines correctness or the cross-phase boundary contracts.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "CommitFailed event, reducer case (running+passed → interrupted+passed), CommitPausedError sentinel, catchIf wrapping commitPhase excluding PhaseHadNoChangesError, and top-level tapError guard all delivered as specified."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No resume-from-commit (phase-02) or cleanup-step (phase-03) logic introduced."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/domain/errors.ts edited (unplanned): CommitPausedError placed here per project pattern. Justified in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/app/resumeInstructions.ts edited (unplanned): buildCommitFailedInstructions and 'commit_failed' dispatch branch added here, the designated renderer file. Justified in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "CommitFailed column in matrix.ts sets rate_limited row to 'Unexpected'; plan specifies 'Stale' for that row. Deviation not acknowledged in handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/reducerCommitPause.test.ts present with 8 cases covering the pause transition, emitted effects, and all non-running unexpected/stale states."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "CommitFailed produced only by executePlan after commit-step errors; consumed by reducer leaving phase passed + run interrupted. Boundary contract honoured."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject 'feat(run): pause instead of failing the run on a commit-step failure' matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers on-disk shape, predicate/sentinel name, exact export locations, and both file deviations. All required content present."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "resumeFromCommit detection, isResumeFromCommit local, setup-reuse guard extension, gate-loop skip, and commit-not-skipped wiring all delivered as specified. RunResumeRequested lifts interrupted+passed → running+passed preserving phase substate."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No cleanup-step pause or resume logic introduced."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "Only the two planned files touched (src/app/executePlan.ts, tests/integration/resumeFromCommit.test.ts). No deviations."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/integration/resumeFromCommit.test.ts present with 2 cases: happy-path resume and clean-worktree edge (manual commit before resume triggers PhaseHadNoChangesError)."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "Reads the passed+interrupted on-disk shape from phase-01 and re-enters post-gate sequence without re-invoking the agent. No change to resume.ts required."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject 'feat(run): resume re-runs the post-gate steps for a commit-paused phase' matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers resumeFromCommit detection, isResumeFromCommit wiring, agent/gate skip, agentOptions reconstruction, clean-worktree edge, and no-deviation confirmation. All required content present."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "CleanupFailed event, reducer case accepting both committed and cleaning_up sources (→ interrupted+cleaning_up), CleanupStarted idempotency guard, CleanupPausedError sentinel, cleanupPhase error wrapping, top-level guard update, and resume-from-cleanup path all delivered as specified."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "Commit-step and handoff failures not touched beyond the skip guards required for the resume path."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/domain/errors.ts edited (unplanned): CleanupPausedError placed here per project pattern (parallel to CommitPausedError). Justified in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "src/app/resumeInstructions.ts edited (unplanned): buildCleanupFailedInstructions follows buildCommitFailedInstructions in the same file. Justified in handoff."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "cleanupPhase wrapped with Effect.catchAll rather than the plan's specified Effect.catchIf on the step's own error set. Locally scoped (not top-level), so risk is low, but deviates from both the plan's detailed instruction and the 'Decisions locked in' guidance. Not acknowledged in handoff."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "tests/unit/reducerCleanupPause.test.ts present with 10 unit cases; tests/integration/resumeFromCleanup.test.ts present with 2 integration cases (happy-path and retry-fails-again). Both files match the plan's test-strategy."
+        },
+        {
+          "dimension": "boundaries",
+          "severity": "info",
+          "message": "CleanupFailed produced only by executePlan after cleanup-step failures on a committed phase; reducer marks phase cleaning_up + run interrupted. Resume path depends on commit/handoff artifacts already being present. Boundary contract honoured."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Subject 'feat(run): pause and resume on a cleanup-step failure instead of failing the run' matches the plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers CleanupFailed transitions (both source states), resume skip guards, CleanupStarted idempotency resolution with rationale, on-disk shape, and both file deviations. All required content present."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "CommitFailed × rate_limited matrix disposition (phase-01): plan specifies 'Stale' but implementation uses 'Unexpected'. Semantically defensible (CommitFailed cannot arrive during a rate-limited run) but undisclosed in the phase-01 handoff — confirm intent.",
+    "Effect.catchAll on cleanupPhase (phase-03): plan specified Effect.catchIf scoped to the cleanup step's own error types. Implementation used Effect.catchAll. Locally scoped so risk is low, but broader than specified and not disclosed in the phase-03 handoff — confirm intent."
+  ],
+  "pointers": [
+    "Possible bug in src/app/resumeInstructions.ts: buildCommitFailedInstructions and buildCleanupFailedInstructions both pass { kind: 'gates_exhausted' } to buildWhatsNext rather than their own kind — the what's-next section of the rendered instructions may reference the wrong next step. Confirm via code review."
+  ]
+}

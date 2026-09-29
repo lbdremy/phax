@@ -1,0 +1,22 @@
+{
+  "phaseId": "phase-06",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/domain/session/types.ts",
+    "src/domain/session/claude.ts",
+    "src/domain/session/codex.ts",
+    "src/domain/session/mistral.ts",
+    "src/app/reviewCode.ts",
+    "tests/unit/sessionAdapters.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

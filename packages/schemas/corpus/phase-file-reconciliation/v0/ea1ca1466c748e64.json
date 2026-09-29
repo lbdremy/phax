@@ -1,0 +1,16 @@
+{
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/app/resumeInstructions.ts",
+    "src/app/effectRunner.ts",
+    "tests/unit/resume.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

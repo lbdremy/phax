@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "schemas-package-3-5-guards",
+    "title": "schemas-package 3/5 — guards",
+    "requiredCommands": [
+      "pnpm exec tsx"
+    ],
+    "branch": "phax/schemas-package-3-5-guards"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-snapshot-gate",
+      "plannedFilesToCreate": [
+        "packages/schemas/build/snapshots.ts",
+        "packages/schemas/snapshots/authoring-record-manifest/v1.schema.json",
+        "packages/schemas/snapshots/compliance-review/v1.schema.json",
+        "packages/schemas/snapshots/gate-attribution/v0.schema.json",
+        "packages/schemas/snapshots/gate-diagnostics/v0.schema.json",
+        "packages/schemas/snapshots/gate-pending/v0.schema.json",
+        "packages/schemas/snapshots/phase-file-reconciliation/v0.schema.json",
+        "packages/schemas/snapshots/phase-record-manifest/v1.schema.json",
+        "packages/schemas/snapshots/phase-record-manifest/v2.schema.json",
+        "packages/schemas/snapshots/phase-status/v1.schema.json",
+        "packages/schemas/snapshots/phax-plan/v1.schema.json",
+        "packages/schemas/snapshots/plan-approvals/v1.schema.json",
+        "packages/schemas/snapshots/plan-document/v1.schema.json",
+        "packages/schemas/snapshots/registry/v1.schema.json",
+        "packages/schemas/snapshots/run-status/v1.schema.json",
+        "packages/schemas/snapshots/spec-approvals/v1.schema.json",
+        "packages/schemas/snapshots/spec-document/v1.schema.json",
+        "tests/unit/schemasPackage/snapshots.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "packages/schemas/build/jsonSchemas.ts",
+        "scripts/schemas-check.ts",
+        "packages/schemas/history.lock.json",
+        "tests/unit/schemasPackage/frozenHistory.test.ts",
+        ".oxfmtrc.json"
+      ],
+      "optionalFilesToEdit": [
+        "packages/schemas/build/generated.ts",
+        "scripts/schemas-json.ts",
+        "tests/unit/schemasPackage/jsonSchemas.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas-package): snapshot every shape's JSON Schema and gate unrecorded shape changes",
+        "body": "Commit one JSON Schema snapshot per format and shape under\npackages/schemas/snapshots/<format id>/<shape>.schema.json, rendered by\nthe same renderer as packages/schemas/json/. The current shape is\nrendered from phax's own decoder; older shapes from their frozen module.\n\nscripts/schemas-check.ts now fails when the schema generated from phax's\ndecoder differs from the format's latest released snapshot and\nsnapshots/<format id>/next.schema.json does not record it (spec §5.16).\nIt also fails on a missing snapshot, a stale next snapshot, or an edited\nreleased snapshot; released snapshots are pinned in history.lock.json\nbeside the frozen modules. --write creates missing snapshots and records\nnext; it never overwrites a released snapshot.\n\nThe check runs inside pnpm test through the existing frozenHistory test;\nsnapshots.test.ts covers the next mechanism on synthetic shape changes.\nphax's shapes do not change here: no next snapshot is committed."
+      },
+      "title": "JSON Schema snapshots per shape and the snapshot gate"
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-source-walk",
+      "plannedFilesToCreate": [
+        "scripts/formatSources.ts",
+        "tests/integration/formatSources.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "scripts/survey-format-shapes.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "refactor(scripts): extract the persisted-format source walk from the shape survey",
+        "body": "Move the walk that scripts/survey-format-shapes.ts performs into\nscripts/formatSources.ts. The walk covers every commit of a records\nbranch, a repository's history of the approvals ledgers and the spec and\nplan sidecars, and every live and archived run directory plus the\nregistry. Each document it finds is classified by location into a format\nid.\n\nThe survey now imports the walk and produces the same report. The\nhistory-corpus script builds on the same module in the next phase, so\nboth read exactly the same sources. An integration test walks temporary\ngit repositories and a temporary phax home, and checks that every commit\nof the records branch is visited."
+      },
+      "title": "Shared walk over every source of persisted documents"
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-03-corpus-script",
+      "plannedFilesToCreate": [
+        "packages/schemas/build/corpus.ts",
+        "scripts/extract-history-corpus.ts",
+        "tests/unit/schemasPackage/corpusBuild.test.ts",
+        "tests/unit/schemasPackage/publicData.test.ts",
+        "tests/integration/extractHistoryCorpus.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "tests/unit/schemasPackage/fixtures/registry/v1.json",
+        "tests/unit/schemasPackage/fixtures/phase-status/v1.json"
+      ],
+      "optionalFilesToEdit": [
+        "scripts/formatSources.ts",
+        "packages/schemas/build/snapshots.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas-package): add the history-corpus extraction script with scrubbing",
+        "body": "Add scripts/extract-history-corpus.ts (spec §5.19). It walks every source\nthrough scripts/formatSources.ts, scrubs each document for a public\nrepository and classifies it by the shape id the package's own parse\nfunction returns. It then writes\npackages/schemas/corpus/<format id>/<shape>/<content hash>.json, one\nfile per distinct document.\n\nScrubbing is deterministic and keeps every value decodable: the home\ndirectory becomes `~` in any string, and every session-id field becomes\none fixed placeholder. SHAs, run names and costs are kept. The script is\nadditive, never deleting a corpus file, and all-or-nothing: a document\nthat fails to parse is named with its first violation, and nothing is\nwritten.\n\nThe two plan-2 fixtures that carried a home path and session ids are\nscrubbed the same way. A test fails if any committed fixture or corpus\nfile contains a home-directory path or a session id other than the\nplaceholder."
+      },
+      "title": "History-corpus script with deterministic scrubbing"
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-committed-corpus",
+      "plannedFilesToCreate": [
+        "tests/unit/schemasPackage/historyCorpus.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        ".oxfmtrc.json"
+      ],
+      "optionalFilesToEdit": [
+        "packages/schemas/build/corpus.ts"
+      ],
+      "commit": {
+        "subject": "test(schemas-package): commit the history corpus and parse it on every gate",
+        "body": "Commit packages/schemas/corpus/, every distinct document phax has\nwritten. It was extracted with\n`scripts/extract-history-corpus.ts --records ~/.phax/records/phax\n--repo . --phax-home ~/.phax` and scrubbed of home paths and session\nids.\n\nhistoryCorpus.test.ts parses every corpus file with its format's parse\nfunction on every gate, including the release workflow's `pnpm test`\n(spec §5.18). It checks that the shape matches the directory and that\nthe file name matches its content hash, and names the file and the first\nviolation of any document that fails. It also checks against real\nhistory that the phase record's v1 and v2 shapes and both legacy\nauthoring-record shapes, with and without sourceSha, all parse."
+      },
+      "title": "Commit the history corpus and parse it on every gate"
+    }
+  ]
+}

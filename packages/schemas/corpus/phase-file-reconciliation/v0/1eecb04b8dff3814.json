@@ -1,0 +1,27 @@
+{
+  "phaseId": "phase-08",
+  "createdAsPlanned": [
+    "src/cli/commands/adjustPlan.ts",
+    "tests/integration/adjustPlanCommand.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/cli/program.ts",
+    "src/cli/cliDocs.ts",
+    "tests/integration/cliProgram.test.ts",
+    "phax.usage.kdl",
+    "docs/cli/reference.md",
+    "README.md"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/unit/architecturalGuards.test.ts"
+  ],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

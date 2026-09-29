@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-08",
+  "createdAsPlanned": [],
+  "editedAsPlanned": [
+    "src/cli/commands/ls.ts",
+    "src/app/generateGlobalReconciliation.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [
+    "tests/unit/cli/ls.test.ts"
+  ],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "src/app/reviewHandoff.ts",
+    "tests/integration/__snapshots__/finalReview.test.ts.snap"
+  ],
+  "optionalTouched": [
+    "src/domain/reconciliation/global.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

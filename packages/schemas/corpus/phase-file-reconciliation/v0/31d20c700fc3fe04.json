@@ -1,0 +1,17 @@
+{
+  "phaseId": "phase-05",
+  "createdAsPlanned": [
+    ".github/workflows/release.yml",
+    "scripts/prepare-npm.ts",
+    "tests/unit/releaseWorkflow.test.ts"
+  ],
+  "editedAsPlanned": [],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "namespace": "phax",
+  "shortName": "resumable-post-gate",
+  "runId": "resumable-post-gate-1782467940016",
+  "state": "archived",
+  "createdAt": "2026-06-26T09:59:00.033Z",
+  "updatedAt": "2026-09-03T07:46:50.834Z",
+  "phasesCount": 3,
+  "gateProfileId": "full"
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "phaseId": "phase-04",
+  "phaseIndex": 3,
+  "state": "review_open",
+  "model": "claude-sonnet-5",
+  "effort": "medium",
+  "createdAt": "2026-09-07T08:31:24.521Z",
+  "updatedAt": "2026-09-07T08:38:52.937Z",
+  "branchName": "phax/gate-step-scheduling-2--phase-04",
+  "worktreePath": "~/.phax/worktrees/phax.gate-step-scheduling-2/phase-04",
+  "claudeSessionId": "00000000-0000-4000-8000-000000000000",
+  "commitHash": "df066881d79f0bf25d89d413df1afbe34c5eb965"
+}

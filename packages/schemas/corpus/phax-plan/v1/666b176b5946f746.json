@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "provider-priority-override",
+    "title": "Implementation plan — Per-invocation provider-priority override for `phax run` / `phax resume`",
+    "branch": "phax/provider-priority-override",
+    "backend": "claude-code-cli"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Pure provider-priority override helper",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-01-override-helper",
+      "commit": {
+        "subject": "feat(routing): add pure provider-priority override helper",
+        "body": "Add `src/domain/routing/priorityOverride.ts` with `parseProviderPriority` (comma-separated string → validated, deduped non-empty provider-id list, or a descriptive error) and `applyProviderPriorityOverride` (returns a new ModelRouting with only `providerPriority` replaced). The module is pure — no Effect Schema, no infra — so the routing-domain purity guard stays green, and its unit tests make the exports reachable for knip. No CLI is wired yet."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Wire `--provider-priority` into `phax run`",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-02-run-flag",
+      "commit": {
+        "subject": "feat(cli): add --provider-priority override to `phax run`",
+        "body": "Add a `--provider-priority <list>` flag to `phax run`. The comma-separated list is validated via `parseProviderPriority` right after config load — before plan extraction — so bad input fails fast and `--dry-run` reports the override. When valid, `applyProviderPriorityOverride` replaces `routing.providerPriority` in memory before `executePlan`; no config file is touched. The dry-run report gains an optional override line. Adds argv and dry-run unit tests."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Wire `--provider-priority` into `phax resume` and document",
+      "model": "claude-sonnet-4-6",
+      "effort": "medium",
+      "planMarkdownAnchor": "phase-03-resume-flag-and-docs",
+      "commit": {
+        "subject": "feat(cli): add --provider-priority override to `phax resume` and document it",
+        "body": "Add the `--provider-priority <list>` flag to `phax resume`, validated early and applied on top of the effective routing (loaded config or the DEFAULT_MODEL_ROUTING fallback) before `executePlan`, mirroring `phax run`. Extend the resume argv test. Document the override in docs/model-routing.md, README.md, and .skills/model-routing.md, including the caveat that claude-code remains the guaranteed terminal fallback regardless of the override."
+      }
+    }
+  ]
+}

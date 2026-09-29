@@ -1,0 +1,26 @@
+{
+  "phaseId": "phase-01",
+  "createdAsPlanned": [
+    "tests/unit/schemas/planAuditorConfig.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/schemas/phaxConfig.ts",
+    "src/domain/config/mergeLayers.ts",
+    "src/app/loadConfig.ts",
+    "phax.schema.json",
+    "phax.user.schema.json",
+    "tests/unit/phaxConfigJsonSchema.test.ts",
+    "tests/unit/phaxUserOverlaySchema.test.ts",
+    "tests/unit/mergeLayers.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

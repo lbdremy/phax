@@ -1,0 +1,26 @@
+{
+  "createdAsPlanned": [
+    "tests/unit/routing/sameFamilyPreservation.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/routing/types.ts",
+    "src/schemas/modelRouting.ts",
+    "src/domain/routing/defaults.ts",
+    "src/domain/routing/resolve.ts",
+    "tests/type/routing.ts",
+    "tests/unit/routing/resolve.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [
+    "tests/integration/__snapshots__/stateMachineContract.test.ts.snap",
+    "tests/integration/telemetry/__snapshots__/end-to-end.test.ts.snap"
+  ],
+  "optionalTouched": [
+    "tests/unit/routing/schemas.test.ts"
+  ],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": true
+}

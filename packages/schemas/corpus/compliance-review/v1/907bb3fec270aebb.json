@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "verdict": "conformant-with-deviations",
+  "summary": "All five phases delivered their planned artifacts within scope. Phase-01 has one justified deviation: phax.json was touched by oxfmt reformatting (multi-line to single-line agentCommands array) with no content change, explained in the phase handoff. All commit subjects match the plan exactly. Every probe's Results/Verdict section is intentionally empty per the spike's execution-model caveat — the go/no-go is provisional pending a real microVM run. No src/, phax.json (behavioral), or package.json changes occurred in any phase; the spike stayed entirely within spikes/ and docs/.",
+  "perPhase": [
+    {
+      "phaseId": "phase-01",
+      "verdict": "conformant-with-deviations",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "All three planned artifacts delivered: spikes/smolvm/README.md, spikes/smolvm/00-preflight.sh (POSIX sh, set -eu, no VM boot), and spikes/smolvm/findings/TEMPLATE.md with all required sections."
+        },
+        {
+          "dimension": "files",
+          "severity": "deviation",
+          "message": "phax.json was touched (unplanned per reconciliation). Handoff explains it as oxfmt reformatting the pre-existing agentCommands array from multi-line to single-line; content including the smolvm entry is unchanged. No behavioral difference."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'chore(spike): scaffold smolvm isolation spike and preflight' matches plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Handoff covers all required content: exact paths, phax.json deviation explained, smolvm already in agentCommands pre-dating this phase, gate status confirmed."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-02",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered: 01-filesystem.sh with five named checks (workspace round-trip, HOME invisible, repo root invisible, /etc isolation, read-only mount rejection); findings/01-filesystem.md with Procedure filled and Results/Verdict intentionally empty."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No network behavior, no agent execution, no resource-limit assertions, no src/ changes."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'test(spike): add smolvm filesystem isolation probe' matches plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers mount flag syntax, host paths probed, empty Results/Verdict explained, note that --net must be explicit in phase-03."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-03",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered: 02-network.sh with five-case matrix (allowed-by-name, denied-by-name, denied-by-hardcoded-IP, allowed-by-IP, ICMP); case 3 labelled as the decisive test. findings/02-network.md frames both crux questions; Results/Verdict empty."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No agent CLIs used (curl only), no src/ changes, no smolvm patching."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'test(spike): add smolvm per-domain network allowlist probe' matches plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers --allow-host syntax, all five cases, case 3 as go/no-go signal, apk add curl requirement noted for phase-04."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-04",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered: 03-agents.sh parameterized over claude/codex/vibe with Step A (allowed egress, write-back check) and Step B (zero egress, 60s timeout for denied-egress UX). findings/03-agents.md has per-provider results table; Results/Verdict empty."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No src/infra/ adapter changes, no SecurityPolicy wiring, no hard-coded secrets."
+        },
+        {
+          "dimension": "tests",
+          "severity": "info",
+          "message": "No automated tests — correct per plan. Shell harness is human-run; per-provider findings table is the signal."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'test(spike): add smolvm in-guest agent execution probe' matches plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers executable names (including vibe/@mistralai/vibe caveat), zero-egress design for Step B, pre-baked image implication, no-secrets confirmation, empty results explained."
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-05",
+      "verdict": "conformant",
+      "findings": [
+        {
+          "dimension": "objective",
+          "severity": "info",
+          "message": "Delivered: docs/spikes/smolvm-isolation-findings.md synthesizes all three probes, gives a provisional go/no-go pinned to probe 02 case 3, provides integration sketch (isolatedSandbox adapter, SecurityPolicy reuse, secure/isolated layering), specifies widened mcp.allow shape, defines capability-preamble prompt, lists seven residual risks, and specifies next steps for both outcomes."
+        },
+        {
+          "dimension": "files",
+          "severity": "info",
+          "message": "spikes/smolvm/README.md updated with synthesis link — listed as an optional edit in the plan and reflected in reconciliation as expected extra-touch for phase-05."
+        },
+        {
+          "dimension": "excluded-scope",
+          "severity": "info",
+          "message": "No src/ changes, no phax.json or package.json changes, no follow-up implementation plan written."
+        },
+        {
+          "dimension": "commit",
+          "severity": "info",
+          "message": "Commit subject 'docs(spike): synthesize smolvm isolation findings and go/no-go' matches plan exactly."
+        },
+        {
+          "dimension": "handoff",
+          "severity": "info",
+          "message": "Covers go/no-go and single deciding fact, pointer to follow-up plan entry point (run.ts stub + infra adapter location), provisional status explicit, no deviations."
+        }
+      ]
+    }
+  ],
+  "attentionPoints": [
+    "Go/no-go is provisional: the synthesis is conditional on probe 02 case 3 (non-allowed host by hard-coded IP) blocking on a real microVM run. No follow-up implementation plan should be written until all three probe docs have Results and Verdict filled in.",
+    "@mistralai/vibe npm package name is unverified in 03-agents.sh (flagged with a NOTE comment). Must be confirmed before running the harness or the Mistral Vibe finding will be inconclusive.",
+    "Step B of the agents probe (zero egress) exposes that apk and npm install themselves need internet, so a production isolated mode requires a pre-baked guest image with provider CLIs already installed. The synthesis records this as residual risk 7; the follow-up plan must resolve image distribution before shipping.",
+    "phax.json received an unplanned oxfmt reformat in phase-01 (content unchanged). Formatter is running on files outside the changed set; worth noting for future spike phases."
+  ],
+  "pointers": [
+    "src/cli/commands/run.ts:152-158 — current isolated-mode rejection stub; the synthesis names this as the sole swap point for a follow-up implementation. Confirm the line numbers are still accurate before starting that plan.",
+    "spikes/smolvm/03-agents.sh — the vibe step uses @mistralai/vibe as the npm package name with a NOTE comment flagging it as unverified. Possible install failure if the package name is wrong — confirm via code review or a dry npm info run."
+  ]
+}

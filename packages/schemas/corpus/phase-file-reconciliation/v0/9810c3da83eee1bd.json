@@ -1,0 +1,23 @@
+{
+  "phaseId": "phase-04",
+  "createdAsPlanned": [
+    "src/domain/gate/verifiedSurfaces.ts",
+    "src/app/gateAttribution.ts",
+    "tests/unit/verifiedSurfaces.test.ts",
+    "tests/unit/gateAttribution.reader.test.ts",
+    "tests/integration/finalReport.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/app/finalReport.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "createdButPlannedEdit": [],
+  "editedButPlannedCreate": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}

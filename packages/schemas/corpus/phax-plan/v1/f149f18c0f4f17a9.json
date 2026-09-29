@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "run": {
+    "shortName": "remove-last-commands-2",
+    "title": "Remove the *-last CLI command family",
+    "requiredCommands": [
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ],
+    "branch": "phax/remove-last-commands-2"
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "phase-01-remove-last-commands",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "src/cli/commands/enter.ts",
+        "src/cli/commands/shell.ts",
+        "src/cli/commands/path.ts",
+        "src/cli/commands/open.ts",
+        "src/cli/commands/archive.ts",
+        "src/cli/commands/sessionInfo.ts",
+        "src/app/resolveRunInfo.ts",
+        "tests/integration/cliProgram.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/cli/inventory.md"
+      ],
+      "commit": {
+        "subject": "refactor(cli): remove the *-last command variants",
+        "body": "Remove the enter-last, shell-last, path-last, open-last, and archive-last\nconvenience commands and their handlers, plus the now-orphaned\nresolveLastReviewOpenRun resolver and a stale import in sessionInfo.ts, to trim\nCLI-surface noise. The named-target commands (enter/shell/path/open/archive\n<short-name>) cover the same need explicitly. Regenerate phax.usage.kdl,\ndocs/cli/reference.md, and the README CLI section from the updated Commander\nprogram; update the cliProgram command-set test. No behavior change to the\nremaining commands."
+      },
+      "title": "Remove the `*-last` command family"
+    }
+  ]
+}

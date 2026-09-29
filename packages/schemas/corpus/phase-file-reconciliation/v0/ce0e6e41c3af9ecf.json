@@ -1,0 +1,18 @@
+{
+  "createdAsPlanned": [
+    "tests/unit/routing/securityFallback.test.ts"
+  ],
+  "editedAsPlanned": [
+    "src/domain/routing/resolve.ts",
+    "src/domain/routing/types.ts",
+    "tests/unit/routing/resolve.test.ts"
+  ],
+  "missingPlannedCreate": [],
+  "missingPlannedEdit": [],
+  "unplannedCreated": [],
+  "unplannedEdited": [],
+  "optionalTouched": [],
+  "deletions": [],
+  "renames": [],
+  "hasDeviations": false
+}
