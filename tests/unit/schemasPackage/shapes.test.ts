@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   UNKNOWN,
@@ -200,6 +200,24 @@ describe("defineFormat: legacy documents", () => {
     expect(current.parse({ version: 2, a: "x", b: 1 })).toMatchObject({ ok: true, shape: "v2" });
   });
 
+  it("keeps a single known literal in the list when current and legacy share it", () => {
+    const shared = defineFormat<{ v1: typeof V1.Type }>(
+      {
+        id: "gate-pending",
+        label: "toy document",
+        legacy: { 1: shape(V1) },
+        releases: [],
+        current: { name: "v1", shape: shape(V1) },
+      },
+      { packageVersion: "0.13.0" },
+    );
+    expectFailure(
+      shared.parse({ version: 2, a: "x" }),
+      "version",
+      "unknown toy document version 2 — known versions are 1",
+    );
+  });
+
   it("fails an unknown literal at version, listing the known literals", () => {
     expectFailure(
       toy.parse({ version: 3, a: "x" }),
@@ -211,6 +229,112 @@ describe("defineFormat: legacy documents", () => {
 
   it("fails a legacy document its shape rejects, at the offending path", () => {
     expectFailure(toy.parse({ version: 1, a: "x", extra: true }), "extra");
+  });
+});
+
+// A toy whose current shape and frozen module share the literal 1: the frozen
+// module is the union of every signature written under it, so it also admits
+// documents written before `b` was required.
+const CURRENT_V1 = Schema.Struct({
+  version: Schema.Literal(1),
+  a: Schema.String,
+  b: Schema.Number,
+});
+const FROZEN_V1 = Schema.Struct({
+  version: Schema.Literal(1),
+  a: Schema.String,
+  b: Schema.optionalWith(Schema.Number, { exact: true }),
+});
+
+const fallback = defineFormat<{ v1: typeof FROZEN_V1.Type }>(
+  {
+    id: "gate-pending",
+    label: "toy document",
+    legacy: { 1: shape(FROZEN_V1) },
+    releases: [],
+    current: { name: "v1", shape: shape(CURRENT_V1) },
+  },
+  { packageVersion: "0.13.0" },
+);
+
+describe("defineFormat: the literal fallback", () => {
+  it("reads a document the current decoder rejects with the frozen module of its literal, as the same shape", () => {
+    expect(fallback.parse({ version: 1, a: "x" })).toEqual({
+      ok: true,
+      shape: "v1",
+      value: { version: 1, a: "x" },
+    });
+  });
+
+  it("returns the current decoder's value when it accepts the document", () => {
+    let frozenCalls = 0;
+    const counted = defineFormat<{ v1: typeof FROZEN_V1.Type }>(
+      {
+        id: "gate-pending",
+        label: "toy document",
+        legacy: {
+          1: {
+            schema: FROZEN_V1,
+            decode: (input) => {
+              frozenCalls++;
+              return shape(FROZEN_V1).decode(input);
+            },
+          },
+        },
+        releases: [],
+        current: {
+          name: "v1",
+          shape: {
+            schema: CURRENT_V1,
+            // Reads `b` as twice its value, so the test can tell which decoder answered.
+            decode: (input) =>
+              Schema.decodeUnknownEither(
+                Schema.transform(CURRENT_V1, CURRENT_V1, {
+                  strict: true,
+                  decode: (value) => ({ ...value, b: value.b * 2 }),
+                  encode: (value) => value,
+                }),
+                { onExcessProperty: "error" },
+              )(input),
+          },
+        },
+      },
+      { packageVersion: "0.13.0" },
+    );
+    expect(counted.parse({ version: 1, a: "x", b: 2 })).toEqual({
+      ok: true,
+      shape: "v1",
+      value: { version: 1, a: "x", b: 4 },
+    });
+    expect(frozenCalls).toBe(0);
+  });
+
+  it("returns the current decoder's failure when both reject the document", () => {
+    // The current decoder fails at `b`; this frozen module would fail at `z`.
+    const OTHER_V1 = Schema.Struct({
+      version: Schema.Literal(1),
+      a: Schema.String,
+      z: Schema.String,
+    });
+    const both = defineFormat<{ v1: typeof OTHER_V1.Type | typeof CURRENT_V1.Type }>(
+      {
+        id: "gate-pending",
+        label: "toy document",
+        legacy: { 1: shape(OTHER_V1) },
+        releases: [],
+        current: { name: "v1", shape: shape(CURRENT_V1) },
+      },
+      { packageVersion: "0.13.0" },
+    );
+    expect(Either.isLeft(Schema.decodeUnknownEither(OTHER_V1)({ version: 1, a: "x" }))).toBe(true);
+    expectFailure(both.parse({ version: 1, a: "x" }), "b");
+    expectFailure(fallback.parse({ version: 1, a: "x", extra: true }), "extra");
+  });
+
+  it("never throws", () => {
+    for (const input of [{ version: 1 }, { version: 1, a: Symbol("x") }, { version: 1, b: 10n }]) {
+      expect(() => fallback.parse(input)).not.toThrow();
+    }
   });
 });
 

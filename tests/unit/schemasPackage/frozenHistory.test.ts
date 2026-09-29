@@ -28,10 +28,15 @@ describe("schemas-check on the committed tree", () => {
     expect(checkSchemas(state)).toEqual([]);
   });
 
-  it("pins every frozen phase record manifest module", () => {
+  it("pins every frozen module", () => {
     expect(Object.keys(state.lock)).toEqual([
+      "src/history/compliance-review/v1.ts",
       "src/history/phase-record-manifest/v1.ts",
       "src/history/phase-record-manifest/v2.ts",
+      "src/history/phase-status/v1.ts",
+      "src/history/phax-plan/v1.ts",
+      "src/history/registry/v1.ts",
+      "src/history/run-status/v1.ts",
     ]);
   });
 

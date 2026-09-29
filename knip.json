@@ -12,7 +12,7 @@
     "packages/schemas/build/*.ts"
   ],
   "project": ["src/**/*.ts", "tests/**/*.ts", "packages/schemas/**/*.ts"],
-  "ignoreDependencies": ["@effect/platform", "@effect/platform-node", "esbuild"],
+  "ignoreDependencies": ["@effect/platform", "@effect/platform-node", "esbuild", "ajv"],
   "ignoreFiles": ["tests/e2e/fixtures/**"],
   "ignoreBinaries": ["claude", "gh", "usage"]
 }

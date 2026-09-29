@@ -1,0 +1,535 @@
+{
+  "phases[{commit,effort,id,model,optionalFilesToEdit,planMarkdownAnchor,plannedFilesToCreate,plannedFilesToEdit,title}] run{branch,requiredCommands,shortName,title} version": {
+    "version": 1,
+    "run": {
+      "shortName": "article-series-taxonomy",
+      "title": "Article Series Taxonomy — Implementation Plan",
+      "requiredCommands": [],
+      "branch": "phax/article-series-taxonomy"
+    },
+    "phases": [
+      {
+        "id": "phase-01",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-01-series-contract",
+        "plannedFilesToCreate": [
+          "apps/le-secretaire-de-fernand/src/site/content/taxonomy/series.json",
+          "packages/louloupress/tests/content-series-taxonomy-contracts.test.ts"
+        ],
+        "plannedFilesToEdit": [
+          "packages/louloupress/src/modules/content/shared/contracts/taxonomy.ts",
+          "apps/le-secretaire-de-fernand/src/site/data.ts"
+        ],
+        "optionalFilesToEdit": [
+          "packages/louloupress/src/modules/content/shared/contracts/index.ts",
+          "apps/le-secretaire-de-fernand/src/shared/site-runtime.ts"
+        ],
+        "commit": {
+          "subject": "feat(content): add series taxonomy store contract and data wiring",
+          "body": "Add SeriesStore/SeriesDefinition types and parseSeriesStore to the shared content contracts, seed an empty series.json, and expose the parsed store from the site data layer. Structural validation is covered by contract tests; cross-document validation lands with the build artifact in the next phase."
+        },
+        "title": "Series store contract and data wiring"
+      },
+      {
+        "id": "phase-02",
+        "model": "claude-sonnet-4-6",
+        "effort": "high",
+        "planMarkdownAnchor": "phase-02-series-usage",
+        "plannedFilesToCreate": [
+          "packages/louloupress/src/modules/content/shared/contracts/generated-series-index.ts",
+          "apps/le-secretaire-de-fernand/tests/content/series-usage.test.ts"
+        ],
+        "plannedFilesToEdit": [
+          "apps/le-secretaire-de-fernand/src/build/modules/seo/content-index.ts"
+        ],
+        "optionalFilesToEdit": [
+          "apps/le-secretaire-de-fernand/src/build/pipelines/published-artifact-recipes.ts",
+          "apps/le-secretaire-de-fernand/tests/content/generate-content-indexes.test.ts",
+          "packages/louloupress/src/modules/content/shared/contracts/index.ts",
+          "apps/le-secretaire-de-fernand/src/site/content/generated/series-usage.json"
+        ],
+        "commit": {
+          "subject": "feat(build): generate series usage artifact with prev/next resolution",
+          "body": "Emit series-usage.json during content index generation with ordered, per-locale resolved members and precomputed previous/next links, and enforce build-time validation that referenced documents exist and no document belongs to two series. Covered by an integration test over a fixture document set."
+        },
+        "title": "Generated series usage artifact"
+      },
+      {
+        "id": "phase-03",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-03-series-route-data",
+        "plannedFilesToCreate": [
+          "apps/le-secretaire-de-fernand/tests/server/series-route-data.test.ts"
+        ],
+        "plannedFilesToEdit": [
+          "packages/louloupress/src/modules/content/shared/contracts/route-data.ts",
+          "packages/louloupress/src/modules/content/server/application/route-data/create-content-route-data.ts",
+          "apps/le-secretaire-de-fernand/src/web-rpc/modules/content/functions/route-data-functions.ts",
+          "apps/le-secretaire-de-fernand/src/shared/site-runtime.ts",
+          "apps/le-secretaire-de-fernand/src/web/modules/public-site/routing/public-site-links.ts"
+        ],
+        "optionalFilesToEdit": [
+          "apps/le-secretaire-de-fernand/src/shared/contracts/route-search.ts"
+        ],
+        "commit": {
+          "subject": "feat(content): add series route data resolver and RPC",
+          "body": "Add the localized series route-data contract, a resolver and resolveSeriesForDocument helper over the series usage artifact, the getLocalizedSeriesRouteData RPC, and series URL helpers. Covered by server tests for slug resolution, document lookup, and locale alternates."
+        },
+        "title": "Series route data and RPC"
+      },
+      {
+        "id": "phase-04",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-04-series-index-page",
+        "plannedFilesToCreate": [
+          "apps/le-secretaire-de-fernand/src/web/routes/$lang/series/$seriesSlug.tsx",
+          "packages/louloupress/src/modules/content/web/pages/series-index/page.tsx",
+          "apps/le-secretaire-de-fernand/tests/ui/series-index-page.test.tsx"
+        ],
+        "plannedFilesToEdit": [],
+        "optionalFilesToEdit": [
+          "apps/le-secretaire-de-fernand/src/routeTree.gen.ts",
+          "packages/louloupress/src/modules/content/web/pages/index.ts",
+          "apps/le-secretaire-de-fernand/tests/seo/content-index-route.test.ts"
+        ],
+        "commit": {
+          "subject": "feat(web): add localized series index route and page",
+          "body": "Add the /:lang/series/:seriesSlug route and a SeriesIndexPage that lists parts in reading order with Part N labels, description, SEO alternates, and a localized empty state, reusing ArticleCard. Covered by a component test over fixture route data."
+        },
+        "title": "Series index route and page"
+      },
+      {
+        "id": "phase-05",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-05-in-article-nav",
+        "plannedFilesToCreate": [
+          "packages/louloupress/src/modules/content/web/components/mdx/SeriesNav.tsx",
+          "apps/le-secretaire-de-fernand/tests/ui/series-nav.test.tsx"
+        ],
+        "plannedFilesToEdit": [
+          "apps/le-secretaire-de-fernand/src/web/modules/content/pages/mdx-content/page.tsx",
+          "packages/louloupress/src/modules/content/web/components/mdx/MdxPage.tsx"
+        ],
+        "optionalFilesToEdit": [
+          "packages/louloupress/src/modules/content/web/components/mdx/index.ts",
+          "apps/le-secretaire-de-fernand/src/web/modules/content/pages/mdx-content/page.tsx"
+        ],
+        "commit": {
+          "subject": "feat(web): add in-article series previous/next navigation",
+          "body": "Add a SeriesNav banner near the article header linking to the previous part and a next-part CTA after the body via renderAfterContent, both localized and composing with the reader-feedback surface. Series context comes from resolveSeriesForDocument. Covered by a component test across first/middle/last positions."
+        },
+        "title": "In-article series navigation"
+      }
+    ]
+  },
+  "phases[{commit,effort,id,model,optionalFilesToEdit,planMarkdownAnchor,plannedFilesToCreate,plannedFilesToEdit,title}] run{branch,shortName,title} version": {
+    "version": 1,
+    "run": {
+      "shortName": "deno-runtime",
+      "title": "Deno Runtime and Distribution — Plan",
+      "branch": "phax/deno-runtime"
+    },
+    "phases": [
+      {
+        "id": "phase-01",
+        "title": "Deno runtime config and run-under-Deno parity",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-01-deno-config",
+        "plannedFilesToCreate": [
+          "deno.json"
+        ],
+        "plannedFilesToEdit": [
+          "package.json",
+          "phax.json"
+        ],
+        "optionalFilesToEdit": [],
+        "commit": {
+          "subject": "feat(build): add deno.json and run the phax CLI under Deno",
+          "body": "Add a deno.json that lets Deno execute the existing Node/TypeScript CLI via nodeModulesDir and the current package.json, with Deno's own fmt/lint kept out of the gates. Add a `deno:smoke` script that runs `phax --version` under Deno and wire it into the `full` gate profile so every phase verifies the source still runs under Deno. No application code changes; the Node toolchain stays authoritative."
+        }
+      },
+      {
+        "id": "phase-02",
+        "title": "Compiled binary with permission posture",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-02-compile-binary",
+        "plannedFilesToCreate": [
+          "scripts/build-binaries.ts"
+        ],
+        "plannedFilesToEdit": [
+          "deno.json",
+          "package.json",
+          "phax.json"
+        ],
+        "optionalFilesToEdit": [
+          ".gitignore"
+        ],
+        "commit": {
+          "subject": "feat(build): compile phax to a permissioned binary with release targets",
+          "body": "Add deno compile tasks that produce a single-file phax binary carrying the intended permission posture (filesystem yes, network denied, env for PATH, run restricted to an explicit executable allowlist), plus a build-binaries script that cross-compiles the four release targets and writes SHA-256 checksums. A new deno:smoke-binary gate compiles the host binary and asserts startup and executable-denial behavior."
+        }
+      },
+      {
+        "id": "phase-03",
+        "title": "npm wrapper package",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-03-npm-wrapper",
+        "plannedFilesToCreate": [
+          "npm/package.json",
+          "npm/lib/resolveBinary.ts",
+          "npm/bin/phax.cjs",
+          "tests/unit/npmWrapperResolve.test.ts"
+        ],
+        "plannedFilesToEdit": [],
+        "optionalFilesToEdit": [
+          "vitest.config.ts",
+          "knip.json"
+        ],
+        "commit": {
+          "subject": "feat(dist): add npm wrapper that resolves the platform phax binary",
+          "body": "Add an npm wrapper package whose launcher resolves and invokes the correct platform binary, downloading the matching GitHub Releases asset on first run. The pure platform→asset and asset-URL logic is unit-tested for every supported platform and rejects unsupported ones (including Windows). Prepare-only: no registry publish here."
+        }
+      },
+      {
+        "id": "phase-04",
+        "title": "Continuous integration workflow",
+        "model": "claude-sonnet-4-6",
+        "effort": "low",
+        "planMarkdownAnchor": "phase-04-ci-workflow",
+        "plannedFilesToCreate": [
+          ".github/workflows/ci.yml",
+          "tests/unit/ciWorkflow.test.ts"
+        ],
+        "plannedFilesToEdit": [],
+        "optionalFilesToEdit": [],
+        "commit": {
+          "subject": "ci: add continuous integration workflow",
+          "body": "Add a GitHub Actions CI workflow that installs Node, pnpm, and Deno and runs the full gate (typecheck, tests, lint, format check, knip, build, architecture audit) plus the Deno smoke and host-binary compile, mirroring the phax.json full profile. A text-invariant unit test asserts the workflow keeps its required triggers and steps."
+        }
+      },
+      {
+        "id": "phase-05",
+        "title": "Release workflow on Git tags",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-05-release-workflow",
+        "plannedFilesToCreate": [
+          ".github/workflows/release.yml",
+          "scripts/prepare-npm.ts",
+          "tests/unit/releaseWorkflow.test.ts"
+        ],
+        "plannedFilesToEdit": [],
+        "optionalFilesToEdit": [
+          "npm/package.json"
+        ],
+        "commit": {
+          "subject": "ci: add tag-triggered release workflow with checksums and npm prepare",
+          "body": "Add a release workflow that runs on v* tags: it builds the four platform binaries with SHA-256 checksums, creates the GitHub Release and uploads the artifacts, and prepares the npm wrapper by version-matching it to the tag and running npm publish --dry-run (no live publish, no NPM_TOKEN). A pure versionFromTag helper and text-invariant workflow tests back the version-match and required steps."
+        }
+      },
+      {
+        "id": "phase-06",
+        "title": "Distribution and runtime posture docs",
+        "model": "claude-sonnet-4-6",
+        "effort": "low",
+        "planMarkdownAnchor": "phase-06-docs",
+        "plannedFilesToCreate": [],
+        "plannedFilesToEdit": [
+          "README.md",
+          "docs/specs/06-deno-runtime.md"
+        ],
+        "optionalFilesToEdit": [],
+        "commit": {
+          "subject": "docs: document phax distribution, deno posture, and macOS sleep note",
+          "body": "Document the npm-wrapper and GitHub Releases install paths, the Deno permission posture (filesystem yes, network no, env for PATH, run allowlisted), and the explicit caveat that Deno sandboxes phax but not the provider CLIs it launches. Add the caffeinate recommendation for long-running runs and mark the Deno runtime spec implemented with its descoped criteria noted."
+        }
+      }
+    ]
+  },
+  "phases[{commit,effort,id,model,planMarkdownAnchor,title}] run{backend,branch,shortName,title} version": {
+    "version": 1,
+    "run": {
+      "shortName": "observability",
+      "title": "Implementation plan — PHAX observability & telemetry doctrine",
+      "branch": "phax/observability",
+      "backend": "claude-code-cli"
+    },
+    "phases": [
+      {
+        "id": "phase-01",
+        "title": "Semantic telemetry domain types",
+        "model": "claude-sonnet-4-6",
+        "effort": "low",
+        "planMarkdownAnchor": "phase-01-semantic-domain",
+        "commit": {
+          "subject": "ai(phase-01): add semantic telemetry domain types and snapshot projection",
+          "body": "Introduce the pure-domain semantic telemetry vocabulary under `src/domain/telemetry/` — the `SemanticTelemetryEvent` discriminated union, the `SystemErrorReport` value type, and the `SemanticTraceSnapshot` projection — plus matching Effect Schemas. No Effect, OpenTelemetry, or IO; this is the source of truth every later observability phase maps to or from."
+        }
+      },
+      {
+        "id": "phase-02",
+        "title": "SystemTelemetry application port",
+        "model": "claude-sonnet-4-6",
+        "effort": "low",
+        "planMarkdownAnchor": "phase-02-system-telemetry-port",
+        "commit": {
+          "subject": "ai(phase-02): add SystemTelemetry application port and noop layer",
+          "body": "Define the `SystemTelemetry` Context.Tag that covers traces, semantic events, errors, counters, and durations behind one stable interface; ship a `NoopSystemTelemetryLayer` as the safe default. The port lives alongside the existing `Tracer` — no callers are migrated in this phase."
+        }
+      },
+      {
+        "id": "phase-03",
+        "title": "InMemoryTelemetry adapter and snapshot projection",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-03-in-memory",
+        "commit": {
+          "subject": "ai(phase-03): add InMemoryTelemetry adapter and snapshot projection",
+          "body": "Implement the in-memory `SystemTelemetry` adapter that collects semantic events, counters, and durations in deterministic order and exposes a stable `SemanticTraceSnapshot` projection; ship the matching fake under `src/infra/fakes/systemTelemetry.ts`. A scripted integration test pins the snapshot shape so later phases preserve it."
+        }
+      },
+      {
+        "id": "phase-04",
+        "title": "JsonFileTelemetry adapter",
+        "model": "claude-sonnet-4-6",
+        "effort": "low",
+        "planMarkdownAnchor": "phase-04-json-file",
+        "commit": {
+          "subject": "ai(phase-04): add JsonFileTelemetry adapter for local semantic traces",
+          "body": "Add a `SystemTelemetry` implementation that appends one JSON line per semantic event to a configurable path through the existing `FileSystem` port. All IO failures are swallowed inside the adapter so telemetry never fails a run, and the on-disk format round-trips through the phase-01 Effect Schemas."
+        }
+      },
+      {
+        "id": "phase-05",
+        "title": "OpenTelemetrySystemTelemetry adapter",
+        "model": "claude-opus-4-7",
+        "effort": "high",
+        "planMarkdownAnchor": "phase-05-opentelemetry",
+        "commit": {
+          "subject": "ai(phase-05): add OpenTelemetry SystemTelemetry adapter (envelope)",
+          "body": "Implement the `OpenTelemetrySystemTelemetry` adapter that maps `runId` to traces, `withOperation` to spans, semantic events to span events, structured errors to span status + recorded exceptions, and counters/durations to OTel metrics, per doctrine §6. OTel imports are confined to this single infrastructure module; unit tests exercise the mapping through in-memory exporters."
+        }
+      },
+      {
+        "id": "phase-06",
+        "title": "CompositeTelemetry + layer factory + CLI flag wiring",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-06-composite-and-factory",
+        "commit": {
+          "subject": "ai(phase-06): add CompositeTelemetry and SystemTelemetry layer factory",
+          "body": "Add `CompositeTelemetry` so multiple `SystemTelemetry` implementations can run in lockstep, plus a `makeSystemTelemetryLayer` factory that composes in-memory / verbose-renderer / JSON-file / OpenTelemetry layers from a single options record. Application call sites are untouched; the legacy `Tracer` still serves the CLI flags."
+        }
+      },
+      {
+        "id": "phase-07",
+        "title": "Migrate application orchestration to SystemTelemetry",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-07-app-migration",
+        "commit": {
+          "subject": "ai(phase-07): migrate application orchestration to SystemTelemetry",
+          "body": "Switch every call site in `src/app/` from `Tracer` to `SystemTelemetry`: dispatcher transitions use `recordTransition`, adapter calls use `withOperation`, and the legacy event names are mapped 1:1 to `SemanticTelemetryEvent` variants. The `Tracer` port stays present (wired to a noop) so CLI flag handling still compiles; phase-09 removes it. Existing tests now assert on both ports as a transitional safety net."
+        }
+      },
+      {
+        "id": "phase-08",
+        "title": "Structured SystemErrorReport at adapter boundaries",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-08-error-reports",
+        "commit": {
+          "subject": "ai(phase-08): emit SystemErrorReport for adapter boundary failures",
+          "body": "Enrich the typed errors raised by Shell, Git, and Claude-CLI adapters with the contract fields (argv, exit code, stderr excerpt, expected) the doctrine requires, then build `SystemErrorReport` values in the application layer and emit them through `SystemTelemetry.recordError`. Adapter modules stay decoupled from telemetry — reports are constructed where the operation context is known."
+        }
+      },
+      {
+        "id": "phase-09",
+        "title": "Remove legacy Tracer port and migrate CLI flags fully",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-09-remove-tracer",
+        "commit": {
+          "subject": "ai(phase-09): remove legacy Tracer port and unify on SystemTelemetry",
+          "body": "Delete `src/ports/tracer.ts` and its three implementations, fold the verbose / trace CLI flags onto the `SystemTelemetry` factory, and migrate every remaining test from `FakeTracer` to `InMemoryTelemetry`. The codebase now has a single observability port; `@opentelemetry/*` stays opt-in via `PHAX_OTEL` and is the doctrine's standard envelope."
+        }
+      },
+      {
+        "id": "phase-10",
+        "title": "Happy-path E2E semantic snapshot test",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-10-e2e-snapshot",
+        "commit": {
+          "subject": "ai(phase-10): pin happy-path semantic trace via snapshot test",
+          "body": "Add an end-to-end test that drives the real happy path while capturing semantic events through `InMemoryTelemetry`, then asserts the `SemanticTraceSnapshot` projection. The snapshot is the proof artifact the doctrine prescribes — future refactors must replay it identically or explicitly promote a new baseline."
+        }
+      },
+      {
+        "id": "phase-11",
+        "title": "Architectural guards + .skills/observability.md",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-11-guards-and-skill",
+        "commit": {
+          "subject": "ai(phase-11): add telemetry doctrine guards and observability skill",
+          "body": "Add four `PHAX_TELEMETRY_*` architectural guard tests that freeze the doctrine in code — domain isolation, OTel confinement, application port-only access, and snapshot-projection purity — and ship `.skills/observability.md` so agents and reviewers have a single correction guide when a guard fires."
+        }
+      },
+      {
+        "id": "phase-12",
+        "title": "Doctrine docs (docs/observability.md, state-machine, README)",
+        "model": "claude-sonnet-4-6",
+        "effort": "low",
+        "planMarkdownAnchor": "phase-12-docs",
+        "commit": {
+          "subject": "ai(phase-12): document the observability doctrine and SystemTelemetry",
+          "body": "Ship `docs/observability.md` summarising the doctrine, the `SystemTelemetry` port, the four implementations, the CLI flags / env vars, the snapshot rule, the adapter-boundary failure contract, and the `PHAX_TELEMETRY_*` guards; update `docs/state-machine.md` and `README.md` to point at `SystemTelemetry` as the canonical observability surface. Documentation-only commit."
+        }
+      }
+    ]
+  },
+  "phases[{commit,effort,id,model,optionalFilesToEdit,planMarkdownAnchor,plannedFilesToCreate,plannedFilesToEdit,title}] run{backend,branch,shortName,title} version": {
+    "version": 1,
+    "run": {
+      "shortName": "update-provider-effort",
+      "title": "Implementation plan — Provider-specific effort/thinking enums and routing corrections",
+      "branch": "phax/update-provider-effort",
+      "backend": "claude-code-cli"
+    },
+    "phases": [
+      {
+        "id": "phase-01",
+        "title": "Per-family effort enums and openai-gpt rename",
+        "model": "claude-sonnet-4-6",
+        "effort": "high",
+        "planMarkdownAnchor": "phase-01-effort-enums",
+        "plannedFilesToCreate": [
+          "tests/unit/routing/effortLevels.test.ts"
+        ],
+        "plannedFilesToEdit": [
+          "src/domain/routing/types.ts",
+          "src/schemas/modelRouting.ts",
+          "src/schemas/phaxPlan.ts",
+          "src/schemas/status.ts",
+          "src/domain/routing/defaults.ts",
+          "src/domain/routing/resolve.ts",
+          "src/infra/providers/codexCli.ts",
+          "src/cli/commands/agent.ts",
+          "tests/unit/routing/schemas.test.ts",
+          "tests/unit/routing/resolve.test.ts",
+          "tests/unit/routing/providerSetup.test.ts",
+          "tests/unit/providers/codexCli.test.ts"
+        ],
+        "optionalFilesToEdit": [
+          "tests/type/routing.ts",
+          "tests/unit/schemas.test.ts",
+          "tests/unit/providers/mistralVibe.test.ts"
+        ],
+        "commit": {
+          "subject": "feat(routing): add per-family effort enums and rename openai-gpt family",
+          "body": "Replace the flat ThinkingLevel union with per-family effort enums (claude-haiku/sonnet/opus, mistral-medium, openai-gpt) as the source of truth, deriving the EffortLevel superset and a FAMILY_EFFORTS capability map with isEffortSupported. Rename the openai-chatgpt model family to openai-gpt across the domain, schemas, providers, and CLI in one commit, and expand the plan and status effort schemas to the superset. No routing-semantics change yet."
+        }
+      },
+      {
+        "id": "phase-02",
+        "title": "Same-family preservation, corrected table, ultracode",
+        "model": "claude-opus-4-7",
+        "effort": "high",
+        "planMarkdownAnchor": "phase-02-routing-rules",
+        "plannedFilesToCreate": [
+          "tests/unit/routing/sameFamilyPreservation.test.ts"
+        ],
+        "plannedFilesToEdit": [
+          "src/domain/routing/types.ts",
+          "src/schemas/modelRouting.ts",
+          "src/domain/routing/defaults.ts",
+          "src/domain/routing/resolve.ts",
+          "tests/type/routing.ts",
+          "tests/unit/routing/resolve.test.ts"
+        ],
+        "optionalFilesToEdit": [
+          "tests/unit/routing/schemas.test.ts",
+          "tests/unit/routing/loadRouting.test.ts"
+        ],
+        "commit": {
+          "subject": "feat(routing): preserve model family across effort and add ultracode tier",
+          "body": "Rework DEFAULT_MODEL_ROUTING so claude-sonnet/low stays Sonnet and claude-opus/low stays Opus, fixing the criterion-8/9 family-downgrade bugs. Add an ultra tier for the Opus-only ultracode level with no default Mistral/OpenAI equivalent, and add a same-family preservation guard in resolveModel that holds even against user table edits. Bump the default Opus model id to claude-opus-4-8."
+        }
+      },
+      {
+        "id": "phase-03",
+        "title": "Fix Codex CLI invocation and output parsing",
+        "model": "claude-opus-4-7",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-03-codex-cli",
+        "plannedFilesToCreate": [
+          "tests/unit/providers/fixtures/codex-exec-sample.jsonl"
+        ],
+        "plannedFilesToEdit": [
+          "src/infra/providers/codexCli.ts",
+          "src/schemas/codexOutput.ts",
+          "tests/unit/providers/codexCli.test.ts"
+        ],
+        "optionalFilesToEdit": [
+          "src/schemas/claudeOutput.ts"
+        ],
+        "commit": {
+          "subject": "fix(codex): invoke codex exec with correct flags and parse JSONL output",
+          "body": "Rewrite buildCodexArgs to use the codex exec subcommand with --model, --sandbox, --cd, --json, and -c model_reasoning_effort, and emit `codex exec resume` for resumes. This fixes the clap exit-code-2 caused by the old nonexistent top-level flags. Rewrite the codexOutput parser against a captured real --json sample committed as a fixture."
+        }
+      },
+      {
+        "id": "phase-04",
+        "title": "Fix Mistral Vibe invocation and output parsing",
+        "model": "claude-opus-4-7",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-04-mistral-vibe",
+        "plannedFilesToCreate": [
+          "tests/unit/providers/fixtures/vibe-streaming-sample.jsonl"
+        ],
+        "plannedFilesToEdit": [
+          "src/infra/providers/mistralVibe.ts",
+          "src/schemas/vibeOutput.ts",
+          "tests/unit/providers/mistralVibe.test.ts"
+        ],
+        "optionalFilesToEdit": [
+          "src/app/vibeSetup.ts"
+        ],
+        "commit": {
+          "subject": "fix(vibe): use programmatic mode with trust handling and parse streaming output",
+          "body": "Rewrite buildVibeArgs to use vibe -p programmatic mode with --agent auto-approve, --output streaming, --trust, and --resume, fixing the nonexistent --print/--output-format/--verbose flags and the missing directory-trust handling. Rewrite the vibeOutput parser against a captured real streaming sample committed as a fixture."
+        }
+      },
+      {
+        "id": "phase-05",
+        "title": "Planning skill and routing documentation",
+        "model": "claude-sonnet-4-6",
+        "effort": "medium",
+        "planMarkdownAnchor": "phase-05-skill-docs",
+        "plannedFilesToCreate": [],
+        "plannedFilesToEdit": [
+          ".skills/phax-planning.md",
+          ".skills/model-routing.md",
+          "docs/model-routing.md",
+          "tests/unit/skills.test.ts"
+        ],
+        "optionalFilesToEdit": [
+          "tests/e2e/helpers/backends.ts",
+          "README.md"
+        ],
+        "commit": {
+          "subject": "docs(routing): expose per-family effort matrix and openai-gpt in skill and docs",
+          "body": "Update the phax-planning skill to present the full per-family model/effort matrix (Haiku none; Sonnet low–max; Opus low–ultracode; Mistral off–max; GPT low–xhigh) and bump the Opus id to claude-opus-4-8. Rename openai-chatgpt to openai-gpt across the routing docs and skill, document the ultra tier and the same-family preservation rule, and update skills.test.ts to match."
+        }
+      }
+    ]
+  }
+}

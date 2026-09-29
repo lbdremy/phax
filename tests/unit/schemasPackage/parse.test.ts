@@ -1,6 +1,6 @@
 import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
-import { parsePhaseRecordManifest } from "../../../packages/schemas/src/index.js";
+import { parsePhaseRecordManifest, parseRunStatus } from "../../../packages/schemas/src/index.js";
 import { fromEither } from "../../../packages/schemas/src/parsed.js";
 
 const manifest = {
@@ -70,6 +70,34 @@ describe("parsePhaseRecordManifest", () => {
     for (const input of inputs) {
       expect(() => parsePhaseRecordManifest(input)).not.toThrow();
     }
+  });
+});
+
+describe("parseRunStatus", () => {
+  const runStatus = {
+    version: 1,
+    namespace: "phax",
+    shortName: "schemas-package",
+    runId: "schemas-package-1790152173930",
+    state: "running",
+    createdAt: "2026-09-29T08:29:33.944Z",
+    updatedAt: "2026-09-29T08:42:06.887Z",
+    phasesCount: 5,
+    gateProfileId: "standard",
+  };
+
+  it("returns ok with the shape and the value for a valid run status", () => {
+    expect(parseRunStatus(runStatus)).toEqual({ ok: true, shape: "v1", value: runStatus });
+  });
+
+  it("fails at state for a paused run status, without throwing", () => {
+    const paused = { ...runStatus, state: "paused" };
+    expect(() => parseRunStatus(paused)).not.toThrow();
+    const result = parseRunStatus(paused);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.path).toBe("state");
+    expect(result.error.message).not.toBe("");
   });
 });
 
