@@ -28,6 +28,7 @@ import {
   registryFormat,
   runStatusFormat,
 } from "../src/formats/runDirectory.js";
+import type { FormatDefinition } from "../src/shapes.js";
 
 const DRAFT_07 = "http://json-schema.org/draft-07/schema#";
 
@@ -54,27 +55,48 @@ export interface JsonSchemaFailure {
 
 type JsonSchemaFormatId = FormatId | "record-manifest";
 
-interface CurrentShape {
-  readonly label: string;
-  readonly current: { readonly shape: { readonly schema: Schema.Schema.Any } };
+interface ShapeSchema {
+  readonly schema: Schema.Schema.Any;
 }
 
-const DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
-  registry: registryFormat,
-  "run-status": runStatusFormat,
-  "phase-status": phaseStatusFormat,
-  "phax-plan": phaxPlanFormat,
-  "compliance-review": complianceReviewFormat,
-  "plan-approvals": planApprovalsFormat,
-  "spec-approvals": specApprovalsFormat,
-  "phase-record-manifest": phaseRecordManifestFormat,
-  "authoring-record-manifest": authoringRecordManifestFormat,
-  "gate-attribution": gateAttributionFormat,
-  "phase-file-reconciliation": phaseFileReconciliationFormat,
-  "gate-diagnostics": gateDiagnosticsFormat,
-  "gate-pending": gatePendingFormat,
-  "spec-document": specDocumentFormat,
-  "plan-document": planDocumentFormat,
+/** A format's shape table, erased to its schemas: what the JSON Schemas are rendered from. */
+export interface FormatShapes {
+  readonly id: FormatId;
+  readonly label: string;
+  /** `version` literal `N` → the frozen module of shape `v<N>`. */
+  readonly legacy: Readonly<Record<number, ShapeSchema | undefined>>;
+  /** Release → the frozen module of the shape it introduced. */
+  readonly releases: ReadonlyArray<readonly [string, ShapeSchema]>;
+  readonly current: { readonly name: string; readonly shape: ShapeSchema };
+}
+
+function shapesOf<M>(definition: FormatDefinition<M>): FormatShapes {
+  return {
+    id: definition.id,
+    label: definition.label,
+    legacy: definition.legacy as FormatShapes["legacy"],
+    releases: definition.releases as FormatShapes["releases"],
+    current: definition.current as FormatShapes["current"],
+  };
+}
+
+/** Every format's shape table, keyed by format id. */
+export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: FormatShapes } = {
+  registry: shapesOf(registryFormat),
+  "run-status": shapesOf(runStatusFormat),
+  "phase-status": shapesOf(phaseStatusFormat),
+  "phax-plan": shapesOf(phaxPlanFormat),
+  "compliance-review": shapesOf(complianceReviewFormat),
+  "plan-approvals": shapesOf(planApprovalsFormat),
+  "spec-approvals": shapesOf(specApprovalsFormat),
+  "phase-record-manifest": shapesOf(phaseRecordManifestFormat),
+  "authoring-record-manifest": shapesOf(authoringRecordManifestFormat),
+  "gate-attribution": shapesOf(gateAttributionFormat),
+  "phase-file-reconciliation": shapesOf(phaseFileReconciliationFormat),
+  "gate-diagnostics": shapesOf(gateDiagnosticsFormat),
+  "gate-pending": shapesOf(gatePendingFormat),
+  "spec-document": shapesOf(specDocumentFormat),
+  "plan-document": shapesOf(planDocumentFormat),
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -116,7 +138,7 @@ function tableEntry(
 /** Every file the build writes: one per format id, then the record-manifest union. */
 export const JSON_SCHEMA_FORMATS: ReadonlyArray<JsonSchemaFormat> = [
   ...FORMAT_IDS.map((id) =>
-    tableEntry(id, DEFINITIONS[id].label, DEFINITIONS[id].current.shape.schema),
+    tableEntry(id, FORMAT_DEFINITIONS[id].label, FORMAT_DEFINITIONS[id].current.shape.schema),
   ),
   tableEntry("record-manifest", "record manifest", RecordManifestSchema),
 ];
@@ -202,6 +224,38 @@ function renderOne(entry: JsonSchemaFormat): Record<string, unknown> {
   };
 }
 
+/** A rendered file's content, or why the schema cannot be rendered. */
+export type RenderedJsonSchema =
+  | { readonly ok: true; readonly content: string }
+  | { readonly ok: false; readonly reason: string };
+
+function renderEntry(entry: JsonSchemaFormat): RenderedJsonSchema {
+  const gaps = findJsonSchemaGaps(entry.schema);
+  if (gaps.length > 0) {
+    return {
+      ok: false,
+      reason: `JSON Schema cannot express the refinement at ${gaps.join(", ")} — give it a jsonSchema annotation`,
+    };
+  }
+  try {
+    return { ok: true, content: `${JSON.stringify(renderOne(entry), null, 2)}\n` };
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * Renders one shape of a format exactly as its `packages/schemas/json/` file
+ * is rendered: the format's title and excess-property strategy, and a failure
+ * for a refinement JSON Schema cannot express.
+ */
+export function renderShapeJsonSchema(
+  format: FormatId,
+  schema: Schema.Schema.Any,
+): RenderedJsonSchema {
+  return renderEntry(tableEntry(format, FORMAT_DEFINITIONS[format].label, schema));
+}
+
 /**
  * Renders every entry. A format with a gap or a rendering error gets a
  * failure naming it and no file; every other format gets its file content.
@@ -213,22 +267,9 @@ export function renderJsonSchemas(table: ReadonlyArray<JsonSchemaFormat>): {
   const files = new Map<string, string>();
   const failures: JsonSchemaFailure[] = [];
   for (const entry of table) {
-    const gaps = findJsonSchemaGaps(entry.schema);
-    if (gaps.length > 0) {
-      failures.push({
-        format: entry.format,
-        reason: `JSON Schema cannot express the refinement at ${gaps.join(", ")} — give it a jsonSchema annotation`,
-      });
-      continue;
-    }
-    try {
-      files.set(entry.fileName, `${JSON.stringify(renderOne(entry), null, 2)}\n`);
-    } catch (error) {
-      failures.push({
-        format: entry.format,
-        reason: error instanceof Error ? error.message : String(error),
-      });
-    }
+    const rendered = renderEntry(entry);
+    if (rendered.ok) files.set(entry.fileName, rendered.content);
+    else failures.push({ format: entry.format, reason: rendered.reason });
   }
   return { files, failures };
 }

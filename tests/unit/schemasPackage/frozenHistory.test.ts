@@ -28,8 +28,24 @@ describe("schemas-check on the committed tree", () => {
     expect(checkSchemas(state)).toEqual([]);
   });
 
-  it("pins every frozen module", () => {
+  it("pins every frozen module and every released snapshot", () => {
     expect(Object.keys(state.lock)).toEqual([
+      "snapshots/authoring-record-manifest/v1.schema.json",
+      "snapshots/compliance-review/v1.schema.json",
+      "snapshots/gate-attribution/v0.schema.json",
+      "snapshots/gate-diagnostics/v0.schema.json",
+      "snapshots/gate-pending/v0.schema.json",
+      "snapshots/phase-file-reconciliation/v0.schema.json",
+      "snapshots/phase-record-manifest/v1.schema.json",
+      "snapshots/phase-record-manifest/v2.schema.json",
+      "snapshots/phase-status/v1.schema.json",
+      "snapshots/phax-plan/v1.schema.json",
+      "snapshots/plan-approvals/v1.schema.json",
+      "snapshots/plan-document/v1.schema.json",
+      "snapshots/registry/v1.schema.json",
+      "snapshots/run-status/v1.schema.json",
+      "snapshots/spec-approvals/v1.schema.json",
+      "snapshots/spec-document/v1.schema.json",
       "src/history/authoring-record-manifest/v1.ts",
       "src/history/compliance-review/v1.ts",
       "src/history/gate-attribution/v0.ts",
@@ -61,6 +77,7 @@ describe("schemas-check on the committed tree", () => {
     const written = writeSchemas(state);
     expect(written.mismatched).toEqual([]);
     expect(written.generatedIndex).toBe(state.generatedIndex);
+    expect(written.snapshots.size).toBe(0);
     expect(written.lock).toBe(
       readFileSync(join(repoRoot, "packages/schemas/history.lock.json"), "utf8"),
     );

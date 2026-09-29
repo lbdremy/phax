@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax phase file reconciliation",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "phaseId",
+    "createdAsPlanned",
+    "editedAsPlanned",
+    "missingPlannedCreate",
+    "missingPlannedEdit",
+    "createdButPlannedEdit",
+    "editedButPlannedCreate",
+    "unplannedCreated",
+    "unplannedEdited",
+    "optionalTouched",
+    "deletions",
+    "renames",
+    "hasDeviations"
+  ],
+  "properties": {
+    "phaseId": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "createdAsPlanned": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "editedAsPlanned": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "missingPlannedCreate": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "missingPlannedEdit": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "createdButPlannedEdit": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "editedButPlannedCreate": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unplannedCreated": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unplannedEdited": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "optionalTouched": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "deletions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "renames": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "hasDeviations": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": true
+}
