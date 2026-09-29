@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Abandoned
 source-spec: docs/specs/2609241238-schemas-package.md
 ---
 # schemas-package 1/5 — read the phase record
