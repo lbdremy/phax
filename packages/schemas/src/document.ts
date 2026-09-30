@@ -15,7 +15,7 @@ export type DocumentDefinitions<M> = {
 };
 
 export const MISSING_SCHEMA_MESSAGE =
-  "missing $schema — a legacy document carries only a version literal, or no marker at all like a record's timeline files, and is identified by where it lives; read it with its format's parse function (for example, parsePhaseRecordManifest or parseGateAttribution)";
+  "missing $schema — a pre-schema document is identified by where it lives; read it with its format's parse function (for example, parsePhaseRecordManifest or parseGateAttribution)";
 
 /**
  * Builds a parser that identifies a document by its `$schema` URL alone, never

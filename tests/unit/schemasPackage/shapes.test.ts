@@ -1,10 +1,11 @@
-import { Either, Schema } from "effect";
+import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   UNKNOWN,
   defineFormat,
   isUnknown,
   newerReleaseMessage,
+  preSchemaUnsupportedMessage,
   unknownFormatMessage,
   type Shape,
 } from "../../../packages/schemas/src/shapes.js";
@@ -15,10 +16,127 @@ function shape<A, I>(schema: Schema.Schema<A, I>): Shape<A> {
   return { schema, decode: Schema.decodeUnknownEither(schema, { onExcessProperty: "error" }) };
 }
 
-// A toy format with legacy literals 1 and 2, a release-named historical shape
-// 0.10.0, and a current shape, read by a package at 0.13.0.
-const V1 = Schema.Struct({ version: Schema.Literal(1), a: Schema.String });
-const V2 = Schema.Struct({ version: Schema.Literal(2), a: Schema.String, b: Schema.Number });
+/** A shape whose decoder counts its calls, so a test can tell which decoder read a document. */
+function counted<A, I>(schema: Schema.Schema<A, I>): Shape<A> & { readonly calls: () => number } {
+  const inner = shape(schema);
+  let calls = 0;
+  return {
+    schema,
+    decode: (input) => {
+      calls++;
+      return inner.decode(input);
+    },
+    calls: () => calls,
+  };
+}
+
+function expectFailure(result: Parsed<unknown>, path: string, message?: string) {
+  expect(result.ok).toBe(false);
+  if (result.ok) return;
+  expect(result.error.path).toBe(path);
+  expect(result.error.message).not.toBe("");
+  if (message !== undefined) expect(result.error.message).toBe(message);
+}
+
+const UNSUPPORTED = "toy document older than the first supported release — not supported";
+
+const url = (release: string) => schemaUrl("gate-pending", release);
+
+// ── variant (a): the pre-schema slot unfilled, phax's current decoder reads it
+
+// The toy admits an optional `version` literal, as phax's formats carry one.
+const CURRENT = Schema.Struct({
+  version: Schema.optionalWith(Schema.Literal(1), { exact: true }),
+  a: Schema.String,
+  b: Schema.Number,
+});
+
+const unfilled = defineFormat<{ "pre-schema": typeof CURRENT.Type }>(
+  {
+    id: "gate-pending",
+    label: "toy document",
+    releases: [],
+    current: { name: "pre-schema", shape: shape(CURRENT) },
+  },
+  { packageVersion: "0.13.0" },
+);
+
+describe("defineFormat, pre-schema slot unfilled: a document without $schema", () => {
+  it("is read by the current decoder as shape pre-schema", () => {
+    expect(unfilled.parse({ a: "x", b: 1 })).toEqual({
+      ok: true,
+      shape: "pre-schema",
+      value: { a: "x", b: 1 },
+    });
+  });
+
+  it("is read as pre-schema whatever its version, when the schema admits it", () => {
+    expect(unfilled.parse({ version: 1, a: "x", b: 1 })).toEqual({
+      ok: true,
+      shape: "pre-schema",
+      value: { version: 1, a: "x", b: 1 },
+    });
+  });
+
+  it("fails as older than the first supported release, at the violation's path", () => {
+    const result = unfilled.parse({ a: "x", b: "one" });
+    expectFailure(result, "b");
+    if (result.ok) return;
+    expect(result.error.message.startsWith(UNSUPPORTED)).toBe(true);
+  });
+
+  it("fails a version the schema does not admit at version, never trying another decoder", () => {
+    const result = unfilled.parse({ version: 2, a: "x", b: 1 });
+    expectFailure(result, "version");
+    if (result.ok) return;
+    expect(result.error.message.startsWith(UNSUPPORTED)).toBe(true);
+  });
+
+  it("carries the decoder's own message after the unsupported statement", () => {
+    const result = unfilled.parse({ a: "x", b: 1, extra: true });
+    expectFailure(result, "extra");
+    if (result.ok) return;
+    expect(result.error.message).toBe(
+      preSchemaUnsupportedMessage("toy document", 'is unexpected, expected: "version" | "a" | "b"'),
+    );
+  });
+
+  it("fails an empty object at the first missing key", () => {
+    const result = unfilled.parse({});
+    expectFailure(result, "a");
+  });
+});
+
+describe("defineFormat, pre-schema slot unfilled: a document with $schema", () => {
+  it("names a release no shape covers", () => {
+    expectFailure(
+      unfilled.parse({ $schema: url("0.12.0"), a: "x", b: 1 }),
+      "$schema",
+      "no gate-pending shape is known at release 0.12.0",
+    );
+  });
+
+  it("fails a newer release with the upgrade message", () => {
+    expectFailure(
+      unfilled.parse({ $schema: url("99.0.0"), a: "x", b: 1 }),
+      "$schema",
+      newerReleaseMessage("gate-pending", "99.0.0", "0.13.0"),
+    );
+  });
+});
+
+describe("preSchemaUnsupportedMessage", () => {
+  it("states the document is unsupported, then names the violation", () => {
+    expect(preSchemaUnsupportedMessage("run status", "is missing")).toBe(
+      "run status older than the first supported release — not supported (is missing)",
+    );
+  });
+});
+
+// ── variant (b): a frozen pre-schema module, releases 0.10.0 and 0.12.0, and a
+// `next` current shape, read by a package at 0.13.0
+
+const PRE_SCHEMA = Schema.Struct({ version: Schema.Literal(1), a: Schema.String });
 const R0_10 = Schema.Struct({ $schema: Schema.String, a: Schema.String, b: Schema.Number });
 const R0_12 = Schema.Struct({
   $schema: Schema.String,
@@ -34,73 +152,91 @@ const NEXT = Schema.Struct({
   d: Schema.String,
 });
 
-type ToyShapes = {
-  v1: typeof V1.Type;
-  v2: typeof V2.Type;
+type FilledShapes = {
+  "pre-schema": typeof PRE_SCHEMA.Type;
   "0.10.0": typeof R0_10.Type;
   "0.12.0": typeof R0_12.Type;
+  next: typeof NEXT.Type;
 };
 
-const toy = defineFormat<ToyShapes>(
+function filledFormat() {
+  const current = counted(NEXT);
+  const format = defineFormat<FilledShapes>(
+    {
+      id: "gate-pending",
+      label: "toy document",
+      preSchema: shape(PRE_SCHEMA),
+      releases: [
+        ["0.10.0", shape(R0_10)],
+        ["0.12.0", shape(R0_12)],
+      ],
+      current: { name: "next", shape: current },
+    },
+    { packageVersion: "0.13.0" },
+  );
+  return { format, currentCalls: current.calls };
+}
+
+const { format: filled } = filledFormat();
+
+// A frozen pre-schema module below a release-named current shape.
+const releasedCurrent = defineFormat<Omit<FilledShapes, "next">>(
   {
     id: "gate-pending",
     label: "toy document",
-    legacy: { 1: shape(V1), 2: shape(V2) },
+    preSchema: shape(PRE_SCHEMA),
     releases: [["0.10.0", shape(R0_10)]],
     current: { name: "0.12.0", shape: shape(R0_12) },
   },
   { packageVersion: "0.13.0" },
 );
 
-type ToyNextShapes = Omit<ToyShapes, never> & { next: typeof NEXT.Type };
-
-const toyNext = defineFormat<ToyNextShapes>(
-  {
-    id: "gate-pending",
-    label: "toy document",
-    legacy: { 1: shape(V1), 2: shape(V2) },
-    releases: [
-      ["0.10.0", shape(R0_10)],
-      ["0.12.0", shape(R0_12)],
-    ],
-    current: { name: "next", shape: shape(NEXT) },
-  },
-  { packageVersion: "0.13.0" },
-);
-
-const url = (release: string) => schemaUrl("gate-pending", release);
 const at0_10 = (release: string) => ({ $schema: url(release), a: "x", b: 1 });
 const at0_12 = (release: string) => ({ ...at0_10(release), c: true });
 const atNext = (release: string) => ({ ...at0_12(release), d: "y" });
 
-function expectFailure(result: Parsed<unknown>, path: string, message?: string) {
-  expect(result.ok).toBe(false);
-  if (result.ok) return;
-  expect(result.error.path).toBe(path);
-  expect(result.error.message).not.toBe("");
-  if (message !== undefined) expect(result.error.message).toBe(message);
-}
+describe("defineFormat, pre-schema slot filled: a document without $schema", () => {
+  it("is read by the frozen module as shape pre-schema, never by the current decoder", () => {
+    const { format, currentCalls } = filledFormat();
+    expect(format.parse({ version: 1, a: "x" })).toEqual({
+      ok: true,
+      shape: "pre-schema",
+      value: { version: 1, a: "x" },
+    });
+    expect(currentCalls()).toBe(0);
+  });
 
-describe("defineFormat: $schema documents", () => {
+  it("fails as unsupported when the frozen module rejects it, even if the current decoder would accept it", () => {
+    const { format, currentCalls } = filledFormat();
+    const { $schema: _schema, ...unmarked } = atNext("0.13.0");
+    const result = format.parse(unmarked);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message.startsWith(UNSUPPORTED)).toBe(true);
+    expect(currentCalls()).toBe(0);
+  });
+});
+
+describe("defineFormat, pre-schema slot filled: $schema documents", () => {
   it("resolves a release to the latest shape released at or before it", () => {
-    expect(toy.parse(at0_10("0.10.0"))).toEqual({
+    expect(releasedCurrent.parse(at0_10("0.10.0"))).toEqual({
       ok: true,
       shape: "0.10.0",
       value: at0_10("0.10.0"),
     });
-    expect(toy.parse(at0_10("0.11.0"))).toMatchObject({ ok: true, shape: "0.10.0" });
-    expect(toy.parse(at0_12("0.12.0"))).toMatchObject({ ok: true, shape: "0.12.0" });
-    expect(toy.parse(at0_12("0.13.0"))).toMatchObject({ ok: true, shape: "0.12.0" });
+    expect(releasedCurrent.parse(at0_10("0.11.0"))).toMatchObject({ ok: true, shape: "0.10.0" });
+    expect(releasedCurrent.parse(at0_12("0.12.0"))).toMatchObject({ ok: true, shape: "0.12.0" });
+    expect(releasedCurrent.parse(at0_12("0.13.0"))).toMatchObject({ ok: true, shape: "0.12.0" });
+    expect(filled.parse(at0_12("0.12.0"))).toMatchObject({ ok: true, shape: "0.12.0" });
   });
 
   it("fails with the shape's own path when the resolved shape rejects the document", () => {
-    expectFailure(toy.parse(at0_12("0.11.0")), "c");
-    expectFailure(toy.parse({ ...at0_10("0.10.0"), b: "one" }), "b");
+    expectFailure(filled.parse(at0_12("0.11.0")), "c");
+    expectFailure(filled.parse({ ...at0_10("0.10.0"), b: "one" }), "b");
   });
 
   it("names a release with no shape", () => {
     expectFailure(
-      toy.parse(at0_10("0.9.0")),
+      filled.parse(at0_10("0.9.0")),
       "$schema",
       "no gate-pending shape is known at release 0.9.0",
     );
@@ -108,7 +244,7 @@ describe("defineFormat: $schema documents", () => {
 
   it("fails a newer release with the upgrade message", () => {
     expectFailure(
-      toy.parse(at0_12("99.0.0")),
+      filled.parse(at0_12("99.0.0")),
       "$schema",
       "gate-pending written by phax 99.0.0 is newer than @lbdremy/phax-schemas 0.13.0 — upgrade the package",
     );
@@ -120,7 +256,7 @@ describe("defineFormat: $schema documents", () => {
   it("fails an unknown format id with the upgrade message", () => {
     const unknown = "https://docs.phax.run/schemas/code-review/0.12.0.json";
     expectFailure(
-      toy.parse({ ...at0_12("0.12.0"), $schema: unknown }),
+      filled.parse({ ...at0_12("0.12.0"), $schema: unknown }),
       "$schema",
       `${unknown} names a format unknown to @lbdremy/phax-schemas 0.13.0 — upgrade the package`,
     );
@@ -132,7 +268,7 @@ describe("defineFormat: $schema documents", () => {
   it("names another known format", () => {
     const registry = schemaUrl("registry", "0.12.0");
     expectFailure(
-      toy.parse({ ...at0_12("0.12.0"), $schema: registry }),
+      filled.parse({ ...at0_12("0.12.0"), $schema: registry }),
       "$schema",
       `${registry} is a registry document, not a gate-pending`,
     );
@@ -144,7 +280,7 @@ describe("defineFormat: $schema documents", () => {
     ["a number", 12],
     ["null", null],
   ])("fails a malformed $schema (%s), naming the expected form", (_label, value) => {
-    const result = toy.parse({ ...at0_12("0.12.0"), $schema: value });
+    const result = filled.parse({ ...at0_12("0.12.0"), $schema: value });
     expectFailure(result, "$schema");
     if (!result.ok) {
       expect(result.error.message).toContain(
@@ -154,9 +290,9 @@ describe("defineFormat: $schema documents", () => {
   });
 });
 
-describe("defineFormat: a `next` current shape in a development tree", () => {
+describe("defineFormat, pre-schema slot filled: a `next` current shape in a development tree", () => {
   it("decodes a document at the package's own release with next first", () => {
-    expect(toyNext.parse(atNext("0.13.0"))).toEqual({
+    expect(filled.parse(atNext("0.13.0"))).toEqual({
       ok: true,
       shape: "next",
       value: atNext("0.13.0"),
@@ -164,7 +300,7 @@ describe("defineFormat: a `next` current shape in a development tree", () => {
   });
 
   it("falls back to the latest released shape when next rejects it", () => {
-    expect(toyNext.parse(at0_12("0.13.0"))).toEqual({
+    expect(filled.parse(at0_12("0.13.0"))).toEqual({
       ok: true,
       shape: "0.12.0",
       value: at0_12("0.13.0"),
@@ -172,307 +308,40 @@ describe("defineFormat: a `next` current shape in a development tree", () => {
   });
 
   it("never tries next below the package's own release", () => {
-    expectFailure(toyNext.parse(atNext("0.12.0")), "d");
+    expectFailure(filled.parse(atNext("0.12.0")), "d");
   });
-});
-
-describe("defineFormat: legacy documents", () => {
-  it("resolves a version literal to its frozen shape", () => {
-    expect(toy.parse({ version: 1, a: "x" })).toEqual({
-      ok: true,
-      shape: "v1",
-      value: { version: 1, a: "x" },
-    });
-    expect(toy.parse({ version: 2, a: "x", b: 1 })).toMatchObject({ ok: true, shape: "v2" });
-  });
-
-  it("decodes a v<N> current shape with the current decoder, not the legacy one", () => {
-    const current = defineFormat<{ v1: typeof V1.Type; v2: typeof V2.Type }>(
-      {
-        id: "gate-pending",
-        label: "toy document",
-        legacy: { 1: shape(V1), 2: shape(V1) as unknown as Shape<typeof V2.Type> },
-        releases: [],
-        current: { name: "v2", shape: shape(V2) },
-      },
-      { packageVersion: "0.13.0" },
-    );
-    expect(current.parse({ version: 2, a: "x", b: 1 })).toMatchObject({ ok: true, shape: "v2" });
-  });
-
-  it("keeps a single known literal in the list when current and legacy share it", () => {
-    const shared = defineFormat<{ v1: typeof V1.Type }>(
-      {
-        id: "gate-pending",
-        label: "toy document",
-        legacy: { 1: shape(V1) },
-        releases: [],
-        current: { name: "v1", shape: shape(V1) },
-      },
-      { packageVersion: "0.13.0" },
-    );
-    expectFailure(
-      shared.parse({ version: 2, a: "x" }),
-      "version",
-      "unknown toy document version 2 — known versions are 1",
-    );
-  });
-
-  it("fails an unknown literal at version, listing the known literals", () => {
-    expectFailure(
-      toy.parse({ version: 3, a: "x" }),
-      "version",
-      "unknown toy document version 3 — known versions are 1, 2",
-    );
-    expectFailure(toy.parse({ version: "1", a: "x" }), "version");
-  });
-
-  it("fails a legacy document its shape rejects, at the offending path", () => {
-    expectFailure(toy.parse({ version: 1, a: "x", extra: true }), "extra");
-  });
-});
-
-// A toy whose current shape and frozen module share the literal 1: the frozen
-// module is the union of every signature written under it, so it also admits
-// documents written before `b` was required.
-const CURRENT_V1 = Schema.Struct({
-  version: Schema.Literal(1),
-  a: Schema.String,
-  b: Schema.Number,
-});
-const FROZEN_V1 = Schema.Struct({
-  version: Schema.Literal(1),
-  a: Schema.String,
-  b: Schema.optionalWith(Schema.Number, { exact: true }),
-});
-
-const fallback = defineFormat<{ v1: typeof FROZEN_V1.Type }>(
-  {
-    id: "gate-pending",
-    label: "toy document",
-    legacy: { 1: shape(FROZEN_V1) },
-    releases: [],
-    current: { name: "v1", shape: shape(CURRENT_V1) },
-  },
-  { packageVersion: "0.13.0" },
-);
-
-describe("defineFormat: the literal fallback", () => {
-  it("reads a document the current decoder rejects with the frozen module of its literal, as the same shape", () => {
-    expect(fallback.parse({ version: 1, a: "x" })).toEqual({
-      ok: true,
-      shape: "v1",
-      value: { version: 1, a: "x" },
-    });
-  });
-
-  it("returns the current decoder's value when it accepts the document", () => {
-    let frozenCalls = 0;
-    const counted = defineFormat<{ v1: typeof FROZEN_V1.Type }>(
-      {
-        id: "gate-pending",
-        label: "toy document",
-        legacy: {
-          1: {
-            schema: FROZEN_V1,
-            decode: (input) => {
-              frozenCalls++;
-              return shape(FROZEN_V1).decode(input);
-            },
-          },
-        },
-        releases: [],
-        current: {
-          name: "v1",
-          shape: {
-            schema: CURRENT_V1,
-            // Reads `b` as twice its value, so the test can tell which decoder answered.
-            decode: (input) =>
-              Schema.decodeUnknownEither(
-                Schema.transform(CURRENT_V1, CURRENT_V1, {
-                  strict: true,
-                  decode: (value) => ({ ...value, b: value.b * 2 }),
-                  encode: (value) => value,
-                }),
-                { onExcessProperty: "error" },
-              )(input),
-          },
-        },
-      },
-      { packageVersion: "0.13.0" },
-    );
-    expect(counted.parse({ version: 1, a: "x", b: 2 })).toEqual({
-      ok: true,
-      shape: "v1",
-      value: { version: 1, a: "x", b: 4 },
-    });
-    expect(frozenCalls).toBe(0);
-  });
-
-  it("returns the current decoder's failure when both reject the document", () => {
-    // The current decoder fails at `b`; this frozen module would fail at `z`.
-    const OTHER_V1 = Schema.Struct({
-      version: Schema.Literal(1),
-      a: Schema.String,
-      z: Schema.String,
-    });
-    const both = defineFormat<{ v1: typeof OTHER_V1.Type | typeof CURRENT_V1.Type }>(
-      {
-        id: "gate-pending",
-        label: "toy document",
-        legacy: { 1: shape(OTHER_V1) },
-        releases: [],
-        current: { name: "v1", shape: shape(CURRENT_V1) },
-      },
-      { packageVersion: "0.13.0" },
-    );
-    expect(Either.isLeft(Schema.decodeUnknownEither(OTHER_V1)({ version: 1, a: "x" }))).toBe(true);
-    expectFailure(both.parse({ version: 1, a: "x" }), "b");
-    expectFailure(fallback.parse({ version: 1, a: "x", extra: true }), "extra");
-  });
-
-  it("never throws", () => {
-    for (const input of [{ version: 1 }, { version: 1, a: Symbol("x") }, { version: 1, b: 10n }]) {
-      expect(() => fallback.parse(input)).not.toThrow();
-    }
-  });
-});
-
-// A toy unversioned format: its current shape and its frozen module are both
-// v0, and the frozen module also admits documents written before `b` existed.
-const CURRENT_V0 = Schema.Struct({ a: Schema.String, b: Schema.Number });
-const FROZEN_V0 = Schema.Struct({
-  a: Schema.String,
-  b: Schema.optionalWith(Schema.Number, { exact: true }),
-});
-
-const unversioned = defineFormat<{ v0: typeof FROZEN_V0.Type }>(
-  {
-    id: "gate-pending",
-    label: "toy document",
-    legacy: { 0: shape(FROZEN_V0) },
-    releases: [],
-    current: { name: "v0", shape: shape(CURRENT_V0) },
-  },
-  { packageVersion: "0.13.0" },
-);
-
-describe("defineFormat: the unversioned shape v0", () => {
-  it("reads a document with neither marker with the current v0 decoder", () => {
-    expect(unversioned.parse({ a: "x", b: 1 })).toEqual({
-      ok: true,
-      shape: "v0",
-      value: { a: "x", b: 1 },
-    });
-  });
-
-  it("falls back to the frozen v0 module when the current decoder rejects the document", () => {
-    expect(unversioned.parse({ a: "x" })).toEqual({ ok: true, shape: "v0", value: { a: "x" } });
-  });
-
-  it("returns the current decoder's failure when both reject the document", () => {
-    // The current decoder fails at `b`; this frozen module would fail at `z`.
-    const OTHER_V0 = Schema.Struct({ a: Schema.String, z: Schema.String });
-    const both = defineFormat<{ v0: typeof OTHER_V0.Type | typeof CURRENT_V0.Type }>(
-      {
-        id: "gate-pending",
-        label: "toy document",
-        legacy: { 0: shape(OTHER_V0) },
-        releases: [],
-        current: { name: "v0", shape: shape(CURRENT_V0) },
-      },
-      { packageVersion: "0.13.0" },
-    );
-    expectFailure(both.parse({ a: "x" }), "b");
-    expectFailure(unversioned.parse({ a: 1, b: 1 }), "a");
-  });
-
-  it("never treats version: 0 as a known literal", () => {
-    expectFailure(
-      unversioned.parse({ version: 0, a: "x", b: 1 }),
-      "version",
-      "unknown toy document version 0 — a toy document carries no version literal",
-    );
-  });
-
-  it("names a version literal on a format that has none", () => {
-    expectFailure(
-      unversioned.parse({ version: 1, a: "x", b: 1 }),
-      "version",
-      "unknown toy document version 1 — a toy document carries no version literal",
-    );
-  });
-
-  it("reads a frozen v0 below a versioned current shape, and still resolves literals by version", () => {
-    const later = defineFormat<{ v0: typeof FROZEN_V0.Type; v1: typeof V1.Type }>(
-      {
-        id: "gate-pending",
-        label: "toy document",
-        legacy: { 0: shape(FROZEN_V0), 1: shape(V1) },
-        releases: [],
-        current: { name: "v1", shape: shape(V1) },
-      },
-      { packageVersion: "0.13.0" },
-    );
-    expect(later.parse({ a: "x" })).toEqual({ ok: true, shape: "v0", value: { a: "x" } });
-    expect(later.parse({ version: 1, a: "x" })).toMatchObject({ ok: true, shape: "v1" });
-    expectFailure(
-      later.parse({ version: 0, a: "x" }),
-      "version",
-      "unknown toy document version 0 — known versions are 1",
-    );
-  });
-
-  it("still reads a $schema document by its URL", () => {
-    expectFailure(
-      unversioned.parse({ $schema: url("0.12.0"), a: "x", b: 1 }),
-      "$schema",
-      "no gate-pending shape is known at release 0.12.0",
-    );
-  });
-
-  it("never throws", () => {
-    for (const input of [{}, { a: Symbol("x") }, { b: 10n }, { version: 0 }, Object.create(null)]) {
-      expect(() => unversioned.parse(input)).not.toThrow();
-    }
-  });
-});
-
-describe("defineFormat: neither marker", () => {
-  it("fails a document with neither $schema nor version at $schema, for a format without v0", () => {
-    expectFailure(
-      toy.parse({ a: "x" }),
-      "$schema",
-      "missing $schema — a toy document names its shape with a $schema URL or a version literal",
-    );
-    expectFailure(fallback.parse({ a: "x", b: 1 }), "$schema");
-  });
-
-  it.each([42, "doc", null, undefined, true, [{ version: 1, a: "x" }]])(
-    "fails the non-object %j at the root",
-    (input) => {
-      expectFailure(toy.parse(input), "");
-    },
-  );
 });
 
 describe("defineFormat never throws", () => {
+  it.each([42, "doc", null, undefined, true, [{ a: "x", b: 1 }]])(
+    "fails the non-object %j at the root",
+    (input) => {
+      expectFailure(unfilled.parse(input), "");
+      expectFailure(filled.parse(input), "");
+    },
+  );
+
   it("returns a value for every input", () => {
     const inputs: unknown[] = [
       Symbol("x"),
       () => 1,
       new Map(),
       Object.create(null),
+      {},
+      { a: Symbol("x") },
+      { b: 10n },
       { $schema: Symbol("x") },
       { $schema: 10n },
       { version: 10n },
       { version: Number.NaN },
       { version: { toString: () => "1" } },
       { $schema: url("0.12.0") },
+      { $schema: url("0.13.0") },
     ];
     for (const input of inputs) {
-      expect(() => toy.parse(input)).not.toThrow();
-      expect(() => toyNext.parse(input)).not.toThrow();
+      expect(() => unfilled.parse(input)).not.toThrow();
+      expect(() => filled.parse(input)).not.toThrow();
+      expect(() => releasedCurrent.parse(input)).not.toThrow();
     }
   });
 });

@@ -1,52 +1,41 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Either, JSONSchema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   WRITE_COMMAND,
   refreshLock,
   renderGeneratedIndex,
+  renderLock,
   sha256,
 } from "../../../packages/schemas/build/generated.js";
 import { PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
-import {
-  PhaseRecordManifestV2Schema,
-  decodePhaseRecordManifestV2,
-} from "../../../packages/schemas/src/history/phase-record-manifest/v2.js";
 import { checkSchemas, readSchemasState, writeSchemas } from "../../../scripts/schemas-check.js";
-import {
-  RunRecordManifestSchema,
-  decodeRunRecordManifest,
-} from "../../../src/schemas/runRecord.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const state = readSchemasState(repoRoot);
+
+/** The committed state with one frozen module, pinned by its own bytes. */
+function withPinnedModule(path: string): typeof state {
+  const bytes = new TextEncoder().encode("// frozen\n");
+  return {
+    ...state,
+    lock: { ...state.lock, [path]: sha256(bytes) },
+    historyFiles: new Map([...state.historyFiles, [path, bytes]]),
+  };
+}
 
 describe("schemas-check on the committed tree", () => {
   it("passes: the generated index and the lock are current", () => {
     expect(checkSchemas(state)).toEqual([]);
   });
 
-  it("pins every frozen module", () => {
-    expect(Object.keys(state.lock)).toEqual([
-      "src/history/authoring-record-manifest/v1.ts",
-      "src/history/compliance-review/v1.ts",
-      "src/history/gate-attribution/v0.ts",
-      "src/history/gate-diagnostics/v0.ts",
-      "src/history/gate-pending/v0.ts",
-      "src/history/phase-file-reconciliation/v0.ts",
-      "src/history/phase-record-manifest/v1.ts",
-      "src/history/phase-record-manifest/v2.ts",
-      "src/history/phase-status/v1.ts",
-      "src/history/phax-plan/v1.ts",
-      "src/history/plan-approvals/v1.ts",
-      "src/history/plan-document/v1.ts",
-      "src/history/registry/v1.ts",
-      "src/history/run-status/v1.ts",
-      "src/history/spec-approvals/v1.ts",
-      "src/history/spec-document/v1.ts",
-    ]);
+  it("pins no frozen module yet: the lock is empty", () => {
+    expect(state.lock).toEqual({});
+    expect(state.historyFiles.size).toBe(0);
+    expect(readFileSync(join(repoRoot, "packages/schemas/history.lock.json"), "utf8")).toBe(
+      renderLock({}),
+    );
   });
 
   it("carries the root package.json version into the generated index", () => {
@@ -88,10 +77,12 @@ describe("schemas-check findings", () => {
   });
 
   it("fails a frozen module that no longer matches its lock entry, naming the --write command", () => {
-    const path = "src/history/phase-record-manifest/v1.ts";
-    const historyFiles = new Map(state.historyFiles);
+    const path = "src/history/phase-record-manifest/pre-schema.ts";
+    const pinned = withPinnedModule(path);
+    expect(checkSchemas(pinned)).toEqual([]);
+    const historyFiles = new Map(pinned.historyFiles);
     historyFiles.set(path, new TextEncoder().encode("// changed\n"));
-    const findings = checkSchemas({ ...state, historyFiles });
+    const findings = checkSchemas({ ...pinned, historyFiles });
     expect(findings).toHaveLength(1);
     expect(findings[0]).toContain(`✗ packages/schemas/${path} differs from its history.lock.json`);
     expect(findings[0]).toContain(WRITE_COMMAND);
@@ -114,10 +105,11 @@ describe("schemas-check findings", () => {
   });
 
   it("--write refuses to change a mismatched entry", () => {
-    const path = "src/history/phase-record-manifest/v2.ts";
-    const historyFiles = new Map(state.historyFiles);
+    const path = "src/history/phase-record-manifest/pre-schema.ts";
+    const pinned = withPinnedModule(path);
+    const historyFiles = new Map(pinned.historyFiles);
     historyFiles.set(path, new TextEncoder().encode("// changed\n"));
-    const written = writeSchemas({ ...state, historyFiles });
+    const written = writeSchemas({ ...pinned, historyFiles });
     expect(written.mismatched).toEqual([path]);
   });
 });
@@ -141,30 +133,5 @@ describe("refreshLock and renderGeneratedIndex", () => {
     expect(renderGeneratedIndex({ packageVersion: "1.2.3" })).toContain(
       'export const PACKAGE_VERSION = "1.2.3" as const;',
     );
-  });
-});
-
-describe("the frozen v2 twin is faithful to phax's current schema", () => {
-  it("has the same JSON Schema", () => {
-    expect(JSONSchema.make(PhaseRecordManifestV2Schema)).toEqual(
-      JSONSchema.make(RunRecordManifestSchema),
-    );
-  });
-
-  const fixturesDir = resolve(
-    dirname(fileURLToPath(import.meta.url)),
-    "fixtures",
-    "phase-record-manifest",
-  );
-  const documents = [
-    ...readdirSync(join(fixturesDir, "v1")).map((name) => join(fixturesDir, "v1", name)),
-    ...readdirSync(join(fixturesDir, "v2")).map((name) => join(fixturesDir, "v2", name)),
-  ].map((path) => [path.slice(fixturesDir.length + 1), JSON.parse(readFileSync(path, "utf8"))]);
-
-  it.each(documents)("gives the same verdict and value as phax on %s", (_name, document) => {
-    const frozen = decodePhaseRecordManifestV2(document);
-    const phax = decodeRunRecordManifest(document);
-    expect(Either.isRight(frozen)).toBe(Either.isRight(phax));
-    if (Either.isRight(frozen) && Either.isRight(phax)) expect(frozen.right).toEqual(phax.right);
   });
 });

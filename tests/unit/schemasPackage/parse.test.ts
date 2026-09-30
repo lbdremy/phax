@@ -2,38 +2,22 @@ import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { parsePhaseRecordManifest, parseRunStatus } from "../../../packages/schemas/src/index.js";
 import { fromEither } from "../../../packages/schemas/src/parsed.js";
+import { validDocuments, withKey, type Doc } from "./documents.js";
 
-const manifest = {
-  version: 2,
-  runId: "schemas-package-1786807559589",
-  phaseId: "phase-01",
-  shape: "full",
-  sourceSha: "5f4ba697",
-  model: "claude-opus-5-5",
-  effort: "high",
-  provider: "claude-code",
-  outcome: "committed",
-  usage: {
-    available: true,
-    usage: {
-      provider: "claude-code",
-      inputTokens: 41203,
-      cacheCreationInputTokens: 0,
-      cacheReadInputTokens: 512,
-      outputTokens: 8117,
-      totalCostUsd: 0.42,
-    },
-  },
-  verifiedSurfaces: ["local", "structural"],
-};
+const manifest = validDocuments["phase-record-manifest"];
+const manifestUsage = (manifest["usage"] as { readonly usage: Doc }).usage;
 
 describe("parsePhaseRecordManifest", () => {
   it("returns ok with the shape and the value for a valid manifest", () => {
-    expect(parsePhaseRecordManifest(manifest)).toEqual({ ok: true, shape: "v2", value: manifest });
+    expect(parsePhaseRecordManifest(manifest)).toEqual({
+      ok: true,
+      shape: "pre-schema",
+      value: manifest,
+    });
   });
 
   it("fails at outcome for a paused manifest", () => {
-    const result = parsePhaseRecordManifest({ ...manifest, outcome: "paused" });
+    const result = parsePhaseRecordManifest(withKey(manifest, "outcome", "paused"));
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.path).toBe("outcome");
@@ -41,10 +25,9 @@ describe("parsePhaseRecordManifest", () => {
   });
 
   it("fails with the dotted path for a wrong usage provider", () => {
-    const result = parsePhaseRecordManifest({
-      ...manifest,
-      usage: { available: true, usage: { ...manifest.usage.usage, provider: "gpt" } },
-    });
+    const result = parsePhaseRecordManifest(
+      withKey(manifest, "usage", { available: true, usage: { ...manifestUsage, provider: "gpt" } }),
+    );
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.path).toBe("usage.usage.provider");
@@ -64,8 +47,8 @@ describe("parsePhaseRecordManifest", () => {
       () => manifest,
       new Map(),
       Object.create(null),
-      { ...manifest, usage: null },
-      { ...manifest, verifiedSurfaces: "local" },
+      withKey(manifest, "usage", null),
+      withKey(manifest, "verifiedSurfaces", "local"),
     ];
     for (const input of inputs) {
       expect(() => parsePhaseRecordManifest(input)).not.toThrow();
@@ -74,24 +57,14 @@ describe("parsePhaseRecordManifest", () => {
 });
 
 describe("parseRunStatus", () => {
-  const runStatus = {
-    version: 1,
-    namespace: "phax",
-    shortName: "schemas-package",
-    runId: "schemas-package-1790152173930",
-    state: "running",
-    createdAt: "2026-09-29T08:29:33.944Z",
-    updatedAt: "2026-09-29T08:42:06.887Z",
-    phasesCount: 5,
-    gateProfileId: "standard",
-  };
+  const runStatus = validDocuments["run-status"];
 
   it("returns ok with the shape and the value for a valid run status", () => {
-    expect(parseRunStatus(runStatus)).toEqual({ ok: true, shape: "v1", value: runStatus });
+    expect(parseRunStatus(runStatus)).toEqual({ ok: true, shape: "pre-schema", value: runStatus });
   });
 
   it("fails at state for a paused run status, without throwing", () => {
-    const paused = { ...runStatus, state: "paused" };
+    const paused = withKey(runStatus, "state", "paused");
     expect(() => parseRunStatus(paused)).not.toThrow();
     const result = parseRunStatus(paused);
     expect(result.ok).toBe(false);

@@ -1,6 +1,3 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { Schema } from "effect";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
@@ -17,18 +14,9 @@ import {
   type Shape,
 } from "../../../packages/schemas/src/shapes.js";
 import { FORMAT_IDS, schemaUrl } from "../../../src/schemas/schemaUrl.js";
+import { validDocuments } from "./documents.js";
 
-const v2Dir = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "fixtures",
-  "phase-record-manifest",
-  "v2",
-);
-const [firstV2] = readdirSync(v2Dir).toSorted();
-const v2Manifest = JSON.parse(readFileSync(join(v2Dir, firstV2 ?? ""), "utf8")) as Record<
-  string,
-  unknown
->;
+const v2Manifest = validDocuments["phase-record-manifest"];
 
 // Derived from the package version, so a release bump never breaks these tests.
 const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
@@ -72,8 +60,8 @@ describe("parseDocument", () => {
     );
   });
 
-  it("fails an unversioned timeline file without $schema, pointing to its parse function", () => {
-    const result = parseDocument({ phase: "phase-01", steps: [] });
+  it("fails a timeline file without $schema, pointing to its parse function", () => {
+    const result = parseDocument(validDocuments["gate-attribution"]);
     expectFailure(result, "$schema", MISSING_SCHEMA_MESSAGE);
     expect(result.ok ? "" : result.error.message).toContain("parseGateAttribution");
   });
@@ -175,24 +163,26 @@ describe("parseDocument", () => {
   });
 });
 
-// A toy format whose current shape is release-named and carries $schema, so
-// identification by $schema alone is proven before any real format has one.
+// A toy format with a frozen pre-schema shape and a release-named current
+// shape that carries $schema, so identification by $schema alone is proven
+// before any real format has one.
+function toyShape<A, I>(schema: Schema.Schema<A, I>): Shape<A> {
+  return { schema, decode: Schema.decodeUnknownEither(schema, { onExcessProperty: "error" }) };
+}
+const PreSchemaToy = Schema.Struct({ a: Schema.String });
 const Toy = Schema.Struct({ $schema: Schema.String, a: Schema.String });
-const toyShape: Shape<typeof Toy.Type> = {
-  schema: Toy,
-  decode: Schema.decodeUnknownEither(Toy, { onExcessProperty: "error" }),
-};
-const toy = defineFormat<{ "0.12.0": typeof Toy.Type }>(
+type ToyShapes = { "pre-schema": typeof PreSchemaToy.Type; "0.12.0": typeof Toy.Type };
+const toy = defineFormat<ToyShapes>(
   {
     id: "gate-pending",
     label: "toy document",
-    legacy: {},
+    preSchema: toyShape(PreSchemaToy),
     releases: [],
-    current: { name: "0.12.0", shape: toyShape },
+    current: { name: "0.12.0", shape: toyShape(Toy) },
   },
   { packageVersion: "0.13.0" },
 );
-const parseToyDocument = makeDocumentParser<{ "gate-pending": { "0.12.0": typeof Toy.Type } }>(
+const parseToyDocument = makeDocumentParser<{ "gate-pending": ToyShapes }>(
   { "gate-pending": toy },
   { packageVersion: "0.13.0" },
 );
@@ -227,6 +217,11 @@ describe("makeDocumentParser", () => {
       "$schema",
       unknownFormatMessage(url, "0.13.0"),
     );
+  });
+
+  it("fails a pre-schema document, even one its format reads, pointing to the parse function", () => {
+    expect(toy.parse({ a: "x" })).toEqual({ ok: true, shape: "pre-schema", value: { a: "x" } });
+    expectFailure(parseToyDocument({ a: "x" }), "$schema", MISSING_SCHEMA_MESSAGE);
   });
 
   it("reports the definition's own failure when the document does not match its shape", () => {

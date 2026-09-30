@@ -69,21 +69,15 @@ export {
   toLatestRegistry,
   toLatestRunStatus,
   type ComplianceReviewShape,
-  type ComplianceReviewV1,
   type LatestComplianceReview,
   type LatestPhaseStatus,
   type LatestPhaxPlan,
-  type LatestPhaxPlanPhase,
   type LatestRegistry,
   type LatestRunStatus,
   type PhaseStatusShape,
-  type PhaseStatusV1,
   type PhaxPlanShape,
-  type PhaxPlanV1,
   type RegistryShape,
-  type RegistryV1,
   type RunStatusShape,
-  type RunStatusV1,
 } from "./formats/runDirectory.js";
 
 // The files of a repository. Each schema and type is phax's own; the two
@@ -112,13 +106,9 @@ export {
   type LatestSpecApprovals,
   type LatestSpecDocument,
   type PlanApprovalsShape,
-  type PlanApprovalsV1,
   type PlanDocumentShape,
-  type PlanDocumentV1,
   type SpecApprovalsShape,
-  type SpecApprovalsV1,
   type SpecDocumentShape,
-  type SpecDocumentV1,
 } from "./formats/repository.js";
 
 // The manifests on phax/records/v1. Each schema and type is phax's own; the
@@ -137,17 +127,14 @@ export {
   toLatestAuthoringRecordManifest,
   toLatestPhaseRecordManifest,
   type AuthoringRecordManifestShape,
-  type AuthoringRecordManifestV1,
   type LatestAuthoringRecordManifest,
   type LatestPhaseRecordManifest,
   type PhaseRecordManifest,
   type PhaseRecordManifestShape,
-  type PhaseRecordManifestV1,
-  type PhaseRecordManifestV2,
   type RecordManifestFormat,
 } from "./formats/recordManifests.js";
 
-// A phase record's timeline files, each read as the unversioned shape v0.
+// A phase record's timeline files, each read as its pre-schema shape.
 // Each schema and type is phax's own; the two gate documents take the names
 // the spec gives them.
 export {
@@ -176,17 +163,13 @@ export {
   toLatestGatePending,
   toLatestPhaseFileReconciliation,
   type GateAttributionShape,
-  type GateAttributionV0,
   type GateDiagnosticsShape,
-  type GateDiagnosticsV0,
   type GatePendingShape,
-  type GatePendingV0,
   type LatestGateAttribution,
   type LatestGateDiagnostics,
   type LatestGatePending,
   type LatestPhaseFileReconciliation,
   type PhaseFileReconciliationShape,
-  type PhaseFileReconciliationV0,
 } from "./formats/recordTimeline.js";
 
 // Fails to compile when a format id has no entry: parseDocument reads every one.
@@ -217,9 +200,9 @@ export type DocumentFormatId = keyof DocumentShapes;
 export type AnyDocument = IdentifiedDocument<DocumentShapes>;
 
 /**
- * Identifies a document by its `$schema` URL alone and reads it. A legacy
- * document without `$schema`, including every unversioned timeline file, is
- * read with its format's parse function. Never throws.
+ * Identifies a document by its `$schema` URL alone and reads it. A pre-schema
+ * document, without `$schema`, is read with its format's parse function.
+ * Never throws.
  */
 export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
   makeDocumentParser<DocumentShapes>({

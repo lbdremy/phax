@@ -47,17 +47,11 @@ const KNOWN_NON_MIGRATION_MATCHES: ReadonlySet<string> = new Set([
   "docs/specs/archive/2609080848-plan-lint.md",
 ]);
 
-// The schemas package's surveyed fixtures are real documents phax wrote before
-// the migration, copied verbatim: a phax-plan or run status of that time names
-// the old path it ran from, and rewriting it would forge the history they pin.
-const VERBATIM_HISTORY_FIXTURES = "tests/unit/schemasPackage/fixtures/";
-
 describe("artifact name migration guard", () => {
   it("no tracked file, tests included, names a pre-migration artifact path", () => {
     const offenders: string[] = [];
     for (const relPath of trackedFiles()) {
       if (KNOWN_NON_MIGRATION_MATCHES.has(relPath)) continue;
-      if (relPath.startsWith(VERBATIM_HISTORY_FIXTURES)) continue;
       let text = readFileTextSafe(join(repoRoot, relPath));
       if (text !== null && relPath.startsWith("tests/")) {
         for (const fixture of DELIBERATE_REFUSAL_FIXTURES) text = text.replaceAll(fixture, "");
