@@ -1,33 +1,27 @@
 {
   "createdAsPlanned createdButPlannedEdit deletions editedAsPlanned editedButPlannedCreate hasDeviations missingPlannedCreate missingPlannedEdit optionalTouched phaseId renames unplannedCreated unplannedEdited": {
     "phaseId": "phase-01",
-    "createdAsPlanned": [
-      "apps/le-secretaire-de-fernand/src/site/content/taxonomy/series.json",
-      "packages/louloupress/tests/content-series-taxonomy-contracts.test.ts"
-    ],
+    "createdAsPlanned": [],
     "editedAsPlanned": [
-      "packages/louloupress/src/modules/content/shared/contracts/taxonomy.ts",
-      "apps/le-secretaire-de-fernand/src/site/data.ts"
+      "src/domain/events.ts",
+      "src/domain/reducer.ts",
+      "src/domain/errors.ts",
+      "src/app/archive.ts",
+      "tests/unit/reducer.test.ts",
+      "tests/unit/events.test.ts",
+      "tests/integration/dispatcher.test.ts",
+      "tests/integration/archive.test.ts"
     ],
     "missingPlannedCreate": [],
     "missingPlannedEdit": [],
     "createdButPlannedEdit": [],
     "editedButPlannedCreate": [],
-    "unplannedCreated": [
-      "packages/louloupress/src/modules/ui/portrait-toggle.tsx"
-    ],
-    "unplannedEdited": [
-      "apps/le-secretaire-de-fernand/public/content-index.json",
-      "apps/le-secretaire-de-fernand/public/en/about.md",
-      "apps/le-secretaire-de-fernand/public/llms-full.txt",
-      "apps/le-secretaire-de-fernand/src/web/modules/content/components/mdx/AiWritingPortrait.tsx",
-      "phax.schema.json",
-      "phax.user.schema.json"
-    ],
+    "unplannedCreated": [],
+    "unplannedEdited": [],
     "optionalTouched": [],
     "deletions": [],
     "renames": [],
-    "hasDeviations": true
+    "hasDeviations": false
   },
   "createdAsPlanned deletions editedAsPlanned hasDeviations missingPlannedCreate missingPlannedEdit optionalTouched phaseId renames unplannedCreated unplannedEdited": {
     "phaseId": "phase-02",

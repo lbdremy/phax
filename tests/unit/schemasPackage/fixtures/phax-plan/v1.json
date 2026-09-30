@@ -2,127 +2,169 @@
   "phases[{commit,effort,id,model,optionalFilesToEdit,planMarkdownAnchor,plannedFilesToCreate,plannedFilesToEdit,title}] run{branch,requiredCommands,shortName,title} version": {
     "version": 1,
     "run": {
-      "shortName": "article-series-taxonomy",
-      "title": "Article Series Taxonomy — Implementation Plan",
-      "requiredCommands": [],
-      "branch": "phax/article-series-taxonomy"
+      "shortName": "rename-archived-to-completed",
+      "title": "Rename Archived to Completed",
+      "requiredCommands": [
+        "pnpm gen:usage-spec",
+        "pnpm docs:cli",
+        "usage"
+      ],
+      "branch": "phax/rename-archived-to-completed"
     },
     "phases": [
       {
         "id": "phase-01",
-        "model": "claude-sonnet-4-6",
-        "effort": "medium",
-        "planMarkdownAnchor": "phase-01-series-contract",
-        "plannedFilesToCreate": [
-          "apps/le-secretaire-de-fernand/src/site/content/taxonomy/series.json",
-          "packages/louloupress/tests/content-series-taxonomy-contracts.test.ts"
-        ],
+        "model": "claude-opus-4-8",
+        "effort": "high",
+        "planMarkdownAnchor": "#phase-01-status-rename",
+        "plannedFilesToCreate": [],
         "plannedFilesToEdit": [
-          "packages/louloupress/src/modules/content/shared/contracts/taxonomy.ts",
-          "apps/le-secretaire-de-fernand/src/site/data.ts"
+          "src/domain/artifact/status.ts",
+          "src/schemas/artifactStatus.ts",
+          "src/domain/artifact/writeSet.ts",
+          "src/domain/errors.ts",
+          "src/app/artifactStatus.ts",
+          "src/cli/commands/artifact.ts",
+          "tests/unit/artifact/status.test.ts",
+          "tests/unit/artifact/writeSet.test.ts",
+          "tests/unit/artifact/document.test.ts",
+          "tests/unit/cli/artifact.test.ts",
+          "tests/integration/artifactStatus.test.ts",
+          "tests/integration/planStaleness.test.ts",
+          "docs/plans/archive/01-plan.md",
+          "docs/plans/archive/02-phax-planning-skill-update-plan.md",
+          "docs/plans/archive/03-update-provider-effort-plan.md",
+          "docs/plans/archive/03b-provider-e2e-validation.md",
+          "docs/plans/archive/04-run-jail-plan.md",
+          "docs/plans/archive/04b-run-jail-provider-validation.md",
+          "docs/plans/archive/05-model-routing-enabled-gating-plan.md",
+          "docs/plans/archive/06-model-routing-plan.md",
+          "docs/plans/archive/07-observability-plan.md",
+          "docs/plans/archive/08-provider-priority-override-plan.md",
+          "docs/plans/archive/09-agent-commands.md",
+          "docs/plans/archive/09-rename-claude-backend-errors-plan.md",
+          "docs/plans/archive/10-init-command-plan.md",
+          "docs/plans/archive/10-opus-frontier-tiers-plan.md",
+          "docs/plans/archive/11-lock-agent-binding-phase-plan.md",
+          "docs/plans/archive/11-review-handoff-plan.md",
+          "docs/plans/archive/12-gate-first-resume-plan.md",
+          "docs/plans/archive/12-project-namespace-plan.md",
+          "docs/plans/archive/13-reset-phase-command-plan.md",
+          "docs/plans/archive/13-usage-cli-plan.md",
+          "docs/plans/archive/14-push-branch-pr-plan.md",
+          "docs/plans/archive/14-remove-last-commands-plan.md",
+          "docs/plans/archive/15-agent-binding-hardening-plan.md",
+          "docs/plans/archive/15-typescript-6-migration-plan.md",
+          "docs/plans/archive/16-deno-runtime-plan.md",
+          "docs/plans/archive/16-enforce-architecture-boundaries-plan.md",
+          "docs/plans/archive/17-brief-profile-orient-plan.md",
+          "docs/plans/archive/17-install-planning-skill-plan.md",
+          "docs/plans/archive/17-sealed-completion-extraction-plan.md",
+          "docs/plans/archive/18-local-telemetry-report-plan.md",
+          "docs/plans/archive/19-whats-next-guidance-plan.md",
+          "docs/plans/archive/20-compliance-review-plan.md",
+          "docs/plans/archive/20-model-catalog-equivalence-routing-plan.md",
+          "docs/plans/archive/21-artifact-lifecycle-status-plan.md",
+          "docs/plans/archive/21-usage-spec-generation-hardening-plan.md",
+          "docs/plans/archive/22-config-user-project-split-plan.md",
+          "docs/plans/archive/22-plan-staleness-lineage-plan.md",
+          "docs/plans/archive/23-handoff-deviation-justification-plan.md",
+          "docs/plans/archive/24-interactive-init-plan.md",
+          "docs/plans/archive/25-artifact-transition-autocommit-plan.md",
+          "docs/plans/archive/25-namespace-compliance-followups-plan.md",
+          "docs/plans/archive/26-run-recap-and-reset-date-plan.md",
+          "docs/plans/archive/27-compliance-handoff-access-and-resume-recap-plan.md",
+          "docs/plans/archive/28-completions-binary-stdin-fix-plan.md",
+          "docs/plans/archive/29-compliance-review-before-phase-details-plan.md",
+          "docs/plans/archive/30-validate-config-only-plan.md",
+          "docs/plans/archive/31-error-logging-and-reset-fixes-plan.md",
+          "docs/plans/archive/32-resumable-handoff-failure-plan.md",
+          "docs/plans/archive/33-resumable-postgate-failures.md",
+          "docs/plans/archive/34-decouple-manual-publish-from-config.md",
+          "docs/plans/archive/35-remove-last-commands.md",
+          "docs/plans/archive/36-review-code-command-plan.md",
+          "docs/plans/archive/37-plans-overlap-command-plan.md",
+          "docs/plans/archive/38-plan-extraction-cache-plan.md",
+          "docs/plans/archive/40-deterministic-plan-extraction-plan.md",
+          "docs/plans/archive/42-review-compliance-qualified-name-plan.md",
+          "docs/plans/archive/43-security-hardening-plan.md",
+          "docs/plans/archive/46-artifact-frontmatter-metadata-plan.md",
+          "docs/specs/archive/01-feedback_ingest_spec.md",
+          "docs/specs/archive/02-phax-planning-skill-update.md",
+          "docs/specs/archive/03-update-provider-effort.md",
+          "docs/specs/archive/04-run-jail.md",
+          "docs/specs/archive/05-review-handoff.md",
+          "docs/specs/archive/06-deno-runtime.md",
+          "docs/specs/archive/07-push-branch-pr.md",
+          "docs/specs/archive/08-install-planning-skill.md",
+          "docs/specs/archive/09-agent-commands.md",
+          "docs/specs/archive/10-init-command.md",
+          "docs/specs/archive/11-lock-agent-binding-phase.md",
+          "docs/specs/archive/12-project-namespace.md",
+          "docs/specs/archive/13-usage-cli.md",
+          "docs/specs/archive/14-remove-network-controls.md",
+          "docs/specs/archive/17-brief-profile-orient.md",
+          "docs/specs/archive/20-model-catalog-equivalence-routing.md",
+          "docs/specs/archive/21-artifact-lifecycle-status.md",
+          "docs/specs/archive/22-plan-staleness-lineage.md",
+          "docs/specs/archive/25-artifact-transition-autocommit.md",
+          "docs/specs/archive/26-artifact-frontmatter-metadata.md"
         ],
         "optionalFilesToEdit": [
-          "packages/louloupress/src/modules/content/shared/contracts/index.ts",
-          "apps/le-secretaire-de-fernand/src/shared/site-runtime.ts"
+          "tests/unit/cli/run.test.ts",
+          "tests/integration/cliErrors.test.ts"
         ],
         "commit": {
-          "subject": "feat(content): add series taxonomy store contract and data wiring",
-          "body": "Add SeriesStore/SeriesDefinition types and parseSeriesStore to the shared content contracts, seed an empty series.json, and expose the parsed store from the site data layer. Structural validation is covered by contract tests; cross-document validation lands with the build artifact in the next phase."
+          "subject": "feat(artifact)!: rename the Archived terminal status to Completed",
+          "body": "Replace `Archived` with `Completed` in the spec and plan status sets, the terminal set,\nboth transition tables, the Effect Schema, the transition commit-verb map, the spec\nretirement refusal and the run gate's retired case, and migrate the 78 repository\nartifacts carrying the old spelling in the same commit so phax never rejects the\nartifacts it ships. No alias: `Archived` is now an unknown status. `approvals.json` is\nuntouched — the fingerprint source excludes the status key, so no fingerprint moves."
         },
-        "title": "Series store contract and data wiring"
+        "title": "Completed replaces Archived in the status sets and the repository"
       },
       {
         "id": "phase-02",
-        "model": "claude-sonnet-4-6",
+        "model": "claude-sonnet-5",
         "effort": "high",
-        "planMarkdownAnchor": "phase-02-series-usage",
-        "plannedFilesToCreate": [
-          "packages/louloupress/src/modules/content/shared/contracts/generated-series-index.ts",
-          "apps/le-secretaire-de-fernand/tests/content/series-usage.test.ts"
-        ],
+        "planMarkdownAnchor": "#phase-02-cli-verb",
+        "plannedFilesToCreate": [],
         "plannedFilesToEdit": [
-          "apps/le-secretaire-de-fernand/src/build/modules/seo/content-index.ts"
+          "src/cli/commands/artifact.ts",
+          "src/cli/cliDocs.ts",
+          "scripts/generate-usage-spec.ts",
+          "phax.usage.kdl",
+          "docs/cli/reference.md",
+          "README.md",
+          "tests/unit/cli/artifact.test.ts",
+          "tests/integration/cliProgram.test.ts"
         ],
         "optionalFilesToEdit": [
-          "apps/le-secretaire-de-fernand/src/build/pipelines/published-artifact-recipes.ts",
-          "apps/le-secretaire-de-fernand/tests/content/generate-content-indexes.test.ts",
-          "packages/louloupress/src/modules/content/shared/contracts/index.ts",
-          "apps/le-secretaire-de-fernand/src/site/content/generated/series-usage.json"
+          "tests/integration/cliErrors.test.ts"
         ],
         "commit": {
-          "subject": "feat(build): generate series usage artifact with prev/next resolution",
-          "body": "Emit series-usage.json during content index generation with ordered, per-locale resolved members and precomputed previous/next links, and enforce build-time validation that referenced documents exist and no document belongs to two series. Covered by an integration test over a fixture document set."
+          "subject": "feat(cli)!: rename the artifact archive verb to complete",
+          "body": "`phax artifact complete` replaces `phax artifact archive`. The old verb is registered as\na hidden subcommand that refuses while naming the replacement, so the invocation fails\nwith a useful message (exit 1) without the dead verb appearing in help, the generated\nusage spec, the CLI reference, the README table or shell completions — which required\nteaching the usage-spec generator to skip hidden commands. Help text and the three\nderived documents are regenerated from the Commander tree."
         },
-        "title": "Generated series usage artifact"
+        "title": "The CLI verb becomes complete"
       },
       {
         "id": "phase-03",
-        "model": "claude-sonnet-4-6",
+        "model": "claude-sonnet-5",
         "effort": "medium",
-        "planMarkdownAnchor": "phase-03-series-route-data",
-        "plannedFilesToCreate": [
-          "apps/le-secretaire-de-fernand/tests/server/series-route-data.test.ts"
-        ],
+        "planMarkdownAnchor": "#phase-03-skills",
+        "plannedFilesToCreate": [],
         "plannedFilesToEdit": [
-          "packages/louloupress/src/modules/content/shared/contracts/route-data.ts",
-          "packages/louloupress/src/modules/content/server/application/route-data/create-content-route-data.ts",
-          "apps/le-secretaire-de-fernand/src/web-rpc/modules/content/functions/route-data-functions.ts",
-          "apps/le-secretaire-de-fernand/src/shared/site-runtime.ts",
-          "apps/le-secretaire-de-fernand/src/web/modules/public-site/routing/public-site-links.ts"
+          ".claude/skills/phax-spec/SKILL.md",
+          ".claude/skills/phax-planning/SKILL.md",
+          ".claude/skills/phax-cli/SKILL.md"
         ],
         "optionalFilesToEdit": [
-          "apps/le-secretaire-de-fernand/src/shared/contracts/route-search.ts"
+          "examples/hello-world/plan.md",
+          "tests/e2e/fixtures/minimal-repo/plan.md"
         ],
         "commit": {
-          "subject": "feat(content): add series route data resolver and RPC",
-          "body": "Add the localized series route-data contract, a resolver and resolveSeriesForDocument helper over the series usage artifact, the getLocalizedSeriesRouteData RPC, and series URL helpers. Covered by server tests for slug resolution, document lookup, and locale alternates."
+          "subject": "docs(skills): teach the shipped skills the Completed vocabulary",
+          "body": "Update the phax-spec, phax-planning and phax-cli skill bundles to the renamed terminal\nstatus and CLI verb: status sets, the spec state diagram and glossary, the frontmatter\ntemplates, the retired-plan refusal wording, and every `phax artifact archive` example.\nReferences to the archive/ directory are unchanged — the folder keeps its name; only the\nstatus and the verb moved. Authors copying a template now get an artifact the schema\naccepts."
         },
-        "title": "Series route data and RPC"
-      },
-      {
-        "id": "phase-04",
-        "model": "claude-sonnet-4-6",
-        "effort": "medium",
-        "planMarkdownAnchor": "phase-04-series-index-page",
-        "plannedFilesToCreate": [
-          "apps/le-secretaire-de-fernand/src/web/routes/$lang/series/$seriesSlug.tsx",
-          "packages/louloupress/src/modules/content/web/pages/series-index/page.tsx",
-          "apps/le-secretaire-de-fernand/tests/ui/series-index-page.test.tsx"
-        ],
-        "plannedFilesToEdit": [],
-        "optionalFilesToEdit": [
-          "apps/le-secretaire-de-fernand/src/routeTree.gen.ts",
-          "packages/louloupress/src/modules/content/web/pages/index.ts",
-          "apps/le-secretaire-de-fernand/tests/seo/content-index-route.test.ts"
-        ],
-        "commit": {
-          "subject": "feat(web): add localized series index route and page",
-          "body": "Add the /:lang/series/:seriesSlug route and a SeriesIndexPage that lists parts in reading order with Part N labels, description, SEO alternates, and a localized empty state, reusing ArticleCard. Covered by a component test over fixture route data."
-        },
-        "title": "Series index route and page"
-      },
-      {
-        "id": "phase-05",
-        "model": "claude-sonnet-4-6",
-        "effort": "medium",
-        "planMarkdownAnchor": "phase-05-in-article-nav",
-        "plannedFilesToCreate": [
-          "packages/louloupress/src/modules/content/web/components/mdx/SeriesNav.tsx",
-          "apps/le-secretaire-de-fernand/tests/ui/series-nav.test.tsx"
-        ],
-        "plannedFilesToEdit": [
-          "apps/le-secretaire-de-fernand/src/web/modules/content/pages/mdx-content/page.tsx",
-          "packages/louloupress/src/modules/content/web/components/mdx/MdxPage.tsx"
-        ],
-        "optionalFilesToEdit": [
-          "packages/louloupress/src/modules/content/web/components/mdx/index.ts",
-          "apps/le-secretaire-de-fernand/src/web/modules/content/pages/mdx-content/page.tsx"
-        ],
-        "commit": {
-          "subject": "feat(web): add in-article series previous/next navigation",
-          "body": "Add a SeriesNav banner near the article header linking to the previous part and a next-part CTA after the body via renderAfterContent, both localized and composing with the reader-feedback surface. Series context comes from resolveSeriesForDocument. Covered by a component test across first/middle/last positions."
-        },
-        "title": "In-article series navigation"
+        "title": "Authoring surface: the shipped skill bundles"
       }
     ]
   },
