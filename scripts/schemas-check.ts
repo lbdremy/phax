@@ -1,10 +1,12 @@
 // Checks the schemas package's derived files against their sources:
 // packages/schemas/src/generated/index.ts against the root package.json
 // version, and packages/schemas/history.lock.json against the bytes of every
-// frozen module under packages/schemas/src/history/.
+// frozen module under packages/schemas/src/history/, and every format's JSON
+// Schema snapshots under packages/schemas/snapshots/<format id>/ against the
+// schema its current decoder renders.
 // Check: pnpm exec tsx scripts/schemas-check.ts
 // Write: pnpm exec tsx scripts/schemas-check.ts --write
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -14,6 +16,18 @@ import {
   renderLock,
   type HistoryLock,
 } from "../packages/schemas/build/generated.js";
+import {
+  FORMAT_DEFINITIONS,
+  JSON_SCHEMA_FORMATS,
+  renderJsonSchemas,
+} from "../packages/schemas/build/jsonSchemas.js";
+import {
+  SNAPSHOTS_DIR,
+  checkSnapshots,
+  planSnapshotWrites,
+  type SnapshotFormat,
+} from "../packages/schemas/build/snapshots.js";
+import { FORMAT_IDS } from "../src/schemas/schemaUrl.js";
 
 const PACKAGE_DIR = "packages/schemas";
 const GENERATED_INDEX = "src/generated/index.ts";
@@ -28,6 +42,40 @@ export interface SchemasState {
   readonly lock: HistoryLock;
   /** Path relative to `packages/schemas` → bytes, for every history module. */
   readonly historyFiles: ReadonlyMap<string, Uint8Array>;
+  /** Directory name under `packages/schemas/snapshots` → file name → content. */
+  readonly snapshots: ReadonlyMap<string, ReadonlyMap<string, string>>;
+  /** Every format id's current shape name and rendered JSON Schema. */
+  readonly formats: ReadonlyArray<SnapshotFormat>;
+}
+
+function readSnapshots(root: string): Map<string, Map<string, string>> {
+  const snapshots = new Map<string, Map<string, string>>();
+  if (!existsSync(root)) return snapshots;
+  const dirs = readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+  for (const dir of dirs.map((entry) => entry.name).toSorted()) {
+    const files = new Map<string, string>();
+    for (const file of listFiles(join(root, dir)).toSorted()) {
+      files.set(relative(join(root, dir), file).split("\\").join("/"), readFileSync(file, "utf8"));
+    }
+    snapshots.set(dir, files);
+  }
+  return snapshots;
+}
+
+function renderFormats(): SnapshotFormat[] {
+  const { files, failures } = renderJsonSchemas(JSON_SCHEMA_FORMATS);
+  return FORMAT_IDS.map((id): SnapshotFormat => {
+    const content = files.get(`${id}.schema.json`);
+    const failure = failures.find((entry) => entry.format === id);
+    return {
+      id,
+      currentShape: FORMAT_DEFINITIONS[id].current.name,
+      generated:
+        content !== undefined
+          ? { ok: true, content }
+          : { ok: false, reason: failure?.reason ?? "no JSON Schema rendered" },
+    };
+  });
 }
 
 function listFiles(root: string): string[] {
@@ -53,6 +101,8 @@ export function readSchemasState(repoRoot: string): SchemasState {
     generatedIndex: existsSync(indexPath) ? readFileSync(indexPath, "utf8") : undefined,
     lock: existsSync(lockPath) ? (JSON.parse(readFileSync(lockPath, "utf8")) as HistoryLock) : {},
     historyFiles,
+    snapshots: readSnapshots(join(repoRoot, SNAPSHOTS_DIR)),
+    formats: renderFormats(),
   };
 }
 
@@ -84,24 +134,30 @@ export function checkSchemas(state: SchemasState): string[] {
       );
     }
   }
-  return findings;
+  return [...findings, ...checkSnapshots(state)];
 }
 
 /**
- * What `--write` produces: the generated index and the lock with missing
- * entries added. `mismatched` lists the entries it refused to change; when it
- * is non-empty nothing is written.
+ * What `--write` produces: the generated index, the lock with missing
+ * entries added, and the snapshot files to write (repo-relative path →
+ * content) or remove. `mismatched` lists the lock entries it refused to
+ * change; when it is non-empty nothing is written.
  */
 export function writeSchemas(state: SchemasState): {
   generatedIndex: string;
   lock: string;
   mismatched: ReadonlyArray<string>;
+  snapshotWrites: ReadonlyMap<string, string>;
+  snapshotRemovals: ReadonlyArray<string>;
 } {
   const { lock, mismatched } = refreshLock(state.lock, state.historyFiles);
+  const { writes, removals } = planSnapshotWrites(state);
   return {
     generatedIndex: renderGeneratedIndex({ packageVersion: state.packageVersion }),
     lock: renderLock(lock),
     mismatched,
+    snapshotWrites: writes,
+    snapshotRemovals: removals,
   };
 }
 
@@ -125,6 +181,16 @@ if (isMain) {
     writeFileSync(indexPath, written.generatedIndex);
     writeFileSync(join(repoRoot, PACKAGE_DIR, LOCK_FILE), written.lock);
     console.log(`Wrote ${PACKAGE_DIR}/${GENERATED_INDEX} and ${PACKAGE_DIR}/${LOCK_FILE}`);
+    for (const [path, content] of written.snapshotWrites) {
+      const target = join(repoRoot, path);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, content);
+      console.log(`Wrote ${path}`);
+    }
+    for (const path of written.snapshotRemovals) {
+      rmSync(join(repoRoot, path));
+      console.log(`Removed ${path}`);
+    }
   } else {
     const findings = checkSchemas(state);
     for (const finding of findings) console.error(finding);

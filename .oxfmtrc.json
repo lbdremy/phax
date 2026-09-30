@@ -10,6 +10,7 @@
     "packages/schemas/src/history",
     "packages/schemas/src/generated",
     "packages/schemas/history.lock.json",
-    "packages/schemas/json"
+    "packages/schemas/json",
+    "packages/schemas/snapshots"
   ]
 }

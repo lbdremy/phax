@@ -56,10 +56,14 @@ type JsonSchemaFormatId = FormatId | "record-manifest";
 
 interface CurrentShape {
   readonly label: string;
-  readonly current: { readonly shape: { readonly schema: Schema.Schema.Any } };
+  readonly current: {
+    readonly name: string;
+    readonly shape: { readonly schema: Schema.Schema.Any };
+  };
 }
 
-const DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
+/** Every format's label and current shape, by format id. */
+export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   registry: registryFormat,
   "run-status": runStatusFormat,
   "phase-status": phaseStatusFormat,
@@ -116,7 +120,7 @@ function tableEntry(
 /** Every file the build writes: one per format id, then the record-manifest union. */
 export const JSON_SCHEMA_FORMATS: ReadonlyArray<JsonSchemaFormat> = [
   ...FORMAT_IDS.map((id) =>
-    tableEntry(id, DEFINITIONS[id].label, DEFINITIONS[id].current.shape.schema),
+    tableEntry(id, FORMAT_DEFINITIONS[id].label, FORMAT_DEFINITIONS[id].current.shape.schema),
   ),
   tableEntry("record-manifest", "record manifest", RecordManifestSchema),
 ];

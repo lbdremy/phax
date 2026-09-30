@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax run registry",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "version",
+    "runs"
+  ],
+  "properties": {
+    "version": {
+      "type": "number",
+      "enum": [
+        1
+      ]
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "namespace",
+          "shortName",
+          "runId",
+          "state",
+          "branch",
+          "projectName",
+          "phasesCount",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "namespace": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "shortName": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "runId": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "created",
+              "running",
+              "failed",
+              "review_open",
+              "completed",
+              "stopped",
+              "archived",
+              "interrupted",
+              "rate_limited"
+            ]
+          },
+          "branch": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "projectName": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "phasesCount": {
+            "type": "number"
+          },
+          "createdAt": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "updatedAt": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "archivePath": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
