@@ -184,9 +184,13 @@ desktop — none is promised by the announcement.
       **Plan 1/5 landed 2026-09-29** (read the phase record manifest; PR #104 merged, run
       archived; the run completed the spec by mistake, reverted in `1e40621b`). **Plan 2/5 landed 2026-09-29** (read every
       format, from the committed shape survey; PR #105 merged, run archived; the run again
-      completed the spec by mistake, reverted). **Plan 3/5 Approved 2026-09-29**
-      (`docs/plans/2609291425-schemas-package-plan.md`, guards: snapshots, the `next` mechanism,
-      the scrubbed history corpus, 4 phases); running.
+      completed the spec by mistake, reverted). **Plan 3/5** first ran as "guards" with a
+      history corpus built from `~/.phax`, which leaked private repositories' runs into public
+      branches: PRs #106 and #107 closed unmerged (2026-09-29/30). The author then dropped reading
+      history (spec §9 q-support-start, 2026-09-30): support starts at the first release that
+      writes `$schema`; plan 3 is rewritten as "support starts now" — remove the legacy decoders,
+      the real-document fixtures (two held a louloupapers run) and the shape survey, add snapshots
+      and the gate. Next action: author it headless from the rewritten brief.
       Deferred with the author (2026-09-29), not in plans 2–5: **a Standard Schema export**
       per format (only if a consumer needs to hand the schemas to a non-Effect validator;
       the cockpit parses with Effect, losslessly); **deterministic JSON Schema annotations**
