@@ -21,38 +21,15 @@ import {
   decodeSpecDocument,
   type SpecDocument,
 } from "../../../../src/schemas/specDocument.js";
-import {
-  PlanApprovalsV1Schema,
-  decodePlanApprovalsV1,
-  type PlanApprovalsV1,
-} from "../history/plan-approvals/v1.js";
-import {
-  PlanDocumentV1Schema,
-  decodePlanDocumentV1,
-  type PlanDocumentV1,
-} from "../history/plan-document/v1.js";
-import {
-  SpecApprovalsV1Schema,
-  decodeSpecApprovalsV1,
-  type SpecApprovalsV1,
-} from "../history/spec-approvals/v1.js";
-import {
-  SpecDocumentV1Schema,
-  decodeSpecDocumentV1,
-  type SpecDocumentV1,
-} from "../history/spec-document/v1.js";
 import type { ParsedShape } from "../parsed.js";
 import { defineFormat } from "../shapes.js";
 
-export type { PlanApprovalsV1, PlanDocumentV1, SpecApprovalsV1, SpecDocumentV1 };
-
-// Every format below has one signature under `version: 1`, so its frozen v1
-// module is an exact twin of phax's schema: a fallback that never fires until
-// the current shape moves on.
+// No format below has written `$schema` yet: a document without it is read by
+// phax's own decoder as shape `pre-schema`, the shape phax writes today.
 
 // ── plan approvals
 
-export type PlanApprovalsShapes = { v1: PlanApprovalsV1 };
+export type PlanApprovalsShapes = { "pre-schema": ApprovalRecordFile };
 
 /** The id of every plan approvals ledger shape the package reads. */
 export type PlanApprovalsShape = keyof PlanApprovalsShapes;
@@ -60,15 +37,14 @@ export type PlanApprovalsShape = keyof PlanApprovalsShapes;
 export const planApprovalsFormat = defineFormat<PlanApprovalsShapes>({
   id: "plan-approvals",
   label: "plan approvals ledger",
-  legacy: { 1: { schema: PlanApprovalsV1Schema, decode: decodePlanApprovalsV1 } },
   releases: [],
   current: {
-    name: "v1",
+    name: "pre-schema",
     shape: { schema: ApprovalRecordFileSchema, decode: decodeApprovalRecordFile },
   },
 });
 
-/** Reads `docs/plans/approvals.json` of any shape phax has written. Never throws. */
+/** Reads `docs/plans/approvals.json`. Never throws. */
 export const parsePlanApprovals: (input: unknown) => ParsedShape<PlanApprovalsShapes> =
   planApprovalsFormat.parse;
 
@@ -76,14 +52,14 @@ export const parsePlanApprovals: (input: unknown) => ParsedShape<PlanApprovalsSh
 export type LatestPlanApprovals = Omit<ApprovalRecordFile, "version">;
 
 /** Upgrades a parsed plan approvals ledger in memory. Keeps every recorded fact; never invents one. */
-export function toLatestPlanApprovals(value: PlanApprovalsV1): LatestPlanApprovals {
+export function toLatestPlanApprovals(value: ApprovalRecordFile): LatestPlanApprovals {
   const { version: _version, ...recorded } = value;
   return recorded;
 }
 
 // ── spec approvals
 
-export type SpecApprovalsShapes = { v1: SpecApprovalsV1 };
+export type SpecApprovalsShapes = { "pre-schema": SpecApprovalRecordFile };
 
 /** The id of every spec approvals ledger shape the package reads. */
 export type SpecApprovalsShape = keyof SpecApprovalsShapes;
@@ -91,15 +67,14 @@ export type SpecApprovalsShape = keyof SpecApprovalsShapes;
 export const specApprovalsFormat = defineFormat<SpecApprovalsShapes>({
   id: "spec-approvals",
   label: "spec approvals ledger",
-  legacy: { 1: { schema: SpecApprovalsV1Schema, decode: decodeSpecApprovalsV1 } },
   releases: [],
   current: {
-    name: "v1",
+    name: "pre-schema",
     shape: { schema: SpecApprovalRecordFileSchema, decode: decodeSpecApprovalRecordFile },
   },
 });
 
-/** Reads `docs/specs/approvals.json` of any shape phax has written. Never throws. */
+/** Reads `docs/specs/approvals.json`. Never throws. */
 export const parseSpecApprovals: (input: unknown) => ParsedShape<SpecApprovalsShapes> =
   specApprovalsFormat.parse;
 
@@ -107,14 +82,14 @@ export const parseSpecApprovals: (input: unknown) => ParsedShape<SpecApprovalsSh
 export type LatestSpecApprovals = Omit<SpecApprovalRecordFile, "version">;
 
 /** Upgrades a parsed spec approvals ledger in memory. Keeps every recorded fact; never invents one. */
-export function toLatestSpecApprovals(value: SpecApprovalsV1): LatestSpecApprovals {
+export function toLatestSpecApprovals(value: SpecApprovalRecordFile): LatestSpecApprovals {
   const { version: _version, ...recorded } = value;
   return recorded;
 }
 
 // ── spec document
 
-export type SpecDocumentShapes = { v1: SpecDocumentV1 };
+export type SpecDocumentShapes = { "pre-schema": SpecDocument };
 
 /** The id of every spec document shape the package reads. */
 export type SpecDocumentShape = keyof SpecDocumentShapes;
@@ -122,12 +97,14 @@ export type SpecDocumentShape = keyof SpecDocumentShapes;
 export const specDocumentFormat = defineFormat<SpecDocumentShapes>({
   id: "spec-document",
   label: "spec document",
-  legacy: { 1: { schema: SpecDocumentV1Schema, decode: decodeSpecDocumentV1 } },
   releases: [],
-  current: { name: "v1", shape: { schema: SpecDocumentSchema, decode: decodeSpecDocument } },
+  current: {
+    name: "pre-schema",
+    shape: { schema: SpecDocumentSchema, decode: decodeSpecDocument },
+  },
 });
 
-/** Reads a spec's JSON sidecar of any shape phax has written. Never throws. */
+/** Reads a spec's JSON sidecar. Never throws. */
 export const parseSpecDocument: (input: unknown) => ParsedShape<SpecDocumentShapes> =
   specDocumentFormat.parse;
 
@@ -135,14 +112,14 @@ export const parseSpecDocument: (input: unknown) => ParsedShape<SpecDocumentShap
 export type LatestSpecDocument = Omit<SpecDocument, "version">;
 
 /** Upgrades a parsed spec document in memory. Keeps every recorded fact; never invents one. */
-export function toLatestSpecDocument(value: SpecDocumentV1): LatestSpecDocument {
+export function toLatestSpecDocument(value: SpecDocument): LatestSpecDocument {
   const { version: _version, ...recorded } = value;
   return recorded;
 }
 
 // ── plan document
 
-export type PlanDocumentShapes = { v1: PlanDocumentV1 };
+export type PlanDocumentShapes = { "pre-schema": PlanDocument };
 
 /** The id of every plan document shape the package reads. */
 export type PlanDocumentShape = keyof PlanDocumentShapes;
@@ -150,12 +127,14 @@ export type PlanDocumentShape = keyof PlanDocumentShapes;
 export const planDocumentFormat = defineFormat<PlanDocumentShapes>({
   id: "plan-document",
   label: "plan document",
-  legacy: { 1: { schema: PlanDocumentV1Schema, decode: decodePlanDocumentV1 } },
   releases: [],
-  current: { name: "v1", shape: { schema: PlanDocumentSchema, decode: decodePlanDocument } },
+  current: {
+    name: "pre-schema",
+    shape: { schema: PlanDocumentSchema, decode: decodePlanDocument },
+  },
 });
 
-/** Reads a plan's JSON sidecar of any shape phax has written. Never throws. */
+/** Reads a plan's JSON sidecar. Never throws. */
 export const parsePlanDocument: (input: unknown) => ParsedShape<PlanDocumentShapes> =
   planDocumentFormat.parse;
 
@@ -163,7 +142,7 @@ export const parsePlanDocument: (input: unknown) => ParsedShape<PlanDocumentShap
 export type LatestPlanDocument = Omit<PlanDocument, "version">;
 
 /** Upgrades a parsed plan document in memory. Keeps every recorded fact; never invents one. */
-export function toLatestPlanDocument(value: PlanDocumentV1): LatestPlanDocument {
+export function toLatestPlanDocument(value: PlanDocument): LatestPlanDocument {
   const { version: _version, ...recorded } = value;
   return recorded;
 }

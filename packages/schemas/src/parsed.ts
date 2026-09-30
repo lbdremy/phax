@@ -15,7 +15,7 @@ export type Parsed<T> = { readonly ok: true; readonly value: T } | ParseFailure;
 
 /**
  * The result of reading a format with several shapes. `M` maps each shape id
- * (`v<N>`, a release, or `next`) to that shape's value type; a success names
+ * (`pre-schema`, a release, or `next`) to that shape's value type; a success names
  * its shape and carries that shape's exact type. Assignable to
  * `Parsed<M[keyof M]>`.
  */

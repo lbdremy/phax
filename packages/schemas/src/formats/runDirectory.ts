@@ -6,12 +6,7 @@ import {
   decodeComplianceReview,
   type ComplianceReview,
 } from "../../../../src/schemas/complianceReview.js";
-import {
-  PhaxPlanSchema,
-  decodePhaxPlan,
-  type PhaxPlan,
-  type PhaxPlanPhase,
-} from "../../../../src/schemas/phaxPlan.js";
+import { PhaxPlanSchema, decodePhaxPlan, type PhaxPlan } from "../../../../src/schemas/phaxPlan.js";
 import { RegistrySchema, decodeRegistry, type Registry } from "../../../../src/schemas/registry.js";
 import {
   PhaseStatusSchema,
@@ -21,36 +16,15 @@ import {
   type PhaseStatus,
   type RunStatus,
 } from "../../../../src/schemas/status.js";
-import {
-  ComplianceReviewV1Schema,
-  decodeComplianceReviewV1,
-  type ComplianceReviewV1,
-} from "../history/compliance-review/v1.js";
-import {
-  PhaseStatusV1Schema,
-  decodePhaseStatusV1,
-  type PhaseStatusV1,
-} from "../history/phase-status/v1.js";
-import { PhaxPlanV1Schema, decodePhaxPlanV1, type PhaxPlanV1 } from "../history/phax-plan/v1.js";
-import { RegistryV1Schema, decodeRegistryV1, type RegistryV1 } from "../history/registry/v1.js";
-import {
-  RunStatusV1Schema,
-  decodeRunStatusV1,
-  type RunStatusV1,
-} from "../history/run-status/v1.js";
 import type { ParsedShape } from "../parsed.js";
-import { UNKNOWN, defineFormat, type Unknown } from "../shapes.js";
+import { defineFormat } from "../shapes.js";
 
-export type { ComplianceReviewV1, PhaseStatusV1, PhaxPlanV1, RegistryV1, RunStatusV1 };
-
-// Every format below reads `version: 1` with phax's own decoder first, and
-// falls back to its frozen v1 module for the older signatures phax no longer
-// accepts. The value type of shape `v1` is the frozen type, which phax's type
-// is assignable to.
+// No format below has written `$schema` yet: a document without it is read by
+// phax's own decoder as shape `pre-schema`, the shape phax writes today.
 
 // ── registry
 
-export type RegistryShapes = { v1: RegistryV1 };
+export type RegistryShapes = { "pre-schema": Registry };
 
 /** The id of every run registry shape the package reads. */
 export type RegistryShape = keyof RegistryShapes;
@@ -58,26 +32,25 @@ export type RegistryShape = keyof RegistryShapes;
 export const registryFormat = defineFormat<RegistryShapes>({
   id: "registry",
   label: "run registry",
-  legacy: { 1: { schema: RegistryV1Schema, decode: decodeRegistryV1 } },
   releases: [],
-  current: { name: "v1", shape: { schema: RegistrySchema, decode: decodeRegistry } },
+  current: { name: "pre-schema", shape: { schema: RegistrySchema, decode: decodeRegistry } },
 });
 
-/** Reads `~/.phax/registry.json` of any shape phax has written. Never throws. */
+/** Reads `~/.phax/registry.json`. Never throws. */
 export const parseRegistry: (input: unknown) => ParsedShape<RegistryShapes> = registryFormat.parse;
 
 /** The latest run registry: no `version`. */
 export type LatestRegistry = Omit<Registry, "version">;
 
 /** Upgrades a parsed registry in memory. Keeps every recorded fact; never invents one. */
-export function toLatestRegistry(value: RegistryV1): LatestRegistry {
+export function toLatestRegistry(value: Registry): LatestRegistry {
   const { version: _version, ...recorded } = value;
   return recorded;
 }
 
 // ── run status
 
-export type RunStatusShapes = { v1: RunStatusV1 };
+export type RunStatusShapes = { "pre-schema": RunStatus };
 
 /** The id of every run status shape the package reads. */
 export type RunStatusShape = keyof RunStatusShapes;
@@ -85,32 +58,26 @@ export type RunStatusShape = keyof RunStatusShapes;
 export const runStatusFormat = defineFormat<RunStatusShapes>({
   id: "run-status",
   label: "run status",
-  legacy: { 1: { schema: RunStatusV1Schema, decode: decodeRunStatusV1 } },
   releases: [],
-  current: { name: "v1", shape: { schema: RunStatusSchema, decode: decodeRunStatus } },
+  current: { name: "pre-schema", shape: { schema: RunStatusSchema, decode: decodeRunStatus } },
 });
 
-/** Reads a run's `run-status.json` of any shape phax has written. Never throws. */
+/** Reads a run's `run-status.json`. Never throws. */
 export const parseRunStatus: (input: unknown) => ParsedShape<RunStatusShapes> =
   runStatusFormat.parse;
 
-/**
- * The latest run status: no `version`, and `namespace` marked `Unknown` when
- * the run predates it.
- */
-export type LatestRunStatus = Omit<RunStatus, "version" | "namespace"> & {
-  readonly namespace: RunStatus["namespace"] | Unknown;
-};
+/** The latest run status: no `version`. */
+export type LatestRunStatus = Omit<RunStatus, "version">;
 
 /** Upgrades a parsed run status in memory. Keeps every recorded fact; never invents one. */
-export function toLatestRunStatus(value: RunStatusV1): LatestRunStatus {
-  const { version: _version, namespace, ...recorded } = value;
-  return { ...recorded, namespace: namespace ?? UNKNOWN };
+export function toLatestRunStatus(value: RunStatus): LatestRunStatus {
+  const { version: _version, ...recorded } = value;
+  return recorded;
 }
 
 // ── phase status
 
-export type PhaseStatusShapes = { v1: PhaseStatusV1 };
+export type PhaseStatusShapes = { "pre-schema": PhaseStatus };
 
 /** The id of every phase status shape the package reads. */
 export type PhaseStatusShape = keyof PhaseStatusShapes;
@@ -118,12 +85,14 @@ export type PhaseStatusShape = keyof PhaseStatusShapes;
 export const phaseStatusFormat = defineFormat<PhaseStatusShapes>({
   id: "phase-status",
   label: "phase status",
-  legacy: { 1: { schema: PhaseStatusV1Schema, decode: decodePhaseStatusV1 } },
   releases: [],
-  current: { name: "v1", shape: { schema: PhaseStatusSchema, decode: decodePhaseStatus } },
+  current: {
+    name: "pre-schema",
+    shape: { schema: PhaseStatusSchema, decode: decodePhaseStatus },
+  },
 });
 
-/** Reads a phase's `status.json` of any shape phax has written. Never throws. */
+/** Reads a phase's `status.json`. Never throws. */
 export const parsePhaseStatus: (input: unknown) => ParsedShape<PhaseStatusShapes> =
   phaseStatusFormat.parse;
 
@@ -131,14 +100,14 @@ export const parsePhaseStatus: (input: unknown) => ParsedShape<PhaseStatusShapes
 export type LatestPhaseStatus = Omit<PhaseStatus, "version">;
 
 /** Upgrades a parsed phase status in memory. Keeps every recorded fact; never invents one. */
-export function toLatestPhaseStatus(value: PhaseStatusV1): LatestPhaseStatus {
+export function toLatestPhaseStatus(value: PhaseStatus): LatestPhaseStatus {
   const { version: _version, ...recorded } = value;
   return recorded;
 }
 
 // ── phax-plan
 
-export type PhaxPlanShapes = { v1: PhaxPlanV1 };
+export type PhaxPlanShapes = { "pre-schema": PhaxPlan };
 
 /** The id of every phax-plan shape the package reads. */
 export type PhaxPlanShape = keyof PhaxPlanShapes;
@@ -146,59 +115,25 @@ export type PhaxPlanShape = keyof PhaxPlanShapes;
 export const phaxPlanFormat = defineFormat<PhaxPlanShapes>({
   id: "phax-plan",
   label: "phax-plan",
-  legacy: { 1: { schema: PhaxPlanV1Schema, decode: decodePhaxPlanV1 } },
   releases: [],
-  current: { name: "v1", shape: { schema: PhaxPlanSchema, decode: decodePhaxPlan } },
+  current: { name: "pre-schema", shape: { schema: PhaxPlanSchema, decode: decodePhaxPlan } },
 });
 
-/** Reads a run's `phax-plan.json` of any shape phax has written. Never throws. */
+/** Reads a run's `phax-plan.json`. Never throws. */
 export const parsePhaxPlan: (input: unknown) => ParsedShape<PhaxPlanShapes> = phaxPlanFormat.parse;
 
-type PlannedFileList = "plannedFilesToCreate" | "plannedFilesToEdit" | "optionalFilesToEdit";
-
-/** A phase of the latest phax-plan: each planned-file list `Unknown` when the plan predates it. */
-export type LatestPhaxPlanPhase = Omit<PhaxPlanPhase, PlannedFileList> & {
-  readonly [K in PlannedFileList]: PhaxPlanPhase[K] | Unknown;
-};
-
-/**
- * The latest phax-plan: no `version`, `run.requiredCommands` marked `Unknown`
- * when the plan predates it, and no `run.backend`, which the latest shape has
- * no place for.
- */
-export type LatestPhaxPlan = {
-  readonly run: Omit<PhaxPlan["run"], "requiredCommands"> & {
-    readonly requiredCommands: PhaxPlan["run"]["requiredCommands"] | Unknown;
-  };
-  readonly phases: readonly [LatestPhaxPlanPhase, ...LatestPhaxPlanPhase[]];
-};
-
-type PhaxPlanV1Phase = PhaxPlanV1["phases"][number];
-
-function toLatestPhaxPlanPhase(phase: PhaxPlanV1Phase): LatestPhaxPlanPhase {
-  if ("plannedFilesToCreate" in phase) return phase;
-  return {
-    ...phase,
-    plannedFilesToCreate: UNKNOWN,
-    plannedFilesToEdit: UNKNOWN,
-    optionalFilesToEdit: UNKNOWN,
-  };
-}
+/** The latest phax-plan: no `version`. */
+export type LatestPhaxPlan = Omit<PhaxPlan, "version">;
 
 /** Upgrades a parsed phax-plan in memory. Keeps every recorded fact; never invents one. */
-export function toLatestPhaxPlan(value: PhaxPlanV1): LatestPhaxPlan {
-  const { shortName, title, branch } = value.run;
-  const requiredCommands = "requiredCommands" in value.run ? value.run.requiredCommands : UNKNOWN;
-  const [first, ...rest] = value.phases;
-  return {
-    run: { shortName, title, branch, requiredCommands },
-    phases: [toLatestPhaxPlanPhase(first), ...rest.map(toLatestPhaxPlanPhase)],
-  };
+export function toLatestPhaxPlan(value: PhaxPlan): LatestPhaxPlan {
+  const { version: _version, ...recorded } = value;
+  return recorded;
 }
 
 // ── compliance review
 
-export type ComplianceReviewShapes = { v1: ComplianceReviewV1 };
+export type ComplianceReviewShapes = { "pre-schema": ComplianceReview };
 
 /** The id of every compliance review shape the package reads. */
 export type ComplianceReviewShape = keyof ComplianceReviewShapes;
@@ -206,15 +141,14 @@ export type ComplianceReviewShape = keyof ComplianceReviewShapes;
 export const complianceReviewFormat = defineFormat<ComplianceReviewShapes>({
   id: "compliance-review",
   label: "compliance review",
-  legacy: { 1: { schema: ComplianceReviewV1Schema, decode: decodeComplianceReviewV1 } },
   releases: [],
   current: {
-    name: "v1",
+    name: "pre-schema",
     shape: { schema: ComplianceReviewSchema, decode: decodeComplianceReview },
   },
 });
 
-/** Reads a run's `compliance-review.json` of any shape phax has written. Never throws. */
+/** Reads a run's `compliance-review.json`. Never throws. */
 export const parseComplianceReview: (input: unknown) => ParsedShape<ComplianceReviewShapes> =
   complianceReviewFormat.parse;
 
@@ -222,7 +156,7 @@ export const parseComplianceReview: (input: unknown) => ParsedShape<ComplianceRe
 export type LatestComplianceReview = Omit<ComplianceReview, "version">;
 
 /** Upgrades a parsed compliance review in memory. Keeps every recorded fact; never invents one. */
-export function toLatestComplianceReview(value: ComplianceReviewV1): LatestComplianceReview {
+export function toLatestComplianceReview(value: ComplianceReview): LatestComplianceReview {
   const { version: _version, ...recorded } = value;
   return recorded;
 }

@@ -2,20 +2,15 @@ import type {
   AnyDocument,
   AuthoringRecordManifest,
   AuthoringRecordManifestShape,
-  AuthoringRecordManifestV1,
   ComplianceReview,
   ComplianceReviewShape,
-  ComplianceReviewV1,
   DocumentFormatId,
   GateAttribution,
   GateAttributionShape,
-  GateAttributionV0,
   GateDiagnostics,
   GateDiagnosticsShape,
-  GateDiagnosticsV0,
   GatePending,
   GatePendingShape,
-  GatePendingV0,
   LatestAuthoringRecordManifest,
   LatestComplianceReview,
   LatestGateAttribution,
@@ -25,7 +20,6 @@ import type {
   LatestPhaseRecordManifest,
   LatestPhaseStatus,
   LatestPhaxPlan,
-  LatestPhaxPlanPhase,
   LatestRegistry,
   LatestPlanApprovals,
   LatestPlanDocument,
@@ -37,38 +31,26 @@ import type {
   ParsedShape,
   PhaseFileReconciliation,
   PhaseFileReconciliationShape,
-  PhaseFileReconciliationV0,
   PhaseRecordManifest,
   PhaseRecordManifestShape,
-  PhaseRecordManifestV1,
-  PhaseRecordManifestV2,
   PhaseStatus,
   PhaseStatusShape,
-  PhaseStatusV1,
   PhaxPlan,
   PhaxPlanShape,
-  PhaxPlanV1,
   PlanApprovals,
   PlanApprovalsShape,
-  PlanApprovalsV1,
   PlanDocument,
   PlanDocumentShape,
-  PlanDocumentV1,
   RecordManifest,
   RecordManifestFormat,
   Registry,
   RegistryShape,
-  RegistryV1,
   RunStatus,
   RunStatusShape,
-  RunStatusV1,
   SpecApprovals,
   SpecApprovalsShape,
-  SpecApprovalsV1,
   SpecDocument,
   SpecDocumentShape,
-  SpecDocumentV1,
-  Unknown,
 } from "../../packages/schemas/src/index.js";
 import {
   parseAuthoringRecordManifest,
@@ -94,6 +76,7 @@ import {
   toLatestRunStatus,
   toLatestSpecDocument,
 } from "../../packages/schemas/src/index.js";
+import type { FormatSpec, Shape } from "../../packages/schemas/src/shapes.js";
 import type { ApprovalRecordFile } from "../../src/schemas/approvalRecord.js";
 import type {
   AuthoringRecordManifest as PhaxAuthoringRecordManifest,
@@ -115,7 +98,6 @@ import type {
   PhaseStatus as PhaxPhaseStatus,
   RunStatus as PhaxRunStatus,
 } from "../../src/schemas/status.js";
-import type { Surface } from "../../src/schemas/surface.js";
 
 type Equals<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -128,30 +110,17 @@ const phaxToPackage: PhaseRecordManifest = fromPhax;
 void packageToPhax;
 void phaxToPackage;
 
-// The frozen v2 twin has exactly the type phax writes today
-const v2IsCurrent: Equals<PhaseRecordManifestV2, PhaseRecordManifest> = true;
-void v2IsCurrent;
-
 // parsePhaseRecordManifest is a union over shapes, assignable to Parsed over their values
 const parsed = parsePhaseRecordManifest({});
-const asParsed: Parsed<PhaseRecordManifestV1 | PhaseRecordManifest> = parsed;
+const asParsed: Parsed<PhaseRecordManifest> = parsed;
 void asParsed;
 
-// Narrowing on the shape id yields that shape's exact type
+// Narrowing on success yields the pre-schema shape's exact type
 if (parsed.ok) {
-  const shape: PhaseRecordManifestShape = parsed.shape;
+  const shape: Equals<typeof parsed.shape, "pre-schema"> = true;
+  const exact: Equals<typeof parsed.value, RunRecordManifest> = true;
   void shape;
-  if (parsed.shape === "v1") {
-    const value: PhaseRecordManifestV1 = parsed.value;
-    const exact: Equals<typeof parsed.value, PhaseRecordManifestV1> = true;
-    void value;
-    void exact;
-  } else {
-    const value: PhaseRecordManifest = parsed.value;
-    const exact: Equals<typeof parsed.value, PhaseRecordManifest> = true;
-    void value;
-    void exact;
-  }
+  void exact;
   // @ts-expect-error: a success carries no error
   void parsed.error;
 } else {
@@ -165,14 +134,8 @@ if (parsed.ok) {
   void parsed.shape;
 }
 
-type Success = Extract<ReturnType<typeof parsePhaseRecordManifest>, { ok: true }>;
-const shapeIds: Equals<Success["shape"], "v1" | "v2"> = true;
-const successValues: Equals<Success["value"], PhaseRecordManifestV1 | PhaseRecordManifest> = true;
-void shapeIds;
-void successValues;
-
 // ParsedShape over any map is assignable to Parsed over its values
-type Toy = { v1: { a: 1 }; "0.10.0": { b: 2 }; next: { c: 3 } };
+type Toy = { "pre-schema": { a: 1 }; "0.10.0": { b: 2 }; next: { c: 3 } };
 declare const toy: ParsedShape<Toy>;
 const toyAsParsed: Parsed<Toy[keyof Toy]> = toy;
 void toyAsParsed;
@@ -182,25 +145,48 @@ declare const failure: Extract<Parsed<PhaseRecordManifest>, { ok: false }>;
 // @ts-expect-error: path is readonly
 failure.error.path = "outcome";
 
-// The latest manifest drops version, marks what v1 never recorded, keeps the rest
-declare const latest: LatestPhaseRecordManifest;
-// @ts-expect-error: the latest manifest carries no version
-void latest.version;
-const surfaces: Equals<
-  LatestPhaseRecordManifest["verifiedSurfaces"],
-  ReadonlyArray<Surface> | Unknown
-> = true;
-void surfaces;
-const addedInV2: Equals<
-  Exclude<keyof PhaseRecordManifest, keyof PhaseRecordManifestV1>,
-  "verifiedSurfaces"
-> = true;
-void addedInV2;
-const sameFields: Equals<
-  Omit<LatestPhaseRecordManifest, "verifiedSurfaces">,
-  Omit<PhaseRecordManifest, "version" | "verifiedSurfaces">
-> = true;
-void sameFields;
+// FormatSpec's two variants are mutually exclusive
+declare const toyShapes: { readonly [K in keyof Toy]: Shape<Toy[K]> };
+const unfilled: FormatSpec<{ "pre-schema": { a: 1 } }> = {
+  id: "gate-pending",
+  label: "toy",
+  releases: [],
+  current: { name: "pre-schema", shape: toyShapes["pre-schema"] },
+};
+const filled: FormatSpec<Toy> = {
+  id: "gate-pending",
+  label: "toy",
+  preSchema: toyShapes["pre-schema"],
+  releases: [["0.10.0", toyShapes["0.10.0"]]],
+  current: { name: "next", shape: toyShapes.next },
+};
+void unfilled;
+void filled;
+// @ts-expect-error: a filled pre-schema slot never names pre-schema as the current shape
+const filledWithPreSchemaCurrent: FormatSpec<Toy> = {
+  id: "gate-pending",
+  label: "toy",
+  preSchema: toyShapes["pre-schema"],
+  releases: [],
+  current: { name: "pre-schema", shape: toyShapes["pre-schema"] },
+};
+void filledWithPreSchemaCurrent;
+const unfilledWithReleases: FormatSpec<Toy> = {
+  id: "gate-pending",
+  label: "toy",
+  // @ts-expect-error: an unfilled pre-schema slot has no releases
+  releases: [["0.10.0", toyShapes["0.10.0"]]],
+  current: { name: "pre-schema", shape: toyShapes["pre-schema"] },
+};
+void unfilledWithReleases;
+// @ts-expect-error: a current shape named next needs a frozen pre-schema module
+const nextWithoutPreSchema: FormatSpec<Toy> = {
+  id: "gate-pending",
+  label: "toy",
+  releases: [],
+  current: { name: "next", shape: toyShapes.next },
+};
+void nextWithoutPreSchema;
 
 // parseDocument names the format and the shape, and narrows to the exact type
 const document = parseDocument({});
@@ -230,19 +216,142 @@ const complete: Equals<DocumentFormatId, FormatId> = true;
 void complete;
 if (document.ok) {
   const format: DocumentFormatId = document.format;
+  const shape: Equals<typeof document.shape, "pre-schema"> = true;
   void format;
-  if (document.format === "phase-record-manifest" && document.shape === "v1") {
-    const exact: Equals<typeof document.value, PhaseRecordManifestV1> = true;
+  void shape;
+  if (document.format === "phase-record-manifest") {
+    const exact: Equals<typeof document.value, RunRecordManifest> = true;
+    void exact;
+  }
+  if (document.format === "phax-plan") {
+    const exact: Equals<typeof document.value, PhaxPhaxPlan> = true;
+    void exact;
+  }
+  if (document.format === "spec-approvals") {
+    const exact: Equals<typeof document.value, SpecApprovalRecordFile> = true;
+    void exact;
+  }
+  if (document.format === "phase-file-reconciliation") {
+    const exact: Equals<typeof document.value, PhaxPhaseFileReconciliation> = true;
     void exact;
   }
 }
 const oneParameter: Equals<Parameters<typeof parseDocument>, [input: unknown]> = true;
 void oneParameter;
-declare const parsedDocument: ParsedDocument<{ "gate-pending": { "0.12.0": { a: string } } }>;
-if (parsedDocument.ok) {
-  const toyShape: Equals<typeof parsedDocument.shape, "0.12.0"> = true;
-  void toyShape;
+declare const parsedDocument: ParsedDocument<{
+  "gate-pending": { "pre-schema": { a: string }; "0.12.0": { b: string } };
+}>;
+if (parsedDocument.ok && parsedDocument.shape === "0.12.0") {
+  const toyValue: Equals<typeof parsedDocument.value, { b: string }> = true;
+  void toyValue;
 }
+
+// Every format reads exactly one shape so far: pre-schema
+const shapeIds: Equals<
+  | RegistryShape
+  | RunStatusShape
+  | PhaseStatusShape
+  | PhaxPlanShape
+  | ComplianceReviewShape
+  | PlanApprovalsShape
+  | SpecApprovalsShape
+  | SpecDocumentShape
+  | PlanDocumentShape
+  | PhaseRecordManifestShape
+  | AuthoringRecordManifestShape
+  | GateAttributionShape
+  | PhaseFileReconciliationShape
+  | GateDiagnosticsShape
+  | GatePendingShape,
+  "pre-schema"
+> = true;
+void shapeIds;
+const eachShapeId: [
+  Equals<RegistryShape, "pre-schema">,
+  Equals<RunStatusShape, "pre-schema">,
+  Equals<PhaseStatusShape, "pre-schema">,
+  Equals<PhaxPlanShape, "pre-schema">,
+  Equals<ComplianceReviewShape, "pre-schema">,
+  Equals<PlanApprovalsShape, "pre-schema">,
+  Equals<SpecApprovalsShape, "pre-schema">,
+  Equals<SpecDocumentShape, "pre-schema">,
+  Equals<PlanDocumentShape, "pre-schema">,
+  Equals<PhaseRecordManifestShape, "pre-schema">,
+  Equals<AuthoringRecordManifestShape, "pre-schema">,
+  Equals<GateAttributionShape, "pre-schema">,
+  Equals<PhaseFileReconciliationShape, "pre-schema">,
+  Equals<GateDiagnosticsShape, "pre-schema">,
+  Equals<GatePendingShape, "pre-schema">,
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+void eachShapeId;
+
+/** The value a parse function's success carries. */
+type Value<P extends (input: unknown) => unknown> =
+  ReturnType<P> extends infer R ? (R extends { ok: true; value: infer V } ? V : never) : never;
+
+// Each parse function's success value is exactly phax's type
+const parseValues: [
+  Equals<Value<typeof parseRegistry>, PhaxRegistry>,
+  Equals<Value<typeof parseRunStatus>, PhaxRunStatus>,
+  Equals<Value<typeof parsePhaseStatus>, PhaxPhaseStatus>,
+  Equals<Value<typeof parsePhaxPlan>, PhaxPhaxPlan>,
+  Equals<Value<typeof parseComplianceReview>, PhaxComplianceReview>,
+  Equals<Value<typeof parsePlanApprovals>, ApprovalRecordFile>,
+  Equals<Value<typeof parseSpecApprovals>, SpecApprovalRecordFile>,
+  Equals<Value<typeof parseSpecDocument>, PhaxSpecDocument>,
+  Equals<Value<typeof parsePlanDocument>, PhaxPlanDocument>,
+  Equals<Value<typeof parsePhaseRecordManifest>, RunRecordManifest>,
+  Equals<Value<typeof parseAuthoringRecordManifest>, PhaxAuthoringRecordManifest>,
+  Equals<Value<typeof parseGateAttribution>, PhaxGateAttribution>,
+  Equals<Value<typeof parsePhaseFileReconciliation>, PhaxPhaseFileReconciliation>,
+  Equals<Value<typeof parseGateDiagnostics>, GateDiagnosticsDocument>,
+  Equals<Value<typeof parseGatePending>, GatePendingDocument>,
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+void parseValues;
+
+// Each Latest type drops version from phax's type; the timeline formats carry none
+const latestTypes: [
+  Equals<LatestRegistry, Omit<PhaxRegistry, "version">>,
+  Equals<LatestRunStatus, Omit<PhaxRunStatus, "version">>,
+  Equals<LatestPhaseStatus, Omit<PhaxPhaseStatus, "version">>,
+  Equals<LatestPhaxPlan, Omit<PhaxPhaxPlan, "version">>,
+  Equals<LatestComplianceReview, Omit<PhaxComplianceReview, "version">>,
+  Equals<LatestPlanApprovals, Omit<ApprovalRecordFile, "version">>,
+  Equals<LatestSpecApprovals, Omit<SpecApprovalRecordFile, "version">>,
+  Equals<LatestSpecDocument, Omit<PhaxSpecDocument, "version">>,
+  Equals<LatestPlanDocument, Omit<PhaxPlanDocument, "version">>,
+  Equals<LatestPhaseRecordManifest, Omit<RunRecordManifest, "version">>,
+  Equals<LatestAuthoringRecordManifest, Omit<PhaxAuthoringRecordManifest, "version">>,
+  Equals<LatestGateAttribution, PhaxGateAttribution>,
+  Equals<LatestPhaseFileReconciliation, PhaxPhaseFileReconciliation>,
+  Equals<LatestGateDiagnostics, GateDiagnosticsDocument>,
+  Equals<LatestGatePending, GatePendingDocument>,
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+void latestTypes;
+
+declare const latest: LatestPhaseRecordManifest;
+// @ts-expect-error: the latest manifest carries no version
+void latest.version;
+declare const latestPlan: LatestPhaxPlan;
+// @ts-expect-error: the latest phax-plan carries no version
+void latestPlan.version;
+// @ts-expect-error: the latest phax-plan has no place for run.backend
+void latestPlan.run.backend;
+
+// Each toLatest takes phax's own type
+declare const phaxRunStatus: PhaxRunStatus;
+declare const phaxPhaxPlan: PhaxPhaxPlan;
+declare const phaxSpecDocument: PhaxSpecDocument;
+declare const phaxReconciliation: PhaxPhaseFileReconciliation;
+const upgradedRunStatus: LatestRunStatus = toLatestRunStatus(phaxRunStatus);
+const upgradedPhaxPlan: LatestPhaxPlan = toLatestPhaxPlan(phaxPhaxPlan);
+const upgradedSpecDocument: LatestSpecDocument = toLatestSpecDocument(phaxSpecDocument);
+const upgradedReconciliation: LatestPhaseFileReconciliation =
+  toLatestPhaseFileReconciliation(phaxReconciliation);
+void upgradedRunStatus;
+void upgradedPhaxPlan;
+void upgradedSpecDocument;
+void upgradedReconciliation;
 
 // ── run-directory formats
 
@@ -257,107 +366,6 @@ void runStatusIsPhax;
 void phaseStatusIsPhax;
 void phaxPlanIsPhax;
 void complianceReviewIsPhax;
-
-// A single-signature format's frozen v1 twin has exactly phax's type
-const registryTwin: Equals<RegistryV1, PhaxRegistry> = true;
-const phaseStatusTwin: Equals<PhaseStatusV1, PhaxPhaseStatus> = true;
-const complianceReviewTwin: Equals<ComplianceReviewV1, PhaxComplianceReview> = true;
-void registryTwin;
-void phaseStatusTwin;
-void complianceReviewTwin;
-
-// The frozen v1 of a format with older signatures is wider: phax's type is
-// assignable to it, not the other way
-declare const phaxRunStatus: PhaxRunStatus;
-declare const phaxPhaxPlan: PhaxPhaxPlan;
-const runStatusIntoV1: RunStatusV1 = phaxRunStatus;
-const phaxPlanIntoV1: PhaxPlanV1 = phaxPhaxPlan;
-void runStatusIntoV1;
-void phaxPlanIntoV1;
-declare const olderRunStatus: RunStatusV1;
-declare const olderPhaxPlan: PhaxPlanV1;
-// @ts-expect-error: an older run status may lack namespace
-const runStatusFromV1: PhaxRunStatus = olderRunStatus;
-// @ts-expect-error: an older phax-plan may lack requiredCommands
-const phaxPlanFromV1: PhaxPhaxPlan = olderPhaxPlan;
-void runStatusFromV1;
-void phaxPlanFromV1;
-
-// Each parse function names its shape and narrows to the exact type
-const registryResult = parseRegistry({});
-const runStatusResult = parseRunStatus({});
-const phaseStatusResult = parsePhaseStatus({});
-const phaxPlanResult = parsePhaxPlan({});
-const complianceReviewResult = parseComplianceReview({});
-const shapeIds1: Equals<
-  RegistryShape | RunStatusShape | PhaseStatusShape | PhaxPlanShape | ComplianceReviewShape,
-  "v1"
-> = true;
-void shapeIds1;
-if (registryResult.ok) {
-  const value: Equals<typeof registryResult.value, RegistryV1> = true;
-  void value;
-}
-if (runStatusResult.ok && runStatusResult.shape === "v1") {
-  const value: Equals<typeof runStatusResult.value, RunStatusV1> = true;
-  void value;
-}
-if (phaseStatusResult.ok) {
-  const value: Equals<typeof phaseStatusResult.value, PhaseStatusV1> = true;
-  void value;
-}
-if (phaxPlanResult.ok) {
-  const value: Equals<typeof phaxPlanResult.value, PhaxPlanV1> = true;
-  void value;
-}
-if (complianceReviewResult.ok) {
-  const value: Equals<typeof complianceReviewResult.value, ComplianceReviewV1> = true;
-  void value;
-}
-if (document.ok && document.format === "phax-plan") {
-  const exact: Equals<typeof document.value, PhaxPlanV1> = true;
-  void exact;
-}
-
-// The latest shapes: no version, and each fact an older signature lacked is T | Unknown
-const latestRunStatusNamespace: Equals<
-  LatestRunStatus["namespace"],
-  PhaxRunStatus["namespace"] | Unknown
-> = true;
-const latestRunStatusRest: Equals<
-  Omit<LatestRunStatus, "namespace">,
-  Omit<PhaxRunStatus, "version" | "namespace">
-> = true;
-const latestRequiredCommands: Equals<
-  LatestPhaxPlan["run"]["requiredCommands"],
-  ReadonlyArray<string> | Unknown
-> = true;
-const latestPlannedFiles: Equals<
-  LatestPhaxPlanPhase["plannedFilesToCreate" | "plannedFilesToEdit" | "optionalFilesToEdit"],
-  ReadonlyArray<string> | Unknown
-> = true;
-const latestRegistry: Equals<LatestRegistry, Omit<PhaxRegistry, "version">> = true;
-const latestPhaseStatus: Equals<LatestPhaseStatus, Omit<PhaxPhaseStatus, "version">> = true;
-const latestComplianceReview: Equals<
-  LatestComplianceReview,
-  Omit<PhaxComplianceReview, "version">
-> = true;
-void latestRunStatusNamespace;
-void latestRunStatusRest;
-void latestRequiredCommands;
-void latestPlannedFiles;
-void latestRegistry;
-void latestPhaseStatus;
-void latestComplianceReview;
-declare const latestPlan: LatestPhaxPlan;
-// @ts-expect-error: the latest phax-plan has no place for run.backend
-void latestPlan.run.backend;
-// @ts-expect-error: the latest phax-plan carries no version
-void latestPlan.version;
-const upgradedRunStatus: LatestRunStatus = toLatestRunStatus(olderRunStatus);
-const upgradedPhaxPlan: LatestPhaxPlan = toLatestPhaxPlan(olderPhaxPlan);
-void upgradedRunStatus;
-void upgradedPhaxPlan;
 
 // ── repository formats
 
@@ -376,64 +384,6 @@ const planApprovalsToPackage: PlanApprovals = phaxPlanApprovals;
 const planApprovalsToPhax: ApprovalRecordFile = packagePlanApprovals;
 void planApprovalsToPackage;
 void planApprovalsToPhax;
-
-// Each format has one signature, so its frozen v1 twin has exactly phax's type
-const planApprovalsTwin: Equals<PlanApprovalsV1, ApprovalRecordFile> = true;
-const specApprovalsTwin: Equals<SpecApprovalsV1, SpecApprovalRecordFile> = true;
-const specDocumentTwin: Equals<SpecDocumentV1, PhaxSpecDocument> = true;
-const planDocumentTwin: Equals<PlanDocumentV1, PhaxPlanDocument> = true;
-void planApprovalsTwin;
-void specApprovalsTwin;
-void specDocumentTwin;
-void planDocumentTwin;
-
-// Each parse function names its shape and narrows to the exact type
-const shapeIds2: Equals<
-  PlanApprovalsShape | SpecApprovalsShape | SpecDocumentShape | PlanDocumentShape,
-  "v1"
-> = true;
-void shapeIds2;
-const planApprovalsResult = parsePlanApprovals({});
-const specApprovalsResult = parseSpecApprovals({});
-const specDocumentResult = parseSpecDocument({});
-const planDocumentResult = parsePlanDocument({});
-if (planApprovalsResult.ok) {
-  const value: Equals<typeof planApprovalsResult.value, PlanApprovalsV1> = true;
-  void value;
-}
-if (specApprovalsResult.ok) {
-  const value: Equals<typeof specApprovalsResult.value, SpecApprovalsV1> = true;
-  void value;
-}
-if (specDocumentResult.ok) {
-  const value: Equals<typeof specDocumentResult.value, SpecDocumentV1> = true;
-  void value;
-}
-if (planDocumentResult.ok) {
-  const value: Equals<typeof planDocumentResult.value, PlanDocumentV1> = true;
-  void value;
-}
-if (document.ok && document.format === "spec-approvals") {
-  const exact: Equals<typeof document.value, SpecApprovalsV1> = true;
-  void exact;
-}
-
-// The latest shapes drop version and keep everything else
-const latestPlanApprovals: Equals<LatestPlanApprovals, Omit<ApprovalRecordFile, "version">> = true;
-const latestSpecApprovals: Equals<
-  LatestSpecApprovals,
-  Omit<SpecApprovalRecordFile, "version">
-> = true;
-const latestSpecDocument: Equals<LatestSpecDocument, Omit<PhaxSpecDocument, "version">> = true;
-const latestPlanDocument: Equals<LatestPlanDocument, Omit<PhaxPlanDocument, "version">> = true;
-void latestPlanApprovals;
-void latestSpecApprovals;
-void latestSpecDocument;
-void latestPlanDocument;
-declare const olderSpecDocument: SpecDocumentV1;
-const upgradedSpecDocument: LatestSpecDocument = toLatestSpecDocument(olderSpecDocument);
-// @ts-expect-error: the latest spec document carries no version
-void upgradedSpecDocument.version;
 
 // ── record manifests
 
@@ -455,23 +405,7 @@ void authoringToPhax;
 void recordManifestToPackage;
 void recordManifestToPhax;
 
-// One frozen v1 accepts both legacy signatures, so it has exactly phax's type
-const authoringTwin: Equals<AuthoringRecordManifestV1, PhaxAuthoringRecordManifest> = true;
-const authoringShapes: Equals<AuthoringRecordManifestShape, "v1"> = true;
-void authoringTwin;
-void authoringShapes;
-const authoringResult = parseAuthoringRecordManifest({});
-if (authoringResult.ok) {
-  const value: Equals<typeof authoringResult.value, AuthoringRecordManifestV1> = true;
-  void value;
-}
-
-// The latest authoring manifest drops version and keeps sourceSha optional
-const latestAuthoring: Equals<
-  LatestAuthoringRecordManifest,
-  Omit<PhaxAuthoringRecordManifest, "version">
-> = true;
-void latestAuthoring;
+// The latest authoring manifest keeps sourceSha optional
 const upgradedAuthoring = toLatestAuthoringRecordManifest(packageAuthoring);
 const sourceShaStaysOptional: Equals<typeof upgradedAuthoring.sourceSha, string | undefined> = true;
 void sourceShaStaysOptional;
@@ -483,29 +417,20 @@ const recordManifestFormats: Equals<
 > = true;
 void recordManifestFormats;
 const anyManifest = parseRecordManifest({});
-const anyManifestAsParsed: Parsed<
-  PhaseRecordManifestV1 | PhaseRecordManifest | AuthoringRecordManifestV1
-> = anyManifest;
+const anyManifestAsParsed: Parsed<PhaseRecordManifest | AuthoringRecordManifest> = anyManifest;
 void anyManifestAsParsed;
 if (anyManifest.ok) {
   const format: RecordManifestFormat = anyManifest.format;
+  const shape: Equals<typeof anyManifest.shape, "pre-schema"> = true;
   void format;
+  void shape;
   if (anyManifest.format === "authoring-record-manifest") {
-    const shape: Equals<typeof anyManifest.shape, "v1"> = true;
-    const exact: Equals<typeof anyManifest.value, AuthoringRecordManifestV1> = true;
-    void shape;
-    void exact;
-  } else if (anyManifest.shape === "v1") {
-    const exact: Equals<typeof anyManifest.value, PhaseRecordManifestV1> = true;
+    const exact: Equals<typeof anyManifest.value, PhaxAuthoringRecordManifest> = true;
     void exact;
   } else {
-    const exact: Equals<typeof anyManifest.value, PhaseRecordManifest> = true;
+    const exact: Equals<typeof anyManifest.value, RunRecordManifest> = true;
     void exact;
   }
-}
-if (document.ok && document.format === "authoring-record-manifest") {
-  const exact: Equals<typeof document.value, AuthoringRecordManifestV1> = true;
-  void exact;
 }
 
 // ── record timeline files
@@ -525,78 +450,3 @@ const gateDiagnosticsToPackage: GateDiagnostics = phaxGateDiagnostics;
 const gateDiagnosticsToPhax: GateDiagnosticsDocument = packageGateDiagnostics;
 void gateDiagnosticsToPackage;
 void gateDiagnosticsToPhax;
-
-// A single-signature format's frozen v0 twin has exactly phax's type
-const gateAttributionTwin: Equals<GateAttributionV0, PhaxGateAttribution> = true;
-const gateDiagnosticsTwin: Equals<GateDiagnosticsV0, GateDiagnosticsDocument> = true;
-const gatePendingTwin: Equals<GatePendingV0, GatePendingDocument> = true;
-void gateAttributionTwin;
-void gateDiagnosticsTwin;
-void gatePendingTwin;
-
-// The frozen reconciliation v0 is wider: phax's type is assignable to it, not the other way
-declare const phaxReconciliation: PhaxPhaseFileReconciliation;
-const reconciliationIntoV0: PhaseFileReconciliationV0 = phaxReconciliation;
-void reconciliationIntoV0;
-declare const olderReconciliation: PhaseFileReconciliationV0;
-// @ts-expect-error: an older reconciliation may lack phaseId and the mismatch lists
-const reconciliationFromV0: PhaxPhaseFileReconciliation = olderReconciliation;
-void reconciliationFromV0;
-
-// Each parse function names shape v0 and narrows to the exact type
-const shapeIds0: Equals<
-  GateAttributionShape | PhaseFileReconciliationShape | GateDiagnosticsShape | GatePendingShape,
-  "v0"
-> = true;
-void shapeIds0;
-const gateAttributionResult = parseGateAttribution({});
-const reconciliationResult = parsePhaseFileReconciliation({});
-const gateDiagnosticsResult = parseGateDiagnostics({});
-const gatePendingResult = parseGatePending({});
-if (gateAttributionResult.ok) {
-  const value: Equals<typeof gateAttributionResult.value, GateAttributionV0> = true;
-  void value;
-}
-if (reconciliationResult.ok && reconciliationResult.shape === "v0") {
-  const value: Equals<typeof reconciliationResult.value, PhaseFileReconciliationV0> = true;
-  void value;
-}
-if (gateDiagnosticsResult.ok) {
-  const value: Equals<typeof gateDiagnosticsResult.value, GateDiagnosticsV0> = true;
-  void value;
-}
-if (gatePendingResult.ok) {
-  const value: Equals<typeof gatePendingResult.value, GatePendingV0> = true;
-  void value;
-}
-if (document.ok && document.format === "phase-file-reconciliation") {
-  const shape: Equals<typeof document.shape, "v0"> = true;
-  const exact: Equals<typeof document.value, PhaseFileReconciliationV0> = true;
-  void shape;
-  void exact;
-}
-
-// The latest shapes: each fact an older reconciliation lacked is T | Unknown;
-// the other three are phax's current type
-const latestReconciliationFacts: Equals<
-  LatestPhaseFileReconciliation["phaseId" | "createdButPlannedEdit" | "editedButPlannedCreate"],
-  string | ReadonlyArray<string> | Unknown
-> = true;
-const latestReconciliationRest: Equals<
-  Omit<
-    LatestPhaseFileReconciliation,
-    "phaseId" | "createdButPlannedEdit" | "editedButPlannedCreate"
-  >,
-  Omit<PhaxPhaseFileReconciliation, "phaseId" | "createdButPlannedEdit" | "editedButPlannedCreate">
-> = true;
-const latestGateAttribution: Equals<LatestGateAttribution, PhaxGateAttribution> = true;
-const latestGateDiagnostics: Equals<LatestGateDiagnostics, GateDiagnosticsDocument> = true;
-const latestGatePending: Equals<LatestGatePending, GatePendingDocument> = true;
-void latestReconciliationFacts;
-void latestReconciliationRest;
-void latestGateAttribution;
-void latestGateDiagnostics;
-void latestGatePending;
-const upgradedReconciliation: LatestPhaseFileReconciliation =
-  toLatestPhaseFileReconciliation(olderReconciliation);
-void upgradedReconciliation;

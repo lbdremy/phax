@@ -33,44 +33,224 @@ import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
 import { decodePhaseFileReconciliation } from "../../../src/schemas/reconciliation.js";
 import { decodeRegistry } from "../../../src/schemas/registry.js";
 import { decodeRunRecordManifest } from "../../../src/schemas/runRecord.js";
-import type { FormatId } from "../../../src/schemas/schemaUrl.js";
+import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
 import { decodeSpecDocument } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatus, decodeRunStatus } from "../../../src/schemas/status.js";
-import { readSurveyedFixtures } from "./surveyedFixtures.js";
+import {
+  validDocuments,
+  versionOnePhaseRecordManifest,
+  withKey,
+  withoutKey,
+  type Doc,
+} from "./documents.js";
 
-const base = {
-  version: 2,
-  runId: "records-1786807559589",
-  phaseId: "phase-02",
-  shape: "skeleton",
-  sourceSha: "9fd2b07f",
-  model: "gpt-5.5",
-  effort: "medium",
-  provider: "codex-cli",
-  outcome: "committed",
-  usage: {
-    available: true,
-    usage: {
-      provider: "codex-cli",
-      inputTokens: 31299,
-      cachedInputTokens: 2432,
-      outputTokens: 5,
-      reasoningOutputTokens: 0,
-    },
+type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+type Parse = (input: unknown) => { readonly ok: boolean; readonly value?: unknown };
+type Verdict = "accepted" | "rejected";
+type Case = readonly [string, unknown, Verdict];
+
+function expectParity(parse: Parse, phax: Decode, input: unknown, verdict: Verdict) {
+  const decoded = phax(input);
+  const result = parse(input);
+  expect(Either.isRight(decoded)).toBe(verdict === "accepted");
+  expect(result.ok).toBe(verdict === "accepted");
+  if (result.ok && Either.isRight(decoded)) expect(result.value).toEqual(decoded.right);
+}
+
+interface FormatParity {
+  readonly id: FormatId;
+  readonly parse: Parse;
+  readonly phax: Decode;
+  /** A key and a value of the wrong type for it. */
+  readonly wrongType: readonly [string, unknown];
+  /** A key the format requires. */
+  readonly required: string;
+  /** How phax's decoder treats a key its schema does not name. */
+  readonly excess: "error" | "ignore";
+}
+
+const FORMATS: { readonly [F in FormatId]: FormatParity } = {
+  registry: {
+    id: "registry",
+    parse: parseRegistry,
+    phax: decodeRegistry,
+    wrongType: ["runs", {}],
+    required: "runs",
+    excess: "ignore",
   },
-  verifiedSurfaces: ["local"],
+  "run-status": {
+    id: "run-status",
+    parse: parseRunStatus,
+    phax: decodeRunStatus,
+    wrongType: ["phasesCount", "2"],
+    required: "state",
+    excess: "ignore",
+  },
+  "phase-status": {
+    id: "phase-status",
+    parse: parsePhaseStatus,
+    phax: decodePhaseStatus,
+    wrongType: ["phaseIndex", "0"],
+    required: "branchName",
+    excess: "ignore",
+  },
+  "phax-plan": {
+    id: "phax-plan",
+    parse: parsePhaxPlan,
+    phax: decodePhaxPlan,
+    wrongType: ["phases", "phase-01"],
+    required: "run",
+    excess: "error",
+  },
+  "compliance-review": {
+    id: "compliance-review",
+    parse: parseComplianceReview,
+    phax: decodeComplianceReview,
+    wrongType: ["summary", 1],
+    required: "verdict",
+    excess: "error",
+  },
+  "plan-approvals": {
+    id: "plan-approvals",
+    parse: parsePlanApprovals,
+    phax: decodeApprovalRecordFile,
+    wrongType: ["records", []],
+    required: "records",
+    excess: "error",
+  },
+  "spec-approvals": {
+    id: "spec-approvals",
+    parse: parseSpecApprovals,
+    phax: decodeSpecApprovalRecordFile,
+    wrongType: ["records", []],
+    required: "records",
+    excess: "error",
+  },
+  "phase-record-manifest": {
+    id: "phase-record-manifest",
+    parse: parsePhaseRecordManifest,
+    phax: decodeRunRecordManifest,
+    wrongType: ["verifiedSurfaces", "local"],
+    required: "outcome",
+    excess: "error",
+  },
+  "authoring-record-manifest": {
+    id: "authoring-record-manifest",
+    parse: parseAuthoringRecordManifest,
+    phax: decodeAuthoringRecordManifest,
+    wrongType: ["usage", null],
+    required: "authoringId",
+    excess: "error",
+  },
+  "gate-attribution": {
+    id: "gate-attribution",
+    parse: parseGateAttribution,
+    phax: decodeGateAttribution,
+    wrongType: ["steps", {}],
+    required: "phase",
+    excess: "ignore",
+  },
+  "phase-file-reconciliation": {
+    id: "phase-file-reconciliation",
+    parse: parsePhaseFileReconciliation,
+    phax: decodePhaseFileReconciliation,
+    wrongType: ["hasDeviations", "yes"],
+    required: "phaseId",
+    excess: "ignore",
+  },
+  "gate-diagnostics": {
+    id: "gate-diagnostics",
+    parse: parseGateDiagnostics,
+    phax: decodeGateDiagnosticsDocument,
+    wrongType: ["diagnostics", {}],
+    required: "diagnostics",
+    excess: "ignore",
+  },
+  "gate-pending": {
+    id: "gate-pending",
+    parse: parseGatePending,
+    phax: decodeGatePendingDocument,
+    wrongType: ["closed", "phase-01"],
+    required: "closed",
+    excess: "ignore",
+  },
+  "spec-document": {
+    id: "spec-document",
+    parse: parseSpecDocument,
+    phax: decodeSpecDocument,
+    wrongType: ["title", 1],
+    required: "title",
+    excess: "error",
+  },
+  "plan-document": {
+    id: "plan-document",
+    parse: parsePlanDocument,
+    phax: decodePlanDocument,
+    wrongType: ["phases", {}],
+    required: "preamble",
+    excess: "error",
+  },
 };
 
-const { sourceSha: _sourceSha, ...withoutSourceSha } = base;
-const { verifiedSurfaces: _verifiedSurfaces, ...withoutVerifiedSurfaces } = base;
+describe.each(FORMAT_IDS.map((id) => FORMATS[id]))(
+  "parity: the package agrees with phax's decoder on $id",
+  (format) => {
+    const valid = validDocuments[format.id];
+    const [key, wrong] = format.wrongType;
+    const cases: ReadonlyArray<Case> = [
+      ["the valid document", valid, "accepted"],
+      [`a wrong type at ${key}`, withKey(valid, key, wrong), "rejected"],
+      [`a missing ${format.required}`, withoutKey(valid, format.required), "rejected"],
+      [
+        "one unknown key",
+        withKey(valid, "owner", "example"),
+        format.excess === "ignore" ? "accepted" : "rejected",
+      ],
+      ["a non-object", "document.json", "rejected"],
+    ];
 
-const cases: ReadonlyArray<readonly [string, unknown]> = [
-  ["a full version-2 manifest", base],
-  ["a manifest without sourceSha", withoutSourceSha],
+    it.each(cases)("%s", (_label, input, verdict) => {
+      expectParity(format.parse, format.phax, input, verdict);
+    });
+
+    it("fails a hand-made reject at the path phax's decoder names", () => {
+      const result = format.parse(withKey(valid, key, wrong)) as {
+        readonly ok: boolean;
+        readonly error?: { readonly path: string };
+      };
+      expect(result.error?.path.split(".")[0]).toBe(key);
+    });
+  },
+);
+
+describe("parity: one unknown key", () => {
+  it("is rejected by both for a phase record manifest, at the key", () => {
+    const input = withKey(validDocuments["phase-record-manifest"], "reviewer", "human");
+    expect(Either.isLeft(decodeRunRecordManifest(input))).toBe(true);
+    const result = parsePhaseRecordManifest(input);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.path).toBe("reviewer");
+  });
+
+  it("is accepted by both for a registry, and dropped from the value", () => {
+    const input = withKey(validDocuments.registry, "owner", "example");
+    expect(Either.isRight(decodeRegistry(input))).toBe(true);
+    const result = parseRegistry(input);
+    expect(result).toMatchObject({ ok: true, shape: "pre-schema" });
+    if (result.ok) expect(Object.hasOwn(result.value, "owner")).toBe(false);
+  });
+});
+
+const base = validDocuments["phase-record-manifest"];
+const baseUsage = (base["usage"] as { readonly usage: Doc }).usage;
+
+const MANIFEST_CASES: ReadonlyArray<Case> = [
+  ["a manifest without sourceSha", withoutKey(base, "sourceSha"), "accepted"],
   [
     "an interrupted phase with unavailable usage",
     { ...base, outcome: "interrupted", usage: { available: false } },
+    "accepted",
   ],
   [
     "a vibe manifest",
@@ -92,254 +272,31 @@ const cases: ReadonlyArray<readonly [string, unknown]> = [
       },
       verifiedSurfaces: ["local", "structural", "product"],
     },
+    "accepted",
   ],
-  ["a manifest with one unknown key", { ...base, reviewer: "human" }],
-  ["a manifest missing verifiedSurfaces", withoutVerifiedSurfaces],
-  ["a manifest whose outcome is paused", { ...base, outcome: "paused" }],
-  ["a version-3 manifest", { ...base, version: 3 }],
-  ["a manifest with an empty runId", { ...base, runId: "" }],
-  ["a manifest with an empty sourceSha", { ...base, sourceSha: "" }],
-  ["a manifest with an unknown surface", { ...base, verifiedSurfaces: ["cloud"] }],
-  ["a manifest with usage available but absent", { ...base, usage: { available: true } }],
+  ["a version-1 manifest", versionOnePhaseRecordManifest, "rejected"],
+  ["a version-3 manifest", withKey(base, "version", 3), "rejected"],
+  ["a manifest whose outcome is paused", withKey(base, "outcome", "paused"), "rejected"],
+  ["a manifest with an empty runId", withKey(base, "runId", ""), "rejected"],
+  ["a manifest with an empty sourceSha", withKey(base, "sourceSha", ""), "rejected"],
+  ["a manifest with an unknown surface", withKey(base, "verifiedSurfaces", ["cloud"]), "rejected"],
+  [
+    "a manifest with usage available but absent",
+    withKey(base, "usage", { available: true }),
+    "rejected",
+  ],
   [
     "a manifest whose usage carries an extra key",
-    {
-      ...base,
-      usage: { ...base.usage, usage: { ...base.usage.usage, costUsd: 1 } },
-    },
+    withKey(base, "usage", { available: true, usage: { ...baseUsage, costUsd: 1 } }),
+    "rejected",
   ],
-  ["a non-object", "record.json"],
 ];
 
 describe("parity: parsePhaseRecordManifest agrees with phax's decoder", () => {
-  it.each(cases)("%s", (_label, input) => {
-    const phax = decodeRunRecordManifest(input);
-    const pkg = parsePhaseRecordManifest(input);
-    expect(pkg.ok).toBe(Either.isRight(phax));
-    if (pkg.ok && Either.isRight(phax)) expect(pkg.value).toEqual(phax.right);
-  });
-
-  it("covers accepted and rejected documents", () => {
-    const verdicts = cases.map(([, input]) => parsePhaseRecordManifest(input).ok);
-    expect(verdicts).toContain(true);
-    expect(verdicts).toContain(false);
-  });
-
-  it("rejects a manifest with one unknown key, as phax does", () => {
-    const input = { ...base, reviewer: "human" };
-    expect(Either.isLeft(decodeRunRecordManifest(input))).toBe(true);
-    const result = parsePhaseRecordManifest(input);
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.path).toBe("reviewer");
-  });
-
-  it("reads a version-2 manifest through phax's decoder, as shape v2", () => {
-    expect(parsePhaseRecordManifest(base)).toMatchObject({ ok: true, shape: "v2" });
-  });
-
-  // §5.7 promises parity only for the shape phax currently writes: the
-  // package also reads the history phax itself no longer accepts.
-  it("accepts a version-1 manifest that phax's decoder rejects, by design", () => {
-    const v1 = { ...withoutVerifiedSurfaces, version: 1 };
-    expect(Either.isLeft(decodeRunRecordManifest(v1))).toBe(true);
-    expect(parsePhaseRecordManifest(v1)).toEqual({ ok: true, shape: "v1", value: v1 });
+  it.each(MANIFEST_CASES)("%s", (_label, input, verdict) => {
+    expectParity(parsePhaseRecordManifest, decodeRunRecordManifest, input, verdict);
   });
 });
-
-type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
-type Parse = (input: unknown) => { readonly ok: boolean; readonly value?: unknown };
-type Doc = Readonly<Record<string, unknown>>;
-
-/** The first fixture phax's current decoder accepts: a document of the current shape. */
-function currentShape(id: FormatId, decode: Decode, shape = "v1"): Doc {
-  const found = readSurveyedFixtures(id, shape).find(({ document }) =>
-    Either.isRight(decode(document)),
-  );
-  if (found === undefined) throw new Error(`no current-shape ${id} fixture`);
-  return found.document as Doc;
-}
-
-function first(list: unknown): Doc {
-  return (list as ReadonlyArray<Doc>)[0] as Doc;
-}
-
-interface FormatParity {
-  readonly id: FormatId;
-  readonly parse: Parse;
-  readonly phax: Decode;
-  readonly cases: ReadonlyArray<readonly [string, unknown, "accepted" | "rejected"]>;
-}
-
-const registry = currentShape("registry", decodeRegistry);
-const runStatus = currentShape("run-status", decodeRunStatus);
-const phaseStatus = currentShape("phase-status", decodePhaseStatus);
-const phaxPlan = currentShape("phax-plan", decodePhaxPlan);
-const complianceReview = currentShape("compliance-review", decodeComplianceReview);
-
-// Each rejected case is one no frozen module admits either, so the package's
-// fallback never changes the verdict on a current-shape document.
-const RUN_DIRECTORY: ReadonlyArray<FormatParity> = [
-  {
-    id: "registry",
-    parse: parseRegistry,
-    phax: decodeRegistry,
-    cases: [
-      ["a real registry", registry, "accepted"],
-      ["a registry with one unknown key", { ...registry, owner: "remy" }, "accepted"],
-      ["an empty registry", { version: 1, runs: [] }, "accepted"],
-      [
-        "a run in an unknown state",
-        { ...registry, runs: [{ ...first(registry["runs"]), state: "paused" }] },
-        "rejected",
-      ],
-      [
-        "a run with an empty archivePath",
-        { ...registry, runs: [{ ...first(registry["runs"]), archivePath: "" }] },
-        "rejected",
-      ],
-      ["a registry whose runs is not an array", { ...registry, runs: {} }, "rejected"],
-      ["a version-2 registry", { ...registry, version: 2 }, "rejected"],
-    ],
-  },
-  {
-    id: "run-status",
-    parse: parseRunStatus,
-    phax: decodeRunStatus,
-    cases: [
-      ["a real run status", runStatus, "accepted"],
-      ["a run status with one unknown key", { ...runStatus, owner: "remy" }, "accepted"],
-      ["a paused run status", { ...runStatus, state: "paused" }, "rejected"],
-      [
-        "a run status whose phasesCount is a string",
-        { ...runStatus, phasesCount: "3" },
-        "rejected",
-      ],
-      ["a run status with an empty namespace", { ...runStatus, namespace: "" }, "rejected"],
-      [
-        "a run status whose allowSkillEdits is a string",
-        { ...runStatus, allowSkillEdits: "yes" },
-        "rejected",
-      ],
-    ],
-  },
-  {
-    id: "phase-status",
-    parse: parsePhaseStatus,
-    phax: decodePhaseStatus,
-    cases: [
-      ["a real phase status", phaseStatus, "accepted"],
-      ["a phase status with one unknown key", { ...phaseStatus, owner: "remy" }, "accepted"],
-      ["a phase status in an unknown state", { ...phaseStatus, state: "paused" }, "rejected"],
-      ["a phase status with an unknown effort", { ...phaseStatus, effort: "extreme" }, "rejected"],
-      ["a branch name with a leading dash", { ...phaseStatus, branchName: "-x" }, "rejected"],
-      ["a branch name with a space", { ...phaseStatus, branchName: "a b" }, "rejected"],
-    ],
-  },
-  {
-    id: "phax-plan",
-    parse: parsePhaxPlan,
-    phax: decodePhaxPlan,
-    cases: [
-      ["a real phax-plan", phaxPlan, "accepted"],
-      ["a phax-plan with one unknown key", { ...phaxPlan, owner: "remy" }, "rejected"],
-      [
-        "a phax-plan whose run has one unknown key",
-        { ...phaxPlan, run: { ...(phaxPlan["run"] as Doc), owner: "remy" } },
-        "rejected",
-      ],
-      [
-        "a phase whose id breaks the pattern",
-        { ...phaxPlan, phases: [{ ...first(phaxPlan["phases"]), id: "phase-1" }] },
-        "rejected",
-      ],
-      [
-        "a phase with an unknown effort",
-        { ...phaxPlan, phases: [{ ...first(phaxPlan["phases"]), effort: "extreme" }] },
-        "rejected",
-      ],
-      ["a phax-plan without phases", { ...phaxPlan, phases: [] }, "rejected"],
-    ],
-  },
-  {
-    id: "compliance-review",
-    parse: parseComplianceReview,
-    phax: decodeComplianceReview,
-    cases: [
-      ["a real compliance review", complianceReview, "accepted"],
-      [
-        "a compliance review with one unknown key",
-        { ...complianceReview, owner: "remy" },
-        "rejected",
-      ],
-      [
-        "a compliance review with an unknown verdict",
-        { ...complianceReview, verdict: "maybe" },
-        "rejected",
-      ],
-      [
-        "a finding with an unknown severity",
-        {
-          ...complianceReview,
-          perPhase: [
-            {
-              phaseId: "phase-01",
-              verdict: "divergent",
-              findings: [{ dimension: "files", severity: "fatal", message: "x" }],
-            },
-          ],
-        },
-        "rejected",
-      ],
-      [
-        "a compliance review whose summary is a number",
-        { ...complianceReview, summary: 1 },
-        "rejected",
-      ],
-    ],
-  },
-];
-
-describe.each(RUN_DIRECTORY)("parity: the package agrees with phax's decoder on $id", (format) => {
-  const { parse, phax } = format;
-  it.each(format.cases)("%s", (_label, input, verdict) => {
-    const decoded = phax(input);
-    const result = parse(input);
-    expect(Either.isRight(decoded)).toBe(verdict === "accepted");
-    expect(result.ok).toBe(verdict === "accepted");
-    if (result.ok && Either.isRight(decoded)) expect(result.value).toEqual(decoded.right);
-  });
-});
-
-describe("parity: one unknown key", () => {
-  it("is accepted by both for a registry, a run status and a phase status, and dropped from the value", () => {
-    const results = [
-      parseRegistry({ ...registry, owner: "remy" }),
-      parseRunStatus({ ...runStatus, owner: "remy" }),
-      parsePhaseStatus({ ...phaseStatus, owner: "remy" }),
-    ];
-    for (const result of results) {
-      expect(result.ok).toBe(true);
-      if (result.ok) expect(Object.hasOwn(result.value, "owner")).toBe(false);
-    }
-  });
-
-  it("is rejected by both for a phax-plan and a compliance review, at the key", () => {
-    const results = [
-      parsePhaxPlan({ ...phaxPlan, owner: "remy" }),
-      parseComplianceReview({ ...complianceReview, owner: "remy" }),
-    ];
-    for (const result of results) {
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error.path).toBe("owner");
-    }
-  });
-});
-
-const planApprovals = currentShape("plan-approvals", decodeApprovalRecordFile);
-const specApprovals = currentShape("spec-approvals", decodeSpecApprovalRecordFile);
-const specDocument = currentShape("spec-document", decodeSpecDocument);
-const planDocument = currentShape("plan-document", decodePlanDocument);
 
 /** A ledger whose first record has `fields` merged over it. */
 function withFirstRecord(ledger: Doc, fields: Doc): Doc {
@@ -356,169 +313,100 @@ function withFirst(document: Doc, list: string, fields: Doc): Doc {
   return { ...document, [list]: [{ ...head, ...fields }, ...rest] };
 }
 
-// Every repository format is decoded with `onExcessProperty: "error"`, so one
-// unknown key is rejected by both.
-const REPOSITORY: ReadonlyArray<FormatParity> = [
-  {
-    id: "plan-approvals",
-    parse: parsePlanApprovals,
-    phax: decodeApprovalRecordFile,
-    cases: [
-      ["a real plan approvals ledger", planApprovals, "accepted"],
-      ["an empty plan approvals ledger", { version: 1, records: {} }, "accepted"],
-      ["a ledger with one unknown key", { ...planApprovals, owner: "remy" }, "rejected"],
-      [
-        "a record with one unknown key",
-        withFirstRecord(planApprovals, { owner: "remy" }),
-        "rejected",
-      ],
-      [
-        "a record whose baseline is not 40-hex",
-        withFirstRecord(planApprovals, { baseline: "76d8ab0" }),
-        "rejected",
-      ],
-      [
-        "a record whose sourceSpec lacks its fingerprint",
-        withFirstRecord(planApprovals, { sourceSpec: { path: "docs/specs/x.md" } }),
-        "rejected",
-      ],
-      ["a version-2 ledger", { ...planApprovals, version: 2 }, "rejected"],
-    ],
-  },
-  {
-    id: "spec-approvals",
-    parse: parseSpecApprovals,
-    phax: decodeSpecApprovalRecordFile,
-    cases: [
-      ["a real spec approvals ledger", specApprovals, "accepted"],
-      ["an empty spec approvals ledger", { version: 1, records: {} }, "accepted"],
-      ["a ledger with one unknown key", { ...specApprovals, owner: "remy" }, "rejected"],
-      [
-        "a record whose baseline is upper-case hex",
-        withFirstRecord(specApprovals, { baseline: "ABCDEF0123".repeat(4) }),
-        "rejected",
-      ],
-      [
-        "a record with an empty specFingerprint",
-        withFirstRecord(specApprovals, { specFingerprint: "" }),
-        "rejected",
-      ],
-      ["a ledger whose records is an array", { ...specApprovals, records: [] }, "rejected"],
-    ],
-  },
-  {
-    id: "spec-document",
-    parse: parseSpecDocument,
-    phax: decodeSpecDocument,
-    cases: [
-      ["a real spec document", specDocument, "accepted"],
-      ["a spec document with one unknown key", { ...specDocument, owner: "remy" }, "rejected"],
-      ["a spec document of another kind", { ...specDocument, kind: "plan" }, "rejected"],
-      [
-        "a requirement with an unknown pattern",
-        withFirst(specDocument, "requirements", { pattern: "sometimes" }),
-        "rejected",
-      ],
-      [
-        "a docs page of kind none without a reason",
-        { ...specDocument, docsPage: { kind: "none" } },
-        "rejected",
-      ],
-    ],
-  },
-  {
-    id: "plan-document",
-    parse: parsePlanDocument,
-    phax: decodePlanDocument,
-    cases: [
-      ["a real plan document", planDocument, "accepted"],
-      ["a plan document with one unknown key", { ...planDocument, owner: "remy" }, "rejected"],
-      [
-        "a phase whose id breaks the pattern",
-        withFirst(planDocument, "phases", { id: "phase-1" }),
-        "rejected",
-      ],
-      [
-        "a phase with an unknown effort",
-        withFirst(planDocument, "phases", { effort: "extreme" }),
-        "rejected",
-      ],
-      ["a plan document without phases", { ...planDocument, phases: [] }, "rejected"],
-    ],
-  },
-];
+const completion = (validDocuments["gate-diagnostics"]["diagnostics"] as ReadonlyArray<Doc>)[1];
 
-describe.each(REPOSITORY)("parity: the package agrees with phax's decoder on $id", (format) => {
-  const { parse, phax } = format;
-  it.each(format.cases)("%s", (_label, input, verdict) => {
-    const decoded = phax(input);
-    const result = parse(input);
-    expect(Either.isRight(decoded)).toBe(verdict === "accepted");
-    expect(result.ok).toBe(verdict === "accepted");
-    if (result.ok && Either.isRight(decoded)) expect(result.value).toEqual(decoded.right);
-  });
-});
-
-describe("parity: one unknown key on a repository format", () => {
-  it("is rejected by both for each ledger and document, at the key", () => {
-    const results = [
-      parsePlanApprovals({ ...planApprovals, owner: "remy" }),
-      parseSpecApprovals({ ...specApprovals, owner: "remy" }),
-      parseSpecDocument({ ...specDocument, owner: "remy" }),
-      parsePlanDocument({ ...planDocument, owner: "remy" }),
-    ];
-    for (const result of results) {
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error.path).toBe("owner");
-    }
-  });
-});
-
-const authoring = readSurveyedFixtures("authoring-record-manifest", "v1")[0]?.document as Doc;
-const { sourceSha: _authoringSourceSha, ...authoringWithoutSourceSha } = authoring;
-
-// The authoring manifest is decoded with `onExcessProperty: "error"`, so one
-// unknown key is rejected by both.
-const AUTHORING_CASES: ReadonlyArray<readonly [string, unknown, "accepted" | "rejected"]> = [
-  ["a real authoring manifest", authoring, "accepted"],
-  ["an authoring manifest without sourceSha", authoringWithoutSourceSha, "accepted"],
+// Rejects that reach inside a document: each one a refinement or a nested
+// literal phax's decoder checks.
+const NESTED: ReadonlyArray<readonly [FormatId, string, Doc, Verdict]> = [
+  ["registry", "an empty registry", { version: 1, runs: [] }, "accepted"],
   [
-    "a failed plan session with unavailable usage",
-    { ...authoring, artifactKind: "plan", outcome: "failed", usage: { available: false } },
-    "accepted",
+    "registry",
+    "a run in an unknown state",
+    withFirst(validDocuments.registry, "runs", { state: "paused" }),
+    "rejected",
   ],
-  ["an authoring manifest with one unknown key", { ...authoring, reviewer: "human" }, "rejected"],
-  ["an interrupted authoring session", { ...authoring, outcome: "interrupted" }, "rejected"],
-  ["an authoring manifest of another kind", { ...authoring, kind: "phase" }, "rejected"],
-  ["an authoring manifest for a review", { ...authoring, artifactKind: "review" }, "rejected"],
-  ["an authoring manifest with an empty sourceSha", { ...authoring, sourceSha: "" }, "rejected"],
-  ["a version-2 authoring manifest", { ...authoring, version: 2 }, "rejected"],
+  [
+    "phase-status",
+    "a branch name with a leading dash",
+    withKey(validDocuments["phase-status"], "branchName", "-x"),
+    "rejected",
+  ],
+  [
+    "phax-plan",
+    "a phase whose id breaks the pattern",
+    withFirst(validDocuments["phax-plan"], "phases", { id: "phase-1" }),
+    "rejected",
+  ],
+  [
+    "compliance-review",
+    "a finding with an unknown severity",
+    withFirst(validDocuments["compliance-review"], "perPhase", {
+      findings: [{ dimension: "files", severity: "fatal", message: "x" }],
+    }),
+    "rejected",
+  ],
+  [
+    "plan-approvals",
+    "a record whose baseline is not 40-hex",
+    withFirstRecord(validDocuments["plan-approvals"], { baseline: "abc1234" }),
+    "rejected",
+  ],
+  [
+    "spec-approvals",
+    "a record with an empty specFingerprint",
+    withFirstRecord(validDocuments["spec-approvals"], { specFingerprint: "" }),
+    "rejected",
+  ],
+  [
+    "gate-attribution",
+    "a step whose result is outside its literals",
+    withFirst(validDocuments["gate-attribution"], "steps", { result: "skipped" }),
+    "rejected",
+  ],
+  [
+    "gate-diagnostics",
+    "a diagnostic at line 0",
+    { diagnostics: [{ ...completion, location: { file: "a.ts", line: 0 } }] },
+    "rejected",
+  ],
+  [
+    "gate-pending",
+    "a step with nothing pending",
+    withKey(validDocuments["gate-pending"], "steps", [{ command: "pnpm test", pending: [] }]),
+    "rejected",
+  ],
+  [
+    "spec-document",
+    "a docs page of kind none without a reason",
+    withKey(validDocuments["spec-document"], "docsPage", { kind: "none" }),
+    "rejected",
+  ],
+  [
+    "plan-document",
+    "a phase with an unknown effort",
+    withFirst(validDocuments["plan-document"], "phases", { effort: "extreme" }),
+    "rejected",
+  ],
 ];
 
-describe("parity: parseAuthoringRecordManifest agrees with phax's decoder", () => {
-  it.each(AUTHORING_CASES)("%s", (_label, input, verdict) => {
-    const decoded = decodeAuthoringRecordManifest(input);
-    const result = parseAuthoringRecordManifest(input);
-    expect(Either.isRight(decoded)).toBe(verdict === "accepted");
-    expect(result.ok).toBe(verdict === "accepted");
-    if (result.ok && Either.isRight(decoded)) expect(result.value).toEqual(decoded.right);
-  });
-
-  it("rejects one unknown key at the key, as phax does", () => {
-    const result = parseAuthoringRecordManifest({ ...authoring, reviewer: "human" });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.path).toBe("reviewer");
+describe("parity: nested rejects", () => {
+  it.each(NESTED)("%s: %s", (id, _label, input, verdict) => {
+    expectParity(FORMATS[id].parse, FORMATS[id].phax, input, verdict);
   });
 });
 
-// Every current-shape manifest, phase or authoring. A version-1 phase
-// manifest is left out: the package reads it and phax's union does not (§5.7
-// promises parity only for the shape phax writes).
+const authoring = validDocuments["authoring-record-manifest"];
+
+// Every current-shape manifest, phase or authoring, and the rejects of both.
 const RECORD_MANIFEST_CASES: ReadonlyArray<readonly [string, unknown]> = [
-  ...cases,
-  ...AUTHORING_CASES.map(([label, input]) => [label, input] as const),
-  ["a phase manifest that claims kind authoring", { ...base, kind: "authoring" }],
-  ["an authoring manifest without kind", { ...authoring, kind: undefined }],
+  ["a phase manifest", base],
+  ...MANIFEST_CASES.map(([label, input]) => [label, input] as const),
+  ["an authoring manifest", authoring],
+  ["an authoring manifest without sourceSha", withoutKey(authoring, "sourceSha")],
+  ["an interrupted authoring session", withKey(authoring, "outcome", "interrupted")],
+  ["an authoring manifest with one unknown key", withKey(authoring, "reviewer", "human")],
+  ["a phase manifest that claims kind authoring", withKey(base, "kind", "authoring")],
+  ["an authoring manifest without kind", withoutKey(authoring, "kind")],
 ];
 
 describe("parity: parseRecordManifest agrees with phax's union", () => {
@@ -542,204 +430,5 @@ describe("parity: parseRecordManifest agrees with phax's union", () => {
     expect(formats).toContain("phase-record-manifest");
     expect(formats).toContain("authoring-record-manifest");
     expect(results.some((result) => !result.ok)).toBe(true);
-  });
-});
-
-const gateAttribution = currentShape("gate-attribution", decodeGateAttribution, "v0");
-const reconciliation = currentShape(
-  "phase-file-reconciliation",
-  decodePhaseFileReconciliation,
-  "v0",
-);
-
-// No diagnostics or pending document exists anywhere, so these are written here.
-const completionDiagnostic = {
-  class: "completion",
-  scopes: ["phase-02"],
-  rule: "planned-file-missing",
-  location: { file: "src/domain/timeline.ts", line: 1 },
-  message: "the planned file is missing",
-  repair: "create it",
-};
-const gateDiagnostics: Doc = {
-  diagnostics: [
-    {
-      class: "invariant",
-      rule: "no-io-in-domain",
-      location: { file: "src/domain/record.ts" },
-      message: "imports node:fs",
-      repair: "use the fs port",
-    },
-    completionDiagnostic,
-  ],
-};
-const gatePending: Doc = {
-  closed: [],
-  steps: [
-    {
-      command: "pnpm test",
-      pending: [{ diagnostic: completionDiagnostic, openScopes: ["phase-02"] }],
-    },
-  ],
-};
-
-/** A pending document whose one pending entry has `fields` merged over it. */
-function withPendingEntry(fields: Doc): Doc {
-  const entry = { diagnostic: completionDiagnostic, openScopes: ["phase-02"], ...fields };
-  return { ...gatePending, steps: [{ command: "pnpm test", pending: [entry] }] };
-}
-
-// Every timeline format keeps phax's default excess-property setting, so one
-// unknown key is accepted by both. Each rejected case is one the frozen v0
-// module rejects too.
-const TIMELINE: ReadonlyArray<FormatParity> = [
-  {
-    id: "gate-attribution",
-    parse: parseGateAttribution,
-    phax: decodeGateAttribution,
-    cases: [
-      ["a real gate attribution", gateAttribution, "accepted"],
-      [
-        "a gate attribution with one unknown key",
-        { ...gateAttribution, owner: "remy" },
-        "accepted",
-      ],
-      ["a gate attribution without steps", { ...gateAttribution, steps: [] }, "accepted"],
-      [
-        "a step whose result is outside its literals",
-        withFirst(gateAttribution, "steps", { result: "skipped" }),
-        "rejected",
-      ],
-      [
-        "a step on an unknown surface",
-        withFirst(gateAttribution, "steps", { surface: "cloud" }),
-        "rejected",
-      ],
-      ["a gate attribution with an empty phase", { ...gateAttribution, phase: "" }, "rejected"],
-    ],
-  },
-  {
-    id: "phase-file-reconciliation",
-    parse: parsePhaseFileReconciliation,
-    phax: decodePhaseFileReconciliation,
-    cases: [
-      ["a real file reconciliation", reconciliation, "accepted"],
-      [
-        "a file reconciliation with one unknown key",
-        { ...reconciliation, owner: "remy" },
-        "accepted",
-      ],
-      [
-        "a file reconciliation with a rename",
-        { ...reconciliation, renames: [{ from: "a.ts", to: "b.ts" }] },
-        "accepted",
-      ],
-      [
-        "a file reconciliation whose hasDeviations is a string",
-        { ...reconciliation, hasDeviations: "yes" },
-        "rejected",
-      ],
-      [
-        "a rename without its target",
-        { ...reconciliation, renames: [{ from: "a.ts" }] },
-        "rejected",
-      ],
-      [
-        "a file reconciliation with an empty phaseId",
-        { ...reconciliation, phaseId: "" },
-        "rejected",
-      ],
-      [
-        "a file reconciliation whose deletions is not an array",
-        { ...reconciliation, deletions: "a.ts" },
-        "rejected",
-      ],
-    ],
-  },
-  {
-    id: "gate-diagnostics",
-    parse: parseGateDiagnostics,
-    phax: decodeGateDiagnosticsDocument,
-    cases: [
-      ["invariant and completion diagnostics", gateDiagnostics, "accepted"],
-      ["no diagnostics", { diagnostics: [] }, "accepted"],
-      [
-        "a diagnostics document with one unknown key",
-        { ...gateDiagnostics, owner: "remy" },
-        "accepted",
-      ],
-      [
-        "a diagnostic at line 0",
-        { diagnostics: [{ ...completionDiagnostic, location: { file: "a.ts", line: 0 } }] },
-        "rejected",
-      ],
-      [
-        "a diagnostic at a fractional line",
-        { diagnostics: [{ ...completionDiagnostic, location: { file: "a.ts", line: 1.5 } }] },
-        "rejected",
-      ],
-      [
-        "a diagnostic of an unknown class",
-        { diagnostics: [{ ...completionDiagnostic, class: "warning" }] },
-        "rejected",
-      ],
-      [
-        "a completion diagnostic without scopes",
-        { diagnostics: [{ ...completionDiagnostic, scopes: [] }] },
-        "rejected",
-      ],
-    ],
-  },
-  {
-    id: "gate-pending",
-    parse: parseGatePending,
-    phax: decodeGatePendingDocument,
-    cases: [
-      ["a pending completion diagnostic", gatePending, "accepted"],
-      ["nothing pending", { closed: ["phase-01"], steps: [] }, "accepted"],
-      ["a pending document with one unknown key", { ...gatePending, owner: "remy" }, "accepted"],
-      [
-        "a step with nothing pending",
-        { ...gatePending, steps: [{ command: "pnpm test", pending: [] }] },
-        "rejected",
-      ],
-      [
-        "a pending diagnostic of class invariant",
-        withPendingEntry({ diagnostic: { ...completionDiagnostic, class: "invariant" } }),
-        "rejected",
-      ],
-      [
-        "a pending diagnostic without open scopes",
-        withPendingEntry({ openScopes: [] }),
-        "rejected",
-      ],
-      ["an empty closed scope", { ...gatePending, closed: [""] }, "rejected"],
-    ],
-  },
-];
-
-describe.each(TIMELINE)("parity: the package agrees with phax's decoder on $id", (format) => {
-  const { parse, phax } = format;
-  it.each(format.cases)("%s", (_label, input, verdict) => {
-    const decoded = phax(input);
-    const result = parse(input);
-    expect(Either.isRight(decoded)).toBe(verdict === "accepted");
-    expect(result.ok).toBe(verdict === "accepted");
-    if (result.ok && Either.isRight(decoded)) expect(result.value).toEqual(decoded.right);
-  });
-});
-
-describe("parity: one unknown key on a timeline format", () => {
-  it("is accepted by both for each timeline format, and dropped from the value", () => {
-    const results = [
-      parseGateAttribution({ ...gateAttribution, owner: "remy" }),
-      parsePhaseFileReconciliation({ ...reconciliation, owner: "remy" }),
-      parseGateDiagnostics({ ...gateDiagnostics, owner: "remy" }),
-      parseGatePending({ ...gatePending, owner: "remy" }),
-    ];
-    for (const result of results) {
-      expect(result).toMatchObject({ ok: true, shape: "v0" });
-      if (result.ok) expect(Object.hasOwn(result.value, "owner")).toBe(false);
-    }
   });
 });

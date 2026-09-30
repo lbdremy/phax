@@ -1,18 +1,1 @@
-{
-  "src/history/authoring-record-manifest/v1.ts": "454f4cfe3d4db752d36522c803bc86c03c58c0691f4cdd219d8fb8b652029d93",
-  "src/history/compliance-review/v1.ts": "3908e9f82d1bd107af550b3ce62c8925cdbe77880d4eadcae789ae0c5a5d06a7",
-  "src/history/gate-attribution/v0.ts": "dd8873abdbaa896ec410a2daa2d3825e419afe59070987b80688a9cd91c60366",
-  "src/history/gate-diagnostics/v0.ts": "aac104b7f0db12b50fe370c22cc10b1b86a1c74117d70e1495e6c09381830fa5",
-  "src/history/gate-pending/v0.ts": "d5a0300d38dd92d2cc41401ef3006c1fefcaf61cee935dfd01af5bb07c7c0cc3",
-  "src/history/phase-file-reconciliation/v0.ts": "fa7523f25635bdb353124806f441c92436b30d5d4f6328739139e1a0f6b55055",
-  "src/history/phase-record-manifest/v1.ts": "36fd2ae6f05362ad8d490dfdd5be246f08117bd640b03ca2c67fb2c9dd4553d6",
-  "src/history/phase-record-manifest/v2.ts": "987b651dd71d361d0ad87143a3b8fd767df13e226ce97e322aba0573b7f6033d",
-  "src/history/phase-status/v1.ts": "9286a74e72c895c57b559716833c5d23af90a76f728fff69e34cc21c814306dd",
-  "src/history/phax-plan/v1.ts": "38a34f473ea76665feaae58b616411c36f27ed415bb3c56a6e17a91c52cd1f41",
-  "src/history/plan-approvals/v1.ts": "0550c5f21b16ecb3bb9ba1e84579b972d924991e7992867745698c6d5046d52a",
-  "src/history/plan-document/v1.ts": "4e6b9d6c87b453d6f71b5b1372b7fd734bb24ca78661c0ce4626b6aca779057f",
-  "src/history/registry/v1.ts": "fe5da4f30dee3d90e51865b9e295fe57317c551a16f7c370d954c672aa1a84ee",
-  "src/history/run-status/v1.ts": "be838667f589a13a76b3fe829ae7ccbf382bb38c33d1828e3b3bbe17ac2e4199",
-  "src/history/spec-approvals/v1.ts": "fdab5e462e50792e8cfcda27ae836d51fd6ec73277d2abacbd8c8163f0cbcf99",
-  "src/history/spec-document/v1.ts": "b0c44bf3573a793b1add4a29e8bafb66f923367c081e8e0435976c0a618dc3d1"
-}
+{}

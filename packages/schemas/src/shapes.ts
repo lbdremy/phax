@@ -19,33 +19,51 @@ export interface Shape<T> {
 }
 
 type ShapeId<M> = keyof M & string;
-type LegacyLiteral<K> = K extends `v${infer N extends number}` ? N : never;
 type ReleaseName<K> = K extends `${number}.${number}.${number}` ? K : never;
 type ReleaseEntries<M> = { [K in ShapeId<M> as ReleaseName<K>]: readonly [K, Shape<M[K]>] };
 type ReleaseEntry<M> = ReleaseEntries<M>[keyof ReleaseEntries<M>];
+type PreSchemaValue<M> = M extends { readonly "pre-schema": infer T } ? T : never;
+type NamedShape<M, K extends ShapeId<M>> = {
+  [N in K]: { readonly name: N; readonly shape: Shape<M[N]> };
+}[K];
 
 /**
- * A format's table of shapes, over `M`: shape id → value type.
- * - `legacy` maps a `version` literal `N` to the frozen module of shape `v<N>`;
- * - `releases` maps a release to the frozen module of the shape it introduced;
- * - `current` is decoded by phax's own decoder; its name is `v<N>`, `next` or
- *   a release.
+ * A format whose pre-schema slot is unfilled: phax's current decoder is the
+ * pre-schema decoder, and no release has written `$schema` yet.
  */
-export interface FormatSpec<M> {
+interface CurrentPreSchemaSpec<M> {
   readonly id: FormatId;
   readonly label: string;
-  readonly legacy: { readonly [K in ShapeId<M> as LegacyLiteral<K>]?: Shape<M[K]> };
-  readonly releases: ReadonlyArray<ReleaseEntry<M>>;
-  readonly current: {
-    [K in ShapeId<M>]: { readonly name: K; readonly shape: Shape<M[K]> };
-  }[ShapeId<M>];
+  readonly preSchema?: never;
+  readonly releases: readonly [];
+  readonly current: { readonly name: "pre-schema"; readonly shape: Shape<PreSchemaValue<M>> };
 }
 
-export interface FormatDefinition<M> extends FormatSpec<M> {
+/**
+ * A format whose pre-schema shape is frozen: `preSchema` reads every document
+ * without `$schema`, `releases` maps a release to the frozen module of the
+ * shape it introduced, and `current` is phax's own decoder, named `next` or a
+ * release.
+ */
+interface FrozenPreSchemaSpec<M> {
+  readonly id: FormatId;
+  readonly label: string;
+  readonly preSchema: Shape<PreSchemaValue<M>>;
+  readonly releases: ReadonlyArray<ReleaseEntry<M>>;
+  readonly current: NamedShape<M, Extract<ShapeId<M>, "next"> | ReleaseName<ShapeId<M>>>;
+}
+
+/**
+ * A format's table of shapes, over `M`: shape id → value type. Every map has
+ * a `pre-schema` shape, the one phax wrote before it wrote `$schema`.
+ */
+export type FormatSpec<M> = CurrentPreSchemaSpec<M> | FrozenPreSchemaSpec<M>;
+
+export type FormatDefinition<M> = FormatSpec<M> & {
   readonly packageVersion: string;
   /** Reads one value as this format. Never throws. */
   readonly parse: (input: unknown) => ParsedShape<M>;
-}
+};
 
 /** Marks a fact an older shape never recorded; an upgrade never invents it. */
 export type Unknown = { readonly kind: "unknown" };
@@ -70,6 +88,11 @@ export function newerReleaseMessage(
   packageVersion: string,
 ): string {
   return `${formatId} written by phax ${release} is newer than ${PACKAGE_NAME} ${packageVersion} — upgrade the package`;
+}
+
+/** A document without `$schema` that the pre-schema decoder rejects. */
+export function preSchemaUnsupportedMessage(label: string, violation: string): string {
+  return `${label} older than the first supported release — not supported (${violation})`;
 }
 
 function describe(value: unknown): string {
@@ -110,17 +133,13 @@ function decodeAs(shape: string, entry: AnyShape, input: unknown): Decoded {
  * 2. a document with `$schema` resolves by the URL: malformed, unknown format,
  *    another format and newer-than-the-package fail at `$schema`; a `next`
  *    current shape decodes first when the release is the package's own; else
- *    the latest release-named shape at or below the release decodes it;
- * 3. a document with a `version` literal resolves by it. When the current
- *    shape is `v<N>`, phax's own decoder reads it first; if that rejects it
- *    and `legacy[N]` exists, the frozen module reads it as the same shape
- *    `v<N>`, and if both reject it the current decoder's failure is returned.
- *    Any other literal is read by `legacy[N]`; an unknown literal fails at
- *    `version`. `0` is never a known literal: shape `v0` has no marker;
- * 4. a document with neither resolves to `v0` when the format has that
- *    unversioned shape (`current.name === "v0"` or `legacy[0]`), read as in
- *    step 3: the current decoder first, then the frozen module;
- * 5. otherwise a document with neither fails at `$schema`.
+ *    the latest release-named shape at or below the release decodes it; else
+ *    it fails at `$schema` (`no <id> shape is known at release <X>`);
+ * 3. a document without `$schema`, whatever its `version`, is read only by
+ *    the pre-schema decoder: the frozen `preSchema` module when the slot is
+ *    filled, else `current.shape`. It resolves to shape `pre-schema`, or fails
+ *    at the decoder's first violation with `preSchemaUnsupportedMessage`. No
+ *    other decoder is tried.
  */
 export function defineFormat<M>(
   spec: FormatSpec<M>,
@@ -129,19 +148,11 @@ export function defineFormat<M>(
   const packageVersion = options.packageVersion ?? PACKAGE_VERSION;
   const { id, label } = spec;
   const current = spec.current as { readonly name: string; readonly shape: AnyShape };
-  const legacy = spec.legacy as Readonly<Record<number, AnyShape | undefined>>;
   const releases = spec.releases as ReadonlyArray<readonly [string, AnyShape]>;
+  const preSchema = (spec.preSchema ?? current.shape) as AnyShape;
   const releaseShapes = isRelease(current.name)
     ? [...releases, [current.name, current.shape] as const]
     : releases;
-  const shapeLiterals = [
-    ...Object.keys(legacy).map(Number),
-    ...(/^v\d+$/.test(current.name) ? [Number(current.name.slice(1))] : []),
-  ];
-  const hasUnversionedShape = shapeLiterals.includes(0);
-  const knownLiterals = shapeLiterals
-    .filter((literal, index, all) => literal !== 0 && all.indexOf(literal) === index)
-    .toSorted((a, b) => a - b);
 
   function bySchemaUrl(url: unknown, input: object): Decoded {
     const parsed = parseSchemaUrl(url);
@@ -169,42 +180,16 @@ export function defineFormat<M>(
     return decodeAs(latest[0], latest[1], input);
   }
 
-  /** Reads shape `v<literal>`: the current decoder first when it is that shape, then the frozen module. */
-  function byShapeLiteral(literal: number, input: object): Decoded {
-    const name = `v${literal}`;
-    const entry = legacy[literal];
-    if (current.name === name) {
-      const read = decodeAs(name, current.shape, input);
-      if (read.ok || entry === undefined) return read;
-      const older = decodeAs(name, entry, input);
-      return older.ok ? older : read;
-    }
-    return entry === undefined
-      ? failure("version", `no ${label} shape ${name} is known`)
-      : decodeAs(name, entry, input);
-  }
-
-  function byLiteral(version: unknown, input: object): Decoded {
-    if (typeof version === "number" && knownLiterals.includes(version)) {
-      return byShapeLiteral(version, input);
-    }
-    return failure(
-      "version",
-      knownLiterals.length === 0
-        ? `unknown ${label} version ${describe(version)} — a ${label} carries no version literal`
-        : `unknown ${label} version ${describe(version)} — known versions are ${knownLiterals.join(", ")}`,
-    );
+  function byPreSchema(input: object): Decoded {
+    const read = decodeAs("pre-schema", preSchema, input);
+    if (read.ok) return read;
+    return failure(read.error.path, preSchemaUnsupportedMessage(label, read.error.message));
   }
 
   function parse(input: unknown): Decoded {
     if (!isDocumentObject(input)) return failure("", notAnObjectMessage(label, input));
     if (Object.hasOwn(input, "$schema")) return bySchemaUrl(input["$schema"], input);
-    if (Object.hasOwn(input, "version")) return byLiteral(input["version"], input);
-    if (hasUnversionedShape) return byShapeLiteral(0, input);
-    return failure(
-      "$schema",
-      `missing $schema — a ${label} names its shape with a $schema URL or a version literal`,
-    );
+    return byPreSchema(input);
   }
 
   return {

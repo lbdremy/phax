@@ -1,7 +1,6 @@
-import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { Ajv } from "ajv";
 import { Either, JSONSchema, type ParseResult, Schema } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -39,79 +38,27 @@ import { BranchNameSchema } from "../../../src/domain/branded.js";
 import { decodeRecordManifest } from "../../../src/schemas/authoringRecord.js";
 import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { getSpecDocumentJsonSchema } from "../../../src/schemas/specDocument.js";
-import { readSurveyedFixtures } from "./surveyedFixtures.js";
+import { validDocuments, withoutKey } from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 type JsonSchemaFormatId = FormatId | "record-manifest";
 
-const fixturesDir = resolve(dirname(fileURLToPath(import.meta.url)), "fixtures");
+const phaseManifest = validDocuments["phase-record-manifest"];
+const authoringManifest = validDocuments["authoring-record-manifest"];
 
-function readJson(path: string): unknown {
-  return JSON.parse(readFileSync(path, "utf8"));
+/** The test documents of each file, before phax's verdict. */
+function documentsOf(format: JsonSchemaFormatId): ReadonlyArray<unknown> {
+  switch (format) {
+    case "phase-record-manifest":
+      return [phaseManifest, withoutKey(phaseManifest, "sourceSha")];
+    case "authoring-record-manifest":
+      return [authoringManifest, withoutKey(authoringManifest, "sourceSha")];
+    case "record-manifest":
+      return [phaseManifest, authoringManifest];
+    default:
+      return [validDocuments[format]];
+  }
 }
-
-function readShapeDir(shape: string): unknown[] {
-  const dir = join(fixturesDir, "phase-record-manifest", shape);
-  return readdirSync(dir)
-    .toSorted()
-    .map((name) => readJson(join(dir, name)));
-}
-
-function surveyed(formatId: FormatId, shape: string): unknown[] {
-  return readSurveyedFixtures(formatId, shape).map(({ document }) => document);
-}
-
-// No diagnostics or pending document exists anywhere yet, so the tests write
-// them, as recordTimeline.test.ts does: one invariant and one completion
-// diagnostic, and the completion kept pending.
-const completion = {
-  class: "completion",
-  scopes: ["phase-02"],
-  rule: "planned-file-missing",
-  location: { file: "src/domain/timeline.ts" },
-  message: "the planned file src/domain/timeline.ts does not exist yet",
-  repair: "create src/domain/timeline.ts, as phase-02 plans",
-};
-const invariant = {
-  class: "invariant",
-  rule: "no-io-in-domain",
-  location: { file: "src/domain/record.ts", line: 12 },
-  message: "src/domain/record.ts imports node:fs",
-  repair: "read the file through the fs port",
-};
-const writtenPending = {
-  closed: ["phase-01"],
-  steps: [
-    { command: "pnpm test", pending: [{ diagnostic: completion, openScopes: ["phase-02"] }] },
-  ],
-};
-
-const timeline = (name: string): unknown => readJson(join(fixturesDir, "record-timeline", name));
-const phaseManifests = [...readShapeDir("v1"), ...readShapeDir("v2"), timeline("record.json")];
-const authoringManifests = surveyed("authoring-record-manifest", "v1");
-
-/** Every real or test-written document of a format, before phax's verdict. */
-const DOCUMENTS: { readonly [F in JsonSchemaFormatId]: ReadonlyArray<unknown> } = {
-  registry: surveyed("registry", "v1"),
-  "run-status": surveyed("run-status", "v1"),
-  "phase-status": surveyed("phase-status", "v1"),
-  "phax-plan": surveyed("phax-plan", "v1"),
-  "compliance-review": surveyed("compliance-review", "v1"),
-  "plan-approvals": surveyed("plan-approvals", "v1"),
-  "spec-approvals": surveyed("spec-approvals", "v1"),
-  "phase-record-manifest": phaseManifests,
-  "authoring-record-manifest": authoringManifests,
-  "gate-attribution": [...surveyed("gate-attribution", "v0"), timeline("gate-attribution.json")],
-  "phase-file-reconciliation": [
-    ...surveyed("phase-file-reconciliation", "v0"),
-    timeline("file-reconciliation.json"),
-  ],
-  "gate-diagnostics": [{ diagnostics: [invariant, completion] }, { diagnostics: [completion] }],
-  "gate-pending": [writtenPending],
-  "spec-document": surveyed("spec-document", "v1"),
-  "plan-document": surveyed("plan-document", "v1"),
-  "record-manifest": [...phaseManifests, ...authoringManifests],
-};
 
 /** phax's own current decoder for each file. */
 const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
@@ -148,7 +95,7 @@ function withoutTitle(schema: object): object {
 
 function acceptedDocuments(entry: JsonSchemaFormat): unknown[] {
   const format = entry.format as JsonSchemaFormatId;
-  return DOCUMENTS[format].filter((document) => Either.isRight(DECODERS[format](document)));
+  return documentsOf(format).filter((document) => Either.isRight(DECODERS[format](document)));
 }
 
 describe("the JSON Schema table", () => {
@@ -375,12 +322,19 @@ describe("every exported format has a usable JSON Schema", () => {
     expect(() => new Ajv().compile(renderedSchema(entry))).not.toThrow();
   });
 
+  it.each(FORMAT_IDS)("%s: validates the valid test document", (id) => {
+    const entry = JSON_SCHEMA_FORMATS.find(({ format }) => format === id);
+    if (entry === undefined) throw new Error(`no entry for ${id}`);
+    const validate = new Ajv().compile(renderedSchema(entry));
+    expect(validate(validDocuments[id]), JSON.stringify(validate.errors)).toBe(true);
+  });
+
   it.each(JSON_SCHEMA_FORMATS)(
     "$format: validates every document phax's current decoder accepts",
     (entry) => {
       const validate = new Ajv().compile(renderedSchema(entry));
       const accepted = acceptedDocuments(entry);
-      expect(accepted.length).toBeGreaterThan(0);
+      expect(accepted).toHaveLength(documentsOf(entry.format as JsonSchemaFormatId).length);
       for (const document of accepted) {
         const valid = validate(document);
         expect(valid, JSON.stringify(validate.errors)).toBe(true);

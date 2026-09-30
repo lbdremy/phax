@@ -12,35 +12,18 @@ import {
   type RunRecordManifest,
 } from "../../../../src/schemas/runRecord.js";
 import { isFormatId, parseSchemaUrl } from "../../../../src/schemas/schemaUrl.js";
-import type { Surface } from "../../../../src/schemas/surface.js";
-import {
-  AuthoringRecordManifestV1Schema,
-  decodeAuthoringRecordManifestV1,
-  type AuthoringRecordManifestV1,
-} from "../history/authoring-record-manifest/v1.js";
-import {
-  PhaseRecordManifestV1Schema,
-  decodePhaseRecordManifestV1,
-  type PhaseRecordManifestV1,
-} from "../history/phase-record-manifest/v1.js";
-import {
-  PhaseRecordManifestV2Schema,
-  decodePhaseRecordManifestV2,
-  type PhaseRecordManifestV2,
-} from "../history/phase-record-manifest/v2.js";
 import { failure, type ParsedDocument, type ParsedShape } from "../parsed.js";
 import {
-  UNKNOWN,
   defineFormat,
   isDocumentObject,
   malformedSchemaUrlMessage,
   notAnObjectMessage,
   unknownFormatMessage,
   type FormatDefinition,
-  type Unknown,
 } from "../shapes.js";
 
-export type { AuthoringRecordManifestV1, PhaseRecordManifestV1, PhaseRecordManifestV2 };
+// Neither manifest has written `$schema` yet: a document without it is read by
+// phax's own decoder as shape `pre-schema`, the shape phax writes today.
 
 // ── phase record manifest
 
@@ -48,80 +31,52 @@ export type { AuthoringRecordManifestV1, PhaseRecordManifestV1, PhaseRecordManif
 export const PhaseRecordManifestSchema = RunRecordManifestSchema;
 export type PhaseRecordManifest = RunRecordManifest;
 
-export type PhaseRecordManifestShapes = {
-  v1: PhaseRecordManifestV1;
-  v2: PhaseRecordManifest;
-};
+export type PhaseRecordManifestShapes = { "pre-schema": PhaseRecordManifest };
 
 /** The id of every phase record manifest shape the package reads. */
 export type PhaseRecordManifestShape = keyof PhaseRecordManifestShapes;
 
-// While phax still writes version 2, its own decoder reads v2 documents; the
-// frozen v2 twin takes over once the current shape moves on.
 export const phaseRecordManifestFormat = defineFormat<PhaseRecordManifestShapes>({
   id: "phase-record-manifest",
   label: "phase record manifest",
-  legacy: {
-    1: { schema: PhaseRecordManifestV1Schema, decode: decodePhaseRecordManifestV1 },
-    2: { schema: PhaseRecordManifestV2Schema, decode: decodePhaseRecordManifestV2 },
-  },
   releases: [],
   current: {
-    name: "v2",
+    name: "pre-schema",
     shape: { schema: RunRecordManifestSchema, decode: decodeRunRecordManifest },
   },
 });
 
-/** Reads a phase record manifest of any shape phax has written. Never throws. */
+/** Reads a phase record manifest. Never throws. */
 export const parsePhaseRecordManifest: (input: unknown) => ParsedShape<PhaseRecordManifestShapes> =
   phaseRecordManifestFormat.parse;
 
-/**
- * The latest phase record manifest, upgraded from any shape: no `version`,
- * and every fact the source shape never recorded marked `Unknown`.
- */
-export type LatestPhaseRecordManifest = Omit<
-  PhaseRecordManifest,
-  "version" | "verifiedSurfaces"
-> & {
-  readonly verifiedSurfaces: ReadonlyArray<Surface> | Unknown;
-};
+/** The latest phase record manifest: no `version`. */
+export type LatestPhaseRecordManifest = Omit<PhaseRecordManifest, "version">;
 
 /** Upgrades a parsed manifest in memory. Keeps every recorded fact; never invents one. */
-export function toLatestPhaseRecordManifest(
-  value: PhaseRecordManifestV1 | PhaseRecordManifest,
-): LatestPhaseRecordManifest {
-  if (value.version === 1) {
-    const { version: _version, ...recorded } = value;
-    return { ...recorded, verifiedSurfaces: UNKNOWN };
-  }
+export function toLatestPhaseRecordManifest(value: PhaseRecordManifest): LatestPhaseRecordManifest {
   const { version: _version, ...recorded } = value;
   return recorded;
 }
 
 // ── authoring record manifest
 
-export type AuthoringRecordManifestShapes = { v1: AuthoringRecordManifestV1 };
+export type AuthoringRecordManifestShapes = { "pre-schema": AuthoringRecordManifest };
 
 /** The id of every authoring record manifest shape the package reads. */
 export type AuthoringRecordManifestShape = keyof AuthoringRecordManifestShapes;
 
-// Both surveyed signatures, with and without `sourceSha`, are one shape: phax
-// has always written `sourceSha` as optional. The frozen v1 is an exact twin.
 export const authoringRecordManifestFormat = defineFormat<AuthoringRecordManifestShapes>({
   id: "authoring-record-manifest",
   label: "authoring record manifest",
-  legacy: {
-    1: { schema: AuthoringRecordManifestV1Schema, decode: decodeAuthoringRecordManifestV1 },
-  },
   releases: [],
   current: {
-    name: "v1",
+    name: "pre-schema",
     shape: { schema: AuthoringRecordManifestSchema, decode: decodeAuthoringRecordManifest },
   },
 });
 
-/** Reads an authoring record's `record.json` of any shape phax has written. Never throws. */
+/** Reads an authoring record's `record.json`. Never throws. */
 export const parseAuthoringRecordManifest: (
   input: unknown,
 ) => ParsedShape<AuthoringRecordManifestShapes> = authoringRecordManifestFormat.parse;
@@ -134,7 +89,7 @@ export type LatestAuthoringRecordManifest = Omit<AuthoringRecordManifest, "versi
 
 /** Upgrades a parsed authoring manifest in memory. Keeps every recorded fact; never invents one. */
 export function toLatestAuthoringRecordManifest(
-  value: AuthoringRecordManifestV1,
+  value: AuthoringRecordManifest,
 ): LatestAuthoringRecordManifest {
   const { version: _version, ...recorded } = value;
   return recorded;
