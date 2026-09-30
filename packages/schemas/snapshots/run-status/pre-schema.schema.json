@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax run status",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "version",
+    "namespace",
+    "shortName",
+    "runId",
+    "state",
+    "createdAt",
+    "updatedAt",
+    "phasesCount"
+  ],
+  "properties": {
+    "version": {
+      "type": "number",
+      "enum": [
+        1
+      ]
+    },
+    "namespace": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "shortName": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "runId": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "created",
+        "running",
+        "failed",
+        "review_open",
+        "completed",
+        "stopped",
+        "archived",
+        "interrupted",
+        "rate_limited"
+      ]
+    },
+    "createdAt": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "updatedAt": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "phasesCount": {
+      "type": "number"
+    },
+    "currentPhaseIndex": {
+      "type": "number"
+    },
+    "gateProfileId": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "stoppedReason": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "lastError": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "planRepoRelPath": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "allowSkillEdits": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": true
+}

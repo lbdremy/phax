@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax compliance review",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "version",
+    "verdict",
+    "summary",
+    "perPhase",
+    "attentionPoints",
+    "pointers"
+  ],
+  "properties": {
+    "version": {
+      "type": "number",
+      "enum": [
+        1
+      ]
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "conformant",
+        "conformant-with-deviations",
+        "divergent"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "perPhase": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "phaseId",
+          "verdict",
+          "findings"
+        ],
+        "properties": {
+          "phaseId": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "conformant",
+              "conformant-with-deviations",
+              "divergent"
+            ]
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "dimension",
+                "severity",
+                "message"
+              ],
+              "properties": {
+                "dimension": {
+                  "type": "string",
+                  "enum": [
+                    "objective",
+                    "excluded-scope",
+                    "files",
+                    "tests",
+                    "boundaries",
+                    "commit",
+                    "handoff"
+                  ]
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "info",
+                    "deviation",
+                    "concern"
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "attentionPoints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pointers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

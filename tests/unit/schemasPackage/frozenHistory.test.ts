@@ -26,7 +26,8 @@ function withPinnedModule(path: string): typeof state {
 }
 
 describe("schemas-check on the committed tree", () => {
-  it("passes: the generated index and the lock are current", () => {
+  it("passes: the generated index, the lock and the snapshots are current", () => {
+    expect(state.snapshots.size).toBeGreaterThan(0);
     expect(checkSchemas(state)).toEqual([]);
   });
 
@@ -53,6 +54,9 @@ describe("schemas-check on the committed tree", () => {
     expect(written.lock).toBe(
       readFileSync(join(repoRoot, "packages/schemas/history.lock.json"), "utf8"),
     );
+    expect(written.snapshotWrites).toEqual(new Map());
+    expect(written.snapshotRemovals).toEqual([]);
+    expect(checkSchemas(state)).toEqual([]);
   });
 });
 

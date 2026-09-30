@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax phase status",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "version",
+    "phaseId",
+    "phaseIndex",
+    "state",
+    "model",
+    "effort",
+    "createdAt",
+    "updatedAt",
+    "branchName"
+  ],
+  "properties": {
+    "version": {
+      "type": "number",
+      "enum": [
+        1
+      ]
+    },
+    "phaseId": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "phaseIndex": {
+      "type": "number"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "setting_up_worktree",
+        "running",
+        "gates_failed",
+        "gates_exhausted",
+        "fixing",
+        "failed",
+        "passed",
+        "committed",
+        "cleaning_up",
+        "cleaned_up",
+        "review_open",
+        "handoff_failed",
+        "skipped",
+        "rate_limited"
+      ]
+    },
+    "model": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "effort": {
+      "type": "string",
+      "enum": [
+        "none",
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultracode",
+        "ultra"
+      ]
+    },
+    "createdAt": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "updatedAt": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "branchName": {
+      "type": "string",
+      "description": "a string at most 255 character(s) long",
+      "title": "maxLength(255)",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$"
+    },
+    "worktreePath": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "claudeSessionId": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "commitHash": {
+      "$ref": "#/$defs/NonEmptyString"
+    }
+  },
+  "additionalProperties": true
+}
