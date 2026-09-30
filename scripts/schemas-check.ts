@@ -44,14 +44,21 @@ export interface SchemasState {
   readonly historyFiles: ReadonlyMap<string, Uint8Array>;
   /** Directory name under `packages/schemas/snapshots` → file name → content. */
   readonly snapshots: ReadonlyMap<string, ReadonlyMap<string, string>>;
+  /** The names of the files directly under `packages/schemas/snapshots`. */
+  readonly snapshotRootFiles: ReadonlyArray<string>;
   /** Every format id's current shape name and rendered JSON Schema. */
   readonly formats: ReadonlyArray<SnapshotFormat>;
 }
 
-function readSnapshots(root: string): Map<string, Map<string, string>> {
+function readSnapshots(root: string): Pick<SchemasState, "snapshots" | "snapshotRootFiles"> {
   const snapshots = new Map<string, Map<string, string>>();
-  if (!existsSync(root)) return snapshots;
-  const dirs = readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+  if (!existsSync(root)) return { snapshots, snapshotRootFiles: [] };
+  const entries = readdirSync(root, { withFileTypes: true });
+  const snapshotRootFiles = entries
+    .filter((entry) => !entry.isDirectory())
+    .map((entry) => entry.name)
+    .toSorted();
+  const dirs = entries.filter((entry) => entry.isDirectory());
   for (const dir of dirs.map((entry) => entry.name).toSorted()) {
     const files = new Map<string, string>();
     for (const file of listFiles(join(root, dir)).toSorted()) {
@@ -59,7 +66,7 @@ function readSnapshots(root: string): Map<string, Map<string, string>> {
     }
     snapshots.set(dir, files);
   }
-  return snapshots;
+  return { snapshots, snapshotRootFiles };
 }
 
 function renderFormats(): SnapshotFormat[] {
@@ -101,7 +108,7 @@ export function readSchemasState(repoRoot: string): SchemasState {
     generatedIndex: existsSync(indexPath) ? readFileSync(indexPath, "utf8") : undefined,
     lock: existsSync(lockPath) ? (JSON.parse(readFileSync(lockPath, "utf8")) as HistoryLock) : {},
     historyFiles,
-    snapshots: readSnapshots(join(repoRoot, SNAPSHOTS_DIR)),
+    ...readSnapshots(join(repoRoot, SNAPSHOTS_DIR)),
     formats: renderFormats(),
   };
 }
