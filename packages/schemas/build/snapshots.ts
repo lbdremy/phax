@@ -4,6 +4,8 @@
 // `X.Y.Z` or `next`. A released snapshot never changes; a shape change is
 // recorded as `next`, which the release renames to the release it ships in.
 // Snapshots are compared as parsed JSON, so reformatting one changes nothing.
+// A hidden entry (its name starts with `.`, like .DS_Store) is ignored
+// everywhere; any other unexpected file or directory is a finding.
 import { isDeepStrictEqual } from "node:util";
 import {
   compareReleases,
@@ -18,6 +20,11 @@ export const SNAPSHOTS_DIR = "packages/schemas/snapshots";
 const SUFFIX = ".schema.json";
 const NEXT = "next";
 const PRE_SCHEMA = "pre-schema";
+
+/** True for a path with a hidden segment (`.DS_Store`, `.cache/x`): never a snapshot, never reported. */
+function isHidden(path: string): boolean {
+  return path.split("/").some((segment) => segment.startsWith("."));
+}
 
 export function snapshotPath(formatId: string, name: string): string {
   return `${SNAPSHOTS_DIR}/${formatId}/${name}${SUFFIX}`;
@@ -62,6 +69,8 @@ export interface SnapshotsInput {
   readonly formats: ReadonlyArray<SnapshotFormat>;
   /** Directory name under `SNAPSHOTS_DIR` → file name → content. */
   readonly snapshots: ReadonlyMap<string, ReadonlyMap<string, string>>;
+  /** The names of the files directly under `SNAPSHOTS_DIR`, outside every format directory. */
+  readonly snapshotRootFiles: ReadonlyArray<string>;
 }
 
 function parseJson(content: string): { ok: true; value: unknown } | { ok: false } {
@@ -98,12 +107,18 @@ function formatSnapshots(files: ReadonlyMap<string, string> | undefined): Format
 /** Every snapshot finding, one `✗ …` line each; empty when the snapshots are current. */
 export function checkSnapshots(input: SnapshotsInput): string[] {
   const findings: string[] = [];
+  for (const file of input.snapshotRootFiles) {
+    if (isHidden(file)) continue;
+    findings.push(`✗ ${SNAPSHOTS_DIR}/${file} is outside every format directory`);
+  }
   for (const [dir, files] of input.snapshots) {
+    if (isHidden(dir)) continue;
     if (!isFormatId(dir)) {
       findings.push(`✗ ${SNAPSHOTS_DIR}/${dir}/ names no format`);
       continue;
     }
     for (const [fileName, content] of files) {
+      if (isHidden(fileName)) continue;
       const path = `${SNAPSHOTS_DIR}/${dir}/${fileName}`;
       if (parseSnapshotName(fileName) === undefined) {
         findings.push(

@@ -1,13 +1,9 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { WRITE_COMMAND } from "../../../packages/schemas/build/generated.js";
-import {
-  JSON_SCHEMA_FORMATS,
-  renderJsonSchemas,
-} from "../../../packages/schemas/build/jsonSchemas.js";
+import { renderJsonSchemas } from "../../../packages/schemas/build/jsonSchemas.js";
 import {
   SNAPSHOTS_DIR,
   checkSnapshots,
@@ -18,7 +14,7 @@ import {
   type SnapshotFormat,
   type SnapshotsInput,
 } from "../../../packages/schemas/build/snapshots.js";
-import { FORMAT_IDS } from "../../../src/schemas/schemaUrl.js";
+import { readSchemasState } from "../../../scripts/schemas-check.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
@@ -49,13 +45,14 @@ function input(
   generated: SnapshotFormat,
   files: Record<string, string>,
   extra: Record<string, Record<string, string>> = {},
+  snapshotRootFiles: ReadonlyArray<string> = [],
 ): SnapshotsInput {
   const snapshots = new Map<string, ReadonlyMap<string, string>>();
   if (Object.keys(files).length > 0) snapshots.set(ID, new Map(Object.entries(files)));
   for (const [dir, dirFiles] of Object.entries(extra)) {
     snapshots.set(dir, new Map(Object.entries(dirFiles)));
   }
-  return { formats: [generated], snapshots };
+  return { formats: [generated], snapshots, snapshotRootFiles };
 }
 
 /** The state after `--write`'s plan is applied to it. */
@@ -76,23 +73,18 @@ function apply(state: SnapshotsInput): SnapshotsInput {
   return { ...state, snapshots };
 }
 
+// Invariants of the committed tree that hold whatever shapes it records, before
+// and after a `next` snapshot exists.
 describe("snapshots on the committed tree", () => {
-  const root = join(repoRoot, SNAPSHOTS_DIR);
-  const { files } = renderJsonSchemas(JSON_SCHEMA_FORMATS);
+  const state = readSchemasState(repoRoot);
 
-  it("holds exactly one pre-schema snapshot per format, and no next", () => {
-    expect(readdirSync(root).toSorted()).toEqual([...FORMAT_IDS].toSorted());
-    for (const id of FORMAT_IDS) {
-      expect(readdirSync(join(root, id))).toEqual(["pre-schema.schema.json"]);
-    }
+  it("passes the snapshot check", () => {
+    expect(state.snapshots.size).toBeGreaterThan(0);
+    expect(checkSnapshots(state)).toEqual([]);
   });
 
-  it("records each format's rendered schema byte for byte, so --write is idempotent", () => {
-    for (const id of FORMAT_IDS) {
-      expect(readFileSync(join(root, id, "pre-schema.schema.json"), "utf8")).toBe(
-        files.get(`${id}.schema.json`),
-      );
-    }
+  it("--write changes nothing", () => {
+    expect(planSnapshotWrites(state)).toEqual({ writes: new Map(), removals: [] });
   });
 });
 
@@ -220,6 +212,27 @@ describe("stray snapshot files", () => {
     expect(planSnapshotWrites(state)).toEqual({ writes: new Map(), removals: [] });
   });
 
+  it("reports a file outside every format directory, and leaves it alone", () => {
+    const state = input(format(original), { "pre-schema.schema.json": original }, {}, [
+      "registry.schema.json",
+    ]);
+    expect(checkSnapshots(state)).toEqual([
+      `✗ ${SNAPSHOTS_DIR}/registry.schema.json is outside every format directory`,
+    ]);
+    expect(planSnapshotWrites(state)).toEqual({ writes: new Map(), removals: [] });
+  });
+
+  it("ignores hidden files and directories everywhere", () => {
+    const state = input(
+      format(original),
+      { "pre-schema.schema.json": original, ".DS_Store": "", ".cache/next.schema.json": "{" },
+      { ".git-keep": { "notes.txt": "" } },
+      [".DS_Store"],
+    );
+    expect(checkSnapshots(state)).toEqual([]);
+    expect(planSnapshotWrites(state)).toEqual({ writes: new Map(), removals: [] });
+  });
+
   it("reports a file whose name is not a snapshot name", () => {
     const state = input(format(original), {
       "pre-schema.schema.json": original,
@@ -247,6 +260,7 @@ describe("stray snapshot files", () => {
     const state: SnapshotsInput = {
       formats: [{ id: ID, currentShape: "pre-schema", generated: { ok: false, reason: "boom" } }],
       snapshots: new Map(),
+      snapshotRootFiles: [],
     };
     expect(checkSnapshots(state)).toEqual([`✗ ${ID}: boom`]);
     expect(planSnapshotWrites(state)).toEqual({ writes: new Map(), removals: [] });
