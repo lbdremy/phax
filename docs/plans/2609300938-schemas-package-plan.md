@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2609241238-schemas-package.md
+approved:
+  date: 2026-09-30
+  baseline: cf24daf
 ---
 # schemas-package 3/5 — support starts now
 

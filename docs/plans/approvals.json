@@ -6,6 +6,15 @@
       "approvedAt": "2026-09-08T08:19:41.314Z",
       "baseline": "322ba3a5795a658d8d7ee48200b14e9b61ad8933",
       "sourceSpec": null
+    },
+    "docs/plans/2609300938-schemas-package-plan.md": {
+      "planFingerprint": "a01f1517cf81267ef8a99b77dbfa8642e4ebbe9064a9ba7c26ef29ded07b693a",
+      "approvedAt": "2026-09-30T10:20:33.934Z",
+      "baseline": "cf24dafccf49b1a67a8c0075f96560e6d2e6b143",
+      "sourceSpec": {
+        "path": "docs/specs/2609241238-schemas-package.md",
+        "fingerprint": "1dd118148b0abd2b09305d8b6e868cc8d073c099e088b5435fe0e2ca4eeee3dc"
+      }
     }
   }
 }
