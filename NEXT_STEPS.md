@@ -190,8 +190,9 @@ desktop — none is promised by the announcement.
       history (spec §9 q-support-start, 2026-09-30): support starts at the first release that
       writes `$schema`; plan 3 is rewritten as "support starts now" — remove the legacy decoders,
       the real-document fixtures (two held a louloupapers run) and the shape survey, add snapshots
-      and the gate. Plan 3/5 "support starts now" Approved 2026-09-30
-      (`docs/plans/2609300938-schemas-package-plan.md`, 3 phases); running.
+      and the gate. Plan 3/5 "support starts now" landed 2026-09-30
+      (PR #108, run archived; the spec-completion pair was dropped from the branch before
+      merge). Next action: plan 4/5 (phax writes `$schema`), authored headless from the brief.
       Deferred with the author (2026-09-29), not in plans 2–5: **a Standard Schema export**
       per format (only if a consumer needs to hand the schemas to a non-Effect validator;
       the cockpit parses with Effect, losslessly); **deterministic JSON Schema annotations**
