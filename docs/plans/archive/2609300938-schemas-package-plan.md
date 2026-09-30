@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2609241238-schemas-package.md
 approved:
   date: 2026-09-30
