@@ -65,7 +65,7 @@
   "terminology": [
     {
       "term": "Persisted format",
-      "definition": "A JSON document that phax writes and that a third party can read later. It is identified by its `$schema`: the format id and the phax release that wrote it. A legacy document, written before `$schema`, is identified by where it lives and by its `version` literal, for example run-status.json with version 1."
+      "definition": "A JSON document that phax writes and that a third party can read later. It is identified by its `$schema`: the format id and the phax release that wrote it. A pre-schema document, written before `$schema`, is identified by where it lives, for example run-status.json."
     },
     {
       "term": "Schemas package",
@@ -81,11 +81,11 @@
     },
     {
       "term": "Parity",
-      "definition": "A parse function has parity when it gives the same accept or reject verdict as phax's own decoder for that format on every document, including how it treats unknown keys. Parity holds for the version phax currently writes; older versions are read by historical decoders phax no longer carries."
+      "definition": "A parse function has parity when it gives the same accept or reject verdict as phax's own decoder for that format on every document, including how it treats unknown keys. Parity holds for the version phax currently writes; older shapes are read by historical decoders phax no longer carries."
     },
     {
       "term": "Record manifest",
-      "definition": "The `record.json` at the root of a record: its index card (run, phase, model, outcome, usage, verified surfaces). Two kinds: the phase record manifest (format id `phase-record-manifest`, legacy versions 1 and 2) and the authoring record manifest (`authoring-record-manifest`, kind \"authoring\", legacy version 1)."
+      "definition": "The `record.json` at the root of a record: its index card (run, phase, model, outcome, usage, verified surfaces). Two kinds: the phase record manifest (format id `phase-record-manifest`) and the authoring record manifest (`authoring-record-manifest`, kind \"authoring\")."
     },
     {
       "term": "Lockstep version",
@@ -101,23 +101,19 @@
     },
     {
       "term": "Historical decoder",
-      "definition": "The decoder of a shape phax no longer writes. It lives in the package, one module per shape, and is never modified after the release that froze it."
+      "definition": "The decoder of a shape phax no longer writes: a format's pre-schema shape, and every released shape since. It lives in the package, one module per shape, and is never modified after the release that froze it."
     },
     {
       "term": "Snapshot",
-      "definition": "The committed JSON Schema of one shape, stored as `<format id>/<shape release>.schema.json` (or `<format id>/v<n>.schema.json` for a legacy shape). A shape not yet released is `<format id>/next.schema.json`, renamed to the release version by `release.sh`. The latest snapshot of a format must equal the schema generated from phax's decoder."
-    },
-    {
-      "term": "History corpus",
-      "definition": "Real documents extracted from git history (the records branch, the approvals ledgers, the spec and plan sidecars) by a committed script, one directory per format and shape, committed in the repo."
+      "definition": "The committed JSON Schema of one shape, stored as `<format id>/<shape release>.schema.json`, or `<format id>/pre-schema.schema.json`. A shape not yet released is `<format id>/next.schema.json`, renamed to the release version by `release.sh`. The latest snapshot of a format must equal the schema generated from phax's decoder."
     },
     {
       "term": "Shape",
-      "definition": "One JSON shape of a format. A shape is named by the release that first wrote it (its shape release); a legacy shape by its `version` literal (`v1`, `v2`). A document written by release X has the latest shape released at or before X."
+      "definition": "One JSON shape of a format. A shape is named by the release that first wrote it (its shape release). Each format has one earlier shape, `pre-schema`: exactly the shape phax writes until the first release that writes `$schema`. A document written by release X has the latest shape released at or before X."
     },
     {
-      "term": "Legacy document",
-      "definition": "A document written before `$schema` existed. It carries a `version` literal and is identified by where it lives and by that literal."
+      "term": "Pre-schema document",
+      "definition": "A document written before the first release that writes `$schema`. It carries a `version` literal (or, for the timeline files, none) and is identified by where it lives. It is read by the frozen decoder of its format's pre-schema shape, or reported unsupported."
     },
     {
       "term": "Release version",
@@ -128,8 +124,8 @@
       "definition": "A folder on phax/records/v1 for one phase (`<runId>/<phaseId>/`) or one headless authoring session (`authoring/<authoringId>/`). It holds the record manifest and the files the phase produced: the diff, the gate logs, `gate-attribution.json`, `file-reconciliation.json`, the gate diagnostics and pending documents, the handoff, the transcript, and technical files. \"Record\" always means the folder, never one file."
     },
     {
-      "term": "Unversioned legacy document",
-      "definition": "A legacy document of a format that never carried a `version` literal (the gate attribution, the phase file reconciliation, the gate diagnostics and pending documents). Its single legacy shape is `v0`, read by the format's own parse function."
+      "term": "First supported release",
+      "definition": "The first phax release that writes `$schema`. Every document written from that release on stays readable forever; a document written before it is read only if its format's pre-schema decoder accepts it."
     }
   ],
   "requirements": [
@@ -185,7 +181,19 @@
       "id": "history-read",
       "title": "Every version ever written is readable",
       "pattern": "event",
-      "statement": "WHEN a parse function is given a document of any shape phax has ever written THE schemas package SHALL decode it with that shape's decoder — the latest shape released at or before the release its `$schema` names; for a legacy document, the shape its `version` literal names, or `v0` when its format never carried one — and return its exact shape with the shape's id."
+      "statement": "WHEN a parse function is given a document THE schemas package SHALL decode it with the decoder of its shape — for a document carrying `$schema`, the latest shape released at or before the release it names; for a pre-schema document, its format's pre-schema shape — and return its exact shape with the shape's id."
+    },
+    {
+      "id": "pre-schema-unsupported",
+      "title": "Older than the pre-schema shape is unsupported",
+      "pattern": "unwanted",
+      "statement": "IF a pre-schema document is rejected by its format's pre-schema decoder THEN the parse function SHALL return a failure stating that the document is older than the first supported release and naming that release, without throwing and without trying any older shape."
+    },
+    {
+      "id": "synthetic-fixtures",
+      "title": "Tests use no real documents",
+      "pattern": "ubiquitous",
+      "statement": "The schemas package's tests shall build their documents from the schemas themselves or write them by hand; no document copied from a phax home, a records branch or another repository's history shall be committed."
     },
     {
       "id": "identify-alone",
@@ -203,13 +211,7 @@
       "id": "to-latest",
       "title": "Upgrading to the latest shape",
       "pattern": "ubiquitous",
-      "statement": "The schemas package shall export, for each format, a pure function that upgrades a decoded document of any version to the latest shape, marking every fact the older version did not carry as `{ kind: \"unknown\" }` and never inventing a value."
-    },
-    {
-      "id": "legacy-shapes",
-      "title": "Legacy shapes under one version",
-      "pattern": "optional",
-      "statement": "WHERE a legacy document's `version` literal covers several shapes found in the history corpus THE historical decoder of that literal SHALL accept each of those shapes."
+      "statement": "The schemas package shall export, for each format, a pure function that upgrades a decoded document of any shape to the latest shape, marking every fact the older version did not carry as `{ kind: \"unknown\" }` and never inventing a value."
     },
     {
       "id": "schema-url",
@@ -221,7 +223,7 @@
       "id": "history-frozen",
       "title": "Historical decoders are frozen",
       "pattern": "ubiquitous",
-      "statement": "The schemas package shall hold one decoder module per shape phax no longer writes, and a historical decoder shall not change once released. phax shall read a file it wrote in an older shape (its registry, a run's status) through those decoders and the format's `toLatest`, and shall refuse, naming the file and the fact, when a fact it needs comes back unknown."
+      "statement": "The schemas package shall hold one decoder module per shape phax no longer writes — each format's pre-schema shape, and every released shape since — and a historical decoder shall not change once released. phax shall read a file it wrote in an older shape (its registry, a run's status) through those decoders and the format's `toLatest`, and shall refuse, naming the file and the fact, when a fact it needs comes back unknown."
     },
     {
       "id": "snapshot-gate",
@@ -234,18 +236,6 @@
       "title": "The release names the next shapes",
       "pattern": "event",
       "statement": "WHEN `release.sh` cuts version X THE release script SHALL rename every `<format id>/next.schema.json` to `<format id>/X.schema.json` in the release commit."
-    },
-    {
-      "id": "corpus",
-      "title": "The history corpus is parsed at every release",
-      "pattern": "unwanted",
-      "statement": "IF any document of the committed history corpus fails to parse with the package THEN the release gate SHALL fail, naming the document and its first violation."
-    },
-    {
-      "id": "corpus-script",
-      "title": "The corpus is extracted by a committed script",
-      "pattern": "ubiquitous",
-      "statement": "The repository shall hold a committed script that walks git history — every commit of the records branch, and every commit touching the approvals ledgers or a spec or plan sidecar — and writes the distinct documents it finds, per format and shape, into the history corpus."
     },
     {
       "id": "types",
@@ -319,7 +309,7 @@
       "surface": "package: reading history",
       "binding": "normative",
       "before": "const r = parsePhaseRecordManifest(raw)\n// only version 2 is accepted; a version-1 record from the history is rejected",
-      "after": "import { parseDocument, parsePhaseRecordManifest, toLatestPhaseRecordManifest } from \"@lbdremy/phax-schemas\";\n\nconst any = parseDocument(raw);            // identified by `$schema` alone, whatever the file's name\n// { ok: true, format: \"phase-record-manifest\", shape: \"0.17.0\", value: PhaseRecordManifest_0_17 }\n\nconst r = parsePhaseRecordManifest(raw);           // PhaseRecordManifestV1 | PhaseRecordManifestV2 | PhaseRecordManifest_0_17, with its shape id\nconst latest = toLatestPhaseRecordManifest(r.value);\n// from a legacy v1 record: verifiedSurfaces: { kind: \"unknown\" }\n\nparseDocument({ \"$schema\": \"https://docs.phax.run/schemas/phase-record-manifest/0.19.0.json\", … });\n// { ok: false, error: { path: [\"$schema\"], message: \"phase-record written by phax 0.19.0 is newer than @lbdremy/phax-schemas 0.17.0 — upgrade the package\" } }\n\n# normative: identification by `$schema` alone, every historical shape parses, toLatest never invents a value, the newer-release failure"
+      "after": "import { parseDocument, parsePhaseRecordManifest, toLatestPhaseRecordManifest } from \"@lbdremy/phax-schemas\";\n\nconst any = parseDocument(raw);            // identified by `$schema` alone, whatever the file's name\n// { ok: true, format: \"phase-record-manifest\", shape: \"0.17.0\", value: PhaseRecordManifest_0_17 }\n\nconst r = parsePhaseRecordManifest(raw);   // a pre-schema manifest (no $schema, version 2) → shape \"pre-schema\"\nconst latest = toLatestPhaseRecordManifest(r.value);\n\nparsePhaseRecordManifest({ version: 1, runId: \"…\", phaseId: \"phase-01\", … });\n// { ok: false, error: { path: [], message: \"phase record manifest older than phax 0.17.0, the first supported release — not supported\" } }\n\nparseDocument({ \"$schema\": \"https://docs.phax.run/schemas/phase-record-manifest/0.19.0.json\", … });\n// { ok: false, error: { path: [\"$schema\"], message: \"phase-record-manifest written by phax 0.19.0 is newer than @lbdremy/phax-schemas 0.17.0 — upgrade the package\" } }\n\n# normative: identification by `$schema` alone, the pre-schema shape and every released shape parse, older is unsupported,\n# toLatest never invents a value, the newer-release failure"
     },
     {
       "surface": "file: `$schema` in every persisted format",
@@ -328,10 +318,10 @@
       "after": "{ \"$schema\": \"https://docs.phax.run/schemas/phase-record-manifest/0.17.0.json\", \"runId\": \"…\", \"phaseId\": \"phase-02\", \"outcome\": \"committed\", … }\n\n# every persisted format: `$schema` first, no `version`; the URL serves that release's JSON Schema of the format"
     },
     {
-      "surface": "file: snapshots, historical decoders and history corpus",
+      "surface": "file: snapshots and historical decoders",
       "binding": "indicative",
       "before": null,
-      "after": "packages/schemas/\n  src/history/phase-record-manifest/v1.ts            legacy shape, frozen; phax never imports it\n  src/history/phase-record-manifest/v2.ts            legacy shape, frozen\n  src/history/authoring-record-manifest/v1.ts        legacy, frozen; accepts both shapes (with and without sourceSha)\n  snapshots/phase-record-manifest/v1.schema.json     one committed JSON Schema per shape\n  snapshots/phase-record-manifest/v2.schema.json\n  snapshots/phase-record-manifest/next.schema.json   unreleased shape; release.sh renames it to the version it cuts\n  corpus/phase-record-manifest/v1/*.json             extracted from git history by scripts/extract-history-corpus.ts\n  corpus/phase-record-manifest/v2/*.json\n\n$ pnpm schemas:check\n✗ phase-record: the generated schema differs from the latest released snapshot and from snapshots/phase-record-manifest/next.schema.json — record next.schema.json\n$? = 1"
+      "after": "packages/schemas/\n  src/history/phase-record-manifest/pre-schema.ts     frozen when the first supported release ships; phax never imports it\n  snapshots/phase-record-manifest/pre-schema.schema.json\n  snapshots/phase-record-manifest/0.17.0.schema.json  one committed JSON Schema per released shape\n  snapshots/phase-record-manifest/next.schema.json    unreleased shape; release.sh renames it to the version it cuts\n\n$ pnpm schemas:check\n✗ phase-record-manifest: the generated schema differs from the latest released snapshot and from snapshots/phase-record-manifest/next.schema.json — record next.schema.json\n$? = 1\n\n# no history corpus and no real document in the repository (§9 q-support-start)"
     },
     {
       "surface": "package: Node consumer, end to end",
@@ -376,10 +366,11 @@
     "Writing the 1.0 stability contract itself (a frozen version plus a migration command, or a re-run-init policy). That stays with the Road to 1.0 item. This spec makes every shape readable; what 1.0 promises about changing shapes is that item's to say.",
     "Any change to a persisted format's shape other than adding `$schema` and dropping `version`, or to the CLI. For the shape it writes, the package republishes what phax already enforces.",
     "Reading helpers: nothing walks the records branch, finds run directories or reads files. The consumer reads the bytes and hands the package a JSON value.",
-    "Rewriting documents on disk. The package reads every version and upgrades in memory; phax, the writer, writes only the latest version and keeps its no-shims rule.",
+    "Rewriting documents on disk. The package reads the pre-schema shape and every released shape and upgrades in memory; phax, the writer, writes only the latest version and keeps its no-shims rule.",
     "A CommonJS build, a JSR or Deno-native publish, or JSON Schemas hosted at a URL. The docs pipeline reads the files from the installed package.",
     "Parsing spec and plan Markdown frontmatter.",
-    "Exporting the internal formats listed in §5 (provider output streams, gate, reconciliation and session documents, extraction cache, orient, plan-audit, publication, security posture, telemetry events)."
+    "Exporting the internal formats listed in §5 (provider output streams, gate, reconciliation and session documents, extraction cache, orient, plan-audit, publication, security posture, telemetry events).",
+    "Reading documents older than a format's pre-schema shape (for example a version-1 phase record manifest). They are reported unsupported; the first supported release is the first that writes `$schema`."
   ],
   "acceptanceCriteria": [
     {
@@ -516,13 +507,13 @@
     },
     {
       "id": "ac-history-read",
-      "name": "A mixed history parses",
-      "given": "the history corpus's phase records at versions 1 and 2",
+      "name": "Pre-schema and released shapes parse; older is unsupported",
+      "given": "a phase record manifest in today's shape without `$schema` (version 2), one written with `$schema` by the first supported release, and a version-1 manifest from before `verifiedSurfaces` existed",
       "when": "each is given to parsePhaseRecordManifest",
-      "then": "every call returns ok; the value's `version` is 1 or 2 and its type is the exact shape of that version",
+      "then": "the first returns shape `pre-schema`, the second the shape of its release; the third returns a failure stating it is older than the first supported release and naming it, without throwing",
       "refs": [
         "history-read",
-        "corpus"
+        "pre-schema-unsupported"
       ]
     },
     {
@@ -538,21 +529,11 @@
     {
       "id": "ac-to-latest",
       "name": "Upgrading marks the unknown",
-      "given": "a version-1 phase record from the corpus",
+      "given": "a pre-schema phase record manifest",
       "when": "it is parsed and upgraded to the latest shape",
-      "then": "the result has the latest shape; `verifiedSurfaces` is `{ kind: \"unknown\" }`; every field the version-1 record carried keeps its value",
+      "then": "the result has the latest shape; any fact the pre-schema shape lacks is `{ kind: \"unknown\" }`; every field it carried keeps its value",
       "refs": [
         "to-latest"
-      ]
-    },
-    {
-      "id": "ac-legacy-shapes",
-      "name": "Both legacy authoring shapes parse",
-      "given": "the two authoring records at version 1 from the corpus, one with `sourceSha` and one without",
-      "when": "each is parsed",
-      "then": "both return ok",
-      "refs": [
-        "legacy-shapes"
       ]
     },
     {
@@ -586,17 +567,6 @@
       ]
     },
     {
-      "id": "ac-corpus",
-      "name": "The corpus is extracted and parsed",
-      "given": "a repository with records and approvals history",
-      "when": "the corpus script runs, then the release gate",
-      "then": "the corpus holds one directory per format and shape with the distinct documents found, and the release gate parses every one; a document that fails stops the release naming it",
-      "refs": [
-        "corpus-script",
-        "corpus"
-      ]
-    },
-    {
       "id": "ac-identify-alone",
       "name": "A renamed file is still identified",
       "given": "a phase record written by phax 0.17.0, copied to `exports/a.json`, and an approvals ledger copied to `exports/b.json`",
@@ -619,9 +589,9 @@
     {
       "id": "ac-own-legacy",
       "name": "phax reads its own older files through the package",
-      "given": "a `~/.phax/registry.json` written by phax 0.16.0 (legacy `version: 1`), and a phax at 0.17.0",
+      "given": "a `~/.phax/registry.json` written by phax 0.16.0 (pre-schema, `version: 1`), and a phax at 0.17.0",
       "when": "`phax ls` runs, then any command that writes the registry",
-      "then": "the runs are listed, read through the package's legacy decoder and `toLatest`; the rewritten registry starts with `$schema` naming `registry/0.17.0.json`; no phax module decodes the legacy shape itself",
+      "then": "the runs are listed, read through the package's pre-schema decoder and `toLatest`; the rewritten registry starts with `$schema` naming `registry/0.17.0.json`; no phax module decodes the legacy shape itself",
       "refs": [
         "history-frozen",
         "schema-url"
@@ -630,12 +600,22 @@
     {
       "id": "ac-record-files",
       "name": "A record's timeline files parse",
-      "given": "a record folder from phax/records/v1 whose phase ran one diagnostics step twice: `record.json`, `gate-attribution.json`, `file-reconciliation.json`, `checks-attempt-01.diagnostics.json` and `checks-attempt-02.pending.json`, all written before `$schema` (no `version` on the four gate and reconciliation files)",
+      "given": "a record folder whose phase ran one diagnostics step twice — `record.json`, `gate-attribution.json`, `file-reconciliation.json`, `checks-attempt-01.diagnostics.json`, `checks-attempt-02.pending.json` — written by hand in the pre-schema shapes (no `version` on the four gate and reconciliation files)",
       "when": "each is given to its parse function",
-      "then": "every call returns ok; the four unversioned files report shape `v0`; the attempts' diagnostics are available in order, so the two fix-loop attempts can be shown",
+      "then": "every call returns ok with shape `pre-schema`; the attempts' diagnostics are available in order, so the two fix-loop attempts can be shown",
       "refs": [
         "record-files",
         "history-read"
+      ]
+    },
+    {
+      "id": "ac-synthetic-fixtures",
+      "name": "No real document is committed",
+      "given": "the repository's test fixtures and the schemas package",
+      "when": "they are inspected",
+      "then": "every test document is written by hand or built from a schema; none is a copy of a document from a phax home, a records branch or another repository",
+      "refs": [
+        "synthetic-fixtures"
       ]
     }
   ],
@@ -792,7 +772,7 @@
         }
       ],
       "recommendation": "all-versions",
-      "rationale": "Decided by the author on 2026-09-28. Git keeps every document phax ever wrote, and the first consumer reads that history, so every version stays readable. phax, the writer, keeps its no-shims rule."
+      "rationale": "Superseded on 2026-09-30 by q-support-start. Decided by the author on 2026-09-28. Git keeps every document phax ever wrote, and the first consumer reads that history, so every version stays readable. phax, the writer, keeps its no-shims rule."
     },
     {
       "id": "q-return",
@@ -884,7 +864,7 @@
         }
       ],
       "recommendation": "snapshots-corpus",
-      "rationale": "Decided by the author on 2026-09-28, as recommended."
+      "rationale": "Superseded on 2026-09-30 by q-support-start. Decided by the author on 2026-09-28, as recommended."
     },
     {
       "id": "q-historical-location",
@@ -1021,6 +1001,29 @@
       ],
       "recommendation": "manifest",
       "rationale": "Decided by the author on 2026-09-29: \"record\" names the folder; its index file is the manifest."
+    },
+    {
+      "id": "q-support-start",
+      "question": "From which document on does the package guarantee reading?",
+      "options": [
+        {
+          "id": "first-schema-release",
+          "label": "From the first release that writes `$schema`; a document without it is read by its format's pre-schema decoder (today's shape) or reported unsupported",
+          "abandons": "the oldest documents (for example version-1 phase record manifests, early reconciliations): a handful of early runs show as unsupported"
+        },
+        {
+          "id": "every-document",
+          "label": "Every document ever written, through decoders built from a committed history corpus (the previous design)",
+          "abandons": "a small, public-safe repository: over a thousand real documents committed, which leaked private runs on 2026-09-29"
+        },
+        {
+          "id": "per-release-extraction",
+          "label": "Reconstruct each release's schemas by checking out every phax version",
+          "abandons": "a proportionate effort: a large tool to read documents the consumer can do without"
+        }
+      ],
+      "recommendation": "first-schema-release",
+      "rationale": "Decided by the author on 2026-09-30. Today's decoders already accept the great majority of existing documents; the rest are early runs the cockpit can show as unsupported. The guarantee that matters starts now and holds forever."
     }
   ],
   "planningNote": {
@@ -1030,20 +1033,17 @@
       "effect is a regular dependency with the same range as phax.",
       "The version is lockstep with phax, bumped by release.sh and published by the release workflow as a staged publish beside @lbdremy/phax.",
       "ESM only.",
-      "Reading history (2026-09-28): every format version ever written parses with its frozen decoder and returns its exact shape; toLatest upgrades in memory and marks absent facts unknown; a newer version fails naming the package to upgrade.",
-      "The history corpus is extracted from git by a committed script and parsed at every release.",
-      "Identification (2026-09-28): every document phax writes starts with `$schema: https://docs.phax.run/schemas/<format id>/<release>.json` and carries no `version`; `parseDocument` identifies a document by it alone; shapes are named by their release, legacy shapes by their literal; a shape change is recorded as a snapshot at its release by the gate. The authoring record's two legacy version-1 shapes are both accepted.",
+      "Identification (2026-09-28): every document phax writes starts with `$schema: https://docs.phax.run/schemas/<format id>/<release>.json` and carries no `version`; `parseDocument` identifies a document by it alone; shapes are named by their release, plus one pre-schema shape per format; a shape change is recorded as a snapshot at its release by the gate.",
       "Package name @lbdremy/phax-schemas: one entry carrying every persisted format (§5 list) and a json/ directory with one draft-07 JSON Schema per format, describing its latest shape; no stable/experimental split (q-no-experimental).",
       "`$schema` names the root package.json version; unreleased shapes are `next` snapshots renamed by release.sh (q-release-name). phax reads its own older files through the package (q-own-legacy).",
-      "A record is a folder; its `record.json` is the manifest (`phase-record-manifest`, `authoring-record-manifest`). The package also reads the record's timeline files: gate attribution, phase file reconciliation, gate diagnostics and pending documents, whose unversioned legacy shape is `v0` (2026-09-29)."
+      "A record is a folder; its `record.json` is the manifest (`phase-record-manifest`, `authoring-record-manifest`). The package also reads the record's timeline files: gate attribution, phase file reconciliation, gate diagnostics and pending documents (2026-09-29).",
+      "Support starts at the first release that writes `$schema` (2026-09-30, q-support-start): each format has one pre-schema shape, today's, frozen when that release ships; older documents are unsupported. No history corpus, no survey-based decoders, no real document in the repository."
     ],
     "open": [
       "Where the package manifest and its entry modules live in the repo, and how its build is driven (a second tsc project over the same sources, or equivalent).",
       "Spellings of parse functions, schema and type aliases and JSON Schema file names.",
-      "How the parity corpus is shared between phax's tests and the package's tests.",
       "Whether the tarball install smoke also runs in pnpm check:full or only in the release workflow.",
-      "The exact URL path under docs.phax.run and the spelling of the unknown marker.",
-      "Where the corpus script finds the records history when records live in another repository (the phax-records destination): a path argument, or the records configuration."
+      "The exact URL path under docs.phax.run and the spelling of the unknown marker."
     ],
     "constraints": [
       "Build from the same src/schemas modules phax imports, with no copied schema. A change to a format must change the package in the same commit.",
