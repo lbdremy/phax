@@ -109,7 +109,10 @@ import type { PhaxPlan as PhaxPhaxPlan } from "../../src/schemas/phaxPlan.js";
 import type { PlanDocument as PhaxPlanDocument } from "../../src/schemas/planDocument.js";
 import type { SpecApprovalRecordFile } from "../../src/schemas/specApprovalRecord.js";
 import type { SpecDocument as PhaxSpecDocument } from "../../src/schemas/specDocument.js";
-import type { Registry as PhaxRegistry } from "../../src/schemas/registry.js";
+import type {
+  Registry as PhaxRegistry,
+  RegistryFile as PhaxRegistryFile,
+} from "../../src/schemas/registry.js";
 import type { RunRecordManifest } from "../../src/schemas/runRecord.js";
 import type { AuthoringRecordManifestPreSchema as FrozenAuthoringRecordManifest } from "../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import type { ComplianceReviewPreSchema as FrozenComplianceReview } from "../../src/schemas/history/compliance-review/pre-schema.js";
@@ -336,7 +339,7 @@ type ShapeValue<P extends (input: unknown) => unknown, S extends string> =
 
 // Each parse function's success value is the frozen type or phax's type
 const parseValues: [
-  Equals<Value<typeof parseRegistry>, FrozenRegistry | PhaxRegistry>,
+  Equals<Value<typeof parseRegistry>, FrozenRegistry | PhaxRegistryFile>,
   Equals<Value<typeof parseRunStatus>, FrozenRunStatus | PhaxRunStatus>,
   Equals<Value<typeof parsePhaseStatus>, FrozenPhaseStatus | PhaxPhaseStatus>,
   Equals<Value<typeof parsePhaxPlan>, FrozenPhaxPlan | PhaxPhaxPlan>,
@@ -363,7 +366,7 @@ void parseValues;
 // Each shape carries its own type: the frozen module's for pre-schema, phax's for next
 const shapeValues: [
   Equals<ShapeValue<typeof parseRegistry, "pre-schema">, FrozenRegistry>,
-  Equals<ShapeValue<typeof parseRegistry, "next">, PhaxRegistry>,
+  Equals<ShapeValue<typeof parseRegistry, "next">, PhaxRegistryFile>,
   Equals<ShapeValue<typeof parseGatePending, "pre-schema">, FrozenGatePending>,
   Equals<ShapeValue<typeof parseGatePending, "next">, GatePendingDocument>,
 ] = [true, true, true, true];
@@ -389,9 +392,10 @@ const frozenTypes: [
 ] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
 void frozenTypes;
 
-// Each Latest type drops version from phax's type; the timeline formats carry none
+// Each Latest type drops version from phax's type; a format that writes $schema
+// has phax's in-memory type; the timeline formats carry no version
 const latestTypes: [
-  Equals<LatestRegistry, Omit<PhaxRegistry, "version">>,
+  Equals<LatestRegistry, PhaxRegistry>,
   Equals<LatestRunStatus, Omit<PhaxRunStatus, "version">>,
   Equals<LatestPhaseStatus, Omit<PhaxPhaseStatus, "version">>,
   Equals<LatestPhaxPlan, Omit<PhaxPhaxPlan, "version">>,
@@ -409,6 +413,11 @@ const latestTypes: [
 ] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
 void latestTypes;
 
+declare const latestRegistry: LatestRegistry;
+// @ts-expect-error: the latest registry carries no version
+void latestRegistry.version;
+// @ts-expect-error: the in-memory registry carries no $schema
+void latestRegistry.$schema;
 declare const latest: LatestPhaseRecordManifest;
 // @ts-expect-error: the latest manifest carries no version
 void latest.version;
@@ -450,15 +459,16 @@ void upgradedFrozenSpecDocument;
 void upgradedFrozenReconciliation;
 void upgradedFrozenManifest;
 const toLatestParameters: [
-  Equals<Parameters<typeof toLatestRegistry>, [value: FrozenRegistry | PhaxRegistry]>,
+  Equals<Parameters<typeof toLatestRegistry>, [value: FrozenRegistry | PhaxRegistryFile]>,
   Equals<Parameters<typeof toLatestGatePending>, [value: FrozenGatePending | GatePendingDocument]>,
 ] = [true, true];
 void toLatestParameters;
 
 // ── run-directory formats
 
-// Each package type is phax's own type, both ways (§5.20)
-const registryIsPhax: Equals<Registry, PhaxRegistry> = true;
+// Each package type is phax's own type, both ways (§5.20); the registry's is
+// phax's file type
+const registryIsPhax: Equals<Registry, PhaxRegistryFile> = true;
 const runStatusIsPhax: Equals<RunStatus, PhaxRunStatus> = true;
 const phaseStatusIsPhax: Equals<PhaseStatus, PhaxPhaseStatus> = true;
 const phaxPlanIsPhax: Equals<PhaxPlan, PhaxPhaxPlan> = true;

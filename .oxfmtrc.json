@@ -9,6 +9,7 @@
     "NEXT_STEPS.md",
     "src/schemas/history",
     "packages/schemas/src/generated",
+    "src/schemas/release.ts",
     "packages/schemas/history.lock.json",
     "packages/schemas/json",
     "packages/schemas/snapshots"

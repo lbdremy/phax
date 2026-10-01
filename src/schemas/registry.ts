@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { schemaUrlField } from "./schemaUrl.js";
 
 const RunStateSchema = Schema.Union(
   Schema.Literal("created"),
@@ -27,18 +28,18 @@ export const RegistryEntrySchema = Schema.Struct({
 
 export type RegistryEntry = Schema.Schema.Type<typeof RegistryEntrySchema>;
 
-export const RegistrySchema = Schema.Struct({
-  version: Schema.Literal(1),
-  runs: Schema.Array(RegistryEntrySchema),
+const RunsSchema = Schema.Array(RegistryEntrySchema);
+
+/** The run registry in memory: never a `version`, never a `$schema`. */
+export type Registry = { readonly runs: ReadonlyArray<RegistryEntry> };
+
+/** `registry.json` as phax writes it: `$schema` first, then the runs. Unknown keys are ignored. */
+export const RegistryFileSchema = Schema.Struct({
+  $schema: schemaUrlField("registry"),
+  runs: RunsSchema,
 });
 
-export type Registry = Schema.Schema.Type<typeof RegistrySchema>;
-
-/**
- * `registry.json` as phax writes it: today's schema until the registry gains `$schema`.
- * @alias
- */
-export const RegistryFileSchema = RegistrySchema;
+export type RegistryFile = Schema.Schema.Type<typeof RegistryFileSchema>;
 
 export const decodeRegistryFile = Schema.decodeUnknownEither(RegistryFileSchema);
-export const encodeRegistry = Schema.encodeSync(RegistrySchema);
+export const encodeRegistryFile = Schema.encodeSync(RegistryFileSchema);

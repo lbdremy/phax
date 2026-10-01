@@ -2,10 +2,8 @@ import { Effect, Either } from "effect";
 import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { RegistryCorruptionError } from "../domain/errors.js";
-import { readRegistryFile } from "../schemas/persisted.js";
-import { encodeRegistry, type Registry, type RegistryEntry } from "../schemas/registry.js";
-
-const REGISTRY_VERSION = 1 as const;
+import { readRegistryFile, withSchemaUrl } from "../schemas/persisted.js";
+import { encodeRegistryFile, type Registry, type RegistryEntry } from "../schemas/registry.js";
 
 function registryPath(stateRoot: string): string {
   return join(stateRoot, "registry.json");
@@ -19,7 +17,7 @@ export function readRegistry(
     const path = registryPath(stateRoot);
     const exists = yield* fs.exists(path);
     if (!exists) {
-      return { version: REGISTRY_VERSION, runs: [] };
+      return { runs: [] };
     }
     const raw = yield* fs.readText(path);
     let parsed: unknown;
@@ -60,7 +58,7 @@ export function upsertRun(
       idx === -1 ? [...registry.runs, entry] : registry.runs.map((r, i) => (i === idx ? entry : r));
     yield* fs.writeAtomic(
       registryPath(stateRoot),
-      JSON.stringify(encodeRegistry({ ...registry, runs }), null, 2),
+      JSON.stringify(encodeRegistryFile(withSchemaUrl("registry", { runs })), null, 2),
     );
   });
 }
@@ -87,7 +85,7 @@ export function setRunStatus(
     const runs = registry.runs.map((r, i) => (i === idx ? updated : r));
     yield* fs.writeAtomic(
       registryPath(stateRoot),
-      JSON.stringify(encodeRegistry({ ...registry, runs }), null, 2),
+      JSON.stringify(encodeRegistryFile(withSchemaUrl("registry", { runs })), null, 2),
     );
   });
 }

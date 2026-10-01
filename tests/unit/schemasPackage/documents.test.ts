@@ -29,7 +29,8 @@ import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import { decodeRegistryFile } from "../../../src/schemas/registry.js";
 import { decodeRunRecordManifestFile } from "../../../src/schemas/runRecord.js";
-import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
+import { PHAX_RELEASE } from "../../../src/schemas/release.js";
+import { FORMAT_IDS, schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
 import { decodeSpecDocument } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
@@ -39,6 +40,7 @@ import {
   versionOnePhaseRecordManifest,
   withKey,
   withoutKey,
+  WRITES_SCHEMA,
 } from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
@@ -121,14 +123,25 @@ describe("the test documents", () => {
     );
   });
 
-  it("carry no $schema: every one is a pre-schema document", () => {
-    for (const document of [
-      ...Object.values(validDocuments),
-      ...Object.values(preSchemaDocuments),
-    ]) {
+  it("pre-schema documents carry no $schema", () => {
+    for (const document of Object.values(preSchemaDocuments)) {
       expect(Object.hasOwn(document, "$schema")).toBe(false);
     }
   });
+
+  it.each(FORMAT_IDS)(
+    "%s: the valid document carries $schema first, at the running release, only when phax writes it",
+    (id) => {
+      const document = validDocuments[id];
+      if (WRITES_SCHEMA.has(id)) {
+        expect(Object.keys(document)[0]).toBe("$schema");
+        expect(document["$schema"]).toBe(schemaUrl(id, PHAX_RELEASE));
+        expect(Object.hasOwn(document, "version")).toBe(false);
+      } else {
+        expect(Object.hasOwn(document, "$schema")).toBe(false);
+      }
+    },
+  );
 
   it("include a version-1 phase record manifest that phax's decoder rejects", () => {
     expect(versionOnePhaseRecordManifest["version"]).toBe(1);

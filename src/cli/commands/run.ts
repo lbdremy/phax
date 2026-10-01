@@ -100,9 +100,9 @@ function readRegistrySync(stateRoot: string) {
     const path = join(stateRoot, "registry.json");
     const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
     const decoded = readRegistryFile(path, raw);
-    return Either.isRight(decoded) ? decoded.right : { version: 1 as const, runs: [] };
+    return Either.isRight(decoded) ? decoded.right : { runs: [] };
   } catch {
-    return { version: 1 as const, runs: [] };
+    return { runs: [] };
   }
 }
 

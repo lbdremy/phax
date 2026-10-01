@@ -44,13 +44,17 @@ import { UNKNOWN, isUnknown, type Unknown } from "./shapes.js";
 export type { Parsed, ParsedDocument, ParsedShape, Unknown };
 export { UNKNOWN, isUnknown };
 
-// The files of a run directory. Each schema and type is phax's own.
+// The files of a run directory. Each schema and type is phax's own; a format
+// that writes $schema exports its file schema and type.
 export {
   ComplianceReviewSchema,
   type ComplianceReview,
 } from "../../../src/schemas/complianceReview.js";
 export { PhaxPlanSchema, type PhaxPlan } from "../../../src/schemas/phaxPlan.js";
-export { RegistrySchema, type Registry } from "../../../src/schemas/registry.js";
+export {
+  RegistryFileSchema as RegistrySchema,
+  type RegistryFile as Registry,
+} from "../../../src/schemas/registry.js";
 export {
   PhaseStatusSchema,
   RunStatusSchema,
