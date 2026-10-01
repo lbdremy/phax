@@ -51,6 +51,21 @@ import type {
   SpecApprovalsShape,
   SpecDocument,
   SpecDocumentShape,
+  AuthoringRecordManifestPreSchema,
+  ComplianceReviewPreSchema,
+  GateAttributionPreSchema,
+  GateDiagnosticsPreSchema,
+  GatePendingPreSchema,
+  PhaseFileReconciliationPreSchema,
+  PhaseRecordManifestPreSchema,
+  PhaseStatusPreSchema,
+  PhaxPlanPreSchema,
+  PlanApprovalsPreSchema,
+  PlanDocumentPreSchema,
+  RegistryPreSchema,
+  RunStatusPreSchema,
+  SpecApprovalsPreSchema,
+  SpecDocumentPreSchema,
 } from "../../packages/schemas/src/index.js";
 import {
   parseAuthoringRecordManifest,
@@ -71,8 +86,11 @@ import {
   parseSpecApprovals,
   parseSpecDocument,
   toLatestAuthoringRecordManifest,
+  toLatestGatePending,
   toLatestPhaseFileReconciliation,
+  toLatestPhaseRecordManifest,
   toLatestPhaxPlan,
+  toLatestRegistry,
   toLatestRunStatus,
   toLatestSpecDocument,
 } from "../../packages/schemas/src/index.js";
@@ -93,6 +111,21 @@ import type { SpecApprovalRecordFile } from "../../src/schemas/specApprovalRecor
 import type { SpecDocument as PhaxSpecDocument } from "../../src/schemas/specDocument.js";
 import type { Registry as PhaxRegistry } from "../../src/schemas/registry.js";
 import type { RunRecordManifest } from "../../src/schemas/runRecord.js";
+import type { AuthoringRecordManifestPreSchema as FrozenAuthoringRecordManifest } from "../../src/schemas/history/authoring-record-manifest/pre-schema.js";
+import type { ComplianceReviewPreSchema as FrozenComplianceReview } from "../../src/schemas/history/compliance-review/pre-schema.js";
+import type { GateAttributionPreSchema as FrozenGateAttribution } from "../../src/schemas/history/gate-attribution/pre-schema.js";
+import type { GateDiagnosticsPreSchema as FrozenGateDiagnostics } from "../../src/schemas/history/gate-diagnostics/pre-schema.js";
+import type { GatePendingPreSchema as FrozenGatePending } from "../../src/schemas/history/gate-pending/pre-schema.js";
+import type { PhaseFileReconciliationPreSchema as FrozenPhaseFileReconciliation } from "../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
+import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "../../src/schemas/history/phase-record-manifest/pre-schema.js";
+import type { PhaseStatusPreSchema as FrozenPhaseStatus } from "../../src/schemas/history/phase-status/pre-schema.js";
+import type { PhaxPlanPreSchema as FrozenPhaxPlan } from "../../src/schemas/history/phax-plan/pre-schema.js";
+import type { PlanApprovalsPreSchema as FrozenPlanApprovals } from "../../src/schemas/history/plan-approvals/pre-schema.js";
+import type { PlanDocumentPreSchema as FrozenPlanDocument } from "../../src/schemas/history/plan-document/pre-schema.js";
+import type { RegistryPreSchema as FrozenRegistry } from "../../src/schemas/history/registry/pre-schema.js";
+import type { RunStatusPreSchema as FrozenRunStatus } from "../../src/schemas/history/run-status/pre-schema.js";
+import type { SpecApprovalsPreSchema as FrozenSpecApprovals } from "../../src/schemas/history/spec-approvals/pre-schema.js";
+import type { SpecDocumentPreSchema as FrozenSpecDocument } from "../../src/schemas/history/spec-document/pre-schema.js";
 import type { FormatId } from "../../src/schemas/schemaUrl.js";
 import type {
   PhaseStatus as PhaxPhaseStatus,
@@ -115,12 +148,16 @@ const parsed = parsePhaseRecordManifest({});
 const asParsed: Parsed<PhaseRecordManifest> = parsed;
 void asParsed;
 
-// Narrowing on success yields the pre-schema shape's exact type
+// Narrowing on success yields the frozen pre-schema type or phax's own type
 if (parsed.ok) {
-  const shape: Equals<typeof parsed.shape, "pre-schema"> = true;
-  const exact: Equals<typeof parsed.value, RunRecordManifest> = true;
+  const shape: Equals<typeof parsed.shape, "pre-schema" | "next"> = true;
+  const exact: Equals<typeof parsed.value, FrozenPhaseRecordManifest | RunRecordManifest> = true;
   void shape;
   void exact;
+  if (parsed.shape === "pre-schema") {
+    const frozen: Equals<typeof parsed.value, FrozenPhaseRecordManifest> = true;
+    void frozen;
+  }
   // @ts-expect-error: a success carries no error
   void parsed.error;
 } else {
@@ -216,22 +253,22 @@ const complete: Equals<DocumentFormatId, FormatId> = true;
 void complete;
 if (document.ok) {
   const format: DocumentFormatId = document.format;
-  const shape: Equals<typeof document.shape, "pre-schema"> = true;
+  const shape: Equals<typeof document.shape, "pre-schema" | "next"> = true;
   void format;
   void shape;
-  if (document.format === "phase-record-manifest") {
+  if (document.format === "phase-record-manifest" && document.shape === "next") {
     const exact: Equals<typeof document.value, RunRecordManifest> = true;
     void exact;
   }
-  if (document.format === "phax-plan") {
+  if (document.format === "phax-plan" && document.shape === "next") {
     const exact: Equals<typeof document.value, PhaxPhaxPlan> = true;
     void exact;
   }
-  if (document.format === "spec-approvals") {
-    const exact: Equals<typeof document.value, SpecApprovalRecordFile> = true;
+  if (document.format === "spec-approvals" && document.shape === "pre-schema") {
+    const exact: Equals<typeof document.value, FrozenSpecApprovals> = true;
     void exact;
   }
-  if (document.format === "phase-file-reconciliation") {
+  if (document.format === "phase-file-reconciliation" && document.shape === "next") {
     const exact: Equals<typeof document.value, PhaxPhaseFileReconciliation> = true;
     void exact;
   }
@@ -246,7 +283,7 @@ if (parsedDocument.ok && parsedDocument.shape === "0.12.0") {
   void toyValue;
 }
 
-// Every format reads exactly one shape so far: pre-schema
+// Every format reads two shapes: its frozen pre-schema shape and next
 const shapeIds: Equals<
   | RegistryShape
   | RunStatusShape
@@ -263,25 +300,25 @@ const shapeIds: Equals<
   | PhaseFileReconciliationShape
   | GateDiagnosticsShape
   | GatePendingShape,
-  "pre-schema"
+  "pre-schema" | "next"
 > = true;
 void shapeIds;
 const eachShapeId: [
-  Equals<RegistryShape, "pre-schema">,
-  Equals<RunStatusShape, "pre-schema">,
-  Equals<PhaseStatusShape, "pre-schema">,
-  Equals<PhaxPlanShape, "pre-schema">,
-  Equals<ComplianceReviewShape, "pre-schema">,
-  Equals<PlanApprovalsShape, "pre-schema">,
-  Equals<SpecApprovalsShape, "pre-schema">,
-  Equals<SpecDocumentShape, "pre-schema">,
-  Equals<PlanDocumentShape, "pre-schema">,
-  Equals<PhaseRecordManifestShape, "pre-schema">,
-  Equals<AuthoringRecordManifestShape, "pre-schema">,
-  Equals<GateAttributionShape, "pre-schema">,
-  Equals<PhaseFileReconciliationShape, "pre-schema">,
-  Equals<GateDiagnosticsShape, "pre-schema">,
-  Equals<GatePendingShape, "pre-schema">,
+  Equals<RegistryShape, "pre-schema" | "next">,
+  Equals<RunStatusShape, "pre-schema" | "next">,
+  Equals<PhaseStatusShape, "pre-schema" | "next">,
+  Equals<PhaxPlanShape, "pre-schema" | "next">,
+  Equals<ComplianceReviewShape, "pre-schema" | "next">,
+  Equals<PlanApprovalsShape, "pre-schema" | "next">,
+  Equals<SpecApprovalsShape, "pre-schema" | "next">,
+  Equals<SpecDocumentShape, "pre-schema" | "next">,
+  Equals<PlanDocumentShape, "pre-schema" | "next">,
+  Equals<PhaseRecordManifestShape, "pre-schema" | "next">,
+  Equals<AuthoringRecordManifestShape, "pre-schema" | "next">,
+  Equals<GateAttributionShape, "pre-schema" | "next">,
+  Equals<PhaseFileReconciliationShape, "pre-schema" | "next">,
+  Equals<GateDiagnosticsShape, "pre-schema" | "next">,
+  Equals<GatePendingShape, "pre-schema" | "next">,
 ] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
 void eachShapeId;
 
@@ -289,25 +326,68 @@ void eachShapeId;
 type Value<P extends (input: unknown) => unknown> =
   ReturnType<P> extends infer R ? (R extends { ok: true; value: infer V } ? V : never) : never;
 
-// Each parse function's success value is exactly phax's type
+/** The value a parse function's success carries for one shape. */
+type ShapeValue<P extends (input: unknown) => unknown, S extends string> =
+  ReturnType<P> extends infer R
+    ? R extends { ok: true; shape: S; value: infer V }
+      ? V
+      : never
+    : never;
+
+// Each parse function's success value is the frozen type or phax's type
 const parseValues: [
-  Equals<Value<typeof parseRegistry>, PhaxRegistry>,
-  Equals<Value<typeof parseRunStatus>, PhaxRunStatus>,
-  Equals<Value<typeof parsePhaseStatus>, PhaxPhaseStatus>,
-  Equals<Value<typeof parsePhaxPlan>, PhaxPhaxPlan>,
-  Equals<Value<typeof parseComplianceReview>, PhaxComplianceReview>,
-  Equals<Value<typeof parsePlanApprovals>, ApprovalRecordFile>,
-  Equals<Value<typeof parseSpecApprovals>, SpecApprovalRecordFile>,
-  Equals<Value<typeof parseSpecDocument>, PhaxSpecDocument>,
-  Equals<Value<typeof parsePlanDocument>, PhaxPlanDocument>,
-  Equals<Value<typeof parsePhaseRecordManifest>, RunRecordManifest>,
-  Equals<Value<typeof parseAuthoringRecordManifest>, PhaxAuthoringRecordManifest>,
-  Equals<Value<typeof parseGateAttribution>, PhaxGateAttribution>,
-  Equals<Value<typeof parsePhaseFileReconciliation>, PhaxPhaseFileReconciliation>,
-  Equals<Value<typeof parseGateDiagnostics>, GateDiagnosticsDocument>,
-  Equals<Value<typeof parseGatePending>, GatePendingDocument>,
+  Equals<Value<typeof parseRegistry>, FrozenRegistry | PhaxRegistry>,
+  Equals<Value<typeof parseRunStatus>, FrozenRunStatus | PhaxRunStatus>,
+  Equals<Value<typeof parsePhaseStatus>, FrozenPhaseStatus | PhaxPhaseStatus>,
+  Equals<Value<typeof parsePhaxPlan>, FrozenPhaxPlan | PhaxPhaxPlan>,
+  Equals<Value<typeof parseComplianceReview>, FrozenComplianceReview | PhaxComplianceReview>,
+  Equals<Value<typeof parsePlanApprovals>, FrozenPlanApprovals | ApprovalRecordFile>,
+  Equals<Value<typeof parseSpecApprovals>, FrozenSpecApprovals | SpecApprovalRecordFile>,
+  Equals<Value<typeof parseSpecDocument>, FrozenSpecDocument | PhaxSpecDocument>,
+  Equals<Value<typeof parsePlanDocument>, FrozenPlanDocument | PhaxPlanDocument>,
+  Equals<Value<typeof parsePhaseRecordManifest>, FrozenPhaseRecordManifest | RunRecordManifest>,
+  Equals<
+    Value<typeof parseAuthoringRecordManifest>,
+    FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifest
+  >,
+  Equals<Value<typeof parseGateAttribution>, FrozenGateAttribution | PhaxGateAttribution>,
+  Equals<
+    Value<typeof parsePhaseFileReconciliation>,
+    FrozenPhaseFileReconciliation | PhaxPhaseFileReconciliation
+  >,
+  Equals<Value<typeof parseGateDiagnostics>, FrozenGateDiagnostics | GateDiagnosticsDocument>,
+  Equals<Value<typeof parseGatePending>, FrozenGatePending | GatePendingDocument>,
 ] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
 void parseValues;
+
+// Each shape carries its own type: the frozen module's for pre-schema, phax's for next
+const shapeValues: [
+  Equals<ShapeValue<typeof parseRegistry, "pre-schema">, FrozenRegistry>,
+  Equals<ShapeValue<typeof parseRegistry, "next">, PhaxRegistry>,
+  Equals<ShapeValue<typeof parseGatePending, "pre-schema">, FrozenGatePending>,
+  Equals<ShapeValue<typeof parseGatePending, "next">, GatePendingDocument>,
+] = [true, true, true, true];
+void shapeValues;
+
+// The package re-exports each frozen module's type under its own name
+const frozenTypes: [
+  Equals<RegistryPreSchema, FrozenRegistry>,
+  Equals<RunStatusPreSchema, FrozenRunStatus>,
+  Equals<PhaseStatusPreSchema, FrozenPhaseStatus>,
+  Equals<PhaxPlanPreSchema, FrozenPhaxPlan>,
+  Equals<ComplianceReviewPreSchema, FrozenComplianceReview>,
+  Equals<PlanApprovalsPreSchema, FrozenPlanApprovals>,
+  Equals<SpecApprovalsPreSchema, FrozenSpecApprovals>,
+  Equals<SpecDocumentPreSchema, FrozenSpecDocument>,
+  Equals<PlanDocumentPreSchema, FrozenPlanDocument>,
+  Equals<PhaseRecordManifestPreSchema, FrozenPhaseRecordManifest>,
+  Equals<AuthoringRecordManifestPreSchema, FrozenAuthoringRecordManifest>,
+  Equals<GateAttributionPreSchema, FrozenGateAttribution>,
+  Equals<PhaseFileReconciliationPreSchema, FrozenPhaseFileReconciliation>,
+  Equals<GateDiagnosticsPreSchema, FrozenGateDiagnostics>,
+  Equals<GatePendingPreSchema, FrozenGatePending>,
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+void frozenTypes;
 
 // Each Latest type drops version from phax's type; the timeline formats carry none
 const latestTypes: [
@@ -338,7 +418,7 @@ void latestPlan.version;
 // @ts-expect-error: the latest phax-plan has no place for run.backend
 void latestPlan.run.backend;
 
-// Each toLatest takes phax's own type
+// Each toLatest takes phax's own type and the frozen pre-schema type
 declare const phaxRunStatus: PhaxRunStatus;
 declare const phaxPhaxPlan: PhaxPhaxPlan;
 declare const phaxSpecDocument: PhaxSpecDocument;
@@ -352,6 +432,28 @@ void upgradedRunStatus;
 void upgradedPhaxPlan;
 void upgradedSpecDocument;
 void upgradedReconciliation;
+declare const frozenRunStatus: FrozenRunStatus;
+declare const frozenPhaxPlan: FrozenPhaxPlan;
+declare const frozenSpecDocument: FrozenSpecDocument;
+declare const frozenReconciliation: FrozenPhaseFileReconciliation;
+declare const frozenPhaseRecordManifest: FrozenPhaseRecordManifest;
+const upgradedFrozenRunStatus: LatestRunStatus = toLatestRunStatus(frozenRunStatus);
+const upgradedFrozenPhaxPlan: LatestPhaxPlan = toLatestPhaxPlan(frozenPhaxPlan);
+const upgradedFrozenSpecDocument: LatestSpecDocument = toLatestSpecDocument(frozenSpecDocument);
+const upgradedFrozenReconciliation: LatestPhaseFileReconciliation =
+  toLatestPhaseFileReconciliation(frozenReconciliation);
+const upgradedFrozenManifest: LatestPhaseRecordManifest =
+  toLatestPhaseRecordManifest(frozenPhaseRecordManifest);
+void upgradedFrozenRunStatus;
+void upgradedFrozenPhaxPlan;
+void upgradedFrozenSpecDocument;
+void upgradedFrozenReconciliation;
+void upgradedFrozenManifest;
+const toLatestParameters: [
+  Equals<Parameters<typeof toLatestRegistry>, [value: FrozenRegistry | PhaxRegistry]>,
+  Equals<Parameters<typeof toLatestGatePending>, [value: FrozenGatePending | GatePendingDocument]>,
+] = [true, true];
+void toLatestParameters;
 
 // ── run-directory formats
 
@@ -421,14 +523,18 @@ const anyManifestAsParsed: Parsed<PhaseRecordManifest | AuthoringRecordManifest>
 void anyManifestAsParsed;
 if (anyManifest.ok) {
   const format: RecordManifestFormat = anyManifest.format;
-  const shape: Equals<typeof anyManifest.shape, "pre-schema"> = true;
+  const shape: Equals<typeof anyManifest.shape, "pre-schema" | "next"> = true;
   void format;
   void shape;
   if (anyManifest.format === "authoring-record-manifest") {
-    const exact: Equals<typeof anyManifest.value, PhaxAuthoringRecordManifest> = true;
+    const exact: Equals<
+      typeof anyManifest.value,
+      FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifest
+    > = true;
     void exact;
   } else {
-    const exact: Equals<typeof anyManifest.value, RunRecordManifest> = true;
+    const exact: Equals<typeof anyManifest.value, FrozenPhaseRecordManifest | RunRecordManifest> =
+      true;
     void exact;
   }
 }

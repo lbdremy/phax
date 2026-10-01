@@ -66,14 +66,14 @@ describe.each(FORMATS)("$id", (format) => {
     expect(format.parse(document)).toEqual({ ok: true, shape: "pre-schema", value: phax.right });
   });
 
-  it("fails a document phax's decoder rejects as older than the first supported release", () => {
+  it("fails a document the frozen decoder rejects as older than the first release that writes $schema", () => {
     const result = format.parse(withKey(document, "version", 0)) as {
       readonly ok: boolean;
       readonly error?: { readonly path: string; readonly message: string };
     };
     expect(result.ok).toBe(false);
     expect(result.error?.path).toBe("version");
-    expect(result.error?.message).toContain("older than the first supported release");
+    expect(result.error?.message).toContain("older than the first release that writes $schema");
   });
 
   it("upgrades by dropping version and keeping everything else", () => {

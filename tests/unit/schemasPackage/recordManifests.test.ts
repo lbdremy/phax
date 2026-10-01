@@ -93,31 +93,38 @@ describe("parseRecordManifest", () => {
     });
   });
 
-  it("fails a version-1 phase manifest as older than the first supported release", () => {
+  it("fails a version-1 phase manifest as older than the first release that writes $schema", () => {
     const result = parseRecordManifest(versionOnePhaseRecordManifest);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.message).toMatch(
-        /^phase record manifest older than the first supported release — not supported/,
+        /^phase record manifest older than the first release that writes \$schema — not supported/,
       );
     }
   });
 
   it("dispatches on $schema before kind", () => {
     // A phase $schema sends an authoring document to the phase record manifest,
-    // which knows no release shape yet: kind is never consulted.
+    // which knows no shape at that release: kind is never consulted.
+    const document = withKey(authoring, "$schema", schemaUrl("phase-record-manifest", "0.1.0"));
+    expect(parseRecordManifest(document)).toEqual({
+      ok: false,
+      error: {
+        path: "$schema",
+        message: "no phase-record-manifest shape is known at release 0.1.0",
+      },
+    });
+  });
+
+  it("dispatches on $schema before kind at the package's own release: phax's phase decoder reads it", () => {
     const document = withKey(
       authoring,
       "$schema",
       schemaUrl("phase-record-manifest", PACKAGE_VERSION),
     );
-    expect(parseRecordManifest(document)).toEqual({
-      ok: false,
-      error: {
-        path: "$schema",
-        message: `no phase-record-manifest shape is known at release ${PACKAGE_VERSION}`,
-      },
-    });
+    const result = parseRecordManifest(document);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message).not.toContain("shape is known");
   });
 
   it("fails a document of another format, naming its URL", () => {

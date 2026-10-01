@@ -9,6 +9,21 @@ import { decodeComplianceReview } from "../../../src/schemas/complianceReview.js
 import { decodeGateAttribution } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnostics.js";
 import { decodeGatePendingDocument } from "../../../src/schemas/gatePending.js";
+import { decodeAuthoringRecordManifestPreSchema } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
+import { decodeComplianceReviewPreSchema } from "../../../src/schemas/history/compliance-review/pre-schema.js";
+import { decodeGateAttributionPreSchema } from "../../../src/schemas/history/gate-attribution/pre-schema.js";
+import { decodeGateDiagnosticsPreSchema } from "../../../src/schemas/history/gate-diagnostics/pre-schema.js";
+import { decodeGatePendingPreSchema } from "../../../src/schemas/history/gate-pending/pre-schema.js";
+import { decodePhaseFileReconciliationPreSchema } from "../../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
+import { decodePhaseRecordManifestPreSchema } from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
+import { decodePhaseStatusPreSchema } from "../../../src/schemas/history/phase-status/pre-schema.js";
+import { decodePhaxPlanPreSchema } from "../../../src/schemas/history/phax-plan/pre-schema.js";
+import { decodePlanApprovalsPreSchema } from "../../../src/schemas/history/plan-approvals/pre-schema.js";
+import { decodePlanDocumentPreSchema } from "../../../src/schemas/history/plan-document/pre-schema.js";
+import { decodeRegistryPreSchema } from "../../../src/schemas/history/registry/pre-schema.js";
+import { decodeRunStatusPreSchema } from "../../../src/schemas/history/run-status/pre-schema.js";
+import { decodeSpecApprovalsPreSchema } from "../../../src/schemas/history/spec-approvals/pre-schema.js";
+import { decodeSpecDocumentPreSchema } from "../../../src/schemas/history/spec-document/pre-schema.js";
 import { decodePhaxPlan } from "../../../src/schemas/phaxPlan.js";
 import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
 import { decodePhaseFileReconciliation } from "../../../src/schemas/reconciliation.js";
@@ -18,7 +33,13 @@ import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
 import { decodeSpecDocument } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatus, decodeRunStatus } from "../../../src/schemas/status.js";
-import { validDocuments, versionOnePhaseRecordManifest, withKey, withoutKey } from "./documents.js";
+import {
+  preSchemaDocuments,
+  validDocuments,
+  versionOnePhaseRecordManifest,
+  withKey,
+  withoutKey,
+} from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 
@@ -39,6 +60,25 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "gate-pending": decodeGatePendingDocument,
   "spec-document": decodeSpecDocument,
   "plan-document": decodePlanDocument,
+};
+
+/** Each format's frozen pre-schema decoder. */
+const FROZEN_DECODERS: { readonly [F in FormatId]: Decode } = {
+  registry: decodeRegistryPreSchema,
+  "run-status": decodeRunStatusPreSchema,
+  "phase-status": decodePhaseStatusPreSchema,
+  "phax-plan": decodePhaxPlanPreSchema,
+  "compliance-review": decodeComplianceReviewPreSchema,
+  "plan-approvals": decodePlanApprovalsPreSchema,
+  "spec-approvals": decodeSpecApprovalsPreSchema,
+  "phase-record-manifest": decodePhaseRecordManifestPreSchema,
+  "authoring-record-manifest": decodeAuthoringRecordManifestPreSchema,
+  "gate-attribution": decodeGateAttributionPreSchema,
+  "phase-file-reconciliation": decodePhaseFileReconciliationPreSchema,
+  "gate-diagnostics": decodeGateDiagnosticsPreSchema,
+  "gate-pending": decodeGatePendingPreSchema,
+  "spec-document": decodeSpecDocumentPreSchema,
+  "plan-document": decodePlanDocumentPreSchema,
 };
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -64,6 +104,7 @@ function strings(value: unknown): string[] {
 describe("the test documents", () => {
   it("have one document per format id", () => {
     expect(Object.keys(validDocuments).toSorted()).toEqual([...FORMAT_IDS].toSorted());
+    expect(Object.keys(preSchemaDocuments).toSorted()).toEqual([...FORMAT_IDS].toSorted());
   });
 
   it.each(FORMAT_IDS)("%s: is accepted by phax's own decoder", (id) => {
@@ -73,8 +114,18 @@ describe("the test documents", () => {
     );
   });
 
+  it.each(FORMAT_IDS)("%s: the pre-schema document is accepted by its frozen decoder", (id) => {
+    const decoded = FROZEN_DECODERS[id](preSchemaDocuments[id]);
+    expect(Either.isRight(decoded), JSON.stringify(Either.isLeft(decoded) && decoded.left)).toBe(
+      true,
+    );
+  });
+
   it("carry no $schema: every one is a pre-schema document", () => {
-    for (const document of Object.values(validDocuments)) {
+    for (const document of [
+      ...Object.values(validDocuments),
+      ...Object.values(preSchemaDocuments),
+    ]) {
       expect(Object.hasOwn(document, "$schema")).toBe(false);
     }
   });
@@ -106,7 +157,7 @@ describe("the test documents", () => {
   });
 
   it("name no home directory and no phax home", () => {
-    const all = strings([validDocuments, versionOnePhaseRecordManifest]);
+    const all = strings([validDocuments, preSchemaDocuments, versionOnePhaseRecordManifest]);
     expect(all.length).toBeGreaterThan(0);
     expect(all.filter((text) => /\/Users\/|\/home\/|~\/\.phax/.test(text))).toEqual([]);
   });

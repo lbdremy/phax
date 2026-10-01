@@ -7,7 +7,7 @@ import {
   parseSchemaUrl,
   type FormatId,
 } from "../../../src/schemas/schemaUrl.js";
-import { PACKAGE_VERSION } from "./generated/index.js";
+import { FIRST_SUPPORTED_RELEASE, PACKAGE_VERSION } from "./generated/index.js";
 import { failure, fromEither, type ParseFailure, type ParsedShape } from "./parsed.js";
 
 const PACKAGE_NAME = "@lbdremy/phax-schemas";
@@ -90,9 +90,20 @@ export function newerReleaseMessage(
   return `${formatId} written by phax ${release} is newer than ${PACKAGE_NAME} ${packageVersion} — upgrade the package`;
 }
 
-/** A document without `$schema` that the pre-schema decoder rejects. */
-export function preSchemaUnsupportedMessage(label: string, violation: string): string {
-  return `${label} older than the first supported release — not supported (${violation})`;
+/**
+ * A document without `$schema` that the pre-schema decoder rejects. Names the
+ * first supported release once one is known (`FIRST_SUPPORTED_RELEASE`).
+ */
+export function preSchemaUnsupportedMessage(
+  label: string,
+  violation: string,
+  firstSupportedRelease: string | null,
+): string {
+  const older =
+    firstSupportedRelease === null
+      ? "older than the first release that writes $schema"
+      : `older than phax ${firstSupportedRelease}, the first supported release`;
+  return `${label} ${older} — not supported (${violation})`;
 }
 
 function describe(value: unknown): string {
@@ -133,19 +144,30 @@ function decodeAs(shape: string, entry: AnyShape, input: unknown): Decoded {
  * 2. a document with `$schema` resolves by the URL: malformed, unknown format,
  *    another format and newer-than-the-package fail at `$schema`; a `next`
  *    current shape decodes first when the release is the package's own; else
- *    the latest release-named shape at or below the release decodes it; else
- *    it fails at `$schema` (`no <id> shape is known at release <X>`);
+ *    the latest release-named shape at or below the release decodes it; else,
+ *    when `next` was tried, it fails with `next`'s own violation; else it
+ *    fails at `$schema` (`no <id> shape is known at release <X>`);
  * 3. a document without `$schema`, whatever its `version`, is read only by
  *    the pre-schema decoder: the frozen `preSchema` module when the slot is
  *    filled, else `current.shape`. It resolves to shape `pre-schema`, or fails
  *    at the decoder's first violation with `preSchemaUnsupportedMessage`. No
  *    other decoder is tried.
+ *
+ * `packageVersion` defaults to `PACKAGE_VERSION` and `firstSupportedRelease`
+ * to `FIRST_SUPPORTED_RELEASE`; tests inject both.
  */
 export function defineFormat<M>(
   spec: FormatSpec<M>,
-  options: { readonly packageVersion?: string } = {},
+  options: {
+    readonly packageVersion?: string;
+    readonly firstSupportedRelease?: string | null;
+  } = {},
 ): FormatDefinition<M> {
   const packageVersion = options.packageVersion ?? PACKAGE_VERSION;
+  const firstSupportedRelease =
+    options.firstSupportedRelease === undefined
+      ? FIRST_SUPPORTED_RELEASE
+      : options.firstSupportedRelease;
   const { id, label } = spec;
   const current = spec.current as { readonly name: string; readonly shape: AnyShape };
   const releases = spec.releases as ReadonlyArray<readonly [string, AnyShape]>;
@@ -168,22 +190,25 @@ export function defineFormat<M>(
     if (compareReleases(release, packageVersion) > 0) {
       return failure("$schema", newerReleaseMessage(id, release, packageVersion));
     }
+    let next: Decoded | undefined;
     if (current.name === "next" && release === packageVersion) {
-      const next = decodeAs("next", current.shape, input);
+      next = decodeAs("next", current.shape, input);
       if (next.ok) return next;
     }
     const [latest] = releaseShapes
       .filter(([name]) => compareReleases(name, release) <= 0)
       .toSorted(([a], [b]) => compareReleases(b, a));
-    if (latest === undefined)
-      return failure("$schema", `no ${id} shape is known at release ${release}`);
-    return decodeAs(latest[0], latest[1], input);
+    if (latest !== undefined) return decodeAs(latest[0], latest[1], input);
+    return next ?? failure("$schema", `no ${id} shape is known at release ${release}`);
   }
 
   function byPreSchema(input: object): Decoded {
     const read = decodeAs("pre-schema", preSchema, input);
     if (read.ok) return read;
-    return failure(read.error.path, preSchemaUnsupportedMessage(label, read.error.message));
+    return failure(
+      read.error.path,
+      preSchemaUnsupportedMessage(label, read.error.message, firstSupportedRelease),
+    );
   }
 
   function parse(input: unknown): Decoded {

@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 import { describe, expect, expectTypeOf, it } from "vitest";
+import { JSON_SCHEMA_FORMATS } from "../../../packages/schemas/build/jsonSchemas.js";
 import {
   MISSING_SCHEMA_MESSAGE,
   makeDocumentParser,
@@ -76,28 +77,39 @@ describe("parseDocument", () => {
     );
   });
 
-  it.each([
-    "registry",
-    "run-status",
-    "phase-status",
-    "phax-plan",
-    "compliance-review",
-    "plan-approvals",
-    "spec-approvals",
-    "spec-document",
-    "plan-document",
-    "gate-attribution",
-    "phase-file-reconciliation",
-    "gate-diagnostics",
-    "gate-pending",
-  ] as const)(
-    "reaches the %s definition, which knows no $schema shape at 0.16.0 yet",
+  it.each(FORMAT_IDS)(
+    "reaches the %s definition, which knows no $schema shape below its own release",
     (formatId) => {
       expectFailure(
-        parseDocument({ version: 1, $schema: schemaUrl(formatId, "0.16.0") }),
+        parseDocument({ ...validDocuments[formatId], $schema: schemaUrl(formatId, "0.1.0") }),
         "$schema",
-        `no ${formatId} shape is known at release 0.16.0`,
+        `no ${formatId} shape is known at release 0.1.0`,
       );
+    },
+  );
+
+  it.each(FORMAT_IDS)(
+    "reads a %s at the package's own release with phax's decoder, as next",
+    (formatId) => {
+      const document = {
+        ...validDocuments[formatId],
+        $schema: schemaUrl(formatId, PACKAGE_VERSION),
+      };
+      const result = parseDocument(document);
+      const excess = JSON_SCHEMA_FORMATS.find((entry) => entry.format === formatId)?.excess;
+      if (excess === "ignore") {
+        // phax's decoder drops the key it does not name, as it drops any other.
+        expect(result).toEqual({
+          ok: true,
+          format: formatId,
+          shape: "next",
+          value: validDocuments[formatId],
+        });
+      } else {
+        // phax's strict decoder names no $schema yet: next's own violation.
+        expectFailure(result, "$schema");
+        expect(result.ok ? "" : result.error.message).toContain("is unexpected");
+      }
     },
   );
 
@@ -117,12 +129,13 @@ describe("parseDocument", () => {
     },
   );
 
-  it("finds no phase-record-manifest $schema shape at 0.16.0, for now", () => {
+  it("fails a phase-record-manifest at the package's own release with next's own violation", () => {
     const result = parseDocument({
       ...v2Manifest,
-      $schema: schemaUrl("phase-record-manifest", "0.16.0"),
+      $schema: schemaUrl("phase-record-manifest", PACKAGE_VERSION),
     });
-    expectFailure(result, "$schema", "no phase-record-manifest shape is known at release 0.16.0");
+    expectFailure(result, "$schema");
+    expect(result.ok ? "" : result.error.message).not.toContain("shape is known");
   });
 
   it.each([

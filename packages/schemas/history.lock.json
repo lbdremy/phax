@@ -1,1 +1,17 @@
-{}
+{
+  "src/schemas/history/authoring-record-manifest/pre-schema.ts": "88b78714e008259144c422ea9f93413cc126fbaa63eb552803ed7d20f7593003",
+  "src/schemas/history/compliance-review/pre-schema.ts": "5448180a590a421b5e3516ce28c97bdaf1eb0706963365e56ae668b3d5334d78",
+  "src/schemas/history/gate-attribution/pre-schema.ts": "11b785e822639301f742bc3b2309687e61b6e4eea8e669c415279d6e66a8eac2",
+  "src/schemas/history/gate-diagnostics/pre-schema.ts": "1ae80b9cb8594d4e335c26a3ef11924fb3f36a6a760b39440dca577dc4b9aeb3",
+  "src/schemas/history/gate-pending/pre-schema.ts": "061bfcdb12d2de265ae16e8ecbae9d757e874b4d1bfacd68146d4c57d248125a",
+  "src/schemas/history/phase-file-reconciliation/pre-schema.ts": "9d0e70a9abdf1cc387baa8d5699b04a8af268d09706a064bd6abb42f232ddd75",
+  "src/schemas/history/phase-record-manifest/pre-schema.ts": "52b8e7460da5b97133a92e7dad7bdb5738f6013d1d0da90f55a4ea909f3203a8",
+  "src/schemas/history/phase-status/pre-schema.ts": "93ea24d1ade2b821ab36481439e3399f6cbf367f86feb53fffbcada03f66b9bb",
+  "src/schemas/history/phax-plan/pre-schema.ts": "75ed3bdf5d75d903adda6d84b2fb6d4a804f0a846fd5b7fc4badc50c6f9e4af7",
+  "src/schemas/history/plan-approvals/pre-schema.ts": "7495bafbffc8d3d5aa7a7df89e42a749235743d3eb8d26f23c34eaad5ba9ba6d",
+  "src/schemas/history/plan-document/pre-schema.ts": "08edbefe68581f592f1d300263b6a281ec460e4911205336133c66748611e1e4",
+  "src/schemas/history/registry/pre-schema.ts": "9ff9dedce6447dc3cf9af959f63d6bb9c4243c98dd2e2aa82b787cdd7bad4e3c",
+  "src/schemas/history/run-status/pre-schema.ts": "34cce701799b51ed4f3c9b6cc9f495dd939b71816a54b44961f6e8cd2f47e79a",
+  "src/schemas/history/spec-approvals/pre-schema.ts": "c5db6d2c50c37a12c6acc6ee463e82e0f2177a603e62a6fb87ec74ccff2d7333",
+  "src/schemas/history/spec-document/pre-schema.ts": "73a5e5c6ee6c7b83de5859f40eec796f9493a813ac8904e4a0217af4e496c87e"
+}

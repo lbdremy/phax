@@ -20,14 +20,14 @@ describe("parsePhaseRecordManifest over the pre-schema shape", () => {
     }
   });
 
-  it("fails a version-1 manifest as older than the first supported release, without throwing", () => {
+  it("fails a version-1 manifest as older than the first release that writes $schema, without throwing", () => {
     expect(() => parsePhaseRecordManifest(versionOnePhaseRecordManifest)).not.toThrow();
     const result = parsePhaseRecordManifest(versionOnePhaseRecordManifest);
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(
       result.error.message.startsWith(
-        "phase record manifest older than the first supported release — not supported",
+        "phase record manifest older than the first release that writes $schema — not supported",
       ),
     ).toBe(true);
   });

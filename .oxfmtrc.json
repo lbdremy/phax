@@ -7,7 +7,7 @@
     ".conductor",
     ".claude",
     "NEXT_STEPS.md",
-    "packages/schemas/src/history",
+    "src/schemas/history",
     "packages/schemas/src/generated",
     "packages/schemas/history.lock.json",
     "packages/schemas/json",

@@ -134,9 +134,8 @@ export {
   type RecordManifestFormat,
 } from "./formats/recordManifests.js";
 
-// A phase record's timeline files, each read as its pre-schema shape.
-// Each schema and type is phax's own; the two gate documents take the names
-// the spec gives them.
+// A phase record's timeline files. Each schema and type is phax's own; the
+// two gate documents take the names the spec gives them.
 export {
   GateAttributionSchema,
   type GateAttribution,
@@ -171,6 +170,71 @@ export {
   type LatestPhaseFileReconciliation,
   type PhaseFileReconciliationShape,
 } from "./formats/recordTimeline.js";
+
+// Each format's pre-schema shape, exactly what phax wrote before it wrote
+// $schema: the schema and type of phax's frozen module under
+// src/schemas/history/. Their decoders stay private; the parse functions
+// read them.
+export {
+  RegistryPreSchemaSchema,
+  type RegistryPreSchema,
+} from "../../../src/schemas/history/registry/pre-schema.js";
+export {
+  RunStatusPreSchemaSchema,
+  type RunStatusPreSchema,
+} from "../../../src/schemas/history/run-status/pre-schema.js";
+export {
+  PhaseStatusPreSchemaSchema,
+  type PhaseStatusPreSchema,
+} from "../../../src/schemas/history/phase-status/pre-schema.js";
+export {
+  PhaxPlanPreSchemaSchema,
+  type PhaxPlanPreSchema,
+} from "../../../src/schemas/history/phax-plan/pre-schema.js";
+export {
+  ComplianceReviewPreSchemaSchema,
+  type ComplianceReviewPreSchema,
+} from "../../../src/schemas/history/compliance-review/pre-schema.js";
+export {
+  PlanApprovalsPreSchemaSchema,
+  type PlanApprovalsPreSchema,
+} from "../../../src/schemas/history/plan-approvals/pre-schema.js";
+export {
+  SpecApprovalsPreSchemaSchema,
+  type SpecApprovalsPreSchema,
+} from "../../../src/schemas/history/spec-approvals/pre-schema.js";
+export {
+  SpecDocumentPreSchemaSchema,
+  type SpecDocumentPreSchema,
+} from "../../../src/schemas/history/spec-document/pre-schema.js";
+export {
+  PlanDocumentPreSchemaSchema,
+  type PlanDocumentPreSchema,
+} from "../../../src/schemas/history/plan-document/pre-schema.js";
+export {
+  PhaseRecordManifestPreSchemaSchema,
+  type PhaseRecordManifestPreSchema,
+} from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
+export {
+  AuthoringRecordManifestPreSchemaSchema,
+  type AuthoringRecordManifestPreSchema,
+} from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
+export {
+  GateAttributionPreSchemaSchema,
+  type GateAttributionPreSchema,
+} from "../../../src/schemas/history/gate-attribution/pre-schema.js";
+export {
+  PhaseFileReconciliationPreSchemaSchema,
+  type PhaseFileReconciliationPreSchema,
+} from "../../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
+export {
+  GateDiagnosticsPreSchemaSchema,
+  type GateDiagnosticsPreSchema,
+} from "../../../src/schemas/history/gate-diagnostics/pre-schema.js";
+export {
+  GatePendingPreSchemaSchema,
+  type GatePendingPreSchema,
+} from "../../../src/schemas/history/gate-pending/pre-schema.js";
 
 // Fails to compile when a format id has no entry: parseDocument reads every one.
 type EveryFormat<M extends { readonly [F in FormatId]: unknown }> = M;

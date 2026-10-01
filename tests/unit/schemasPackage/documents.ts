@@ -1,55 +1,89 @@
 // The only source of test documents for the schemas package (spec §5.11).
-// Every document is a made-up value typed as phax's own type and encoded
-// through phax's own schema, so a schema change breaks the build rather than
-// silently staling a fixture. Nothing here comes from a phax home, a records
-// branch or another repository.
+// Every document is a made-up value typed as a format's frozen pre-schema
+// type. `preSchemaDocuments` encodes it through the frozen module, so it
+// survives phax's later shape changes; `validDocuments` encodes it through
+// phax's own schema, so a schema change breaks the build rather than silently
+// staling a fixture. Nothing here comes from a phax home, a records branch or
+// another repository.
 import { Schema } from "effect";
 import { BranchNameSchema } from "../../../src/domain/branded.js";
+import { ApprovalRecordFileSchema } from "../../../src/schemas/approvalRecord.js";
+import { AuthoringRecordManifestSchema } from "../../../src/schemas/authoringRecord.js";
+import { ComplianceReviewSchema } from "../../../src/schemas/complianceReview.js";
+import { GateAttributionSchema } from "../../../src/schemas/gateAttribution.js";
+import { GateDiagnosticsDocumentSchema } from "../../../src/schemas/gateDiagnostics.js";
+import { GatePendingDocumentSchema } from "../../../src/schemas/gatePending.js";
 import {
-  ApprovalRecordFileSchema,
-  type ApprovalRecordFile,
-} from "../../../src/schemas/approvalRecord.js";
+  AuthoringRecordManifestPreSchemaSchema,
+  type AuthoringRecordManifestPreSchema,
+} from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import {
-  AuthoringRecordManifestSchema,
-  type AuthoringRecordManifest,
-} from "../../../src/schemas/authoringRecord.js";
+  ComplianceReviewPreSchemaSchema,
+  type ComplianceReviewPreSchema,
+} from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import {
-  ComplianceReviewSchema,
-  type ComplianceReview,
-} from "../../../src/schemas/complianceReview.js";
+  GateAttributionPreSchemaSchema,
+  type GateAttributionPreSchema,
+} from "../../../src/schemas/history/gate-attribution/pre-schema.js";
 import {
-  GateAttributionSchema,
-  type GateAttribution,
-} from "../../../src/schemas/gateAttribution.js";
+  GateDiagnosticsPreSchemaSchema,
+  type GateDiagnosticsPreSchema,
+} from "../../../src/schemas/history/gate-diagnostics/pre-schema.js";
 import {
-  GateDiagnosticsDocumentSchema,
-  type CompletionDiagnostic,
-  type GateDiagnosticsDocument,
-} from "../../../src/schemas/gateDiagnostics.js";
+  GatePendingPreSchemaSchema,
+  type GatePendingPreSchema,
+} from "../../../src/schemas/history/gate-pending/pre-schema.js";
 import {
-  GatePendingDocumentSchema,
-  type GatePendingDocument,
-} from "../../../src/schemas/gatePending.js";
-import { PhaxPlanSchema, type PhaxPlan } from "../../../src/schemas/phaxPlan.js";
-import { PlanDocumentSchema, type PlanDocument } from "../../../src/schemas/planDocument.js";
+  PhaseFileReconciliationPreSchemaSchema,
+  type PhaseFileReconciliationPreSchema,
+} from "../../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
 import {
-  PhaseFileReconciliationSchema,
-  type PhaseFileReconciliation,
-} from "../../../src/schemas/reconciliation.js";
-import { RegistrySchema, type Registry } from "../../../src/schemas/registry.js";
-import { RunRecordManifestSchema, type RunRecordManifest } from "../../../src/schemas/runRecord.js";
+  PhaseRecordManifestPreSchemaSchema,
+  type PhaseRecordManifestPreSchema,
+} from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
+import {
+  PhaseStatusPreSchemaSchema,
+  type PhaseStatusPreSchema,
+} from "../../../src/schemas/history/phase-status/pre-schema.js";
+import {
+  PhaxPlanPreSchemaSchema,
+  type PhaxPlanPreSchema,
+} from "../../../src/schemas/history/phax-plan/pre-schema.js";
+import {
+  PlanApprovalsPreSchemaSchema,
+  type PlanApprovalsPreSchema,
+} from "../../../src/schemas/history/plan-approvals/pre-schema.js";
+import {
+  PlanDocumentPreSchemaSchema,
+  type PlanDocumentPreSchema,
+} from "../../../src/schemas/history/plan-document/pre-schema.js";
+import {
+  RegistryPreSchemaSchema,
+  type RegistryPreSchema,
+} from "../../../src/schemas/history/registry/pre-schema.js";
+import {
+  RunStatusPreSchemaSchema,
+  type RunStatusPreSchema,
+} from "../../../src/schemas/history/run-status/pre-schema.js";
+import {
+  SpecApprovalsPreSchemaSchema,
+  type SpecApprovalsPreSchema,
+} from "../../../src/schemas/history/spec-approvals/pre-schema.js";
+import {
+  SpecDocumentPreSchemaSchema,
+  type SpecDocumentPreSchema,
+} from "../../../src/schemas/history/spec-document/pre-schema.js";
+import { PhaxPlanSchema } from "../../../src/schemas/phaxPlan.js";
+import { PlanDocumentSchema } from "../../../src/schemas/planDocument.js";
+import { PhaseFileReconciliationSchema } from "../../../src/schemas/reconciliation.js";
+import { RegistrySchema } from "../../../src/schemas/registry.js";
+import { RunRecordManifestSchema } from "../../../src/schemas/runRecord.js";
 import type { FormatId } from "../../../src/schemas/schemaUrl.js";
-import {
-  SpecApprovalRecordFileSchema,
-  type SpecApprovalRecordFile,
-} from "../../../src/schemas/specApprovalRecord.js";
-import { SpecDocumentSchema, type SpecDocument } from "../../../src/schemas/specDocument.js";
-import {
-  PhaseStatusSchema,
-  RunStatusSchema,
-  type PhaseStatus,
-  type RunStatus,
-} from "../../../src/schemas/status.js";
+import { SpecApprovalRecordFileSchema } from "../../../src/schemas/specApprovalRecord.js";
+import { SpecDocumentSchema } from "../../../src/schemas/specDocument.js";
+import { PhaseStatusSchema, RunStatusSchema } from "../../../src/schemas/status.js";
+
+type CompletionDiagnostic = GatePendingPreSchema["steps"][number]["pending"][number]["diagnostic"];
 
 export type Doc = Readonly<Record<string, unknown>>;
 
@@ -73,7 +107,7 @@ const CREATED_AT = "2026-01-01T09:00:00.000Z";
 const UPDATED_AT = "2026-01-01T09:30:00.000Z";
 const BASELINE = "0123456789abcdef0123456789abcdef01234567";
 
-const registry: Registry = {
+const registry: RegistryPreSchema = {
   version: 1,
   runs: [
     {
@@ -90,7 +124,7 @@ const registry: Registry = {
   ],
 };
 
-const runStatus: RunStatus = {
+const runStatus: RunStatusPreSchema = {
   version: 1,
   namespace: "example",
   shortName: "example-run",
@@ -103,7 +137,7 @@ const runStatus: RunStatus = {
   gateProfileId: "standard",
 };
 
-const phaseStatus: PhaseStatus = {
+const phaseStatus: PhaseStatusPreSchema = {
   version: 1,
   phaseId: "phase-01",
   phaseIndex: 0,
@@ -116,7 +150,7 @@ const phaseStatus: PhaseStatus = {
   worktreePath: "/work/example-repo/worktrees/phase-01",
 };
 
-const phaxPlan: PhaxPlan = {
+const phaxPlan: PhaxPlanPreSchema = {
   version: 1,
   run: {
     shortName: "example-run",
@@ -139,7 +173,7 @@ const phaxPlan: PhaxPlan = {
   ],
 };
 
-const complianceReview: ComplianceReview = {
+const complianceReview: ComplianceReviewPreSchema = {
   version: 1,
   verdict: "conformant-with-deviations",
   summary: "The run delivers the plan, with one deviation.",
@@ -154,7 +188,7 @@ const complianceReview: ComplianceReview = {
   pointers: ["src/example.ts"],
 };
 
-const planApprovals: ApprovalRecordFile = {
+const planApprovals: PlanApprovalsPreSchema = {
   version: 1,
   records: {
     "docs/plans/example.md": {
@@ -166,7 +200,7 @@ const planApprovals: ApprovalRecordFile = {
   },
 };
 
-const specApprovals: SpecApprovalRecordFile = {
+const specApprovals: SpecApprovalsPreSchema = {
   version: 1,
   records: {
     "docs/specs/example.md": {
@@ -177,7 +211,7 @@ const specApprovals: SpecApprovalRecordFile = {
   },
 };
 
-const phaseRecordManifest: RunRecordManifest = {
+const phaseRecordManifest: PhaseRecordManifestPreSchema = {
   version: 2,
   runId: RUN_ID,
   phaseId: "phase-01",
@@ -201,7 +235,7 @@ const phaseRecordManifest: RunRecordManifest = {
   verifiedSurfaces: ["local", "structural"],
 };
 
-const authoringRecordManifest: AuthoringRecordManifest = {
+const authoringRecordManifest: AuthoringRecordManifestPreSchema = {
   version: 1,
   kind: "authoring",
   authoringId: "authoring-0001",
@@ -225,7 +259,7 @@ const authoringRecordManifest: AuthoringRecordManifest = {
   },
 };
 
-const gateAttribution: GateAttribution = {
+const gateAttribution: GateAttributionPreSchema = {
   phase: "phase-01",
   steps: [
     { command: "pnpm typecheck", surface: "structural", result: "pass" },
@@ -233,7 +267,7 @@ const gateAttribution: GateAttribution = {
   ],
 };
 
-const phaseFileReconciliation: PhaseFileReconciliation = {
+const phaseFileReconciliation: PhaseFileReconciliationPreSchema = {
   phaseId: "phase-01",
   createdAsPlanned: ["src/example.ts"],
   editedAsPlanned: ["src/index.ts"],
@@ -258,7 +292,7 @@ const completion: CompletionDiagnostic = {
   repair: "create src/later.ts, as phase-02 plans",
 };
 
-const gateDiagnostics: GateDiagnosticsDocument = {
+const gateDiagnostics: GateDiagnosticsPreSchema = {
   diagnostics: [
     {
       class: "invariant",
@@ -271,14 +305,14 @@ const gateDiagnostics: GateDiagnosticsDocument = {
   ],
 };
 
-const gatePending: GatePendingDocument = {
+const gatePending: GatePendingPreSchema = {
   closed: ["phase-01"],
   steps: [
     { command: "pnpm test", pending: [{ diagnostic: completion, openScopes: ["phase-02"] }] },
   ],
 };
 
-const specDocument: SpecDocument = {
+const specDocument: SpecDocumentPreSchema = {
   version: 1,
   kind: "spec",
   title: "Example spec",
@@ -322,7 +356,7 @@ const specDocument: SpecDocument = {
   docsPage: { kind: "none", why: "Nothing user-facing." },
 };
 
-const planDocument: PlanDocument = {
+const planDocument: PlanDocumentPreSchema = {
   version: 1,
   kind: "plan",
   sourceSpec: "docs/specs/example.md",
@@ -353,6 +387,34 @@ const planDocument: PlanDocument = {
       expectedHandoff: "The module's exports.",
     },
   ],
+};
+
+/**
+ * One minimal document per format id in its pre-schema shape, without
+ * `$schema`, encoded through the format's frozen module.
+ */
+export const preSchemaDocuments: { readonly [F in FormatId]: Doc } = {
+  registry: encoded(RegistryPreSchemaSchema, registry),
+  "run-status": encoded(RunStatusPreSchemaSchema, runStatus),
+  "phase-status": encoded(PhaseStatusPreSchemaSchema, phaseStatus),
+  "phax-plan": encoded(PhaxPlanPreSchemaSchema, phaxPlan),
+  "compliance-review": encoded(ComplianceReviewPreSchemaSchema, complianceReview),
+  "plan-approvals": encoded(PlanApprovalsPreSchemaSchema, planApprovals),
+  "spec-approvals": encoded(SpecApprovalsPreSchemaSchema, specApprovals),
+  "phase-record-manifest": encoded(PhaseRecordManifestPreSchemaSchema, phaseRecordManifest),
+  "authoring-record-manifest": encoded(
+    AuthoringRecordManifestPreSchemaSchema,
+    authoringRecordManifest,
+  ),
+  "gate-attribution": encoded(GateAttributionPreSchemaSchema, gateAttribution),
+  "phase-file-reconciliation": encoded(
+    PhaseFileReconciliationPreSchemaSchema,
+    phaseFileReconciliation,
+  ),
+  "gate-diagnostics": encoded(GateDiagnosticsPreSchemaSchema, gateDiagnostics),
+  "gate-pending": encoded(GatePendingPreSchemaSchema, gatePending),
+  "spec-document": encoded(SpecDocumentPreSchemaSchema, specDocument),
+  "plan-document": encoded(PlanDocumentPreSchemaSchema, planDocument),
 };
 
 /** One minimal document per format id, in the shape phax writes today, without `$schema`. */

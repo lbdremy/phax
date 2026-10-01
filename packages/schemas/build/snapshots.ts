@@ -55,6 +55,27 @@ export function latestReleased(names: Iterable<string>): string | undefined {
   return latest;
 }
 
+/**
+ * The first supported release: the lowest release-named snapshot (`X.Y.Z`)
+ * across every format directory, or null when there is none. `pre-schema`
+ * and `next` are not releases; a directory that names no format and a hidden
+ * entry are ignored.
+ */
+export function firstSupportedRelease(
+  snapshots: ReadonlyMap<string, ReadonlyMap<string, string>>,
+): string | null {
+  let lowest: string | null = null;
+  for (const [dir, files] of snapshots) {
+    if (isHidden(dir) || !isFormatId(dir)) continue;
+    for (const fileName of files.keys()) {
+      const name = parseSnapshotName(fileName);
+      if (name === undefined || !isRelease(name)) continue;
+      if (lowest === null || compareReleases(name, lowest) < 0) lowest = name;
+    }
+  }
+  return lowest;
+}
+
 export interface SnapshotFormat {
   readonly id: FormatId;
   /** The format's current shape name: `pre-schema`, `next` or a release. */

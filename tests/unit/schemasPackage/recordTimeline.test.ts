@@ -95,6 +95,21 @@ describe.each(FORMATS)("$id", (format) => {
       expect(result).toEqual({ ok: false, error: { path: "$schema", message } });
     }
   });
+
+  it("reads a document naming the package's own release as next, with phax's decoder", () => {
+    const own = withKey(document, "$schema", schemaUrl(format.id, PACKAGE_VERSION));
+    const phax = format.phax(own);
+    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    expect(format.parse(own)).toEqual({ ok: true, shape: "next", value: phax.right });
+  });
+
+  it("names no shape below the package's own release", () => {
+    const older = withKey(document, "$schema", schemaUrl(format.id, "0.1.0"));
+    expect(format.parse(older)).toEqual({
+      ok: false,
+      error: { path: "$schema", message: `no ${format.id} shape is known at release 0.1.0` },
+    });
+  });
 });
 
 // The acceptance criterion: a record's timeline files parse. The folder is
