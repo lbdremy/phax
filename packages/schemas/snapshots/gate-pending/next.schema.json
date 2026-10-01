@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax gate pending document",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    },
+    "Int": {
+      "type": "integer",
+      "description": "an integer",
+      "title": "int"
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "closed",
+    "steps"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The gate-pending format and the phax release that wrote this file: https://docs.phax.run/schemas/gate-pending/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/gate-pending\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "closed": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/NonEmptyString"
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "command",
+          "pending"
+        ],
+        "properties": {
+          "command": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "pending": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "diagnostic",
+                "openScopes"
+              ],
+              "properties": {
+                "diagnostic": {
+                  "type": "object",
+                  "required": [
+                    "class",
+                    "scopes",
+                    "rule",
+                    "location",
+                    "message",
+                    "repair"
+                  ],
+                  "properties": {
+                    "class": {
+                      "type": "string",
+                      "enum": [
+                        "completion"
+                      ]
+                    },
+                    "scopes": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      }
+                    },
+                    "rule": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "location": {
+                      "type": "object",
+                      "required": [
+                        "file"
+                      ],
+                      "properties": {
+                        "file": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        },
+                        "line": {
+                          "$ref": "#/$defs/Int",
+                          "description": "a positive number",
+                          "title": "positive",
+                          "exclusiveMinimum": 0
+                        }
+                      },
+                      "additionalProperties": true
+                    },
+                    "message": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    },
+                    "repair": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "additionalProperties": true
+                },
+                "openScopes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

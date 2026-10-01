@@ -10,9 +10,9 @@ import { BranchNameSchema } from "../../../src/domain/branded.js";
 import { ApprovalRecordFileSchema } from "../../../src/schemas/approvalRecord.js";
 import { AuthoringRecordManifestFileSchema } from "../../../src/schemas/authoringRecord.js";
 import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
-import { GateAttributionSchema } from "../../../src/schemas/gateAttribution.js";
-import { GateDiagnosticsDocumentSchema } from "../../../src/schemas/gateDiagnostics.js";
-import { GatePendingDocumentSchema } from "../../../src/schemas/gatePending.js";
+import { GateAttributionFileSchema } from "../../../src/schemas/gateAttribution.js";
+import { GateDiagnosticsFileSchema } from "../../../src/schemas/gateDiagnostics.js";
+import { GatePendingFileSchema } from "../../../src/schemas/gatePending.js";
 import {
   AuthoringRecordManifestPreSchemaSchema,
   type AuthoringRecordManifestPreSchema,
@@ -75,7 +75,7 @@ import {
 } from "../../../src/schemas/history/spec-document/pre-schema.js";
 import { PhaxPlanFileSchema } from "../../../src/schemas/phaxPlan.js";
 import { PlanDocumentFileSchema } from "../../../src/schemas/planDocument.js";
-import { PhaseFileReconciliationSchema } from "../../../src/schemas/reconciliation.js";
+import { PhaseFileReconciliationFileSchema } from "../../../src/schemas/reconciliation.js";
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
 import { RegistryFileSchema } from "../../../src/schemas/registry.js";
 import { RunRecordManifestFileSchema } from "../../../src/schemas/runRecord.js";
@@ -431,6 +431,10 @@ export const WRITES_SCHEMA: ReadonlySet<FormatId> = new Set<FormatId>([
   "plan-document",
   "phase-record-manifest",
   "authoring-record-manifest",
+  "gate-attribution",
+  "phase-file-reconciliation",
+  "gate-diagnostics",
+  "gate-pending",
 ]);
 
 /** A pre-schema value as phax holds it in memory: the same fields, without `version`. */
@@ -440,9 +444,8 @@ function stepped<T extends { readonly version: number }>(value: T): Omit<T, "ver
 }
 
 /**
- * One minimal document per format id, in the shape phax writes today. A
- * format that writes `$schema` carries it first, stamped by `withSchemaUrl`;
- * the others carry none yet.
+ * One minimal document per format id, in the shape phax writes today:
+ * `$schema` first, stamped by `withSchemaUrl`.
  */
 export const validDocuments: { readonly [F in FormatId]: Doc } = {
   registry: encoded(RegistryFileSchema, withSchemaUrl("registry", { runs: registry.runs })),
@@ -472,10 +475,19 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     AuthoringRecordManifestFileSchema,
     withSchemaUrl("authoring-record-manifest", stepped(authoringRecordManifest)),
   ),
-  "gate-attribution": encoded(GateAttributionSchema, gateAttribution),
-  "phase-file-reconciliation": encoded(PhaseFileReconciliationSchema, phaseFileReconciliation),
-  "gate-diagnostics": encoded(GateDiagnosticsDocumentSchema, gateDiagnostics),
-  "gate-pending": encoded(GatePendingDocumentSchema, gatePending),
+  "gate-attribution": encoded(
+    GateAttributionFileSchema,
+    withSchemaUrl("gate-attribution", gateAttribution),
+  ),
+  "phase-file-reconciliation": encoded(
+    PhaseFileReconciliationFileSchema,
+    withSchemaUrl("phase-file-reconciliation", phaseFileReconciliation),
+  ),
+  "gate-diagnostics": encoded(
+    GateDiagnosticsFileSchema,
+    withSchemaUrl("gate-diagnostics", gateDiagnostics),
+  ),
+  "gate-pending": encoded(GatePendingFileSchema, withSchemaUrl("gate-pending", gatePending)),
   "spec-document": encoded(
     SpecDocumentFileSchema,
     withSchemaUrl("spec-document", stepped(specDocument)),

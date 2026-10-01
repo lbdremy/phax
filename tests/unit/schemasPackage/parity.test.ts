@@ -26,7 +26,7 @@ import {
 } from "../../../src/schemas/authoringRecord.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
-import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnostics.js";
+import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
 import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
 import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
 import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
@@ -162,7 +162,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "gate-diagnostics": {
     id: "gate-diagnostics",
     parse: parseGateDiagnostics,
-    phax: decodeGateDiagnosticsDocument,
+    phax: decodeGateDiagnosticsFile,
     wrongType: ["diagnostics", {}],
     required: "diagnostics",
     excess: "ignore",

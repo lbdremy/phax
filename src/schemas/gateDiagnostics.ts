@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { schemaUrlField } from "./schemaUrl.js";
 
 const GateDiagnosticFields = {
   rule: Schema.NonEmptyString,
@@ -44,11 +45,17 @@ export const decodeGateDiagnosticsDocument = Schema.decodeUnknownEither(
 );
 
 /**
- * An attempt's `.diagnostics.json` as phax writes it: the stdout contract until
- * the file gains `$schema`.
- * @alias
+ * An attempt's `.diagnostics.json` as phax writes it: `$schema` first, then the
+ * stdout contract's fields. Unknown keys are ignored.
  */
-export const GateDiagnosticsFileSchema = GateDiagnosticsDocumentSchema;
+export const GateDiagnosticsFileSchema = Schema.Struct({
+  $schema: schemaUrlField("gate-diagnostics"),
+  ...GateDiagnosticsDocumentSchema.fields,
+});
+
+export type GateDiagnosticsFile = Schema.Schema.Type<typeof GateDiagnosticsFileSchema>;
 
 export const decodeGateDiagnosticsFile = Schema.decodeUnknownEither(GateDiagnosticsFileSchema);
+export const encodeGateDiagnosticsFile = Schema.encodeSync(GateDiagnosticsFileSchema);
+// The stdout contract, without `$schema`: the pre-schema file shape.
 export const encodeGateDiagnosticsDocument = Schema.encodeSync(GateDiagnosticsDocumentSchema);

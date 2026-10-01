@@ -148,23 +148,23 @@ export {
   type RecordManifestFormat,
 } from "./formats/recordManifests.js";
 
-// A phase record's timeline files. Each schema and type is phax's own; the
-// two gate documents take the names the spec gives them.
+// A phase record's timeline files. Each schema and type is phax's own file
+// schema and type, under the name the spec gives it.
 export {
-  GateAttributionSchema,
-  type GateAttribution,
+  GateAttributionFileSchema as GateAttributionSchema,
+  type GateAttributionFile as GateAttribution,
 } from "../../../src/schemas/gateAttribution.js";
 export {
-  PhaseFileReconciliationSchema,
-  type PhaseFileReconciliation,
+  PhaseFileReconciliationFileSchema as PhaseFileReconciliationSchema,
+  type PhaseFileReconciliationFile as PhaseFileReconciliation,
 } from "../../../src/schemas/reconciliation.js";
 export {
-  GateDiagnosticsDocumentSchema as GateDiagnosticsSchema,
-  type GateDiagnosticsDocument as GateDiagnostics,
+  GateDiagnosticsFileSchema as GateDiagnosticsSchema,
+  type GateDiagnosticsFile as GateDiagnostics,
 } from "../../../src/schemas/gateDiagnostics.js";
 export {
-  GatePendingDocumentSchema as GatePendingSchema,
-  type GatePendingDocument as GatePending,
+  GatePendingFileSchema as GatePendingSchema,
+  type GatePendingFile as GatePending,
 } from "../../../src/schemas/gatePending.js";
 export {
   parseGateAttribution,

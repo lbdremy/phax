@@ -8,6 +8,7 @@ import {
 } from "../../src/app/loadReviewHandoffInputs.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { BranchName } from "../../src/domain/branded.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
 
 const RUN_PATH = "/runs/test-run";
 
@@ -79,11 +80,41 @@ function makePhaseJson(phaseId: string, overrides: Record<string, unknown> = {})
   });
 }
 
+// The same reconciliation as phax writes it today: `$schema` first.
+function makeStampedPhaseJson(phaseId: string, overrides: Record<string, unknown> = {}): string {
+  return JSON.stringify(
+    withSchemaUrl("phase-file-reconciliation", JSON.parse(makePhaseJson(phaseId, overrides))),
+  );
+}
+
 function runWith<A, E>(effect: Effect.Effect<A, E, never>): Promise<Either.Either<A, E>> {
   return Effect.runPromise(Effect.either(effect));
 }
 
 describe("loadReviewHandoffInputs", () => {
+  it("reads a reconciliation phax writes ($schema) beside one recorded before $schema", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+
+    impl.setFile(
+      `${RUN_PATH}/phase-01/file-reconciliation.json`,
+      makeStampedPhaseJson("phase-01", { createdAsPlanned: ["src/foo.ts"] }),
+    );
+    // Pre-schema: no $schema and no version, as 0.16.0 wrote it.
+    impl.setFile(
+      `${RUN_PATH}/phase-02/file-reconciliation.json`,
+      makePhaseJson("phase-02", { editedAsPlanned: ["src/bar.ts"] }),
+    );
+
+    const result = await runWith(loadReviewHandoffInputs(makeInfo()).pipe(Effect.provide(layer)));
+
+    expect(Either.isRight(result)).toBe(true);
+    if (!Either.isRight(result)) return;
+    expect(result.right.global.files.map((f) => [f.path, f.status])).toEqual([
+      ["src/bar.ts", "matched"],
+      ["src/foo.ts", "matched"],
+    ]);
+  });
+
   it("happy path: aggregates per-phase JSON and reads markdown files", async () => {
     const { impl, layer } = makeFakeFileSystem();
 

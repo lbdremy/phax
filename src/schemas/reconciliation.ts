@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { schemaUrlField } from "./schemaUrl.js";
 
 export const PhaseFileReconciliationSchema = Schema.Struct({
   phaseId: Schema.NonEmptyString,
@@ -19,13 +20,23 @@ export const PhaseFileReconciliationSchema = Schema.Struct({
 export type PhaseFileReconciliation = Schema.Schema.Type<typeof PhaseFileReconciliationSchema>;
 
 /**
- * `file-reconciliation.json` as phax writes it: today's schema until the file
- * gains `$schema`.
- * @alias
+ * `file-reconciliation.json` as phax writes it: `$schema` first, then the
+ * reconciliation's fields. Unknown keys are ignored.
  */
-export const PhaseFileReconciliationFileSchema = PhaseFileReconciliationSchema;
+export const PhaseFileReconciliationFileSchema = Schema.Struct({
+  $schema: schemaUrlField("phase-file-reconciliation"),
+  ...PhaseFileReconciliationSchema.fields,
+});
+
+export type PhaseFileReconciliationFile = Schema.Schema.Type<
+  typeof PhaseFileReconciliationFileSchema
+>;
 
 export const decodePhaseFileReconciliationFile = Schema.decodeUnknownEither(
   PhaseFileReconciliationFileSchema,
 );
+export const encodePhaseFileReconciliationFile = Schema.encodeSync(
+  PhaseFileReconciliationFileSchema,
+);
+// The in-memory reconciliation, without `$schema`: the pre-schema file shape.
 export const encodePhaseFileReconciliation = Schema.encodeSync(PhaseFileReconciliationSchema);

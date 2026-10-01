@@ -130,35 +130,7 @@ export function readPersisted<Current, PreSchema, InMemory>(
   return Either.right(stepped.right);
 }
 
-// Until a format's family phase changes its shape, its pre-schema and current
-// shapes are the same: both steps keep the value as it is.
-function same<T>(value: T): T {
-  return value;
-}
-
-function sameRight<T>(value: T): Either.Either<T, MissingFact> {
-  return Either.right(value);
-}
-
 type Reader<T> = (file: string, input: unknown) => Either.Either<T, PersistedReadError>;
-
-function reader<InMemory>(
-  format: FormatId,
-  label: string,
-  decodeCurrent: Decode<InMemory>,
-  decodePreSchema: Decode<InMemory>,
-): Reader<InMemory> {
-  return (file, input) =>
-    readPersisted(input, {
-      format,
-      label,
-      file,
-      decodeCurrent,
-      decodePreSchema,
-      fromCurrent: same,
-      fromPreSchema: sameRight,
-    });
-}
 
 /**
  * `value` as the file phax writes: `$schema` first, naming `formatId` at the
@@ -282,21 +254,35 @@ export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
     fromPreSchema: ({ version: _version, ...doc }) => Either.right(doc),
   });
 
-/** Reads a phase's `gate-attribution.json`. */
-export const readGateAttributionFile: Reader<GateAttribution> = reader(
-  "gate-attribution",
-  "gate attribution",
-  decodeGateAttributionFile,
-  decodeGateAttributionPreSchema,
-);
+/**
+ * Reads a phase's `gate-attribution.json`. It never carried a `version`: the
+ * pre-schema attribution is the in-memory value as it is.
+ */
+export const readGateAttributionFile: Reader<GateAttribution> = (file, input) =>
+  readPersisted(input, {
+    format: "gate-attribution",
+    label: "gate attribution",
+    file,
+    decodeCurrent: decodeGateAttributionFile,
+    decodePreSchema: decodeGateAttributionPreSchema,
+    fromCurrent: ({ $schema: _schema, ...attribution }) => attribution,
+    fromPreSchema: Either.right,
+  });
 
-/** Reads a phase's `file-reconciliation.json`. */
-export const readPhaseFileReconciliationFile: Reader<PhaseFileReconciliation> = reader(
-  "phase-file-reconciliation",
-  "phase file reconciliation",
-  decodePhaseFileReconciliationFile,
-  decodePhaseFileReconciliationPreSchema,
-);
+/**
+ * Reads a phase's `file-reconciliation.json`. It never carried a `version`:
+ * the pre-schema reconciliation is the in-memory value as it is.
+ */
+export const readPhaseFileReconciliationFile: Reader<PhaseFileReconciliation> = (file, input) =>
+  readPersisted(input, {
+    format: "phase-file-reconciliation",
+    label: "phase file reconciliation",
+    file,
+    decodeCurrent: decodePhaseFileReconciliationFile,
+    decodePreSchema: decodePhaseFileReconciliationPreSchema,
+    fromCurrent: ({ $schema: _schema, ...reconciliation }) => reconciliation,
+    fromPreSchema: Either.right,
+  });
 
 function fromRecordManifestFile({ $schema: _schema, ...manifest }: RecordManifestFile) {
   return manifest;

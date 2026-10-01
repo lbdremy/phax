@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 import { CompletionDiagnosticSchema } from "./gateDiagnostics.js";
+import { schemaUrlField } from "./schemaUrl.js";
 
 const PendingDiagnosticSchema = Schema.Struct({
   diagnostic: CompletionDiagnosticSchema,
@@ -19,10 +20,15 @@ export const GatePendingDocumentSchema = Schema.Struct({
 export type GatePendingDocument = Schema.Schema.Type<typeof GatePendingDocumentSchema>;
 
 /**
- * An attempt's `.pending.json` as phax writes it: today's schema until the file gains `$schema`.
- * @alias
+ * An attempt's `.pending.json` as phax writes it: `$schema` first, then the
+ * document's fields. Unknown keys are ignored.
  */
-export const GatePendingFileSchema = GatePendingDocumentSchema;
+export const GatePendingFileSchema = Schema.Struct({
+  $schema: schemaUrlField("gate-pending"),
+  ...GatePendingDocumentSchema.fields,
+});
+
+export type GatePendingFile = Schema.Schema.Type<typeof GatePendingFileSchema>;
 
 export const decodeGatePendingFile = Schema.decodeUnknownEither(GatePendingFileSchema);
-export const encodeGatePendingDocument = Schema.encodeSync(GatePendingDocumentSchema);
+export const encodeGatePendingFile = Schema.encodeSync(GatePendingFileSchema);

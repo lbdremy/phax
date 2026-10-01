@@ -2,7 +2,9 @@ import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   readComplianceReviewFile,
+  readGateAttributionFile,
   readPersisted,
+  readPhaseFileReconciliationFile,
   readPhaxPlanFile,
   readPlanApprovalsFile,
   readPlanDocumentFile,
@@ -323,5 +325,48 @@ describe("format readers", () => {
     expect(left(readRecordManifestFile("record.json", [])).message).toBe(
       "record.json: a record manifest is a JSON object",
     );
+  });
+
+  type TimelineReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  type TimelineFormat = "gate-attribution" | "phase-file-reconciliation";
+  it.each<readonly [TimelineFormat, TimelineReader, string, string, string]>([
+    [
+      "gate-attribution",
+      readGateAttributionFile,
+      "gate attribution",
+      `${RUN_DIR}/phase-01/gate-attribution.json`,
+      "steps",
+    ],
+    [
+      "phase-file-reconciliation",
+      readPhaseFileReconciliationFile,
+      "phase file reconciliation",
+      `${RUN_DIR}/phase-01/file-reconciliation.json`,
+      "hasDeviations",
+    ],
+  ])("%s: reads both shapes to the same in-memory value", (id, read, label, file, wrongKey) => {
+    // The pre-schema file never carried a version: it is the in-memory value as it is.
+    const expected = preSchemaDocuments[id];
+    const fromPreSchema = right(read(file, preSchemaDocuments[id]));
+    const fromCurrent = right(read(file, validDocuments[id]));
+    expect(fromPreSchema).toEqual(expected);
+    expect(fromCurrent).toEqual(expected);
+    expect(fromCurrent).not.toHaveProperty("$schema");
+
+    // Both shapes ignore an unknown key, as they always have.
+    expect(right(read(file, withKey(preSchemaDocuments[id], "extra", true)))).toMatchObject(
+      expected,
+    );
+    expect(right(read(file, withKey(validDocuments[id], "extra", true)))).toMatchObject(expected);
+
+    const rejected = left(read(file, withKey(preSchemaDocuments[id], wrongKey, "none")));
+    expect(rejected.format).toBe(id);
+    expect(rejected.message).toMatch(new RegExp(`^${file}: ${label} without \\$schema`));
+
+    // A $schema document is never rescued by the pre-schema decoder.
+    const wrongUrl = withKey(validDocuments[id], "$schema", schemaUrl("registry", PHAX_RELEASE));
+    const refused = left(read(file, wrongUrl));
+    expect(refused.message).toMatch(new RegExp(`^${file}: .*\\$schema`));
+    expect(refused.message).not.toContain("without $schema");
   });
 });

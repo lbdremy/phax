@@ -87,6 +87,8 @@ import {
   parseSpecDocument,
   toLatestAuthoringRecordManifest,
   toLatestComplianceReview,
+  toLatestGateAttribution,
+  toLatestGateDiagnostics,
   toLatestGatePending,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
@@ -113,10 +115,19 @@ import type {
   ComplianceReview as PhaxComplianceReview,
   ComplianceReviewFile as PhaxComplianceReviewFile,
 } from "../../src/schemas/complianceReview.js";
-import type { GateAttribution as PhaxGateAttribution } from "../../src/schemas/gateAttribution.js";
-import type { GateDiagnosticsDocument } from "../../src/schemas/gateDiagnostics.js";
-import type { GatePendingDocument } from "../../src/schemas/gatePending.js";
-import type { PhaseFileReconciliation as PhaxPhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
+import type {
+  GateAttribution as PhaxGateAttribution,
+  GateAttributionFile as PhaxGateAttributionFile,
+} from "../../src/schemas/gateAttribution.js";
+import type {
+  GateDiagnosticsDocument,
+  GateDiagnosticsFile,
+} from "../../src/schemas/gateDiagnostics.js";
+import type { GatePendingDocument, GatePendingFile } from "../../src/schemas/gatePending.js";
+import type {
+  PhaseFileReconciliation as PhaxPhaseFileReconciliation,
+  PhaseFileReconciliationFile as PhaxPhaseFileReconciliationFile,
+} from "../../src/schemas/reconciliation.js";
 import type {
   PhaxPlan as PhaxPhaxPlan,
   PhaxPlanFile as PhaxPhaxPlanFile,
@@ -306,7 +317,7 @@ if (document.ok) {
     void exact;
   }
   if (document.format === "phase-file-reconciliation" && document.shape === "next") {
-    const exact: Equals<typeof document.value, PhaxPhaseFileReconciliation> = true;
+    const exact: Equals<typeof document.value, PhaxPhaseFileReconciliationFile> = true;
     void exact;
   }
 }
@@ -387,13 +398,13 @@ const parseValues: [
     Value<typeof parseAuthoringRecordManifest>,
     FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifestFile
   >,
-  Equals<Value<typeof parseGateAttribution>, FrozenGateAttribution | PhaxGateAttribution>,
+  Equals<Value<typeof parseGateAttribution>, FrozenGateAttribution | PhaxGateAttributionFile>,
   Equals<
     Value<typeof parsePhaseFileReconciliation>,
-    FrozenPhaseFileReconciliation | PhaxPhaseFileReconciliation
+    FrozenPhaseFileReconciliation | PhaxPhaseFileReconciliationFile
   >,
-  Equals<Value<typeof parseGateDiagnostics>, FrozenGateDiagnostics | GateDiagnosticsDocument>,
-  Equals<Value<typeof parseGatePending>, FrozenGatePending | GatePendingDocument>,
+  Equals<Value<typeof parseGateDiagnostics>, FrozenGateDiagnostics | GateDiagnosticsFile>,
+  Equals<Value<typeof parseGatePending>, FrozenGatePending | GatePendingFile>,
 ] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
 void parseValues;
 
@@ -402,7 +413,7 @@ const shapeValues: [
   Equals<ShapeValue<typeof parseRegistry, "pre-schema">, FrozenRegistry>,
   Equals<ShapeValue<typeof parseRegistry, "next">, PhaxRegistryFile>,
   Equals<ShapeValue<typeof parseGatePending, "pre-schema">, FrozenGatePending>,
-  Equals<ShapeValue<typeof parseGatePending, "next">, GatePendingDocument>,
+  Equals<ShapeValue<typeof parseGatePending, "next">, GatePendingFile>,
 ] = [true, true, true, true];
 void shapeValues;
 
@@ -426,8 +437,7 @@ const frozenTypes: [
 ] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
 void frozenTypes;
 
-// Each Latest type drops version from phax's type; a format that writes $schema
-// has phax's in-memory type; the timeline formats carry no version
+// Each Latest type is phax's in-memory type: no version, no $schema
 const latestTypes: [
   Equals<LatestRegistry, PhaxRegistry>,
   Equals<LatestRunStatus, PhaxRunStatus>,
@@ -504,12 +514,24 @@ declare const latestReview: LatestComplianceReview;
 void latestReview.version;
 // @ts-expect-error: the in-memory compliance review carries no $schema
 void latestReview.$schema;
+declare const latestAttribution: LatestGateAttribution;
+// @ts-expect-error: the in-memory gate attribution carries no $schema
+void latestAttribution.$schema;
+declare const latestReconciliation: LatestPhaseFileReconciliation;
+// @ts-expect-error: the in-memory file reconciliation carries no $schema
+void latestReconciliation.$schema;
+declare const latestDiagnostics: LatestGateDiagnostics;
+// @ts-expect-error: the in-memory gate diagnostics document carries no $schema
+void latestDiagnostics.$schema;
+declare const latestPending: LatestGatePending;
+// @ts-expect-error: the in-memory gate pending document carries no $schema
+void latestPending.$schema;
 
 // Each toLatest takes phax's own type and the frozen pre-schema type
 declare const phaxRunStatus: PhaxRunStatusFile;
 declare const phaxPhaxPlan: PhaxPhaxPlanFile;
 declare const phaxSpecDocument: PhaxSpecDocumentFile;
-declare const phaxReconciliation: PhaxPhaseFileReconciliation;
+declare const phaxReconciliation: PhaxPhaseFileReconciliationFile;
 const upgradedRunStatus: LatestRunStatus = toLatestRunStatus(phaxRunStatus);
 const upgradedPhaxPlan: LatestPhaxPlan = toLatestPhaxPlan(phaxPhaxPlan);
 const upgradedSpecDocument: LatestSpecDocument = toLatestSpecDocument(phaxSpecDocument);
@@ -569,8 +591,20 @@ const toLatestParameters: [
     Parameters<typeof toLatestAuthoringRecordManifest>,
     [value: FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifestFile]
   >,
-  Equals<Parameters<typeof toLatestGatePending>, [value: FrozenGatePending | GatePendingDocument]>,
-] = [true, true, true, true, true, true, true, true, true, true, true, true];
+  Equals<
+    Parameters<typeof toLatestGateAttribution>,
+    [value: FrozenGateAttribution | PhaxGateAttributionFile]
+  >,
+  Equals<
+    Parameters<typeof toLatestPhaseFileReconciliation>,
+    [value: FrozenPhaseFileReconciliation | PhaxPhaseFileReconciliationFile]
+  >,
+  Equals<
+    Parameters<typeof toLatestGateDiagnostics>,
+    [value: FrozenGateDiagnostics | GateDiagnosticsFile]
+  >,
+  Equals<Parameters<typeof toLatestGatePending>, [value: FrozenGatePending | GatePendingFile]>,
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
 void toLatestParameters;
 
 // ── run-directory formats
@@ -668,18 +702,19 @@ if (anyManifest.ok) {
 
 // ── record timeline files
 
-// Each package type is phax's own type, both ways, under the spec's names (§5.20)
-const gateAttributionIsPhax: Equals<GateAttribution, PhaxGateAttribution> = true;
-const reconciliationIsPhax: Equals<PhaseFileReconciliation, PhaxPhaseFileReconciliation> = true;
-const gateDiagnosticsIsPhax: Equals<GateDiagnostics, GateDiagnosticsDocument> = true;
-const gatePendingIsPhax: Equals<GatePending, GatePendingDocument> = true;
+// Each package type is phax's own file type, both ways, under the spec's names
+// (§5.20); its Latest type is phax's in-memory type, which never had a version
+const gateAttributionIsPhax: Equals<GateAttribution, PhaxGateAttributionFile> = true;
+const reconciliationIsPhax: Equals<PhaseFileReconciliation, PhaxPhaseFileReconciliationFile> = true;
+const gateDiagnosticsIsPhax: Equals<GateDiagnostics, GateDiagnosticsFile> = true;
+const gatePendingIsPhax: Equals<GatePending, GatePendingFile> = true;
 void gateAttributionIsPhax;
 void reconciliationIsPhax;
 void gateDiagnosticsIsPhax;
 void gatePendingIsPhax;
-declare const phaxGateDiagnostics: GateDiagnosticsDocument;
+declare const phaxGateDiagnostics: GateDiagnosticsFile;
 declare const packageGateDiagnostics: GateDiagnostics;
 const gateDiagnosticsToPackage: GateDiagnostics = phaxGateDiagnostics;
-const gateDiagnosticsToPhax: GateDiagnosticsDocument = packageGateDiagnostics;
+const gateDiagnosticsToPhax: GateDiagnosticsFile = packageGateDiagnostics;
 void gateDiagnosticsToPackage;
 void gateDiagnosticsToPhax;
