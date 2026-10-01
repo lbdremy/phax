@@ -15,9 +15,10 @@ import {
   type Shape,
 } from "../../../packages/schemas/src/shapes.js";
 import { FORMAT_IDS, schemaUrl } from "../../../src/schemas/schemaUrl.js";
-import { WRITES_SCHEMA, validDocuments } from "./documents.js";
+import { WRITES_SCHEMA, preSchemaDocuments, validDocuments } from "./documents.js";
 
-const v2Manifest = validDocuments["phase-record-manifest"];
+// A version-2 phase manifest as 0.16.0 wrote it: no `$schema`.
+const v2Manifest = preSchemaDocuments["phase-record-manifest"];
 
 // Derived from the package version, so a release bump never breaks these tests.
 const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
@@ -135,7 +136,8 @@ describe("parseDocument", () => {
       ...v2Manifest,
       $schema: schemaUrl("phase-record-manifest", PACKAGE_VERSION),
     });
-    expectFailure(result, "$schema");
+    // next carries no `version`, and the manifest rejects unknown keys.
+    expectFailure(result, "version");
     expect(result.ok ? "" : result.error.message).not.toContain("shape is known");
   });
 

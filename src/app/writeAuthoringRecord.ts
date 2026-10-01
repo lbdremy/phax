@@ -9,6 +9,7 @@ import {
   type AuthoringRecordManifest,
   type AuthoringRecordOutcome,
 } from "../schemas/authoringRecord.js";
+import { withSchemaUrl } from "../schemas/persisted.js";
 import type { ProviderId } from "../schemas/providerId.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import {
@@ -86,7 +87,6 @@ export function writeAuthoringRecord(
     });
 
     const manifest: AuthoringRecordManifest = {
-      version: 1,
       kind: "authoring",
       authoringId: input.authoringId,
       artifact: input.artifact,
@@ -114,7 +114,7 @@ export function writeAuthoringRecord(
       folder: input.sessionFolder,
       key,
       artifactPaths,
-      manifest: encodeAuthoringRecordManifest(manifest),
+      manifest: encodeAuthoringRecordManifest(withSchemaUrl("authoring-record-manifest", manifest)),
       message,
     });
 

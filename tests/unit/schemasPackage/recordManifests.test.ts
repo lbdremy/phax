@@ -15,10 +15,20 @@ import {
 } from "../../../packages/schemas/src/shapes.js";
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
-import { validDocuments, versionOnePhaseRecordManifest, withKey, withoutKey } from "./documents.js";
+import {
+  preSchemaDocuments,
+  validDocuments,
+  versionOnePhaseRecordManifest,
+  withKey,
+  withoutKey,
+} from "./documents.js";
 
-const authoring = validDocuments["authoring-record-manifest"];
-const phase = validDocuments["phase-record-manifest"];
+// As 0.16.0 wrote them: `version`, no `$schema`.
+const authoring = preSchemaDocuments["authoring-record-manifest"];
+const phase = preSchemaDocuments["phase-record-manifest"];
+// As phax writes them now: `$schema` first, no `version`.
+const writtenAuthoring = validDocuments["authoring-record-manifest"];
+const writtenPhase = validDocuments["phase-record-manifest"];
 
 // Derived from the package version, so a release bump never breaks these tests.
 const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
@@ -30,18 +40,35 @@ const AUTHORING = [
 ] as const;
 
 describe("the authoring record manifest", () => {
-  it.each(AUTHORING)(
-    "parses a manifest %s as shape pre-schema, with phax's value",
-    (_label, document) => {
-      const phax = decodeAuthoringRecordManifestFile(document);
-      if (Either.isLeft(phax)) throw new Error("document rejected by phax");
-      expect(parseAuthoringRecordManifest(document)).toEqual({
-        ok: true,
-        shape: "pre-schema",
-        value: phax.right,
-      });
-    },
-  );
+  it.each(AUTHORING)("parses a manifest %s as shape pre-schema", (_label, document) => {
+    expect(parseAuthoringRecordManifest(document)).toEqual({
+      ok: true,
+      shape: "pre-schema",
+      value: document,
+    });
+  });
+
+  it("parses a manifest phax writes as shape next, with phax's value", () => {
+    expect(Object.keys(writtenAuthoring)[0]).toBe("$schema");
+    expect(writtenAuthoring).not.toHaveProperty("version");
+    const phax = decodeAuthoringRecordManifestFile(writtenAuthoring);
+    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    expect(parseAuthoringRecordManifest(writtenAuthoring)).toEqual({
+      ok: true,
+      shape: "next",
+      value: phax.right,
+    });
+  });
+
+  it("upgrades both shapes to the same value, keeping kind authoring", () => {
+    const before = parseAuthoringRecordManifest(authoring);
+    const after = parseAuthoringRecordManifest(writtenAuthoring);
+    if (!before.ok || !after.ok) throw new Error("expected both manifests to parse");
+    const latest = toLatestAuthoringRecordManifest(after.value);
+    expect(latest).toEqual(toLatestAuthoringRecordManifest(before.value));
+    expect(latest).not.toHaveProperty("$schema");
+    expect(latest.kind).toBe("authoring");
+  });
 
   it.each(AUTHORING)(
     "upgrades a manifest %s by dropping version, never adding sourceSha",
@@ -90,6 +117,34 @@ describe("parseRecordManifest", () => {
       format: "phase-record-manifest",
       shape: "pre-schema",
       value: phase,
+    });
+  });
+
+  it("reads the manifests phax writes by their $schema, as shape next", () => {
+    expect(parseRecordManifest(writtenPhase)).toEqual({
+      ok: true,
+      format: "phase-record-manifest",
+      shape: "next",
+      value: writtenPhase,
+    });
+    expect(parseRecordManifest(writtenAuthoring)).toEqual({
+      ok: true,
+      format: "authoring-record-manifest",
+      shape: "next",
+      value: writtenAuthoring,
+    });
+  });
+
+  it("identifies a manifest phax writes from its content alone (ac-identify-alone)", () => {
+    expect(parseDocument(writtenPhase)).toMatchObject({
+      ok: true,
+      format: "phase-record-manifest",
+      shape: "next",
+    });
+    expect(parseDocument(writtenAuthoring)).toMatchObject({
+      ok: true,
+      format: "authoring-record-manifest",
+      shape: "next",
     });
   });
 

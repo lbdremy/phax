@@ -1,6 +1,12 @@
-import { Schema } from "effect";
+import { Schema, type Types } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
-import { RecordShapeSchema, RunRecordManifestSchema, TokenUsageSchema } from "./runRecord.js";
+import {
+  RecordShapeSchema,
+  RunRecordManifestFileSchema,
+  TokenUsageSchema,
+  type RunRecordManifest,
+} from "./runRecord.js";
+import { schemaUrlField } from "./schemaUrl.js";
 
 /**
  * An authoring session ends in one of two ways: its artifact commit landed, or
@@ -14,13 +20,11 @@ export type AuthoringRecordOutcome = Schema.Schema.Type<typeof AuthoringRecordOu
 /**
  * The manifest (`record.json`) of one headless authoring session, keyed
  * `authoring/<authoringId>` on `phax/records/v1`. A distinct kind beside the
- * phase manifest (`RunRecordManifestSchema`), which stays unchanged. Like the
- * phase manifest, `sourceSha` is a back-reference to the artifact commit and
- * is absent when the session did not commit; the record's address is the
- * `Authoring-Id`.
+ * phase manifest (`RunRecordManifestFileSchema`). Like the phase manifest,
+ * `sourceSha` is a back-reference to the artifact commit and is absent when
+ * the session did not commit; the record's address is the `Authoring-Id`.
  */
-export const AuthoringRecordManifestSchema = Schema.Struct({
-  version: Schema.Literal(1),
+const authoringRecordManifestFields = {
   kind: Schema.Literal("authoring"),
   authoringId: Schema.NonEmptyString,
   /** Repo-relative path of the artifact the session authored (or would have). */
@@ -33,37 +37,49 @@ export const AuthoringRecordManifestSchema = Schema.Struct({
   effort: Schema.NonEmptyString,
   outcome: AuthoringRecordOutcomeSchema,
   usage: TokenUsageSchema,
-});
+};
 
-export type AuthoringRecordManifest = Schema.Schema.Type<typeof AuthoringRecordManifestSchema>;
+/** An authoring record manifest in memory: never a `version`, never a `$schema`. */
+export type AuthoringRecordManifest = Types.Simplify<
+  Schema.Struct.Type<typeof authoringRecordManifestFields>
+>;
 
 /**
- * An authoring record's `record.json` as phax writes it: today's schema until
- * the manifest gains `$schema`.
- * @alias
+ * An authoring record's `record.json` as phax writes it: `$schema` first, then
+ * the manifest's fields. Unknown keys are rejected.
  */
-export const AuthoringRecordManifestFileSchema = AuthoringRecordManifestSchema;
+export const AuthoringRecordManifestFileSchema = Schema.Struct({
+  $schema: schemaUrlField("authoring-record-manifest"),
+  ...authoringRecordManifestFields,
+});
+
+export type AuthoringRecordManifestFile = Schema.Schema.Type<
+  typeof AuthoringRecordManifestFileSchema
+>;
 
 export const decodeAuthoringRecordManifestFile = Schema.decodeUnknownEither(
   AuthoringRecordManifestFileSchema,
   { onExcessProperty: "error" },
 );
 
-export const encodeAuthoringRecordManifest = Schema.encodeSync(AuthoringRecordManifestSchema);
+export const encodeAuthoringRecordManifest = Schema.encodeSync(AuthoringRecordManifestFileSchema);
 
-/** Any `record.json` on the records branch: a phase record or an authoring record. */
-export const RecordManifestSchema = Schema.Union(
-  RunRecordManifestSchema,
-  AuthoringRecordManifestSchema,
+/** Any `record.json` on the records branch, in memory: a phase record or an authoring record. */
+export type RecordManifest = RunRecordManifest | AuthoringRecordManifest;
+
+/** Any `record.json` as phax writes it: the union of the two file schemas. */
+export const RecordManifestFileSchema = Schema.Union(
+  RunRecordManifestFileSchema,
+  AuthoringRecordManifestFileSchema,
 );
 
-export type RecordManifest = Schema.Schema.Type<typeof RecordManifestSchema>;
+export type RecordManifestFile = Schema.Schema.Type<typeof RecordManifestFileSchema>;
 
 /**
- * Any `record.json` as phax writes it: the union of the two file schemas.
+ * The `record-manifest` union the schemas package renders: the file union.
  * @alias
  */
-export const RecordManifestFileSchema = RecordManifestSchema;
+export const RecordManifestSchema = RecordManifestFileSchema;
 
 export const decodeRecordManifestFile = Schema.decodeUnknownEither(RecordManifestFileSchema, {
   onExcessProperty: "error",

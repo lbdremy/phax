@@ -6,13 +6,15 @@ import {
   TokenUsageSchema,
   UNAVAILABLE_TOKEN_USAGE,
 } from "../../src/schemas/runRecord.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const decodeTokenUsage = Schema.decodeUnknownEither(TokenUsageSchema, {
   onExcessProperty: "error",
 });
 
 const baseManifest = {
-  version: 2 as const,
+  $schema: schemaUrl("phase-record-manifest", PHAX_RELEASE),
   runId: "entire-checkpoint-spike-1786807559589",
   phaseId: "phase-01",
   shape: "skeleton" as const,
@@ -153,6 +155,20 @@ describe("RunRecordManifestSchema", () => {
     const { verifiedSurfaces: _verifiedSurfaces, ...v1Manifest } = baseManifest;
     const result = decodeRunRecordManifestFile({ ...v1Manifest, version: 1 });
     expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("rejects a manifest without $schema, with a version, or naming another format", () => {
+    const { $schema: _schema, ...withoutSchema } = baseManifest;
+    expect(Either.isLeft(decodeRunRecordManifestFile({ ...withoutSchema, version: 2 }))).toBe(true);
+    expect(Either.isLeft(decodeRunRecordManifestFile({ ...baseManifest, version: 2 }))).toBe(true);
+    expect(
+      Either.isLeft(
+        decodeRunRecordManifestFile({
+          ...baseManifest,
+          $schema: schemaUrl("authoring-record-manifest", PHAX_RELEASE),
+        }),
+      ),
+    ).toBe(true);
   });
 
   it("round-trips through encode/decode", () => {

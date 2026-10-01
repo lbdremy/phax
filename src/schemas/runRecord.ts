@@ -1,5 +1,6 @@
-import { Schema } from "effect";
+import { Schema, type Types } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
+import { schemaUrlField } from "./schemaUrl.js";
 import { SurfaceSchema } from "./surface.js";
 
 /**
@@ -92,8 +93,7 @@ export const UNAVAILABLE_TOKEN_USAGE: TokenUsage = { available: false };
  * may go stale (rebase, squash merge) and is absent for a phase that never
  * committed — it is never the record's address, which is `runId` + `phaseId`.
  */
-export const RunRecordManifestSchema = Schema.Struct({
-  version: Schema.Literal(2),
+const runRecordManifestFields = {
   runId: Schema.NonEmptyString,
   phaseId: Schema.NonEmptyString,
   shape: RecordShapeSchema,
@@ -104,19 +104,24 @@ export const RunRecordManifestSchema = Schema.Struct({
   outcome: RecordPhaseOutcomeSchema,
   usage: TokenUsageSchema,
   verifiedSurfaces: Schema.Array(SurfaceSchema),
-});
+};
 
-export type RunRecordManifest = Schema.Schema.Type<typeof RunRecordManifestSchema>;
+/** A phase record manifest in memory: never a `version`, never a `$schema`. */
+export type RunRecordManifest = Types.Simplify<Schema.Struct.Type<typeof runRecordManifestFields>>;
 
 /**
- * A phase record's `record.json` as phax writes it: today's schema until the
- * manifest gains `$schema`.
- * @alias
+ * A phase record's `record.json` as phax writes it: `$schema` first, then the
+ * manifest's fields. Unknown keys are rejected.
  */
-export const RunRecordManifestFileSchema = RunRecordManifestSchema;
+export const RunRecordManifestFileSchema = Schema.Struct({
+  $schema: schemaUrlField("phase-record-manifest"),
+  ...runRecordManifestFields,
+});
+
+export type RunRecordManifestFile = Schema.Schema.Type<typeof RunRecordManifestFileSchema>;
 
 export const decodeRunRecordManifestFile = Schema.decodeUnknownEither(RunRecordManifestFileSchema, {
   onExcessProperty: "error",
 });
 
-export const encodeRunRecordManifest = Schema.encodeSync(RunRecordManifestSchema);
+export const encodeRunRecordManifest = Schema.encodeSync(RunRecordManifestFileSchema);
