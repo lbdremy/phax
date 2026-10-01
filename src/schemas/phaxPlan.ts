@@ -86,7 +86,13 @@ export type PhaxPlan = Schema.Schema.Type<typeof PhaxPlanSchema>;
 export type PhaxPlanPhase = Schema.Schema.Type<typeof PhaseSchema>;
 export type Effort = Schema.Schema.Type<typeof EffortSchema>;
 
-export const decodePhaxPlan = Schema.decodeUnknownEither(PhaxPlanSchema, {
+/**
+ * `phax-plan.json` as phax writes it: today's schema until the phax-plan gains `$schema`.
+ * @alias
+ */
+export const PhaxPlanFileSchema = PhaxPlanSchema;
+
+export const decodePhaxPlanFile = Schema.decodeUnknownEither(PhaxPlanFileSchema, {
   onExcessProperty: "error",
 });
 

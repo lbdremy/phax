@@ -11,9 +11,9 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
-import { decodeRunStatus, decodePhaseStatus } from "../../src/schemas/status.js";
-import { decodeRegistry } from "../../src/schemas/registry.js";
+import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { decodeRunStatusFile, decodePhaseStatusFile } from "../../src/schemas/status.js";
+import { decodeRegistryFile } from "../../src/schemas/registry.js";
 
 const stateRoot = "/fake-state";
 
@@ -86,7 +86,7 @@ const rawPlan = {
   ],
 } as const;
 
-const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
 describe("createRunFolder", () => {
   it("creates plan.md, phax-plan.json, phax.json, and run-status.json", async () => {
@@ -114,7 +114,7 @@ describe("createRunFolder", () => {
 
     const raw = impl.getFile(`${stateRoot}/runs/test-project.my-run/run-status.json`);
     expect(raw).toBeDefined();
-    const decoded = decodeRunStatus(JSON.parse(raw!));
+    const decoded = decodeRunStatusFile(JSON.parse(raw!));
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
       expect(decoded.right.state).toBe("created");
@@ -133,7 +133,7 @@ describe("createRunFolder", () => {
 
     const raw = impl.getFile(`${stateRoot}/runs/test-project.my-run/phax-plan.json`);
     const parsed = JSON.parse(raw!) as unknown;
-    const decoded = decodePhaxPlan(parsed);
+    const decoded = decodePhaxPlanFile(parsed);
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
       expect(decoded.right.phases.length).toBe(2);
@@ -150,7 +150,7 @@ describe("createRunFolder", () => {
 
     const regRaw = impl.getFile(`${stateRoot}/registry.json`);
     expect(regRaw).toBeDefined();
-    const decoded = decodeRegistry(JSON.parse(regRaw!));
+    const decoded = decodeRegistryFile(JSON.parse(regRaw!));
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
       const entry = decoded.right.runs.find((r) => r.shortName === "my-run");
@@ -186,7 +186,7 @@ describe("createPhaseFolder", () => {
 
     const raw = impl.getFile(`${runPath}/phase-01/status.json`);
     expect(raw).toBeDefined();
-    const decoded = decodePhaseStatus(JSON.parse(raw!));
+    const decoded = decodePhaseStatusFile(JSON.parse(raw!));
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
       expect(decoded.right.state).toBe("pending");

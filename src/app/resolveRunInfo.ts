@@ -4,10 +4,9 @@ import { Either } from "effect";
 import type { ShortName } from "../domain/branded.js";
 import { decodeBranchName } from "../domain/branded.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
-import { decodeRunStatus, decodePhaseStatus, type PhaseStatus } from "../schemas/status.js";
-import { decodePhaxPlan } from "../schemas/phaxPlan.js";
+import type { PhaseStatus } from "../schemas/status.js";
+import { readPhaseStatusFile, readPhaxPlanFile, readRunStatusFile } from "../schemas/persisted.js";
 import { runKey } from "../domain/runRef.js";
-import { formatParseError } from "../schemas/formatError.js";
 
 export type { RunReviewInfo };
 
@@ -58,16 +57,14 @@ function loadRunReviewInfo(
   if (rawRunStatus === undefined) {
     return Either.left(`run-status.json at "${runPath}" is not valid JSON`);
   }
-  const runStatusResult = decodeRunStatus(rawRunStatus);
+  const runStatusResult = readRunStatusFile(runStatusPath, rawRunStatus);
   if (Either.isLeft(runStatusResult)) {
-    return Either.left(
-      `Invalid run-status.json at "${runPath}":\n${formatParseError(runStatusResult.left)}`,
-    );
+    return Either.left(runStatusResult.left.message);
   }
   const runStatus = runStatusResult.right;
 
-  const rawPlan = tryReadJson(join(runPath, "phax-plan.json"));
-  const planResult = decodePhaxPlan(rawPlan);
+  const planPath = join(runPath, "phax-plan.json");
+  const planResult = readPhaxPlanFile(planPath, tryReadJson(planPath));
   const plan = Either.isRight(planResult) ? planResult.right : undefined;
 
   const branch = plan?.run.branch ?? "(unknown)";
@@ -83,9 +80,10 @@ function loadRunReviewInfo(
   }
   const phaseDirs = entries.filter((e) => /^phase-\d{2}$/.test(e)).toSorted();
   for (const dir of phaseDirs) {
-    const raw = tryReadJson(join(runPath, dir, "status.json"));
+    const statusPath = join(runPath, dir, "status.json");
+    const raw = tryReadJson(statusPath);
     if (raw === undefined) continue;
-    const decoded = decodePhaseStatus(raw);
+    const decoded = readPhaseStatusFile(statusPath, raw);
     if (Either.isRight(decoded)) {
       phaseStatuses.push(decoded.right);
     }

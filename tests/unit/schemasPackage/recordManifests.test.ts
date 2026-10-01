@@ -13,7 +13,7 @@ import {
   notAnObjectMessage,
   unknownFormatMessage,
 } from "../../../packages/schemas/src/shapes.js";
-import { decodeAuthoringRecordManifest } from "../../../src/schemas/authoringRecord.js";
+import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { validDocuments, versionOnePhaseRecordManifest, withKey, withoutKey } from "./documents.js";
 
@@ -33,7 +33,7 @@ describe("the authoring record manifest", () => {
   it.each(AUTHORING)(
     "parses a manifest %s as shape pre-schema, with phax's value",
     (_label, document) => {
-      const phax = decodeAuthoringRecordManifest(document);
+      const phax = decodeAuthoringRecordManifestFile(document);
       if (Either.isLeft(phax)) throw new Error("document rejected by phax");
       expect(parseAuthoringRecordManifest(document)).toEqual({
         ok: true,

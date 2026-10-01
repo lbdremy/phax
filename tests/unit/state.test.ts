@@ -22,7 +22,7 @@ import {
   stopRun,
   TERMINAL_PHASE_STATES,
 } from "../../src/domain/state.js";
-import { decodePhaseStatus } from "../../src/schemas/status.js";
+import { decodePhaseStatusFile } from "../../src/schemas/status.js";
 
 function assertRight<T>(result: Either.Either<T, unknown>, expected: T): void {
   expect(Either.isRight(result)).toBe(true);
@@ -256,7 +256,7 @@ describe("gates_exhausted phase state", () => {
     expect(isPhaseTerminal("gates_exhausted")).toBe(false);
   });
 
-  it("decodePhaseStatus round-trips a status with state gates_exhausted", () => {
+  it("decodePhaseStatusFile round-trips a status with state gates_exhausted", () => {
     const raw = {
       version: 1,
       phaseId: "phase-01",
@@ -268,7 +268,7 @@ describe("gates_exhausted phase state", () => {
       updatedAt: "2026-06-10T00:01:00.000Z",
       branchName: "phax/plan-12--phase-01",
     };
-    const result = decodePhaseStatus(raw);
+    const result = decodePhaseStatusFile(raw);
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
       expect(result.right.state).toBe("gates_exhausted");

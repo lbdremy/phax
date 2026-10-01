@@ -1,7 +1,7 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import {
-  decodePhaseFileReconciliation,
+  decodePhaseFileReconciliationFile,
   encodePhaseFileReconciliation,
 } from "../../../src/schemas/reconciliation.js";
 
@@ -21,30 +21,30 @@ const validPersistedRecon = {
   hasDeviations: false,
 } as const;
 
-describe("decodePhaseFileReconciliation", () => {
+describe("decodePhaseFileReconciliationFile", () => {
   it("accepts a valid persisted reconciliation with phaseId", () => {
-    expect(Either.isRight(decodePhaseFileReconciliation(validPersistedRecon))).toBe(true);
+    expect(Either.isRight(decodePhaseFileReconciliationFile(validPersistedRecon))).toBe(true);
   });
 
   it("rejects an object missing phaseId", () => {
     const { phaseId: _, ...noPhaseId } = validPersistedRecon;
-    expect(Either.isLeft(decodePhaseFileReconciliation(noPhaseId))).toBe(true);
+    expect(Either.isLeft(decodePhaseFileReconciliationFile(noPhaseId))).toBe(true);
   });
 
   it("rejects an empty string phaseId", () => {
     expect(
-      Either.isLeft(decodePhaseFileReconciliation({ ...validPersistedRecon, phaseId: "" })),
+      Either.isLeft(decodePhaseFileReconciliationFile({ ...validPersistedRecon, phaseId: "" })),
     ).toBe(true);
   });
 
   it("rejects an object missing hasDeviations", () => {
     const { hasDeviations: _, ...noHasDeviation } = validPersistedRecon;
-    expect(Either.isLeft(decodePhaseFileReconciliation(noHasDeviation))).toBe(true);
+    expect(Either.isLeft(decodePhaseFileReconciliationFile(noHasDeviation))).toBe(true);
   });
 
   it("round-trips encode/decode", () => {
     const encoded = encodePhaseFileReconciliation(validPersistedRecon);
-    const decoded = Either.getOrThrow(decodePhaseFileReconciliation(encoded));
+    const decoded = Either.getOrThrow(decodePhaseFileReconciliationFile(encoded));
     expect(decoded.phaseId).toBe("phase-01");
     expect(decoded.createdAsPlanned).toEqual(["src/foo.ts"]);
     expect(decoded.hasDeviations).toBe(false);
@@ -56,7 +56,7 @@ describe("decodePhaseFileReconciliation", () => {
       renames: [{ from: "src/old.ts", to: "src/new.ts" }],
     };
     const encoded = encodePhaseFileReconciliation(withRenames);
-    const decoded = Either.getOrThrow(decodePhaseFileReconciliation(encoded));
+    const decoded = Either.getOrThrow(decodePhaseFileReconciliationFile(encoded));
     expect(decoded.renames).toEqual([{ from: "src/old.ts", to: "src/new.ts" }]);
   });
 });

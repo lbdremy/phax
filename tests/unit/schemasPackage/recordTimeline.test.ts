@@ -16,10 +16,10 @@ import {
   type GatePending,
 } from "../../../packages/schemas/src/index.js";
 import { newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
-import { decodeGateAttribution } from "../../../src/schemas/gateAttribution.js";
+import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnostics.js";
-import { decodeGatePendingDocument } from "../../../src/schemas/gatePending.js";
-import { decodePhaseFileReconciliation } from "../../../src/schemas/reconciliation.js";
+import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
+import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import { schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { validDocuments, withKey } from "./documents.js";
 
@@ -44,13 +44,13 @@ const FORMATS: ReadonlyArray<TimelineFormat> = [
   {
     id: "gate-attribution",
     parse: parseGateAttribution,
-    phax: decodeGateAttribution,
+    phax: decodeGateAttributionFile,
     toLatest: toLatestGateAttribution,
   },
   {
     id: "phase-file-reconciliation",
     parse: parsePhaseFileReconciliation,
-    phax: decodePhaseFileReconciliation,
+    phax: decodePhaseFileReconciliationFile,
     toLatest: toLatestPhaseFileReconciliation,
   },
   {
@@ -62,7 +62,7 @@ const FORMATS: ReadonlyArray<TimelineFormat> = [
   {
     id: "gate-pending",
     parse: parseGatePending,
-    phax: decodeGatePendingDocument,
+    phax: decodeGatePendingFile,
     toLatest: toLatestGatePending,
   },
 ];

@@ -6,11 +6,11 @@ import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
 import { authoringRecordKey } from "./writeAuthoringRecord.js";
 import type { RunRecordManifest } from "../schemas/runRecord.js";
 import {
-  decodeRecordManifest,
   isAuthoringRecordManifest,
   type AuthoringRecordManifest,
   type RecordManifest,
 } from "../schemas/authoringRecord.js";
+import { readRecordManifestFile } from "../schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 
 /** The records branch as a local ref — same value in the source repo (in-repo
@@ -260,9 +260,15 @@ function loadRecord(
       // clean failure as a schema-invalid one, never an uncaught defect.
       return yield* Effect.fail(malformed(prefix, recordCommitSha, String(cause)));
     }
-    const decoded = decodeRecordManifest(manifestJson);
+    // The file is named `<commit>:<path>`, as git names a blob in a tree.
+    const decoded = readRecordManifestFile(
+      `${recordCommitSha}:${manifestEntry.path}`,
+      manifestJson,
+    );
     if (Either.isLeft(decoded)) {
-      return yield* Effect.fail(malformed(prefix, recordCommitSha, decoded.left.message));
+      return yield* Effect.fail(
+        new GitError({ message: decoded.left.message, command: "records explain" }),
+      );
     }
     const manifest = decoded.right;
 

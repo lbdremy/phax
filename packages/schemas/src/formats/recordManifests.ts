@@ -4,8 +4,8 @@
 // shape, `next`, is phax's own schema and decoder. The package declares none
 // of its own.
 import {
-  AuthoringRecordManifestSchema,
-  decodeAuthoringRecordManifest,
+  AuthoringRecordManifestFileSchema,
+  decodeAuthoringRecordManifestFile,
   type AuthoringRecordManifest,
 } from "../../../../src/schemas/authoringRecord.js";
 import {
@@ -19,8 +19,8 @@ import {
   type PhaseRecordManifestPreSchema,
 } from "../../../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import {
-  RunRecordManifestSchema,
-  decodeRunRecordManifest,
+  RunRecordManifestFileSchema,
+  decodeRunRecordManifestFile,
   type RunRecordManifest,
 } from "../../../../src/schemas/runRecord.js";
 import { isFormatId, parseSchemaUrl } from "../../../../src/schemas/schemaUrl.js";
@@ -42,7 +42,7 @@ import {
 // ── phase record manifest
 
 /** A phase record's `record.json` (format id `phase-record-manifest`), as phax writes it. */
-export const PhaseRecordManifestSchema = RunRecordManifestSchema;
+export const PhaseRecordManifestSchema = RunRecordManifestFileSchema;
 export type PhaseRecordManifest = RunRecordManifest;
 
 export type PhaseRecordManifestShapes = {
@@ -63,7 +63,7 @@ export const phaseRecordManifestFormat = defineFormat<PhaseRecordManifestShapes>
   releases: [],
   current: {
     name: "next",
-    shape: { schema: RunRecordManifestSchema, decode: decodeRunRecordManifest },
+    shape: { schema: RunRecordManifestFileSchema, decode: decodeRunRecordManifestFile },
   },
 });
 
@@ -102,7 +102,10 @@ export const authoringRecordManifestFormat = defineFormat<AuthoringRecordManifes
   releases: [],
   current: {
     name: "next",
-    shape: { schema: AuthoringRecordManifestSchema, decode: decodeAuthoringRecordManifest },
+    shape: {
+      schema: AuthoringRecordManifestFileSchema,
+      decode: decodeAuthoringRecordManifestFile,
+    },
   },
 });
 

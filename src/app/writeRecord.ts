@@ -6,7 +6,7 @@ import { FileSystem, type FileSystemOps, type FsError } from "../ports/fs.js";
 import { type Git, type GitError } from "../ports/git.js";
 import { type GitHub } from "../ports/github.js";
 import type { ProviderId } from "../schemas/providerId.js";
-import { decodeGateAttribution } from "../schemas/gateAttribution.js";
+import { readGateAttributionFile } from "../schemas/persisted.js";
 import type { Surface } from "../schemas/surface.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { encodeRunRecordManifest, type RecordPhaseOutcome } from "../schemas/runRecord.js";
@@ -141,7 +141,7 @@ function computeVerifiedSurfacesForPhase(
     } catch {
       return [];
     }
-    const decoded = decodeGateAttribution(json);
+    const decoded = readGateAttributionFile(attributionPath, json);
     if (Either.isLeft(decoded)) return [];
     return computeVerifiedSurfaces(decoded.right);
   });

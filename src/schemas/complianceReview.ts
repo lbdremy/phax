@@ -45,6 +45,18 @@ export const ComplianceReviewSchema = Schema.Struct({
 });
 export type ComplianceReview = Schema.Schema.Type<typeof ComplianceReviewSchema>;
 
+// The verdict the review agent writes: decoded with this contract, never through the bridge.
 export const decodeComplianceReview = Schema.decodeUnknownEither(ComplianceReviewSchema, {
+  onExcessProperty: "error",
+});
+
+/**
+ * `compliance-review.json` as phax persists it: the agent contract until the
+ * review file gains `$schema`.
+ * @alias
+ */
+export const ComplianceReviewFileSchema = ComplianceReviewSchema;
+
+export const decodeComplianceReviewFile = Schema.decodeUnknownEither(ComplianceReviewFileSchema, {
   onExcessProperty: "error",
 });

@@ -4,13 +4,16 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { APPROVALS_FILE_PATH, SPEC_APPROVALS_FILE_PATH } from "../domain/artifact/lineage.js";
 import { fingerprintSource } from "../domain/artifact/frontmatter.js";
 import {
-  decodeApprovalRecordFile,
   encodeApprovalRecordFile,
   type ApprovalRecord,
   type ApprovalRecordFile,
 } from "../schemas/approvalRecord.js";
 import {
-  decodeSpecApprovalRecordFile,
+  readPlanApprovalsFile,
+  readSpecApprovalsFile,
+  type PersistedReadError,
+} from "../schemas/persisted.js";
+import {
   encodeSpecApprovalRecordFile,
   type SpecApprovalRecord,
   type SpecApprovalRecordFile,
@@ -26,7 +29,7 @@ function sortedKeys<R>(records: Record<string, R>): Record<string, R> {
 
 function readStoreFile<T>(
   filePath: string,
-  decode: (u: unknown) => Either.Either<T, unknown>,
+  read: (file: string, input: unknown) => Either.Either<T, PersistedReadError>,
   empty: T,
 ): Effect.Effect<T, FsError, FileSystem> {
   return Effect.gen(function* () {
@@ -39,7 +42,7 @@ function readStoreFile<T>(
     } catch {
       return empty;
     }
-    const decoded = decode(parsed);
+    const decoded = read(filePath, parsed);
     return Either.isLeft(decoded) ? empty : decoded.right;
   });
 }
@@ -49,7 +52,7 @@ function readStoreFile<T>(
 const EMPTY_PLAN_STORE: ApprovalRecordFile = { version: 1, records: {} };
 
 export function readApprovalStore(): Effect.Effect<ApprovalRecordFile, FsError, FileSystem> {
-  return readStoreFile(APPROVALS_FILE_PATH, decodeApprovalRecordFile, EMPTY_PLAN_STORE);
+  return readStoreFile(APPROVALS_FILE_PATH, readPlanApprovalsFile, EMPTY_PLAN_STORE);
 }
 
 function writePlanApprovalStore(
@@ -90,7 +93,7 @@ export function removeApprovalRecord(planPath: string): Effect.Effect<void, FsEr
 const EMPTY_SPEC_STORE: SpecApprovalRecordFile = { version: 1, records: {} };
 
 function readSpecApprovalStore(): Effect.Effect<SpecApprovalRecordFile, FsError, FileSystem> {
-  return readStoreFile(SPEC_APPROVALS_FILE_PATH, decodeSpecApprovalRecordFile, EMPTY_SPEC_STORE);
+  return readStoreFile(SPEC_APPROVALS_FILE_PATH, readSpecApprovalsFile, EMPTY_SPEC_STORE);
 }
 
 function writeSpecApprovalStore(

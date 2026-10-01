@@ -20,7 +20,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlan, type PhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { decodePhaxPlanFile, type PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { decodeSecurityPosture } from "../../src/schemas/securityPosture.js";
 
 const HANDOFF_CONTENT = [
@@ -40,7 +40,7 @@ const shortName = Either.getOrThrow(decodeShortName("grant-run"));
 
 function makePlan(plannedFilesToEdit: readonly string[]): PhaxPlan {
   return Either.getOrThrow(
-    decodePhaxPlan({
+    decodePhaxPlanFile({
       version: 1,
       run: {
         shortName: "grant-run",

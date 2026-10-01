@@ -37,8 +37,15 @@ export const AuthoringRecordManifestSchema = Schema.Struct({
 
 export type AuthoringRecordManifest = Schema.Schema.Type<typeof AuthoringRecordManifestSchema>;
 
-export const decodeAuthoringRecordManifest = Schema.decodeUnknownEither(
-  AuthoringRecordManifestSchema,
+/**
+ * An authoring record's `record.json` as phax writes it: today's schema until
+ * the manifest gains `$schema`.
+ * @alias
+ */
+export const AuthoringRecordManifestFileSchema = AuthoringRecordManifestSchema;
+
+export const decodeAuthoringRecordManifestFile = Schema.decodeUnknownEither(
+  AuthoringRecordManifestFileSchema,
   { onExcessProperty: "error" },
 );
 
@@ -52,7 +59,13 @@ export const RecordManifestSchema = Schema.Union(
 
 export type RecordManifest = Schema.Schema.Type<typeof RecordManifestSchema>;
 
-export const decodeRecordManifest = Schema.decodeUnknownEither(RecordManifestSchema, {
+/**
+ * Any `record.json` as phax writes it: the union of the two file schemas.
+ * @alias
+ */
+export const RecordManifestFileSchema = RecordManifestSchema;
+
+export const decodeRecordManifestFile = Schema.decodeUnknownEither(RecordManifestFileSchema, {
   onExcessProperty: "error",
 });
 

@@ -6,10 +6,10 @@ import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
 import { RECORDS_REF } from "./recordsExplain.js";
 import type { RecordPhaseOutcome, RecordShape } from "../schemas/runRecord.js";
 import {
-  decodeRecordManifest,
   isAuthoringRecordManifest,
   type AuthoringRecordOutcome,
 } from "../schemas/authoringRecord.js";
+import { readRecordManifestFile } from "../schemas/persisted.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import type { Surface } from "../schemas/surface.js";
@@ -102,7 +102,7 @@ export function listRecords(
         // schema-invalid one: skip it rather than crashing the whole listing.
         continue;
       }
-      const decoded = decodeRecordManifest(json);
+      const decoded = readRecordManifestFile(`${sha}:${manifestEntry.path}`, json);
       if (Either.isLeft(decoded)) continue;
       const manifest = decoded.right;
       if (isAuthoringRecordManifest(manifest)) {

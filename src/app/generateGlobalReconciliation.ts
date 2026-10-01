@@ -10,7 +10,7 @@ import {
 import { makeArtifactGeneratedTelemetryEvent } from "../domain/telemetry/events.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
-import { decodePhaseFileReconciliation } from "../schemas/reconciliation.js";
+import { readPhaseFileReconciliationFile } from "../schemas/persisted.js";
 import type { PhaseFileReconciliation } from "../schemas/reconciliation.js";
 
 export interface GenerateGlobalReconciliationOpts {
@@ -55,7 +55,7 @@ export function generateGlobalReconciliation(
         continue;
       }
 
-      const decoded = decodePhaseFileReconciliation(parsed);
+      const decoded = readPhaseFileReconciliationFile(jsonPath, parsed);
       if (Either.isLeft(decoded)) {
         missingPhases.push(phaseId);
         missingPaths.push(jsonPath);

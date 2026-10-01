@@ -21,7 +21,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -75,7 +75,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
   });
 
   it("writes file-reconciliation.json and .md with correct classification", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {
@@ -204,7 +204,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
   });
 
   it("writes no-deviation report when actual changes match planned exactly", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {

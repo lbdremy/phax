@@ -20,8 +20,8 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlan, type PhaxPlan } from "../../src/schemas/phaxPlan.js";
-import { decodeRunStatus } from "../../src/schemas/status.js";
+import { decodePhaxPlanFile, type PhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { decodeRunStatusFile } from "../../src/schemas/status.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -51,7 +51,7 @@ function makePlan(skillPhaseIndex: number): PhaxPlan {
     commit: { subject: `feat: phase ${n}`, body: `Phase ${n}.` },
   });
   return Either.getOrThrow(
-    decodePhaxPlan({
+    decodePhaxPlanFile({
       version: 1,
       run: {
         shortName: "skill-run",
@@ -124,7 +124,7 @@ function makeLayers() {
 // Mirrors `phax resume`: decode run-status.json and inherit the recorded consent.
 async function readRecordedConsent(runPath: string): Promise<boolean> {
   const raw = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as unknown;
-  const status = Either.getOrThrow(decodeRunStatus(raw));
+  const status = Either.getOrThrow(decodeRunStatusFile(raw));
   return status.allowSkillEdits === true;
 }
 

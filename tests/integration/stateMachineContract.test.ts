@@ -14,7 +14,7 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -62,7 +62,7 @@ describe("State Machine Contract", () => {
   });
 
   it("snapshots the ordered semantic trace for a happy-path one-phase run", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {
@@ -177,7 +177,7 @@ describe("State Machine Contract", () => {
   });
 
   it("snapshots the rate-limit pause semantic events", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {
@@ -294,7 +294,7 @@ describe("State Machine Contract", () => {
   });
 
   it("pauses the run as gates_exhausted when fix attempts are exhausted", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {

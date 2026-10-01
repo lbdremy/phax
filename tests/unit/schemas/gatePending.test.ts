@@ -1,7 +1,7 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import {
-  decodeGatePendingDocument,
+  decodeGatePendingFile,
   encodeGatePendingDocument,
   type GatePendingDocument,
 } from "../../../src/schemas/gatePending.js";
@@ -31,7 +31,7 @@ const document: GatePendingDocument = {
 describe("GatePendingDocumentSchema", () => {
   it("round-trips a document through encode/decode", () => {
     const encoded = encodeGatePendingDocument(document);
-    const decoded = decodeGatePendingDocument(encoded);
+    const decoded = decodeGatePendingFile(encoded);
 
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
@@ -40,12 +40,12 @@ describe("GatePendingDocumentSchema", () => {
   });
 
   it("decodes an empty steps list", () => {
-    const decoded = decodeGatePendingDocument({ closed: [], steps: [] });
+    const decoded = decodeGatePendingFile({ closed: [], steps: [] });
     expect(Either.isRight(decoded)).toBe(true);
   });
 
   it("rejects a step with an empty pending list", () => {
-    const decoded = decodeGatePendingDocument({
+    const decoded = decodeGatePendingFile({
       closed: [],
       steps: [{ command: "pnpm audit:diagnostics", pending: [] }],
     });
@@ -53,7 +53,7 @@ describe("GatePendingDocumentSchema", () => {
   });
 
   it("rejects a pending diagnostic with an empty openScopes list", () => {
-    const decoded = decodeGatePendingDocument({
+    const decoded = decodeGatePendingFile({
       closed: [],
       steps: [
         {
@@ -71,7 +71,7 @@ describe("GatePendingDocumentSchema", () => {
   });
 
   it("rejects an invariant diagnostic inside pending", () => {
-    const decoded = decodeGatePendingDocument({
+    const decoded = decodeGatePendingFile({
       closed: [],
       steps: [
         {

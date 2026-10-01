@@ -94,7 +94,7 @@ import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
 import { readPreviousHandoff, readPreviousReconciliation } from "./handoffInjection.js";
 import type { ReconciliationResult } from "../domain/reconciliation/types.js";
-import { decodePhaseFileReconciliation } from "../schemas/reconciliation.js";
+import { readPhaseFileReconciliationFile } from "../schemas/persisted.js";
 import { createPhaseFolder } from "./phaseFolder.js";
 import { recordPhaseWorktreeAndBranch } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
@@ -1231,8 +1231,9 @@ export function executePlan(
           // The phase already committed; read the persisted reconciliation rather than
           // re-diffing HEAD (the worktree is clean and the diff would be empty).
           const fs = yield* FileSystem;
-          const reconRaw = yield* fs.readText(join(phaseFolderPath, "file-reconciliation.json"));
-          const reconDecoded = decodePhaseFileReconciliation(JSON.parse(reconRaw));
+          const reconPath = join(phaseFolderPath, "file-reconciliation.json");
+          const reconRaw = yield* fs.readText(reconPath);
+          const reconDecoded = readPhaseFileReconciliationFile(reconPath, JSON.parse(reconRaw));
           reconciliation = Either.isRight(reconDecoded)
             ? reconDecoded.right
             : {

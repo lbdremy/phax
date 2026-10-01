@@ -4,7 +4,7 @@ import { Effect, Either } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { decodeShortName, type ShortName } from "../../domain/branded.js";
 import { runKey, nextAvailableShortName } from "../../domain/runRef.js";
-import { decodeRegistry } from "../../schemas/registry.js";
+import { readRegistryFile } from "../../schemas/persisted.js";
 import {
   AgentInvocationError,
   GateAttemptsExhaustedError,
@@ -97,8 +97,9 @@ export function renderArtifactCompletions(report: RunCompletionReport): string[]
 
 function readRegistrySync(stateRoot: string) {
   try {
-    const raw = JSON.parse(readFileSync(join(stateRoot, "registry.json"), "utf8")) as unknown;
-    const decoded = decodeRegistry(raw);
+    const path = join(stateRoot, "registry.json");
+    const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
+    const decoded = readRegistryFile(path, raw);
     return Either.isRight(decoded) ? decoded.right : { version: 1 as const, runs: [] };
   } catch {
     return { version: 1 as const, runs: [] };

@@ -47,8 +47,8 @@ describe("recordPhaseWorktreeAndBranch", () => {
     expect(persisted.branchName).toMatch(/^ai\/my-run--phase-\d{2}$/);
   });
 
-  it("the persisted JSON round-trips through decodePhaseStatus with branchName present", async () => {
-    const { decodePhaseStatus } = await import("../../src/schemas/status.js");
+  it("the persisted JSON round-trips through decodePhaseStatusFile with branchName present", async () => {
+    const { decodePhaseStatusFile } = await import("../../src/schemas/status.js");
     const fakeFs = makeFakeFileSystem();
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, makePhaseStatusJson());
 
@@ -62,7 +62,7 @@ describe("recordPhaseWorktreeAndBranch", () => {
     );
 
     const raw = fakeFs.impl.getFile(`${phaseFolderPath}/status.json`);
-    const decoded = decodePhaseStatus(JSON.parse(raw!));
+    const decoded = decodePhaseStatusFile(JSON.parse(raw!));
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
       expect(decoded.right.branchName).toBe("ai/my-run--phase-01");

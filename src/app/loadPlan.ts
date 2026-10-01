@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { Either } from "effect";
 import { PlanValidationError } from "../domain/errors.js";
-import { type PhaxPlan, decodePhaxPlan } from "../schemas/phaxPlan.js";
-import { formatParseError } from "../schemas/formatError.js";
+import type { PhaxPlan } from "../schemas/phaxPlan.js";
+import { readPhaxPlanFile } from "../schemas/persisted.js";
 
 export type LoadPlanError = PlanValidationError;
 
@@ -19,11 +19,11 @@ export function loadPlan(planPath: string): Either.Either<PhaxPlan, LoadPlanErro
     );
   }
 
-  const decoded = decodePhaxPlan(raw);
+  const decoded = readPhaxPlanFile(planPath, raw);
   if (Either.isLeft(decoded)) {
     return Either.left(
       new PlanValidationError({
-        message: `Invalid phax-plan.json at "${planPath}":\n${formatParseError(decoded.left)}`,
+        message: decoded.left.message,
         path: planPath,
       }),
     );

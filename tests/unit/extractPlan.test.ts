@@ -6,7 +6,7 @@ const decodeExtracted = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
 });
 
-const decodePhaxPlan = Schema.decodeUnknownEither(PhaxPlanSchema, {
+const decodePhaxPlanFile = Schema.decodeUnknownEither(PhaxPlanSchema, {
   onExcessProperty: "error",
 });
 
@@ -90,7 +90,7 @@ describe("ExtractedPhaxPlanSchema — requiredCommands", () => {
 
 describe("PhaxPlanSchema — requiredCommands", () => {
   it("decodes successfully with requiredCommands on run", () => {
-    const result = decodePhaxPlan({
+    const result = decodePhaxPlanFile({
       version: 1,
       run: {
         shortName: "my-run",
@@ -107,7 +107,7 @@ describe("PhaxPlanSchema — requiredCommands", () => {
   });
 
   it("fails decode when requiredCommands is absent from persisted plan", () => {
-    const result = decodePhaxPlan({
+    const result = decodePhaxPlanFile({
       version: 1,
       run: {
         shortName: "my-run",

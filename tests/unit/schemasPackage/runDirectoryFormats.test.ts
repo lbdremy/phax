@@ -16,11 +16,11 @@ import {
 } from "../../../packages/schemas/src/index.js";
 import { newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
 import { decodeComplianceReview } from "../../../src/schemas/complianceReview.js";
-import { decodePhaxPlan } from "../../../src/schemas/phaxPlan.js";
-import { decodeRegistry } from "../../../src/schemas/registry.js";
+import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
+import { decodeRegistryFile } from "../../../src/schemas/registry.js";
 import type { FormatId } from "../../../src/schemas/schemaUrl.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
-import { decodePhaseStatus, decodeRunStatus } from "../../../src/schemas/status.js";
+import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import { validDocuments, withKey, withoutKey } from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
@@ -37,15 +37,20 @@ interface RunDirectoryFormat {
 }
 
 const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
-  { id: "registry", parse: parseRegistry, phax: decodeRegistry, toLatest: toLatestRegistry },
-  { id: "run-status", parse: parseRunStatus, phax: decodeRunStatus, toLatest: toLatestRunStatus },
+  { id: "registry", parse: parseRegistry, phax: decodeRegistryFile, toLatest: toLatestRegistry },
+  {
+    id: "run-status",
+    parse: parseRunStatus,
+    phax: decodeRunStatusFile,
+    toLatest: toLatestRunStatus,
+  },
   {
     id: "phase-status",
     parse: parsePhaseStatus,
-    phax: decodePhaseStatus,
+    phax: decodePhaseStatusFile,
     toLatest: toLatestPhaseStatus,
   },
-  { id: "phax-plan", parse: parsePhaxPlan, phax: decodePhaxPlan, toLatest: toLatestPhaxPlan },
+  { id: "phax-plan", parse: parsePhaxPlan, phax: decodePhaxPlanFile, toLatest: toLatestPhaxPlan },
   {
     id: "compliance-review",
     parse: parseComplianceReview,

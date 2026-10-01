@@ -30,7 +30,7 @@ import {
   type OrientConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -174,7 +174,7 @@ describe("executePlan — happy-path 2-phase run", () => {
   });
 
   it("drives both phases to review_open and writes all expected artifacts", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {
@@ -350,7 +350,7 @@ describe("executePlan — happy-path 2-phase run", () => {
   });
 
   it("returns committed phase ids and final worktree path", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {
@@ -472,7 +472,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     // persistSessionId (called by real providers during streaming) no longer patches
     // agent-binding.json. This test would fail if the patchAgentBindingSession call
     // were removed from executePlan, proving the app-layer owns binding mutations.
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {
@@ -597,7 +597,7 @@ describe("executePlan — happy-path 2-phase run", () => {
   });
 
   it("writes agent-binding.json with status launching before agent runs (pre-agent write guarantee)", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {
@@ -775,7 +775,7 @@ describe("executePlan — firing scheduling", () => {
   });
 
   it("runs only every-phase steps before the terminal phase, and both at the terminal phase", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {
@@ -941,7 +941,7 @@ describe("executePlan — binding status lifecycle", () => {
   });
 
   it("sets binding status to awaiting_manual_review for the single (final) phase on success", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlanStatus));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(singlePhaseRawPlanStatus));
     const config = makeStatusTestConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1011,7 +1011,7 @@ describe("executePlan — binding status lifecycle", () => {
   });
 
   it("sets binding status to failed when the agent invocation fails", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlanStatus));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(singlePhaseRawPlanStatus));
     const config = makeStatusTestConfig(stateRoot);
 
     const fakeGit = makeFakeGit();
@@ -1102,7 +1102,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
   });
 
   it("injects the named deviating files into the handoff prompt passed to the backend", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(deviationRawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(deviationRawPlan));
     const config = makeStatusTestConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1190,7 +1190,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
   });
 
   it("renders the no-deviation line when the commit matches the plan exactly", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(deviationRawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(deviationRawPlan));
     const config = makeStatusTestConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1340,7 +1340,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   });
 
   it("re-enters the gate loop without invoking the implementation agent when the human's fix made the gate pass", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(singlePhaseRawPlan));
     const config = baseConfig();
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1420,7 +1420,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   });
 
   it("pauses the run again (does not fail it) when the gate keeps failing on resume", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(singlePhaseRawPlan));
     const config = baseConfig();
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1500,7 +1500,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   });
 
   it("fails loudly with a reset-phase-directing error when the persisted Claude session id is missing", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(singlePhaseRawPlan));
     const config = baseConfig();
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1555,7 +1555,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   });
 
   it("uses the locked binding provider/model on resume, ignoring routing config", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(singlePhaseRawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(singlePhaseRawPlan));
     const config = baseConfig();
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -1768,7 +1768,7 @@ describe("executePlan — auto-publish after final review", () => {
   });
 
   it("publishes PR and writes publication.json when publish.auto is true", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(autoPublishRawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(autoPublishRawPlan));
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     const config = makePublishBaseConfig(stateRoot, makePublishConfig(true));
 
@@ -1828,7 +1828,7 @@ describe("executePlan — auto-publish after final review", () => {
   });
 
   it("run stays review_open when gh is unavailable (non-fatal failure)", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(autoPublishRawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(autoPublishRawPlan));
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     const config = makePublishBaseConfig(stateRoot, makePublishConfig(true));
 
@@ -1888,7 +1888,7 @@ describe("executePlan — auto-publish after final review", () => {
   });
 
   it("no publication side effects when publish.auto is false", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(autoPublishRawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(autoPublishRawPlan));
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     const config = makePublishBaseConfig(stateRoot, makePublishConfig(false));
 
@@ -1975,7 +1975,7 @@ describe("executePlan — security preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlanWithRequired));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlanWithRequired));
 
     const config: ResolvedConfig = {
       raw: {
@@ -2099,7 +2099,7 @@ describe("executePlan — security preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlanWithCoveredRequired));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlanWithCoveredRequired));
 
     const config: ResolvedConfig = {
       raw: {
@@ -2248,7 +2248,7 @@ describe("executePlan — records destination refusal", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(decodePhaxPlan(rawRecordsRefusalPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawRecordsRefusalPlan));
 
     const config: ResolvedConfig = {
       raw: {
@@ -2397,7 +2397,7 @@ describe("executePlan — orient dispatch weaving", () => {
   }
 
   it("weaves the orientation index into prompt.md and records orient.brief.computed when a provider is registered", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(orientRawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(orientRawPlan));
     const config = makeOrientTestConfig(stateRoot, { command: "orient-provider" });
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -2472,7 +2472,7 @@ describe("executePlan — orient dispatch weaving", () => {
   });
 
   it("dispatches the prompt unchanged and proceeds when the orient provider fails", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(orientRawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(orientRawPlan));
     const config = makeOrientTestConfig(stateRoot, { command: "orient-provider" });
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -2524,7 +2524,7 @@ describe("executePlan — orient dispatch weaving", () => {
   });
 
   it("does not query a provider and leaves the prompt unchanged when no orient block is configured", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(orientRawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(orientRawPlan));
     const config = makeOrientTestConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 

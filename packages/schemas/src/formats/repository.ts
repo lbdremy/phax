@@ -29,8 +29,8 @@ import {
   type SpecDocumentPreSchema,
 } from "../../../../src/schemas/history/spec-document/pre-schema.js";
 import {
-  PlanDocumentSchema,
-  decodePlanDocument,
+  PlanDocumentFileSchema,
+  decodePlanDocumentFile,
   type PlanDocument,
 } from "../../../../src/schemas/planDocument.js";
 import {
@@ -39,8 +39,8 @@ import {
   type SpecApprovalRecordFile,
 } from "../../../../src/schemas/specApprovalRecord.js";
 import {
-  SpecDocumentSchema,
-  decodeSpecDocument,
+  SpecDocumentFileSchema,
+  decodeSpecDocumentFile,
   type SpecDocument,
 } from "../../../../src/schemas/specDocument.js";
 import type { ParsedShape } from "../parsed.js";
@@ -137,7 +137,7 @@ export const specDocumentFormat = defineFormat<SpecDocumentShapes>({
   releases: [],
   current: {
     name: "next",
-    shape: { schema: SpecDocumentSchema, decode: decodeSpecDocument },
+    shape: { schema: SpecDocumentFileSchema, decode: decodeSpecDocumentFile },
   },
 });
 
@@ -170,7 +170,7 @@ export const planDocumentFormat = defineFormat<PlanDocumentShapes>({
   releases: [],
   current: {
     name: "next",
-    shape: { schema: PlanDocumentSchema, decode: decodePlanDocument },
+    shape: { schema: PlanDocumentFileSchema, decode: decodePlanDocumentFile },
   },
 });
 

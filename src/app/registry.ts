@@ -2,12 +2,8 @@ import { Effect, Either } from "effect";
 import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { RegistryCorruptionError } from "../domain/errors.js";
-import {
-  decodeRegistry,
-  encodeRegistry,
-  type Registry,
-  type RegistryEntry,
-} from "../schemas/registry.js";
+import { readRegistryFile } from "../schemas/persisted.js";
+import { encodeRegistry, type Registry, type RegistryEntry } from "../schemas/registry.js";
 
 const REGISTRY_VERSION = 1 as const;
 
@@ -37,11 +33,11 @@ export function readRegistry(
         }),
       );
     }
-    const decoded = decodeRegistry(parsed);
+    const decoded = readRegistryFile(path, parsed);
     if (Either.isLeft(decoded)) {
       return yield* Effect.fail(
         new RegistryCorruptionError({
-          message: "registry.json failed schema validation",
+          message: decoded.left.message,
           registryPath: path,
         }),
       );

@@ -38,7 +38,19 @@ export const PlanDocumentSchema = Schema.Struct({
 export type PlanDocument = Schema.Schema.Type<typeof PlanDocumentSchema>;
 export type PlanDocumentPhase = Schema.Schema.Type<typeof PlanDocumentPhaseSchema>;
 
+// The document an authoring session returns: decoded with this contract, never through the bridge.
 export const decodePlanDocument = Schema.decodeUnknownEither(PlanDocumentSchema, {
+  onExcessProperty: "error",
+});
+
+/**
+ * A plan's JSON sidecar as phax writes it: the authoring contract until the
+ * sidecar gains `$schema`.
+ * @alias
+ */
+export const PlanDocumentFileSchema = PlanDocumentSchema;
+
+export const decodePlanDocumentFile = Schema.decodeUnknownEither(PlanDocumentFileSchema, {
   onExcessProperty: "error",
 });
 

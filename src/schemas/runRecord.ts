@@ -108,7 +108,14 @@ export const RunRecordManifestSchema = Schema.Struct({
 
 export type RunRecordManifest = Schema.Schema.Type<typeof RunRecordManifestSchema>;
 
-export const decodeRunRecordManifest = Schema.decodeUnknownEither(RunRecordManifestSchema, {
+/**
+ * A phase record's `record.json` as phax writes it: today's schema until the
+ * manifest gains `$schema`.
+ * @alias
+ */
+export const RunRecordManifestFileSchema = RunRecordManifestSchema;
+
+export const decodeRunRecordManifestFile = Schema.decodeUnknownEither(RunRecordManifestFileSchema, {
   onExcessProperty: "error",
 });
 

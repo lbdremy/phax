@@ -95,7 +95,8 @@ function readSidecar(
     const path = sidecarPathFor(repoRelPath);
     if (!(yield* fs.exists(path))) return null;
     const text = yield* fs.readText(path);
-    return { path, text, agreement: sidecarAgreement({ md, sidecarJson: text, kind }) };
+    const agreement = sidecarAgreement({ md, sidecarJson: text, kind, sidecarPath: path });
+    return { path, text, agreement };
   });
 }
 

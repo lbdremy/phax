@@ -18,5 +18,11 @@ export const GatePendingDocumentSchema = Schema.Struct({
 
 export type GatePendingDocument = Schema.Schema.Type<typeof GatePendingDocumentSchema>;
 
-export const decodeGatePendingDocument = Schema.decodeUnknownEither(GatePendingDocumentSchema);
+/**
+ * An attempt's `.pending.json` as phax writes it: today's schema until the file gains `$schema`.
+ * @alias
+ */
+export const GatePendingFileSchema = GatePendingDocumentSchema;
+
+export const decodeGatePendingFile = Schema.decodeUnknownEither(GatePendingFileSchema);
 export const encodeGatePendingDocument = Schema.encodeSync(GatePendingDocumentSchema);

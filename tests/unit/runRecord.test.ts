@@ -1,7 +1,7 @@
 import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
-  decodeRunRecordManifest,
+  decodeRunRecordManifestFile,
   encodeRunRecordManifest,
   TokenUsageSchema,
   UNAVAILABLE_TOKEN_USAGE,
@@ -89,12 +89,12 @@ describe("TokenUsageSchema", () => {
 
 describe("RunRecordManifestSchema", () => {
   it("decodes a minimal skeleton manifest with unavailable usage", () => {
-    const result = decodeRunRecordManifest(baseManifest);
+    const result = decodeRunRecordManifestFile(baseManifest);
     expect(Either.isRight(result)).toBe(true);
   });
 
   it("decodes a full manifest with a source sha and available usage", () => {
-    const result = decodeRunRecordManifest({
+    const result = decodeRunRecordManifestFile({
       ...baseManifest,
       shape: "full",
       sourceSha: "a726aff",
@@ -114,7 +114,7 @@ describe("RunRecordManifestSchema", () => {
   });
 
   it("decodes a manifest for a phase that never committed (no sourceSha)", () => {
-    const result = decodeRunRecordManifest({ ...baseManifest, outcome: "failed" });
+    const result = decodeRunRecordManifestFile({ ...baseManifest, outcome: "failed" });
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
       expect(result.right.sourceSha).toBeUndefined();
@@ -122,27 +122,27 @@ describe("RunRecordManifestSchema", () => {
   });
 
   it("rejects an unknown outcome", () => {
-    const result = decodeRunRecordManifest({ ...baseManifest, outcome: "bogus" });
+    const result = decodeRunRecordManifestFile({ ...baseManifest, outcome: "bogus" });
     expect(Either.isLeft(result)).toBe(true);
   });
 
   it("rejects an unknown shape", () => {
-    const result = decodeRunRecordManifest({ ...baseManifest, shape: "partial" });
+    const result = decodeRunRecordManifestFile({ ...baseManifest, shape: "partial" });
     expect(Either.isLeft(result)).toBe(true);
   });
 
   it("rejects unknown top-level keys", () => {
-    const result = decodeRunRecordManifest({ ...baseManifest, bogus: "value" });
+    const result = decodeRunRecordManifestFile({ ...baseManifest, bogus: "value" });
     expect(Either.isLeft(result)).toBe(true);
   });
 
   it("rejects a surface outside the closed enum", () => {
-    const result = decodeRunRecordManifest({ ...baseManifest, verifiedSurfaces: ["bogus"] });
+    const result = decodeRunRecordManifestFile({ ...baseManifest, verifiedSurfaces: ["bogus"] });
     expect(Either.isLeft(result)).toBe(true);
   });
 
   it("decodes a manifest naming verified surfaces", () => {
-    const result = decodeRunRecordManifest({
+    const result = decodeRunRecordManifestFile({
       ...baseManifest,
       verifiedSurfaces: ["local", "product"],
     });
@@ -151,13 +151,13 @@ describe("RunRecordManifestSchema", () => {
 
   it("rejects a v1 manifest (no verifiedSurfaces field)", () => {
     const { verifiedSurfaces: _verifiedSurfaces, ...v1Manifest } = baseManifest;
-    const result = decodeRunRecordManifest({ ...v1Manifest, version: 1 });
+    const result = decodeRunRecordManifestFile({ ...v1Manifest, version: 1 });
     expect(Either.isLeft(result)).toBe(true);
   });
 
   it("round-trips through encode/decode", () => {
     const encoded = encodeRunRecordManifest(baseManifest);
-    const decoded = decodeRunRecordManifest(encoded);
+    const decoded = decodeRunRecordManifestFile(encoded);
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
       expect(decoded.right).toEqual(baseManifest);
