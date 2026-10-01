@@ -146,13 +146,13 @@ describe("schemas package entry", () => {
   });
 
   it("re-exports phax's own schemas, never a copy", async () => {
-    const { ComplianceReviewSchema } = await import("../../../src/schemas/complianceReview.js");
-    const { PhaxPlanSchema } = await import("../../../src/schemas/phaxPlan.js");
+    const { ComplianceReviewFileSchema } = await import("../../../src/schemas/complianceReview.js");
+    const { PhaxPlanFileSchema } = await import("../../../src/schemas/phaxPlan.js");
     const { RegistryFileSchema } = await import("../../../src/schemas/registry.js");
     const { PhaseStatusFileSchema, RunStatusFileSchema } =
       await import("../../../src/schemas/status.js");
-    expect(entry.ComplianceReviewSchema).toBe(ComplianceReviewSchema);
-    expect(entry.PhaxPlanSchema).toBe(PhaxPlanSchema);
+    expect(entry.ComplianceReviewSchema).toBe(ComplianceReviewFileSchema);
+    expect(entry.PhaxPlanSchema).toBe(PhaxPlanFileSchema);
     expect(entry.RegistrySchema).toBe(RegistryFileSchema);
     expect(entry.PhaseStatusSchema).toBe(PhaseStatusFileSchema);
     expect(entry.RunStatusSchema).toBe(RunStatusFileSchema);

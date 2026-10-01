@@ -14,7 +14,7 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -75,7 +75,7 @@ describe("executePlan — resume from startIndex: 1", () => {
   });
 
   it("continues from phase-02 and drives the run to review_open", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
 
     const config: ResolvedConfig = {
       raw: {
@@ -275,7 +275,7 @@ describe("executePlan — resume from startIndex: 1", () => {
   });
 
   it("does not call prepareRunBranch when startIndex > 0", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
 
     const config: ResolvedConfig = {
       raw: {

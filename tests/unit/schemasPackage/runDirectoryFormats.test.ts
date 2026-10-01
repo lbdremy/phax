@@ -15,7 +15,7 @@ import {
   toLatestRunStatus,
 } from "../../../packages/schemas/src/index.js";
 import { newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
-import { decodeComplianceReview } from "../../../src/schemas/complianceReview.js";
+import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
 import { decodeRegistryFile } from "../../../src/schemas/registry.js";
 import type { FormatId } from "../../../src/schemas/schemaUrl.js";
@@ -60,10 +60,15 @@ const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
   {
     id: "compliance-review",
     parse: parseComplianceReview,
-    phax: decodeComplianceReview,
+    phax: decodeComplianceReviewFile,
     toLatest: toLatestComplianceReview,
   },
 ];
+
+const decodeFile: { readonly [F in "phax-plan" | "compliance-review"]: Decode } = {
+  "phax-plan": decodePhaxPlanFile,
+  "compliance-review": decodeComplianceReviewFile,
+};
 
 // Derived from the package version, so a release bump never breaks these tests.
 const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
@@ -156,6 +161,36 @@ describe.each([
     const result = parse(withKey(written, "state", "paused"));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.path).toBe("state");
+  });
+});
+
+describe.each([
+  { id: "phax-plan", parse: parsePhaxPlan, toLatest: toLatestPhaxPlan },
+  { id: "compliance-review", parse: parseComplianceReview, toLatest: toLatestComplianceReview },
+] as const)("$id written by phax", ({ id, parse, toLatest }) => {
+  const written = validDocuments[id];
+
+  it("is identified by its $schema alone as shape next (ac-identify-alone)", () => {
+    expect(parseDocument(written)).toMatchObject({ ok: true, format: id, shape: "next" });
+  });
+
+  it("drops $schema on upgrade, and carries no version", () => {
+    const result = parse(written);
+    if (!result.ok) throw new Error("document rejected");
+    expect(result.shape).toBe("next");
+    const latest = toLatest(result.value as never);
+    expect(latest).toEqual(withoutKey(written, "$schema"));
+    expect(latest).not.toHaveProperty("version");
+  });
+
+  it("rejects an unknown key, as phax's strict decoder does", () => {
+    const result = parse(withKey(written, "extra", true));
+    expect(result.ok).toBe(false);
+    expect(Either.isLeft(decodeFile[id](withKey(written, "extra", true)))).toBe(true);
+  });
+
+  it("rejects a document that carries both $schema and version", () => {
+    expect(parse(withKey(written, "version", 1)).ok).toBe(false);
   });
 });
 

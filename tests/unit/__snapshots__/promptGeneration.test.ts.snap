@@ -28,7 +28,6 @@ Phase overview.
 ## Machine-readable execution plan
 
 {
-  "version": 1,
   "run": {
     "shortName": "my-run",
     "title": "My Run",

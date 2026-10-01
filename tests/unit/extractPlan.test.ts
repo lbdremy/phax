@@ -1,14 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { Schema, Either } from "effect";
-import { ExtractedPhaxPlanSchema, PhaxPlanSchema } from "../../src/schemas/phaxPlan.js";
+import { ExtractedPhaxPlanSchema, decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const decodeExtracted = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
 });
 
-const decodePhaxPlanFile = Schema.decodeUnknownEither(PhaxPlanSchema, {
-  onExcessProperty: "error",
-});
+const PHAX_PLAN_URL = schemaUrl("phax-plan", "0.17.0");
 
 // The model-facing phase has no `title` — it is derived from the plan heading.
 const baseExtractedPhase = {
@@ -88,10 +87,10 @@ describe("ExtractedPhaxPlanSchema — requiredCommands", () => {
   });
 });
 
-describe("PhaxPlanSchema — requiredCommands", () => {
+describe("PhaxPlanFileSchema — requiredCommands", () => {
   it("decodes successfully with requiredCommands on run", () => {
     const result = decodePhaxPlanFile({
-      version: 1,
+      $schema: PHAX_PLAN_URL,
       run: {
         shortName: "my-run",
         title: "My Run",
@@ -108,7 +107,7 @@ describe("PhaxPlanSchema — requiredCommands", () => {
 
   it("fails decode when requiredCommands is absent from persisted plan", () => {
     const result = decodePhaxPlanFile({
-      version: 1,
+      $schema: PHAX_PLAN_URL,
       run: {
         shortName: "my-run",
         title: "My Run",

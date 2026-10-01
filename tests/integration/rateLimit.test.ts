@@ -24,7 +24,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -124,7 +124,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("stops the run as rate_limited and writes resume-instructions.md", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
     const config = makeConfig(stateRoot);
 
     const fakeGit = makeFakeGit();
@@ -199,7 +199,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("classifies a usage limit and exits with code 8", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
     const config = makeConfig(stateRoot);
 
     const fakeGit = makeFakeGit();
@@ -249,7 +249,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("resumes a rate-limited run to review_open without re-running committed phases", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(

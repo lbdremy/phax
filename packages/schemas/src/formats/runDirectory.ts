@@ -6,6 +6,7 @@ import {
   ComplianceReviewFileSchema,
   decodeComplianceReviewFile,
   type ComplianceReview,
+  type ComplianceReviewFile,
 } from "../../../../src/schemas/complianceReview.js";
 import {
   ComplianceReviewPreSchemaSchema,
@@ -36,6 +37,7 @@ import {
   PhaxPlanFileSchema,
   decodePhaxPlanFile,
   type PhaxPlan,
+  type PhaxPlanFile,
 } from "../../../../src/schemas/phaxPlan.js";
 import {
   RegistryFileSchema,
@@ -158,7 +160,7 @@ export function toLatestPhaseStatus(
 
 // ── phax-plan
 
-export type PhaxPlanShapes = { "pre-schema": PhaxPlanPreSchema; next: PhaxPlan };
+export type PhaxPlanShapes = { "pre-schema": PhaxPlanPreSchema; next: PhaxPlanFile };
 
 /** The id of every phax-plan shape the package reads. */
 export type PhaxPlanShape = keyof PhaxPlanShapes;
@@ -174,11 +176,15 @@ export const phaxPlanFormat = defineFormat<PhaxPlanShapes>({
 /** Reads a run's `phax-plan.json`. Never throws. */
 export const parsePhaxPlan: (input: unknown) => ParsedShape<PhaxPlanShapes> = phaxPlanFormat.parse;
 
-/** The latest phax-plan: no `version`. */
-export type LatestPhaxPlan = Omit<PhaxPlan, "version">;
+/** The latest phax-plan: phax's in-memory value, with no `version` and no `$schema`. */
+export type LatestPhaxPlan = PhaxPlan;
 
 /** Upgrades a parsed phax-plan in memory. Keeps every recorded fact; never invents one. */
-export function toLatestPhaxPlan(value: PhaxPlanPreSchema | PhaxPlan): LatestPhaxPlan {
+export function toLatestPhaxPlan(value: PhaxPlanPreSchema | PhaxPlanFile): LatestPhaxPlan {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   const { version: _version, ...recorded } = value;
   return recorded;
 }
@@ -187,7 +193,7 @@ export function toLatestPhaxPlan(value: PhaxPlanPreSchema | PhaxPlan): LatestPha
 
 export type ComplianceReviewShapes = {
   "pre-schema": ComplianceReviewPreSchema;
-  next: ComplianceReview;
+  next: ComplianceReviewFile;
 };
 
 /** The id of every compliance review shape the package reads. */
@@ -208,13 +214,17 @@ export const complianceReviewFormat = defineFormat<ComplianceReviewShapes>({
 export const parseComplianceReview: (input: unknown) => ParsedShape<ComplianceReviewShapes> =
   complianceReviewFormat.parse;
 
-/** The latest compliance review: no `version`. */
-export type LatestComplianceReview = Omit<ComplianceReview, "version">;
+/** The latest compliance review: phax's in-memory value, with no `version` and no `$schema`. */
+export type LatestComplianceReview = ComplianceReview;
 
 /** Upgrades a parsed compliance review in memory. Keeps every recorded fact; never invents one. */
 export function toLatestComplianceReview(
-  value: ComplianceReviewPreSchema | ComplianceReview,
+  value: ComplianceReviewPreSchema | ComplianceReviewFile,
 ): LatestComplianceReview {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   const { version: _version, ...recorded } = value;
   return recorded;
 }

@@ -148,7 +148,7 @@ describe("decodePhaxConfig", () => {
 });
 
 const validPlan = {
-  version: 1,
+  $schema: schemaUrl("phax-plan", "0.17.0"),
   run: {
     shortName: "my-run",
     title: "My Run",
@@ -195,6 +195,15 @@ describe("decodePhaxPlanFile", () => {
 
   it("rejects excess properties", () => {
     const bad = { ...validPlan, extra: "field" };
+    expect(Either.isLeft(decodePhaxPlanFile(bad))).toBe(true);
+  });
+
+  it("rejects a plan that carries version, the pre-schema key", () => {
+    expect(Either.isLeft(decodePhaxPlanFile({ ...validPlan, version: 1 }))).toBe(true);
+  });
+
+  it("rejects a $schema naming another format", () => {
+    const bad = { ...validPlan, $schema: schemaUrl("run-status", "0.17.0") };
     expect(Either.isLeft(decodePhaxPlanFile(bad))).toBe(true);
   });
 

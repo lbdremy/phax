@@ -1,4 +1,5 @@
-import { Schema } from "effect";
+import { Schema, type Types } from "effect";
+import { schemaUrlField } from "./schemaUrl.js";
 
 export const VerdictSchema = Schema.Literal(
   "conformant",
@@ -35,28 +36,41 @@ export const PhaseVerdictSchema = Schema.Struct({
 });
 export type PhaseVerdict = Schema.Schema.Type<typeof PhaseVerdictSchema>;
 
-export const ComplianceReviewSchema = Schema.Struct({
-  version: Schema.Literal(1),
+const complianceReviewFields = {
   verdict: VerdictSchema,
   summary: Schema.String,
   perPhase: Schema.Array(PhaseVerdictSchema),
   attentionPoints: Schema.Array(Schema.String),
   pointers: Schema.Array(Schema.String),
+};
+
+/** The verdict the review agent writes in `.phax-context`: `version: 1`, then the review. */
+export const ComplianceReviewSchema = Schema.Struct({
+  version: Schema.Literal(1),
+  ...complianceReviewFields,
 });
-export type ComplianceReview = Schema.Schema.Type<typeof ComplianceReviewSchema>;
+export type ComplianceReviewVerdict = Schema.Schema.Type<typeof ComplianceReviewSchema>;
 
 // The verdict the review agent writes: decoded with this contract, never through the bridge.
 export const decodeComplianceReview = Schema.decodeUnknownEither(ComplianceReviewSchema, {
   onExcessProperty: "error",
 });
 
+/** A compliance review in memory: never a `version`, never a `$schema`. */
+export type ComplianceReview = Types.Simplify<Schema.Struct.Type<typeof complianceReviewFields>>;
+
 /**
- * `compliance-review.json` as phax persists it: the agent contract until the
- * review file gains `$schema`.
- * @alias
+ * `compliance-review.json` as phax persists it: `$schema` first, then the
+ * review. Unknown keys are rejected.
  */
-export const ComplianceReviewFileSchema = ComplianceReviewSchema;
+export const ComplianceReviewFileSchema = Schema.Struct({
+  $schema: schemaUrlField("compliance-review"),
+  ...complianceReviewFields,
+});
+
+export type ComplianceReviewFile = Schema.Schema.Type<typeof ComplianceReviewFileSchema>;
 
 export const decodeComplianceReviewFile = Schema.decodeUnknownEither(ComplianceReviewFileSchema, {
   onExcessProperty: "error",
 });
+export const encodeComplianceReviewFile = Schema.encodeSync(ComplianceReviewFileSchema);

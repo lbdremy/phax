@@ -129,7 +129,6 @@ function makeExecutePlanResult(overrides: Partial<ExecutePlanResult> = {}): Exec
 
 function makePlan(shortName = "fixbug"): PhaxPlan {
   return {
-    version: 1,
     run: {
       shortName,
       title: "Fix the bug",

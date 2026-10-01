@@ -86,6 +86,7 @@ import {
   parseSpecApprovals,
   parseSpecDocument,
   toLatestAuthoringRecordManifest,
+  toLatestComplianceReview,
   toLatestGatePending,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
@@ -101,12 +102,18 @@ import type {
   AuthoringRecordManifest as PhaxAuthoringRecordManifest,
   RecordManifest as PhaxRecordManifest,
 } from "../../src/schemas/authoringRecord.js";
-import type { ComplianceReview as PhaxComplianceReview } from "../../src/schemas/complianceReview.js";
+import type {
+  ComplianceReview as PhaxComplianceReview,
+  ComplianceReviewFile as PhaxComplianceReviewFile,
+} from "../../src/schemas/complianceReview.js";
 import type { GateAttribution as PhaxGateAttribution } from "../../src/schemas/gateAttribution.js";
 import type { GateDiagnosticsDocument } from "../../src/schemas/gateDiagnostics.js";
 import type { GatePendingDocument } from "../../src/schemas/gatePending.js";
 import type { PhaseFileReconciliation as PhaxPhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
-import type { PhaxPlan as PhaxPhaxPlan } from "../../src/schemas/phaxPlan.js";
+import type {
+  PhaxPlan as PhaxPhaxPlan,
+  PhaxPlanFile as PhaxPhaxPlanFile,
+} from "../../src/schemas/phaxPlan.js";
 import type { PlanDocument as PhaxPlanDocument } from "../../src/schemas/planDocument.js";
 import type { SpecApprovalRecordFile } from "../../src/schemas/specApprovalRecord.js";
 import type { SpecDocument as PhaxSpecDocument } from "../../src/schemas/specDocument.js";
@@ -267,7 +274,7 @@ if (document.ok) {
     void exact;
   }
   if (document.format === "phax-plan" && document.shape === "next") {
-    const exact: Equals<typeof document.value, PhaxPhaxPlan> = true;
+    const exact: Equals<typeof document.value, PhaxPhaxPlanFile> = true;
     void exact;
   }
   if (document.format === "spec-approvals" && document.shape === "pre-schema") {
@@ -345,8 +352,8 @@ const parseValues: [
   Equals<Value<typeof parseRegistry>, FrozenRegistry | PhaxRegistryFile>,
   Equals<Value<typeof parseRunStatus>, FrozenRunStatus | PhaxRunStatusFile>,
   Equals<Value<typeof parsePhaseStatus>, FrozenPhaseStatus | PhaxPhaseStatusFile>,
-  Equals<Value<typeof parsePhaxPlan>, FrozenPhaxPlan | PhaxPhaxPlan>,
-  Equals<Value<typeof parseComplianceReview>, FrozenComplianceReview | PhaxComplianceReview>,
+  Equals<Value<typeof parsePhaxPlan>, FrozenPhaxPlan | PhaxPhaxPlanFile>,
+  Equals<Value<typeof parseComplianceReview>, FrozenComplianceReview | PhaxComplianceReviewFile>,
   Equals<Value<typeof parsePlanApprovals>, FrozenPlanApprovals | ApprovalRecordFile>,
   Equals<Value<typeof parseSpecApprovals>, FrozenSpecApprovals | SpecApprovalRecordFile>,
   Equals<Value<typeof parseSpecDocument>, FrozenSpecDocument | PhaxSpecDocument>,
@@ -401,8 +408,8 @@ const latestTypes: [
   Equals<LatestRegistry, PhaxRegistry>,
   Equals<LatestRunStatus, PhaxRunStatus>,
   Equals<LatestPhaseStatus, PhaxPhaseStatus>,
-  Equals<LatestPhaxPlan, Omit<PhaxPhaxPlan, "version">>,
-  Equals<LatestComplianceReview, Omit<PhaxComplianceReview, "version">>,
+  Equals<LatestPhaxPlan, PhaxPhaxPlan>,
+  Equals<LatestComplianceReview, PhaxComplianceReview>,
   Equals<LatestPlanApprovals, Omit<ApprovalRecordFile, "version">>,
   Equals<LatestSpecApprovals, Omit<SpecApprovalRecordFile, "version">>,
   Equals<LatestSpecDocument, Omit<PhaxSpecDocument, "version">>,
@@ -437,12 +444,19 @@ void latest.version;
 declare const latestPlan: LatestPhaxPlan;
 // @ts-expect-error: the latest phax-plan carries no version
 void latestPlan.version;
+// @ts-expect-error: the in-memory phax-plan carries no $schema
+void latestPlan.$schema;
 // @ts-expect-error: the latest phax-plan has no place for run.backend
 void latestPlan.run.backend;
+declare const latestReview: LatestComplianceReview;
+// @ts-expect-error: the latest compliance review carries no version
+void latestReview.version;
+// @ts-expect-error: the in-memory compliance review carries no $schema
+void latestReview.$schema;
 
 // Each toLatest takes phax's own type and the frozen pre-schema type
 declare const phaxRunStatus: PhaxRunStatusFile;
-declare const phaxPhaxPlan: PhaxPhaxPlan;
+declare const phaxPhaxPlan: PhaxPhaxPlanFile;
 declare const phaxSpecDocument: PhaxSpecDocument;
 declare const phaxReconciliation: PhaxPhaseFileReconciliation;
 const upgradedRunStatus: LatestRunStatus = toLatestRunStatus(phaxRunStatus);
@@ -475,19 +489,25 @@ const toLatestParameters: [
   Equals<Parameters<typeof toLatestRegistry>, [value: FrozenRegistry | PhaxRegistryFile]>,
   Equals<Parameters<typeof toLatestRunStatus>, [value: FrozenRunStatus | PhaxRunStatusFile]>,
   Equals<Parameters<typeof toLatestPhaseStatus>, [value: FrozenPhaseStatus | PhaxPhaseStatusFile]>,
+  Equals<Parameters<typeof toLatestPhaxPlan>, [value: FrozenPhaxPlan | PhaxPhaxPlanFile]>,
+  Equals<
+    Parameters<typeof toLatestComplianceReview>,
+    [value: FrozenComplianceReview | PhaxComplianceReviewFile]
+  >,
   Equals<Parameters<typeof toLatestGatePending>, [value: FrozenGatePending | GatePendingDocument]>,
-] = [true, true, true, true];
+] = [true, true, true, true, true, true];
 void toLatestParameters;
 
 // ── run-directory formats
 
 // Each package type is phax's own type, both ways (§5.20); the registry's is
-// phax's file type, as are the run and phase status types
+// phax's file type, as are the run status, phase status, phax-plan and
+// compliance review types
 const registryIsPhax: Equals<Registry, PhaxRegistryFile> = true;
 const runStatusIsPhax: Equals<RunStatus, PhaxRunStatusFile> = true;
 const phaseStatusIsPhax: Equals<PhaseStatus, PhaxPhaseStatusFile> = true;
-const phaxPlanIsPhax: Equals<PhaxPlan, PhaxPhaxPlan> = true;
-const complianceReviewIsPhax: Equals<ComplianceReview, PhaxComplianceReview> = true;
+const phaxPlanIsPhax: Equals<PhaxPlan, PhaxPhaxPlanFile> = true;
+const complianceReviewIsPhax: Equals<ComplianceReview, PhaxComplianceReviewFile> = true;
 void registryIsPhax;
 void runStatusIsPhax;
 void phaseStatusIsPhax;

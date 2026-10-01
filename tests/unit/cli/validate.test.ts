@@ -88,7 +88,6 @@ function makePhase(i: number): PhaxPlan["phases"][number] {
 
 function makePlan(shortName = "myrun", phaseCount = 2): PhaxPlan {
   return {
-    version: 1,
     run: { shortName, title: "My Run", requiredCommands: [], branch: `phax/${shortName}` },
     phases: [makePhase(0), ...Array.from({ length: phaseCount - 1 }, (_, i) => makePhase(i + 1))],
   };

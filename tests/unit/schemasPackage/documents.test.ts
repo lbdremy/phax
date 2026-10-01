@@ -5,7 +5,7 @@ import { Either, type ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeApprovalRecordFile } from "../../../src/schemas/approvalRecord.js";
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
-import { decodeComplianceReview } from "../../../src/schemas/complianceReview.js";
+import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnostics.js";
 import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
@@ -51,7 +51,7 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "run-status": decodeRunStatusFile,
   "phase-status": decodePhaseStatusFile,
   "phax-plan": decodePhaxPlanFile,
-  "compliance-review": decodeComplianceReview,
+  "compliance-review": decodeComplianceReviewFile,
   "plan-approvals": decodeApprovalRecordFile,
   "spec-approvals": decodeSpecApprovalRecordFile,
   "phase-record-manifest": decodeRunRecordManifestFile,

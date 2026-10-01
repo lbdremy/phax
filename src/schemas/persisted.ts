@@ -203,21 +203,32 @@ export const readPhaseStatusFile: Reader<PhaseStatus> = (file, input) =>
     fromPreSchema: ({ version: _version, ...status }) => Either.right(status),
   });
 
-/** Reads a run's `phax-plan.json`. */
-export const readPhaxPlanFile: Reader<PhaxPlan> = reader(
-  "phax-plan",
-  "phax-plan",
-  decodePhaxPlanFile,
-  decodePhaxPlanPreSchema,
-);
+/** Reads a run's `phax-plan.json`. The pre-schema phax-plan carries every fact phax needs. */
+export const readPhaxPlanFile: Reader<PhaxPlan> = (file, input) =>
+  readPersisted(input, {
+    format: "phax-plan",
+    label: "phax-plan",
+    file,
+    decodeCurrent: decodePhaxPlanFile,
+    decodePreSchema: decodePhaxPlanPreSchema,
+    fromCurrent: ({ $schema: _schema, ...plan }) => plan,
+    fromPreSchema: ({ version: _version, ...plan }) => Either.right(plan),
+  });
 
-/** Reads a run's `compliance-review.json`. */
-export const readComplianceReviewFile: Reader<ComplianceReview> = reader(
-  "compliance-review",
-  "compliance review",
-  decodeComplianceReviewFile,
-  decodeComplianceReviewPreSchema,
-);
+/**
+ * Reads a run's `compliance-review.json`. The pre-schema review carries every
+ * fact phax needs.
+ */
+export const readComplianceReviewFile: Reader<ComplianceReview> = (file, input) =>
+  readPersisted(input, {
+    format: "compliance-review",
+    label: "compliance review",
+    file,
+    decodeCurrent: decodeComplianceReviewFile,
+    decodePreSchema: decodeComplianceReviewPreSchema,
+    fromCurrent: ({ $schema: _schema, ...review }) => review,
+    fromPreSchema: ({ version: _version, ...review }) => Either.right(review),
+  });
 
 /** Reads `docs/plans/approvals.json`. */
 export const readPlanApprovalsFile: Reader<ApprovalRecordFile> = reader(

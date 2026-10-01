@@ -50,7 +50,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import { withTelemetryCapture } from "./helpers/telemetry.js";
 
@@ -163,7 +163,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
 
   for (const testCase of CASES) {
     it(`pins the semantic trace for ${testCase.name}`, async () => {
-      const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
+      const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
 
       const config: ResolvedConfig = {
         raw: {
