@@ -1,11 +1,23 @@
 // The manifests (`record.json`) on phax/records/v1: a phase record's and an
-// authoring session's, and the reader that tells them apart. Each current
-// schema and decoder is phax's own; the package declares none of its own.
+// authoring session's, and the reader that tells them apart. Each pre-schema
+// shape is phax's frozen module under src/schemas/history/; each current
+// shape, `next`, is phax's own schema and decoder. The package declares none
+// of its own.
 import {
   AuthoringRecordManifestSchema,
   decodeAuthoringRecordManifest,
   type AuthoringRecordManifest,
 } from "../../../../src/schemas/authoringRecord.js";
+import {
+  AuthoringRecordManifestPreSchemaSchema,
+  decodeAuthoringRecordManifestPreSchema,
+  type AuthoringRecordManifestPreSchema,
+} from "../../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
+import {
+  PhaseRecordManifestPreSchemaSchema,
+  decodePhaseRecordManifestPreSchema,
+  type PhaseRecordManifestPreSchema,
+} from "../../../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import {
   RunRecordManifestSchema,
   decodeRunRecordManifest,
@@ -22,8 +34,10 @@ import {
   type FormatDefinition,
 } from "../shapes.js";
 
-// Neither manifest has written `$schema` yet: a document without it is read by
-// phax's own decoder as shape `pre-schema`, the shape phax writes today.
+// A manifest without `$schema` is read by its frozen pre-schema module as
+// shape `pre-schema`; no release has written `$schema` yet, so a `$schema`
+// manifest at the package's own release is read by phax's decoder as shape
+// `next`.
 
 // ── phase record manifest
 
@@ -31,7 +45,10 @@ import {
 export const PhaseRecordManifestSchema = RunRecordManifestSchema;
 export type PhaseRecordManifest = RunRecordManifest;
 
-export type PhaseRecordManifestShapes = { "pre-schema": PhaseRecordManifest };
+export type PhaseRecordManifestShapes = {
+  "pre-schema": PhaseRecordManifestPreSchema;
+  next: PhaseRecordManifest;
+};
 
 /** The id of every phase record manifest shape the package reads. */
 export type PhaseRecordManifestShape = keyof PhaseRecordManifestShapes;
@@ -39,9 +56,13 @@ export type PhaseRecordManifestShape = keyof PhaseRecordManifestShapes;
 export const phaseRecordManifestFormat = defineFormat<PhaseRecordManifestShapes>({
   id: "phase-record-manifest",
   label: "phase record manifest",
+  preSchema: {
+    schema: PhaseRecordManifestPreSchemaSchema,
+    decode: decodePhaseRecordManifestPreSchema,
+  },
   releases: [],
   current: {
-    name: "pre-schema",
+    name: "next",
     shape: { schema: RunRecordManifestSchema, decode: decodeRunRecordManifest },
   },
 });
@@ -54,14 +75,19 @@ export const parsePhaseRecordManifest: (input: unknown) => ParsedShape<PhaseReco
 export type LatestPhaseRecordManifest = Omit<PhaseRecordManifest, "version">;
 
 /** Upgrades a parsed manifest in memory. Keeps every recorded fact; never invents one. */
-export function toLatestPhaseRecordManifest(value: PhaseRecordManifest): LatestPhaseRecordManifest {
+export function toLatestPhaseRecordManifest(
+  value: PhaseRecordManifestPreSchema | PhaseRecordManifest,
+): LatestPhaseRecordManifest {
   const { version: _version, ...recorded } = value;
   return recorded;
 }
 
 // ── authoring record manifest
 
-export type AuthoringRecordManifestShapes = { "pre-schema": AuthoringRecordManifest };
+export type AuthoringRecordManifestShapes = {
+  "pre-schema": AuthoringRecordManifestPreSchema;
+  next: AuthoringRecordManifest;
+};
 
 /** The id of every authoring record manifest shape the package reads. */
 export type AuthoringRecordManifestShape = keyof AuthoringRecordManifestShapes;
@@ -69,9 +95,13 @@ export type AuthoringRecordManifestShape = keyof AuthoringRecordManifestShapes;
 export const authoringRecordManifestFormat = defineFormat<AuthoringRecordManifestShapes>({
   id: "authoring-record-manifest",
   label: "authoring record manifest",
+  preSchema: {
+    schema: AuthoringRecordManifestPreSchemaSchema,
+    decode: decodeAuthoringRecordManifestPreSchema,
+  },
   releases: [],
   current: {
-    name: "pre-schema",
+    name: "next",
     shape: { schema: AuthoringRecordManifestSchema, decode: decodeAuthoringRecordManifest },
   },
 });
@@ -89,7 +119,7 @@ export type LatestAuthoringRecordManifest = Omit<AuthoringRecordManifest, "versi
 
 /** Upgrades a parsed authoring manifest in memory. Keeps every recorded fact; never invents one. */
 export function toLatestAuthoringRecordManifest(
-  value: AuthoringRecordManifest,
+  value: AuthoringRecordManifestPreSchema | AuthoringRecordManifest,
 ): LatestAuthoringRecordManifest {
   const { version: _version, ...recorded } = value;
   return recorded;

@@ -2,3 +2,6 @@
 // Mirrors the root package.json version, which the package names in its
 // upgrade messages and compares a document's $schema release against.
 export const PACKAGE_VERSION = "0.16.0" as const;
+// The lowest release-named snapshot under packages/schemas/snapshots/, or
+// null while no release has written $schema yet.
+export const FIRST_SUPPORTED_RELEASE: string | null = null;

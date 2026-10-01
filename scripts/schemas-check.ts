@@ -1,9 +1,10 @@
 // Checks the schemas package's derived files against their sources:
 // packages/schemas/src/generated/index.ts against the root package.json
-// version, and packages/schemas/history.lock.json against the bytes of every
-// frozen module under packages/schemas/src/history/, and every format's JSON
-// Schema snapshots under packages/schemas/snapshots/<format id>/ against the
-// schema its current decoder renders.
+// version and the lowest release-named snapshot, packages/schemas/history.lock.json
+// against the bytes of every frozen module under phax's src/schemas/history/
+// (keyed by repo-relative path), and every format's JSON Schema snapshots
+// under packages/schemas/snapshots/<format id>/ against the schema its
+// current decoder renders.
 // Check: pnpm exec tsx scripts/schemas-check.ts
 // Write: pnpm exec tsx scripts/schemas-check.ts --write
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -24,6 +25,7 @@ import {
 import {
   SNAPSHOTS_DIR,
   checkSnapshots,
+  firstSupportedRelease,
   planSnapshotWrites,
   type SnapshotFormat,
 } from "../packages/schemas/build/snapshots.js";
@@ -31,16 +33,19 @@ import { FORMAT_IDS } from "../src/schemas/schemaUrl.js";
 
 const PACKAGE_DIR = "packages/schemas";
 const GENERATED_INDEX = "src/generated/index.ts";
-const HISTORY_DIR = "src/history";
+const HISTORY_DIR = "src/schemas/history";
 const LOCK_FILE = "history.lock.json";
+const LOCK_PATH = `${PACKAGE_DIR}/${LOCK_FILE}`;
 
 /** Everything the check reads, so it can run on an injected state. */
 export interface SchemasState {
   readonly packageVersion: string;
+  /** The lowest release-named snapshot across every format, or null when none exists. */
+  readonly firstSupportedRelease: string | null;
   /** The committed generated index, or undefined when absent. */
   readonly generatedIndex: string | undefined;
   readonly lock: HistoryLock;
-  /** Path relative to `packages/schemas` → bytes, for every history module. */
+  /** Repo-relative path → bytes, for every module under `src/schemas/history/`. */
   readonly historyFiles: ReadonlyMap<string, Uint8Array>;
   /** Directory name under `packages/schemas/snapshots` → file name → content. */
   readonly snapshots: ReadonlyMap<string, ReadonlyMap<string, string>>;
@@ -100,45 +105,53 @@ export function readSchemasState(repoRoot: string): SchemasState {
   const indexPath = join(packageDir, GENERATED_INDEX);
   const lockPath = join(packageDir, LOCK_FILE);
   const historyFiles = new Map<string, Uint8Array>();
-  for (const file of listFiles(join(packageDir, HISTORY_DIR)).toSorted()) {
-    historyFiles.set(relative(packageDir, file).split("\\").join("/"), readFileSync(file));
+  for (const file of listFiles(join(repoRoot, HISTORY_DIR)).toSorted()) {
+    historyFiles.set(relative(repoRoot, file).split("\\").join("/"), readFileSync(file));
   }
+  const snapshots = readSnapshots(join(repoRoot, SNAPSHOTS_DIR));
   return {
     packageVersion: rootManifest.version,
+    firstSupportedRelease: firstSupportedRelease(snapshots.snapshots),
     generatedIndex: existsSync(indexPath) ? readFileSync(indexPath, "utf8") : undefined,
     lock: existsSync(lockPath) ? (JSON.parse(readFileSync(lockPath, "utf8")) as HistoryLock) : {},
     historyFiles,
-    ...readSnapshots(join(repoRoot, SNAPSHOTS_DIR)),
+    ...snapshots,
     formats: renderFormats(),
   };
+}
+
+function generatedIndexOf(state: SchemasState): string {
+  return renderGeneratedIndex({
+    packageVersion: state.packageVersion,
+    firstSupportedRelease: state.firstSupportedRelease,
+  });
 }
 
 /** Every finding, one `✗ …` line each; empty when the derived files are current. */
 export function checkSchemas(state: SchemasState): string[] {
   const findings: string[] = [];
   const index = `${PACKAGE_DIR}/${GENERATED_INDEX}`;
-  if (state.generatedIndex !== renderGeneratedIndex({ packageVersion: state.packageVersion })) {
+  if (state.generatedIndex !== generatedIndexOf(state)) {
     findings.push(
-      `✗ ${index} does not match package.json version ${state.packageVersion} — run ${WRITE_COMMAND}`,
+      `✗ ${index} does not match package.json version ${state.packageVersion} and first ` +
+        `supported release ${state.firstSupportedRelease ?? "(none)"} — run ${WRITE_COMMAND}`,
     );
   }
   const { mismatched } = refreshLock(state.lock, state.historyFiles);
   for (const path of state.historyFiles.keys()) {
     if (state.lock[path] === undefined) {
-      findings.push(`✗ ${PACKAGE_DIR}/${path} has no ${LOCK_FILE} entry — run ${WRITE_COMMAND}`);
+      findings.push(`✗ ${path} has no ${LOCK_PATH} entry — run ${WRITE_COMMAND}`);
     }
   }
   for (const path of mismatched) {
     findings.push(
-      `✗ ${PACKAGE_DIR}/${path} differs from its ${LOCK_FILE} entry — a frozen module never changes; ` +
+      `✗ ${path} differs from its ${LOCK_PATH} entry — a frozen module never changes; ` +
         `restore it, or, before its first release only, delete its entry and run ${WRITE_COMMAND}`,
     );
   }
   for (const path of Object.keys(state.lock)) {
     if (!state.historyFiles.has(path)) {
-      findings.push(
-        `✗ ${LOCK_FILE} names ${PACKAGE_DIR}/${path}, which does not exist — restore the module`,
-      );
+      findings.push(`✗ ${LOCK_PATH} names ${path}, which does not exist — restore the module`);
     }
   }
   return [...findings, ...checkSnapshots(state)];
@@ -160,7 +173,7 @@ export function writeSchemas(state: SchemasState): {
   const { lock, mismatched } = refreshLock(state.lock, state.historyFiles);
   const { writes, removals } = planSnapshotWrites(state);
   return {
-    generatedIndex: renderGeneratedIndex({ packageVersion: state.packageVersion }),
+    generatedIndex: generatedIndexOf(state),
     lock: renderLock(lock),
     mismatched,
     snapshotWrites: writes,
@@ -177,17 +190,15 @@ if (isMain) {
     const written = writeSchemas(state);
     if (written.mismatched.length > 0) {
       for (const path of written.mismatched) {
-        console.error(
-          `✗ ${PACKAGE_DIR}/${path} differs from its ${LOCK_FILE} entry — nothing written`,
-        );
+        console.error(`✗ ${path} differs from its ${LOCK_PATH} entry — nothing written`);
       }
       process.exit(1);
     }
     const indexPath = join(repoRoot, PACKAGE_DIR, GENERATED_INDEX);
     mkdirSync(dirname(indexPath), { recursive: true });
     writeFileSync(indexPath, written.generatedIndex);
-    writeFileSync(join(repoRoot, PACKAGE_DIR, LOCK_FILE), written.lock);
-    console.log(`Wrote ${PACKAGE_DIR}/${GENERATED_INDEX} and ${PACKAGE_DIR}/${LOCK_FILE}`);
+    writeFileSync(join(repoRoot, LOCK_PATH), written.lock);
+    console.log(`Wrote ${PACKAGE_DIR}/${GENERATED_INDEX} and ${LOCK_PATH}`);
     for (const [path, content] of written.snapshotWrites) {
       const target = join(repoRoot, path);
       mkdirSync(dirname(target), { recursive: true });

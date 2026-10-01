@@ -38,7 +38,7 @@ function expectFailure(result: Parsed<unknown>, path: string, message?: string) 
   if (message !== undefined) expect(result.error.message).toBe(message);
 }
 
-const UNSUPPORTED = "toy document older than the first supported release — not supported";
+const UNSUPPORTED = "toy document older than the first release that writes $schema — not supported";
 
 const url = (release: string) => schemaUrl("gate-pending", release);
 
@@ -78,7 +78,7 @@ describe("defineFormat, pre-schema slot unfilled: a document without $schema", (
     });
   });
 
-  it("fails as older than the first supported release, at the violation's path", () => {
+  it("fails as older than the first release that writes $schema, at the violation's path", () => {
     const result = unfilled.parse({ a: "x", b: "one" });
     expectFailure(result, "b");
     if (result.ok) return;
@@ -97,7 +97,11 @@ describe("defineFormat, pre-schema slot unfilled: a document without $schema", (
     expectFailure(result, "extra");
     if (result.ok) return;
     expect(result.error.message).toBe(
-      preSchemaUnsupportedMessage("toy document", 'is unexpected, expected: "version" | "a" | "b"'),
+      preSchemaUnsupportedMessage(
+        "toy document",
+        'is unexpected, expected: "version" | "a" | "b"',
+        null,
+      ),
     );
   });
 
@@ -127,9 +131,37 @@ describe("defineFormat, pre-schema slot unfilled: a document with $schema", () =
 
 describe("preSchemaUnsupportedMessage", () => {
   it("states the document is unsupported, then names the violation", () => {
-    expect(preSchemaUnsupportedMessage("run status", "is missing")).toBe(
-      "run status older than the first supported release — not supported (is missing)",
+    expect(preSchemaUnsupportedMessage("run status", "is missing", null)).toBe(
+      "run status older than the first release that writes $schema — not supported (is missing)",
     );
+  });
+
+  it("names the first supported release once one is known", () => {
+    expect(preSchemaUnsupportedMessage("run status", "is missing", "0.17.0")).toBe(
+      "run status older than phax 0.17.0, the first supported release — not supported (is missing)",
+    );
+  });
+});
+
+describe("defineFormat, an injected first supported release", () => {
+  it("names it when the pre-schema decoder rejects a document", () => {
+    const known = defineFormat<{ "pre-schema": typeof CURRENT.Type }>(
+      {
+        id: "gate-pending",
+        label: "toy document",
+        releases: [],
+        current: { name: "pre-schema", shape: shape(CURRENT) },
+      },
+      { packageVersion: "0.18.0", firstSupportedRelease: "0.17.0" },
+    );
+    const result = known.parse({ a: "x", b: "one" });
+    expectFailure(result, "b");
+    if (result.ok) return;
+    expect(
+      result.error.message.startsWith(
+        "toy document older than phax 0.17.0, the first supported release — not supported",
+      ),
+    ).toBe(true);
   });
 });
 
@@ -309,6 +341,44 @@ describe("defineFormat, pre-schema slot filled: a `next` current shape in a deve
 
   it("never tries next below the package's own release", () => {
     expectFailure(filled.parse(atNext("0.12.0")), "d");
+  });
+});
+
+// A frozen pre-schema module and a `next` current shape, with no release yet:
+// the slots every phax format fills before its first `$schema` release.
+const unreleased = defineFormat<{ "pre-schema": typeof PRE_SCHEMA.Type; next: typeof NEXT.Type }>(
+  {
+    id: "gate-pending",
+    label: "toy document",
+    preSchema: shape(PRE_SCHEMA),
+    releases: [],
+    current: { name: "next", shape: shape(NEXT) },
+  },
+  { packageVersion: "0.13.0" },
+);
+
+describe("defineFormat, a `next` current shape and no release yet", () => {
+  it("reads a document at the package's own release as next", () => {
+    expect(unreleased.parse(atNext("0.13.0"))).toEqual({
+      ok: true,
+      shape: "next",
+      value: atNext("0.13.0"),
+    });
+  });
+
+  it("fails a document at its own release that next rejects with next's own violation", () => {
+    const result = unreleased.parse({ ...atNext("0.13.0"), b: "one" });
+    expectFailure(result, "b");
+    if (result.ok) return;
+    expect(result.error.message).not.toContain("no gate-pending shape is known");
+  });
+
+  it("names a lower release with no shape", () => {
+    expectFailure(
+      unreleased.parse(atNext("0.12.0")),
+      "$schema",
+      "no gate-pending shape is known at release 0.12.0",
+    );
   });
 });
 

@@ -517,6 +517,21 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/gateAttribution.ts",
   "src/schemas/gateDiagnostics.ts",
   "src/schemas/gatePending.ts",
+  "src/schemas/history/authoring-record-manifest/pre-schema.ts",
+  "src/schemas/history/compliance-review/pre-schema.ts",
+  "src/schemas/history/gate-attribution/pre-schema.ts",
+  "src/schemas/history/gate-diagnostics/pre-schema.ts",
+  "src/schemas/history/gate-pending/pre-schema.ts",
+  "src/schemas/history/phase-file-reconciliation/pre-schema.ts",
+  "src/schemas/history/phase-record-manifest/pre-schema.ts",
+  "src/schemas/history/phase-status/pre-schema.ts",
+  "src/schemas/history/phax-plan/pre-schema.ts",
+  "src/schemas/history/plan-approvals/pre-schema.ts",
+  "src/schemas/history/plan-document/pre-schema.ts",
+  "src/schemas/history/registry/pre-schema.ts",
+  "src/schemas/history/run-status/pre-schema.ts",
+  "src/schemas/history/spec-approvals/pre-schema.ts",
+  "src/schemas/history/spec-document/pre-schema.ts",
   "src/schemas/phaxPlan.ts",
   "src/schemas/planDocument.ts",
   "src/schemas/providerId.ts",
@@ -530,7 +545,12 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/surface.ts",
 ];
 const CLOSURE_FORBIDDEN_DIRS = ["src/app/", "src/ports/", "src/infra/", "src/cli/"];
-const CLOSURE_FORBIDDEN_FILES = ["src/schemas/vibeOutput.ts", "src/schemas/phaxConfig.ts"];
+// The bridge reads phax's own files; it is phax's, never published.
+const CLOSURE_FORBIDDEN_FILES = [
+  "src/schemas/vibeOutput.ts",
+  "src/schemas/phaxConfig.ts",
+  "src/schemas/persisted.ts",
+];
 const CLOSURE_FORBIDDEN_SPECIFIER =
   /^(node:.*|fs|fs\/.*|child_process|net|os|path|path\/.*|@effect\/platform.*)$/;
 const CLOSURE_ALLOWED_BARE = /^effect(\/.*)?$/;
@@ -606,7 +626,7 @@ describe("architectural guard: schemas package closure", () => {
     expect(violations).toEqual([]);
   });
 
-  it("never reaches vibeOutput.ts or phaxConfig.ts", () => {
+  it("never reaches vibeOutput.ts, phaxConfig.ts or the persisted-file bridge", () => {
     expect(files.filter((rel) => CLOSURE_FORBIDDEN_FILES.includes(rel))).toEqual([]);
   });
 
@@ -628,36 +648,119 @@ describe("architectural guard: schemas package closure", () => {
   });
 });
 
-// §5.15: a frozen module reads history for the package's consumers only. phax
-// reads what it writes with its own current decoders, never a frozen one.
-const HISTORY_DIR = "packages/schemas/src/history/";
+// §5.16: the dependency runs one way. The frozen modules live in phax under
+// src/schemas/history/ and the schemas package re-exports them; phax never
+// imports the package. Inside phax, only the persisted-file bridge reads a
+// frozen module, and a frozen module reads nothing but effect, so it never
+// follows a later edit to phax's shared schemas.
+const HISTORY_DIR = "src/schemas/history/";
+const PACKAGES_DIR = "packages/";
+const PERSISTED_BRIDGE = "src/schemas/persisted.ts";
+const SCHEMAS_PACKAGE_NAME = "@lbdremy/phax-schemas";
 
-function historyImports(rel: string, content: string): string[] {
+function srcModules(): Array<{ readonly rel: string; readonly content: string }> {
+  return listTsFiles(srcRoot).map((file) => ({
+    rel: relative(repoRoot, file).split("\\").join("/"),
+    content: readFileSync(file, "utf8"),
+  }));
+}
+
+/** The module specifiers in `content` (the module at `rel`) that resolve under `dir`. */
+function importsUnder(dir: string, rel: string, content: string): string[] {
   return moduleSpecifiers(content).filter((specifier) => {
-    if (!specifier.startsWith(".")) return specifier.includes(HISTORY_DIR);
+    if (!specifier.startsWith(".")) return false;
     const target = relative(repoRoot, resolve(repoRoot, dirname(rel), specifier));
-    return `${target.split("\\").join("/")}/`.startsWith(HISTORY_DIR);
+    return `${target.split("\\").join("/")}/`.startsWith(dir);
   });
 }
 
-describe("architectural guard: phax imports no historical decoder", () => {
-  it("no module under src/ imports anything under packages/schemas/src/history/", () => {
-    const violations = listTsFiles(srcRoot).flatMap((file) => {
-      const rel = relative(repoRoot, file).split("\\").join("/");
-      return historyImports(rel, readFileSync(file, "utf8")).map((s) => `${rel}: imports ${s}`);
-    });
+/** Specifiers that reach `packages/`: a relative path under it, or the package by name. */
+function packageImports(rel: string, content: string): string[] {
+  const byName = moduleSpecifiers(content).filter(
+    (specifier) =>
+      specifier === SCHEMAS_PACKAGE_NAME || specifier.startsWith(`${SCHEMAS_PACKAGE_NAME}/`),
+  );
+  return [...importsUnder(PACKAGES_DIR, rel, content), ...byName];
+}
+
+describe("architectural guard: only the bridge imports a frozen module", () => {
+  it(`no src/ module other than ${PERSISTED_BRIDGE} imports anything under ${HISTORY_DIR}`, () => {
+    const violations = srcModules()
+      .filter(({ rel }) => rel !== PERSISTED_BRIDGE)
+      .flatMap(({ rel, content }) =>
+        importsUnder(HISTORY_DIR, rel, content).map((s) => `${rel}: imports ${s}`),
+      );
     expect(violations).toEqual([]);
   });
 
-  it("the history scanner sees a relative import of a frozen module", () => {
+  it("the history scanner sees a relative import of a frozen module, and nothing else", () => {
     expect(
-      historyImports(
+      importsUnder(
+        HISTORY_DIR,
         "src/app/readRecords.ts",
-        `import { decodePhaseRecordManifestV1 } from "../../packages/schemas/src/history/phase-record-manifest/v1.js";`,
+        `import { decodeRegistryPreSchema } from "../schemas/history/registry/pre-schema.js";`,
       ),
     ).toHaveLength(1);
     expect(
-      historyImports("src/app/readRecords.ts", `import { x } from "../schemas/runRecord.js";`),
+      importsUnder(
+        HISTORY_DIR,
+        "src/schemas/registry.ts",
+        `import { x } from "./history/phase-record-manifest/pre-schema.js";`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      importsUnder(
+        HISTORY_DIR,
+        "src/app/readRecords.ts",
+        `import { x } from "../schemas/runRecord.js";`,
+      ),
     ).toEqual([]);
+  });
+});
+
+describe("architectural guard: phax never imports packages/", () => {
+  it("no src/ module has a module specifier that resolves under packages/", () => {
+    const violations = srcModules().flatMap(({ rel, content }) =>
+      packageImports(rel, content).map((s) => `${rel}: imports ${s}`),
+    );
+    expect(violations).toEqual([]);
+  });
+
+  it("the packages scanner sees a relative import and the package name, and nothing else", () => {
+    expect(
+      packageImports(
+        "src/app/readRecords.ts",
+        `import { parseDocument } from "../../packages/schemas/src/index.js";`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      packageImports(
+        "src/app/readRecords.ts",
+        `import { parseDocument } from "@lbdremy/phax-schemas";`,
+      ),
+    ).toHaveLength(1);
+    expect(packageImports("src/app/readRecords.ts", `import { Schema } from "effect";`)).toEqual(
+      [],
+    );
+    expect(
+      packageImports("src/app/readRecords.ts", `import { x } from "../schemas/runRecord.js";`),
+    ).toEqual([]);
+  });
+});
+
+describe("architectural guard: a frozen module imports only effect", () => {
+  const frozen = srcModules().filter(({ rel }) => rel.startsWith(HISTORY_DIR));
+
+  it("finds the frozen modules", () => {
+    expect(frozen.length).toBeGreaterThan(0);
+  });
+
+  it("every module under src/schemas/history/ imports only effect or effect/*", () => {
+    const violations = frozen.flatMap(({ rel, content }) =>
+      moduleSpecifiers(content)
+        .filter((specifier) => !CLOSURE_ALLOWED_BARE.test(specifier))
+        .map((specifier) => `${rel}: imports ${specifier}`),
+    );
+    expect(violations).toEqual([]);
   });
 });
