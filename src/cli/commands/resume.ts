@@ -17,7 +17,7 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { loadPlan } from "../../app/loadPlan.js";
 import { inspectResumeFromInfo } from "../../app/resume.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
-import { decodeRunStatus } from "../../schemas/status.js";
+import { readRunStatusFile } from "../../schemas/persisted.js";
 import { executePlan } from "../../app/executePlan.js";
 import { renderArtifactCompletions } from "./run.js";
 import { withRunLock } from "../../app/lock.js";
@@ -159,17 +159,18 @@ export async function runResume(
     return 2;
   }
 
+  const runStatusPath = join(runPath, "run-status.json");
   let runStatusRaw: unknown;
   try {
-    runStatusRaw = JSON.parse(readFileSync(join(runPath, "run-status.json"), "utf8"));
+    runStatusRaw = JSON.parse(readFileSync(runStatusPath, "utf8"));
   } catch (e) {
     out.error(`Cannot read run-status.json: ${e instanceof Error ? e.message : String(e)}`);
     return 2;
   }
 
-  const runStatusResult = decodeRunStatus(runStatusRaw);
+  const runStatusResult = readRunStatusFile(runStatusPath, runStatusRaw);
   if (Either.isLeft(runStatusResult)) {
-    out.error(`Invalid run-status.json: ${String(runStatusResult.left)}`);
+    out.error(runStatusResult.left.message);
     return 2;
   }
   const runStatus = runStatusResult.right;

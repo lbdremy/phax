@@ -18,7 +18,14 @@ export const PhaseFileReconciliationSchema = Schema.Struct({
 
 export type PhaseFileReconciliation = Schema.Schema.Type<typeof PhaseFileReconciliationSchema>;
 
-export const decodePhaseFileReconciliation = Schema.decodeUnknownEither(
-  PhaseFileReconciliationSchema,
+/**
+ * `file-reconciliation.json` as phax writes it: today's schema until the file
+ * gains `$schema`.
+ * @alias
+ */
+export const PhaseFileReconciliationFileSchema = PhaseFileReconciliationSchema;
+
+export const decodePhaseFileReconciliationFile = Schema.decodeUnknownEither(
+  PhaseFileReconciliationFileSchema,
 );
 export const encodePhaseFileReconciliation = Schema.encodeSync(PhaseFileReconciliationSchema);

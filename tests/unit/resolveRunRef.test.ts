@@ -181,7 +181,9 @@ describe("resolveRunRef", () => {
       expect(result.left.variant).toBe("unresolvable-qualified");
       expect(result.left.message).toContain("myns.fixbug");
       expect(result.left.message).toContain("could not be read");
-      expect(result.left.message).toContain("Invalid run-status.json");
+      expect(result.left.message).toContain(
+        `${join(stateRoot, "runs", "myns.fixbug", "run-status.json")}: run status without $schema is not in the pre-schema shape`,
+      );
       expect(result.left.message).toContain("namespace");
     });
 

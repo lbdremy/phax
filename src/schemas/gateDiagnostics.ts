@@ -38,7 +38,17 @@ export const GateDiagnosticsDocumentSchema = Schema.Struct({
 
 export type GateDiagnosticsDocument = Schema.Schema.Type<typeof GateDiagnosticsDocumentSchema>;
 
+// The document a gate step prints on stdout: decoded with this contract, never through the bridge.
 export const decodeGateDiagnosticsDocument = Schema.decodeUnknownEither(
   GateDiagnosticsDocumentSchema,
 );
+
+/**
+ * An attempt's `.diagnostics.json` as phax writes it: the stdout contract until
+ * the file gains `$schema`.
+ * @alias
+ */
+export const GateDiagnosticsFileSchema = GateDiagnosticsDocumentSchema;
+
+export const decodeGateDiagnosticsFile = Schema.decodeUnknownEither(GateDiagnosticsFileSchema);
 export const encodeGateDiagnosticsDocument = Schema.encodeSync(GateDiagnosticsDocumentSchema);

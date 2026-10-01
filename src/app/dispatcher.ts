@@ -15,12 +15,8 @@ import { FileSystem, FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
-import {
-  decodePhaseStatus,
-  decodeRunStatus,
-  type PhaseStatus,
-  type RunStatus,
-} from "../schemas/status.js";
+import { readPhaseStatusFile, readRunStatusFile } from "../schemas/persisted.js";
+import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import { run as runEffect, type EffectRunnerContext } from "./effectRunner.js";
 import { composePhaxState } from "./phaxState.js";
 
@@ -42,13 +38,12 @@ export interface DispatchResult {
 function readPhaxState(ctx: DispatcherContext): Effect.Effect<PhaxState, FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const runRaw = yield* fs.readText(join(ctx.runPath, "run-status.json"));
+    const runStatusPath = join(ctx.runPath, "run-status.json");
+    const runRaw = yield* fs.readText(runStatusPath);
     const runParsed = JSON.parse(runRaw) as unknown;
-    const runDecoded = decodeRunStatus(runParsed);
+    const runDecoded = readRunStatusFile(runStatusPath, runParsed);
     if (Either.isLeft(runDecoded)) {
-      return yield* Effect.fail(
-        new FsError({ message: `Invalid run-status.json at "${ctx.runPath}"` }),
-      );
+      return yield* Effect.fail(new FsError({ message: runDecoded.left.message }));
     }
 
     let phase: PhaseStatus | undefined;
@@ -58,11 +53,9 @@ function readPhaxState(ctx: DispatcherContext): Effect.Effect<PhaxState, FsError
       if (phaseExists) {
         const phaseRaw = yield* fs.readText(phasePath);
         const phaseParsed = JSON.parse(phaseRaw) as unknown;
-        const phaseDecoded = decodePhaseStatus(phaseParsed);
+        const phaseDecoded = readPhaseStatusFile(phasePath, phaseParsed);
         if (Either.isLeft(phaseDecoded)) {
-          return yield* Effect.fail(
-            new FsError({ message: `Invalid status.json at "${ctx.phaseFolderPath}"` }),
-          );
+          return yield* Effect.fail(new FsError({ message: phaseDecoded.left.message }));
         }
         phase = phaseDecoded.right;
       }

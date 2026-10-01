@@ -71,7 +71,13 @@ export const RunStatusSchema = Schema.Struct({
 
 export type RunStatus = Schema.Schema.Type<typeof RunStatusSchema>;
 
-export const decodeRunStatus = Schema.decodeUnknownEither(RunStatusSchema);
+/**
+ * `run-status.json` as phax writes it: today's schema until run status gains `$schema`.
+ * @alias
+ */
+export const RunStatusFileSchema = RunStatusSchema;
+
+export const decodeRunStatusFile = Schema.decodeUnknownEither(RunStatusFileSchema);
 export const encodeRunStatus = Schema.encodeSync(RunStatusSchema);
 
 export const PhaseStatusSchema = Schema.Struct({
@@ -91,5 +97,12 @@ export const PhaseStatusSchema = Schema.Struct({
 
 export type PhaseStatus = Schema.Schema.Type<typeof PhaseStatusSchema>;
 
-export const decodePhaseStatus = Schema.decodeUnknownEither(PhaseStatusSchema);
+/**
+ * A phase's `status.json` as phax writes it: today's schema until phase status
+ * gains `$schema`.
+ * @alias
+ */
+export const PhaseStatusFileSchema = PhaseStatusSchema;
+
+export const decodePhaseStatusFile = Schema.decodeUnknownEither(PhaseStatusFileSchema);
 export const encodePhaseStatus = Schema.encodeSync(PhaseStatusSchema);

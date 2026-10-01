@@ -201,7 +201,19 @@ export const SpecDocumentSchema = SpecDocumentStruct.pipe(
 
 export type SpecDocument = Schema.Schema.Type<typeof SpecDocumentSchema>;
 
+// The document an authoring session returns: decoded with this contract, never through the bridge.
 export const decodeSpecDocument = Schema.decodeUnknownEither(SpecDocumentSchema, {
+  onExcessProperty: "error",
+});
+
+/**
+ * A spec's JSON sidecar as phax writes it: the authoring contract until the
+ * sidecar gains `$schema`.
+ * @alias
+ */
+export const SpecDocumentFileSchema = SpecDocumentSchema;
+
+export const decodeSpecDocumentFile = Schema.decodeUnknownEither(SpecDocumentFileSchema, {
   onExcessProperty: "error",
 });
 

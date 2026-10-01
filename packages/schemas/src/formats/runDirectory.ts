@@ -3,8 +3,8 @@
 // frozen module under src/schemas/history/; each current shape, `next`, is
 // phax's own schema and decoder. The package declares none of its own.
 import {
-  ComplianceReviewSchema,
-  decodeComplianceReview,
+  ComplianceReviewFileSchema,
+  decodeComplianceReviewFile,
   type ComplianceReview,
 } from "../../../../src/schemas/complianceReview.js";
 import {
@@ -32,13 +32,21 @@ import {
   decodeRunStatusPreSchema,
   type RunStatusPreSchema,
 } from "../../../../src/schemas/history/run-status/pre-schema.js";
-import { PhaxPlanSchema, decodePhaxPlan, type PhaxPlan } from "../../../../src/schemas/phaxPlan.js";
-import { RegistrySchema, decodeRegistry, type Registry } from "../../../../src/schemas/registry.js";
 import {
-  PhaseStatusSchema,
-  RunStatusSchema,
-  decodePhaseStatus,
-  decodeRunStatus,
+  PhaxPlanFileSchema,
+  decodePhaxPlanFile,
+  type PhaxPlan,
+} from "../../../../src/schemas/phaxPlan.js";
+import {
+  RegistryFileSchema,
+  decodeRegistryFile,
+  type Registry,
+} from "../../../../src/schemas/registry.js";
+import {
+  PhaseStatusFileSchema,
+  RunStatusFileSchema,
+  decodePhaseStatusFile,
+  decodeRunStatusFile,
   type PhaseStatus,
   type RunStatus,
 } from "../../../../src/schemas/status.js";
@@ -62,7 +70,7 @@ export const registryFormat = defineFormat<RegistryShapes>({
   label: "run registry",
   preSchema: { schema: RegistryPreSchemaSchema, decode: decodeRegistryPreSchema },
   releases: [],
-  current: { name: "next", shape: { schema: RegistrySchema, decode: decodeRegistry } },
+  current: { name: "next", shape: { schema: RegistryFileSchema, decode: decodeRegistryFile } },
 });
 
 /** Reads `~/.phax/registry.json`. Never throws. */
@@ -89,7 +97,7 @@ export const runStatusFormat = defineFormat<RunStatusShapes>({
   label: "run status",
   preSchema: { schema: RunStatusPreSchemaSchema, decode: decodeRunStatusPreSchema },
   releases: [],
-  current: { name: "next", shape: { schema: RunStatusSchema, decode: decodeRunStatus } },
+  current: { name: "next", shape: { schema: RunStatusFileSchema, decode: decodeRunStatusFile } },
 });
 
 /** Reads a run's `run-status.json`. Never throws. */
@@ -117,7 +125,10 @@ export const phaseStatusFormat = defineFormat<PhaseStatusShapes>({
   label: "phase status",
   preSchema: { schema: PhaseStatusPreSchemaSchema, decode: decodePhaseStatusPreSchema },
   releases: [],
-  current: { name: "next", shape: { schema: PhaseStatusSchema, decode: decodePhaseStatus } },
+  current: {
+    name: "next",
+    shape: { schema: PhaseStatusFileSchema, decode: decodePhaseStatusFile },
+  },
 });
 
 /** Reads a phase's `status.json`. Never throws. */
@@ -145,7 +156,7 @@ export const phaxPlanFormat = defineFormat<PhaxPlanShapes>({
   label: "phax-plan",
   preSchema: { schema: PhaxPlanPreSchemaSchema, decode: decodePhaxPlanPreSchema },
   releases: [],
-  current: { name: "next", shape: { schema: PhaxPlanSchema, decode: decodePhaxPlan } },
+  current: { name: "next", shape: { schema: PhaxPlanFileSchema, decode: decodePhaxPlanFile } },
 });
 
 /** Reads a run's `phax-plan.json`. Never throws. */
@@ -177,7 +188,7 @@ export const complianceReviewFormat = defineFormat<ComplianceReviewShapes>({
   releases: [],
   current: {
     name: "next",
-    shape: { schema: ComplianceReviewSchema, decode: decodeComplianceReview },
+    shape: { schema: ComplianceReviewFileSchema, decode: decodeComplianceReviewFile },
   },
 });
 

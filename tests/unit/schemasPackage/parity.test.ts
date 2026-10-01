@@ -20,23 +20,23 @@ import {
 } from "../../../packages/schemas/src/index.js";
 import { decodeApprovalRecordFile } from "../../../src/schemas/approvalRecord.js";
 import {
-  decodeAuthoringRecordManifest,
-  decodeRecordManifest,
+  decodeAuthoringRecordManifestFile,
+  decodeRecordManifestFile,
   isAuthoringRecordManifest,
 } from "../../../src/schemas/authoringRecord.js";
 import { decodeComplianceReview } from "../../../src/schemas/complianceReview.js";
-import { decodeGateAttribution } from "../../../src/schemas/gateAttribution.js";
+import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnostics.js";
-import { decodeGatePendingDocument } from "../../../src/schemas/gatePending.js";
-import { decodePhaxPlan } from "../../../src/schemas/phaxPlan.js";
+import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
+import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
 import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
-import { decodePhaseFileReconciliation } from "../../../src/schemas/reconciliation.js";
-import { decodeRegistry } from "../../../src/schemas/registry.js";
-import { decodeRunRecordManifest } from "../../../src/schemas/runRecord.js";
+import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
+import { decodeRegistryFile } from "../../../src/schemas/registry.js";
+import { decodeRunRecordManifestFile } from "../../../src/schemas/runRecord.js";
 import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
 import { decodeSpecDocument } from "../../../src/schemas/specDocument.js";
-import { decodePhaseStatus, decodeRunStatus } from "../../../src/schemas/status.js";
+import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
   validDocuments,
   versionOnePhaseRecordManifest,
@@ -74,7 +74,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   registry: {
     id: "registry",
     parse: parseRegistry,
-    phax: decodeRegistry,
+    phax: decodeRegistryFile,
     wrongType: ["runs", {}],
     required: "runs",
     excess: "ignore",
@@ -82,7 +82,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "run-status": {
     id: "run-status",
     parse: parseRunStatus,
-    phax: decodeRunStatus,
+    phax: decodeRunStatusFile,
     wrongType: ["phasesCount", "2"],
     required: "state",
     excess: "ignore",
@@ -90,7 +90,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "phase-status": {
     id: "phase-status",
     parse: parsePhaseStatus,
-    phax: decodePhaseStatus,
+    phax: decodePhaseStatusFile,
     wrongType: ["phaseIndex", "0"],
     required: "branchName",
     excess: "ignore",
@@ -98,7 +98,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "phax-plan": {
     id: "phax-plan",
     parse: parsePhaxPlan,
-    phax: decodePhaxPlan,
+    phax: decodePhaxPlanFile,
     wrongType: ["phases", "phase-01"],
     required: "run",
     excess: "error",
@@ -130,7 +130,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "phase-record-manifest": {
     id: "phase-record-manifest",
     parse: parsePhaseRecordManifest,
-    phax: decodeRunRecordManifest,
+    phax: decodeRunRecordManifestFile,
     wrongType: ["verifiedSurfaces", "local"],
     required: "outcome",
     excess: "error",
@@ -138,7 +138,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "authoring-record-manifest": {
     id: "authoring-record-manifest",
     parse: parseAuthoringRecordManifest,
-    phax: decodeAuthoringRecordManifest,
+    phax: decodeAuthoringRecordManifestFile,
     wrongType: ["usage", null],
     required: "authoringId",
     excess: "error",
@@ -146,7 +146,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "gate-attribution": {
     id: "gate-attribution",
     parse: parseGateAttribution,
-    phax: decodeGateAttribution,
+    phax: decodeGateAttributionFile,
     wrongType: ["steps", {}],
     required: "phase",
     excess: "ignore",
@@ -154,7 +154,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "phase-file-reconciliation": {
     id: "phase-file-reconciliation",
     parse: parsePhaseFileReconciliation,
-    phax: decodePhaseFileReconciliation,
+    phax: decodePhaseFileReconciliationFile,
     wrongType: ["hasDeviations", "yes"],
     required: "phaseId",
     excess: "ignore",
@@ -170,7 +170,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "gate-pending": {
     id: "gate-pending",
     parse: parseGatePending,
-    phax: decodeGatePendingDocument,
+    phax: decodeGatePendingFile,
     wrongType: ["closed", "phase-01"],
     required: "closed",
     excess: "ignore",
@@ -227,7 +227,7 @@ describe.each(FORMAT_IDS.map((id) => FORMATS[id]))(
 describe("parity: one unknown key", () => {
   it("is rejected by both for a phase record manifest, at the key", () => {
     const input = withKey(validDocuments["phase-record-manifest"], "reviewer", "human");
-    expect(Either.isLeft(decodeRunRecordManifest(input))).toBe(true);
+    expect(Either.isLeft(decodeRunRecordManifestFile(input))).toBe(true);
     const result = parsePhaseRecordManifest(input);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.path).toBe("reviewer");
@@ -235,7 +235,7 @@ describe("parity: one unknown key", () => {
 
   it("is accepted by both for a registry, and dropped from the value", () => {
     const input = withKey(validDocuments.registry, "owner", "example");
-    expect(Either.isRight(decodeRegistry(input))).toBe(true);
+    expect(Either.isRight(decodeRegistryFile(input))).toBe(true);
     const result = parseRegistry(input);
     expect(result).toMatchObject({ ok: true, shape: "pre-schema" });
     if (result.ok) expect(Object.hasOwn(result.value, "owner")).toBe(false);
@@ -294,7 +294,7 @@ const MANIFEST_CASES: ReadonlyArray<Case> = [
 
 describe("parity: parsePhaseRecordManifest agrees with phax's decoder", () => {
   it.each(MANIFEST_CASES)("%s", (_label, input, verdict) => {
-    expectParity(parsePhaseRecordManifest, decodeRunRecordManifest, input, verdict);
+    expectParity(parsePhaseRecordManifest, decodeRunRecordManifestFile, input, verdict);
   });
 });
 
@@ -411,7 +411,7 @@ const RECORD_MANIFEST_CASES: ReadonlyArray<readonly [string, unknown]> = [
 
 describe("parity: parseRecordManifest agrees with phax's union", () => {
   it.each(RECORD_MANIFEST_CASES)("%s", (_label, input) => {
-    const decoded = decodeRecordManifest(input);
+    const decoded = decodeRecordManifestFile(input);
     const result = parseRecordManifest(input);
     expect(result.ok).toBe(Either.isRight(decoded));
     if (result.ok && Either.isRight(decoded)) {

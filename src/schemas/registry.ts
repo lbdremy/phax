@@ -34,5 +34,11 @@ export const RegistrySchema = Schema.Struct({
 
 export type Registry = Schema.Schema.Type<typeof RegistrySchema>;
 
-export const decodeRegistry = Schema.decodeUnknownEither(RegistrySchema);
+/**
+ * `registry.json` as phax writes it: today's schema until the registry gains `$schema`.
+ * @alias
+ */
+export const RegistryFileSchema = RegistrySchema;
+
+export const decodeRegistryFile = Schema.decodeUnknownEither(RegistryFileSchema);
 export const encodeRegistry = Schema.encodeSync(RegistrySchema);

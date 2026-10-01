@@ -1,7 +1,5 @@
 import { Either } from "effect";
-import { formatFirstViolation } from "../../schemas/formatError.js";
-import { decodePlanDocument } from "../../schemas/planDocument.js";
-import { decodeSpecDocument } from "../../schemas/specDocument.js";
+import { readPlanDocumentFile, readSpecDocumentFile } from "../../schemas/persisted.js";
 import { renderPlanBody } from "../authoring/renderPlan.js";
 import { renderSpecBody } from "../authoring/renderSpec.js";
 import { splitFrontmatter } from "./frontmatter.js";
@@ -38,6 +36,7 @@ function normalise(text: string): string {
 function renderSidecar(
   kind: ArtifactKind,
   sidecarJson: string,
+  sidecarPath: string,
 ): Either.Either<string, { readonly kind: "invalid"; readonly message: string }> {
   let parsed: unknown;
   try {
@@ -47,14 +46,14 @@ function renderSidecar(
     return Either.left({ kind: "invalid", message: `not JSON (${detail})` });
   }
   if (kind === "spec") {
-    const decoded = decodeSpecDocument(parsed);
+    const decoded = readSpecDocumentFile(sidecarPath, parsed);
     return Either.isLeft(decoded)
-      ? Either.left({ kind: "invalid", message: formatFirstViolation(decoded.left) })
+      ? Either.left({ kind: "invalid", message: decoded.left.message })
       : Either.right(renderSpecBody(decoded.right));
   }
-  const decoded = decodePlanDocument(parsed);
+  const decoded = readPlanDocumentFile(sidecarPath, parsed);
   return Either.isLeft(decoded)
-    ? Either.left({ kind: "invalid", message: formatFirstViolation(decoded.left) })
+    ? Either.left({ kind: "invalid", message: decoded.left.message })
     : Either.right(renderPlanBody(decoded.right));
 }
 
@@ -71,14 +70,16 @@ export function sidecarRemedy(kind: ArtifactKind, slug: string, sidecarPath: str
  * Whether an artifact's body is still the rendering of its sidecar. Computed
  * from content only: the frontmatter is ignored (transitions rewrite it), so a
  * status change or approval stamp keeps the pair in sync while any body edit
- * diverges it. A sidecar that is not a valid document of `kind` is `invalid`.
+ * diverges it. A sidecar that is not a valid document of `kind` is `invalid`;
+ * its message names `sidecarPath`, or "sidecar" when the caller has none.
  */
 export function sidecarAgreement(input: {
   readonly md: string;
   readonly sidecarJson: string;
   readonly kind: ArtifactKind;
+  readonly sidecarPath?: string;
 }): SidecarAgreement {
-  const rendered = renderSidecar(input.kind, input.sidecarJson);
+  const rendered = renderSidecar(input.kind, input.sidecarJson, input.sidecarPath ?? "sidecar");
   if (Either.isLeft(rendered)) return rendered.left;
   const body = splitFrontmatter(input.md)?.body ?? input.md;
   return normalise(body) === normalise(rendered.right) ? "in-sync" : "diverged";

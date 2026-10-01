@@ -4,7 +4,8 @@ import type { GateStep, ResolvedConfig, ScopesConfig } from "../schemas/phaxConf
 import { GateFailedError, type PendingStep } from "../domain/errors.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { decodeRunStatus, encodeRunStatus } from "../schemas/status.js";
+import { readRunStatusFile } from "../schemas/persisted.js";
+import { encodeRunStatus } from "../schemas/status.js";
 import { encodeGateAttribution, type GateStepResult } from "../schemas/gateAttribution.js";
 import {
   decodeGateDiagnosticsDocument,
@@ -351,7 +352,7 @@ export function recordGateProfileInRunStatus(
       return;
     }
 
-    const decoded = decodeRunStatus(parsed);
+    const decoded = readRunStatusFile(statusPath, parsed);
     if (Either.isRight(decoded)) {
       const updated = {
         ...decoded.right,

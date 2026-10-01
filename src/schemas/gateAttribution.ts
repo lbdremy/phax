@@ -16,5 +16,11 @@ export const GateAttributionSchema = Schema.Struct({
 
 export type GateAttribution = Schema.Schema.Type<typeof GateAttributionSchema>;
 
-export const decodeGateAttribution = Schema.decodeUnknownEither(GateAttributionSchema);
+/**
+ * `gate-attribution.json` as phax writes it: today's schema until the file gains `$schema`.
+ * @alias
+ */
+export const GateAttributionFileSchema = GateAttributionSchema;
+
+export const decodeGateAttributionFile = Schema.decodeUnknownEither(GateAttributionFileSchema);
 export const encodeGateAttribution = Schema.encodeSync(GateAttributionSchema);

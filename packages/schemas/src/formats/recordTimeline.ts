@@ -4,18 +4,18 @@
 // src/schemas/history/; each current shape, `next`, is phax's own schema and
 // decoder. The package declares none of its own.
 import {
-  GateAttributionSchema,
-  decodeGateAttribution,
+  GateAttributionFileSchema,
+  decodeGateAttributionFile,
   type GateAttribution,
 } from "../../../../src/schemas/gateAttribution.js";
 import {
-  GateDiagnosticsDocumentSchema,
-  decodeGateDiagnosticsDocument,
+  GateDiagnosticsFileSchema,
+  decodeGateDiagnosticsFile,
   type GateDiagnosticsDocument,
 } from "../../../../src/schemas/gateDiagnostics.js";
 import {
-  GatePendingDocumentSchema,
-  decodeGatePendingDocument,
+  GatePendingFileSchema,
+  decodeGatePendingFile,
   type GatePendingDocument,
 } from "../../../../src/schemas/gatePending.js";
 import {
@@ -39,8 +39,8 @@ import {
   type PhaseFileReconciliationPreSchema,
 } from "../../../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
 import {
-  PhaseFileReconciliationSchema,
-  decodePhaseFileReconciliation,
+  PhaseFileReconciliationFileSchema,
+  decodePhaseFileReconciliationFile,
   type PhaseFileReconciliation,
 } from "../../../../src/schemas/reconciliation.js";
 import type { ParsedShape } from "../parsed.js";
@@ -70,7 +70,7 @@ export const gateAttributionFormat = defineFormat<GateAttributionShapes>({
   releases: [],
   current: {
     name: "next",
-    shape: { schema: GateAttributionSchema, decode: decodeGateAttribution },
+    shape: { schema: GateAttributionFileSchema, decode: decodeGateAttributionFile },
   },
 });
 
@@ -108,7 +108,10 @@ export const phaseFileReconciliationFormat = defineFormat<PhaseFileReconciliatio
   releases: [],
   current: {
     name: "next",
-    shape: { schema: PhaseFileReconciliationSchema, decode: decodePhaseFileReconciliation },
+    shape: {
+      schema: PhaseFileReconciliationFileSchema,
+      decode: decodePhaseFileReconciliationFile,
+    },
   },
 });
 
@@ -144,7 +147,7 @@ export const gateDiagnosticsFormat = defineFormat<GateDiagnosticsShapes>({
   releases: [],
   current: {
     name: "next",
-    shape: { schema: GateDiagnosticsDocumentSchema, decode: decodeGateDiagnosticsDocument },
+    shape: { schema: GateDiagnosticsFileSchema, decode: decodeGateDiagnosticsFile },
   },
 });
 
@@ -176,7 +179,7 @@ export const gatePendingFormat = defineFormat<GatePendingShapes>({
   releases: [],
   current: {
     name: "next",
-    shape: { schema: GatePendingDocumentSchema, decode: decodeGatePendingDocument },
+    shape: { schema: GatePendingFileSchema, decode: decodeGatePendingFile },
   },
 });
 

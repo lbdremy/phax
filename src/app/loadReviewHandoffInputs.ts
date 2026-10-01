@@ -9,7 +9,7 @@ import {
 import { runKey } from "../domain/runRef.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { decodePhaseFileReconciliation } from "../schemas/reconciliation.js";
+import { readPhaseFileReconciliationFile } from "../schemas/persisted.js";
 
 export interface PhaseContent {
   readonly phaseId: string;
@@ -110,7 +110,7 @@ export function loadReviewHandoffInputs(
         continue;
       }
 
-      const decoded = decodePhaseFileReconciliation(parsed);
+      const decoded = readPhaseFileReconciliationFile(jsonPath, parsed);
       if (Either.isLeft(decoded)) {
         missingPhases.push(phaseId);
         missingPaths.push(jsonPath);

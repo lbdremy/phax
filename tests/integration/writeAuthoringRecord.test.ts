@@ -13,7 +13,7 @@ import {
   writeAuthoringRecord,
   type WriteAuthoringRecordInput,
 } from "../../src/app/writeAuthoringRecord.js";
-import { decodeAuthoringRecordManifest } from "../../src/schemas/authoringRecord.js";
+import { decodeAuthoringRecordManifestFile } from "../../src/schemas/authoringRecord.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
@@ -125,7 +125,7 @@ describe("writeAuthoringRecord (real git)", () => {
       `${KEY}/record.json`,
     ]);
 
-    const decoded = decodeAuthoringRecordManifest(readManifest());
+    const decoded = decodeAuthoringRecordManifestFile(readManifest());
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isLeft(decoded)) return;
     expect(decoded.right).toEqual({

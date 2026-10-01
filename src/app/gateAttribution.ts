@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
 import { FileSystem } from "../ports/fs.js";
-import { decodeGateAttribution } from "../schemas/gateAttribution.js";
+import { readGateAttributionFile } from "../schemas/persisted.js";
 import type { Surface } from "../schemas/surface.js";
 import { verifiedSurfaces } from "../domain/gate/verifiedSurfaces.js";
 
@@ -22,7 +22,7 @@ function readPhaseVerifiedSurfaces(
       return [];
     }
 
-    const decoded = decodeGateAttribution(parsed);
+    const decoded = readGateAttributionFile(path, parsed);
     return Either.isRight(decoded) ? verifiedSurfaces(decoded.right) : [];
   });
 }

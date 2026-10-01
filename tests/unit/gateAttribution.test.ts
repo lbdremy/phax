@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Either } from "effect";
 import {
-  decodeGateAttribution,
+  decodeGateAttributionFile,
   encodeGateAttribution,
   type GateAttribution,
 } from "../../src/schemas/gateAttribution.js";
@@ -17,7 +17,7 @@ describe("GateAttributionSchema", () => {
     };
 
     const encoded = encodeGateAttribution(record);
-    const decoded = decodeGateAttribution(encoded);
+    const decoded = decodeGateAttributionFile(encoded);
 
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
@@ -26,7 +26,7 @@ describe("GateAttributionSchema", () => {
   });
 
   it("decodes an empty steps array", () => {
-    const decoded = decodeGateAttribution({ phase: "phase-01", steps: [] });
+    const decoded = decodeGateAttributionFile({ phase: "phase-01", steps: [] });
 
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
@@ -35,7 +35,7 @@ describe("GateAttributionSchema", () => {
   });
 
   it("rejects a step whose surface is outside local | structural | product", () => {
-    const decoded = decodeGateAttribution({
+    const decoded = decodeGateAttributionFile({
       phase: "phase-01",
       steps: [{ command: "pnpm test", surface: "bogus", result: "pass" }],
     });
@@ -44,7 +44,7 @@ describe("GateAttributionSchema", () => {
   });
 
   it("rejects a step whose result is outside pass | fail | pending", () => {
-    const decoded = decodeGateAttribution({
+    const decoded = decodeGateAttributionFile({
       phase: "phase-01",
       steps: [{ command: "pnpm test", surface: "local", result: "skipped" }],
     });
@@ -53,7 +53,7 @@ describe("GateAttributionSchema", () => {
   });
 
   it("decodes a pending result", () => {
-    const decoded = decodeGateAttribution({
+    const decoded = decodeGateAttributionFile({
       phase: "phase-01",
       steps: [{ command: "pnpm audit:diagnostics", surface: "structural", result: "pending" }],
     });
@@ -65,7 +65,7 @@ describe("GateAttributionSchema", () => {
   });
 
   it("rejects a missing phase", () => {
-    const decoded = decodeGateAttribution({ steps: [] });
+    const decoded = decodeGateAttributionFile({ steps: [] });
 
     expect(Either.isLeft(decoded)).toBe(true);
   });

@@ -35,7 +35,7 @@ import {
 } from "../../../packages/schemas/src/formats/runDirectory.js";
 import { writeJsonSchemas } from "../../../scripts/schemas-json.js";
 import { BranchNameSchema } from "../../../src/domain/branded.js";
-import { decodeRecordManifest } from "../../../src/schemas/authoringRecord.js";
+import { decodeRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { getSpecDocumentJsonSchema } from "../../../src/schemas/specDocument.js";
 import { validDocuments, withoutKey } from "./documents.js";
@@ -77,7 +77,7 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "gate-pending": gatePendingFormat.current.shape.decode,
   "spec-document": specDocumentFormat.current.shape.decode,
   "plan-document": planDocumentFormat.current.shape.decode,
-  "record-manifest": decodeRecordManifest,
+  "record-manifest": decodeRecordManifestFile,
 };
 
 const rendered = renderJsonSchemas(JSON_SCHEMA_FORMATS);

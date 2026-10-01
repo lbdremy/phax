@@ -4,7 +4,8 @@ import { join } from "node:path";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import { parseRunRef, runKey } from "../domain/runRef.js";
 import { resolveRun } from "./resolveRunInfo.js";
-import { decodeRegistry, type Registry } from "../schemas/registry.js";
+import { readRegistryFile } from "../schemas/persisted.js";
+import type { Registry } from "../schemas/registry.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import type { ShortName } from "../domain/branded.js";
 
@@ -32,7 +33,7 @@ function readRegistrySync(stateRoot: string): Registry | undefined {
   if (!existsSync(path)) return undefined;
   try {
     const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
-    const decoded = decodeRegistry(raw);
+    const decoded = readRegistryFile(path, raw);
     return Either.isRight(decoded) ? decoded.right : undefined;
   } catch {
     return undefined;

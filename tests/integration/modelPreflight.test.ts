@@ -20,7 +20,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
 
 const shortName = Either.getOrThrow(decodeShortName("preflight-run"));
 
@@ -115,7 +115,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 
@@ -179,7 +179,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 
@@ -246,7 +246,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
     const config = makeConfig(stateRoot);
     const { layer } = makeLayers();
 
@@ -313,7 +313,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 

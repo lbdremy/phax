@@ -13,7 +13,7 @@ import {
   encodeCodeReviewSession,
   type CodeReviewSession,
 } from "../schemas/codeReviewSession.js";
-import { decodeComplianceReview } from "../schemas/complianceReview.js";
+import { readComplianceReviewFile } from "../schemas/persisted.js";
 import { decodeGlobalFileReconciliation } from "../schemas/globalReconciliation.js";
 import { toCodeReviewAttentionPoints } from "../domain/review/codeReviewWorklist.js";
 import { decodePhaseAgentBinding } from "../schemas/phaseAgentBinding.js";
@@ -238,7 +238,7 @@ export function prepareCodeReviewSession(
     if (Either.isRight(complianceReadResult)) {
       try {
         const complianceJson = JSON.parse(complianceReadResult.right);
-        const complianceDecodeResult = decodeComplianceReview(complianceJson);
+        const complianceDecodeResult = readComplianceReviewFile(complianceJsonPath, complianceJson);
         if (Either.isRight(complianceDecodeResult)) {
           const review = complianceDecodeResult.right;
           complianceBlock = {

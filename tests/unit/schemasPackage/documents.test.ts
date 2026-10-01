@@ -4,11 +4,11 @@ import { fileURLToPath } from "node:url";
 import { Either, type ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeApprovalRecordFile } from "../../../src/schemas/approvalRecord.js";
-import { decodeAuthoringRecordManifest } from "../../../src/schemas/authoringRecord.js";
+import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { decodeComplianceReview } from "../../../src/schemas/complianceReview.js";
-import { decodeGateAttribution } from "../../../src/schemas/gateAttribution.js";
+import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnostics.js";
-import { decodeGatePendingDocument } from "../../../src/schemas/gatePending.js";
+import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
 import { decodeAuthoringRecordManifestPreSchema } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import { decodeGateAttributionPreSchema } from "../../../src/schemas/history/gate-attribution/pre-schema.js";
@@ -24,15 +24,15 @@ import { decodeRegistryPreSchema } from "../../../src/schemas/history/registry/p
 import { decodeRunStatusPreSchema } from "../../../src/schemas/history/run-status/pre-schema.js";
 import { decodeSpecApprovalsPreSchema } from "../../../src/schemas/history/spec-approvals/pre-schema.js";
 import { decodeSpecDocumentPreSchema } from "../../../src/schemas/history/spec-document/pre-schema.js";
-import { decodePhaxPlan } from "../../../src/schemas/phaxPlan.js";
+import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
 import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
-import { decodePhaseFileReconciliation } from "../../../src/schemas/reconciliation.js";
-import { decodeRegistry } from "../../../src/schemas/registry.js";
-import { decodeRunRecordManifest } from "../../../src/schemas/runRecord.js";
+import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
+import { decodeRegistryFile } from "../../../src/schemas/registry.js";
+import { decodeRunRecordManifestFile } from "../../../src/schemas/runRecord.js";
 import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
 import { decodeSpecDocument } from "../../../src/schemas/specDocument.js";
-import { decodePhaseStatus, decodeRunStatus } from "../../../src/schemas/status.js";
+import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
   preSchemaDocuments,
   validDocuments,
@@ -45,19 +45,19 @@ type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>
 
 /** phax's own decoder for each format. */
 const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
-  registry: decodeRegistry,
-  "run-status": decodeRunStatus,
-  "phase-status": decodePhaseStatus,
-  "phax-plan": decodePhaxPlan,
+  registry: decodeRegistryFile,
+  "run-status": decodeRunStatusFile,
+  "phase-status": decodePhaseStatusFile,
+  "phax-plan": decodePhaxPlanFile,
   "compliance-review": decodeComplianceReview,
   "plan-approvals": decodeApprovalRecordFile,
   "spec-approvals": decodeSpecApprovalRecordFile,
-  "phase-record-manifest": decodeRunRecordManifest,
-  "authoring-record-manifest": decodeAuthoringRecordManifest,
-  "gate-attribution": decodeGateAttribution,
-  "phase-file-reconciliation": decodePhaseFileReconciliation,
+  "phase-record-manifest": decodeRunRecordManifestFile,
+  "authoring-record-manifest": decodeAuthoringRecordManifestFile,
+  "gate-attribution": decodeGateAttributionFile,
+  "phase-file-reconciliation": decodePhaseFileReconciliationFile,
   "gate-diagnostics": decodeGateDiagnosticsDocument,
-  "gate-pending": decodeGatePendingDocument,
+  "gate-pending": decodeGatePendingFile,
   "spec-document": decodeSpecDocument,
   "plan-document": decodePlanDocument,
 };
@@ -133,7 +133,7 @@ describe("the test documents", () => {
   it("include a version-1 phase record manifest that phax's decoder rejects", () => {
     expect(versionOnePhaseRecordManifest["version"]).toBe(1);
     expect(Object.hasOwn(versionOnePhaseRecordManifest, "verifiedSurfaces")).toBe(false);
-    expect(Either.isLeft(decodeRunRecordManifest(versionOnePhaseRecordManifest))).toBe(true);
+    expect(Either.isLeft(decodeRunRecordManifestFile(versionOnePhaseRecordManifest))).toBe(true);
   });
 
   it("are edited by helpers that return new objects", () => {

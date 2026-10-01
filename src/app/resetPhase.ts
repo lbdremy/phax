@@ -14,7 +14,8 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
-import { decodeRunStatus, type PhaseStatus, type RunStatus } from "../schemas/status.js";
+import { readRunStatusFile } from "../schemas/persisted.js";
+import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import { dispatch } from "./dispatcher.js";
 import { composePhaxState } from "./phaxState.js";
 import { resolveRun } from "./resolveRunInfo.js";
@@ -229,7 +230,7 @@ function clearRunStatusLastError(runPath: string): Effect.Effect<void, FsError, 
     } catch {
       return;
     }
-    const decoded = decodeRunStatus(parsed);
+    const decoded = readRunStatusFile(path, parsed);
     if (Either.isLeft(decoded)) return;
     // Drop `lastError` from the already-validated on-disk shape. We don't go
     // through a status encoder here — the architectural guard reserves those

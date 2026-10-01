@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { FORMAT_IDS, type FormatId } from "../../src/schemas/schemaUrl.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..", "..");
@@ -745,6 +746,83 @@ describe("architectural guard: phax never imports packages/", () => {
     expect(
       packageImports("src/app/readRecords.ts", `import { x } from "../schemas/runRecord.js";`),
     ).toEqual([]);
+  });
+});
+
+// Every persisted file phax reads goes through the bridge. Each format's file
+// decoder may be named only by the bridge and by the src/schemas module that
+// declares it; any other src/ module reads the file through a bridge reader.
+const BRIDGE_ONLY_DECODERS: { readonly [F in FormatId]: ReadonlyArray<string> } = {
+  registry: ["decodeRegistryFile"],
+  "run-status": ["decodeRunStatusFile"],
+  "phase-status": ["decodePhaseStatusFile"],
+  "phax-plan": ["decodePhaxPlanFile"],
+  "compliance-review": ["decodeComplianceReviewFile"],
+  "plan-approvals": ["decodeApprovalRecordFile"],
+  "spec-approvals": ["decodeSpecApprovalRecordFile"],
+  "phase-record-manifest": ["decodeRunRecordManifestFile", "decodeRecordManifestFile"],
+  "authoring-record-manifest": ["decodeAuthoringRecordManifestFile", "decodeRecordManifestFile"],
+  "gate-attribution": ["decodeGateAttributionFile"],
+  "phase-file-reconciliation": ["decodePhaseFileReconciliationFile"],
+  "gate-diagnostics": ["decodeGateDiagnosticsFile"],
+  "gate-pending": ["decodeGatePendingFile"],
+  "spec-document": ["decodeSpecDocumentFile"],
+  "plan-document": ["decodePlanDocumentFile"],
+};
+
+/** Whether `content` names `name` as a whole word. */
+function namesWord(content: string, name: string): boolean {
+  return new RegExp(`(?<![\\w$])${name}(?![\\w$])`).test(content);
+}
+
+/** Whether `content` declares `name` as an exported binding. */
+function declares(content: string, name: string): boolean {
+  return new RegExp(`\\bexport\\s+const\\s+${name}(?![\\w$])`).test(content);
+}
+
+describe("architectural guard: only the bridge names a file decoder", () => {
+  const decoders = [...new Set(Object.values(BRIDGE_ONLY_DECODERS).flat())];
+
+  it("names at least one file decoder for every format", () => {
+    for (const formatId of FORMAT_IDS) {
+      expect(BRIDGE_ONLY_DECODERS[formatId].length, formatId).toBeGreaterThan(0);
+    }
+  });
+
+  it("every file decoder is declared by exactly one src/schemas module", () => {
+    const modules = srcModules();
+    for (const name of decoders) {
+      const declaring = modules.filter(
+        ({ rel, content }) => /^src\/schemas\/[^/]+\.ts$/.test(rel) && declares(content, name),
+      );
+      expect(
+        declaring.map(({ rel }) => rel),
+        name,
+      ).toHaveLength(1);
+    }
+  });
+
+  it(`no src/ module other than ${PERSISTED_BRIDGE} and the declaring module names one`, () => {
+    const violations = srcModules()
+      .filter(({ rel }) => rel !== PERSISTED_BRIDGE)
+      .flatMap(({ rel, content }) =>
+        decoders
+          .filter((name) => namesWord(content, name) && !declares(content, name))
+          .map((name) => `${rel}: names ${name}`),
+      );
+    expect(violations).toEqual([]);
+  });
+
+  it("the detector sees a whole-word reference and its declaration, and nothing else", () => {
+    const use = `const decoded = decodeRegistryFile(raw);`;
+    const declaration = `export const decodeRegistryFile = Schema.decodeUnknownEither(RegistryFileSchema);`;
+    expect(namesWord(use, "decodeRegistryFile")).toBe(true);
+    expect(declares(use, "decodeRegistryFile")).toBe(false);
+    expect(namesWord(declaration, "decodeRegistryFile")).toBe(true);
+    expect(declares(declaration, "decodeRegistryFile")).toBe(true);
+    expect(namesWord(`decodeRunRecordManifestFile(x)`, "decodeRecordManifestFile")).toBe(false);
+    expect(namesWord(`decodeRegistryFileX(x)`, "decodeRegistryFile")).toBe(false);
+    expect(namesWord(`readRegistryFile(path, raw)`, "decodeRegistryFile")).toBe(false);
   });
 });
 

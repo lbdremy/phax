@@ -3,7 +3,8 @@ import { mkdir, open, readFile, rename } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { randomBytes } from "node:crypto";
 import type { ClaudeSessionId } from "../../domain/branded.js";
-import { decodePhaseStatus, encodePhaseStatus } from "../../schemas/status.js";
+import { readPhaseStatusFile } from "../../schemas/persisted.js";
+import { encodePhaseStatus } from "../../schemas/status.js";
 
 async function writeAtomic(filePath: string, content: string): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true });
@@ -30,7 +31,7 @@ export async function persistSessionId(
 
   try {
     const text = await readFile(statusPath, "utf8");
-    const decoded = decodePhaseStatus(JSON.parse(text) as unknown);
+    const decoded = readPhaseStatusFile(statusPath, JSON.parse(text) as unknown);
     if (Either.isRight(decoded)) {
       const updated = {
         ...decoded.right,

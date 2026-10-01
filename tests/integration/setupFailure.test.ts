@@ -20,7 +20,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
 
 const shortName = Either.getOrThrow(decodeShortName("my-run"));
 
@@ -59,7 +59,7 @@ describe("executePlan — setup command failure", () => {
   });
 
   it("fails with SetupCommandFailedError when a setup command exits non-zero", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {
@@ -141,7 +141,7 @@ describe("executePlan — setup command failure", () => {
   });
 
   it("transitions run-status to failed after setup command failure", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {
@@ -223,7 +223,7 @@ describe("executePlan — setup command failure", () => {
   });
 
   it("writes setup.log with the failed command output before failing", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlan(rawPlan));
+    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
 
     const config: ResolvedConfig = {
       raw: {
