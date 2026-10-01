@@ -76,7 +76,8 @@ import {
 import { PhaxPlanSchema } from "../../../src/schemas/phaxPlan.js";
 import { PlanDocumentSchema } from "../../../src/schemas/planDocument.js";
 import { PhaseFileReconciliationSchema } from "../../../src/schemas/reconciliation.js";
-import { RegistrySchema } from "../../../src/schemas/registry.js";
+import { withSchemaUrl } from "../../../src/schemas/persisted.js";
+import { RegistryFileSchema } from "../../../src/schemas/registry.js";
 import { RunRecordManifestSchema } from "../../../src/schemas/runRecord.js";
 import type { FormatId } from "../../../src/schemas/schemaUrl.js";
 import { SpecApprovalRecordFileSchema } from "../../../src/schemas/specApprovalRecord.js";
@@ -417,9 +418,16 @@ export const preSchemaDocuments: { readonly [F in FormatId]: Doc } = {
   "plan-document": encoded(PlanDocumentPreSchemaSchema, planDocument),
 };
 
-/** One minimal document per format id, in the shape phax writes today, without `$schema`. */
+/** The formats phax already writes with `$schema`; each family phase adds its own. */
+export const WRITES_SCHEMA: ReadonlySet<FormatId> = new Set<FormatId>(["registry"]);
+
+/**
+ * One minimal document per format id, in the shape phax writes today. A
+ * format that writes `$schema` carries it first, stamped by `withSchemaUrl`;
+ * the others carry none yet.
+ */
 export const validDocuments: { readonly [F in FormatId]: Doc } = {
-  registry: encoded(RegistrySchema, registry),
+  registry: encoded(RegistryFileSchema, withSchemaUrl("registry", { runs: registry.runs })),
   "run-status": encoded(RunStatusSchema, runStatus),
   "phase-status": encoded(PhaseStatusSchema, phaseStatus),
   "phax-plan": encoded(PhaxPlanSchema, phaxPlan),

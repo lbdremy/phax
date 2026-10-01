@@ -41,6 +41,7 @@ import {
   RegistryFileSchema,
   decodeRegistryFile,
   type Registry,
+  type RegistryFile,
 } from "../../../../src/schemas/registry.js";
 import {
   PhaseStatusFileSchema,
@@ -60,7 +61,7 @@ import { defineFormat } from "../shapes.js";
 
 // ── registry
 
-export type RegistryShapes = { "pre-schema": RegistryPreSchema; next: Registry };
+export type RegistryShapes = { "pre-schema": RegistryPreSchema; next: RegistryFile };
 
 /** The id of every run registry shape the package reads. */
 export type RegistryShape = keyof RegistryShapes;
@@ -76,13 +77,12 @@ export const registryFormat = defineFormat<RegistryShapes>({
 /** Reads `~/.phax/registry.json`. Never throws. */
 export const parseRegistry: (input: unknown) => ParsedShape<RegistryShapes> = registryFormat.parse;
 
-/** The latest run registry: no `version`. */
-export type LatestRegistry = Omit<Registry, "version">;
+/** The latest run registry: phax's in-memory value, with no `version` and no `$schema`. */
+export type LatestRegistry = Registry;
 
 /** Upgrades a parsed registry in memory. Keeps every recorded fact; never invents one. */
-export function toLatestRegistry(value: RegistryPreSchema | Registry): LatestRegistry {
-  const { version: _version, ...recorded } = value;
-  return recorded;
+export function toLatestRegistry(value: RegistryPreSchema | RegistryFile): LatestRegistry {
+  return { runs: value.runs };
 }
 
 // ── run status

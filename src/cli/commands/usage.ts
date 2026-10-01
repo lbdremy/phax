@@ -1,16 +1,13 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { Duration, Effect } from "effect";
+import { PHAX_RELEASE } from "../../schemas/release.js";
 import { readUsageSpec } from "./usageSpec.js";
 
+// The release phax prints for `--version`: the generated PHAX_RELEASE, the
+// same constant every persisted document names in its $schema.
+// scripts/schemas-check.ts keeps it equal to the root package.json version.
 export function readPackageVersion(): string {
-  // Resolve 2 levels up from src/cli/commands/ (dev) or dist/cli/commands/ (installed)
-  // to get to the package root where package.json lives.
-  const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "../../../package.json");
-  const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { version: string };
-  return pkg.version;
+  return PHAX_RELEASE;
 }
 
 // `process.exit()` right after `process.stdout/stderr.write()` can truncate the

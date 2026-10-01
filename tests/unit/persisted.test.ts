@@ -4,12 +4,16 @@ import {
   readPersisted,
   readRecordManifestFile,
   readRegistryFile,
+  withSchemaUrl,
   type MissingFact,
   type PersistedReadError,
   type PersistedSpec,
 } from "../../src/schemas/persisted.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import {
   preSchemaDocuments,
+  validDocuments,
   versionOnePhaseRecordManifest,
   withKey,
 } from "./schemasPackage/documents.js";
@@ -122,12 +126,54 @@ describe("readPersisted", () => {
   });
 });
 
+describe("withSchemaUrl", () => {
+  it("puts $schema first, naming the format at the running release", () => {
+    const stamped = withSchemaUrl("registry", { runs: [] });
+    expect(Object.keys(stamped)).toEqual(["$schema", "runs"]);
+    expect(stamped.$schema).toBe(schemaUrl("registry", PHAX_RELEASE));
+    expect(stamped.$schema).toBe(`https://docs.phax.run/schemas/registry/${PHAX_RELEASE}.json`);
+  });
+
+  it("keeps the value's own keys in their order", () => {
+    expect(Object.keys(withSchemaUrl("run-status", { b: 1, a: 2 }))).toEqual(["$schema", "b", "a"]);
+  });
+});
+
 describe("format readers", () => {
-  it("readRegistryFile reads a pre-schema registry", () => {
+  it("readRegistryFile reads a pre-schema registry, dropping version", () => {
     const registry = right(
       readRegistryFile("/home/example/.phax/registry.json", preSchemaDocuments.registry),
     );
-    expect(registry).toEqual(preSchemaDocuments.registry);
+    const { version: _version, ...rest } = preSchemaDocuments.registry;
+    expect(registry).toEqual(rest);
+    expect(registry).not.toHaveProperty("version");
+  });
+
+  it("readRegistryFile reads a registry phax wrote, dropping $schema", () => {
+    const registry = right(
+      readRegistryFile("/home/example/.phax/registry.json", validDocuments.registry),
+    );
+    expect(registry).toEqual({ runs: preSchemaDocuments.registry["runs"] });
+    expect(registry).not.toHaveProperty("$schema");
+  });
+
+  it("readRegistryFile reads a registry another release wrote in the same shape", () => {
+    const doc = withKey(validDocuments.registry, "$schema", schemaUrl("registry", "0.1.0"));
+    expect(right(readRegistryFile("registry.json", doc)).runs).toHaveLength(1);
+  });
+
+  it("readRegistryFile refuses a $schema registry the current decoder rejects, naming the file", () => {
+    const file = "/home/example/.phax/registry.json";
+    const doc = withKey(validDocuments.registry, "$schema", schemaUrl("run-status", "0.1.0"));
+    const error = left(readRegistryFile(file, doc));
+    expect(error.format).toBe("registry");
+    expect(error.message).toMatch(new RegExp(`^${file}: .*\\$schema`));
+    expect(error.message).not.toContain("without $schema");
+  });
+
+  it("readRegistryFile does not rescue a $schema registry with the pre-schema decoder", () => {
+    const doc = withKey(preSchemaDocuments.registry, "$schema", "not a url");
+    expect(Either.isLeft(readRegistryFile("registry.json", doc))).toBe(true);
   });
 
   it("readRegistryFile refuses a registry in no known shape, naming the file", () => {

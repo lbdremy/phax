@@ -1,6 +1,7 @@
 // Checks the schemas package's derived files against their sources:
 // packages/schemas/src/generated/index.ts against the root package.json
-// version and the lowest release-named snapshot, packages/schemas/history.lock.json
+// version and the lowest release-named snapshot, phax's src/schemas/release.ts
+// (PHAX_RELEASE) against the root package.json version, packages/schemas/history.lock.json
 // against the bytes of every frozen module under phax's src/schemas/history/
 // (keyed by repo-relative path), and every format's JSON Schema snapshots
 // under packages/schemas/snapshots/<format id>/ against the schema its
@@ -15,6 +16,7 @@ import {
   refreshLock,
   renderGeneratedIndex,
   renderLock,
+  renderReleaseModule,
   type HistoryLock,
 } from "../packages/schemas/build/generated.js";
 import {
@@ -36,6 +38,7 @@ const GENERATED_INDEX = "src/generated/index.ts";
 const HISTORY_DIR = "src/schemas/history";
 const LOCK_FILE = "history.lock.json";
 const LOCK_PATH = `${PACKAGE_DIR}/${LOCK_FILE}`;
+const RELEASE_MODULE = "src/schemas/release.ts";
 
 /** Everything the check reads, so it can run on an injected state. */
 export interface SchemasState {
@@ -44,6 +47,8 @@ export interface SchemasState {
   readonly firstSupportedRelease: string | null;
   /** The committed generated index, or undefined when absent. */
   readonly generatedIndex: string | undefined;
+  /** The committed `src/schemas/release.ts`, or undefined when absent. */
+  readonly releaseModule: string | undefined;
   readonly lock: HistoryLock;
   /** Repo-relative path → bytes, for every module under `src/schemas/history/`. */
   readonly historyFiles: ReadonlyMap<string, Uint8Array>;
@@ -104,6 +109,7 @@ export function readSchemasState(repoRoot: string): SchemasState {
   };
   const indexPath = join(packageDir, GENERATED_INDEX);
   const lockPath = join(packageDir, LOCK_FILE);
+  const releasePath = join(repoRoot, RELEASE_MODULE);
   const historyFiles = new Map<string, Uint8Array>();
   for (const file of listFiles(join(repoRoot, HISTORY_DIR)).toSorted()) {
     historyFiles.set(relative(repoRoot, file).split("\\").join("/"), readFileSync(file));
@@ -113,6 +119,7 @@ export function readSchemasState(repoRoot: string): SchemasState {
     packageVersion: rootManifest.version,
     firstSupportedRelease: firstSupportedRelease(snapshots.snapshots),
     generatedIndex: existsSync(indexPath) ? readFileSync(indexPath, "utf8") : undefined,
+    releaseModule: existsSync(releasePath) ? readFileSync(releasePath, "utf8") : undefined,
     lock: existsSync(lockPath) ? (JSON.parse(readFileSync(lockPath, "utf8")) as HistoryLock) : {},
     historyFiles,
     ...snapshots,
@@ -127,6 +134,10 @@ function generatedIndexOf(state: SchemasState): string {
   });
 }
 
+function releaseModuleOf(state: SchemasState): string {
+  return renderReleaseModule({ packageVersion: state.packageVersion });
+}
+
 /** Every finding, one `✗ …` line each; empty when the derived files are current. */
 export function checkSchemas(state: SchemasState): string[] {
   const findings: string[] = [];
@@ -135,6 +146,12 @@ export function checkSchemas(state: SchemasState): string[] {
     findings.push(
       `✗ ${index} does not match package.json version ${state.packageVersion} and first ` +
         `supported release ${state.firstSupportedRelease ?? "(none)"} — run ${WRITE_COMMAND}`,
+    );
+  }
+  if (state.releaseModule !== releaseModuleOf(state)) {
+    findings.push(
+      `✗ ${RELEASE_MODULE} does not match package.json version ${state.packageVersion} — ` +
+        `run ${WRITE_COMMAND}`,
     );
   }
   const { mismatched } = refreshLock(state.lock, state.historyFiles);
@@ -158,13 +175,14 @@ export function checkSchemas(state: SchemasState): string[] {
 }
 
 /**
- * What `--write` produces: the generated index, the lock with missing
- * entries added, and the snapshot files to write (repo-relative path →
+ * What `--write` produces: the generated index, phax's release module, the
+ * lock with missing entries added, and the snapshot files to write (repo-relative path →
  * content) or remove. `mismatched` lists the lock entries it refused to
  * change; when it is non-empty nothing is written.
  */
 export function writeSchemas(state: SchemasState): {
   generatedIndex: string;
+  releaseModule: string;
   lock: string;
   mismatched: ReadonlyArray<string>;
   snapshotWrites: ReadonlyMap<string, string>;
@@ -174,6 +192,7 @@ export function writeSchemas(state: SchemasState): {
   const { writes, removals } = planSnapshotWrites(state);
   return {
     generatedIndex: generatedIndexOf(state),
+    releaseModule: releaseModuleOf(state),
     lock: renderLock(lock),
     mismatched,
     snapshotWrites: writes,
@@ -197,8 +216,9 @@ if (isMain) {
     const indexPath = join(repoRoot, PACKAGE_DIR, GENERATED_INDEX);
     mkdirSync(dirname(indexPath), { recursive: true });
     writeFileSync(indexPath, written.generatedIndex);
+    writeFileSync(join(repoRoot, RELEASE_MODULE), written.releaseModule);
     writeFileSync(join(repoRoot, LOCK_PATH), written.lock);
-    console.log(`Wrote ${PACKAGE_DIR}/${GENERATED_INDEX} and ${LOCK_PATH}`);
+    console.log(`Wrote ${PACKAGE_DIR}/${GENERATED_INDEX}, ${RELEASE_MODULE} and ${LOCK_PATH}`);
     for (const [path, content] of written.snapshotWrites) {
       const target = join(repoRoot, path);
       mkdirSync(dirname(target), { recursive: true });

@@ -1,8 +1,10 @@
 /**
  * The `$schema` URL that names a persisted document's format and the phax
  * release that wrote it: `<base>/<format-id>/<X.Y.Z>.json`. Pure, and
- * imports nothing, so the schemas package can carry it.
+ * imports only `effect`, so the schemas package can carry it.
  */
+import { Schema } from "effect";
+
 export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
 
 /**
@@ -33,7 +35,8 @@ export function isFormatId(value: string): value is FormatId {
   return (FORMAT_IDS as ReadonlyArray<string>).includes(value);
 }
 
-const RELEASE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const RELEASE_TRIPLE = String.raw`(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)`;
+const RELEASE = new RegExp(`^${RELEASE_TRIPLE}$`);
 
 /** A release string: a numeric `X.Y.Z` triple. */
 export function isRelease(value: string): boolean {
@@ -42,6 +45,21 @@ export function isRelease(value: string): boolean {
 
 export function schemaUrl(formatId: FormatId, release: string): string {
   return `${SCHEMA_URL_BASE}/${formatId}/${release}.json`;
+}
+
+/**
+ * A persisted file's `$schema` field: the URL of that one format at any
+ * `X.Y.Z` release. Not bound to the running release, so a file the previous
+ * release wrote in the same shape still decodes.
+ */
+export function schemaUrlField(formatId: FormatId) {
+  const prefix = `${SCHEMA_URL_BASE}/${formatId}/`.replaceAll(".", "\\.");
+  return Schema.String.pipe(
+    Schema.pattern(new RegExp(`^${prefix}${RELEASE_TRIPLE}\\.json$`)),
+    Schema.annotations({
+      description: `The ${formatId} format and the phax release that wrote this file: ${SCHEMA_URL_BASE}/${formatId}/<X.Y.Z>.json`,
+    }),
+  );
 }
 
 // Any lowercase-kebab id is accepted, so that an id unknown to this build

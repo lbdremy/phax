@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
 import { decodeRegistryFile } from "../../src/schemas/registry.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../src/schemas/status.js";
 
 const validConfig = {
@@ -331,14 +332,20 @@ describe("decodeRegistryFile", () => {
     updatedAt: now,
   };
 
+  const $schema = schemaUrl("registry", "0.17.0");
+
   it("accepts a valid registry with namespace on each entry", () => {
-    const registry = { version: 1, runs: [validEntry] };
+    const registry = { $schema, runs: [validEntry] };
     expect(Either.isRight(decodeRegistryFile(registry))).toBe(true);
   });
 
   it("rejects a registry entry missing namespace", () => {
     const { namespace: _, ...noNamespace } = validEntry;
-    const registry = { version: 1, runs: [noNamespace] };
+    const registry = { $schema, runs: [noNamespace] };
     expect(Either.isLeft(decodeRegistryFile(registry))).toBe(true);
+  });
+
+  it("rejects a registry without $schema: the bridge reads those through the frozen decoder", () => {
+    expect(Either.isLeft(decodeRegistryFile({ version: 1, runs: [validEntry] }))).toBe(true);
   });
 });

@@ -8,7 +8,8 @@
 // It resolves a document the way the schemas package's `defineFormat` does: a
 // document with `$schema` is read only by phax's current file decoder; a
 // document without `$schema` is read only by the frozen pre-schema decoder,
-// then stepped to the current shape.
+// then stepped to the current shape. On the way out, `withSchemaUrl` stamps the
+// `$schema` a writer puts first.
 import { Either, type ParseResult } from "effect";
 import { decodeApprovalRecordFile, type ApprovalRecordFile } from "./approvalRecord.js";
 import { decodeRecordManifestFile, type RecordManifest } from "./authoringRecord.js";
@@ -35,7 +36,8 @@ import {
   type PhaseFileReconciliation,
 } from "./reconciliation.js";
 import { decodeRegistryFile, type Registry } from "./registry.js";
-import type { FormatId } from "./schemaUrl.js";
+import { PHAX_RELEASE } from "./release.js";
+import { schemaUrl, type FormatId } from "./schemaUrl.js";
 import { decodeSpecApprovalRecordFile, type SpecApprovalRecordFile } from "./specApprovalRecord.js";
 import { decodeSpecDocumentFile, type SpecDocument } from "./specDocument.js";
 import {
@@ -154,13 +156,28 @@ function reader<InMemory>(
     });
 }
 
-/** Reads `~/.phax/registry.json`. */
-export const readRegistryFile: Reader<Registry> = reader(
-  "registry",
-  "run registry",
-  decodeRegistryFile,
-  decodeRegistryPreSchema,
-);
+/**
+ * `value` as the file phax writes: `$schema` first, naming `formatId` at the
+ * running release, then the value's own keys.
+ */
+export function withSchemaUrl<T extends object>(
+  formatId: FormatId,
+  value: T,
+): { readonly $schema: string } & T {
+  return { $schema: schemaUrl(formatId, PHAX_RELEASE), ...value };
+}
+
+/** Reads `~/.phax/registry.json`. The pre-schema registry carries every fact phax needs. */
+export const readRegistryFile: Reader<Registry> = (file, input) =>
+  readPersisted(input, {
+    format: "registry",
+    label: "run registry",
+    file,
+    decodeCurrent: decodeRegistryFile,
+    decodePreSchema: decodeRegistryPreSchema,
+    fromCurrent: ({ $schema: _schema, ...registry }) => registry,
+    fromPreSchema: ({ version: _version, ...registry }) => Either.right(registry),
+  });
 
 /** Reads a run's `run-status.json`. */
 export const readRunStatusFile: Reader<RunStatus> = reader(

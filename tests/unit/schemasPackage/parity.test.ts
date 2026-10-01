@@ -33,7 +33,7 @@ import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import { decodeRegistryFile } from "../../../src/schemas/registry.js";
 import { decodeRunRecordManifestFile } from "../../../src/schemas/runRecord.js";
-import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
+import { FORMAT_IDS, schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
 import { decodeSpecDocument } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
@@ -237,7 +237,7 @@ describe("parity: one unknown key", () => {
     const input = withKey(validDocuments.registry, "owner", "example");
     expect(Either.isRight(decodeRegistryFile(input))).toBe(true);
     const result = parseRegistry(input);
-    expect(result).toMatchObject({ ok: true, shape: "pre-schema" });
+    expect(result).toMatchObject({ ok: true, shape: "next" });
     if (result.ok) expect(Object.hasOwn(result.value, "owner")).toBe(false);
   });
 });
@@ -318,7 +318,13 @@ const completion = (validDocuments["gate-diagnostics"]["diagnostics"] as Readonl
 // Rejects that reach inside a document: each one a refinement or a nested
 // literal phax's decoder checks.
 const NESTED: ReadonlyArray<readonly [FormatId, string, Doc, Verdict]> = [
-  ["registry", "an empty registry", { version: 1, runs: [] }, "accepted"],
+  ["registry", "an empty registry", withKey(validDocuments.registry, "runs", []), "accepted"],
+  [
+    "registry",
+    "a $schema naming another format",
+    withKey(validDocuments.registry, "$schema", schemaUrl("run-status", "0.1.0")),
+    "rejected",
+  ],
   [
     "registry",
     "a run in an unknown state",

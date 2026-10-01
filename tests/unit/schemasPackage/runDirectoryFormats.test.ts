@@ -21,7 +21,13 @@ import { decodeRegistryFile } from "../../../src/schemas/registry.js";
 import type { FormatId } from "../../../src/schemas/schemaUrl.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
-import { validDocuments, withKey, withoutKey } from "./documents.js";
+import {
+  preSchemaDocuments,
+  validDocuments,
+  withKey,
+  withoutKey,
+  WRITES_SCHEMA,
+} from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 
@@ -64,15 +70,21 @@ const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
 
 describe.each(FORMATS)("$id", (format) => {
   const document = validDocuments[format.id];
+  const preSchema = preSchemaDocuments[format.id];
+  const writtenShape = WRITES_SCHEMA.has(format.id) ? "next" : "pre-schema";
 
-  it("parses the document as shape pre-schema, with phax's value", () => {
+  it("parses the pre-schema document as shape pre-schema", () => {
+    expect(format.parse(preSchema)).toEqual({ ok: true, shape: "pre-schema", value: preSchema });
+  });
+
+  it("parses the document phax writes with phax's value", () => {
     const phax = format.phax(document);
     if (Either.isLeft(phax)) throw new Error("document rejected by phax");
-    expect(format.parse(document)).toEqual({ ok: true, shape: "pre-schema", value: phax.right });
+    expect(format.parse(document)).toEqual({ ok: true, shape: writtenShape, value: phax.right });
   });
 
   it("fails a document the frozen decoder rejects as older than the first release that writes $schema", () => {
-    const result = format.parse(withKey(document, "version", 0)) as {
+    const result = format.parse(withKey(preSchema, "version", 0)) as {
       readonly ok: boolean;
       readonly error?: { readonly path: string; readonly message: string };
     };
@@ -82,9 +94,16 @@ describe.each(FORMATS)("$id", (format) => {
   });
 
   it("upgrades by dropping version and keeping everything else", () => {
-    const result = format.parse(document);
+    const result = format.parse(preSchema);
     if (!result.ok) throw new Error("document rejected");
-    expect(format.toLatest(result.value as never)).toEqual(withoutKey(document, "version"));
+    expect(format.toLatest(result.value as never)).toEqual(withoutKey(preSchema, "version"));
+  });
+
+  it("upgrades the pre-schema document and the document phax writes to the same value", () => {
+    const old = format.parse(preSchema);
+    const written = format.parse(document);
+    if (!old.ok || !written.ok) throw new Error("document rejected");
+    expect(format.toLatest(written.value as never)).toEqual(format.toLatest(old.value as never));
   });
 
   it("fails a document written by a newer release with the upgrade message", () => {
@@ -93,6 +112,24 @@ describe.each(FORMATS)("$id", (format) => {
     for (const result of [format.parse(newer), parseDocument(newer)]) {
       expect(result).toEqual({ ok: false, error: { path: "$schema", message } });
     }
+  });
+});
+
+describe("registry written by phax", () => {
+  const written = validDocuments.registry;
+
+  it("is identified by its $schema alone as shape next (ac-identify-alone)", () => {
+    const result = parseDocument(written);
+    expect(result).toMatchObject({ ok: true, format: "registry", shape: "next" });
+  });
+
+  it("drops $schema on upgrade, and carries no version", () => {
+    const result = parseRegistry(written);
+    if (!result.ok) throw new Error("document rejected");
+    expect(result.shape).toBe("next");
+    const latest = toLatestRegistry(result.value);
+    expect(latest).toEqual(withoutKey(written, "$schema"));
+    expect(latest).not.toHaveProperty("version");
   });
 });
 

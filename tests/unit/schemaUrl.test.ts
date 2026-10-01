@@ -1,4 +1,6 @@
+import { Either, JSONSchema, Schema } from "effect";
 import { describe, expect, it } from "vitest";
+import { findJsonSchemaGaps } from "../../packages/schemas/build/jsonSchemas.js";
 import {
   FORMAT_IDS,
   SCHEMA_URL_BASE,
@@ -6,6 +8,7 @@ import {
   isFormatId,
   parseSchemaUrl,
   schemaUrl,
+  schemaUrlField,
 } from "../../src/schemas/schemaUrl.js";
 
 describe("schemaUrl", () => {
@@ -25,6 +28,45 @@ describe("schemaUrl", () => {
     expect(isFormatId("code-review")).toBe(false);
     expect(isFormatId("phase-record-manifest")).toBe(true);
   });
+});
+
+describe("schemaUrlField", () => {
+  const decode = Schema.decodeUnknownEither(schemaUrlField("registry"));
+
+  it.each(["0.16.0", "0.17.0", "1.0.0", "12.34.56"])(
+    "accepts the format's own URL at release %s",
+    (release) => {
+      expect(Either.isRight(decode(schemaUrl("registry", release)))).toBe(true);
+    },
+  );
+
+  it.each([
+    ["another format id", schemaUrl("run-status", "0.17.0")],
+    ["a two-part release", `${SCHEMA_URL_BASE}/registry/0.17.json`],
+    ["a pre-release", `${SCHEMA_URL_BASE}/registry/0.17.0-rc.1.json`],
+    ["a leading zero", `${SCHEMA_URL_BASE}/registry/0.017.0.json`],
+    ["an unescaped dot matching any character", `${SCHEMA_URL_BASE}/registry/0x17x0.json`],
+    ["another host", "https://docsxphax.run/schemas/registry/0.17.0.json"],
+    ["no .json suffix", `${SCHEMA_URL_BASE}/registry/0.17.0`],
+    ["a trailing suffix", `${schemaUrl("registry", "0.17.0")}x`],
+  ])("rejects %s", (_label, value) => {
+    expect(Either.isLeft(decode(value))).toBe(true);
+  });
+
+  it.each([42, null, undefined, {}, ["x"]])("rejects the non-string %j", (value) => {
+    expect(Either.isLeft(decode(value))).toBe(true);
+  });
+
+  it.each(FORMAT_IDS.map((id) => [id]))(
+    "renders to JSON Schema with no gap for %s, naming the format",
+    (id) => {
+      const field = schemaUrlField(id);
+      expect(findJsonSchemaGaps(field)).toEqual([]);
+      const rendered = JSONSchema.make(field) as { pattern?: string; description?: string };
+      expect(rendered.description).toContain(id);
+      expect(new RegExp(rendered.pattern ?? "^$").test(schemaUrl(id, "0.17.0"))).toBe(true);
+    },
+  );
 });
 
 describe("parseSchemaUrl", () => {
