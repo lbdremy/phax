@@ -81,7 +81,7 @@
     },
     {
       "term": "Parity",
-      "definition": "A parse function has parity when it gives the same accept or reject verdict as phax's own decoder for that format on every document, including how it treats unknown keys. Parity holds for the version phax currently writes; older shapes are read by historical decoders phax no longer carries."
+      "definition": "A parse function has parity when it gives the same accept or reject verdict as phax's own decoder for that format on every document, including how it treats unknown keys. Parity holds for the version phax currently writes; older shapes are read by historical decoders, which phax uses only to read its own older files."
     },
     {
       "term": "Record manifest",
@@ -101,7 +101,7 @@
     },
     {
       "term": "Historical decoder",
-      "definition": "The decoder of a shape phax no longer writes: a format's pre-schema shape, and every released shape since. It lives in the package, one module per shape, and is never modified after the release that froze it."
+      "definition": "The decoder of a shape phax no longer writes: a format's pre-schema shape, and every released shape since. It lives in phax, under `src/schemas/history/<format id>/<shape>.ts`, one self-contained module per shape (it imports only `effect`), re-exported by the package, and is never modified after the release that froze it."
     },
     {
       "term": "Snapshot",
@@ -223,7 +223,7 @@
       "id": "history-frozen",
       "title": "Historical decoders are frozen",
       "pattern": "ubiquitous",
-      "statement": "The schemas package shall hold one decoder module per shape phax no longer writes — each format's pre-schema shape, and every released shape since — and a historical decoder shall not change once released. phax shall read a file it wrote in an older shape (its registry, a run's status) through those decoders and the format's `toLatest`, and shall refuse, naming the file and the fact, when a fact it needs comes back unknown."
+      "statement": "phax shall hold one decoder module per shape it no longer writes — each format's pre-schema shape, and every released shape since — under `src/schemas/history/`, and a historical decoder shall not change once released. The schemas package shall re-export them. phax shall read a file it wrote in an older shape (its registry, a run's status) through one persisted-file bridge, the only phax module that imports `src/schemas/history/`, and shall refuse, naming the file and the fact, when a fact it needs is missing. No phax module shall import the package."
     },
     {
       "id": "snapshot-gate",
@@ -321,7 +321,7 @@
       "surface": "file: snapshots and historical decoders",
       "binding": "indicative",
       "before": null,
-      "after": "packages/schemas/\n  src/history/phase-record-manifest/pre-schema.ts     frozen when the first supported release ships; phax never imports it\n  snapshots/phase-record-manifest/pre-schema.schema.json\n  snapshots/phase-record-manifest/0.17.0.schema.json  one committed JSON Schema per released shape\n  snapshots/phase-record-manifest/next.schema.json    unreleased shape; release.sh renames it to the version it cuts\n\n$ pnpm schemas:check\n✗ phase-record-manifest: the generated schema differs from the latest released snapshot and from snapshots/phase-record-manifest/next.schema.json — record next.schema.json\n$? = 1\n\n# no history corpus and no real document in the repository (§9 q-support-start)"
+      "after": "src/schemas/history/                                     ← in phax\n  phase-record-manifest/pre-schema.ts                    frozen when the first supported release ships; only src/schemas/persisted.ts imports it\nsrc/schemas/persisted.ts                                 phax's persisted-file bridge\npackages/schemas/                                        ← the package: reads phax, never the reverse\n  src/formats/*.ts                                       re-export src/schemas and src/schemas/history\n  history.lock.json                                      pins every module under src/schemas/history/ by hash\n  snapshots/phase-record-manifest/pre-schema.schema.json\n  snapshots/phase-record-manifest/0.17.0.schema.json     one committed JSON Schema per released shape\n  snapshots/phase-record-manifest/next.schema.json       unreleased shape; release.sh renames it to the version it cuts\n\n$ pnpm schemas:check\n✗ phase-record-manifest: the generated schema differs from the latest released snapshot and from snapshots/phase-record-manifest/next.schema.json — record next.schema.json\n$? = 1\n\n# no history corpus and no real document in the repository (§9 q-support-start); no src/ module imports packages/ (§9 q-historical-location)"
     },
     {
       "surface": "package: Node consumer, end to end",
@@ -548,10 +548,10 @@
     },
     {
       "id": "ac-history-frozen",
-      "name": "phax imports only the current decoder",
+      "name": "The dependency runs one way",
       "given": "the built package and phax's source",
       "when": "their imports are inspected",
-      "then": "phax's src/ imports no historical decoder module, and each historical module is byte-identical to its first released copy",
+      "then": "no file under `src/` imports `packages/`; only phax's persisted-file bridge imports `src/schemas/history/`; the package re-exports every historical module; and each historical module is byte-identical to its first released copy (pinned in `history.lock.json`)",
       "refs": [
         "history-frozen"
       ]
@@ -591,7 +591,7 @@
       "name": "phax reads its own older files through the package",
       "given": "a `~/.phax/registry.json` written by phax 0.16.0 (pre-schema, `version: 1`), and a phax at 0.17.0",
       "when": "`phax ls` runs, then any command that writes the registry",
-      "then": "the runs are listed, read through the package's pre-schema decoder and `toLatest`; the rewritten registry starts with `$schema` naming `registry/0.17.0.json`; no phax module decodes the legacy shape itself",
+      "then": "the runs are listed, read through phax's persisted-file bridge and the frozen pre-schema decoder; the rewritten registry starts with `$schema` naming `registry/0.17.0.json`; no phax module other than the bridge imports a historical decoder, and none imports the package",
       "refs": [
         "history-frozen",
         "schema-url"
@@ -879,10 +879,15 @@
           "id": "in-phax",
           "label": "In phax, which keeps every decoder",
           "abandons": "a CLI free of dead code, and the no-shims pressure on the writer"
+        },
+        {
+          "id": "phax-src-one-way",
+          "label": "In phax under `src/schemas/history/`, re-exported by the package; phax reads them only through its persisted-file bridge and never imports the package",
+          "abandons": "a phax source tree free of frozen modules: phax carries one frozen module per shape it no longer writes"
         }
       ],
-      "recommendation": "package-frozen",
-      "rationale": "Decided by the author on 2026-09-28, as recommended. Refined on 2026-09-28 (q-own-legacy): phax itself reads a file it wrote in an older shape through these decoders and `toLatest`."
+      "recommendation": "phax-src-one-way",
+      "rationale": "Decided by the author on 2026-10-01, revising the 2026-09-28 choice. phax needs the pre-schema decoders to read its own older files (q-own-legacy); keeping them in the package would make phax import the package, which widens phax's TypeScript root and moves its build output. In phax, the dependency runs one way — the package is built from phax's schemas and reads them — and phax's build does not change. Decided by the author on 2026-09-28, as recommended. Refined on 2026-09-28 (q-own-legacy): phax itself reads a file it wrote in an older shape through these decoders and `toLatest`."
     },
     {
       "id": "q-format-version",
@@ -1037,7 +1042,8 @@
       "Package name @lbdremy/phax-schemas: one entry carrying every persisted format (§5 list) and a json/ directory with one draft-07 JSON Schema per format, describing its latest shape; no stable/experimental split (q-no-experimental).",
       "`$schema` names the root package.json version; unreleased shapes are `next` snapshots renamed by release.sh (q-release-name). phax reads its own older files through the package (q-own-legacy).",
       "A record is a folder; its `record.json` is the manifest (`phase-record-manifest`, `authoring-record-manifest`). The package also reads the record's timeline files: gate attribution, phase file reconciliation, gate diagnostics and pending documents (2026-09-29).",
-      "Support starts at the first release that writes `$schema` (2026-09-30, q-support-start): each format has one pre-schema shape, today's, frozen when that release ships; older documents are unsupported. No history corpus, no survey-based decoders, no real document in the repository."
+      "Support starts at the first release that writes `$schema` (2026-09-30, q-support-start): each format has one pre-schema shape, today's, frozen when that release ships; older documents are unsupported. No history corpus, no survey-based decoders, no real document in the repository.",
+      "Historical decoders live in phax under `src/schemas/history/`, re-exported by the package; phax reads its own older files through one bridge (`src/schemas/persisted.ts`) and never imports `packages/`; phax's build layout is unchanged (2026-10-01, q-historical-location revised)."
     ],
     "open": [
       "Where the package manifest and its entry modules live in the repo, and how its build is driven (a second tsc project over the same sources, or equivalent).",
