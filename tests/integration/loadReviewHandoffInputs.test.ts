@@ -29,7 +29,6 @@ function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
     gateProfileId: "full",
     phaseStatuses: [
       {
-        version: 1,
         phaseId: "phase-01",
         phaseIndex: 0,
         state: "passed",
@@ -40,7 +39,6 @@ function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
         branchName: "phax/test-run--phase-01" as BranchName,
       },
       {
-        version: 1,
         phaseId: "phase-02",
         phaseIndex: 1,
         state: "passed",
@@ -245,7 +243,6 @@ describe("loadPhaseContents", () => {
     const infoReversed = makeInfo({
       phaseStatuses: [
         {
-          version: 1,
           phaseId: "phase-02",
           phaseIndex: 1,
           state: "passed",
@@ -256,7 +253,6 @@ describe("loadPhaseContents", () => {
           branchName: "phax/test-run--phase-02" as BranchName,
         },
         {
-          version: 1,
           phaseId: "phase-01",
           phaseIndex: 0,
           state: "passed",

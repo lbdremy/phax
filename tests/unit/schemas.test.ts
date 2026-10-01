@@ -245,7 +245,7 @@ const now = new Date().toISOString();
 
 describe("decodeRunStatusFile", () => {
   const validRunStatus = {
-    version: 1,
+    $schema: schemaUrl("run-status", "0.17.0"),
     namespace: "my-project",
     shortName: "my-run",
     runId: "my-run-123",
@@ -279,11 +279,16 @@ describe("decodeRunStatusFile", () => {
     const { shortName: _, ...noShortName } = validRunStatus;
     expect(Either.isLeft(decodeRunStatusFile(noShortName))).toBe(true);
   });
+
+  it("rejects a run status without $schema: the bridge reads those through the frozen decoder", () => {
+    const { $schema: _, ...preSchema } = validRunStatus;
+    expect(Either.isLeft(decodeRunStatusFile({ version: 1, ...preSchema }))).toBe(true);
+  });
 });
 
 describe("decodePhaseStatusFile", () => {
   const validPhaseStatus = {
-    version: 1,
+    $schema: schemaUrl("phase-status", "0.17.0"),
     phaseId: "phase-01",
     phaseIndex: 0,
     state: "pending",
@@ -316,6 +321,11 @@ describe("decodePhaseStatusFile", () => {
   it("rejects an invalid effort", () => {
     const bad = { ...validPhaseStatus, effort: "extreme" };
     expect(Either.isLeft(decodePhaseStatusFile(bad))).toBe(true);
+  });
+
+  it("rejects a phase status without $schema: the bridge reads those through the frozen decoder", () => {
+    const { $schema: _, ...preSchema } = validPhaseStatus;
+    expect(Either.isLeft(decodePhaseStatusFile({ version: 1, ...preSchema }))).toBe(true);
   });
 });
 

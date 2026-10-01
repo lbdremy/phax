@@ -6,6 +6,8 @@ import { Either } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { inspectResume } from "../../src/app/resume.js";
 import { buildResumeInstructions } from "../../src/app/resumeInstructions.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 function unwrap<T>(e: Either.Either<T, unknown>): T {
   if (Either.isLeft(e)) throw new Error("decode failed");
@@ -17,7 +19,7 @@ const now = new Date().toISOString();
 
 function makeRunStatus(state: string, extra: Record<string, unknown> = {}): object {
   return {
-    version: 1,
+    $schema: schemaUrl("run-status", PHAX_RELEASE),
     namespace: "test-project",
     shortName: "test-run",
     runId: "test-run-123",
@@ -31,7 +33,7 @@ function makeRunStatus(state: string, extra: Record<string, unknown> = {}): obje
 
 function makePhaseStatus(state: string): object {
   return {
-    version: 1,
+    $schema: schemaUrl("phase-status", PHAX_RELEASE),
     phaseId: "phase-01",
     phaseIndex: 0,
     state,

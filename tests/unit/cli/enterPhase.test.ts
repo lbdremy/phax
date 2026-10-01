@@ -98,7 +98,6 @@ function makeRunInfo(
     gateProfileId: undefined,
     phaseStatuses: [
       {
-        version: 1,
         phaseId,
         phaseIndex: 0,
         state: "review_open",

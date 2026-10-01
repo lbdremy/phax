@@ -4,7 +4,7 @@ import type { GateStep, ResolvedConfig, ScopesConfig } from "../schemas/phaxConf
 import { GateFailedError, type PendingStep } from "../domain/errors.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { readRunStatusFile } from "../schemas/persisted.js";
+import { readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
 import { encodeRunStatus } from "../schemas/status.js";
 import { encodeGateAttribution, type GateStepResult } from "../schemas/gateAttribution.js";
 import {
@@ -359,7 +359,10 @@ export function recordGateProfileInRunStatus(
         gateProfileId: profileId,
         updatedAt: new Date().toISOString(),
       };
-      yield* fs.writeAtomic(statusPath, JSON.stringify(encodeRunStatus(updated), null, 2));
+      yield* fs.writeAtomic(
+        statusPath,
+        JSON.stringify(encodeRunStatus(withSchemaUrl("run-status", updated)), null, 2),
+      );
     }
   });
 }

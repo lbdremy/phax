@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { ShortName, RunId } from "../domain/branded.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
+import { withSchemaUrl } from "../schemas/persisted.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import { type RunStatus } from "../schemas/status.js";
 import { upsertRun } from "./registry.js";
@@ -50,7 +51,6 @@ export function createRunFolder(
 
     const now = nowIso();
     const runStatus: RunStatus = {
-      version: 1,
       namespace,
       shortName,
       runId,
@@ -62,7 +62,10 @@ export function createRunFolder(
       ...(allowSkillEdits === true ? { allowSkillEdits: true } : {}),
     };
 
-    yield* fs.writeAtomic(join(runPath, "run-status.json"), JSON.stringify(runStatus, null, 2));
+    yield* fs.writeAtomic(
+      join(runPath, "run-status.json"),
+      JSON.stringify(withSchemaUrl("run-status", runStatus), null, 2),
+    );
 
     yield* upsertRun(config.stateRoot, {
       namespace,

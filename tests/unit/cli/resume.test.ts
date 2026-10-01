@@ -101,7 +101,6 @@ function makeConfig(stateRoot: string): ResolvedConfig {
 function makePhaseStatus(state: PhaseState, index = 0): PhaseStatus {
   const now = new Date().toISOString();
   return {
-    version: 1,
     phaseId: `phase-0${index + 1}`,
     phaseIndex: index,
     state,

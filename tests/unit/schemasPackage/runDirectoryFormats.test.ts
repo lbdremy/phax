@@ -133,6 +133,32 @@ describe("registry written by phax", () => {
   });
 });
 
+describe.each([
+  { id: "run-status", parse: parseRunStatus, toLatest: toLatestRunStatus },
+  { id: "phase-status", parse: parsePhaseStatus, toLatest: toLatestPhaseStatus },
+] as const)("$id written by phax", ({ id, parse, toLatest }) => {
+  const written = validDocuments[id];
+
+  it("is identified by its $schema alone as shape next (ac-identify-alone)", () => {
+    expect(parseDocument(written)).toMatchObject({ ok: true, format: id, shape: "next" });
+  });
+
+  it("drops $schema on upgrade, and carries no version", () => {
+    const result = parse(written);
+    if (!result.ok) throw new Error("document rejected");
+    expect(result.shape).toBe("next");
+    const latest = toLatest(result.value as never);
+    expect(latest).toEqual(withoutKey(written, "$schema"));
+    expect(latest).not.toHaveProperty("version");
+  });
+
+  it("fails at state when the state is unknown (ac-failure)", () => {
+    const result = parse(withKey(written, "state", "paused"));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.path).toBe("state");
+  });
+});
+
 describe("toLatestPhaxPlan", () => {
   it("keeps run.requiredCommands and every phase's planned-file lists as recorded", () => {
     const result = parsePhaxPlan(validDocuments["phax-plan"]);

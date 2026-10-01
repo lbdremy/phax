@@ -31,7 +31,6 @@ const info: RunReviewInfo = {
   gateProfileId: "full",
   phaseStatuses: [
     {
-      version: 1,
       phaseId: "phase-01",
       phaseIndex: 0,
       state: "passed",

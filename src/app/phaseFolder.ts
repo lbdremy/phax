@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { join } from "node:path";
 import type { BranchName } from "../domain/branded.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
+import { withSchemaUrl } from "../schemas/persisted.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import { type PhaseStatus } from "../schemas/status.js";
 
@@ -35,7 +36,6 @@ export function createPhaseFolder(
 
     const now = nowIso();
     const phaseStatus: PhaseStatus = {
-      version: 1,
       phaseId: phase.id,
       phaseIndex,
       state: "pending",
@@ -46,7 +46,10 @@ export function createPhaseFolder(
       updatedAt: now,
     };
 
-    yield* fs.writeAtomic(statusPath, JSON.stringify(phaseStatus, null, 2));
+    yield* fs.writeAtomic(
+      statusPath,
+      JSON.stringify(withSchemaUrl("phase-status", phaseStatus), null, 2),
+    );
 
     return phasePath;
   });

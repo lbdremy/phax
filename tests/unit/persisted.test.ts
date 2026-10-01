@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   readPersisted,
   readRecordManifestFile,
+  readPhaseStatusFile,
   readRegistryFile,
+  readRunStatusFile,
   withSchemaUrl,
   type MissingFact,
   type PersistedReadError,
@@ -181,6 +183,33 @@ describe("format readers", () => {
     const error = left(readRegistryFile(file, withKey(preSchemaDocuments.registry, "version", 7)));
     expect(error.format).toBe("registry");
     expect(error.message).toMatch(new RegExp(`^${file}: run registry without \\$schema`));
+  });
+
+  type StatusReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  it.each<readonly ["run-status" | "phase-status", StatusReader, string]>([
+    ["run-status", readRunStatusFile, "run status"],
+    ["phase-status", readPhaseStatusFile, "phase status"],
+  ])("%s: reads both shapes to the same in-memory value", (id, read, label) => {
+    const file = `/home/example/.phax/runs/example.example-run/${id}.json`;
+    const fromPreSchema = right(read(file, preSchemaDocuments[id]));
+    const fromCurrent = right(read(file, validDocuments[id]));
+    const { version: _version, ...expected } = preSchemaDocuments[id];
+    expect(fromPreSchema).toEqual(expected);
+    expect(fromCurrent).toEqual(expected);
+    expect(fromCurrent).not.toHaveProperty("$schema");
+    expect(fromPreSchema).not.toHaveProperty("version");
+
+    const another = withKey(validDocuments[id], "$schema", schemaUrl(id, "0.1.0"));
+    expect(right(read(file, another))).toEqual(expected);
+
+    const rejected = left(read(file, withKey(preSchemaDocuments[id], "state", "paused")));
+    expect(rejected.format).toBe(id);
+    expect(rejected.message).toMatch(new RegExp(`^${file}: ${label} without \\$schema`));
+
+    const wrongUrl = withKey(validDocuments[id], "$schema", schemaUrl("registry", "0.1.0"));
+    const refused = left(read(file, wrongUrl));
+    expect(refused.message).toMatch(new RegExp(`^${file}: .*\\$schema`));
+    expect(refused.message).not.toContain("without $schema");
   });
 
   it("readRecordManifestFile reads a pre-schema phase manifest", () => {
