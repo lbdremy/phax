@@ -66,7 +66,6 @@ export function finalizeExtractedPlan(
     slugifyShortName(extracted.run.shortName) || slugifyShortName(extracted.run.title) || "run";
 
   const plan: PhaxPlan = {
-    version: extracted.version,
     run: {
       ...extracted.run,
       shortName,

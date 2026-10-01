@@ -20,7 +20,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../../src/schemas/phaxConfig.js";
-import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
+import { readPhaxPlanFile } from "../../../src/schemas/persisted.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -68,7 +68,7 @@ describe("executePlan — semantic telemetry end-to-end", () => {
   });
 
   it("emits the expected semantic event types for a one-phase run", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
 
     const config: ResolvedConfig = {
       raw: {

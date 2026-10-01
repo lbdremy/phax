@@ -33,6 +33,13 @@ const PLAN_MD_ONE_PHASE = [
 ].join("\n");
 
 describe("finalizeExtractedPlan", () => {
+  it("keeps the extraction contract's version out of the in-memory plan", () => {
+    const result = finalizeExtractedPlan(makeExtracted(), PLAN_MD_ONE_PHASE);
+    if (Either.isLeft(result)) throw new Error("unexpected Left");
+    expect(result.right.plan).not.toHaveProperty("version");
+    expect(Object.keys(result.right.plan)).toEqual(["run", "phases"]);
+  });
+
   it("derives phase titles from headings", () => {
     const result = finalizeExtractedPlan(makeExtracted(), PLAN_MD_ONE_PHASE);
     expect(Either.isRight(result)).toBe(true);

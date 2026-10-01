@@ -1,6 +1,10 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
-import { decodeComplianceReview } from "../../../src/schemas/complianceReview.js";
+import {
+  decodeComplianceReview,
+  decodeComplianceReviewFile,
+} from "../../../src/schemas/complianceReview.js";
+import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
 const validReview = {
   version: 1,
@@ -191,5 +195,34 @@ describe("decodeComplianceReview", () => {
       expect(result.right.attentionPoints).toHaveLength(1);
       expect(result.right.pointers).toHaveLength(1);
     }
+  });
+});
+
+describe("decodeComplianceReviewFile", () => {
+  const { version: _version, ...review } = validReview;
+  const file = { $schema: schemaUrl("compliance-review", "0.17.0"), ...review };
+
+  it("accepts the persisted review: $schema, then the review, no version", () => {
+    const result = decodeComplianceReviewFile(file);
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("rejects the agent's verdict, which carries version and no $schema", () => {
+    expect(Either.isLeft(decodeComplianceReviewFile(validReview))).toBe(true);
+  });
+
+  it("rejects a persisted review that also carries version", () => {
+    expect(Either.isLeft(decodeComplianceReviewFile({ ...file, version: 1 }))).toBe(true);
+  });
+
+  it("rejects a $schema naming another format", () => {
+    const other = { ...file, $schema: schemaUrl("phax-plan", "0.17.0") };
+    expect(Either.isLeft(decodeComplianceReviewFile(other))).toBe(true);
+  });
+
+  it("the agent contract still rejects a $schema key", () => {
+    expect(Either.isLeft(decodeComplianceReview({ ...validReview, $schema: file.$schema }))).toBe(
+      true,
+    );
   });
 });

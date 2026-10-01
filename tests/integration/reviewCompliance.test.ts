@@ -9,6 +9,8 @@ import type { BranchName } from "../../src/domain/branded.js";
 import type { ResolvedComplianceReviewConfig } from "../../src/schemas/phaxConfig.js";
 import type { RoutingResolution } from "../../src/domain/routing/types.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const stateRoot = "/fake-state";
 const shortName = "test-run";
@@ -168,6 +170,24 @@ describe("reviewCompliance", () => {
     // Durable copies written into runPath
     expect(fs.impl.getFile(`${runPath}/compliance-review.md`)).toContain("Compliance Review");
     expect(fs.impl.getFile(`${runPath}/compliance-review.json`)).toContain("conformant");
+
+    // The durable review names its format and release, and drops the agent
+    // contract's version; the agent's own file keeps the version-1 contract.
+    const durable = JSON.parse(fs.impl.getFile(`${runPath}/compliance-review.json`)!) as Record<
+      string,
+      unknown
+    >;
+    expect(Object.keys(durable)[0]).toBe("$schema");
+    expect(durable["$schema"]).toBe(schemaUrl("compliance-review", PHAX_RELEASE));
+    expect(durable).not.toHaveProperty("version");
+    const { version: _version, ...verdict } = JSON.parse(validComplianceJson) as Record<
+      string,
+      unknown
+    >;
+    expect(durable).toEqual({ $schema: durable["$schema"], ...verdict });
+    expect(fs.impl.getFile(`${phaxContextPath}/compliance-review.json`)).toBe(validComplianceJson);
+    expect(result.review).toEqual(verdict);
+    expect(result.review).not.toHaveProperty("version");
 
     // Agent invoked fresh (runAgent, not resumeAgentSession)
     expect(backend.impl.runCalls).toHaveLength(1);

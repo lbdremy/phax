@@ -4,7 +4,7 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import type { ShortName, RunId } from "../domain/branded.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import { withSchemaUrl } from "../schemas/persisted.js";
-import type { PhaxPlan } from "../schemas/phaxPlan.js";
+import { encodePhaxPlanFile, type PhaxPlan } from "../schemas/phaxPlan.js";
 import { type RunStatus } from "../schemas/status.js";
 import { upsertRun } from "./registry.js";
 import { RegistryCorruptionError } from "../domain/errors.js";
@@ -45,7 +45,10 @@ export function createRunFolder(
 
     yield* fs.writeAtomic(join(runPath, "plan.md"), planMd);
 
-    yield* fs.writeAtomic(join(runPath, "phax-plan.json"), JSON.stringify(plan, null, 2));
+    yield* fs.writeAtomic(
+      join(runPath, "phax-plan.json"),
+      JSON.stringify(encodePhaxPlanFile(withSchemaUrl("phax-plan", plan)), null, 2),
+    );
 
     yield* fs.writeAtomic(join(runPath, "phax.json"), JSON.stringify(config.raw, null, 2));
 

@@ -1,4 +1,5 @@
-import { JSONSchema, Schema } from "effect";
+import { JSONSchema, Schema, type Types } from "effect";
+import { schemaUrlField } from "./schemaUrl.js";
 
 const EffortSchema = Schema.Literal(
   "none",
@@ -69,9 +70,8 @@ export const ExtractedPhaxPlanSchema = Schema.Struct({
   phases: Schema.NonEmptyArray(ExtractedPhaseSchema),
 });
 
-// The full persisted plan, after phax merges in the deterministic fields.
-export const PhaxPlanSchema = Schema.Struct({
-  version: Schema.Literal(1),
+// The full plan, after phax merges in the deterministic fields.
+const phaxPlanFields = {
   run: Schema.Struct({
     shortName: Schema.NonEmptyString,
     title: Schema.NonEmptyString,
@@ -79,26 +79,26 @@ export const PhaxPlanSchema = Schema.Struct({
     requiredCommands: Schema.Array(Schema.String),
   }),
   phases: Schema.NonEmptyArray(PhaseSchema),
-});
+};
 
 export type ExtractedPhaxPlan = Schema.Schema.Type<typeof ExtractedPhaxPlanSchema>;
-export type PhaxPlan = Schema.Schema.Type<typeof PhaxPlanSchema>;
+/** A run's plan in memory: never a `version`, never a `$schema`. */
+export type PhaxPlan = Types.Simplify<Schema.Struct.Type<typeof phaxPlanFields>>;
 export type PhaxPlanPhase = Schema.Schema.Type<typeof PhaseSchema>;
 export type Effort = Schema.Schema.Type<typeof EffortSchema>;
 
-/**
- * `phax-plan.json` as phax writes it: today's schema until the phax-plan gains `$schema`.
- * @alias
- */
-export const PhaxPlanFileSchema = PhaxPlanSchema;
+/** `phax-plan.json` as phax writes it: `$schema` first, then the plan. Unknown keys are rejected. */
+export const PhaxPlanFileSchema = Schema.Struct({
+  $schema: schemaUrlField("phax-plan"),
+  ...phaxPlanFields,
+});
+
+export type PhaxPlanFile = Schema.Schema.Type<typeof PhaxPlanFileSchema>;
 
 export const decodePhaxPlanFile = Schema.decodeUnknownEither(PhaxPlanFileSchema, {
   onExcessProperty: "error",
 });
-
-export function getPhaxPlanJsonSchema(): object {
-  return JSONSchema.make(PhaxPlanSchema);
-}
+export const encodePhaxPlanFile = Schema.encodeSync(PhaxPlanFileSchema);
 
 export function getExtractedPlanJsonSchema(): object {
   return JSONSchema.make(ExtractedPhaxPlanSchema);

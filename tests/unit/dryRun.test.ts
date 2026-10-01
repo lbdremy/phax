@@ -10,7 +10,6 @@ import { resolveRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { DEFAULT_SECURITY_PROFILE } from "../../src/schemas/securityConfig.js";
 
 const minimalPlan: PhaxPlan = {
-  version: 1,
   run: {
     shortName: "test-run",
     title: "Test Run",

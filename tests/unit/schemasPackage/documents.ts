@@ -9,7 +9,7 @@ import { Schema } from "effect";
 import { BranchNameSchema } from "../../../src/domain/branded.js";
 import { ApprovalRecordFileSchema } from "../../../src/schemas/approvalRecord.js";
 import { AuthoringRecordManifestSchema } from "../../../src/schemas/authoringRecord.js";
-import { ComplianceReviewSchema } from "../../../src/schemas/complianceReview.js";
+import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
 import { GateAttributionSchema } from "../../../src/schemas/gateAttribution.js";
 import { GateDiagnosticsDocumentSchema } from "../../../src/schemas/gateDiagnostics.js";
 import { GatePendingDocumentSchema } from "../../../src/schemas/gatePending.js";
@@ -73,7 +73,7 @@ import {
   SpecDocumentPreSchemaSchema,
   type SpecDocumentPreSchema,
 } from "../../../src/schemas/history/spec-document/pre-schema.js";
-import { PhaxPlanSchema } from "../../../src/schemas/phaxPlan.js";
+import { PhaxPlanFileSchema } from "../../../src/schemas/phaxPlan.js";
 import { PlanDocumentSchema } from "../../../src/schemas/planDocument.js";
 import { PhaseFileReconciliationSchema } from "../../../src/schemas/reconciliation.js";
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
@@ -423,6 +423,8 @@ export const WRITES_SCHEMA: ReadonlySet<FormatId> = new Set<FormatId>([
   "registry",
   "run-status",
   "phase-status",
+  "phax-plan",
+  "compliance-review",
 ]);
 
 /** A pre-schema value as phax holds it in memory: the same fields, without `version`. */
@@ -443,8 +445,11 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     PhaseStatusFileSchema,
     withSchemaUrl("phase-status", stepped(phaseStatus)),
   ),
-  "phax-plan": encoded(PhaxPlanSchema, phaxPlan),
-  "compliance-review": encoded(ComplianceReviewSchema, complianceReview),
+  "phax-plan": encoded(PhaxPlanFileSchema, withSchemaUrl("phax-plan", stepped(phaxPlan))),
+  "compliance-review": encoded(
+    ComplianceReviewFileSchema,
+    withSchemaUrl("compliance-review", stepped(complianceReview)),
+  ),
   "plan-approvals": encoded(ApprovalRecordFileSchema, planApprovals),
   "spec-approvals": encoded(SpecApprovalRecordFileSchema, specApprovals),
   "phase-record-manifest": encoded(RunRecordManifestSchema, phaseRecordManifest),

@@ -32,7 +32,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 import { withTelemetryCapture } from "./helpers/telemetry.js";
 
 const HANDOFF_CONTENT = [
@@ -85,7 +85,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — happy-path snapshot", () => 
   });
 
   it("captures the full semantic trace for a one-phase happy-path run and pins the projection", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
 
     const config: ResolvedConfig = {
       raw: {

@@ -1,5 +1,8 @@
-import { Effect, Layer } from "effect";
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Effect, Either, Layer } from "effect";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prepareCodeReviewSession } from "../../src/app/reviewCode.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
@@ -9,6 +12,10 @@ import type { ResolvedCodeReviewConfig } from "../../src/schemas/phaxConfig.js";
 import { encodePhaseAgentBinding } from "../../src/schemas/phaseAgentBinding.js";
 import { encodeCodeReviewSession } from "../../src/schemas/codeReviewSession.js";
 import { CODE_REVIEW_PROMPT_FILENAME } from "../../src/domain/review/codeReviewPrompt.js";
+import { resolveRun } from "../../src/app/resolveRunInfo.js";
+import { decodeShortName } from "../../src/domain/branded.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const stateRoot = "/fake-state";
 const shortName = "test-run";
@@ -204,6 +211,8 @@ describe("prepareCodeReviewSession", () => {
     expect(record.sessionId.length).toBeGreaterThan(0);
   });
 
+  // validComplianceJson is in the pre-schema shape (version 1, no $schema): a
+  // review written by 0.16.0 still feeds the prompt.
   it("new session with compliance present: prompt reflects compliance content", async () => {
     const fs = makeFakeFileSystem();
     fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
@@ -227,6 +236,33 @@ describe("prepareCodeReviewSession", () => {
     expect(promptContent).toContain("Possible bug at src/foo.ts line 42");
     expect(promptContent).toContain("Extra file added");
     // Should NOT have the compliance-missing note
+    expect(promptContent).not.toContain("phax review-compliance");
+  });
+
+  it("new session with a compliance review phax wrote with $schema: prompt reflects it", async () => {
+    const fs = makeFakeFileSystem();
+    fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
+    fs.impl.setFile(reconciliationJsonPath, validReconciliationJson);
+    const { version: _version, ...review } = JSON.parse(validComplianceJson) as Record<
+      string,
+      unknown
+    >;
+    fs.impl.setFile(
+      `${runPath}/compliance-review.json`,
+      JSON.stringify({ $schema: schemaUrl("compliance-review", PHAX_RELEASE), ...review }),
+    );
+
+    const result = await Effect.runPromise(
+      prepareCodeReviewSession(makeInfo(), defaultConfig, {
+        newSession: false,
+        nowIso,
+      }).pipe(Effect.provide(makeLayer(fs))),
+    );
+
+    expect(result.kind).toBe("ready");
+    const promptContent = fs.impl.getFile(promptFilePath);
+    expect(promptContent).toContain("Review the extra file in phase-01");
+    expect(promptContent).toContain("Extra file added");
     expect(promptContent).not.toContain("phax review-compliance");
   });
 
@@ -442,5 +478,82 @@ describe("prepareCodeReviewSession", () => {
     if (result.kind !== "refused") return;
     expect(result.message).toMatch(/agent binding/i);
     expect(result.message).toContain(shortName);
+  });
+});
+
+// A run directory written before phax wrote `$schema`: its phax-plan.json
+// (version 1) still gives run info the branch, the title and the phases the
+// review uses. Every document here is made up.
+function legacyPlanPhase(id: string, title: string): Record<string, unknown> {
+  return {
+    id,
+    title,
+    model: "example-model",
+    effort: "medium",
+    planMarkdownAnchor: `#${id}`,
+    plannedFilesToCreate: [],
+    plannedFilesToEdit: [],
+    optionalFilesToEdit: [],
+    commit: { subject: `feat: ${id}`, body: "Example body." },
+  };
+}
+
+describe("review info from a phax-plan.json written before $schema", () => {
+  let legacyStateRoot: string;
+
+  beforeEach(() => {
+    legacyStateRoot = mkdtempSync(join(tmpdir(), "phax-legacy-review-"));
+    const legacyRunPath = join(legacyStateRoot, "runs", "example.example-run");
+    mkdirSync(join(legacyRunPath, "phase-02"), { recursive: true });
+    const write = (path: string, doc: unknown) =>
+      writeFileSync(join(legacyRunPath, path), JSON.stringify(doc, null, 2));
+    write("run-status.json", {
+      version: 1,
+      namespace: "example",
+      shortName: "example-run",
+      runId: "run-0001",
+      state: "review_open",
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      phasesCount: 2,
+    });
+    write("phase-02/status.json", {
+      version: 1,
+      phaseId: "phase-02",
+      phaseIndex: 1,
+      state: "review_open",
+      model: "example-model",
+      effort: "medium",
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      branchName: "phax/example-run--phase-02",
+      worktreePath: "/work/example-repo/worktrees/phase-02",
+    });
+    write("phax-plan.json", {
+      version: 1,
+      run: {
+        shortName: "example-run",
+        title: "Example Run",
+        branch: "phax/example-run",
+        requiredCommands: [],
+      },
+      phases: [legacyPlanPhase("phase-01", "First"), legacyPlanPhase("phase-02", "Second")],
+    });
+  });
+
+  afterEach(() => {
+    rmSync(legacyStateRoot, { recursive: true, force: true });
+  });
+
+  it("loads the plan's branch, title and phases", () => {
+    const shortNameValue = Either.getOrThrow(decodeShortName("example-run"));
+    const result = resolveRun("example", shortNameValue, legacyStateRoot);
+    if (Either.isLeft(result)) throw new Error(result.left);
+    expect(result.right.branch).toBe("phax/example-run");
+    expect(result.right.runTitle).toBe("Example Run");
+    expect(result.right.planPhases).toEqual([
+      { id: "phase-01", title: "First" },
+      { id: "phase-02", title: "Second" },
+    ]);
   });
 });

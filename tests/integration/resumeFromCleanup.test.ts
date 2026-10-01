@@ -21,7 +21,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -221,7 +221,7 @@ describe("executePlan — resume from cleanup-paused (cleaning_up+interrupted)",
   });
 
   it("re-runs only cleanup for a cleaning_up phase, skipping agent/gate/commit/handoff", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -343,7 +343,7 @@ describe("executePlan — resume from cleanup-paused (cleaning_up+interrupted)",
   });
 
   it("pauses as CleanupPausedError when cleanup fails again on resume", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(

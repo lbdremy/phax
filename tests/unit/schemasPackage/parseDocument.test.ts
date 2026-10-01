@@ -15,7 +15,7 @@ import {
   type Shape,
 } from "../../../packages/schemas/src/shapes.js";
 import { FORMAT_IDS, schemaUrl } from "../../../src/schemas/schemaUrl.js";
-import { validDocuments } from "./documents.js";
+import { WRITES_SCHEMA, validDocuments } from "./documents.js";
 
 const v2Manifest = validDocuments["phase-record-manifest"];
 
@@ -97,8 +97,9 @@ describe("parseDocument", () => {
       };
       const result = parseDocument(document);
       const excess = JSON_SCHEMA_FORMATS.find((entry) => entry.format === formatId)?.excess;
-      if (excess === "ignore") {
-        // phax's decoder drops the key it does not name, as it drops any other.
+      if (excess === "ignore" || WRITES_SCHEMA.has(formatId)) {
+        // phax's file decoder names $schema, or drops the key it does not
+        // name, as it drops any other.
         expect(result).toEqual({
           ok: true,
           format: formatId,

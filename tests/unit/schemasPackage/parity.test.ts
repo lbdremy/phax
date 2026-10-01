@@ -24,7 +24,7 @@ import {
   decodeRecordManifestFile,
   isAuthoringRecordManifest,
 } from "../../../src/schemas/authoringRecord.js";
-import { decodeComplianceReview } from "../../../src/schemas/complianceReview.js";
+import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnostics.js";
 import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
@@ -106,7 +106,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "compliance-review": {
     id: "compliance-review",
     parse: parseComplianceReview,
-    phax: decodeComplianceReview,
+    phax: decodeComplianceReviewFile,
     wrongType: ["summary", 1],
     required: "verdict",
     excess: "error",

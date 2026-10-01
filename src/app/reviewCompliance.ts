@@ -13,9 +13,11 @@ import {
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
 import {
   decodeComplianceReview,
+  encodeComplianceReviewFile,
   type ComplianceReview,
   type Verdict,
 } from "../schemas/complianceReview.js";
+import { withSchemaUrl } from "../schemas/persisted.js";
 import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
@@ -314,9 +316,18 @@ export function reviewCompliance(
       } satisfies ComplianceReviewResult;
     }
 
-    const review = decodeResult.right;
+    // The agent's verdict carries the contract's `version`; the persisted
+    // review carries `$schema` instead.
+    const { version: _version, ...review } = decodeResult.right;
     const durableJsonPath = join(info.runPath, COMPLIANCE_REVIEW_JSON_FILENAME);
-    yield* fs.writeAtomic(durableJsonPath, jsonReadResult.right);
+    yield* fs.writeAtomic(
+      durableJsonPath,
+      JSON.stringify(
+        encodeComplianceReviewFile(withSchemaUrl("compliance-review", review)),
+        null,
+        2,
+      ),
+    );
 
     yield* telemetry.recordEvent(
       makeArtifactGeneratedTelemetryEvent({

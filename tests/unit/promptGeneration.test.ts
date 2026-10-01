@@ -19,7 +19,6 @@ const samplePhase: PhaxPlanPhase = {
 };
 
 const samplePlan: PhaxPlan = {
-  version: 1,
   run: {
     shortName: "my-run",
     title: "My Run",

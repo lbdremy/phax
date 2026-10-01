@@ -20,7 +20,8 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlanFile, type PhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { decodeRunStatusFile } from "../../src/schemas/status.js";
 
 const HANDOFF_CONTENT = [
@@ -51,7 +52,7 @@ function makePlan(skillPhaseIndex: number): PhaxPlan {
     commit: { subject: `feat: phase ${n}`, body: `Phase ${n}.` },
   });
   return Either.getOrThrow(
-    decodePhaxPlanFile({
+    readPhaxPlanFile("phax-plan.json", {
       version: 1,
       run: {
         shortName: "skill-run",

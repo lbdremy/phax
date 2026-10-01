@@ -23,7 +23,7 @@ import {
   type OrientConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -145,7 +145,7 @@ describe("executePlan — orient-brief.json artifact", () => {
   });
 
   it("writes the ok variant with the full row set, the row count, and how many rows the prompt wove", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlanFile(orientRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", orientRawPlan));
     const config = makeConfig(stateRoot, { command: "orient-provider" });
 
     const { fakeGit, fakeShell, fakeBackend } = setupCommonFakes(worktreePath);
@@ -215,7 +215,7 @@ describe("executePlan — orient-brief.json artifact", () => {
   });
 
   it("writes the failed variant and still dispatches the phase with an unchanged prompt", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlanFile(orientRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", orientRawPlan));
     const config = makeConfig(stateRoot, { command: "orient-provider" });
 
     const { fakeGit, fakeShell, fakeBackend } = setupCommonFakes(worktreePath);
@@ -272,7 +272,7 @@ describe("executePlan — orient-brief.json artifact", () => {
   });
 
   it("writes the not-configured variant when no orient block is configured", async () => {
-    const plan = Either.getOrThrow(decodePhaxPlanFile(orientRawPlan));
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", orientRawPlan));
     const config = makeConfig(stateRoot);
 
     const { fakeGit, fakeShell, fakeBackend } = setupCommonFakes(worktreePath);

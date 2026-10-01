@@ -1,7 +1,9 @@
 import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
+  readComplianceReviewFile,
   readPersisted,
+  readPhaxPlanFile,
   readRecordManifestFile,
   readPhaseStatusFile,
   readRegistryFile,
@@ -210,6 +212,35 @@ describe("format readers", () => {
     const refused = left(read(file, wrongUrl));
     expect(refused.message).toMatch(new RegExp(`^${file}: .*\\$schema`));
     expect(refused.message).not.toContain("without $schema");
+  });
+
+  type RunFileReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  it.each<readonly ["phax-plan" | "compliance-review", RunFileReader, string]>([
+    ["phax-plan", readPhaxPlanFile, "phax-plan"],
+    ["compliance-review", readComplianceReviewFile, "compliance review"],
+  ])("%s: reads both shapes to the same in-memory value", (id, read, label) => {
+    const file = `/home/example/.phax/runs/example.example-run/${id}.json`;
+    const { version: _version, ...expected } = preSchemaDocuments[id];
+    const fromPreSchema = right(read(file, preSchemaDocuments[id]));
+    const fromCurrent = right(read(file, validDocuments[id]));
+    expect(fromPreSchema).toEqual(expected);
+    expect(fromCurrent).toEqual(expected);
+    expect(fromCurrent).not.toHaveProperty("$schema");
+    expect(fromPreSchema).not.toHaveProperty("version");
+
+    // Both shapes stay strict: an unknown key is refused, naming the file.
+    const strictPre = left(read(file, withKey(preSchemaDocuments[id], "extra", true)));
+    expect(strictPre.format).toBe(id);
+    expect(strictPre.message).toMatch(new RegExp(`^${file}: ${label} without \\$schema`));
+    const strictCurrent = left(read(file, withKey(validDocuments[id], "extra", true)));
+    expect(strictCurrent.message).toMatch(new RegExp(`^${file}: `));
+    expect(strictCurrent.message).not.toContain("without $schema");
+
+    // A $schema document is never rescued by the pre-schema decoder.
+    const both = left(
+      read(file, withKey(preSchemaDocuments[id], "$schema", schemaUrl(id, "0.1.0"))),
+    );
+    expect(both.message).not.toContain("without $schema");
   });
 
   it("readRecordManifestFile reads a pre-schema phase manifest", () => {

@@ -11,7 +11,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { decodePhaxPlanFile, type PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { PHAX_RELEASE } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { decodeRunStatusFile, decodePhaseStatusFile } from "../../src/schemas/status.js";
@@ -54,8 +54,7 @@ const resolvedConfig: ResolvedConfig = {
   },
 };
 
-const rawPlan = {
-  version: 1,
+const plan: PhaxPlan = {
   run: {
     shortName: "my-run",
     title: "My Run",
@@ -86,9 +85,7 @@ const rawPlan = {
       commit: { subject: "ai(phase-02): do more", body: "Does more." },
     },
   ],
-} as const;
-
-const plan = Either.getOrThrow(decodePhaxPlanFile(rawPlan));
+};
 
 describe("createRunFolder", () => {
   it("creates plan.md, phax-plan.json, phax.json, and run-status.json", async () => {
@@ -138,11 +135,15 @@ describe("createRunFolder", () => {
     );
 
     const raw = impl.getFile(`${stateRoot}/runs/test-project.my-run/phax-plan.json`);
-    const parsed = JSON.parse(raw!) as unknown;
-    const decoded = decodePhaxPlanFile(parsed);
+    const written = JSON.parse(raw!) as Record<string, unknown>;
+    expect(Object.keys(written)[0]).toBe("$schema");
+    expect(written["$schema"]).toBe(schemaUrl("phax-plan", PHAX_RELEASE));
+    expect(written).not.toHaveProperty("version");
+    const decoded = decodePhaxPlanFile(written);
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
-      expect(decoded.right.phases.length).toBe(2);
+      const { $schema: _schema, ...recorded } = decoded.right;
+      expect(recorded).toEqual(plan);
     }
   });
 
