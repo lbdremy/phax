@@ -170,13 +170,13 @@ describe("schemas package entry", () => {
     expect(entry.PlanDocumentSchema).toBe(PlanDocumentFileSchema);
   });
 
-  it("re-exports phax's record manifest schemas, never a copy", async () => {
-    const { AuthoringRecordManifestSchema, RecordManifestSchema } =
+  it("re-exports phax's record manifest file schemas under the spec's names, never a copy", async () => {
+    const { AuthoringRecordManifestFileSchema, RecordManifestFileSchema } =
       await import("../../../src/schemas/authoringRecord.js");
-    const { RunRecordManifestSchema } = await import("../../../src/schemas/runRecord.js");
-    expect(entry.AuthoringRecordManifestSchema).toBe(AuthoringRecordManifestSchema);
-    expect(entry.RecordManifestSchema).toBe(RecordManifestSchema);
-    expect(entry.PhaseRecordManifestSchema).toBe(RunRecordManifestSchema);
+    const { RunRecordManifestFileSchema } = await import("../../../src/schemas/runRecord.js");
+    expect(entry.AuthoringRecordManifestSchema).toBe(AuthoringRecordManifestFileSchema);
+    expect(entry.RecordManifestSchema).toBe(RecordManifestFileSchema);
+    expect(entry.PhaseRecordManifestSchema).toBe(RunRecordManifestFileSchema);
   });
 
   it("re-exports phax's timeline schemas under the spec's names, never a copy", async () => {

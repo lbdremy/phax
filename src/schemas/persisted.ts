@@ -12,7 +12,11 @@
 // `$schema` a writer puts first.
 import { Either, type ParseResult } from "effect";
 import { decodeApprovalRecordFile, type PlanApprovals } from "./approvalRecord.js";
-import { decodeRecordManifestFile, type RecordManifest } from "./authoringRecord.js";
+import {
+  decodeRecordManifestFile,
+  type RecordManifest,
+  type RecordManifestFile,
+} from "./authoringRecord.js";
 import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
 import { formatFirstViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
@@ -294,27 +298,40 @@ export const readPhaseFileReconciliationFile: Reader<PhaseFileReconciliation> = 
   decodePhaseFileReconciliationPreSchema,
 );
 
-const readAuthoringRecordManifest: Reader<RecordManifest> = reader(
-  "authoring-record-manifest",
-  "authoring record manifest",
-  decodeRecordManifestFile,
-  decodeAuthoringRecordManifestPreSchema,
-);
+function fromRecordManifestFile({ $schema: _schema, ...manifest }: RecordManifestFile) {
+  return manifest;
+}
 
-const readPhaseRecordManifest: Reader<RecordManifest> = reader(
-  "phase-record-manifest",
-  "phase record manifest",
-  decodeRecordManifestFile,
-  decodePhaseRecordManifestPreSchema,
-);
+// A pre-schema manifest carries every fact phax needs; an absent `sourceSha`
+// stays absent.
+const readAuthoringRecordManifest: Reader<RecordManifest> = (file, input) =>
+  readPersisted(input, {
+    format: "authoring-record-manifest",
+    label: "authoring record manifest",
+    file,
+    decodeCurrent: decodeRecordManifestFile,
+    decodePreSchema: decodeAuthoringRecordManifestPreSchema,
+    fromCurrent: fromRecordManifestFile,
+    fromPreSchema: ({ version: _version, ...manifest }) => Either.right(manifest),
+  });
+
+function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
+  return (file, input) =>
+    readPersisted(input, {
+      format: "phase-record-manifest",
+      label,
+      file,
+      decodeCurrent: decodeRecordManifestFile,
+      decodePreSchema: decodePhaseRecordManifestPreSchema,
+      fromCurrent: fromRecordManifestFile,
+      fromPreSchema: ({ version: _version, ...manifest }) => Either.right(manifest),
+    });
+}
+
+const readPhaseRecordManifest = readPhaseRecordManifestAs("phase record manifest");
 
 // A non-object names no kind; it fails before either decoder runs.
-const readAnyRecordManifest: Reader<RecordManifest> = reader(
-  "phase-record-manifest",
-  "record manifest",
-  decodeRecordManifestFile,
-  decodePhaseRecordManifestPreSchema,
-);
+const readAnyRecordManifest = readPhaseRecordManifestAs("record manifest");
 
 /**
  * Reads any `record.json` on phax/records/v1. A `$schema` manifest is read by

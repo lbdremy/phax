@@ -59,7 +59,6 @@ export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
   const { shape, artifactPaths } = selectRecordArtifacts(input.files, input.transcriptEnabled);
 
   const manifest: RunRecordManifest = {
-    version: 2,
     runId: input.runId,
     phaseId: input.phaseId,
     shape,

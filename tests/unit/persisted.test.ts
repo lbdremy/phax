@@ -268,14 +268,44 @@ describe("format readers", () => {
     expect(both.message).not.toContain("without $schema");
   });
 
-  it("readRecordManifestFile reads a pre-schema phase manifest", () => {
-    const doc = preSchemaDocuments["phase-record-manifest"];
-    expect(right(readRecordManifestFile("run-0001/phase-01/record.json", doc))).toEqual(doc);
-  });
+  it.each<readonly ["phase-record-manifest" | "authoring-record-manifest", string, string]>([
+    ["phase-record-manifest", "phase record manifest", "run-0001/phase-01/record.json"],
+    ["authoring-record-manifest", "authoring record manifest", "authoring/auth-0001/record.json"],
+  ])(
+    "readRecordManifestFile reads both %s shapes to the same in-memory value",
+    (id, label, file) => {
+      const { version: _version, ...expected } = preSchemaDocuments[id];
+      const fromPreSchema = right(readRecordManifestFile(file, preSchemaDocuments[id]));
+      const fromCurrent = right(readRecordManifestFile(file, validDocuments[id]));
+      expect(fromPreSchema).toEqual(expected);
+      expect(fromCurrent).toEqual(expected);
+      expect(fromCurrent).not.toHaveProperty("$schema");
+      expect(fromPreSchema).not.toHaveProperty("version");
 
-  it("readRecordManifestFile reads a pre-schema authoring manifest", () => {
-    const doc = preSchemaDocuments["authoring-record-manifest"];
-    expect(right(readRecordManifestFile("authoring/auth-0001/record.json", doc))).toEqual(doc);
+      // Both shapes stay strict: an unknown key is refused, naming the file.
+      const strictPre = left(readRecordManifestFile(file, withKey(preSchemaDocuments[id], "x", 1)));
+      expect(strictPre.format).toBe(id);
+      expect(strictPre.message).toMatch(new RegExp(`^${file}: ${label} without \\$schema`));
+      const strictCurrent = left(readRecordManifestFile(file, withKey(validDocuments[id], "x", 1)));
+      expect(strictCurrent.message).toMatch(new RegExp(`^${file}: `));
+      expect(strictCurrent.message).not.toContain("without $schema");
+
+      // A $schema manifest is never rescued by the pre-schema decoder.
+      const both = left(
+        readRecordManifestFile(
+          file,
+          withKey(preSchemaDocuments[id], "$schema", schemaUrl(id, PHAX_RELEASE)),
+        ),
+      );
+      expect(both.message).not.toContain("without $schema");
+    },
+  );
+
+  it("readRecordManifestFile keeps an authoring manifest's kind and never invents a sourceSha", () => {
+    const { sourceSha: _sha, ...uncommitted } = validDocuments["authoring-record-manifest"];
+    const manifest = right(readRecordManifestFile("authoring/auth-0001/record.json", uncommitted));
+    expect(manifest).toMatchObject({ kind: "authoring" });
+    expect(manifest).not.toHaveProperty("sourceSha");
   });
 
   it("readRecordManifestFile refuses a version-1 phase manifest, naming the file", () => {

@@ -106,7 +106,8 @@ import type {
 } from "../../src/schemas/approvalRecord.js";
 import type {
   AuthoringRecordManifest as PhaxAuthoringRecordManifest,
-  RecordManifest as PhaxRecordManifest,
+  AuthoringRecordManifestFile as PhaxAuthoringRecordManifestFile,
+  RecordManifestFile as PhaxRecordManifestFile,
 } from "../../src/schemas/authoringRecord.js";
 import type {
   ComplianceReview as PhaxComplianceReview,
@@ -136,7 +137,10 @@ import type {
   Registry as PhaxRegistry,
   RegistryFile as PhaxRegistryFile,
 } from "../../src/schemas/registry.js";
-import type { RunRecordManifest } from "../../src/schemas/runRecord.js";
+import type {
+  RunRecordManifest as PhaxRunRecordManifest,
+  RunRecordManifestFile,
+} from "../../src/schemas/runRecord.js";
 import type { AuthoringRecordManifestPreSchema as FrozenAuthoringRecordManifest } from "../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import type { ComplianceReviewPreSchema as FrozenComplianceReview } from "../../src/schemas/history/compliance-review/pre-schema.js";
 import type { GateAttributionPreSchema as FrozenGateAttribution } from "../../src/schemas/history/gate-attribution/pre-schema.js";
@@ -163,23 +167,24 @@ import type {
 type Equals<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 
-// The package's PhaseRecordManifest is phax's RunRecordManifest, both ways (§5.20)
+// The package's PhaseRecordManifest is phax's RunRecordManifestFile, both ways (§5.20)
 declare const fromPackage: PhaseRecordManifest;
-declare const fromPhax: RunRecordManifest;
-const packageToPhax: RunRecordManifest = fromPackage;
+declare const fromPhax: RunRecordManifestFile;
+const packageToPhax: RunRecordManifestFile = fromPackage;
 const phaxToPackage: PhaseRecordManifest = fromPhax;
 void packageToPhax;
 void phaxToPackage;
 
 // parsePhaseRecordManifest is a union over shapes, assignable to Parsed over their values
 const parsed = parsePhaseRecordManifest({});
-const asParsed: Parsed<PhaseRecordManifest> = parsed;
+const asParsed: Parsed<FrozenPhaseRecordManifest | PhaseRecordManifest> = parsed;
 void asParsed;
 
 // Narrowing on success yields the frozen pre-schema type or phax's own type
 if (parsed.ok) {
   const shape: Equals<typeof parsed.shape, "pre-schema" | "next"> = true;
-  const exact: Equals<typeof parsed.value, FrozenPhaseRecordManifest | RunRecordManifest> = true;
+  const exact: Equals<typeof parsed.value, FrozenPhaseRecordManifest | RunRecordManifestFile> =
+    true;
   void shape;
   void exact;
   if (parsed.shape === "pre-schema") {
@@ -285,7 +290,7 @@ if (document.ok) {
   void format;
   void shape;
   if (document.format === "phase-record-manifest" && document.shape === "next") {
-    const exact: Equals<typeof document.value, RunRecordManifest> = true;
+    const exact: Equals<typeof document.value, RunRecordManifestFile> = true;
     void exact;
   }
   if (document.format === "phax-plan" && document.shape === "next") {
@@ -377,10 +382,10 @@ const parseValues: [
   Equals<Value<typeof parseSpecApprovals>, FrozenSpecApprovals | SpecApprovalRecordFile>,
   Equals<Value<typeof parseSpecDocument>, FrozenSpecDocument | PhaxSpecDocumentFile>,
   Equals<Value<typeof parsePlanDocument>, FrozenPlanDocument | PhaxPlanDocumentFile>,
-  Equals<Value<typeof parsePhaseRecordManifest>, FrozenPhaseRecordManifest | RunRecordManifest>,
+  Equals<Value<typeof parsePhaseRecordManifest>, FrozenPhaseRecordManifest | RunRecordManifestFile>,
   Equals<
     Value<typeof parseAuthoringRecordManifest>,
-    FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifest
+    FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifestFile
   >,
   Equals<Value<typeof parseGateAttribution>, FrozenGateAttribution | PhaxGateAttribution>,
   Equals<
@@ -433,8 +438,8 @@ const latestTypes: [
   Equals<LatestSpecApprovals, PhaxSpecApprovals>,
   Equals<LatestSpecDocument, PhaxSpecDocument>,
   Equals<LatestPlanDocument, PhaxPlanDocument>,
-  Equals<LatestPhaseRecordManifest, Omit<RunRecordManifest, "version">>,
-  Equals<LatestAuthoringRecordManifest, Omit<PhaxAuthoringRecordManifest, "version">>,
+  Equals<LatestPhaseRecordManifest, PhaxRunRecordManifest>,
+  Equals<LatestAuthoringRecordManifest, PhaxAuthoringRecordManifest>,
   Equals<LatestGateAttribution, PhaxGateAttribution>,
   Equals<LatestPhaseFileReconciliation, PhaxPhaseFileReconciliation>,
   Equals<LatestGateDiagnostics, GateDiagnosticsDocument>,
@@ -460,6 +465,13 @@ void latestPhaseStatus.$schema;
 declare const latest: LatestPhaseRecordManifest;
 // @ts-expect-error: the latest manifest carries no version
 void latest.version;
+// @ts-expect-error: the in-memory phase record manifest carries no $schema
+void latest.$schema;
+declare const latestAuthoring: LatestAuthoringRecordManifest;
+// @ts-expect-error: the latest authoring manifest carries no version
+void latestAuthoring.version;
+// @ts-expect-error: the in-memory authoring record manifest carries no $schema
+void latestAuthoring.$schema;
 declare const latestPlan: LatestPhaxPlan;
 // @ts-expect-error: the latest phax-plan carries no version
 void latestPlan.version;
@@ -549,8 +561,16 @@ const toLatestParameters: [
     Parameters<typeof toLatestPlanDocument>,
     [value: FrozenPlanDocument | PhaxPlanDocumentFile]
   >,
+  Equals<
+    Parameters<typeof toLatestPhaseRecordManifest>,
+    [value: FrozenPhaseRecordManifest | RunRecordManifestFile]
+  >,
+  Equals<
+    Parameters<typeof toLatestAuthoringRecordManifest>,
+    [value: FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifestFile]
+  >,
   Equals<Parameters<typeof toLatestGatePending>, [value: FrozenGatePending | GatePendingDocument]>,
-] = [true, true, true, true, true, true, true, true, true, true];
+] = [true, true, true, true, true, true, true, true, true, true, true, true];
 void toLatestParameters;
 
 // ── run-directory formats
@@ -590,18 +610,18 @@ void planApprovalsToPhax;
 // ── record manifests
 
 // The authoring manifest and the union are phax's own types, both ways (§5.20)
-const authoringIsPhax: Equals<AuthoringRecordManifest, PhaxAuthoringRecordManifest> = true;
-const recordManifestIsPhax: Equals<RecordManifest, PhaxRecordManifest> = true;
+const authoringIsPhax: Equals<AuthoringRecordManifest, PhaxAuthoringRecordManifestFile> = true;
+const recordManifestIsPhax: Equals<RecordManifest, PhaxRecordManifestFile> = true;
 void authoringIsPhax;
 void recordManifestIsPhax;
-declare const phaxAuthoring: PhaxAuthoringRecordManifest;
+declare const phaxAuthoring: PhaxAuthoringRecordManifestFile;
 declare const packageAuthoring: AuthoringRecordManifest;
-declare const phaxRecordManifest: PhaxRecordManifest;
+declare const phaxRecordManifest: PhaxRecordManifestFile;
 declare const packageRecordManifest: RecordManifest;
 const authoringToPackage: AuthoringRecordManifest = phaxAuthoring;
-const authoringToPhax: PhaxAuthoringRecordManifest = packageAuthoring;
+const authoringToPhax: PhaxAuthoringRecordManifestFile = packageAuthoring;
 const recordManifestToPackage: RecordManifest = phaxRecordManifest;
-const recordManifestToPhax: PhaxRecordManifest = packageRecordManifest;
+const recordManifestToPhax: PhaxRecordManifestFile = packageRecordManifest;
 void authoringToPackage;
 void authoringToPhax;
 void recordManifestToPackage;
@@ -619,7 +639,12 @@ const recordManifestFormats: Equals<
 > = true;
 void recordManifestFormats;
 const anyManifest = parseRecordManifest({});
-const anyManifestAsParsed: Parsed<PhaseRecordManifest | AuthoringRecordManifest> = anyManifest;
+const anyManifestAsParsed: Parsed<
+  | FrozenPhaseRecordManifest
+  | PhaseRecordManifest
+  | FrozenAuthoringRecordManifest
+  | AuthoringRecordManifest
+> = anyManifest;
 void anyManifestAsParsed;
 if (anyManifest.ok) {
   const format: RecordManifestFormat = anyManifest.format;
@@ -629,12 +654,14 @@ if (anyManifest.ok) {
   if (anyManifest.format === "authoring-record-manifest") {
     const exact: Equals<
       typeof anyManifest.value,
-      FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifest
+      FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifestFile
     > = true;
     void exact;
   } else {
-    const exact: Equals<typeof anyManifest.value, FrozenPhaseRecordManifest | RunRecordManifest> =
-      true;
+    const exact: Equals<
+      typeof anyManifest.value,
+      FrozenPhaseRecordManifest | RunRecordManifestFile
+    > = true;
     void exact;
   }
 }

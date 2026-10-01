@@ -21,7 +21,7 @@ import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnost
 import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import { schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
-import { validDocuments, withKey } from "./documents.js";
+import { preSchemaDocuments, validDocuments, withKey } from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 type Parse = (input: unknown) => {
@@ -117,7 +117,7 @@ describe.each(FORMATS)("$id", (format) => {
 const RECORD_FOLDER: ReadonlyMap<string, string> = new Map(
   Object.entries({
     "checks-attempt-02.pending.json": validDocuments["gate-pending"],
-    "record.json": validDocuments["phase-record-manifest"],
+    "record.json": preSchemaDocuments["phase-record-manifest"],
     "file-reconciliation.json": validDocuments["phase-file-reconciliation"],
     "checks-attempt-01.diagnostics.json": validDocuments["gate-diagnostics"],
     "gate-attribution.json": validDocuments["gate-attribution"],

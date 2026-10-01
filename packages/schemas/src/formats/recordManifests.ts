@@ -1,12 +1,13 @@
 // The manifests (`record.json`) on phax/records/v1: a phase record's and an
 // authoring session's, and the reader that tells them apart. Each pre-schema
 // shape is phax's frozen module under src/schemas/history/; each current
-// shape, `next`, is phax's own schema and decoder. The package declares none
-// of its own.
+// shape, `next`, is phax's own file schema and decoder. The package declares
+// none of its own.
 import {
   AuthoringRecordManifestFileSchema,
   decodeAuthoringRecordManifestFile,
   type AuthoringRecordManifest,
+  type AuthoringRecordManifestFile,
 } from "../../../../src/schemas/authoringRecord.js";
 import {
   AuthoringRecordManifestPreSchemaSchema,
@@ -22,6 +23,7 @@ import {
   RunRecordManifestFileSchema,
   decodeRunRecordManifestFile,
   type RunRecordManifest,
+  type RunRecordManifestFile,
 } from "../../../../src/schemas/runRecord.js";
 import { isFormatId, parseSchemaUrl } from "../../../../src/schemas/schemaUrl.js";
 import { failure, type ParsedDocument, type ParsedShape } from "../parsed.js";
@@ -43,7 +45,7 @@ import {
 
 /** A phase record's `record.json` (format id `phase-record-manifest`), as phax writes it. */
 export const PhaseRecordManifestSchema = RunRecordManifestFileSchema;
-export type PhaseRecordManifest = RunRecordManifest;
+export type PhaseRecordManifest = RunRecordManifestFile;
 
 export type PhaseRecordManifestShapes = {
   "pre-schema": PhaseRecordManifestPreSchema;
@@ -71,13 +73,17 @@ export const phaseRecordManifestFormat = defineFormat<PhaseRecordManifestShapes>
 export const parsePhaseRecordManifest: (input: unknown) => ParsedShape<PhaseRecordManifestShapes> =
   phaseRecordManifestFormat.parse;
 
-/** The latest phase record manifest: no `version`. */
-export type LatestPhaseRecordManifest = Omit<PhaseRecordManifest, "version">;
+/** The latest phase record manifest: phax's in-memory value, with no `version` and no `$schema`. */
+export type LatestPhaseRecordManifest = RunRecordManifest;
 
 /** Upgrades a parsed manifest in memory. Keeps every recorded fact; never invents one. */
 export function toLatestPhaseRecordManifest(
   value: PhaseRecordManifestPreSchema | PhaseRecordManifest,
 ): LatestPhaseRecordManifest {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   const { version: _version, ...recorded } = value;
   return recorded;
 }
@@ -86,7 +92,7 @@ export function toLatestPhaseRecordManifest(
 
 export type AuthoringRecordManifestShapes = {
   "pre-schema": AuthoringRecordManifestPreSchema;
-  next: AuthoringRecordManifest;
+  next: AuthoringRecordManifestFile;
 };
 
 /** The id of every authoring record manifest shape the package reads. */
@@ -115,15 +121,20 @@ export const parseAuthoringRecordManifest: (
 ) => ParsedShape<AuthoringRecordManifestShapes> = authoringRecordManifestFormat.parse;
 
 /**
- * The latest authoring record manifest: no `version`. An absent `sourceSha`
- * stays absent — it records a session that did not commit, not an unknown fact.
+ * The latest authoring record manifest: phax's in-memory value, with no
+ * `version` and no `$schema`. An absent `sourceSha` stays absent — it records
+ * a session that did not commit, not an unknown fact.
  */
-export type LatestAuthoringRecordManifest = Omit<AuthoringRecordManifest, "version">;
+export type LatestAuthoringRecordManifest = AuthoringRecordManifest;
 
 /** Upgrades a parsed authoring manifest in memory. Keeps every recorded fact; never invents one. */
 export function toLatestAuthoringRecordManifest(
-  value: AuthoringRecordManifestPreSchema | AuthoringRecordManifest,
+  value: AuthoringRecordManifestPreSchema | AuthoringRecordManifestFile,
 ): LatestAuthoringRecordManifest {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   const { version: _version, ...recorded } = value;
   return recorded;
 }

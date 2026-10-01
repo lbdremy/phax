@@ -7,10 +7,12 @@ import {
   isAuthoringRecordManifest,
   type AuthoringRecordManifest,
 } from "../../src/schemas/authoringRecord.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
 import { UNAVAILABLE_TOKEN_USAGE } from "../../src/schemas/runRecord.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
-const authoringManifest: AuthoringRecordManifest = {
-  version: 1,
+const inMemoryAuthoringManifest: AuthoringRecordManifest = {
   kind: "authoring",
   authoringId: "2609230835-plan-prune",
   artifact: "docs/specs/2609230835-plan-prune.md",
@@ -24,8 +26,11 @@ const authoringManifest: AuthoringRecordManifest = {
   usage: UNAVAILABLE_TOKEN_USAGE,
 };
 
+// The authoring manifest as phax writes it: `$schema` first, no `version`.
+const authoringManifest = withSchemaUrl("authoring-record-manifest", inMemoryAuthoringManifest);
+
 const phaseManifest = {
-  version: 2,
+  $schema: schemaUrl("phase-record-manifest", PHAX_RELEASE),
   runId: "headless-authoring-1786807559589",
   phaseId: "phase-07",
   shape: "skeleton",
@@ -68,9 +73,28 @@ describe("AuthoringRecordManifestSchema", () => {
     ).toBe(true);
   });
 
-  it("rejects another version or kind", () => {
+  it("starts with $schema and carries no version", () => {
+    const encoded = encodeAuthoringRecordManifest(authoringManifest);
+    expect(Object.keys(encoded)[0]).toBe("$schema");
+    expect(encoded).not.toHaveProperty("version");
+  });
+
+  it("rejects a version key, a missing or foreign $schema, or another kind", () => {
     expect(
-      Either.isLeft(decodeAuthoringRecordManifestFile({ ...authoringManifest, version: 2 })),
+      Either.isLeft(decodeAuthoringRecordManifestFile({ ...authoringManifest, version: 1 })),
+    ).toBe(true);
+    expect(
+      Either.isLeft(
+        decodeAuthoringRecordManifestFile({ ...inMemoryAuthoringManifest, version: 1 }),
+      ),
+    ).toBe(true);
+    expect(
+      Either.isLeft(
+        decodeAuthoringRecordManifestFile({
+          ...authoringManifest,
+          $schema: schemaUrl("phase-record-manifest", PHAX_RELEASE),
+        }),
+      ),
     ).toBe(true);
     expect(
       Either.isLeft(decodeAuthoringRecordManifestFile({ ...authoringManifest, kind: "run" })),
@@ -99,5 +123,11 @@ describe("RecordManifestSchema (either kind)", () => {
     expect(
       Either.isLeft(decodeRecordManifestFile({ ...phaseManifest, ...authoringManifest })),
     ).toBe(true);
+  });
+
+  it("rejects a manifest without $schema", () => {
+    const { $schema: _schema, ...withoutSchema } = phaseManifest;
+    expect(Either.isLeft(decodeRecordManifestFile({ ...withoutSchema, version: 2 }))).toBe(true);
+    expect(Either.isLeft(decodeRecordManifestFile(inMemoryAuthoringManifest))).toBe(true);
   });
 });

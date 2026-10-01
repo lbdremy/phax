@@ -1,0 +1,232 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax authoring record manifest",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "kind",
+    "authoringId",
+    "artifact",
+    "artifactKind",
+    "shape",
+    "provider",
+    "model",
+    "effort",
+    "outcome",
+    "usage"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The authoring-record-manifest format and the phax release that wrote this file: https://docs.phax.run/schemas/authoring-record-manifest/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/authoring-record-manifest\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "authoring"
+      ]
+    },
+    "authoringId": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "artifact": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "artifactKind": {
+      "type": "string",
+      "enum": [
+        "spec",
+        "plan"
+      ]
+    },
+    "shape": {
+      "type": "string",
+      "enum": [
+        "full",
+        "skeleton"
+      ]
+    },
+    "sourceSha": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "claude-code",
+        "codex-cli",
+        "mistral-vibe"
+      ]
+    },
+    "model": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "effort": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "committed",
+        "failed"
+      ]
+    },
+    "usage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "available",
+            "usage"
+          ],
+          "properties": {
+            "available": {
+              "type": "boolean",
+              "enum": [
+                true
+              ]
+            },
+            "usage": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "provider",
+                    "inputTokens",
+                    "cacheCreationInputTokens",
+                    "cacheReadInputTokens",
+                    "outputTokens",
+                    "totalCostUsd"
+                  ],
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "claude-code"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": "number"
+                    },
+                    "cacheCreationInputTokens": {
+                      "type": "number"
+                    },
+                    "cacheReadInputTokens": {
+                      "type": "number"
+                    },
+                    "outputTokens": {
+                      "type": "number"
+                    },
+                    "totalCostUsd": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "provider",
+                    "inputTokens",
+                    "cachedInputTokens",
+                    "outputTokens",
+                    "reasoningOutputTokens"
+                  ],
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "codex-cli"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": "number"
+                    },
+                    "cachedInputTokens": {
+                      "type": "number"
+                    },
+                    "outputTokens": {
+                      "type": "number"
+                    },
+                    "reasoningOutputTokens": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "provider",
+                    "inputTokens",
+                    "outputTokens",
+                    "sessionCostUsd",
+                    "toolCallsAgreed",
+                    "toolCallsRejected",
+                    "toolCallsFailed",
+                    "toolCallsSucceeded"
+                  ],
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "mistral-vibe"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": "number"
+                    },
+                    "outputTokens": {
+                      "type": "number"
+                    },
+                    "sessionCostUsd": {
+                      "type": "number"
+                    },
+                    "toolCallsAgreed": {
+                      "type": "number"
+                    },
+                    "toolCallsRejected": {
+                      "type": "number"
+                    },
+                    "toolCallsFailed": {
+                      "type": "number"
+                    },
+                    "toolCallsSucceeded": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "available"
+          ],
+          "properties": {
+            "available": {
+              "type": "boolean",
+              "enum": [
+                false
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

@@ -11,7 +11,7 @@ describe("parsePhaseRecordManifest", () => {
   it("returns ok with the shape and the value for a valid manifest", () => {
     expect(parsePhaseRecordManifest(manifest)).toEqual({
       ok: true,
-      shape: "pre-schema",
+      shape: "next",
       value: manifest,
     });
   });

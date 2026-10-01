@@ -124,13 +124,14 @@ export {
   type SpecDocumentShape,
 } from "./formats/repository.js";
 
-// The manifests on phax/records/v1. Each schema and type is phax's own; the
-// union has no format id, so parseDocument does not read it.
+// The manifests on phax/records/v1. Each schema and type is phax's own file
+// schema and type, under the name the spec gives it; the union has no format
+// id, so parseDocument does not read it.
 export {
-  AuthoringRecordManifestSchema,
-  RecordManifestSchema,
-  type AuthoringRecordManifest,
-  type RecordManifest,
+  AuthoringRecordManifestFileSchema as AuthoringRecordManifestSchema,
+  RecordManifestFileSchema as RecordManifestSchema,
+  type AuthoringRecordManifestFile as AuthoringRecordManifest,
+  type RecordManifestFile as RecordManifest,
 } from "../../../src/schemas/authoringRecord.js";
 export {
   PhaseRecordManifestSchema,

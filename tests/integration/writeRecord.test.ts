@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,7 +18,15 @@ import {
   type WriteRecordResult,
 } from "../../src/app/writeRecord.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+
+// The release phax names in `$schema`: the root package.json version.
+const rootVersion = (
+  JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
+    version: string;
+  }
+).version;
 
 // Defaults to "private" visibility, matching the fake's happy-path default,
 // so every existing test in this file (none of which exercise the
@@ -145,6 +153,18 @@ describe("writeRecord", () => {
     ]);
     // transcript on + output.jsonl present → full record.
     expect(readManifest("run-1/phase-01")["shape"]).toBe("full");
+  });
+
+  it("writes record.json with $schema first, naming the format and release, and no version", async () => {
+    await seedPhaseFolder({ "prompt.md": "p\n" });
+
+    await run(writeRecord(baseInput()));
+
+    const manifest = readManifest("run-1/phase-01");
+    expect(Object.keys(manifest)[0]).toBe("$schema");
+    expect(manifest["$schema"]).toBe(schemaUrl("phase-record-manifest", rootVersion));
+    expect(manifest).not.toHaveProperty("version");
+    expect(manifest).toMatchObject({ runId: "run-1", phaseId: "phase-01" });
   });
 
   it("records a source sha back-reference when the phase committed", async () => {

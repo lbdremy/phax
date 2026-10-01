@@ -18,6 +18,7 @@ import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
 import { explainRecord } from "../../src/app/recordsExplain.js";
 import { listRecords } from "../../src/app/recordsList.js";
 import { encodeRunRecordManifest, type RunRecordManifest } from "../../src/schemas/runRecord.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
@@ -60,38 +61,73 @@ function commitWithTrailers(repo: string, runId: string, phaseId: string): strin
   return execGit(["rev-parse", "HEAD"], repo).trim();
 }
 
-function writeFullRecordCommit(
+/** Commits `document` as `<key>/record.json`, as written, beside `extraFiles`. */
+function writeRecordDocumentCommit(
   repo: string,
-  manifest: RunRecordManifest,
+  key: string,
+  document: unknown,
+  message: string,
   extraFiles: Record<string, string>,
 ): Promise<string> {
-  const key = `${manifest.runId}/${manifest.phaseId}`;
   const files = Object.entries(extraFiles).map(([name, content]) => ({
     path: `${key}/${name}`,
     content: new TextEncoder().encode(content),
   }));
   files.push({
     path: `${key}/record.json`,
-    content: new TextEncoder().encode(
-      `${JSON.stringify(encodeRunRecordManifest(manifest), null, 2)}\n`,
-    ),
+    content: new TextEncoder().encode(`${JSON.stringify(document, null, 2)}\n`),
   });
   return runGitOnly(
     Effect.flatMap(Git, (g) =>
       g.writeTreeCommit({
         repo,
         branch: RECORDS_BRANCH,
-        message: [
-          `records(${manifest.phaseId}): ${manifest.outcome}`,
-          "",
-          `Run-Id: ${manifest.runId}`,
-          `Phase-Id: ${manifest.phaseId}`,
-          `Shape: ${manifest.shape}`,
-        ].join("\n"),
+        message,
         files,
       }),
     ),
   );
+}
+
+function phaseRecordMessage(runId: string, phaseId: string, outcome: string, shape: string) {
+  return [
+    `records(${phaseId}): ${outcome}`,
+    "",
+    `Run-Id: ${runId}`,
+    `Phase-Id: ${phaseId}`,
+    `Shape: ${shape}`,
+  ].join("\n");
+}
+
+function writeFullRecordCommit(
+  repo: string,
+  manifest: RunRecordManifest,
+  extraFiles: Record<string, string>,
+): Promise<string> {
+  return writeRecordDocumentCommit(
+    repo,
+    `${manifest.runId}/${manifest.phaseId}`,
+    encodeRunRecordManifest(withSchemaUrl("phase-record-manifest", manifest)),
+    phaseRecordMessage(manifest.runId, manifest.phaseId, manifest.outcome, manifest.shape),
+    extraFiles,
+  );
+}
+
+// A phase manifest as phax wrote it before `$schema`: version 2, no `$schema`.
+function preSchemaPhaseManifest(runId: string, phaseId: string, sourceSha: string): object {
+  return {
+    version: 2,
+    runId,
+    phaseId,
+    shape: "skeleton",
+    sourceSha,
+    model: "claude-sonnet-5",
+    effort: "high",
+    provider: "claude-code",
+    outcome: "committed",
+    usage: { available: false },
+    verifiedSurfaces: ["local"],
+  };
 }
 
 describe("records explain and list (real git)", () => {
@@ -116,7 +152,6 @@ describe("records explain and list (real git)", () => {
     const original = commitWithTrailers(repoDir, runId, phaseId);
 
     const manifest: RunRecordManifest = {
-      version: 2,
       runId,
       phaseId,
       shape: "full",
@@ -226,7 +261,6 @@ describe("records explain and list (real git)", () => {
     const sha = commitWithTrailers(repoDir, runId, phaseId);
 
     const manifest: RunRecordManifest = {
-      version: 2,
       runId,
       phaseId,
       shape: "skeleton",
@@ -275,7 +309,6 @@ describe("records explain and list (real git)", () => {
   it("records list shows a failed phase's record", async () => {
     const runId = "run-list-1786800000003";
     const failedManifest: RunRecordManifest = {
-      version: 2,
       runId,
       phaseId: "phase-04",
       shape: "skeleton",
@@ -317,6 +350,69 @@ describe("records explain and list (real git)", () => {
     expect(byPhase.get("phase-04")?.outcome).toBe("failed");
     expect(byPhase.get("phase-05")?.outcome).toBe("committed");
     expect(byPhase.get("phase-04")?.verifiedSurfaces).toEqual([]);
+  });
+
+  it("explains and lists a phase manifest written before $schema", async () => {
+    const runId = "run-legacy-1786800000005";
+    const phaseId = "phase-01";
+    const sha = commitWithTrailers(repoDir, runId, phaseId);
+    await writeRecordDocumentCommit(
+      repoDir,
+      `${runId}/${phaseId}`,
+      preSchemaPhaseManifest(runId, phaseId, sha),
+      phaseRecordMessage(runId, phaseId, "committed", "skeleton"),
+      { "prompt.md": "p" },
+    );
+
+    const outcome = await run(
+      explainRecord({ sha, repoRoot: repoDir, records: IN_REPO_CONFIG, publishRemote: "origin" }),
+    );
+    expect(outcome.kind).toBe("found");
+    if (outcome.kind !== "found") throw new Error("expected found");
+    expect(outcome.record.manifest).not.toHaveProperty("version");
+    expect(outcome.record.manifest.sourceSha).toBe(sha);
+    expect(outcome.record.manifest.verifiedSurfaces).toEqual(["local"]);
+
+    const listed = await run(
+      listRecords({ records: IN_REPO_CONFIG, repoRoot: repoDir, publishRemote: "origin", runId }),
+    );
+    if (listed.kind !== "listed") throw new Error("expected listed");
+    expect(listed.records).toMatchObject([{ kind: "phase", phaseId, outcome: "committed" }]);
+  });
+
+  it("reports a version-1 phase manifest as unsupported and leaves it out of the list", async () => {
+    const runId = "run-v1-1786800000006";
+    const phaseId = "phase-01";
+    const sha = commitWithTrailers(repoDir, runId, phaseId);
+    const { verifiedSurfaces: _surfaces, ...versionOne } = preSchemaPhaseManifest(
+      runId,
+      phaseId,
+      sha,
+    ) as Record<string, unknown>;
+    await writeRecordDocumentCommit(
+      repoDir,
+      `${runId}/${phaseId}`,
+      { ...versionOne, version: 1 },
+      phaseRecordMessage(runId, phaseId, "committed", "skeleton"),
+      {},
+    );
+
+    const outcome = await run(
+      Effect.either(
+        explainRecord({ sha, repoRoot: repoDir, records: IN_REPO_CONFIG, publishRemote: "origin" }),
+      ),
+    );
+    if (Either.isRight(outcome)) throw new Error("expected a failure");
+    expect(outcome.left.message).toContain(`${runId}/${phaseId}/record.json`);
+    expect(outcome.left.message).toContain(
+      "phase record manifest without $schema is not in the pre-schema shape — older than the first release that writes $schema, or damaged",
+    );
+
+    const listed = await run(
+      listRecords({ records: IN_REPO_CONFIG, repoRoot: repoDir, publishRemote: "origin", runId }),
+    );
+    if (listed.kind !== "listed") throw new Error("expected listed");
+    expect(listed.records).toEqual([]);
   });
 
   describe("authoring records", () => {
@@ -401,6 +497,42 @@ describe("records explain and list (real git)", () => {
       expect(outcome.record.artifacts.has("output.jsonl")).toBe(true);
     });
 
+    it("explains an authoring manifest written before $schema", async () => {
+      const authoringId = "2609230835-legacy";
+      const artifact = "docs/specs/2609230835-legacy.md";
+      const sha = commitArtifact(authoringId, artifact);
+      await writeRecordDocumentCommit(
+        repoDir,
+        `authoring/${authoringId}`,
+        {
+          version: 1,
+          kind: "authoring",
+          authoringId,
+          artifact,
+          artifactKind: "spec",
+          shape: "skeleton",
+          sourceSha: sha,
+          provider: "claude-code",
+          model: "claude-opus-5-5",
+          effort: "high",
+          outcome: "committed",
+          usage: { available: false },
+        },
+        [`records(authoring): committed`, "", `Authoring-Id: ${authoringId}`].join("\n"),
+        { "brief.md": "the brief\n" },
+      );
+
+      const outcome = await run(
+        explainRecord({ sha, repoRoot: repoDir, records: IN_REPO_CONFIG, publishRemote: "origin" }),
+      );
+
+      expect(outcome.kind).toBe("found-authoring");
+      if (outcome.kind !== "found-authoring") throw new Error("expected found-authoring");
+      expect(outcome.record.manifest).not.toHaveProperty("version");
+      expect(outcome.record.manifest.artifact).toBe(artifact);
+      expect(outcome.record.manifest.sourceSha).toBe(sha);
+    });
+
     it("an id that is a prefix of a newer record's id still resolves its own record", async () => {
       const shortSha = commitArtifact("2609230835-plan", "docs/specs/2609230835-plan.md");
       await recordSession("2609230835-plan", "docs/specs/2609230835-plan.md", {
@@ -447,7 +579,6 @@ describe("records explain and list (real git)", () => {
       await writeFullRecordCommit(
         repoDir,
         {
-          version: 2,
           runId,
           phaseId: "phase-01",
           shape: "skeleton",

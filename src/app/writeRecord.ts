@@ -6,7 +6,7 @@ import { FileSystem, type FileSystemOps, type FsError } from "../ports/fs.js";
 import { type Git, type GitError } from "../ports/git.js";
 import { type GitHub } from "../ports/github.js";
 import type { ProviderId } from "../schemas/providerId.js";
-import { readGateAttributionFile } from "../schemas/persisted.js";
+import { readGateAttributionFile, withSchemaUrl } from "../schemas/persisted.js";
 import type { Surface } from "../schemas/surface.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { encodeRunRecordManifest, type RecordPhaseOutcome } from "../schemas/runRecord.js";
@@ -110,7 +110,7 @@ export function writeRecord(
       folder: input.phaseFolderPath,
       key,
       artifactPaths,
-      manifest: encodeRunRecordManifest(manifest),
+      manifest: encodeRunRecordManifest(withSchemaUrl("phase-record-manifest", manifest)),
       message,
     });
 

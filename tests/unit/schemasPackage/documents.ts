@@ -8,7 +8,7 @@
 import { Schema } from "effect";
 import { BranchNameSchema } from "../../../src/domain/branded.js";
 import { ApprovalRecordFileSchema } from "../../../src/schemas/approvalRecord.js";
-import { AuthoringRecordManifestSchema } from "../../../src/schemas/authoringRecord.js";
+import { AuthoringRecordManifestFileSchema } from "../../../src/schemas/authoringRecord.js";
 import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
 import { GateAttributionSchema } from "../../../src/schemas/gateAttribution.js";
 import { GateDiagnosticsDocumentSchema } from "../../../src/schemas/gateDiagnostics.js";
@@ -78,7 +78,7 @@ import { PlanDocumentFileSchema } from "../../../src/schemas/planDocument.js";
 import { PhaseFileReconciliationSchema } from "../../../src/schemas/reconciliation.js";
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
 import { RegistryFileSchema } from "../../../src/schemas/registry.js";
-import { RunRecordManifestSchema } from "../../../src/schemas/runRecord.js";
+import { RunRecordManifestFileSchema } from "../../../src/schemas/runRecord.js";
 import type { FormatId } from "../../../src/schemas/schemaUrl.js";
 import { SpecApprovalRecordFileSchema } from "../../../src/schemas/specApprovalRecord.js";
 import { SpecDocumentFileSchema } from "../../../src/schemas/specDocument.js";
@@ -429,10 +429,12 @@ export const WRITES_SCHEMA: ReadonlySet<FormatId> = new Set<FormatId>([
   "spec-approvals",
   "spec-document",
   "plan-document",
+  "phase-record-manifest",
+  "authoring-record-manifest",
 ]);
 
 /** A pre-schema value as phax holds it in memory: the same fields, without `version`. */
-function stepped<T extends { readonly version: 1 }>(value: T): Omit<T, "version"> {
+function stepped<T extends { readonly version: number }>(value: T): Omit<T, "version"> {
   const { version: _version, ...rest } = value;
   return rest;
 }
@@ -462,8 +464,14 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     SpecApprovalRecordFileSchema,
     withSchemaUrl("spec-approvals", stepped(specApprovals)),
   ),
-  "phase-record-manifest": encoded(RunRecordManifestSchema, phaseRecordManifest),
-  "authoring-record-manifest": encoded(AuthoringRecordManifestSchema, authoringRecordManifest),
+  "phase-record-manifest": encoded(
+    RunRecordManifestFileSchema,
+    withSchemaUrl("phase-record-manifest", stepped(phaseRecordManifest)),
+  ),
+  "authoring-record-manifest": encoded(
+    AuthoringRecordManifestFileSchema,
+    withSchemaUrl("authoring-record-manifest", stepped(authoringRecordManifest)),
+  ),
   "gate-attribution": encoded(GateAttributionSchema, gateAttribution),
   "phase-file-reconciliation": encoded(PhaseFileReconciliationSchema, phaseFileReconciliation),
   "gate-diagnostics": encoded(GateDiagnosticsDocumentSchema, gateDiagnostics),
@@ -480,10 +488,10 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
 
 /**
  * A phase record manifest older than the pre-schema shape: `version: 1` and
- * no `verifiedSurfaces`, otherwise like the valid one.
+ * no `verifiedSurfaces` and no `$schema`, otherwise like the pre-schema one.
  */
 export const versionOnePhaseRecordManifest: Doc = withKey(
-  withoutKey(validDocuments["phase-record-manifest"], "verifiedSurfaces"),
+  withoutKey(preSchemaDocuments["phase-record-manifest"], "verifiedSurfaces"),
   "version",
   1,
 );
