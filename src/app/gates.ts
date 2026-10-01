@@ -6,10 +6,10 @@ import { Shell, type ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
 import { encodeRunStatus } from "../schemas/status.js";
-import { encodeGateAttribution, type GateStepResult } from "../schemas/gateAttribution.js";
+import { encodeGateAttributionFile, type GateStepResult } from "../schemas/gateAttribution.js";
 import {
   decodeGateDiagnosticsDocument,
-  encodeGateDiagnosticsDocument,
+  encodeGateDiagnosticsFile,
   type GateDiagnostic,
   type GateDiagnosticsDocument,
 } from "../schemas/gateDiagnostics.js";
@@ -17,7 +17,7 @@ import { formatParseError } from "../schemas/formatError.js";
 import { diagnosticsPathFor, pendingPathFor } from "../domain/gate/diagnosticsPath.js";
 import { scheduleDiagnostics, type ScopeClosure } from "../domain/gate/scheduleDiagnostics.js";
 import type { ScopesRequest } from "../domain/plan/projection.js";
-import { encodeGatePendingDocument, type GatePendingDocument } from "../schemas/gatePending.js";
+import { encodeGatePendingFile, type GatePendingDocument } from "../schemas/gatePending.js";
 import { queryClosedScopes } from "./scopes.js";
 
 /**
@@ -104,7 +104,13 @@ export function runGates(
       }
       return fs.writeAtomic(
         attributionPath,
-        JSON.stringify(encodeGateAttribution({ phase: phaseId, steps: stepResults }), null, 2),
+        JSON.stringify(
+          encodeGateAttributionFile(
+            withSchemaUrl("gate-attribution", { phase: phaseId, steps: stepResults }),
+          ),
+          null,
+          2,
+        ),
       );
     }
 
@@ -122,7 +128,7 @@ export function runGates(
       const document = { closed, steps: pendingSteps } as unknown as GatePendingDocument;
       return fs.writeAtomic(
         pendingPathFor(attemptLogPath),
-        JSON.stringify(encodeGatePendingDocument(document), null, 2),
+        JSON.stringify(encodeGatePendingFile(withSchemaUrl("gate-pending", document)), null, 2),
       );
     }
 
@@ -143,7 +149,11 @@ export function runGates(
         if (params.document !== undefined) {
           yield* fs.writeAtomic(
             diagnosticsPathFor(attemptLogPath),
-            JSON.stringify(encodeGateDiagnosticsDocument(params.document), null, 2),
+            JSON.stringify(
+              encodeGateDiagnosticsFile(withSchemaUrl("gate-diagnostics", params.document)),
+              null,
+              2,
+            ),
           );
         }
         yield* writePendingDoc();

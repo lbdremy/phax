@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { runGates, type GateScheduling } from "../../src/app/gates.js";
@@ -7,7 +8,16 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { Surface } from "../../src/schemas/surface.js";
 import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { makeScopesRequest } from "../../src/domain/plan/projection.js";
+
+// The release phax stamps: the root package.json version, read here rather
+// than through the generated constant.
+const rootVersion = (
+  JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
+    version: string;
+  }
+).version;
 
 const cwd = "/fake/worktrees/my-run/phase-01";
 const logPath = "/fake/runs/my-run/phase-01/checks-attempt-01.log";
@@ -254,6 +264,9 @@ describe("runGates", () => {
       const raw = fakeFs.impl.getFile(attributionPath);
       expect(raw).toBeDefined();
       const record = JSON.parse(raw!) as GateAttribution;
+      expect(Object.keys(record)[0]).toBe("$schema");
+      expect(record).toHaveProperty("$schema", schemaUrl("gate-attribution", rootVersion));
+      expect(record).not.toHaveProperty("version");
       expect(record.phase).toBe(phaseId);
       expect(record.steps).toEqual([
         { command: "pnpm test", surface: "local", result: "pass" },
@@ -343,9 +356,17 @@ describe("runGates", () => {
       const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
       expect(record.steps).toEqual([{ command: "pnpm audit", surface: "local", result: "fail" }]);
 
+      // The step's stdout carries no $schema and is still accepted; the file
+      // phax writes from it starts with $schema.
+      expect(JSON.parse(oneDiagnostic)).not.toHaveProperty("$schema");
       const doc = fakeFs.impl.getFile(diagnosticsPath);
       expect(doc).toBeDefined();
-      expect(JSON.parse(doc!)).toEqual(JSON.parse(oneDiagnostic));
+      const written = JSON.parse(doc!) as Record<string, unknown>;
+      expect(Object.keys(written)[0]).toBe("$schema");
+      expect(written).toEqual({
+        $schema: schemaUrl("gate-diagnostics", rootVersion),
+        ...(JSON.parse(oneDiagnostic) as object),
+      });
     });
 
     it("passes on exit 0 with an empty list and writes no diagnostics file", async () => {
@@ -583,6 +604,8 @@ describe("runGates", () => {
       const pendingDoc = fakeFs.impl.getFile(pendingPath);
       expect(pendingDoc).toBeDefined();
       const parsed = JSON.parse(pendingDoc!) as { closed: string[]; steps: unknown[] };
+      expect(Object.keys(parsed)[0]).toBe("$schema");
+      expect(parsed).toHaveProperty("$schema", schemaUrl("gate-pending", rootVersion));
       expect(parsed.closed).toEqual(["core"]);
 
       expect(fakeFs.impl.getFile(diagnosticsPath)).toBeUndefined();

@@ -179,17 +179,16 @@ describe("schemas package entry", () => {
     expect(entry.PhaseRecordManifestSchema).toBe(RunRecordManifestFileSchema);
   });
 
-  it("re-exports phax's timeline schemas under the spec's names, never a copy", async () => {
-    const { GateAttributionSchema } = await import("../../../src/schemas/gateAttribution.js");
-    const { PhaseFileReconciliationSchema } =
+  it("re-exports phax's timeline file schemas under the spec's names, never a copy", async () => {
+    const { GateAttributionFileSchema } = await import("../../../src/schemas/gateAttribution.js");
+    const { PhaseFileReconciliationFileSchema } =
       await import("../../../src/schemas/reconciliation.js");
-    const { GateDiagnosticsDocumentSchema } =
-      await import("../../../src/schemas/gateDiagnostics.js");
-    const { GatePendingDocumentSchema } = await import("../../../src/schemas/gatePending.js");
-    expect(entry.GateAttributionSchema).toBe(GateAttributionSchema);
-    expect(entry.PhaseFileReconciliationSchema).toBe(PhaseFileReconciliationSchema);
-    expect(entry.GateDiagnosticsSchema).toBe(GateDiagnosticsDocumentSchema);
-    expect(entry.GatePendingSchema).toBe(GatePendingDocumentSchema);
+    const { GateDiagnosticsFileSchema } = await import("../../../src/schemas/gateDiagnostics.js");
+    const { GatePendingFileSchema } = await import("../../../src/schemas/gatePending.js");
+    expect(entry.GateAttributionSchema).toBe(GateAttributionFileSchema);
+    expect(entry.PhaseFileReconciliationSchema).toBe(PhaseFileReconciliationFileSchema);
+    expect(entry.GateDiagnosticsSchema).toBe(GateDiagnosticsFileSchema);
+    expect(entry.GatePendingSchema).toBe(GatePendingFileSchema);
   });
 
   it.each(FORMAT_IDS)(

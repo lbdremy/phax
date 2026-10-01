@@ -5,6 +5,7 @@ import { ReviewHandoffArtifactMissingError } from "../../src/domain/errors.js";
 import type { GlobalFileReconciliation } from "../../src/domain/reconciliation/global.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
 
 const RUN_PATH = "/runs/test-run";
 const RUN_ID = "run-id-001";
@@ -48,6 +49,41 @@ function runWith<A, E>(effect: Effect.Effect<A, E, never>): Promise<Either.Eithe
 }
 
 describe("generateGlobalReconciliation", () => {
+  it("aggregates a reconciliation phax writes ($schema) with one recorded before $schema", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+
+    impl.setFile(
+      `${RUN_PATH}/phase-01/file-reconciliation.json`,
+      JSON.stringify(
+        withSchemaUrl(
+          "phase-file-reconciliation",
+          JSON.parse(makePhaseJson("phase-01", { createdAsPlanned: ["src/foo.ts"] })) as object,
+        ),
+      ),
+    );
+    // Pre-schema: no $schema and no version, as 0.16.0 wrote it.
+    impl.setFile(
+      `${RUN_PATH}/phase-02/file-reconciliation.json`,
+      makePhaseJson("phase-02", { unplannedCreated: ["src/extra.ts"], hasDeviations: true }),
+    );
+
+    const layers = Layer.mergeAll(layer, NoopSystemTelemetryLayer);
+    const result = await runWith(
+      generateGlobalReconciliation({
+        runPath: RUN_PATH,
+        phaseIds: ["phase-01", "phase-02"],
+        allowPartial: false,
+        runId: RUN_ID,
+        qualifiedRunName: QUALIFIED_RUN_NAME,
+      }).pipe(Effect.provide(layers)),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    if (!Either.isRight(result)) return;
+    expect(result.right.files.find((f) => f.path === "src/foo.ts")?.status).toBe("matched");
+    expect(result.right.unplanned.map((f) => f.path)).toEqual(["src/extra.ts"]);
+  });
+
   it("happy path: aggregates phases and writes both global artifacts", async () => {
     const { impl, layer } = makeFakeFileSystem();
 

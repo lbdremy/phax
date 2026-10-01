@@ -1,22 +1,25 @@
 // A phase record's timeline files: its gate attribution, its file
 // reconciliation, and each fix-loop attempt's gate diagnostics and gate
 // pending documents. Each pre-schema shape is phax's frozen module under
-// src/schemas/history/; each current shape, `next`, is phax's own schema and
-// decoder. The package declares none of its own.
+// src/schemas/history/; each current shape, `next`, is phax's own file schema
+// and decoder. The package declares none of its own.
 import {
   GateAttributionFileSchema,
   decodeGateAttributionFile,
   type GateAttribution,
+  type GateAttributionFile,
 } from "../../../../src/schemas/gateAttribution.js";
 import {
   GateDiagnosticsFileSchema,
   decodeGateDiagnosticsFile,
   type GateDiagnosticsDocument,
+  type GateDiagnosticsFile,
 } from "../../../../src/schemas/gateDiagnostics.js";
 import {
   GatePendingFileSchema,
   decodeGatePendingFile,
   type GatePendingDocument,
+  type GatePendingFile,
 } from "../../../../src/schemas/gatePending.js";
 import {
   GateAttributionPreSchemaSchema,
@@ -42,22 +45,23 @@ import {
   PhaseFileReconciliationFileSchema,
   decodePhaseFileReconciliationFile,
   type PhaseFileReconciliation,
+  type PhaseFileReconciliationFile,
 } from "../../../../src/schemas/reconciliation.js";
 import type { ParsedShape } from "../parsed.js";
 import { defineFormat } from "../shapes.js";
 
 // None of these files has ever carried a `version`. A file without `$schema`
-// is read by its frozen pre-schema module as shape `pre-schema`; no release
-// has written `$schema` yet, so a `$schema` file at the package's own release
-// is read by phax's decoder as shape `next`. A timeline file is identified by
-// where it lives in the record folder; an attempt's order comes from its file
-// name, which the reader supplies.
+// is read by its frozen pre-schema module as shape `pre-schema`; a file phax
+// writes starts with `$schema` and is read by phax's file decoder as shape
+// `next`. Each latest value is phax's in-memory value, with no `$schema`. A
+// timeline file is identified by where it lives in the record folder; an
+// attempt's order comes from its file name, which the reader supplies.
 
 // ── gate attribution
 
 export type GateAttributionShapes = {
   "pre-schema": GateAttributionPreSchema;
-  next: GateAttribution;
+  next: GateAttributionFile;
 };
 
 /** The id of every gate attribution shape the package reads. */
@@ -78,13 +82,17 @@ export const gateAttributionFormat = defineFormat<GateAttributionShapes>({
 export const parseGateAttribution: (input: unknown) => ParsedShape<GateAttributionShapes> =
   gateAttributionFormat.parse;
 
-/** The latest gate attribution: phax's own, which carries no version. */
+/** The latest gate attribution: phax's in-memory value, with no `$schema`. */
 export type LatestGateAttribution = GateAttribution;
 
-/** Upgrades a parsed gate attribution in memory: the identity on either shape. */
+/** Upgrades a parsed gate attribution in memory: drops `$schema`, keeps every other fact. */
 export function toLatestGateAttribution(
-  value: GateAttributionPreSchema | GateAttribution,
+  value: GateAttributionPreSchema | GateAttributionFile,
 ): LatestGateAttribution {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   return value;
 }
 
@@ -92,7 +100,7 @@ export function toLatestGateAttribution(
 
 export type PhaseFileReconciliationShapes = {
   "pre-schema": PhaseFileReconciliationPreSchema;
-  next: PhaseFileReconciliation;
+  next: PhaseFileReconciliationFile;
 };
 
 /** The id of every phase file reconciliation shape the package reads. */
@@ -120,13 +128,17 @@ export const parsePhaseFileReconciliation: (
   input: unknown,
 ) => ParsedShape<PhaseFileReconciliationShapes> = phaseFileReconciliationFormat.parse;
 
-/** The latest phase file reconciliation: phax's own, which carries no version. */
+/** The latest phase file reconciliation: phax's in-memory value, with no `$schema`. */
 export type LatestPhaseFileReconciliation = PhaseFileReconciliation;
 
-/** Upgrades a parsed file reconciliation in memory: the identity on either shape. */
+/** Upgrades a parsed file reconciliation in memory: drops `$schema`, keeps every other fact. */
 export function toLatestPhaseFileReconciliation(
-  value: PhaseFileReconciliationPreSchema | PhaseFileReconciliation,
+  value: PhaseFileReconciliationPreSchema | PhaseFileReconciliationFile,
 ): LatestPhaseFileReconciliation {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   return value;
 }
 
@@ -134,7 +146,7 @@ export function toLatestPhaseFileReconciliation(
 
 export type GateDiagnosticsShapes = {
   "pre-schema": GateDiagnosticsPreSchema;
-  next: GateDiagnosticsDocument;
+  next: GateDiagnosticsFile;
 };
 
 /** The id of every gate diagnostics shape the package reads. */
@@ -155,19 +167,23 @@ export const gateDiagnosticsFormat = defineFormat<GateDiagnosticsShapes>({
 export const parseGateDiagnostics: (input: unknown) => ParsedShape<GateDiagnosticsShapes> =
   gateDiagnosticsFormat.parse;
 
-/** The latest gate diagnostics document: phax's own, which carries no version. */
+/** The latest gate diagnostics document: phax's in-memory value, with no `$schema`. */
 export type LatestGateDiagnostics = GateDiagnosticsDocument;
 
-/** Upgrades a parsed gate diagnostics document in memory: the identity on either shape. */
+/** Upgrades a parsed gate diagnostics document in memory: drops `$schema`, keeps every other fact. */
 export function toLatestGateDiagnostics(
-  value: GateDiagnosticsPreSchema | GateDiagnosticsDocument,
+  value: GateDiagnosticsPreSchema | GateDiagnosticsFile,
 ): LatestGateDiagnostics {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   return value;
 }
 
 // ── gate pending
 
-export type GatePendingShapes = { "pre-schema": GatePendingPreSchema; next: GatePendingDocument };
+export type GatePendingShapes = { "pre-schema": GatePendingPreSchema; next: GatePendingFile };
 
 /** The id of every gate pending shape the package reads. */
 export type GatePendingShape = keyof GatePendingShapes;
@@ -187,12 +203,16 @@ export const gatePendingFormat = defineFormat<GatePendingShapes>({
 export const parseGatePending: (input: unknown) => ParsedShape<GatePendingShapes> =
   gatePendingFormat.parse;
 
-/** The latest gate pending document: phax's own, which carries no version. */
+/** The latest gate pending document: phax's in-memory value, with no `$schema`. */
 export type LatestGatePending = GatePendingDocument;
 
-/** Upgrades a parsed gate pending document in memory: the identity on either shape. */
+/** Upgrades a parsed gate pending document in memory: drops `$schema`, keeps every other fact. */
 export function toLatestGatePending(
-  value: GatePendingPreSchema | GatePendingDocument,
+  value: GatePendingPreSchema | GatePendingFile,
 ): LatestGatePending {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   return value;
 }

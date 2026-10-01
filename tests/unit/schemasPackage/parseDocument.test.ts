@@ -63,7 +63,7 @@ describe("parseDocument", () => {
   });
 
   it("fails a timeline file without $schema, pointing to its parse function", () => {
-    const result = parseDocument(validDocuments["gate-attribution"]);
+    const result = parseDocument(preSchemaDocuments["gate-attribution"]);
     expectFailure(result, "$schema", MISSING_SCHEMA_MESSAGE);
     expect(result.ok ? "" : result.error.message).toContain("parseGateAttribution");
   });

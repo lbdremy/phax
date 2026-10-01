@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 import { aggregateVerifiedSurfaces } from "../../src/app/gateAttribution.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
 
 const runPath = "/fake/runs/my-run";
 
@@ -30,6 +31,35 @@ describe("aggregateVerifiedSurfaces", () => {
     );
 
     expect(result).toEqual(["local", "product"]);
+  });
+
+  it("reads an attribution phax writes ($schema) beside one recorded before $schema", async () => {
+    const fakeFs = makeFakeFileSystem();
+    fakeFs.impl.setFile(
+      `${runPath}/phase-01/gate-attribution.json`,
+      JSON.stringify(
+        withSchemaUrl("gate-attribution", {
+          phase: "phase-01",
+          steps: [{ command: "pnpm lint", surface: "structural", result: "pass" }],
+        }),
+      ),
+    );
+    // Pre-schema: no $schema and no version, as 0.16.0 wrote it.
+    fakeFs.impl.setFile(
+      `${runPath}/phase-02/gate-attribution.json`,
+      JSON.stringify({
+        phase: "phase-02",
+        steps: [{ command: "pnpm build", surface: "product", result: "pass" }],
+      }),
+    );
+
+    const result = await Effect.runPromise(
+      aggregateVerifiedSurfaces(runPath, ["phase-01", "phase-02"]).pipe(
+        Effect.provide(fakeFs.layer),
+      ),
+    );
+
+    expect(result).toEqual(["product", "structural"]);
   });
 
   it("skips phases with a missing attribution file", async () => {

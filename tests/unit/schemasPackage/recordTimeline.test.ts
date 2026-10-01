@@ -12,16 +12,16 @@ import {
   toLatestGateDiagnostics,
   toLatestGatePending,
   toLatestPhaseFileReconciliation,
-  type GateDiagnostics,
-  type GatePending,
+  type LatestGateDiagnostics,
+  type LatestGatePending,
 } from "../../../packages/schemas/src/index.js";
 import { newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
-import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnostics.js";
+import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
 import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import { schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
-import { preSchemaDocuments, validDocuments, withKey } from "./documents.js";
+import { preSchemaDocuments, validDocuments, withKey, withoutKey, type Doc } from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 type Parse = (input: unknown) => {
@@ -56,7 +56,7 @@ const FORMATS: ReadonlyArray<TimelineFormat> = [
   {
     id: "gate-diagnostics",
     parse: parseGateDiagnostics,
-    phax: decodeGateDiagnosticsDocument,
+    phax: decodeGateDiagnosticsFile,
     toLatest: toLatestGateDiagnostics,
   },
   {
@@ -68,43 +68,45 @@ const FORMATS: ReadonlyArray<TimelineFormat> = [
 ];
 
 describe.each(FORMATS)("$id", (format) => {
-  const document = validDocuments[format.id];
+  const preSchema = preSchemaDocuments[format.id];
+  const written = validDocuments[format.id];
 
-  it("parses the document as shape pre-schema, with phax's value", () => {
-    const phax = format.phax(document);
-    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
-    expect(format.parse(document)).toEqual({ ok: true, shape: "pre-schema", value: phax.right });
+  it("parses a document without $schema as shape pre-schema", () => {
+    expect(format.parse(preSchema)).toEqual({ ok: true, shape: "pre-schema", value: preSchema });
   });
 
-  it("reads a document carrying a version key as pre-schema, as phax's decoder does", () => {
-    const versioned = withKey(document, "version", 0);
-    expect(Either.isRight(format.phax(versioned))).toBe(true);
+  it("reads a pre-schema document carrying a version key as pre-schema", () => {
+    const versioned = withKey(preSchema, "version", 0);
     expect(format.parse(versioned)).toMatchObject({ ok: true, shape: "pre-schema" });
   });
 
-  it("upgrades by the identity: the pre-schema shape carries no version", () => {
-    const result = format.parse(document);
-    if (!result.ok) throw new Error("document rejected");
-    expect(format.toLatest(result.value as never)).toBe(result.value);
+  it("parses a phax-written document as shape next, with phax's value", () => {
+    expect(Object.keys(written)[0]).toBe("$schema");
+    expect(written).not.toHaveProperty("version");
+    const phax = format.phax(written);
+    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    expect(format.parse(written)).toEqual({ ok: true, shape: "next", value: phax.right });
+  });
+
+  it("upgrades either shape to the same value: the identity on pre-schema, without $schema on next", () => {
+    const pre = format.parse(preSchema);
+    const next = format.parse(written);
+    if (!pre.ok || !next.ok) throw new Error("document rejected");
+    expect(format.toLatest(pre.value as never)).toBe(pre.value);
+    expect(format.toLatest(next.value as never)).toEqual(pre.value);
+    expect(format.toLatest(next.value as never)).not.toHaveProperty("$schema");
   });
 
   it("fails a document written by a newer release with the upgrade message", () => {
-    const newer = withKey(document, "$schema", schemaUrl(format.id, NEWER_RELEASE));
+    const newer = withKey(written, "$schema", schemaUrl(format.id, NEWER_RELEASE));
     const message = newerReleaseMessage(format.id, NEWER_RELEASE, PACKAGE_VERSION);
     for (const result of [format.parse(newer), parseDocument(newer)]) {
       expect(result).toEqual({ ok: false, error: { path: "$schema", message } });
     }
   });
 
-  it("reads a document naming the package's own release as next, with phax's decoder", () => {
-    const own = withKey(document, "$schema", schemaUrl(format.id, PACKAGE_VERSION));
-    const phax = format.phax(own);
-    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
-    expect(format.parse(own)).toEqual({ ok: true, shape: "next", value: phax.right });
-  });
-
   it("names no shape below the package's own release", () => {
-    const older = withKey(document, "$schema", schemaUrl(format.id, "0.1.0"));
+    const older = withKey(written, "$schema", schemaUrl(format.id, "0.1.0"));
     expect(format.parse(older)).toEqual({
       ok: false,
       error: { path: "$schema", message: `no ${format.id} shape is known at release 0.1.0` },
@@ -112,37 +114,52 @@ describe.each(FORMATS)("$id", (format) => {
   });
 });
 
-// The acceptance criterion: a record's timeline files parse. The folder is
-// written here in pre-schema shapes, its files listed out of order.
-const RECORD_FOLDER: ReadonlyMap<string, string> = new Map(
-  Object.entries({
-    "checks-attempt-02.pending.json": validDocuments["gate-pending"],
-    "record.json": preSchemaDocuments["phase-record-manifest"],
-    "file-reconciliation.json": validDocuments["phase-file-reconciliation"],
-    "checks-attempt-01.diagnostics.json": validDocuments["gate-diagnostics"],
-    "gate-attribution.json": validDocuments["gate-attribution"],
-  }).map(([name, document]) => [name, `${JSON.stringify(document, null, 2)}\n`]),
-);
+// The acceptance criterion: a record's timeline files parse. The same folder
+// is written twice, its files listed out of order: by hand in the pre-schema
+// shapes, and as phax writes it today.
+type Folder = { readonly [name: string]: Doc };
 
-function read(name: string): unknown {
-  const content = RECORD_FOLDER.get(name);
-  if (content === undefined) throw new Error(`no ${name} in the record folder`);
-  return JSON.parse(content);
+function folder(documents: { readonly [F in FormatId]: Doc }): Folder {
+  return {
+    "checks-attempt-02.pending.json": documents["gate-pending"],
+    "record.json": documents["phase-record-manifest"],
+    "file-reconciliation.json": documents["phase-file-reconciliation"],
+    "checks-attempt-01.diagnostics.json": documents["gate-diagnostics"],
+    "gate-attribution.json": documents["gate-attribution"],
+  };
 }
 
-describe("a record's timeline files", () => {
-  it("parse, each with its own function, as shape pre-schema", () => {
+const RECORD_FOLDERS = [
+  {
+    written: "by hand in the pre-schema shapes",
+    shape: "pre-schema",
+    files: folder(preSchemaDocuments),
+  },
+  { written: "by phax", shape: "next", files: folder(validDocuments) },
+] as const;
+
+describe.each(RECORD_FOLDERS)("a record's timeline files written $written", ({ shape, files }) => {
+  const contents: ReadonlyMap<string, string> = new Map(
+    Object.entries(files).map(([name, document]) => [
+      name,
+      `${JSON.stringify(document, null, 2)}\n`,
+    ]),
+  );
+
+  function read(name: string): unknown {
+    const content = contents.get(name);
+    if (content === undefined) throw new Error(`no ${name} in the record folder`);
+    return JSON.parse(content);
+  }
+
+  it(`parse, each with its own function, as shape ${shape}`, () => {
     const record = parseRecordManifest(read("record.json"));
-    expect(record).toMatchObject({
-      ok: true,
-      format: "phase-record-manifest",
-      shape: "pre-schema",
-    });
+    expect(record).toMatchObject({ ok: true, format: "phase-record-manifest", shape });
 
     const attribution = parseGateAttribution(read("gate-attribution.json"));
     const reconciliation = parsePhaseFileReconciliation(read("file-reconciliation.json"));
-    expect(attribution).toMatchObject({ ok: true, shape: "pre-schema" });
-    expect(reconciliation).toMatchObject({ ok: true, shape: "pre-schema" });
+    expect(attribution).toMatchObject({ ok: true, shape });
+    expect(reconciliation).toMatchObject({ ok: true, shape });
     if (!record.ok || record.format !== "phase-record-manifest") return;
     if (!attribution.ok || !reconciliation.ok) return;
 
@@ -155,21 +172,22 @@ describe("a record's timeline files", () => {
   it("orders the fix-loop attempts by the numbers in their file names", () => {
     const attempts: Array<{
       readonly attempt: number;
-      readonly diagnostics?: GateDiagnostics;
-      readonly pending?: GatePending;
+      readonly diagnostics?: LatestGateDiagnostics;
+      readonly pending?: LatestGatePending;
     }> = [];
-    for (const name of RECORD_FOLDER.keys()) {
+    for (const name of contents.keys()) {
       const match = /^checks-attempt-(\d+)\.(diagnostics|pending)\.json$/.exec(name);
       if (match === null) continue;
       const attempt = Number(match[1]);
       if (match[2] === "diagnostics") {
         const result = parseGateDiagnostics(read(name));
-        expect(result, name).toMatchObject({ ok: true, shape: "pre-schema" });
-        if (result.ok) attempts.push({ attempt, diagnostics: result.value });
+        expect(result, name).toMatchObject({ ok: true, shape });
+        if (result.ok)
+          attempts.push({ attempt, diagnostics: toLatestGateDiagnostics(result.value) });
       } else {
         const result = parseGatePending(read(name));
-        expect(result, name).toMatchObject({ ok: true, shape: "pre-schema" });
-        if (result.ok) attempts.push({ attempt, pending: result.value });
+        expect(result, name).toMatchObject({ ok: true, shape });
+        if (result.ok) attempts.push({ attempt, pending: toLatestGatePending(result.value) });
       }
     }
     const ordered = attempts.toSorted((a, b) => a.attempt - b.attempt);
@@ -180,4 +198,13 @@ describe("a record's timeline files", () => {
     ]);
     expect(ordered[1]?.pending?.steps[0]?.pending[0]?.openScopes).toEqual(["phase-02"]);
   });
+});
+
+it("a phax-written timeline file without its $schema is the pre-schema shape", () => {
+  for (const { id, parse } of FORMATS) {
+    expect(parse(withoutKey(validDocuments[id], "$schema")), id).toMatchObject({
+      ok: true,
+      shape: "pre-schema",
+    });
+  }
 });
