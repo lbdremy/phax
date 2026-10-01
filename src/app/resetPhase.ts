@@ -14,7 +14,7 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
-import { readRunStatusFile } from "../schemas/persisted.js";
+import { readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import { dispatch } from "./dispatcher.js";
 import { composePhaxState } from "./phaxState.js";
@@ -232,12 +232,11 @@ function clearRunStatusLastError(runPath: string): Effect.Effect<void, FsError, 
     }
     const decoded = readRunStatusFile(path, parsed);
     if (Either.isLeft(decoded)) return;
-    // Drop `lastError` from the already-validated on-disk shape. We don't go
-    // through a status encoder here — the architectural guard reserves those
+    // Drop `lastError` from the bridge-read status and stamp `$schema`. We don't
+    // go through a status encoder here — the architectural guard reserves those
     // for the dispatcher and effect runner.
-    const cleared: Record<string, unknown> = { ...(parsed as Record<string, unknown>) };
-    delete cleared["lastError"];
-    cleared["updatedAt"] = new Date().toISOString();
-    yield* fs.writeAtomic(path, JSON.stringify(cleared, null, 2));
+    const { lastError: _lastError, ...cleared } = decoded.right;
+    const updated: RunStatus = { ...cleared, updatedAt: new Date().toISOString() };
+    yield* fs.writeAtomic(path, JSON.stringify(withSchemaUrl("run-status", updated), null, 2));
   });
 }

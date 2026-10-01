@@ -82,7 +82,7 @@ import { RunRecordManifestSchema } from "../../../src/schemas/runRecord.js";
 import type { FormatId } from "../../../src/schemas/schemaUrl.js";
 import { SpecApprovalRecordFileSchema } from "../../../src/schemas/specApprovalRecord.js";
 import { SpecDocumentSchema } from "../../../src/schemas/specDocument.js";
-import { PhaseStatusSchema, RunStatusSchema } from "../../../src/schemas/status.js";
+import { PhaseStatusFileSchema, RunStatusFileSchema } from "../../../src/schemas/status.js";
 
 type CompletionDiagnostic = GatePendingPreSchema["steps"][number]["pending"][number]["diagnostic"];
 
@@ -419,7 +419,17 @@ export const preSchemaDocuments: { readonly [F in FormatId]: Doc } = {
 };
 
 /** The formats phax already writes with `$schema`; each family phase adds its own. */
-export const WRITES_SCHEMA: ReadonlySet<FormatId> = new Set<FormatId>(["registry"]);
+export const WRITES_SCHEMA: ReadonlySet<FormatId> = new Set<FormatId>([
+  "registry",
+  "run-status",
+  "phase-status",
+]);
+
+/** A pre-schema value as phax holds it in memory: the same fields, without `version`. */
+function stepped<T extends { readonly version: 1 }>(value: T): Omit<T, "version"> {
+  const { version: _version, ...rest } = value;
+  return rest;
+}
 
 /**
  * One minimal document per format id, in the shape phax writes today. A
@@ -428,8 +438,11 @@ export const WRITES_SCHEMA: ReadonlySet<FormatId> = new Set<FormatId>(["registry
  */
 export const validDocuments: { readonly [F in FormatId]: Doc } = {
   registry: encoded(RegistryFileSchema, withSchemaUrl("registry", { runs: registry.runs })),
-  "run-status": encoded(RunStatusSchema, runStatus),
-  "phase-status": encoded(PhaseStatusSchema, phaseStatus),
+  "run-status": encoded(RunStatusFileSchema, withSchemaUrl("run-status", stepped(runStatus))),
+  "phase-status": encoded(
+    PhaseStatusFileSchema,
+    withSchemaUrl("phase-status", stepped(phaseStatus)),
+  ),
   "phax-plan": encoded(PhaxPlanSchema, phaxPlan),
   "compliance-review": encoded(ComplianceReviewSchema, complianceReview),
   "plan-approvals": encoded(ApprovalRecordFileSchema, planApprovals),

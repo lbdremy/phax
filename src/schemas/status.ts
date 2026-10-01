@@ -1,5 +1,6 @@
-import { Schema } from "effect";
+import { Schema, type Types } from "effect";
 import { BranchNameSchema } from "../domain/branded.js";
+import { schemaUrlField } from "./schemaUrl.js";
 
 const RunStateSchema = Schema.Union(
   Schema.Literal("created"),
@@ -43,8 +44,7 @@ const EffortSchema = Schema.Union(
   Schema.Literal("ultra"),
 );
 
-export const RunStatusSchema = Schema.Struct({
-  version: Schema.Literal(1),
+const runStatusFields = {
   namespace: Schema.NonEmptyString,
   shortName: Schema.NonEmptyString,
   runId: Schema.NonEmptyString,
@@ -67,21 +67,23 @@ export const RunStatusSchema = Schema.Struct({
   // `phax resume` inherits it. Optional like `planRepoRelPath`: existing
   // run-status.json files must still decode, and absent means no consent.
   allowSkillEdits: Schema.optionalWith(Schema.Boolean, { exact: true }),
+};
+
+/** A run's status in memory: never a `version`, never a `$schema`. */
+export type RunStatus = Types.Simplify<Schema.Struct.Type<typeof runStatusFields>>;
+
+/** `run-status.json` as phax writes it: `$schema` first, then the fields. Unknown keys are ignored. */
+export const RunStatusFileSchema = Schema.Struct({
+  $schema: schemaUrlField("run-status"),
+  ...runStatusFields,
 });
 
-export type RunStatus = Schema.Schema.Type<typeof RunStatusSchema>;
-
-/**
- * `run-status.json` as phax writes it: today's schema until run status gains `$schema`.
- * @alias
- */
-export const RunStatusFileSchema = RunStatusSchema;
+export type RunStatusFile = Schema.Schema.Type<typeof RunStatusFileSchema>;
 
 export const decodeRunStatusFile = Schema.decodeUnknownEither(RunStatusFileSchema);
-export const encodeRunStatus = Schema.encodeSync(RunStatusSchema);
+export const encodeRunStatus = Schema.encodeSync(RunStatusFileSchema);
 
-export const PhaseStatusSchema = Schema.Struct({
-  version: Schema.Literal(1),
+const phaseStatusFields = {
   phaseId: Schema.NonEmptyString,
   phaseIndex: Schema.Number,
   state: PhaseStateSchema,
@@ -93,16 +95,21 @@ export const PhaseStatusSchema = Schema.Struct({
   worktreePath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
   claudeSessionId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
   commitHash: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-});
+};
 
-export type PhaseStatus = Schema.Schema.Type<typeof PhaseStatusSchema>;
+/** A phase's status in memory: never a `version`, never a `$schema`. */
+export type PhaseStatus = Types.Simplify<Schema.Struct.Type<typeof phaseStatusFields>>;
 
 /**
- * A phase's `status.json` as phax writes it: today's schema until phase status
- * gains `$schema`.
- * @alias
+ * A phase's `status.json` as phax writes it: `$schema` first, then the fields.
+ * Unknown keys are ignored.
  */
-export const PhaseStatusFileSchema = PhaseStatusSchema;
+export const PhaseStatusFileSchema = Schema.Struct({
+  $schema: schemaUrlField("phase-status"),
+  ...phaseStatusFields,
+});
+
+export type PhaseStatusFile = Schema.Schema.Type<typeof PhaseStatusFileSchema>;
 
 export const decodePhaseStatusFile = Schema.decodeUnknownEither(PhaseStatusFileSchema);
-export const encodePhaseStatus = Schema.encodeSync(PhaseStatusSchema);
+export const encodePhaseStatus = Schema.encodeSync(PhaseStatusFileSchema);

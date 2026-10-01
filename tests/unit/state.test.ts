@@ -22,6 +22,7 @@ import {
   stopRun,
   TERMINAL_PHASE_STATES,
 } from "../../src/domain/state.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { decodePhaseStatusFile } from "../../src/schemas/status.js";
 
 function assertRight<T>(result: Either.Either<T, unknown>, expected: T): void {
@@ -258,7 +259,7 @@ describe("gates_exhausted phase state", () => {
 
   it("decodePhaseStatusFile round-trips a status with state gates_exhausted", () => {
     const raw = {
-      version: 1,
+      $schema: schemaUrl("phase-status", "0.17.0"),
       phaseId: "phase-01",
       phaseIndex: 0,
       state: "gates_exhausted",

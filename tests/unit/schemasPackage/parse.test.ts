@@ -60,7 +60,7 @@ describe("parseRunStatus", () => {
   const runStatus = validDocuments["run-status"];
 
   it("returns ok with the shape and the value for a valid run status", () => {
-    expect(parseRunStatus(runStatus)).toEqual({ ok: true, shape: "pre-schema", value: runStatus });
+    expect(parseRunStatus(runStatus)).toEqual({ ok: true, shape: "next", value: runStatus });
   });
 
   it("fails at state for a paused run status, without throwing", () => {

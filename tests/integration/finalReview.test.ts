@@ -6,6 +6,7 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { RunReviewInfo } from "../../src/app/resolveRunInfo.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import type { BranchName } from "../../src/domain/branded.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
@@ -16,7 +17,6 @@ const runPath = `${stateRoot}/runs/${shortName}`;
 const now = "2024-01-01T00:00:00.000Z";
 
 const phaseStatus: PhaseStatus = {
-  version: 1,
   phaseId: "phase-01",
   phaseIndex: 0,
   state: "committed",
@@ -65,7 +65,7 @@ function makeRunStatusJson(state: string): string {
 }
 
 function makePhaseStatusJson(state: string): string {
-  return JSON.stringify({ ...phaseStatus, state });
+  return JSON.stringify(withSchemaUrl("phase-status", { ...phaseStatus, state }));
 }
 
 function makePhaseReconciliationJson(): string {

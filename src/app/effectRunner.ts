@@ -13,7 +13,7 @@ import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { toKeepAwakePlatform } from "../domain/whatsNext.js";
-import { readPhaseStatusFile, readRunStatusFile } from "../schemas/persisted.js";
+import { readPhaseStatusFile, readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
 import { encodePhaseStatus, encodeRunStatus } from "../schemas/status.js";
 import { setRunStatus } from "./registry.js";
 import { writeResumeInstructions } from "./resumeInstructions.js";
@@ -46,7 +46,10 @@ function persistState(
       const decoded = readRunStatusFile(path, parsed);
       if (Either.isRight(decoded)) {
         const updated = { ...decoded.right, ...cmd.patch.run, updatedAt: now };
-        yield* fs.writeAtomic(path, JSON.stringify(encodeRunStatus(updated), null, 2));
+        yield* fs.writeAtomic(
+          path,
+          JSON.stringify(encodeRunStatus(withSchemaUrl("run-status", updated)), null, 2),
+        );
       }
     }
 
@@ -62,7 +65,10 @@ function persistState(
       const decoded = readPhaseStatusFile(path, parsed);
       if (Either.isRight(decoded)) {
         const updated = { ...decoded.right, ...cmd.patch.phase, updatedAt: now };
-        yield* fs.writeAtomic(path, JSON.stringify(encodePhaseStatus(updated), null, 2));
+        yield* fs.writeAtomic(
+          path,
+          JSON.stringify(encodePhaseStatus(withSchemaUrl("phase-status", updated)), null, 2),
+        );
       }
     }
   });

@@ -3,13 +3,15 @@ import { describe, expect, it } from "vitest";
 import { recordPhaseWorktreeAndBranch } from "../../src/app/phaseStatusUpdates.js";
 import type { BranchName, WorktreePath } from "../../src/domain/branded.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const phaseFolderPath = "/fake/runs/my-run/phase-01";
 const now = new Date().toISOString();
 
 function makePhaseStatusJson(extra: Record<string, unknown> = {}): string {
   return JSON.stringify({
-    version: 1,
+    $schema: schemaUrl("phase-status", PHAX_RELEASE),
     phaseId: "phase-01",
     phaseIndex: 0,
     state: "setting_up_worktree",
@@ -68,6 +70,35 @@ describe("recordPhaseWorktreeAndBranch", () => {
       expect(decoded.right.branchName).toBe("ai/my-run--phase-01");
       expect(decoded.right.worktreePath).toBe("/fake/worktrees/my-run/phase-01");
     }
+  });
+
+  it("rewrites a status.json written before $schema with $schema first and no version", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const { $schema: _schema, ...preSchema } = JSON.parse(makePhaseStatusJson()) as Record<
+      string,
+      unknown
+    >;
+    fakeFs.impl.setFile(
+      `${phaseFolderPath}/status.json`,
+      JSON.stringify({ version: 1, ...preSchema }),
+    );
+
+    await Effect.runPromise(
+      recordPhaseWorktreeAndBranch(
+        phaseFolderPath,
+        "/fake/worktrees/my-run/phase-01" as WorktreePath,
+        "ai/my-run--phase-01" as BranchName,
+      ).pipe(Effect.provide(fakeFs.layer)),
+    );
+
+    const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as Record<
+      string,
+      unknown
+    >;
+    expect(Object.keys(persisted)[0]).toBe("$schema");
+    expect(persisted["$schema"]).toBe(schemaUrl("phase-status", PHAX_RELEASE));
+    expect(persisted).not.toHaveProperty("version");
+    expect(persisted["worktreePath"]).toBe("/fake/worktrees/my-run/phase-01");
   });
 
   it("is a no-op when status.json does not exist", async () => {

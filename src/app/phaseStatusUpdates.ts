@@ -2,7 +2,7 @@ import { Effect, Either } from "effect";
 import { join } from "node:path";
 import type { BranchName, WorktreePath } from "../domain/branded.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { readPhaseStatusFile } from "../schemas/persisted.js";
+import { readPhaseStatusFile, withSchemaUrl } from "../schemas/persisted.js";
 import { encodePhaseStatus } from "../schemas/status.js";
 
 export function recordPhaseWorktreeAndBranch(
@@ -30,7 +30,10 @@ export function recordPhaseWorktreeAndBranch(
         branchName,
         updatedAt: new Date().toISOString(),
       };
-      yield* fs.writeAtomic(statusPath, JSON.stringify(encodePhaseStatus(updated), null, 2));
+      yield* fs.writeAtomic(
+        statusPath,
+        JSON.stringify(encodePhaseStatus(withSchemaUrl("phase-status", updated)), null, 2),
+      );
     }
   });
 }

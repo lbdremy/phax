@@ -1,7 +1,8 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Either } from "effect";
-import { readRunStatusFile } from "../schemas/persisted.js";
+import { readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
+import type { RunStatus } from "../schemas/status.js";
 import { runKey } from "../domain/runRef.js";
 
 interface RunInterruptContext {
@@ -41,12 +42,12 @@ function syncWriteInterruptedState(ctx: RunInterruptContext): void {
     const raw = JSON.parse(readFileSync(statusPath, "utf8")) as unknown;
     const decoded = readRunStatusFile(statusPath, raw);
     if (Either.isRight(decoded) && decoded.right.state === "running") {
-      const updated = {
+      const updated: RunStatus = {
         ...decoded.right,
         state: "interrupted",
         updatedAt: new Date().toISOString(),
       };
-      writeFileSync(statusPath, JSON.stringify(updated, null, 2));
+      writeFileSync(statusPath, JSON.stringify(withSchemaUrl("run-status", updated), null, 2));
     }
   } catch {
     // Best-effort; do not throw inside a signal handler

@@ -15,7 +15,6 @@ const now = "2024-01-01T00:00:00.000Z";
 
 function makePhaseStatus(phaseId: string, phaseIndex: number): PhaseStatus {
   return {
-    version: 1,
     phaseId,
     phaseIndex,
     state: "committed",

@@ -3,7 +3,7 @@ import { mkdir, open, readFile, rename } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { randomBytes } from "node:crypto";
 import type { ClaudeSessionId } from "../../domain/branded.js";
-import { readPhaseStatusFile } from "../../schemas/persisted.js";
+import { readPhaseStatusFile, withSchemaUrl } from "../../schemas/persisted.js";
 import { encodePhaseStatus } from "../../schemas/status.js";
 
 async function writeAtomic(filePath: string, content: string): Promise<void> {
@@ -38,7 +38,10 @@ export async function persistSessionId(
         claudeSessionId: sessionId,
         updatedAt: new Date().toISOString(),
       };
-      await writeAtomic(statusPath, JSON.stringify(encodePhaseStatus(updated), null, 2));
+      await writeAtomic(
+        statusPath,
+        JSON.stringify(encodePhaseStatus(withSchemaUrl("phase-status", updated)), null, 2),
+      );
     }
   } catch {
     // Status file absent or malformed — session-id.txt already written, continue.

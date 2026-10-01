@@ -19,7 +19,6 @@ const now = "2026-06-12T12:00:00.000Z";
 
 function makePhaseStatus(overrides: Partial<PhaseStatus> = {}): PhaseStatus {
   return {
-    version: 1,
     phaseId: "phase-01",
     phaseIndex: 0,
     state: "review_open",

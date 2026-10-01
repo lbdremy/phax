@@ -56,10 +56,10 @@ export {
   type RegistryFile as Registry,
 } from "../../../src/schemas/registry.js";
 export {
-  PhaseStatusSchema,
-  RunStatusSchema,
-  type PhaseStatus,
-  type RunStatus,
+  PhaseStatusFileSchema as PhaseStatusSchema,
+  RunStatusFileSchema as RunStatusSchema,
+  type PhaseStatusFile as PhaseStatus,
+  type RunStatusFile as RunStatus,
 } from "../../../src/schemas/status.js";
 export {
   parseComplianceReview,

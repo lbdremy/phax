@@ -7,6 +7,9 @@ import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const runPath = "/state/runs/my-run";
 const phaseFolderPath = "/state/runs/my-run/phase-01";
@@ -19,7 +22,6 @@ const baseEventFields = {
 };
 
 const runStatusBase = {
-  version: 1,
   namespace: "test-project",
   shortName: "my-run",
   runId: "my-run-2026-05-21",
@@ -30,7 +32,6 @@ const runStatusBase = {
 } as const;
 
 const phaseStatusBase = {
-  version: 1,
   phaseId: "phase-01",
   phaseIndex: 0,
   model: "claude-sonnet-4-6",
@@ -49,20 +50,24 @@ function seedFs(opts: {
   const fakeFs = makeFakeFileSystem();
   fakeFs.impl.setFile(
     `${runPath}/run-status.json`,
-    JSON.stringify({
-      ...runStatusBase,
-      state: opts.runState,
-      ...(opts.lastError !== undefined ? { lastError: opts.lastError } : {}),
-    }),
+    JSON.stringify(
+      withSchemaUrl("run-status", {
+        ...runStatusBase,
+        state: opts.runState,
+        ...(opts.lastError !== undefined ? { lastError: opts.lastError } : {}),
+      }),
+    ),
   );
   if (opts.phaseState !== undefined) {
     fakeFs.impl.setFile(
       `${phaseFolderPath}/status.json`,
-      JSON.stringify({
-        ...phaseStatusBase,
-        state: opts.phaseState,
-        ...(opts.commitHash !== undefined ? { commitHash: opts.commitHash } : {}),
-      }),
+      JSON.stringify(
+        withSchemaUrl("phase-status", {
+          ...phaseStatusBase,
+          state: opts.phaseState,
+          ...(opts.commitHash !== undefined ? { commitHash: opts.commitHash } : {}),
+        }),
+      ),
     );
   }
   return fakeFs;
@@ -108,6 +113,9 @@ describe("dispatch — handled transitions", () => {
       state: string;
     };
     expect(persisted.state).toBe("running");
+    expect(Object.keys(persisted)[0]).toBe("$schema");
+    expect(persisted).toHaveProperty("$schema", schemaUrl("run-status", PHAX_RELEASE));
+    expect(persisted).not.toHaveProperty("version");
   });
 
   it("transitions phase pending → setting_up_worktree on PhaseStartRequested", async () => {
@@ -155,6 +163,9 @@ describe("dispatch — handled transitions", () => {
     };
     expect(persisted.state).toBe("committed");
     expect(persisted.commitHash).toBe("deadbeef12345678");
+    expect(Object.keys(persisted)[0]).toBe("$schema");
+    expect(persisted).toHaveProperty("$schema", schemaUrl("phase-status", PHAX_RELEASE));
+    expect(persisted).not.toHaveProperty("version");
   });
 });
 

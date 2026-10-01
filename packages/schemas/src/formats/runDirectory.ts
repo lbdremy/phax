@@ -49,7 +49,9 @@ import {
   decodePhaseStatusFile,
   decodeRunStatusFile,
   type PhaseStatus,
+  type PhaseStatusFile,
   type RunStatus,
+  type RunStatusFile,
 } from "../../../../src/schemas/status.js";
 import type { ParsedShape } from "../parsed.js";
 import { defineFormat } from "../shapes.js";
@@ -87,7 +89,7 @@ export function toLatestRegistry(value: RegistryPreSchema | RegistryFile): Lates
 
 // ── run status
 
-export type RunStatusShapes = { "pre-schema": RunStatusPreSchema; next: RunStatus };
+export type RunStatusShapes = { "pre-schema": RunStatusPreSchema; next: RunStatusFile };
 
 /** The id of every run status shape the package reads. */
 export type RunStatusShape = keyof RunStatusShapes;
@@ -104,18 +106,22 @@ export const runStatusFormat = defineFormat<RunStatusShapes>({
 export const parseRunStatus: (input: unknown) => ParsedShape<RunStatusShapes> =
   runStatusFormat.parse;
 
-/** The latest run status: no `version`. */
-export type LatestRunStatus = Omit<RunStatus, "version">;
+/** The latest run status: phax's in-memory value, with no `version` and no `$schema`. */
+export type LatestRunStatus = RunStatus;
 
 /** Upgrades a parsed run status in memory. Keeps every recorded fact; never invents one. */
-export function toLatestRunStatus(value: RunStatusPreSchema | RunStatus): LatestRunStatus {
+export function toLatestRunStatus(value: RunStatusPreSchema | RunStatusFile): LatestRunStatus {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   const { version: _version, ...recorded } = value;
   return recorded;
 }
 
 // ── phase status
 
-export type PhaseStatusShapes = { "pre-schema": PhaseStatusPreSchema; next: PhaseStatus };
+export type PhaseStatusShapes = { "pre-schema": PhaseStatusPreSchema; next: PhaseStatusFile };
 
 /** The id of every phase status shape the package reads. */
 export type PhaseStatusShape = keyof PhaseStatusShapes;
@@ -135,11 +141,17 @@ export const phaseStatusFormat = defineFormat<PhaseStatusShapes>({
 export const parsePhaseStatus: (input: unknown) => ParsedShape<PhaseStatusShapes> =
   phaseStatusFormat.parse;
 
-/** The latest phase status: no `version`. */
-export type LatestPhaseStatus = Omit<PhaseStatus, "version">;
+/** The latest phase status: phax's in-memory value, with no `version` and no `$schema`. */
+export type LatestPhaseStatus = PhaseStatus;
 
 /** Upgrades a parsed phase status in memory. Keeps every recorded fact; never invents one. */
-export function toLatestPhaseStatus(value: PhaseStatusPreSchema | PhaseStatus): LatestPhaseStatus {
+export function toLatestPhaseStatus(
+  value: PhaseStatusPreSchema | PhaseStatusFile,
+): LatestPhaseStatus {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   const { version: _version, ...recorded } = value;
   return recorded;
 }

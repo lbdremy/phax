@@ -12,6 +12,8 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { decodeRunStatusFile, decodePhaseStatusFile } from "../../src/schemas/status.js";
 import { decodeRegistryFile } from "../../src/schemas/registry.js";
 
@@ -114,7 +116,11 @@ describe("createRunFolder", () => {
 
     const raw = impl.getFile(`${stateRoot}/runs/test-project.my-run/run-status.json`);
     expect(raw).toBeDefined();
-    const decoded = decodeRunStatusFile(JSON.parse(raw!));
+    const written = JSON.parse(raw!) as Record<string, unknown>;
+    expect(Object.keys(written)[0]).toBe("$schema");
+    expect(written["$schema"]).toBe(schemaUrl("run-status", PHAX_RELEASE));
+    expect(written).not.toHaveProperty("version");
+    const decoded = decodeRunStatusFile(written);
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
       expect(decoded.right.state).toBe("created");
@@ -186,7 +192,11 @@ describe("createPhaseFolder", () => {
 
     const raw = impl.getFile(`${runPath}/phase-01/status.json`);
     expect(raw).toBeDefined();
-    const decoded = decodePhaseStatusFile(JSON.parse(raw!));
+    const written = JSON.parse(raw!) as Record<string, unknown>;
+    expect(Object.keys(written)[0]).toBe("$schema");
+    expect(written["$schema"]).toBe(schemaUrl("phase-status", PHAX_RELEASE));
+    expect(written).not.toHaveProperty("version");
+    const decoded = decodePhaseStatusFile(written);
     expect(Either.isRight(decoded)).toBe(true);
     if (Either.isRight(decoded)) {
       expect(decoded.right.state).toBe("pending");

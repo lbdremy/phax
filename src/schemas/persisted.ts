@@ -179,21 +179,29 @@ export const readRegistryFile: Reader<Registry> = (file, input) =>
     fromPreSchema: ({ version: _version, ...registry }) => Either.right(registry),
   });
 
-/** Reads a run's `run-status.json`. */
-export const readRunStatusFile: Reader<RunStatus> = reader(
-  "run-status",
-  "run status",
-  decodeRunStatusFile,
-  decodeRunStatusPreSchema,
-);
+/** Reads a run's `run-status.json`. The pre-schema run status carries every fact phax needs. */
+export const readRunStatusFile: Reader<RunStatus> = (file, input) =>
+  readPersisted(input, {
+    format: "run-status",
+    label: "run status",
+    file,
+    decodeCurrent: decodeRunStatusFile,
+    decodePreSchema: decodeRunStatusPreSchema,
+    fromCurrent: ({ $schema: _schema, ...status }) => status,
+    fromPreSchema: ({ version: _version, ...status }) => Either.right(status),
+  });
 
-/** Reads a phase's `status.json`. */
-export const readPhaseStatusFile: Reader<PhaseStatus> = reader(
-  "phase-status",
-  "phase status",
-  decodePhaseStatusFile,
-  decodePhaseStatusPreSchema,
-);
+/** Reads a phase's `status.json`. The pre-schema phase status carries every fact phax needs. */
+export const readPhaseStatusFile: Reader<PhaseStatus> = (file, input) =>
+  readPersisted(input, {
+    format: "phase-status",
+    label: "phase status",
+    file,
+    decodeCurrent: decodePhaseStatusFile,
+    decodePreSchema: decodePhaseStatusPreSchema,
+    fromCurrent: ({ $schema: _schema, ...status }) => status,
+    fromPreSchema: ({ version: _version, ...status }) => Either.right(status),
+  });
 
 /** Reads a run's `phax-plan.json`. */
 export const readPhaxPlanFile: Reader<PhaxPlan> = reader(
