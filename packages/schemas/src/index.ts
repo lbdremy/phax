@@ -87,8 +87,8 @@ export {
   type RunStatusShape,
 } from "./formats/runDirectory.js";
 
-// The files of a repository. Each schema and type is phax's own; the two
-// ledgers take the names the spec gives them.
+// The files of a repository. Each schema and type is phax's own file schema
+// and type, under the name the spec gives it.
 export {
   ApprovalRecordFileSchema as PlanApprovalsSchema,
   type ApprovalRecordFile as PlanApprovals,
@@ -97,8 +97,14 @@ export {
   SpecApprovalRecordFileSchema as SpecApprovalsSchema,
   type SpecApprovalRecordFile as SpecApprovals,
 } from "../../../src/schemas/specApprovalRecord.js";
-export { SpecDocumentSchema, type SpecDocument } from "../../../src/schemas/specDocument.js";
-export { PlanDocumentSchema, type PlanDocument } from "../../../src/schemas/planDocument.js";
+export {
+  SpecDocumentFileSchema as SpecDocumentSchema,
+  type SpecDocumentFile as SpecDocument,
+} from "../../../src/schemas/specDocument.js";
+export {
+  PlanDocumentFileSchema as PlanDocumentSchema,
+  type PlanDocumentFile as PlanDocument,
+} from "../../../src/schemas/planDocument.js";
 export {
   parsePlanApprovals,
   parsePlanDocument,

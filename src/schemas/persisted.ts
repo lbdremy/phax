@@ -11,7 +11,7 @@
 // then stepped to the current shape. On the way out, `withSchemaUrl` stamps the
 // `$schema` a writer puts first.
 import { Either, type ParseResult } from "effect";
-import { decodeApprovalRecordFile, type ApprovalRecordFile } from "./approvalRecord.js";
+import { decodeApprovalRecordFile, type PlanApprovals } from "./approvalRecord.js";
 import { decodeRecordManifestFile, type RecordManifest } from "./authoringRecord.js";
 import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
 import { formatFirstViolation } from "./formatError.js";
@@ -38,7 +38,7 @@ import {
 import { decodeRegistryFile, type Registry } from "./registry.js";
 import { PHAX_RELEASE } from "./release.js";
 import { schemaUrl, type FormatId } from "./schemaUrl.js";
-import { decodeSpecApprovalRecordFile, type SpecApprovalRecordFile } from "./specApprovalRecord.js";
+import { decodeSpecApprovalRecordFile, type SpecApprovals } from "./specApprovalRecord.js";
 import { decodeSpecDocumentFile, type SpecDocument } from "./specDocument.js";
 import {
   decodePhaseStatusFile,
@@ -230,37 +230,53 @@ export const readComplianceReviewFile: Reader<ComplianceReview> = (file, input) 
     fromPreSchema: ({ version: _version, ...review }) => Either.right(review),
   });
 
-/** Reads `docs/plans/approvals.json`. */
-export const readPlanApprovalsFile: Reader<ApprovalRecordFile> = reader(
-  "plan-approvals",
-  "plan approvals ledger",
-  decodeApprovalRecordFile,
-  decodePlanApprovalsPreSchema,
-);
+/** Reads `docs/plans/approvals.json`. The pre-schema ledger carries every fact phax needs. */
+export const readPlanApprovalsFile: Reader<PlanApprovals> = (file, input) =>
+  readPersisted(input, {
+    format: "plan-approvals",
+    label: "plan approvals ledger",
+    file,
+    decodeCurrent: decodeApprovalRecordFile,
+    decodePreSchema: decodePlanApprovalsPreSchema,
+    fromCurrent: ({ $schema: _schema, ...ledger }) => ledger,
+    fromPreSchema: ({ version: _version, ...ledger }) => Either.right(ledger),
+  });
 
-/** Reads `docs/specs/approvals.json`. */
-export const readSpecApprovalsFile: Reader<SpecApprovalRecordFile> = reader(
-  "spec-approvals",
-  "spec approvals ledger",
-  decodeSpecApprovalRecordFile,
-  decodeSpecApprovalsPreSchema,
-);
+/** Reads `docs/specs/approvals.json`. The pre-schema ledger carries every fact phax needs. */
+export const readSpecApprovalsFile: Reader<SpecApprovals> = (file, input) =>
+  readPersisted(input, {
+    format: "spec-approvals",
+    label: "spec approvals ledger",
+    file,
+    decodeCurrent: decodeSpecApprovalRecordFile,
+    decodePreSchema: decodeSpecApprovalsPreSchema,
+    fromCurrent: ({ $schema: _schema, ...ledger }) => ledger,
+    fromPreSchema: ({ version: _version, ...ledger }) => Either.right(ledger),
+  });
 
-/** Reads a spec's JSON sidecar. */
-export const readSpecDocumentFile: Reader<SpecDocument> = reader(
-  "spec-document",
-  "spec document",
-  decodeSpecDocumentFile,
-  decodeSpecDocumentPreSchema,
-);
+/** Reads a spec's JSON sidecar. The pre-schema sidecar carries every fact phax needs. */
+export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
+  readPersisted(input, {
+    format: "spec-document",
+    label: "spec document",
+    file,
+    decodeCurrent: decodeSpecDocumentFile,
+    decodePreSchema: decodeSpecDocumentPreSchema,
+    fromCurrent: ({ $schema: _schema, ...doc }) => doc,
+    fromPreSchema: ({ version: _version, ...doc }) => Either.right(doc),
+  });
 
-/** Reads a plan's JSON sidecar. */
-export const readPlanDocumentFile: Reader<PlanDocument> = reader(
-  "plan-document",
-  "plan document",
-  decodePlanDocumentFile,
-  decodePlanDocumentPreSchema,
-);
+/** Reads a plan's JSON sidecar. The pre-schema sidecar carries every fact phax needs. */
+export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
+  readPersisted(input, {
+    format: "plan-document",
+    label: "plan document",
+    file,
+    decodeCurrent: decodePlanDocumentFile,
+    decodePreSchema: decodePlanDocumentPreSchema,
+    fromCurrent: ({ $schema: _schema, ...doc }) => doc,
+    fromPreSchema: ({ version: _version, ...doc }) => Either.right(doc),
+  });
 
 /** Reads a phase's `gate-attribution.json`. */
 export const readGateAttributionFile: Reader<GateAttribution> = reader(

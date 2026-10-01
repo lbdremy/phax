@@ -1,4 +1,5 @@
-import { Schema } from "effect";
+import { Schema, type Types } from "effect";
+import { schemaUrlField } from "./schemaUrl.js";
 
 export const SpecApprovalRecordSchema = Schema.Struct({
   specFingerprint: Schema.NonEmptyString,
@@ -8,9 +9,20 @@ export const SpecApprovalRecordSchema = Schema.Struct({
 
 export type SpecApprovalRecord = Schema.Schema.Type<typeof SpecApprovalRecordSchema>;
 
-export const SpecApprovalRecordFileSchema = Schema.Struct({
-  version: Schema.Literal(1),
+const specApprovalsFields = {
   records: Schema.Record({ key: Schema.String, value: SpecApprovalRecordSchema }),
+};
+
+/** The spec approvals ledger in memory: never a `version`, never a `$schema`. */
+export type SpecApprovals = Types.Simplify<Schema.Struct.Type<typeof specApprovalsFields>>;
+
+/**
+ * `docs/specs/approvals.json` as phax persists it: `$schema` first, then the
+ * records. Unknown keys are rejected.
+ */
+export const SpecApprovalRecordFileSchema = Schema.Struct({
+  $schema: schemaUrlField("spec-approvals"),
+  ...specApprovalsFields,
 });
 
 export type SpecApprovalRecordFile = Schema.Schema.Type<typeof SpecApprovalRecordFileSchema>;

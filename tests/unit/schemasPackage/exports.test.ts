@@ -162,12 +162,12 @@ describe("schemas package entry", () => {
     const { ApprovalRecordFileSchema } = await import("../../../src/schemas/approvalRecord.js");
     const { SpecApprovalRecordFileSchema } =
       await import("../../../src/schemas/specApprovalRecord.js");
-    const { SpecDocumentSchema } = await import("../../../src/schemas/specDocument.js");
-    const { PlanDocumentSchema } = await import("../../../src/schemas/planDocument.js");
+    const { SpecDocumentFileSchema } = await import("../../../src/schemas/specDocument.js");
+    const { PlanDocumentFileSchema } = await import("../../../src/schemas/planDocument.js");
     expect(entry.PlanApprovalsSchema).toBe(ApprovalRecordFileSchema);
     expect(entry.SpecApprovalsSchema).toBe(SpecApprovalRecordFileSchema);
-    expect(entry.SpecDocumentSchema).toBe(SpecDocumentSchema);
-    expect(entry.PlanDocumentSchema).toBe(PlanDocumentSchema);
+    expect(entry.SpecDocumentSchema).toBe(SpecDocumentFileSchema);
+    expect(entry.PlanDocumentSchema).toBe(PlanDocumentFileSchema);
   });
 
   it("re-exports phax's record manifest schemas, never a copy", async () => {

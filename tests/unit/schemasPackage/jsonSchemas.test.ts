@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Ajv } from "ajv";
@@ -37,7 +37,11 @@ import { writeJsonSchemas } from "../../../scripts/schemas-json.js";
 import { BranchNameSchema } from "../../../src/domain/branded.js";
 import { decodeRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
-import { getSpecDocumentJsonSchema } from "../../../src/schemas/specDocument.js";
+import { getPlanDocumentJsonSchema } from "../../../src/schemas/planDocument.js";
+import {
+  SpecDocumentFileSchema,
+  getSpecDocumentJsonSchema,
+} from "../../../src/schemas/specDocument.js";
 import { validDocuments, withoutKey } from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
@@ -182,13 +186,35 @@ describe("renderJsonSchemas over the real table", () => {
     },
   );
 
-  it("renders the spec document as phax artifact schema spec does, apart from the title", () => {
+  it("renders the spec document's file schema, with its traceability description", () => {
     const entry = JSON_SCHEMA_FORMATS.find(({ format }) => format === "spec-document");
     if (entry === undefined) throw new Error("no spec-document entry");
     const schema = renderedSchema(entry);
     expect(schema["title"]).toBe("phax spec document");
-    expect(withoutTitle(schema)).toEqual(withoutTitle(getSpecDocumentJsonSchema()));
+    expect(withoutTitle(schema)).toEqual(withoutTitle(JSONSchema.make(SpecDocumentFileSchema)));
+    expect(schema["description"]).toContain("`refs` entry names an existing requirement");
   });
+
+  // The authoring contract never gains $schema: `phax artifact schema spec|plan`
+  // and the authoring prompt still print the shape 0.16.0 printed.
+  it.each([
+    ["spec-document", getSpecDocumentJsonSchema],
+    ["plan-document", getPlanDocumentJsonSchema],
+  ] as const)(
+    "keeps the %s authoring contract equal to its pre-schema snapshot, apart from the title",
+    (id, contract) => {
+      const snapshot: object = JSON.parse(
+        readFileSync(
+          join(
+            import.meta.dirname,
+            `../../../packages/schemas/snapshots/${id}/pre-schema.schema.json`,
+          ),
+          "utf8",
+        ),
+      );
+      expect(withoutTitle(contract())).toEqual(withoutTitle(snapshot));
+    },
+  );
 });
 
 const isEven = (n: number) => n % 2 === 0;

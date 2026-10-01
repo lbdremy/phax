@@ -6,17 +6,18 @@ import { fingerprintSource } from "../domain/artifact/frontmatter.js";
 import {
   encodeApprovalRecordFile,
   type ApprovalRecord,
-  type ApprovalRecordFile,
+  type PlanApprovals,
 } from "../schemas/approvalRecord.js";
 import {
   readPlanApprovalsFile,
   readSpecApprovalsFile,
+  withSchemaUrl,
   type PersistedReadError,
 } from "../schemas/persisted.js";
 import {
   encodeSpecApprovalRecordFile,
   type SpecApprovalRecord,
-  type SpecApprovalRecordFile,
+  type SpecApprovals,
 } from "../schemas/specApprovalRecord.js";
 
 function sortedKeys<R>(records: Record<string, R>): Record<string, R> {
@@ -49,9 +50,9 @@ function readStoreFile<T>(
 
 // ── Plan approval store ────────────────────────────────────────────────────
 
-const EMPTY_PLAN_STORE: ApprovalRecordFile = { version: 1, records: {} };
+const EMPTY_PLAN_STORE: PlanApprovals = { records: {} };
 
-export function readApprovalStore(): Effect.Effect<ApprovalRecordFile, FsError, FileSystem> {
+export function readApprovalStore(): Effect.Effect<PlanApprovals, FsError, FileSystem> {
   return readStoreFile(APPROVALS_FILE_PATH, readPlanApprovalsFile, EMPTY_PLAN_STORE);
 }
 
@@ -60,10 +61,10 @@ function writePlanApprovalStore(
 ): Effect.Effect<void, FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const file: ApprovalRecordFile = { version: 1, records: sortedKeys(records) };
+    const ledger: PlanApprovals = { records: sortedKeys(records) };
     yield* fs.writeAtomic(
       APPROVALS_FILE_PATH,
-      JSON.stringify(encodeApprovalRecordFile(file), null, 2),
+      JSON.stringify(encodeApprovalRecordFile(withSchemaUrl("plan-approvals", ledger)), null, 2),
     );
   });
 }
@@ -90,9 +91,9 @@ export function removeApprovalRecord(planPath: string): Effect.Effect<void, FsEr
 
 // ── Spec approval store ────────────────────────────────────────────────────
 
-const EMPTY_SPEC_STORE: SpecApprovalRecordFile = { version: 1, records: {} };
+const EMPTY_SPEC_STORE: SpecApprovals = { records: {} };
 
-function readSpecApprovalStore(): Effect.Effect<SpecApprovalRecordFile, FsError, FileSystem> {
+function readSpecApprovalStore(): Effect.Effect<SpecApprovals, FsError, FileSystem> {
   return readStoreFile(SPEC_APPROVALS_FILE_PATH, readSpecApprovalsFile, EMPTY_SPEC_STORE);
 }
 
@@ -101,10 +102,14 @@ function writeSpecApprovalStore(
 ): Effect.Effect<void, FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const file: SpecApprovalRecordFile = { version: 1, records: sortedKeys(records) };
+    const ledger: SpecApprovals = { records: sortedKeys(records) };
     yield* fs.writeAtomic(
       SPEC_APPROVALS_FILE_PATH,
-      JSON.stringify(encodeSpecApprovalRecordFile(file), null, 2),
+      JSON.stringify(
+        encodeSpecApprovalRecordFile(withSchemaUrl("spec-approvals", ledger)),
+        null,
+        2,
+      ),
     );
   });
 }

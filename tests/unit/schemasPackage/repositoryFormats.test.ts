@@ -14,12 +14,16 @@ import {
 } from "../../../packages/schemas/src/index.js";
 import { newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
 import { decodeApprovalRecordFile } from "../../../src/schemas/approvalRecord.js";
-import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
+import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
 import type { FormatId } from "../../../src/schemas/schemaUrl.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
-import { SpecDocumentSchema, decodeSpecDocument } from "../../../src/schemas/specDocument.js";
-import { validDocuments, withKey, withoutKey, type Doc } from "./documents.js";
+import {
+  SpecDocumentFileSchema,
+  SpecDocumentSchema,
+  decodeSpecDocumentFile,
+} from "../../../src/schemas/specDocument.js";
+import { preSchemaDocuments, validDocuments, withKey, withoutKey, type Doc } from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 
@@ -50,13 +54,13 @@ const FORMATS: ReadonlyArray<RepositoryFormat> = [
   {
     id: "spec-document",
     parse: parseSpecDocument,
-    phax: decodeSpecDocument,
+    phax: decodeSpecDocumentFile,
     toLatest: toLatestSpecDocument,
   },
   {
     id: "plan-document",
     parse: parsePlanDocument,
-    phax: decodePlanDocument,
+    phax: decodePlanDocumentFile,
     toLatest: toLatestPlanDocument,
   },
 ];
@@ -66,15 +70,24 @@ const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
 
 describe.each(FORMATS)("$id", (format) => {
   const document = validDocuments[format.id];
+  const preSchema = preSchemaDocuments[format.id];
 
-  it("parses the document as shape pre-schema, with phax's value", () => {
+  it("parses the pre-schema document as shape pre-schema", () => {
+    expect(format.parse(preSchema)).toEqual({ ok: true, shape: "pre-schema", value: preSchema });
+  });
+
+  it("parses the document phax writes as shape next, with phax's value", () => {
     const phax = format.phax(document);
     if (Either.isLeft(phax)) throw new Error("document rejected by phax");
-    expect(format.parse(document)).toEqual({ ok: true, shape: "pre-schema", value: phax.right });
+    expect(format.parse(document)).toEqual({ ok: true, shape: "next", value: phax.right });
+  });
+
+  it("is identified by its $schema alone as shape next (ac-identify-alone)", () => {
+    expect(parseDocument(document)).toMatchObject({ ok: true, format: format.id, shape: "next" });
   });
 
   it("fails a document the frozen decoder rejects as older than the first release that writes $schema", () => {
-    const result = format.parse(withKey(document, "version", 0)) as {
+    const result = format.parse(withKey(preSchema, "version", 0)) as {
       readonly ok: boolean;
       readonly error?: { readonly path: string; readonly message: string };
     };
@@ -84,9 +97,33 @@ describe.each(FORMATS)("$id", (format) => {
   });
 
   it("upgrades by dropping version and keeping everything else", () => {
+    const result = format.parse(preSchema);
+    if (!result.ok) throw new Error("document rejected");
+    expect(format.toLatest(result.value as never)).toEqual(withoutKey(preSchema, "version"));
+  });
+
+  it("drops $schema on upgrade, and carries no version", () => {
     const result = format.parse(document);
     if (!result.ok) throw new Error("document rejected");
-    expect(format.toLatest(result.value as never)).toEqual(withoutKey(document, "version"));
+    const latest = format.toLatest(result.value as never);
+    expect(latest).toEqual(withoutKey(document, "$schema"));
+    expect(latest).not.toHaveProperty("version");
+  });
+
+  it("upgrades the pre-schema document and the document phax writes to the same value", () => {
+    const old = format.parse(preSchema);
+    const written = format.parse(document);
+    if (!old.ok || !written.ok) throw new Error("document rejected");
+    expect(format.toLatest(written.value as never)).toEqual(format.toLatest(old.value as never));
+  });
+
+  it("rejects an unknown key, as phax's strict decoder does", () => {
+    expect(format.parse(withKey(document, "extra", true)).ok).toBe(false);
+    expect(Either.isLeft(format.phax(withKey(document, "extra", true)))).toBe(true);
+  });
+
+  it("rejects a document that carries both $schema and version", () => {
+    expect(format.parse(withKey(document, "version", 1)).ok).toBe(false);
   });
 
   it("fails a document written by a newer release with the upgrade message", () => {
@@ -113,11 +150,13 @@ describe("the spec document's traceability", () => {
       expect(result.error.path).toBe("acceptanceCriteria.0.refs.0");
       expect(result.error.message).toContain('"no-such-requirement" names no requirement');
     }
-    expect(Either.isLeft(decodeSpecDocument(dangling))).toBe(true);
+    expect(Either.isLeft(decodeSpecDocumentFile(dangling))).toBe(true);
   });
 
   it("declares the checks JSON Schema cannot express, in the root description", () => {
-    const schema = JSONSchema.make(SpecDocumentSchema) as { description?: string };
-    expect(schema.description).toContain("`refs` entry names an existing requirement");
+    const contract = JSONSchema.make(SpecDocumentSchema) as { description?: string };
+    const file = JSONSchema.make(SpecDocumentFileSchema) as { description?: string };
+    expect(contract.description).toContain("`refs` entry names an existing requirement");
+    expect(file.description).toContain("`refs` entry names an existing requirement");
   });
 });

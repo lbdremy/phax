@@ -25,6 +25,7 @@ import {
 } from "../../src/domain/artifact/lineage.js";
 import { decodeApprovalRecordFile } from "../../src/schemas/approvalRecord.js";
 import { decodeSpecApprovalRecordFile } from "../../src/schemas/specApprovalRecord.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import { decodeSpecDocument } from "../../src/schemas/specDocument.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
@@ -1241,8 +1242,22 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
   }
 
   describe("inspectArtifact", () => {
+    // SIDECAR_JSON is the shape 0.16.0 committed (`version: 1`, no `$schema`):
+    // it is read through the frozen pre-schema decoder (ac-own-legacy).
     it("reports headless, in sync, when the body is the sidecar's rendering", async () => {
       const { layer } = headlessHarness(headlessSpecMd("Draft"));
+      const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
+      expect(Either.isRight(result) && result.right.authoring).toEqual({
+        kind: "headless",
+        sidecarPath: SIDECAR,
+        agreement: "in-sync",
+      });
+    });
+
+    it("reports headless, in sync, for a sidecar phax wrote with $schema", async () => {
+      const { version: _version, ...authored } = SPEC_DOCUMENT;
+      const stamped = `${JSON.stringify(withSchemaUrl("spec-document", authored), null, 2)}\n`;
+      const { layer } = headlessHarness(headlessSpecMd("Draft"), stamped);
       const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
       expect(Either.isRight(result) && result.right.authoring).toEqual({
         kind: "headless",

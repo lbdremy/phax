@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax plan approvals ledger",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "records"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The plan-approvals format and the phax release that wrote this file: https://docs.phax.run/schemas/plan-approvals/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/plan-approvals\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "records": {
+      "type": "object",
+      "required": [],
+      "properties": {},
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "planFingerprint",
+          "approvedAt",
+          "baseline",
+          "sourceSpec"
+        ],
+        "properties": {
+          "planFingerprint": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "approvedAt": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "baseline": {
+            "$ref": "#/$defs/NonEmptyString",
+            "description": "a string matching the pattern ^[0-9a-f]{40}$",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "sourceSpec": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "path",
+                  "fingerprint"
+                ],
+                "properties": {
+                  "path": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "fingerprint": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

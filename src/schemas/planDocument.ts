@@ -1,5 +1,6 @@
-import { Array as Arr, JSONSchema, Schema } from "effect";
+import { Array as Arr, JSONSchema, Schema, type Types } from "effect";
 import { ExtractedPhaseFields, ExtractedRunSchema, type ExtractedPhaxPlan } from "./phaxPlan.js";
+import { schemaUrlField } from "./schemaUrl.js";
 
 // The plan document: the JSON a headless plan authoring session returns. Its
 // projection (`projectExtractedPlan`) is exactly the extracted-plan shape, built
@@ -22,8 +23,7 @@ const PlanDocumentPhaseSchema = Schema.Struct({
   expectedHandoff: Schema.NonEmptyString,
 });
 
-export const PlanDocumentSchema = Schema.Struct({
-  version: Schema.Literal(1),
+const planDocumentFields = {
   kind: Schema.Literal("plan"),
   sourceSpec: Schema.NullOr(Schema.NonEmptyString),
   run: ExtractedRunSchema,
@@ -33,9 +33,17 @@ export const PlanDocumentSchema = Schema.Struct({
     technicalArbitrations: Schema.Array(Schema.NonEmptyString),
   }),
   phases: Schema.NonEmptyArray(PlanDocumentPhaseSchema),
+};
+
+export const PlanDocumentSchema = Schema.Struct({
+  version: Schema.Literal(1),
+  ...planDocumentFields,
 }).annotations({ title: "phax plan document (experimental)" });
 
-export type PlanDocument = Schema.Schema.Type<typeof PlanDocumentSchema>;
+/** The document an authoring session returns: `version: 1`, then the plan. */
+export type AuthoredPlanDocument = Schema.Schema.Type<typeof PlanDocumentSchema>;
+/** A plan document in memory: never a `version`, never a `$schema`. */
+export type PlanDocument = Types.Simplify<Schema.Struct.Type<typeof planDocumentFields>>;
 export type PlanDocumentPhase = Schema.Schema.Type<typeof PlanDocumentPhaseSchema>;
 
 // The document an authoring session returns: decoded with this contract, never through the bridge.
@@ -44,15 +52,20 @@ export const decodePlanDocument = Schema.decodeUnknownEither(PlanDocumentSchema,
 });
 
 /**
- * A plan's JSON sidecar as phax writes it: the authoring contract until the
- * sidecar gains `$schema`.
- * @alias
+ * A plan's JSON sidecar as phax persists it: `$schema` first, then the
+ * document's fields. Unknown keys are rejected.
  */
-export const PlanDocumentFileSchema = PlanDocumentSchema;
+export const PlanDocumentFileSchema = Schema.Struct({
+  $schema: schemaUrlField("plan-document"),
+  ...planDocumentFields,
+});
+
+export type PlanDocumentFile = Schema.Schema.Type<typeof PlanDocumentFileSchema>;
 
 export const decodePlanDocumentFile = Schema.decodeUnknownEither(PlanDocumentFileSchema, {
   onExcessProperty: "error",
 });
+export const encodePlanDocumentFile = Schema.encodeSync(PlanDocumentFileSchema);
 
 export function getPlanDocumentJsonSchema(): object {
   return JSONSchema.make(PlanDocumentSchema);
@@ -62,7 +75,7 @@ export function getPlanDocumentJsonSchema(): object {
 // not the phase `title` (derived from the rendered heading, as for any plan.md)
 // nor any informational field. Built key by key so an informational field can
 // never leak into the cache seed.
-export function projectExtractedPlan(doc: PlanDocument): ExtractedPhaxPlan {
+export function projectExtractedPlan(doc: AuthoredPlanDocument): ExtractedPhaxPlan {
   return {
     version: doc.version,
     run: {

@@ -7,6 +7,7 @@ import { sidecarAgreement, sidecarPathFor } from "../../../src/domain/artifact/s
 import { renderPlanBody } from "../../../src/domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../../../src/domain/authoring/renderSpec.js";
 import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
+import { withSchemaUrl } from "../../../src/schemas/persisted.js";
 import { decodeSpecDocument } from "../../../src/schemas/specDocument.js";
 
 const SPEC_DOCUMENT = {
@@ -106,7 +107,17 @@ function planBody(): string {
   return renderPlanBody(decoded.right);
 }
 
+// The sidecar as 0.16.0 wrote it: the authored document, `version: 1`, no `$schema`.
 const specJson = JSON.stringify(SPEC_DOCUMENT, null, 2);
+
+/** A sidecar as phax writes it now: `version` dropped, `$schema` first. */
+function stampedJson(
+  id: "spec-document" | "plan-document",
+  doc: { readonly version: number },
+): string {
+  const { version: _version, ...rest } = doc;
+  return JSON.stringify(withSchemaUrl(id, rest), null, 2);
+}
 
 describe("sidecarPathFor", () => {
   it("maps a live artifact to the .json beside it", () => {
@@ -140,6 +151,37 @@ describe("sidecarAgreement", () => {
     const md = `---\nstatus: Draft\nsource-spec: null\n---\n${planBody()}`;
     const sidecarJson = JSON.stringify(PLAN_DOCUMENT, null, 2);
     expect(sidecarAgreement({ md, sidecarJson, kind: "plan" })).toBe("in-sync");
+  });
+
+  it("is in-sync for a sidecar written with $schema", () => {
+    const specMd = SPEC_FRONTMATTER + specBody();
+    const specSidecar = stampedJson("spec-document", SPEC_DOCUMENT);
+    expect(sidecarAgreement({ md: specMd, sidecarJson: specSidecar, kind: "spec" })).toBe(
+      "in-sync",
+    );
+    const planMd = `---\nstatus: Draft\nsource-spec: null\n---\n${planBody()}`;
+    const planSidecar = stampedJson("plan-document", PLAN_DOCUMENT);
+    expect(sidecarAgreement({ md: planMd, sidecarJson: planSidecar, kind: "plan" })).toBe(
+      "in-sync",
+    );
+  });
+
+  it("is invalid, naming the sidecar, when a $schema sidecar still carries version", () => {
+    const md = SPEC_FRONTMATTER + specBody();
+    const both = JSON.stringify({
+      ...JSON.parse(stampedJson("spec-document", SPEC_DOCUMENT)),
+      version: 1,
+    });
+    const agreement = sidecarAgreement({
+      md,
+      sidecarJson: both,
+      kind: "spec",
+      sidecarPath: "docs/specs/2609230835-plan-prune.json",
+    });
+    expect(agreement).toMatchObject({ kind: "invalid" });
+    expect(typeof agreement === "object" && agreement.message).toMatch(
+      /^docs\/specs\/2609230835-plan-prune\.json: .*version/,
+    );
   });
 
   it("ignores frontmatter changes (a transition's status rewrite and approval stamp)", () => {

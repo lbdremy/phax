@@ -1,12 +1,13 @@
 // The files of a repository: the plan and spec approvals ledgers, and the JSON
 // sidecar beside a headless-authored spec or plan. Each pre-schema shape is
 // phax's frozen module under src/schemas/history/; each current shape,
-// `next`, is phax's own schema and decoder. The package declares none of its
-// own.
+// `next`, is phax's own file schema and decoder. The package declares none of
+// its own.
 import {
   ApprovalRecordFileSchema,
   decodeApprovalRecordFile,
   type ApprovalRecordFile,
+  type PlanApprovals,
 } from "../../../../src/schemas/approvalRecord.js";
 import {
   PlanApprovalsPreSchemaSchema,
@@ -32,16 +33,19 @@ import {
   PlanDocumentFileSchema,
   decodePlanDocumentFile,
   type PlanDocument,
+  type PlanDocumentFile,
 } from "../../../../src/schemas/planDocument.js";
 import {
   SpecApprovalRecordFileSchema,
   decodeSpecApprovalRecordFile,
   type SpecApprovalRecordFile,
+  type SpecApprovals,
 } from "../../../../src/schemas/specApprovalRecord.js";
 import {
   SpecDocumentFileSchema,
   decodeSpecDocumentFile,
   type SpecDocument,
+  type SpecDocumentFile,
 } from "../../../../src/schemas/specDocument.js";
 import type { ParsedShape } from "../parsed.js";
 import { defineFormat } from "../shapes.js";
@@ -76,13 +80,17 @@ export const planApprovalsFormat = defineFormat<PlanApprovalsShapes>({
 export const parsePlanApprovals: (input: unknown) => ParsedShape<PlanApprovalsShapes> =
   planApprovalsFormat.parse;
 
-/** The latest plan approvals ledger: no `version`. */
-export type LatestPlanApprovals = Omit<ApprovalRecordFile, "version">;
+/** The latest plan approvals ledger: phax's in-memory value, with no `version` and no `$schema`. */
+export type LatestPlanApprovals = PlanApprovals;
 
 /** Upgrades a parsed plan approvals ledger in memory. Keeps every recorded fact; never invents one. */
 export function toLatestPlanApprovals(
   value: PlanApprovalsPreSchema | ApprovalRecordFile,
 ): LatestPlanApprovals {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   const { version: _version, ...recorded } = value;
   return recorded;
 }
@@ -112,20 +120,24 @@ export const specApprovalsFormat = defineFormat<SpecApprovalsShapes>({
 export const parseSpecApprovals: (input: unknown) => ParsedShape<SpecApprovalsShapes> =
   specApprovalsFormat.parse;
 
-/** The latest spec approvals ledger: no `version`. */
-export type LatestSpecApprovals = Omit<SpecApprovalRecordFile, "version">;
+/** The latest spec approvals ledger: phax's in-memory value, with no `version` and no `$schema`. */
+export type LatestSpecApprovals = SpecApprovals;
 
 /** Upgrades a parsed spec approvals ledger in memory. Keeps every recorded fact; never invents one. */
 export function toLatestSpecApprovals(
   value: SpecApprovalsPreSchema | SpecApprovalRecordFile,
 ): LatestSpecApprovals {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   const { version: _version, ...recorded } = value;
   return recorded;
 }
 
 // ── spec document
 
-export type SpecDocumentShapes = { "pre-schema": SpecDocumentPreSchema; next: SpecDocument };
+export type SpecDocumentShapes = { "pre-schema": SpecDocumentPreSchema; next: SpecDocumentFile };
 
 /** The id of every spec document shape the package reads. */
 export type SpecDocumentShape = keyof SpecDocumentShapes;
@@ -145,20 +157,24 @@ export const specDocumentFormat = defineFormat<SpecDocumentShapes>({
 export const parseSpecDocument: (input: unknown) => ParsedShape<SpecDocumentShapes> =
   specDocumentFormat.parse;
 
-/** The latest spec document: no `version`. */
-export type LatestSpecDocument = Omit<SpecDocument, "version">;
+/** The latest spec document: phax's in-memory value, with no `version` and no `$schema`. */
+export type LatestSpecDocument = SpecDocument;
 
 /** Upgrades a parsed spec document in memory. Keeps every recorded fact; never invents one. */
 export function toLatestSpecDocument(
-  value: SpecDocumentPreSchema | SpecDocument,
+  value: SpecDocumentPreSchema | SpecDocumentFile,
 ): LatestSpecDocument {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   const { version: _version, ...recorded } = value;
   return recorded;
 }
 
 // ── plan document
 
-export type PlanDocumentShapes = { "pre-schema": PlanDocumentPreSchema; next: PlanDocument };
+export type PlanDocumentShapes = { "pre-schema": PlanDocumentPreSchema; next: PlanDocumentFile };
 
 /** The id of every plan document shape the package reads. */
 export type PlanDocumentShape = keyof PlanDocumentShapes;
@@ -178,13 +194,17 @@ export const planDocumentFormat = defineFormat<PlanDocumentShapes>({
 export const parsePlanDocument: (input: unknown) => ParsedShape<PlanDocumentShapes> =
   planDocumentFormat.parse;
 
-/** The latest plan document: no `version`. */
-export type LatestPlanDocument = Omit<PlanDocument, "version">;
+/** The latest plan document: phax's in-memory value, with no `version` and no `$schema`. */
+export type LatestPlanDocument = PlanDocument;
 
 /** Upgrades a parsed plan document in memory. Keeps every recorded fact; never invents one. */
 export function toLatestPlanDocument(
-  value: PlanDocumentPreSchema | PlanDocument,
+  value: PlanDocumentPreSchema | PlanDocumentFile,
 ): LatestPlanDocument {
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   const { version: _version, ...recorded } = value;
   return recorded;
 }

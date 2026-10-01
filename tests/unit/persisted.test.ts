@@ -4,10 +4,14 @@ import {
   readComplianceReviewFile,
   readPersisted,
   readPhaxPlanFile,
+  readPlanApprovalsFile,
+  readPlanDocumentFile,
   readRecordManifestFile,
   readPhaseStatusFile,
   readRegistryFile,
   readRunStatusFile,
+  readSpecApprovalsFile,
+  readSpecDocumentFile,
   withSchemaUrl,
   type MissingFact,
   type PersistedReadError,
@@ -214,12 +218,33 @@ describe("format readers", () => {
     expect(refused.message).not.toContain("without $schema");
   });
 
-  type RunFileReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
-  it.each<readonly ["phax-plan" | "compliance-review", RunFileReader, string]>([
-    ["phax-plan", readPhaxPlanFile, "phax-plan"],
-    ["compliance-review", readComplianceReviewFile, "compliance review"],
-  ])("%s: reads both shapes to the same in-memory value", (id, read, label) => {
-    const file = `/home/example/.phax/runs/example.example-run/${id}.json`;
+  type StrictReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  type StrictFormat =
+    | "phax-plan"
+    | "compliance-review"
+    | "plan-approvals"
+    | "spec-approvals"
+    | "spec-document"
+    | "plan-document";
+  const RUN_DIR = "/home/example/.phax/runs/example.example-run";
+  it.each<readonly [StrictFormat, StrictReader, string, string]>([
+    ["phax-plan", readPhaxPlanFile, "phax-plan", `${RUN_DIR}/phax-plan.json`],
+    [
+      "compliance-review",
+      readComplianceReviewFile,
+      "compliance review",
+      `${RUN_DIR}/compliance-review.json`,
+    ],
+    ["plan-approvals", readPlanApprovalsFile, "plan approvals ledger", "docs/plans/approvals.json"],
+    ["spec-approvals", readSpecApprovalsFile, "spec approvals ledger", "docs/specs/approvals.json"],
+    ["spec-document", readSpecDocumentFile, "spec document", "docs/specs/2609230835-example.json"],
+    [
+      "plan-document",
+      readPlanDocumentFile,
+      "plan document",
+      "docs/plans/2609230835-example-plan.json",
+    ],
+  ])("%s: reads both shapes to the same in-memory value", (id, read, label, file) => {
     const { version: _version, ...expected } = preSchemaDocuments[id];
     const fromPreSchema = right(read(file, preSchemaDocuments[id]));
     const fromCurrent = right(read(file, validDocuments[id]));
