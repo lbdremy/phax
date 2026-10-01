@@ -74,14 +74,14 @@ import {
   type SpecDocumentPreSchema,
 } from "../../../src/schemas/history/spec-document/pre-schema.js";
 import { PhaxPlanFileSchema } from "../../../src/schemas/phaxPlan.js";
-import { PlanDocumentSchema } from "../../../src/schemas/planDocument.js";
+import { PlanDocumentFileSchema } from "../../../src/schemas/planDocument.js";
 import { PhaseFileReconciliationSchema } from "../../../src/schemas/reconciliation.js";
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
 import { RegistryFileSchema } from "../../../src/schemas/registry.js";
 import { RunRecordManifestSchema } from "../../../src/schemas/runRecord.js";
 import type { FormatId } from "../../../src/schemas/schemaUrl.js";
 import { SpecApprovalRecordFileSchema } from "../../../src/schemas/specApprovalRecord.js";
-import { SpecDocumentSchema } from "../../../src/schemas/specDocument.js";
+import { SpecDocumentFileSchema } from "../../../src/schemas/specDocument.js";
 import { PhaseStatusFileSchema, RunStatusFileSchema } from "../../../src/schemas/status.js";
 
 type CompletionDiagnostic = GatePendingPreSchema["steps"][number]["pending"][number]["diagnostic"];
@@ -425,6 +425,10 @@ export const WRITES_SCHEMA: ReadonlySet<FormatId> = new Set<FormatId>([
   "phase-status",
   "phax-plan",
   "compliance-review",
+  "plan-approvals",
+  "spec-approvals",
+  "spec-document",
+  "plan-document",
 ]);
 
 /** A pre-schema value as phax holds it in memory: the same fields, without `version`. */
@@ -450,16 +454,28 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     ComplianceReviewFileSchema,
     withSchemaUrl("compliance-review", stepped(complianceReview)),
   ),
-  "plan-approvals": encoded(ApprovalRecordFileSchema, planApprovals),
-  "spec-approvals": encoded(SpecApprovalRecordFileSchema, specApprovals),
+  "plan-approvals": encoded(
+    ApprovalRecordFileSchema,
+    withSchemaUrl("plan-approvals", stepped(planApprovals)),
+  ),
+  "spec-approvals": encoded(
+    SpecApprovalRecordFileSchema,
+    withSchemaUrl("spec-approvals", stepped(specApprovals)),
+  ),
   "phase-record-manifest": encoded(RunRecordManifestSchema, phaseRecordManifest),
   "authoring-record-manifest": encoded(AuthoringRecordManifestSchema, authoringRecordManifest),
   "gate-attribution": encoded(GateAttributionSchema, gateAttribution),
   "phase-file-reconciliation": encoded(PhaseFileReconciliationSchema, phaseFileReconciliation),
   "gate-diagnostics": encoded(GateDiagnosticsDocumentSchema, gateDiagnostics),
   "gate-pending": encoded(GatePendingDocumentSchema, gatePending),
-  "spec-document": encoded(SpecDocumentSchema, specDocument),
-  "plan-document": encoded(PlanDocumentSchema, planDocument),
+  "spec-document": encoded(
+    SpecDocumentFileSchema,
+    withSchemaUrl("spec-document", stepped(specDocument)),
+  ),
+  "plan-document": encoded(
+    PlanDocumentFileSchema,
+    withSchemaUrl("plan-document", stepped(planDocument)),
+  ),
 };
 
 /**

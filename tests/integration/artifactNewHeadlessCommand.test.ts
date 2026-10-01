@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { runCreateArtifactHeadless } from "../../src/cli/commands/artifact.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 // End-to-end through the command function: real temp git and filesystem, a
@@ -167,8 +168,11 @@ describe("artifact new spec --headless (command)", () => {
     expect(mdContent).toContain("status: Draft");
     expect(mdContent).toContain("# Plan Prune");
 
+    // The sidecar is written with $schema first and no version.
+    const { version: _version, ...authored } = SPEC_DOCUMENT;
     const sidecarContent = JSON.parse(readFileSync(join(repoDir, json), "utf8"));
-    expect(sidecarContent).toEqual(SPEC_DOCUMENT);
+    expect(sidecarContent).toEqual(withSchemaUrl("spec-document", authored));
+    expect(Object.keys(sidecarContent)[0]).toBe("$schema");
 
     expect(backend.impl.runCalls).toHaveLength(1);
   });

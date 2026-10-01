@@ -65,6 +65,7 @@ function renderPhase(phase: PlanDocumentPhase): string {
   return blocks.join("\n\n");
 }
 
+/** Takes the in-memory document: an authored one or a sidecar read back, neither `version` nor `$schema` matters. */
 export function renderPlanBody(doc: PlanDocument): string {
   const { preamble, run } = doc;
   const blocks = [

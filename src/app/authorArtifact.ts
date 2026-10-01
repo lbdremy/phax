@@ -1,4 +1,4 @@
-import { Effect, Either, Schema } from "effect";
+import { Effect, Either } from "effect";
 import { join } from "node:path";
 import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -26,21 +26,22 @@ import type { RoutingResolution } from "../domain/routing/types.js";
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
 import { formatFirstViolation } from "../schemas/formatError.js";
 import type { Effort } from "../schemas/phaxConfig.js";
+import { withSchemaUrl } from "../schemas/persisted.js";
 import {
-  PlanDocumentSchema,
   decodePlanDocument,
+  encodePlanDocumentFile,
   getPlanDocumentJsonSchema,
   projectExtractedPlan,
-  type PlanDocument,
+  type AuthoredPlanDocument,
 } from "../schemas/planDocument.js";
 import type { ProviderId } from "../schemas/providerId.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import type { ResolvedSecurityConfig } from "../schemas/securityConfig.js";
 import {
-  SpecDocumentSchema,
   decodeSpecDocument,
+  encodeSpecDocumentFile,
   getSpecDocumentJsonSchema,
-  type SpecDocument,
+  type AuthoredSpecDocument,
 } from "../schemas/specDocument.js";
 import {
   planSkeleton,
@@ -123,8 +124,8 @@ export type AuthorArtifactError =
   | GitError;
 
 type AuthoredDocument =
-  | { readonly kind: "spec"; readonly doc: SpecDocument }
-  | { readonly kind: "plan"; readonly doc: PlanDocument };
+  | { readonly kind: "spec"; readonly doc: AuthoredSpecDocument }
+  | { readonly kind: "plan"; readonly doc: AuthoredPlanDocument };
 
 export function authoringSessionFolder(stateRoot: string, authoringId: string): string {
   return join(stateRoot, "authoring", authoringId);
@@ -190,12 +191,19 @@ function parseAuthoredDocument(
     : Either.right({ kind, doc: decoded.right });
 }
 
+// The document as phax persists it (the sidecar and the session's
+// document.json): the authoring contract's `version` dropped, `$schema` first.
 function encodeDocument(authored: AuthoredDocument): string {
-  const encoded =
-    authored.kind === "spec"
-      ? Schema.encodeSync(SpecDocumentSchema)(authored.doc)
-      : Schema.encodeSync(PlanDocumentSchema)(authored.doc);
-  return JSON.stringify(encoded, null, 2) + "\n";
+  if (authored.kind === "spec") {
+    const { version: _version, ...doc } = authored.doc;
+    return (
+      JSON.stringify(encodeSpecDocumentFile(withSchemaUrl("spec-document", doc)), null, 2) + "\n"
+    );
+  }
+  const { version: _version, ...doc } = authored.doc;
+  return (
+    JSON.stringify(encodePlanDocumentFile(withSchemaUrl("plan-document", doc)), null, 2) + "\n"
+  );
 }
 
 function renderArtifact(

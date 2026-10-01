@@ -1,0 +1,362 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax spec document",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "kind",
+    "title",
+    "ground",
+    "context",
+    "problem",
+    "productGoal",
+    "terminology",
+    "requirements",
+    "surface",
+    "nonGoals",
+    "acceptanceCriteria",
+    "openQuestions",
+    "planningNote",
+    "docsPage"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The spec-document format and the phax release that wrote this file: https://docs.phax.run/schemas/spec-document/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/spec-document\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "spec"
+      ]
+    },
+    "title": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "ground": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "note"
+        ],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "note": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "context": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "problem": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "productGoal": {
+      "type": "object",
+      "required": [
+        "statement",
+        "guidingRule"
+      ],
+      "properties": {
+        "statement": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "guidingRule": {
+          "$ref": "#/$defs/NonEmptyString"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminology": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "term",
+          "definition"
+        ],
+        "properties": {
+          "term": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "definition": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "pattern",
+          "statement"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "title": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "pattern": {
+            "type": "string",
+            "enum": [
+              "ubiquitous",
+              "event",
+              "state",
+              "unwanted",
+              "optional"
+            ]
+          },
+          "statement": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "surface": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "surface",
+          "binding",
+          "before",
+          "after"
+        ],
+        "properties": {
+          "surface": {
+            "type": "string",
+            "description": "a string matching the pattern ^(cli|config|file|api|package|internal): ",
+            "pattern": "^(cli|config|file|api|package|internal): "
+          },
+          "binding": {
+            "type": "string",
+            "enum": [
+              "normative",
+              "indicative"
+            ]
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "nonGoals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/NonEmptyString"
+      }
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "given",
+          "when",
+          "then",
+          "refs"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "name": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "given": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "when": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "then": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "openQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "question",
+          "options",
+          "recommendation",
+          "rationale"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "question": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label",
+                "abandons"
+              ],
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/NonEmptyString"
+                },
+                "label": {
+                  "$ref": "#/$defs/NonEmptyString"
+                },
+                "abandons": {
+                  "$ref": "#/$defs/NonEmptyString"
+                }
+              },
+              "additionalProperties": false
+            },
+            "description": "an array of at least 2 item(s)",
+            "title": "minItems(2)",
+            "minItems": 2
+          },
+          "recommendation": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "rationale": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "planningNote": {
+      "type": "object",
+      "required": [
+        "settled",
+        "open",
+        "constraints"
+      ],
+      "properties": {
+        "settled": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "open": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "docsPage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "page",
+            "reader",
+            "example"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "page"
+              ]
+            },
+            "page": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "reader": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "example": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "why"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "none"
+              ]
+            },
+            "why": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "description": "Checked by phax's parser, not by this JSON Schema: requirement ids, question ids and each question's option ids are unique; every acceptance criterion `refs` entry names an existing requirement; every requirement is referenced by at least one acceptance criterion; and each open question's `recommendation` names one of its options."
+}

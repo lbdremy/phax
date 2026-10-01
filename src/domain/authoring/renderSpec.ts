@@ -116,6 +116,7 @@ function renderDocsPage(doc: SpecDocument): string {
   return `## 11. Docs page\n\n${body}`;
 }
 
+/** Takes the in-memory document: an authored one or a sidecar read back, neither `version` nor `$schema` matters. */
 export function renderSpecBody(doc: SpecDocument): string {
   return finishDocument([
     `# ${headingText(doc.title)}`,

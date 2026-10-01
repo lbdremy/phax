@@ -1,5 +1,16 @@
-import { Either } from "effect";
+import { Effect, Either } from "effect";
 import { describe, expect, it } from "vitest";
+import {
+  putApprovalRecord,
+  putSpecApprovalRecord,
+  readApprovalStore,
+  readSpecApprovalRecord,
+} from "../../../src/app/approvalRecordStore.js";
+import { makeFakeFileSystem } from "../../../src/infra/fakes/fs.js";
+import type { FileSystem } from "../../../src/ports/fs.js";
+import { PHAX_RELEASE } from "../../../src/schemas/release.js";
+import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
+import type { SpecApprovalRecord } from "../../../src/schemas/specApprovalRecord.js";
 import {
   APPROVALS_FILE_PATH,
   clearApproved,
@@ -17,6 +28,7 @@ import { fingerprintSource } from "../../../src/domain/artifact/frontmatter.js";
 import {
   decodeApprovalRecordFile,
   encodeApprovalRecordFile,
+  type ApprovalRecord,
 } from "../../../src/schemas/approvalRecord.js";
 
 function planFm(opts: { status?: string; sourceSpec?: string; approved?: string; body?: string }) {
@@ -378,7 +390,7 @@ describe("computeStaleness", () => {
 
 describe("approval record sidecar schema", () => {
   const sample = {
-    version: 1 as const,
+    $schema: schemaUrl("plan-approvals", "0.17.0"),
     records: {
       "docs/plans/2609101222-foo-plan.md": {
         planFingerprint: "plan-fp",
@@ -412,10 +424,21 @@ describe("approval record sidecar schema", () => {
 
   it("rejects a missing required field", () => {
     const bad = {
-      version: 1,
+      $schema: sample.$schema,
       records: { "docs/plans/2609101222-foo-plan.md": { approvedAt: "2026-08-10T00:00:00.000Z" } },
     };
     expect(Either.isLeft(decodeApprovalRecordFile(bad))).toBe(true);
+  });
+
+  it("rejects a ledger without $schema, or one that still carries version", () => {
+    const { $schema: _schema, ...unstamped } = sample;
+    expect(Either.isLeft(decodeApprovalRecordFile({ version: 1, ...unstamped }))).toBe(true);
+    expect(Either.isLeft(decodeApprovalRecordFile({ ...sample, version: 1 }))).toBe(true);
+  });
+
+  it("rejects a $schema naming another format", () => {
+    const other = { ...sample, $schema: schemaUrl("spec-approvals", "0.17.0") };
+    expect(Either.isLeft(decodeApprovalRecordFile(other))).toBe(true);
   });
 
   it("rejects a malformed baseline", () => {
@@ -433,5 +456,82 @@ describe("approval record sidecar schema", () => {
 
   it("exposes the sidecar file path constant", () => {
     expect(APPROVALS_FILE_PATH).toBe("docs/plans/approvals.json");
+  });
+});
+
+function written(fs: { getFile(path: string): string | undefined }, path: string) {
+  const parsed: Record<string, unknown> = JSON.parse(fs.getFile(path) ?? "");
+  return parsed;
+}
+
+function runWith<A>(
+  files: Readonly<Record<string, string>>,
+  effect: Effect.Effect<A, unknown, FileSystem>,
+) {
+  const fs = makeFakeFileSystem();
+  for (const [path, text] of Object.entries(files)) fs.impl.setFile(path, text);
+  const value = Effect.runSync(effect.pipe(Effect.provide(fs.layer)));
+  return { value, fs: fs.impl };
+}
+
+// ac-own-legacy: a ledger 0.16.0 committed is read through the frozen
+// pre-schema decoder, and rewritten with $schema at the next approval.
+describe("approval store over a pre-schema ledger", () => {
+  const PLAN = "docs/plans/2609101222-foo-plan.md";
+  const OTHER_PLAN = "docs/plans/2609101223-bar-plan.md";
+  const SPEC = "docs/specs/2609101222-foo.md";
+  const OTHER_SPEC = "docs/specs/2609101223-bar.md";
+  const planRecord: ApprovalRecord = {
+    planFingerprint: "plan-fp",
+    approvedAt: "2026-08-10T00:00:00.000Z",
+    baseline: "a".repeat(40),
+    sourceSpec: null,
+  };
+  const specRecord: SpecApprovalRecord = {
+    specFingerprint: "spec-fp",
+    approvedAt: "2026-08-10T00:00:00.000Z",
+    baseline: "b".repeat(40),
+  };
+
+  it("reads the plan ledger, then rewrites it with $schema and no version", () => {
+    const legacy = JSON.stringify({ version: 1, records: { [PLAN]: planRecord } });
+    const { value, fs } = runWith(
+      { [APPROVALS_FILE_PATH]: legacy },
+      Effect.flatMap(readApprovalStore(), (store) =>
+        Effect.as(putApprovalRecord(OTHER_PLAN, planRecord), store),
+      ),
+    );
+    expect(value).toEqual({ records: { [PLAN]: planRecord } });
+
+    const ledger = written(fs, APPROVALS_FILE_PATH);
+    expect(Object.keys(ledger)[0]).toBe("$schema");
+    expect(ledger["$schema"]).toBe(schemaUrl("plan-approvals", PHAX_RELEASE));
+    expect(ledger).not.toHaveProperty("version");
+    expect(ledger["records"]).toEqual({ [PLAN]: planRecord, [OTHER_PLAN]: planRecord });
+  });
+
+  it("reads the spec ledger, then rewrites it with $schema and no version", () => {
+    const legacy = JSON.stringify({ version: 1, records: { [SPEC]: specRecord } });
+    const { value, fs } = runWith(
+      { [SPEC_APPROVALS_FILE_PATH]: legacy },
+      Effect.flatMap(readSpecApprovalRecord(SPEC), (existing) =>
+        Effect.as(putSpecApprovalRecord(OTHER_SPEC, specRecord), existing),
+      ),
+    );
+    expect(value).toEqual(specRecord);
+
+    const ledger = written(fs, SPEC_APPROVALS_FILE_PATH);
+    expect(Object.keys(ledger)[0]).toBe("$schema");
+    expect(ledger["$schema"]).toBe(schemaUrl("spec-approvals", PHAX_RELEASE));
+    expect(ledger).not.toHaveProperty("version");
+    expect(ledger["records"]).toEqual({ [SPEC]: specRecord, [OTHER_SPEC]: specRecord });
+  });
+
+  it("reads back the ledger it wrote", () => {
+    const { value } = runWith(
+      {},
+      Effect.zipRight(putApprovalRecord(PLAN, planRecord), readApprovalStore()),
+    );
+    expect(value).toEqual({ records: { [PLAN]: planRecord } });
   });
 });

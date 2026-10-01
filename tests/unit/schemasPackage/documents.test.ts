@@ -25,14 +25,14 @@ import { decodeRunStatusPreSchema } from "../../../src/schemas/history/run-statu
 import { decodeSpecApprovalsPreSchema } from "../../../src/schemas/history/spec-approvals/pre-schema.js";
 import { decodeSpecDocumentPreSchema } from "../../../src/schemas/history/spec-document/pre-schema.js";
 import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
-import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
+import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import { decodeRegistryFile } from "../../../src/schemas/registry.js";
 import { decodeRunRecordManifestFile } from "../../../src/schemas/runRecord.js";
 import { PHAX_RELEASE } from "../../../src/schemas/release.js";
 import { FORMAT_IDS, schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
-import { decodeSpecDocument } from "../../../src/schemas/specDocument.js";
+import { decodeSpecDocumentFile } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
   preSchemaDocuments,
@@ -60,8 +60,8 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "phase-file-reconciliation": decodePhaseFileReconciliationFile,
   "gate-diagnostics": decodeGateDiagnosticsDocument,
   "gate-pending": decodeGatePendingFile,
-  "spec-document": decodeSpecDocument,
-  "plan-document": decodePlanDocument,
+  "spec-document": decodeSpecDocumentFile,
+  "plan-document": decodePlanDocumentFile,
 };
 
 /** Each format's frozen pre-schema decoder. */

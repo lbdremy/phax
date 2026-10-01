@@ -24,7 +24,9 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { decodeExtractedPlanCacheEntry } from "../../src/schemas/extractedPlanCacheEntry.js";
 import { decodePlanDocument, projectExtractedPlan } from "../../src/schemas/planDocument.js";
-import { decodeSpecDocument } from "../../src/schemas/specDocument.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import type { FormatId } from "../../src/schemas/schemaUrl.js";
+import { decodeSpecDocument, getSpecDocumentJsonSchema } from "../../src/schemas/specDocument.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 
 const NOW = "2026-09-23T08:35:12.000Z";
@@ -212,6 +214,12 @@ function setup(finalText?: string) {
   return { fs: fs.impl, git: git.impl, backend: backend.impl, run };
 }
 
+/** An authored document as phax persists it: `version` dropped, `$schema` first. */
+function stamped(id: FormatId, doc: { readonly version: number }): object {
+  const { version: _version, ...rest } = doc;
+  return withSchemaUrl(id, rest);
+}
+
 function repoFiles(fs: { files: Map<string, string> }): string[] {
   return [...fs.files.keys()].filter((path) => path.startsWith("docs/")).toSorted();
 }
@@ -240,8 +248,12 @@ describe("authorArtifact — spec", () => {
     expect(md).toContain("date: 2026-09-23");
     expect(splitFrontmatter(md)?.body).toBe(renderSpecBody(doc.right));
 
+    // The sidecar and the session's document.json: $schema first, no version.
     const sidecar = fs.getFile(SPEC_SIDECAR) ?? "";
-    expect(JSON.parse(sidecar)).toEqual(SPEC_DOCUMENT);
+    const written: Record<string, unknown> = JSON.parse(sidecar);
+    expect(Object.keys(written)[0]).toBe("$schema");
+    expect(written).toEqual(stamped("spec-document", SPEC_DOCUMENT));
+    expect(written).not.toHaveProperty("version");
     expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBe(sidecar);
 
     const commits = git.calls.filter((call) => call.method === "commitPaths");
@@ -279,6 +291,9 @@ describe("authorArtifact — spec", () => {
     expect(prompt).toBe(backend.runCalls[0]?.prompt);
     expect(prompt).toContain("# phax-spec skill");
     expect(prompt).toContain("Free their slugs.");
+    // The authoring contract is unchanged: version 1, never $schema.
+    expect(prompt).toContain(JSON.stringify(getSpecDocumentJsonSchema(), null, 2));
+    expect(prompt).not.toContain('"$schema": "https://docs.phax.run');
   });
 
   it("accepts a document wrapped in a json code fence", async () => {
@@ -309,7 +324,11 @@ describe("authorArtifact — plan", () => {
     const md = fs.getFile(PLAN_PATH) ?? "";
     expect(md).toContain(`source-spec: ${SOURCE_SPEC}`);
     expect(splitFrontmatter(md)?.body).toBe(renderPlanBody(doc.right));
-    expect(JSON.parse(fs.getFile(PLAN_SIDECAR) ?? "")).toEqual(PLAN_DOCUMENT);
+    const sidecar = fs.getFile(PLAN_SIDECAR) ?? "";
+    const written: Record<string, unknown> = JSON.parse(sidecar);
+    expect(Object.keys(written)[0]).toBe("$schema");
+    expect(written).toEqual(stamped("plan-document", PLAN_DOCUMENT));
+    expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBe(sidecar);
 
     const key = planCacheKey(md, "claude-sonnet-5", "medium");
     const entryText = fs.getFile(cacheEntryPath(STATE_ROOT, key));

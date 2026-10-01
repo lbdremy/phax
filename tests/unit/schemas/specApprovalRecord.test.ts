@@ -4,11 +4,14 @@ import {
   decodeSpecApprovalRecordFile,
   encodeSpecApprovalRecordFile,
 } from "../../../src/schemas/specApprovalRecord.js";
+import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
 const VALID_BASELINE = "a".repeat(40);
 
+const SCHEMA_URL = schemaUrl("spec-approvals", "0.17.0");
+
 const sample = {
-  version: 1 as const,
+  $schema: SCHEMA_URL,
   records: {
     "docs/specs/2609101231-spec-approval-ground.md": {
       specFingerprint: "spec-fp",
@@ -66,9 +69,20 @@ describe("SpecApprovalRecordFileSchema", () => {
     expect(Either.isLeft(decodeSpecApprovalRecordFile(bad))).toBe(true);
   });
 
+  it("rejects a ledger without $schema, or one that still carries version", () => {
+    const { $schema: _schema, ...unstamped } = sample;
+    expect(Either.isLeft(decodeSpecApprovalRecordFile({ version: 1, ...unstamped }))).toBe(true);
+    expect(Either.isLeft(decodeSpecApprovalRecordFile({ ...sample, version: 1 }))).toBe(true);
+  });
+
+  it("rejects a $schema naming another format", () => {
+    const other = { ...sample, $schema: schemaUrl("plan-approvals", "0.17.0") };
+    expect(Either.isLeft(decodeSpecApprovalRecordFile(other))).toBe(true);
+  });
+
   it("rejects a missing required field", () => {
     const bad = {
-      version: 1,
+      $schema: SCHEMA_URL,
       records: {
         "docs/specs/2609101231-spec-approval-ground.md": {
           approvedAt: "2026-09-03T12:00:00.000Z",
@@ -81,7 +95,7 @@ describe("SpecApprovalRecordFileSchema", () => {
 
   it("decodes multiple records", () => {
     const multi = {
-      version: 1 as const,
+      $schema: SCHEMA_URL,
       records: {
         "docs/specs/2609101231-spec-approval-ground.md": {
           specFingerprint: "fp-1",

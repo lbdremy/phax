@@ -1,4 +1,5 @@
-import { JSONSchema, Schema } from "effect";
+import { JSONSchema, Schema, type Types } from "effect";
+import { schemaUrlField } from "./schemaUrl.js";
 
 // The spec document: the JSON a headless spec authoring session returns, from
 // which phax renders the Markdown spec deterministically. Experimental — outside
@@ -85,8 +86,7 @@ const DocsPageSchema = Schema.Union(
   }),
 );
 
-const SpecDocumentStruct = Schema.Struct({
-  version: Schema.Literal(1),
+const specDocumentFields = {
   kind: Schema.Literal("spec"),
   title: Schema.NonEmptyString,
   ground: Schema.Array(GroundEntrySchema),
@@ -104,9 +104,15 @@ const SpecDocumentStruct = Schema.Struct({
   openQuestions: Schema.Array(OpenQuestionSchema),
   planningNote: PlanningNoteSchema,
   docsPage: DocsPageSchema,
+};
+
+const SpecDocumentStruct = Schema.Struct({
+  version: Schema.Literal(1),
+  ...specDocumentFields,
 }).annotations({ title: "phax spec document (experimental)" });
 
-type SpecDocumentShape = Schema.Schema.Type<typeof SpecDocumentStruct>;
+/** A spec document in memory: never a `version`, never a `$schema`. */
+export type SpecDocument = Types.Simplify<Schema.Struct.Type<typeof specDocumentFields>>;
 
 interface Violation {
   readonly path: ReadonlyArray<PropertyKey>;
@@ -136,7 +142,7 @@ function firstDuplicateId(
 // reported for a given document is stable. Each violation carries the path of
 // the offending value; `formatFirstViolation` renders it as
 // `acceptanceCriteria[2].refs[0]: "5.9" names no requirement`.
-function firstTraceabilityViolation(doc: SpecDocumentShape): Violation | undefined {
+function firstTraceabilityViolation(doc: SpecDocument): Violation | undefined {
   const duplicateRequirement = firstDuplicateId(doc.requirements, ["requirements"], "requirement");
   if (duplicateRequirement !== undefined) return duplicateRequirement;
 
@@ -199,7 +205,8 @@ export const SpecDocumentSchema = SpecDocumentStruct.pipe(
   }),
 );
 
-export type SpecDocument = Schema.Schema.Type<typeof SpecDocumentSchema>;
+/** The document an authoring session returns: `version: 1`, then the spec. */
+export type AuthoredSpecDocument = Schema.Schema.Type<typeof SpecDocumentSchema>;
 
 // The document an authoring session returns: decoded with this contract, never through the bridge.
 export const decodeSpecDocument = Schema.decodeUnknownEither(SpecDocumentSchema, {
@@ -207,15 +214,25 @@ export const decodeSpecDocument = Schema.decodeUnknownEither(SpecDocumentSchema,
 });
 
 /**
- * A spec's JSON sidecar as phax writes it: the authoring contract until the
- * sidecar gains `$schema`.
- * @alias
+ * A spec's JSON sidecar as phax persists it: `$schema` first, then the
+ * document's fields, with the same traceability checks. Unknown keys are
+ * rejected.
  */
-export const SpecDocumentFileSchema = SpecDocumentSchema;
+export const SpecDocumentFileSchema = Schema.Struct({
+  $schema: schemaUrlField("spec-document"),
+  ...specDocumentFields,
+}).pipe(
+  Schema.filter(firstTraceabilityViolation, {
+    jsonSchema: { description: TRACEABILITY_DESCRIPTION },
+  }),
+);
+
+export type SpecDocumentFile = Schema.Schema.Type<typeof SpecDocumentFileSchema>;
 
 export const decodeSpecDocumentFile = Schema.decodeUnknownEither(SpecDocumentFileSchema, {
   onExcessProperty: "error",
 });
+export const encodeSpecDocumentFile = Schema.encodeSync(SpecDocumentFileSchema);
 
 export function getSpecDocumentJsonSchema(): object {
   return JSONSchema.make(SpecDocumentSchema);

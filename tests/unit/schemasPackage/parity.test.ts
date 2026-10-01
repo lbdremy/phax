@@ -29,13 +29,13 @@ import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.
 import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnostics.js";
 import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
 import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
-import { decodePlanDocument } from "../../../src/schemas/planDocument.js";
+import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import { decodeRegistryFile } from "../../../src/schemas/registry.js";
 import { decodeRunRecordManifestFile } from "../../../src/schemas/runRecord.js";
 import { FORMAT_IDS, schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
-import { decodeSpecDocument } from "../../../src/schemas/specDocument.js";
+import { decodeSpecDocumentFile } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
   validDocuments,
@@ -178,7 +178,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "spec-document": {
     id: "spec-document",
     parse: parseSpecDocument,
-    phax: decodeSpecDocument,
+    phax: decodeSpecDocumentFile,
     wrongType: ["title", 1],
     required: "title",
     excess: "error",
@@ -186,7 +186,7 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "plan-document": {
     id: "plan-document",
     parse: parsePlanDocument,
-    phax: decodePlanDocument,
+    phax: decodePlanDocumentFile,
     wrongType: ["phases", {}],
     required: "preamble",
     excess: "error",

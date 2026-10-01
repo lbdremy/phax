@@ -9,7 +9,7 @@ import { finalizeExtractedPlan } from "../../src/domain/plan/finalize.js";
 import {
   decodePlanDocument,
   projectExtractedPlan,
-  type PlanDocument,
+  type AuthoredPlanDocument as PlanDocument,
 } from "../../src/schemas/planDocument.js";
 
 function decoded(raw: unknown): PlanDocument {
