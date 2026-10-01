@@ -192,7 +192,9 @@ desktop — none is promised by the announcement.
       the real-document fixtures (two held a louloupapers run) and the shape survey, add snapshots
       and the gate. Plan 3/5 "support starts now" landed 2026-09-30
       (PR #108, run archived; the spec-completion pair was dropped from the branch before
-      merge). Next action: plan 4/5 (phax writes `$schema`), authored headless from the brief.
+      merge). **Plan 4/5 Approved 2026-10-01**
+      (`docs/plans/2610010856-schemas-package-plan.md`, phax writes `$schema`, 9 phases; frozen
+      decoders in `src/schemas/history/`, phax never imports `packages/`); running.
       Deferred with the author (2026-09-29), not in plans 2–5: **a Standard Schema export**
       per format (only if a consumer needs to hand the schemas to a non-Effect validator;
       the cockpit parses with Effect, losslessly); **deterministic JSON Schema annotations**
