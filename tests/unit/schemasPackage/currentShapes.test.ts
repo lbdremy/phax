@@ -1,0 +1,198 @@
+// Every format's current shape, after phax writes $schema: named `next`,
+// `$schema` required, no `version`, a `next` snapshot beside an untouched
+// pre-schema snapshot, and a frozen module pinned in history.lock.json. Also
+// checks that phax's bridge and the package's `toLatest*` read every
+// pre-schema document to the same value.
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Either } from "effect";
+import { describe, expect, it } from "vitest";
+import {
+  FORMAT_DEFINITIONS,
+  JSON_SCHEMA_FORMATS,
+  renderJsonSchemas,
+} from "../../../packages/schemas/build/jsonSchemas.js";
+import {
+  parseAuthoringRecordManifest,
+  parseComplianceReview,
+  parseGateAttribution,
+  parseGateDiagnostics,
+  parseGatePending,
+  parsePhaseFileReconciliation,
+  parsePhaseRecordManifest,
+  parsePhaseStatus,
+  parsePhaxPlan,
+  parsePlanApprovals,
+  parsePlanDocument,
+  parseRegistry,
+  parseRunStatus,
+  parseSpecApprovals,
+  parseSpecDocument,
+  toLatestAuthoringRecordManifest,
+  toLatestComplianceReview,
+  toLatestGateAttribution,
+  toLatestGateDiagnostics,
+  toLatestGatePending,
+  toLatestPhaseFileReconciliation,
+  toLatestPhaseRecordManifest,
+  toLatestPhaseStatus,
+  toLatestPhaxPlan,
+  toLatestPlanApprovals,
+  toLatestPlanDocument,
+  toLatestRegistry,
+  toLatestRunStatus,
+  toLatestSpecApprovals,
+  toLatestSpecDocument,
+} from "../../../packages/schemas/src/index.js";
+import {
+  readComplianceReviewFile,
+  readGateAttributionFile,
+  readPhaseFileReconciliationFile,
+  readPhaseStatusFile,
+  readPhaxPlanFile,
+  readPlanApprovalsFile,
+  readPlanDocumentFile,
+  readRecordManifestFile,
+  readRegistryFile,
+  readRunStatusFile,
+  readSpecApprovalsFile,
+  readSpecDocumentFile,
+} from "../../../src/schemas/persisted.js";
+import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
+import { preSchemaDocuments, validDocuments } from "./documents.js";
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+const snapshotsDir = join(repoRoot, "packages", "schemas", "snapshots");
+
+interface RenderedSchema {
+  readonly required?: ReadonlyArray<string>;
+  readonly properties?: Readonly<Record<string, { readonly pattern?: string }>>;
+}
+
+function rendered(id: FormatId): RenderedSchema {
+  const entry = JSON_SCHEMA_FORMATS.find((format) => format.format === id);
+  if (entry === undefined) throw new Error(`no JSON Schema table entry for ${id}`);
+  const { files, failures } = renderJsonSchemas([entry]);
+  expect(failures).toEqual([]);
+  return JSON.parse(files.get(entry.fileName) ?? "null") as RenderedSchema;
+}
+
+function readSnapshot(id: FormatId, name: string): string {
+  return readFileSync(join(snapshotsDir, id, `${name}.schema.json`), "utf8");
+}
+
+describe("every format's current shape", () => {
+  it.each(FORMAT_IDS)("%s: is named next", (id) => {
+    expect(FORMAT_DEFINITIONS[id].current.name).toBe("next");
+  });
+
+  it.each(FORMAT_IDS)("%s: requires $schema bound to its own id, and has no version", (id) => {
+    const schema = rendered(id);
+    expect(schema.required).toContain("$schema");
+    expect(schema.properties?.["$schema"]?.pattern).toContain(`schemas\\/${id}\\/`);
+    expect(schema.properties).not.toHaveProperty("version");
+  });
+
+  it.each(FORMAT_IDS)("%s: has a next snapshot that differs from its pre-schema one", (id) => {
+    expect(existsSync(join(snapshotsDir, id, "next.schema.json"))).toBe(true);
+    expect(readSnapshot(id, "next")).not.toBe(readSnapshot(id, "pre-schema"));
+  });
+
+  it.each(FORMAT_IDS)("%s: pins its frozen module in history.lock.json", (id) => {
+    const lock = JSON.parse(
+      readFileSync(join(repoRoot, "packages", "schemas", "history.lock.json"), "utf8"),
+    ) as Readonly<Record<string, string>>;
+    expect(lock[`src/schemas/history/${id}/pre-schema.ts`]).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+/** The package's reading of one document, upgraded to its latest value. */
+type PackageLatest = (input: unknown) => unknown;
+
+function latest<V>(
+  parse: (input: unknown) => { readonly ok: true; readonly value: V } | { readonly ok: false },
+  toLatest: (value: V) => unknown,
+): PackageLatest {
+  return (input) => {
+    const result = parse(input);
+    if (!result.ok) throw new Error(`the package rejected ${JSON.stringify(input)}`);
+    return toLatest(result.value);
+  };
+}
+
+const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
+  registry: latest(parseRegistry, toLatestRegistry),
+  "run-status": latest(parseRunStatus, toLatestRunStatus),
+  "phase-status": latest(parsePhaseStatus, toLatestPhaseStatus),
+  "phax-plan": latest(parsePhaxPlan, toLatestPhaxPlan),
+  "compliance-review": latest(parseComplianceReview, toLatestComplianceReview),
+  "plan-approvals": latest(parsePlanApprovals, toLatestPlanApprovals),
+  "spec-approvals": latest(parseSpecApprovals, toLatestSpecApprovals),
+  "phase-record-manifest": latest(parsePhaseRecordManifest, toLatestPhaseRecordManifest),
+  "authoring-record-manifest": latest(
+    parseAuthoringRecordManifest,
+    toLatestAuthoringRecordManifest,
+  ),
+  "gate-attribution": latest(parseGateAttribution, toLatestGateAttribution),
+  "phase-file-reconciliation": latest(
+    parsePhaseFileReconciliation,
+    toLatestPhaseFileReconciliation,
+  ),
+  "gate-diagnostics": latest(parseGateDiagnostics, toLatestGateDiagnostics),
+  "gate-pending": latest(parseGatePending, toLatestGatePending),
+  "spec-document": latest(parseSpecDocument, toLatestSpecDocument),
+  "plan-document": latest(parsePlanDocument, toLatestPlanDocument),
+};
+
+type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
+
+// phax never reads gate diagnostics or gate pending documents back.
+const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
+  registry: readRegistryFile,
+  "run-status": readRunStatusFile,
+  "phase-status": readPhaseStatusFile,
+  "phax-plan": readPhaxPlanFile,
+  "compliance-review": readComplianceReviewFile,
+  "plan-approvals": readPlanApprovalsFile,
+  "spec-approvals": readSpecApprovalsFile,
+  "phase-record-manifest": readRecordManifestFile,
+  "authoring-record-manifest": readRecordManifestFile,
+  "gate-attribution": readGateAttributionFile,
+  "phase-file-reconciliation": readPhaseFileReconciliationFile,
+  "gate-diagnostics": undefined,
+  "gate-pending": undefined,
+  "spec-document": readSpecDocumentFile,
+  "plan-document": readPlanDocumentFile,
+};
+
+const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);
+
+describe("phax's bridge and the package agree", () => {
+  it.each(READ_BY_PHAX)("%s: the bridge reads a pre-schema document as toLatest does", (id) => {
+    const read = BRIDGE_READERS[id];
+    if (read === undefined) throw new Error(`${id}: phax does not read it`);
+    const document = preSchemaDocuments[id];
+    expect(read(`/work/example-repo/${id}.json`, document)).toEqual(
+      Either.right(PACKAGE_LATEST[id](document)),
+    );
+  });
+
+  it.each(READ_BY_PHAX)("%s: the bridge reads a phax-written document as toLatest does", (id) => {
+    const read = BRIDGE_READERS[id];
+    if (read === undefined) throw new Error(`${id}: phax does not read it`);
+    const document = validDocuments[id];
+    expect(read(`/work/example-repo/${id}.json`, document)).toEqual(
+      Either.right(PACKAGE_LATEST[id](document)),
+    );
+  });
+
+  it.each(FORMAT_IDS)(
+    "%s: the package upgrades a pre-schema and a phax-written document alike",
+    (id) => {
+      expect(PACKAGE_LATEST[id](preSchemaDocuments[id])).toEqual(
+        PACKAGE_LATEST[id](validDocuments[id]),
+      );
+    },
+  );
+});
