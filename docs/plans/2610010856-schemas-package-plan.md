@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2609241238-schemas-package.md
+approved:
+  date: 2026-10-01
+  baseline: 0ea62e5
 ---
 # schemas-package 4/5 — phax writes $schema
 
