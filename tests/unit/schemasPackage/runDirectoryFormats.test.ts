@@ -21,13 +21,7 @@ import { decodeRegistryFile } from "../../../src/schemas/registry.js";
 import type { FormatId } from "../../../src/schemas/schemaUrl.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
-import {
-  preSchemaDocuments,
-  validDocuments,
-  withKey,
-  withoutKey,
-  WRITES_SCHEMA,
-} from "./documents.js";
+import { preSchemaDocuments, validDocuments, withKey, withoutKey } from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 
@@ -76,16 +70,27 @@ const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
 describe.each(FORMATS)("$id", (format) => {
   const document = validDocuments[format.id];
   const preSchema = preSchemaDocuments[format.id];
-  const writtenShape = WRITES_SCHEMA.has(format.id) ? "next" : "pre-schema";
 
   it("parses the pre-schema document as shape pre-schema", () => {
     expect(format.parse(preSchema)).toEqual({ ok: true, shape: "pre-schema", value: preSchema });
   });
 
-  it("parses the document phax writes with phax's value", () => {
+  it("parses the document phax writes as shape next, with phax's value", () => {
     const phax = format.phax(document);
     if (Either.isLeft(phax)) throw new Error("document rejected by phax");
-    expect(format.parse(document)).toEqual({ ok: true, shape: writtenShape, value: phax.right });
+    expect(format.parse(document)).toEqual({ ok: true, shape: "next", value: phax.right });
+  });
+
+  it("identifies the document phax writes by its $schema alone as shape next (ac-identify-alone)", () => {
+    expect(parseDocument(document)).toMatchObject({ ok: true, format: format.id, shape: "next" });
+  });
+
+  it("drops $schema when upgrading the document phax writes, and carries no version", () => {
+    const result = format.parse(document);
+    if (!result.ok) throw new Error("document rejected");
+    const latest = format.toLatest(result.value as never);
+    expect(latest).toEqual(withoutKey(document, "$schema"));
+    expect(latest).not.toHaveProperty("version");
   });
 
   it("fails a document the frozen decoder rejects as older than the first release that writes $schema", () => {
@@ -120,42 +125,11 @@ describe.each(FORMATS)("$id", (format) => {
   });
 });
 
-describe("registry written by phax", () => {
-  const written = validDocuments.registry;
-
-  it("is identified by its $schema alone as shape next (ac-identify-alone)", () => {
-    const result = parseDocument(written);
-    expect(result).toMatchObject({ ok: true, format: "registry", shape: "next" });
-  });
-
-  it("drops $schema on upgrade, and carries no version", () => {
-    const result = parseRegistry(written);
-    if (!result.ok) throw new Error("document rejected");
-    expect(result.shape).toBe("next");
-    const latest = toLatestRegistry(result.value);
-    expect(latest).toEqual(withoutKey(written, "$schema"));
-    expect(latest).not.toHaveProperty("version");
-  });
-});
-
 describe.each([
-  { id: "run-status", parse: parseRunStatus, toLatest: toLatestRunStatus },
-  { id: "phase-status", parse: parsePhaseStatus, toLatest: toLatestPhaseStatus },
-] as const)("$id written by phax", ({ id, parse, toLatest }) => {
+  { id: "run-status", parse: parseRunStatus },
+  { id: "phase-status", parse: parsePhaseStatus },
+] as const)("$id written by phax", ({ id, parse }) => {
   const written = validDocuments[id];
-
-  it("is identified by its $schema alone as shape next (ac-identify-alone)", () => {
-    expect(parseDocument(written)).toMatchObject({ ok: true, format: id, shape: "next" });
-  });
-
-  it("drops $schema on upgrade, and carries no version", () => {
-    const result = parse(written);
-    if (!result.ok) throw new Error("document rejected");
-    expect(result.shape).toBe("next");
-    const latest = toLatest(result.value as never);
-    expect(latest).toEqual(withoutKey(written, "$schema"));
-    expect(latest).not.toHaveProperty("version");
-  });
 
   it("fails at state when the state is unknown (ac-failure)", () => {
     const result = parse(withKey(written, "state", "paused"));
@@ -165,23 +139,10 @@ describe.each([
 });
 
 describe.each([
-  { id: "phax-plan", parse: parsePhaxPlan, toLatest: toLatestPhaxPlan },
-  { id: "compliance-review", parse: parseComplianceReview, toLatest: toLatestComplianceReview },
-] as const)("$id written by phax", ({ id, parse, toLatest }) => {
+  { id: "phax-plan", parse: parsePhaxPlan },
+  { id: "compliance-review", parse: parseComplianceReview },
+] as const)("$id written by phax", ({ id, parse }) => {
   const written = validDocuments[id];
-
-  it("is identified by its $schema alone as shape next (ac-identify-alone)", () => {
-    expect(parseDocument(written)).toMatchObject({ ok: true, format: id, shape: "next" });
-  });
-
-  it("drops $schema on upgrade, and carries no version", () => {
-    const result = parse(written);
-    if (!result.ok) throw new Error("document rejected");
-    expect(result.shape).toBe("next");
-    const latest = toLatest(result.value as never);
-    expect(latest).toEqual(withoutKey(written, "$schema"));
-    expect(latest).not.toHaveProperty("version");
-  });
 
   it("rejects an unknown key, as phax's strict decoder does", () => {
     const result = parse(withKey(written, "extra", true));

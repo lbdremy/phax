@@ -418,25 +418,6 @@ export const preSchemaDocuments: { readonly [F in FormatId]: Doc } = {
   "plan-document": encoded(PlanDocumentPreSchemaSchema, planDocument),
 };
 
-/** The formats phax already writes with `$schema`; each family phase adds its own. */
-export const WRITES_SCHEMA: ReadonlySet<FormatId> = new Set<FormatId>([
-  "registry",
-  "run-status",
-  "phase-status",
-  "phax-plan",
-  "compliance-review",
-  "plan-approvals",
-  "spec-approvals",
-  "spec-document",
-  "plan-document",
-  "phase-record-manifest",
-  "authoring-record-manifest",
-  "gate-attribution",
-  "phase-file-reconciliation",
-  "gate-diagnostics",
-  "gate-pending",
-]);
-
 /** A pre-schema value as phax holds it in memory: the same fields, without `version`. */
 function stepped<T extends { readonly version: number }>(value: T): Omit<T, "version"> {
   const { version: _version, ...rest } = value;
