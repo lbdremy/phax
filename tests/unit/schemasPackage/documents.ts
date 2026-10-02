@@ -102,6 +102,21 @@ export function withKey(doc: Doc, key: string, value: unknown): Doc {
   return { ...doc, [key]: value };
 }
 
+/** Every key and string in `value`, depth first. */
+export function strings(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(strings);
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value).flatMap(([key, entry]) => [key, ...strings(entry)]);
+  }
+  return [];
+}
+
+/** The keys and strings in `value` that name a home directory or a phax home. */
+export function homePaths(value: unknown): string[] {
+  return strings(value).filter((text) => /\/Users\/|\/home\/|~\/\.phax/.test(text));
+}
+
 /** A copy of `doc` without `key`. */
 export function withoutKey(doc: Doc, key: string): Doc {
   const { [key]: _removed, ...rest } = doc;

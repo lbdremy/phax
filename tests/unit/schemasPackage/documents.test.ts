@@ -35,7 +35,9 @@ import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalR
 import { decodeSpecDocumentFile } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
+  homePaths,
   preSchemaDocuments,
+  strings,
   validDocuments,
   versionOnePhaseRecordManifest,
   withKey,
@@ -91,15 +93,6 @@ function walk(dir: string): Array<{ readonly path: string; readonly directory: b
       ? [{ path, directory: true }, ...walk(path)]
       : [{ path, directory: false }];
   });
-}
-
-function strings(value: unknown): string[] {
-  if (typeof value === "string") return [value];
-  if (Array.isArray(value)) return value.flatMap(strings);
-  if (typeof value === "object" && value !== null) {
-    return Object.entries(value).flatMap(([key, entry]) => [key, ...strings(entry)]);
-  }
-  return [];
 }
 
 describe("the test documents", () => {
@@ -165,8 +158,8 @@ describe("the test documents", () => {
   });
 
   it("name no home directory and no phax home", () => {
-    const all = strings([validDocuments, preSchemaDocuments, versionOnePhaseRecordManifest]);
-    expect(all.length).toBeGreaterThan(0);
-    expect(all.filter((text) => /\/Users\/|\/home\/|~\/\.phax/.test(text))).toEqual([]);
+    const all = [validDocuments, preSchemaDocuments, versionOnePhaseRecordManifest];
+    expect(strings(all).length).toBeGreaterThan(0);
+    expect(homePaths(all)).toEqual([]);
   });
 });

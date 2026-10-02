@@ -26,9 +26,6 @@ jobs:
           node-version: "24"
           cache: "pnpm"
 
-      - name: Upgrade npm to support stage publish
-        run: npm install -g npm@11.16.0
-
       - uses: denoland/setup-deno@667a34cdef165d8d2b2e98dde39547c9daac7282 # v2
         with:
           deno-version: v2.x
@@ -64,21 +61,51 @@ jobs:
         # as the workaround for direct downloads.
         run: pnpm deno:build-binaries
 
+      # The schemas package promises Node 20: smoke the tarball the Gate's
+      # pnpm build produced under Node 20, in this job, so the publish below
+      # ships exactly the smoked build.
+      - name: Use Node 20 for the schemas package smoke
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+
+      - name: Smoke-test the schemas package tarball
+        run: pnpm exec tsx scripts/schemas-smoke.ts
+
+      - name: Restore Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Upgrade npm to support stage publish
+        run: npm install -g npm@11.16.0
+
       - name: Prepare npm wrapper
         run: deno run --allow-read --allow-write scripts/prepare-npm.ts "${{ github.ref_name }}"
 
-      - name: Verify wrapper version matches tag
+      # release.sh bumps packages/schemas/package.json in the release commit;
+      # prepare-npm.ts sets npm/package.json. Both must equal the tag before
+      # anything is staged.
+      - name: Verify package versions match tag
         run: |
           TAG_VERSION="${{ github.ref_name }}"
           TAG_VERSION="${TAG_VERSION#v}"
-          PKG_VERSION="$(node -e "console.log(require('./npm/package.json').version)")"
-          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "Version mismatch: tag=${TAG_VERSION}, npm/package.json=${PKG_VERSION}"
-            exit 1
-          fi
+          STATUS=0
+          for MANIFEST in npm/package.json packages/schemas/package.json; do
+            PKG_VERSION="$(node -e "console.log(require('./${MANIFEST}').version)")"
+            if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+              echo "Version mismatch: tag=${TAG_VERSION}, ${MANIFEST}=${PKG_VERSION}"
+              STATUS=1
+            fi
+          done
+          exit "$STATUS"
 
-      - name: npm stage publish
+      - name: npm stage publish @lbdremy/phax
         working-directory: npm
+        run: npm stage publish --access public --provenance
+
+      - name: npm stage publish @lbdremy/phax-schemas
+        working-directory: packages/schemas
         run: npm stage publish --access public --provenance
 
       - name: Create GitHub Release
