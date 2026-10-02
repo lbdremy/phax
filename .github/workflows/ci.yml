@@ -68,6 +68,17 @@ jobs:
       - name: Deno compile (host binary)
         run: pnpm deno:compile
 
+      # The same smoke the release workflow runs before publishing: the
+      # tarball the Build step produced, installed into an empty Node 20
+      # project. It needs the network, so it stays out of check:full.
+      - name: Use Node 20 for the schemas package smoke
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+
+      - name: Smoke-test the schemas package tarball
+        run: pnpm exec tsx scripts/schemas-smoke.ts
+
   # Report-only security audit. Does not gate CI yet (FAIL_ON=none +
   # continue-on-error); the report is uploaded as an artifact for review. Flip
   # to blocking (drop the env override and continue-on-error) once the tree is
