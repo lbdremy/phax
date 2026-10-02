@@ -40,6 +40,38 @@ describe("release workflow invariants", () => {
   });
 });
 
+// scripts/release.sh tags and pushes, so it never runs in a test: these read it as text.
+const releaseScript = readFileSync(join(import.meta.dirname, "../../scripts/release.sh"), "utf-8");
+
+describe("release script invariants", () => {
+  it("cuts the schemas package's shapes before regenerating the usage spec", () => {
+    const cut = releaseScript.indexOf("pnpm exec tsx scripts/release-cut.ts");
+    expect(cut).toBeGreaterThan(-1);
+    expect(cut).toBeLessThan(releaseScript.indexOf("pnpm gen:usage-spec"));
+  });
+
+  it("leaves the version bump to the cut", () => {
+    expect(releaseScript).not.toContain("npm pkg set");
+  });
+
+  it("stays bash 3.2 compatible (no mapfile)", () => {
+    expect(releaseScript).not.toContain("mapfile");
+  });
+
+  it("stages the cut's paths with git add -A, so renames and removals are staged", () => {
+    expect(releaseScript).toContain('git add -A -- "${CUT_PATHS[@]}"');
+  });
+
+  it("ends by naming both staged npm packages", () => {
+    const lastLines = releaseScript.trimEnd().split("\n").slice(-3);
+    expect(lastLines).toEqual([
+      'echo "approve the staged npm packages at:"',
+      'echo "  https://www.npmjs.com/package/@lbdremy/phax"',
+      'echo "  https://www.npmjs.com/package/@lbdremy/phax-schemas"',
+    ]);
+  });
+});
+
 describe("versionFromTag", () => {
   it("strips the leading v from a semver tag", () => {
     expect(versionFromTag("v1.2.3")).toBe("1.2.3");

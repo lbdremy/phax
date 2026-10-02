@@ -1,0 +1,268 @@
+// Simulates a release cut on a temporary copy of the tree: the release commit
+// keeps the snapshot gate green, and the copy's package reads documents at
+// the new release. The real tree is never cut; every test checks it is
+// untouched. X is the next minor of the root version, so a real release never
+// needs this test edited.
+import {
+  cpSync,
+  existsSync,
+  lstatSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { sha256 } from "../../packages/schemas/build/generated.js";
+import { snapshotPath } from "../../packages/schemas/build/snapshots.js";
+import {
+  CURRENT_SHAPES,
+  FIRST_SUPPORTED_RELEASE,
+} from "../../packages/schemas/src/generated/index.js";
+import {
+  developmentBuildMessage,
+  preSchemaUnsupportedMessage,
+} from "../../packages/schemas/src/shapes.js";
+import { cutRelease } from "../../scripts/release-cut.js";
+import { checkSchemas, readSchemasState } from "../../scripts/schemas-check.js";
+import { FORMAT_IDS, schemaUrl, type FormatId } from "../../src/schemas/schemaUrl.js";
+import {
+  preSchemaDocuments,
+  validDocuments,
+  withKey,
+  withoutKey,
+} from "./schemasPackage/documents.js";
+
+type PackageEntry = typeof import("../../packages/schemas/src/index.js");
+type GeneratedIndex = typeof import("../../packages/schemas/src/generated/index.js");
+
+const repoRoot = resolve(import.meta.dirname, "../..");
+
+const COPIED_FILES = [
+  "package.json",
+  "npm/package.json",
+  "packages/schemas/package.json",
+  "packages/schemas/history.lock.json",
+];
+const COPIED_DIRS = ["src", "packages/schemas/snapshots", "packages/schemas/src"];
+const MANIFESTS = ["package.json", "npm/package.json", "packages/schemas/package.json"];
+const GENERATED_INDEX = "packages/schemas/src/generated/index.ts";
+const RELEASE_MODULE = "src/schemas/release.ts";
+const LOCK = "packages/schemas/history.lock.json";
+/** Every path the cut could touch, as files or directories. */
+const CUT_SCOPE = [
+  ...MANIFESTS,
+  "packages/schemas/snapshots",
+  GENERATED_INDEX,
+  RELEASE_MODULE,
+  LOCK,
+];
+
+function versionOf(root: string, manifest = "package.json"): string {
+  return (JSON.parse(readFileSync(join(root, manifest), "utf8")) as { version: string }).version;
+}
+
+function nextMinor(release: string): string {
+  const [major = 0, minor = 0] = release.split(".").map(Number);
+  return `${major}.${minor + 1}.0`;
+}
+
+const rootVersion = versionOf(repoRoot);
+const X = nextMinor(rootVersion);
+const Y = nextMinor(X);
+
+/** Repo-relative path → sha256 of every file under `paths` (files or directories) in `root`. */
+function hashTree(root: string, paths: ReadonlyArray<string>): Map<string, string> {
+  const hashes = new Map<string, string>();
+  const visit = (absolute: string): void => {
+    if (!existsSync(absolute)) return;
+    if (!lstatSync(absolute).isDirectory()) {
+      hashes.set(relative(root, absolute).split("\\").join("/"), sha256(readFileSync(absolute)));
+      return;
+    }
+    for (const name of readdirSync(absolute)) {
+      if (name !== "node_modules") visit(join(absolute, name));
+    }
+  };
+  for (const path of paths) visit(join(root, path));
+  return hashes;
+}
+
+/** The paths created, modified or removed between two `hashTree` results, sorted. */
+function differences(
+  before: ReadonlyMap<string, string>,
+  after: ReadonlyMap<string, string>,
+): string[] {
+  const paths = new Set([...before.keys(), ...after.keys()]);
+  return [...paths].filter((path) => before.get(path) !== after.get(path)).toSorted();
+}
+
+const realBefore = hashTree(repoRoot, CUT_SCOPE);
+const copies: string[] = [];
+let copy = "";
+
+function makeCopy(): string {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "phax-release-cut-")));
+  for (const path of COPIED_FILES) cpSync(join(repoRoot, path), join(root, path));
+  for (const dir of COPIED_DIRS) {
+    cpSync(join(repoRoot, dir), join(root, dir), { recursive: true });
+  }
+  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
+  copies.push(root);
+  return root;
+}
+
+async function importFrom<T>(root: string, path: string): Promise<T> {
+  return (await import(pathToFileURL(join(root, path)).href)) as T;
+}
+
+/** The formats whose `next` snapshot the cut renames. */
+function formatsWithNext(root: string): FormatId[] {
+  return FORMAT_IDS.filter((id) => existsSync(join(root, snapshotPath(id, "next"))));
+}
+
+// What the copy's first cut to X must produce, derived from the real tree:
+// every renamed `next` becomes X, every other format keeps its current shape.
+const renamed = formatsWithNext(repoRoot);
+const expectedShapes = Object.fromEntries(
+  FORMAT_IDS.map((id) => [id, renamed.includes(id) ? X : CURRENT_SHAPES[id]]),
+);
+const expectedFirstSupported = FIRST_SUPPORTED_RELEASE ?? (renamed.length > 0 ? X : null);
+
+beforeEach(() => {
+  copy = makeCopy();
+});
+
+afterEach(() => {
+  expect(hashTree(repoRoot, CUT_SCOPE)).toEqual(realBefore);
+});
+
+afterAll(() => {
+  for (const root of copies) rmSync(root, { recursive: true, force: true });
+});
+
+describe("cutRelease on a copy of the tree", () => {
+  it(`cuts ${X}: manifests, snapshots and generated files, with the gate green`, async () => {
+    const before = hashTree(copy, ["."]);
+    const nextBytes = new Map(
+      renamed.map((id) => [id, readFileSync(join(copy, snapshotPath(id, "next")))]),
+    );
+
+    const { changed } = cutRelease(copy, X);
+
+    for (const manifest of MANIFESTS) expect(versionOf(copy, manifest)).toBe(X);
+    for (const id of FORMAT_IDS) {
+      expect(existsSync(join(copy, snapshotPath(id, "next")))).toBe(false);
+    }
+    for (const [id, bytes] of nextBytes) {
+      expect(readFileSync(join(copy, snapshotPath(id, X)))).toEqual(bytes);
+    }
+    const after = hashTree(copy, ["."]);
+    for (const [path, hash] of before) {
+      if (path.endsWith("/pre-schema.schema.json")) expect(after.get(path)).toBe(hash);
+    }
+    expect(after.get(LOCK)).toBe(before.get(LOCK));
+
+    const generated = await importFrom<GeneratedIndex>(copy, GENERATED_INDEX);
+    expect(generated.PACKAGE_VERSION).toBe(X);
+    expect(generated.FIRST_SUPPORTED_RELEASE).toBe(expectedFirstSupported);
+    expect(generated.CURRENT_SHAPES).toEqual(expectedShapes);
+    expect(readFileSync(join(copy, RELEASE_MODULE), "utf8")).toContain(
+      `export const PHAX_RELEASE = ${JSON.stringify(X)};`,
+    );
+
+    expect(checkSchemas(readSchemasState(copy))).toEqual([]);
+    expect(changed).toEqual(differences(before, after));
+  });
+
+  it(`leaves the copy's package reading documents at ${X}`, async () => {
+    cutRelease(copy, X);
+    const pkg = await importFrom<PackageEntry>(copy, "packages/schemas/src/index.ts");
+    const id = "phase-record-manifest";
+    const shape = expectedShapes[id];
+    const atX = withKey(validDocuments[id], "$schema", schemaUrl(id, X));
+
+    expect(pkg.parsePhaseRecordManifest(atX)).toMatchObject({ ok: true, shape });
+    expect(pkg.parseDocument(atX)).toMatchObject({ ok: true, format: id, shape });
+
+    // A development build stamps the release it is heading for before that
+    // release is cut: below the first supported release, no decoder tries it.
+    const developmentRelease = FIRST_SUPPORTED_RELEASE === null ? rootVersion : "0.0.0";
+    const developmentUrl = schemaUrl(id, developmentRelease);
+    const development = withKey(validDocuments[id], "$schema", developmentUrl);
+    expect(pkg.parsePhaseRecordManifest(development)).toEqual({
+      ok: false,
+      error: {
+        path: "$schema",
+        message: developmentBuildMessage(developmentUrl, expectedFirstSupported ?? X),
+      },
+    });
+
+    expect(pkg.parsePhaseRecordManifest(preSchemaDocuments[id])).toMatchObject({
+      ok: true,
+      shape: "pre-schema",
+    });
+
+    const rejected = pkg.parsePhaseRecordManifest(withoutKey(preSchemaDocuments[id], "runId"));
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) {
+      const older = preSchemaUnsupportedMessage(
+        "phase record manifest",
+        "",
+        expectedFirstSupported,
+      ).slice(0, -" ()".length);
+      expect(rejected.error.message.startsWith(older)).toBe(true);
+      expect(rejected.error.message).toContain(
+        `phax ${expectedFirstSupported ?? X}, the first supported release`,
+      );
+    }
+  });
+
+  it(`cuts ${Y} after ${X} without renaming anything`, async () => {
+    cutRelease(copy, X);
+    const before = hashTree(copy, ["."]);
+
+    const { changed } = cutRelease(copy, Y);
+
+    const after = hashTree(copy, ["."]);
+    expect(differences(before, after)).toEqual(
+      [...MANIFESTS, GENERATED_INDEX, RELEASE_MODULE].toSorted(),
+    );
+    expect(changed).toEqual(differences(before, after));
+    for (const manifest of MANIFESTS) expect(versionOf(copy, manifest)).toBe(Y);
+    const generated = await importFrom<GeneratedIndex>(copy, GENERATED_INDEX);
+    expect(generated.PACKAGE_VERSION).toBe(Y);
+    expect(generated.FIRST_SUPPORTED_RELEASE).toBe(expectedFirstSupported);
+    expect(generated.CURRENT_SHAPES).toEqual(expectedShapes);
+    expect(readFileSync(join(copy, RELEASE_MODULE), "utf8")).toContain(
+      `export const PHAX_RELEASE = ${JSON.stringify(Y)};`,
+    );
+    expect(checkSchemas(readSchemasState(copy))).toEqual([]);
+  });
+
+  describe("refuses before writing anything", () => {
+    it.each([
+      ["a malformed version", "1.2", "is not a release"],
+      ["the current version", rootVersion, "is not newer than"],
+      ["an older version", "0.0.1", "is not newer than"],
+    ])("%s", (_label, version, message) => {
+      const before = hashTree(copy, ["."]);
+      expect(() => cutRelease(copy, version)).toThrow(message);
+      expect(hashTree(copy, ["."])).toEqual(before);
+    });
+
+    it(`an existing ${X} snapshot`, () => {
+      const existing = snapshotPath("registry", X);
+      writeFileSync(join(copy, existing), "{}\n");
+      const before = hashTree(copy, ["."]);
+      expect(() => cutRelease(copy, X)).toThrow(`${existing} already exists`);
+      expect(hashTree(copy, ["."])).toEqual(before);
+    });
+  });
+});

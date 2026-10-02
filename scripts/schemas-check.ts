@@ -6,7 +6,8 @@
 // against the bytes of every frozen module under phax's src/schemas/history/
 // (keyed by repo-relative path), and every format's JSON Schema snapshots
 // under packages/schemas/snapshots/<format id>/ against the schema its
-// current decoder renders.
+// current decoder renders. `--write` is `applySchemasWrite(root)`, which the
+// release cut (scripts/release-cut.ts) also runs on the tree it cuts.
 // Check: pnpm exec tsx scripts/schemas-check.ts
 // Write: pnpm exec tsx scripts/schemas-check.ts --write
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -258,36 +259,63 @@ export function writeSchemas(state: SchemasState): {
   };
 }
 
+/** Writes `content` to the repo-relative `path` under `repoRoot`; true when its bytes changed. */
+function writeIfChanged(repoRoot: string, path: string, content: string): boolean {
+  const target = join(repoRoot, path);
+  if (existsSync(target) && readFileSync(target, "utf8") === content) return false;
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, content);
+  return true;
+}
+
+/**
+ * Applies `writeSchemas` to the tree at `repoRoot`: the generated index,
+ * phax's release module, the lock, and the snapshot writes and removals.
+ * When a frozen module differs from its lock entry it writes nothing and
+ * returns those paths in `mismatched`. `changed` lists, sorted, the
+ * repo-relative paths it wrote or removed whose content actually changed.
+ */
+export function applySchemasWrite(repoRoot: string): {
+  readonly mismatched: ReadonlyArray<string>;
+  readonly changed: ReadonlyArray<string>;
+} {
+  const written = writeSchemas(readSchemasState(repoRoot));
+  if (written.mismatched.length > 0) return { mismatched: written.mismatched, changed: [] };
+  const changed: string[] = [];
+  const files: ReadonlyArray<readonly [string, string]> = [
+    [`${PACKAGE_DIR}/${GENERATED_INDEX}`, written.generatedIndex],
+    [RELEASE_MODULE, written.releaseModule],
+    [LOCK_PATH, written.lock],
+    ...written.snapshotWrites,
+  ];
+  for (const [path, content] of files) {
+    if (writeIfChanged(repoRoot, path, content)) changed.push(path);
+  }
+  for (const path of written.snapshotRemovals) {
+    rmSync(join(repoRoot, path));
+    changed.push(path);
+  }
+  return { mismatched: [], changed: changed.toSorted() };
+}
+
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 
 if (isMain) {
   const repoRoot = join(fileURLToPath(import.meta.url), "../..");
-  const state = readSchemasState(repoRoot);
   if (process.argv.includes("--write")) {
-    const written = writeSchemas(state);
-    if (written.mismatched.length > 0) {
-      for (const path of written.mismatched) {
+    const { mismatched, changed } = applySchemasWrite(repoRoot);
+    if (mismatched.length > 0) {
+      for (const path of mismatched) {
         console.error(`✗ ${path} differs from its ${LOCK_PATH} entry — nothing written`);
       }
       process.exit(1);
     }
-    const indexPath = join(repoRoot, PACKAGE_DIR, GENERATED_INDEX);
-    mkdirSync(dirname(indexPath), { recursive: true });
-    writeFileSync(indexPath, written.generatedIndex);
-    writeFileSync(join(repoRoot, RELEASE_MODULE), written.releaseModule);
-    writeFileSync(join(repoRoot, LOCK_PATH), written.lock);
     console.log(`Wrote ${PACKAGE_DIR}/${GENERATED_INDEX}, ${RELEASE_MODULE} and ${LOCK_PATH}`);
-    for (const [path, content] of written.snapshotWrites) {
-      const target = join(repoRoot, path);
-      mkdirSync(dirname(target), { recursive: true });
-      writeFileSync(target, content);
-      console.log(`Wrote ${path}`);
-    }
-    for (const path of written.snapshotRemovals) {
-      rmSync(join(repoRoot, path));
-      console.log(`Removed ${path}`);
+    for (const path of changed.filter((entry) => entry.startsWith(`${SNAPSHOTS_DIR}/`))) {
+      console.log(`${existsSync(join(repoRoot, path)) ? "Wrote" : "Removed"} ${path}`);
     }
   } else {
+    const state = readSchemasState(repoRoot);
     const findings = checkSchemas(state);
     for (const finding of findings) console.error(finding);
     if (findings.length > 0) process.exit(1);
