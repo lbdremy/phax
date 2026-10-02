@@ -192,12 +192,12 @@ desktop — none is promised by the announcement.
       the real-document fixtures (two held a louloupapers run) and the shape survey, add snapshots
       and the gate. Plan 3/5 "support starts now" landed 2026-09-30
       (PR #108, run archived; the spec-completion pair was dropped from the branch before
-      merge). **Plan 4/5 Approved 2026-10-01**
-      (`docs/plans/2610010856-schemas-package-plan.md`, phax writes `$schema`, 9 phases; frozen
-      decoders in `src/schemas/history/`, phax never imports `packages/`); ran 2026-10-01,
-      PR #109 under review (side-review cleanups — drop `WRITES_SCHEMA`, a stronger
-      `$schema`-before-`kind` assertion, fold the "written by phax" blocks into
-      `describe.each` — handed to another session).
+      merge). **Plan 4/5 landed 2026-10-02** (phax writes `$schema`; frozen decoders in
+      `src/schemas/history/`, phax never imports `packages/`; PR #109 merged with the
+      side-review cleanups, run archived). **Plan 5/5 (publication)** is being authored from
+      the rewritten brief: `release.sh` cuts the `next` shapes, lockstep publish with a tarball
+      smoke, dev-build `$schema` documents fail cleanly, README table and §11 section; it
+      completes the spec.
       **Before 1.0: phax must not rewrite a document from a newer release.** phax accepts
       `$schema` from any release as long as the format id matches (the package refuses a
       newer one). After a downgrade, the registry and run/phase status — decoded tolerantly,
