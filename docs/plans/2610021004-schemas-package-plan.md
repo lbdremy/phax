@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2609241238-schemas-package.md
+approved:
+  date: 2026-10-02
+  baseline: 0a43951
 ---
 # schemas-package 5/5 — publication
 
