@@ -194,7 +194,17 @@ desktop — none is promised by the announcement.
       (PR #108, run archived; the spec-completion pair was dropped from the branch before
       merge). **Plan 4/5 Approved 2026-10-01**
       (`docs/plans/2610010856-schemas-package-plan.md`, phax writes `$schema`, 9 phases; frozen
-      decoders in `src/schemas/history/`, phax never imports `packages/`); running.
+      decoders in `src/schemas/history/`, phax never imports `packages/`); ran 2026-10-01,
+      PR #109 under review (side-review cleanups — drop `WRITES_SCHEMA`, a stronger
+      `$schema`-before-`kind` assertion, fold the "written by phax" blocks into
+      `describe.each` — handed to another session).
+      **Before 1.0: phax must not rewrite a document from a newer release.** phax accepts
+      `$schema` from any release as long as the format id matches (the package refuses a
+      newer one). After a downgrade, the registry and run/phase status — decoded tolerantly,
+      unknown keys ignored — would be read, stripped of the newer fields and rewritten
+      without them: data loss. phax should refuse (or at least not rewrite) a file whose
+      `$schema` names a release newer than its own, as the package does. Harmless until a
+      release after 0.17.0 exists (found in the PR #109 side review, 2026-10-02).
       Deferred with the author (2026-09-29), not in plans 2–5: **a Standard Schema export**
       per format (only if a consumer needs to hand the schemas to a non-Effect validator;
       the cockpit parses with Effect, losslessly); **deterministic JSON Schema annotations**
