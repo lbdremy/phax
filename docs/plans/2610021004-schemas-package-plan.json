@@ -1,0 +1,260 @@
+{
+  "version": 1,
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2609241238-schemas-package.md",
+  "run": {
+    "shortName": "schemas-package-5-5-publication",
+    "title": "schemas-package 5/5 — publication",
+    "requiredCommands": [
+      "pnpm exec tsx"
+    ]
+  },
+  "preamble": {
+    "summary": "This is the last of the five plans that ship the `schemas-package` spec, and it completes the spec. Plans 1 to 4 (PR #104, #105, #108, #109) built `@lbdremy/phax-schemas` under `packages/schemas/`. Today phax writes `$schema` first in every persisted format. Each format has a frozen pre-schema module in `src/schemas/history/` and a `next` current shape. There are 15 `packages/schemas/snapshots/<format id>/next.schema.json` snapshots, the generated `PACKAGE_VERSION` and `FIRST_SUPPORTED_RELEASE` (null until a release-named snapshot exists), and `src/schemas/release.ts` (`PHAX_RELEASE`). Nothing is cut or published yet.\n\nThis plan prepares the release so the author can cut and publish it. Cutting the release stays the author's act: no phase runs `scripts/release.sh` on the real tree, tags or publishes. The phases are:\n\n- phase-01: each format's current shape name follows its snapshots, so renaming a snapshot renames the shape. A document stamped by a development build before the first supported release fails cleanly. A released shape with no decoder fails the gate. The suite no longer hard-codes `next`.\n- phase-02: `scripts/release-cut.ts`, which `release.sh` calls. It bumps the three manifests, renames every `next` snapshot to the release and regenerates the derived files. A test simulates a cut on a copy of the tree and checks that the snapshot check passes on the copy.\n- phase-03: the release workflow smoke-tests the packed tarball in an empty Node 20 project, checks the lockstep version, and stage-publishes `@lbdremy/phax-schemas` beside `@lbdremy/phax`. Every step that can fail runs before the first publish. CI runs the same smoke.\n- phase-04: the README's persisted-formats table and the §11 section \"Read phax files from code\".\n\nSpec coverage:\n\n- Requirements delivered: `release-names-shapes` (§5.18), `bump` (§5.25), `lockstep` (§5.22), `release` (§5.23), `release-gate` (§5.24), `package` (§5.1, installable and usable without the CLI).\n- Requirements completed by the release this plan prepares: `history-read` (§5.9) and `pre-schema-unsupported` (§5.10). Once the cut renames the snapshots, a document resolves to its release-named shape, and the unsupported message names the first supported release.\n- Acceptance criteria covered: `ac-release-names-shapes`, `ac-bump`, `ac-lockstep`, `ac-release-gate`, `ac-e2e`, and §11's docs page.\n- Kept satisfied: every requirement and criterion plans 1 to 4 delivered.\n- `code-review` (§5.26) joins with the headless-review spec.\n\nOut of scope:\n\n- serving the `$schema` URLs on docs.phax.run;\n- the code-review document;\n- the Standard Schema export and deterministic JSON Schema annotations;\n- refusing to rewrite a document from a newer release;\n- every change the artifact-decide, headless-review and oracle-phases specs make to these formats.\n\nPrivacy: nothing from `~/.phax`, a records branch or another repository enters this repository, and no phase reads `~/.phax` (spec requirement `synthetic-fixtures`). Every test and smoke document is made up or built through a schema. phax never imports `packages/`, and phax's `tsconfig.build.json`, `dist/` layout and `bin` do not change.",
+    "requiredCommandsNote": "`pnpm exec tsx` is already in `security.agentCommands` in `phax.json`. phase-01 uses it to run `scripts/schemas-check.ts --write`. phase-02 may use it for a dry run of `scripts/release-cut.ts --root <temporary copy>`, never on the real tree. The tarball smoke needs the network (`npm install` from the registry) and runs only in GitHub Actions, so no phase runs it. No security configuration change is needed.",
+    "technicalArbitrations": [
+      "Current shape names are generated from the snapshots, not rewritten in `formats/*.ts`. The generated index gains `CURRENT_SHAPES`: for each format, `next` when `<id>/next.schema.json` exists, else its highest release-named snapshot. Every format definition and shape map reads its name from that value. The release then renames snapshot files and runs `schemas-check --write`. Loss accepted: `formats/*.ts` no longer shows a shape's name as a literal, and type tests name it through `typeof CURRENT_SHAPES`. Rewriting TypeScript source with a regex instead would give up a single source of truth (the snapshot directory) and would tie the release to how oxfmt lays out a `current: { name: … }` literal.",
+      "Because current names follow the snapshots, `schemas-check` fails on a release-named snapshot that is neither the format's current shape nor an entry of its `releases`. The message says to freeze that shape under `src/schemas/history/<id>/<release>.ts`. Loss accepted: after a release, the first change to a format's shape blocks the gate until the released shape is frozen. Spec §5.16 requires that freeze anyway, and without the check the released shape would silently lose its decoder.",
+      "A `$schema` document whose release is below `FIRST_SUPPORTED_RELEASE` fails at `$schema`. The message names the URL and says the document was written by a development build before the first supported release. No decoder tries it, not even the pre-schema one. Loss accepted: such a document is unreadable by the package even when its bytes match a released shape. No released phax ever wrote one: only development builds of 0.16.0 stamp `$schema`, and phax's own bridge still reads them.",
+      "The tarball smoke runs in GitHub Actions on every CI run and in the release workflow, never in `pnpm check:full` or a phax gate profile. Loss accepted: each CI run pays one `npm install` of the tarball and effect from the registry, and can fail on a registry outage. Running it only at release time would give up finding a broken package before the tag: a failed release workflow costs a deleted tag and a second release commit. The phax gate and `check:full` stay offline because phase agents have no network.",
+      "The smoke runs under Node 20 in the same release job that publishes. The job switches to Node 20 with a second `actions/setup-node` and back to Node 24 before the npm upgrade and the publishes. Loss accepted: the job is less linear, and the npm upgrade step moves after the smoke. A separate smoke job would give up publishing exactly the tarball that was smoked, because the release job would rebuild it.",
+      "`release.sh` bumps `packages/schemas/package.json` in the release commit. The workflow only checks it against the tag, unlike `npm/package.json`, which `prepare-npm.ts` sets. Loss accepted: a tag on a commit not made by `release.sh` fails the workflow instead of being patched. Lockstep must hold in the commit itself, because the same commit names the released snapshots.",
+      "The cut-simulation test runs `schemas-check` in-process against a copy of the tree, and loads the copy's package entry to parse documents at the new release. It does not run the whole gate on the copy. Loss accepted: the test does not typecheck the copy. Type safety after a cut follows from `CURRENT_SHAPES` being the only place a shape name is spelled, and phase-01 makes the suite derive every shape name from it."
+    ]
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-current-shapes-follow-snapshots",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "packages/schemas/build/generated.ts",
+        "packages/schemas/build/snapshots.ts",
+        "packages/schemas/build/jsonSchemas.ts",
+        "scripts/schemas-check.ts",
+        "packages/schemas/src/generated/index.ts",
+        "packages/schemas/src/shapes.ts",
+        "packages/schemas/src/formats/runDirectory.ts",
+        "packages/schemas/src/formats/repository.ts",
+        "packages/schemas/src/formats/recordManifests.ts",
+        "packages/schemas/src/formats/recordTimeline.ts",
+        "tests/unit/schemasPackage/frozenHistory.test.ts",
+        "tests/unit/schemasPackage/snapshots.test.ts",
+        "tests/unit/schemasPackage/shapes.test.ts",
+        "tests/unit/schemasPackage/currentShapes.test.ts",
+        "tests/unit/schemasPackage/parseDocument.test.ts",
+        "tests/unit/schemasPackage/recordManifests.test.ts",
+        "tests/unit/schemasPackage/runDirectoryFormats.test.ts",
+        "tests/unit/schemasPackage/repositoryFormats.test.ts",
+        "tests/unit/schemasPackage/recordTimeline.test.ts",
+        "tests/unit/schemasPackage/phaseRecordManifestHistory.test.ts",
+        "tests/type/schemasPackage.ts",
+        "tests/integration/persistedProducer.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "packages/schemas/src/document.ts",
+        "packages/schemas/src/parsed.ts",
+        "packages/schemas/src/index.ts",
+        "tests/unit/schemasPackage/parse.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/jsonSchemas.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(schemas): name each format's current shape from its snapshots",
+        "body": "The generated index now carries CURRENT_SHAPES: for each format, next\nwhen its next.schema.json exists, else its highest release-named\nsnapshot. Every format definition and shape map reads its current name\nfrom it, so renaming a next snapshot to a release and running\nschemas-check --write names the shape by that release.\n\nschemas-check fails on a released snapshot that is neither the current\nshape nor a frozen release, so a released shape never silently loses\nits decoder.\n\nA $schema document whose release is below the first supported release\nfails at $schema: it was written by a development build before the\nfirst release that writes $schema, and no decoder tries it.\n\nThe tests derive every current shape name and package release from the\ngenerated values instead of hard-coding next, so a release commit\nleaves them green."
+      },
+      "title": "Each format's current shape follows its snapshots",
+      "objective": "Make a format's current shape name a value derived from its snapshots, so that the release only renames snapshots. Development-build documents fail cleanly, a released shape cannot lose its decoder unnoticed, and no test breaks when `next` becomes a release.",
+      "detailedInstructions": [
+        "Read these first:\n- the archived plan 4 (`docs/plans/archive/2610010856-schemas-package-plan.md`, its phase-09 handoff note);\n- `packages/schemas/src/shapes.ts` (`defineFormat` and its JSDoc resolution order);\n- `packages/schemas/src/document.ts`;\n- `packages/schemas/src/formats/*.ts`;\n- `packages/schemas/build/{generated,snapshots,jsonSchemas}.ts`;\n- `scripts/schemas-check.ts`;\n- `tests/unit/schemasPackage/*`, `tests/type/schemasPackage.ts` and `tests/integration/persistedProducer.test.ts`.\n\nNever read `~/.phax`, a records branch or another repository. Use only made-up documents.",
+        "Current shape names:\n- In `packages/schemas/build/snapshots.ts`, add a pure `currentShapeNames(snapshots)`. For every id in `FORMAT_IDS`, it returns `next` when the format directory has `next.schema.json`, else the highest release-named snapshot (`X.Y.Z`), using `compareReleases`.\n- A format with neither has no current shape name, and the result reports it as a finding: `✗ <id>: no next or release-named snapshot — run <WRITE_COMMAND>`.\n- Hidden entries and non-format directories are ignored, as in `firstSupportedRelease`.",
+        "Generated index:\n- `renderGeneratedIndex` in `packages/schemas/build/generated.ts` takes `{ packageVersion, firstSupportedRelease, currentShapes }`.\n- It also emits a commented `export const CURRENT_SHAPES = { <id>: \"<name>\", … } as const;` with keys in `FORMAT_IDS` order.\n- `readSchemasState` in `scripts/schemas-check.ts` computes `currentShapes` from the snapshots it already reads.\n- `checkSchemas` reports a stale generated index when `CURRENT_SHAPES` differs too, and the finding names the expected current shapes.\n- Update both files' header comments.",
+        "Released snapshot without a decoder:\n- `SnapshotFormat` gains `releasedShapes: ReadonlyArray<string>`, the names of the format's `releases` entries. `FORMAT_DEFINITIONS` in `build/jsonSchemas.ts` exposes `releases` so `renderFormats` can fill it.\n- `checkSnapshots` reports every release-named snapshot that is neither the snapshot-derived current shape name nor in `releasedShapes`: `✗ <id>: snapshot <X> is released but no decoder reads it — freeze it as src/schemas/history/<id>/<X>.ts and add it to the format's releases`.\n- Compare against the name derived from the snapshots, never against the in-process `current.name`. The release cut (phase-02) renames snapshots while the running process still holds the old names.\n- `planSnapshotWrites` is unchanged.",
+        "Formats:\n- In `packages/schemas/src/shapes.ts`, add a helper type, for example `CurrentShapeName<F extends FormatId> = (typeof CURRENT_SHAPES)[F]`.\n- In each of the four `formats/*.ts` files, key every shape map's current entry by that name, for example `{ \"pre-schema\": RegistryPreSchema } & { readonly [K in CurrentShapeName<\"registry\">]: RegistryFile }`. Flatten it with a local `Simplify` if `ParsedShape` or `IdentifiedDocument` needs a plain object type.\n- Each `current` becomes `{ name: CURRENT_SHAPES.<id>, shape: … }`.\n- `releases` stays `[]` and the `toLatest*` functions are unchanged.\n- Rewrite the header comments that say the current shape is `next`: it is named by `CURRENT_SHAPES`, `next` until a release renames it.\n- `FrozenPreSchemaSpec` must keep accepting a current name that is either `next` or a release.",
+        "Development builds:\n- In `shapes.ts`, add `developmentBuildMessage(url, firstSupportedRelease)`, which returns `<url> was written by a development build of phax before <first>, the first supported release — not supported`.\n- In `defineFormat`'s `$schema` branch, run the new check after the malformed, unknown-format, other-format and newer-release checks and before any decoder. When `firstSupportedRelease` is not null and the document's release is below it, fail at `$schema` with that message.\n- Never fall back to the pre-schema decoder for a `$schema` document.\n- Update the JSDoc resolution list.\n- Check that `parseDocument` (`document.ts`) and `parseRecordManifest` reach this check by delegating to the format's `parse`. If either resolves the release itself, apply the same rule there.",
+        "Make the suite release-independent:\n- Every test that asserts a real format's current shape uses `CURRENT_SHAPES[id]` instead of the literal `next`. This covers the package unit tests, `tests/type/schemasPackage.ts` (through `typeof CURRENT_SHAPES`) and `tests/integration/persistedProducer.test.ts`.\n- Toy formats in `shapes.test.ts` and `snapshots.test.ts` keep their literal names.\n- A release the tests assume to be newer than the package is derived from `PACKAGE_VERSION`, for example its next major. Do not keep a literal such as 0.19.0.\n- The package's own release comes from `PACKAGE_VERSION` or `PHAX_RELEASE`.\n- In `frozenHistory.test.ts`, replace 'none is released yet' with: `FIRST_SUPPORTED_RELEASE` and `state.firstSupportedRelease` equal `firstSupportedRelease(state.snapshots)`. Add the same check for `CURRENT_SHAPES` against `currentShapeNames(state.snapshots)`.\n- In `currentShapes.test.ts`:\n    - 'is named next' becomes 'is named by its snapshots': `FORMAT_DEFINITIONS[id].current.name` equals `CURRENT_SHAPES[id]`, which is `next` when `next.schema.json` exists and the highest release snapshot otherwise.\n    - 'has a next snapshot' becomes 'its current snapshot (`<CURRENT_SHAPES[id]>.schema.json`) exists and differs from its pre-schema one'.",
+        "Tests to add:\n- In `snapshots.test.ts`, test `currentShapeNames`:\n    - `next` wins over a release;\n    - the highest release wins when there is no `next`;\n    - a format with neither is a finding;\n    - hidden entries are ignored.\n- In `snapshots.test.ts`, test the released-without-decoder finding: a release snapshot that is current, one listed in `releases`, and one that is neither.\n- In `frozenHistory.test.ts`, add a stale-`CURRENT_SHAPES` finding.\n- In `shapes.test.ts`, use a toy format with injected `packageVersion: '0.17.0'`, `firstSupportedRelease: '0.17.0'` and current shape `0.17.0`:\n    - a document whose `$schema` names 0.16.0 fails at `$schema` with the development-build message, even though the toy's pre-schema decoder would accept its other keys;\n    - a document naming 0.17.0 decodes as `0.17.0`;\n    - with `firstSupportedRelease: null`, the old behaviour is unchanged.\n- In `parseDocument.test.ts`, add one case: a real format's document stamped below an injected first supported release fails at `$schema` with the same message. Use the injectable options, or a toy table through `makeDocumentParser`.",
+        "Run `pnpm exec tsx scripts/schemas-check.ts --write` last. It must rewrite only `packages/schemas/src/generated/index.ts`, with `CURRENT_SHAPES` all `next`. No snapshot, the lock and `src/schemas/release.ts` must stay unchanged."
+      ],
+      "boundaryContracts": "Producer: `packages/schemas/src/generated/index.ts` provides `CURRENT_SHAPES`, a const map from every format id to `next` or a release, written only by `schemas-check --write`. Consumers: the four `formats/*.ts` files (shape-map keys and `current.name`), the tests, and from phase-02 the release cut, which renames snapshots and regenerates this map. Producer: `packages/schemas/build/snapshots.ts` provides `currentShapeNames(snapshots)` and the released-without-decoder finding, and `scripts/schemas-check.ts` consumes them. Producer: `developmentBuildMessage` in `shapes.ts`, consumed by `defineFormat` and so by every parse function and `parseDocument`. phax (`src/`) consumes none of these.",
+      "testStrategy": "Write the pure tests first: `currentShapeNames`, the released-without-decoder finding, and the development-build toy cases in `shapes.test.ts`. Then generate the map and rewire the formats. The type test (`pnpm test:type`) checks that every shape map still types each parse result, now keyed through `CURRENT_SHAPES`. Sweep the existing package tests last, replacing literals with derived values; the existing assertions are their regression net. Before the cut every derived value is `next`, so no behaviour changes.",
+      "implementationOrder": [
+        "`currentShapeNames` and its tests in `snapshots.test.ts`.",
+        "The released-without-decoder finding and its tests.",
+        "`renderGeneratedIndex` with `CURRENT_SHAPES`, plus `readSchemasState`/`checkSchemas` and the `frozenHistory.test.ts` cases.",
+        "`developmentBuildMessage` and the `defineFormat` check, with the `shapes.test.ts` toy cases.",
+        "The formats rewired to `CURRENT_SHAPES`, then `pnpm exec tsx scripts/schemas-check.ts --write`.",
+        "The test sweep: unit tests, the type test and `persistedProducer.test.ts`."
+      ],
+      "excludedScope": [
+        "Renaming any snapshot or bumping any version (phase-02 and the author's release).",
+        "`scripts/release.sh`, the release workflow and CI.",
+        "Freezing a released shape under `src/schemas/history/`: none exists yet.",
+        "Any change under `src/` or to a persisted format's shape.",
+        "The README."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Include:\n- the exact `CURRENT_SHAPES` declaration and the `CurrentShapeName` helper, with one format's shape map and `current` as rewired;\n- the signatures of `currentShapeNames` and `developmentBuildMessage`, and where `defineFormat` applies the development-build check;\n- the exact text of the released-without-decoder finding;\n- confirmation that `schemas-check --write` changed only the generated index;\n- the list of tests changed from a literal `next` or release to a derived value, and any you left literal on purpose (toy formats);\n- any deviation from the planned file lists, with the reason."
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-release-cut",
+      "plannedFilesToCreate": [
+        "scripts/release-cut.ts",
+        "tests/unit/releaseCut.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "scripts/release.sh",
+        "scripts/schemas-check.ts",
+        "tests/unit/releaseWorkflow.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "packages/schemas/build/snapshots.ts",
+        "packages/schemas/build/generated.ts",
+        "tests/unit/schemasPackage/frozenHistory.test.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "knip.json",
+        "docs/release.md"
+      ],
+      "commit": {
+        "subject": "feat(release): cut the schemas package's shapes in the release commit",
+        "body": "scripts/release-cut.ts, called by release.sh, bumps package.json,\nnpm/package.json and packages/schemas/package.json to the release,\nrenames every packages/schemas/snapshots/<format id>/next.schema.json\nto <release>.schema.json, and regenerates PACKAGE_VERSION,\nFIRST_SUPPORTED_RELEASE, CURRENT_SHAPES and src/schemas/release.ts.\nrelease.sh stages exactly the paths it changed, before regenerating the\nusage spec, and names both staged packages at the end.\n\nschemas-check's --write is now applySchemasWrite(root), so the cut\nruns on any tree. A test simulates a cut on a temporary copy: the\nsnapshot check passes there, the copy's package reads documents at the\nnew release, a development-build document fails cleanly, and the real\ntree is untouched."
+      },
+      "title": "The release cut names the shapes in the release commit",
+      "objective": "`scripts/release.sh X` cuts the schemas package's shapes in the release commit. A TypeScript script renames every `<format id>/next.schema.json` to `<format id>/X.schema.json` and bumps `package.json`, `npm/package.json` and `packages/schemas/package.json` to X. It then regenerates `PACKAGE_VERSION`, `FIRST_SUPPORTED_RELEASE`, `CURRENT_SHAPES` and `src/schemas/release.ts`, and `release.sh` stages every file it changed. A test simulates a cut on a copy of the tree and proves the snapshot check passes there and the copy's package reads documents at X (`ac-release-names-shapes`, `ac-bump`).",
+      "detailedInstructions": [
+        "Read the phase-01 handoff, `scripts/release.sh`, `scripts/schemas-check.ts` and `tests/unit/releaseWorkflow.test.ts`. Never run `release.sh`, never run the cut on the real tree, and never tag or push.",
+        "In `scripts/schemas-check.ts`:\n- Extract the `--write` branch of the main block into an exported `applySchemasWrite(repoRoot: string)`. It reads the state of that root, refuses (returns the mismatched paths, writes nothing) when a frozen module differs from its lock entry, and writes the generated index, `src/schemas/release.ts`, the lock and the snapshot writes and removals under that root. It returns the repo-relative paths it wrote or removed whose content actually changed.\n- The main block calls it and keeps its output and exit codes.\n- `readSchemasState(root)` already takes a root; keep it pure apart from its reads.",
+        "Create `scripts/release-cut.ts`:\n- It exports `cutRelease(repoRoot: string, version: string): { changed: ReadonlyArray<string> }`. It throws an Error with a plain message, before writing anything, when:\n    - `version` is not `X.Y.Z` (`isRelease`);\n    - `version` is not newer than the root `package.json` version (`compareReleases`);\n    - any `packages/schemas/snapshots/<id>/<version>.schema.json` already exists.\n- In order, it:\n    1. sets `version` in `package.json`, `npm/package.json` and `packages/schemas/package.json`, keeping each file's 2-space JSON layout and trailing newline and changing nothing else;\n    2. renames every `packages/schemas/snapshots/<id>/next.schema.json` to `<id>/<version>.schema.json`, byte for byte;\n    3. calls `applySchemasWrite(repoRoot)`, failing if it reports mismatched lock entries.\n- `changed` lists every repo-relative path created, modified or removed (both sides of each rename), sorted and without duplicates.\n- Its main block runs `cutRelease` on the repository root, or on `--root <dir>` when given. It prints one changed path per line on stdout and nothing else there; progress goes to stderr. On error it prints `✗ <message>` to stderr and exits 1.\n- Header comment: what it does, that `release.sh` calls it, that it must never be run on the real tree outside a release, and the dry-run form `pnpm exec tsx scripts/release-cut.ts <X> --root <copy>`.",
+        "Change `scripts/release.sh`, keeping its existing checks (semver, clean tree, tag absent):\n- Replace the two `npm pkg set` lines with `echo \"renaming snapshots/*/next.schema.json → ${VERSION}.schema.json\"` and a call to `pnpm exec tsx scripts/release-cut.ts \"${VERSION}\"`.\n- Collect its stdout paths into an array with a bash-3.2-compatible `while IFS= read -r` loop: macOS ships bash 3.2, so do not use `mapfile`. Abort if the script fails.\n- The cut must run before `pnpm gen:usage-spec`, because `readPackageVersion()` returns the generated `PHAX_RELEASE`.\n- The bump line reads `bumping to ${VERSION} (package.json, npm/package.json, packages/schemas/package.json)`.\n- Stage with `git add -A -- \"${CUT_PATHS[@]}\" phax.usage.kdl docs/cli/reference.md README.md`, so renames and removals are staged too.\n- The script's last lines name both staged packages: `approve the staged npm packages at:`, then one line each for `https://www.npmjs.com/package/@lbdremy/phax` and `https://www.npmjs.com/package/@lbdremy/phax-schemas`.",
+        "Create `tests/unit/releaseCut.test.ts`. Build a temporary copy of the tree in `os.tmpdir()`, removed after each test. Copy:\n- `package.json` and `npm/package.json`;\n- `src/` (the copy's package imports it, and it holds `src/schemas/release.ts` and `src/schemas/history/`);\n- `packages/schemas/package.json`, `packages/schemas/history.lock.json`, `packages/schemas/snapshots/` and `packages/schemas/src/`. Do not copy `dist/` or `json/`.\n- Symlink the repository's `node_modules` into the copy so its modules resolve `effect`.\n\nCompute X as the next minor of the root version, so the test never needs editing after a release. Record a hash of every file the cut could touch in the real tree, and assert after every test that they are unchanged.",
+        "Cases for `releaseCut.test.ts`:\n1. One cut to X:\n    - the three manifests say X;\n    - no `next.schema.json` remains;\n    - each former `next` snapshot exists as `X.schema.json` with the same bytes, and every `pre-schema.schema.json` is untouched;\n    - the copy's generated index has `PACKAGE_VERSION` X, `FIRST_SUPPORTED_RELEASE` X and every `CURRENT_SHAPES` entry X;\n    - the copy's `src/schemas/release.ts` says X and the lock is unchanged;\n    - `checkSchemas(readSchemasState(copy))` is `[]`, so the release commit keeps the snapshot gate green;\n    - `changed` equals exactly the set of files that differ between the copy before and after.\n2. The copy's package reads at X. Import the copy's `packages/schemas/src/index.ts`, with a dynamic import in the test, or a `node --import tsx` subprocess if vitest cannot load modules from a temporary directory. Using made-up documents built like `validDocuments`:\n    - a phase record manifest stamped `phase-record-manifest/X` parses with shape X;\n    - `parseDocument` on it returns format `phase-record-manifest` and shape X;\n    - the same document stamped with the pre-cut root version (a development build) fails at `$schema` with the development-build message naming X;\n    - a pre-schema document still parses as `pre-schema`;\n    - a pre-schema document the frozen decoder rejects fails with a message naming phax X as the first supported release.\n3. A second cut to the following minor, with no `next` snapshot: nothing is renamed, `FIRST_SUPPORTED_RELEASE` and `CURRENT_SHAPES` stay at X, the manifests and `release.ts` move, and `checkSchemas` stays `[]`.\n4. Refusals: a malformed version, a version not newer than the root, and an existing `<id>/<X>.schema.json`. Each throws and leaves the copy byte-identical.",
+        "In `tests/unit/releaseWorkflow.test.ts`, add a 'release script invariants' block that reads `scripts/release.sh` as text and checks that it:\n- calls `pnpm exec tsx scripts/release-cut.ts` before `pnpm gen:usage-spec`;\n- has no `npm pkg set`;\n- has no `mapfile`;\n- stages with `git add -A --`;\n- ends by naming both npm package URLs.",
+        "Use only made-up values. Every test document is built through a schema or written by hand."
+      ],
+      "boundaryContracts": "Producer: `scripts/release-cut.ts`, which provides `cutRelease(repoRoot, version) → { changed }` and prints the changed paths one per line on stdout. Its consumer is `scripts/release.sh`, which stages exactly those paths. Producer: `applySchemasWrite(repoRoot)` in `scripts/schemas-check.ts`, consumed by the cut and by the script's own `--write`. The cut relies on phase-01's contract: renaming snapshots plus `--write` regenerates `CURRENT_SHAPES`, and no source file names a shape.",
+      "testStrategy": "Write `releaseCut.test.ts` first, against a stub `cutRelease`: the copy harness, the real-tree hash guard and the first-cut assertions define the contract. Then implement `applySchemasWrite` and the cut. The package-reads-at-X case is the end-to-end proof that the release commit yields a working package. The `release.sh` invariants are text checks, because the shell script itself cannot run without tagging.",
+      "implementationOrder": [
+        "Extract `applySchemasWrite` from the `--write` branch, keeping the script's behaviour.",
+        "Write the copy harness and the first-cut test.",
+        "Implement `cutRelease` and its main block.",
+        "Add the second-cut, refusal and package-reads-at-X cases.",
+        "Change `release.sh` and add its invariant tests."
+      ],
+      "excludedScope": [
+        "Running `release.sh` or the cut on the real tree, tagging, pushing or publishing.",
+        "The release workflow and CI (phase-03).",
+        "Freezing a released shape into `src/schemas/history/`: needed only after the first post-release shape change.",
+        "The README (phase-04)."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Include:\n- the signatures of `cutRelease` and `applySchemasWrite`, and the stdout and stderr contract of `scripts/release-cut.ts`;\n- the final step order of `release.sh` and how it collects and stages the changed paths;\n- how the test loads the copy's package entry (dynamic import or subprocess);\n- any dry run you did with `--root`, and on which copy;\n- any deviation from the planned file lists, with the reason."
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-release-workflow-smoke",
+      "plannedFilesToCreate": [
+        "scripts/schemas-smoke.ts",
+        "tests/unit/schemasSmoke.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        ".github/workflows/release.yml",
+        ".github/workflows/ci.yml",
+        "tests/unit/releaseWorkflow.test.ts",
+        "docs/release.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/schemasPackage/documents.test.ts",
+        "knip.json",
+        ".gitignore"
+      ],
+      "commit": {
+        "subject": "ci(release): smoke-test and stage-publish @lbdremy/phax-schemas beside phax",
+        "body": "scripts/schemas-smoke.ts packs the built schemas package, installs the\ntarball into an empty Node 20 project, commits a made-up phase record\non a phax/records/v1 branch, and runs the spec's read-record.mjs\nconsumer there. It checks the printed line, the exit code, the package\nversion, one JSON Schema per format, and that node_modules holds only\nthe package, effect and effect's dependencies.\n\nThe release workflow runs that smoke under Node 20, checks that\nnpm/package.json and packages/schemas/package.json both carry the\ntag's version, and only then stage-publishes @lbdremy/phax and\n@lbdremy/phax-schemas. Every step that can fail runs before the first\npublish. CI runs the same smoke on every push and pull request.\n\ndocs/release.md describes the two-package release."
+      },
+      "title": "Smoke-test and stage-publish the schemas package beside phax",
+      "objective": "The release workflow publishes both packages in lockstep. It packs the built schemas package and installs the tarball into an empty Node 20 project. There, from a made-up phase record committed on a `phax/records/v1` branch, it runs the spec §6 consumer script. It then checks that both manifests carry the tag's version, and only then stage-publishes `@lbdremy/phax` and `@lbdremy/phax-schemas`. Every step that can fail runs before the first `npm stage publish` (`ac-e2e`, `ac-lockstep`, `ac-release-gate`). CI runs the same smoke on every push and pull request.",
+      "detailedInstructions": [
+        "Read the phase-02 handoff, `.github/workflows/release.yml`, `.github/workflows/ci.yml`, `tests/unit/releaseWorkflow.test.ts`, `docs/release.md`, `packages/schemas/package.json` and `tests/unit/schemasPackage/documents.ts`, which holds the made-up value conventions and the no-real-data checks. Never read `~/.phax`.",
+        "Create `scripts/schemas-smoke.ts`. Use only Node 20 APIs, because it runs under Node 20. Export pure, testable pieces:\n- `smokeRecordManifest()`: a made-up phase record manifest, encoded through phax's own `RunRecordManifestFileSchema` and stamped with `withSchemaUrl('phase-record-manifest', …)` from `src/schemas/persisted.ts`. It is written as phax writes it, at `PHAX_RELEASE`, with outcome `committed` and available usage from provider `claude-code`. Use made-up ids following `documents.ts`, for example run `run-0001`.\n- `SMOKE_RECORD_KEY`: `<runId>/phase-01`.\n- `CONSUMER_SCRIPT`: the spec §6 `read-record.mjs`, verbatim in behaviour. It uses `git show phax/records/v1:${key}/record.json`, then `parsePhaseRecordManifest(JSON.parse(raw))`, branches on `parsed.ok`, and prints `runId phaseId outcome provider-or-'no usage'`. It imports nothing but `node:child_process` and `@lbdremy/phax-schemas`.\n- `expectedConsumerOutput(manifest)`: the line it must print.\n- `strayPackages(installed, allowed)`: the installed top-level packages outside `@lbdremy/phax-schemas`, `effect` and effect's transitive dependencies. Scoped packages count as `@scope/name`, and `.bin` and `.package-lock.json` are ignored.",
+        "The main block of `scripts/schemas-smoke.ts`:\n1. Fail with a `✗` line naming `pnpm build` when `packages/schemas/dist/packages/schemas/src/index.js` or `packages/schemas/json/` is missing.\n2. Create a temporary directory and run `npm pack --pack-destination <tmp>` in `packages/schemas`.\n3. Create an empty consumer project with `{ \"name\": \"phax-schemas-smoke\", \"private\": true, \"type\": \"module\" }` and run `npm install --no-audit --no-fund <tarball>`.\n4. Run `git init`. With a fixed made-up author and committer from the environment (no global git config), commit `smokeRecordManifest()` as `<runId>/phase-01/record.json` on an orphan branch `phax/records/v1`.\n5. Write `read-record.mjs` from `CONSUMER_SCRIPT`, run `node read-record.mjs <SMOKE_RECORD_KEY>` there, and require exit code 0 and exactly the expected line.\n6. Require that the installed `@lbdremy/phax-schemas` version equals the root `package.json` version.\n7. Require that its `json/` holds `<id>.schema.json` for every id in `FORMAT_IDS`.\n8. Compute effect's transitive dependency closure from the installed `package.json` files and require `strayPackages` to be empty.\n\nPrint one `✓` line per check. On failure print `✗ <what>` and exit 1. Never touch the repository's own git state. Header comment: what the smoke proves (spec `ac-e2e`), that it needs the network and runs only in CI and the release workflow, and how to run it (`pnpm build`, then `pnpm exec tsx scripts/schemas-smoke.ts`).",
+        "Create `tests/unit/schemasSmoke.test.ts`. Do not run npm or the network. Check that:\n- `smokeRecordManifest()` has `$schema` as its first key, equal to `schemaUrl('phase-record-manifest', PHAX_RELEASE)`, and no `version`;\n- the package's `parsePhaseRecordManifest` accepts it with shape `CURRENT_SHAPES['phase-record-manifest']`;\n- it passes the same no-real-data checks `documents.test.ts` applies;\n- `expectedConsumerOutput` is `<runId> phase-01 committed claude-code`;\n- `CONSUMER_SCRIPT` imports only `node:child_process` and `@lbdremy/phax-schemas`, and reads `phax/records/v1:${key}/record.json`;\n- `strayPackages` passes effect's own dependency closure and flags a foreign package, including a scoped one.",
+        "Change `.github/workflows/release.yml`. Keep the existing pinned action SHAs, reusing the same SHA for every `actions/setup-node`. The resulting step order is:\n1. checkout;\n2. pnpm setup;\n3. setup-node 24 with the pnpm cache;\n4. setup Deno;\n5. install dependencies;\n6. install the usage CLI;\n7. Gate (unchanged; its `pnpm build` builds the schemas package's JS, declarations and JSON Schemas);\n8. Build release binaries;\n9. 'Use Node 20 for the schemas package smoke' (`actions/setup-node`, `node-version: \"20\"`);\n10. 'Smoke-test the schemas package tarball' (`pnpm exec tsx scripts/schemas-smoke.ts`);\n11. 'Restore Node 24' (`actions/setup-node`, `node-version: \"24\"`);\n12. 'Upgrade npm to support stage publish', moved here from before Deno;\n13. Prepare npm wrapper;\n14. 'Verify package versions match tag': the existing check, extended so `npm/package.json` and `packages/schemas/package.json` must both equal the tag version, naming the mismatching file;\n15. 'npm stage publish @lbdremy/phax' (`working-directory: npm`);\n16. 'npm stage publish @lbdremy/phax-schemas' (`working-directory: packages/schemas`), with the same `npm stage publish --access public --provenance` command;\n17. Create GitHub Release.\n\nNo step that can fail comes after the first publish, except the second publish and the GitHub release.",
+        "Change `.github/workflows/ci.yml`: after 'Deno compile (host binary)', add 'Use Node 20 for the schemas package smoke' and 'Smoke-test the schemas package tarball', the same two steps as in the release workflow. The job's `pnpm build` step already ran.",
+        "Extend `tests/unit/releaseWorkflow.test.ts` by parsing both workflows with the `yaml` dependency rather than matching substrings, and keep the existing invariants. Add these release workflow checks:\n- exactly two `npm stage publish --access public --provenance` steps, the wrapper one (`working-directory: npm`) before the schemas one (`working-directory: packages/schemas`);\n- every step that runs the gate, the binaries build, the smoke, the wrapper preparation and the version check comes before the first publish;\n- only the second publish and the GitHub release step follow the first publish;\n- the version check reads both `npm/package.json` and `packages/schemas/package.json`;\n- the last `actions/setup-node` before the smoke step uses node-version 20;\n- the npm upgrade step comes after a setup-node with node-version 24 that follows the smoke, and before the first publish.\n\nAdd this CI check: the CI job runs the smoke step after a setup-node with node-version 20.",
+        "Update `docs/release.md` for the two packages:\n- what `release.sh` now bumps and renames;\n- the workflow's smoke and lockstep check, and that a failure stages nothing;\n- approving both staged packages by hand.\n\nCorrect its stale `npm publish --dry-run` description to the stage publish."
+      ],
+      "boundaryContracts": "Producer: `scripts/schemas-smoke.ts`, which provides the smoke run (exit 0 or a `✗` line) and the exports `smokeRecordManifest`, `SMOKE_RECORD_KEY`, `CONSUMER_SCRIPT`, `expectedConsumerOutput` and `strayPackages`. Consumers: the release workflow and CI, which run it, and phase-04's README test, which checks that the README's example equals `CONSUMER_SCRIPT`. It consumes the built package (`pnpm build`) and phax's own encoder and `withSchemaUrl`, so the smoke document is written exactly as phax writes it.",
+      "testStrategy": "Unit-test the smoke's pure pieces first: the made-up manifest, the consumer script's contract and the stray-package rule. Then write the workflow invariants against the parsed YAML, before editing the workflows. The networked smoke itself cannot run in a phase; its first real run is CI on this branch's pull request, which the handoff must say.",
+      "implementationOrder": [
+        "`tests/unit/schemasSmoke.test.ts` and the pure exports of `scripts/schemas-smoke.ts`.",
+        "The smoke's main block.",
+        "The new `releaseWorkflow.test.ts` invariants.",
+        "The `release.yml` and `ci.yml` edits until those invariants pass.",
+        "`docs/release.md`."
+      ],
+      "excludedScope": [
+        "Running the smoke, `npm pack`, `npm install` or any network call inside the phase.",
+        "Publishing, tagging, or editing npm or GitHub settings.",
+        "Adding the smoke to `pnpm check:full` or a `phax.json` gate profile.",
+        "The README (phase-04)."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Include:\n- the exports of `scripts/schemas-smoke.ts`, and the exact `CONSUMER_SCRIPT` text phase-04 must embed in the README;\n- the final step order of both workflows;\n- a statement that the networked smoke was not run in the phase and first runs in CI on the pull request;\n- any deviation from the planned file lists, with the reason."
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-readme-persisted-formats",
+      "plannedFilesToCreate": [
+        "tests/unit/readmePersistedFormats.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "README.md"
+      ],
+      "optionalFilesToEdit": [
+        "scripts/schemas-smoke.ts",
+        "tests/unit/schemasSmoke.test.ts",
+        "docs/release.md"
+      ],
+      "commit": {
+        "subject": "docs(readme): document the persisted formats and reading them from code",
+        "body": "The README's Experimental formats section becomes Persisted formats.\nIt has one row per format the schemas package reads, plus the\nrecord-manifest union, each with its format id, its location, its parse\nfunction and its JSON Schema file.\n\nThe new Read phax files from code section shows the install and the\nread-record.mjs example, the same script the release smoke runs. It\nexplains that failures are values, that older shapes stay readable and\nupgrade in memory, and that a newer document asks for a package\nupgrade.\n\nA test checks that the table lists exactly the package's formats and\nexports, and that the README's example is the smoked consumer script."
+      },
+      "title": "README: persisted formats and reading them from code",
+      "objective": "The README documents every persisted format phax writes and how to read it from code, as spec §6 and §11 require. A table lists each format with its id, where it lives, its parse function and its JSON Schema file. The new section \"Read phax files from code\" shows the install and the `read-record.mjs` example, the same script the release smoke runs. A test checks that the table lists exactly the package's formats and that the example is the smoked script.",
+      "detailedInstructions": [
+        "Read the phase-03 handoff (the exact `CONSUMER_SCRIPT`), `README.md`, `packages/schemas/src/index.ts` and spec §6 ('README.md persisted-formats table') and §11.",
+        "Replace the README section `## Experimental formats` with `## Persisted formats`. Open it with one sentence: every document phax writes starts with `$schema` naming its format and the release that wrote it, every shape phax has written since that first release stays readable, and an older document without `$schema` is read by its format's pre-schema shape or reported unsupported.\n\nThen add a table with the columns Format, Format id, Where it lives, Read it with, and JSON Schema. Write one row per format id in `FORMAT_IDS`, using the spec §6 locations and the package's parse-function names. Add a final row for the record-manifest union: any `record.json` on `phax/records/v1`, read with `parseRecordManifest`, JSON Schema `json/record-manifest.schema.json`. The JSON Schema column is `json/<id>.schema.json`. Close with one line: everything comes from `@lbdremy/phax-schemas`, and `parseDocument` reads any document carrying `$schema`.",
+        "Add `## Read phax files from code` right after it. Its reader is someone writing a dashboard, cockpit or docs pipeline. In order:\n- `npm install @lbdremy/phax-schemas`;\n- the `read-record.mjs` example in a fenced js code block, byte-identical to `CONSUMER_SCRIPT` from `scripts/schemas-smoke.ts`;\n- a short run example (`node read-record.mjs <runId>/phase-01`);\n- one sentence on walking the whole branch with `parseRecordManifest`;\n- a pointer to `node_modules/@lbdremy/phax-schemas/json/<format>.schema.json` for docs tooling;\n- a note that a failure is a value with a path and a message, never an exception;\n- a note that every document stays readable: an older shape parses (`toLatest*` upgrades it in memory and marks a missing fact `{ kind: \"unknown\" }`), and a document from a newer phax release fails, asking you to upgrade the package.\n\nKeep the prose plain and short. Do not mention docs.phax.run serving the URLs.",
+        "Fix every link in `README.md` to `#experimental-formats`, and any 'experimental' wording that refers to these formats, for example in the headless authoring section. Do not edit `.claude/skills/`, specs or archived plans. Keep the new sections outside any region `pnpm docs:cli` regenerates, and check it by running `pnpm docs:cli`: the README must come out unchanged.",
+        "Create `tests/unit/readmePersistedFormats.test.ts`. It reads `README.md` and finds the table under `## Persisted formats`. It checks that:\n- the Format id column equals `FORMAT_IDS` plus `record-manifest`, each once;\n- every 'Read it with' entry is a function exported by `packages/schemas/src/index.ts` (import the module and check `typeof … === 'function'`);\n- every JSON Schema entry equals a `fileName` in `JSON_SCHEMA_FORMATS` for that row's id;\n- the single js code block under `## Read phax files from code` equals `CONSUMER_SCRIPT`;\n- `## Experimental formats` no longer exists."
+      ],
+      "boundaryContracts": "Consumer of phase-03's `CONSUMER_SCRIPT` export, which the README embeds verbatim and the test pins, and of the package's exports and `JSON_SCHEMA_FORMATS`, which the table names. Producer: the README's two sections, read by humans only.",
+      "testStrategy": "Write `readmePersistedFormats.test.ts` first, against the current README, where it fails. Then write the sections until it passes. Run `pnpm docs:cli` to confirm the regenerated CLI reference leaves the new sections untouched.",
+      "implementationOrder": [
+        "The README test.",
+        "`## Persisted formats` and its table.",
+        "`## Read phax files from code`.",
+        "Link and wording fixes, then `pnpm docs:cli` as a check."
+      ],
+      "excludedScope": [
+        "`.claude/skills/` files, specs, archived plans and `NEXT_STEPS.md`.",
+        "Any change to the package, phax or the workflows, apart from an export tweak of `CONSUMER_SCRIPT` if the README needs one.",
+        "Documenting docs.phax.run, the code-review document, or the 1.0 stability promise."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "Include:\n- the final table rows;\n- the links and wording fixed elsewhere in the README;\n- confirmation that `pnpm docs:cli` left the new sections unchanged;\n- a closing note for the author: the spec is complete once `scripts/release.sh <X>` is run, and the pull request's CI run of the smoke is the first networked proof;\n- any deviation from the planned file lists, with the reason."
+    }
+  ]
+}
