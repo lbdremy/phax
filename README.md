@@ -286,17 +286,67 @@ phax schema upgrade
 
 This rewrites `phax.schema.json` and `phax.user.schema.json` next to the nearest `phax.json` and reports whether the files changed or were already current. It never modifies `phax.json`.
 
-## Experimental formats
+## Persisted formats
 
-These formats are outside the `version: 1` stability promise that covers `phax.json` and the run formats: they may change between releases without a schema version bump.
+Every document phax writes starts with `$schema`, naming its format and the phax release that wrote it; every shape phax has written since that first release stays readable, and an older document without `$schema` is read by its format's pre-schema shape or reported unsupported.
 
-| Format           | Where it lives                                       | Contract                        |
-| ---------------- | ---------------------------------------------------- | ------------------------------- |
-| Spec document    | the `.json` sidecar beside a headless-authored spec  | `phax artifact schema spec`     |
-| Plan document    | the `.json` sidecar beside a headless-authored plan  | `phax artifact schema plan`     |
-| Authoring record | `authoring/<YYMMDDHHMM>-<slug>` on `phax/records/v1` | `phax records explain <commit>` |
+| Format                    | Format id                   | Where it lives                                             | Read it with                   | JSON Schema                                  |
+| ------------------------- | --------------------------- | ---------------------------------------------------------- | ------------------------------ | -------------------------------------------- |
+| Run registry              | `registry`                  | `~/.phax/registry.json`                                    | `parseRegistry`                | `json/registry.schema.json`                  |
+| Run status                | `run-status`                | `<run-dir>/run-status.json`                                | `parseRunStatus`               | `json/run-status.schema.json`                |
+| Phase status              | `phase-status`              | `<run-dir>/<phase-id>/status.json`                         | `parsePhaseStatus`             | `json/phase-status.schema.json`              |
+| phax-plan                 | `phax-plan`                 | `<run-dir>/phax-plan.json`                                 | `parsePhaxPlan`                | `json/phax-plan.schema.json`                 |
+| Compliance review         | `compliance-review`         | `<run-dir>/compliance-review.json`                         | `parseComplianceReview`        | `json/compliance-review.schema.json`         |
+| Plan approvals            | `plan-approvals`            | `docs/plans/approvals.json`                                | `parsePlanApprovals`           | `json/plan-approvals.schema.json`            |
+| Spec approvals            | `spec-approvals`            | `docs/specs/approvals.json`                                | `parseSpecApprovals`           | `json/spec-approvals.schema.json`            |
+| Phase record manifest     | `phase-record-manifest`     | `<runId>/<phaseId>/record.json` on `phax/records/v1`       | `parsePhaseRecordManifest`     | `json/phase-record-manifest.schema.json`     |
+| Authoring record manifest | `authoring-record-manifest` | `authoring/<authoringId>/record.json` on `phax/records/v1` | `parseAuthoringRecordManifest` | `json/authoring-record-manifest.schema.json` |
+| Gate attribution          | `gate-attribution`          | `<record>/gate-attribution.json`                           | `parseGateAttribution`         | `json/gate-attribution.schema.json`          |
+| File reconciliation       | `phase-file-reconciliation` | `<record>/file-reconciliation.json`                        | `parsePhaseFileReconciliation` | `json/phase-file-reconciliation.schema.json` |
+| Gate diagnostics          | `gate-diagnostics`          | `<record>/checks-attempt-NN.diagnostics.json`              | `parseGateDiagnostics`         | `json/gate-diagnostics.schema.json`          |
+| Gate pending              | `gate-pending`              | `<record>/checks-attempt-NN.pending.json`                  | `parseGatePending`             | `json/gate-pending.schema.json`              |
+| Spec document             | `spec-document`             | `.json` sidecar beside a headless-authored spec            | `parseSpecDocument`            | `json/spec-document.schema.json`             |
+| Plan document             | `plan-document`             | `.json` sidecar beside a headless-authored plan            | `parsePlanDocument`            | `json/plan-document.schema.json`             |
+| Record manifest (union)   | `record-manifest`           | any `record.json` on `phax/records/v1`                     | `parseRecordManifest`          | `json/record-manifest.schema.json`           |
 
-All three are produced by [headless authoring](#headless-authoring).
+Everything in this table comes from `@lbdremy/phax-schemas`, and `parseDocument` reads any document carrying `$schema`, whatever its format.
+
+## Read phax files from code
+
+Reading phax's persisted files from another tool — a dashboard, a cockpit, a docs pipeline — needs only the schemas package, not phax itself:
+
+```bash
+npm install @lbdremy/phax-schemas
+```
+
+```js
+// read-record.mjs: Node 20+, phax not installed, only @lbdremy/phax-schemas
+import { execFileSync } from "node:child_process";
+import { parsePhaseRecordManifest } from "@lbdremy/phax-schemas";
+
+const key = process.argv[2]; // "<runId>/phase-01"
+const raw = execFileSync("git", ["show", `phax/records/v1:${key}/record.json`], {
+  encoding: "utf8",
+});
+
+const parsed = parsePhaseRecordManifest(JSON.parse(raw));
+if (!parsed.ok) {
+  console.error(`record.json: ${parsed.error.path}: ${parsed.error.message}`);
+  process.exit(1);
+}
+const { runId, phaseId, outcome, usage } = parsed.value; // typed PhaseRecord
+console.log(runId, phaseId, outcome, usage.available ? usage.usage.provider : "no usage");
+```
+
+```bash
+node read-record.mjs <runId>/phase-01
+```
+
+To walk the whole branch instead of one key, read each `record.json` found there and give it to `parseRecordManifest`, which accepts either manifest shape.
+
+For a docs pipeline that renders a format's JSON Schema, read it straight from the installed package: `node_modules/@lbdremy/phax-schemas/json/<format>.schema.json`.
+
+A parse failure is a value, never an exception — `parsed.ok` is `false`, with a `path` and a `message`. Every document stays readable: an older shape still parses, upgraded in memory to the latest shape by its `toLatest*` function (a fact phax did not yet track becomes `{ kind: "unknown" }`), while a document written by a phax release newer than the installed package fails, asking you to upgrade `@lbdremy/phax-schemas`.
 
 ## Write a plan
 
@@ -331,7 +381,7 @@ The last line names the session's authoring record on `phax/records/v1` (`record
 | provider rate or usage limit                                                      | 8    |
 | authored and committed                                                            | 0    |
 
-The interactive path (`artifact new spec|plan <slug>` without `--headless`) is unchanged: no session, no sidecar, no commit. The spec document, the plan document and the authoring record are **experimental** formats — see [Experimental formats](#experimental-formats).
+The interactive path (`artifact new spec|plan <slug>` without `--headless`) is unchanged: no session, no sidecar, no commit. The spec document, the plan document and the authoring record manifest are persisted formats — see [Persisted formats](#persisted-formats).
 
 ## Lint the plan
 
