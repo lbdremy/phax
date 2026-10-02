@@ -172,14 +172,18 @@ describe("parseRecordManifest", () => {
   });
 
   it("dispatches on $schema before kind at the package's own release: phax's phase decoder reads it", () => {
+    // The authoring manifest phax writes, under a phase $schema: the phase
+    // decoder rejects its kind and names only phase keys.
     const document = withKey(
-      authoring,
+      writtenAuthoring,
       "$schema",
       schemaUrl("phase-record-manifest", PACKAGE_VERSION),
     );
     const result = parseRecordManifest(document);
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.message).not.toContain("shape is known");
+    if (result.ok) return;
+    expect(result.error.path).toBe("kind");
+    expect(result.error.message).toMatch(/^is unexpected, expected: .*"runId" \| "phaseId"/);
   });
 
   it("fails a document of another format, naming its URL", () => {

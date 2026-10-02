@@ -40,7 +40,6 @@ import {
   versionOnePhaseRecordManifest,
   withKey,
   withoutKey,
-  WRITES_SCHEMA,
 } from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
@@ -130,16 +129,12 @@ describe("the test documents", () => {
   });
 
   it.each(FORMAT_IDS)(
-    "%s: the valid document carries $schema first, at the running release, only when phax writes it",
+    "%s: the valid document carries $schema first, at the running release, and no version",
     (id) => {
       const document = validDocuments[id];
-      if (WRITES_SCHEMA.has(id)) {
-        expect(Object.keys(document)[0]).toBe("$schema");
-        expect(document["$schema"]).toBe(schemaUrl(id, PHAX_RELEASE));
-        expect(Object.hasOwn(document, "version")).toBe(false);
-      } else {
-        expect(Object.hasOwn(document, "$schema")).toBe(false);
-      }
+      expect(Object.keys(document)[0]).toBe("$schema");
+      expect(document["$schema"]).toBe(schemaUrl(id, PHAX_RELEASE));
+      expect(Object.hasOwn(document, "version")).toBe(false);
     },
   );
 

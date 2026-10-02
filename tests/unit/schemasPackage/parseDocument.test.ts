@@ -1,6 +1,5 @@
 import { Schema } from "effect";
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { JSON_SCHEMA_FORMATS } from "../../../packages/schemas/build/jsonSchemas.js";
 import {
   MISSING_SCHEMA_MESSAGE,
   makeDocumentParser,
@@ -15,7 +14,7 @@ import {
   type Shape,
 } from "../../../packages/schemas/src/shapes.js";
 import { FORMAT_IDS, schemaUrl } from "../../../src/schemas/schemaUrl.js";
-import { WRITES_SCHEMA, preSchemaDocuments, validDocuments } from "./documents.js";
+import { preSchemaDocuments, validDocuments } from "./documents.js";
 
 // A version-2 phase manifest as 0.16.0 wrote it: no `$schema`.
 const v2Manifest = preSchemaDocuments["phase-record-manifest"];
@@ -96,22 +95,12 @@ describe("parseDocument", () => {
         ...validDocuments[formatId],
         $schema: schemaUrl(formatId, PACKAGE_VERSION),
       };
-      const result = parseDocument(document);
-      const excess = JSON_SCHEMA_FORMATS.find((entry) => entry.format === formatId)?.excess;
-      if (excess === "ignore" || WRITES_SCHEMA.has(formatId)) {
-        // phax's file decoder names $schema, or drops the key it does not
-        // name, as it drops any other.
-        expect(result).toEqual({
-          ok: true,
-          format: formatId,
-          shape: "next",
-          value: validDocuments[formatId],
-        });
-      } else {
-        // phax's strict decoder names no $schema yet: next's own violation.
-        expectFailure(result, "$schema");
-        expect(result.ok ? "" : result.error.message).toContain("is unexpected");
-      }
+      expect(parseDocument(document)).toEqual({
+        ok: true,
+        format: formatId,
+        shape: "next",
+        value: validDocuments[formatId],
+      });
     },
   );
 
