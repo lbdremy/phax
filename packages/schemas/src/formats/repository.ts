@@ -1,8 +1,8 @@
 // The files of a repository: the plan and spec approvals ledgers, and the JSON
 // sidecar beside a headless-authored spec or plan. Each pre-schema shape is
-// phax's frozen module under src/schemas/history/; each current shape,
-// `next`, is phax's own file schema and decoder. The package declares none of
-// its own.
+// phax's frozen module under src/schemas/history/; each current shape, named
+// by `CURRENT_SHAPES` (`next` until a release renames it), is phax's own file
+// schema and decoder. The package declares none of its own.
 import {
   ApprovalRecordFileSchema,
   decodeApprovalRecordFile,
@@ -47,19 +47,19 @@ import {
   type SpecDocument,
   type SpecDocumentFile,
 } from "../../../../src/schemas/specDocument.js";
+import { CURRENT_SHAPES } from "../generated/index.js";
 import type { ParsedShape } from "../parsed.js";
-import { defineFormat } from "../shapes.js";
+import { defineFormat, type CurrentShapeName } from "../shapes.js";
 
 // A document without `$schema` is read by the format's frozen pre-schema
-// module as shape `pre-schema`; no release has written `$schema` yet, so a
-// `$schema` document at the package's own release is read by phax's decoder
-// as shape `next`.
+// module as shape `pre-schema`; a `$schema` document is read by phax's decoder
+// as the current shape, named by `CURRENT_SHAPES`: `next` until a release
+// renames it, then that release.
 
 // ── plan approvals
 
-export type PlanApprovalsShapes = {
-  "pre-schema": PlanApprovalsPreSchema;
-  next: ApprovalRecordFile;
+export type PlanApprovalsShapes = { "pre-schema": PlanApprovalsPreSchema } & {
+  [K in CurrentShapeName<"plan-approvals">]: ApprovalRecordFile;
 };
 
 /** The id of every plan approvals ledger shape the package reads. */
@@ -71,7 +71,7 @@ export const planApprovalsFormat = defineFormat<PlanApprovalsShapes>({
   preSchema: { schema: PlanApprovalsPreSchemaSchema, decode: decodePlanApprovalsPreSchema },
   releases: [],
   current: {
-    name: "next",
+    name: CURRENT_SHAPES["plan-approvals"],
     shape: { schema: ApprovalRecordFileSchema, decode: decodeApprovalRecordFile },
   },
 });
@@ -97,9 +97,8 @@ export function toLatestPlanApprovals(
 
 // ── spec approvals
 
-export type SpecApprovalsShapes = {
-  "pre-schema": SpecApprovalsPreSchema;
-  next: SpecApprovalRecordFile;
+export type SpecApprovalsShapes = { "pre-schema": SpecApprovalsPreSchema } & {
+  [K in CurrentShapeName<"spec-approvals">]: SpecApprovalRecordFile;
 };
 
 /** The id of every spec approvals ledger shape the package reads. */
@@ -111,7 +110,7 @@ export const specApprovalsFormat = defineFormat<SpecApprovalsShapes>({
   preSchema: { schema: SpecApprovalsPreSchemaSchema, decode: decodeSpecApprovalsPreSchema },
   releases: [],
   current: {
-    name: "next",
+    name: CURRENT_SHAPES["spec-approvals"],
     shape: { schema: SpecApprovalRecordFileSchema, decode: decodeSpecApprovalRecordFile },
   },
 });
@@ -137,7 +136,9 @@ export function toLatestSpecApprovals(
 
 // ── spec document
 
-export type SpecDocumentShapes = { "pre-schema": SpecDocumentPreSchema; next: SpecDocumentFile };
+export type SpecDocumentShapes = { "pre-schema": SpecDocumentPreSchema } & {
+  [K in CurrentShapeName<"spec-document">]: SpecDocumentFile;
+};
 
 /** The id of every spec document shape the package reads. */
 export type SpecDocumentShape = keyof SpecDocumentShapes;
@@ -148,7 +149,7 @@ export const specDocumentFormat = defineFormat<SpecDocumentShapes>({
   preSchema: { schema: SpecDocumentPreSchemaSchema, decode: decodeSpecDocumentPreSchema },
   releases: [],
   current: {
-    name: "next",
+    name: CURRENT_SHAPES["spec-document"],
     shape: { schema: SpecDocumentFileSchema, decode: decodeSpecDocumentFile },
   },
 });
@@ -174,7 +175,9 @@ export function toLatestSpecDocument(
 
 // ── plan document
 
-export type PlanDocumentShapes = { "pre-schema": PlanDocumentPreSchema; next: PlanDocumentFile };
+export type PlanDocumentShapes = { "pre-schema": PlanDocumentPreSchema } & {
+  [K in CurrentShapeName<"plan-document">]: PlanDocumentFile;
+};
 
 /** The id of every plan document shape the package reads. */
 export type PlanDocumentShape = keyof PlanDocumentShapes;
@@ -185,7 +188,7 @@ export const planDocumentFormat = defineFormat<PlanDocumentShapes>({
   preSchema: { schema: PlanDocumentPreSchemaSchema, decode: decodePlanDocumentPreSchema },
   releases: [],
   current: {
-    name: "next",
+    name: CURRENT_SHAPES["plan-document"],
     shape: { schema: PlanDocumentFileSchema, decode: decodePlanDocumentFile },
   },
 });

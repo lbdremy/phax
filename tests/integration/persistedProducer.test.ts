@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import { basename } from "node:path/posix";
 import { Effect, Either, Layer } from "effect";
 import { beforeAll, describe, expect, it } from "vitest";
+import { CURRENT_SHAPES } from "../../packages/schemas/src/generated/index.js";
 import { parseDocument } from "../../packages/schemas/src/index.js";
 import { putApprovalRecord, putSpecApprovalRecord } from "../../src/app/approvalRecordStore.js";
 import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorArtifact.js";
@@ -558,14 +559,14 @@ describe("every persisted file phax writes", () => {
     }
   });
 
-  it("is identified by parseDocument from its content alone, as shape next", () => {
+  it("is identified by parseDocument from its content alone, as its format's current shape", () => {
     // Copied under a neutral name: parseDocument sees only the content.
     written.forEach(({ location, format, document }, n) => {
       const copy = { name: `exports/${n}.json`, content: JSON.parse(JSON.stringify(document)) };
       expect(parseDocument(copy.content), `${location} as ${copy.name}`).toMatchObject({
         ok: true,
         format,
-        shape: "next",
+        shape: CURRENT_SHAPES[format],
       });
     });
   });

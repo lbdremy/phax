@@ -1,6 +1,7 @@
 import { Either, JSONSchema, type ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
-import { PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
+import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
+import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
   parseDocument,
   parsePlanApprovals,
@@ -23,7 +24,14 @@ import {
   SpecDocumentSchema,
   decodeSpecDocumentFile,
 } from "../../../src/schemas/specDocument.js";
-import { preSchemaDocuments, validDocuments, withKey, withoutKey, type Doc } from "./documents.js";
+import {
+  preSchemaDocuments,
+  preSchemaUnsupported,
+  validDocuments,
+  withKey,
+  withoutKey,
+  type Doc,
+} from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 
@@ -71,29 +79,32 @@ const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
 describe.each(FORMATS)("$id", (format) => {
   const document = validDocuments[format.id];
   const preSchema = preSchemaDocuments[format.id];
+  const current = CURRENT_SHAPES[format.id];
 
   it("parses the pre-schema document as shape pre-schema", () => {
     expect(format.parse(preSchema)).toEqual({ ok: true, shape: "pre-schema", value: preSchema });
   });
 
-  it("parses the document phax writes as shape next, with phax's value", () => {
+  it("parses the document phax writes as its current shape, with phax's value", () => {
     const phax = format.phax(document);
     if (Either.isLeft(phax)) throw new Error("document rejected by phax");
-    expect(format.parse(document)).toEqual({ ok: true, shape: "next", value: phax.right });
+    expect(format.parse(document)).toEqual({ ok: true, shape: current, value: phax.right });
   });
 
-  it("is identified by its $schema alone as shape next (ac-identify-alone)", () => {
-    expect(parseDocument(document)).toMatchObject({ ok: true, format: format.id, shape: "next" });
+  it("is identified by its $schema alone as its current shape (ac-identify-alone)", () => {
+    expect(parseDocument(document)).toMatchObject({ ok: true, format: format.id, shape: current });
   });
 
-  it("fails a document the frozen decoder rejects as older than the first release that writes $schema", () => {
+  it("fails a document the frozen decoder rejects as older than the first supported release", () => {
     const result = format.parse(withKey(preSchema, "version", 0)) as {
       readonly ok: boolean;
       readonly error?: { readonly path: string; readonly message: string };
     };
     expect(result.ok).toBe(false);
     expect(result.error?.path).toBe("version");
-    expect(result.error?.message).toContain("older than the first release that writes $schema");
+    expect(result.error?.message).toContain(
+      preSchemaUnsupported(FORMAT_DEFINITIONS[format.id].label),
+    );
   });
 
   it("upgrades by dropping version and keeping everything else", () => {

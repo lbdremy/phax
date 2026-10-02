@@ -7,10 +7,21 @@ import {
   parseSchemaUrl,
   type FormatId,
 } from "../../../src/schemas/schemaUrl.js";
-import { FIRST_SUPPORTED_RELEASE, PACKAGE_VERSION } from "./generated/index.js";
+import {
+  FIRST_SUPPORTED_RELEASE,
+  PACKAGE_VERSION,
+  type CURRENT_SHAPES,
+} from "./generated/index.js";
 import { failure, fromEither, type ParseFailure, type ParsedShape } from "./parsed.js";
 
 const PACKAGE_NAME = "@lbdremy/phax-schemas";
+
+/**
+ * The name of a format's current shape, as its snapshots record it: `next`
+ * until a release renames it to that release. Keys every shape map's current
+ * entry, so renaming a snapshot renames the shape.
+ */
+export type CurrentShapeName<F extends FormatId> = (typeof CURRENT_SHAPES)[F];
 
 /** One shape of a format: its schema and the decoder that reads it. */
 export interface Shape<T> {
@@ -91,6 +102,14 @@ export function newerReleaseMessage(
 }
 
 /**
+ * A `$schema` document below the first supported release: only a development
+ * build stamps `$schema` before the first release that writes it.
+ */
+export function developmentBuildMessage(url: string, firstSupportedRelease: string): string {
+  return `${url} was written by a development build of phax before ${firstSupportedRelease}, the first supported release — not supported`;
+}
+
+/**
  * A document without `$schema` that the pre-schema decoder rejects. Names the
  * first supported release once one is known (`FIRST_SUPPORTED_RELEASE`).
  */
@@ -142,9 +161,12 @@ function decodeAs(shape: string, entry: AnyShape, input: unknown): Decoded {
  * shape, in order:
  * 1. a non-object fails at `""`;
  * 2. a document with `$schema` resolves by the URL: malformed, unknown format,
- *    another format and newer-than-the-package fail at `$schema`; a `next`
- *    current shape decodes first when the release is the package's own; else
- *    the latest release-named shape at or below the release decodes it; else,
+ *    another format and newer-than-the-package fail at `$schema`; a release
+ *    below `firstSupportedRelease`, when one is known, fails at `$schema` with
+ *    `developmentBuildMessage` and no decoder tries it, not even the
+ *    pre-schema one; a `next` current shape decodes first when the release is
+ *    the package's own; else the latest release-named shape at or below the
+ *    release decodes it; else,
  *    when `next` was tried, it fails with `next`'s own violation; else it
  *    fails at `$schema` (`no <id> shape is known at release <X>`);
  * 3. a document without `$schema`, whatever its `version`, is read only by
@@ -189,6 +211,9 @@ export function defineFormat<M>(
       return failure("$schema", `${href} is a ${formatId} document, not a ${id}`);
     if (compareReleases(release, packageVersion) > 0) {
       return failure("$schema", newerReleaseMessage(id, release, packageVersion));
+    }
+    if (firstSupportedRelease !== null && compareReleases(release, firstSupportedRelease) < 0) {
+      return failure("$schema", developmentBuildMessage(href, firstSupportedRelease));
     }
     let next: Decoded | undefined;
     if (current.name === "next" && release === packageVersion) {

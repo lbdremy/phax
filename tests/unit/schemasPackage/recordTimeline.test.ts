@@ -1,6 +1,6 @@
 import { Either, type ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
-import { PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
+import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
   parseDocument,
   parseGateAttribution,
@@ -21,7 +21,14 @@ import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.
 import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import { schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
-import { preSchemaDocuments, validDocuments, withKey, withoutKey, type Doc } from "./documents.js";
+import {
+  belowOwnReleaseMessage,
+  preSchemaDocuments,
+  validDocuments,
+  withKey,
+  withoutKey,
+  type Doc,
+} from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 type Parse = (input: unknown) => {
@@ -80,21 +87,25 @@ describe.each(FORMATS)("$id", (format) => {
     expect(format.parse(versioned)).toMatchObject({ ok: true, shape: "pre-schema" });
   });
 
-  it("parses a phax-written document as shape next, with phax's value", () => {
+  it("parses a phax-written document as its current shape, with phax's value", () => {
     expect(Object.keys(written)[0]).toBe("$schema");
     expect(written).not.toHaveProperty("version");
     const phax = format.phax(written);
     if (Either.isLeft(phax)) throw new Error("document rejected by phax");
-    expect(format.parse(written)).toEqual({ ok: true, shape: "next", value: phax.right });
+    expect(format.parse(written)).toEqual({
+      ok: true,
+      shape: CURRENT_SHAPES[format.id],
+      value: phax.right,
+    });
   });
 
-  it("upgrades either shape to the same value: the identity on pre-schema, without $schema on next", () => {
+  it("upgrades either shape to the same value: the identity on pre-schema, without $schema on the current shape", () => {
     const pre = format.parse(preSchema);
-    const next = format.parse(written);
-    if (!pre.ok || !next.ok) throw new Error("document rejected");
+    const current = format.parse(written);
+    if (!pre.ok || !current.ok) throw new Error("document rejected");
     expect(format.toLatest(pre.value as never)).toBe(pre.value);
-    expect(format.toLatest(next.value as never)).toEqual(pre.value);
-    expect(format.toLatest(next.value as never)).not.toHaveProperty("$schema");
+    expect(format.toLatest(current.value as never)).toEqual(pre.value);
+    expect(format.toLatest(current.value as never)).not.toHaveProperty("$schema");
   });
 
   it("fails a document written by a newer release with the upgrade message", () => {
@@ -105,11 +116,11 @@ describe.each(FORMATS)("$id", (format) => {
     }
   });
 
-  it("names no shape below the package's own release", () => {
+  it("reads no shape below the package's own release", () => {
     const older = withKey(written, "$schema", schemaUrl(format.id, "0.1.0"));
     expect(format.parse(older)).toEqual({
       ok: false,
-      error: { path: "$schema", message: `no ${format.id} shape is known at release 0.1.0` },
+      error: { path: "$schema", message: belowOwnReleaseMessage(format.id, "0.1.0") },
     });
   });
 });
@@ -129,76 +140,97 @@ function folder(documents: { readonly [F in FormatId]: Doc }): Folder {
   };
 }
 
-const RECORD_FOLDERS = [
+const RECORD_FOLDERS: ReadonlyArray<{
+  readonly written: string;
+  readonly shapes: string;
+  readonly shape: (id: FormatId) => string;
+  readonly files: Folder;
+}> = [
   {
     written: "by hand in the pre-schema shapes",
-    shape: "pre-schema",
+    shapes: "pre-schema",
+    shape: () => "pre-schema",
     files: folder(preSchemaDocuments),
   },
-  { written: "by phax", shape: "next", files: folder(validDocuments) },
-] as const;
+  {
+    written: "by phax",
+    shapes: "their current shapes",
+    shape: (id) => CURRENT_SHAPES[id],
+    files: folder(validDocuments),
+  },
+];
 
-describe.each(RECORD_FOLDERS)("a record's timeline files written $written", ({ shape, files }) => {
-  const contents: ReadonlyMap<string, string> = new Map(
-    Object.entries(files).map(([name, document]) => [
-      name,
-      `${JSON.stringify(document, null, 2)}\n`,
-    ]),
-  );
+describe.each(RECORD_FOLDERS)(
+  "a record's timeline files written $written",
+  ({ shapes, shape, files }) => {
+    const contents: ReadonlyMap<string, string> = new Map(
+      Object.entries(files).map(([name, document]) => [
+        name,
+        `${JSON.stringify(document, null, 2)}\n`,
+      ]),
+    );
 
-  function read(name: string): unknown {
-    const content = contents.get(name);
-    if (content === undefined) throw new Error(`no ${name} in the record folder`);
-    return JSON.parse(content);
-  }
-
-  it(`parse, each with its own function, as shape ${shape}`, () => {
-    const record = parseRecordManifest(read("record.json"));
-    expect(record).toMatchObject({ ok: true, format: "phase-record-manifest", shape });
-
-    const attribution = parseGateAttribution(read("gate-attribution.json"));
-    const reconciliation = parsePhaseFileReconciliation(read("file-reconciliation.json"));
-    expect(attribution).toMatchObject({ ok: true, shape });
-    expect(reconciliation).toMatchObject({ ok: true, shape });
-    if (!record.ok || record.format !== "phase-record-manifest") return;
-    if (!attribution.ok || !reconciliation.ok) return;
-
-    // One phase: the manifest, its gate steps and its reconciliation agree on it.
-    const { phaseId } = record.value;
-    expect(attribution.value.phase).toBe(phaseId);
-    expect(reconciliation.value.phaseId).toBe(phaseId);
-  });
-
-  it("orders the fix-loop attempts by the numbers in their file names", () => {
-    const attempts: Array<{
-      readonly attempt: number;
-      readonly diagnostics?: LatestGateDiagnostics;
-      readonly pending?: LatestGatePending;
-    }> = [];
-    for (const name of contents.keys()) {
-      const match = /^checks-attempt-(\d+)\.(diagnostics|pending)\.json$/.exec(name);
-      if (match === null) continue;
-      const attempt = Number(match[1]);
-      if (match[2] === "diagnostics") {
-        const result = parseGateDiagnostics(read(name));
-        expect(result, name).toMatchObject({ ok: true, shape });
-        if (result.ok)
-          attempts.push({ attempt, diagnostics: toLatestGateDiagnostics(result.value) });
-      } else {
-        const result = parseGatePending(read(name));
-        expect(result, name).toMatchObject({ ok: true, shape });
-        if (result.ok) attempts.push({ attempt, pending: toLatestGatePending(result.value) });
-      }
+    function read(name: string): unknown {
+      const content = contents.get(name);
+      if (content === undefined) throw new Error(`no ${name} in the record folder`);
+      return JSON.parse(content);
     }
-    const ordered = attempts.toSorted((a, b) => a.attempt - b.attempt);
-    expect(ordered.map(({ attempt }) => attempt)).toEqual([1, 2]);
-    expect(ordered[0]?.diagnostics?.diagnostics.map((entry) => entry.class)).toEqual([
-      "invariant",
-      "completion",
-    ]);
-    expect(ordered[1]?.pending?.steps[0]?.pending[0]?.openScopes).toEqual(["phase-02"]);
-  });
-});
+
+    it(`parse, each with its own function, as ${shapes}`, () => {
+      const record = parseRecordManifest(read("record.json"));
+      expect(record).toMatchObject({
+        ok: true,
+        format: "phase-record-manifest",
+        shape: shape("phase-record-manifest"),
+      });
+
+      const attribution = parseGateAttribution(read("gate-attribution.json"));
+      const reconciliation = parsePhaseFileReconciliation(read("file-reconciliation.json"));
+      expect(attribution).toMatchObject({ ok: true, shape: shape("gate-attribution") });
+      expect(reconciliation).toMatchObject({
+        ok: true,
+        shape: shape("phase-file-reconciliation"),
+      });
+      if (!record.ok || record.format !== "phase-record-manifest") return;
+      if (!attribution.ok || !reconciliation.ok) return;
+
+      // One phase: the manifest, its gate steps and its reconciliation agree on it.
+      const { phaseId } = record.value;
+      expect(attribution.value.phase).toBe(phaseId);
+      expect(reconciliation.value.phaseId).toBe(phaseId);
+    });
+
+    it("orders the fix-loop attempts by the numbers in their file names", () => {
+      const attempts: Array<{
+        readonly attempt: number;
+        readonly diagnostics?: LatestGateDiagnostics;
+        readonly pending?: LatestGatePending;
+      }> = [];
+      for (const name of contents.keys()) {
+        const match = /^checks-attempt-(\d+)\.(diagnostics|pending)\.json$/.exec(name);
+        if (match === null) continue;
+        const attempt = Number(match[1]);
+        if (match[2] === "diagnostics") {
+          const result = parseGateDiagnostics(read(name));
+          expect(result, name).toMatchObject({ ok: true, shape: shape("gate-diagnostics") });
+          if (result.ok)
+            attempts.push({ attempt, diagnostics: toLatestGateDiagnostics(result.value) });
+        } else {
+          const result = parseGatePending(read(name));
+          expect(result, name).toMatchObject({ ok: true, shape: shape("gate-pending") });
+          if (result.ok) attempts.push({ attempt, pending: toLatestGatePending(result.value) });
+        }
+      }
+      const ordered = attempts.toSorted((a, b) => a.attempt - b.attempt);
+      expect(ordered.map(({ attempt }) => attempt)).toEqual([1, 2]);
+      expect(ordered[0]?.diagnostics?.diagnostics.map((entry) => entry.class)).toEqual([
+        "invariant",
+        "completion",
+      ]);
+      expect(ordered[1]?.pending?.steps[0]?.pending[0]?.openScopes).toEqual(["phase-02"]);
+    });
+  },
+);
 
 it("a phax-written timeline file without its $schema is the pre-schema shape", () => {
   for (const { id, parse } of FORMATS) {

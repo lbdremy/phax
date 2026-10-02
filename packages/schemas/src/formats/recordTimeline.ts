@@ -1,8 +1,9 @@
 // A phase record's timeline files: its gate attribution, its file
 // reconciliation, and each fix-loop attempt's gate diagnostics and gate
 // pending documents. Each pre-schema shape is phax's frozen module under
-// src/schemas/history/; each current shape, `next`, is phax's own file schema
-// and decoder. The package declares none of its own.
+// src/schemas/history/; each current shape, named by `CURRENT_SHAPES` (`next`
+// until a release renames it), is phax's own file schema and decoder. The
+// package declares none of its own.
 import {
   GateAttributionFileSchema,
   decodeGateAttributionFile,
@@ -47,21 +48,22 @@ import {
   type PhaseFileReconciliation,
   type PhaseFileReconciliationFile,
 } from "../../../../src/schemas/reconciliation.js";
+import { CURRENT_SHAPES } from "../generated/index.js";
 import type { ParsedShape } from "../parsed.js";
-import { defineFormat } from "../shapes.js";
+import { defineFormat, type CurrentShapeName } from "../shapes.js";
 
 // None of these files has ever carried a `version`. A file without `$schema`
 // is read by its frozen pre-schema module as shape `pre-schema`; a file phax
-// writes starts with `$schema` and is read by phax's file decoder as shape
-// `next`. Each latest value is phax's in-memory value, with no `$schema`. A
+// writes starts with `$schema` and is read by phax's file decoder as the
+// current shape, named by `CURRENT_SHAPES`: `next` until a release renames
+// it. Each latest value is phax's in-memory value, with no `$schema`. A
 // timeline file is identified by where it lives in the record folder; an
 // attempt's order comes from its file name, which the reader supplies.
 
 // ── gate attribution
 
-export type GateAttributionShapes = {
-  "pre-schema": GateAttributionPreSchema;
-  next: GateAttributionFile;
+export type GateAttributionShapes = { "pre-schema": GateAttributionPreSchema } & {
+  [K in CurrentShapeName<"gate-attribution">]: GateAttributionFile;
 };
 
 /** The id of every gate attribution shape the package reads. */
@@ -73,7 +75,7 @@ export const gateAttributionFormat = defineFormat<GateAttributionShapes>({
   preSchema: { schema: GateAttributionPreSchemaSchema, decode: decodeGateAttributionPreSchema },
   releases: [],
   current: {
-    name: "next",
+    name: CURRENT_SHAPES["gate-attribution"],
     shape: { schema: GateAttributionFileSchema, decode: decodeGateAttributionFile },
   },
 });
@@ -98,9 +100,8 @@ export function toLatestGateAttribution(
 
 // ── phase file reconciliation
 
-export type PhaseFileReconciliationShapes = {
-  "pre-schema": PhaseFileReconciliationPreSchema;
-  next: PhaseFileReconciliationFile;
+export type PhaseFileReconciliationShapes = { "pre-schema": PhaseFileReconciliationPreSchema } & {
+  [K in CurrentShapeName<"phase-file-reconciliation">]: PhaseFileReconciliationFile;
 };
 
 /** The id of every phase file reconciliation shape the package reads. */
@@ -115,7 +116,7 @@ export const phaseFileReconciliationFormat = defineFormat<PhaseFileReconciliatio
   },
   releases: [],
   current: {
-    name: "next",
+    name: CURRENT_SHAPES["phase-file-reconciliation"],
     shape: {
       schema: PhaseFileReconciliationFileSchema,
       decode: decodePhaseFileReconciliationFile,
@@ -144,9 +145,8 @@ export function toLatestPhaseFileReconciliation(
 
 // ── gate diagnostics
 
-export type GateDiagnosticsShapes = {
-  "pre-schema": GateDiagnosticsPreSchema;
-  next: GateDiagnosticsFile;
+export type GateDiagnosticsShapes = { "pre-schema": GateDiagnosticsPreSchema } & {
+  [K in CurrentShapeName<"gate-diagnostics">]: GateDiagnosticsFile;
 };
 
 /** The id of every gate diagnostics shape the package reads. */
@@ -158,7 +158,7 @@ export const gateDiagnosticsFormat = defineFormat<GateDiagnosticsShapes>({
   preSchema: { schema: GateDiagnosticsPreSchemaSchema, decode: decodeGateDiagnosticsPreSchema },
   releases: [],
   current: {
-    name: "next",
+    name: CURRENT_SHAPES["gate-diagnostics"],
     shape: { schema: GateDiagnosticsFileSchema, decode: decodeGateDiagnosticsFile },
   },
 });
@@ -183,7 +183,9 @@ export function toLatestGateDiagnostics(
 
 // ── gate pending
 
-export type GatePendingShapes = { "pre-schema": GatePendingPreSchema; next: GatePendingFile };
+export type GatePendingShapes = { "pre-schema": GatePendingPreSchema } & {
+  [K in CurrentShapeName<"gate-pending">]: GatePendingFile;
+};
 
 /** The id of every gate pending shape the package reads. */
 export type GatePendingShape = keyof GatePendingShapes;
@@ -194,7 +196,7 @@ export const gatePendingFormat = defineFormat<GatePendingShapes>({
   preSchema: { schema: GatePendingPreSchemaSchema, decode: decodeGatePendingPreSchema },
   releases: [],
   current: {
-    name: "next",
+    name: CURRENT_SHAPES["gate-pending"],
     shape: { schema: GatePendingFileSchema, decode: decodeGatePendingFile },
   },
 });

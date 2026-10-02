@@ -3,11 +3,15 @@
 // packages/schemas/snapshots/<format id>/, named `pre-schema`, a release
 // `X.Y.Z` or `next`. A released snapshot never changes; a shape change is
 // recorded as `next`, which the release renames to the release it ships in.
-// Snapshots are compared as parsed JSON, so reformatting one changes nothing.
-// A hidden entry (its name starts with `.`, like .DS_Store) is ignored
-// everywhere; any other unexpected file or directory is a finding.
+// The snapshots also name each format's current shape (`CURRENT_SHAPES`):
+// `next` while it exists, else the highest release. A release-named snapshot
+// that is not the current shape must have a frozen decoder in the format's
+// `releases`. Snapshots are compared as parsed JSON, so reformatting one
+// changes nothing. A hidden entry (its name starts with `.`, like .DS_Store)
+// is ignored everywhere; any other unexpected file or directory is a finding.
 import { isDeepStrictEqual } from "node:util";
 import {
+  FORMAT_IDS,
   compareReleases,
   isFormatId,
   isRelease,
@@ -76,10 +80,55 @@ export function firstSupportedRelease(
   return lowest;
 }
 
+/** The current shape name one format directory records: `next`, else its highest release. */
+function currentShapeNameOf(files: ReadonlyMap<string, string> | undefined): string | undefined {
+  let highest: string | undefined;
+  for (const fileName of files?.keys() ?? []) {
+    if (isHidden(fileName)) continue;
+    const name = parseSnapshotName(fileName);
+    if (name === NEXT) return NEXT;
+    if (name === undefined || !isRelease(name)) continue;
+    if (highest === undefined || compareReleases(name, highest) > 0) highest = name;
+  }
+  return highest;
+}
+
+/** Every format's current shape name, as the snapshots record it. */
+export interface CurrentShapeNames {
+  /** Format id → `next` or a release, in `FORMAT_IDS` order; a format with neither is absent. */
+  readonly names: Readonly<Partial<Record<FormatId, string>>>;
+  /** One `✗ …` line per format with neither a `next` nor a release-named snapshot. */
+  readonly findings: ReadonlyArray<string>;
+}
+
+/**
+ * The current shape name of every format id: `next` when its directory holds
+ * `next.schema.json`, else its highest release-named snapshot. `pre-schema`
+ * never names a current shape. A directory that names no format and a hidden
+ * entry are ignored.
+ */
+export function currentShapeNames(
+  snapshots: ReadonlyMap<string, ReadonlyMap<string, string>>,
+): CurrentShapeNames {
+  const names: Partial<Record<FormatId, string>> = {};
+  const findings: string[] = [];
+  for (const id of FORMAT_IDS) {
+    const name = currentShapeNameOf(snapshots.get(id));
+    if (name === undefined) {
+      findings.push(`✗ ${id}: no next or release-named snapshot — run ${WRITE_COMMAND}`);
+    } else {
+      names[id] = name;
+    }
+  }
+  return { names, findings };
+}
+
 export interface SnapshotFormat {
   readonly id: FormatId;
-  /** The format's current shape name: `pre-schema`, `next` or a release. */
+  /** The format's current shape name in this process: `pre-schema`, `next` or a release. */
   readonly currentShape: string;
+  /** The names of the format's `releases` entries: the released shapes it has a frozen decoder for. */
+  readonly releasedShapes: ReadonlyArray<string>;
   /** What `renderJsonSchemas` renders for the format id, or why it could not. */
   readonly generated:
     | { readonly ok: true; readonly content: string }
@@ -180,6 +229,22 @@ export function checkSnapshots(input: SnapshotsInput): string[] {
       findings.push(
         `✗ ${nextPath} equals the latest released snapshot ${snapshotPath(format.id, latest)} — ` +
           `delete it (run ${WRITE_COMMAND})`,
+      );
+    }
+  }
+  // Compared with the name the snapshots record, never the in-process
+  // `current.name`: a release cut renames snapshots under a running process.
+  for (const format of input.formats) {
+    const files = input.snapshots.get(format.id);
+    const current = currentShapeNameOf(files);
+    for (const fileName of files?.keys() ?? []) {
+      if (isHidden(fileName)) continue;
+      const name = parseSnapshotName(fileName);
+      if (name === undefined || !isRelease(name)) continue;
+      if (name === current || format.releasedShapes.includes(name)) continue;
+      findings.push(
+        `✗ ${format.id}: snapshot ${name} is released but no decoder reads it — freeze it as ` +
+          `src/schemas/history/${format.id}/${name}.ts and add it to the format's releases`,
       );
     }
   }

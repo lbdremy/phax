@@ -4,17 +4,22 @@ import {
   MISSING_SCHEMA_MESSAGE,
   makeDocumentParser,
 } from "../../../packages/schemas/src/document.js";
-import { PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
+import {
+  phaseRecordManifestFormat,
+  type PhaseRecordManifestShapes,
+} from "../../../packages/schemas/src/formats/recordManifests.js";
+import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import { parseDocument } from "../../../packages/schemas/src/index.js";
 import type { Parsed } from "../../../packages/schemas/src/parsed.js";
 import {
   defineFormat,
+  developmentBuildMessage,
   newerReleaseMessage,
   unknownFormatMessage,
   type Shape,
 } from "../../../packages/schemas/src/shapes.js";
 import { FORMAT_IDS, schemaUrl } from "../../../src/schemas/schemaUrl.js";
-import { preSchemaDocuments, validDocuments } from "./documents.js";
+import { belowOwnReleaseMessage, preSchemaDocuments, validDocuments } from "./documents.js";
 
 // A version-2 phase manifest as 0.16.0 wrote it: no `$schema`.
 const v2Manifest = preSchemaDocuments["phase-record-manifest"];
@@ -78,18 +83,18 @@ describe("parseDocument", () => {
   });
 
   it.each(FORMAT_IDS)(
-    "reaches the %s definition, which knows no $schema shape below its own release",
+    "reaches the %s definition, which reads no $schema shape below its own release",
     (formatId) => {
       expectFailure(
         parseDocument({ ...validDocuments[formatId], $schema: schemaUrl(formatId, "0.1.0") }),
         "$schema",
-        `no ${formatId} shape is known at release 0.1.0`,
+        belowOwnReleaseMessage(formatId, "0.1.0"),
       );
     },
   );
 
   it.each(FORMAT_IDS)(
-    "reads a %s at the package's own release with phax's decoder, as next",
+    "reads a %s at the package's own release with phax's decoder, as its current shape",
     (formatId) => {
       const document = {
         ...validDocuments[formatId],
@@ -98,7 +103,7 @@ describe("parseDocument", () => {
       expect(parseDocument(document)).toEqual({
         ok: true,
         format: formatId,
-        shape: "next",
+        shape: CURRENT_SHAPES[formatId],
         value: validDocuments[formatId],
       });
     },
@@ -120,12 +125,12 @@ describe("parseDocument", () => {
     },
   );
 
-  it("fails a phase-record-manifest at the package's own release with next's own violation", () => {
+  it("fails a phase-record-manifest at the package's own release with its current shape's own violation", () => {
     const result = parseDocument({
       ...v2Manifest,
       $schema: schemaUrl("phase-record-manifest", PACKAGE_VERSION),
     });
-    // next carries no `version`, and the manifest rejects unknown keys.
+    // The current shape carries no `version`, and the manifest rejects unknown keys.
     expectFailure(result, "version");
     expect(result.ok ? "" : result.error.message).not.toContain("shape is known");
   });
@@ -185,7 +190,7 @@ const toy = defineFormat<ToyShapes>(
     releases: [],
     current: { name: "0.12.0", shape: toyShape(Toy) },
   },
-  { packageVersion: "0.13.0" },
+  { packageVersion: "0.13.0", firstSupportedRelease: null },
 );
 const parseToyDocument = makeDocumentParser<{ "gate-pending": ToyShapes }>(
   { "gate-pending": toy },
@@ -232,6 +237,23 @@ describe("makeDocumentParser", () => {
   it("reports the definition's own failure when the document does not match its shape", () => {
     const result = parseToyDocument({ $schema: schemaUrl("gate-pending", "0.12.0"), a: 1 });
     expectFailure(result, "a");
+  });
+
+  it("fails a real format's document below an injected first supported release as a development build", () => {
+    // The phase record manifest's own shapes, read by a package whose first
+    // supported release is its own version: as a release cut leaves it.
+    const manifest = defineFormat<PhaseRecordManifestShapes>(phaseRecordManifestFormat, {
+      packageVersion: NEWER_RELEASE,
+      firstSupportedRelease: NEWER_RELEASE,
+    });
+    const parse = makeDocumentParser<{ "phase-record-manifest": PhaseRecordManifestShapes }>(
+      { "phase-record-manifest": manifest },
+      { packageVersion: NEWER_RELEASE },
+    );
+    const url = schemaUrl("phase-record-manifest", PACKAGE_VERSION);
+    const document = { ...validDocuments["phase-record-manifest"], $schema: url };
+    expectFailure(parse(document), "$schema", developmentBuildMessage(url, NEWER_RELEASE));
+    expectFailure(manifest.parse(document), "$schema", developmentBuildMessage(url, NEWER_RELEASE));
   });
 
   it("takes exactly one parameter: the value", () => {

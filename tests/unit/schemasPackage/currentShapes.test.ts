@@ -1,9 +1,10 @@
-// Every format's current shape, after phax writes $schema: named `next`,
-// `$schema` required, no `version`, a `next` snapshot beside an untouched
-// pre-schema snapshot, and a frozen module pinned in history.lock.json. Also
+// Every format's current shape, after phax writes $schema: named by its
+// snapshots (`CURRENT_SHAPES`), `$schema` required, no `version`, a current
+// snapshot beside an untouched pre-schema snapshot, and a frozen module
+// pinned in history.lock.json. Also
 // checks that phax's bridge and the package's `toLatest*` read every
 // pre-schema document to the same value.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Either } from "effect";
@@ -13,6 +14,7 @@ import {
   JSON_SCHEMA_FORMATS,
   renderJsonSchemas,
 } from "../../../packages/schemas/build/jsonSchemas.js";
+import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
 import {
   parseAuthoringRecordManifest,
   parseComplianceReview,
@@ -59,7 +61,12 @@ import {
   readSpecApprovalsFile,
   readSpecDocumentFile,
 } from "../../../src/schemas/persisted.js";
-import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
+import {
+  FORMAT_IDS,
+  compareReleases,
+  isRelease,
+  type FormatId,
+} from "../../../src/schemas/schemaUrl.js";
 import { preSchemaDocuments, validDocuments } from "./documents.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -82,9 +89,22 @@ function readSnapshot(id: FormatId, name: string): string {
   return readFileSync(join(snapshotsDir, id, `${name}.schema.json`), "utf8");
 }
 
+/** `next` when the format has a next snapshot, else its highest release-named one. */
+function snapshotCurrentName(id: FormatId): string {
+  if (existsSync(join(snapshotsDir, id, "next.schema.json"))) return "next";
+  const releases = readdirSync(join(snapshotsDir, id))
+    .map((file) => file.slice(0, -".schema.json".length))
+    .filter((name) => isRelease(name))
+    .toSorted(compareReleases);
+  const highest = releases.at(-1);
+  if (highest === undefined) throw new Error(`${id}: no next or release-named snapshot`);
+  return highest;
+}
+
 describe("every format's current shape", () => {
-  it.each(FORMAT_IDS)("%s: is named next", (id) => {
-    expect(FORMAT_DEFINITIONS[id].current.name).toBe("next");
+  it.each(FORMAT_IDS)("%s: is named by its snapshots", (id) => {
+    expect(FORMAT_DEFINITIONS[id].current.name).toBe(CURRENT_SHAPES[id]);
+    expect(CURRENT_SHAPES[id]).toBe(snapshotCurrentName(id));
   });
 
   it.each(FORMAT_IDS)("%s: requires $schema bound to its own id, and has no version", (id) => {
@@ -94,10 +114,14 @@ describe("every format's current shape", () => {
     expect(schema.properties).not.toHaveProperty("version");
   });
 
-  it.each(FORMAT_IDS)("%s: has a next snapshot that differs from its pre-schema one", (id) => {
-    expect(existsSync(join(snapshotsDir, id, "next.schema.json"))).toBe(true);
-    expect(readSnapshot(id, "next")).not.toBe(readSnapshot(id, "pre-schema"));
-  });
+  it.each(FORMAT_IDS)(
+    "%s: its current snapshot exists and differs from its pre-schema one",
+    (id) => {
+      const current = CURRENT_SHAPES[id];
+      expect(existsSync(join(snapshotsDir, id, `${current}.schema.json`))).toBe(true);
+      expect(readSnapshot(id, current)).not.toBe(readSnapshot(id, "pre-schema"));
+    },
+  );
 
   it.each(FORMAT_IDS)("%s: pins its frozen module in history.lock.json", (id) => {
     const lock = JSON.parse(

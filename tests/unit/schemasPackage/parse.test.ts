@@ -1,5 +1,6 @@
 import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
+import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
 import { parsePhaseRecordManifest, parseRunStatus } from "../../../packages/schemas/src/index.js";
 import { fromEither } from "../../../packages/schemas/src/parsed.js";
 import { validDocuments, withKey, type Doc } from "./documents.js";
@@ -11,7 +12,7 @@ describe("parsePhaseRecordManifest", () => {
   it("returns ok with the shape and the value for a valid manifest", () => {
     expect(parsePhaseRecordManifest(manifest)).toEqual({
       ok: true,
-      shape: "next",
+      shape: CURRENT_SHAPES["phase-record-manifest"],
       value: manifest,
     });
   });
@@ -60,7 +61,11 @@ describe("parseRunStatus", () => {
   const runStatus = validDocuments["run-status"];
 
   it("returns ok with the shape and the value for a valid run status", () => {
-    expect(parseRunStatus(runStatus)).toEqual({ ok: true, shape: "next", value: runStatus });
+    expect(parseRunStatus(runStatus)).toEqual({
+      ok: true,
+      shape: CURRENT_SHAPES["run-status"],
+      value: runStatus,
+    });
   });
 
   it("fails at state for a paused run status, without throwing", () => {

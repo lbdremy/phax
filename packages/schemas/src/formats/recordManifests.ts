@@ -1,8 +1,8 @@
 // The manifests (`record.json`) on phax/records/v1: a phase record's and an
 // authoring session's, and the reader that tells them apart. Each pre-schema
 // shape is phax's frozen module under src/schemas/history/; each current
-// shape, `next`, is phax's own file schema and decoder. The package declares
-// none of its own.
+// shape, named by `CURRENT_SHAPES` (`next` until a release renames it), is
+// phax's own file schema and decoder. The package declares none of its own.
 import {
   AuthoringRecordManifestFileSchema,
   decodeAuthoringRecordManifestFile,
@@ -26,6 +26,7 @@ import {
   type RunRecordManifestFile,
 } from "../../../../src/schemas/runRecord.js";
 import { isFormatId, parseSchemaUrl } from "../../../../src/schemas/schemaUrl.js";
+import { CURRENT_SHAPES } from "../generated/index.js";
 import { failure, type ParsedDocument, type ParsedShape } from "../parsed.js";
 import {
   defineFormat,
@@ -33,13 +34,14 @@ import {
   malformedSchemaUrlMessage,
   notAnObjectMessage,
   unknownFormatMessage,
+  type CurrentShapeName,
   type FormatDefinition,
 } from "../shapes.js";
 
 // A manifest without `$schema` is read by its frozen pre-schema module as
-// shape `pre-schema`; no release has written `$schema` yet, so a `$schema`
-// manifest at the package's own release is read by phax's decoder as shape
-// `next`.
+// shape `pre-schema`; a `$schema` manifest is read by phax's decoder as the
+// current shape, named by `CURRENT_SHAPES`: `next` until a release renames
+// it, then that release.
 
 // ── phase record manifest
 
@@ -47,9 +49,8 @@ import {
 export const PhaseRecordManifestSchema = RunRecordManifestFileSchema;
 export type PhaseRecordManifest = RunRecordManifestFile;
 
-export type PhaseRecordManifestShapes = {
-  "pre-schema": PhaseRecordManifestPreSchema;
-  next: PhaseRecordManifest;
+export type PhaseRecordManifestShapes = { "pre-schema": PhaseRecordManifestPreSchema } & {
+  [K in CurrentShapeName<"phase-record-manifest">]: PhaseRecordManifest;
 };
 
 /** The id of every phase record manifest shape the package reads. */
@@ -64,7 +65,7 @@ export const phaseRecordManifestFormat = defineFormat<PhaseRecordManifestShapes>
   },
   releases: [],
   current: {
-    name: "next",
+    name: CURRENT_SHAPES["phase-record-manifest"],
     shape: { schema: RunRecordManifestFileSchema, decode: decodeRunRecordManifestFile },
   },
 });
@@ -90,9 +91,8 @@ export function toLatestPhaseRecordManifest(
 
 // ── authoring record manifest
 
-export type AuthoringRecordManifestShapes = {
-  "pre-schema": AuthoringRecordManifestPreSchema;
-  next: AuthoringRecordManifestFile;
+export type AuthoringRecordManifestShapes = { "pre-schema": AuthoringRecordManifestPreSchema } & {
+  [K in CurrentShapeName<"authoring-record-manifest">]: AuthoringRecordManifestFile;
 };
 
 /** The id of every authoring record manifest shape the package reads. */
@@ -107,7 +107,7 @@ export const authoringRecordManifestFormat = defineFormat<AuthoringRecordManifes
   },
   releases: [],
   current: {
-    name: "next",
+    name: CURRENT_SHAPES["authoring-record-manifest"],
     shape: {
       schema: AuthoringRecordManifestFileSchema,
       decode: decodeAuthoringRecordManifestFile,
