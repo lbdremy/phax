@@ -1,6 +1,6 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
-import { PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
+import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
   parseAuthoringRecordManifest,
   parseDocument,
@@ -16,12 +16,17 @@ import {
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import {
+  belowOwnReleaseMessage,
   preSchemaDocuments,
+  preSchemaUnsupported,
   validDocuments,
   versionOnePhaseRecordManifest,
   withKey,
   withoutKey,
 } from "./documents.js";
+
+const PHASE_CURRENT = CURRENT_SHAPES["phase-record-manifest"];
+const AUTHORING_CURRENT = CURRENT_SHAPES["authoring-record-manifest"];
 
 // As 0.16.0 wrote them: `version`, no `$schema`.
 const authoring = preSchemaDocuments["authoring-record-manifest"];
@@ -48,14 +53,14 @@ describe("the authoring record manifest", () => {
     });
   });
 
-  it("parses a manifest phax writes as shape next, with phax's value", () => {
+  it("parses a manifest phax writes as its current shape, with phax's value", () => {
     expect(Object.keys(writtenAuthoring)[0]).toBe("$schema");
     expect(writtenAuthoring).not.toHaveProperty("version");
     const phax = decodeAuthoringRecordManifestFile(writtenAuthoring);
     if (Either.isLeft(phax)) throw new Error("document rejected by phax");
     expect(parseAuthoringRecordManifest(writtenAuthoring)).toEqual({
       ok: true,
-      shape: "next",
+      shape: AUTHORING_CURRENT,
       value: phax.right,
     });
   });
@@ -120,17 +125,17 @@ describe("parseRecordManifest", () => {
     });
   });
 
-  it("reads the manifests phax writes by their $schema, as shape next", () => {
+  it("reads the manifests phax writes by their $schema, as their current shapes", () => {
     expect(parseRecordManifest(writtenPhase)).toEqual({
       ok: true,
       format: "phase-record-manifest",
-      shape: "next",
+      shape: PHASE_CURRENT,
       value: writtenPhase,
     });
     expect(parseRecordManifest(writtenAuthoring)).toEqual({
       ok: true,
       format: "authoring-record-manifest",
-      shape: "next",
+      shape: AUTHORING_CURRENT,
       value: writtenAuthoring,
     });
   });
@@ -139,34 +144,34 @@ describe("parseRecordManifest", () => {
     expect(parseDocument(writtenPhase)).toMatchObject({
       ok: true,
       format: "phase-record-manifest",
-      shape: "next",
+      shape: PHASE_CURRENT,
     });
     expect(parseDocument(writtenAuthoring)).toMatchObject({
       ok: true,
       format: "authoring-record-manifest",
-      shape: "next",
+      shape: AUTHORING_CURRENT,
     });
   });
 
-  it("fails a version-1 phase manifest as older than the first release that writes $schema", () => {
+  it("fails a version-1 phase manifest as older than the first supported release", () => {
     const result = parseRecordManifest(versionOnePhaseRecordManifest);
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.message).toMatch(
-        /^phase record manifest older than the first release that writes \$schema — not supported/,
+      expect(result.error.message.startsWith(preSchemaUnsupported("phase record manifest"))).toBe(
+        true,
       );
     }
   });
 
   it("dispatches on $schema before kind", () => {
     // A phase $schema sends an authoring document to the phase record manifest,
-    // which knows no shape at that release: kind is never consulted.
+    // which reads no shape at that release: kind is never consulted.
     const document = withKey(authoring, "$schema", schemaUrl("phase-record-manifest", "0.1.0"));
     expect(parseRecordManifest(document)).toEqual({
       ok: false,
       error: {
         path: "$schema",
-        message: "no phase-record-manifest shape is known at release 0.1.0",
+        message: belowOwnReleaseMessage("phase-record-manifest", "0.1.0"),
       },
     });
   });

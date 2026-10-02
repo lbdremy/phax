@@ -56,13 +56,15 @@ type JsonSchemaFormatId = FormatId | "record-manifest";
 
 interface CurrentShape {
   readonly label: string;
+  /** The released shapes the format has a frozen decoder for, by release. */
+  readonly releases: ReadonlyArray<readonly [string, unknown]>;
   readonly current: {
     readonly name: string;
     readonly shape: { readonly schema: Schema.Schema.Any };
   };
 }
 
-/** Every format's label and current shape, by format id. */
+/** Every format's label, released shapes and current shape, by format id. */
 export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   registry: registryFormat,
   "run-status": runStatusFormat,

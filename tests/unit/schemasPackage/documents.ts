@@ -6,6 +6,11 @@
 // staling a fixture. Nothing here comes from a phax home, a records branch or
 // another repository.
 import { Schema } from "effect";
+import { FIRST_SUPPORTED_RELEASE } from "../../../packages/schemas/src/generated/index.js";
+import {
+  developmentBuildMessage,
+  preSchemaUnsupportedMessage,
+} from "../../../packages/schemas/src/shapes.js";
 import { BranchNameSchema } from "../../../src/domain/branded.js";
 import { ApprovalRecordFileSchema } from "../../../src/schemas/approvalRecord.js";
 import { AuthoringRecordManifestFileSchema } from "../../../src/schemas/authoringRecord.js";
@@ -79,7 +84,7 @@ import { PhaseFileReconciliationFileSchema } from "../../../src/schemas/reconcil
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
 import { RegistryFileSchema } from "../../../src/schemas/registry.js";
 import { RunRecordManifestFileSchema } from "../../../src/schemas/runRecord.js";
-import type { FormatId } from "../../../src/schemas/schemaUrl.js";
+import { compareReleases, schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { SpecApprovalRecordFileSchema } from "../../../src/schemas/specApprovalRecord.js";
 import { SpecDocumentFileSchema } from "../../../src/schemas/specDocument.js";
 import { PhaseStatusFileSchema, RunStatusFileSchema } from "../../../src/schemas/status.js";
@@ -488,3 +493,22 @@ export const versionOnePhaseRecordManifest: Doc = withKey(
   "version",
   1,
 );
+
+// The messages a test expects follow the package's generated values, so a
+// release commit, which names the first supported release, leaves them green.
+
+/**
+ * How the package fails a `$schema` document at `release`, below its own
+ * release: a development build once a first supported release is known,
+ * else no shape at that release.
+ */
+export function belowOwnReleaseMessage(formatId: FormatId, release: string): string {
+  return FIRST_SUPPORTED_RELEASE !== null && compareReleases(release, FIRST_SUPPORTED_RELEASE) < 0
+    ? developmentBuildMessage(schemaUrl(formatId, release), FIRST_SUPPORTED_RELEASE)
+    : `no ${formatId} shape is known at release ${release}`;
+}
+
+/** How the package fails a document its frozen pre-schema decoder rejects, up to the violation. */
+export function preSchemaUnsupported(label: string): string {
+  return preSchemaUnsupportedMessage(label, "", FIRST_SUPPORTED_RELEASE).slice(0, -" ()".length);
+}

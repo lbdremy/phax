@@ -5,3 +5,23 @@ export const PACKAGE_VERSION = "0.16.0" as const;
 // The lowest release-named snapshot under packages/schemas/snapshots/, or
 // null while no release has written $schema yet.
 export const FIRST_SUPPORTED_RELEASE: string | null = null;
+// Each format's current shape name: `next` while
+// packages/schemas/snapshots/<format id>/next.schema.json exists, else its
+// highest release-named snapshot. A release renames `next` to itself.
+export const CURRENT_SHAPES = {
+  registry: "next",
+  "run-status": "next",
+  "phase-status": "next",
+  "phax-plan": "next",
+  "compliance-review": "next",
+  "plan-approvals": "next",
+  "spec-approvals": "next",
+  "phase-record-manifest": "next",
+  "authoring-record-manifest": "next",
+  "gate-attribution": "next",
+  "phase-file-reconciliation": "next",
+  "gate-diagnostics": "next",
+  "gate-pending": "next",
+  "spec-document": "next",
+  "plan-document": "next",
+} as const;

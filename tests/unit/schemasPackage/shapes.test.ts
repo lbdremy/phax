@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   UNKNOWN,
   defineFormat,
+  developmentBuildMessage,
   isUnknown,
   newerReleaseMessage,
   preSchemaUnsupportedMessage,
@@ -40,6 +41,10 @@ function expectFailure(result: Parsed<unknown>, path: string, message?: string) 
 
 const UNSUPPORTED = "toy document older than the first release that writes $schema — not supported";
 
+// The toys' own package version, and no first supported release, injected so
+// the package's generated values never change what a toy reads.
+const TOY_RELEASES = { packageVersion: "0.13.0", firstSupportedRelease: null } as const;
+
 const url = (release: string) => schemaUrl("gate-pending", release);
 
 // ── variant (a): the pre-schema slot unfilled, phax's current decoder reads it
@@ -58,7 +63,7 @@ const unfilled = defineFormat<{ "pre-schema": typeof CURRENT.Type }>(
     releases: [],
     current: { name: "pre-schema", shape: shape(CURRENT) },
   },
-  { packageVersion: "0.13.0" },
+  TOY_RELEASES,
 );
 
 describe("defineFormat, pre-schema slot unfilled: a document without $schema", () => {
@@ -204,7 +209,7 @@ function filledFormat() {
       ],
       current: { name: "next", shape: current },
     },
-    { packageVersion: "0.13.0" },
+    TOY_RELEASES,
   );
   return { format, currentCalls: current.calls };
 }
@@ -220,7 +225,7 @@ const releasedCurrent = defineFormat<Omit<FilledShapes, "next">>(
     releases: [["0.10.0", shape(R0_10)]],
     current: { name: "0.12.0", shape: shape(R0_12) },
   },
-  { packageVersion: "0.13.0" },
+  TOY_RELEASES,
 );
 
 const at0_10 = (release: string) => ({ $schema: url(release), a: "x", b: 1 });
@@ -354,7 +359,7 @@ const unreleased = defineFormat<{ "pre-schema": typeof PRE_SCHEMA.Type; next: ty
     releases: [],
     current: { name: "next", shape: shape(NEXT) },
   },
-  { packageVersion: "0.13.0" },
+  TOY_RELEASES,
 );
 
 describe("defineFormat, a `next` current shape and no release yet", () => {
@@ -378,6 +383,75 @@ describe("defineFormat, a `next` current shape and no release yet", () => {
       unreleased.parse(atNext("0.12.0")),
       "$schema",
       "no gate-pending shape is known at release 0.12.0",
+    );
+  });
+});
+
+// A frozen pre-schema module and a current shape named by the first release
+// that writes $schema, 0.17.0, read by a package at 0.17.0: the slots a phax
+// format fills once a release renames next.
+function firstRelease(firstSupportedRelease: string | null) {
+  const preSchema = counted(PRE_SCHEMA);
+  const current = counted(R0_12);
+  const format = defineFormat<{
+    "pre-schema": typeof PRE_SCHEMA.Type;
+    "0.17.0": typeof R0_12.Type;
+  }>(
+    {
+      id: "gate-pending",
+      label: "toy document",
+      preSchema,
+      releases: [],
+      current: { name: "0.17.0", shape: current },
+    },
+    { packageVersion: "0.17.0", firstSupportedRelease },
+  );
+  return { format, calls: () => preSchema.calls() + current.calls() };
+}
+
+describe("defineFormat, a $schema document below the first supported release", () => {
+  it("fails at $schema as a development build, and no decoder tries it", () => {
+    const { format, calls } = firstRelease("0.17.0");
+    // The pre-schema decoder would accept every key but $schema.
+    const document = { $schema: url("0.16.0"), version: 1, a: "x" };
+    expect(format.parse(document)).toEqual({
+      ok: false,
+      error: { path: "$schema", message: developmentBuildMessage(url("0.16.0"), "0.17.0") },
+    });
+    expect(calls()).toBe(0);
+  });
+
+  it("names the URL and the first supported release", () => {
+    expect(developmentBuildMessage(url("0.16.0"), "0.17.0")).toBe(
+      `${url("0.16.0")} was written by a development build of phax before 0.17.0, the first supported release — not supported`,
+    );
+  });
+
+  it("reads a document at the first supported release as its shape", () => {
+    const { format } = firstRelease("0.17.0");
+    expect(format.parse(at0_12("0.17.0"))).toEqual({
+      ok: true,
+      shape: "0.17.0",
+      value: at0_12("0.17.0"),
+    });
+  });
+
+  it("keeps the old resolution while no first supported release is known", () => {
+    const { format } = firstRelease(null);
+    expectFailure(
+      format.parse(at0_12("0.16.0")),
+      "$schema",
+      "no gate-pending shape is known at release 0.16.0",
+    );
+    expect(format.parse(at0_12("0.17.0"))).toMatchObject({ ok: true, shape: "0.17.0" });
+  });
+
+  it("checks a newer release first", () => {
+    const { format } = firstRelease("0.17.0");
+    expectFailure(
+      format.parse(at0_12("0.18.0")),
+      "$schema",
+      newerReleaseMessage("gate-pending", "0.18.0", "0.17.0"),
     );
   });
 });

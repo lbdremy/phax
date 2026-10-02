@@ -7,6 +7,7 @@ import { renderJsonSchemas } from "../../../packages/schemas/build/jsonSchemas.j
 import {
   SNAPSHOTS_DIR,
   checkSnapshots,
+  currentShapeNames,
   latestReleased,
   parseSnapshotName,
   planSnapshotWrites,
@@ -15,6 +16,7 @@ import {
   type SnapshotsInput,
 } from "../../../packages/schemas/build/snapshots.js";
 import { readSchemasState } from "../../../scripts/schemas-check.js";
+import { FORMAT_IDS } from "../../../src/schemas/schemaUrl.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
@@ -37,8 +39,12 @@ const original = render(Schema.Struct({ name: Schema.String }));
 const widened = render(Schema.Struct({ name: Schema.String, count: Schema.Number }));
 const narrowed = render(Schema.Struct({ count: Schema.Number }));
 
-function format(content: string, currentShape = "pre-schema"): SnapshotFormat {
-  return { id: ID, currentShape, generated: { ok: true, content } };
+function format(
+  content: string,
+  currentShape = "pre-schema",
+  releasedShapes: ReadonlyArray<string> = [],
+): SnapshotFormat {
+  return { id: ID, currentShape, releasedShapes, generated: { ok: true, content } };
 }
 
 function input(
@@ -142,13 +148,13 @@ describe("the snapshot gate (ac-snapshot-gate)", () => {
   });
 
   it("compares against the highest release, not pre-schema", () => {
-    const state = input(format(widened), {
+    const state = input(format(widened, "0.10.0", ["0.9.0"]), {
       "pre-schema.schema.json": original,
       "0.9.0.schema.json": original,
       "0.10.0.schema.json": widened,
     });
     expect(checkSnapshots(state)).toEqual([]);
-    const regressed = input(format(original), {
+    const regressed = input(format(original, "0.10.0", ["0.9.0"]), {
       "pre-schema.schema.json": original,
       "0.9.0.schema.json": original,
       "0.10.0.schema.json": widened,
@@ -198,6 +204,103 @@ describe("the snapshot gate (ac-snapshot-gate)", () => {
     const released = input(format(original, "next"), {});
     expect(planSnapshotWrites(released).writes).toEqual(new Map([[NEXT_PATH, original]]));
     expect(checkSnapshots(apply(released))).toEqual([]);
+  });
+});
+
+/** A snapshot directory holding one file per name; a hidden name is kept as is. */
+function snapshotFiles(names: ReadonlyArray<string>): ReadonlyMap<string, string> {
+  return new Map(names.map((name) => [name.startsWith(".") ? name : `${name}.schema.json`, "{}"]));
+}
+
+/** Every format directory holding `next` and `pre-schema`, with `overrides` replacing some. */
+function everyFormat(
+  overrides: Record<string, ReadonlyArray<string>> = {},
+  extra: Record<string, ReadonlyArray<string>> = {},
+): ReadonlyMap<string, ReadonlyMap<string, string>> {
+  const dirs = new Map<string, ReadonlyMap<string, string>>();
+  for (const id of FORMAT_IDS) dirs.set(id, snapshotFiles(overrides[id] ?? ["pre-schema", "next"]));
+  for (const [dir, names] of Object.entries(extra)) dirs.set(dir, snapshotFiles(names));
+  return dirs;
+}
+
+describe("currentShapeNames", () => {
+  it("names next while it exists, even beside a release", () => {
+    const { names, findings } = currentShapeNames(
+      everyFormat({ registry: ["pre-schema", "0.17.0", "next"] }),
+    );
+    expect(findings).toEqual([]);
+    expect(names.registry).toBe("next");
+    expect(Object.keys(names)).toEqual([...FORMAT_IDS]);
+  });
+
+  it("names the highest release when there is no next, ordering 0.10.0 above 0.9.0", () => {
+    const { names, findings } = currentShapeNames(
+      everyFormat({ registry: ["pre-schema", "0.9.0", "0.10.0"], "gate-pending": ["0.17.0"] }),
+    );
+    expect(findings).toEqual([]);
+    expect(names.registry).toBe("0.10.0");
+    expect(names["gate-pending"]).toBe("0.17.0");
+    expect(names["run-status"]).toBe("next");
+  });
+
+  it("reports a format with neither next nor a release-named snapshot, naming the --write command", () => {
+    const snapshots = new Map(everyFormat({ registry: ["pre-schema"] }));
+    snapshots.delete("run-status");
+    const { names, findings } = currentShapeNames(snapshots);
+    expect(findings).toEqual([
+      `✗ registry: no next or release-named snapshot — run ${WRITE_COMMAND}`,
+      `✗ run-status: no next or release-named snapshot — run ${WRITE_COMMAND}`,
+    ]);
+    expect(names).not.toHaveProperty("registry");
+    expect(names).not.toHaveProperty("run-status");
+  });
+
+  it("ignores hidden entries and directories that name no format", () => {
+    const { names, findings } = currentShapeNames(
+      everyFormat(
+        { registry: ["pre-schema", "0.17.0", ".next.schema.json"] },
+        { ".cache": ["next"], "launch-codes": ["0.1.0"] },
+      ),
+    );
+    expect(findings).toEqual([]);
+    expect(names.registry).toBe("0.17.0");
+    expect(names).not.toHaveProperty("launch-codes");
+  });
+});
+
+describe("a released snapshot without a decoder", () => {
+  const unfrozen = (release: string) =>
+    `✗ ${ID}: snapshot ${release} is released but no decoder reads it — freeze it as ` +
+    `src/schemas/history/${ID}/${release}.ts and add it to the format's releases`;
+
+  it("passes when the release is the current shape the snapshots name", () => {
+    // `currentShape` is the in-process name: the check ignores it, as a cut
+    // renames snapshots under a running process.
+    const state = input(format(widened, "next"), {
+      "pre-schema.schema.json": original,
+      "0.17.0.schema.json": widened,
+    });
+    expect(checkSnapshots(state)).toEqual([]);
+  });
+
+  it("passes when the release is one of the format's releases", () => {
+    const state = input(format(widened, "next", ["0.17.0"]), {
+      "pre-schema.schema.json": original,
+      "0.17.0.schema.json": original,
+      "next.schema.json": widened,
+    });
+    expect(checkSnapshots(state)).toEqual([]);
+  });
+
+  it("fails a release that is neither, naming the module to freeze", () => {
+    const state = input(format(narrowed, "next", ["0.17.0"]), {
+      "pre-schema.schema.json": original,
+      "0.17.0.schema.json": original,
+      "0.18.0.schema.json": widened,
+      "next.schema.json": narrowed,
+    });
+    expect(checkSnapshots(state)).toEqual([unfrozen("0.18.0")]);
+    expect(planSnapshotWrites(state)).toEqual({ writes: new Map(), removals: [] });
   });
 });
 
@@ -258,7 +361,14 @@ describe("stray snapshot files", () => {
 
   it("reports a format that failed to render, and skips it on --write", () => {
     const state: SnapshotsInput = {
-      formats: [{ id: ID, currentShape: "pre-schema", generated: { ok: false, reason: "boom" } }],
+      formats: [
+        {
+          id: ID,
+          currentShape: "pre-schema",
+          releasedShapes: [],
+          generated: { ok: false, reason: "boom" },
+        },
+      ],
       snapshots: new Map(),
       snapshotRootFiles: [],
     };

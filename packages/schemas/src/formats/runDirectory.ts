@@ -1,7 +1,8 @@
 // The files of a phax run directory: the run registry, run status, phase
 // status, phax-plan and compliance review. Each pre-schema shape is phax's
-// frozen module under src/schemas/history/; each current shape, `next`, is
-// phax's own schema and decoder. The package declares none of its own.
+// frozen module under src/schemas/history/; each current shape, named by
+// `CURRENT_SHAPES` (`next` until a release renames it), is phax's own schema
+// and decoder. The package declares none of its own.
 import {
   ComplianceReviewFileSchema,
   decodeComplianceReviewFile,
@@ -55,17 +56,20 @@ import {
   type RunStatus,
   type RunStatusFile,
 } from "../../../../src/schemas/status.js";
+import { CURRENT_SHAPES } from "../generated/index.js";
 import type { ParsedShape } from "../parsed.js";
-import { defineFormat } from "../shapes.js";
+import { defineFormat, type CurrentShapeName } from "../shapes.js";
 
 // A document without `$schema` is read by the format's frozen pre-schema
-// module as shape `pre-schema`; no release has written `$schema` yet, so a
-// `$schema` document at the package's own release is read by phax's decoder
-// as shape `next`.
+// module as shape `pre-schema`; a `$schema` document is read by phax's decoder
+// as the current shape, named by `CURRENT_SHAPES`: `next` until a release
+// renames it, then that release.
 
 // ── registry
 
-export type RegistryShapes = { "pre-schema": RegistryPreSchema; next: RegistryFile };
+export type RegistryShapes = { "pre-schema": RegistryPreSchema } & {
+  [K in CurrentShapeName<"registry">]: RegistryFile;
+};
 
 /** The id of every run registry shape the package reads. */
 export type RegistryShape = keyof RegistryShapes;
@@ -75,7 +79,10 @@ export const registryFormat = defineFormat<RegistryShapes>({
   label: "run registry",
   preSchema: { schema: RegistryPreSchemaSchema, decode: decodeRegistryPreSchema },
   releases: [],
-  current: { name: "next", shape: { schema: RegistryFileSchema, decode: decodeRegistryFile } },
+  current: {
+    name: CURRENT_SHAPES.registry,
+    shape: { schema: RegistryFileSchema, decode: decodeRegistryFile },
+  },
 });
 
 /** Reads `~/.phax/registry.json`. Never throws. */
@@ -91,7 +98,9 @@ export function toLatestRegistry(value: RegistryPreSchema | RegistryFile): Lates
 
 // ── run status
 
-export type RunStatusShapes = { "pre-schema": RunStatusPreSchema; next: RunStatusFile };
+export type RunStatusShapes = { "pre-schema": RunStatusPreSchema } & {
+  [K in CurrentShapeName<"run-status">]: RunStatusFile;
+};
 
 /** The id of every run status shape the package reads. */
 export type RunStatusShape = keyof RunStatusShapes;
@@ -101,7 +110,10 @@ export const runStatusFormat = defineFormat<RunStatusShapes>({
   label: "run status",
   preSchema: { schema: RunStatusPreSchemaSchema, decode: decodeRunStatusPreSchema },
   releases: [],
-  current: { name: "next", shape: { schema: RunStatusFileSchema, decode: decodeRunStatusFile } },
+  current: {
+    name: CURRENT_SHAPES["run-status"],
+    shape: { schema: RunStatusFileSchema, decode: decodeRunStatusFile },
+  },
 });
 
 /** Reads a run's `run-status.json`. Never throws. */
@@ -123,7 +135,9 @@ export function toLatestRunStatus(value: RunStatusPreSchema | RunStatusFile): La
 
 // ── phase status
 
-export type PhaseStatusShapes = { "pre-schema": PhaseStatusPreSchema; next: PhaseStatusFile };
+export type PhaseStatusShapes = { "pre-schema": PhaseStatusPreSchema } & {
+  [K in CurrentShapeName<"phase-status">]: PhaseStatusFile;
+};
 
 /** The id of every phase status shape the package reads. */
 export type PhaseStatusShape = keyof PhaseStatusShapes;
@@ -134,7 +148,7 @@ export const phaseStatusFormat = defineFormat<PhaseStatusShapes>({
   preSchema: { schema: PhaseStatusPreSchemaSchema, decode: decodePhaseStatusPreSchema },
   releases: [],
   current: {
-    name: "next",
+    name: CURRENT_SHAPES["phase-status"],
     shape: { schema: PhaseStatusFileSchema, decode: decodePhaseStatusFile },
   },
 });
@@ -160,7 +174,9 @@ export function toLatestPhaseStatus(
 
 // ── phax-plan
 
-export type PhaxPlanShapes = { "pre-schema": PhaxPlanPreSchema; next: PhaxPlanFile };
+export type PhaxPlanShapes = { "pre-schema": PhaxPlanPreSchema } & {
+  [K in CurrentShapeName<"phax-plan">]: PhaxPlanFile;
+};
 
 /** The id of every phax-plan shape the package reads. */
 export type PhaxPlanShape = keyof PhaxPlanShapes;
@@ -170,7 +186,10 @@ export const phaxPlanFormat = defineFormat<PhaxPlanShapes>({
   label: "phax-plan",
   preSchema: { schema: PhaxPlanPreSchemaSchema, decode: decodePhaxPlanPreSchema },
   releases: [],
-  current: { name: "next", shape: { schema: PhaxPlanFileSchema, decode: decodePhaxPlanFile } },
+  current: {
+    name: CURRENT_SHAPES["phax-plan"],
+    shape: { schema: PhaxPlanFileSchema, decode: decodePhaxPlanFile },
+  },
 });
 
 /** Reads a run's `phax-plan.json`. Never throws. */
@@ -191,9 +210,8 @@ export function toLatestPhaxPlan(value: PhaxPlanPreSchema | PhaxPlanFile): Lates
 
 // ── compliance review
 
-export type ComplianceReviewShapes = {
-  "pre-schema": ComplianceReviewPreSchema;
-  next: ComplianceReviewFile;
+export type ComplianceReviewShapes = { "pre-schema": ComplianceReviewPreSchema } & {
+  [K in CurrentShapeName<"compliance-review">]: ComplianceReviewFile;
 };
 
 /** The id of every compliance review shape the package reads. */
@@ -205,7 +223,7 @@ export const complianceReviewFormat = defineFormat<ComplianceReviewShapes>({
   preSchema: { schema: ComplianceReviewPreSchemaSchema, decode: decodeComplianceReviewPreSchema },
   releases: [],
   current: {
-    name: "next",
+    name: CURRENT_SHAPES["compliance-review"],
     shape: { schema: ComplianceReviewFileSchema, decode: decodeComplianceReviewFile },
   },
 });

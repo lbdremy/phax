@@ -101,7 +101,8 @@ import {
   toLatestSpecApprovals,
   toLatestSpecDocument,
 } from "../../packages/schemas/src/index.js";
-import type { FormatSpec, Shape } from "../../packages/schemas/src/shapes.js";
+import { CURRENT_SHAPES } from "../../packages/schemas/src/generated/index.js";
+import type { CurrentShapeName, FormatSpec, Shape } from "../../packages/schemas/src/shapes.js";
 import type {
   ApprovalRecordFile,
   PlanApprovals as PhaxPlanApprovals,
@@ -178,6 +179,13 @@ import type {
 type Equals<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 
+/** A format's current shape name, as its snapshots record it: `next` until a release renames it. */
+type Current<F extends FormatId> = (typeof CURRENT_SHAPES)[F];
+
+// The current shape name is the generated one, never a literal of its own
+const currentShapeNames: Equals<Current<"registry">, CurrentShapeName<"registry">> = true;
+void currentShapeNames;
+
 // The package's PhaseRecordManifest is phax's RunRecordManifestFile, both ways (§5.20)
 declare const fromPackage: PhaseRecordManifest;
 declare const fromPhax: RunRecordManifestFile;
@@ -193,7 +201,7 @@ void asParsed;
 
 // Narrowing on success yields the frozen pre-schema type or phax's own type
 if (parsed.ok) {
-  const shape: Equals<typeof parsed.shape, "pre-schema" | "next"> = true;
+  const shape: Equals<typeof parsed.shape, "pre-schema" | Current<"phase-record-manifest">> = true;
   const exact: Equals<typeof parsed.value, FrozenPhaseRecordManifest | RunRecordManifestFile> =
     true;
   void shape;
@@ -297,14 +305,17 @@ const complete: Equals<DocumentFormatId, FormatId> = true;
 void complete;
 if (document.ok) {
   const format: DocumentFormatId = document.format;
-  const shape: Equals<typeof document.shape, "pre-schema" | "next"> = true;
+  const shape: Equals<typeof document.shape, "pre-schema" | Current<FormatId>> = true;
   void format;
   void shape;
-  if (document.format === "phase-record-manifest" && document.shape === "next") {
+  if (
+    document.format === "phase-record-manifest" &&
+    document.shape === CURRENT_SHAPES["phase-record-manifest"]
+  ) {
     const exact: Equals<typeof document.value, RunRecordManifestFile> = true;
     void exact;
   }
-  if (document.format === "phax-plan" && document.shape === "next") {
+  if (document.format === "phax-plan" && document.shape === CURRENT_SHAPES["phax-plan"]) {
     const exact: Equals<typeof document.value, PhaxPhaxPlanFile> = true;
     void exact;
   }
@@ -312,11 +323,14 @@ if (document.ok) {
     const exact: Equals<typeof document.value, FrozenSpecApprovals> = true;
     void exact;
   }
-  if (document.format === "spec-document" && document.shape === "next") {
+  if (document.format === "spec-document" && document.shape === CURRENT_SHAPES["spec-document"]) {
     const exact: Equals<typeof document.value, PhaxSpecDocumentFile> = true;
     void exact;
   }
-  if (document.format === "phase-file-reconciliation" && document.shape === "next") {
+  if (
+    document.format === "phase-file-reconciliation" &&
+    document.shape === CURRENT_SHAPES["phase-file-reconciliation"]
+  ) {
     const exact: Equals<typeof document.value, PhaxPhaseFileReconciliationFile> = true;
     void exact;
   }
@@ -331,7 +345,8 @@ if (parsedDocument.ok && parsedDocument.shape === "0.12.0") {
   void toyValue;
 }
 
-// Every format reads two shapes: its frozen pre-schema shape and next
+// Every format reads two shapes: its frozen pre-schema shape and its current
+// shape, named by CURRENT_SHAPES
 const shapeIds: Equals<
   | RegistryShape
   | RunStatusShape
@@ -348,25 +363,25 @@ const shapeIds: Equals<
   | PhaseFileReconciliationShape
   | GateDiagnosticsShape
   | GatePendingShape,
-  "pre-schema" | "next"
+  "pre-schema" | Current<FormatId>
 > = true;
 void shapeIds;
 const eachShapeId: [
-  Equals<RegistryShape, "pre-schema" | "next">,
-  Equals<RunStatusShape, "pre-schema" | "next">,
-  Equals<PhaseStatusShape, "pre-schema" | "next">,
-  Equals<PhaxPlanShape, "pre-schema" | "next">,
-  Equals<ComplianceReviewShape, "pre-schema" | "next">,
-  Equals<PlanApprovalsShape, "pre-schema" | "next">,
-  Equals<SpecApprovalsShape, "pre-schema" | "next">,
-  Equals<SpecDocumentShape, "pre-schema" | "next">,
-  Equals<PlanDocumentShape, "pre-schema" | "next">,
-  Equals<PhaseRecordManifestShape, "pre-schema" | "next">,
-  Equals<AuthoringRecordManifestShape, "pre-schema" | "next">,
-  Equals<GateAttributionShape, "pre-schema" | "next">,
-  Equals<PhaseFileReconciliationShape, "pre-schema" | "next">,
-  Equals<GateDiagnosticsShape, "pre-schema" | "next">,
-  Equals<GatePendingShape, "pre-schema" | "next">,
+  Equals<RegistryShape, "pre-schema" | Current<"registry">>,
+  Equals<RunStatusShape, "pre-schema" | Current<"run-status">>,
+  Equals<PhaseStatusShape, "pre-schema" | Current<"phase-status">>,
+  Equals<PhaxPlanShape, "pre-schema" | Current<"phax-plan">>,
+  Equals<ComplianceReviewShape, "pre-schema" | Current<"compliance-review">>,
+  Equals<PlanApprovalsShape, "pre-schema" | Current<"plan-approvals">>,
+  Equals<SpecApprovalsShape, "pre-schema" | Current<"spec-approvals">>,
+  Equals<SpecDocumentShape, "pre-schema" | Current<"spec-document">>,
+  Equals<PlanDocumentShape, "pre-schema" | Current<"plan-document">>,
+  Equals<PhaseRecordManifestShape, "pre-schema" | Current<"phase-record-manifest">>,
+  Equals<AuthoringRecordManifestShape, "pre-schema" | Current<"authoring-record-manifest">>,
+  Equals<GateAttributionShape, "pre-schema" | Current<"gate-attribution">>,
+  Equals<PhaseFileReconciliationShape, "pre-schema" | Current<"phase-file-reconciliation">>,
+  Equals<GateDiagnosticsShape, "pre-schema" | Current<"gate-diagnostics">>,
+  Equals<GatePendingShape, "pre-schema" | Current<"gate-pending">>,
 ] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
 void eachShapeId;
 
@@ -408,12 +423,13 @@ const parseValues: [
 ] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
 void parseValues;
 
-// Each shape carries its own type: the frozen module's for pre-schema, phax's for next
+// Each shape carries its own type: the frozen module's for pre-schema, phax's
+// for the current shape
 const shapeValues: [
   Equals<ShapeValue<typeof parseRegistry, "pre-schema">, FrozenRegistry>,
-  Equals<ShapeValue<typeof parseRegistry, "next">, PhaxRegistryFile>,
+  Equals<ShapeValue<typeof parseRegistry, Current<"registry">>, PhaxRegistryFile>,
   Equals<ShapeValue<typeof parseGatePending, "pre-schema">, FrozenGatePending>,
-  Equals<ShapeValue<typeof parseGatePending, "next">, GatePendingFile>,
+  Equals<ShapeValue<typeof parseGatePending, Current<"gate-pending">>, GatePendingFile>,
 ] = [true, true, true, true];
 void shapeValues;
 
@@ -682,7 +698,10 @@ const anyManifestAsParsed: Parsed<
 void anyManifestAsParsed;
 if (anyManifest.ok) {
   const format: RecordManifestFormat = anyManifest.format;
-  const shape: Equals<typeof anyManifest.shape, "pre-schema" | "next"> = true;
+  const shape: Equals<
+    typeof anyManifest.shape,
+    "pre-schema" | Current<"phase-record-manifest"> | Current<"authoring-record-manifest">
+  > = true;
   void format;
   void shape;
   if (anyManifest.format === "authoring-record-manifest") {

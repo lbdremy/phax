@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
+import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
   parsePhaseRecordManifest,
   toLatestPhaseRecordManifest,
@@ -8,6 +8,7 @@ import {
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import {
   preSchemaDocuments,
+  preSchemaUnsupported,
   validDocuments,
   versionOnePhaseRecordManifest,
   withKey,
@@ -16,6 +17,7 @@ import {
 
 const preSchema = preSchemaDocuments["phase-record-manifest"];
 const written = validDocuments["phase-record-manifest"];
+const CURRENT = CURRENT_SHAPES["phase-record-manifest"];
 
 describe("parsePhaseRecordManifest across shapes (ac-history-read)", () => {
   it("reads a version-2 manifest without $schema as shape pre-schema", () => {
@@ -23,27 +25,25 @@ describe("parsePhaseRecordManifest across shapes (ac-history-read)", () => {
     expect(result).toEqual({ ok: true, shape: "pre-schema", value: preSchema });
   });
 
-  it("reads a manifest phax writes, with $schema first, as shape next", () => {
+  it("reads a manifest phax writes, with $schema first, as its current shape", () => {
     expect(Object.keys(written)[0]).toBe("$schema");
     expect(written).not.toHaveProperty("version");
     const result = parsePhaseRecordManifest(written);
-    expect(result).toEqual({ ok: true, shape: "next", value: written });
-    if (result.ok && result.shape === "next") {
+    expect(result).toEqual({ ok: true, shape: CURRENT, value: written });
+    if (result.ok && result.shape === CURRENT) {
       const value: PhaseRecordManifest = result.value;
       expect(value.verifiedSurfaces.length).toBeGreaterThan(0);
     }
   });
 
-  it("fails a version-1 manifest as older than the first release that writes $schema, without throwing", () => {
+  it("fails a version-1 manifest as older than the first supported release, without throwing", () => {
     expect(() => parsePhaseRecordManifest(versionOnePhaseRecordManifest)).not.toThrow();
     const result = parsePhaseRecordManifest(versionOnePhaseRecordManifest);
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(
-      result.error.message.startsWith(
-        "phase record manifest older than the first release that writes $schema — not supported",
-      ),
-    ).toBe(true);
+    expect(result.error.message.startsWith(preSchemaUnsupported("phase record manifest"))).toBe(
+      true,
+    );
   });
 
   it("fails a manifest written by a newer phax, naming the release, without throwing", () => {

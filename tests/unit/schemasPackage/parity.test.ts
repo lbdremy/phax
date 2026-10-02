@@ -1,5 +1,6 @@
 import { Either, type ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
+import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
 import {
   parseAuthoringRecordManifest,
   parseComplianceReview,
@@ -237,7 +238,7 @@ describe("parity: one unknown key", () => {
     const input = withKey(validDocuments.registry, "owner", "example");
     expect(Either.isRight(decodeRegistryFile(input))).toBe(true);
     const result = parseRegistry(input);
-    expect(result).toMatchObject({ ok: true, shape: "next" });
+    expect(result).toMatchObject({ ok: true, shape: CURRENT_SHAPES.registry });
     if (result.ok) expect(Object.hasOwn(result.value, "owner")).toBe(false);
   });
 });
