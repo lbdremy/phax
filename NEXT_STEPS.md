@@ -194,8 +194,8 @@ desktop — none is promised by the announcement.
       (PR #108, run archived; the spec-completion pair was dropped from the branch before
       merge). **Plan 4/5 landed 2026-10-02** (phax writes `$schema`; frozen decoders in
       `src/schemas/history/`, phax never imports `packages/`; PR #109 merged with the
-      side-review cleanups, run archived). **Plan 5/5 (publication)** is being authored from
-      the rewritten brief: `release.sh` cuts the `next` shapes, lockstep publish with a tarball
+      side-review cleanups, run archived). **Plan 5/5 (publication) Approved 2026-10-02**
+      (`docs/plans/2610021004-schemas-package-plan.md`, 4 phases; running): `release.sh` cuts the `next` shapes, lockstep publish with a tarball
       smoke, dev-build `$schema` documents fail cleanly, README table and §11 section; it
       completes the spec.
       **Before 1.0: phax must not rewrite a document from a newer release.** phax accepts
