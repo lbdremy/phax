@@ -227,21 +227,21 @@ Given the order guard in place, when any fresh-run preflight is made reachable o
 - Behavioural unit tests on `phax run`, one per refusal family, asserting that naming and allocation are never reached — abandons: Future preflights: a preflight added later has no test case until someone writes one, so it can still land after naming silently.
 - A single shared set of fresh-run preflights, which `phax run` runs before naming and executePlan's preflight block consists of, plus a test that every refusal the set can raise is raised by `phax run` before naming — abandons: Freedom for executePlan to grow a preflight that `phax run` does not run before naming: a genuinely run-dependent or resume-only check has to be declared outside the set, explicitly.
 
-Recommendation: A single shared set of fresh-run preflights, which `phax run` runs before naming and executePlan's preflight block consists of, plus a test that every refusal the set can raise is raised by `phax run` before naming — The defect started because a check was added where the run already existed. Only C makes the pre-naming path pick up a new preflight by construction, rather than relying on someone remembering a test or a source position. Its loss is the intended discipline: no preflight today needs the run, so a future one that does should have to say so. B's per-family tests are still written as the acceptance criteria.
+Recommendation: A single shared set of fresh-run preflights, which `phax run` runs before naming and executePlan's preflight block consists of, plus a test that every refusal the set can raise is raised by `phax run` before naming — Decided by the author on 2026-10-03. The defect started because a check was added where the run already existed. Only C makes the pre-naming path pick up a new preflight by construction, rather than relying on someone remembering a test or a source position. Its loss is the intended discipline: no preflight today needs the run, so a future one that does should have to say so. B's per-family tests are still written as the acceptance criteria.
 
 ### Q2 — Once the read-only clean-tree check runs before naming, does run-branch creation keep its own dirty-tree refusal?
 
 - Keep it: the check runs twice, before naming and again when the branch is created — abandons: A complete fix: a tree that becomes dirty in the seconds between the two checks is refused after naming and still burns the slug.
 - Drop it for fresh runs: only the pre-naming check remains — abandons: The guarantee that the run branch is cut from a clean tree: a file dirtied in the window is silently carried into the run.
 
-Recommendation: Keep it: the check runs twice, before naming and again when the branch is created — The window is seconds long and rarely hit, and a slug burned in it is the old, recoverable defect. Running work from an unverified tree is a correctness loss, and `--allow-dirty` exists precisely so that it is never silent.
+Recommendation: Keep it: the check runs twice, before naming and again when the branch is created — Decided by the author on 2026-10-03. The window is seconds long and rarely hit, and a slug burned in it is the old, recoverable defect. Running work from an unverified tree is a correctness loss, and `--allow-dirty` exists precisely so that it is never silent.
 
 ### Q3 — When several preflights would refuse, should the first refusal be reported (as today) or all of them at once?
 
 - Keep reporting the first refusal, in today's order — abandons: Fixing everything in one pass: an operator with two causes needs two attempts, although retries are now free of debris.
 - Collect and report every refusal in one exit — abandons: The unchanged-output contract: the message and possibly the exit code change while the CLI contract is about to freeze for 1.0.
 
-Recommendation: Keep reporting the first refusal, in today's order — This spec removes the cost of a retry, which was what made one-at-a-time painful. Changing refusal output is out of scope by constraint and can be its own spec after 1.0.
+Recommendation: Keep reporting the first refusal, in today's order — Decided by the author on 2026-10-03. This spec removes the cost of a retry, which was what made one-at-a-time painful. Changing refusal output is out of scope by constraint and can be its own spec after 1.0.
 
 ## 10. Implementation-planning note
 
@@ -253,6 +253,7 @@ Settled:
 - Refusal exit codes and messages are unchanged, including the `phax run failed: ` prefix for the refusals that printed it from executePlan. The skill edit consent refusal keeps its current bare form.
 - Today's first-refusal order is preserved (R5, Q3 default A).
 - No CLI, config or persisted-format change.
+- Every §9 question was decided by the author on 2026-10-03, each on its recommended option.
 
 Left open:
 

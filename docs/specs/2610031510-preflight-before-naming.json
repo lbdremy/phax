@@ -337,7 +337,7 @@
         }
       ],
       "recommendation": "C",
-      "rationale": "The defect started because a check was added where the run already existed. Only C makes the pre-naming path pick up a new preflight by construction, rather than relying on someone remembering a test or a source position. Its loss is the intended discipline: no preflight today needs the run, so a future one that does should have to say so. B's per-family tests are still written as the acceptance criteria."
+      "rationale": "Decided by the author on 2026-10-03. The defect started because a check was added where the run already existed. Only C makes the pre-naming path pick up a new preflight by construction, rather than relying on someone remembering a test or a source position. Its loss is the intended discipline: no preflight today needs the run, so a future one that does should have to say so. B's per-family tests are still written as the acceptance criteria."
     },
     {
       "id": "Q2",
@@ -355,7 +355,7 @@
         }
       ],
       "recommendation": "A",
-      "rationale": "The window is seconds long and rarely hit, and a slug burned in it is the old, recoverable defect. Running work from an unverified tree is a correctness loss, and `--allow-dirty` exists precisely so that it is never silent."
+      "rationale": "Decided by the author on 2026-10-03. The window is seconds long and rarely hit, and a slug burned in it is the old, recoverable defect. Running work from an unverified tree is a correctness loss, and `--allow-dirty` exists precisely so that it is never silent."
     },
     {
       "id": "Q3",
@@ -373,7 +373,7 @@
         }
       ],
       "recommendation": "A",
-      "rationale": "This spec removes the cost of a retry, which was what made one-at-a-time painful. Changing refusal output is out of scope by constraint and can be its own spec after 1.0."
+      "rationale": "Decided by the author on 2026-10-03. This spec removes the cost of a retry, which was what made one-at-a-time painful. Changing refusal output is out of scope by constraint and can be its own spec after 1.0."
     }
   ],
   "planningNote": {
@@ -383,7 +383,8 @@
       "executePlan keeps its copies of required commands, skill edit consent, mcp.allow, records destination and phase models and efforts. These are the resume re-checks: phax.json, the routing/provider config, the mcp.allow files and the records clone are all read live at resume and can change after the run starts. Resume still passes allow-dirty and does not check for a clean tree.",
       "Refusal exit codes and messages are unchanged, including the `phax run failed: ` prefix for the refusals that printed it from executePlan. The skill edit consent refusal keeps its current bare form.",
       "Today's first-refusal order is preserved (R5, Q3 default A).",
-      "No CLI, config or persisted-format change."
+      "No CLI, config or persisted-format change.",
+      "Every §9 question was decided by the author on 2026-10-03, each on its recommended option."
     ],
     "open": [
       "The guard mechanism: Q1 defaults to a single shared fresh-run preflight set with a test over every refusal it can raise.",

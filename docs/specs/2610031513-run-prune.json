@@ -65,7 +65,7 @@
     },
     {
       "term": "Unpreserved commit",
-      "definition": "A commit that one of the run's local branches reaches and that no other ref in the repository reaches — no other local branch, tag or remote-tracking ref. Deleting the run's branches would lose it."
+      "definition": "A commit that one of the run's local branches reaches and that no ref outside the branches this command is about to delete reaches — no other local branch, tag or remote-tracking ref. A run's own phase branches, and the branches of the other runs selected in the same command, do not preserve each other. Deleting the run's branches would lose it."
     },
     {
       "term": "Worktree metadata",
@@ -577,7 +577,7 @@
         }
       ],
       "recommendation": "preserved-only",
-      "rationale": "Freeing a name while its branches survive is a silent correctness bug in `run`, and this spec may not change `run`, so the branches have to go with the name. Among the options that delete, only deletion gated on reachability never loses work by default. Its cost is that squash-merged work whose remote branch is gone reads as unpreserved. That cost is visible — the run is kept whole and reported, never half-deleted — and one flag answers it."
+      "rationale": "Decided by the author on 2026-10-03. Freeing a name while its branches survive is a silent correctness bug in `run`, and this spec may not change `run`, so the branches have to go with the name. Among the options that delete, only deletion gated on reachability never loses work by default. Its cost is that squash-merged work whose remote branch is gone reads as unpreserved. That cost is visible — the run is kept whole and reported, never half-deleted — and one flag answers it."
     },
     {
       "id": "q-bulk",
@@ -600,7 +600,7 @@
         }
       ],
       "recommendation": "names-and-all",
-      "rationale": "`--all` covers the one-time cleanup, and the preview with confirmation makes it safe. Age filters can be added later without breaking anything; once a duration grammar is frozen, it cannot be removed."
+      "rationale": "Decided by the author on 2026-10-03. `--all` covers the one-time cleanup, and the preview with confirmation makes it safe. Age filters can be added later without breaking anything; once a duration grammar is frozen, it cannot be removed."
     },
     {
       "id": "q-namespace-reach",
@@ -623,7 +623,7 @@
         }
       ],
       "recommendation": "current-only",
-      "rationale": "prune is safe only because it inspects the run's branches in the repository that owns them, and the current repository is the only one phax can name with certainty. Running prune from each repository is the same habit that archive's git cleanup already requires."
+      "rationale": "Decided by the author on 2026-10-03. prune is safe only because it inspects the run's branches in the repository that owns them, and the current repository is the only one phax can name with certainty. Running prune from each repository is the same habit that archive's git cleanup already requires."
     },
     {
       "id": "q-confirmation",
@@ -646,7 +646,7 @@
         }
       ],
       "recommendation": "preview-confirm-yes",
-      "rationale": "The deletion cannot be undone, and its size is the point of the command, so the operator should see it before it happens. `--yes` is already how phax spells \"I know\" for destructive commands, and a script pays one flag for it."
+      "rationale": "Decided by the author on 2026-10-03. The deletion cannot be undone, and its size is the point of the command, so the operator should see it before it happens. `--yes` is already how phax spells \"I know\" for destructive commands, and a script pays one flag for it."
     },
     {
       "id": "q-kept-exit",
@@ -669,7 +669,7 @@
         }
       ],
       "recommendation": "exit-4",
-      "rationale": "The usual reasons to keep a run — unpreserved commits, a checked-out branch — are git state. The rare filesystem failure is named in the output and in the JSON `kept.reason`, so the exit code does not need to carry it."
+      "rationale": "Decided by the author on 2026-10-03. The usual reasons to keep a run — unpreserved commits, a checked-out branch — are git state. The rare filesystem failure is named in the output and in the JSON `kept.reason`, so the exit code does not need to carry it."
     }
   ],
   "planningNote": {
@@ -678,7 +678,8 @@
       "Deleted: the archive folder, the worktree metadata in the current repository, the run's local branches, and the registry entry, which goes last. Never touched: the records branch, remote branches, remote-tracking refs, pull requests, and branches of other runs.",
       "Local branches are deleted only when every commit they hold is reachable from a ref that prune keeps. Otherwise the run is kept whole unless `--force` is given. A checked-out branch keeps the run even with `--force`.",
       "Whole-command refusals (bad selection, outside a project, another namespace, a lock, no confirmation) happen before anything is deleted. A per-run failure keeps that run's entry and the command continues with the other runs.",
-      "Exit codes are 0, 1, 3 and 4 as pinned in §6."
+      "Exit codes are 0, 1, 3 and 4 as pinned in §6.",
+      "Every §9 question was decided by the author on 2026-10-03, each on its recommended option."
     ],
     "open": [
       "The exact human wording, the size formatting, and the JSON field spelling. The outcome and kept-reason enum values are the intent.",
