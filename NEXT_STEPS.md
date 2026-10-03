@@ -91,10 +91,9 @@ desktop — none is promised by the announcement.
       (main's ledger minus the completed entry). Candidates: a ledger merge driver, or one file
       per approval record.
 
-- [ ] **`phax run` allocates the run before its preflight.** Spec `preflight-before-naming`
-      Approved 2026-10-03 (`docs/specs/2610031510-preflight-before-naming.md`, §9 decided by the
-      author); plan Approved 2026-10-03
-      (`docs/plans/2610031629-preflight-before-naming-plan.md`, 3 phases), running. Found 2026-09-08: `run`
+- [x] **`phax run` allocates the run before its preflight.** **Fixed 2026-10-03** (spec
+      `preflight-before-naming` Completed; PR #112): every run-independent preflight runs before
+      the run is named, from one shared set that `resume` re-checks; a guard test pins the order. Found 2026-09-08: `run`
       creates the run folder and the registry entry, then `executePlan` runs the
       required-commands, mcp, records and clean-tree preflights. A preflight refusal leaves
       a `created` run holding the slug, and the retry gets `-2`. Seven of the ten `-2`
@@ -153,7 +152,7 @@ desktop — none is promised by the announcement.
       confirm, branches deleted unless they hold unpreserved commits; exit codes follow the code, and
       the stale README exit-code table is rewritten from it); plan Approved 2026-10-03
       (`docs/plans/2610031647-run-prune-plan.md`, 5 phases; run with `--allow-skill-edits`),
-      to run once preflight-before-naming has landed. Raised 2026-09-08 alongside the `-2`
+      running. Raised 2026-09-08 alongside the `-2`
       diagnosis. Slugs must never collide (kept), so the registry keeps archived runs as
       name-holders; the way to free a name is to delete the archived run for real, not to
       weaken uniqueness. A `prune` command that removes archived runs (folder, worktrees,
