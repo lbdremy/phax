@@ -324,17 +324,33 @@ npm install @lbdremy/phax-schemas
 import { execFileSync } from "node:child_process";
 import { parsePhaseRecordManifest } from "@lbdremy/phax-schemas";
 
-const key = process.argv[2]; // "<runId>/phase-01"
-const raw = execFileSync("git", ["show", `phax/records/v1:${key}/record.json`], {
-  encoding: "utf8",
-});
+const [runId, phaseId] = process.argv[2].split("/"); // "<runId>/phase-01"
+const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
+
+// Each commit on the records branch holds only its own record: find the
+// record's commit by its trailers, then read the file at that commit.
+const sha = git(
+  "log",
+  "phax/records/v1",
+  "--format=%H",
+  "--fixed-strings",
+  "--all-match",
+  `--grep=Run-Id: ${runId}`,
+  `--grep=Phase-Id: ${phaseId}`,
+  "-1",
+);
+if (!sha) {
+  console.error(`no record for ${runId}/${phaseId} on phax/records/v1`);
+  process.exit(1);
+}
+const raw = git("show", `${sha}:${runId}/${phaseId}/record.json`);
 
 const parsed = parsePhaseRecordManifest(JSON.parse(raw));
 if (!parsed.ok) {
   console.error(`record.json: ${parsed.error.path}: ${parsed.error.message}`);
   process.exit(1);
 }
-const { runId, phaseId, outcome, usage } = parsed.value; // typed PhaseRecord
+const { outcome, usage } = parsed.value; // typed PhaseRecord
 console.log(runId, phaseId, outcome, usage.available ? usage.usage.provider : "no usage");
 ```
 
@@ -342,7 +358,7 @@ console.log(runId, phaseId, outcome, usage.available ? usage.usage.provider : "n
 node read-record.mjs <runId>/phase-01
 ```
 
-To walk the whole branch instead of one key, read each `record.json` found there and give it to `parseRecordManifest`, which accepts either manifest shape.
+Each commit on `phax/records/v1` holds only its own record, so `git show phax/records/v1:<path>` sees only the newest one; find a record by its commit trailers (`Run-Id` and `Phase-Id` for a phase, `Authoring-Id` for an authoring session) as above. To walk the whole branch, list its commits (`git log phax/records/v1 --format=%H`), read the `record.json` each one holds (`git ls-tree -r --name-only <sha>`, then `git show <sha>:<path>`) and give it to `parseRecordManifest`, which accepts either manifest shape.
 
 For a docs pipeline that renders a format's JSON Schema, read it straight from the installed package: `node_modules/@lbdremy/phax-schemas/json/<format>.schema.json`.
 

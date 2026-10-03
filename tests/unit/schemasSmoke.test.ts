@@ -1,7 +1,10 @@
 // The pure pieces of scripts/schemas-smoke.ts. The smoke itself packs and
 // installs from the registry, so it runs only in CI and the release workflow.
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { devNull, tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { CURRENT_SHAPES } from "../../packages/schemas/src/generated/index.js";
 import { parsePhaseRecordManifest } from "../../packages/schemas/src/index.js";
 import {
@@ -9,6 +12,7 @@ import {
   SMOKE_RECORD_KEY,
   dependencyClosure,
   expectedConsumerOutput,
+  recordCommitMessage,
   smokeRecordManifest,
   strayPackages,
 } from "../../scripts/schemas-smoke.js";
@@ -64,11 +68,83 @@ describe("the consumer script", () => {
     expect(CONSUMER_SCRIPT).not.toMatch(/\brequire\(|\bimport\(/);
   });
 
-  it("reads the record from the records branch and parses it as a phase record manifest", () => {
-    expect(CONSUMER_SCRIPT).toContain("`phax/records/v1:${key}/record.json`");
-    expect(CONSUMER_SCRIPT).toContain('execFileSync("git", ["show", ');
+  it("finds the record's commit by its trailers and reads the file at that commit", () => {
+    expect(CONSUMER_SCRIPT).toContain('  "log",\n  "phax/records/v1",');
+    expect(CONSUMER_SCRIPT).toContain('  "--fixed-strings",\n  "--all-match",');
+    expect(CONSUMER_SCRIPT).toContain(
+      "  `--grep=Run-Id: ${runId}`,\n  `--grep=Phase-Id: ${phaseId}`,",
+    );
+    expect(CONSUMER_SCRIPT).toContain('git("show", `${sha}:${runId}/${phaseId}/record.json`)');
+    expect(CONSUMER_SCRIPT).not.toContain("phax/records/v1:");
     expect(CONSUMER_SCRIPT).toContain("parsePhaseRecordManifest(JSON.parse(raw))");
     expect(CONSUMER_SCRIPT).toContain("if (!parsed.ok) {");
+  });
+});
+
+describe("the records branch the smoke builds", () => {
+  const dirs: Array<string> = [];
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  const gitEnv = {
+    ...process.env,
+    GIT_DIR: undefined,
+    GIT_WORK_TREE: undefined,
+    GIT_INDEX_FILE: undefined,
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: devNull,
+    GIT_AUTHOR_NAME: "phax test",
+    GIT_AUTHOR_EMAIL: "test@example.invalid",
+    GIT_COMMITTER_NAME: "phax test",
+    GIT_COMMITTER_EMAIL: "test@example.invalid",
+  };
+  const git = (cwd: string, ...args: ReadonlyArray<string>): string =>
+    execFileSync("git", args, { cwd, env: gitEnv, encoding: "utf8" }).trim();
+
+  it("carries the trailers phax writes on a record commit", () => {
+    expect(recordCommitMessage(smokeRecordManifest()).split("\n")).toEqual([
+      "records(phase-01): committed",
+      "",
+      "Run-Id: run-0001",
+      "Phase-Id: phase-01",
+      "Shape: full",
+    ]);
+  });
+
+  it("holds one record per commit: the older record is found by its trailers, not at the tip", () => {
+    const repo = mkdtempSync(join(tmpdir(), "phax-records-"));
+    dirs.push(repo);
+    git(repo, "init", "-q");
+    git(repo, "symbolic-ref", "HEAD", "refs/heads/phax/records/v1");
+    for (const record of [smokeRecordManifest(), smokeRecordManifest("phase-02")]) {
+      git(repo, "rm", "-q", "-r", "--ignore-unmatch", "--", record.runId);
+      const key = `${record.runId}/${record.phaseId}`;
+      mkdirSync(join(repo, key), { recursive: true });
+      writeFileSync(join(repo, key, "record.json"), `${JSON.stringify(record)}\n`);
+      git(repo, "add", "--", `${key}/record.json`);
+      git(repo, "-c", "commit.gpgsign=false", "commit", "-q", "-m", recordCommitMessage(record));
+    }
+    const path = `${SMOKE_RECORD_KEY}/record.json`;
+
+    const atTip = spawnSync("git", ["show", `phax/records/v1:${path}`], {
+      cwd: repo,
+      env: gitEnv,
+    });
+    expect(atTip.status).not.toBe(0);
+
+    const sha = git(
+      repo,
+      "log",
+      "phax/records/v1",
+      "--format=%H",
+      "--fixed-strings",
+      "--all-match",
+      "--grep=Run-Id: run-0001",
+      "--grep=Phase-Id: phase-01",
+      "-1",
+    );
+    expect(JSON.parse(git(repo, "show", `${sha}:${path}`))).toEqual(smokeRecordManifest());
   });
 });
 

@@ -1,7 +1,8 @@
 // Smoke-tests the packed @lbdremy/phax-schemas tarball the way a consumer
 // meets it (spec ac-e2e): an empty Node 20 project with no phax installed
-// installs the tarball, a made-up phase record written as phax writes it sits
-// on a phax/records/v1 branch, and the spec §6 read-record.mjs script reads it
+// installs the tarball, two made-up phase records written as phax writes them
+// sit on a phax/records/v1 branch, one record per commit, and the spec §6
+// read-record.mjs script finds the older one by its commit trailers, reads it
 // and prints its runId, phaseId, outcome and provider. It also checks the
 // installed package's version, that it ships one JSON Schema per format, and
 // that node_modules holds only the package, effect and effect's own
@@ -36,6 +37,8 @@ import { FORMAT_IDS } from "../src/schemas/schemaUrl.js";
 const PACKAGE_NAME = "@lbdremy/phax-schemas";
 const RUN_ID = "run-0001";
 const PHASE_ID = "phase-01";
+/** A later phase whose record sits at the branch tip, above the one the consumer reads. */
+const NEWER_PHASE_ID = "phase-02";
 
 /** The record's key on phax/records/v1: `<runId>/<phaseId>`. */
 export const SMOKE_RECORD_KEY = `${RUN_ID}/${PHASE_ID}`;
@@ -44,11 +47,11 @@ export const SMOKE_RECORD_KEY = `${RUN_ID}/${PHASE_ID}`;
  * A made-up phase record manifest, written as phax writes it: encoded through
  * phax's own file schema, `$schema` first at the running release.
  */
-export function smokeRecordManifest(): RunRecordManifestFile {
+export function smokeRecordManifest(phaseId: string = PHASE_ID): RunRecordManifestFile {
   return Schema.encodeSync(RunRecordManifestFileSchema)(
     withSchemaUrl("phase-record-manifest", {
       runId: RUN_ID,
-      phaseId: PHASE_ID,
+      phaseId,
       shape: "full",
       sourceSha: "abc1234",
       model: "example-model",
@@ -71,26 +74,63 @@ export function smokeRecordManifest(): RunRecordManifestFile {
   );
 }
 
-/** The spec §6 consumer, `read-record.mjs`: Node 20, phax not installed, only the package. */
+/**
+ * The spec §6 consumer, `read-record.mjs`: Node 20, phax not installed, only
+ * the package. Each commit on phax/records/v1 holds only its own record, so it
+ * finds the record's commit by its `Run-Id` and `Phase-Id` trailers and reads
+ * the file at that commit — `git show phax/records/v1:<path>` would only see
+ * the newest record.
+ */
 export const CONSUMER_SCRIPT = [
   "// read-record.mjs: Node 20+, phax not installed, only @lbdremy/phax-schemas",
   'import { execFileSync } from "node:child_process";',
   'import { parsePhaseRecordManifest } from "@lbdremy/phax-schemas";',
   "",
-  'const key = process.argv[2]; // "<runId>/phase-01"',
-  'const raw = execFileSync("git", ["show", `phax/records/v1:${key}/record.json`], {',
-  '  encoding: "utf8",',
-  "});",
+  'const [runId, phaseId] = process.argv[2].split("/"); // "<runId>/phase-01"',
+  'const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();',
+  "",
+  "// Each commit on the records branch holds only its own record: find the",
+  "// record's commit by its trailers, then read the file at that commit.",
+  "const sha = git(",
+  '  "log",',
+  '  "phax/records/v1",',
+  '  "--format=%H",',
+  '  "--fixed-strings",',
+  '  "--all-match",',
+  "  `--grep=Run-Id: ${runId}`,",
+  "  `--grep=Phase-Id: ${phaseId}`,",
+  '  "-1",',
+  ");",
+  "if (!sha) {",
+  "  console.error(`no record for ${runId}/${phaseId} on phax/records/v1`);",
+  "  process.exit(1);",
+  "}",
+  'const raw = git("show", `${sha}:${runId}/${phaseId}/record.json`);',
   "",
   "const parsed = parsePhaseRecordManifest(JSON.parse(raw));",
   "if (!parsed.ok) {",
   "  console.error(`record.json: ${parsed.error.path}: ${parsed.error.message}`);",
   "  process.exit(1);",
   "}",
-  "const { runId, phaseId, outcome, usage } = parsed.value; // typed PhaseRecord",
+  "const { outcome, usage } = parsed.value; // typed PhaseRecord",
   'console.log(runId, phaseId, outcome, usage.available ? usage.usage.provider : "no usage");',
   "",
 ].join("\n");
+
+/**
+ * The message phax gives a phase record's commit (src/app/writeRecord.ts): a
+ * subject, then the `Run-Id`, `Phase-Id` and `Shape` trailers a reader finds
+ * the commit by.
+ */
+export function recordCommitMessage(manifest: RunRecordManifestFile): string {
+  return [
+    `records(${manifest.phaseId}): ${manifest.outcome}`,
+    "",
+    `Run-Id: ${manifest.runId}`,
+    `Phase-Id: ${manifest.phaseId}`,
+    `Shape: ${manifest.shape}`,
+  ].join("\n");
+}
 
 /** The line `CONSUMER_SCRIPT` prints for `manifest`. */
 export function expectedConsumerOutput(manifest: RunRecordManifestFile): string {
@@ -239,8 +279,11 @@ function smoke(repoRoot: string, workDir: string): void {
   pass(`installed the tarball into an empty Node ${process.versions.node} project`);
 
   const gitEnv = smokeGitEnv();
+  // As phax does, each commit on the records branch holds only its own
+  // record. The record the consumer reads is not the newest one, so reading
+  // it from the branch tip alone would fail.
   const manifest = smokeRecordManifest();
-  const recordPath = `${SMOKE_RECORD_KEY}/record.json`;
+  const newer = smokeRecordManifest(NEWER_PHASE_ID);
   run("git init failed", "git", ["init", "-q"], consumer, gitEnv);
   run(
     "could not start the records branch",
@@ -249,17 +292,26 @@ function smoke(repoRoot: string, workDir: string): void {
     consumer,
     gitEnv,
   );
-  mkdirSync(join(consumer, SMOKE_RECORD_KEY), { recursive: true });
-  writeFileSync(join(consumer, recordPath), `${JSON.stringify(manifest, null, 2)}\n`);
-  run("git add failed", "git", ["add", "--", recordPath], consumer, gitEnv);
-  run(
-    "git commit failed",
-    "git",
-    ["-c", "commit.gpgsign=false", "commit", "-q", "-m", "record: smoke phase"],
-    consumer,
-    gitEnv,
-  );
-  pass(`committed ${recordPath} on phax/records/v1`);
+  const recordPaths: Array<string> = [];
+  for (const record of [manifest, newer]) {
+    const key = `${record.runId}/${record.phaseId}`;
+    const recordPath = `${key}/record.json`;
+    if (recordPaths.length > 0) {
+      run("git rm failed", "git", ["rm", "-q", "-r", "--", RUN_ID], consumer, gitEnv);
+    }
+    mkdirSync(join(consumer, key), { recursive: true });
+    writeFileSync(join(consumer, recordPath), `${JSON.stringify(record, null, 2)}\n`);
+    run("git add failed", "git", ["add", "--", recordPath], consumer, gitEnv);
+    run(
+      "git commit failed",
+      "git",
+      ["-c", "commit.gpgsign=false", "commit", "-q", "-m", recordCommitMessage(record)],
+      consumer,
+      gitEnv,
+    );
+    recordPaths.push(recordPath);
+  }
+  pass(`committed ${recordPaths.join(" then ")} on phax/records/v1, one record per commit`);
 
   writeFileSync(join(consumer, "read-record.mjs"), CONSUMER_SCRIPT);
   const consumerRun = spawnSync(process.execPath, ["read-record.mjs", SMOKE_RECORD_KEY], {
