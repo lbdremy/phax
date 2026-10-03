@@ -7,15 +7,17 @@ import { runKey, nextAvailableShortName } from "../../domain/runRef.js";
 import { readRegistryFile } from "../../schemas/persisted.js";
 import {
   AgentInvocationError,
+  ConfigValidationError,
   GateAttemptsExhaustedError,
   PhaseHadNoChangesError,
   PlanStaleError,
   RateLimitError,
+  SkillEditConsentError,
   UsageLimitError,
 } from "../../domain/errors.js";
 import { checkPlanRunnable } from "../../app/artifactStatus.js";
 import { computeStalenessForPlan } from "../../app/planStaleness.js";
-import { skillEditConsentRefusal } from "../../app/skillEditConsent.js";
+import { freshRunPreflight } from "../../app/runPreflight.js";
 import { classifyArtifactPath } from "../../domain/artifact/document.js";
 import { buildFootprint } from "../../domain/planOverlap/compute.js";
 import { planInputFromPhaxPlan } from "../../domain/planOverlap/fromPhaxPlan.js";
@@ -27,12 +29,8 @@ import { createRunFolder } from "../../app/runFolder.js";
 import { executePlan } from "../../app/executePlan.js";
 import type { RunCompletionReport } from "../../app/completeRunArtifacts.js";
 import { withRunLock } from "../../app/lock.js";
-import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
-import {
-  parseProviderPriority,
-  applyProviderPriorityOverride,
-} from "../../domain/routing/priorityOverride.js";
+import { parseProviderPriority } from "../../domain/routing/priorityOverride.js";
 import type { NonEmptyArray } from "../../domain/routing/priorityOverride.js";
 import type { ProviderId } from "../../domain/routing/types.js";
 import type { SecurityMode } from "../../domain/security/types.js";
@@ -338,15 +336,41 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     return 0;
   }
 
-  // Refuse missing skill edit consent before the run is named or any state is
-  // written: a refused run must not leave a failed run holding the slug.
-  const skillEditRefusal = skillEditConsentRefusal(plan.phases, opts.allowSkillEdits ?? false);
-  if (skillEditRefusal !== undefined) {
-    out.error(skillEditRefusal.message);
-    return exitCodeForError(skillEditRefusal);
-  }
-
   const namespace = config.namespace;
+
+  // Run every run-independent preflight before the run is named or any state is
+  // written: a refused run must not leave a run folder, registry entry, branch
+  // or telemetry file holding the slug.
+  const preflightResult = await Effect.runPromise(
+    Effect.either(
+      freshRunPreflight({
+        plan,
+        config,
+        gateProfileId,
+        namespace,
+        allowSkillEdits: opts.allowSkillEdits ?? false,
+        allowDirty: opts.allowDirty ?? false,
+        priorityOverride,
+      }).pipe(
+        Effect.provide(makeRepoRootedFileSystemLayer(config)),
+        Effect.provide(makeNodeGitLayer()),
+      ),
+    ),
+  );
+  if (Either.isLeft(preflightResult)) {
+    const err = preflightResult.left;
+    if (err instanceof SkillEditConsentError) {
+      out.error(err.message);
+      return exitCodeForError(err);
+    }
+    if (err instanceof ConfigValidationError) {
+      out.error(`Failed to load routing config: ${err.message}`);
+      return 2;
+    }
+    out.error(`phax run failed: ${err.message}`);
+    return exitCodeForError(err);
+  }
+  const { routing, providerConfig } = preflightResult.right;
 
   // The slug may already name an existing run (in this namespace); bump it so
   // we never clobber a prior run. Uniqueness is scoped to the namespace via the
@@ -362,21 +386,6 @@ export async function runRun(opts: RunCommandOptions, out: OutputPort): Promise<
     );
   }
   out.log(`Run: ${runKey(namespace, shortName)}`);
-
-  const routingResult = await Effect.runPromise(
-    Effect.either(
-      Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
-    ).pipe(Effect.provide(makeRepoRootedFileSystemLayer(config))),
-  );
-  if (Either.isLeft(routingResult)) {
-    out.error(`Failed to load routing config: ${routingResult.left.message}`);
-    return 2;
-  }
-  let { routing } = routingResult.right;
-  const { providerConfig } = routingResult.right;
-  if (priorityOverride !== undefined) {
-    routing = applyProviderPriorityOverride(routing, priorityOverride);
-  }
 
   const runFolder = join(config.stateRoot, "runs", runKey(namespace, shortName));
   const semanticJsonlPath = join(runFolder, "semantic.jsonl");
