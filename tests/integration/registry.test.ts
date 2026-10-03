@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { Effect, Either } from "effect";
 import { describe, expect, it } from "vitest";
-import { readRegistry, upsertRun, setRunStatus } from "../../src/app/registry.js";
+import { readRegistry, removeRun, upsertRun, setRunStatus } from "../../src/app/registry.js";
 import { RegistryCorruptionError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import type { RegistryEntry } from "../../src/schemas/registry.js";
@@ -304,5 +304,65 @@ describe("setRunStatus", () => {
     const raw = impl.getFile(`${stateRoot}/registry.json`);
     const parsed = JSON.parse(raw!) as { runs: Array<{ archivePath: string }> };
     expect(parsed.runs[0]?.archivePath).toBe("/fake-state/archive/my-run");
+  });
+});
+
+describe("removeRun", () => {
+  const before = [
+    makeEntry("run-a", { state: "archived", updatedAt: "2024-02-01T00:00:00.000Z" }),
+    makeEntry("run-b", {
+      state: "archived",
+      archivePath: "/fake-state/archive/test-project.run-b",
+    }),
+    makeEntry("run-b", { namespace: "other-project", updatedAt: "2024-03-01T00:00:00.000Z" }),
+    makeEntry("run-c", { state: "review_open" }),
+  ];
+
+  it("drops exactly one entry and leaves every other entry deep-equal, $schema kept", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile(
+      `${stateRoot}/registry.json`,
+      JSON.stringify({ $schema: schemaUrl("registry", "0.17.0"), runs: before }, null, 2),
+    );
+
+    await Effect.runPromise(
+      removeRun(stateRoot, "test-project", "run-b").pipe(Effect.provide(layer)),
+    );
+
+    const parsed = JSON.parse(impl.getFile(`${stateRoot}/registry.json`)!) as Record<
+      string,
+      unknown
+    >;
+    expect(Object.keys(parsed)).toEqual(["$schema", "runs"]);
+    expect(parsed["$schema"]).toBe(schemaUrl("registry", rootVersion));
+    expect(parsed["runs"]).toEqual([before[0], before[2], before[3]]);
+  });
+
+  it("writes the registry byte-for-byte as upsertRun would", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile(`${stateRoot}/registry.json`, JSON.stringify({ version: 1, runs: [before[0]] }));
+    await Effect.runPromise(upsertRun(stateRoot, before[0]!).pipe(Effect.provide(layer)));
+    const viaUpsert = impl.getFile(`${stateRoot}/registry.json`);
+
+    impl.setFile(
+      `${stateRoot}/registry.json`,
+      JSON.stringify({ version: 1, runs: [before[0], before[1]] }),
+    );
+    await Effect.runPromise(
+      removeRun(stateRoot, "test-project", "run-b").pipe(Effect.provide(layer)),
+    );
+    expect(impl.getFile(`${stateRoot}/registry.json`)).toBe(viaUpsert);
+  });
+
+  it("is a no-op when the entry is absent", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    const raw = JSON.stringify({ version: 1, runs: before });
+    impl.setFile(`${stateRoot}/registry.json`, raw);
+
+    await Effect.runPromise(
+      removeRun(stateRoot, "test-project", "ghost").pipe(Effect.provide(layer)),
+    );
+
+    expect(impl.getFile(`${stateRoot}/registry.json`)).toBe(raw);
   });
 });

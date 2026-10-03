@@ -2,6 +2,7 @@ import { Data } from "effect";
 import type { PlanStalenessVerdict } from "./artifact/lineage.js";
 import type { GateDiagnostic } from "../schemas/gateDiagnostics.js";
 import type { PendingDiagnostic } from "./gate/scheduleDiagnostics.js";
+import type { PruneRefusal } from "./prune.js";
 
 /**
  * A gate step's pending completion diagnostics, grouped under the step that
@@ -112,6 +113,17 @@ export class ArchiveRefusedError extends Data.TaggedError("ArchiveRefusedError")
   message: string;
   shortName: string;
   state: string;
+}> {}
+
+/**
+ * `phax prune` refused its whole selection before deleting anything: a named
+ * run is unknown, not archived, or in another namespace. `message` lists every
+ * offending run with its reason, one per line. Exits 1 through the default of
+ * `exitCodeForError`.
+ */
+export class PruneRefusedError extends Data.TaggedError("PruneRefusedError")<{
+  message: string;
+  refusals: ReadonlyArray<PruneRefusal>;
 }> {}
 
 export class PhaseHadNoChangesError extends Data.TaggedError("PhaseHadNoChangesError")<{
