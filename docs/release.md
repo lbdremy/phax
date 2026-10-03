@@ -14,6 +14,32 @@ git config --global tag.gpgSign true   # sign all tags automatically
 
 Add the same key to GitHub as a **Signing Key** (Settings → SSH and GPG keys → New SSH key → type: Signing Key). The same key used for authentication can be reused for signing — just add it as a separate entry.
 
+### Trusted publisher for `@lbdremy/phax-schemas` (one-time, before its first release)
+
+The release workflow publishes with no npm token: npm authenticates it through a trusted publisher (OIDC) configured on each package. A trusted publisher can only be configured on a package that exists, so the schemas package needs one hand-published version before the first release that ships it. Publish a deprecated `0.0.0` placeholder, then link the workflow — the first real version still comes from the tag, with provenance. The placeholder is the one version of `@lbdremy/phax-schemas` with no matching `@lbdremy/phax`.
+
+Logged in to npm (`npm login`), with npm ≥ 11.16 (`npm trust` is not in older versions):
+
+```bash
+PLACEHOLDER="$(mktemp -d)"
+cat > "$PLACEHOLDER/package.json" <<'EOF'
+{
+  "name": "@lbdremy/phax-schemas",
+  "version": "0.0.0",
+  "description": "Placeholder reserving the name; install a release instead",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lbdremy/phax.git",
+    "directory": "packages/schemas"
+  }
+}
+EOF
+(cd "$PLACEHOLDER" && npm publish --access public)
+npm deprecate @lbdremy/phax-schemas@0.0.0 "placeholder — install a release of @lbdremy/phax-schemas"
+npm trust github @lbdremy/phax-schemas --file release.yml --repo lbdremy/phax --allow-stage-publish
+```
+
 ## Release process
 
 A release ships two npm packages in lockstep, at the tag's version:
@@ -58,10 +84,10 @@ The `release.yml` workflow triggers automatically on the pushed tag. In order, i
 3. Smoke-tests the schemas package under Node 20 (`scripts/schemas-smoke.ts`): it packs the built package, installs the tarball into an empty project, and runs the schemas spec's `read-record.mjs` consumer against a made-up phase record on a `phax/records/v1` branch. It also checks the installed version, one JSON Schema per format, and that `node_modules` holds only the package, `effect` and `effect`'s dependencies. CI runs the same smoke on every push and pull request.
 4. Prepares the npm wrapper (`npm/package.json` is set to the tag's version).
 5. Checks that `npm/package.json` and `packages/schemas/package.json` both carry the tag's version. `release.sh` already set the second one in the release commit, so a tag on a commit `release.sh` did not make fails here.
-6. Stage-publishes `@lbdremy/phax`, then `@lbdremy/phax-schemas`, with `npm stage publish --access public --provenance`.
+6. Stage-publishes `@lbdremy/phax-schemas`, then `@lbdremy/phax`, with `npm stage publish --access public --provenance`.
 7. Creates the GitHub Release and uploads binaries and checksums.
 
-Every step that can fail runs before the first stage publish: a failed gate, smoke or version check stages nothing.
+A failed gate, smoke or version check stages nothing. The stage publishes themselves can still fail (a registry error, a misconfigured trusted publisher): the schemas package goes first, so a failure there stages nothing, and a failure on the wrapper leaves only a staged schemas package, which nobody can install until you approve it. Fix the cause, then delete and re-push the tag (below).
 
 ### 4. Approve both staged packages
 
@@ -75,7 +101,7 @@ Stage publish does not make a package installable. Approve each staged version b
 - GitHub shows a **Verified** badge on the tag (requires the signing key registered on GitHub)
 - The GitHub Release page lists all four binaries and their `.sha256` files
 - Both npm packages show the tag's version once approved
-- `npm/package.json` version matches the tag (transiently updated during the workflow, not committed back); `packages/schemas/package.json` carries it in the release commit
+- `package.json`, `npm/package.json` and `packages/schemas/package.json` all carry the tag's version in the release commit
 
 ## macOS Gatekeeper
 
