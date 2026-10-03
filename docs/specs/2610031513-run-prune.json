@@ -1,0 +1,703 @@
+{
+  "version": 1,
+  "kind": "spec",
+  "title": "Prune archived runs",
+  "ground": [
+    {
+      "path": "NEXT_STEPS.md",
+      "note": "Road to 1.0.0 \"`phax prune`\" and Spec candidates \"`phax prune` — delete archived runs\" (raised 2026-09-08). Housekeeping note: archiving another namespace's runs only runs `git worktree prune` in the current repository."
+    },
+    {
+      "path": "src/app/archive.ts",
+      "note": "What archive does: moves the run folder and the worktrees under ~/.phax/archive/<namespace>.<short-name>/{runs,worktrees}, runs `git worktree prune` in the current repository only, and sets the registry entry to state archived with archivePath. It never touches branches."
+    },
+    {
+      "path": "src/cli/commands/archive.ts, src/app/resolveRunRef.ts",
+      "note": "A run is named by its short name, or by its qualified name <namespace>.<short-name>. A qualified name can reach a run in another namespace."
+    },
+    {
+      "path": "src/schemas/registry.ts, src/app/registry.ts",
+      "note": "Registry entry shape: namespace, shortName, runId, state, branch, projectName, phasesCount, createdAt, updatedAt, optional archivePath. The entry does not record which repository the run belongs to. The registry can be read, upserted and status-patched; nothing removes an entry today."
+    },
+    {
+      "path": "src/cli/commands/run.ts (ensureUniqueShortName)",
+      "note": "A name counts as taken when any registry entry in the same namespace holds it, archived ones included, or when a bare folder with that name exists. The next free name gets a -2, -3, … suffix."
+    },
+    {
+      "path": "src/app/worktree.ts (prepareRunBranch, preparePhaseBranch)",
+      "note": "When the run branch or a phase branch already exists locally, `phax run` reuses it as is instead of creating it."
+    },
+    {
+      "path": "src/infra/git.ts (pushBranch, deleteBranch)",
+      "note": "`publish-pr` pushes without force (`git push --set-upstream`). A branch is deleted with `git branch -d|-D`."
+    },
+    {
+      "path": "phax.usage.kdl",
+      "note": "cmd archive; cmd ls (--archived, --json, --complete); `--yes -y` on resume and reset-phase (reset-phase removes a worktree and a branch). The CLI contract is generated from Commander."
+    },
+    {
+      "path": "README.md",
+      "note": "§ Archive (\"Archive is the only operation that touches worktrees/\"), § Exit codes (0,1,2,3,4,5,6,8,9), § Persisted formats (the run registry is a public format of @lbdremy/phax-schemas)."
+    }
+  ],
+  "context": "A phax run lives in several places. Its run folder is ~/.phax/runs/<namespace>.<short-name>/ and its worktrees are under ~/.phax/worktrees/<namespace>.<short-name>/. It has one entry in ~/.phax/registry.json. The project repository holds its git state: the run branch (the entry's `branch`, e.g. `phax/<short-name>`), one branch per phase named `<branch>--phase-NN` (each branched off the one before), and the git metadata for its worktrees. A published run also has a remote branch and a pull request. Every run writes records to the `phax/records/v1` branch, keyed by run id rather than by name.\n\n`phax archive <short-name>` moves the run folder and the worktrees into one folder, ~/.phax/archive/<namespace>.<short-name>/{runs,worktrees}. It then runs `git worktree prune` in the current repository and sets the registry entry to `state: \"archived\"` with an `archivePath`. It deletes nothing and leaves branches alone. A qualified name (<namespace>.<short-name>) lets archive reach a run in another namespace, but its git cleanup only touches the current repository: the louloupapers runs needed a manual `git worktree prune`. The registry entry does not record which repository a run belongs to.\n\nA new run takes its short name from the plan slug. `phax run` treats a name as taken while any registry entry in the same namespace holds it, archived ones included, and appends -2, -3, … until it finds a free name. When the run branch or a phase branch already exists locally, `phax run` reuses it instead of creating it. `publish-pr` pushes the final phase branch without force.\n\n`phax ls` lists the registry, with `--archived` and `--json`. No command deletes a run. On the author's machine today: 123 registry entries, all archived; ~/.phax/archive holds 86 GB; 22 runs carry a -2-style suffix; the phax repository alone has 375 local `phax/<name>--phase-NN` branches left by past runs.",
+  "problem": "An archived run never goes away, so it holds its short name forever. Name uniqueness is right and stays. That leaves one way to reuse a slug — delete the run that holds it — and phax has no command for that. The results: the -2 habit (22 runs), 86 GB of archived worktrees that can only be reclaimed by hand, and hundreds of stale phase branches.\n\nDeleting by hand is unsafe, and not obviously so. Removing the archive folder and the registry entry frees the name. But if `phax/<name>` or `phax/<name>--phase-NN` survives locally, the next run with that name silently builds on the old run's branches, because `run` reuses existing branches. Deleting those branches blindly can destroy commits that exist nowhere else. The run lifecycle also has no end: created → … → archived, and then nothing.",
+  "productGoal": {
+    "statement": "Give the operator one command, `phax prune`, that deletes archived runs for real: the archive folder, the worktree metadata, the local branches and the registry entry. Pruning frees the run's name and returns its disk space. By default it never destroys a commit that no other ref keeps, and it never touches the run's lasting history (its records), its remote branches or its pull request. This closes the run lifecycle: created → … → archived → gone. `archive` moves and keeps; `prune` removes.",
+    "guidingRule": "prune frees a name only once nothing of the run that `phax run` could trip over is left locally, and it never destroys an unpreserved commit unless the operator forces it."
+  },
+  "terminology": [
+    {
+      "term": "Archived run",
+      "definition": "A registry entry with `state: \"archived\"`. Its run folder and worktrees sit in its archive folder, ~/.phax/archive/<namespace>.<short-name>/."
+    },
+    {
+      "term": "Prune",
+      "definition": "Delete an archived run for real: its archive folder, its worktree metadata, its local branches and its registry entry. Distinct from archive, which moves and keeps."
+    },
+    {
+      "term": "Current namespace",
+      "definition": "The namespace of the phax project whose config loads from the working directory."
+    },
+    {
+      "term": "The run's local branches",
+      "definition": "In the current repository: the registry entry's `branch` (e.g. `phax/old-idea`) plus every local branch named `<branch>--phase-NN`. Slugs cannot contain `--`, so `phax/old-idea-2--phase-01` is never a branch of `old-idea`."
+    },
+    {
+      "term": "Unpreserved commit",
+      "definition": "A commit that one of the run's local branches reaches and that no other ref in the repository reaches — no other local branch, tag or remote-tracking ref. Deleting the run's branches would lose it."
+    },
+    {
+      "term": "Worktree metadata",
+      "definition": "Git's records of the run's worktrees in the current repository — the entries `git worktree list` shows."
+    },
+    {
+      "term": "Kept run",
+      "definition": "A selected run that this invocation did not prune. Its registry entry remains, so its name stays held."
+    },
+    {
+      "term": "Remote-tracking ref",
+      "definition": "A ref such as `origin/phax/old-idea--phase-03`, as the local repository last fetched it. prune reads these refs and never contacts a remote."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "sel-names",
+      "title": "Selection by name",
+      "pattern": "ubiquitous",
+      "statement": "The `phax prune` command shall select the runs named by its positional arguments, resolved in the current namespace. Each argument is a short name or a qualified name `<namespace>.<short-name>`."
+    },
+    {
+      "id": "sel-all",
+      "title": "Selection of every archived run",
+      "pattern": "optional",
+      "statement": "WHERE `--all` is given THE system SHALL select every registry entry of the current namespace whose state is `archived`."
+    },
+    {
+      "id": "sel-required",
+      "title": "Exactly one selection form",
+      "pattern": "unwanted",
+      "statement": "IF `phax prune` is given neither a run name nor `--all`, or is given both, THEN the system SHALL refuse with exit code 1 before deleting anything, naming the two accepted forms."
+    },
+    {
+      "id": "refuse-outside",
+      "title": "Project required",
+      "pattern": "unwanted",
+      "statement": "IF `phax prune` runs where no phax project config loads THEN the system SHALL refuse with exit code 1 before deleting anything."
+    },
+    {
+      "id": "refuse-selection",
+      "title": "Archived runs of the current namespace only",
+      "pattern": "unwanted",
+      "statement": "IF a named run is not in the registry, is not in the `archived` state, or belongs to a namespace other than the current one, THEN the system SHALL refuse the whole command with exit code 1 before deleting anything, naming each offending run with its reason: not found, its state, or its namespace."
+    },
+    {
+      "id": "refuse-locked",
+      "title": "Locked runs",
+      "pattern": "unwanted",
+      "statement": "IF any selected run holds an active lock THEN the system SHALL refuse the whole command with exit code 3 before deleting anything, naming the run and `phax unlock`."
+    },
+    {
+      "id": "removes",
+      "title": "What a prune deletes",
+      "pattern": "event",
+      "statement": "WHEN a selected run is pruned THE system SHALL delete its archive folder, its worktree metadata in the current repository, its local branches, and its registry entry."
+    },
+    {
+      "id": "never-touches",
+      "title": "What a prune never touches",
+      "pattern": "ubiquitous",
+      "statement": "The `phax prune` command shall leave untouched the `phax/records/v1` branch, every remote branch, every remote-tracking ref, every pull request, and every local branch that does not belong to a selected run."
+    },
+    {
+      "id": "keep-unpreserved",
+      "title": "Unpreserved commits keep the run",
+      "pattern": "unwanted",
+      "statement": "IF a selected run's local branches hold at least one unpreserved commit THEN the system SHALL keep that run, delete none of its parts, and report each branch holding unpreserved commits with their count."
+    },
+    {
+      "id": "force",
+      "title": "Discarding unpreserved commits",
+      "pattern": "optional",
+      "statement": "WHERE `--force` is given THE system SHALL prune a run whose local branches hold unpreserved commits, reporting each discarded branch with its unpreserved-commit count."
+    },
+    {
+      "id": "keep-checked-out",
+      "title": "Checked-out branches keep the run",
+      "pattern": "unwanted",
+      "statement": "IF one of a selected run's local branches is checked out in any worktree of the current repository THEN the system SHALL keep that run and delete none of its parts, even with `--force`, reporting the branch and the worktree path."
+    },
+    {
+      "id": "preview",
+      "title": "Preview before deletion",
+      "pattern": "event",
+      "statement": "WHEN `phax prune` has resolved its selection THE system SHALL print, before deleting anything, one line per selected run. Each line gives the planned outcome (prune or keep), the size of the archive folder, and either the local branches it will delete or the reason it will keep the run."
+    },
+    {
+      "id": "dry-run",
+      "title": "Preview only",
+      "pattern": "optional",
+      "statement": "WHERE `--dry-run` is given THE system SHALL print the preview and exit 0 without deleting anything or asking for confirmation."
+    },
+    {
+      "id": "confirm-tty",
+      "title": "Interactive confirmation",
+      "pattern": "state",
+      "statement": "WHILE stdin is a TTY, neither `--yes` nor `--dry-run` is given, and at least one run is planned for pruning, THE system SHALL ask for confirmation after the preview and delete nothing unless the operator answers yes."
+    },
+    {
+      "id": "refuse-no-tty",
+      "title": "No silent deletion without a TTY",
+      "pattern": "unwanted",
+      "statement": "IF stdin is not a TTY and neither `--yes` nor `--dry-run` is given THEN the system SHALL print the preview, delete nothing, and exit 1, naming `--yes`."
+    },
+    {
+      "id": "report",
+      "title": "Outcome report",
+      "pattern": "event",
+      "statement": "WHEN `phax prune` finishes deleting THE system SHALL print one line per selected run with its outcome (`pruned` or `kept`), the bytes freed and the local branches deleted, followed by a total of runs pruned and bytes freed."
+    },
+    {
+      "id": "remote-warning",
+      "title": "Surviving remote branches",
+      "pattern": "event",
+      "statement": "WHEN a pruned run still has remote-tracking refs for its branches THE system SHALL list them as kept and warn that a future run with the same name will meet them when it publishes."
+    },
+    {
+      "id": "already-absent",
+      "title": "Idempotent removal",
+      "pattern": "unwanted",
+      "statement": "IF a part of a selected run — its archive folder, its worktree metadata, or one of its local branches — is already absent THEN the system SHALL count that part as removed, report it as already absent, and continue."
+    },
+    {
+      "id": "entry-last",
+      "title": "Partial failure",
+      "pattern": "unwanted",
+      "statement": "IF a part of a selected run cannot be removed THEN the system SHALL keep that run's registry entry, report the part and the reason on one line without a stack trace, and continue with the remaining runs."
+    },
+    {
+      "id": "exit-codes",
+      "title": "Exit codes",
+      "pattern": "ubiquitous",
+      "statement": "The `phax prune` command shall exit 0 when every selected run was pruned (or there was nothing to prune), 4 when at least one selected run was kept, 1 when it deleted nothing because the command was refused or the confirmation was declined or missing, and 3 on a lock conflict."
+    },
+    {
+      "id": "json",
+      "title": "Machine-readable output",
+      "pattern": "optional",
+      "statement": "WHERE `--json` is given THE system SHALL write a single JSON document to stdout in place of the human output. The document carries each selected run's outcome, size and branches, plus the totals. With `--json` the system SHALL never prompt."
+    },
+    {
+      "id": "registry-shape",
+      "title": "Registry format unchanged",
+      "pattern": "ubiquitous",
+      "statement": "The `phax prune` command shall remove registry entries without changing the registry format and without changing any field of an entry it does not prune."
+    },
+    {
+      "id": "name-freed",
+      "title": "The name is free afterwards",
+      "pattern": "event",
+      "statement": "WHEN a run has been pruned THE system SHALL treat its short name as free, so that the next `phax run` in that namespace whose base name is that short name receives it without a numeric suffix."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "cli: phax prune",
+      "binding": "normative",
+      "before": null,
+      "after": "phax prune <short-name>... [--force] [--dry-run] [--yes | -y] [--json]\nphax prune --all           [--force] [--dry-run] [--yes | -y] [--json]\n\n  <short-name>   an archived run of the current namespace, short or qualified (<namespace>.<short-name>)\n  --all          every archived run of the current namespace\n  --dry-run      print the preview, delete nothing\n  --yes, -y      proceed without confirmation (required without a TTY)\n  --json         machine-readable output; never prompts\n\nNormative: the command name, the variadic positional, --all, --dry-run, --yes/-y and --json. --force is a separate element below."
+    },
+    {
+      "surface": "cli: phax prune --force",
+      "binding": "indicative",
+      "before": null,
+      "after": "  --force        also prune runs whose local branches hold unpreserved commits (discards those commits)\n\nIntent binds: one explicit flag opts in to discarding unpreserved commits, and it never overrides a checked-out branch. The planner may rename the flag (e.g. --discard-unpreserved)."
+    },
+    {
+      "surface": "cli: phax prune output",
+      "binding": "indicative",
+      "before": null,
+      "after": "$ phax prune run-prune old-idea-2\nPrune from namespace \"phax\":\n  phax.run-prune     prune  3.1 GB  branches: phax/run-prune, phax/run-prune--phase-01..04 (5)\n  phax.old-idea-2    keep   0.8 GB  phax/old-idea-2--phase-03 holds 2 unpreserved commits (--force discards them)\nPrune 1 run, freeing 3.1 GB? [y/N] y\n✓ phax.run-prune pruned — 3.1 GB freed, 5 local branches deleted\n  ! remote branches kept: origin/phax/run-prune--phase-04 — a future run named run-prune will meet it at publish-pr\n○ phax.old-idea-2 kept — phax/old-idea-2--phase-03 holds 2 unpreserved commits\nPruned 1 of 2 runs, 3.1 GB freed.\n$? = 4\n\n$ phax prune feature-x\n✗ prune refused: run \"phax.feature-x\" is review_open, not archived — archive it first: phax archive feature-x\n$? = 1\n\n$ phax prune louloupapers.cover-flow\n✗ prune refused: run \"louloupapers.cover-flow\" belongs to namespace \"louloupapers\"; run phax prune from that repository\n$? = 1\n\n$ phax prune --all < /dev/null\n  (preview as above)\n✗ prune refused: no TTY to confirm; pass --yes to proceed or --dry-run to preview only\n$? = 1\n\nThe wording and size formatting are indicative. The content of each line is set by §5: outcome, size, branches or reason, remote branches kept, and the total."
+    },
+    {
+      "surface": "cli: phax prune exit codes",
+      "binding": "normative",
+      "before": null,
+      "after": "0  every selected run pruned; or --dry-run preview printed; or --all found nothing to prune\n1  nothing deleted: bad selection (none/both forms, unknown, not archived, other namespace), outside a project, confirmation declined or missing\n3  a selected run holds an active lock (nothing deleted)\n4  at least one selected run was kept (unpreserved commits, checked-out branch, removal failure); the others were pruned"
+    },
+    {
+      "surface": "cli: phax prune --json",
+      "binding": "indicative",
+      "before": null,
+      "after": "{\n  \"namespace\": \"phax\",\n  \"dryRun\": false,\n  \"runs\": [\n    {\n      \"name\": \"phax.run-prune\",\n      \"runId\": \"…\",\n      \"outcome\": \"pruned\",\n      \"archiveBytes\": 3328599654,\n      \"branchesDeleted\": [\"phax/run-prune\", \"phax/run-prune--phase-01\", \"…\"],\n      \"branchesDiscarded\": [],\n      \"alreadyAbsent\": [],\n      \"remoteBranchesKept\": [\"origin/phax/run-prune--phase-04\"],\n      \"kept\": null\n    },\n    {\n      \"name\": \"phax.old-idea-2\",\n      \"runId\": \"…\",\n      \"outcome\": \"kept\",\n      \"archiveBytes\": 858993459,\n      \"branchesDeleted\": [],\n      \"branchesDiscarded\": [],\n      \"alreadyAbsent\": [],\n      \"remoteBranchesKept\": [],\n      \"kept\": { \"reason\": \"unpreserved-commits\", \"branches\": [{ \"branch\": \"phax/old-idea-2--phase-03\", \"unpreservedCommits\": 2 }] }\n    }\n  ],\n  \"totals\": { \"pruned\": 1, \"kept\": 1, \"bytesFreed\": 3328599654 }\n}\n\nIntent binds: an explicit outcome enum — `pruned` | `kept`, or `would-prune` | `would-keep` under --dry-run — and an explicit kept-reason enum: `unpreserved-commits` | `branch-checked-out` | `removal-failed`. Field spelling is indicative."
+    },
+    {
+      "surface": "file: ~/.phax/registry.json",
+      "binding": "normative",
+      "before": "{\n  \"$schema\": \"…/registry.schema.json\",\n  \"runs\": [\n    { \"namespace\": \"phax\", \"shortName\": \"run-prune\", \"runId\": \"…\", \"state\": \"archived\", \"branch\": \"phax/run-prune\", \"projectName\": \"phax\", \"phasesCount\": 4, \"createdAt\": \"…\", \"updatedAt\": \"…\", \"archivePath\": \"/Users/…/.phax/archive/phax.run-prune\" },\n    { \"namespace\": \"phax\", \"shortName\": \"old-idea-2\", \"runId\": \"…\", \"state\": \"archived\", \"…\": \"…\" }\n  ]\n}",
+      "after": "{\n  \"$schema\": \"…/registry.schema.json\",\n  \"runs\": [\n    { \"namespace\": \"phax\", \"shortName\": \"old-idea-2\", \"runId\": \"…\", \"state\": \"archived\", \"…\": \"…\" }\n  ]\n}\n\nThe pruned entry is gone. Every other entry is field-for-field unchanged, `updatedAt` included. The format and `$schema` are unchanged."
+    },
+    {
+      "surface": "file: phax.usage.kdl",
+      "binding": "indicative",
+      "before": null,
+      "after": "cmd \"prune\" {\n    help \"Delete archived runs of the current namespace for real, freeing their names and disk space\"\n    long_help \"Deletes each selected archived run's archive folder, worktree metadata, local branches and registry entry. Never touches records, remote branches or pull requests. A run whose local branches hold commits no other ref keeps is kept unless --force is set. Prints a preview and asks for confirmation unless --yes or --dry-run is set.\\n\\nSide effects: deletes under ~/.phax/archive/, deletes local branches, updates ~/.phax/registry.json.\"\n    example \"phax prune old-idea\"\n    example \"phax prune --all --dry-run\"\n    example \"phax prune --all --yes\"\n    arg \"[short-name]...\" { help \"Archived run short name, e.g. old-idea\" }\n    flag \"--all\" { help \"Prune every archived run of the current namespace\" }\n    flag \"--force\" { help \"Also prune runs whose branches hold unpreserved commits\" }\n    flag \"--dry-run\" { help \"Print the preview and delete nothing\" }\n    flag \"--yes -y\" { help \"Proceed without confirmation\" }\n    flag \"--json\" { help \"Output as JSON\" }\n}\n\nGenerated from Commander. The command, argument and flag names follow the normative CLI element; the help text is indicative."
+    }
+  ],
+  "nonGoals": [
+    "The preflight-before-naming fix (a run that burns its slug before preflight). That is a separate spec.",
+    "Deleting or rewriting records on `phax/records/v1`, or changing any `records` command.",
+    "Deleting remote branches, remote-tracking refs or pull requests, and any network access (no fetch, no push, no GitHub call).",
+    "Automatic pruning, retention policies, age or pattern filters such as `--older-than`, and pruning as a side effect of `archive`.",
+    "Pruning runs of another namespace, pruning from outside a phax project, or reaching any repository other than the current one.",
+    "Pruning runs that are not archived: archive them first.",
+    "Changing how `phax run` treats existing local or remote branches, or how `publish-pr` pushes.",
+    "Any persisted-format change, including recording a run's repository path in the registry.",
+    "Undo, trash or soft delete: a pruned run is gone.",
+    "Cleaning up stray `phax/*` branches that belong to no registry entry."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "ac-prune-one",
+      "name": "An archived run is deleted for real",
+      "given": "an archived run `old-idea` in the current namespace whose local branches `phax/old-idea` and `phax/old-idea--phase-01..03` all point at commits reachable from `main`",
+      "when": "`phax prune old-idea --yes` runs",
+      "then": "its archive folder, its registry entry and all four local branches no longer exist, `git worktree list` shows none of its worktrees, and the command exits 0",
+      "refs": [
+        "removes",
+        "sel-names",
+        "exit-codes"
+      ]
+    },
+    {
+      "id": "ac-qualified",
+      "name": "A qualified name in the current namespace is accepted",
+      "given": "an archived run `old-idea` in namespace `phax` and a current namespace of `phax`",
+      "when": "`phax prune phax.old-idea --yes` runs",
+      "then": "the run is pruned exactly as `phax prune old-idea --yes` would prune it",
+      "refs": [
+        "sel-names"
+      ]
+    },
+    {
+      "id": "ac-all",
+      "name": "--all prunes the namespace's archived runs only",
+      "given": "namespace `phax` holds archived runs `a` and `b` and a `review_open` run `c`, and namespace `other` holds an archived run `d`",
+      "when": "`phax prune --all --yes` runs from the phax repository",
+      "then": "`a` and `b` are pruned, and the registry entries of `c` and `d` are field-for-field unchanged",
+      "refs": [
+        "sel-all",
+        "registry-shape"
+      ]
+    },
+    {
+      "id": "ac-all-empty",
+      "name": "--all with nothing to prune",
+      "given": "no archived run in the current namespace",
+      "when": "`phax prune --all` runs",
+      "then": "it reports that nothing is to be pruned, does not prompt, and exits 0",
+      "refs": [
+        "sel-all",
+        "exit-codes"
+      ]
+    },
+    {
+      "id": "ac-no-selection",
+      "name": "Exactly one selection form",
+      "given": "a phax project with archived runs",
+      "when": "`phax prune` runs with no name and no `--all`, or with both a name and `--all`",
+      "then": "it exits 1 naming both accepted forms, and the registry and branches are unchanged",
+      "refs": [
+        "sel-required"
+      ]
+    },
+    {
+      "id": "ac-outside",
+      "name": "Outside a project",
+      "given": "a working directory where no phax project config loads",
+      "when": "`phax prune --all --yes` runs",
+      "then": "it exits 1 and the registry is unchanged",
+      "refs": [
+        "refuse-outside"
+      ]
+    },
+    {
+      "id": "ac-not-archived",
+      "name": "A non-archived run refuses the whole command",
+      "given": "a `review_open` run `feature-x` and an archived run `old-idea`",
+      "when": "`phax prune feature-x old-idea --yes` runs",
+      "then": "it exits 1 naming `feature-x` and its state `review_open`, and `old-idea` is not pruned",
+      "refs": [
+        "refuse-selection"
+      ]
+    },
+    {
+      "id": "ac-unknown",
+      "name": "An unknown name refuses the whole command",
+      "given": "no registry entry named `ghost` and an archived run `old-idea`",
+      "when": "`phax prune ghost old-idea --yes` runs",
+      "then": "it exits 1 naming `ghost` as not found, and `old-idea` is not pruned",
+      "refs": [
+        "refuse-selection"
+      ]
+    },
+    {
+      "id": "ac-other-namespace",
+      "name": "Another namespace is refused",
+      "given": "an archived run `louloupapers.cover-flow` and the phax repository as working directory",
+      "when": "`phax prune louloupapers.cover-flow --yes` runs",
+      "then": "it exits 1 with a message naming namespace `louloupapers`, and that run's archive folder and registry entry remain",
+      "refs": [
+        "refuse-selection"
+      ]
+    },
+    {
+      "id": "ac-locked",
+      "name": "A locked run refuses the whole command",
+      "given": "an archived run `old-idea` holding an active lock and an archived run `spare`",
+      "when": "`phax prune old-idea spare --yes` runs",
+      "then": "it exits 3 naming `old-idea` and `phax unlock`, and neither run is pruned",
+      "refs": [
+        "refuse-locked"
+      ]
+    },
+    {
+      "id": "ac-never-touches",
+      "name": "Records, remotes and neighbour branches survive",
+      "given": "an archived run `old-idea` with records on `phax/records/v1`, a remote-tracking ref `origin/phax/old-idea--phase-02`, and the branches `phax/old-idea-2` and `phax/old-idea-2--phase-01` belonging to another run",
+      "when": "`phax prune old-idea --yes` runs",
+      "then": "the tip of `phax/records/v1` is unchanged, `origin/phax/old-idea--phase-02` still exists, and both `phax/old-idea-2` branches still exist",
+      "refs": [
+        "never-touches"
+      ]
+    },
+    {
+      "id": "ac-unpreserved-kept",
+      "name": "Unpreserved commits keep the run whole",
+      "given": "an archived run `spike` whose `phax/spike--phase-02` holds 2 commits that no other ref reaches",
+      "when": "`phax prune spike --yes` runs",
+      "then": "the archive folder, the registry entry and every local branch of `spike` remain, the output names `phax/spike--phase-02` with 2 unpreserved commits, and the command exits 4",
+      "refs": [
+        "keep-unpreserved",
+        "exit-codes"
+      ]
+    },
+    {
+      "id": "ac-preserved-by-remote",
+      "name": "A remote-tracking ref preserves commits",
+      "given": "an archived run `shipped` whose final phase branch's commits are reached only by the remote-tracking ref `origin/phax/shipped--phase-03`",
+      "when": "`phax prune shipped --yes` runs",
+      "then": "`shipped` is pruned, and `origin/phax/shipped--phase-03` still exists",
+      "refs": [
+        "keep-unpreserved",
+        "never-touches"
+      ]
+    },
+    {
+      "id": "ac-force",
+      "name": "--force discards unpreserved commits",
+      "given": "the run `spike` from \"Unpreserved commits keep the run whole\"",
+      "when": "`phax prune spike --force --yes` runs",
+      "then": "`spike` is pruned, the output reports `phax/spike--phase-02` as discarded with 2 unpreserved commits, and the command exits 0",
+      "refs": [
+        "force"
+      ]
+    },
+    {
+      "id": "ac-checked-out",
+      "name": "A checked-out branch keeps the run even with --force",
+      "given": "an archived run `old-idea` whose branch `phax/old-idea--phase-03` is checked out in the repository's main worktree",
+      "when": "`phax prune old-idea --force --yes` runs",
+      "then": "none of `old-idea`'s parts are deleted, the output names the branch and the worktree path, and the command exits 4",
+      "refs": [
+        "keep-checked-out",
+        "exit-codes"
+      ]
+    },
+    {
+      "id": "ac-dry-run",
+      "name": "--dry-run previews and deletes nothing",
+      "given": "an archived run `a` that is prunable and an archived run `b` with unpreserved commits",
+      "when": "`phax prune a b --dry-run` runs",
+      "then": "the output has one line per run giving its planned outcome (prune / keep), its archive folder size, and either its branches to delete or the reason it is kept; nothing is deleted; no prompt appears; and it exits 0",
+      "refs": [
+        "preview",
+        "dry-run"
+      ]
+    },
+    {
+      "id": "ac-confirm-decline",
+      "name": "Declining the prompt deletes nothing",
+      "given": "a TTY on stdin and an archived run `old-idea`",
+      "when": "`phax prune old-idea` runs and the operator answers no",
+      "then": "the preview was printed before the question, nothing is deleted, and it exits 1",
+      "refs": [
+        "confirm-tty",
+        "preview",
+        "exit-codes"
+      ]
+    },
+    {
+      "id": "ac-confirm-accept",
+      "name": "Accepting the prompt prunes",
+      "given": "a TTY on stdin and an archived run `old-idea`",
+      "when": "`phax prune old-idea` runs and the operator answers yes",
+      "then": "`old-idea` is pruned and the command exits 0",
+      "refs": [
+        "confirm-tty"
+      ]
+    },
+    {
+      "id": "ac-no-tty",
+      "name": "No TTY without --yes refuses",
+      "given": "stdin that is not a TTY and an archived run `old-idea`",
+      "when": "`phax prune old-idea` runs without `--yes` or `--dry-run`",
+      "then": "the preview is printed, nothing is deleted, the message names `--yes`, and it exits 1",
+      "refs": [
+        "refuse-no-tty"
+      ]
+    },
+    {
+      "id": "ac-report",
+      "name": "The report carries outcome, bytes and branches",
+      "given": "an archived run `old-idea` with an archive folder of known size and 4 local branches",
+      "when": "`phax prune old-idea --yes` runs",
+      "then": "the output has a `pruned` line for `phax.old-idea` with the bytes freed (equal to the size in the preview) and the 4 branches deleted, and a closing total of 1 run pruned with the same bytes",
+      "refs": [
+        "report"
+      ]
+    },
+    {
+      "id": "ac-remote-warning",
+      "name": "Surviving remote branches are flagged",
+      "given": "an archived run `old-idea` with a remote-tracking ref `origin/phax/old-idea--phase-03`",
+      "when": "`phax prune old-idea --yes` runs",
+      "then": "the output lists `origin/phax/old-idea--phase-03` as kept and warns that a future run named `old-idea` will meet it when it publishes",
+      "refs": [
+        "remote-warning"
+      ]
+    },
+    {
+      "id": "ac-already-absent",
+      "name": "Re-running completes an interrupted prune",
+      "given": "a registry entry for the archived run `old-idea` whose archive folder and local branches no longer exist, as left by an interrupted prune or a manual deletion",
+      "when": "`phax prune old-idea --yes` runs",
+      "then": "the registry entry is removed, the output reports the folder and the branches as already absent, and it exits 0",
+      "refs": [
+        "already-absent"
+      ]
+    },
+    {
+      "id": "ac-removal-failed",
+      "name": "A part that cannot be removed keeps the entry",
+      "given": "an archived run `a` whose archive folder cannot be deleted (no write permission) and a prunable archived run `b`",
+      "when": "`phax prune a b --yes` runs",
+      "then": "`a`'s registry entry remains, the output names the folder and the reason on one line with no stack trace, `b` is pruned, and the command exits 4",
+      "refs": [
+        "entry-last",
+        "exit-codes"
+      ]
+    },
+    {
+      "id": "ac-json",
+      "name": "--json emits one document and never prompts",
+      "given": "an archived run `a` that is prunable and an archived run `b` with unpreserved commits",
+      "when": "`phax prune a b --json --dry-run` runs, and then `phax prune a b --json` runs on a TTY without `--yes`",
+      "then": "the first run writes stdout that parses as a single JSON document with the outcomes `would-prune` for `a` and `would-keep` (reason `unpreserved-commits`) for `b`, their sizes, branches and totals, and exits 0; the second run asks nothing, deletes nothing and exits 1",
+      "refs": [
+        "json"
+      ]
+    },
+    {
+      "id": "ac-registry-shape",
+      "name": "The registry keeps its format",
+      "given": "a registry of three entries, one of them the archived run `old-idea`",
+      "when": "`phax prune old-idea --yes` runs",
+      "then": "`~/.phax/registry.json` keeps its `$schema`, still decodes with `parseRegistry` from `@lbdremy/phax-schemas`, and its two remaining entries are field-for-field unchanged, `updatedAt` included",
+      "refs": [
+        "registry-shape"
+      ]
+    },
+    {
+      "id": "ac-name-freed",
+      "name": "The next run gets the bare name",
+      "given": "an archived run `run-prune` in namespace `phax`, pruned with `phax prune run-prune --yes`, and an approved plan whose slug is `run-prune`",
+      "when": "`phax run --plan <that plan>` creates its run",
+      "then": "the run is named `run-prune` rather than `run-prune-2`, and its branch `phax/run-prune` is created fresh from the current branch instead of reusing an old tip",
+      "refs": [
+        "name-freed",
+        "removes"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "q-local-branches",
+      "question": "What should prune do with a run's local branches (`phax/<name>` and `phax/<name>--phase-NN`)?",
+      "options": [
+        {
+          "id": "preserved-only",
+          "label": "Delete them. Keep the whole run when any of them holds an unpreserved commit; `--force` discards those commits",
+          "abandons": "one-step cleanup of runs whose work landed by squash merge after the remote branch was deleted and fetched away: those commits read as unpreserved, so the run needs `--force`"
+        },
+        {
+          "id": "leave-and-free",
+          "label": "Never delete local branches, and free the name anyway",
+          "abandons": "the correctness of the next run with that name: `phax run` reuses the surviving branches as is and silently builds on the old run's commits"
+        },
+        {
+          "id": "leave-and-refuse",
+          "label": "Never delete local branches, and refuse to prune a run that still has any",
+          "abandons": "the command's usefulness: almost every archived run still has its branches (375 in the phax repository), so prune would refuse nearly everything"
+        },
+        {
+          "id": "delete-all",
+          "label": "Delete them unconditionally",
+          "abandons": "work that exists nowhere else: a run abandoned before publishing loses its only copy, with no warning"
+        }
+      ],
+      "recommendation": "preserved-only",
+      "rationale": "Freeing a name while its branches survive is a silent correctness bug in `run`, and this spec may not change `run`, so the branches have to go with the name. Among the options that delete, only deletion gated on reachability never loses work by default. Its cost is that squash-merged work whose remote branch is gone reads as unpreserved. That cost is visible — the run is kept whole and reported, never half-deleted — and one flag answers it."
+    },
+    {
+      "id": "q-bulk",
+      "question": "How does the operator select more than one run?",
+      "options": [
+        {
+          "id": "names-and-all",
+          "label": "One or more names, plus `--all` for every archived run of the current namespace",
+          "abandons": "selection by age or pattern: clearing \"everything older than a month\" takes a script over `phax ls --archived --json`"
+        },
+        {
+          "id": "names-only",
+          "label": "Names only",
+          "abandons": "the cleanup that motivates this spec: 123 archived runs would mean 123 names, typed or scripted"
+        },
+        {
+          "id": "names-all-age",
+          "label": "Names, `--all`, and an age filter such as `--older-than 30d`",
+          "abandons": "a small contract before the 1.0 CLI freeze: a duration grammar, and a choice of which timestamp counts, get frozen into the CLI for a retention feature that is a non-goal"
+        }
+      ],
+      "recommendation": "names-and-all",
+      "rationale": "`--all` covers the one-time cleanup, and the preview with confirmation makes it safe. Age filters can be added later without breaking anything; once a duration grammar is frozen, it cannot be removed."
+    },
+    {
+      "id": "q-namespace-reach",
+      "question": "Does prune reach runs of other namespaces, whose git state lives in other repositories?",
+      "options": [
+        {
+          "id": "current-only",
+          "label": "Current namespace only; a qualified name from another namespace is refused",
+          "abandons": "cleaning every repository from one place. A repository whose phax.json no longer loads (louloupapers today) cannot be pruned until its config is migrated"
+        },
+        {
+          "id": "any-partial",
+          "label": "Any namespace by qualified name; delete the folder and entry, and leave the other repository's git state",
+          "abandons": "the safety of the freed name: the other repository keeps the run's branches, and its next run with that name silently reuses them"
+        },
+        {
+          "id": "any-discover",
+          "label": "Any namespace; find the owning repository through the git link inside the archived worktrees",
+          "abandons": "dependability: the link exists only while the archived worktree folders carry it and the repository has not moved. The registry records no repository path to fall back on, and adding one would break the no-format-change constraint"
+        }
+      ],
+      "recommendation": "current-only",
+      "rationale": "prune is safe only because it inspects the run's branches in the repository that owns them, and the current repository is the only one phax can name with certainty. Running prune from each repository is the same habit that archive's git cleanup already requires."
+    },
+    {
+      "id": "q-confirmation",
+      "question": "How does prune guard the deletion: preview, confirmation, or both?",
+      "options": [
+        {
+          "id": "preview-confirm-yes",
+          "label": "Always preview; ask on a TTY; `--yes` skips the question; refuse without a TTY; `--dry-run` previews only",
+          "abandons": "unattended use without a flag: scripts must pass `--yes`"
+        },
+        {
+          "id": "apply-flag",
+          "label": "Preview by default; delete only with `--apply`, like `plans status --apply`",
+          "abandons": "the house convention for destructive commands (`resume` and `reset-phase` use `--yes -y`), and a confirmation at the moment of deletion in interactive use"
+        },
+        {
+          "id": "act-immediately",
+          "label": "Delete at once and report afterwards",
+          "abandons": "any chance to see that 86 GB and 375 branches are about to go before they go"
+        }
+      ],
+      "recommendation": "preview-confirm-yes",
+      "rationale": "The deletion cannot be undone, and its size is the point of the command, so the operator should see it before it happens. `--yes` is already how phax spells \"I know\" for destructive commands, and a script pays one flag for it."
+    },
+    {
+      "id": "q-kept-exit",
+      "question": "Which exit code reports that some selected runs were kept while others were pruned?",
+      "options": [
+        {
+          "id": "exit-4",
+          "label": "Exit 4 (the unsafe-git-state family)",
+          "abandons": "a code that means only git state: a filesystem failure (`removal-failed`) also exits 4, like unpreserved commits"
+        },
+        {
+          "id": "exit-1",
+          "label": "Exit 1",
+          "abandons": "a script's ability to tell \"refused, nothing done\" from \"partly done, some runs kept\""
+        },
+        {
+          "id": "new-code",
+          "label": "A new dedicated code",
+          "abandons": "a stable exit-code table on the way to the 1.0 CLI freeze: one more family to document and hold"
+        }
+      ],
+      "recommendation": "exit-4",
+      "rationale": "The usual reasons to keep a run — unpreserved commits, a checked-out branch — are git state. The rare filesystem failure is named in the output and in the JSON `kept.reason`, so the exit code does not need to carry it."
+    }
+  ],
+  "planningNote": {
+    "settled": [
+      "A new command `phax prune` taking positional run names or `--all`, with `--dry-run`, `--yes`/`-y` and `--json`. It works on the current namespace only and on archived runs only.",
+      "Deleted: the archive folder, the worktree metadata in the current repository, the run's local branches, and the registry entry, which goes last. Never touched: the records branch, remote branches, remote-tracking refs, pull requests, and branches of other runs.",
+      "Local branches are deleted only when every commit they hold is reachable from a ref that prune keeps. Otherwise the run is kept whole unless `--force` is given. A checked-out branch keeps the run even with `--force`.",
+      "Whole-command refusals (bad selection, outside a project, another namespace, a lock, no confirmation) happen before anything is deleted. A per-run failure keeps that run's entry and the command continues with the other runs.",
+      "Exit codes are 0, 1, 3 and 4 as pinned in §6."
+    ],
+    "open": [
+      "The exact human wording, the size formatting, and the JSON field spelling. The outcome and kept-reason enum values are the intent.",
+      "The final name of `--force`.",
+      "How the archive folder's size is measured (disk usage or apparent size). Report one, and use it consistently in the preview, the report and the JSON.",
+      "The deletion order among the archive folder, the worktree metadata and the branches, provided the registry entry goes last and a re-run completes an interrupted prune."
+    ],
+    "constraints": [
+      "Additive only: a new command. `run`, `archive`, `ls`, `publish-pr` and every other command keep their current behaviour.",
+      "No persisted-format change. The registry, a public format of `@lbdremy/phax-schemas`, loses entries and is otherwise written exactly as today.",
+      "All filesystem, git, lock and prompt access goes through the existing ports. The CLI command parses its arguments, calls one use case and renders the result.",
+      "No network access: remote branches are known only through local remote-tracking refs.",
+      "Regenerate `phax.usage.kdl` (`pnpm gen:usage-spec`) and add the cliDocs entry. Update README § Archive (its claim that archive is the only operation touching worktrees/) and § Exit codes. Update the phax-cli skill's lifecycle, where archived is no longer terminal."
+    ]
+  },
+  "docsPage": {
+    "kind": "page",
+    "page": "README.md § Archive, renamed § Archive and prune, plus the generated CLI command reference and phax.usage.kdl",
+    "reader": "An operator whose ~/.phax/archive has grown, or whose new runs keep getting -2 names, and who wants to know what prune deletes, what it keeps, and how to run it safely.",
+    "example": "## Archive and prune\n\n`archive` moves a finished run aside and keeps everything. `prune` deletes archived runs for real — archive folder, worktree metadata, local branches, registry entry — so their names are free again and their disk space comes back. Records on `phax/records/v1`, remote branches and pull requests are never touched.\n\n```bash\nphax prune --all --dry-run   # see what would go, and what is kept and why\nphax prune old-idea          # preview, then confirm\nphax prune --all --yes       # every archived run of this repository's namespace\n```\n\nA run whose local branches hold commits no other ref keeps (no other branch, tag or remote-tracking ref) is kept whole; `--force` discards those commits. Run prune from the repository that owns the runs."
+  }
+}
