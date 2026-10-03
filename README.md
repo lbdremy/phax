@@ -508,14 +508,14 @@ phax ls --archived
 phax ls --json            # machine-readable
 ```
 
-## Archive
+## Archive and prune
 
-Archive is the **only** operation that touches `worktrees/`. It moves:
+Archive moves a finished run aside and keeps everything; prune deletes it. It moves:
 
-- `~/.phax/runs/<short-name>` → `~/.phax/archive/<short-name>/runs/`
-- `~/.phax/worktrees/<short-name>/` → `~/.phax/archive/<short-name>/worktrees/`
+- `~/.phax/runs/<namespace>.<short-name>` → `~/.phax/archive/<namespace>.<short-name>/runs/`
+- `~/.phax/worktrees/<namespace>.<short-name>/` → `~/.phax/archive/<namespace>.<short-name>/worktrees/`
 
-Then runs `git worktree prune` to drop stale admin records. Nothing is destructively deleted — every phase's working state is preserved for later inspection.
+Then runs `git worktree prune` to drop stale admin records. Nothing is destructively deleted — every phase's working state is preserved for later inspection, and the run's name stays held.
 
 ```bash
 phax archive <short-name>        # any non-running run; unfinished states require --force
@@ -523,6 +523,22 @@ phax archive <short-name> --force  # archive an unfinished run, or bypass the di
 ```
 
 Finished runs (`review_open`, `completed`) archive without `--force`. Unfinished runs (`created`, `failed`, `interrupted`, `rate_limited`, `stopped`) are refused unless `--force` is passed — the refusal message names the state. Running, locked, and already-archived runs are never archivable. The run's `stoppedReason` and `lastError` survive archival intact.
+
+### Prune
+
+`phax prune` deletes archived runs for real: the archive folder, the worktree metadata in the current repository, the run's local branches (`<branch>` and `<branch>--phase-NN`) and, last, the registry entry. That frees the run's name and its disk space. It never touches `phax/records/v1`, remote branches, remote-tracking refs or pull requests, and it never contacts a remote.
+
+```bash
+phax prune --all --dry-run   # preview every archived run of this namespace
+phax prune old-idea          # prune one archived run after confirming
+phax prune --all --yes       # prune every archived run without asking
+```
+
+- Unpreserved commits (commits no other local branch, tag or remote-tracking ref keeps) keep a run whole. `--force` discards them.
+- A branch checked out in a worktree keeps its run, even with `--force`.
+- A preview always comes first. Then it asks on a TTY, or proceeds with `--yes`. Without a TTY and without `--yes` or `--dry-run`, the command refuses.
+- Only the current namespace's archived runs can be pruned, so run `phax prune` from the repository that owns them.
+- Surviving remote branches are listed as a warning. A future run with the same name will meet them at `publish-pr`.
 
 ## Multi-provider model routing
 
@@ -625,6 +641,8 @@ phax unlock <short-name> --force  # remove any lock
 | 10   | Registry corruption                                         |
 | 11   | Security or preflight refusal                               |
 | 12   | Artifact lifecycle refusal                                  |
+
+`phax prune` uses a subset of these codes: 0 when every selected run was pruned, for a `--dry-run` preview, or when there is nothing to prune; 1 when nothing was deleted (a bad selection, no project config, or a declined or missing confirmation); 3 when at least one selected run was kept; 7 when a selected run is locked.
 
 ## Environment variables
 

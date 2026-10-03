@@ -35,7 +35,7 @@ Runs live in a local registry (`~/.phax/runs/`), are addressed by a
 **short-name** (e.g. `usage-cli`), and move through:
 
 ```
-created → running → review_open → archived
+created → running → review_open → archived → (prune) gone
                  ↘ failed
 ```
 
@@ -47,7 +47,7 @@ created → running → review_open → archived
 - **review_open** — all phases committed; the final worktree is open and waiting
   for a human. This is where you `enter` / `shell` / `open` to review,
   optionally `review-compliance`, then `publish-pr` and finally `archive`.
-- **archived** — worktrees removed. Terminal.
+- **archived** — the run folder and worktrees are moved under `~/.phax/archive`, and the name stays held. `phax prune` deletes the run for real and frees its name and disk space. Archived is no longer terminal: prune is the step that removes it.
 
 Most review commands have a `…-last` variant that targets the most recent
 `review_open` run, so you can drop the short-name (see `--usage`).
@@ -62,6 +62,7 @@ phax run my-feature --plan plan.md # extract plan + run every phase → review_o
 phax enter my-feature              # review/iterate in the kept-open agent session
 phax publish-pr my-feature         # push branch + open a PR (needs gh)
 phax archive my-feature            # finish
+phax prune my-feature              # optional: delete the archived run and free its name
 ```
 
 `phax run` extracts the plan inline; `phax plans lint <plan>` checks a plan's
