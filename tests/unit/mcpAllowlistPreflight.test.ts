@@ -1,6 +1,6 @@
 import { Effect, Either } from "effect";
 import { describe, expect, it } from "vitest";
-import { mcpAllowlistPreflight } from "../../src/app/executePlan.js";
+import { mcpAllowlistPreflight } from "../../src/app/runPreflight.js";
 import { SecurityPreflightError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 

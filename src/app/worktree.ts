@@ -46,6 +46,29 @@ export function preparePhaseBranch(
   });
 }
 
+/**
+ * Refuse a dirty working tree unless `allowDirty`. Read-only: it only asks
+ * `git.isClean`, and makes no git call at all when `allowDirty` is set.
+ */
+export function checkCleanWorkingTree(
+  repoRoot: string,
+  allowDirty: boolean,
+): Effect.Effect<void, UnsafeGitStateError | GitError, Git> {
+  if (allowDirty) return Effect.void;
+  return Effect.gen(function* () {
+    const git = yield* Git;
+    const clean = yield* git.isClean(repoRoot);
+    if (!clean) {
+      return yield* Effect.fail(
+        new UnsafeGitStateError({
+          message: "Working tree is not clean. Commit or stash changes, or pass --allow-dirty.",
+          repoPath: repoRoot,
+        }),
+      );
+    }
+  });
+}
+
 export function prepareRunBranch(
   _shortName: ShortName,
   planBranch: string,
@@ -55,17 +78,8 @@ export function prepareRunBranch(
   return Effect.gen(function* () {
     const git = yield* Git;
 
-    if (!allowDirty) {
-      const clean = yield* git.isClean(repoRoot);
-      if (!clean) {
-        return yield* Effect.fail(
-          new UnsafeGitStateError({
-            message: "Working tree is not clean. Commit or stash changes, or pass --allow-dirty.",
-            repoPath: repoRoot,
-          }),
-        );
-      }
-    }
+    // Branch creation keeps its own dirty-tree refusal, even after a preflight.
+    yield* checkCleanWorkingTree(repoRoot, allowDirty ?? false);
 
     const branchResult = decodeBranchName(planBranch);
     if (Either.isLeft(branchResult)) {
