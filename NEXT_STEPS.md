@@ -84,6 +84,13 @@ desktop — none is promised by the announcement.
       format (run the configured formatter on it before committing), or name this remedy in
       the refusal.
 
+- [ ] **`plans overlap --landed` cannot read an archived run.** Found 2026-10-03: it resolves
+      the run only under `~/.phax/runs/` ("No run-status.json"), so once a merged run is archived —
+      the normal next step — the confirmed check is gone, although
+      `~/.phax/archive/<ns>.<name>/runs/global-file-reconciliation.json` still holds the real diff.
+      It also refuses a qualified name (`phax.<name>`) that other commands print. Resolve archived
+      runs through the registry's `archivePath`, and accept the qualified name.
+
 - [ ] **A run's completion conflicts with approvals made on main during the run.** Found
       2026-10-03 on PR #112: the run branch's completion commit removes the plan's entry from
       `docs/plans/approvals.json`, and approving another plan on main meanwhile edits the same
