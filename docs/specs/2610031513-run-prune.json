@@ -115,7 +115,7 @@
       "id": "refuse-locked",
       "title": "Locked runs",
       "pattern": "unwanted",
-      "statement": "IF any selected run holds an active lock THEN the system SHALL refuse the whole command with exit code 3 before deleting anything, naming the run and `phax unlock`."
+      "statement": "IF any selected run holds an active lock THEN the system SHALL refuse the whole command with exit code 7 before deleting anything, naming the run and `phax unlock`."
     },
     {
       "id": "removes",
@@ -199,7 +199,13 @@
       "id": "exit-codes",
       "title": "Exit codes",
       "pattern": "ubiquitous",
-      "statement": "The `phax prune` command shall exit 0 when every selected run was pruned (or there was nothing to prune), 4 when at least one selected run was kept, 1 when it deleted nothing because the command was refused or the confirmation was declined or missing, and 3 on a lock conflict."
+      "statement": "The `phax prune` command shall exit 0 when every selected run was pruned (or there was nothing to prune), 3 when at least one selected run was kept, 1 when it deleted nothing because the command was refused or the confirmation was declined or missing, and 7 on a lock conflict — the codes `exitCodeForError` gives these families in every other command."
+    },
+    {
+      "id": "exit-table",
+      "title": "The README exit-code table is the code's",
+      "pattern": "ubiquitous",
+      "statement": "The README's exit-code table shall list every exit code `exitCodeForError` and the commands return, with the meaning the code gives it, and phax's test suite shall fail when the table and the code disagree."
     },
     {
       "id": "json",
@@ -237,13 +243,13 @@
       "surface": "cli: phax prune output",
       "binding": "indicative",
       "before": null,
-      "after": "$ phax prune run-prune old-idea-2\nPrune from namespace \"phax\":\n  phax.run-prune     prune  3.1 GB  branches: phax/run-prune, phax/run-prune--phase-01..04 (5)\n  phax.old-idea-2    keep   0.8 GB  phax/old-idea-2--phase-03 holds 2 unpreserved commits (--force discards them)\nPrune 1 run, freeing 3.1 GB? [y/N] y\n✓ phax.run-prune pruned — 3.1 GB freed, 5 local branches deleted\n  ! remote branches kept: origin/phax/run-prune--phase-04 — a future run named run-prune will meet it at publish-pr\n○ phax.old-idea-2 kept — phax/old-idea-2--phase-03 holds 2 unpreserved commits\nPruned 1 of 2 runs, 3.1 GB freed.\n$? = 4\n\n$ phax prune feature-x\n✗ prune refused: run \"phax.feature-x\" is review_open, not archived — archive it first: phax archive feature-x\n$? = 1\n\n$ phax prune louloupapers.cover-flow\n✗ prune refused: run \"louloupapers.cover-flow\" belongs to namespace \"louloupapers\"; run phax prune from that repository\n$? = 1\n\n$ phax prune --all < /dev/null\n  (preview as above)\n✗ prune refused: no TTY to confirm; pass --yes to proceed or --dry-run to preview only\n$? = 1\n\nThe wording and size formatting are indicative. The content of each line is set by §5: outcome, size, branches or reason, remote branches kept, and the total."
+      "after": "$ phax prune run-prune old-idea-2\nPrune from namespace \"phax\":\n  phax.run-prune     prune  3.1 GB  branches: phax/run-prune, phax/run-prune--phase-01..04 (5)\n  phax.old-idea-2    keep   0.8 GB  phax/old-idea-2--phase-03 holds 2 unpreserved commits (--force discards them)\nPrune 1 run, freeing 3.1 GB? [y/N] y\n✓ phax.run-prune pruned — 3.1 GB freed, 5 local branches deleted\n  ! remote branches kept: origin/phax/run-prune--phase-04 — a future run named run-prune will meet it at publish-pr\n○ phax.old-idea-2 kept — phax/old-idea-2--phase-03 holds 2 unpreserved commits\nPruned 1 of 2 runs, 3.1 GB freed.\n$? = 3\n\n$ phax prune feature-x\n✗ prune refused: run \"phax.feature-x\" is review_open, not archived — archive it first: phax archive feature-x\n$? = 1\n\n$ phax prune louloupapers.cover-flow\n✗ prune refused: run \"louloupapers.cover-flow\" belongs to namespace \"louloupapers\"; run phax prune from that repository\n$? = 1\n\n$ phax prune --all < /dev/null\n  (preview as above)\n✗ prune refused: no TTY to confirm; pass --yes to proceed or --dry-run to preview only\n$? = 1\n\nThe wording and size formatting are indicative. The content of each line is set by §5: outcome, size, branches or reason, remote branches kept, and the total."
     },
     {
       "surface": "cli: phax prune exit codes",
       "binding": "normative",
       "before": null,
-      "after": "0  every selected run pruned; or --dry-run preview printed; or --all found nothing to prune\n1  nothing deleted: bad selection (none/both forms, unknown, not archived, other namespace), outside a project, confirmation declined or missing\n3  a selected run holds an active lock (nothing deleted)\n4  at least one selected run was kept (unpreserved commits, checked-out branch, removal failure); the others were pruned"
+      "after": "0  every selected run pruned; or --dry-run preview printed; or --all found nothing to prune\n1  nothing deleted: bad selection (none/both forms, unknown, not archived, other namespace), outside a project, confirmation declined or missing\n3  at least one selected run was kept (unpreserved commits, checked-out branch, removal failure); the others were pruned\n7  a selected run holds an active lock (nothing deleted)"
     },
     {
       "surface": "cli: phax prune --json",
@@ -376,7 +382,7 @@
       "name": "A locked run refuses the whole command",
       "given": "an archived run `old-idea` holding an active lock and an archived run `spare`",
       "when": "`phax prune old-idea spare --yes` runs",
-      "then": "it exits 3 naming `old-idea` and `phax unlock`, and neither run is pruned",
+      "then": "it exits 7 naming `old-idea` and `phax unlock`, and neither run is pruned",
       "refs": [
         "refuse-locked"
       ]
@@ -548,6 +554,16 @@
         "name-freed",
         "removes"
       ]
+    },
+    {
+      "id": "ac-exit-table",
+      "name": "The README exit-code table matches the code",
+      "given": "the README's §Exit codes table and `exitCodeForError`",
+      "when": "the test suite runs, and again after a test double changes one code's meaning",
+      "then": "the table lists 0 to 12 with the code's meanings (1 generic, 2 plan or config validation, 3 unsafe git state, 4 gate failure, 5 agent invocation, 6 archive blocked by a dirty worktree, 7 lock conflict, 8 rate or usage limit, 9 phase had no changes, 10 registry corruption, 11 security or preflight refusal, 12 artifact lifecycle refusal) and the suite passes; a disagreement fails it, naming the code",
+      "refs": [
+        "exit-table"
+      ]
     }
   ],
   "openQuestions": [
@@ -653,8 +669,8 @@
       "question": "Which exit code reports that some selected runs were kept while others were pruned?",
       "options": [
         {
-          "id": "exit-4",
-          "label": "Exit 4 (the unsafe-git-state family)",
+          "id": "exit-3",
+          "label": "Exit 3 (the unsafe-git-state family)",
           "abandons": "a code that means only git state: a filesystem failure (`removal-failed`) also exits 4, like unpreserved commits"
         },
         {
@@ -668,8 +684,8 @@
           "abandons": "a stable exit-code table on the way to the 1.0 CLI freeze: one more family to document and hold"
         }
       ],
-      "recommendation": "exit-4",
-      "rationale": "Decided by the author on 2026-10-03. The usual reasons to keep a run — unpreserved commits, a checked-out branch — are git state. The rare filesystem failure is named in the output and in the JSON `kept.reason`, so the exit code does not need to carry it."
+      "recommendation": "exit-3",
+      "rationale": "Decided by the author on 2026-10-03. The usual reasons to keep a run — unpreserved commits, a checked-out branch — are git state. The rare filesystem failure is named in the output and in the JSON `kept.reason`, so the exit code does not need to carry it. Amended by the author on 2026-10-03: the question first cited the README's exit-code table, which was stale; in phax's code the unsafe-git-state family is 3 (4 is a gate failure) and a lock conflict is 7, so prune follows the code, and the README table is corrected to match it (requirement exit-table)."
     }
   ],
   "planningNote": {
@@ -679,7 +695,8 @@
       "Local branches are deleted only when every commit they hold is reachable from a ref that prune keeps. Otherwise the run is kept whole unless `--force` is given. A checked-out branch keeps the run even with `--force`.",
       "Whole-command refusals (bad selection, outside a project, another namespace, a lock, no confirmation) happen before anything is deleted. A per-run failure keeps that run's entry and the command continues with the other runs.",
       "Exit codes are 0, 1, 3 and 4 as pinned in §6.",
-      "Every §9 question was decided by the author on 2026-10-03, each on its recommended option."
+      "Every §9 question was decided by the author on 2026-10-03, each on its recommended option.",
+      "Exit codes follow `exitCodeForError` (amended 2026-10-03): 3 when a run is kept, 7 on a lock; the stale README table is rewritten from the code, with a test keeping them in sync."
     ],
     "open": [
       "The exact human wording, the size formatting, and the JSON field spelling. The outcome and kept-reason enum values are the intent.",
