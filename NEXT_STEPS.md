@@ -144,7 +144,9 @@ desktop — none is promised by the announcement.
 - [ ] **`phax prune` — delete archived runs.** Spec `run-prune` Approved 2026-10-03
       (`docs/specs/2610031513-run-prune.md`: current namespace, names or `--all`, preview +
       confirm, branches deleted unless they hold unpreserved commits; exit codes follow the code, and
-      the stale README exit-code table is rewritten from it); plan being authored. Raised 2026-09-08 alongside the `-2`
+      the stale README exit-code table is rewritten from it); plan Approved 2026-10-03
+      (`docs/plans/2610031647-run-prune-plan.md`, 5 phases; run with `--allow-skill-edits`),
+      to run once preflight-before-naming has landed. Raised 2026-09-08 alongside the `-2`
       diagnosis. Slugs must never collide (kept), so the registry keeps archived runs as
       name-holders; the way to free a name is to delete the archived run for real, not to
       weaken uniqueness. A `prune` command that removes archived runs (folder, worktrees,
