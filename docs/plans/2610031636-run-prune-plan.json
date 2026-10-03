@@ -1,0 +1,242 @@
+{
+  "version": 1,
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2610031513-run-prune.md",
+  "run": {
+    "shortName": "run-prune",
+    "title": "Prune archived runs",
+    "requiredCommands": [
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ]
+  },
+  "preamble": {
+    "summary": "Add `phax prune`, which deletes archived runs of the current namespace for real: the archive folder, the worktree metadata in the current repository, the run's local branches (`<branch>` and `<branch>--phase-NN`), and finally the registry entry. Pruning frees the run's name and its disk space. It never touches `phax/records/v1`, remote branches, remote-tracking refs or pull requests, and it never contacts a remote. Per spec Q1, a run whose local branches hold unpreserved commits is kept whole unless `--force` is given, and a branch checked out in a worktree keeps the run even with `--force`. Per Q2, selection is by names or `--all`. Per Q3, only the current namespace can be pruned. Per Q4, the command always prints a preview, asks on a TTY, accepts `--yes`, refuses without a TTY and supports `--dry-run`. Per Q5, a partial outcome exits 4.\n\nThe work has four phases, each green on its own. Phase 1 adds the read-only git and filesystem queries prune needs, behind the existing ports. Phase 2 adds the pure prune domain and the `prune` use case. Phase 3 adds the CLI command, the generated CLI surface and the end-to-end acceptance suite against a temporary repository and state root. Phase 4 updates the README prose and the phax-cli skill's lifecycle. Phase 4 edits `.claude/skills/phax-cli/SKILL.md`, so run the plan with `phax run --allow-skill-edits`.\n\nNo persisted format changes. The registry only loses the pruned entries and is written exactly as `upsertRun` writes it today. All fixtures are made up; nothing from ~/.phax or another repository enters this repository.",
+    "requiredCommandsNote": "Both commands are already allowed by `security.agentCommands` in phax.json, so phax.json needs no change. Phase 3 runs them to regenerate phax.usage.kdl, docs/cli/reference.md and the README's generated CLI block. Every phase is verified by the existing `standard` gate profile.",
+    "technicalArbitrations": [
+      "Archive size is the apparent size: the sum of the lstat sizes of the regular files under the archive folder, without following symlinks, and 0 when the folder is absent. The same number is used in the preview, the report and the JSON. Accepted loss: it can differ from `du` (APFS clones, sparse files, block rounding), so the bytes reported as freed may not match what the disk reclaims exactly.",
+      "The discard flag keeps the name `--force`, matching `phax archive --force` and the spec's usage.kdl sample. Accepted loss: it is less self-describing than `--discard-unpreserved`. The help text says it discards commits.",
+      "Unpreserved commits are counted per branch with `git rev-list --count refs/heads/<b> --not --exclude=<each branch this command would delete> --branches --tags --remotes`. The excluded set is the union of all selected runs' branches (spec §4). Accepted loss: commits reachable only from a detached HEAD, the stash, a reflog or a non-branch ref count as unpreserved, and a selected run that ends up kept still does not preserve another selected run's commits. Both cases keep more and never lose work.",
+      "Deletion order per run: archive folder, then worktree metadata, then local branches with `git branch -D` (safe because reachability was already checked; `-d` would refuse branches preserved only by a remote-tracking ref or a tag), then the registry entry last. Accepted loss: if branch deletion fails, the folder is already gone. The run is kept with `removal-failed`, and a re-run finishes it through the already-absent path (§5.18).",
+      "Worktree metadata is cleared with `git worktree prune` (repository-wide, as archive does), then any remaining entry owned by the run (a path under `<stateRoot>/worktrees/<ns>.<name>` or under the archive folder) is removed with `git worktree remove --force`. Accepted loss: like archive, this also drops other runs' stale admin records.",
+      "The expected branches of a run are its entry's `branch` plus `<branch>--phase-01..NN` up to the entry's `phasesCount`, together with any other present `<branch>--phase-NN`. This lets an absent branch be reported by name as already absent. Accepted loss: an absent phase branch numbered beyond `phasesCount` is not reported. Present branches are always found by listing refs.",
+      "One use case, `prune`, takes a confirmation mode and a preview callback. The CLI derives the mode from the flags and the TTY through a pure domain helper and only renders. Accepted loss: the use case carries a rendering callback, so the CLI can print the preview before the question without making two use-case calls.",
+      "When no selected run is planned for pruning (all kept, or `--all` found nothing), no confirmation is asked in any mode, because nothing would be deleted. Kept runs are reported with exit 4 even without a TTY. Accepted loss: a literal reading of §5.15 (exit 1 naming `--yes`) for an invocation that deletes nothing anyway.",
+      "The prune command maps its own exit codes (0, 1, 3, 4, as pinned by the spec and the README table) rather than calling `exitCodeForError`, which maps LockConflictError to 7. Accepted loss: prune's lock-conflict code differs from the 7 that other commands return today. Reconciling that drift is out of scope."
+    ]
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-prune-git-fs-queries",
+      "plannedFilesToCreate": [
+        "tests/integration/gitPruneQueries.test.ts",
+        "tests/integration/fsApparentSize.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/git.ts",
+        "src/ports/fs.ts",
+        "src/schemas/git.ts",
+        "src/infra/git.ts",
+        "src/infra/fs.ts",
+        "src/infra/fakes/git.ts",
+        "src/infra/fakes/fs.ts",
+        "tests/unit/schemas/git.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/fakeRootedFileSystem.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(git): add ref, reachability and worktree queries for prune",
+        "body": "Add the read-only queries phax prune needs behind the existing ports. The Git port gets listRefs (full ref names under a prefix), countUnpreservedCommits (commits a branch reaches that no other local branch, tag or remote-tracking ref keeps, ignoring a set of branches about to be deleted) and listWorktrees (the parsed git worktree list --porcelain). The FileSystem port gets apparentSize (the bytes of the regular files under a path, 0 when it is absent).\n\nGit output is decoded in src/schemas/git.ts. The fakes model the new queries, and the fake remove is now recursive like the real one. Real-git and real-filesystem integration tests pin the semantics. No command uses the queries yet."
+      },
+      "title": "Git and filesystem queries for prune",
+      "objective": "Give the app layer the read-only facts prune decides on: which local branches and remote-tracking refs exist, how many commits a branch holds that nothing else keeps, which branch each worktree has checked out, and how big a folder is. Each fact comes through the existing Git and FileSystem ports, with node adapters, fakes and parsers at the schema boundary. Nothing calls them yet.",
+      "detailedInstructions": [
+        "In `src/ports/git.ts`, export `interface GitWorktreeEntry { readonly path: string; readonly branch: string | null; readonly prunable: boolean }`. `branch` is the short name without `refs/heads/`, or null for a detached or bare entry.",
+        "Add to `GitOps`, each with a short doc comment: (1) `listRefs(repo: string, prefix: string): Effect.Effect<readonly string[], GitError>`, the full ref names under `prefix` (e.g. `refs/heads/`, `refs/remotes/`), sorted. (2) `countUnpreservedCommits(repo: string, branch: BranchName, deleting: readonly BranchName[]): Effect.Effect<number, GitError>`, the number of commits reachable from `refs/heads/<branch>` that no local branch outside `deleting`, no tag and no remote-tracking ref reaches. (3) `listWorktrees(repo: string): Effect.Effect<readonly GitWorktreeEntry[], GitError>`.",
+        "In `src/schemas/git.ts`, add pure parsers next to the existing ones: `parseRefList(stdout)` (one ref per non-empty line, trimmed), `parseRevListCount(stdout)` (a non-negative integer, or null on malformed output), and `parseWorktreeListPorcelain(stdout)`. The porcelain parser reads blank-line-separated blocks of `worktree <path>`, `HEAD <sha>`, `branch refs/heads/<name>` | `detached` | `bare`, `locked [reason]` and `prunable [reason]`, and returns GitWorktreeEntry[]. Strip the `refs/heads/` prefix from the branch.",
+        "In `src/infra/git.ts` (NodeGitLayer): `listRefs` runs `git for-each-ref --format=%(refname) <prefix>` and sorts the result. `countUnpreservedCommits` runs `git rev-list --count refs/heads/<branch> --not` followed by one `--exclude=<b>` per entry of `deleting` (short branch names: for `--branches`, git matches exclude patterns without the `refs/heads/` prefix), then `--branches --tags --remotes`. Fail with a GitError when the count does not parse. `listWorktrees` runs `git worktree list --porcelain` through `parseWorktreeListPorcelain`. Use the existing `gitRun` helper. Branch names are BranchName-validated, so they carry no glob metacharacters.",
+        "In `src/ports/fs.ts`, add `apparentSize(path: string): Effect.Effect<number, FsError>` to `FileSystemOps`, with a doc comment: the sum of the lstat sizes of the regular files at or under `path`, symlinks not followed, and 0 when `path` does not exist. In `src/infra/fs.ts`, implement it with lstat plus a recursive readdir walk from node:fs/promises, resolving the path like the other ops. Forward it in `rootedAt`.",
+        "In `src/infra/fakes/fs.ts`: implement `apparentSize` as the sum of the UTF-8 byte lengths of the files at or under the path (0 when there are none). Forward it in `makeRootedFakeFileSystemOps`. Make `remove` recursive (delete the key and every file and dir under `path + '/'`), matching the real `rm -rf`. Add `failRemove(path: string, message: string)`, which makes the next `remove` of exactly that path fail with an FsError carrying the message. If making remove recursive breaks an existing test, report it in the handoff and do not change the test's intent.",
+        "In `src/infra/fakes/git.ts`, add GitCall variants for the three methods and some seeding helpers. `addRef(fullRef)`: `listRefs` returns the sorted union of `refs/heads/<existingBranches>` and the added refs that start with the prefix. `setUnpreservedCount(branch, n)`: `countUnpreservedCommits` returns it, defaulting to 0, and records `deleting` in the call. `addWorktreeEntry(entry: GitWorktreeEntry)`: `listWorktrees` returns the entries. Make `pruneWorktrees` drop the entries marked prunable, and make `removeWorktree` drop the entry with that path. Add `failNextDeleteBranch(stderr)`, mirroring `failNextPushBranch`. Keep every existing behaviour unchanged.",
+        "Write no app, domain or CLI code in this phase."
+      ],
+      "boundaryContracts": "ports → infra: the app layer (consumer, phase 2) needs three git facts and one filesystem fact, all read-only. The Git and FileSystem ports (producers) provide `listRefs`, `countUnpreservedCommits`, `listWorktrees` and `apparentSize`. The stable semantics are: full ref names; an unpreserved count that ignores exactly the `deleting` branches and counts every other local branch, tag and remote-tracking ref as preserving; worktree entries with a short branch name or null plus a prunable flag; and an apparent size of 0 for an absent path. Git's raw output is decoded in src/schemas/git.ts before it leaves infra.",
+      "testStrategy": "Write the tests before the adapters. tests/unit/schemas/git.test.ts: the porcelain parser on a main worktree, a linked worktree on a branch, a detached entry, a bare entry and a prunable/locked entry; the rev-list count on a valid value, empty output and garbage; the ref list on blank lines. tests/integration/gitPruneQueries.test.ts uses a real temporary git repository (realpath'd mkdtemp, local user.name/email, no remote, no network). `listRefs` returns heads and refs created with `git update-ref refs/remotes/origin/...`. For `countUnpreservedCommits`: a commit only on `phax/x--phase-02` counts 1; it counts 1 even when its sibling `phax/x--phase-01` is in `deleting` and also reaches it; it counts 0 when a tag, a remote-tracking ref (`update-ref refs/remotes/origin/phax/x--phase-02`) or an unrelated branch reaches it; a branch fully merged into main counts 0. `listWorktrees` reports a linked worktree's path and branch, and a moved-away worktree as prunable. tests/integration/fsApparentSize.test.ts, on a real temp dir: the sum over nested files, an absent path gives 0, a symlink to a large file is not followed.",
+      "implementationOrder": [
+        "Write the parser tests, then add the parsers to src/schemas/git.ts.",
+        "Extend src/ports/git.ts and src/ports/fs.ts.",
+        "Implement the node adapters in src/infra/git.ts and src/infra/fs.ts, with their integration tests.",
+        "Extend the fakes (git seeding helpers, recursive remove, failRemove, apparentSize).",
+        "Run the standard gate."
+      ],
+      "excludedScope": [
+        "Any prune domain, use case or CLI code (phase-02, phase-03).",
+        "Deleting refs or worktrees beyond the existing deleteBranch / removeWorktree / pruneWorktrees methods.",
+        "Any network access: no fetch, push or remote query."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Give the exact signatures added to GitOps (`listRefs`, `countUnpreservedCommits`, `listWorktrees`), GitWorktreeEntry, and `FileSystemOps.apparentSize`, and the exact git command lines used. Name the new fake helpers (`addRef`, `setUnpreservedCount`, `addWorktreeEntry`, `failNextDeleteBranch`, `failRemove`) and the GitCall shapes, and confirm that fake `remove` is now recursive and whether any existing test needed adjusting. Note how temp paths are realpath'd in the git tests (macOS /var vs /private/var). Explain any file-plan deviation phax flags."
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-02-prune-domain-and-use-case",
+      "plannedFilesToCreate": [
+        "src/domain/prune.ts",
+        "src/app/prune.ts",
+        "tests/unit/prune.test.ts",
+        "tests/integration/prune.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/registry.ts",
+        "src/domain/errors.ts",
+        "tests/integration/registry.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/infra/fakes/git.ts",
+        "src/infra/fakes/fs.ts"
+      ],
+      "commit": {
+        "subject": "feat(prune): plan and apply the prune of archived runs",
+        "body": "Add the prune domain (src/domain/prune.ts) and the prune use case (src/app/prune.ts). The domain turns the selection, the registry and the git facts into a per-run plan: prune, or keep for unpreserved commits or a checked-out branch. --force discards the unpreserved commits but never overrides a checkout. The use case refuses the whole command before deleting anything when a name is unknown, not archived or in another namespace, or when a selected run is locked. It then gathers the git facts once and hands the preview to the caller.\n\nOnce confirmed, it deletes each planned run's archive folder, worktree metadata and local branches, and then its registry entry, last. An absent part counts as removed. A part that cannot be removed keeps that run's entry and the command moves on to the next run. A new removeRun drops a registry entry and leaves every other entry field-for-field unchanged."
+      },
+      "title": "Prune domain and use case",
+      "objective": "Provide the whole prune behaviour as an app use case over fake-testable ports. It covers selection and its refusals, the lock refusal, the per-run keep/prune decision, the confirmation modes, idempotent deletion with the registry entry last, per-run removal failures and the exit-code mapping. Phase 3 only has to parse arguments and render.",
+      "detailedInstructions": [
+        "`src/domain/errors.ts`: add `PruneRefusedError` (Data.TaggedError) with `message` and `refusals: ReadonlyArray<PruneRefusal>`. Its message lists every offending run with its reason, one per line.",
+        "`src/domain/prune.ts` (pure, no I/O, imports only domain, schema types and node:path for pure path work). (1) `parsePruneSelection(names: readonly string[], all: boolean): Either<PruneSelection, string>`, where PruneSelection = `{ kind: 'names'; refs: readonly string[] } | { kind: 'all' }`. With neither form or both forms, return Left with a message naming both accepted forms (`phax prune <short-name>...` and `phax prune --all`). Deduplicate the names. (2) `selectPruneRuns(entries, namespace, selection): Either<readonly RegistryEntry[], NonEmptyReadonlyArray<PruneRefusal>>`. Parse each ref with `parseRunRef`. A qualified ref whose namespace differs from the current one is refused with reason `{ kind: 'other-namespace', namespace }`. An unqualified ref, or a ref qualified with the current namespace, is looked up in that namespace: missing gives `{ kind: 'not-found' }`, and a state other than archived gives `{ kind: 'not-archived', state }`. Collect every refusal; a single refusal refuses the whole selection. `all` selects every archived entry of the namespace, in registry order. (3) `expectedRunBranches(entry, localBranches)`: entry.branch, then `<branch>--phase-01..NN` for NN up to entry.phasesCount, plus any present branch that is exactly `<branch>--phase-` followed by two digits, deduplicated and sorted after the run branch. `phax/x-2--phase-01` never matches `phax/x`. (4) `remoteTrackingRefsFor(branches, remoteRefs)`: from full `refs/remotes/<remote>/<rest>` names, keep the short `<remote>/<rest>` where `<rest>` is one of the branches, and skip `*/HEAD`. (5) `runOwnedWorktreeRoots(stateRoot, namespace, shortName, archivePath)` and `isUnderRoot(path, root)`, a separator-aware prefix test. (6) `decideRun(facts, force)`, which returns the planned run. When a non-prunable, non-run-owned worktree has one of the run's present branches checked out, the outcome is keep with reason `branch-checked-out` and the branch and worktree paths, even with force. Otherwise, when any branch has unpreserved commits and force is off, the outcome is keep with reason `unpreserved-commits` and `{ branch, unpreservedCommits }[]`. Otherwise the outcome is prune, with `branchesDiscarded` listing the unpreserved branches when force is on. (7) `confirmationMode({ dryRun, yes, json, stdinIsTTY }): 'dry-run' | 'yes' | 'prompt' | 'missing'`: dry-run wins, then yes; json never prompts, so json without yes is missing; otherwise a TTY gives prompt and no TTY gives missing. (8) `pruneExitCode(result)`: nothing-to-prune 0, previewed 0, declined 1, confirmation-missing 1, applied 4 when any run was kept and 0 otherwise.",
+        "Domain result types: an outcome enum `'pruned' | 'kept' | 'would-prune' | 'would-keep'` and a kept-reason enum `'unpreserved-commits' | 'branch-checked-out' | 'removal-failed'` (spec §6 intent). A planned run carries qualifiedName, runId, archivePath, archiveBytes, its present branches, remoteBranchesKept, the outcome and kept details. A run report carries outcome, bytesFreed, branchesDeleted, branchesDiscarded, alreadyAbsent (part labels such as `archive folder`, `worktree metadata`, `branch phax/x--phase-02`), remoteBranchesKept, and kept (`{ reason, branches?, worktrees?, part?, message? } | null`). Totals carry pruned, kept and bytesFreed.",
+        "`src/app/registry.ts`: add `removeRun(stateRoot, namespace, shortName): Effect<void, FsError | RegistryCorruptionError, FileSystem>`. It reads the registry, filters out that entry, and writes it exactly as `upsertRun` does (same encodeRegistryFile, withSchemaUrl, 2-space JSON). It leaves every other entry untouched (no updatedAt bump) and does nothing when the entry is absent.",
+        "`src/app/prune.ts`: export `PruneInput { namespace, stateRoot, repoRoot, selection: PruneSelection, force: boolean, confirmation: 'dry-run' | 'yes' | 'prompt' | 'missing', onPreview: (plan: PrunePlan) => Effect.Effect<void> }`, `PruneResult = { kind: 'nothing-to-prune' } | { kind: 'previewed'; plan } | { kind: 'declined'; plan } | { kind: 'confirmation-missing'; plan } | { kind: 'applied'; plan; report }`, and `prune(input): Effect<PruneResult, PruneRefusedError | LockConflictError | FsError | GitError | RegistryCorruptionError | PromptError, FileSystem | Git | Lock | Prompt>`.",
+        "prune, step 1, before any deletion. Read the registry and run selectPruneRuns; a Left fails with PruneRefusedError. If the selection is empty, return nothing-to-prune. Check `lock.status(runKey(ns, name))` for every selected run. Any `active` lock fails with a LockConflictError whose message names each locked run and `phax unlock <name>`, with the first locked run filling the payload fields.",
+        "prune, step 2, gathering facts once: `listRefs(repoRoot, 'refs/heads/')`, `listRefs(repoRoot, 'refs/remotes/')` and `listWorktrees(repoRoot)`. For each run, take its archive folder (entry.archivePath, else `<stateRoot>/archive/<ns>.<name>`) and measure it with `apparentSize`. The `deleting` set is the union of the present branches of all selected runs. Call `countUnpreservedCommits` for each present branch, and build the plan with decideRun. Call `onPreview(plan)`.",
+        "prune, step 3, confirmation. With dry-run, return previewed. When no run is planned for pruning, skip confirmation and go to apply, which only reports the kept runs. With missing, return confirmation-missing. With prompt, ask through `Prompt.confirm` with a message giving the number of runs and the formatted byte total (`Prune N run(s), freeing X?`, initialValue false). A false answer or PromptCancelled returns declined. With yes, proceed.",
+        "prune, step 4, apply. Process each run in plan order; a kept run gets a kept report and no deletion. For a run planned for pruning: (a) archive folder: if it exists, remove it; otherwise add `archive folder` to alreadyAbsent. (b) Worktree metadata: if listWorktrees shows no entry under the run-owned roots, record `worktree metadata` as already absent. Otherwise run `pruneWorktrees(repoRoot)`, list again, and `removeWorktree(path, true)` every run-owned entry that is still there. (c) Branches: re-list refs/heads, then call `deleteBranch(b, true)` for each expected branch that is present and record it as already absent when it is not. (d) `removeRun`. Catch the first FsError or GitError in (a) to (d) and stop that run there. It becomes kept with reason `removal-failed`, `part`, and a one-line `message` (the first line of the error message, no stack). Continue with the next run. bytesFreed is the planned archiveBytes when (a) removed the folder, and 0 otherwise.",
+        "Never touch remote refs, tags, `phax/records/v1` or any branch outside the selected runs' expected branches. Never call fetch, push or a GitHub port.",
+        "Do not route this through dispatch or the RunState machine: prune deletes an archived run's records and makes no state transition. Say so in the module doc comment of `src/app/prune.ts`, together with the deletion order and the rule that the registry entry goes last."
+      ],
+      "boundaryContracts": "app → ports: `prune` (consumer) uses Git (listRefs, countUnpreservedCommits, listWorktrees, pruneWorktrees, removeWorktree, deleteBranch), FileSystem (exists, apparentSize, remove, plus the registry read and write), Lock (status) and Prompt (confirm). It does no direct I/O. cli → app (consumer in phase 3): the CLI provides a PruneSelection, force, a confirmation mode from `confirmationMode`, and an onPreview renderer. It gets back either a whole-command refusal (PruneRefusedError → exit 1, LockConflictError → exit 3, any other error → exit 1, all before anything is deleted) or a PruneResult that `pruneExitCode` maps to 0, 1 or 4. The plan and report shapes carry the outcome and kept-reason enums from spec §6, which the CLI renders as human lines or as the JSON document.",
+      "testStrategy": "Write the tests first. tests/unit/prune.test.ts (domain): parsePruneSelection covers none, both, names and all. selectPruneRuns covers not-found, not-archived with its state, other-namespace for a qualified ref, a qualified current-namespace ref equal to the short form, all refusals collected, and all filtering by namespace and state. expectedRunBranches covers phasesCount expansion, `phax/x-2--phase-01` excluded and the records branch excluded. remoteTrackingRefsFor skips HEAD. decideRun covers checked-out beats force, a run-owned or prunable worktree not blocking, unpreserved keeps without force, and force discarding. A table typed `satisfies Record<PruneConfirmation, …>` covers confirmationMode, and pruneExitCode is covered for every result kind. tests/integration/prune.test.ts (use case on makeFakeFileSystem, makeFakeGit, makeFakeLock, makeFakePrompt) covers the spec ACs at use-case level: a full prune deletes the folder, worktree metadata, all branches and the entry; an unknown, non-archived or other-namespace name refuses with nothing deleted; a locked run refuses with LockConflictError and nothing deleted; unpreserved commits keep the run whole; --force discards; a checked-out branch keeps the run under --force; dry-run is previewed with no deletion calls; prompt yes and no, and PromptCancelled as declined; missing never asks; an interrupted re-run (no folder, no branches) reports already absent and removes the entry; failRemove on one run's folder keeps its entry while the next run is pruned; nothing-to-prune; the records branch and remote refs are never passed to deleteBranch; onPreview is called before Prompt.confirm. tests/integration/registry.test.ts: removeRun drops one entry, leaves the others deep-equal (updatedAt included) and keeps the $schema.",
+      "implementationOrder": [
+        "Add PruneRefusedError to src/domain/errors.ts.",
+        "Write tests/unit/prune.test.ts, then implement src/domain/prune.ts.",
+        "Add removeRun to src/app/registry.ts with its registry test.",
+        "Write tests/integration/prune.test.ts, then implement src/app/prune.ts.",
+        "Run the standard gate."
+      ],
+      "excludedScope": [
+        "The CLI command, Commander registration, usage.kdl, generated docs and human/JSON rendering (phase-03).",
+        "README prose and the phax-cli skill (phase-04).",
+        "Any change to archive, run, ls, publish-pr, resolveRunRef or the registry schema.",
+        "Pruning other namespaces, non-archived runs, or stray phax/* branches with no registry entry."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Give the exact exports of `src/domain/prune.ts` (parsePruneSelection, PruneSelection, selectPruneRuns, PruneRefusal, expectedRunBranches, remoteTrackingRefsFor, runOwnedWorktreeRoots, decideRun, confirmationMode, PruneConfirmation, pruneExitCode, plus the plan, report and outcome types and their field names) and of `src/app/prune.ts` (PruneInput, PruneResult, prune), and the signature of `removeRun`. State the deletion order as implemented and the exact alreadyAbsent part labels. Say how the confirm question is worded and which fake helpers the tests rely on. Explain any file-plan deviation phax flags."
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-prune-cli",
+      "plannedFilesToCreate": [
+        "src/cli/commands/prune.ts",
+        "src/cli/commands/pruneRegister.ts",
+        "tests/integration/helpers/pruneRepo.ts",
+        "tests/integration/pruneCommand.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/program.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "README.md",
+        "tests/integration/cliProgram.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/domain/prune.ts",
+        "src/app/prune.ts",
+        "tests/integration/usageOutput.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(cli): add phax prune",
+        "body": "Add phax prune <short-name>... | --all, with --force, --dry-run, --yes/-y and --json. The command parses its arguments, derives the confirmation mode from the flags and the TTY, calls the prune use case once, and renders a preview line per run, then one outcome line per run with the surviving remote branches and a total. With --json it renders a single JSON document instead. It exits 0, 1, 3 or 4 as the spec pins.\n\nRegenerate phax.usage.kdl, docs/cli/reference.md and the README's generated CLI block, and add the cliDocs entry. An acceptance suite drives the real command against a temporary git repository and state root: what is deleted, what survives (records branch, remote-tracking refs, neighbouring runs' branches), every refusal, the preview, prompt and no-TTY paths, re-running an interrupted prune, a permission failure, the JSON document, and the name being free afterwards."
+      },
+      "title": "phax prune command and acceptance suite",
+      "objective": "An operator can run `phax prune` from a phax project to preview and delete archived runs, with the CLI contract the spec pins (command, variadic positional, --all, --force, --dry-run, --yes/-y, --json, exit codes 0/1/3/4). An end-to-end suite proves every acceptance criterion against throwaway roots.",
+      "detailedInstructions": [
+        "`src/cli/commands/prune.ts`: export `PruneCommandOptions { all?: boolean; force?: boolean; dryRun?: boolean; yes?: boolean; json?: boolean }` and `runPrune(names: string[], opts, out: OutputPort): Promise<number>`. Flow: `loadConfig(process.cwd())`; on Left, call reportConfigError and return 1 (§5.4). Then parsePruneSelection; on Left, `out.error('✗ prune refused: ' + message)` and return 1. Then `confirmationMode({ dryRun, yes, json, stdinIsTTY: Boolean(process.stdin.isTTY) })`. Build the layer from `makeRepoRootedFileSystemLayer(config)`, `makeNodeGitLayer()`, `makeNodeLockLayer(config.stateRoot)` and `makeClackPromptLayer()`. Call `prune({ namespace: config.namespace, stateRoot, repoRoot, selection, force, confirmation, onPreview })` exactly once. No business logic in this file.",
+        "Error rendering: a PruneRefusedError prints `✗ prune refused: ` and one line per refusal, then returns 1. A not-archived run's line names its state and the `phax archive <name>` remedy. An other-namespace line names the namespace and says to run phax prune from that repository. A not-found line says not found. A LockConflictError prints its message naming `phax unlock` and returns 3. Any other error prints `✗ prune failed: <first line of message>` and returns 1. Print no stack trace.",
+        "Human rendering, wording indicative per spec §6. The preview opens with `Prune from namespace \"<ns>\":`, then one line per run: qualified name, `prune` or `keep`, the formatted archive size, and either `branches: <list> (<n>)` or the keep reason (each unpreserved branch with its count and a `--force discards them` hint, or each checked-out branch with its worktree path). For `nothing-to-prune`, print that there is nothing to prune. For `confirmation-missing`, print `✗ prune refused: no TTY to confirm; pass --yes to proceed or --dry-run to preview only` (with --json the reason is that --json never prompts; still name --yes). For `declined`, print that nothing was deleted. For `applied`, print per run either `✓ <name> pruned — <size> freed, <n> local branches deleted` (plus any discarded branches with their counts, and any already-absent parts) or `○ <name> kept — <reason>`. For each pruned run with remoteBranchesKept, print `! remote branches kept: <list> — a future run named <name> will meet them at publish-pr`. Close with `Pruned <p> of <n> runs, <size> freed.`. Use one byte formatter, a local helper in this file, everywhere.",
+        "JSON rendering (`--json`): onPreview is a no-op, and on success exactly one `out.log(JSON.stringify(doc, null, 2))`. The document is `{ namespace, dryRun, runs: [{ name, runId, outcome, archiveBytes, branchesDeleted, branchesDiscarded, alreadyAbsent, remoteBranchesKept, kept }], totals: { pruned, kept, bytesFreed } }`. Outcomes are `would-prune` / `would-keep` for a preview and `pruned` / `kept` after apply; `kept` is `{ reason, … } | null`. For confirmation-missing or declined, emit the preview document (dryRun false, would-* outcomes) and return 1. Refusals still go to stderr through out.error. The exit code always comes from `pruneExitCode`, except for the refusal and lock mappings above.",
+        "`src/cli/commands/pruneRegister.ts`: `registerPruneCommand(program, runPruneImpl, out)`, following resumeRegister.ts: `.command('prune')`, `.description('Delete archived runs of the current namespace for real, freeing their names and disk space')`, `.argument('[short-name...]', 'Archived run short name, e.g. old-idea')`, then `--all`, `--force` ('Also prune runs whose branches hold unpreserved commits (discards those commits)'), `--dry-run`, `-y, --yes`, `--json`. Wire it in `src/cli/program.ts` next to archive, and add `prune` to TOP_LEVEL_COMMANDS in tests/integration/cliProgram.test.ts.",
+        "`src/cli/cliDocs.ts`: add a `prune` entry with the long help from the spec §6 usage.kdl sample (what it deletes, what it never touches, the unpreserved and --force rule, preview and confirmation, and a `Side effects:` paragraph) and the examples `phax prune old-idea`, `phax prune --all --dry-run`, `phax prune --all --yes`.",
+        "Run `pnpm gen:usage-spec` and `pnpm docs:cli` and commit the regenerated phax.usage.kdl, docs/cli/reference.md and the generated block of README.md. Do not hand-edit the generated content, and do not edit README prose outside the generated block in this phase.",
+        "`tests/integration/helpers/pruneRepo.ts` provides: a realpath'd temp git repository (git init, local identity, an initial commit on main) and a separate realpath'd temp state root; a fixture phax.json with `name`, `state.root` set to the temp state root, a one-step `true` standard gate profile, and publishing and records disabled; and `seedArchivedRun(...)`. That function creates the branches `phax/<name>` and `phax/<name>--phase-NN` (optionally with commits only they hold), writes an archived registry entry (namespace, shortName, runId, branch, projectName, phasesCount, timestamps, archivePath) and an archive folder `<stateRoot>/archive/<ns>.<name>/{runs,worktrees}` of known byte size. Optionally it adds a real linked worktree under `<stateRoot>/worktrees/<ns>.<name>/phase-01` and then moves it into the archive folder, to leave stale git metadata as archive does. Also provide helpers to add a remote-tracking ref (`git update-ref refs/remotes/origin/...`), a records branch tip, and a non-archived entry. All content is made up.",
+        "`tests/integration/pruneCommand.test.ts` drives `runPrune` with a recording OutputPort, chdir'd into the temp repo, and restores cwd and removes both temp roots afterwards. `vi.mock('src/infra/prompt.js')` replaces makeClackPromptLayer with a makeFakePrompt layer scripted per test, and `process.stdin.isTTY` is set per test through Object.defineProperty and restored. Cover every spec §8 AC: deleted for real (folder, entry and 4 branches gone, `git worktree list` without its worktrees, exit 0); the qualified current-namespace name; --all limited to the namespace's archived runs with other entries deep-equal; --all with nothing (no prompt, exit 0); none/both forms (exit 1); outside a project (a cwd with no phax.json, exit 1, registry bytes unchanged); non-archived, unknown and other-namespace names (exit 1, nothing pruned); a locked run (acquire through the real Lock layer, exit 3, naming phax unlock); records, remotes and neighbours surviving (records tip unchanged, `origin/phax/old-idea--phase-02` kept, `phax/old-idea-2*` kept); unpreserved commits keeping the run whole (exit 4, the branch named with count 2); a remote-tracking ref preserving; --force discarding (exit 0); a checked-out branch keeping the run under --force (check it out in the main worktree, exit 4, the worktree path named); --dry-run; prompt declined (exit 1) and accepted (exit 0), with the preview printed before the question; no TTY without --yes (exit 1, naming --yes); the report bytes equal to the preview bytes; surviving remote branches flagged; re-running an interrupted prune (exit 0, already absent); a permission failure (chmod 0o555 on the archive folder, restored in afterEach, skipped when running as root: exit 4, one-line reason, the other run pruned); --json with --dry-run (parses as a single document, would-prune/would-keep, exit 0) and --json on a TTY without --yes (no prompt asked, exit 1); the registry keeping its format (`parseRegistry` from @lbdremy/phax-schemas decodes it, $schema kept, the other entries deep-equal).",
+        "AC 'The next run gets the bare name': after pruning `run-prune`, assert no registry entry and no `<stateRoot>/runs/<ns>.run-prune` folder, so `nextAvailableShortName` (src/domain/runRef.ts) with run.ts's predicate returns `run-prune`. Then run `prepareRunBranch` from src/app/worktree.ts with the real Git layer and assert that `phax/run-prune` is created fresh at the current main HEAD rather than at the old tip.",
+        "Edit src/domain/prune.ts or src/app/prune.ts only to fix a defect this suite exposes, and record it in the handoff."
+      ],
+      "boundaryContracts": "cli → app: `runPrune` (consumer) needs one call that refuses as a whole or returns a PruneResult. `prune` from src/app/prune.ts (producer, phase 2) provides that call. The CLI's only decisions are the selection parse and the confirmation mode, both through pure domain helpers, plus the class-to-exit-code mapping for refusals (1) and locks (3). Every other exit code comes from `pruneExitCode`. The CLI surface itself (command, positional, flags) is the normative contract of spec §6, published through phax.usage.kdl, which is generated from Commander.",
+      "testStrategy": "Write tests/integration/pruneCommand.test.ts against the intended command before wiring the renderer. Most ACs fail until runPrune exists. It is the end-to-end layer: real config loading, git, filesystem, lock and registry against throwaway roots, with only the prompt layer and the TTY flag replaced. tests/integration/cliProgram.test.ts gains `prune`. The existing usage-spec byte-for-byte test (tests/integration/usageOutput.test.ts) and the docs:cli parity are the guards for the generated files.",
+      "implementationOrder": [
+        "Write tests/integration/helpers/pruneRepo.ts and the acceptance tests in tests/integration/pruneCommand.test.ts.",
+        "Implement src/cli/commands/prune.ts (flow, error mapping, human and JSON rendering).",
+        "Add pruneRegister.ts, wire it in program.ts, and update cliProgram.test.ts.",
+        "Add the cliDocs entry, then run pnpm gen:usage-spec and pnpm docs:cli.",
+        "Run the standard gate."
+      ],
+      "excludedScope": [
+        "README prose outside the generated CLI block, and the phax-cli skill (phase-04).",
+        "Any change to archive, run, ls or publish-pr behaviour, or to persisted formats.",
+        "Age or pattern filters, pruning other namespaces, deleting remote branches or pull requests, any network access."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Give the exact signature of `runPrune` and `registerPruneCommand`, the byte formatter used, and the rendered wording of the preview, outcome, remote-warning, total and refusal lines. Give the JSON document's final field names. List the ACs covered in pruneCommand.test.ts and any that are skipped conditionally (e.g. the permission test under root). Name the vi.mock seams (prompt layer) and how isTTY is set. Confirm that the generated files came only from pnpm gen:usage-spec and pnpm docs:cli. Report any fix made to src/domain/prune.ts or src/app/prune.ts. Explain any file-plan deviation phax flags."
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-prune-docs",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "README.md",
+        ".claude/skills/phax-cli/SKILL.md"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "docs: document phax prune and the archived-to-gone run lifecycle",
+        "body": "Rename README § Archive to § Archive and prune. Archive moves a finished run aside and keeps everything; prune deletes archived runs for real (archive folder, worktree metadata, local branches, registry entry) so their names and disk space come back. Records, remote branches and pull requests are never touched. Drop the claim that archive is the only operation that touches worktrees/, and add prune's exit codes under § Exit codes.\n\nThe phax-cli skill's run lifecycle now ends archived → gone: archived is no longer terminal, and prune is the step that removes a run."
+      },
+      "title": "Document prune in the README and the phax-cli skill",
+      "objective": "An operator whose ~/.phax/archive has grown, or whose new runs keep getting -2 names, finds in the README what prune deletes, what it keeps and how to run it safely. An agent driving phax learns from the phax-cli skill that an archived run can be pruned.",
+      "detailedInstructions": [
+        "In README.md, rename `## Archive` to `## Archive and prune`. Keep the existing archive content, but replace the opening claim `Archive is the **only** operation that touches worktrees/` with wording that says archive moves and keeps, while prune deletes. Fix the archive paths shown to the current `~/.phax/archive/<namespace>.<short-name>/{runs,worktrees}` layout if they still show the old `<short-name>` form.",
+        "Add the prune subsection from spec §11. One paragraph on what prune deletes and what it never touches (records on phax/records/v1, remote branches, remote-tracking refs, pull requests). The three-line bash block: `phax prune --all --dry-run`, `phax prune old-idea`, `phax prune --all --yes`. Then the rules: unpreserved commits keep a run whole and --force discards them; a checked-out branch keeps the run even with --force; a preview comes first, a TTY confirmation or --yes is needed, and without a TTY the command refuses; only the current namespace's archived runs can be pruned, so run prune from the repository that owns them; surviving remote branches are listed as a warning for a future run with the same name.",
+        "Under `## Exit codes`, add a short paragraph after the table giving prune's codes: 0 every selected run pruned, a --dry-run preview, or nothing to prune; 1 nothing deleted (bad selection, outside a project, confirmation declined or missing); 3 a selected run is locked; 4 at least one selected run was kept. Do not rewrite the existing table.",
+        "Do not touch the generated CLI reference block between the BEGIN/END GENERATED CLI REFERENCE markers.",
+        "In `.claude/skills/phax-cli/SKILL.md`, update the lifecycle diagram so archived leads on to gone through prune (e.g. `created → running → review_open → archived → (prune) gone`). Rewrite the archived bullet: the run folder and worktrees are moved under ~/.phax/archive and the name stays held; `phax prune` deletes the run for real and frees its name and disk space; archived is no longer terminal. If the canonical end-to-end flow lists `archive` as the last step, add an optional `phax prune <short-name>` line after it. Keep the rest of the skill unchanged."
+      ],
+      "boundaryContracts": null,
+      "testStrategy": "Documentation only. The standard gate's format check covers the Markdown. Manually check that every command and flag mentioned matches phax.usage.kdl as regenerated in phase-03, and that the README's generated block is byte-identical to what pnpm docs:cli produced.",
+      "implementationOrder": [
+        "Edit README § Archive and prune.",
+        "Edit README § Exit codes.",
+        "Edit the phax-cli skill's lifecycle.",
+        "Run the standard gate."
+      ],
+      "excludedScope": [
+        "Any source or test change.",
+        "Regenerating or hand-editing generated CLI docs (done in phase-03).",
+        "Reconciling the README exit-code table with exitCodeForError's existing codes for other commands."
+      ],
+      "verification": "The `standard` gate profile in phax.json. This phase writes a `.claude/skills/` file, so the run must be started with `phax run --allow-skill-edits`.",
+      "expectedHandoff": "Quote the new README headings, the prune exit-code paragraph and the new lifecycle diagram line from the skill. Confirm that the generated CLI block was not touched. Explain any file-plan deviation phax flags."
+    }
+  ]
+}
