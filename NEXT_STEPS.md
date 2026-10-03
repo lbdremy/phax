@@ -197,9 +197,9 @@ desktop — none is promised by the announcement.
       side-review cleanups, run archived). **Plan 5/5 (publication) landed 2026-10-03** (PR #110: `release.sh`
       cuts the `next` shapes, lockstep stage publish with a tarball smoke in CI and release,
       README table and §11 section; the review's publishability fixes in `ae5dd1f7`); run
-      archived. **The `schemas-package` spec is Completed.** Before cutting 0.17.0, the
-      author's one-time npm step: the deprecated `0.0.0` placeholder of
-      `@lbdremy/phax-schemas` and `npm trust github` (`docs/release.md`). **Next: the
+      archived. **The `schemas-package` spec is Completed.** **Released in 0.17.0 (2026-10-03)**: `@lbdremy/phax-schemas`
+      published beside `@lbdremy/phax` from the tag, with provenance (a deprecated `0.0.0`
+      placeholder was hand-published first to set up its trusted publisher). **Next: the
       artifact-decide plan.**
       **Before 1.0: phax must not rewrite a document from a newer release.** phax accepts
       `$schema` from any release as long as the format id matches (the package refuses a
