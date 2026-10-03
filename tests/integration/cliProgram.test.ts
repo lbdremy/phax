@@ -13,6 +13,7 @@ const TOP_LEVEL_COMMANDS = [
   "open",
   "ls",
   "archive",
+  "prune",
   "run",
   "review-handoff",
   "publish-pr",

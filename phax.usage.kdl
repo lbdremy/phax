@@ -152,6 +152,32 @@ cmd "archive" {
     }
 }
 
+cmd "prune" {
+    help "Delete archived runs of the current namespace for real, freeing their names and disk space"
+    long_help "Deletes each selected archived run of the current namespace for real: its archive folder under ~/.phax/archive/<namespace>.<short-name>/, its worktree metadata in the current repository, its local branches (<branch> and <branch>--phase-NN) and, last, its registry entry — so its name and disk space come back. Select runs by name (short or <namespace>.<short-name>) or with --all; only archived runs of the current namespace can be pruned, and an unknown, non-archived or other-namespace name refuses the whole command. Never touches records on phax/records/v1, remote branches, remote-tracking refs or pull requests, and never contacts a remote.\n\nA run whose local branches hold commits that no other branch, tag or remote-tracking ref keeps is kept whole unless --force is set, which discards those commits. A branch checked out in a worktree keeps the run even with --force. A locked run refuses the whole command (exit 7).\n\nAlways prints a preview first, then asks for confirmation on a TTY; --yes proceeds without asking, --dry-run deletes nothing, and without a TTY the command refuses unless --yes or --dry-run is set. --json prints one JSON document and never prompts. Exits 0 when every selected run was pruned, 1 when nothing was deleted, 3 when at least one run was kept.\n\nSide effects: deletes under ~/.phax/archive/, deletes local branches and stale worktree metadata, updates ~/.phax/registry.json."
+    example "phax prune old-idea"
+    example "phax prune --all --dry-run"
+    example "phax prune --all --yes"
+    arg "[short-name]" {
+        help "Archived run short name, e.g. old-idea"
+    }
+    flag "--all" {
+        help "Prune every archived run of the current namespace"
+    }
+    flag "--force" {
+        help "Also prune runs whose branches hold unpreserved commits (discards those commits)"
+    }
+    flag "--dry-run" {
+        help "Print the preview and delete nothing"
+    }
+    flag "--yes -y" {
+        help "Proceed without confirmation (required without a TTY)"
+    }
+    flag "--json" {
+        help "Output as JSON; never prompts"
+    }
+}
+
 cmd "run" {
     help "Extract a plan from plan.md and run all phases, or preview with --dry-run"
     long_help "Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs its gate profile's every-phase steps after execution; the final phase also runs the profile's terminal steps. Each step's surface (local, structural, or product) is recorded per phase and the run's verified surfaces are reported at run end.\n\nExtraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/."

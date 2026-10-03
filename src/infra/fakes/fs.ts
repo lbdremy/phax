@@ -57,10 +57,40 @@ export class FakeFileSystemImpl implements FileSystemOps {
     return Effect.succeed(this.files.has(path) || this.dirs.has(path));
   }
 
+  private readonly removeFailures = new Map<string, string>();
+
+  /** Makes the next `remove` of exactly `path` fail with an FsError carrying `message`. */
+  failRemove(path: string, message: string): void {
+    this.removeFailures.set(path, message);
+  }
+
+  // Recursive like the real `rm -rf`: the key itself and everything under it.
   remove(path: string): Effect.Effect<void, FsError> {
+    const failure = this.removeFailures.get(path);
+    if (failure !== undefined) {
+      this.removeFailures.delete(path);
+      return Effect.fail(new FsError({ message: failure }));
+    }
+    const prefix = path + "/";
     this.files.delete(path);
     this.dirs.delete(path);
+    for (const key of Array.from(this.files.keys())) {
+      if (key.startsWith(prefix)) this.files.delete(key);
+    }
+    for (const dir of Array.from(this.dirs)) {
+      if (dir.startsWith(prefix)) this.dirs.delete(dir);
+    }
     return Effect.void;
+  }
+
+  apparentSize(path: string): Effect.Effect<number, FsError> {
+    const prefix = path + "/";
+    const encoder = new TextEncoder();
+    let total = 0;
+    for (const [key, content] of this.files) {
+      if (key === path || key.startsWith(prefix)) total += encoder.encode(content).byteLength;
+    }
+    return Effect.succeed(total);
   }
 
   list(path: string): Effect.Effect<readonly string[], FsError> {
@@ -134,6 +164,7 @@ function makeRootedFakeFileSystemOps(base: FakeFileSystemImpl, root: string): Fi
     remove: (path) => base.remove(resolveKey(path)),
     rename: (from, to) => base.rename(resolveKey(from), resolveKey(to)),
     list: (path) => base.list(resolveKey(path)),
+    apparentSize: (path) => base.apparentSize(resolveKey(path)),
     rootedAt: (nestedRoot) => makeRootedFakeFileSystemOps(base, resolveKey(nestedRoot)),
   };
 }

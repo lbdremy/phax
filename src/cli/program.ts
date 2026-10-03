@@ -12,6 +12,8 @@ import { runPath } from "./commands/path.js";
 import { runOpen } from "./commands/open.js";
 import { runLs } from "./commands/ls.js";
 import { runArchive } from "./commands/archive.js";
+import { runPrune } from "./commands/prune.js";
+import { registerPruneCommand } from "./commands/pruneRegister.js";
 import { runReviewHandoff } from "./commands/reviewHandoff.js";
 import { runPublishPr } from "./commands/publishPr.js";
 import { runReviewCompliance } from "./commands/reviewCompliance.js";
@@ -187,6 +189,8 @@ export function buildProgram(): Command {
       const exitCode = await runArchive(shortName, opts, consoleOutput);
       process.exit(exitCode);
     });
+
+  registerPruneCommand(program, runPrune, consoleOutput);
 
   program
     .command("run")

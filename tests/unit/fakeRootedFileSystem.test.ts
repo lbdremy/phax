@@ -81,4 +81,43 @@ describe("FakeFileSystemImpl.rootedAt", () => {
     expect(base.getFile("/abs-root/file.txt")).toBe("abs-nested");
     expect(base.getFile("worktree/abs-root/file.txt")).toBeUndefined();
   });
+
+  it("removes recursively, leaving a sibling with a shared name prefix", async () => {
+    const base = new FakeFileSystemImpl();
+    base.setFile("/s/archive/ns.x/runs/state.json", "{}");
+    base.setFile("/s/archive/ns.x/worktrees/phase-01/a.txt", "a");
+    base.addDir("/s/archive/ns.x/worktrees/phase-01/empty");
+    base.setFile("/s/archive/ns.x-2/runs/state.json", "{}");
+
+    await Effect.runPromise(base.rootedAt("/s").remove("archive/ns.x"));
+
+    await expect(Effect.runPromise(base.exists("/s/archive/ns.x"))).resolves.toBe(false);
+    expect([...base.files.keys()]).toEqual(["/s/archive/ns.x-2/runs/state.json"]);
+    expect([...base.dirs].filter((d) => d.startsWith("/s/archive/ns.x/"))).toEqual([]);
+  });
+
+  it("fails the next remove of exactly the failRemove path, once", async () => {
+    const base = new FakeFileSystemImpl();
+    base.setFile("/s/archive/ns.x/f.txt", "f");
+    base.failRemove("/s/archive/ns.x", "EACCES: permission denied");
+
+    const first = await Effect.runPromise(Effect.flip(base.remove("/s/archive/ns.x")));
+    expect(first.message).toBe("EACCES: permission denied");
+    expect(base.getFile("/s/archive/ns.x/f.txt")).toBe("f");
+
+    await Effect.runPromise(base.remove("/s/archive/ns.x"));
+    expect(base.getFile("/s/archive/ns.x/f.txt")).toBeUndefined();
+  });
+
+  it("sums the UTF-8 bytes of the files under a path, 0 when absent", async () => {
+    const base = new FakeFileSystemImpl();
+    base.setFile("/s/archive/ns.x/a.txt", "abc");
+    base.setFile("/s/archive/ns.x/deep/b.txt", "é");
+    base.setFile("/s/archive/ns.x-2/c.txt", "ignored");
+
+    await expect(Effect.runPromise(base.rootedAt("/s").apparentSize("archive/ns.x"))).resolves.toBe(
+      5,
+    );
+    await expect(Effect.runPromise(base.apparentSize("/s/missing"))).resolves.toBe(0);
+  });
 });

@@ -269,6 +269,60 @@ phax archive usage-cli --force
 phax archive plan-27 --force  # give up an interrupted run
 ```
 
+## `phax prune`
+
+- **Usage**: `phax prune [FLAGS] [short-name]`
+
+Deletes each selected archived run of the current namespace for real: its archive folder under ~/.phax/archive/<namespace>.<short-name>/, its worktree metadata in the current repository, its local branches (<branch> and <branch>--phase-NN) and, last, its registry entry — so its name and disk space come back. Select runs by name (short or <namespace>.<short-name>) or with --all; only archived runs of the current namespace can be pruned, and an unknown, non-archived or other-namespace name refuses the whole command. Never touches records on phax/records/v1, remote branches, remote-tracking refs or pull requests, and never contacts a remote.
+
+A run whose local branches hold commits that no other branch, tag or remote-tracking ref keeps is kept whole unless --force is set, which discards those commits. A branch checked out in a worktree keeps the run even with --force. A locked run refuses the whole command (exit 7).
+
+Always prints a preview first, then asks for confirmation on a TTY; --yes proceeds without asking, --dry-run deletes nothing, and without a TTY the command refuses unless --yes or --dry-run is set. --json prints one JSON document and never prompts. Exits 0 when every selected run was pruned, 1 when nothing was deleted, 3 when at least one run was kept.
+
+Side effects: deletes under ~/.phax/archive/, deletes local branches and stale worktree metadata, updates ~/.phax/registry.json.
+
+### Arguments
+
+#### `[short-name]`
+
+Archived run short name, e.g. old-idea
+
+### Flags
+
+#### `--all`
+
+Prune every archived run of the current namespace
+
+#### `--force`
+
+Also prune runs whose branches hold unpreserved commits (discards those commits)
+
+#### `--dry-run`
+
+Print the preview and delete nothing
+
+#### `-y --yes`
+
+Proceed without confirmation (required without a TTY)
+
+#### `--json`
+
+Output as JSON; never prompts
+
+### Examples
+
+```
+phax prune old-idea
+```
+
+```
+phax prune --all --dry-run
+```
+
+```
+phax prune --all --yes
+```
+
 ## `phax run`
 
 - **Usage**: `phax run <FLAGS> [short-name]`

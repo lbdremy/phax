@@ -63,6 +63,30 @@ export function upsertRun(
   });
 }
 
+/**
+ * Drop one entry and write the registry exactly as `upsertRun` does. Every
+ * other entry is written back unchanged (no `updatedAt` bump). No-op when the
+ * entry is absent.
+ */
+export function removeRun(
+  stateRoot: string,
+  namespace: string,
+  shortName: string,
+): Effect.Effect<void, FsError | RegistryCorruptionError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const registry = yield* readRegistry(stateRoot);
+    const runs = registry.runs.filter(
+      (r) => !(r.namespace === namespace && r.shortName === shortName),
+    );
+    if (runs.length === registry.runs.length) return;
+    yield* fs.writeAtomic(
+      registryPath(stateRoot),
+      JSON.stringify(encodeRegistryFile(withSchemaUrl("registry", { runs })), null, 2),
+    );
+  });
+}
+
 export function setRunStatus(
   stateRoot: string,
   namespace: string,

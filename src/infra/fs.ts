@@ -8,6 +8,7 @@ import {
   readFile,
   appendFile,
   readdir,
+  lstat,
 } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import { randomBytes } from "node:crypto";
@@ -18,6 +19,25 @@ function wrapFsError(cause: unknown): FsError {
     message: cause instanceof Error ? cause.message : String(cause),
     cause,
   });
+}
+
+// Sum the lstat sizes of the regular files at or under `path`. Symlinks are
+// lstat'ed, not followed, and count for nothing; an absent path is 0.
+async function apparentSizeOf(path: string): Promise<number> {
+  let stats;
+  try {
+    stats = await lstat(path);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return 0;
+    throw err;
+  }
+  if (stats.isFile()) return stats.size;
+  if (!stats.isDirectory()) return 0;
+  let total = 0;
+  for (const name of await readdir(path)) {
+    total += await apparentSizeOf(join(path, name));
+  }
+  return total;
 }
 
 export function makeNodeFileSystemOps(resolvePath: (path: string) => string): FileSystemOps {
@@ -89,6 +109,12 @@ export function makeNodeFileSystemOps(resolvePath: (path: string) => string): Fi
     list: (path) =>
       Effect.tryPromise({
         try: () => readdir(resolvePath(path)),
+        catch: wrapFsError,
+      }),
+
+    apparentSize: (path) =>
+      Effect.tryPromise({
+        try: () => apparentSizeOf(resolvePath(path)),
         catch: wrapFsError,
       }),
 

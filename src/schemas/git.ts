@@ -1,4 +1,4 @@
-import type { GitTreeEntry } from "../ports/git.js";
+import type { GitTreeEntry, GitWorktreeEntry } from "../ports/git.js";
 
 export function isPortcelainClean(output: string): boolean {
   return output.trim() === "";
@@ -46,6 +46,48 @@ export function parseChangedFilesOutput(output: string): readonly string[] {
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
+}
+
+// `git for-each-ref --format=%(refname)` emits one full ref name per line.
+export function parseRefList(output: string): readonly string[] {
+  return output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
+
+// `git rev-list --count` emits a single decimal count; anything else is malformed.
+export function parseRevListCount(output: string): number | null {
+  const trimmed = output.trim();
+  return NON_NEGATIVE_INTEGER_PATTERN.test(trimmed) ? Number(trimmed) : null;
+}
+
+const HEADS_PREFIX = "refs/heads/";
+
+// `git worktree list --porcelain` emits blank-line-separated blocks: a
+// `worktree <path>` line, then `HEAD <sha>`, then one of `branch <ref>`,
+// `detached` or `bare`, then optional `locked [reason]` and `prunable [reason]`.
+export function parseWorktreeListPorcelain(output: string): readonly GitWorktreeEntry[] {
+  const entries: GitWorktreeEntry[] = [];
+  for (const block of output.split(/\n\s*\n/)) {
+    let path: string | null = null;
+    let branch: string | null = null;
+    let prunable = false;
+    for (const line of block.split("\n")) {
+      if (line.startsWith("worktree ")) {
+        path = line.slice("worktree ".length);
+      } else if (line.startsWith("branch ")) {
+        const ref = line.slice("branch ".length).trim();
+        branch = ref.startsWith(HEADS_PREFIX) ? ref.slice(HEADS_PREFIX.length) : ref;
+      } else if (line === "prunable" || line.startsWith("prunable ")) {
+        prunable = true;
+      }
+    }
+    if (path !== null) entries.push({ path, branch, prunable });
+  }
+  return entries;
 }
 
 // A path git deems "unusual" (contains a double-quote, backslash, or control

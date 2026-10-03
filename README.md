@@ -508,14 +508,14 @@ phax ls --archived
 phax ls --json            # machine-readable
 ```
 
-## Archive
+## Archive and prune
 
-Archive is the **only** operation that touches `worktrees/`. It moves:
+Archive moves a finished run aside and keeps everything; prune deletes it. It moves:
 
-- `~/.phax/runs/<short-name>` → `~/.phax/archive/<short-name>/runs/`
-- `~/.phax/worktrees/<short-name>/` → `~/.phax/archive/<short-name>/worktrees/`
+- `~/.phax/runs/<namespace>.<short-name>` → `~/.phax/archive/<namespace>.<short-name>/runs/`
+- `~/.phax/worktrees/<namespace>.<short-name>/` → `~/.phax/archive/<namespace>.<short-name>/worktrees/`
 
-Then runs `git worktree prune` to drop stale admin records. Nothing is destructively deleted — every phase's working state is preserved for later inspection.
+Then runs `git worktree prune` to drop stale admin records. Nothing is destructively deleted — every phase's working state is preserved for later inspection, and the run's name stays held.
 
 ```bash
 phax archive <short-name>        # any non-running run; unfinished states require --force
@@ -523,6 +523,22 @@ phax archive <short-name> --force  # archive an unfinished run, or bypass the di
 ```
 
 Finished runs (`review_open`, `completed`) archive without `--force`. Unfinished runs (`created`, `failed`, `interrupted`, `rate_limited`, `stopped`) are refused unless `--force` is passed — the refusal message names the state. Running, locked, and already-archived runs are never archivable. The run's `stoppedReason` and `lastError` survive archival intact.
+
+### Prune
+
+`phax prune` deletes archived runs for real: the archive folder, the worktree metadata in the current repository, the run's local branches (`<branch>` and `<branch>--phase-NN`) and, last, the registry entry. That frees the run's name and its disk space. It never touches `phax/records/v1`, remote branches, remote-tracking refs or pull requests, and it never contacts a remote.
+
+```bash
+phax prune --all --dry-run   # preview every archived run of this namespace
+phax prune old-idea          # prune one archived run after confirming
+phax prune --all --yes       # prune every archived run without asking
+```
+
+- Unpreserved commits (commits no other local branch, tag or remote-tracking ref keeps) keep a run whole. `--force` discards them.
+- A branch checked out in a worktree keeps its run, even with `--force`.
+- A preview always comes first. Then it asks on a TTY, or proceeds with `--yes`. Without a TTY and without `--yes` or `--dry-run`, the command refuses.
+- Only the current namespace's archived runs can be pruned, so run `phax prune` from the repository that owns them.
+- Surviving remote branches are listed as a warning. A future run with the same name will meet them at `publish-pr`.
 
 ## Multi-provider model routing
 
@@ -610,17 +626,23 @@ phax unlock <short-name> --force  # remove any lock
 
 ## Exit codes
 
-| Code | Meaning                                         |
-| ---- | ----------------------------------------------- |
-| 0    | Success                                         |
-| 1    | Validation error, config error, or plan error   |
-| 2    | Gate failure (after fix loop exhausted)         |
-| 3    | Lock conflict                                   |
-| 4    | Unsafe git state (dirty worktree)               |
-| 5    | Agent invocation error (Claude, Vibe, or Codex) |
-| 6    | Handoff generation failed                       |
-| 8    | Rate limit or usage limit hit (resumable)       |
-| 9    | Phase produced no changes (resumable)           |
+| Code | Meaning                                                     |
+| ---- | ----------------------------------------------------------- |
+| 0    | Success                                                     |
+| 1    | Generic failure (refusal, bad arguments, no project config) |
+| 2    | Plan or config validation                                   |
+| 3    | Unsafe git state                                            |
+| 4    | Gate failure (after the fix loop is exhausted)              |
+| 5    | Agent invocation error (Claude, Vibe, or Codex)             |
+| 6    | Archive blocked by a dirty worktree                         |
+| 7    | Lock conflict                                               |
+| 8    | Rate or usage limit hit (resumable)                         |
+| 9    | Phase produced no changes (resumable)                       |
+| 10   | Registry corruption                                         |
+| 11   | Security or preflight refusal                               |
+| 12   | Artifact lifecycle refusal                                  |
+
+`phax prune` uses a subset of these codes: 0 when every selected run was pruned, for a `--dry-run` preview, or when there is nothing to prune; 1 when nothing was deleted (a bad selection, no project config, or a declined or missing confirmation); 3 when at least one selected run was kept; 7 when a selected run is locked.
 
 ## Environment variables
 
@@ -741,6 +763,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax open <short-name>` — Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument.
 - `phax ls [FLAGS]` — Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (awaiting human review), or --archived. Use --json for machine-readable output.
 - `phax archive [--force] <short-name>` — Archives a run by moving its worktrees under ~/.phax/archive/<namespace>.<short-name>/ and marking it archived in the registry. Nothing is destructively deleted — every phase's working state is preserved.
+- `phax prune [FLAGS] [short-name]` — Deletes each selected archived run of the current namespace for real: its archive folder under ~/.phax/archive/<namespace>.<short-name>/, its worktree metadata in the current repository, its local branches (<branch> and <branch>--phase-NN) and, last, its registry entry — so its name and disk space come back. Select runs by name (short or <namespace>.<short-name>) or with --all; only archived runs of the current namespace can be pruned, and an unknown, non-archived or other-namespace name refuses the whole command. Never touches records on phax/records/v1, remote branches, remote-tracking refs or pull requests, and never contacts a remote.
 - `phax run <FLAGS> [short-name]` — Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs its gate profile's every-phase steps after execution; the final phase also runs the profile's terminal steps. Each step's surface (local, structural, or product) is recorded per phase and the run's verified surfaces are reported at run end.
 - `phax review-handoff [--allow-partial] <short-name>` — Regenerate review-handoff.md and global file reconciliation for a review_open run
 - `phax publish-pr <short-name>` — Pushes the final worktree branch to the GitHub remote and creates a pull request, or reuses an existing PR for the same branch. Requires a GitHub remote and gh CLI authentication.

@@ -124,6 +124,31 @@ export function buildSystemTelemetryLayer(
   return makeSystemTelemetryLayer(input).pipe(Layer.provide(NodeFileSystemLayer));
 }
 
+/**
+ * The code's statement of what each exit code means. The README § Exit codes
+ * table must list exactly these rows, and `tests/unit/readmeExitCodes.test.ts`
+ * enforces this. Keep it next to `exitCodeForError`, which maps errors to these
+ * codes.
+ */
+export const EXIT_CODE_MEANINGS: ReadonlyArray<{
+  readonly code: number;
+  readonly meaning: string;
+}> = [
+  { code: 0, meaning: "Success" },
+  { code: 1, meaning: "Generic failure (refusal, bad arguments, no project config)" },
+  { code: 2, meaning: "Plan or config validation" },
+  { code: 3, meaning: "Unsafe git state" },
+  { code: 4, meaning: "Gate failure (after the fix loop is exhausted)" },
+  { code: 5, meaning: "Agent invocation error (Claude, Vibe, or Codex)" },
+  { code: 6, meaning: "Archive blocked by a dirty worktree" },
+  { code: 7, meaning: "Lock conflict" },
+  { code: 8, meaning: "Rate or usage limit hit (resumable)" },
+  { code: 9, meaning: "Phase produced no changes (resumable)" },
+  { code: 10, meaning: "Registry corruption" },
+  { code: 11, meaning: "Security or preflight refusal" },
+  { code: 12, meaning: "Artifact lifecycle refusal" },
+];
+
 export function exitCodeForError(err: unknown): number {
   if (err instanceof PlanValidationError || err instanceof ConfigValidationError) return 2;
   if (err instanceof UnsafeGitStateError) return 3;
