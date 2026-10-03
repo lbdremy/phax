@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Abandoned
 source-spec: docs/specs/2610031513-run-prune.md
 ---
 # Prune archived runs
