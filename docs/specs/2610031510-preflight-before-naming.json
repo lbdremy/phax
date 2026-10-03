@@ -1,0 +1,403 @@
+{
+  "version": 1,
+  "kind": "spec",
+  "title": "Preflight before naming: a refused run never exists",
+  "ground": [
+    {
+      "path": "NEXT_STEPS.md",
+      "note": "§\"Road to 1.0.0\" lists the run-before-preflight slug burn as one of two happy-path defects blocking 1.0; §\"Small follow-ups\" records the defect (found 2026-09-08), the -2 pairs in the local registry, and the 2026-09-24 partial fix for skill edit consent that this spec generalises."
+    },
+    {
+      "path": "src/cli/commands/run.ts",
+      "note": "Today's order: lifecycle gate, extraction, staleness, short-name checks, --dry-run exit, skill edit consent, then naming (ensureUniqueShortName, the rename warning, the `Run:` line), then routing load (exit 2), then the run lock and createRunFolder, then executePlan."
+    },
+    {
+      "path": "src/app/executePlan.ts",
+      "note": "Its preflight block runs after the run exists: telemetry step events, gate profile resolution (exit 3), required commands (SecurityPreflightError, exit 11), its copy of skill edit consent, mcp.allow, records destination (RecordsSyncRequiredError), phase models and efforts (ModelPreflightError), then prepareRunBranch for a fresh run (startIndex 0)."
+    },
+    {
+      "path": "src/app/worktree.ts",
+      "note": "prepareRunBranch does the dirty-tree refusal (UnsafeGitStateError, exit 3, unless --allow-dirty) and then creates the run branch, in a single step."
+    },
+    {
+      "path": "src/app/runFolder.ts",
+      "note": "createRunFolder writes plan.md, phax-plan.json, phax.json and run-status.json (state `created`) under <stateRoot>/runs/<ns>.<name>/ and upserts the registry entry. These are the writes a refused run leaves behind today."
+    },
+    {
+      "path": "src/app/skillEditConsent.ts",
+      "note": "The pattern to generalise: one refusal function called by run.ts before naming and again by executePlan to guard resume."
+    },
+    {
+      "path": "src/app/recordsSync.ts",
+      "note": "checkRecordsRunPreflight reads only the records config and whether the local clone exists under the state root. It needs no run state."
+    },
+    {
+      "path": "src/domain/routing/preflight.ts",
+      "note": "preflightPhaseModels is pure: it reads the plan's phases, the routing config and the provider config."
+    },
+    {
+      "path": "src/cli/commands/resume.ts",
+      "note": "Resume reloads phax.json and the routing/provider config live, passes allowDirty: true (so it never checks for a clean tree), and re-enters executePlan at the next pending phase."
+    },
+    {
+      "path": "src/cli/commands/runLayers.ts",
+      "note": "exitCodeForError maps UnsafeGitStateError to 3, and SecurityPreflightError, SkillEditConsentError, ModelPreflightError and RecordsSyncRequiredError to 11."
+    },
+    {
+      "path": "phax.usage.kdl",
+      "note": "cmd run: `--allow-dirty`, and side effects listed as worktrees, commits and writes to ~/.phax/runs/. cmd resume re-enters the same execution loop. No exit-code table is published for either command."
+    }
+  ],
+  "context": "`phax run --plan <plan.md>` takes a plan through these steps before any phase work: the lifecycle-status gate, extraction (cached), the staleness gate, the short-name checks, and the `--dry-run` exit. Then the skill edit consent check runs. That check moved ahead of naming on 2026-09-24, and executePlan keeps a copy of it to guard `phax resume`. After that, phax names the run: it takes the plan's slug, bumps it to `<slug>-2`, `-3`, … when the namespace's registry or a bare run folder already holds it, warns `Run \"<ns>.<slug>\" already exists; using \"<ns>.<slug>-2\" instead.`, and prints `Run: <ns>.<name>`. Next it loads the routing and provider config (on failure: exit 2), takes the run lock, and allocates the run. Allocation writes `<stateRoot>/runs/<ns>.<name>/` (plan.md, phax-plan.json, phax.json, run-status.json in state `created`) and a registry entry. Only then does executePlan run its preflights:\n\n- gate profile resolution: refusal is exit 3;\n- required commands, checked against security.agentCommands plus the gate commands: SecurityPreflightError, exit 11;\n- skill edit consent (its copy): exit 11;\n- mcp.allow entries must resolve to readable files: SecurityPreflightError, exit 11;\n- the records destination must have its local clone: RecordsSyncRequiredError, exit 11, remedy `phax records sync`;\n- phase models and efforts against the catalog: ModelPreflightError, exit 11;\n- the clean working tree: UnsafeGitStateError, exit 3. This check is fused with run-branch creation in a single step.\n\nWith telemetry enabled, executePlan emits its first step events before these checks, so they land in the run folder's semantic.jsonl. All the refusals are printed as `phax run failed: <message>`. `phax resume` reloads phax.json and the routing config live, never checks for a clean tree (it passes allow-dirty), and re-enters executePlan, which re-runs the whole preflight block.",
+  "problem": "A run that phax refuses at preflight still exists. It has a run folder, a registry entry in state `created`, a telemetry file when telemetry is on, and it holds the slug. The operator fixes the cause (runs `phax records sync`, adds a command to agentCommands, commits a stray file) and runs the same plan again. That retry is renamed `<slug>-2` with a warning, and its branch becomes `phax/<slug>-2`. In the local registry, 22 of 123 runs carry a numeric suffix, most from exactly this. The dead `created` run stays in `phax runs list` until it is pruned by hand. None of these refusals depends on the run's own state. Each needs only the plan, phax.json, the routing/provider config and the repository, so nothing forces allocation to come first. Plan lint already catches the commands and models causes ahead of time, but a refusal from any other preflight still burns the slug. NEXT_STEPS lists this as one of the two happy-path defects blocking 1.0: an `approve` → `run` sequence that leaves debris and renames its own retry is not 1.0.",
+  "productGoal": {
+    "statement": "A `phax run` refused at preflight leaves no trace. phax runs every check that does not need the run's own state before it picks the name or writes anything. A refusal then has the same exit code and message as today, and nothing else happens: no run folder, no registry entry, no branch, no worktree, no records commit, no telemetry file. Fixing the cause and running the same plan again names the run with the bare slug. `phax resume` keeps re-checking whatever can have changed since the run started. A guard in the test suite stops a future preflight from quietly landing after naming again.",
+    "guidingRule": "A run comes into existence only once nothing that could refuse it is left to check."
+  },
+  "terminology": [
+    {
+      "term": "preflight",
+      "definition": "A check that `phax run` or `phax resume` makes before any branch, worktree or agent work, and whose failure refuses the run with a named cause and remedy. The lifecycle, extraction and staleness gates are earlier gates. They already run before naming and are not preflights in this spec."
+    },
+    {
+      "term": "run-independent preflight",
+      "definition": "A preflight that reads only the plan, phax.json, the routing/provider config, the flags, and the repository or state root as they are now. It never reads the run's own folder, registry entry or branch. All seven preflights listed in §1, plus the routing-config load, are run-independent."
+    },
+    {
+      "term": "naming",
+      "definition": "Choosing the run's short name: the plan's slug, or the slug bumped to `-2`, `-3`, … when it is already held. Naming is observable as the `Run: <ns>.<name>` line and, when bumped, the rename warning."
+    },
+    {
+      "term": "allocation",
+      "definition": "The writes that make a run exist: the run folder under <stateRoot>/runs/<ns>.<name>/, the registry entry, and from then on the run's telemetry file, branch, worktrees and records commits."
+    },
+    {
+      "term": "refusal family",
+      "definition": "A group of preflights that share an exit code and refusal path: security (required commands, mcp.allow; exit 11), consent (skill edits; exit 11), records (exit 11), models (exit 11), working tree (exit 3), and routing config load (exit 2)."
+    },
+    {
+      "term": "fresh run",
+      "definition": "A run started by `phax run`, as opposed to one continued by `phax resume`."
+    },
+    {
+      "term": "resume re-check",
+      "definition": "A preflight that `phax resume` repeats because its input can have changed between the run's start and the resume."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "title": "Run-independent preflights precede naming",
+      "pattern": "event",
+      "statement": "WHEN `phax run` starts a fresh run THE system SHALL complete every run-independent preflight (routing config load, gate profile resolution, required commands, skill edit consent, mcp.allow, records destination, phase models and efforts, clean working tree) before it names the run."
+    },
+    {
+      "id": "R2",
+      "title": "A refusal writes nothing",
+      "pattern": "unwanted",
+      "statement": "IF a run-independent preflight refuses a fresh run THEN the system SHALL exit without creating a run folder, a registry entry, a run branch, a worktree, a records commit or a run telemetry file."
+    },
+    {
+      "id": "R3",
+      "title": "Refusal exit code and message unchanged",
+      "pattern": "unwanted",
+      "statement": "IF a preflight refuses a fresh run THEN the system SHALL exit with the same exit code and print the same refusal message as it does today."
+    },
+    {
+      "id": "R4",
+      "title": "No naming output on refusal",
+      "pattern": "unwanted",
+      "statement": "IF a preflight refuses a fresh run THEN the system SHALL print neither the `Run: <ns>.<name>` line nor the rename warning."
+    },
+    {
+      "id": "R5",
+      "title": "First refusal unchanged",
+      "pattern": "event",
+      "statement": "WHEN more than one preflight would refuse a fresh run THE system SHALL report the refusal that today's phax reports first, in this order: skill edit consent, routing config load, gate profile resolution, required commands, mcp.allow, records destination, phase models and efforts, clean working tree."
+    },
+    {
+      "id": "R6",
+      "title": "Retry gets the bare slug",
+      "pattern": "event",
+      "statement": "WHEN a plan whose previous `phax run` was refused at preflight is run again and no other run in the namespace holds its slug THE system SHALL name the run with the plan's bare slug, without a rename warning."
+    },
+    {
+      "id": "R7",
+      "title": "Read-only clean-tree check before naming",
+      "pattern": "event",
+      "statement": "WHEN `phax run` starts a fresh run without `--allow-dirty` THE system SHALL check that the working tree is clean before naming, and SHALL leave the repository unmodified."
+    },
+    {
+      "id": "R8",
+      "title": "Branch creation still refuses a dirty tree",
+      "pattern": "unwanted",
+      "statement": "IF the working tree is dirty when the run branch is about to be created and `--allow-dirty` is absent THEN the system SHALL refuse with the existing dirty-tree exit code and message and SHALL NOT create the branch, even when the earlier check passed."
+    },
+    {
+      "id": "R9",
+      "title": "Resume re-checks what can change",
+      "pattern": "event",
+      "statement": "WHEN `phax resume` continues a run THE system SHALL re-run the required-commands, skill edit consent, mcp.allow, records destination and phase models and efforts preflights before any phase work for the resumed phase."
+    },
+    {
+      "id": "R10",
+      "title": "Order guard",
+      "pattern": "ubiquitous",
+      "statement": "The phax test suite shall fail when any fresh-run preflight refusal can be raised after the run is named or allocated."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "cli: phax run — refusal output and retry",
+      "binding": "normative",
+      "before": "$ phax run --plan docs/plans/2609301200-foo-plan.md\nRun: phax.foo\nphax run failed: Records destination \"git@github.com:acme/records.git\" has no local clone at \"~/.phax/records/phax\". Run `phax records sync` before starting this run.\n$? = 11\n$ phax records sync\n$ phax run --plan docs/plans/2609301200-foo-plan.md\nRun \"phax.foo\" already exists; using \"phax.foo-2\" instead.\nRun: phax.foo-2\n…",
+      "after": "$ phax run --plan docs/plans/2609301200-foo-plan.md\nphax run failed: Records destination \"git@github.com:acme/records.git\" has no local clone at \"~/.phax/records/phax\". Run `phax records sync` before starting this run.\n$? = 11\n$ phax records sync\n$ phax run --plan docs/plans/2609301200-foo-plan.md\nRun: phax.foo\n…\n\nNormative: the exit code and the refusal text are unchanged for every refusal family (exit 11 for security, consent, records and models; 3 for working tree and gate profile; 2 for routing config). The `Run:` line and the rename warning are absent on refusal. The retry is named with the bare slug. The record paths shown are illustrative."
+    },
+    {
+      "surface": "file: <stateRoot>/runs/ and <stateRoot>/registry.json after a refusal",
+      "binding": "normative",
+      "before": "~/.phax/runs/phax.foo/\n  plan.md\n  phax-plan.json\n  phax.json\n  run-status.json        # \"state\": \"created\"\n  semantic.jsonl         # when telemetry is enabled\n~/.phax/registry.json    # + { \"namespace\": \"phax\", \"shortName\": \"foo\", \"state\": \"created\", … }\n$ git branch --list 'phax/foo*'\n  phax/foo               # only when the refusal was not the dirty tree",
+      "after": "~/.phax/runs/            # no phax.foo/ folder\n~/.phax/registry.json    # unchanged\n$ git branch --list 'phax/foo*'\n                         # no branch, no worktree, no records commit"
+    },
+    {
+      "surface": "cli: phax runs list after a refusal",
+      "binding": "normative",
+      "before": "$ phax runs list\n…\nphax.foo    created    …",
+      "after": "$ phax runs list\n…                        # identical to the listing before the refused run"
+    }
+  ],
+  "nonGoals": [
+    "Freeing names already held by runs refused before this change. That is `phax prune`, a separate spec.",
+    "The approval-commit staleness defect (a plan whose footprint names approvals.json is stale at its own approval).",
+    "Any change to a preflight's rules, its refusal message or its exit code, including which phases the model preflight checks on resume.",
+    "Any CLI, flag or config change, and any persisted-format change (run-status.json, registry.json, the run folder layout).",
+    "Resume's working-tree behaviour: `phax resume` still does not check for a clean tree.",
+    "`--dry-run` output and behaviour, and the lifecycle, extraction and staleness gates, which already run before naming.",
+    "Telemetry for refused runs: a refusal before naming emits no run telemetry, and no new global event is added.",
+    "Concurrency between two simultaneous `phax run` invocations of the same plan."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "name": "Required-commands refusal leaves no run",
+      "given": "an Approved plan whose requiredCommands include a command missing from security.agentCommands and from the gate commands, and a clean tree",
+      "when": "`phax run --plan <plan>` runs",
+      "then": "it exits 11 and prints the unchanged `Security preflight failed: the plan requires …` message; no `Run:` line is printed; and no <stateRoot>/runs/<ns>.<slug>/ folder, registry entry or `phax/<slug>` branch exists afterwards.",
+      "refs": [
+        "R1",
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    {
+      "id": "AC2",
+      "name": "mcp.allow refusal leaves no run",
+      "given": "phax.json with security.mcp in allowlist mode naming a file that does not exist",
+      "when": "`phax run --plan <plan>` runs",
+      "then": "it exits 11 with the unchanged `mcp.allow` refusal message, and neither a run folder nor a registry entry nor a branch is created.",
+      "refs": [
+        "R1",
+        "R2",
+        "R3"
+      ]
+    },
+    {
+      "id": "AC3",
+      "name": "Records refusal, then retry with the bare slug",
+      "given": "records enabled with a dedicated repo destination and no local clone",
+      "when": "`phax run --plan <plan>` runs, then `phax records sync` runs, then `phax run --plan <plan>` runs again",
+      "then": "the first run exits 11 with the unchanged `phax records sync` remedy and creates nothing; the second prints `Run: <ns>.<slug>` with no rename warning, and its branch is `phax/<slug>`.",
+      "refs": [
+        "R1",
+        "R2",
+        "R3",
+        "R6"
+      ]
+    },
+    {
+      "id": "AC4",
+      "name": "Model preflight refusal leaves no run",
+      "given": "a plan with a phase whose model id is not in the catalog",
+      "when": "`phax run --plan <plan>` runs",
+      "then": "it exits 11 with the unchanged `Model preflight failed: …` message listing the phase and its alternatives, and no run folder, registry entry or branch exists.",
+      "refs": [
+        "R1",
+        "R2",
+        "R3"
+      ]
+    },
+    {
+      "id": "AC5",
+      "name": "Skill edit consent stays before naming",
+      "given": "a plan with a phase that declares a `.claude/skills/**` file",
+      "when": "`phax run --plan <plan>` runs without `--allow-skill-edits`",
+      "then": "it exits 11 with the unchanged consent refusal, prints no `Run:` line, and creates no run folder or registry entry.",
+      "refs": [
+        "R1",
+        "R2",
+        "R4"
+      ]
+    },
+    {
+      "id": "AC6",
+      "name": "Dirty tree refused before naming, read-only",
+      "given": "a working tree with an uncommitted change and no `--allow-dirty`",
+      "when": "`phax run --plan <plan>` runs",
+      "then": "it exits 3 with the unchanged `Working tree is not clean. Commit or stash changes, or pass --allow-dirty.` message; no run folder, registry entry or `phax/<slug>` branch exists; and `git status --porcelain` output is identical before and after.",
+      "refs": [
+        "R1",
+        "R2",
+        "R3",
+        "R7"
+      ]
+    },
+    {
+      "id": "AC7",
+      "name": "Dirty tree at branch creation still refused",
+      "given": "a tree that is clean at the preflight and dirty at the moment the run branch is about to be created (simulated with a test double), with no `--allow-dirty`",
+      "when": "the fresh run reaches branch creation",
+      "then": "it exits 3 with the dirty-tree message and no `phax/<slug>` branch is created.",
+      "refs": [
+        "R8"
+      ]
+    },
+    {
+      "id": "AC8",
+      "name": "Routing config failure prints no run name",
+      "given": "a routing or provider config that fails to load",
+      "when": "`phax run --plan <plan>` runs",
+      "then": "it exits 2 with the unchanged `Failed to load routing config: …` message, and prints no `Run:` line and no rename warning.",
+      "refs": [
+        "R1",
+        "R3",
+        "R4"
+      ]
+    },
+    {
+      "id": "AC9",
+      "name": "Nothing new in the run list or telemetry",
+      "given": "telemetry enabled and any preflight that refuses",
+      "when": "`phax run --plan <plan>` is refused",
+      "then": "`phax runs list` output is identical to its output before the attempt, and no semantic.jsonl exists for the slug under <stateRoot>/runs/.",
+      "refs": [
+        "R2"
+      ]
+    },
+    {
+      "id": "AC10",
+      "name": "First refusal is unchanged",
+      "given": "a plan that fails both the required-commands and the model preflight, and a dirty tree",
+      "when": "`phax run --plan <plan>` runs",
+      "then": "it reports only the required-commands refusal, with exit 11.",
+      "refs": [
+        "R5"
+      ]
+    },
+    {
+      "id": "AC11",
+      "name": "Resume re-checks changed inputs",
+      "given": "a run created and paused after phase 1, after which an mcp.allow file is deleted (and, separately, the records clone is removed, or a phase's model provider is disabled with no permitted route)",
+      "when": "`phax resume <name> --yes` runs",
+      "then": "it exits 11 with the corresponding unchanged refusal before any worktree is created for the resumed phase.",
+      "refs": [
+        "R9"
+      ]
+    },
+    {
+      "id": "AC12",
+      "name": "Guard catches a preflight moved after naming",
+      "given": "the order guard in place",
+      "when": "any fresh-run preflight is made reachable only after naming or allocation (for example, the records check moved back to after the run folder is created)",
+      "then": "`pnpm check:full` fails, naming the preflight.",
+      "refs": [
+        "R10"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "Q1",
+      "question": "How does the guard keep a future preflight from landing after naming?",
+      "options": [
+        {
+          "id": "A",
+          "label": "A static architectural test that pins the call order in run.ts (the preflight calls must appear before naming and allocation in the source)",
+          "abandons": "Catching the actual regression: a new preflight added only inside executePlan's block passes this test untouched, and a refactor that keeps the behaviour but reorders text breaks it."
+        },
+        {
+          "id": "B",
+          "label": "Behavioural unit tests on `phax run`, one per refusal family, asserting that naming and allocation are never reached",
+          "abandons": "Future preflights: a preflight added later has no test case until someone writes one, so it can still land after naming silently."
+        },
+        {
+          "id": "C",
+          "label": "A single shared set of fresh-run preflights, which `phax run` runs before naming and executePlan's preflight block consists of, plus a test that every refusal the set can raise is raised by `phax run` before naming",
+          "abandons": "Freedom for executePlan to grow a preflight that `phax run` does not run before naming: a genuinely run-dependent or resume-only check has to be declared outside the set, explicitly."
+        }
+      ],
+      "recommendation": "C",
+      "rationale": "The defect started because a check was added where the run already existed. Only C makes the pre-naming path pick up a new preflight by construction, rather than relying on someone remembering a test or a source position. Its loss is the intended discipline: no preflight today needs the run, so a future one that does should have to say so. B's per-family tests are still written as the acceptance criteria."
+    },
+    {
+      "id": "Q2",
+      "question": "Once the read-only clean-tree check runs before naming, does run-branch creation keep its own dirty-tree refusal?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Keep it: the check runs twice, before naming and again when the branch is created",
+          "abandons": "A complete fix: a tree that becomes dirty in the seconds between the two checks is refused after naming and still burns the slug."
+        },
+        {
+          "id": "B",
+          "label": "Drop it for fresh runs: only the pre-naming check remains",
+          "abandons": "The guarantee that the run branch is cut from a clean tree: a file dirtied in the window is silently carried into the run."
+        }
+      ],
+      "recommendation": "A",
+      "rationale": "The window is seconds long and rarely hit, and a slug burned in it is the old, recoverable defect. Running work from an unverified tree is a correctness loss, and `--allow-dirty` exists precisely so that it is never silent."
+    },
+    {
+      "id": "Q3",
+      "question": "When several preflights would refuse, should the first refusal be reported (as today) or all of them at once?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Keep reporting the first refusal, in today's order",
+          "abandons": "Fixing everything in one pass: an operator with two causes needs two attempts, although retries are now free of debris."
+        },
+        {
+          "id": "B",
+          "label": "Collect and report every refusal in one exit",
+          "abandons": "The unchanged-output contract: the message and possibly the exit code change while the CLI contract is about to freeze for 1.0."
+        }
+      ],
+      "recommendation": "A",
+      "rationale": "This spec removes the cost of a retry, which was what made one-at-a-time painful. Changing refusal output is out of scope by constraint and can be its own spec after 1.0."
+    }
+  ],
+  "planningNote": {
+    "settled": [
+      "All eight run-independent checks move ahead of naming for a fresh run: routing config load, gate profile resolution, required commands, skill edit consent (already there), mcp.allow, records destination, phase models and efforts, and the clean-tree check. None of them needs the run to exist. Only the writes need the run: run-branch creation, the RunStarted transition and recording the gate profile in run-status.json, and these stay where they are.",
+      "The clean-tree check runs before naming as a read-only check. Run-branch creation stays in executePlan and keeps its own dirty-tree refusal (Q2 default A).",
+      "executePlan keeps its copies of required commands, skill edit consent, mcp.allow, records destination and phase models and efforts. These are the resume re-checks: phax.json, the routing/provider config, the mcp.allow files and the records clone are all read live at resume and can change after the run starts. Resume still passes allow-dirty and does not check for a clean tree.",
+      "Refusal exit codes and messages are unchanged, including the `phax run failed: ` prefix for the refusals that printed it from executePlan. The skill edit consent refusal keeps its current bare form.",
+      "Today's first-refusal order is preserved (R5, Q3 default A).",
+      "No CLI, config or persisted-format change."
+    ],
+    "open": [
+      "The guard mechanism: Q1 defaults to a single shared fresh-run preflight set with a test over every refusal it can raise.",
+      "How the pre-naming preflight sequence is factored between app/ and run.ts, within the constraints below."
+    ],
+    "constraints": [
+      "The preflight sequence is an app/ use case reached through ports. run.ts stays a thin command layer that calls it and renders the refusal, following the skillEditConsent.ts pattern.",
+      "Refusal error types and their exitCodeForError mapping are unchanged.",
+      "No run lock, run telemetry layer or run folder path is acquired or built until every fresh-run preflight has passed.",
+      "Each acceptance criterion becomes a test. AC7 and AC12 may use test doubles; the others drive `phax run` or `phax resume` against a temporary repository and state root."
+    ]
+  },
+  "docsPage": {
+    "kind": "none",
+    "why": "A behavioural fix behind an unchanged interface: commands, flags, refusal messages and exit codes stay as they are, so no user-facing page changes. The only observable difference is the absence of debris and of the `-2` rename."
+  }
+}
