@@ -59,28 +59,24 @@ import {
   makeStepCompletedTelemetryEvent,
 } from "../domain/telemetry/events.js";
 import { reportAgentFailure } from "./telemetry/reportBuilders.js";
-import type { GateStep, ResolvedConfig } from "../schemas/phaxConfig.js";
+import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import { encodeSecurityPosture, type SecurityPosture } from "../schemas/securityPosture.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { ModelRouting } from "../schemas/modelRouting.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
 import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../domain/routing/defaults.js";
-import { preflightPhaseModels } from "../domain/routing/preflight.js";
 import { resolveModel } from "../domain/routing/resolve.js";
 import type { SecurityFilter } from "../domain/routing/types.js";
-import type { McpMode, SecurityMode } from "../domain/security/types.js";
+import type { SecurityMode } from "../domain/security/types.js";
 import { evaluateProviderSecurity } from "../domain/security/capabilities.js";
-import {
-  checkRequiredCommands,
-  computeFrozenAgentCommands,
-} from "../domain/security/agentCommands.js";
+import { computeFrozenAgentCommands } from "../domain/security/agentCommands.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { phaseSkillEditGrants } from "../domain/security/skillEditGrants.js";
-import { skillEditConsentRefusal } from "./skillEditConsent.js";
 import { cleanupPhase } from "./cleanup.js";
 import { commitPhase } from "./commit.js";
 import { writeRecord } from "./writeRecord.js";
-import { checkRecordsRunPreflight, recordsClonePath } from "./recordsSync.js";
+import { recordsClonePath } from "./recordsSync.js";
+import { runPreflights } from "./runPreflight.js";
 import type { RecordPhaseOutcome } from "../schemas/runRecord.js";
 import type { ProviderId } from "../domain/routing/types.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
@@ -89,7 +85,7 @@ import { excerpt, queryOrientIndex } from "./orient.js";
 import type { OrientRow } from "../schemas/orient.js";
 import { encodeOrientBrief, type OrientBrief } from "../schemas/orientBrief.js";
 import { MAX_ORIENTATION_ROWS } from "./promptGeneration.js";
-import { recordGateProfileInRunStatus, resolveGateProfile } from "./gates.js";
+import { recordGateProfileInRunStatus } from "./gates.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
 import { readPreviousHandoff, readPreviousReconciliation } from "./handoffInjection.js";
@@ -222,33 +218,6 @@ export type ExecutePlanError =
   | PhaseHadNoChangesError
   | RecordsDestinationRefusedError
   | RecordsSyncRequiredError;
-
-export function mcpAllowlistPreflight(mcp: {
-  readonly mode: McpMode;
-  readonly allow: readonly string[];
-}): Effect.Effect<void, SecurityPreflightError, FileSystem> {
-  if (mcp.mode !== "allowlist") return Effect.void;
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const missing: string[] = [];
-    for (const entry of mcp.allow) {
-      const ok = yield* fs.exists(entry).pipe(Effect.orElse(() => Effect.succeed(false)));
-      if (!ok) missing.push(entry);
-    }
-    if (missing.length > 0) {
-      return yield* Effect.fail(
-        new SecurityPreflightError({
-          message: [
-            `Security preflight failed: ${missing.length} mcp.allow ${missing.length === 1 ? "entry does" : "entries do"} not resolve to a readable file.`,
-            `Missing: ${missing.map((e) => `"${e}"`).join(", ")}`,
-            `mcp.allow entries must be paths to MCP server config files (not server names).`,
-          ].join("\n"),
-          missing,
-        }),
-      );
-    }
-  });
-}
 
 export function executePlan(
   opts: ExecutePlanOptions,
@@ -408,108 +377,19 @@ export function executePlan(
       makeStepCompletedTelemetryEvent({ runId, step: "config.validate", result: "success" }),
     );
 
-    let gateSteps: readonly GateStep[];
-    try {
-      gateSteps = resolveGateProfile(config, gateProfileId, workspaceId);
-    } catch (err) {
-      return yield* Effect.fail(
-        new UnsafeGitStateError({
-          message: err instanceof Error ? err.message : String(err),
-          repoPath: config.repoRoot,
-        }),
-      );
-    }
-    const gateCommandStrings = gateSteps.map((s) => s.command);
-
-    // Preflight: verify all plan-required commands are covered by the frozen set
-    // before any git branch, worktree, or agent work begins.
-    const preflightResult = checkRequiredCommands({
-      requiredCommands: plan.run.requiredCommands,
-      configCommands: config.security.agentCommands,
-      gateCommands: gateCommandStrings,
-    });
-    if (preflightResult.missing.length > 0) {
-      return yield* Effect.fail(
-        new SecurityPreflightError({
-          message: [
-            `Security preflight failed: the plan requires ${preflightResult.missing.length} command(s) not covered by the frozen set.`,
-            `Missing: ${preflightResult.missing.map((c) => `"${c}"`).join(", ")}`,
-            `Add the missing commands to security.agentCommands in phax.json before running.`,
-          ].join("\n"),
-          missing: preflightResult.missing,
-        }),
-      );
-    }
-
-    // Preflight: phases still to run that declare `.claude/skills/**` files need
-    // skill edit consent. Runs on resume too, so a run with no recorded consent
-    // is refused instead of having its skill edits silently denied.
-    const skillEditRefusal = skillEditConsentRefusal(
-      plan.phases.slice(startIndex),
-      allowSkillEdits,
-    );
-    if (skillEditRefusal !== undefined) {
-      return yield* Effect.fail(skillEditRefusal);
-    }
-
-    // Preflight: verify all mcp.allow entries resolve to readable files before
-    // any branch/worktree/agent work begins.
-    yield* mcpAllowlistPreflight(config.security.mcp);
-
-    // Preflight: a dedicated records destination with no local clone yet
-    // refuses the run before any phase spawns (spec §5.7) — phax never clones
-    // on its own here, so this only checks and names `phax records sync`.
-    const recordsPreflight = yield* checkRecordsRunPreflight({
-      records: config.records,
-      stateRoot: config.stateRoot,
+    // A new check that does not need the run belongs in runPreflights, not inline here.
+    const { gateSteps } = yield* runPreflights({
+      plan,
+      config,
+      gateProfileId,
+      workspaceId,
       namespace,
+      routing,
+      providerConfig,
+      allowSkillEdits,
+      startIndex,
     });
-    if (recordsPreflight.kind === "refused") {
-      return yield* Effect.fail(
-        new RecordsSyncRequiredError({
-          message: recordsPreflight.message,
-          path: recordsPreflight.path,
-          remote: recordsPreflight.remote,
-        }),
-      );
-    }
-
-    // Preflight: validate every phase's model and effort against the catalog
-    // before any git branch, worktree, or agent work begins.
-    const modelPreflight = preflightPhaseModels(plan.phases, routing, providerConfig);
-    if (modelPreflight.failures.length > 0) {
-      const lines: string[] = [
-        `Model preflight failed: ${modelPreflight.failures.length} phase(s) have invalid model configuration.`,
-      ];
-      for (const failure of modelPreflight.failures) {
-        lines.push(`\n  ${failure.phaseId} (${failure.model}/${failure.effort}):`);
-        for (const reason of failure.reasons) {
-          lines.push(`    - ${reason}`);
-        }
-        if (failure.alternatives.length > 0) {
-          lines.push(`    Alternatives:`);
-          for (const alt of failure.alternatives) {
-            lines.push(`      ${alt.id} (${alt.family}): ${alt.efforts.join(", ")}`);
-          }
-        }
-      }
-      return yield* Effect.fail(
-        new ModelPreflightError({
-          message: lines.join("\n"),
-          failures: modelPreflight.failures.map((f) => ({
-            phaseId: f.phaseId,
-            model: f.model,
-            effort: f.effort,
-            reasons: f.reasons,
-            alternatives: f.alternatives.map((a) => ({
-              id: a.id,
-              family: a.family,
-              efforts: a.efforts,
-            })),
-          })),
-        }),
-      );
-    }
+    const gateCommandStrings = gateSteps.map((s) => s.command);
 
     let branch;
     if (startIndex === 0) {
