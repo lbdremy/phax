@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610031513-run-prune.md
+approved:
+  date: 2026-10-03
+  baseline: 8ba1ed7
 ---
 # Prune archived runs
 

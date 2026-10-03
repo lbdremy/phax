@@ -15,6 +15,15 @@
         "path": "docs/specs/2610031510-preflight-before-naming.md",
         "fingerprint": "433529affe714214ce0ecb9bebd9f7250cbbfee6e6eb1ab59b7b9d5be628aaf1"
       }
+    },
+    "docs/plans/2610031647-run-prune-plan.md": {
+      "planFingerprint": "59257fd72acc1993250734c7414f0ebec91a351da75f64effe54568626e4e44f",
+      "approvedAt": "2026-10-03T16:55:31.075Z",
+      "baseline": "8ba1ed738fbafb7d203bbf5c1b36f82c09da3ab7",
+      "sourceSpec": {
+        "path": "docs/specs/2610031513-run-prune.md",
+        "fingerprint": "3ab6851b3c40142c904a460a5cbca5a3578235bc7b54276aac19f8f072322b16"
+      }
     }
   }
 }
