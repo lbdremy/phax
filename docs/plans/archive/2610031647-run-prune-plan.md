@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610031513-run-prune.md
 approved:
   date: 2026-10-03
