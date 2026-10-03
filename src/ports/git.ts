@@ -26,6 +26,14 @@ export interface GitTreeEntry {
   readonly path: string;
 }
 
+/** One entry of `git worktree list --porcelain`. */
+export interface GitWorktreeEntry {
+  readonly path: string;
+  /** Short branch name (no `refs/heads/`), or null for a detached or bare entry. */
+  readonly branch: string | null;
+  readonly prunable: boolean;
+}
+
 /** Inputs for writing a tree-only commit onto a branch. */
 export interface WriteTreeCommitInput {
   readonly repo: string;
@@ -87,6 +95,20 @@ export interface GitOps {
   fetchRemote(remote: string, repo: string): Effect.Effect<void, GitError>;
   /** The URL configured for `remote` in `repo`, or `null` when no such remote exists. */
   remoteUrl(remote: string, repo: string): Effect.Effect<string | null, GitError>;
+
+  /** The full ref names under `prefix` (e.g. `refs/heads/`, `refs/remotes/`), sorted. */
+  listRefs(repo: string, prefix: string): Effect.Effect<readonly string[], GitError>;
+  /**
+   * The number of commits reachable from `refs/heads/<branch>` that no local
+   * branch outside `deleting`, no tag and no remote-tracking ref reaches.
+   */
+  countUnpreservedCommits(
+    repo: string,
+    branch: BranchName,
+    deleting: readonly BranchName[],
+  ): Effect.Effect<number, GitError>;
+  /** The worktrees `repo` knows about, main worktree included. */
+  listWorktrees(repo: string): Effect.Effect<readonly GitWorktreeEntry[], GitError>;
 }
 
 export class Git extends Context.Tag("phax/Git")<Git, GitOps>() {}
