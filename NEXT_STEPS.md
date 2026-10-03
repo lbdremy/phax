@@ -84,6 +84,13 @@ desktop — none is promised by the announcement.
       format (run the configured formatter on it before committing), or name this remedy in
       the refusal.
 
+- [ ] **A run's completion conflicts with approvals made on main during the run.** Found
+      2026-10-03 on PR #112: the run branch's completion commit removes the plan's entry from
+      `docs/plans/approvals.json`, and approving another plan on main meanwhile edits the same
+      JSON object, so the PR conflicts and CI never runs until the branch is rebased by hand
+      (main's ledger minus the completed entry). Candidates: a ledger merge driver, or one file
+      per approval record.
+
 - [ ] **`phax run` allocates the run before its preflight.** Spec `preflight-before-naming`
       Approved 2026-10-03 (`docs/specs/2610031510-preflight-before-naming.md`, §9 decided by the
       author); plan Approved 2026-10-03
