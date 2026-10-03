@@ -7,15 +7,6 @@
       "baseline": "322ba3a5795a658d8d7ee48200b14e9b61ad8933",
       "sourceSpec": null
     },
-    "docs/plans/2610031629-preflight-before-naming-plan.md": {
-      "planFingerprint": "95d305f8b528393807888e64bba88c73d7b269f49c1944409b6855089e1c8389",
-      "approvedAt": "2026-10-03T16:46:36.401Z",
-      "baseline": "9f989abba10362df13830238298a34c5f800f975",
-      "sourceSpec": {
-        "path": "docs/specs/2610031510-preflight-before-naming.md",
-        "fingerprint": "433529affe714214ce0ecb9bebd9f7250cbbfee6e6eb1ab59b7b9d5be628aaf1"
-      }
-    },
     "docs/plans/2610031647-run-prune-plan.md": {
       "planFingerprint": "59257fd72acc1993250734c7414f0ebec91a351da75f64effe54568626e4e44f",
       "approvedAt": "2026-10-03T16:55:31.075Z",
