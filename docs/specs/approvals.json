@@ -25,6 +25,11 @@
       "specFingerprint": "e706e68d969febb8b9bf4199bf0abdcc95b5114430d5a3ae34a84becb36fa41a",
       "approvedAt": "2026-09-28T16:08:36.591Z",
       "baseline": "ddc1a9a73b20c3a5bafce185f03a014d78a833cc"
+    },
+    "docs/specs/2610031510-preflight-before-naming.md": {
+      "specFingerprint": "433529affe714214ce0ecb9bebd9f7250cbbfee6e6eb1ab59b7b9d5be628aaf1",
+      "approvedAt": "2026-10-03T16:28:54.948Z",
+      "baseline": "74653879ec75deb32f5749e4a1900c9d7ed4a79f"
     }
   }
 }
