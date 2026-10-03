@@ -113,18 +113,20 @@ function resolveGateSteps(
   });
 }
 
+type GateSteps = Effect.Effect<readonly GateStep[], UnsafeGitStateError>;
+
 const checks = {
-  "gate-profile": (input) => Effect.asVoid(resolveGateSteps(input)),
+  "gate-profile": (_input, gateSteps) => Effect.asVoid(gateSteps),
 
   // Verify all plan-required commands are covered by the frozen set before any
   // git branch, worktree, or agent work begins.
-  "required-commands": (input) =>
+  "required-commands": (input, gateSteps) =>
     Effect.gen(function* () {
-      const gateSteps = yield* resolveGateSteps(input);
+      const steps = yield* gateSteps;
       const preflightResult = checkRequiredCommands({
         requiredCommands: input.plan.run.requiredCommands,
         configCommands: input.config.security.agentCommands,
-        gateCommands: gateSteps.map((s) => s.command),
+        gateCommands: steps.map((s) => s.command),
       });
       if (preflightResult.missing.length > 0) {
         return yield* Effect.fail(
@@ -218,7 +220,10 @@ const checks = {
   },
 } satisfies Record<
   RunPreflightCheck,
-  (input: RunPreflightInput) => Effect.Effect<void, RunPreflightError, FileSystem>
+  (
+    input: RunPreflightInput,
+    gateSteps: GateSteps,
+  ) => Effect.Effect<void, RunPreflightError, FileSystem>
 >;
 
 /**
@@ -230,11 +235,12 @@ export function runPreflights(
   input: RunPreflightInput,
 ): Effect.Effect<{ readonly gateSteps: readonly GateStep[] }, RunPreflightError, FileSystem> {
   return Effect.gen(function* () {
+    // Resolved once, by the first check that needs it, and shared with the rest.
+    const gateSteps = yield* Effect.cached(resolveGateSteps(input));
     for (const id of RUN_PREFLIGHT_CHECKS) {
-      yield* checks[id](input);
+      yield* checks[id](input, gateSteps);
     }
-    const gateSteps = yield* resolveGateSteps(input);
-    return { gateSteps };
+    return { gateSteps: yield* gateSteps };
   });
 }
 
@@ -249,6 +255,7 @@ export interface FreshRunPreflightInput {
   readonly plan: PhaxPlan;
   readonly config: ResolvedConfig;
   readonly gateProfileId: string;
+  readonly workspaceId?: string | undefined;
   readonly namespace: string;
   readonly allowSkillEdits: boolean;
   readonly allowDirty: boolean;
@@ -287,6 +294,7 @@ export function freshRunPreflight(
       plan: input.plan,
       config: input.config,
       gateProfileId: input.gateProfileId,
+      workspaceId: input.workspaceId,
       namespace: input.namespace,
       routing,
       providerConfig,
