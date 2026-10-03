@@ -84,7 +84,9 @@ desktop — none is promised by the announcement.
       format (run the configured formatter on it before committing), or name this remedy in
       the refusal.
 
-- [ ] **`phax run` allocates the run before its preflight.** Found 2026-09-08: `run`
+- [ ] **`phax run` allocates the run before its preflight.** Spec `preflight-before-naming`
+      Approved 2026-10-03 (`docs/specs/2610031510-preflight-before-naming.md`, §9 decided by the
+      author); plan next. Found 2026-09-08: `run`
       creates the run folder and the registry entry, then `executePlan` runs the
       required-commands, mcp, records and clean-tree preflights. A preflight refusal leaves
       a `created` run holding the slug, and the retry gets `-2`. Seven of the ten `-2`
@@ -138,7 +140,9 @@ desktop — none is promised by the announcement.
       2026-09-03, so a spec approval now has its own fingerprinted record and the
       living-spec piste has a baseline to fold deltas into; build on it rather than
       beside it.
-- [ ] **`phax prune` — delete archived runs.** Raised 2026-09-08 alongside the `-2`
+- [ ] **`phax prune` — delete archived runs.** Spec `run-prune` Approved 2026-10-03
+      (`docs/specs/2610031513-run-prune.md`: current namespace, names or `--all`, preview +
+      confirm, branches deleted unless they hold unpreserved commits); plan next. Raised 2026-09-08 alongside the `-2`
       diagnosis. Slugs must never collide (kept), so the registry keeps archived runs as
       name-holders; the way to free a name is to delete the archived run for real, not to
       weaken uniqueness. A `prune` command that removes archived runs (folder, worktrees,
