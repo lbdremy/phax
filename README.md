@@ -610,17 +610,21 @@ phax unlock <short-name> --force  # remove any lock
 
 ## Exit codes
 
-| Code | Meaning                                         |
-| ---- | ----------------------------------------------- |
-| 0    | Success                                         |
-| 1    | Validation error, config error, or plan error   |
-| 2    | Gate failure (after fix loop exhausted)         |
-| 3    | Lock conflict                                   |
-| 4    | Unsafe git state (dirty worktree)               |
-| 5    | Agent invocation error (Claude, Vibe, or Codex) |
-| 6    | Handoff generation failed                       |
-| 8    | Rate limit or usage limit hit (resumable)       |
-| 9    | Phase produced no changes (resumable)           |
+| Code | Meaning                                                     |
+| ---- | ----------------------------------------------------------- |
+| 0    | Success                                                     |
+| 1    | Generic failure (refusal, bad arguments, no project config) |
+| 2    | Plan or config validation                                   |
+| 3    | Unsafe git state                                            |
+| 4    | Gate failure (after the fix loop is exhausted)              |
+| 5    | Agent invocation error (Claude, Vibe, or Codex)             |
+| 6    | Archive blocked by a dirty worktree                         |
+| 7    | Lock conflict                                               |
+| 8    | Rate or usage limit hit (resumable)                         |
+| 9    | Phase produced no changes (resumable)                       |
+| 10   | Registry corruption                                         |
+| 11   | Security or preflight refusal                               |
+| 12   | Artifact lifecycle refusal                                  |
 
 ## Environment variables
 
