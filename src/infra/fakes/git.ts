@@ -5,6 +5,7 @@ import {
   type GitOps,
   GitError,
   type GitTreeEntry,
+  type GitWorktreeEntry,
   type WriteTreeCommitInput,
 } from "../../ports/git.js";
 import type { NameStatusEntry } from "../../domain/reconciliation/types.js";
@@ -62,7 +63,15 @@ export type GitCall =
   | { method: "readBlob"; repo: string; oid: string }
   | { method: "cloneRepo"; remote: string; path: string }
   | { method: "fetchRemote"; remote: string; repo: string }
-  | { method: "remoteUrl"; remote: string; repo: string };
+  | { method: "remoteUrl"; remote: string; repo: string }
+  | { method: "listRefs"; repo: string; prefix: string }
+  | {
+      method: "countUnpreservedCommits";
+      repo: string;
+      branch: string;
+      deleting: readonly string[];
+    }
+  | { method: "listWorktrees"; repo: string };
 
 export class FakeGitImpl implements GitOps {
   readonly calls: GitCall[] = [];
@@ -158,8 +167,28 @@ export class FakeGitImpl implements GitOps {
     return Effect.succeed(this.existingBranches.has(branch));
   }
 
+  private nextDeleteBranchError: string | undefined;
+
+  failNextDeleteBranch(stderr: string): void {
+    this.nextDeleteBranchError = stderr;
+  }
+
   deleteBranch(name: BranchName, force: boolean, repo: string): Effect.Effect<void, GitError> {
     this.calls.push({ method: "deleteBranch", name, force, repo });
+    if (this.nextDeleteBranchError !== undefined) {
+      const stderr = this.nextDeleteBranchError;
+      this.nextDeleteBranchError = undefined;
+      return Effect.fail(
+        new GitError({
+          message: `git branch delete failed: ${stderr}`,
+          command: `git branch ${force ? "-D" : "-d"} -- ${name}`,
+          args: ["branch", force ? "-D" : "-d", "--", name],
+          stderr,
+          stderrExcerpt: stderr,
+          exitCode: 1,
+        }),
+      );
+    }
     this.deletedBranches.push({ name, force, repo });
     this.existingBranches.delete(name);
     this.checkedOutBranches.delete(name);
@@ -197,6 +226,8 @@ export class FakeGitImpl implements GitOps {
 
   removeWorktree(path: WorktreePath, force: boolean, repo: string): Effect.Effect<void, GitError> {
     this.calls.push({ method: "removeWorktree", path, force, repo });
+    const index = this.worktreeEntries.findIndex((entry) => entry.path === (path as string));
+    if (index !== -1) this.worktreeEntries.splice(index, 1);
     return Effect.void;
   }
 
@@ -271,6 +302,8 @@ export class FakeGitImpl implements GitOps {
 
   pruneWorktrees(repo: string): Effect.Effect<void, GitError> {
     this.calls.push({ method: "pruneWorktrees", repo });
+    const kept = this.worktreeEntries.filter((entry) => !entry.prunable);
+    this.worktreeEntries.splice(0, this.worktreeEntries.length, ...kept);
     return Effect.void;
   }
 
@@ -436,6 +469,52 @@ export class FakeGitImpl implements GitOps {
     this.calls.push({ method: "remoteUrl", remote, repo });
     if (remote !== "origin") return Effect.succeed(null);
     return Effect.succeed(this.clonedPaths.get(repo) ?? null);
+  }
+
+  readonly addedRefs = new Set<string>();
+  readonly unpreservedCounts = new Map<string, number>();
+  /** Worktrees `listWorktrees` reports; `pruneWorktrees` drops the prunable ones
+   * and `removeWorktree` drops the one at its path. */
+  readonly worktreeEntries: GitWorktreeEntry[] = [];
+
+  /** Adds a full ref name (e.g. `refs/remotes/origin/x`) that `listRefs` reports
+   * alongside `refs/heads/<existingBranches>`. */
+  addRef(fullRef: string): void {
+    this.addedRefs.add(fullRef);
+  }
+
+  /** Sets what `countUnpreservedCommits` returns for `branch` (default 0). */
+  setUnpreservedCount(branch: string, count: number): void {
+    this.unpreservedCounts.set(branch, count);
+  }
+
+  addWorktreeEntry(entry: GitWorktreeEntry): void {
+    this.worktreeEntries.push(entry);
+  }
+
+  listRefs(repo: string, prefix: string): Effect.Effect<readonly string[], GitError> {
+    this.calls.push({ method: "listRefs", repo, prefix });
+    const refs = new Set<string>(this.addedRefs);
+    for (const branch of this.existingBranches) refs.add(`refs/heads/${branch}`);
+    return Effect.succeed(
+      Array.from(refs)
+        .filter((ref) => ref.startsWith(prefix))
+        .toSorted(),
+    );
+  }
+
+  countUnpreservedCommits(
+    repo: string,
+    branch: BranchName,
+    deleting: readonly BranchName[],
+  ): Effect.Effect<number, GitError> {
+    this.calls.push({ method: "countUnpreservedCommits", repo, branch, deleting: [...deleting] });
+    return Effect.succeed(this.unpreservedCounts.get(branch) ?? 0);
+  }
+
+  listWorktrees(repo: string): Effect.Effect<readonly GitWorktreeEntry[], GitError> {
+    this.calls.push({ method: "listWorktrees", repo });
+    return Effect.succeed([...this.worktreeEntries]);
   }
 }
 

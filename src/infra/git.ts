@@ -14,6 +14,9 @@ import {
   parseChangedFilesOutput,
   parseDirtyPaths,
   parseLsTreeZ,
+  parseRefList,
+  parseRevListCount,
+  parseWorktreeListPorcelain,
 } from "../schemas/git.js";
 import { parseNameStatus } from "../domain/reconciliation/parseNameStatus.js";
 
@@ -318,6 +321,47 @@ export const NodeGitLayer = Layer.succeed(Git, {
   remoteUrl: (remote, repo) =>
     gitRunAllowFail(["remote", "get-url", remote], repo).pipe(
       Effect.map(({ stdout, exitCode }) => (exitCode === 0 ? stdout.trim() : null)),
+    ),
+
+  listRefs: (repo, prefix) =>
+    gitRun(["for-each-ref", "--format=%(refname)", prefix], repo).pipe(
+      Effect.map(({ stdout }) => parseRefList(stdout).toSorted()),
+    ),
+
+  // Each `--exclude` applies only to the next `--branches`, and for `--branches`
+  // git matches exclude patterns without the `refs/heads/` prefix, so short
+  // names go here. Tags and remote-tracking refs are never excluded.
+  countUnpreservedCommits: (repo, branch, deleting) => {
+    const args = [
+      "rev-list",
+      "--count",
+      `refs/heads/${branch}`,
+      "--not",
+      ...deleting.map((b) => `--exclude=${b}`),
+      "--branches",
+      "--tags",
+      "--remotes",
+    ];
+    return gitRun(args, repo).pipe(
+      Effect.flatMap(({ stdout }) => {
+        const count = parseRevListCount(stdout);
+        if (count === null) {
+          return Effect.fail(
+            new GitError({
+              message: `Could not parse rev-list count: "${stdout.trim()}"`,
+              command: `git ${args.join(" ")}`,
+              args,
+            }),
+          );
+        }
+        return Effect.succeed(count);
+      }),
+    );
+  },
+
+  listWorktrees: (repo) =>
+    gitRun(["worktree", "list", "--porcelain"], repo).pipe(
+      Effect.map(({ stdout }) => parseWorktreeListPorcelain(stdout)),
     ),
 });
 

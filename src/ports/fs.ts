@@ -15,6 +15,11 @@ export interface FileSystemOps {
   rename(from: string, to: string): Effect.Effect<void, FsError>;
   list(path: string): Effect.Effect<readonly string[], FsError>;
   /**
+   * The sum of the lstat sizes of the regular files at or under `path`, with
+   * symlinks not followed, or 0 when `path` does not exist.
+   */
+  apparentSize(path: string): Effect.Effect<number, FsError>;
+  /**
    * Returns a view of the same filesystem whose relative paths resolve
    * against `root` instead of the process cwd. Absolute paths passed to the
    * returned ops pass through unchanged. Rooting a rooted view composes.
