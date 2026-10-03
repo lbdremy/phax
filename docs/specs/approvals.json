@@ -30,6 +30,11 @@
       "specFingerprint": "433529affe714214ce0ecb9bebd9f7250cbbfee6e6eb1ab59b7b9d5be628aaf1",
       "approvedAt": "2026-10-03T16:28:54.948Z",
       "baseline": "74653879ec75deb32f5749e4a1900c9d7ed4a79f"
+    },
+    "docs/specs/2610031513-run-prune.md": {
+      "specFingerprint": "4e7c78fc4ca50b5add012ae720f3acb16c1ee5479a9c8b2734dcc7f1d1f9c639",
+      "approvedAt": "2026-10-03T16:28:55.124Z",
+      "baseline": "dfd99f111f2e0019b6e3b56604e412197dbd0e5d"
     }
   }
 }
