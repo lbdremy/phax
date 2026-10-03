@@ -402,7 +402,7 @@
       "name": "Unpreserved commits keep the run whole",
       "given": "an archived run `spike` whose `phax/spike--phase-02` holds 2 commits that no other ref reaches",
       "when": "`phax prune spike --yes` runs",
-      "then": "the archive folder, the registry entry and every local branch of `spike` remain, the output names `phax/spike--phase-02` with 2 unpreserved commits, and the command exits 4",
+      "then": "the archive folder, the registry entry and every local branch of `spike` remain, the output names `phax/spike--phase-02` with 2 unpreserved commits, and the command exits 3",
       "refs": [
         "keep-unpreserved",
         "exit-codes"
@@ -434,7 +434,7 @@
       "name": "A checked-out branch keeps the run even with --force",
       "given": "an archived run `old-idea` whose branch `phax/old-idea--phase-03` is checked out in the repository's main worktree",
       "when": "`phax prune old-idea --force --yes` runs",
-      "then": "none of `old-idea`'s parts are deleted, the output names the branch and the worktree path, and the command exits 4",
+      "then": "none of `old-idea`'s parts are deleted, the output names the branch and the worktree path, and the command exits 3",
       "refs": [
         "keep-checked-out",
         "exit-codes"
@@ -518,7 +518,7 @@
       "name": "A part that cannot be removed keeps the entry",
       "given": "an archived run `a` whose archive folder cannot be deleted (no write permission) and a prunable archived run `b`",
       "when": "`phax prune a b --yes` runs",
-      "then": "`a`'s registry entry remains, the output names the folder and the reason on one line with no stack trace, `b` is pruned, and the command exits 4",
+      "then": "`a`'s registry entry remains, the output names the folder and the reason on one line with no stack trace, `b` is pruned, and the command exits 3",
       "refs": [
         "entry-last",
         "exit-codes"
@@ -671,7 +671,7 @@
         {
           "id": "exit-3",
           "label": "Exit 3 (the unsafe-git-state family)",
-          "abandons": "a code that means only git state: a filesystem failure (`removal-failed`) also exits 4, like unpreserved commits"
+          "abandons": "a code that means only git state: a filesystem failure (`removal-failed`) also exits 3, like unpreserved commits"
         },
         {
           "id": "exit-1",
@@ -694,7 +694,7 @@
       "Deleted: the archive folder, the worktree metadata in the current repository, the run's local branches, and the registry entry, which goes last. Never touched: the records branch, remote branches, remote-tracking refs, pull requests, and branches of other runs.",
       "Local branches are deleted only when every commit they hold is reachable from a ref that prune keeps. Otherwise the run is kept whole unless `--force` is given. A checked-out branch keeps the run even with `--force`.",
       "Whole-command refusals (bad selection, outside a project, another namespace, a lock, no confirmation) happen before anything is deleted. A per-run failure keeps that run's entry and the command continues with the other runs.",
-      "Exit codes are 0, 1, 3 and 4 as pinned in §6.",
+      "Exit codes are 0, 1, 3 and 7 as pinned in §6.",
       "Every §9 question was decided by the author on 2026-10-03, each on its recommended option.",
       "Exit codes follow `exitCodeForError` (amended 2026-10-03): 3 when a run is kept, 7 on a lock; the stale README table is rewritten from the code, with a test keeping them in sync."
     ],
