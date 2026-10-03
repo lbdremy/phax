@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2610031510-preflight-before-naming.md",
+  "run": {
+    "shortName": "preflight-before-naming",
+    "title": "Preflight before naming",
+    "requiredCommands": []
+  },
+  "preamble": {
+    "summary": "Make `phax run` finish every run-independent preflight before it names the run or writes anything. The preflights are the routing config load, gate profile resolution, required commands, skill edit consent, mcp.allow, records destination, phase models and efforts, and the read-only clean-tree check. A refused run then leaves no run folder, registry entry, branch, worktree, records commit or telemetry file, and a retry gets the bare slug. Per spec Q1, executePlan's preflight block becomes one shared, data-driven preflight set in `src/app/runPreflight.ts`. `phax run` runs that set before naming, and executePlan runs it again as the resume re-check. A type-checked acceptance table makes every check in the set have a test that proves `phax run` refuses before naming. Per Q2, run-branch creation keeps its own dirty-tree refusal. Per Q3, the first refusal is still the only one reported, in today's order. Refusal messages, exit codes, the CLI surface and persisted formats do not change.\n\nThe work has three phases, each green on its own. Phase 1 extracts the shared set without changing behaviour. Phase 2 moves the fresh-run preflights ahead of naming in `phax run`. Phase 3 adds the end-to-end acceptance suite that is also the order guard (spec §5.10).",
+    "requiredCommandsNote": "This plan introduces no new commands. Every phase is verified by the existing `standard` gate profile in phax.json.",
+    "technicalArbitrations": [
+      "The shared set is data-driven. An ordered `RUN_PREFLIGHT_CHECKS` const drives execution through a `Record<RunPreflightCheck, check>`, so the list cannot drift from what runs. The guard table in phase 3 is `satisfies Record<FreshRunPreflightStep, Scenario>`, and `pnpm test:type` fails until a new check has a scenario. Accepted loss: a check added inline in executePlan, outside the set, is caught only when it refuses one of the covered scenarios. Per Q1, a run-dependent check has to be declared outside the set explicitly.",
+      "Skill edit consent, the routing config load and the shared set are folded into one app use case, `freshRunPreflight`, rather than three ordered calls in run.ts. Accepted loss: run.ts keeps a small rendering branch by error class to keep today's output. Skill consent prints bare. ConfigValidationError prints `Failed to load routing config: …` and exits 2. Every other refusal prints `phax run failed: …`.",
+      "The phase 3 acceptance suite drives the real `runRun` / `runResume` against a temporary git repository and a separate temporary state root. Only the HOME-derived inputs (telemetry config, routing/provider config) are replaced, plus the provider backend layer (the fake backend). Accepted loss: those loaders' real file reads are not exercised here; their own tests cover them. In exchange, no test reads or writes the developer's ~/.phax or spawns a provider CLI.",
+      "A phax.json that decodes cannot make gate profile resolution refuse: `phax run` picks the first key, and profiles are non-empty. So the guard's gate-profile scenario forces `resolveGateProfile` to throw through a partial vi.mock, as spec AC12 allows test doubles. Accepted loss: that one scenario proves the ordering, not a real config path to the refusal.",
+      "The resume re-check test builds its paused run from `createRunFolder` plus a committed phase-01 fixture, following the existing resume tests. It does not execute a real first phase. Accepted loss: it does not prove the pause came from a real phase 1. It does drive `runResume` itself, with live config."
+    ]
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-01-shared-preflight-set",
+      "plannedFilesToCreate": [
+        "src/app/runPreflight.ts",
+        "tests/unit/runPreflight.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/executePlan.ts",
+        "src/app/worktree.ts",
+        "tests/unit/mcpAllowlistPreflight.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/executePlan.test.ts"
+      ],
+      "commit": {
+        "subject": "refactor(run): extract the run preflight set from executePlan",
+        "body": "Move executePlan's preflight block into src/app/runPreflight.ts as one shared, ordered set of checks: gate profile, required commands, skill edit consent, mcp.allow, records destination, phase models and efforts. An ordered RUN_PREFLIGHT_CHECKS list drives the execution. executePlan now runs that set, which is also the resume re-check, and keeps it in today's order.\n\nSplit the dirty-tree refusal out of prepareRunBranch into a read-only checkCleanWorkingTree. prepareRunBranch still calls it, so branch creation keeps its own refusal.\n\nBehaviour is unchanged: refusal messages, error classes and order are byte-identical. This prepares phax run to run the same set before it names a run (spec preflight-before-naming)."
+      },
+      "title": "Shared run preflight set",
+      "objective": "Move every run-independent preflight that executePlan makes into one shared, ordered set in a new app use case. Add a read-only clean-tree check. Behaviour does not change: executePlan, and therefore `phax resume`, refuses exactly as it does today. Phase 2 can then run the same set before naming.",
+      "detailedInstructions": [
+        "Create `src/app/runPreflight.ts`. Export `RUN_PREFLIGHT_CHECKS = [\"gate-profile\", \"required-commands\", \"skill-edit-consent\", \"mcp-allow\", \"records-destination\", \"phase-models\"] as const` (exactly today's executePlan order) and `type RunPreflightCheck = (typeof RUN_PREFLIGHT_CHECKS)[number]`.",
+        "Export `RunPreflightInput` with these fields: `plan: PhaxPlan`, `config: ResolvedConfig`, `gateProfileId: string`, `workspaceId?: string | undefined`, `namespace: string`, `routing: ModelRouting`, `providerConfig: ProviderConfig`, `allowSkillEdits: boolean`, `startIndex: number`. Export `RunPreflightRefusal = UnsafeGitStateError | SecurityPreflightError | SkillEditConsentError | RecordsSyncRequiredError | ModelPreflightError` and `RunPreflightError = RunPreflightRefusal | FsError`.",
+        "Implement one check per id by moving the code verbatim from `src/app/executePlan.ts` (today's lines ~411–512). Gate profile: `resolveGateProfile` in a try/catch, mapping a throw to `UnsafeGitStateError` with `repoPath: config.repoRoot`. Required commands: `checkRequiredCommands` against `config.security.agentCommands` and the resolved gate commands, producing the same three-line `SecurityPreflightError` message. Skill edit consent: `skillEditConsentRefusal(plan.phases.slice(startIndex), allowSkillEdits)`. mcp.allow: `mcpAllowlistPreflight(config.security.mcp)`. Records: `checkRecordsRunPreflight`, mapped to `RecordsSyncRequiredError`. Models: `preflightPhaseModels(plan.phases, routing, providerConfig)` over ALL phases, with the identical multi-line `ModelPreflightError` message and payload. Keep every message byte-identical.",
+        "Hold the checks in a `const checks = { … } satisfies Record<RunPreflightCheck, (input: RunPreflightInput) => Effect.Effect<void, RunPreflightError, FileSystem>>`. Export `runPreflights(input): Effect.Effect<{ readonly gateSteps: readonly GateStep[] }, RunPreflightError, FileSystem>`. It runs `checks[id]` for each id in `RUN_PREFLIGHT_CHECKS` order, stops at the first failure, and returns the resolved gate steps on success. Re-resolving the profile is fine because `resolveGateProfile` is pure.",
+        "Move `mcpAllowlistPreflight` from `src/app/executePlan.ts` into `src/app/runPreflight.ts` (still exported, same signature and message), and update the import in `tests/unit/mcpAllowlistPreflight.test.ts`.",
+        "Give `runPreflight.ts` a module doc comment. It should say that this set holds every preflight that does not need the run's own state, and that executePlan's preflight block is exactly this set (the resume re-check). It should also say that `phax run` runs the set before naming, and that a check needing the run's folder, registry entry or branch must be declared outside the set, explicitly.",
+        "In `src/app/worktree.ts`, add `export function checkCleanWorkingTree(repoRoot: string, allowDirty: boolean): Effect.Effect<void, UnsafeGitStateError | GitError, Git>`. It is read-only: when `allowDirty` is false it calls only `git.isClean(repoRoot)` and fails with the unchanged `Working tree is not clean. Commit or stash changes, or pass --allow-dirty.` UnsafeGitStateError. Make `prepareRunBranch` call it in place of its inline check, so branch creation keeps its own dirty-tree refusal (spec Q2).",
+        "In `src/app/executePlan.ts`, keep the two telemetry step events where they are. Replace everything from the gate profile resolution up to `let branch;` with `const { gateSteps } = yield* runPreflights({ plan, config, gateProfileId, workspaceId, namespace, routing, providerConfig, allowSkillEdits, startIndex })`. Use `gateSteps` wherever the old local was used. Delete the imports that are now unused. Add a one-line comment at the call: a new check that does not need the run belongs in runPreflights, not inline here. Leave `ExecutePlanError` unchanged.",
+        "Do not touch `src/cli/commands/run.ts` or `resume.ts` in this phase."
+      ],
+      "boundaryContracts": "The app use case `runPreflights` (producer) is consumed by `executePlan` now and by phase 2's `freshRunPreflight`. Contract: given the plan, the resolved config, the gate profile id, the routing/provider config, the consent flag and the start index, it either yields the resolved gate steps or fails with the first refusal, in RUN_PREFLIGHT_CHECKS order. It reads files only through the FileSystem port and writes nothing. `checkCleanWorkingTree` (producer, through the Git port) is consumed by `prepareRunBranch` now and by `freshRunPreflight` in phase 2. It is read-only and fails with the unchanged dirty-tree UnsafeGitStateError.",
+      "testStrategy": "Write `tests/unit/runPreflight.test.ts` first, against fake ports (`makeFakeGit`, the fake or in-memory FileSystem, no real I/O). (1) A refusal table typed `satisfies Record<RunPreflightCheck, …>`, one case per check, each asserting the exact error class and byte-identical message. (2) First failure wins: a plan that fails both required commands and models gets SecurityPreflightError. (3) Skill edit consent honours startIndex: a skill file only in phase-01 does not refuse at startIndex 1. (4) Success returns the profile's gate steps. (5) checkCleanWorkingTree: dirty fails with the exact message and the fake git records only `isClean` (no createBranch/addWorktree); allowDirty records no git call at all. The existing integration tests for executePlan, skillEditConsent, modelPreflight and resume* must stay green unchanged; they are the behaviour-neutrality oracle.",
+      "implementationOrder": [
+        "Write tests/unit/runPreflight.test.ts against the intended API.",
+        "Create src/app/runPreflight.ts by moving the checks and mcpAllowlistPreflight verbatim.",
+        "Add checkCleanWorkingTree to worktree.ts and route prepareRunBranch through it.",
+        "Rewire executePlan to call runPreflights and drop the dead imports.",
+        "Update the mcpAllowlistPreflight test import, then run the standard gate."
+      ],
+      "excludedScope": [
+        "Any change to `phax run` ordering or output (phase-02).",
+        "The end-to-end acceptance suite and order guard (phase-03).",
+        "Changing any refusal message, error class, exit code, or which phases the model preflight checks.",
+        "Resume's working-tree behaviour (it keeps passing allowDirty: true)."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Give the exact exports of `src/app/runPreflight.ts`: RUN_PREFLIGHT_CHECKS, RunPreflightCheck, RunPreflightInput, RunPreflightRefusal, RunPreflightError, runPreflights, mcpAllowlistPreflight. Give the signature of `checkCleanWorkingTree` in `src/app/worktree.ts`. Confirm that executePlan's preflight block is now the single `runPreflights` call, that no existing test changed except the mcpAllowlistPreflight import, and which fake FileSystem the unit tests use. Explain any file-plan deviation phax flags."
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-preflight-before-naming",
+      "plannedFilesToCreate": [
+        "tests/integration/runBranchDirtyTree.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/runPreflight.ts",
+        "src/cli/commands/run.ts",
+        "tests/unit/cli/run.test.ts",
+        "tests/unit/runPreflight.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/skillEditConsent.ts"
+      ],
+      "commit": {
+        "subject": "fix(run): run every preflight before naming the run",
+        "body": "phax run used to name and allocate the run before executePlan's preflights. A refused run therefore left a run folder, a registry entry in state created, and sometimes a branch, and the retry was renamed <slug>-2.\n\nAdd freshRunPreflight, an app use case that runs every run-independent check in today's first-refusal order: skill edit consent, routing config load, the shared run preflight set, then a read-only clean-tree check. Writes nothing. run.ts calls it right after the dry-run exit. Only then does it name the run, build the telemetry layer, take the lock and create the run folder.\n\nRefusal messages and exit codes are unchanged. Run-branch creation keeps its own dirty-tree refusal, and executePlan keeps the shared set as the resume re-check."
+      },
+      "title": "Run every preflight before naming",
+      "objective": "`phax run` runs all eight run-independent preflights before it names the run. A refusal prints the unchanged message, exits with the unchanged code, prints no `Run:` line or rename warning, and creates no run folder, registry entry, branch, worktree, lock or telemetry file.",
+      "detailedInstructions": [
+        "In `src/app/runPreflight.ts`, export `type FreshRunPreflightStep = \"routing-config\" | RunPreflightCheck | \"clean-tree\"`. Phase 3's guard table is keyed by this type.",
+        "Export `FreshRunPreflightInput` with these fields: `plan`, `config`, `gateProfileId`, `namespace`, `allowSkillEdits: boolean`, `allowDirty: boolean`, `priorityOverride?: NonEmptyArray<ProviderId> | undefined`. Export `freshRunPreflight(input): Effect.Effect<{ readonly routing: ModelRouting; readonly providerConfig: ProviderConfig }, RunPreflightError | ConfigValidationError | GitError, FileSystem | Git>`.",
+        "freshRunPreflight's order must reproduce today's first refusal (spec §5.5). (1) `skillEditConsentRefusal(plan.phases, allowSkillEdits)`, which fails with the SkillEditConsentError. (2) `Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() })`, then `applyProviderPriorityOverride` when an override is given. (3) `runPreflights({ …, startIndex: 0, routing, providerConfig })` with the loaded, overridden routing. (4) `checkCleanWorkingTree(config.repoRoot, allowDirty)`. On success, return the routing and provider config. The use case writes nothing.",
+        "In `src/cli/commands/run.ts`, right after the `--dry-run` exit, replace the skill edit consent block and the routing load block with a single `freshRunPreflight` call. Provide it `makeRepoRootedFileSystemLayer(config)` and `makeNodeGitLayer()`, as the staleness gate does. Keep the dry-run path untouched.",
+        "Render a failure by class, so output stays as it is today. A SkillEditConsentError prints its message bare and returns exitCodeForError(err). A ConfigValidationError prints `Failed to load routing config: ${message}` and returns 2. Every other error prints `phax run failed: ${message}` and returns exitCodeForError(err). No other line is printed on refusal.",
+        "Only after the preflight succeeds, run the existing steps in their existing order: ensureUniqueShortName, the rename warning, the `Run: <ns>.<name>` line, the run folder path and telemetry layer, setRunInterruptContext, withRunLock, createRunFolder, executePlan. executePlan receives the routing and providerConfig returned by the preflight and still gets `allowDirty: opts.allowDirty ?? false`, so branch creation re-checks the tree (Q2). Remove the imports that are now unused (skillEditConsentRefusal, loadModelRouting/loadProviderConfig, applyProviderPriorityOverride if it moved).",
+        "Update `src/app/skillEditConsent.ts`'s doc comment only if it no longer describes the call sites accurately: run.ts now reaches it through freshRunPreflight.",
+        "In `tests/unit/cli/run.test.ts`, add `vi.mock` for `src/app/runPreflight.js`. Make `freshRunPreflight` succeed with DEFAULT_MODEL_ROUTING and DEFAULT_PROVIDER_CONFIG in every existing happy-path test, and rewrite the existing skill edit consent test to make it fail with the SkillEditConsentError. Keep its assertions.",
+        "Add a describe block, `runRun — a preflight refusal precedes naming`, with one case per family: SecurityPreflightError, SkillEditConsentError, RecordsSyncRequiredError, ModelPreflightError, UnsafeGitStateError, ConfigValidationError. Each case asserts that createRunFolder, withRunLock, executePlan, buildSystemTelemetryLayer and setRunInterruptContext were never called, that no `Run: ` line and no `already exists` warning was printed, and that the error line has the right prefix. exitCodeForError is mocked to 1 in that file, so assert that it was called with the error, and that ConfigValidationError returns 2.",
+        "In `tests/unit/runPreflight.test.ts`, add freshRunPreflight cases on fakes. Skill consent beats a routing load failure. A routing failure (invalid JSON at MODEL_ROUTING_PATH in the fake FS) beats a gate/commands failure and yields ConfigValidationError. Required commands beats the models failure plus a dirty tree (AC 'First refusal is unchanged'). The clean-tree check records only `isClean` on the fake git and is skipped with allowDirty. The priority override shows up in the returned routing.",
+        "Create `tests/integration/runBranchDirtyTree.test.ts` for spec AC 'Dirty tree at branch creation still refused', following the fake-port setup in tests/integration/skillEditConsent.test.ts. Steps: fake git clean; freshRunPreflight succeeds; then `setRepoIsClean(false)`; then create the run folder and run executePlan with startIndex 0 and allowDirty false. Expect UnsafeGitStateError with the dirty-tree message, exitCodeForError(err) === 3, and no `createBranch` in the fake git calls."
+      ],
+      "boundaryContracts": "cli → app: `run.ts` (consumer) needs one call that either clears the run to be named or names the refusal. `freshRunPreflight` (producer) provides that. On success it yields the routing and provider config that executePlan needs. On failure it yields exactly one of the unchanged refusal classes, ConfigValidationError for the routing load, or an FsError/GitError for I/O. It performs no write through any port. The CLI only maps the class to today's rendering and exit code.",
+      "testStrategy": "Write the freshRunPreflight order cases in tests/unit/runPreflight.test.ts and the per-family run.ts cases in tests/unit/cli/run.test.ts before changing run.ts. They fail against today's run.ts, which names the run before the routing load and executePlan. The new integration test covers AC7 with fake ports. The existing run.test.ts happy-path tests, now mocking freshRunPreflight, must stay green.",
+      "implementationOrder": [
+        "Add FreshRunPreflightStep, FreshRunPreflightInput and freshRunPreflight to src/app/runPreflight.ts with their unit tests.",
+        "Write the per-family refusal tests in tests/unit/cli/run.test.ts and the runPreflight mock.",
+        "Reorder run.ts: the preflight call, then class-based rendering, then naming and allocation.",
+        "Add tests/integration/runBranchDirtyTree.test.ts.",
+        "Run the standard gate."
+      ],
+      "excludedScope": [
+        "The end-to-end acceptance suite against a temporary repository and the type-checked order guard (phase-03).",
+        "Any change to resume.ts or to executePlan's preflight block beyond what phase-01 did.",
+        "--dry-run, the lifecycle, extraction and staleness gates, and the skill-edit-consent bare message form.",
+        "Collecting several refusals into one exit (spec Q3: first refusal only)."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Give the exact signatures of `freshRunPreflight` and `FreshRunPreflightStep` in `src/app/runPreflight.ts`, and the step order it implements. Describe the run.ts rendering branch (which class gets which prefix and exit code), and confirm that nothing allocation-related (lock, run folder path, telemetry layer, interrupt context) is built before the preflight succeeds. Say how tests/unit/cli/run.test.ts now mocks the preflight. Explain any file-plan deviation phax flags."
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-order-guard",
+      "plannedFilesToCreate": [
+        "tests/integration/helpers/preflightRepo.ts",
+        "tests/integration/runPreflightBeforeNaming.test.ts",
+        "tests/integration/resumePreflightRechecks.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "test(run): guard that no preflight refusal follows naming",
+        "body": "This is the order guard (spec preflight-before-naming §5.10) and its acceptance suite. Real runRun and runResume calls are driven against a temporary git repository and a separate temporary state root. The HOME-derived config loaders are replaced, and so is the provider backend (the fake backend), so no test touches ~/.phax or spawns a provider.\n\nA scenario table keyed by FreshRunPreflightStep, checked by test:type, gives every preflight step a refusal scenario. Each scenario asserts the unchanged exit code and message, no Run: line, no run folder, registry entry, branch, worktree or run telemetry, and an unchanged git status. Adding a check to the shared set without a scenario fails the typecheck. Moving a check back after allocation fails its scenario.\n\nAlso covered: retry with the bare slug after phax records sync, first refusal unchanged, an unchanged runs list, and resume re-checking mcp.allow, the records clone and model routing before any worktree."
+      },
+      "title": "Order guard and acceptance suite",
+      "objective": "Prove end to end that a refused `phax run` leaves no trace and that its retry gets the bare slug. Prove that `phax resume` re-checks the inputs that can change. Make the suite the order guard: a new preflight without a scenario fails typecheck, and a preflight moved after naming fails its scenario.",
+      "detailedInstructions": [
+        "Create `tests/integration/helpers/preflightRepo.ts` with these helpers. (1) Make a temp git repository (git init, local user.name/email, initial commit) and a SEPARATE temp state root outside it, so extraction caches and locks never dirty the tree. (2) Write a fixture phax.json with `name`, `state.root` set to the temp state root, a `standard` gate profile of one `true` step, publishing and compliance review disabled, and optional `security` / `records` overrides. (3) Write a fixture plan.md at the repo root in the deterministic-extraction shape: frontmatter `status: Approved` and `source-spec: null`, `# Foo`, `## Required commands`, and one or more `## phase-NN — … {#phase-NN-…}` sections with model, effort, the three file lists and the commit subsections. Make the required commands, model id and planned files configurable. (4) Snapshot helpers: registry.json bytes (or absence), the entries under `<stateRoot>/runs/`, `git branch --list 'phax/*'`, `git worktree list --porcelain`, `git status --porcelain`, and the presence of any `semantic.jsonl` under `<stateRoot>/runs/`. All fixture content is made up; nothing comes from ~/.phax or another repository.",
+        "In each new test file, `vi.mock` the HOME-derived inputs. `src/app/loadTelemetryConfig.js` returns `{ enabled: true }` in the run suite and `{ enabled: false }` in the resume suite. `src/app/loadRouting.js` returns DEFAULT_MODEL_ROUTING / DEFAULT_PROVIDER_CONFIG by default and can be overridden per test. Mock `makeNodeBackendLayer` in `src/infra/providers/dispatcher.js` to return `makeFakeBackend().layer`, so extraction fallback and phase work can never reach a real provider. If the run telemetry layer writes anything outside the two temp roots, replace `buildSystemTelemetryLayer` with a recording double that writes under the run path. Never write under the real ~/.phax. chdir into the temp repo for each test and restore cwd and remove both temp dirs afterwards.",
+        "In `tests/integration/runPreflightBeforeNaming.test.ts`, define `const SCENARIOS = { … } satisfies Record<FreshRunPreflightStep, RefusalScenario>`. A RefusalScenario has a setup (mutate phax.json/plan/repo, commit when the tree must stay clean), the expected exit code, and the expected unchanged message text. Cover each step. 'skill-edit-consent': a phase plans `.claude/skills/foo/SKILL.md` and there is no allowSkillEdits; exit 11, the bare consent message. 'routing-config': loadModelRouting fails with a ConfigValidationError; exit 2, `Failed to load routing config: …`. 'gate-profile': force `resolveGateProfile` to throw through a partial vi.mock of `src/app/gates.js`, because a decoded phax.json cannot reach this refusal; exit 3. 'required-commands': the plan requires a command missing from agentCommands and the gate; exit 11, `Security preflight failed: the plan requires …`. 'mcp-allow': security.mcp in allowlist mode naming a missing file; exit 11. 'records-destination': records enabled with a repo destination and no local clone; exit 11, the `phax records sync` remedy. 'phase-models': a phase model id not in the catalog; exit 11, `Model preflight failed: …`. 'clean-tree': an uncommitted change and no allowDirty; exit 3, `Working tree is not clean. Commit or stash changes, or pass --allow-dirty.`.",
+        "For every scenario (`it.each` over the table), take snapshots before the run. Call `runRun({ plan: \"plan.md\" }, out)`, then assert: the exit code; the message, with the `phax run failed: ` prefix except for skill consent (bare) and the routing load; no `Run: ` log line and no `already exists` warning; no new entry under `<stateRoot>/runs/`; registry.json unchanged; no `phax/foo*` branch; worktree list unchanged; `git status --porcelain` unchanged; no `semantic.jsonl` under `<stateRoot>/runs/`. The clean-tree scenario is the porcelain-identical check of spec §5.7.",
+        "Add the spec's remaining run ACs as separate tests. Records refusal, then retry: create a local bare repository as the records remote. The first run exits 11 and creates nothing. Then run the `reconcileRecordsSync` use case behind `phax records sync` (real git and filesystem layers) to clone it. The second `runRun` logs `Run: <ns>.foo`, warns nothing containing `already exists`, and `phax/foo` exists afterwards. Assert only on naming, the branch and exit code ≠ 11, not on how the fake-backed phase ends. First refusal unchanged: required commands plus models plus a dirty tree reports only the required-commands refusal, exit 11. Runs list unchanged: capture `runLs` output before and after a refused run and assert it is identical.",
+        "In `tests/integration/resumePreflightRechecks.test.ts`, drive `runResume(<name>, { yes: true }, out)` against the same kind of temp repo and state root. Build the paused run with the real `createRunFolder`, then mark phase-01 committed and the run resumable, modelled on the fixtures in tests/integration/skillEditConsent.test.ts and the resumeFrom*.test.ts files. Make sure the run is resumable at phase-02 before changing an input. Cover three cases: (a) the mcp.allow file named in phax.json is deleted; (b) the records clone under `<stateRoot>/records/<ns>` is removed; (c) the loadProviderConfig mock disables the provider serving phase-02's model with no permitted route. Each case expects exit 11 with the unchanged message, prefixed `phax resume failed: `, and no worktree at `<stateRoot>/worktrees/<ns>.<name>/phase-02`, with the git worktree list unchanged.",
+        "Do not edit src/ in this phase. If a scenario exposes a real ordering bug, stop and report it in the handoff rather than widening scope."
+      ],
+      "boundaryContracts": null,
+      "testStrategy": "This phase is itself the end-to-end layer. It drives the CLI command functions with real config loading, git, filesystem, registry, lock and run-folder code against throwaway roots. Only the HOME-derived loaders and the provider backend are replaced. Its guard property comes from the type: `satisfies Record<FreshRunPreflightStep, RefusalScenario>` is checked by `pnpm test:type`, so adding a check to RUN_PREFLIGHT_CHECKS without a scenario fails the gate. To confirm the guard catches a real regression, temporarily move one check after allocation locally and confirm its scenario fails. Revert the change and do not commit it.",
+      "implementationOrder": [
+        "Write tests/integration/helpers/preflightRepo.ts (temp roots, fixture phax.json/plan.md, snapshots).",
+        "Write the scenario table and the it.each refusal assertions in runPreflightBeforeNaming.test.ts.",
+        "Add the records-retry, first-refusal and runs-list tests.",
+        "Write resumePreflightRechecks.test.ts with its three cases.",
+        "Do the throwaway local regression check of the guard, then run the standard gate."
+      ],
+      "excludedScope": [
+        "Any change under src/.",
+        "Freeing names already burned by earlier refused runs (that is `phax prune`, a separate spec).",
+        "Concurrency between two simultaneous `phax run` invocations.",
+        "Resume's clean-tree behaviour (resume still passes allowDirty: true)."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "List the three new test files and what each covers, mapped to the spec's acceptance criteria. Name the vi.mock seams used (telemetry config, routing loaders, backend layer, the partial gates mock, and any telemetry-layer double) and explain why each is needed. Say how the paused-run fixture for resume is built. Report the result of the throwaway regression check (which check was moved and which scenario failed). Explain any file-plan deviation phax flags."
+    }
+  ]
+}
