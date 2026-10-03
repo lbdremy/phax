@@ -1,13 +1,17 @@
 import { Effect, Either } from "effect";
 import { describe, expect, it } from "vitest";
+import { MODEL_ROUTING_PATH } from "../../src/app/loadRouting.js";
 import {
+  freshRunPreflight,
   RUN_PREFLIGHT_CHECKS,
   runPreflights,
+  type FreshRunPreflightInput,
   type RunPreflightCheck,
   type RunPreflightInput,
 } from "../../src/app/runPreflight.js";
 import { checkCleanWorkingTree } from "../../src/app/worktree.js";
 import {
+  ConfigValidationError,
   ModelPreflightError,
   RecordsSyncRequiredError,
   SecurityPreflightError,
@@ -304,5 +308,110 @@ describe("checkCleanWorkingTree", () => {
     git.impl.setRepoIsClean(false);
     await Effect.runPromise(checkCleanWorkingTree(REPO_ROOT, true).pipe(Effect.provide(git.layer)));
     expect(git.impl.calls).toEqual([]);
+  });
+});
+
+function makeFreshInput(overrides: Partial<FreshRunPreflightInput> = {}): FreshRunPreflightInput {
+  return {
+    plan: makePlan(),
+    config: makeConfig(),
+    gateProfileId: "standard",
+    namespace: NAMESPACE,
+    allowSkillEdits: false,
+    allowDirty: false,
+    ...overrides,
+  };
+}
+
+async function runFresh(
+  input: FreshRunPreflightInput,
+  fs = makeFakeFileSystem(),
+  git = makeFakeGit(),
+) {
+  return Effect.runPromise(
+    Effect.either(
+      freshRunPreflight(input).pipe(Effect.provide(fs.layer), Effect.provide(git.layer)),
+    ),
+  );
+}
+
+function fsWithBrokenRouting() {
+  const fs = makeFakeFileSystem();
+  fs.impl.setFile(MODEL_ROUTING_PATH, "{ not json");
+  return fs;
+}
+
+describe("freshRunPreflight", () => {
+  it("skill edit consent beats a routing load failure", async () => {
+    const result = await runFresh(
+      makeFreshInput({ plan: makePlan([skillPhase]) }),
+      fsWithBrokenRouting(),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(SkillEditConsentError);
+  });
+
+  it("a routing load failure beats a gate profile or required commands failure", async () => {
+    const result = await runFresh(
+      makeFreshInput({ plan: makePlan(undefined, ["pnpm lint"]), gateProfileId: "nope" }),
+      fsWithBrokenRouting(),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(ConfigValidationError);
+  });
+
+  it("required commands beats a models failure and a dirty tree", async () => {
+    const git = makeFakeGit();
+    git.impl.setRepoIsClean(false);
+    const result = await runFresh(
+      makeFreshInput({ plan: makePlan([badModelPhase], ["pnpm lint"]) }),
+      undefined,
+      git,
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(SecurityPreflightError);
+      expect(result.left.message).toBe(REFUSALS["required-commands"].message);
+    }
+    expect(git.impl.calls).toEqual([]);
+  });
+
+  it("refuses a dirty tree last, asking git only isClean", async () => {
+    const git = makeFakeGit();
+    git.impl.setRepoIsClean(false);
+    const result = await runFresh(makeFreshInput(), undefined, git);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(UnsafeGitStateError);
+      expect(result.left.message).toBe(
+        "Working tree is not clean. Commit or stash changes, or pass --allow-dirty.",
+      );
+    }
+    expect(git.impl.calls).toEqual([{ method: "isClean", repo: REPO_ROOT }]);
+  });
+
+  it("skips the clean-tree check with allowDirty", async () => {
+    const git = makeFakeGit();
+    git.impl.setRepoIsClean(false);
+    const result = await runFresh(makeFreshInput({ allowDirty: true }), undefined, git);
+    expect(Either.isRight(result)).toBe(true);
+    expect(git.impl.calls).toEqual([]);
+  });
+
+  it("returns the loaded routing and provider config", async () => {
+    const result = await runFresh(makeFreshInput());
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.routing).toEqual(DEFAULT_MODEL_ROUTING);
+      expect(result.right.providerConfig).toEqual(DEFAULT_PROVIDER_CONFIG);
+    }
+  });
+
+  it("applies the provider priority override to the returned routing", async () => {
+    const result = await runFresh(makeFreshInput({ priorityOverride: ["codex-cli"] }));
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.routing.providerPriority).toEqual(["codex-cli"]);
+    }
   });
 });

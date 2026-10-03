@@ -12,6 +12,7 @@
  */
 import { Effect } from "effect";
 import {
+  type ConfigValidationError,
   ModelPreflightError,
   RecordsSyncRequiredError,
   SecurityPreflightError,
@@ -19,16 +20,24 @@ import {
   UnsafeGitStateError,
 } from "../domain/errors.js";
 import { preflightPhaseModels } from "../domain/routing/preflight.js";
+import {
+  applyProviderPriorityOverride,
+  type NonEmptyArray,
+} from "../domain/routing/priorityOverride.js";
+import type { ProviderId } from "../domain/routing/types.js";
 import { checkRequiredCommands } from "../domain/security/agentCommands.js";
 import type { McpMode } from "../domain/security/types.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
+import type { Git, GitError } from "../ports/git.js";
 import type { ModelRouting } from "../schemas/modelRouting.js";
 import type { GateStep, ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
 import { resolveGateProfile } from "./gates.js";
+import { loadModelRouting, loadProviderConfig } from "./loadRouting.js";
 import { checkRecordsRunPreflight } from "./recordsSync.js";
 import { skillEditConsentRefusal } from "./skillEditConsent.js";
+import { checkCleanWorkingTree } from "./worktree.js";
 
 export const RUN_PREFLIGHT_CHECKS = [
   "gate-profile",
@@ -226,5 +235,67 @@ export function runPreflights(
     }
     const gateSteps = yield* resolveGateSteps(input);
     return { gateSteps };
+  });
+}
+
+/**
+ * Every step `phax run` takes before it names a fresh run: the routing config
+ * load, the shared set and the read-only clean-tree check. Phase 3's guard
+ * table is keyed by this type.
+ */
+export type FreshRunPreflightStep = "routing-config" | RunPreflightCheck | "clean-tree";
+
+export interface FreshRunPreflightInput {
+  readonly plan: PhaxPlan;
+  readonly config: ResolvedConfig;
+  readonly gateProfileId: string;
+  readonly namespace: string;
+  readonly allowSkillEdits: boolean;
+  readonly allowDirty: boolean;
+  readonly priorityOverride?: NonEmptyArray<ProviderId> | undefined;
+}
+
+/**
+ * Clear a fresh `phax run` to be named, or fail with its first refusal. The
+ * order reproduces today's first refusal: skill edit consent, the routing
+ * config load, the shared run preflight set, then the clean-tree check. Writes
+ * nothing. On success yields the (overridden) routing and provider config that
+ * executePlan needs.
+ */
+export function freshRunPreflight(
+  input: FreshRunPreflightInput,
+): Effect.Effect<
+  { readonly routing: ModelRouting; readonly providerConfig: ProviderConfig },
+  RunPreflightError | ConfigValidationError | GitError,
+  FileSystem | Git
+> {
+  return Effect.gen(function* () {
+    const refusal = skillEditConsentRefusal(input.plan.phases, input.allowSkillEdits);
+    if (refusal !== undefined) return yield* Effect.fail(refusal);
+
+    const loaded = yield* Effect.all({
+      routing: loadModelRouting(),
+      providerConfig: loadProviderConfig(),
+    });
+    const routing =
+      input.priorityOverride === undefined
+        ? loaded.routing
+        : applyProviderPriorityOverride(loaded.routing, input.priorityOverride);
+    const { providerConfig } = loaded;
+
+    yield* runPreflights({
+      plan: input.plan,
+      config: input.config,
+      gateProfileId: input.gateProfileId,
+      namespace: input.namespace,
+      routing,
+      providerConfig,
+      allowSkillEdits: input.allowSkillEdits,
+      startIndex: 0,
+    });
+
+    yield* checkCleanWorkingTree(input.config.repoRoot, input.allowDirty);
+
+    return { routing, providerConfig };
   });
 }

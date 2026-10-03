@@ -1,11 +1,15 @@
 import { resolve } from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
-import { ConfigValidationError } from "../../../src/domain/errors.js";
 import {
-  DEFAULT_MODEL_ROUTING,
-  DEFAULT_PROVIDER_CONFIG,
-} from "../../../src/domain/routing/defaults.js";
+  ConfigValidationError,
+  ModelPreflightError,
+  RecordsSyncRequiredError,
+  SecurityPreflightError,
+  SkillEditConsentError,
+  UnsafeGitStateError,
+} from "../../../src/domain/errors.js";
+import { skillEditConsentRefusal } from "../../../src/app/skillEditConsent.js";
 import type { PhaxPlan } from "../../../src/schemas/phaxPlan.js";
 import type { RunId, WorktreePath } from "../../../src/domain/branded.js";
 import type { ExecutePlanResult } from "../../../src/app/executePlan.js";
@@ -17,10 +21,20 @@ vi.mock("../../../src/app/loadOrExtractPlan.js", () => ({ loadOrExtractPlan: vi.
 vi.mock("../../../src/app/runFolder.js", () => ({ createRunFolder: vi.fn() }));
 vi.mock("../../../src/app/executePlan.js", () => ({ executePlan: vi.fn() }));
 vi.mock("../../../src/app/lock.js", () => ({ withRunLock: vi.fn((_key, effect) => effect) }));
-vi.mock("../../../src/app/loadRouting.js", () => ({
-  loadModelRouting: vi.fn(),
-  loadProviderConfig: vi.fn(),
-}));
+vi.mock("../../../src/app/runPreflight.js", async () => {
+  const effect = await import("effect");
+  const { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } =
+    await import("../../../src/domain/routing/defaults.js");
+  // Every happy-path run clears the preflight; refusal tests fail it once.
+  return {
+    freshRunPreflight: vi.fn(() =>
+      effect.Effect.succeed({
+        routing: DEFAULT_MODEL_ROUTING,
+        providerConfig: DEFAULT_PROVIDER_CONFIG,
+      }),
+    ),
+  };
+});
 vi.mock("../../../src/cli/commands/runLayers.js", async () => {
   const { Layer } = await import("effect");
   return {
@@ -236,12 +250,6 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
       }),
     );
 
-    const { loadModelRouting, loadProviderConfig } = vi.mocked(
-      await import("../../../src/app/loadRouting.js"),
-    );
-    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
-    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
-
     const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
     createRunFolder.mockReturnValue(
       Effect.succeed({ runPath: "/fake-state/runs/acme.fixbug", runId: "r1" as RunId }),
@@ -282,12 +290,6 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
         fromCache: false,
       }),
     );
-
-    const { loadModelRouting, loadProviderConfig } = vi.mocked(
-      await import("../../../src/app/loadRouting.js"),
-    );
-    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
-    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
 
     const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
     createRunFolder.mockReturnValue(
@@ -338,11 +340,6 @@ describe("runRun — skill edit consent is refused before the run is created", (
     loadOrExtractPlan.mockReturnValue(
       Effect.succeed({ plan, warnings: [], detectedAnchors: [], fromCache: false }),
     );
-    const { loadModelRouting, loadProviderConfig } = vi.mocked(
-      await import("../../../src/app/loadRouting.js"),
-    );
-    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
-    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
     const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
     createRunFolder.mockReturnValue(
       Effect.succeed({ runPath: "/fake-state/runs/acme.fixbug", runId: "r1" as RunId }),
@@ -353,8 +350,13 @@ describe("runRun — skill edit consent is refused before the run is created", (
   }
 
   it("without --allow-skill-edits, refuses with the files and never creates the run folder", async () => {
-    const { createRunFolder, executePlan } = await mockRunDependencies(makeSkillPlan());
+    const plan = makeSkillPlan();
+    const { createRunFolder, executePlan } = await mockRunDependencies(plan);
     const { exitCodeForError } = vi.mocked(await import("../../../src/cli/commands/runLayers.js"));
+    const refusal = skillEditConsentRefusal(plan.phases, false);
+    if (refusal === undefined) throw new Error("expected a skill edit consent refusal");
+    const { freshRunPreflight } = vi.mocked(await import("../../../src/app/runPreflight.js"));
+    freshRunPreflight.mockReturnValueOnce(Effect.fail(refusal));
 
     const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines, errors } = makeOutput();
@@ -385,6 +387,92 @@ describe("runRun — skill edit consent is refused before the run is created", (
   });
 });
 
+describe("runRun — a preflight refusal precedes naming", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function setupRefusal(err: unknown) {
+    await setupSuccessRun();
+    const { freshRunPreflight } = vi.mocked(await import("../../../src/app/runPreflight.js"));
+    freshRunPreflight.mockReturnValueOnce(Effect.fail(err as never));
+    return {
+      runFolder: vi.mocked(await import("../../../src/app/runFolder.js")).createRunFolder,
+      lock: vi.mocked(await import("../../../src/app/lock.js")).withRunLock,
+      execute: vi.mocked(await import("../../../src/app/executePlan.js")).executePlan,
+      layers: vi.mocked(await import("../../../src/cli/commands/runLayers.js")),
+      interrupt: vi.mocked(await import("../../../src/cli/interruptHandler.js"))
+        .setRunInterruptContext,
+    };
+  }
+
+  const refusals = [
+    {
+      name: "SecurityPreflightError",
+      err: new SecurityPreflightError({ message: "Security preflight failed: x", missing: ["x"] }),
+      prefix: "phax run failed: Security preflight failed: x",
+    },
+    {
+      name: "SkillEditConsentError",
+      // Printed bare, with no `phax run failed: ` prefix.
+      err: new SkillEditConsentError({ message: "requires --allow-skill-edits", phases: [] }),
+      prefix: "requires --allow-skill-edits",
+    },
+    {
+      name: "RecordsSyncRequiredError",
+      err: new RecordsSyncRequiredError({
+        message: "run phax records sync",
+        path: "/r",
+        remote: "git@x:y.git",
+      }),
+      prefix: "phax run failed: run phax records sync",
+    },
+    {
+      name: "ModelPreflightError",
+      err: new ModelPreflightError({ message: "Model preflight failed: 1", failures: [] }),
+      prefix: "phax run failed: Model preflight failed: 1",
+    },
+    {
+      name: "UnsafeGitStateError",
+      err: new UnsafeGitStateError({
+        message: "Working tree is not clean. Commit or stash changes, or pass --allow-dirty.",
+        repoPath: "/fake-repo",
+      }),
+      prefix: "phax run failed: Working tree is not clean.",
+    },
+    {
+      name: "ConfigValidationError",
+      err: new ConfigValidationError({ message: "bad routing", path: "/r.json" }),
+      prefix: "Failed to load routing config: bad routing",
+    },
+  ] as const;
+
+  it.each(refusals)("$name: nothing is named or allocated", async ({ name, err, prefix }) => {
+    const { runFolder, lock, execute, layers, interrupt } = await setupRefusal(err);
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, lines, warnings, errors } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(runFolder).not.toHaveBeenCalled();
+    expect(lock).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(layers.buildSystemTelemetryLayer).not.toHaveBeenCalled();
+    expect(interrupt).not.toHaveBeenCalled();
+    expect(lines.join("\n")).not.toContain("Run: ");
+    expect(warnings.join("\n")).not.toContain("already exists");
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.startsWith(prefix)).toBe(true);
+    if (name === "ConfigValidationError") {
+      expect(code).toBe(2);
+      expect(layers.exitCodeForError).not.toHaveBeenCalled();
+    } else {
+      expect(code).toBe(1);
+      expect(layers.exitCodeForError).toHaveBeenCalledWith(err);
+    }
+  });
+});
+
 describe("runRun — --plan resolves against process.cwd()", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -408,12 +496,6 @@ describe("runRun — --plan resolves against process.cwd()", () => {
         fromCache: false,
       }),
     );
-
-    const { loadModelRouting, loadProviderConfig } = vi.mocked(
-      await import("../../../src/app/loadRouting.js"),
-    );
-    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
-    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
 
     const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
     createRunFolder.mockReturnValue(
@@ -452,12 +534,6 @@ async function setupSuccessRun(executePlanResult: Partial<ExecutePlanResult> = {
       fromCache: false,
     }),
   );
-
-  const { loadModelRouting, loadProviderConfig } = vi.mocked(
-    await import("../../../src/app/loadRouting.js"),
-  );
-  loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
-  loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
 
   const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
   createRunFolder.mockReturnValue(
@@ -751,12 +827,6 @@ describe("runRun — plan lifecycle status gate", () => {
       }),
     );
 
-    const { loadModelRouting, loadProviderConfig } = vi.mocked(
-      await import("../../../src/app/loadRouting.js"),
-    );
-    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
-    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
-
     const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
     createRunFolder.mockReturnValue(
       Effect.succeed({ runPath: "/fake-state/runs/acme.fixbug", runId: "r1" as RunId }),
@@ -797,12 +867,6 @@ describe("runRun — staleness gate", () => {
         fromCache: false,
       }),
     );
-
-    const { loadModelRouting, loadProviderConfig } = vi.mocked(
-      await import("../../../src/app/loadRouting.js"),
-    );
-    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
-    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
 
     const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
     createRunFolder.mockReturnValue(
