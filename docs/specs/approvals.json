@@ -32,9 +32,9 @@
       "baseline": "74653879ec75deb32f5749e4a1900c9d7ed4a79f"
     },
     "docs/specs/2610031513-run-prune.md": {
-      "specFingerprint": "9d7f90482a9007a16a71419ba8fab99165d9abe644f0366966d4c929be30fc34",
-      "approvedAt": "2026-10-03T16:46:26.941Z",
-      "baseline": "8af00b4533d71b783c0ab73c02564f7c12fe7c60"
+      "specFingerprint": "3ab6851b3c40142c904a460a5cbca5a3578235bc7b54276aac19f8f072322b16",
+      "approvedAt": "2026-10-03T16:53:10.344Z",
+      "baseline": "948fcf96171684580c6f337e2e46ea390ae192da"
     }
   }
 }
