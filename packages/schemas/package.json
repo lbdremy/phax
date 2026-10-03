@@ -2,6 +2,11 @@
   "name": "@lbdremy/phax-schemas",
   "version": "0.16.0",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lbdremy/phax.git",
+    "directory": "packages/schemas"
+  },
   "files": [
     "dist",
     "json"

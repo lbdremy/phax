@@ -100,12 +100,15 @@ jobs:
           done
           exit "$STATUS"
 
-      - name: npm stage publish @lbdremy/phax
-        working-directory: npm
-        run: npm stage publish --access public --provenance
-
+      # The schemas package stages first: if it fails, nothing of the
+      # release is staged; if the wrapper then fails, a staged schemas
+      # package without its phax harms nobody.
       - name: npm stage publish @lbdremy/phax-schemas
         working-directory: packages/schemas
+        run: npm stage publish --access public --provenance
+
+      - name: npm stage publish @lbdremy/phax
+        working-directory: npm
         run: npm stage publish --access public --provenance
 
       - name: Create GitHub Release

@@ -84,10 +84,20 @@ describe("release workflow: two packages in lockstep", () => {
   );
   const firstPublish = publishes[0]!;
 
-  it("stage-publishes the wrapper, then the schemas package", () => {
+  it("stage-publishes the schemas package, then the wrapper", () => {
     expect(publishes).toHaveLength(2);
-    expect(releaseSteps[publishes[0]!]!["working-directory"]).toBe("npm");
-    expect(releaseSteps[publishes[1]!]!["working-directory"]).toBe("packages/schemas");
+    expect(releaseSteps[publishes[0]!]!["working-directory"]).toBe("packages/schemas");
+    expect(releaseSteps[publishes[1]!]!["working-directory"]).toBe("npm");
+  });
+
+  // --provenance and trusted publishing reject a manifest whose repository
+  // does not name the repo the workflow runs in.
+  it.each(["npm", "packages/schemas"])("%s/package.json names the phax repository", (dir) => {
+    const manifest = JSON.parse(
+      readFileSync(join(import.meta.dirname, "../..", dir, "package.json"), "utf-8"),
+    ) as { readonly repository?: { readonly type?: string; readonly url?: string } };
+    expect(manifest.repository?.type).toBe("git");
+    expect(manifest.repository?.url).toBe("git+https://github.com/lbdremy/phax.git");
   });
 
   it("runs every step that can fail before the first publish", () => {
