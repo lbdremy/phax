@@ -184,6 +184,44 @@ const mentionsCloudflare = (value: unknown) => JSON.stringify(value ?? {}).inclu
 const actionPins = (steps: ReadonlyArray<Step>) =>
   steps.flatMap((step) => (step.uses === undefined ? [] : [step.uses]));
 
+/** Where wrangler writes its machine-readable output; `runner.temp` is only valid at step level. */
+const WRANGLER_OUTPUT_FILE = "${{ runner.temp }}/wrangler-output.ndjson";
+
+/**
+ * The contexts GitHub accepts in a job-level `env`. Anything else (`runner`,
+ * `steps`, `job`, `env`) makes the whole workflow file invalid, which GitHub
+ * reports only when the workflow is next evaluated — for release.yml, on a tag.
+ */
+const JOB_ENV_CONTEXTS = new Set([
+  "github",
+  "needs",
+  "strategy",
+  "matrix",
+  "vars",
+  "secrets",
+  "inputs",
+]);
+
+describe("every workflow: job-level env uses only contexts GitHub allows there", () => {
+  const dir = join(import.meta.dirname, "../../.github/workflows");
+  for (const file of ["ci.yml", "release.yml", "docs-deploy.yml"]) {
+    it(file, () => {
+      const parsed = parseWorkflow(join(dir, file));
+      for (const [name, job] of Object.entries(parsed.jobs)) {
+        for (const [key, value] of Object.entries(job.env ?? {})) {
+          for (const [, expression] of String(value).matchAll(/\$\{\{\s*([^}]*?)\s*\}\}/g)) {
+            const context = /^[A-Za-z_]+/.exec(expression!)?.[0] ?? "";
+            expect(
+              JOB_ENV_CONTEXTS.has(context),
+              `${file} jobs.${name}.env.${key} uses ${context}`,
+            ).toBe(true);
+          }
+        }
+      }
+    });
+  }
+});
+
 describe("release workflow: the docs site deploy", () => {
   const release = parseWorkflow(workflowPath);
   const step = (name: string) => releaseSteps[indexOf(releaseSteps, (s) => s.name === name)]!;
@@ -206,11 +244,11 @@ describe("release workflow: the docs site deploy", () => {
     expect(indexes[3]).toBe(firstPublish - 1);
   });
 
-  it("sets the release tag and wrangler's output file for the job", () => {
-    expect(release.jobs["release"]!.env).toEqual({
-      RELEASE_TAG: "${{ github.ref_name }}",
-      WRANGLER_OUTPUT_FILE_PATH: "${{ runner.temp }}/wrangler-output.ndjson",
-    });
+  it("sets the release tag for the job, and wrangler's output file on the two steps that use it", () => {
+    expect(release.jobs["release"]!.env).toEqual({ RELEASE_TAG: "${{ github.ref_name }}" });
+    for (const name of ["Deploy docs: upload", "Deploy docs: check preview"]) {
+      expect(step(name).env?.["WRANGLER_OUTPUT_FILE_PATH"]).toBe(WRANGLER_OUTPUT_FILE);
+    }
   });
 
   it("guards with the deploy guard and checks the preview with the preview check", () => {
@@ -256,7 +294,8 @@ describe("release workflow: the docs site deploy", () => {
     const holders = releaseSteps.filter(mentionsCloudflare).map((s) => s.name);
     expect(holders).toEqual(["Deploy docs: upload", "Deploy docs: promote"]);
     for (const name of holders) {
-      expect(step(name!).env).toEqual({
+      const { WRANGLER_OUTPUT_FILE_PATH: _output, ...credential } = step(name!).env ?? {};
+      expect(credential).toEqual({
         CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}",
         CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}",
       });
@@ -283,10 +322,7 @@ describe("docs-deploy workflow: redeploying a released tag by hand", () => {
   });
 
   it("passes the tag through the environment, never interpolated into a run", () => {
-    expect(job.env).toEqual({
-      RELEASE_TAG: "${{ inputs.tag }}",
-      WRANGLER_OUTPUT_FILE_PATH: "${{ runner.temp }}/wrangler-output.ndjson",
-    });
+    expect(job.env).toEqual({ RELEASE_TAG: "${{ inputs.tag }}" });
     for (const s of steps) expect(s.run ?? "").not.toContain("inputs.");
   });
 
