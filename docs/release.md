@@ -40,6 +40,18 @@ npm deprecate @lbdremy/phax-schemas@0.0.0 "placeholder — install a release of 
 npm trust github @lbdremy/phax-schemas --file release.yml --repo lbdremy/phax --allow-stage-publish
 ```
 
+### The docs site (one-time, by hand — never automated)
+
+The docs site at docs.phax.run is set up once, by hand. These steps are done by hand and never automated: no workflow creates a Cloudflare resource.
+
+1. Have a Cloudflare account holding the phax.run zone, with its DNS on Cloudflare.
+2. Create an API token from the "Edit Cloudflare Workers" template, limited to that account and zone. Store it as the GitHub secret `CLOUDFLARE_API_TOKEN`, and store the account id as the secret `CLOUDFLARE_ACCOUNT_ID`.
+3. Create the `phax-docs` Worker, then attach the custom domain docs.phax.run to it in the Cloudflare dashboard. Attaching the domain creates its DNS record and certificate. Do this in the order below, so that `https://docs.phax.run/schemas/index.json` answers 404 before the first release:
+   - from a local checkout, run `pnpm exec wrangler deploy --config site/wrangler.jsonc --assets <empty directory holding only a 404.html>`. This creates `phax-docs` and enables the workers.dev subdomain and preview URLs from the config, and every path answers 404;
+   - do not create the Worker from the dashboard's Hello World template, which answers 200 on every path and makes the deploy guard refuse;
+   - attach docs.phax.run in the dashboard, then confirm that `https://docs.phax.run/schemas/index.json` answers 404.
+4. Keep the workers.dev subdomain and the preview URLs enabled on the Worker. Each release's preview URL is how the release is checked before its npm packages are approved.
+
 ## Release process
 
 A release ships two npm packages in lockstep, at the tag's version:
@@ -65,6 +77,7 @@ The version must be `MAJOR.MINOR.PATCH` and newer than the current one — pre-r
    - sets `version` in `package.json`, `npm/package.json` and `packages/schemas/package.json`;
    - renames every `packages/schemas/snapshots/<format id>/next.schema.json` to `<version>.schema.json`, so each format's current shape is named by the release;
    - regenerates `PACKAGE_VERSION`, `FIRST_SUPPORTED_RELEASE` and `CURRENT_SHAPES` (`packages/schemas/src/generated/index.ts`) and `src/schemas/release.ts`;
+   - appends the new version to the release ledger `packages/schemas/releases.json`, which the docs site reads to serve every release's schemas;
 2. regenerates the usage spec and the CLI docs;
 3. stages exactly the paths the cut changed (renames included) and the regenerated files, and commits `chore: release v1.2.3`;
 4. creates the signed tag `v1.2.3` and pushes the commit and the tag.
@@ -84,7 +97,14 @@ The `release.yml` workflow triggers automatically on the pushed tag. In order, i
 3. Smoke-tests the schemas package under Node 20 (`scripts/schemas-smoke.ts`): it packs the built package, installs the tarball into an empty project, and runs the schemas spec's `read-record.mjs` consumer against a made-up phase record on a `phax/records/v1` branch. It also checks the installed version, one JSON Schema per format, and that `node_modules` holds only the package, `effect` and `effect`'s dependencies. CI runs the same smoke on every push and pull request.
 4. Prepares the npm wrapper (`npm/package.json` is set to the tag's version).
 5. Checks that `npm/package.json` and `packages/schemas/package.json` both carry the tag's version. `release.sh` already set the second one in the release commit, so a tag on a commit `release.sh` did not make fails here.
-6. Stage-publishes `@lbdremy/phax-schemas`, then `@lbdremy/phax`, with `npm stage publish --access public --provenance`.
+6. Deploys docs.phax.run, after the version check and before any npm stage publish, in four steps:
+   - **guard**: refuses the build if it would stop serving a schema URL listed in the live index at `https://docs.phax.run/schemas/index.json`;
+   - **upload**: uploads the built site as a version with the preview alias `vX-Y-Z`, so its preview URL names the release;
+   - **check**: fetches the preview URL and requires the release's schema and a page showing `vX.Y.Z`;
+   - **promote**: makes that version the live site at docs.phax.run.
+
+   A failed guard, upload or check stages nothing, creates no GitHub Release and leaves the previous site serving. It can leave at most an unpromoted version with its preview URL. The remedy is the same as for any failed release: fix the cause, then delete and re-push the tag (below).
+7. Stage-publishes `@lbdremy/phax-schemas`, then `@lbdremy/phax`, with `npm stage publish --access public --provenance`.
 7. Creates the GitHub Release and uploads binaries and checksums.
 
 A failed gate, smoke or version check stages nothing. The stage publishes themselves can still fail (a registry error, a misconfigured trusted publisher): the schemas package goes first, so a failure there stages nothing, and a failure on the wrapper leaves only a staged schemas package, which nobody can install until you approve it. Fix the cause, then delete and re-push the tag (below).
@@ -102,6 +122,19 @@ Stage publish does not make a package installable. Approve each staged version b
 - The GitHub Release page lists all four binaries and their `.sha256` files
 - Both npm packages show the tag's version once approved
 - `package.json`, `npm/package.json` and `packages/schemas/package.json` all carry the tag's version in the release commit
+- docs.phax.run shows vX.Y.Z, and `https://docs.phax.run/schemas/registry/X.Y.Z.json` answers 200
+- The previous release's preview URL still shows its own version
+- Before approving the npm packages, open the release's preview URL (the one the upload step prints for the `vX-Y-Z` alias) and check the site as a reader would
+
+## Redeploying the docs site by hand
+
+To redeploy a released tag's site, for example after a fix to the site or to restore a deploy:
+
+```bash
+gh workflow run docs-deploy.yml -f tag=vX.Y.Z
+```
+
+The `docs-deploy.yml` workflow checks out the tag, builds the site, and runs the same guard, preview upload, preview check and promotion as the release. It stages nothing on npm and creates no GitHub Release. The guard refuses the redeploy if it would drop a schema URL that docs.phax.run serves. To look at the site locally before redeploying, run `pnpm site:preview`, which serves the built site from `site/doc_build`.
 
 ## macOS Gatekeeper
 
