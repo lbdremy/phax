@@ -25,11 +25,6 @@
       "specFingerprint": "e706e68d969febb8b9bf4199bf0abdcc95b5114430d5a3ae34a84becb36fa41a",
       "approvedAt": "2026-09-28T16:08:36.591Z",
       "baseline": "ddc1a9a73b20c3a5bafce185f03a014d78a833cc"
-    },
-    "docs/specs/2610040828-docs-site.md": {
-      "specFingerprint": "ceab39fa5820654f21f7eda8a4722ea0b43f9522e0876e6dc63a4c9cb60e801a",
-      "approvedAt": "2026-10-04T08:47:27.275Z",
-      "baseline": "5d10d76e82a6a498b60e5a2bd128140568d924e3"
     }
   }
 }
