@@ -277,9 +277,9 @@
     },
     {
       "id": "gate",
-      "title": "The project gate builds the site",
-      "pattern": "event",
-      "statement": "WHEN `pnpm check:full` runs THE project gate SHALL run `pnpm site:build` and fail when it fails."
+      "title": "The run's completion gate builds the site",
+      "pattern": "ubiquitous",
+      "statement": "phax.json's gate profile shall run `pnpm site:build` as a `terminal` step (surface `product`), so that a run's final phase gate fails when the site build fails; no `every-phase` step and `pnpm check:full` shall not run it."
     },
     {
       "id": "one-time-setup",
@@ -471,10 +471,10 @@
     },
     {
       "id": "ac-gate",
-      "name": "A heading rename fails the phase that made it",
-      "given": "a phase that renames the README heading `## Run` without touching the page map",
-      "when": "`pnpm check:full` runs in that phase",
-      "then": "it fails, naming `Run`.",
+      "name": "A heading rename fails the run's completion gate",
+      "given": "a run whose phases rename the README heading `## Run` without touching the page map",
+      "when": "its gates run",
+      "then": "the every-phase gates do not run the site build, and the final phase gate's `pnpm site:build` step fails naming `Run`, inside that phase's fix loop; `pnpm check:full` does not run the site build.",
       "refs": [
         "gate"
       ]
@@ -803,7 +803,7 @@
         }
       ],
       "recommendation": "readme",
-      "rationale": "Decided by the author on 2026-10-04. The decision was 'a rendering of what the repo already holds'. The README is what phases edit and what GitHub shows, and the heading contract is enforced mechanically (map-complete, run in check:full), so its cost is visible at the moment it is incurred."
+      "rationale": "Decided by the author on 2026-10-04. The decision was 'a rendering of what the repo already holds'. The README is what phases edit and what GitHub shows, and the heading contract is enforced mechanically (map-complete, run by the run's completion gate and by CI), so its cost is visible at the moment it is incurred."
     },
     {
       "id": "q-tokens",
@@ -884,8 +884,13 @@
     },
     {
       "id": "q-gate",
-      "question": "Does `pnpm check:full` run the site build?",
+      "question": "Where does phax's gate run the site build?",
       "options": [
+        {
+          "id": "terminal",
+          "label": "As a `terminal` step of the gate profile: at the run's final phase gate only, beside `pnpm build`",
+          "abandons": "Catching a heading rename or a broken link in the phase that made it: it surfaces at the final phase gate, still inside the run's fix loop, and every-phase gates stay as fast as today."
+        },
         {
           "id": "yes",
           "label": "Yes, the whole `pnpm site:build`",
@@ -897,8 +902,8 @@
           "abandons": "Catching a README heading rename or a broken link in the phase that made it: the failure appears in CI after the run, outside the fix loop."
         }
       ],
-      "recommendation": "yes",
-      "rationale": "Decided by the author on 2026-10-04. Phases edit the README and docs constantly. A page-map or link failure is cheap to fix inside the phase's fix loop and expensive to fix after the PR has been opened."
+      "recommendation": "terminal",
+      "rationale": "Amended by the author on 2026-10-04: the site build is a completion gate in phax (a `terminal` step), not an every-phase step, and `pnpm check:full` does not run it; CI still builds the site on every push. The every-phase gate keeps its speed, and a page-map or link failure is still fixed inside the run, at its final phase."
     }
   ],
   "planningNote": {
@@ -907,10 +912,11 @@
       "The schema URL layout is fixed by the Completed schemas-package spec: /schemas/<format id>/<release>.json, served byte-identical to the committed snapshot, with Content-Type application/json and Access-Control-Allow-Origin *. Pre-schema and next snapshots are never served; a served URL is never removed.",
       "For each release R and each format, the site serves the latest snapshot whose shape release is at or before R. The list of releases is the committed release ledger, appended by the release cut and seeded with 0.17.0 (q-release-list).",
       "The deploy runs guard → upload with a preview alias → check → promote, after every fallible step and before the first npm stage publish (q-deploy-order). A manual dispatch for a tag is the only other way to deploy.",
-      "Latest release only (q-versioning); the README is the single source through the page map (q-readme-source); the 1.0 announcement is held until 1.0.0 (q-blog); the §6 tokens ship with tested ratios (q-tokens); a phase draws the logo (q-logo); visual checks are mechanical (q-visual); check:full runs the site build (q-gate).",
+      "Latest release only (q-versioning); the README is the single source through the page map (q-readme-source); the 1.0 announcement is held until 1.0.0 (q-blog); the §6 tokens ship with tested ratios (q-tokens); a phase draws the logo (q-logo); visual checks are mechanical (q-visual); the site build is a terminal gate step, not in check:full (q-gate).",
       "The first deploy is the first release tag cut after this work lands, and the 15 0.17.0 URLs resolve from that deploy.",
       "No source is edited for the site's sake. docs/release.md gains the docs-site steps and the one-time setup because maintainers need them.",
-      "Every §9 question was decided by the author on 2026-10-04, each on its recommended option."
+      "Every §9 question was decided by the author on 2026-10-04, each on its recommended option.",
+      "The site build is a `terminal` step of phax.json's gate profile, not in `pnpm check:full` (amended by the author, 2026-10-04)."
     ],
     "open": [
       "Route and navigation spellings, page grouping and page titles. The §6 tree is indicative; every README section must still map exactly once.",
