@@ -1,11 +1,13 @@
 // Checks over the built site: every rendered route has its page, every page
 // shows the release it was built from, every GitHub heading id the generator
-// emitted reached the HTML, and no HTML, CSS or JS file loads anything from
-// another origin. Outbound `<a href>` links are fine. Pure over a map of
-// built files; readBuiltSite is the only I/O.
+// emitted reached the HTML, every anchor a link was rewritten to is an id on
+// its target page, and no HTML, CSS or JS file loads anything from another
+// origin. Outbound `<a href>` links are fine. Pure over a map of built files;
+// readBuiltSite is the only I/O.
 import { readFileSync, readdirSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import type { SiteJson } from "./generate.js";
+import type { SiteLink } from "./links.js";
 
 /** The built files a check reads, relative to the output directory → text. */
 export type BuiltFiles = ReadonlyMap<string, string>;
@@ -126,6 +128,10 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function hasId(html: string, id: string): boolean {
+  return new RegExp(`\\sid=["']${escapeRegExp(id)}["']`).test(html);
+}
+
 function stripTags(html: string): string {
   return html.replace(/<[^>]*>/g, "");
 }
@@ -162,7 +168,7 @@ export function checkBuiltSite(
       );
     }
     for (const id of site.headingIds[route] ?? []) {
-      if (!new RegExp(`\\sid=["']${escapeRegExp(id)}["']`).test(html)) {
+      if (!hasId(html, id)) {
         findings.push(`✗ ${outLabel}/${path}: heading id #${id} of route ${route} is missing`);
       }
     }
@@ -170,6 +176,26 @@ export function checkBuiltSite(
   for (const [path, content] of built) {
     for (const load of remoteLoads(path, content)) {
       findings.push(`✗ ${outLabel}/${path}: loads ${load} from another origin`);
+    }
+  }
+  return findings;
+}
+
+/** Every rewritten link (site/generated/links.json) whose anchor its route's built page lacks. */
+export function checkLinkAnchors(
+  links: ReadonlyArray<SiteLink>,
+  built: BuiltFiles,
+): ReadonlyArray<string> {
+  const findings: Array<string> = [];
+  for (const link of links) {
+    if (link.anchor === null) continue;
+    const html = routeHtmlPaths(link.route)
+      .map((candidate) => built.get(candidate))
+      .find((content) => content !== undefined);
+    if (html === undefined || !hasId(html, link.anchor)) {
+      findings.push(
+        `✗ ${link.source}:${link.line}: ${link.link} — no such anchor on ${link.route}`,
+      );
     }
   }
   return findings;

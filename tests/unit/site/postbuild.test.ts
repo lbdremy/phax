@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SiteJson } from "../../../site/build/generate.js";
-import { checkBuiltSite } from "../../../site/build/postbuild.js";
+import type { SiteLink } from "../../../site/build/links.js";
+import { checkBuiltSite, checkLinkAnchors } from "../../../site/build/postbuild.js";
 
 const RELEASE = "https://github.com/example/tool/releases/tag/v0.17.0";
 
@@ -133,5 +134,27 @@ describe("checkBuiltSite", () => {
     expect(findings[0]).toMatch(
       new RegExp(`^✗ site/doc_build/${path.replaceAll(".", "\\.")}: loads .+ from another origin$`),
     );
+  });
+});
+
+function link(anchor: string | null): SiteLink {
+  return {
+    source: "README.md",
+    line: 12,
+    link: anchor === null ? "docs/run.md" : `docs/run.md#${anchor}`,
+    route: "/guide/run",
+    anchor,
+  };
+}
+
+describe("checkLinkAnchors", () => {
+  it("passes an anchor the target page carries, and a link without one", () => {
+    expect(checkLinkAnchors([link("locks"), link(null)], built())).toEqual([]);
+  });
+
+  it("names the source, line and link of an anchor the target page lacks", () => {
+    expect(checkLinkAnchors([link("resume")], built())).toEqual([
+      "✗ README.md:12: docs/run.md#resume — no such anchor on /guide/run",
+    ]);
   });
 });

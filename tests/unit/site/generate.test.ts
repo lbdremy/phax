@@ -74,6 +74,7 @@ describe("generateSite", () => {
       "docs/guide/run.md",
       "docs/index.md",
       "docs/security.md",
+      "links.json",
       "site.json",
     ]);
     expect(result.files.get("docs/index.md")).toBe(
