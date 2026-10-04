@@ -12,6 +12,8 @@
     "src/schemas/release.ts",
     "packages/schemas/history.lock.json",
     "packages/schemas/json",
-    "packages/schemas/snapshots"
+    "packages/schemas/snapshots",
+    "site/generated",
+    "site/doc_build"
   ]
 }

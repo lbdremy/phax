@@ -9,5 +9,12 @@
     "no-floating-promises": "error",
     "no-explicit-any": "error"
   },
-  "ignorePatterns": ["dist/", "coverage/", "examples/**/dist", "tests/**/__fixtures__/"]
+  "ignorePatterns": [
+    "dist/",
+    "coverage/",
+    "examples/**/dist",
+    "tests/**/__fixtures__/",
+    "site/generated/",
+    "site/doc_build/"
+  ]
 }

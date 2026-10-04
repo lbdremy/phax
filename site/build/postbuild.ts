@@ -1,0 +1,176 @@
+// Checks over the built site: every rendered route has its page, every page
+// shows the release it was built from, every GitHub heading id the generator
+// emitted reached the HTML, and no HTML, CSS or JS file loads anything from
+// another origin. Outbound `<a href>` links are fine. Pure over a map of
+// built files; readBuiltSite is the only I/O.
+import { readFileSync, readdirSync } from "node:fs";
+import { extname, join, relative } from "node:path";
+import type { SiteJson } from "./generate.js";
+
+/** The built files a check reads, relative to the output directory → text. */
+export type BuiltFiles = ReadonlyMap<string, string>;
+
+const CHECKED_EXTENSIONS = new Set([".html", ".css", ".js", ".mjs"]);
+
+/** Every HTML, CSS and JS file under `directory`, keyed by `/`-separated relative path. */
+export function readBuiltSite(directory: string): BuiltFiles {
+  const files = new Map<string, string>();
+  const walk = (current: string): void => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.isFile() && CHECKED_EXTENSIONS.has(extname(entry.name))) {
+        files.set(relative(directory, path).split("\\").join("/"), readFileSync(path, "utf8"));
+      }
+    }
+  };
+  walk(directory);
+  return new Map([...files].toSorted(([left], [right]) => (left < right ? -1 : 1)));
+}
+
+/** The built HTML files a route may be served from, preferred first. */
+export function routeHtmlPaths(route: string): ReadonlyArray<string> {
+  if (route === "/") return ["index.html"];
+  const path = route.slice(1);
+  return [`${path}.html`, `${path}/index.html`];
+}
+
+const REMOTE = /^\s*(?:https?:)?\/\//i;
+const TAG = /<([a-zA-Z][a-zA-Z0-9-]*)\b((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
+const ATTRIBUTE = /([^\s=/>]+)\s*(?:=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+const LOADING_RELS = new Set(["stylesheet", "preload", "modulepreload", "icon", "manifest"]);
+const CSS_URL = /url\(\s*(["']?)([^"')]*)\1\s*\)/gi;
+const CSS_IMPORT = /@import\s+(["'])([^"']*)\1/gi;
+const JS_IMPORT = /\bimport\s*\(\s*(["'`])((?:https?:)?\/\/[^"'`]*)\1/g;
+const JS_FROM = /\b(?:from|import)\s*(["'])(https?:\/\/[^"']*)\1/g;
+
+function attributes(source: string): ReadonlyMap<string, string> {
+  const result = new Map<string, string>();
+  for (const match of source.matchAll(ATTRIBUTE)) {
+    const name = match[1]?.toLowerCase();
+    if (name !== undefined) result.set(name, match[2] ?? match[3] ?? match[4] ?? "");
+  }
+  return result;
+}
+
+function srcsetUrls(srcset: string): ReadonlyArray<string> {
+  return srcset
+    .split(",")
+    .map((candidate) => candidate.trim().split(/\s+/)[0] ?? "")
+    .filter((url) => url !== "");
+}
+
+function cssRemoteLoads(css: string): ReadonlyArray<string> {
+  const urls = [
+    ...[...css.matchAll(CSS_URL)].map((match) => match[2] ?? ""),
+    ...[...css.matchAll(CSS_IMPORT)].map((match) => match[2] ?? ""),
+  ];
+  return urls.filter((url) => REMOTE.test(url)).map((url) => `${url.trim()} (CSS url()/@import)`);
+}
+
+function jsRemoteLoads(js: string): ReadonlyArray<string> {
+  return [
+    ...[...js.matchAll(JS_IMPORT)].map((match) => `${match[2] ?? ""} (JS import())`),
+    ...[...js.matchAll(JS_FROM)].map((match) => `${match[2] ?? ""} (JS import)`),
+  ];
+}
+
+function htmlRemoteLoads(html: string): ReadonlyArray<string> {
+  const loads: Array<string> = [];
+  for (const match of html.matchAll(TAG)) {
+    const tag = (match[1] ?? "").toLowerCase();
+    const attrs = attributes(match[2] ?? "");
+    const remote = (name: string, form: string): void => {
+      const value = attrs.get(name);
+      if (value !== undefined && REMOTE.test(value)) loads.push(`${value.trim()} (${form})`);
+    };
+    if (tag === "script") remote("src", "script src");
+    if (tag === "link") {
+      const rels = (attrs.get("rel") ?? "").toLowerCase().split(/\s+/);
+      if (rels.some((rel) => LOADING_RELS.has(rel))) remote("href", `link rel=${attrs.get("rel")}`);
+    }
+    if (tag === "img" || tag === "source") {
+      remote("src", `${tag} src`);
+      for (const url of srcsetUrls(attrs.get("srcset") ?? "")) {
+        if (REMOTE.test(url)) loads.push(`${url} (${tag} srcset)`);
+      }
+    }
+    const style = attrs.get("style");
+    if (style !== undefined) loads.push(...cssRemoteLoads(style));
+  }
+  for (const match of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
+    loads.push(...cssRemoteLoads(match[1] ?? ""));
+  }
+  for (const match of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
+    loads.push(...jsRemoteLoads(match[1] ?? ""));
+  }
+  return loads;
+}
+
+/** Every resource `path` loads from an absolute http(s) or protocol-relative URL. */
+export function remoteLoads(path: string, content: string): ReadonlyArray<string> {
+  switch (extname(path)) {
+    case ".html":
+      return htmlRemoteLoads(content);
+    case ".css":
+      return cssRemoteLoads(content);
+    case ".js":
+    case ".mjs":
+      return jsRemoteLoads(content);
+    default:
+      return [];
+  }
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function stripTags(html: string): string {
+  return html.replace(/<[^>]*>/g, "");
+}
+
+/** True when `html` holds a link to `releaseUrl` whose text shows `v<version>`. */
+export function showsRelease(html: string, releaseUrl: string, version: string): boolean {
+  const anchor = new RegExp(
+    `<a\\b[^>]*\\bhref=["']${escapeRegExp(releaseUrl)}["'][^>]*>([\\s\\S]*?)</a>`,
+    "g",
+  );
+  return [...html.matchAll(anchor)].some((match) =>
+    stripTags(match[1] ?? "").includes(`v${version}`),
+  );
+}
+
+/** Every finding about the built files against site.json, as `✗ …` lines. */
+export function checkBuiltSite(
+  site: SiteJson,
+  built: BuiltFiles,
+  outLabel = "site/doc_build",
+): ReadonlyArray<string> {
+  const findings: Array<string> = [];
+  for (const route of site.routes) {
+    const candidates = routeHtmlPaths(route);
+    const path = candidates.find((candidate) => built.has(candidate));
+    const html = path === undefined ? undefined : built.get(path);
+    if (path === undefined || html === undefined) {
+      findings.push(`✗ ${outLabel}: route ${route} has no page (${candidates.join(" or ")})`);
+      continue;
+    }
+    if (!showsRelease(html, site.releaseUrl, site.version)) {
+      findings.push(
+        `✗ ${outLabel}/${path}: does not show v${site.version} linking to ${site.releaseUrl}`,
+      );
+    }
+    for (const id of site.headingIds[route] ?? []) {
+      if (!new RegExp(`\\sid=["']${escapeRegExp(id)}["']`).test(html)) {
+        findings.push(`✗ ${outLabel}/${path}: heading id #${id} of route ${route} is missing`);
+      }
+    }
+  }
+  for (const [path, content] of built) {
+    for (const load of remoteLoads(path, content)) {
+      findings.push(`✗ ${outLabel}/${path}: loads ${load} from another origin`);
+    }
+  }
+  return findings;
+}
