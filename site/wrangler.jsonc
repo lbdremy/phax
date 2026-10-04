@@ -1,0 +1,15 @@
+// docs.phax.run: an assets-only Worker serving the built site. The release
+// and docs-deploy workflows upload it with `wrangler versions upload` and
+// promote it with `wrangler versions deploy`. The custom domain docs.phax.run
+// is attached once by hand in the Cloudflare dashboard (docs/release.md), not
+// declared here: versions deploy applies no routes.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "phax-docs",
+  "compatibility_date": "2026-09-25",
+  "assets": {
+    "directory": "./doc_build",
+    "not_found_handling": "404-page",
+  },
+  "preview_urls": true,
+}

@@ -16,6 +16,10 @@ jobs:
       contents: write
       id-token: write
 
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+      WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.ndjson
+
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -49,6 +53,7 @@ jobs:
           pnpm format:check
           pnpm knip
           pnpm build
+          pnpm site:build
           pnpm audit:architecture
           pnpm deno:smoke
 
@@ -99,6 +104,31 @@ jobs:
             fi
           done
           exit "$STATUS"
+
+      # docs.phax.run deploys after every fallible check and before anything
+      # is staged on npm. The guard refuses a build that drops a schema URL
+      # the live site serves; the upload lands on a preview alias (v0-18-0)
+      # without serving it; promotion follows only a passing preview check.
+      # A failure leaves the promoted site serving and stages nothing.
+      # docs-deploy.yml repeats these four steps verbatim.
+      - name: "Deploy docs: guard"
+        run: pnpm exec tsx site/build/deploy-guard.ts
+
+      - name: "Deploy docs: upload"
+        run: pnpm exec wrangler versions upload --config site/wrangler.jsonc --preview-alias "${RELEASE_TAG//./-}" --tag "$RELEASE_TAG"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: "Deploy docs: check preview"
+        id: preview
+        run: pnpm exec tsx site/build/preview-check.ts --upload-output "$WRANGLER_OUTPUT_FILE_PATH" --tag "$RELEASE_TAG"
+
+      - name: "Deploy docs: promote"
+        run: pnpm exec wrangler versions deploy "${{ steps.preview.outputs.version-id }}@100%" --config site/wrangler.jsonc --yes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       # The schemas package stages first: if it fails, nothing of the
       # release is staged; if the wrapper then fails, a staged schemas

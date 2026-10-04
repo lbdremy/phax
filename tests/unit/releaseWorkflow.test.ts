@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -43,17 +44,34 @@ describe("release workflow invariants", () => {
 
 interface Step {
   readonly name?: string;
+  readonly id?: string;
   readonly uses?: string;
   readonly run?: string;
+  readonly if?: unknown;
+  readonly "continue-on-error"?: unknown;
+  readonly env?: Readonly<Record<string, string>>;
   readonly with?: Readonly<Record<string, unknown>>;
   readonly "working-directory"?: string;
 }
 
+interface Job {
+  readonly env?: Readonly<Record<string, string>>;
+  readonly steps: ReadonlyArray<Step>;
+}
+
+interface Workflow {
+  readonly on?: unknown;
+  readonly env?: Readonly<Record<string, string>>;
+  readonly permissions?: unknown;
+  readonly jobs: Readonly<Record<string, Job>>;
+}
+
+function parseWorkflow(path: string): Workflow {
+  return parse(readFileSync(path, "utf-8")) as Workflow;
+}
+
 function jobSteps(path: string, job: string): ReadonlyArray<Step> {
-  const parsed = parse(readFileSync(path, "utf-8")) as {
-    readonly jobs: Readonly<Record<string, { readonly steps: ReadonlyArray<Step> }>>;
-  };
-  return parsed.jobs[job]!.steps;
+  return parseWorkflow(path).jobs[job]!.steps;
 }
 
 const releaseSteps = jobSteps(workflowPath, "release");
@@ -61,6 +79,12 @@ const ciSteps = jobSteps(join(import.meta.dirname, "../../.github/workflows/ci.y
 
 const PUBLISH = "npm stage publish --access public --provenance";
 const SMOKE = "pnpm exec tsx scripts/schemas-smoke.ts";
+const DEPLOY_STEPS = [
+  "Deploy docs: guard",
+  "Deploy docs: upload",
+  "Deploy docs: check preview",
+  "Deploy docs: promote",
+] as const;
 
 /** The index of the only step matching `match`. */
 function indexOf(steps: ReadonlyArray<Step>, match: (step: Step) => boolean): number {
@@ -107,6 +131,7 @@ describe("release workflow: two packages in lockstep", () => {
       indexOf(releaseSteps, runs(SMOKE)),
       indexOf(releaseSteps, runs("scripts/prepare-npm.ts")),
       indexOf(releaseSteps, (step) => step.name === "Verify package versions match tag"),
+      ...DEPLOY_STEPS.map((name) => indexOf(releaseSteps, (step) => step.name === name)),
     ];
     for (const index of beforePublish) expect(index).toBeLessThan(firstPublish);
   });
@@ -146,6 +171,163 @@ describe("release workflow: two packages in lockstep", () => {
     const pins = new Set(releaseSteps.filter(isSetupNode).map((step) => step.uses));
     expect(pins.size).toBe(1);
     expect([...pins][0]).toMatch(/^actions\/setup-node@[0-9a-f]{40}$/);
+  });
+});
+
+/** The deploy steps of `steps`, in workflow order. */
+const deploySteps = (steps: ReadonlyArray<Step>) =>
+  steps.filter((step) => step.name?.startsWith("Deploy docs:") === true);
+
+const mentionsCloudflare = (value: unknown) => JSON.stringify(value ?? {}).includes("CLOUDFLARE");
+
+/** The actions `steps` use, as `owner/name@sha`. */
+const actionPins = (steps: ReadonlyArray<Step>) =>
+  steps.flatMap((step) => (step.uses === undefined ? [] : [step.uses]));
+
+describe("release workflow: the docs site deploy", () => {
+  const release = parseWorkflow(workflowPath);
+  const step = (name: string) => releaseSteps[indexOf(releaseSteps, (s) => s.name === name)]!;
+  const firstPublish = releaseSteps.findIndex((s) => s.run?.trim() === PUBLISH);
+
+  it("builds the site in the Gate, after pnpm build", () => {
+    const gate = step("Gate")
+      .run!.split("\n")
+      .map((line) => line.trim());
+    expect(gate.filter((line) => line === "pnpm site:build")).toHaveLength(1);
+    expect(gate.indexOf("pnpm build")).toBeLessThan(gate.indexOf("pnpm site:build"));
+  });
+
+  it("runs guard, upload, check, promote in order, after the version check and before the first publish", () => {
+    expect(deploySteps(releaseSteps).map((s) => s.name)).toEqual([...DEPLOY_STEPS]);
+    const indexes = DEPLOY_STEPS.map((name) => releaseSteps.indexOf(step(name)));
+    expect(indexes).toEqual(indexes.toSorted((left, right) => left - right));
+    const check = releaseSteps.indexOf(step("Verify package versions match tag"));
+    expect(indexes[0]).toBe(check + 1);
+    expect(indexes[3]).toBe(firstPublish - 1);
+  });
+
+  it("sets the release tag and wrangler's output file for the job", () => {
+    expect(release.jobs["release"]!.env).toEqual({
+      RELEASE_TAG: "${{ github.ref_name }}",
+      WRANGLER_OUTPUT_FILE_PATH: "${{ runner.temp }}/wrangler-output.ndjson",
+    });
+  });
+
+  it("guards with the deploy guard and checks the preview with the preview check", () => {
+    expect(step("Deploy docs: guard").run).toBe("pnpm exec tsx site/build/deploy-guard.ts");
+    expect(step("Deploy docs: check preview").run).toBe(
+      'pnpm exec tsx site/build/preview-check.ts --upload-output "$WRANGLER_OUTPUT_FILE_PATH" --tag "$RELEASE_TAG"',
+    );
+  });
+
+  it("uploads to a preview alias derived from the tag: v0.18.0 → v0-18-0", () => {
+    const upload = step("Deploy docs: upload").run!;
+    expect(upload).toContain("pnpm exec wrangler versions upload --config site/wrangler.jsonc");
+    expect(upload).toContain('--tag "$RELEASE_TAG"');
+    const alias = /--preview-alias "([^"]+)"/.exec(upload)?.[1];
+    expect(alias).toBe("${RELEASE_TAG//./-}");
+    const evaluated = spawnSync("bash", ["-c", `printf '%s' "${alias}"`], {
+      env: { PATH: process.env["PATH"], RELEASE_TAG: "v0.18.0" },
+      encoding: "utf8",
+    });
+    expect(evaluated.stdout).toBe("v0-18-0");
+  });
+
+  it("promotes the version the preview check passed, non-interactively", () => {
+    const check = step("Deploy docs: check preview");
+    expect(check.id).toBe("preview");
+    const promote = step("Deploy docs: promote");
+    expect(releaseSteps.indexOf(promote)).toBeGreaterThan(releaseSteps.indexOf(check));
+    expect(promote.run).toBe(
+      'pnpm exec wrangler versions deploy "${{ steps.preview.outputs.version-id }}@100%" --config site/wrangler.jsonc --yes',
+    );
+  });
+
+  it("lets no deploy step continue on error or run conditionally", () => {
+    for (const deploy of deploySteps(releaseSteps)) {
+      expect(deploy).not.toHaveProperty("continue-on-error");
+      expect(deploy).not.toHaveProperty("if");
+    }
+  });
+
+  it("hands the Cloudflare credential to the upload and promote steps only", () => {
+    expect(mentionsCloudflare(release.env)).toBe(false);
+    expect(mentionsCloudflare(release.jobs["release"]!.env)).toBe(false);
+    const holders = releaseSteps.filter(mentionsCloudflare).map((s) => s.name);
+    expect(holders).toEqual(["Deploy docs: upload", "Deploy docs: promote"]);
+    for (const name of holders) {
+      expect(step(name!).env).toEqual({
+        CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}",
+        CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}",
+      });
+    }
+  });
+});
+
+describe("docs-deploy workflow: redeploying a released tag by hand", () => {
+  const docsDeployPath = join(import.meta.dirname, "../../.github/workflows/docs-deploy.yml");
+  const docsDeploy = parseWorkflow(docsDeployPath);
+  const job = docsDeploy.jobs["deploy"]!;
+  const steps = job.steps;
+
+  it("runs only on a manual dispatch with a required tag, reading contents only", () => {
+    expect(docsDeploy.on).toEqual({
+      workflow_dispatch: {
+        inputs: {
+          tag: { description: expect.any(String), required: true, type: "string" },
+        },
+      },
+    });
+    expect(docsDeploy.permissions).toEqual({ contents: "read" });
+    expect(Object.keys(docsDeploy.jobs)).toEqual(["deploy"]);
+  });
+
+  it("passes the tag through the environment, never interpolated into a run", () => {
+    expect(job.env).toEqual({
+      RELEASE_TAG: "${{ inputs.tag }}",
+      WRANGLER_OUTPUT_FILE_PATH: "${{ runner.temp }}/wrangler-output.ndjson",
+    });
+    for (const s of steps) expect(s.run ?? "").not.toContain("inputs.");
+  });
+
+  it("checks out the tag", () => {
+    const checkout =
+      steps[indexOf(steps, (s) => s.uses?.startsWith("actions/checkout@") === true)]!;
+    expect(checkout.with).toEqual({ ref: "${{ inputs.tag }}" });
+    expect(steps.indexOf(checkout)).toBe(0);
+  });
+
+  it("pins checkout, pnpm and setup-node 24 to release.yml's SHAs", () => {
+    for (const action of ["actions/checkout@", "pnpm/action-setup@", "actions/setup-node@"]) {
+      const own = actionPins(steps).filter((uses) => uses.startsWith(action));
+      expect(own).toHaveLength(1);
+      expect(actionPins(releaseSteps)).toContain(own[0]);
+    }
+    expect(nodeVersion(steps.find(isSetupNode)!)).toBe("24");
+  });
+
+  it("refuses a tag that is not vX.Y.Z or not package.json's version, before building", () => {
+    const verify = indexOf(steps, (s) => s.name === "Verify the tag is this release");
+    expect(steps[verify]!.run).toContain("^v[0-9]+\\.[0-9]+\\.[0-9]+$");
+    expect(steps[verify]!.run).toContain("package.json");
+    expect(verify).toBeLessThan(indexOf(steps, runs("pnpm site:build")));
+  });
+
+  it("builds the site, then runs release.yml's four deploy steps verbatim", () => {
+    const build = indexOf(steps, runs("pnpm site:build"));
+    expect(indexOf(steps, runs("pnpm install"))).toBeLessThan(build);
+    const deploys = deploySteps(steps);
+    expect(deploys).toEqual(deploySteps(releaseSteps));
+    expect(steps.slice(build + 1)).toEqual(deploys);
+  });
+
+  it("publishes nothing: no npm publish, no GitHub Release, no npm token", () => {
+    const text = readFileSync(docsDeployPath, "utf-8");
+    expect(text).not.toContain("npm stage publish");
+    expect(text).not.toContain("npm publish");
+    expect(text).not.toContain("action-gh-release");
+    expect(text).not.toContain("NPM_TOKEN");
+    expect(text).not.toContain("NODE_AUTH_TOKEN");
   });
 });
 
