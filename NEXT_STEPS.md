@@ -160,6 +160,18 @@ desktop — none is promised by the announcement.
       the README table follow `exitCodeForError`. The usage-spec generator now marks variadic
       arguments (`[short-name]...`, `<plan>...`). First `--all --dry-run` here: 97 of 101 runs
       prunable, 65 GB.
+- [ ] **Prune follow-ups, from the first real `--all --dry-run` (2026-10-04).** The author keeps
+      every archived run until phax-cockpit is up. Of `~/.phax/archive` (phax namespace), ~70 GB are
+      archived worktrees and 0.3 GB the run folders the cockpit reads; `phax/records/v1` starts on
+      2026-08-21 (23 runs) and holds per-phase files only, not the run-level ones (`run-status.json`,
+      `phax-plan.json`, compliance review, final report, global reconciliation, PR body). Ideas: a
+      lighter step that frees an archived run's worktrees but keeps its run folder and entry (an
+      `archive`/`prune` flag); the run-level files in the records; prune recognising a commit
+      already on main under another hash (`git cherry` patch equivalence — 7 of the 8 commits that
+      kept 4 runs were rebase-merged); a compact branch list (`phax/x, --phase-01..13 (14)`) and
+      a dry-run total line. One kept commit never landed: `48df09a8` (the diagnostics step must
+      print `{ "diagnostics": [] }` on success) — restore that README sentence before any
+      `--force`.
 - [ ] **`phax autopilot` — the lifecycle driven in a loop from a corpus.** Raised
       2026-09-15, captured in `docs/ideas/autopilot.md`. Explicitly after 1.0: a
       deterministic supervisor (not a master agent) over roadmap → spec → decide → plan →
