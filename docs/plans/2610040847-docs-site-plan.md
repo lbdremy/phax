@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610040828-docs-site.md
+approved:
+  date: 2026-10-04
+  baseline: 55cdf26
 ---
 # Docs site
 
