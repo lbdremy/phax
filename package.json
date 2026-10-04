@@ -74,7 +74,8 @@
     "tsx": "^4.19.0",
     "typescript": "^7.0.2",
     "vite": "^7.3.6",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "wrangler": "^4.147.0"
   },
   "engines": {
     "node": ">=24"
