@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610040828-docs-site.md
 approved:
   date: 2026-10-04
