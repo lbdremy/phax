@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Abandoned
 source-spec: docs/specs/2610040828-docs-site.md
 ---
 # docs-site — docs.phax.run rendered from the repository, deployed by the release
