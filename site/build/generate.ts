@@ -1,6 +1,7 @@
 // Generates the Rspress sources under site/generated/ from the repository's
-// docs and the page map: one Markdown page per rendered route, and site.json
-// holding what the Rspress config and the post-build checks need. The pure
+// docs and the page map: one Markdown page per rendered route, site.json
+// holding what the Rspress config and the post-build checks need, and
+// links.json listing every link rewritten to a site route. The pure
 // core maps paths to content; the wrapper only removes and rewrites the
 // directory. Output is deterministic: sorted, `\n` line endings, no clock.
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -19,6 +20,15 @@ import {
   type SidebarGroup,
   type SocialLink,
 } from "./pageMap.js";
+import {
+  blobBase,
+  repositoryOf,
+  rewriteLinks,
+  type LinkRewrite,
+  type LinkTargets,
+  type RepositoryIndex,
+  type SiteLink,
+} from "./links.js";
 import { applyEdits, transformMarkdown, type MarkdownTransform } from "./markdown.js";
 import { README, splitReadme, type ReadmeSection } from "./sources.js";
 
@@ -28,6 +38,8 @@ export interface GenerateInput {
   readonly pageMap: PageMap;
   /** The root package.json version the site is built from. */
   readonly version: string;
+  /** What relative links may name; the sources alone when omitted. */
+  readonly repository?: RepositoryIndex;
 }
 
 /** site/generated/site.json: read by site/rspress.config.ts and site/build/postbuild.ts. */
@@ -50,6 +62,13 @@ export interface SiteSummary {
   readonly readmeSections: number;
   readonly omitted: number;
   readonly held: number;
+  readonly links: {
+    /** `<repository>/blob/v<version>`, where links to unrendered files point. */
+    readonly blobBase: string;
+    /** Links to a held source, replaced by their text. */
+    readonly held: number;
+    readonly broken: number;
+  };
 }
 
 export interface GeneratedSite {
@@ -121,6 +140,24 @@ function filePage(page: FilePage, text: string, transform: MarkdownTransform): R
   };
 }
 
+/** `transform` with the link rewrites' edits merged in, in offset order. */
+function withLinks(transform: MarkdownTransform, links: LinkRewrite): MarkdownTransform {
+  return {
+    ...transform,
+    edits: [...transform.edits, ...links.edits].toSorted(
+      (left, right) => left.start - right.start || left.end - right.end,
+    ),
+  };
+}
+
+export function linksLine(summary: SiteSummary): string {
+  const { links } = summary;
+  return (
+    `site: links — rewritten to routes and to ${links.blobBase.replace(/^https?:\/\//, "")}, ` +
+    `${links.held} held, ${links.broken} broken`
+  );
+}
+
 export function summaryLine(summary: SiteSummary): string {
   return (
     `site: v${summary.version} — ${summary.pages} pages from ${summary.sources} sources ` +
@@ -149,6 +186,7 @@ export function generateSite(input: GenerateInput): GeneratedSite {
     held: readmePages
       .filter((page) => !isRendered(page, version))
       .reduce((count, page) => count + page.sections.length, 0),
+    links: { blobBase: blobBase(pageMap, version), held: 0, broken: 0 },
   };
 
   const mapFindings = checkPageMap(pageMap, {
@@ -159,28 +197,63 @@ export function generateSite(input: GenerateInput): GeneratedSite {
 
   const findings: Array<string> = [];
   const rendered: Array<RenderedPage> = [];
+  const siteLinks: Array<SiteLink> = [];
+  let heldLinks = 0;
+  let brokenLinks = 0;
+  const addLinks = (rewrite: LinkRewrite): void => {
+    findings.push(...rewrite.findings.map((finding) => finding.message));
+    siteLinks.push(...rewrite.links);
+    heldLinks += rewrite.held;
+    brokenLinks += rewrite.findings.length;
+  };
+
+  // Every rendered source is transformed first: a link's anchor is checked
+  // against its target's GitHub heading ids. README.md's ids are always
+  // known, so that a link into an omitted section still resolves.
+  const readmeTransform = transformMarkdown(README, readme);
+  const renderedFiles = filePages.filter((page) => isRendered(page, version));
+  const fileTransforms = new Map(
+    renderedFiles.map((page) => [
+      page.source,
+      transformMarkdown(page.source, files.get(page.source) ?? ""),
+    ]),
+  );
+  const targets: LinkTargets = {
+    pageMap,
+    version,
+    repository: input.repository ?? repositoryOf(files.keys()),
+    headings: new Map([
+      [README, readmeTransform.headings],
+      ...[...fileTransforms].map(([path, transform]) => [path, transform.headings] as const),
+    ]),
+    readmeSections,
+  };
+
   const renderedReadme = readmePages.filter((page) => isRendered(page, version));
   if (renderedReadme.length > 0) {
-    const transform = transformMarkdown(README, readme);
     const renderedSections = renderedReadme.flatMap((page) =>
       page.sections.flatMap((name) => {
         const section = sectionsByName.get(name);
         return section === undefined ? [] : [section];
       }),
     );
-    for (const finding of transform.findings) {
+    for (const finding of readmeTransform.findings) {
       if (within(finding.offset, renderedSections)) findings.push(finding.message);
     }
+    const links = rewriteLinks(README, readme, targets, renderedSections);
+    addLinks(links);
+    const transform = withLinks(readmeTransform, links);
     for (const page of renderedReadme) {
       rendered.push(readmePage(page, readme, sectionsByName, transform, findings));
     }
   }
-  const renderedFiles = filePages.filter((page) => isRendered(page, version));
   for (const page of renderedFiles) {
     const text = files.get(page.source) ?? "";
-    const transform = transformMarkdown(page.source, text);
+    const transform = fileTransforms.get(page.source) ?? transformMarkdown(page.source, text);
     findings.push(...transform.findings.map((finding) => finding.message));
-    rendered.push(filePage(page, text, transform));
+    const links = rewriteLinks(page.source, text, targets);
+    addLinks(links);
+    rendered.push(filePage(page, text, withLinks(transform, links)));
   }
 
   const counted: SiteSummary = {
@@ -188,6 +261,7 @@ export function generateSite(input: GenerateInput): GeneratedSite {
     pages: rendered.length,
     sources:
       (renderedReadme.length > 0 ? 1 : 0) + new Set(renderedFiles.map((page) => page.source)).size,
+    links: { ...summary.links, held: heldLinks, broken: brokenLinks },
   };
   if (findings.length > 0) return { files: new Map(), findings, summary: counted };
 
@@ -208,6 +282,7 @@ export function generateSite(input: GenerateInput): GeneratedSite {
     rendered.map((page) => [pagePath(page.route), page.content]),
   );
   output.set("site.json", `${JSON.stringify(site, null, 2)}\n`);
+  output.set("links.json", `${JSON.stringify(siteLinks, null, 2)}\n`);
   return {
     files: new Map([...output].toSorted(([left], [right]) => (left < right ? -1 : 1))),
     findings: [],

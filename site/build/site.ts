@@ -5,12 +5,19 @@
 //   preview  serve the built site/doc_build
 // Every finding is printed as a `✗ …` line and fails the build. Runs offline.
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import pageMap from "../pages.js";
-import { generateSite, summaryLine, writeGeneratedSite, type SiteJson } from "./generate.js";
-import { checkBuiltSite, readBuiltSite } from "./postbuild.js";
+import {
+  generateSite,
+  linksLine,
+  summaryLine,
+  writeGeneratedSite,
+  type SiteJson,
+} from "./generate.js";
+import type { RepositoryIndex, SiteLink } from "./links.js";
+import { checkBuiltSite, checkLinkAnchors, readBuiltSite } from "./postbuild.js";
 import { readSources } from "./sources.js";
 
 const SITE_DIR = resolve(import.meta.dirname, "..");
@@ -35,11 +42,57 @@ function rootVersion(): string {
   return manifest.version;
 }
 
+/**
+ * The repository on disk. Names are matched case-exactly, as on GitHub, even
+ * on a case-insensitive filesystem.
+ */
+function diskRepository(root: string): RepositoryIndex {
+  const listings = new Map<string, ReadonlyMap<string, "file" | "directory">>();
+  const listing = (directory: string): ReadonlyMap<string, "file" | "directory"> => {
+    const cached = listings.get(directory);
+    if (cached !== undefined) return cached;
+    const entries = new Map<string, "file" | "directory">();
+    try {
+      for (const entry of readdirSync(resolve(root, directory), { withFileTypes: true })) {
+        if (entry.isFile()) entries.set(entry.name, "file");
+        else if (entry.isDirectory()) entries.set(entry.name, "directory");
+      }
+    } catch {
+      // Not a directory: it lists nothing.
+    }
+    listings.set(directory, entries);
+    return entries;
+  };
+  return {
+    kind: (path) => {
+      if (path === "") return "directory";
+      const segments = path.split("/");
+      let kind: "file" | "directory" | undefined = "directory";
+      for (let index = 0; index < segments.length; index++) {
+        if (kind !== "directory") return undefined;
+        kind = listing(segments.slice(0, index).join("/")).get(segments[index] ?? "");
+      }
+      return kind;
+    },
+  };
+}
+
 function generate(): void {
-  const result = generateSite({ files: readSources(REPO_ROOT), pageMap, version: rootVersion() });
-  if (result.findings.length > 0) fail(result.findings);
+  const result = generateSite({
+    files: readSources(REPO_ROOT),
+    pageMap,
+    version: rootVersion(),
+    repository: diskRepository(REPO_ROOT),
+  });
+  if (result.findings.length > 0) {
+    fail(
+      result.summary.links.broken > 0
+        ? [...result.findings, linksLine(result.summary)]
+        : result.findings,
+    );
+  }
   writeGeneratedSite(GENERATED_DIR, result.files);
-  process.stdout.write(`${summaryLine(result.summary)}\n`);
+  process.stdout.write(`${summaryLine(result.summary)}\n${linksLine(result.summary)}\n`);
 }
 
 /**
@@ -64,7 +117,11 @@ function run(mode: Mode): void {
   if (mode === "dev") return rspress("dev");
   rspress("build");
   const site = JSON.parse(readFileSync(resolve(GENERATED_DIR, "site.json"), "utf8")) as SiteJson;
-  const findings = checkBuiltSite(site, readBuiltSite(OUT_DIR));
+  const links = JSON.parse(
+    readFileSync(resolve(GENERATED_DIR, "links.json"), "utf8"),
+  ) as ReadonlyArray<SiteLink>;
+  const built = readBuiltSite(OUT_DIR);
+  const findings = [...checkBuiltSite(site, built), ...checkLinkAnchors(links, built)];
   if (findings.length > 0) fail(findings);
   process.stdout.write("site: built site/doc_build\n");
 }
