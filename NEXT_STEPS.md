@@ -269,7 +269,10 @@ desktop — none is promised by the announcement.
          run status, records, approvals, compliance and code-review documents, phax-plan)
          published alone as a typed npm package, freezing nothing beyond the 1.0 promise;
          a read-only records consumer gets typed parsing.
-- [ ] **The docs site, in the release pipeline** — decided 2026-09-25 with the author.
+- [ ] **The docs site, in the release pipeline** — decided 2026-09-25 with the author. Spec `docs-site` Approved
+      2026-10-04 (`docs/specs/2610040828-docs-site.md`, §9 decided by the author: latest release only,
+      README split by headings, a committed release ledger, deploy before the npm publishes, derived
+      dark+light tokens, a first geometric logo, the 1.0 post held); plan being authored.
       `docs.phax.run` is a rendering of what the repo already holds (`docs/cli/reference.md`
       generated from `phax.usage.kdl`, the README, `security.md`, `release.md`, the model
       catalog, `docs/blog/`), built with rspress from a `site/` folder — not an app, not a
