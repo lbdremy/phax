@@ -2,9 +2,10 @@
 // shows the release it was built from, every GitHub heading id the generator
 // emitted reached the HTML, every anchor a link was rewritten to is an id on
 // its target page, and no HTML, CSS or JS file loads anything from another
-// origin. Outbound `<a href>` links are fine. Every served JSON Schema, the
-// schema index and _headers are in the output byte for byte. Pure over maps
-// of built files; readBuiltSite and readBuiltPublic are the only I/O.
+// origin. Outbound `<a href>` links are fine. Every page's favicon is the
+// logo and its nav shows the lowercase wordmark. Every served JSON Schema, the
+// schema index, _headers and the logos are in the output byte for byte. Pure
+// over maps of built files; readBuiltSite and readBuiltPublic are the only I/O.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import type { SiteJson } from "./generate.js";
@@ -137,6 +138,31 @@ function stripTags(html: string): string {
   return html.replace(/<[^>]*>/g, "");
 }
 
+/** The favicon every page links to: the dark-accent logo. */
+export const FAVICON = "/logo.svg";
+
+/** The nav wordmark, lowercase. */
+export const WORDMARK = "phax";
+
+/** The href of every `<link rel="icon">` in `html`. */
+export function iconHrefs(html: string): ReadonlyArray<string> {
+  const hrefs: Array<string> = [];
+  for (const match of html.matchAll(TAG)) {
+    if ((match[1] ?? "").toLowerCase() !== "link") continue;
+    const attrs = attributes(match[2] ?? "");
+    const rels = (attrs.get("rel") ?? "").toLowerCase().split(/\s+/);
+    if (rels.includes("icon")) hrefs.push(attrs.get("href") ?? "");
+  }
+  return hrefs;
+}
+
+/** The text of the nav title link (Rspress's `rp-nav__title__link`), or undefined without one. */
+export function navTitle(html: string): string | undefined {
+  const match =
+    /<a\b[^>]*\bclass=["'][^"']*\brp-nav__title__link\b[^"']*["'][^>]*>([\s\S]*?)<\/a>/.exec(html);
+  return match === null ? undefined : stripTags(match[1] ?? "").trim();
+}
+
 /** True when `html` holds a link to `releaseUrl` whose text shows `v<version>`. */
 export function showsRelease(html: string, releaseUrl: string, version: string): boolean {
   const anchor = new RegExp(
@@ -168,6 +194,18 @@ export function checkBuiltSite(
         `✗ ${outLabel}/${path}: does not show v${site.version} linking to ${site.releaseUrl}`,
       );
     }
+    const icons = iconHrefs(html);
+    if (icons.length === 0 || icons.some((href) => href !== FAVICON)) {
+      findings.push(
+        `✗ ${outLabel}/${path}: favicon is ${icons.length === 0 ? "missing" : icons.join(", ")}, not ${FAVICON}`,
+      );
+    }
+    const title = navTitle(html);
+    if (title !== WORDMARK) {
+      findings.push(
+        `✗ ${outLabel}/${path}: nav shows ${title === undefined ? "no wordmark" : `"${title}"`}, not the wordmark "${WORDMARK}"`,
+      );
+    }
     for (const id of site.headingIds[route] ?? []) {
       if (!hasId(html, id)) {
         findings.push(`✗ ${outLabel}/${path}: heading id #${id} of route ${route} is missing`);
@@ -182,11 +220,19 @@ export function checkBuiltSite(
   return findings;
 }
 
-/** `/_headers` and every file under `schemas/` in `directory`, by URL path → bytes. */
-export function readBuiltPublic(directory: string): ReadonlyMap<string, Uint8Array> {
+/**
+ * Every file under `schemas/` in `directory` and each of `paths` (`/_headers`,
+ * `/logo.svg`, …) that exists, by URL path → bytes.
+ */
+export function readBuiltPublic(
+  directory: string,
+  paths: Iterable<string> = ["/_headers"],
+): ReadonlyMap<string, Uint8Array> {
   const files = new Map<string, Uint8Array>();
-  const headers = join(directory, "_headers");
-  if (existsSync(headers)) files.set("/_headers", readFileSync(headers));
+  for (const path of paths) {
+    const file = join(directory, path);
+    if (existsSync(file)) files.set(path, readFileSync(file));
+  }
   const walk = (current: string): void => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       const path = join(current, entry.name);
@@ -203,8 +249,9 @@ export function readBuiltPublic(directory: string): ReadonlyMap<string, Uint8Arr
 const UNSERVED_SNAPSHOT = /(?:^|\/)(?:pre-schema|next)(?:[./]|$)/;
 
 /**
- * Every finding about the served schemas, `_headers` and `/schemas/index.json`
- * in the build: each expected file must be in the output byte for byte, and no
+ * Every finding about the public files (the served schemas, `_headers`,
+ * `/schemas/index.json`, the logos) in the build: each expected file must be
+ * in the output byte for byte, and no
  * file under schemas/ may name a pre-schema or next snapshot.
  */
 export function checkServedSchemas(

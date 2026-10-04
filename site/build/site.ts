@@ -12,6 +12,7 @@ import pageMap from "../pages.js";
 import {
   generateSite,
   linksLine,
+  readPublicAssets,
   schemasLine,
   summaryLine,
   writeGeneratedSite,
@@ -93,6 +94,7 @@ function generate(): ReadonlyMap<string, Uint8Array> {
     version: rootVersion(),
     repository: diskRepository(REPO_ROOT),
     schemas: readSchemaSources(REPO_ROOT),
+    assets: readPublicAssets(resolve(SITE_DIR, "public")),
   });
   if (result.findings.length > 0) {
     fail(
@@ -140,7 +142,7 @@ function run(mode: Mode): void {
   const findings = [
     ...checkBuiltSite(site, built),
     ...checkLinkAnchors(links, built),
-    ...checkServedSchemas(publicFiles, readBuiltPublic(OUT_DIR)),
+    ...checkServedSchemas(publicFiles, readBuiltPublic(OUT_DIR, publicFiles.keys())),
   ];
   if (findings.length > 0) fail(findings);
   process.stdout.write("site: built site/doc_build\n");

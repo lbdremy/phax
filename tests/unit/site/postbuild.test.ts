@@ -19,10 +19,16 @@ const SITE: SiteJson = {
   headingIds: { "/": ["tool"], "/guide/run": ["run", "locks"] },
 };
 
-function page(body: string, head = ""): string {
+const FAVICON_LINK = '<link rel="icon" href="/logo.svg" type="image/svg+xml">';
+
+const NAV_TITLE =
+  '<a href="/" class="rp-nav__title__link rp-link"><div class="rp-nav__title__logo">' +
+  '<img src="/logo-light.svg" alt="logo"/><img src="/logo.svg" alt="logo"/></div><span>phax</span></a>';
+
+function page(body: string, head = "", { icon = FAVICON_LINK, title = NAV_TITLE } = {}): string {
   return (
-    `<!doctype html><html><head>${head}<link rel="stylesheet" href="/static/css/styles.css"></head>` +
-    `<body><nav><a href="${RELEASE}" target="_blank" class="rp-link">v0.17.0</a>` +
+    `<!doctype html><html><head>${head}${icon}<link rel="stylesheet" href="/static/css/styles.css"></head>` +
+    `<body><nav>${title}<a href="${RELEASE}" target="_blank" class="rp-link">v0.17.0</a>` +
     `<a href="https://github.com/example/tool">GitHub</a></nav>${body}</body></html>`
   );
 }
@@ -61,7 +67,10 @@ describe("checkBuiltSite", () => {
 
   it("names a page without the release label", () => {
     const files = built({
-      "guide/run.html": '<html><body><h2 id="run">Run</h2><h2 id="locks">Locks</h2></body></html>',
+      "guide/run.html": page('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>').replace(
+        `href="${RELEASE}"`,
+        'href="/"',
+      ),
     });
     expect(checkBuiltSite(SITE, files)).toEqual([
       `✗ site/doc_build/guide/run.html: does not show v0.17.0 linking to ${RELEASE}`,
@@ -83,6 +92,32 @@ describe("checkBuiltSite", () => {
     });
     expect(checkBuiltSite(SITE, files)).toEqual([
       "✗ site/doc_build/guide/run.html: heading id #locks of route /guide/run is missing",
+    ]);
+  });
+
+  it("names a page whose favicon is missing or is not the logo", () => {
+    const files = built({
+      "index.html": page('<h1 id="tool">tool</h1>', "", { icon: "" }),
+      "guide/run.html": page('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>', "", {
+        icon: '<link rel="icon" href="/favicon.ico">',
+      }),
+    });
+    expect(checkBuiltSite(SITE, files)).toEqual([
+      "✗ site/doc_build/index.html: favicon is missing, not /logo.svg",
+      "✗ site/doc_build/guide/run.html: favicon is /favicon.ico, not /logo.svg",
+    ]);
+  });
+
+  it("names a page whose nav does not show the lowercase wordmark", () => {
+    const files = built({
+      "index.html": page('<h1 id="tool">tool</h1>', "", {
+        title: NAV_TITLE.replace(">phax<", ">Phax<"),
+      }),
+      "guide/run.html": page('<h2 id="run">Run</h2><h2 id="locks">Locks</h2>', "", { title: "" }),
+    });
+    expect(checkBuiltSite(SITE, files)).toEqual([
+      '✗ site/doc_build/index.html: nav shows "Phax", not the wordmark "phax"',
+      '✗ site/doc_build/guide/run.html: nav shows no wordmark, not the wordmark "phax"',
     ]);
   });
 
@@ -188,6 +223,18 @@ describe("checkServedSchemas", () => {
     expect(checkServedSchemas(expected, output)).toEqual([
       "✗ site/doc_build/_headers: missing",
       "✗ site/doc_build/schemas/registry/0.17.0.json: differs from what the build served",
+    ]);
+  });
+
+  it("fails a logo that is missing or differs from site/public", () => {
+    const logos = new Map([
+      ["/logo-light.svg", bytes('<svg stroke="#9A7A3E"/>\n')],
+      ["/logo.svg", bytes('<svg stroke="#B39257"/>\n')],
+    ]);
+    const output = new Map([...expected, ["/logo.svg", bytes('<svg stroke="#FFD700"/>\n')]]);
+    expect(checkServedSchemas(new Map([...expected, ...logos]), output)).toEqual([
+      "✗ site/doc_build/logo-light.svg: missing",
+      "✗ site/doc_build/logo.svg: differs from what the build served",
     ]);
   });
 

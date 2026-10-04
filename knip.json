@@ -16,7 +16,13 @@
   ],
   "project": ["src/**/*.ts", "tests/**/*.ts", "packages/schemas/**/*.ts", "site/**/*.ts"],
   "ignore": ["site/generated/**", "site/doc_build/**"],
-  "ignoreDependencies": ["@effect/platform", "@effect/platform-node", "esbuild"],
+  "ignoreDependencies": [
+    "@effect/platform",
+    "@effect/platform-node",
+    "esbuild",
+    "@fontsource/ibm-plex-sans",
+    "@fontsource/ibm-plex-mono"
+  ],
   "ignoreFiles": ["tests/e2e/fixtures/**"],
   "ignoreBinaries": ["claude", "gh", "usage"]
 }
