@@ -271,7 +271,7 @@ phax archive plan-27 --force  # give up an interrupted run
 
 ## `phax prune`
 
-- **Usage**: `phax prune [FLAGS] [short-name]`
+- **Usage**: `phax prune [FLAGS] [short-name]…`
 
 Deletes each selected archived run of the current namespace for real: its archive folder under ~/.phax/archive/<namespace>.<short-name>/, its worktree metadata in the current repository, its local branches (<branch> and <branch>--phase-NN) and, last, its registry entry — so its name and disk space come back. Select runs by name (short or <namespace>.<short-name>) or with --all; only archived runs of the current namespace can be pruned, and an unknown, non-archived or other-namespace name refuses the whole command. Never touches records on phax/records/v1, remote branches, remote-tracking refs or pull requests, and never contacts a remote.
 
@@ -283,7 +283,7 @@ Side effects: deletes under ~/.phax/archive/, deletes local branches and stale w
 
 ### Arguments
 
-#### `[short-name]`
+#### `[short-name]…`
 
 Archived run short name, e.g. old-idea
 
@@ -1189,7 +1189,7 @@ phax plans status --json
 
 ## `phax plans overlap`
 
-- **Usage**: `phax plans overlap [FLAGS] <plan>`
+- **Usage**: `phax plans overlap [FLAGS] <plan>…`
 
 Reports which of two or more plans can run in parallel without a merge conflict — predicted from each plan's declared file-sets, or confirmed against a landed run's actual diff.
 
@@ -1203,7 +1203,7 @@ Side effects: read-only with respect to your plans; may run one LLM extraction p
 
 ### Arguments
 
-#### `<plan>`
+#### `<plan>…`
 
 Paths to two or more plan.md files
 
