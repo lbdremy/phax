@@ -10,6 +10,7 @@ export const README = "README.md";
 
 /** Single files the site renders besides README.md. */
 const SOURCE_FILES = [
+  "CONTRIBUTING.md",
   "docs/cli/reference.md",
   "docs/security.md",
   "docs/release.md",
