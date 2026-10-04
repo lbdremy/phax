@@ -12,12 +12,20 @@ import pageMap from "../pages.js";
 import {
   generateSite,
   linksLine,
+  schemasLine,
   summaryLine,
   writeGeneratedSite,
   type SiteJson,
 } from "./generate.js";
 import type { RepositoryIndex, SiteLink } from "./links.js";
-import { checkBuiltSite, checkLinkAnchors, readBuiltSite } from "./postbuild.js";
+import {
+  checkBuiltSite,
+  checkLinkAnchors,
+  checkServedSchemas,
+  readBuiltPublic,
+  readBuiltSite,
+} from "./postbuild.js";
+import { readSchemaSources } from "./schemas.js";
 import { readSources } from "./sources.js";
 
 const SITE_DIR = resolve(import.meta.dirname, "..");
@@ -77,12 +85,14 @@ function diskRepository(root: string): RepositoryIndex {
   };
 }
 
-function generate(): void {
+/** Generates site/generated/ and returns the files Rspress must copy verbatim. */
+function generate(): ReadonlyMap<string, Uint8Array> {
   const result = generateSite({
     files: readSources(REPO_ROOT),
     pageMap,
     version: rootVersion(),
     repository: diskRepository(REPO_ROOT),
+    schemas: readSchemaSources(REPO_ROOT),
   });
   if (result.findings.length > 0) {
     fail(
@@ -91,8 +101,14 @@ function generate(): void {
         : result.findings,
     );
   }
-  writeGeneratedSite(GENERATED_DIR, result.files);
-  process.stdout.write(`${summaryLine(result.summary)}\n${linksLine(result.summary)}\n`);
+  writeGeneratedSite(GENERATED_DIR, result.files, result.publicFiles);
+  const lines = [
+    summaryLine(result.summary),
+    linksLine(result.summary),
+    schemasLine(result.summary),
+  ];
+  for (const line of lines) if (line !== undefined) process.stdout.write(`${line}\n`);
+  return result.publicFiles;
 }
 
 /**
@@ -113,7 +129,7 @@ function rspress(command: "build" | "dev" | "preview"): void {
 
 function run(mode: Mode): void {
   if (mode === "preview") return rspress("preview");
-  generate();
+  const publicFiles = generate();
   if (mode === "dev") return rspress("dev");
   rspress("build");
   const site = JSON.parse(readFileSync(resolve(GENERATED_DIR, "site.json"), "utf8")) as SiteJson;
@@ -121,7 +137,11 @@ function run(mode: Mode): void {
     readFileSync(resolve(GENERATED_DIR, "links.json"), "utf8"),
   ) as ReadonlyArray<SiteLink>;
   const built = readBuiltSite(OUT_DIR);
-  const findings = [...checkBuiltSite(site, built), ...checkLinkAnchors(links, built)];
+  const findings = [
+    ...checkBuiltSite(site, built),
+    ...checkLinkAnchors(links, built),
+    ...checkServedSchemas(publicFiles, readBuiltPublic(OUT_DIR)),
+  ];
   if (findings.length > 0) fail(findings);
   process.stdout.write("site: built site/doc_build\n");
 }

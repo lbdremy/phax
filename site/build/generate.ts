@@ -1,7 +1,8 @@
 // Generates the Rspress sources under site/generated/ from the repository's
 // docs and the page map: one Markdown page per rendered route, site.json
 // holding what the Rspress config and the post-build checks need, and
-// links.json listing every link rewritten to a site route. The pure
+// links.json listing every link rewritten to a site route, plus the served
+// JSON Schemas, their index and _headers in Rspress's public folder. The pure
 // core maps paths to content; the wrapper only removes and rewrites the
 // directory. Output is deterministic: sorted, `\n` line endings, no clock.
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -31,6 +32,7 @@ import {
 } from "./links.js";
 import { applyEdits, transformMarkdown, type MarkdownTransform } from "./markdown.js";
 import { README, splitReadme, type ReadmeSection } from "./sources.js";
+import { publicSchemas, servedUrl, type SchemaSources } from "./schemas.js";
 
 export interface GenerateInput {
   /** Every source, keyed by repository-relative path; README.md included. */
@@ -40,6 +42,8 @@ export interface GenerateInput {
   readonly version: string;
   /** What relative links may name; the sources alone when omitted. */
   readonly repository?: RepositoryIndex;
+  /** The release ledger and the schema snapshots; nothing is served when omitted. */
+  readonly schemas?: SchemaSources;
 }
 
 /** site/generated/site.json: read by site/rspress.config.ts and site/build/postbuild.ts. */
@@ -69,14 +73,30 @@ export interface SiteSummary {
     readonly held: number;
     readonly broken: number;
   };
+  /** The served JSON Schemas, or null when the build was given no schema sources. */
+  readonly schemas: {
+    readonly served: number;
+    readonly releases: number;
+    readonly formats: number;
+  } | null;
 }
 
 export interface GeneratedSite {
   /** Paths relative to site/generated/ → content. Empty when there are findings. */
   readonly files: ReadonlyMap<string, string>;
+  /**
+   * Files Rspress copies verbatim, by URL path (`/schemas/…`, `/_headers`)
+   * → bytes. Written under PUBLIC_DIR. Empty when there are findings.
+   */
+  readonly publicFiles: ReadonlyMap<string, Uint8Array>;
   readonly findings: ReadonlyArray<string>;
   readonly summary: SiteSummary;
 }
+
+/** Rspress's public folder, relative to site/generated/: `<root>/public`. */
+export const PUBLIC_DIR = "docs/public";
+
+export const SERVED_SCHEMAS_HEADING = "Served JSON Schemas";
 
 /** The generated Markdown file of a route, relative to site/generated/. */
 export function pagePath(route: string): string {
@@ -158,6 +178,56 @@ export function linksLine(summary: SiteSummary): string {
   );
 }
 
+/** The schemas line, or undefined when the build serves no schema. */
+export function schemasLine(summary: SiteSummary): string | undefined {
+  const { schemas } = summary;
+  if (schemas === null) return undefined;
+  return (
+    `site: schemas — ${schemas.served} served ` +
+    `(ledger: ${schemas.releases} × ${schemas.formats} formats), ledger agrees with package.json`
+  );
+}
+
+/** The appended section listing every served schema URL, under its explicit heading id. */
+function servedSchemasSection(id: string, paths: ReadonlyArray<string>): string {
+  return [
+    `## ${SERVED_SCHEMAS_HEADING} \\{#${id}\\}`,
+    "",
+    "Every `$schema` URL a released phax writes is served here, byte for byte:",
+    "",
+    ...paths.map((path) => `- \`${servedUrl(path)}\``),
+    "",
+  ].join("\n");
+}
+
+/**
+ * `page` with the served-schemas section appended. Its heading id must
+ * collide with no README heading id, so that every README anchor keeps
+ * meaning what it means on GitHub.
+ */
+function withServedSchemas(
+  page: RenderedPage,
+  served: ReadonlyArray<string> | undefined,
+  readmeIds: ReadonlyArray<string>,
+  findings: Array<string>,
+): RenderedPage {
+  if (served === undefined) {
+    findings.push(`✗ page map: ${page.route} lists the served schemas, but the build has none`);
+    return page;
+  }
+  const id = slug(SERVED_SCHEMAS_HEADING);
+  if (readmeIds.includes(id)) {
+    findings.push(
+      `✗ ${page.route}: the "${SERVED_SCHEMAS_HEADING}" heading id #${id} is already a README heading id`,
+    );
+  }
+  return {
+    ...page,
+    content: `${page.content}\n${servedSchemasSection(id, served)}`,
+    headingIds: [...page.headingIds, id],
+  };
+}
+
 export function summaryLine(summary: SiteSummary): string {
   return (
     `site: v${summary.version} — ${summary.pages} pages from ${summary.sources} sources ` +
@@ -187,15 +257,20 @@ export function generateSite(input: GenerateInput): GeneratedSite {
       .filter((page) => !isRendered(page, version))
       .reduce((count, page) => count + page.sections.length, 0),
     links: { blobBase: blobBase(pageMap, version), held: 0, broken: 0 },
+    schemas: null,
   };
 
   const mapFindings = checkPageMap(pageMap, {
     readmeSections: readmeSections.map((section) => section.name),
     files: [...files.keys()].filter((path) => path !== README).toSorted(),
   });
-  if (mapFindings.length > 0) return { files: new Map(), findings: mapFindings, summary };
+  if (mapFindings.length > 0) {
+    return { files: new Map(), publicFiles: new Map(), findings: mapFindings, summary };
+  }
 
   const findings: Array<string> = [];
+  const schemas = input.schemas === undefined ? undefined : publicSchemas(input.schemas, version);
+  if (schemas !== undefined) findings.push(...schemas.findings);
   const rendered: Array<RenderedPage> = [];
   const siteLinks: Array<SiteLink> = [];
   let heldLinks = 0;
@@ -243,8 +318,14 @@ export function generateSite(input: GenerateInput): GeneratedSite {
     const links = rewriteLinks(README, readme, targets, renderedSections);
     addLinks(links);
     const transform = withLinks(readmeTransform, links);
+    const readmeIds = readmeTransform.headings.map((heading) => heading.id);
     for (const page of renderedReadme) {
-      rendered.push(readmePage(page, readme, sectionsByName, transform, findings));
+      const content = readmePage(page, readme, sectionsByName, transform, findings);
+      rendered.push(
+        page.generated === "served-schemas"
+          ? withServedSchemas(content, schemas?.served, readmeIds, findings)
+          : content,
+      );
     }
   }
   for (const page of renderedFiles) {
@@ -262,8 +343,14 @@ export function generateSite(input: GenerateInput): GeneratedSite {
     sources:
       (renderedReadme.length > 0 ? 1 : 0) + new Set(renderedFiles.map((page) => page.source)).size,
     links: { ...summary.links, held: heldLinks, broken: brokenLinks },
+    schemas:
+      schemas === undefined
+        ? null
+        : { served: schemas.served.length, releases: schemas.releases, formats: schemas.formats },
   };
-  if (findings.length > 0) return { files: new Map(), findings, summary: counted };
+  if (findings.length > 0) {
+    return { files: new Map(), publicFiles: new Map(), findings, summary: counted };
+  }
 
   rendered.sort((left, right) =>
     left.route < right.route ? -1 : left.route > right.route ? 1 : 0,
@@ -285,15 +372,24 @@ export function generateSite(input: GenerateInput): GeneratedSite {
   output.set("links.json", `${JSON.stringify(siteLinks, null, 2)}\n`);
   return {
     files: new Map([...output].toSorted(([left], [right]) => (left < right ? -1 : 1))),
+    publicFiles: schemas?.files ?? new Map(),
     findings: [],
     summary: counted,
   };
 }
 
-/** Replaces `directory` with exactly `files`. */
-export function writeGeneratedSite(directory: string, files: ReadonlyMap<string, string>): void {
+/** Replaces `directory` with exactly `files`, and `publicFiles` under PUBLIC_DIR. */
+export function writeGeneratedSite(
+  directory: string,
+  files: ReadonlyMap<string, string>,
+  publicFiles: ReadonlyMap<string, Uint8Array> = new Map(),
+): void {
   rmSync(directory, { recursive: true, force: true });
-  for (const [path, content] of files) {
+  const outputs: ReadonlyArray<readonly [string, string | Uint8Array]> = [
+    ...files,
+    ...[...publicFiles].map(([path, bytes]) => [`${PUBLIC_DIR}${path}`, bytes] as const),
+  ];
+  for (const [path, content] of outputs) {
     const target = join(directory, path);
     mkdirSync(dirname(target), { recursive: true });
     writeFileSync(target, content);

@@ -58,6 +58,7 @@ export default definePageMap({
       route: "/reference/formats",
       title: "File formats",
       sections: ["Persisted formats", "Read phax files from code"],
+      generated: "served-schemas",
     },
     {
       route: "/reference/exit-codes",

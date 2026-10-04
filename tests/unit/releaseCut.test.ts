@@ -49,12 +49,14 @@ const COPIED_FILES = [
   "npm/package.json",
   "packages/schemas/package.json",
   "packages/schemas/history.lock.json",
+  "packages/schemas/releases.json",
 ];
 const COPIED_DIRS = ["src", "packages/schemas/snapshots", "packages/schemas/src"];
 const MANIFESTS = ["package.json", "npm/package.json", "packages/schemas/package.json"];
 const GENERATED_INDEX = "packages/schemas/src/generated/index.ts";
 const RELEASE_MODULE = "src/schemas/release.ts";
 const LOCK = "packages/schemas/history.lock.json";
+const LEDGER = "packages/schemas/releases.json";
 /** Every path the cut could touch, as files or directories. */
 const CUT_SCOPE = [
   ...MANIFESTS,
@@ -62,7 +64,16 @@ const CUT_SCOPE = [
   GENERATED_INDEX,
   RELEASE_MODULE,
   LOCK,
+  LEDGER,
 ];
+
+function ledgerOf(root: string): ReadonlyArray<string> {
+  return (JSON.parse(readFileSync(join(root, LEDGER), "utf8")) as { releases: string[] }).releases;
+}
+
+function writeLedger(root: string, releases: ReadonlyArray<string>): void {
+  writeFileSync(join(root, LEDGER), `${JSON.stringify({ releases }, null, 2)}\n`);
+}
 
 function versionOf(root: string, manifest = "package.json"): string {
   return (JSON.parse(readFileSync(join(root, manifest), "utf8")) as { version: string }).version;
@@ -232,8 +243,9 @@ describe("cutRelease on a copy of the tree", () => {
 
     const after = hashTree(copy, ["."]);
     expect(differences(before, after)).toEqual(
-      [...MANIFESTS, GENERATED_INDEX, RELEASE_MODULE].toSorted(),
+      [...MANIFESTS, GENERATED_INDEX, RELEASE_MODULE, LEDGER].toSorted(),
     );
+    expect(ledgerOf(copy).slice(-2)).toEqual([X, Y]);
     expect(changed).toEqual(differences(before, after));
     for (const manifest of MANIFESTS) expect(versionOf(copy, manifest)).toBe(Y);
     const generated = await importFrom<GeneratedIndex>(copy, GENERATED_INDEX);
@@ -246,7 +258,42 @@ describe("cutRelease on a copy of the tree", () => {
     expect(checkSchemas(readSchemasState(copy))).toEqual([]);
   });
 
+  it(`appends ${X} to the release ledger and reports it`, () => {
+    const before = ledgerOf(copy);
+
+    const { changed } = cutRelease(copy, X);
+
+    expect(ledgerOf(copy)).toEqual([...before, X]);
+    expect(readFileSync(join(copy, LEDGER), "utf8")).toBe(
+      `${JSON.stringify({ releases: [...before, X] }, null, 2)}\n`,
+    );
+    expect(changed).toContain(LEDGER);
+  });
+
   describe("refuses before writing anything", () => {
+    it("a missing release ledger", () => {
+      rmSync(join(copy, LEDGER));
+      const before = hashTree(copy, ["."]);
+      expect(() => cutRelease(copy, X)).toThrow(`${LEDGER} is missing — nothing cut`);
+      expect(hashTree(copy, ["."])).toEqual(before);
+    });
+
+    it("an out-of-order release ledger", () => {
+      writeLedger(copy, [rootVersion, "0.0.1", rootVersion]);
+      const before = hashTree(copy, ["."]);
+      expect(() => cutRelease(copy, X)).toThrow("not strictly increasing — nothing cut");
+      expect(hashTree(copy, ["."])).toEqual(before);
+    });
+
+    it("a release ledger whose last entry is not the package.json version", () => {
+      writeLedger(copy, ["0.0.1"]);
+      const before = hashTree(copy, ["."]);
+      expect(() => cutRelease(copy, X)).toThrow(
+        `${LEDGER}: last entry 0.0.1, package.json version ${rootVersion} — nothing cut`,
+      );
+      expect(hashTree(copy, ["."])).toEqual(before);
+    });
+
     it.each([
       ["a malformed version", "1.2", "is not a release"],
       ["the current version", rootVersion, "is not newer than"],

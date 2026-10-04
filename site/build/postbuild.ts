@@ -2,9 +2,10 @@
 // shows the release it was built from, every GitHub heading id the generator
 // emitted reached the HTML, every anchor a link was rewritten to is an id on
 // its target page, and no HTML, CSS or JS file loads anything from another
-// origin. Outbound `<a href>` links are fine. Pure over a map of built files;
-// readBuiltSite is the only I/O.
-import { readFileSync, readdirSync } from "node:fs";
+// origin. Outbound `<a href>` links are fine. Every served JSON Schema, the
+// schema index and _headers are in the output byte for byte. Pure over maps
+// of built files; readBuiltSite and readBuiltPublic are the only I/O.
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import type { SiteJson } from "./generate.js";
 import type { SiteLink } from "./links.js";
@@ -176,6 +177,52 @@ export function checkBuiltSite(
   for (const [path, content] of built) {
     for (const load of remoteLoads(path, content)) {
       findings.push(`✗ ${outLabel}/${path}: loads ${load} from another origin`);
+    }
+  }
+  return findings;
+}
+
+/** `/_headers` and every file under `schemas/` in `directory`, by URL path → bytes. */
+export function readBuiltPublic(directory: string): ReadonlyMap<string, Uint8Array> {
+  const files = new Map<string, Uint8Array>();
+  const headers = join(directory, "_headers");
+  if (existsSync(headers)) files.set("/_headers", readFileSync(headers));
+  const walk = (current: string): void => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.isFile()) {
+        files.set(`/${relative(directory, path).split("\\").join("/")}`, readFileSync(path));
+      }
+    }
+  };
+  if (existsSync(join(directory, "schemas"))) walk(join(directory, "schemas"));
+  return new Map([...files].toSorted(([left], [right]) => (left < right ? -1 : 1)));
+}
+
+const UNSERVED_SNAPSHOT = /(?:^|\/)(?:pre-schema|next)(?:[./]|$)/;
+
+/**
+ * Every finding about the served schemas, `_headers` and `/schemas/index.json`
+ * in the build: each expected file must be in the output byte for byte, and no
+ * file under schemas/ may name a pre-schema or next snapshot.
+ */
+export function checkServedSchemas(
+  expected: ReadonlyMap<string, Uint8Array>,
+  built: ReadonlyMap<string, Uint8Array>,
+  outLabel = "site/doc_build",
+): ReadonlyArray<string> {
+  const findings: Array<string> = [];
+  for (const [path, bytes] of expected) {
+    const actual = built.get(path);
+    if (actual === undefined) findings.push(`✗ ${outLabel}${path}: missing`);
+    else if (!Buffer.from(actual).equals(Buffer.from(bytes))) {
+      findings.push(`✗ ${outLabel}${path}: differs from what the build served`);
+    }
+  }
+  for (const path of built.keys()) {
+    if (path.startsWith("/schemas/") && UNSERVED_SNAPSHOT.test(path.slice("/schemas/".length))) {
+      findings.push(`✗ ${outLabel}${path}: names a snapshot that is never served`);
     }
   }
   return findings;

@@ -27,6 +27,7 @@ fi
 
 echo "bumping to ${VERSION} (package.json, npm/package.json, packages/schemas/package.json)"
 echo "renaming snapshots/*/next.schema.json → ${VERSION}.schema.json"
+echo "appending ${VERSION} to the release ledger"
 # Runs before gen:usage-spec, which reads the release from the generated
 # src/schemas/release.ts. Prints every path it changed, one per line.
 if ! CUT_OUTPUT="$(pnpm exec tsx scripts/release-cut.ts "${VERSION}")"; then

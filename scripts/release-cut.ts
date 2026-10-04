@@ -1,9 +1,11 @@
 // Cuts a release of the schemas package's shapes: sets `version` in
 // package.json, npm/package.json and packages/schemas/package.json, renames
 // every packages/schemas/snapshots/<format id>/next.schema.json to
-// <release>.schema.json, then runs schemas-check's write, which regenerates
+// <release>.schema.json, runs schemas-check's write, which regenerates
 // PACKAGE_VERSION, FIRST_SUPPORTED_RELEASE, CURRENT_SHAPES and
-// src/schemas/release.ts. Prints every repo-relative path it created,
+// src/schemas/release.ts, then appends the release to the release ledger
+// packages/schemas/releases.json, from which the docs site serves every
+// release's schemas. Prints every repo-relative path it created,
 // modified or removed, one per line on stdout, so scripts/release.sh stages
 // exactly those; progress goes to stderr.
 // scripts/release.sh calls it. Never run it on the real tree outside a
@@ -39,12 +41,53 @@ function bumpedManifest(path: string, content: string, version: string): string 
   return bumped;
 }
 
+const LEDGER = "packages/schemas/releases.json";
+
+/**
+ * The release ledger's releases. Throws unless it holds a non-empty, strictly
+ * increasing list of X.Y.Z releases whose last entry is `current`.
+ */
+function readLedger(repoRoot: string, current: string): ReadonlyArray<string> {
+  const path = join(repoRoot, LEDGER);
+  if (!existsSync(path)) throw new Error(`${LEDGER} is missing — nothing cut`);
+  let releases: unknown;
+  try {
+    releases = (JSON.parse(readFileSync(path, "utf8")) as { readonly releases?: unknown } | null)
+      ?.releases;
+  } catch {
+    throw new Error(`${LEDGER} is not JSON — nothing cut`);
+  }
+  if (
+    !Array.isArray(releases) ||
+    releases.length === 0 ||
+    !releases.every((release) => typeof release === "string" && isRelease(release))
+  ) {
+    throw new Error(`${LEDGER} must hold { "releases": ["X.Y.Z", …] } — nothing cut`);
+  }
+  const ledger = releases as ReadonlyArray<string>;
+  ledger.forEach((release, index) => {
+    const previous = ledger[index - 1];
+    if (previous !== undefined && compareReleases(release, previous) <= 0) {
+      throw new Error(
+        `${LEDGER}: ${release} follows ${previous}, not strictly increasing — nothing cut`,
+      );
+    }
+  });
+  if (ledger.at(-1) !== current) {
+    throw new Error(
+      `${LEDGER}: last entry ${ledger.at(-1)}, package.json version ${current} — nothing cut`,
+    );
+  }
+  return ledger;
+}
+
 /**
  * Cuts `version` on the tree at `repoRoot` and returns every repo-relative
  * path created, modified or removed, sorted. Throws before writing anything
  * when `version` is not `X.Y.Z`, is not newer than the root package.json
- * version, already names a snapshot, or a frozen module differs from its
- * lock entry.
+ * version, already names a snapshot, the release ledger is missing,
+ * unordered or does not end at the current version, or a frozen module
+ * differs from its lock entry.
  */
 export function cutRelease(repoRoot: string, version: string): { changed: ReadonlyArray<string> } {
   if (!isRelease(version)) throw new Error(`${version} is not a release (X.Y.Z)`);
@@ -56,6 +99,7 @@ export function cutRelease(repoRoot: string, version: string): { changed: Readon
     const path = snapshotPath(id, version);
     if (existsSync(join(repoRoot, path))) throw new Error(`${path} already exists`);
   }
+  const ledger = readLedger(repoRoot, current);
   const state = readSchemasState(repoRoot);
   const { mismatched } = refreshLock(state.lock, state.historyFiles);
   if (mismatched.length > 0) {
@@ -84,6 +128,9 @@ export function cutRelease(repoRoot: string, version: string): { changed: Readon
     throw new Error(`${written.mismatched.join(", ")} differ from their lock entries`);
   }
   for (const path of written.changed) changed.add(path);
+  const releases = { releases: [...ledger, version] };
+  writeFileSync(join(repoRoot, LEDGER), `${JSON.stringify(releases, null, 2)}\n`);
+  changed.add(LEDGER);
   return { changed: [...changed].toSorted() };
 }
 

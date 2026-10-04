@@ -14,6 +14,8 @@ export interface ReadmePage {
   readonly sections: ReadonlyArray<string>;
   /** X.Y.Z: the page is rendered only by builds at or after this release. */
   readonly holdUntil?: string;
+  /** A section the generator appends after `sections`: `served-schemas` lists every served schema URL. */
+  readonly generated?: "served-schemas";
 }
 
 export interface ReadmeOmission {
