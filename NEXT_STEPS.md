@@ -24,8 +24,8 @@ holds 1.0 back; the things below are. Ordered by what 1.0 would be lying about i
 Decided 2026-09-15: the first four are the blockers; the last three are wanted but do not
 hold the tag.
 
-- [ ] **Two known happy-path defects.** The run-before-preflight slug burn and the
-      approval-commit staleness (both under *Small follow-ups*). A 1.0 whose `approve` →
+- [ ] **Two known happy-path defects.** The run-before-preflight slug burn (fixed
+      2026-10-03, PR #112) and the approval-commit staleness (both under *Small follow-ups*). A 1.0 whose `approve` →
       `run` sequence can refuse itself is not 1.0.
 - [ ] **A persisted-format stability promise.** `phax.json` (`version: 1`), the run status
       files, `approvals.json`, `phax/records/v1`. The no-shims rule is right for 0.x, but 1.0
@@ -37,7 +37,7 @@ hold the tag.
       removed) and another candidate is queued (`prune`). Land the last renames from
       `docs/vocabulary-review.md` §"Top fixes" (at least 1, 2 and 4 — they change output and
       flag values) *before* 1.0, then hold the contract for one or two 0.x releases.
-- [ ] **`phax prune`.** Without it a slug is held forever by its archived run; the `-2` habit
+- [x] **`phax prune`.** Landed 2026-10-04 (PR #113). Without it a slug is held forever by its archived run; the `-2` habit
       is the visible symptom. Small, and it closes the run lifecycle (created → … → archived →
       gone).
 - [ ] **Distribution polish.** macOS binaries are neither signed nor notarized
@@ -154,17 +154,12 @@ desktop — none is promised by the announcement.
       2026-09-03, so a spec approval now has its own fingerprinted record and the
       living-spec piste has a baseline to fold deltas into; build on it rather than
       beside it.
-- [ ] **`phax prune` — delete archived runs.** Spec `run-prune` Approved 2026-10-03
-      (`docs/specs/2610031513-run-prune.md`: current namespace, names or `--all`, preview +
-      confirm, branches deleted unless they hold unpreserved commits; exit codes follow the code, and
-      the stale README exit-code table is rewritten from it); plan Approved 2026-10-03
-      (`docs/plans/2610031647-run-prune-plan.md`, 5 phases; run with `--allow-skill-edits`),
-      running. Raised 2026-09-08 alongside the `-2`
-      diagnosis. Slugs must never collide (kept), so the registry keeps archived runs as
-      name-holders; the way to free a name is to delete the archived run for real, not to
-      weaken uniqueness. A `prune` command that removes archived runs (folder, worktrees,
-      registry entry) makes the slug free itself. Distinct from `archive`, which moves and
-      keeps.
+- [x] **`phax prune` — delete archived runs.** **Landed 2026-10-04** (spec `run-prune`
+      Completed; PR #113): archived runs of the current namespace, by name or `--all`, preview +
+      confirm, branches deleted unless they hold unpreserved commits (`--force`); exit codes and
+      the README table follow `exitCodeForError`. The usage-spec generator now marks variadic
+      arguments (`[short-name]...`, `<plan>...`). First `--all --dry-run` here: 97 of 101 runs
+      prunable, 65 GB.
 - [ ] **`phax autopilot` — the lifecycle driven in a loop from a corpus.** Raised
       2026-09-15, captured in `docs/ideas/autopilot.md`. Explicitly after 1.0: a
       deterministic supervisor (not a master agent) over roadmap → spec → decide → plan →
