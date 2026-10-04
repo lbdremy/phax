@@ -13,6 +13,7 @@
     "packages/schemas/history.lock.json",
     "packages/schemas/json",
     "packages/schemas/snapshots",
+    "packages/schemas/releases.json",
     "site/generated",
     "site/doc_build"
   ]

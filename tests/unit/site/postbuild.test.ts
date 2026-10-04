@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { SiteJson } from "../../../site/build/generate.js";
 import type { SiteLink } from "../../../site/build/links.js";
-import { checkBuiltSite, checkLinkAnchors } from "../../../site/build/postbuild.js";
+import {
+  checkBuiltSite,
+  checkLinkAnchors,
+  checkServedSchemas,
+} from "../../../site/build/postbuild.js";
 
 const RELEASE = "https://github.com/example/tool/releases/tag/v0.17.0";
 
@@ -155,6 +159,47 @@ describe("checkLinkAnchors", () => {
   it("names the source, line and link of an anchor the target page lacks", () => {
     expect(checkLinkAnchors([link("resume")], built())).toEqual([
       "✗ README.md:12: docs/run.md#resume — no such anchor on /guide/run",
+    ]);
+  });
+});
+
+function bytes(text: string): Uint8Array {
+  return new TextEncoder().encode(text);
+}
+
+describe("checkServedSchemas", () => {
+  const expected = new Map([
+    ["/_headers", bytes("/schemas/*\n  Content-Type: application/json\n")],
+    [
+      "/schemas/index.json",
+      bytes('{"releases":["0.17.0"],"paths":["/schemas/registry/0.17.0.json"]}\n'),
+    ],
+    ["/schemas/registry/0.17.0.json", bytes('{"type":"object"}\n')],
+  ]);
+
+  it("passes a build holding every served file byte for byte", () => {
+    expect(checkServedSchemas(expected, new Map(expected))).toEqual([]);
+  });
+
+  it("fails a missing or altered file", () => {
+    const output = new Map(expected);
+    output.delete("/_headers");
+    output.set("/schemas/registry/0.17.0.json", bytes('{ "type": "object" }\n'));
+    expect(checkServedSchemas(expected, output)).toEqual([
+      "✗ site/doc_build/_headers: missing",
+      "✗ site/doc_build/schemas/registry/0.17.0.json: differs from what the build served",
+    ]);
+  });
+
+  it("fails a pre-schema or next file under schemas/", () => {
+    const output = new Map([
+      ...expected,
+      ["/schemas/registry/pre-schema.json", bytes("{}\n")],
+      ["/schemas/run-status/next.json", bytes("{}\n")],
+    ]);
+    expect(checkServedSchemas(expected, output)).toEqual([
+      "✗ site/doc_build/schemas/registry/pre-schema.json: names a snapshot that is never served",
+      "✗ site/doc_build/schemas/run-status/next.json: names a snapshot that is never served",
     ]);
   });
 });
