@@ -26,7 +26,7 @@ documents it.
 
 ## phase-01 — Add greet function {#phase-01-greet-function}
 
-**Recommended model:** claude-sonnet-4-6
+**Recommended model:** claude-sonnet-5
 **Recommended effort:** low
 
 Create `src/greet.ts` with a single exported `greet(name: string): string`
@@ -75,7 +75,7 @@ Add a simple `greet` function that formats a greeting string given a name.
 
 ## phase-02 — Test greet {#phase-02-test-greet}
 
-**Recommended model:** claude-sonnet-4-6
+**Recommended model:** claude-sonnet-5
 **Recommended effort:** low
 
 Add a Vitest unit test for the `greet` function.
@@ -121,7 +121,7 @@ Add unit tests for the `greet` function covering the happy path and edge cases.
 
 ## phase-03 — Document greet {#phase-03-document-greet}
 
-**Recommended model:** claude-sonnet-4-6
+**Recommended model:** claude-sonnet-5
 **Recommended effort:** low
 
 Add a `README.md` that documents the `greet` function with an install and

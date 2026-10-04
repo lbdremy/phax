@@ -8,52 +8,27 @@ export default definePageMap({
   repository: "https://github.com/lbdremy/phax",
   readme: [
     { route: "/", title: "phax", sections: [INTRO, "Quickstart"] },
+    { route: "/guide/install", title: "Installation", sections: ["Install"] },
+    { route: "/guide/concepts", title: "How phax works", sections: ["Concepts"] },
+    { route: "/guide/set-up", title: "Project setup", sections: ["Set up a project"] },
     {
-      route: "/guide/install",
-      title: "Installation",
-      sections: ["Install", "Runtime permission posture", "Shell completions"],
+      route: "/guide/specs-and-plans",
+      title: "Writing specs and plans",
+      sections: ["Specs and plans"],
     },
+    { route: "/guide/run", title: "Running a plan", sections: ["Run a plan"] },
     {
-      route: "/guide/configure",
-      title: "Configuration",
-      sections: ["Configure", "Configuration layers", "Schema upgrade"],
+      route: "/guide/review-and-land",
+      title: "Reviewing and landing",
+      sections: ["Review and land"],
     },
+    { route: "/guide/records", title: "Run records", sections: ["Records"] },
     {
-      route: "/guide/write-a-plan",
-      title: "Writing a plan",
-      sections: ["Write a plan", "Lint the plan"],
+      route: "/guide/providers-and-security",
+      title: "Agents and security",
+      sections: ["Providers and security"],
     },
-    { route: "/guide/run", title: "Running a plan", sections: ["Run", "Resume", "Locks"] },
-    {
-      route: "/guide/review-and-publish",
-      title: "Review and publish",
-      sections: ["Review loop", "Compliance review & publishing"],
-    },
-    {
-      route: "/guide/multiple-plans",
-      title: "Multiple plans",
-      sections: ["Coordinating multiple plans"],
-    },
-    {
-      route: "/guide/manage-runs",
-      title: "Managing runs",
-      sections: ["List runs", "Archive and prune"],
-    },
-    {
-      route: "/guide/model-routing",
-      title: "Model routing",
-      sections: ["Multi-provider model routing"],
-    },
-    {
-      route: "/guide/security-modes",
-      title: "Security modes and notes",
-      sections: ["Security modes", "Security notes"],
-    },
-    {
-      route: "/guide/troubleshooting",
-      title: "Debugging and troubleshooting",
-      sections: ["Debugging", "Observability", "Troubleshooting"],
-    },
+    { route: "/guide/extend", title: "Extending phax", sections: ["Extend phax"] },
     {
       route: "/reference/formats",
       title: "File formats",
@@ -63,12 +38,12 @@ export default definePageMap({
     {
       route: "/reference/exit-codes",
       title: "Exit codes and environment",
-      sections: ["Exit codes", "Environment variables"],
+      sections: ["Exit codes", "Environment"],
     },
     {
-      route: "/contributing/testing",
-      title: "Testing and internals",
-      sections: ["Testing", "State Machine", "CLI specification (phax.usage.kdl)"],
+      route: "/guide/troubleshooting",
+      title: "When something goes wrong",
+      sections: ["Troubleshooting"],
     },
     {
       omit: ["CLI command reference"],
@@ -79,6 +54,7 @@ export default definePageMap({
     { route: "/reference/cli", title: "CLI reference", source: "docs/cli/reference.md" },
     { route: "/reference/model-catalog", title: "Model catalog", source: "docs/model-catalog.md" },
     { route: "/security", title: "Security", source: "docs/security.md" },
+    { route: "/contributing", title: "Contributing", source: "CONTRIBUTING.md" },
     { route: "/contributing/release", title: "Releasing", source: "docs/release.md" },
     {
       route: "/compare/openspec-vs-phax",
