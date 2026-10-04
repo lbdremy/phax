@@ -744,7 +744,7 @@
         }
       ],
       "recommendation": "latest",
-      "rationale": "Older releases' readers need one thing forever, the schema URLs, and those are served for every release whatever the versioning. A 0.x CLI that changes every release is read at its latest. The preview URLs give each release's exact site at no cost, without a second copy of any source."
+      "rationale": "Decided by the author on 2026-10-04. Older releases' readers need one thing forever, the schema URLs, and those are served for every release whatever the versioning. A 0.x CLI that changes every release is read at its latest. The preview URLs give each release's exact site at no cost, without a second copy of any source."
     },
     {
       "id": "q-release-list",
@@ -762,7 +762,7 @@
         }
       ],
       "recommendation": "ledger",
-      "rationale": "Determinism and offline builds are hard requirements, and a tag-dependent build fails both silently. The ledger costs one appended line per release, written by the same cut that renames the snapshots. Its drift is caught offline, because its last entry must equal the package.json version that the workflow already checks against the tag."
+      "rationale": "Decided by the author on 2026-10-04. Determinism and offline builds are hard requirements, and a tag-dependent build fails both silently. The ledger costs one appended line per release, written by the same cut that renames the snapshots. Its drift is caught offline, because its last entry must equal the package.json version that the workflow already checks against the tag."
     },
     {
       "id": "q-deploy-order",
@@ -780,7 +780,7 @@
         }
       ],
       "recommendation": "before",
-      "rationale": "A 404 on a URL that documents carry breaks a promise. Docs briefly ahead of npm approval break nothing, because staged packages cannot be installed. Deploying before the publishes also keeps the existing invariant intact: every step that can fail precedes the first publish, so a failed deploy stages nothing."
+      "rationale": "Decided by the author on 2026-10-04. A 404 on a URL that documents carry breaks a promise. Docs briefly ahead of npm approval break nothing, because staged packages cannot be installed. Deploying before the publishes also keeps the existing invariant intact: every step that can fail precedes the first publish, so a failed deploy stages nothing."
     },
     {
       "id": "q-readme-source",
@@ -803,7 +803,7 @@
         }
       ],
       "recommendation": "readme",
-      "rationale": "The decision was 'a rendering of what the repo already holds'. The README is what phases edit and what GitHub shows, and the heading contract is enforced mechanically (map-complete, run in check:full), so its cost is visible at the moment it is incurred."
+      "rationale": "Decided by the author on 2026-10-04. The decision was 'a rendering of what the repo already holds'. The README is what phases edit and what GitHub shows, and the heading contract is enforced mechanically (map-complete, run in check:full), so its cost is visible at the moment it is incurred."
     },
     {
       "id": "q-tokens",
@@ -826,7 +826,7 @@
         }
       ],
       "recommendation": "now",
-      "rationale": "The brand rules are precise enough to derive values that pass tested thresholds. A palette is the cheapest part of the identity to change later, and the 0.17.0 URLs should not wait on it."
+      "rationale": "Decided by the author on 2026-10-04. The brand rules are precise enough to derive values that pass tested thresholds. A palette is the cheapest part of the identity to change later, and the 0.17.0 URLs should not wait on it."
     },
     {
       "id": "q-logo",
@@ -844,7 +844,7 @@
         }
       ],
       "recommendation": "phase",
-      "rationale": "The constraints (one weight, a split bowl, a gap of at least 1/8, single colour) are geometric and testable, so a phase can meet them and the logo test keeps any later redraw honest. Replacing the file changes nothing else."
+      "rationale": "Decided by the author on 2026-10-04. The constraints (one weight, a split bowl, a gap of at least 1/8, single colour) are geometric and testable, so a phase can meet them and the logo test keeps any later redraw honest. Replacing the file changes nothing else."
     },
     {
       "id": "q-visual",
@@ -862,7 +862,7 @@
         }
       ],
       "recommendation": "mechanical",
-      "rationale": "The site's layout is Rspress's, not ours. What this spec adds (tokens, logo, page tree, links) can be checked mechanically. The release already has a human approval point where a glance at the preview URL costs seconds."
+      "rationale": "Decided by the author on 2026-10-04. The site's layout is Rspress's, not ours. What this spec adds (tokens, logo, page tree, links) can be checked mechanically. The release already has a human approval point where a glance at the preview URL costs seconds."
     },
     {
       "id": "q-blog",
@@ -880,7 +880,7 @@
         }
       ],
       "recommendation": "hold",
-      "rationale": "Road to 1.0.0 is ordered by what 1.0 would be lying about, and an early announcement on the official docs would be exactly that. A hold until 1.0.0 publishes the post with the release that makes it true, without a second edit."
+      "rationale": "Decided by the author on 2026-10-04. Road to 1.0.0 is ordered by what 1.0 would be lying about, and an early announcement on the official docs would be exactly that. A hold until 1.0.0 publishes the post with the release that makes it true, without a second edit."
     },
     {
       "id": "q-gate",
@@ -898,7 +898,7 @@
         }
       ],
       "recommendation": "yes",
-      "rationale": "Phases edit the README and docs constantly. A page-map or link failure is cheap to fix inside the phase's fix loop and expensive to fix after the PR has been opened."
+      "rationale": "Decided by the author on 2026-10-04. Phases edit the README and docs constantly. A page-map or link failure is cheap to fix inside the phase's fix loop and expensive to fix after the PR has been opened."
     }
   ],
   "planningNote": {
@@ -909,7 +909,8 @@
       "The deploy runs guard → upload with a preview alias → check → promote, after every fallible step and before the first npm stage publish (q-deploy-order). A manual dispatch for a tag is the only other way to deploy.",
       "Latest release only (q-versioning); the README is the single source through the page map (q-readme-source); the 1.0 announcement is held until 1.0.0 (q-blog); the §6 tokens ship with tested ratios (q-tokens); a phase draws the logo (q-logo); visual checks are mechanical (q-visual); check:full runs the site build (q-gate).",
       "The first deploy is the first release tag cut after this work lands, and the 15 0.17.0 URLs resolve from that deploy.",
-      "No source is edited for the site's sake. docs/release.md gains the docs-site steps and the one-time setup because maintainers need them."
+      "No source is edited for the site's sake. docs/release.md gains the docs-site steps and the one-time setup because maintainers need them.",
+      "Every §9 question was decided by the author on 2026-10-04, each on its recommended option."
     ],
     "open": [
       "Route and navigation spellings, page grouping and page titles. The §6 tree is indicative; every README section must still map exactly once.",
