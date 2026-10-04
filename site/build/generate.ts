@@ -2,11 +2,12 @@
 // docs and the page map: one Markdown page per rendered route, site.json
 // holding what the Rspress config and the post-build checks need, and
 // links.json listing every link rewritten to a site route, plus the served
-// JSON Schemas, their index and _headers in Rspress's public folder. The pure
-// core maps paths to content; the wrapper only removes and rewrites the
-// directory. Output is deterministic: sorted, `\n` line endings, no clock.
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+// JSON Schemas, their index and _headers in Rspress's public folder beside
+// site/public's logos, and theme.css rendered from site/theme/tokens.ts. The
+// pure core maps paths to content; the wrappers only read site/public and
+// replace the directory. Output is deterministic: sorted, `\n` line endings, no clock.
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { slug } from "github-slugger";
 import {
   checkPageMap,
@@ -33,6 +34,7 @@ import {
 import { applyEdits, transformMarkdown, type MarkdownTransform } from "./markdown.js";
 import { README, splitReadme, type ReadmeSection } from "./sources.js";
 import { publicSchemas, servedUrl, type SchemaSources } from "./schemas.js";
+import { themeCss } from "../theme/tokens.js";
 
 export interface GenerateInput {
   /** Every source, keyed by repository-relative path; README.md included. */
@@ -44,6 +46,8 @@ export interface GenerateInput {
   readonly repository?: RepositoryIndex;
   /** The release ledger and the schema snapshots; nothing is served when omitted. */
   readonly schemas?: SchemaSources;
+  /** site/public's files by URL path (`/logo.svg`) → bytes, copied verbatim; none when omitted. */
+  readonly assets?: ReadonlyMap<string, Uint8Array>;
 }
 
 /** site/generated/site.json: read by site/rspress.config.ts and site/build/postbuild.ts. */
@@ -85,8 +89,8 @@ export interface GeneratedSite {
   /** Paths relative to site/generated/ → content. Empty when there are findings. */
   readonly files: ReadonlyMap<string, string>;
   /**
-   * Files Rspress copies verbatim, by URL path (`/schemas/…`, `/_headers`)
-   * → bytes. Written under PUBLIC_DIR. Empty when there are findings.
+   * Files Rspress copies verbatim, by URL path (`/schemas/…`, `/_headers`,
+   * `/logo.svg`) → bytes. Written under PUBLIC_DIR. Empty when there are findings.
    */
   readonly publicFiles: ReadonlyMap<string, Uint8Array>;
   readonly findings: ReadonlyArray<string>;
@@ -95,6 +99,9 @@ export interface GeneratedSite {
 
 /** Rspress's public folder, relative to site/generated/: `<root>/public`. */
 export const PUBLIC_DIR = "docs/public";
+
+/** The theme stylesheet, relative to site/generated/: the config's globalStyles. */
+export const THEME_CSS = "theme.css";
 
 export const SERVED_SCHEMAS_HEADING = "Served JSON Schemas";
 
@@ -271,6 +278,12 @@ export function generateSite(input: GenerateInput): GeneratedSite {
   const findings: Array<string> = [];
   const schemas = input.schemas === undefined ? undefined : publicSchemas(input.schemas, version);
   if (schemas !== undefined) findings.push(...schemas.findings);
+  const publicFiles = new Map(schemas?.files ?? []);
+  for (const [path, bytes] of input.assets ?? []) {
+    if (publicFiles.has(path))
+      findings.push(`✗ site/public${path}: the build already serves ${path}`);
+    publicFiles.set(path, bytes);
+  }
   const rendered: Array<RenderedPage> = [];
   const siteLinks: Array<SiteLink> = [];
   let heldLinks = 0;
@@ -370,12 +383,29 @@ export function generateSite(input: GenerateInput): GeneratedSite {
   );
   output.set("site.json", `${JSON.stringify(site, null, 2)}\n`);
   output.set("links.json", `${JSON.stringify(siteLinks, null, 2)}\n`);
+  output.set(THEME_CSS, themeCss());
   return {
     files: new Map([...output].toSorted(([left], [right]) => (left < right ? -1 : 1))),
-    publicFiles: schemas?.files ?? new Map(),
+    publicFiles: new Map([...publicFiles].toSorted(([left], [right]) => (left < right ? -1 : 1))),
     findings: [],
     summary: counted,
   };
+}
+
+/** Every file under `directory` (site/public), by URL path → bytes; none when it is missing. */
+export function readPublicAssets(directory: string): ReadonlyMap<string, Uint8Array> {
+  const assets = new Map<string, Uint8Array>();
+  const walk = (current: string): void => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.isFile()) {
+        assets.set(`/${relative(directory, path).split("\\").join("/")}`, readFileSync(path));
+      }
+    }
+  };
+  if (existsSync(directory)) walk(directory);
+  return new Map([...assets].toSorted(([left], [right]) => (left < right ? -1 : 1)));
 }
 
 /** Replaces `directory` with exactly `files`, and `publicFiles` under PUBLIC_DIR. */

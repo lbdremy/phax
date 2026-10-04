@@ -2,11 +2,14 @@
 // `pnpm site:build` (site/build/site.ts) writes from the repository's docs,
 // and takes the nav and sidebar from site/generated/site.json, so nothing is
 // computed here. Local search only; no last-updated, edit links, analytics or
-// remote resource.
+// remote resource. The identity: dark first, the theme CSS generated from
+// site/theme/tokens.ts, and the logo (the dark-accent file is the favicon)
+// beside the lowercase wordmark.
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, type UserConfig } from "@rspress/core";
-import type { SiteJson } from "./build/generate.js";
+import { THEME_CSS, type SiteJson } from "./build/generate.js";
+import { DARK_MODE } from "./theme/appearance.js";
 
 const SITE_JSON = resolve(import.meta.dirname, "generated/site.json");
 
@@ -19,7 +22,10 @@ export default defineConfig({
   root: resolve(import.meta.dirname, "generated/docs"),
   outDir: resolve(import.meta.dirname, "doc_build"),
   title: "phax",
+  logo: { dark: "/logo.svg", light: "/logo-light.svg" },
   logoText: "phax",
+  icon: "/logo.svg",
+  globalStyles: resolve(import.meta.dirname, "generated", THEME_CSS),
   lang: "en",
   search: { codeBlocks: true },
   llms: false,
@@ -32,5 +38,6 @@ export default defineConfig({
     sidebar: site.sidebar as NonNullable<NonNullable<UserConfig["themeConfig"]>["sidebar"]>,
     socialLinks: [...site.socialLinks],
     lastUpdated: false,
+    darkMode: DARK_MODE,
   },
 });

@@ -4,6 +4,8 @@
     "npm:@clack/prompts@^1.6.0": "1.6.0",
     "npm:@effect/platform-node@0.106": "0.106.0_@effect+cluster@0.58.2__@effect+platform@0.96.1___effect@3.21.3__@effect+rpc@0.75.1___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+sql@0.51.1___@effect+experimental@0.60.0____@effect+platform@0.96.1_____effect@3.21.3____effect@3.21.3___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+workflow@0.18.2___@effect+experimental@0.60.0____@effect+platform@0.96.1_____effect@3.21.3____effect@3.21.3___@effect+platform@0.96.1____effect@3.21.3___@effect+rpc@0.75.1____@effect+platform@0.96.1_____effect@3.21.3____effect@3.21.3___effect@3.21.3__effect@3.21.3__@effect+experimental@0.60.0___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3_@effect+platform@0.96.1__effect@3.21.3_@effect+rpc@0.75.1__@effect+platform@0.96.1___effect@3.21.3__effect@3.21.3_@effect+sql@0.51.1__@effect+experimental@0.60.0___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+platform@0.96.1___effect@3.21.3__effect@3.21.3_effect@3.21.3_@effect+experimental@0.60.0__@effect+platform@0.96.1___effect@3.21.3__effect@3.21.3_@effect+workflow@0.18.2__@effect+experimental@0.60.0___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__@effect+platform@0.96.1___effect@3.21.3__@effect+rpc@0.75.1___@effect+platform@0.96.1____effect@3.21.3___effect@3.21.3__effect@3.21.3",
     "npm:@effect/platform@0.96": "0.96.1_effect@3.21.3",
+    "npm:@fontsource/ibm-plex-mono@^5.3.0": "5.3.0",
+    "npm:@fontsource/ibm-plex-sans@^5.3.0": "5.3.0",
     "npm:@rspress/core@^2.0.23": "2.0.23_micromark@4.0.3",
     "npm:@types/mdast@^4.0.4": "4.0.4",
     "npm:@types/node@^25.9.3": "25.9.3",
@@ -291,6 +293,12 @@
       "os": ["win32"],
       "cpu": ["x64"]
     },
+    "@fontsource/ibm-plex-mono@5.3.0": {
+      "integrity": "sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q=="
+    },
+    "@fontsource/ibm-plex-sans@5.3.0": {
+      "integrity": "sha512-CbE4CbbEEZJX860XyUiRpsksXIQR8Rp2XDva2VO53NJox9tVNtusrysd2x5YkUEY3ErQ66W1IiiQL8/wihhw5w=="
+    },
     "@jridgewell/sourcemap-codec@1.5.5": {
       "integrity": "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="
     },
@@ -365,8 +373,6 @@
     "@napi-rs/wasm-runtime@1.1.6_@emnapi+core@1.10.0_@emnapi+runtime@1.10.0": {
       "integrity": "sha512-ZLv/JdUfkvOy9eCnnBaGfiO+XimbjebAeO+MRQqD/B+FR1tnRN0tpKSJHRbE8sFfS6aqsXZ67TQjfwfsxULVbg==",
       "dependencies": [
-        "@emnapi/core@1.10.0",
-        "@emnapi/runtime@1.10.0",
         "@tybys/wasm-util"
       ]
     },
@@ -3343,6 +3349,8 @@
         "npm:@clack/prompts@^1.6.0",
         "npm:@effect/platform-node@0.106",
         "npm:@effect/platform@0.96",
+        "npm:@fontsource/ibm-plex-mono@^5.3.0",
+        "npm:@fontsource/ibm-plex-sans@^5.3.0",
         "npm:@rspress/core@^2.0.23",
         "npm:@types/mdast@^4.0.4",
         "npm:@types/node@^25.9.3",
