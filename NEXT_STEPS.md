@@ -118,7 +118,9 @@ desktop — none is promised by the announcement.
       (`SecurityPreflightError`, plan + config only), then mcp, records and clean-tree.
 
 - [ ] **A plan whose footprint names `docs/plans/approvals.json` is stale at its own
-      approval.** Found 2026-09-10 launching the artifact-timestamp-naming plan: `phax
+      approval.** Spec `approval-ground` drafted 2026-10-04
+      (`docs/specs/2610040727-approval-ground.md`, Draft): its four §9 questions (scope, recognition,
+      baseline meaning, ledger comparison) wait for the author. Found 2026-09-10 launching the artifact-timestamp-naming plan: `phax
       artifact approve` takes the baseline at HEAD, then commits a rewrite of
       `docs/plans/approvals.json` (and the plan's own frontmatter), so `phax run`
       reports `ground-changed` before anything starts. Optional files count in the
