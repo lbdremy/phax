@@ -1,0 +1,941 @@
+{
+  "version": 1,
+  "kind": "spec",
+  "title": "docs.phax.run: the phax documentation site, rendered from the repository and deployed by the release",
+  "ground": [
+    {
+      "path": "NEXT_STEPS.md",
+      "note": "'The docs site, in the release pipeline' was decided with the author on 2026-09-25. docs.phax.run is a rendering of the README, docs/cli/reference.md, security.md, release.md, the model catalog and docs/blog/. It is built with Rspress from a site/ folder that is neither an app nor a workspace package, and deployed on the release tag. Hosting is Cloudflare Workers Static Assets: a wrangler.jsonc whose assets.directory is the Rspress output, no Worker script, preview URLs per version. steme copies the pipeline afterwards; www.phax.run and app.phax.run live in phax-cockpit. 'Road to 1.0.0': 1.0 has not shipped and its blockers are open, ordered by 'what 1.0 would be lying about'."
+    },
+    {
+      "path": "README.md",
+      "note": "About 800 lines: an untitled intro, then 31 `##` sections, ending with 'CLI command reference', a summary scripts/docs-cli.ts regenerates between HTML-comment markers. It links to docs/cli/reference.md#phax-orient and docs/security.md#shell-command-execution, to in-page anchors (#security-modes, #configure) and to files that are not user docs (docs/model-routing.md, docs/state-machine.md, docs/observability.md, docs/e2e-testing.md, docs/plan-extraction-model.md, .claude/skills/phax-planning/SKILL.md, examples/hello-world/plan.md). Its prose holds angle-bracket placeholders and braces such as `{#phase-NN-<slug>}`."
+    },
+    {
+      "path": "docs/release.md",
+      "note": "A release ships two staged npm packages in lockstep. It documents the release.sh → release-cut steps, the workflow order, the failure semantics ('a failed gate, smoke or version check stages nothing'), deleting and re-pushing a tag, and a one-time hand setup (the trusted publisher), which is the precedent for a one-time Cloudflare section."
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "note": "One job on v* tags: Gate (typecheck, test, lint, format:check, knip, build, audit:architecture, deno:smoke), binaries, Node 20 schemas smoke, npm upgrade, prepare-npm, version check of both manifests, stage publish of @lbdremy/phax-schemas then @lbdremy/phax, then the GitHub Release. Permissions are contents: write and id-token: write; there is no npm token."
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "note": "Runs on push to main and on pull requests: typecheck, test:type, test, lint, format:check, knip, build, the architecture audit, the Deno smoke and compile, and the Node 20 schemas tarball smoke (needs network). It deploys nothing."
+    },
+    {
+      "path": "tests/unit/releaseWorkflow.test.ts",
+      "note": "Parses both workflows as YAML. It pins that every fallible step runs before the first publish, that only the second publish and the GitHub Release follow it, that GITHUB_TOKEN is the only token (no NPM_TOKEN), and that the last three lines of release.sh name both packages."
+    },
+    {
+      "path": "scripts/docs-cli.ts",
+      "note": "Generates docs/cli/reference.md from phax.usage.kdl with the `usage` CLI and injects the README summary. reference.md is committed, so a site build needs no `usage` binary."
+    },
+    {
+      "path": "packages/schemas/snapshots/",
+      "note": "15 format ids, each with pre-schema.schema.json and 0.17.0.schema.json. No next snapshot today. The snapshots are draft-07 JSON Schemas without $id (registry's title is 'phax run registry')."
+    },
+    {
+      "path": "packages/schemas/src/generated/index.ts, src/schemas/release.ts",
+      "note": "PACKAGE_VERSION and PHAX_RELEASE are 0.17.0, FIRST_SUPPORTED_RELEASE is 0.17.0, and every CURRENT_SHAPES entry is 0.17.0. Nothing in the tree lists the releases cut since the first supported one."
+    },
+    {
+      "path": "src/schemas/schemaUrl.ts",
+      "note": "SCHEMA_URL_BASE is https://docs.phax.run/schemas, schemaUrl(format, release) is <base>/<format id>/<X.Y.Z>.json, and FORMAT_IDS lists the 15 ids."
+    },
+    {
+      "path": "scripts/release.sh, scripts/release-cut.ts",
+      "note": "release-cut bumps the three manifests, renames each next snapshot to the release, regenerates the constants and prints the changed paths, which release.sh stages, commits, tags and pushes. A snapshot exists only for a release that changed that format's shape."
+    },
+    {
+      "path": "docs/specs/archive/2609241238-schemas-package.md",
+      "note": "§5.15: every document writes `$schema: https://docs.phax.run/schemas/<format id>/<release>.json`. §4: a shape is named by the release that first wrote it. §10 constraint: docs.phax.run serves every release's schema of every format at that path and never removes one."
+    },
+    {
+      "path": "docs/blog/announcing-phax-1.0.md, docs/comparisons/*.md",
+      "note": "One post announcing 1.0, which has not shipped (no frontmatter, no date). Two comparisons, which link to each other (./spec-kit-vs-phax.md) and to docs/ideas/*.md, which the site will not render."
+    },
+    {
+      "path": "package.json, pnpm-workspace.yaml",
+      "note": "Version 0.17.0. check:full = typecheck, unit, integration, type tests, lint, format check, architecture audit, knip, model-catalog check. The workspace file declares no packages; packages/schemas is built by root scripts."
+    }
+  ],
+  "context": "phax's documentation lives in the repository as Markdown:\n\n- An 800-line README: install, configure, plans, run, review, persisted formats, troubleshooting, exit codes. It ends with a CLI summary that scripts/docs-cli.ts regenerates between two HTML-comment markers.\n- docs/cli/reference.md, generated from phax.usage.kdl by the usage CLI and committed.\n- docs/security.md and docs/release.md.\n- docs/model-catalog.md, generated and committed.\n- One blog post, docs/blog/announcing-phax-1.0.md, written ahead of a 1.0 that has not shipped: the CLI is at 0.17.0 and 'Road to 1.0.0' lists open blockers.\n- Two comparisons under docs/comparisons/.\n\nThe sources link to each other by repository path (docs/cli/reference.md#phax-orient, ./spec-kit-vs-phax.md) and to in-page anchors (#security-modes). They also link to files that are not user documentation (docs/model-routing.md, docs/ideas/desktop-app.md, .claude/skills/phax-planning/SKILL.md).\n\nSince 0.17.0, every document phax writes starts with `$schema: https://docs.phax.run/schemas/<format id>/<release>.json` (the schemas-package spec, Completed). The JSON Schema of each shape is committed as packages/schemas/snapshots/<format id>/<shape release>.schema.json. Each format also has one pre-schema snapshot and, between releases, a next snapshot. A shape is named by the release that first wrote it, so a release that leaves a format's shape unchanged adds no snapshot for that format. Today 15 formats each have a pre-schema and a 0.17.0 snapshot. Apart from the current version, nothing in the tree lists the releases cut since 0.17.0.\n\nThe release workflow is one job on v* tags. In order, it:\n1. runs the gate;\n2. builds four binaries;\n3. smoke-tests the schemas tarball;\n4. checks both npm manifests against the tag;\n5. stage-publishes @lbdremy/phax-schemas, then @lbdremy/phax;\n6. creates the GitHub Release.\nA unit test pins that every step that can fail runs before the first publish. CI builds and tests every push to main and every pull request, and deploys nothing.\n\nOn 2026-09-25 the author decided that docs.phax.run is a rendering of these sources: built with Rspress v2 from a site/ folder, deployed on the release tag to Cloudflare Workers Static Assets.",
+  "problem": "docs.phax.run does not exist, yet phax 0.17.0 already writes its URLs into every document. The `$schema` of a run status, a record manifest or an approvals ledger points at a host that answers nothing. An editor or validator cannot resolve the schema a document names, and the schemas-package promise ('the URL serves that release's JSON Schema of the format') is not kept.\n\nA site that served only the snapshots on disk would still be wrong after the next release. A format whose shape did not change has no snapshot named for that release, so its URL would 404 for every document that release writes. A Cloudflare deploy replaces the whole asset set, so one deploy of an older tag, or a build from a clone without tags, would silently remove URLs that existing documents depend on.\n\nFor readers, the documentation is one long README on GitHub. It has no navigation and no search, its links point at repository paths, and the CLI reference is reachable only as a raw generated Markdown file.\n\nBuilding the site the usual way, with its own copy of the guide, would create a second source that drifts from the README the first time either is edited. Phases edit the README, the reference and the catalog all the time.\n\nThe site also has no identity: no colours, no logo, no favicon. The brand rules exist only in a private corpus this public repository cannot link to.",
+  "productGoal": {
+    "statement": "The release workflow publishes docs.phax.run as a deterministic, offline rendering of the documentation the repository holds at the release tag:\n\n- the README, split into guide pages by a committed page map;\n- the CLI reference, security, release and the model catalog;\n- the comparisons, and each blog post once the release it names has shipped.\n\nLinks are rewritten to site routes and checked. The site has a dark-first phax identity. Every released format's JSON Schema is served at the exact `$schema` URL phax writes, for every release, forever. CI builds the site on every change; only a release, or the author by hand, deploys it.",
+    "guidingRule": "docs.phax.run is the repository at the release tag, rendered: the site adds a page map and an identity, never a second copy of the content, and a schema URL, once served, is served forever."
+  },
+  "terminology": [
+    {
+      "term": "Source",
+      "definition": "A committed Markdown file the site renders: README.md, docs/cli/reference.md, docs/security.md, docs/release.md, docs/model-catalog.md, docs/blog/*.md or docs/comparisons/*.md."
+    },
+    {
+      "term": "README section",
+      "definition": "The text of README.md from one `##` heading up to the next. The intro is the text before the first `##`."
+    },
+    {
+      "term": "Page map",
+      "definition": "The single committed file under site/ that assigns every README section and every other source to a route, to `omit`, or to a hold."
+    },
+    {
+      "term": "Route",
+      "definition": "A path on the site, such as /guide/run."
+    },
+    {
+      "term": "Hold",
+      "definition": "A page-map entry that keeps a source off the site until a named release. A build for an earlier release neither renders that source nor links to it."
+    },
+    {
+      "term": "Release ledger",
+      "definition": "The committed, append-only list of every release cut since the first supported release (0.17.0). The release cut appends to it."
+    },
+    {
+      "term": "Served schema",
+      "definition": "The file at /schemas/<format id>/<release>.json: for that release, the format's latest release-named snapshot whose shape release is at or before it."
+    },
+    {
+      "term": "Schema index",
+      "definition": "/schemas/index.json: the list of every served schema path in a build. The deploy guard reads the live copy."
+    },
+    {
+      "term": "Deploy guard",
+      "definition": "The check, run before any upload, that the new build serves every path listed in the live schema index."
+    },
+    {
+      "term": "Preview URL",
+      "definition": "The Cloudflare Workers URL of one uploaded release, aliased by that release (for example v0-18-0). It keeps serving that release's site after later releases are promoted."
+    },
+    {
+      "term": "Promote",
+      "definition": "Make an uploaded version the one docs.phax.run serves."
+    },
+    {
+      "term": "Identity tokens",
+      "definition": "The colour values of the site theme (Rspress `--rp-c-*` variables), one set per theme."
+    },
+    {
+      "term": "Gold accent",
+      "definition": "The theme's brand token: an old gold, deep and unsaturated, never yellow and never a gradient. It is used only for rules, focus rings, the logo and highlights."
+    },
+    {
+      "term": "Shape release, snapshot, format id, first supported release",
+      "definition": "As defined by the schemas-package spec."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "sources",
+      "title": "Rendered from the repository's own sources",
+      "pattern": "ubiquitous",
+      "statement": "The site build shall take every page's content from the committed sources as they are (README.md, docs/cli/reference.md, docs/security.md, docs/release.md, docs/model-catalog.md, docs/blog/*.md and docs/comparisons/*.md), with no copy of their content committed anywhere else."
+    },
+    {
+      "id": "page-map",
+      "title": "One page map",
+      "pattern": "ubiquitous",
+      "statement": "The site build shall build the page tree from one committed page map that assigns each README section, and each other source file, to exactly one of: a route, `omit`, or a hold until a named release."
+    },
+    {
+      "id": "map-complete",
+      "title": "Nothing silently dropped",
+      "pattern": "unwanted",
+      "statement": "IF a README section or a source file is absent from the page map, or the page map names a heading or file that no longer exists, THEN the site build SHALL fail, naming that section or file."
+    },
+    {
+      "id": "gfm",
+      "title": "Rendered as GitHub renders it",
+      "pattern": "ubiquitous",
+      "statement": "The site build shall render every source as GitHub-flavoured Markdown: angle-bracket placeholders and braces outside code appear as written, and HTML comments are dropped."
+    },
+    {
+      "id": "links-rendered",
+      "title": "Links between sources become site links",
+      "pattern": "event",
+      "statement": "WHEN a source links to a rendered source, with or without an anchor, THE site build SHALL rewrite the link to the route and anchor where that content is served."
+    },
+    {
+      "id": "links-repo",
+      "title": "Links to unrendered files go to GitHub at the tag",
+      "pattern": "event",
+      "statement": "WHEN a source links to a repository file the site does not render THE site build SHALL rewrite the link to that file on GitHub at the release tag the site is built for."
+    },
+    {
+      "id": "links-broken",
+      "title": "A broken link fails the build",
+      "pattern": "unwanted",
+      "statement": "IF a relative link names a file that does not exist in the repository, or an anchor its target page does not have, THEN the site build SHALL fail, naming the source file, the line and the link."
+    },
+    {
+      "id": "held",
+      "title": "Held sources stay off the site",
+      "pattern": "optional",
+      "statement": "WHERE the page map holds a source until a release THE site SHALL neither render nor link to that source in a build for an earlier release."
+    },
+    {
+      "id": "offline",
+      "title": "Offline build, self-hosted assets",
+      "pattern": "ubiquitous",
+      "statement": "The site build shall complete without network access, and the built pages shall load no font, script, style or image from another origin."
+    },
+    {
+      "id": "deterministic",
+      "title": "Deterministic",
+      "pattern": "ubiquitous",
+      "statement": "The site build shall produce byte-identical generated page sources and schema files from the same commit."
+    },
+    {
+      "id": "ignored",
+      "title": "Generated, never committed",
+      "pattern": "ubiquitous",
+      "statement": "The site build shall write its generated sources and its output only to paths the repository ignores."
+    },
+    {
+      "id": "schema-serve",
+      "title": "Every release's schema at its `$schema` URL",
+      "pattern": "ubiquitous",
+      "statement": "For each release in the release ledger, and each format with a released shape at or before that release, the site shall serve at /schemas/<format id>/<release>.json the bytes of that format's latest release-named snapshot whose shape release is at or before that release."
+    },
+    {
+      "id": "schema-unreleased",
+      "title": "No unreleased shapes",
+      "pattern": "ubiquitous",
+      "statement": "The site shall serve no pre-schema snapshot and no next snapshot."
+    },
+    {
+      "id": "schema-response",
+      "title": "Schema response",
+      "pattern": "event",
+      "statement": "WHEN a served schema URL is requested THE site SHALL answer 200 with Content-Type application/json and Access-Control-Allow-Origin *."
+    },
+    {
+      "id": "ledger-append",
+      "title": "The release cut records the release",
+      "pattern": "event",
+      "statement": "WHEN the release cut cuts release X THE release cut SHALL append X to the release ledger in the release commit."
+    },
+    {
+      "id": "ledger-consistent",
+      "title": "Ledger agrees with the tree",
+      "pattern": "unwanted",
+      "statement": "IF the release ledger's last entry differs from the root package.json version, or a release-named snapshot names a release absent from the ledger, THEN the site build SHALL fail, naming the mismatch."
+    },
+    {
+      "id": "never-remove",
+      "title": "A served schema is never removed",
+      "pattern": "unwanted",
+      "statement": "IF a build does not serve a path listed in the live schema index THEN the deploy SHALL refuse before uploading anything, naming the first missing path."
+    },
+    {
+      "id": "latest-only",
+      "title": "Latest release only",
+      "pattern": "ubiquitous",
+      "statement": "The site at docs.phax.run shall present only the documentation of the release it was built from, with no version switcher and no route prefixed by a version."
+    },
+    {
+      "id": "version-label",
+      "title": "The release is shown",
+      "pattern": "ubiquitous",
+      "statement": "The site shall show in its top navigation the release it was built from, as vX.Y.Z, linking to that release on GitHub."
+    },
+    {
+      "id": "preview",
+      "title": "A preview URL per release",
+      "pattern": "event",
+      "statement": "WHEN the release workflow deploys release X THE deploy SHALL publish X's site at a preview URL named for X that keeps serving X's site after later releases are promoted."
+    },
+    {
+      "id": "deploy-order",
+      "title": "Deploy after every check, before any publish",
+      "pattern": "event",
+      "statement": "WHEN a release tag is pushed THE release workflow SHALL deploy the site only after every gate, build, smoke and version check has passed, and before the first npm stage publish."
+    },
+    {
+      "id": "deploy-fail",
+      "title": "A failed deploy leaves nothing behind",
+      "pattern": "unwanted",
+      "statement": "IF the deploy guard, the upload or the preview check fails THEN the release workflow SHALL stop with no npm package staged, no GitHub Release created, and the previously promoted site still serving docs.phax.run."
+    },
+    {
+      "id": "ci-build",
+      "title": "CI builds the site",
+      "pattern": "event",
+      "statement": "WHEN a commit is pushed to main or a pull request is opened or updated THE CI workflow SHALL build the site."
+    },
+    {
+      "id": "deploy-credential",
+      "title": "Only the deploy holds the credential",
+      "pattern": "ubiquitous",
+      "statement": "The Cloudflare deploy credential shall be referenced only by the deploy steps of the release workflow and of the manual deploy, never by the CI workflow, a phase or a repository script."
+    },
+    {
+      "id": "manual-deploy",
+      "title": "Explicit author redeploy",
+      "pattern": "optional",
+      "statement": "WHERE the author redeploys a released tag by hand THE manual deploy SHALL build that tag and run the same guard, preview upload, check and promotion as the release workflow, staging nothing on npm."
+    },
+    {
+      "id": "gate",
+      "title": "The project gate builds the site",
+      "pattern": "event",
+      "statement": "WHEN `pnpm check:full` runs THE project gate SHALL run `pnpm site:build` and fail when it fails."
+    },
+    {
+      "id": "one-time-setup",
+      "title": "One-time setup is documented, by hand",
+      "pattern": "ubiquitous",
+      "statement": "The release documentation shall list, as steps the author performs by hand and never automated: the Cloudflare account with the phax.run zone, the API token and the account id as GitHub secrets, the docs.phax.run custom domain with its DNS record, and preview URLs enabled."
+    },
+    {
+      "id": "dark-first",
+      "title": "Dark first",
+      "pattern": "event",
+      "statement": "WHEN a visitor with no stored theme preference opens the site THE site SHALL render the dark theme."
+    },
+    {
+      "id": "contrast",
+      "title": "Contrast thresholds",
+      "pattern": "ubiquitous",
+      "statement": "In both themes, the identity tokens shall give these minimum contrast ratios against every background token they are used on: running text and links 7:1, secondary text 4.5:1, gold accents 3:1."
+    },
+    {
+      "id": "gold-accent-light",
+      "title": "Gold is an accent in the light theme",
+      "pattern": "state",
+      "statement": "WHILE the light theme is active THE site SHALL use gold only for accents (rules, focus rings, the logo, highlights) and the bronze link token for links, never gold for running text."
+    },
+    {
+      "id": "gold-not-warning",
+      "title": "Gold never warns",
+      "pattern": "ubiquitous",
+      "statement": "The site shall render warning, caution and danger callouts in a non-gold hue, never with a gold token."
+    },
+    {
+      "id": "logo",
+      "title": "Logo, wordmark and favicon",
+      "pattern": "ubiquitous",
+      "statement": "The site shall show the phax logo beside the lowercase wordmark `phax`, and shall use the same logo as its favicon. The logo is a single-weight geometric P whose split bowl also reads as an F, in the theme's gold accent, with a bowl gap of at least one eighth of the glyph's height."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "cli: pnpm site:build",
+      "binding": "normative",
+      "before": null,
+      "after": "# command name and exit codes normative; output wording indicative\n$ pnpm site:build\nsite: v0.17.0 — 20 pages from 7 sources (README: 31 sections, 1 omitted, 0 held)\nsite: links — rewritten to routes and to github.com/lbdremy/phax/blob/v0.17.0, 0 broken\nsite: schemas — 15 served (ledger: 0.17.0 × 15 formats), ledger agrees with package.json\nsite: built site/doc_build\n$? = 0\n\n$ pnpm site:build          # a README heading renamed without touching the page map\n✗ README.md: section \"## Running\" is not in the page map\n✗ page map: names README section \"## Run\", which README.md no longer has\n$? = 1\n\n$ pnpm site:build          # a broken link\n✗ docs/comparisons/openspec-vs-phax.md:113: ../ideas/missing.md — no such file\n✗ README.md:189: docs/cli/reference.md#phax-orientt — no such anchor on /reference/cli\n$? = 1"
+    },
+    {
+      "surface": "cli: pnpm site:dev, pnpm site:preview",
+      "binding": "indicative",
+      "before": null,
+      "after": "$ pnpm site:dev        # live-reloading site on localhost, offline\n$ pnpm site:preview    # serve the built site/doc_build on localhost, offline"
+    },
+    {
+      "surface": "api: docs.phax.run page routes and navigation",
+      "binding": "indicative",
+      "before": null,
+      "after": "nav: Guide · Reference · Security · Compare · [Blog, once a post is published] · v0.17.0 · GitHub     (search: Rspress built-in local search)\n\n/                               README intro + Quickstart\n/guide/install                  README: Install · Runtime permission posture · Shell completions\n/guide/configure                README: Configure · Configuration layers · Schema upgrade\n/guide/write-a-plan             README: Write a plan · Lint the plan\n/guide/run                      README: Run · Resume · Locks\n/guide/review-and-publish       README: Review loop · Compliance review & publishing\n/guide/multiple-plans           README: Coordinating multiple plans\n/guide/manage-runs              README: List runs · Archive and prune\n/guide/model-routing            README: Multi-provider model routing\n/guide/security-modes           README: Security modes · Security notes\n/guide/troubleshooting          README: Debugging · Observability · Troubleshooting\n/reference/cli                  docs/cli/reference.md\n/reference/formats              README: Persisted formats · Read phax files from code, + a generated list of every served schema URL\n/reference/exit-codes           README: Exit codes · Environment variables\n/reference/model-catalog        docs/model-catalog.md\n/security                       docs/security.md\n/contributing/testing           README: Testing · State Machine · CLI specification (`phax.usage.kdl`)\n/contributing/release           docs/release.md\n/compare/openspec-vs-phax       docs/comparisons/openspec-vs-phax.md\n/compare/spec-kit-vs-phax       docs/comparisons/spec-kit-vs-phax.md\n/blog/announcing-phax-1-0       docs/blog/announcing-phax-1.0.md — held until 1.0.0\n(omitted)                       README: CLI command reference — the generated summary; /reference/cli replaces it\n/schemas/<format id>/<release>.json   see the schema URL surface\n/404                            not-found page (HTTP 404)\n\n# normative: every README section and every source appears exactly once (route, omitted or held); routes, grouping and titles indicative"
+    },
+    {
+      "surface": "file: the page map (site/pages.ts)",
+      "binding": "indicative",
+      "before": null,
+      "after": "// site/pages.ts: the one place the site's structure lives; the README is never edited for it\nexport default {\n  readme: [\n    { route: \"/\", sections: [\"(intro)\", \"Quickstart\"] },\n    { route: \"/guide/install\", title: \"Install\", sections: [\"Install\", \"Runtime permission posture\", \"Shell completions\"] },\n    { route: \"/guide/run\", title: \"Run a plan\", sections: [\"Run\", \"Resume\", \"Locks\"] },\n    // … one entry per route of the page tree\n    { omit: [\"CLI command reference\"], why: \"generated summary; /reference/cli is the full reference\" },\n  ],\n  files: [\n    { route: \"/reference/cli\", source: \"docs/cli/reference.md\" },\n    { route: \"/security\", source: \"docs/security.md\" },\n    { route: \"/compare/openspec-vs-phax\", source: \"docs/comparisons/openspec-vs-phax.md\" },\n    { route: \"/blog/announcing-phax-1-0\", source: \"docs/blog/announcing-phax-1.0.md\", holdUntil: \"1.0.0\" },\n  ],\n};"
+    },
+    {
+      "surface": "api: https://docs.phax.run/schemas/<format id>/<release>.json",
+      "binding": "normative",
+      "before": "GET https://docs.phax.run/schemas/registry/0.17.0.json\n→ no such host (every phax 0.17.0 document names a URL that does not resolve)",
+      "after": "GET https://docs.phax.run/schemas/registry/0.17.0.json\n200 OK\nContent-Type: application/json\nAccess-Control-Allow-Origin: *\n\n{\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n  \"title\": \"phax run registry\",\n  …                          # byte-identical to packages/schemas/snapshots/registry/0.17.0.schema.json\n}\n\nGET https://docs.phax.run/schemas/run-status/0.18.0.json      # 0.18.0 left the run-status shape unchanged\n200 OK                                                        # bytes of run-status/0.17.0.schema.json\n\nGET https://docs.phax.run/schemas/registry/pre-schema.json\n404 Not Found                                                 # pre-schema and next are never served\n\n# from the first deploy: the 15 URLs /schemas/<format id>/0.17.0.json for registry, run-status, phase-status,\n# phax-plan, compliance-review, plan-approvals, spec-approvals, phase-record-manifest, authoring-record-manifest,\n# gate-attribution, phase-file-reconciliation, gate-diagnostics, gate-pending, spec-document, plan-document\n# a URL once served is served by every later deploy"
+    },
+    {
+      "surface": "api: https://docs.phax.run/schemas/index.json",
+      "binding": "indicative",
+      "before": null,
+      "after": "GET https://docs.phax.run/schemas/index.json\n200 OK\n{\n  \"releases\": [\"0.17.0\", \"0.18.0\"],\n  \"paths\": [\n    \"/schemas/authoring-record-manifest/0.17.0.json\",\n    …\n    \"/schemas/spec-document/0.18.0.json\"\n  ]\n}\n# the deploy guard reads the live copy and refuses a build that lacks any listed path"
+    },
+    {
+      "surface": "file: packages/schemas/releases.json (release ledger)",
+      "binding": "indicative",
+      "before": null,
+      "after": "{\n  \"releases\": [\"0.17.0\"]\n}\n# after scripts/release.sh 0.18.0: { \"releases\": [\"0.17.0\", \"0.18.0\"] }, in the release commit\n# normative: append-only; first entry = the first supported release; last entry = root package.json version; path indicative"
+    },
+    {
+      "surface": "cli: scripts/release.sh",
+      "binding": "indicative",
+      "before": "bumping to 0.18.0 (package.json, npm/package.json, packages/schemas/package.json)\nrenaming snapshots/*/next.schema.json → 0.18.0.schema.json\nregenerating usage spec and CLI docs\ncommitting\ntagging\npushing\ndone: v0.18.0 tagged and pushed\napprove the staged npm packages at:\n  https://www.npmjs.com/package/@lbdremy/phax\n  https://www.npmjs.com/package/@lbdremy/phax-schemas",
+      "after": "bumping to 0.18.0 (package.json, npm/package.json, packages/schemas/package.json)\nrenaming snapshots/*/next.schema.json → 0.18.0.schema.json\nappending 0.18.0 to the release ledger\nregenerating usage spec and CLI docs\ncommitting\ntagging\npushing\ndone: v0.18.0 tagged and pushed\napprove the staged npm packages at:\n  https://www.npmjs.com/package/@lbdremy/phax\n  https://www.npmjs.com/package/@lbdremy/phax-schemas"
+    },
+    {
+      "surface": "internal: release workflow on a v* tag",
+      "binding": "normative",
+      "before": "Gate → build binaries → Node 20 schemas smoke → Node 24 + npm 11.16 → prepare npm wrapper → verify both manifests = tag\n→ npm stage publish @lbdremy/phax-schemas → npm stage publish @lbdremy/phax → GitHub Release",
+      "after": "Gate (+ pnpm site:build) → build binaries → Node 20 schemas smoke → Node 24 + npm 11.16 → prepare npm wrapper → verify both manifests = tag\n→ deploy docs.phax.run                                   (env: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID — these steps only)\n    guard    fetch https://docs.phax.run/schemas/index.json; refuse if site/doc_build lacks a listed path (404 = first deploy: pass)\n    upload   wrangler versions upload --preview-alias v0-18-0\n    check    <preview URL>/schemas/registry/0.18.0.json → 200 application/json; <preview URL>/ shows v0.18.0\n    promote  wrangler versions deploy <uploaded version>@100%\n→ npm stage publish @lbdremy/phax-schemas → npm stage publish @lbdremy/phax → GitHub Release\n\n# normative: the deploy follows every fallible check and precedes the first publish; a failed guard, upload or check stages\n#   nothing, creates no release and leaves the promoted site unchanged (at most an unpromoted version with its preview URL)\n# remedy as today: fix, delete and re-push the tag; redeploying the same build is idempotent\n# indicative: wrangler command spellings, step names"
+    },
+    {
+      "surface": "internal: CI workflow",
+      "binding": "indicative",
+      "before": "… Build (pnpm build) → Architecture audit → Deno smoke → Deno compile → Node 20 schemas smoke",
+      "after": "… Build (pnpm build) → Docs site (pnpm site:build) → Architecture audit → Deno smoke → Deno compile → Node 20 schemas smoke\n# no wrangler step, no CLOUDFLARE secret, no upload of any kind"
+    },
+    {
+      "surface": "internal: manual deploy by the author",
+      "binding": "indicative",
+      "before": null,
+      "after": "$ gh workflow run docs-deploy.yml -f tag=v0.18.0\n# checks out v0.18.0, runs pnpm site:build, then guard → upload (alias v0-18-0) → check → promote\n# stages nothing on npm, creates no GitHub Release; refused by the guard if it would drop a served schema URL"
+    },
+    {
+      "surface": "api: preview URLs",
+      "binding": "indicative",
+      "before": null,
+      "after": "https://docs.phax.run                                         the latest promoted release\nhttps://v0-18-0-phax-docs.<account subdomain>.workers.dev     v0.18.0's site, kept after later releases are promoted\nhttps://v0-19-0-phax-docs.<account subdomain>.workers.dev     v0.19.0's site"
+    },
+    {
+      "surface": "config: site/wrangler.jsonc",
+      "binding": "indicative",
+      "before": null,
+      "after": "{\n  \"$schema\": \"../node_modules/wrangler/config-schema.json\",\n  \"name\": \"phax-docs\",\n  \"compatibility_date\": \"2026-09-25\",\n  // no \"main\": static assets only, no Worker script\n  \"assets\": {\n    \"directory\": \"./doc_build\",\n    \"not_found_handling\": \"404-page\"\n  },\n  \"preview_urls\": true,\n  \"routes\": [{ \"pattern\": \"docs.phax.run\", \"custom_domain\": true }]\n}"
+    },
+    {
+      "surface": "file: site/doc_build/_headers",
+      "binding": "indicative",
+      "before": null,
+      "after": "/schemas/*\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=3600\n# content type and CORS normative (see the schema URL surface); cache policy indicative"
+    },
+    {
+      "surface": "config: identity tokens (site theme)",
+      "binding": "indicative",
+      "before": null,
+      "after": "/* values indicative; the ratio thresholds are normative (text and links ≥ 7:1, secondary ≥ 4.5:1, gold accents ≥ 3:1) */\n/* dark — the default */\n--rp-c-bg:        #15130E;  /* warm black, leaning gold */\n--rp-c-bg-soft:   #1E1B14;  /* code blocks, callouts */\n--rp-c-text-1:    #EDE6D6;  /* 14.9:1 on bg · 13.8:1 on bg-soft */\n--rp-c-text-2:    #A89F8A;  /*  7.1:1 on bg ·  6.5:1 on bg-soft */\n--rp-c-link:      #C2A160;  /*  7.6:1 on bg ·  7.0:1 on bg-soft */\n--rp-c-brand:     #B39257;  /*  6.3:1 — old gold, hue 38°: rules, focus ring, logo, highlights */\n--phax-c-warning: #D96A4F;  /*  5.4:1 — terracotta, hue 12°: never gold */\n\n/* light — opt-in through the theme toggle */\n--rp-c-bg:        #F7F3EA;  /* warm off-white */\n--rp-c-bg-soft:   #EFE9DC;\n--rp-c-text-1:    #1E1A12;  /* 15.7:1 on bg · 14.3:1 on bg-soft */\n--rp-c-text-2:    #5C5546;  /*  6.7:1 on bg ·  6.1:1 on bg-soft */\n--rp-c-link:      #5E4720;  /*  7.9:1 on bg ·  7.2:1 on bg-soft — bronze */\n--rp-c-brand:     #9A7A3E;  /*  3.6:1 — accents only, never running text */\n--phax-c-warning: #A33B22;  /*  5.9:1 */\n\nfonts: self-hosted woff2 from npm packages, latin subset, no font CDN — text IBM Plex Sans 400/600, code IBM Plex Mono 400 (families indicative)\n# variable names follow Rspress v2's --rp-c-* set; exact names indicative"
+    },
+    {
+      "surface": "file: site/public/logo.svg (logo and favicon)",
+      "binding": "indicative",
+      "before": null,
+      "after": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\" fill=\"none\"\n     stroke=\"#B39257\" stroke-width=\"3\" stroke-linecap=\"butt\">\n  <path d=\"M9 29V3h8a6.5 6.5 0 0 1 6.5 6.5\"/>     <!-- stem, top arm, upper bowl -->\n  <path d=\"M23.5 13.5a6.5 6.5 0 0 1-6.5 6.5H9\"/>  <!-- lower bowl, middle arm: the P's bowl reads as an F -->\n</svg>\n\nnav:  [logo] phax          ← lowercase wordmark, in the site's text font\n<link rel=\"icon\" type=\"image/svg+xml\" href=\"/logo.svg\">\n\n# normative: one stroke weight; bowl split on its right side with a clear gap ≥ 1/8 of the glyph height (here 4 of 29 units);\n#   one colour, the theme's gold accent; no gradient; the same file is the favicon; wordmark `phax` lowercase\n# indicative: exact geometry, which a later redraw may replace"
+    },
+    {
+      "surface": "file: docs/release.md",
+      "binding": "indicative",
+      "before": "## Prerequisites\n### SSH signing (one-time setup)\n### Trusted publisher for `@lbdremy/phax-schemas` (one-time, before its first release)\n## Release process\n… 3. Watch the release workflow (steps 1–7, no site)",
+      "after": "## Prerequisites\n### SSH signing (one-time setup)\n### Trusted publisher for `@lbdremy/phax-schemas` (one-time, before its first release)\n### The docs site (one-time, by hand — never automated)\n1. A Cloudflare account holding the phax.run zone (its DNS on Cloudflare).\n2. An API token from the \"Edit Cloudflare Workers\" template, limited to that account and zone → GitHub secret CLOUDFLARE_API_TOKEN;\n   the account id → GitHub secret CLOUDFLARE_ACCOUNT_ID.\n3. The custom domain docs.phax.run on the phax-docs Worker (creates its DNS record and certificate).\n4. The workers.dev subdomain and preview URLs enabled on the Worker, for the per-release preview URLs.\n## Release process\n… 3. Watch the release workflow — new step: deploys docs.phax.run (guard, upload with alias vX-Y-Z, check, promote) before the npm stage publishes\n… 5. Verify — docs.phax.run shows vX.Y.Z; https://docs.phax.run/schemas/registry/X.Y.Z.json answers 200; the previous release's preview URL still shows its own version\n## Redeploying the docs site by hand"
+    }
+  ],
+  "nonGoals": [
+    "The marketing site www.phax.run and the cockpit app.phax.run, which live in the private phax-cockpit repository.",
+    "Search beyond Rspress's built-in local search; no hosted search service.",
+    "Analytics, tracking, cookies or a consent banner.",
+    "Internationalisation: English only, like the repository's docs.",
+    "steme's docs site (steme roadmap item 0.6). It copies this pipeline afterwards; nothing here is parameterised or shared for it.",
+    "Rendering other repository documents (docs/model-routing.md, docs/state-machine.md, docs/observability.md, docs/e2e-testing.md, docs/plan-extraction-model.md, docs/vocabulary-review.md, docs/ideas/, docs/specs/, docs/plans/). The site links to them on GitHub at the release tag; adding one later is a page-map entry.",
+    "Older releases browsable on docs.phax.run: no version switcher, no Rspress multiVersion.",
+    "Deploys from CI, from pull requests, from phase sessions or from a local script; pull-request preview sites.",
+    "Any change to the phax CLI or to a persisted format phax writes; adding $id or anything else to served schemas; serving pre-schema or next snapshots; ever removing a served schema URL.",
+    "Editing the README or any other source for the site's sake.",
+    "A design system or theme package shared with another app; screenshot-based visual regression tests.",
+    "Changes to the binaries, the npm packages or the GitHub Release beyond the deploy's place in the workflow."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "ac-tree",
+      "name": "The page tree comes from the page map",
+      "given": "the repository at a commit, with the page map of §6",
+      "when": "`pnpm site:build` runs",
+      "then": "it exits 0, and the output holds one page per mapped route, each with the text of the sources and README sections the map names. The README's generated CLI summary appears on no page.",
+      "refs": [
+        "sources",
+        "page-map"
+      ]
+    },
+    {
+      "id": "ac-no-copy",
+      "name": "Nothing generated is committed",
+      "given": "a clean checkout",
+      "when": "`pnpm site:build` runs",
+      "then": "`git status --porcelain` prints nothing, and no committed file under site/ contains a paragraph of any source.",
+      "refs": [
+        "ignored",
+        "sources"
+      ]
+    },
+    {
+      "id": "ac-unmapped",
+      "name": "An unmapped or vanished section fails the build",
+      "given": "three variants of the repository: a README with an added `## Contributing` section absent from the page map; a page map still naming `## Locks` after that README heading was renamed; an added docs/blog/second-post.md absent from the map",
+      "when": "`pnpm site:build` runs on each",
+      "then": "each run exits non-zero, naming `Contributing`, `Locks` and docs/blog/second-post.md respectively.",
+      "refs": [
+        "map-complete"
+      ]
+    },
+    {
+      "id": "ac-gate",
+      "name": "A heading rename fails the phase that made it",
+      "given": "a phase that renames the README heading `## Run` without touching the page map",
+      "when": "`pnpm check:full` runs in that phase",
+      "then": "it fails, naming `Run`.",
+      "refs": [
+        "gate"
+      ]
+    },
+    {
+      "id": "ac-gfm",
+      "name": "Placeholders and comments render as on GitHub",
+      "given": "a README section whose text holds `<short-name>` and `{#phase-01-setup}` outside code, plus an HTML comment",
+      "when": "the site is built",
+      "then": "the build succeeds, its page shows `<short-name>` and `{#phase-01-setup}` as text, and the comment's text appears nowhere.",
+      "refs": [
+        "gfm"
+      ]
+    },
+    {
+      "id": "ac-links",
+      "name": "Links between sources point to routes",
+      "given": "the README links `docs/cli/reference.md#phax-orient`, `docs/security.md#shell-command-execution` and `#security-modes`, and the OpenSpec comparison's link `./spec-kit-vs-phax.md`",
+      "when": "the site is built at 0.17.0",
+      "then": "they point to `/reference/cli#phax-orient`, `/security#shell-command-execution`, the route holding the README's Security modes section at that section's anchor, and `/compare/spec-kit-vs-phax`.",
+      "refs": [
+        "links-rendered"
+      ]
+    },
+    {
+      "id": "ac-links-repo",
+      "name": "Links to unrendered files point to GitHub at the tag",
+      "given": "the README's link `docs/model-routing.md` and the spec-kit comparison's link `../ideas/desktop-app.md`",
+      "when": "the site is built at 0.17.0",
+      "then": "they point to `https://github.com/lbdremy/phax/blob/v0.17.0/docs/model-routing.md` and `https://github.com/lbdremy/phax/blob/v0.17.0/docs/ideas/desktop-app.md`.",
+      "refs": [
+        "links-repo"
+      ]
+    },
+    {
+      "id": "ac-broken",
+      "name": "A broken link fails the build",
+      "given": "a fixture source linking `docs/missing.md`, and another linking `docs/cli/reference.md#phax-no-such-command`",
+      "when": "`pnpm site:build` runs",
+      "then": "it exits non-zero and names each source file, line and link.",
+      "refs": [
+        "links-broken"
+      ]
+    },
+    {
+      "id": "ac-held",
+      "name": "The 1.0 announcement waits for 1.0",
+      "given": "the page map holding docs/blog/announcing-phax-1.0.md until 1.0.0",
+      "when": "the site is built at 0.17.0, and again with a fixture version of 1.0.0",
+      "then": "at 0.17.0, no route renders the post, no page links to it, and the navigation has no Blog entry. At 1.0.0, the post is served at its route and Blog appears in the navigation.",
+      "refs": [
+        "held"
+      ]
+    },
+    {
+      "id": "ac-offline",
+      "name": "Offline build, no remote assets",
+      "given": "a phase session with no network access",
+      "when": "`pnpm site:build` runs",
+      "then": "it exits 0, and no built HTML, CSS or JS file loads a font, script, style or image from an absolute http(s) URL.",
+      "refs": [
+        "offline"
+      ]
+    },
+    {
+      "id": "ac-deterministic",
+      "name": "Same commit, same bytes",
+      "given": "one commit",
+      "when": "`pnpm site:build` runs twice from a clean tree",
+      "then": "the generated page sources and every file under schemas/ are byte-identical between the two runs.",
+      "refs": [
+        "deterministic"
+      ]
+    },
+    {
+      "id": "ac-schemas-first",
+      "name": "The 15 0.17.0 URLs from the first deploy",
+      "given": "the release ledger [\"0.17.0\"] and today's snapshots",
+      "when": "the site is built",
+      "then": "exactly 15 schema files are served, one /schemas/<format id>/0.17.0.json per format id, each byte-identical to packages/schemas/snapshots/<format id>/0.17.0.schema.json; no served path names pre-schema or next.",
+      "refs": [
+        "schema-serve",
+        "schema-unreleased"
+      ]
+    },
+    {
+      "id": "ac-schemas-carry",
+      "name": "A release without a shape change still serves every format",
+      "given": "a fixture ledger [\"0.17.0\", \"0.18.0\"] in which only registry has a 0.18.0 snapshot and run-status has a next snapshot",
+      "when": "the site is built",
+      "then": "/schemas/registry/0.18.0.json equals the registry 0.18.0 snapshot, /schemas/run-status/0.18.0.json equals the run-status 0.17.0 snapshot, all 15 0.17.0 URLs are still served (30 files in all), and no next snapshot is served.",
+      "refs": [
+        "schema-serve",
+        "schema-unreleased"
+      ]
+    },
+    {
+      "id": "ac-schema-response",
+      "name": "Schemas answer as JSON, cross-origin",
+      "given": "the built site",
+      "when": "the headers it ships for /schemas/registry/0.17.0.json are read, and the release workflow's preview check requests that release's registry URL",
+      "then": "the headers set Content-Type application/json and Access-Control-Allow-Origin *, and the check passes only on a 200 with that content type.",
+      "refs": [
+        "schema-response"
+      ]
+    },
+    {
+      "id": "ac-ledger-append",
+      "name": "The release cut appends the release",
+      "given": "a copy of the tree with the ledger [\"0.17.0\"]",
+      "when": "`pnpm exec tsx scripts/release-cut.ts 0.18.0 --root <copy>` runs",
+      "then": "the ledger is [\"0.17.0\", \"0.18.0\"] and its path is among the printed changed paths.",
+      "refs": [
+        "ledger-append"
+      ]
+    },
+    {
+      "id": "ac-ledger-consistent",
+      "name": "A ledger out of step fails the build",
+      "given": "two variants: a ledger whose last entry is 0.17.0 under a root package.json at 0.18.0; a snapshot registry/0.18.0.schema.json with 0.18.0 absent from the ledger",
+      "when": "`pnpm site:build` runs on each",
+      "then": "each run exits non-zero, naming the mismatch.",
+      "refs": [
+        "ledger-consistent"
+      ]
+    },
+    {
+      "id": "ac-never-remove",
+      "name": "The guard refuses to drop a served schema",
+      "given": "two fixture live schema indexes: one listing /schemas/registry/0.18.0.json, checked against a v0.17.0 build that lacks it; one answering 404",
+      "when": "the deploy guard runs against each",
+      "then": "against the first, it refuses, naming /schemas/registry/0.18.0.json, and no upload command runs; against the 404 (a first deploy), it passes.",
+      "refs": [
+        "never-remove"
+      ]
+    },
+    {
+      "id": "ac-latest-only",
+      "name": "One release, labelled",
+      "given": "the site built at 0.17.0",
+      "when": "its pages are inspected",
+      "then": "every page's top navigation shows `v0.17.0` linking to https://github.com/lbdremy/phax/releases/tag/v0.17.0, there is no version switcher, and no route begins with a version segment.",
+      "refs": [
+        "latest-only",
+        "version-label"
+      ]
+    },
+    {
+      "id": "ac-preview",
+      "name": "Upload to a named preview, check, then promote",
+      "given": "release.yml on tag v0.18.0",
+      "when": "its deploy steps are parsed",
+      "then": "they upload the build with the preview alias `v0-18-0`, check that preview URL, and promote it to docs.phax.run only after the check passes. The release Verify list confirms that, after the next release, the v0-18-0 preview URL still shows v0.18.0.",
+      "refs": [
+        "preview",
+        "deploy-fail"
+      ]
+    },
+    {
+      "id": "ac-order",
+      "name": "The deploy sits between the checks and the publishes",
+      "given": "release.yml",
+      "when": "its steps are parsed",
+      "then": "the site build, guard, upload, check and promotion all come after the Gate, binaries, schemas smoke, prepare-npm and version-check steps, and before the first npm stage publish. Only the second publish and the GitHub Release follow the first publish, and no deploy step sets continue-on-error.",
+      "refs": [
+        "deploy-order",
+        "deploy-fail"
+      ]
+    },
+    {
+      "id": "ac-ci",
+      "name": "CI builds, never deploys",
+      "given": "ci.yml and release.yml",
+      "when": "their steps are parsed",
+      "then": "ci.yml runs `pnpm site:build` after `pnpm build` and has no step that runs wrangler or references a CLOUDFLARE secret; in release.yml, only the deploy steps reference CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.",
+      "refs": [
+        "ci-build",
+        "deploy-credential"
+      ]
+    },
+    {
+      "id": "ac-manual",
+      "name": "The author's redeploy runs the same guard",
+      "given": "the manual deploy workflow, dispatched with tag v0.18.0",
+      "when": "its steps are parsed",
+      "then": "it checks out v0.18.0, runs `pnpm site:build`, the guard, the upload with alias v0-18-0, the check and the promotion, and has no npm publish and no GitHub Release step.",
+      "refs": [
+        "manual-deploy",
+        "never-remove"
+      ]
+    },
+    {
+      "id": "ac-one-time",
+      "name": "One-time setup is written down",
+      "given": "docs/release.md",
+      "when": "it is read",
+      "then": "a one-time setup section lists the Cloudflare account and phax.run zone, the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID GitHub secrets, the docs.phax.run custom domain with its DNS record, and enabling preview URLs, and says that none of these steps is automated.",
+      "refs": [
+        "one-time-setup"
+      ]
+    },
+    {
+      "id": "ac-dark",
+      "name": "Dark by default",
+      "given": "the built site and a visitor with no stored preference whose system prefers light",
+      "when": "the home page loads",
+      "then": "the dark theme renders.",
+      "refs": [
+        "dark-first"
+      ]
+    },
+    {
+      "id": "ac-contrast",
+      "name": "Tokens meet their contrast thresholds",
+      "given": "the theme's identity tokens",
+      "when": "a test computes WCAG 2 contrast ratios for each text, link and accent token against each background token of the same theme",
+      "then": "in both themes, running text and links are at least 7:1, secondary text at least 4.5:1, and gold accents at least 3:1.",
+      "refs": [
+        "contrast"
+      ]
+    },
+    {
+      "id": "ac-light-gold",
+      "name": "Bronze links, no gold text in light",
+      "given": "the light theme's tokens and styles",
+      "when": "the link colour and the running-text colours are read",
+      "then": "the link colour is the bronze token, and no running-text or link colour is a gold accent token.",
+      "refs": [
+        "gold-accent-light"
+      ]
+    },
+    {
+      "id": "ac-warning",
+      "name": "Warnings are never gold",
+      "given": "the theme's styles",
+      "when": "the colours of warning, caution and danger callouts are read",
+      "then": "none is a gold token, and each hue differs from every gold token's hue by at least 20°.",
+      "refs": [
+        "gold-not-warning"
+      ]
+    },
+    {
+      "id": "ac-logo",
+      "name": "Logo constraints hold",
+      "given": "the committed logo SVG",
+      "when": "it is parsed and the built pages are inspected",
+      "then": "every stroke has the same width; the logo uses one colour, the accent token, and no gradient; the clear gap between the bowl's two strokes is at least one eighth of the glyph's height. The pages' favicon link references the same SVG, and the navigation shows the wordmark `phax` in lowercase.",
+      "refs": [
+        "logo"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "q-versioning",
+      "question": "Should docs.phax.run show only the latest release, or keep older releases browsable (Rspress multiVersion)?",
+      "options": [
+        {
+          "id": "latest",
+          "label": "Latest release only on docs.phax.run; each release's own site stays at its preview URL",
+          "abandons": "Browsing an older release's docs on docs.phax.run itself. A reader pinned to an older phax uses that release's preview URL, which lives only as long as Cloudflare keeps the version, or GitHub at the tag."
+        },
+        {
+          "id": "multi",
+          "label": "Rspress multiVersion: one docs tree per kept release, with a version switcher",
+          "abandons": "The site as a rendering of one commit. Older releases' sources must be kept as copies in the tree, or rebuilt from older tags whose site/ and page map may not exist."
+        }
+      ],
+      "recommendation": "latest",
+      "rationale": "Older releases' readers need one thing forever, the schema URLs, and those are served for every release whatever the versioning. A 0.x CLI that changes every release is read at its latest. The preview URLs give each release's exact site at no cost, without a second copy of any source."
+    },
+    {
+      "id": "q-release-list",
+      "question": "Where does the build learn which releases' schema URLs to serve? A release that changed no shape leaves no snapshot.",
+      "options": [
+        {
+          "id": "ledger",
+          "label": "A committed release ledger, appended by the release cut",
+          "abandons": "A single record of releases: a second list beside the tags, which must agree with them. The build's ledger-vs-package.json check and the workflow's tag check keep the two in step."
+        },
+        {
+          "id": "tags",
+          "label": "The repository's v* tags, read at build time",
+          "abandons": "A build that depends on the commit alone. A shallow or tag-less clone, which is the default CI checkout, builds a site missing every intermediate release, and deploying it would remove URLs."
+        }
+      ],
+      "recommendation": "ledger",
+      "rationale": "Determinism and offline builds are hard requirements, and a tag-dependent build fails both silently. The ledger costs one appended line per release, written by the same cut that renames the snapshots. Its drift is caught offline, because its last entry must equal the package.json version that the workflow already checks against the tag."
+    },
+    {
+      "id": "q-deploy-order",
+      "question": "Where does the deploy sit relative to the npm stage publishes and the GitHub Release?",
+      "options": [
+        {
+          "id": "before",
+          "label": "After every fallible check, before the first npm stage publish",
+          "abandons": "Docs that never run ahead of the packages. The site shows release X while X's packages wait for hand approval, or, if a publish then fails, until the tag is re-pushed."
+        },
+        {
+          "id": "after",
+          "label": "Last, after the GitHub Release",
+          "abandons": "Schema URLs that exist before anything can write them. A failed deploy leaves an approvable release whose documents name URLs that 404, fixed only by a manual redeploy."
+        }
+      ],
+      "recommendation": "before",
+      "rationale": "A 404 on a URL that documents carry breaks a promise. Docs briefly ahead of npm approval break nothing, because staged packages cannot be installed. Deploying before the publishes also keeps the existing invariant intact: every step that can fail precedes the first publish, so a failed deploy stages nothing."
+    },
+    {
+      "id": "q-readme-source",
+      "question": "Does the README stay the single source of the guide pages?",
+      "options": [
+        {
+          "id": "readme",
+          "label": "Yes: the page map splits the README by its ## headings",
+          "abandons": "A site structure of its own. The guide follows the README's order and wording, and README headings become part of the build contract: a rename needs a page-map edit in the same change."
+        },
+        {
+          "id": "move",
+          "label": "Move the guide into docs/guide/*.md and slim the README to an overview with links",
+          "abandons": "The README as the complete manual on GitHub, plus a large content move unrelated to building a site."
+        },
+        {
+          "id": "copies",
+          "label": "Site-specific copies of the guide under site/",
+          "abandons": "A single copy of the content: the copies drift from the README the first time either is edited."
+        }
+      ],
+      "recommendation": "readme",
+      "rationale": "The decision was 'a rendering of what the repo already holds'. The README is what phases edit and what GitHub shows, and the heading contract is enforced mechanically (map-complete, run in check:full), so its cost is visible at the moment it is incurred."
+    },
+    {
+      "id": "q-tokens",
+      "question": "Which identity tokens does the first deploy ship?",
+      "options": [
+        {
+          "id": "now",
+          "label": "The concrete dark and light tokens of §6, checked by a contrast test",
+          "abandons": "An identity picked by the author's eye before it goes live. The first palette is derived from the written brand rules. The author may retune the hex values later: the ratios are the contract, not the values."
+        },
+        {
+          "id": "dark-only",
+          "label": "The §6 dark tokens only, with no light theme",
+          "abandons": "Readers who need or prefer a light page (bright rooms, print, low-vision settings), and Rspress's theme toggle."
+        },
+        {
+          "id": "wait",
+          "label": "Wait for a palette supplied by the author",
+          "abandons": "A first deploy on the next release. The 0.17.0 schema URLs that documents already carry stay unresolved until the palette exists, or the site ships Rspress's default identity."
+        }
+      ],
+      "recommendation": "now",
+      "rationale": "The brand rules are precise enough to derive values that pass tested thresholds. A palette is the cheapest part of the identity to change later, and the 0.17.0 URLs should not wait on it."
+    },
+    {
+      "id": "q-logo",
+      "question": "Who draws the logo and favicon?",
+      "options": [
+        {
+          "id": "phase",
+          "label": "A phase draws a first geometric SVG to the §6 constraints; it is replaced later by swapping the file",
+          "abandons": "A designer's hand on the first version: the mark is a construction that satisfies the constraints, and will probably be redrawn."
+        },
+        {
+          "id": "author",
+          "label": "The author supplies the asset",
+          "abandons": "An unblocked plan: the phase that wires up the identity waits for a file that does not exist yet."
+        }
+      ],
+      "recommendation": "phase",
+      "rationale": "The constraints (one weight, a split bowl, a gap of at least 1/8, single colour) are geometric and testable, so a phase can meet them and the logo test keeps any later redraw honest. Replacing the file changes nothing else."
+    },
+    {
+      "id": "q-visual",
+      "question": "How is the site checked visually?",
+      "options": [
+        {
+          "id": "mechanical",
+          "label": "Mechanical checks (contrast, token use, logo geometry, page structure), plus the author's look at `pnpm site:preview` and at the release's preview URL before approving the npm packages",
+          "abandons": "Automatic detection of a layout regression: a broken layout is caught only when a human looks."
+        },
+        {
+          "id": "screenshots",
+          "label": "Screenshot tests against committed baselines, in a headless browser",
+          "abandons": "A stable gate without network: phase sessions cannot download the browser binary, and font rendering differs between machines, so the baselines flake or get refreshed blindly."
+        }
+      ],
+      "recommendation": "mechanical",
+      "rationale": "The site's layout is Rspress's, not ours. What this spec adds (tokens, logo, page tree, links) can be checked mechanically. The release already has a human approval point where a glance at the preview URL costs seconds."
+    },
+    {
+      "id": "q-blog",
+      "question": "Is the 1.0 announcement published on the first deploy?",
+      "options": [
+        {
+          "id": "hold",
+          "label": "Hold it in the page map until release 1.0.0",
+          "abandons": "A blog on the first deploy: the Blog section is absent until a post is published."
+        },
+        {
+          "id": "publish",
+          "label": "Publish it now",
+          "abandons": "A site that does not lie: docs.phax.run would announce a 1.0 that has not shipped, while Road to 1.0.0 still lists open blockers."
+        }
+      ],
+      "recommendation": "hold",
+      "rationale": "Road to 1.0.0 is ordered by what 1.0 would be lying about, and an early announcement on the official docs would be exactly that. A hold until 1.0.0 publishes the post with the release that makes it true, without a second edit."
+    },
+    {
+      "id": "q-gate",
+      "question": "Does `pnpm check:full` run the site build?",
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes, the whole `pnpm site:build`",
+          "abandons": "A gate as fast as today's: every phase pays the time of the site build."
+        },
+        {
+          "id": "ci-only",
+          "label": "CI only",
+          "abandons": "Catching a README heading rename or a broken link in the phase that made it: the failure appears in CI after the run, outside the fix loop."
+        }
+      ],
+      "recommendation": "yes",
+      "rationale": "Phases edit the README and docs constantly. A page-map or link failure is cheap to fix inside the phase's fix loop and expensive to fix after the PR has been opened."
+    }
+  ],
+  "planningNote": {
+    "settled": [
+      "Decided with the author on 2026-09-25 (NEXT_STEPS): docs.phax.run renders the repository's own sources. It is built with Rspress v2 (@rspress/core) from a site/ folder that is neither an app nor a workspace package, and deployed on the release tag by the release workflow. Hosting is Cloudflare Workers Static Assets: a wrangler.jsonc whose assets.directory is the Rspress output, no Worker script, preview URLs per release. steme copies this pipeline afterwards.",
+      "The schema URL layout is fixed by the Completed schemas-package spec: /schemas/<format id>/<release>.json, served byte-identical to the committed snapshot, with Content-Type application/json and Access-Control-Allow-Origin *. Pre-schema and next snapshots are never served; a served URL is never removed.",
+      "For each release R and each format, the site serves the latest snapshot whose shape release is at or before R. The list of releases is the committed release ledger, appended by the release cut and seeded with 0.17.0 (q-release-list).",
+      "The deploy runs guard → upload with a preview alias → check → promote, after every fallible step and before the first npm stage publish (q-deploy-order). A manual dispatch for a tag is the only other way to deploy.",
+      "Latest release only (q-versioning); the README is the single source through the page map (q-readme-source); the 1.0 announcement is held until 1.0.0 (q-blog); the §6 tokens ship with tested ratios (q-tokens); a phase draws the logo (q-logo); visual checks are mechanical (q-visual); check:full runs the site build (q-gate).",
+      "The first deploy is the first release tag cut after this work lands, and the 15 0.17.0 URLs resolve from that deploy.",
+      "No source is edited for the site's sake. docs/release.md gains the docs-site steps and the one-time setup because maintainers need them."
+    ],
+    "open": [
+      "Route and navigation spellings, page grouping and page titles. The §6 tree is indicative; every README section must still map exactly once.",
+      "Whether link rewriting and the dead-link check use Rspress's own features or a pre-build step, provided anchors are checked against the rendered pages.",
+      "The page map's file name and form, the ledger's path, and the exact shape of the schema index.",
+      "The font families (any OFL family installed from npm and self-hosted), and final hex values within the ratio thresholds.",
+      "Whether the custom domain is declared in wrangler.jsonc or attached once by hand, and how the preview URL's account subdomain reaches the check step.",
+      "Whether a PNG favicon is added as a fallback beside the SVG.",
+      "Whether the manual deploy is a separate workflow or a dispatch trigger on the release workflow."
+    ],
+    "constraints": [
+      "No CLI change and no change to any persisted format phax writes. Served schemas are the snapshots, byte for byte, with no $id injected.",
+      "The build runs offline. Dependencies come from the lockfile install, fonts from npm packages, and docs/cli/reference.md and docs/model-catalog.md are used as committed: no usage CLI and no catalog regeneration in the site build.",
+      "site/ has no package.json. @rspress/core, wrangler and the font packages are root devDependencies. knip, oxlint, oxfmt and vitest must ignore the generated directories and treat the site config as an entry point.",
+      "Verify how Rspress v2 compiles .md files (MDX or plain Markdown). The README and reference.md contain angle-bracket placeholders, braces and HTML comments that MDX would reject (§5 gfm).",
+      "The release workflow keeps its invariants: every step that can fail precedes the first npm stage publish, and only the second publish and the GitHub Release follow it. tests/unit/releaseWorkflow.test.ts is extended, not loosened. The Cloudflare secrets appear only in the deploy steps' env; the npm rule (GITHUB_TOKEN only, no NPM_TOKEN) is unchanged.",
+      "No deploy from CI, from a phase or from a local script, and no deploy credential in the repository.",
+      "Nothing from ~/.phax, the private phax-cockpit corpus or any other repository enters this repository. The brand rules are restated in this spec, not linked.",
+      "Tests use no network. The deploy guard is tested against a fixture live index; only the release workflow and the manual deploy touch the network.",
+      "Keep the pipeline plain and copyable for steme: phax-specific values are limited to the Worker name, the domain and the sources. Do not parameterise anything for steme."
+    ]
+  },
+  "docsPage": {
+    "kind": "page",
+    "page": "docs/release.md — a one-time 'The docs site' setup section, the deploy step in 'Release process', site checks in 'Verify', and a 'Redeploying the docs site by hand' section",
+    "reader": "The phax maintainer setting up the docs site for the first time, or cutting a release and checking that docs.phax.run followed",
+    "example": "The one-time list: Cloudflare account and phax.run zone; CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as GitHub secrets; the docs.phax.run custom domain; preview URLs enabled. Then the release step 'deploys docs.phax.run: guard against the live schema index, upload with alias v0-18-0, check, promote', and in Verify: docs.phax.run shows v0.18.0, https://docs.phax.run/schemas/registry/0.18.0.json answers 200, and the v0-17-0 preview URL still shows v0.17.0."
+  }
+}
