@@ -60,6 +60,7 @@
         "firing": "every-phase"
       },
       { "command": "pnpm build", "surface": "product", "firing": "terminal" },
+      { "command": "pnpm site:build", "surface": "product", "firing": "terminal" },
       { "command": "pnpm deno:smoke", "surface": "product", "firing": "terminal" },
       { "command": "pnpm deno:smoke-binary", "surface": "product", "firing": "terminal" }
     ]
