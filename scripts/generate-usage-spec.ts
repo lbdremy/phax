@@ -53,8 +53,10 @@ function emitFlag(option: Option, indent: string, isGlobal: boolean): string {
   return [`${indent}flag ${flagName} {`, ...body, `${indent}}`].join("\n");
 }
 
-function emitArg(arg: Argument, indent: string): string {
-  const name = arg.required ? `<${arg.name()}>` : `[${arg.name()}]`;
+// A trailing `...` is usage's shorthand for `var=#true`: `[x]...` is zero or
+// more, `<x>...` one or more. Commander records no minimum beyond that.
+export function emitArg(arg: Argument, indent: string): string {
+  const name = (arg.required ? `<${arg.name()}>` : `[${arg.name()}]`) + (arg.variadic ? "..." : "");
   if (arg.description) {
     return [
       `${indent}arg "${name}" {`,
