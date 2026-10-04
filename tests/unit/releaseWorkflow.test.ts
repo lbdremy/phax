@@ -149,6 +149,19 @@ describe("release workflow: two packages in lockstep", () => {
   });
 });
 
+describe("CI workflow: the docs site build", () => {
+  it("runs pnpm site:build exactly once, after the pnpm build step", () => {
+    const site = indexOf(ciSteps, runs("pnpm site:build"));
+    expect(indexOf(ciSteps, (step) => step.run === "pnpm build")).toBeLessThan(site);
+  });
+
+  it("never deploys: no wrangler step and no Cloudflare secret", () => {
+    const ci = readFileSync(join(import.meta.dirname, "../../.github/workflows/ci.yml"), "utf-8");
+    expect(ci).not.toContain("wrangler");
+    expect(ci).not.toContain("CLOUDFLARE");
+  });
+});
+
 describe("CI workflow: the schemas package smoke", () => {
   it("runs the smoke under Node 20, after the build", () => {
     const smoke = indexOf(ciSteps, runs(SMOKE));
