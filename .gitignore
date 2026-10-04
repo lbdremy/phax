@@ -10,3 +10,7 @@ package-lock.json
 
 # Build output of scripts/schemas-json.ts
 packages/schemas/json/
+
+# Docs site: generated Rspress sources and build output of pnpm site:build
+site/generated/
+site/doc_build/

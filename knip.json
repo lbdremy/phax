@@ -9,9 +9,13 @@
     "tests/**/*.test.ts",
     "tests/type/*.ts",
     "packages/schemas/src/index.ts",
-    "packages/schemas/build/*.ts"
+    "packages/schemas/build/*.ts",
+    "site/rspress.config.ts",
+    "site/pages.ts",
+    "site/build/*.ts"
   ],
-  "project": ["src/**/*.ts", "tests/**/*.ts", "packages/schemas/**/*.ts"],
+  "project": ["src/**/*.ts", "tests/**/*.ts", "packages/schemas/**/*.ts", "site/**/*.ts"],
+  "ignore": ["site/generated/**", "site/doc_build/**"],
   "ignoreDependencies": ["@effect/platform", "@effect/platform-node", "esbuild"],
   "ignoreFiles": ["tests/e2e/fixtures/**"],
   "ignoreBinaries": ["claude", "gh", "usage"]
