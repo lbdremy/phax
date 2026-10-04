@@ -54,13 +54,15 @@ function namesOf(
 describe("servedSchemas on the real ledger and snapshots", () => {
   const ledger = parseLedger(real.ledger ?? "");
 
-  it("serves exactly one /schemas/<id>/0.17.0.json per format, byte for byte", () => {
-    expect(ledger).toEqual({ releases: ["0.17.0"] });
+  it("serves one /schemas/<id>/<release>.json per format and release, 0.17.0 byte for byte", () => {
+    expect(ledger?.releases[0]).toBe("0.17.0");
+    expect(ledger?.releases.at(-1)).toBe(realVersion);
     if (ledger === undefined) return;
     const served = servedSchemas(ledger, real.snapshots);
-    expect(served.files.size).toBe(15);
-    expect([...served.files.keys()]).toEqual(
-      FORMAT_IDS.map((id) => `/schemas/${id}/0.17.0.json`).toSorted(),
+    expect([...served.files.keys()].toSorted()).toEqual(
+      ledger.releases
+        .flatMap((release) => FORMAT_IDS.map((id) => `/schemas/${id}/${release}.json`))
+        .toSorted(),
     );
     for (const id of FORMAT_IDS) {
       expect(served.files.get(`/schemas/${id}/0.17.0.json`)).toEqual(
