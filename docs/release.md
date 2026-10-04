@@ -92,7 +92,7 @@ pnpm exec tsx scripts/release-cut.ts 1.2.3 --root <copy of the tree>
 
 The `release.yml` workflow triggers automatically on the pushed tag. In order, it:
 
-1. Runs the full gate (typecheck, tests, lint, build, Deno smoke). The build also builds the schemas package and its JSON Schemas.
+1. Runs the full gate (typecheck, tests, lint, build, docs site build, Deno smoke). The build also builds the schemas package and its JSON Schemas.
 2. Cross-compiles four platform binaries with SHA-256 checksums.
 3. Smoke-tests the schemas package under Node 20 (`scripts/schemas-smoke.ts`): it packs the built package, installs the tarball into an empty project, and runs the schemas spec's `read-record.mjs` consumer against a made-up phase record on a `phax/records/v1` branch. It also checks the installed version, one JSON Schema per format, and that `node_modules` holds only the package, `effect` and `effect`'s dependencies. CI runs the same smoke on every push and pull request.
 4. Prepares the npm wrapper (`npm/package.json` is set to the tag's version).
@@ -105,7 +105,7 @@ The `release.yml` workflow triggers automatically on the pushed tag. In order, i
 
    A failed guard, upload or check stages nothing, creates no GitHub Release and leaves the previous site serving. It can leave at most an unpromoted version with its preview URL. The remedy is the same as for any failed release: fix the cause, then delete and re-push the tag (below).
 7. Stage-publishes `@lbdremy/phax-schemas`, then `@lbdremy/phax`, with `npm stage publish --access public --provenance`.
-7. Creates the GitHub Release and uploads binaries and checksums.
+8. Creates the GitHub Release and uploads binaries and checksums.
 
 A failed gate, smoke or version check stages nothing. The stage publishes themselves can still fail (a registry error, a misconfigured trusted publisher): the schemas package goes first, so a failure there stages nothing, and a failure on the wrapper leaves only a staged schemas package, which nobody can install until you approve it. Fix the cause, then delete and re-push the tag (below).
 
@@ -128,13 +128,13 @@ Stage publish does not make a package installable. Approve each staged version b
 
 ## Redeploying the docs site by hand
 
-To redeploy a released tag's site, for example after a fix to the site or to restore a deploy:
+To republish a released tag's site as it was at that tag, for example after a failed promote or a manual change on Cloudflare:
 
 ```bash
 gh workflow run docs-deploy.yml -f tag=vX.Y.Z
 ```
 
-The `docs-deploy.yml` workflow checks out the tag, builds the site, and runs the same guard, preview upload, preview check and promotion as the release. It stages nothing on npm and creates no GitHub Release. The guard refuses the redeploy if it would drop a schema URL that docs.phax.run serves. To look at the site locally before redeploying, run `pnpm site:preview`, which serves the built site from `site/doc_build`.
+The `docs-deploy.yml` workflow checks out the tag, builds the site, and runs the same guard, preview upload, preview check and promotion as the release. It stages nothing on npm and creates no GitHub Release. The guard refuses the redeploy if it would drop a schema URL that docs.phax.run serves, so once a newer release is live, an older tag cannot be redeployed. A fix to the site on `main` reaches docs.phax.run only with the next release. To look at the site locally before redeploying, run `pnpm site:preview`, which serves the built site from `site/doc_build`.
 
 ## macOS Gatekeeper
 
