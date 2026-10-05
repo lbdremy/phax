@@ -81,7 +81,7 @@ builds a scopes provider that is then thrown away. Raised 2026-10-05 from the ph
 coordination note (`/Volumes/Work/steme/steme-corpus/docs/corpus/02-product/phax-steme-coordination.md`,
 changes 8 and 9). Both Drafts, authored headless from `docs/briefs/`, §9 decided by the author on
 2026-10-05 (nobody uses scopes or the diagnostics output yet, so no compatibility is kept);
-waiting for approval. In this order, shipped in the same release:
+both Approved 2026-10-05, no plan yet. In this order, shipped in the same release:
 
 - [ ] **`gate-request`** — `docs/specs/2610051439-gate-request.md`. Additive: a gate step that
       declares it reads `{phase, base, terminal, phases: [{id, files}]}` on stdin, saved beside
