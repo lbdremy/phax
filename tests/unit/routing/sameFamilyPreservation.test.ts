@@ -158,15 +158,27 @@ describe("opus/ultracode has no default spoke equivalent", () => {
     expect(result.selected.thinking).toBe("ultracode");
   });
 
-  it("gpt-6-sol/ultra falls back to claude-opus-5-5/max, never to ultracode", () => {
+  it("never silently downgrades claude-sonnet-5-5/ultracode to codex-cli even with codex first and enabled", () => {
+    const result = resolveModel(
+      { model: "claude-sonnet-5-5", effort: "ultracode" },
+      codexPriority,
+      allEnabled,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5-5");
+    expect(result.selected.thinking).toBe("ultracode");
+  });
+
+  it("gpt-6-sol/ultra falls back to claude-sonnet-5-5/max, never to ultracode", () => {
     const result = resolveModel(
       { model: "gpt-6-sol", effort: "ultra" },
       mistralPriority,
       DEFAULT_PROVIDER_CONFIG,
     );
     expect(result.selected.provider).toBe("claude-code");
-    expect(result.selected.family).toBe("claude-opus");
-    expect(result.selected.concreteModel).toBe("claude-opus-5-5");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5-5");
     expect(result.selected.thinking).toBe("max");
     expect(result.selected.thinking).not.toBe("ultracode");
   });

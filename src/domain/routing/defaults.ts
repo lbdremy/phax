@@ -15,20 +15,21 @@ export const DEFAULT_MODEL_ROUTING: ModelRouting = {
       high: { claude: "claude-sonnet-4-6", effort: "high", relation: "equivalent" },
       xhigh: { claude: "claude-opus-4-8", effort: "medium", relation: "equivalent" },
     },
-    // OpenAI GPT-6 Sol — anchored straight across to claude-opus-5-5 on the
-    // Artificial Analysis Intelligence Index (leaderboard read 2026-09-23, a
-    // re-scaled revision — compare only within this read): Sol 34/40/43/44/48
-    // vs Opus 5.5 42/51/54/56/58 at low/medium/high/xhigh/max. Sol sits
-    // between Sonnet 5 (24/28/32/34/38) and Opus 5.5 with no Claude entry
-    // within a point, so the honest hub-centric relation is `downgrade` at
-    // every effort. `ultra` anchors to `max` so `ultracode` stays Claude-only.
+    // OpenAI GPT-6 Sol — anchored straight across to claude-sonnet-5-5 on the
+    // Artificial Analysis Intelligence Index (leaderboard read 2026-10-05, on
+    // the same scale as the 2026-09-23 read): Sol 34/40/43/44/48 vs Sonnet 5.5
+    // 36/41/47/52/56 at low/medium/high/xhigh/max. Sol was anchored to Opus
+    // 5.5 (42/51/54/56/58); Sonnet 5.5 is closer at every effort. `medium` is
+    // within a point, hence `equivalent`; elsewhere `downgrade`. `ultra`
+    // anchors to `max` so `ultracode` stays Claude-only. No edge targets Opus
+    // 5.5 any more, so the default phase model has no Codex route.
     "gpt-6-sol": {
-      low: { claude: "claude-opus-5-5", effort: "low", relation: "downgrade" },
-      medium: { claude: "claude-opus-5-5", effort: "medium", relation: "downgrade" },
-      high: { claude: "claude-opus-5-5", effort: "high", relation: "downgrade" },
-      xhigh: { claude: "claude-opus-5-5", effort: "xhigh", relation: "downgrade" },
-      max: { claude: "claude-opus-5-5", effort: "max", relation: "downgrade" },
-      ultra: { claude: "claude-opus-5-5", effort: "max", relation: "downgrade" },
+      low: { claude: "claude-sonnet-5-5", effort: "low", relation: "downgrade" },
+      medium: { claude: "claude-sonnet-5-5", effort: "medium", relation: "equivalent" },
+      high: { claude: "claude-sonnet-5-5", effort: "high", relation: "downgrade" },
+      xhigh: { claude: "claude-sonnet-5-5", effort: "xhigh", relation: "downgrade" },
+      max: { claude: "claude-sonnet-5-5", effort: "max", relation: "downgrade" },
+      ultra: { claude: "claude-sonnet-5-5", effort: "max", relation: "downgrade" },
     },
     // OpenAI GPT-6 Luna — anchored straight across to claude-sonnet-5 on the
     // same 2026-09-23 read: Luna 21/29/32/34/37 vs Sonnet 5 24/28/32/34/38.

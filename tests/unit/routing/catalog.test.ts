@@ -343,17 +343,74 @@ describe("equivalentFor (star lookup)", () => {
     expect(sub).toBeUndefined();
   });
 
-  it("hub → spoke: claude-opus-5-5/high anchors to gpt-6-sol/high (downgrade)", () => {
+  it("hub → spoke: claude-opus-5-5 has no openai-gpt anchor at any effort", () => {
+    const efforts = ["low", "medium", "high", "xhigh", "max", "ultracode"] as const;
+    for (const effort of efforts) {
+      const sub = equivalentFor(
+        "claude-opus-5-5",
+        effort,
+        "openai-gpt",
+        routing,
+        DEFAULT_PROVIDER_CONFIG,
+      );
+      expect(sub).toBeUndefined();
+    }
+  });
+
+  it.each([
+    ["low", "downgrade"],
+    ["medium", "equivalent"],
+    ["high", "downgrade"],
+    ["xhigh", "downgrade"],
+    ["max", "downgrade"],
+  ] as const)("hub → spoke: claude-sonnet-5-5/%s anchors to gpt-6-sol (%s)", (effort, relation) => {
     const sub = equivalentFor(
-      "claude-opus-5-5",
-      "high",
+      "claude-sonnet-5-5",
+      effort,
       "openai-gpt",
       routing,
       DEFAULT_PROVIDER_CONFIG,
     );
     expect(sub?.id).toBe("gpt-6-sol");
+    expect(sub?.effort).toBe(effort);
+    expect(sub?.relation).toBe(relation);
+  });
+
+  it("hub → spoke: claude-sonnet-5-5/ultracode has no anchor into openai-gpt", () => {
+    const sub = equivalentFor(
+      "claude-sonnet-5-5",
+      "ultracode",
+      "openai-gpt",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub).toBeUndefined();
+  });
+
+  it("spoke → hub: gpt-6-sol/medium inverts to claude-sonnet-5-5/medium (equivalent)", () => {
+    const sub = equivalentFor(
+      "gpt-6-sol",
+      "medium",
+      "claude-sonnet",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub?.id).toBe("claude-sonnet-5-5");
+    expect(sub?.effort).toBe("medium");
+    expect(sub?.relation).toBe("equivalent");
+  });
+
+  it("spoke → hub: gpt-6-sol/high inverts to claude-sonnet-5-5/high (upgrade)", () => {
+    const sub = equivalentFor(
+      "gpt-6-sol",
+      "high",
+      "claude-sonnet",
+      routing,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(sub?.id).toBe("claude-sonnet-5-5");
     expect(sub?.effort).toBe("high");
-    expect(sub?.relation).toBe("downgrade");
+    expect(sub?.relation).toBe("upgrade");
   });
 
   it("hub → spoke: claude-sonnet-5/medium anchors to gpt-6-luna, not the deprecated gpt-5.6-luna", () => {
