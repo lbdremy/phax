@@ -7,6 +7,12 @@ import type { ArtifactKind } from "./status.js";
 export const PLAN_APPROVAL_RECORD_DIR = "docs/plans/approvals/";
 export const SPEC_APPROVAL_RECORD_DIR = "docs/specs/approvals/";
 
+// The shared ledgers an older phax wrote. While either exists, every command
+// that reads or writes records refuses until `phax artifact migrate-approvals`
+// splits it; nothing else reads them.
+export const OLD_PLAN_LEDGER_PATH = "docs/plans/approvals.json";
+export const OLD_SPEC_LEDGER_PATH = "docs/specs/approvals.json";
+
 const LIVE_DIR: Record<ArtifactKind, string> = { plan: "docs/plans/", spec: "docs/specs/" };
 
 const RECORD_DIR: Record<ArtifactKind, string> = {

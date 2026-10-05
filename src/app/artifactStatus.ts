@@ -2,6 +2,7 @@ import { Effect, Either } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError, type GitOps } from "../ports/git.js";
 import {
+  type ApprovalLedgerMigrationRequiredError,
   type ApprovalRecordUnreadableError,
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
@@ -50,6 +51,7 @@ import {
   putPlanApprovalRecord,
   putSpecApprovalRecord,
   readSpecApprovalRecord,
+  refuseOldApprovalLedgers,
   removePlanApprovalRecord,
   removeSpecApprovalRecord,
   specApprovalRecordExists,
@@ -157,10 +159,14 @@ export function inspectArtifact(
   repoRelPath: string,
 ): Effect.Effect<
   ArtifactReport,
-  FsError | ArtifactValidationError | ApprovalRecordUnreadableError,
+  | FsError
+  | ArtifactValidationError
+  | ApprovalRecordUnreadableError
+  | ApprovalLedgerMigrationRequiredError,
   FileSystem
 > {
   return Effect.gen(function* () {
+    yield* refuseOldApprovalLedgers();
     const fs = yield* FileSystem;
     const md = yield* fs.readText(repoRelPath);
     const validated = validateArtifact(repoRelPath, md);
@@ -262,6 +268,7 @@ export function transitionArtifact(
   ArtifactTransitionResult,
   | FsError
   | ApprovalRecordUnreadableError
+  | ApprovalLedgerMigrationRequiredError
   | ArtifactValidationError
   | InvalidArtifactTransitionError
   | SpecNotApprovedError
@@ -275,6 +282,9 @@ export function transitionArtifact(
   FileSystem | Git
 > {
   return Effect.gen(function* () {
+    // Before anything is read or written, so a refused transition (and the
+    // run completion built on it) leaves the tree untouched.
+    yield* refuseOldApprovalLedgers();
     const fs = yield* FileSystem;
     const git = yield* Git;
     const md = yield* fs.readText(repoRelPath);

@@ -11,7 +11,11 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { renderStalenessApply, renderStalenessReport } from "../../src/domain/artifact/render.js";
-import { ApprovalRecordUnreadableError, ArtifactValidationError } from "../../src/domain/errors.js";
+import {
+  ApprovalLedgerMigrationRequiredError,
+  ApprovalRecordUnreadableError,
+  ArtifactValidationError,
+} from "../../src/domain/errors.js";
 import { FileSystem } from "../../src/ports/fs.js";
 
 const REPO_ROOT = "/fake-repo";
@@ -957,4 +961,58 @@ describe("orphan record files", () => {
     const { layer } = fullHarness();
     expect(await report(layer)).toEqual({ report: [], orphanRecords: [] });
   });
+});
+
+describe("old approval ledger refusal", () => {
+  const PLAN = "docs/plans/2609101240-thing-plan.md";
+
+  for (const ledgerPath of ["docs/plans/approvals.json", "docs/specs/approvals.json"]) {
+    // An Approved plan with its record, so without the ledger both use cases
+    // would succeed; then the ledger is added on top.
+    async function seeded() {
+      const harness = fullHarness();
+      harness.fsImpl.setFile(
+        PLAN,
+        deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/x.ts"] }),
+      );
+      const approved = await run(
+        transitionArtifact(PLAN, "Approved", APPROVE_OPTS).pipe(Effect.provide(harness.layer)),
+      );
+      expect(Either.isRight(approved)).toBe(true);
+      harness.fsImpl.setFile(ledgerPath, `{"version":1,"records":{}}`);
+      return { ...harness, before: new Map(harness.fsImpl.files) };
+    }
+
+    function expectRefused(result: Either.Either<unknown, unknown>): void {
+      expect(Either.isLeft(result)).toBe(true);
+      if (!Either.isLeft(result)) return;
+      expect(result.left).toBeInstanceOf(ApprovalLedgerMigrationRequiredError);
+      expect((result.left as ApprovalLedgerMigrationRequiredError).ledgerPath).toBe(ledgerPath);
+    }
+
+    it(`plansStalenessReport fails as a whole with only ${ledgerPath}, writing nothing`, async () => {
+      const { fsImpl, backendImpl, layer, before } = await seeded();
+
+      expectRefused(await run(plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer))));
+
+      expect(new Map(fsImpl.files)).toEqual(before);
+      expect(backendImpl.runCalls).toHaveLength(0);
+      expect(backendImpl.completeCalls).toHaveLength(0);
+    });
+
+    it(`computeStalenessForPlan refuses with only ${ledgerPath}, writing nothing`, async () => {
+      const { fsImpl, layer, before } = await seeded();
+      const md = fsImpl.getFile(PLAN) as string;
+
+      expectRefused(
+        await run(
+          computeStalenessForPlan(PLAN, md, [], { repoRoot: REPO_ROOT }).pipe(
+            Effect.provide(layer),
+          ),
+        ),
+      );
+
+      expect(new Map(fsImpl.files)).toEqual(before);
+    });
+  }
 });

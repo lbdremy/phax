@@ -3,6 +3,7 @@ import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import {
+  type ApprovalLedgerMigrationRequiredError,
   type ApprovalRecordUnreadableError,
   type ArtifactCommitFailedError,
   type ArtifactDirtyWriteSetError,
@@ -32,6 +33,7 @@ import {
   artifactFingerprint,
   findOrphanApprovalRecords,
   readPlanApprovalRecord,
+  refuseOldApprovalLedgers,
 } from "./approvalRecordStore.js";
 import { transitionArtifact, type TransitionArtifactOptions } from "./artifactStatus.js";
 import type { ExtractPlanError } from "./extractPlan.js";
@@ -64,10 +66,15 @@ export function computeStalenessForPlan(
   opts: ComputeStalenessOptions,
 ): Effect.Effect<
   PlanStalenessVerdict,
-  FsError | GitError | ArtifactValidationError | ApprovalRecordUnreadableError,
+  | FsError
+  | GitError
+  | ArtifactValidationError
+  | ApprovalRecordUnreadableError
+  | ApprovalLedgerMigrationRequiredError,
   FileSystem | Git
 > {
   return Effect.gen(function* () {
+    yield* refuseOldApprovalLedgers();
     const record = yield* readPlanApprovalRecord(planPath);
 
     if (record === null) {
@@ -139,7 +146,12 @@ export function computePlanStaleness(
   opts: ComputePlanStalenessOptions,
 ): Effect.Effect<
   PlanStalenessVerdict,
-  FsError | GitError | ArtifactValidationError | ExtractPlanError | ApprovalRecordUnreadableError,
+  | FsError
+  | GitError
+  | ArtifactValidationError
+  | ExtractPlanError
+  | ApprovalRecordUnreadableError
+  | ApprovalLedgerMigrationRequiredError,
   FileSystem | Git | Backend
 > {
   return Effect.gen(function* () {
@@ -181,8 +193,14 @@ export interface PlansStalenessResult {
 
 export function plansStalenessReport(
   opts: StalenessReportOptions,
-): Effect.Effect<PlansStalenessResult, FsError, FileSystem | Git | Backend> {
+): Effect.Effect<
+  PlansStalenessResult,
+  FsError | ApprovalLedgerMigrationRequiredError,
+  FileSystem | Git | Backend
+> {
   return Effect.gen(function* () {
+    // Fails the whole command, never a per-plan error entry.
+    yield* refuseOldApprovalLedgers();
     const report = yield* approvedPlansReport(opts);
     const orphanRecords = yield* findOrphanApprovalRecords("plan");
     return { report, orphanRecords };
@@ -232,6 +250,7 @@ export function applyStalenessReport(
   readonly StalenessFlip[],
   | FsError
   | ApprovalRecordUnreadableError
+  | ApprovalLedgerMigrationRequiredError
   | ArtifactValidationError
   | InvalidArtifactTransitionError
   | SpecNotApprovedError

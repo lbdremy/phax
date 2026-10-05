@@ -49,6 +49,7 @@ import {
   RecordsSyncRequiredError,
   RegistryCorruptionError,
   ApprovalRecordUnreadableError,
+  ApprovalLedgerMigrationRequiredError,
   SecurityEnforcementError,
   SecurityPreflightError,
   SkillEditConsentError,
@@ -185,7 +186,8 @@ export function exitCodeForError(err: unknown): number {
     err instanceof ArtifactDirtyWriteSetError ||
     err instanceof ArtifactSidecarDivergedError ||
     err instanceof ArtifactCreationError ||
-    err instanceof ApprovalRecordUnreadableError
+    err instanceof ApprovalRecordUnreadableError ||
+    err instanceof ApprovalLedgerMigrationRequiredError
   )
     return 12;
   return 1;

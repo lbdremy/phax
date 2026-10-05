@@ -9,6 +9,7 @@ import { artifactFingerprint } from "../../src/app/approvalRecordStore.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import {
+  ApprovalLedgerMigrationRequiredError,
   ApprovalRecordUnreadableError,
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
@@ -1807,4 +1808,59 @@ describe("checkPlanRunnable", () => {
     const result = checkPlanRunnable(APPROVED_PLAN, "tests/fixtures/plan.md");
     expect(Either.isRight(result)).toBe(true);
   });
+});
+
+describe("old approval ledger refusal", () => {
+  const PLAN = "docs/plans/2609101240-thing-plan.md";
+  const LEDGERS = ["docs/plans/approvals.json", "docs/specs/approvals.json"] as const;
+  const COMMIT_OPTS = { ...DEFAULT_OPTS, commit: true };
+
+  for (const ledgerPath of LEDGERS) {
+    describe(`with only ${ledgerPath}`, () => {
+      function seeded() {
+        const harness = makeHarness();
+        harness.fsImpl.setFile(ledgerPath, '{"version":1,"records":{}}');
+        harness.fsImpl.setFile(PLAN, planMd("Draft", "null"));
+        harness.fsImpl.setFile("docs/specs/2609101221-foo.md", APPROVED_SPEC);
+        return { ...harness, before: new Map(harness.fsImpl.files) };
+      }
+
+      function expectRefused(result: Either.Either<unknown, unknown>): void {
+        expect(Either.isLeft(result)).toBe(true);
+        if (!Either.isLeft(result)) return;
+        expect(result.left).toBeInstanceOf(ApprovalLedgerMigrationRequiredError);
+        const err = result.left as ApprovalLedgerMigrationRequiredError;
+        expect(err.ledgerPath).toBe(ledgerPath);
+        expect(err.message).toContain(ledgerPath);
+        expect(err.message).toContain("phax artifact migrate-approvals");
+        expect(exitCodeForError(err)).toBe(12);
+      }
+
+      it("approve refuses before any write or commit, for either kind", async () => {
+        const { fsImpl, gitImpl, layer, before } = seeded();
+
+        expectRefused(
+          await run(transitionArtifact(PLAN, "Approved", COMMIT_OPTS).pipe(Effect.provide(layer))),
+        );
+        expectRefused(
+          await run(
+            transitionArtifact("docs/specs/2609101221-foo.md", "Completed", COMMIT_OPTS).pipe(
+              Effect.provide(layer),
+            ),
+          ),
+        );
+
+        expect(new Map(fsImpl.files)).toEqual(before);
+        expect(gitImpl.calls).toEqual([]);
+      });
+
+      it("inspectArtifact refuses and changes no file", async () => {
+        const { fsImpl, layer, before } = seeded();
+
+        expectRefused(await run(inspectArtifact(PLAN).pipe(Effect.provide(layer))));
+
+        expect(new Map(fsImpl.files)).toEqual(before);
+      });
+    });
+  }
 });
