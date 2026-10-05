@@ -101,7 +101,7 @@
     },
     {
       "term": "Declaring step",
-      "definition": "A gate step whose `input` is `\"gate-request\"`. Every other step is non-declaring, `input` absent or `\"none\"`."
+      "definition": "A gate step whose `input` is `\"gate-request\"`. Every other step is non-declaring: it has no `input` key."
     },
     {
       "term": "Gated phase",
@@ -139,7 +139,7 @@
       "id": "r-undeclared",
       "title": "A non-declaring step runs as today",
       "pattern": "ubiquitous",
-      "statement": "The system SHALL run a gate step whose `input` is absent or `\"none\"` exactly as before this change: its stdin is not connected and reads as end of file at once, and the attempt log has no `stdin:` line for it."
+      "statement": "The system SHALL run a gate step that has no `input` key exactly as before this change: its stdin is not connected and reads as end of file at once, and the attempt log has no `stdin:` line for it."
     },
     {
       "id": "r-kinds",
@@ -151,13 +151,13 @@
       "id": "r-invalid",
       "title": "Unknown input values are refused",
       "pattern": "unwanted",
-      "statement": "IF a gate step's `input` is anything other than `\"none\"` or `\"gate-request\"` THEN every command that loads the configuration SHALL refuse it in the config validation family (exit 2), naming the step's path and the allowed values."
+      "statement": "IF a gate step's `input` is anything other than `\"gate-request\"` THEN every command that loads the configuration SHALL refuse it in the config validation family (exit 2), naming the step's path and the allowed value."
     },
     {
       "id": "r-schema-upgrade",
       "title": "The local config schema describes the key",
       "pattern": "event",
-      "statement": "WHEN `phax schema upgrade` runs THE system SHALL write a `phax.schema.json` that describes the gate step's `input` key, its two values and its `\"none\"` default, and SHALL leave `phax.json` unchanged."
+      "statement": "WHEN `phax schema upgrade` runs THE system SHALL write a `phax.schema.json` that describes the gate step's `input` key, its single value `\"gate-request\"`, and that an absent key means the step has no input, and SHALL leave `phax.json` unchanged."
     },
     {
       "id": "r-fields",
@@ -267,13 +267,13 @@
       "surface": "config: gate step `input` in phax.json",
       "binding": "normative",
       "before": "\"gateProfiles\": {\n  \"standard\": [\n    { \"command\": \"pnpm test\", \"surface\": \"local\", \"firing\": \"every-phase\" },\n    {\n      \"command\": \"node ./audit.mjs\",\n      \"surface\": \"structural\",\n      \"firing\": \"every-phase\",\n      \"output\": \"diagnostics\"\n    }\n  ]\n}",
-      "after": "\"gateProfiles\": {\n  \"standard\": [\n    { \"command\": \"pnpm test\", \"surface\": \"local\", \"firing\": \"every-phase\" },\n    {\n      \"command\": \"node ./audit.mjs\",\n      \"surface\": \"structural\",\n      \"firing\": \"every-phase\",\n      \"output\": \"diagnostics\",\n      \"input\": \"gate-request\"\n    }\n  ]\n}\n\n# \"input\": \"none\" (default; same as absent) | \"gate-request\"\n# Accepted with \"output\": \"log\" or \"diagnostics\", in gateProfiles and workspaces[].gateProfiles.\n# `pnpm test` above is unchanged: stdin not connected, as today."
+      "after": "\"gateProfiles\": {\n  \"standard\": [\n    { \"command\": \"pnpm test\", \"surface\": \"local\", \"firing\": \"every-phase\" },\n    {\n      \"command\": \"node ./audit.mjs\",\n      \"surface\": \"structural\",\n      \"firing\": \"every-phase\",\n      \"output\": \"diagnostics\",\n      \"input\": \"gate-request\"\n    }\n  ]\n}\n\n# \"input\": \"gate-request\" is the only value; no \"input\" key means no input\n# Accepted with \"output\": \"log\" or \"diagnostics\", in gateProfiles and workspaces[].gateProfiles.\n# `pnpm test` above is unchanged: stdin not connected, as today."
     },
     {
       "surface": "config: phax.schema.json written by `phax schema upgrade`",
       "binding": "indicative",
       "before": "gate step properties: command, surface, firing, output",
-      "after": "$ phax schema upgrade          # phax.json is not modified\n\ngate step properties: command, surface, firing, output, input\n\"input\": {\n  \"enum\": [\"none\", \"gate-request\"],\n  \"default\": \"none\",\n  \"description\": \"\\\"none\\\" (default): the step's stdin is not connected. \\\"gate-request\\\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json.\"\n}\n\n# Normative: the key, its two values, its default. Indicative: the description wording."
+      "after": "$ phax schema upgrade          # phax.json is not modified\n\ngate step properties: command, surface, firing, output, input\n\"input\": {\n  \"const\": \"gate-request\",\n  \"description\": \"Absent: the step's stdin is not connected. \\\"gate-request\\\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json.\"\n}\n\n# Normative: the key, its one value, absence meaning no input. Indicative: the description wording."
     },
     {
       "surface": "api: gate request on a declaring step's stdin",
@@ -309,7 +309,7 @@
       "surface": "cli: config refusal of an unknown `input`",
       "binding": "indicative",
       "before": null,
-      "after": "$ phax validate\n✗ phax.json: gateProfiles.standard[1].input: expected \"none\" or \"gate-request\", got \"stdin\"\n$? = 2\n\n# Normative: exit 2, the step's path and the allowed values. Indicative: the wording."
+      "after": "$ phax validate\n✗ phax.json: gateProfiles.standard[1].input: expected \"gate-request\", got \"stdin\"\n$? = 2\n\n# Normative: exit 2, the step's path and the allowed value. Indicative: the wording."
     }
   ],
   "nonGoals": [
@@ -365,7 +365,7 @@
       "name": "An unknown input value is refused",
       "given": "a `phax.json` whose `gateProfiles.standard[1]` has `\"input\": \"stdin\"`",
       "when": "`phax validate` runs",
-      "then": "it exits 2 with a message naming `gateProfiles.standard[1].input` and the allowed values `none` and `gate-request`.",
+      "then": "it exits 2 with a message naming `gateProfiles.standard[1].input` and the allowed value `gate-request`.",
       "refs": [
         "r-invalid"
       ]
@@ -375,7 +375,7 @@
       "name": "`phax schema upgrade` describes the key",
       "given": "a project whose `phax.schema.json` predates this change",
       "when": "`phax schema upgrade` runs",
-      "then": "the gate step schema in `phax.schema.json` has an `input` property with the enum `none`, `gate-request` and the default `none`, and `phax.json` is byte-for-byte unchanged.",
+      "then": "the gate step schema in `phax.schema.json` has an `input` property whose only value is `gate-request`, with no default, and `phax.json` is byte-for-byte unchanged.",
       "refs": [
         "r-schema-upgrade"
       ]
@@ -514,7 +514,7 @@
   "openQuestions": [
     {
       "id": "q-declaration",
-      "question": "What is the declaration's name and shape?",
+      "question": "What is the declaration's name and shape? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "input-enum",
@@ -532,12 +532,12 @@
           "abandons": "Room for a second kind of input without a new key, and the symmetry with `output`. A boolean names the feature, not what arrives on stdin."
         }
       ],
-      "recommendation": "input-enum",
-      "rationale": "`input` mirrors `output`: one key per direction, each an explicit per-variant enum with a named default. A later input kind becomes a new value, not a new key, just before the config contract freezes. The cost is one value that does nothing more than the default."
+      "recommendation": "input-single",
+      "rationale": "Decided by the author on 2026-10-05. One real value, one spelling: a step reads the request or it has no `input` key. A later input kind becomes a new value of the same key, so the room the enum kept is not lost; only the explicit `\"none\"` is."
     },
     {
       "id": "q-log-steps",
-      "question": "May `output: \"log\"` steps declare the input, or diagnostics steps only?",
+      "question": "May `output: \"log\"` steps declare the input, or diagnostics steps only? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "any-kind",
@@ -551,11 +551,11 @@
         }
       ],
       "recommendation": "any-kind",
-      "rationale": "The request is input, independent of how the verdict is read. The declaration is opt-in, so a test or lint command that does not want stdin is never touched. Limiting it to diagnostics would recreate, for log steps, the problem this spec fixes."
+      "rationale": "Decided by the author on 2026-10-05, as recommended. The request is input, independent of how the verdict is read. The declaration is opt-in, so a test or lint command that does not want stdin is never touched. Limiting it to diagnostics would recreate, for log steps, the problem this spec fixes."
     },
     {
       "id": "q-touched-files",
-      "question": "Does the request also carry the files the phase touched?",
+      "question": "Does the request also carry the files the phase touched? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "no-touched",
@@ -569,11 +569,11 @@
         }
       ],
       "recommendation": "no-touched",
-      "rationale": "This was decided with the author: \"the past from git, the future from the plan\". `base` is the one fact git cannot supply, which commit the phase started from. Everything after it is in the worktree the step runs in."
+      "rationale": "Decided by the author on 2026-10-05, as recommended. This was decided with the author: \"the past from git, the future from the plan\". `base` is the one fact git cannot supply, which commit the phase started from. Everything after it is in the worktree the step runs in."
     },
     {
       "id": "q-phase-fields",
-      "question": "Does each `phases` entry carry anything beyond `id` and `files`?",
+      "question": "Does each `phases` entry carry anything beyond `id` and `files`? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "id-files",
@@ -592,11 +592,11 @@
         }
       ],
       "recommendation": "id-files",
-      "rationale": "This is the same projection the scope provider and the plan auditor already receive, so a provider handles one shape. The first consumer needs only the files later phases still plan, and order relative to `phase` already gives past, present and future."
+      "rationale": "Decided by the author on 2026-10-05, as recommended. This is the same projection the scope provider and the plan auditor already receive, so a provider handles one shape. The first consumer needs only the files later phases still plan, and order relative to `phase` already gives past, present and future."
     },
     {
       "id": "q-file-name",
-      "question": "What is the saved request's file name?",
+      "question": "What is the saved request's file name? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "request-suffix",
@@ -615,11 +615,11 @@
         }
       ],
       "recommendation": "request-suffix",
-      "rationale": "It sits beside `checks-attempt-NN.log`, whose `checks-` prefix already places it in the gate, and the format id `gate-request` carries the full name in `$schema`. One file per attempt keeps `<command> < file` exact for the attempt it names, at the cost of identical copies."
+      "rationale": "Decided by the author on 2026-10-05, as recommended. It sits beside `checks-attempt-NN.log`, whose `checks-` prefix already places it in the gate, and the format id `gate-request` carries the full name in `$schema`. One file per attempt keeps `<command> < file` exact for the attempt it names, at the cost of identical copies."
     },
     {
       "id": "q-appended-phases",
-      "question": "For an appended phase, which phases does `phases` list?",
+      "question": "For an appended phase, which phases does `phases` list? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "run-phases",
@@ -633,12 +633,12 @@
         }
       ],
       "recommendation": "run-phases",
-      "rationale": "The future, the part the provider needs from the plan, is the same under both options. Keeping the past phases makes the request of an appended phase the same kind of document as any other: every phase of the run, the gated one included. `base` and git already scope the change."
+      "rationale": "Decided by the author on 2026-10-05, as recommended. The future, the part the provider needs from the plan, is the same under both options. Keeping the past phases makes the request of an appended phase the same kind of document as any other: every phase of the run, the gated one included. `base` and git already scope the change."
     }
   ],
   "planningNote": {
     "settled": [
-      "Declaration: `\"input\": \"none\" | \"gate-request\"` on a gate step, default `\"none\"`, accepted with either `output` kind in `gateProfiles` and `workspaces[].gateProfiles`. An unknown value is a config error (exit 2).",
+      "Declaration: `\"input\": \"gate-request\"` on a gate step, the only value, no key meaning no input, accepted with either `output` kind in `gateProfiles` and `workspaces[].gateProfiles`. An unknown value is a config error (exit 2).",
       "The request has exactly `$schema`, `phase`, `base`, `terminal` and `phases`. `base` is the full object name of the commit the gated phase's branch was created from. `terminal` is the `firing: \"terminal\"` condition. `phases` is the run's phases in execution order as `{id, files}` (the existing projection).",
       "The same bytes go to every declaring step of every attempt while the phase branch exists. They are written to stdin and then stdin is closed. An unread request is harmless.",
       "The saved copy is `checks-attempt-NN.request.json`, holding the exact stdin bytes, written before the first declaring step of the attempt and only if one runs. Its format id is `gate-request`, it is parsed by `parseGateRequest`, its schema is `json/gate-request.schema.json` with a `gate-request/next.schema.json` snapshot, and it has a README §Persisted formats row.",

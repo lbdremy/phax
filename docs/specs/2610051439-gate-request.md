@@ -63,7 +63,7 @@ A gate step can declare that it reads a gate request on stdin. The request is a 
 ## 4. Terminology
 
 - **Gate request** — The JSON document phax writes on a declaring step's stdin and saves beside the attempt: `$schema`, `phase`, `base`, `terminal`, `phases`. It is the persisted format `gate-request`.
-- **Declaring step** — A gate step whose `input` is `"gate-request"`. Every other step is non-declaring, `input` absent or `"none"`.
+- **Declaring step** — A gate step whose `input` is `"gate-request"`. Every other step is non-declaring: it has no `input` key.
 - **Gated phase** — The phase whose gate attempt is running.
 - **Base** — The commit the gated phase's branch was created from, as its full object name. This is the run-start commit for the run's first phase, and otherwise the tip of the preceding phase's branch when the gated phase's branch was created. It has the same meaning as oracle-phases' "base commit", applied to the gated phase. It is not the phase branch's current HEAD.
 - **Run-start commit** — The tip of the run branch when the first phase's branch is created from it.
@@ -79,7 +79,7 @@ WHERE a gate step declares `"input": "gate-request"` THE system SHALL write the 
 
 ### 5.2 A non-declaring step runs as today
 
-The system SHALL run a gate step whose `input` is absent or `"none"` exactly as before this change: its stdin is not connected and reads as end of file at once, and the attempt log has no `stdin:` line for it.
+The system SHALL run a gate step that has no `input` key exactly as before this change: its stdin is not connected and reads as end of file at once, and the attempt log has no `stdin:` line for it.
 
 ### 5.3 Any step kind, any gate profile
 
@@ -87,11 +87,11 @@ The system SHALL accept `input` on a gate step of either `output` kind (`"log"` 
 
 ### 5.4 Unknown input values are refused
 
-IF a gate step's `input` is anything other than `"none"` or `"gate-request"` THEN every command that loads the configuration SHALL refuse it in the config validation family (exit 2), naming the step's path and the allowed values.
+IF a gate step's `input` is anything other than `"gate-request"` THEN every command that loads the configuration SHALL refuse it in the config validation family (exit 2), naming the step's path and the allowed value.
 
 ### 5.5 The local config schema describes the key
 
-WHEN `phax schema upgrade` runs THE system SHALL write a `phax.schema.json` that describes the gate step's `input` key, its two values and its `"none"` default, and SHALL leave `phax.json` unchanged.
+WHEN `phax schema upgrade` runs THE system SHALL write a `phax.schema.json` that describes the gate step's `input` key, its single value `"gate-request"`, and that an absent key means the step has no input, and SHALL leave `phax.json` unchanged.
 
 ### 5.6 Exactly five keys
 
@@ -194,7 +194,7 @@ after:
       ]
     }
 
-    # "input": "none" (default; same as absent) | "gate-request"
+    # "input": "gate-request" is the only value; no "input" key means no input
     # Accepted with "output": "log" or "diagnostics", in gateProfiles and workspaces[].gateProfiles.
     # `pnpm test` above is unchanged: stdin not connected, as today.
 
@@ -210,12 +210,11 @@ after:
 
     gate step properties: command, surface, firing, output, input
     "input": {
-      "enum": ["none", "gate-request"],
-      "default": "none",
-      "description": "\"none\" (default): the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json."
+      "const": "gate-request",
+      "description": "Absent: the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json."
     }
 
-    # Normative: the key, its two values, its default. Indicative: the description wording.
+    # Normative: the key, its one value, absence meaning no input. Indicative: the description wording.
 
 ### api: gate request on a declaring step's stdin — normative
 
@@ -332,10 +331,10 @@ after:
 ### cli: config refusal of an unknown `input` — indicative
 
     $ phax validate
-    ✗ phax.json: gateProfiles.standard[1].input: expected "none" or "gate-request", got "stdin"
+    ✗ phax.json: gateProfiles.standard[1].input: expected "gate-request", got "stdin"
     $? = 2
 
-    # Normative: exit 2, the step's path and the allowed values. Indicative: the wording.
+    # Normative: exit 2, the step's path and the allowed value. Indicative: the wording.
 
 ## 7. Non-goals
 
@@ -365,11 +364,11 @@ Given a workspace gate profile with an `"output": "log"` step declaring `"input"
 
 ### An unknown input value is refused
 
-Given a `phax.json` whose `gateProfiles.standard[1]` has `"input": "stdin"`, when `phax validate` runs, then it exits 2 with a message naming `gateProfiles.standard[1].input` and the allowed values `none` and `gate-request`. (refs §5.4)
+Given a `phax.json` whose `gateProfiles.standard[1]` has `"input": "stdin"`, when `phax validate` runs, then it exits 2 with a message naming `gateProfiles.standard[1].input` and the allowed value `gate-request`. (refs §5.4)
 
 ### `phax schema upgrade` describes the key
 
-Given a project whose `phax.schema.json` predates this change, when `phax schema upgrade` runs, then the gate step schema in `phax.schema.json` has an `input` property with the enum `none`, `gate-request` and the default `none`, and `phax.json` is byte-for-byte unchanged. (refs §5.5)
+Given a project whose `phax.schema.json` predates this change, when `phax schema upgrade` runs, then the gate step schema in `phax.schema.json` has an `input` property whose only value is `gate-request`, with no default, and `phax.json` is byte-for-byte unchanged. (refs §5.5)
 
 ### A single-phase run
 
@@ -421,56 +420,56 @@ Given a non-terminal phase with a registered `scopes` provider and a declaring d
 
 ## 9. Open questions for implementation planning
 
-### Q1 — What is the declaration's name and shape?
+### Q1 — What is the declaration's name and shape? (Decided by the author on 2026-10-05; not reopened.)
 
 - `"input": "none" | "gate-request"`, default `"none"` — abandons: Brevity. The key has one real value today, and `"none"` exists only to spell the default.
 - `"input": "gate-request"` only, absence meaning none — abandons: An explicit spelling of the default, which `output: "log"` has. A profile cannot say "no input" deliberately.
 - `"request": true` — abandons: Room for a second kind of input without a new key, and the symmetry with `output`. A boolean names the feature, not what arrives on stdin.
 
-Recommendation: `"input": "none" | "gate-request"`, default `"none"` — `input` mirrors `output`: one key per direction, each an explicit per-variant enum with a named default. A later input kind becomes a new value, not a new key, just before the config contract freezes. The cost is one value that does nothing more than the default.
+Recommendation: `"input": "gate-request"` only, absence meaning none — Decided by the author on 2026-10-05. One real value, one spelling: a step reads the request or it has no `input` key. A later input kind becomes a new value of the same key, so the room the enum kept is not lost; only the explicit `"none"` is.
 
-### Q2 — May `output: "log"` steps declare the input, or diagnostics steps only?
+### Q2 — May `output: "log"` steps declare the input, or diagnostics steps only? (Decided by the author on 2026-10-05; not reopened.)
 
 - Any step kind — abandons: A guarantee that the request only reaches steps whose verdict phax reads structurally. Later changes to the request must also consider log consumers phax cannot observe.
 - Diagnostics steps only — abandons: Base-aware log steps (tests or linters limited to what changed since `base`). These would be pushed back to flags or environment variables, the channel the author ruled out.
 
-Recommendation: Any step kind — The request is input, independent of how the verdict is read. The declaration is opt-in, so a test or lint command that does not want stdin is never touched. Limiting it to diagnostics would recreate, for log steps, the problem this spec fixes.
+Recommendation: Any step kind — Decided by the author on 2026-10-05, as recommended. The request is input, independent of how the verdict is read. The declaration is opt-in, so a test or lint command that does not want stdin is never touched. Limiting it to diagnostics would recreate, for log steps, the problem this spec fixes.
 
-### Q3 — Does the request also carry the files the phase touched?
+### Q3 — Does the request also carry the files the phase touched? (Decided by the author on 2026-10-05; not reopened.)
 
 - No: the provider reads git from `base` to the working tree — abandons: Providers that cannot run git in the worktree. Every gate step already runs there, so the loss is theoretical.
 - Yes, a `touched` list computed by phax — abandons: Git as the single account of the past. phax would keep a second list in step with git's view of untracked files, renames and deletions, and a disagreement would make the provider's view diverge from the diff.
 
-Recommendation: No: the provider reads git from `base` to the working tree — This was decided with the author: "the past from git, the future from the plan". `base` is the one fact git cannot supply, which commit the phase started from. Everything after it is in the worktree the step runs in.
+Recommendation: No: the provider reads git from `base` to the working tree — Decided by the author on 2026-10-05, as recommended. This was decided with the author: "the past from git, the future from the plan". `base` is the one fact git cannot supply, which commit the phase started from. Everything after it is in the worktree the step runs in.
 
-### Q4 — Does each `phases` entry carry anything beyond `id` and `files`?
+### Q4 — Does each `phases` entry carry anything beyond `id` and `files`? (Decided by the author on 2026-10-05; not reopened.)
 
 - `id` and `files` only — abandons: Titles and objectives a provider could quote in its messages, and an explicit per-phase status.
 - Add `title` — abandons: The rule, shared with the plan auditor and the scope provider, that only planned files leave phax. Every plan field sent becomes a contract to freeze.
 - Add a status (`committed` / `gated` / `planned`) — abandons: Derivability. Status already follows from each entry's position relative to `phase`, and a stored state could go stale across a resume or reset.
 
-Recommendation: `id` and `files` only — This is the same projection the scope provider and the plan auditor already receive, so a provider handles one shape. The first consumer needs only the files later phases still plan, and order relative to `phase` already gives past, present and future.
+Recommendation: `id` and `files` only — Decided by the author on 2026-10-05, as recommended. This is the same projection the scope provider and the plan auditor already receive, so a provider handles one shape. The first consumer needs only the files later phases still plan, and order relative to `phase` already gives past, present and future.
 
-### Q5 — What is the saved request's file name?
+### Q5 — What is the saved request's file name? (Decided by the author on 2026-10-05; not reopened.)
 
 - `checks-attempt-NN.request.json` — abandons: Self-description outside the gate context: `.request` does not say whose request it is.
 - `checks-attempt-NN.gate-request.json` — abandons: The one-word suffix pattern that `.diagnostics.json` and `.pending.json` share beside the same log.
 - One `gate-request.json` per phase — abandons: Per-attempt locality. Replaying attempt NN means trusting that the request never changed, and the `stdin:` line could not name a file belonging to the attempt.
 
-Recommendation: `checks-attempt-NN.request.json` — It sits beside `checks-attempt-NN.log`, whose `checks-` prefix already places it in the gate, and the format id `gate-request` carries the full name in `$schema`. One file per attempt keeps `<command> < file` exact for the attempt it names, at the cost of identical copies.
+Recommendation: `checks-attempt-NN.request.json` — Decided by the author on 2026-10-05, as recommended. It sits beside `checks-attempt-NN.log`, whose `checks-` prefix already places it in the gate, and the format id `gate-request` carries the full name in `$schema`. One file per attempt keeps `<command> < file` exact for the attempt it names, at the cost of identical copies.
 
-### Q6 — For an appended phase, which phases does `phases` list?
+### Q6 — For an appended phase, which phases does `phases` list? (Decided by the author on 2026-10-05; not reopened.)
 
 - Every phase of the run in execution order: the original plan's phases, then each appended plan's, through the gated phase's plan — abandons: "The plan" meaning one plan document. The projection mixes phases from several plans.
 - Only the phases of the plan that planned the gated phase — abandons: One rule for every phase. A provider would see the run's earlier phases vanish from the projection exactly when the run is appended to.
 
-Recommendation: Every phase of the run in execution order: the original plan's phases, then each appended plan's, through the gated phase's plan — The future, the part the provider needs from the plan, is the same under both options. Keeping the past phases makes the request of an appended phase the same kind of document as any other: every phase of the run, the gated one included. `base` and git already scope the change.
+Recommendation: Every phase of the run in execution order: the original plan's phases, then each appended plan's, through the gated phase's plan — Decided by the author on 2026-10-05, as recommended. The future, the part the provider needs from the plan, is the same under both options. Keeping the past phases makes the request of an appended phase the same kind of document as any other: every phase of the run, the gated one included. `base` and git already scope the change.
 
 ## 10. Implementation-planning note
 
 Settled:
 
-- Declaration: `"input": "none" | "gate-request"` on a gate step, default `"none"`, accepted with either `output` kind in `gateProfiles` and `workspaces[].gateProfiles`. An unknown value is a config error (exit 2).
+- Declaration: `"input": "gate-request"` on a gate step, the only value, no key meaning no input, accepted with either `output` kind in `gateProfiles` and `workspaces[].gateProfiles`. An unknown value is a config error (exit 2).
 - The request has exactly `$schema`, `phase`, `base`, `terminal` and `phases`. `base` is the full object name of the commit the gated phase's branch was created from. `terminal` is the `firing: "terminal"` condition. `phases` is the run's phases in execution order as `{id, files}` (the existing projection).
 - The same bytes go to every declaring step of every attempt while the phase branch exists. They are written to stdin and then stdin is closed. An unread request is harmless.
 - The saved copy is `checks-attempt-NN.request.json`, holding the exact stdin bytes, written before the first declaring step of the attempt and only if one runs. Its format id is `gate-request`, it is parsed by `parseGateRequest`, its schema is `json/gate-request.schema.json` with a `gate-request/next.schema.json` snapshot, and it has a README §Persisted formats row.

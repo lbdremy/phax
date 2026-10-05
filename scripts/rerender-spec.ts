@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { Either } from "effect";
 import { formatFirstViolation } from "../src/schemas/formatError.js";
-import { decodeSpecDocument } from "../src/schemas/specDocument.js";
+import { decodeSpecDocumentFile } from "../src/schemas/specDocument.js";
 import { renderSpecBody } from "../src/domain/authoring/renderSpec.js";
 import { splitFrontmatter } from "../src/domain/artifact/frontmatter.js";
 import { sidecarPathFor } from "../src/domain/artifact/sidecar.js";
@@ -23,7 +23,8 @@ if (split === null) {
   process.exit(1);
 }
 
-const decoded = decodeSpecDocument(JSON.parse(readFileSync(sidecarPathFor(mdPath), "utf8")));
+// The sidecar as phax persists it: `$schema` first, then the document.
+const decoded = decodeSpecDocumentFile(JSON.parse(readFileSync(sidecarPathFor(mdPath), "utf8")));
 if (Either.isLeft(decoded)) {
   console.error(`${sidecarPathFor(mdPath)}: ${formatFirstViolation(decoded.left)}`);
   process.exit(1);
