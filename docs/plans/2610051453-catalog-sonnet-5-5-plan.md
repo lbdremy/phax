@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-10-05
+  baseline: 7a5e030
 ---
 # Catalog: Sonnet 5.5
 
