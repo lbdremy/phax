@@ -672,52 +672,52 @@ Given the repository after the change, when `examples/hello-world/` is inspected
 
 ## 9. Open questions for implementation planning
 
-### Q1 — What shape does the brief answer take?
+### Q1 — What shape does the brief answer take? (Decided by the author on 2026-10-05; not reopened.)
 
 - Structured: guarantees → places with a per-state variant; phax renders the compact and whole forms and records the data — abandons: The provider's control over wording and layout. A field set is frozen before 1.0 for a provider that is not built yet.
 - Text the provider renders: `{compact, whole}` strings that phax weaves and prints verbatim — abandons: The brief as data. Records would hold prose no tool can read back, phax could not cap the pushed form by guarantee or check the states, and the provider would maintain two renderings.
 - Both: the structured answer plus provider-rendered text — abandons: One account of the answer. The two renderings can disagree, and both become contract.
 
-Recommendation: Structured: guarantees → places with a per-state variant; phax renders the compact and whole forms and records the data — One structured answer serves both moments: phax cuts the compact form from it and prints the whole form, so the provider answers once. steme's ledger is structured already, and the states are exactly what the agent needs to read. The frozen field set is the acceptable loss because it is kept to what the first consumer needs (id, statement, location, state, due, what, repair), and extra keys pass decoding, so steme can add fields before phax reads them.
+Recommendation: Structured: guarantees → places with a per-state variant; phax renders the compact and whole forms and records the data — Decided by the author on 2026-10-05, as recommended. One structured answer serves both moments: phax cuts the compact form from it and prints the whole form, so the provider answers once. steme's ledger is structured already, and the states are exactly what the agent needs to read. The frozen field set is the acceptable loss because it is kept to what the first consumer needs (id, statement, location, state, due, what, repair), and extra keys pass decoding, so steme can add fields before phax reads them.
 
-### Q2 — How does `phax brief`, run by the agent inside the phase worktree, learn the phase it is in?
+### Q2 — How does `phax brief`, run by the agent inside the phase worktree, learn the phase it is in? (Decided by the author on 2026-10-05; not reopened.)
 
 - A file phax writes into the worktree: `.phax-context/brief-request.json`, the phase's brief request with `files: null` — abandons: Tamper-proof facts. `.phax-context/` is writable by the agent, which could edit or delete the file and so mislead its own brief, though never a verdict.
 - An environment variable in the agent's session (run and phase ids) — abandons: Provider neutrality. Whether a variable reaches the commands an agent runs is up to each provider CLI (Codex filters its shell environment by policy), and every resumed session must be launched with it.
 - Flags on the command: `phax brief --run <id> --phase <id> [paths]` — abandons: An agent that never handles plumbing. Every call repeats ids phax already knows, and a wrong id sends another phase's facts.
 - None: `phax brief` always briefs as the code stands — abandons: The phase facts on every pull. A pulled brief could not say what is due this phase, which is half the need.
 
-Recommendation: A file phax writes into the worktree: `.phax-context/brief-request.json`, the phase's brief request with `files: null` — The file works the same under every provider and under a sandbox that confines the agent to its worktree. It survives a resume because phax rewrites it. It holds the facts themselves, so `phax brief` never has to reach into the run state, and a person can replay it with `steme brief < .phax-context/brief-request.json`. The tampering risk is the acceptable loss: an edited file can only mislead the agent's own advice, and the audit reads its facts from phax, not from the worktree.
+Recommendation: A file phax writes into the worktree: `.phax-context/brief-request.json`, the phase's brief request with `files: null` — Decided by the author on 2026-10-05, as recommended. The file works the same under every provider and under a sandbox that confines the agent to its worktree. It survives a resume because phax rewrites it. It holds the facts themselves, so `phax brief` never has to reach into the run state, and a person can replay it with `steme brief < .phax-context/brief-request.json`. The tampering risk is the acceptable loss: an edited file can only mislead the agent's own advice, and the audit reads its facts from phax, not from the worktree.
 
-### Q3 — Is the brief's request the gate request's format, or its own?
+### Q3 — Is the brief's request the gate request's format, or its own? (Decided by the author on 2026-10-05; not reopened.)
 
 - Its own format `brief-request`: the gate request's four fact keys with the same names, types and values, plus `files`; outside a phase, `$schema` and `files` only — abandons: A single parser for both verbs. A provider reads two formats, one being the other plus `files`.
 - The gate request extended with `files` (null for the gate) — abandons: gate-request's settled "exactly five keys" (Approved §5.6), and a gate step would receive a key that means nothing to it. It also leaves no shape for a call outside a phase.
 - The gate request verbatim on stdin, with the paths as arguments to the provider command — abandons: Stdin as the single channel. Paths become argv that the provider must parse, and outside a phase there is no gate request to send.
 
-Recommendation: Its own format `brief-request`: the gate request's four fact keys with the same names, types and values, plus `files`; outside a phase, `$schema` and `files` only — The facts are shared by value, not by format: for the same phase, `phase`, `base`, `terminal` and `phases` are identical in both documents, which is what keeps the two verbs from disagreeing. The approved gate request stays untouched. The out-of-phase call gets an explicit variant instead of null facts, and `$schema` tells a provider which verb it is serving. A second, nearly identical parser is a small price.
+Recommendation: Its own format `brief-request`: the gate request's four fact keys with the same names, types and values, plus `files`; outside a phase, `$schema` and `files` only — Decided by the author on 2026-10-05, as recommended. The facts are shared by value, not by format: for the same phase, `phase`, `base`, `terminal` and `phases` are identical in both documents, which is what keeps the two verbs from disagreeing. The approved gate request stays untouched. The out-of-phase call gets an explicit variant instead of null facts, and `$schema` tells a provider which verb it is serving. A second, nearly identical parser is a small price.
 
-### Q4 — Does the pushed form keep a cap, and which?
+### Q4 — Does the pushed form keep a cap, and which? (Decided by the author on 2026-10-05; not reopened.)
 
 - Keep a cap of 50 guarantees, in provider order, with a not-shown line naming `phax brief` — abandons: The provider's whole word in the prompt. Guarantees past the 50th reach the agent only if it pulls, whether or not they are due this phase.
 - No cap — abandons: A bound on every phase prompt. A provider answering with thousands of guarantees inflates the cost of each first prompt.
 - A cap in bytes or lines — abandons: A cut the agent can reason about. Where the text stops depends on statement lengths, not on rank, and the cut can fall mid-guarantee.
 
-Recommendation: Keep a cap of 50 guarantees, in provider order, with a not-shown line naming `phax brief` — Order is the provider's rank, so the cut drops what the provider ranks lowest, and the not-shown line says how to reach the rest. Counting guarantees keeps each one whole. 50 is today's value and has caused no trouble. Losing the tail from the prompt is acceptable because the tail is one `phax brief` away and a provider that ranks due guarantees first loses nothing that matters.
+Recommendation: Keep a cap of 50 guarantees, in provider order, with a not-shown line naming `phax brief` — Decided by the author on 2026-10-05, as recommended. Order is the provider's rank, so the cut drops what the provider ranks lowest, and the not-shown line says how to reach the rest. Counting guarantees keeps each one whole. 50 is today's value and has caused no trouble. Losing the tail from the prompt is acceptable because the tail is one `phax brief` away and a provider that ranks due guarantees first loses nothing that matters.
 
-### Q5 — Can a guarantee be asked for by id (`phax brief <id> [paths]`)?
+### Q5 — Can a guarantee be asked for by id (`phax brief <id> [paths]`)? (Decided by the author on 2026-10-05; not reopened.)
 
 - No: `phax brief [path…]` only — abandons: Re-reading one guarantee without the others on the same paths. The agent finds it in the whole answer instead.
 - Yes: `phax brief <id> [paths]`, with the request gaining a `guarantee` key — abandons: One argument grammar: an id and a path are both bare words, and `money-as-cents` could be a file. It also adds a request key and a provider behaviour the first consumer does not need.
 
-Recommendation: No: `phax brief [path…]` only — orient needed expand because its index carried no body. A whole brief already carries every statement, state, `what` and repair, so the agent never needs a second round trip. Keeping to what the first consumer needs, the lost convenience is small and can be added later as a new key without breaking the request.
+Recommendation: No: `phax brief [path…]` only — Decided by the author on 2026-10-05, as recommended. orient needed expand because its index carried no body. A whole brief already carries every statement, state, `what` and repair, so the agent never needs a second round trip. Keeping to what the first consumer needs, the lost convenience is small and can be added later as a new key without breaking the request.
 
-### Q6 — Does severity survive once state is in the answer?
+### Q6 — Does severity survive once state is in the answer? (Decided by the author on 2026-10-05; not reopened.)
 
 - Drop severity — abandons: A per-guarantee weight independent of order. A provider can no longer say error versus info.
 - Keep `severity: error|warn|info` per guarantee, beside state — abandons: One ranking signal. Severity and order can disagree, and phax would render a second rank that it did not make and cannot reconcile.
 
-Recommendation: Drop severity — State says what to do at a place (fix what is missing or forbidden, leave accepted debt alone), and due says when; order says what matters most. Severity added a third axis that only made sense when the answer carried no state, and the audit, not the brief, is where weight becomes a verdict. Losing the explicit label is acceptable because the provider still ranks by order.
+Recommendation: Drop severity — Decided by the author on 2026-10-05, as recommended. State says what to do at a place (fix what is missing or forbidden, leave accepted debt alone), and due says when; order says what matters most. Severity added a third axis that only made sense when the answer carried no state, and the audit, not the brief, is where weight becomes a verdict. Losing the explicit label is acceptable because the provider still ranks by order.
 
 ## 10. Implementation-planning note
 

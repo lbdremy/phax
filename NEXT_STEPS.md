@@ -91,11 +91,19 @@ both Approved 2026-10-05, no plan yet. In this order, shipped in the same releas
       `completion` fails like an `invariant`; the `scopes` provider, closure, pending and
       `gate-pending` retired; `gate-diagnostics` without `scopes`. A config change, so before
       the CLI/config freeze of the road to 1.0.
+- [ ] **`brief-replaces-orient`** — `docs/specs/2610051526-brief-replaces-orient.md`. Draft, §9
+      decided 2026-10-05, waiting for approval. orient designed again from the agent's need: a
+      **brief** is feed-forward and never blocks (the audit is the gate's and blocks); woven into
+      the phase's first prompt from the plan and pulled with `phax brief [path…]` on any path,
+      existing or not; it answers with each guarantee's state, as structured data, from the same
+      provider as the audit (`steme brief` / `steme audit`, a `brief-request` with the gate
+      request's facts plus `files`); the phase found from `.phax-context/brief-request.json`; 50
+      guarantees pushed; no severity; `orient` retired, no shims (nobody configures it).
 
-Not prerequisites, and not specced yet (same note, changes 1–7 and the brief): a stable `id` on a
-diagnostic (oscillation), a `decision` class that stops for the owner, `accepted` debt in the
-document, orient's index and expand requests carrying the plan and the files, a structured
-repair, `endLine`, and a `brief` provider at plan authoring. The optional keys pass phax's
+Not prerequisites, and not specced yet (same note, changes 1–3, 6, 7 and the brief at plan
+authoring): a stable `id` on a diagnostic (oscillation), a `decision` class that stops for the
+owner, `accepted` debt in the document, a structured repair, `endLine`, and the brief at plan
+authoring (the same verb, an earlier moment). The optional keys pass phax's
 documents already, so steme can write them before phax reads them.
 
 Deferred from `schemas-package` with the author (2026-09-29): **a Standard Schema export** per

@@ -708,7 +708,7 @@
   "openQuestions": [
     {
       "id": "q-answer-shape",
-      "question": "What shape does the brief answer take?",
+      "question": "What shape does the brief answer take? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "structured",
@@ -727,11 +727,11 @@
         }
       ],
       "recommendation": "structured",
-      "rationale": "One structured answer serves both moments: phax cuts the compact form from it and prints the whole form, so the provider answers once. steme's ledger is structured already, and the states are exactly what the agent needs to read. The frozen field set is the acceptable loss because it is kept to what the first consumer needs (id, statement, location, state, due, what, repair), and extra keys pass decoding, so steme can add fields before phax reads them."
+      "rationale": "Decided by the author on 2026-10-05, as recommended. One structured answer serves both moments: phax cuts the compact form from it and prints the whole form, so the provider answers once. steme's ledger is structured already, and the states are exactly what the agent needs to read. The frozen field set is the acceptable loss because it is kept to what the first consumer needs (id, statement, location, state, due, what, repair), and extra keys pass decoding, so steme can add fields before phax reads them."
     },
     {
       "id": "q-phase-identity",
-      "question": "How does `phax brief`, run by the agent inside the phase worktree, learn the phase it is in?",
+      "question": "How does `phax brief`, run by the agent inside the phase worktree, learn the phase it is in? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "file",
@@ -755,11 +755,11 @@
         }
       ],
       "recommendation": "file",
-      "rationale": "The file works the same under every provider and under a sandbox that confines the agent to its worktree. It survives a resume because phax rewrites it. It holds the facts themselves, so `phax brief` never has to reach into the run state, and a person can replay it with `steme brief < .phax-context/brief-request.json`. The tampering risk is the acceptable loss: an edited file can only mislead the agent's own advice, and the audit reads its facts from phax, not from the worktree."
+      "rationale": "Decided by the author on 2026-10-05, as recommended. The file works the same under every provider and under a sandbox that confines the agent to its worktree. It survives a resume because phax rewrites it. It holds the facts themselves, so `phax brief` never has to reach into the run state, and a person can replay it with `steme brief < .phax-context/brief-request.json`. The tampering risk is the acceptable loss: an edited file can only mislead the agent's own advice, and the audit reads its facts from phax, not from the worktree."
     },
     {
       "id": "q-request-format",
-      "question": "Is the brief's request the gate request's format, or its own?",
+      "question": "Is the brief's request the gate request's format, or its own? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "own",
@@ -778,11 +778,11 @@
         }
       ],
       "recommendation": "own",
-      "rationale": "The facts are shared by value, not by format: for the same phase, `phase`, `base`, `terminal` and `phases` are identical in both documents, which is what keeps the two verbs from disagreeing. The approved gate request stays untouched. The out-of-phase call gets an explicit variant instead of null facts, and `$schema` tells a provider which verb it is serving. A second, nearly identical parser is a small price."
+      "rationale": "Decided by the author on 2026-10-05, as recommended. The facts are shared by value, not by format: for the same phase, `phase`, `base`, `terminal` and `phases` are identical in both documents, which is what keeps the two verbs from disagreeing. The approved gate request stays untouched. The out-of-phase call gets an explicit variant instead of null facts, and `$schema` tells a provider which verb it is serving. A second, nearly identical parser is a small price."
     },
     {
       "id": "q-cap",
-      "question": "Does the pushed form keep a cap, and which?",
+      "question": "Does the pushed form keep a cap, and which? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "fifty",
@@ -801,11 +801,11 @@
         }
       ],
       "recommendation": "fifty",
-      "rationale": "Order is the provider's rank, so the cut drops what the provider ranks lowest, and the not-shown line says how to reach the rest. Counting guarantees keeps each one whole. 50 is today's value and has caused no trouble. Losing the tail from the prompt is acceptable because the tail is one `phax brief` away and a provider that ranks due guarantees first loses nothing that matters."
+      "rationale": "Decided by the author on 2026-10-05, as recommended. Order is the provider's rank, so the cut drops what the provider ranks lowest, and the not-shown line says how to reach the rest. Counting guarantees keeps each one whole. 50 is today's value and has caused no trouble. Losing the tail from the prompt is acceptable because the tail is one `phax brief` away and a provider that ranks due guarantees first loses nothing that matters."
     },
     {
       "id": "q-by-id",
-      "question": "Can a guarantee be asked for by id (`phax brief <id> [paths]`)?",
+      "question": "Can a guarantee be asked for by id (`phax brief <id> [paths]`)? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "no",
@@ -819,11 +819,11 @@
         }
       ],
       "recommendation": "no",
-      "rationale": "orient needed expand because its index carried no body. A whole brief already carries every statement, state, `what` and repair, so the agent never needs a second round trip. Keeping to what the first consumer needs, the lost convenience is small and can be added later as a new key without breaking the request."
+      "rationale": "Decided by the author on 2026-10-05, as recommended. orient needed expand because its index carried no body. A whole brief already carries every statement, state, `what` and repair, so the agent never needs a second round trip. Keeping to what the first consumer needs, the lost convenience is small and can be added later as a new key without breaking the request."
     },
     {
       "id": "q-severity",
-      "question": "Does severity survive once state is in the answer?",
+      "question": "Does severity survive once state is in the answer? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "drop",
@@ -837,7 +837,7 @@
         }
       ],
       "recommendation": "drop",
-      "rationale": "State says what to do at a place (fix what is missing or forbidden, leave accepted debt alone), and due says when; order says what matters most. Severity added a third axis that only made sense when the answer carried no state, and the audit, not the brief, is where weight becomes a verdict. Losing the explicit label is acceptable because the provider still ranks by order."
+      "rationale": "Decided by the author on 2026-10-05, as recommended. State says what to do at a place (fix what is missing or forbidden, leave accepted debt alone), and due says when; order says what matters most. Severity added a third axis that only made sense when the answer carried no state, and the audit, not the brief, is where weight becomes a verdict. Losing the explicit label is acceptable because the provider still ranks by order."
     }
   ],
   "planningNote": {
