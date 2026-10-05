@@ -6,12 +6,6 @@
       "approvedAt": "2026-09-08T08:19:41.314Z",
       "baseline": "322ba3a5795a658d8d7ee48200b14e9b61ad8933",
       "sourceSpec": null
-    },
-    "docs/plans/2610051453-catalog-sonnet-5-5-plan.md": {
-      "planFingerprint": "fdeaa6e378fd951c7bdf0e0d1edef83ac1de32374066f11b869b47acc1732428",
-      "approvedAt": "2026-10-05T15:11:05.029Z",
-      "baseline": "7a5e030277d3113e78038e527e61f7ecc67b3993",
-      "sourceSpec": null
     }
   }
 }
