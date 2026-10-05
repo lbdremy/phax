@@ -35,6 +35,11 @@
       "specFingerprint": "cfda2c4fdf6dca08daacc7a49036c732bf00a3cdca18d57cd2b5d887c257200d",
       "approvedAt": "2026-10-05T15:12:19.717Z",
       "baseline": "46cb189bf3a0ee5058bbf6007cb510f20ca8207b"
+    },
+    "docs/specs/2610051526-brief-replaces-orient.md": {
+      "specFingerprint": "45939dbcbf549f823e47a1ec598aaf84ce2f01c97b4a3a5b7f62c240f770355f",
+      "approvedAt": "2026-10-05T15:47:10.114Z",
+      "baseline": "a41b4fcc6b9303b85e208587f92c52292a4c84e2"
     }
   }
 }

@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-05
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-05
+  baseline: a41b4fc
 ---
 # Brief replaces orient — a feed-forward brief of guarantees and their state, pushed into the first prompt and pulled with `phax brief`; the orient provider is retired
 
