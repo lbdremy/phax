@@ -1,0 +1,882 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.18.0.json",
+  "kind": "spec",
+  "title": "Brief replaces orient — a feed-forward brief of guarantees and their state, pushed into the first prompt and pulled with `phax brief`; the orient provider is retired",
+  "ground": [
+    {
+      "path": "docs/briefs/brief-replaces-orient.md",
+      "note": "The author's decisions of 2026-10-05: the need by moment, state not only the rule, one provider and one request for two verbs (`steme brief`, `steme audit`), `phax brief` as the agent's way in, with or without a path, never blocking, orient retired with no shims, steme as the first provider."
+    },
+    {
+      "path": "docs/specs/2610051439-gate-request.md",
+      "note": "Approved. The gate request `{$schema, phase, base, terminal, phases}`. `base` is the commit the phase branch started from, and it stays stable across attempts, resumes, resets and appends. `phases` is the projection `[{id, files}]` (create ∪ edit, optional files excluded). A copy is saved beside each attempt. Facts only, never a judgement. It leaves open how phax obtains `base`."
+    },
+    {
+      "path": "docs/specs/2610051445-drop-gate-scopes.md",
+      "note": "Approved. Every reported finding fails the step, and the audit alone decides what is due. A retired key gets the ordinary unknown-key refusal with no migration. A finding's location is `{file, line?}`. Extra keys are ignored on decode."
+    },
+    {
+      "path": "src/app/orient.ts",
+      "note": "Index request `{files}`, expand request `{expand: id}`, both through runProviderQuery."
+    },
+    {
+      "path": "src/app/providerQuery.ts",
+      "note": "Command split on whitespace with no shell, JSON on stdin, exit 0 and JSON on stdout. Failures are typed (exit code, stderr excerpt, invalid JSON, schema failure). A `timeoutMs` exists but is optional."
+    },
+    {
+      "path": "src/schemas/orient.ts",
+      "note": "Rows `{id, title, severity: error|warn|info, trigger}`; the expanded row adds `body`; `{row: null}` for an unknown id."
+    },
+    {
+      "path": "src/schemas/orientBrief.ts",
+      "note": "`orient-brief.json` is `ok` (files, rows, rowCount, wovenRowCount), `failed` (files, error) or `not-configured`. It carries no `$schema` and is not a package format."
+    },
+    {
+      "path": "src/app/executePlan.ts",
+      "note": "At a fresh phase start, after setup, phax queries the index with planned create + edit + optional files and passes no timeout. On failure it warns and dispatches with no section. It always writes `orient-brief.json`. The resume path builds no prompt and queries nothing. `orientEnabled` feeds the agent-command grant."
+    },
+    {
+      "path": "src/app/promptGeneration.ts",
+      "note": "`MAX_ORIENTATION_ROWS = 50`. The section `## Orientation for this phase (expand a row before touching its files)` has lines `- [severity] id — title (when: trigger)`, a hidden-rows line naming `phax orient --file`, then instructions for `phax orient <id>` and `--file`."
+    },
+    {
+      "path": "src/cli/commands/orient.ts",
+      "note": "`phax orient <id> | --file <path>`, exactly one of the two. Not configured: exit 1. Provider error: exit 1. Empty: \"No orientation available.\" with exit 0. No run context: telemetry uses a placeholder run id."
+    },
+    {
+      "path": "src/app/worktree.ts",
+      "note": "Nothing ties a worktree to its run. Each worktree has a gitignored `.phax-context/` folder, which the agent writes (handoff, summary)."
+    },
+    {
+      "path": "src/domain/security/agentCommands.ts",
+      "note": "`phax orient` is added to the agent commands when orient is enabled, with source `orient` and explicit false (`security.json`, src/schemas/securityPosture.ts)."
+    },
+    {
+      "path": "src/domain/config/mergeLayers.ts",
+      "note": "`orient.command` is taken from phax.local.json, then ~/.phax/config.json, then phax.json."
+    },
+    {
+      "path": "src/cli/cliDocs.ts",
+      "note": "The long help of `phax orient` carries the full provider contract, and `phax --usage` (phax.usage.kdl, cmd orient) mirrors it."
+    },
+    {
+      "path": "examples/hello-world/orient.mjs",
+      "note": "Three static rules triggered by the `src/` prefix. It answers the index and expand requests from stdin."
+    },
+    {
+      "path": "README.md",
+      "note": "§Extend phax: \"Four hooks\", §Orient provider with its request and answer shapes. Headless authoring: `phax artifact new spec|plan … --headless --brief <file|->`."
+    },
+    {
+      "path": "NEXT_STEPS.md",
+      "note": "§Road to 1.0.0: a CLI contract freeze and a persisted-format stability promise. Unspecced: \"orient's index and expand requests carrying the plan and the files\" and \"a brief provider at plan authoring\". The cross-run context layer item names the orient provider and `orient-brief.json`."
+    }
+  ],
+  "context": "Today a project can declare an `orient` provider as `{command}` in `phax.json`, `phax.local.json` or `~/.phax/config.json`; the nearest layer wins. When a phase starts, phax sends it `{\"files\": [...]}`: the phase's planned files to create and to edit, plus the optional ones. It expects rows `{id, title, severity: error|warn|info, trigger}` back. phax weaves at most 50 rows into the first prompt, under `## Orientation for this phase (expand a row before touching its files)`, as `- [severity] id — title (when: trigger)`. A `…and N more not shown` line follows, and the agent is told to run `phax orient <id>` to expand a row (`{\"expand\": id}` → `{row: {…, body}}` or `{row: null}`) and `phax orient --file <path>` for any other file. The query has no time limit. A failure is advisory: phax warns and dispatches without the section. Every phase folder gets `orient-brief.json` (`ok`, `failed` or `not-configured`). Pulls leave telemetry events only. When `orient` is configured, the in-phase agent may run `phax orient` without an `agentCommands` entry, recorded in `security.json` with source `orient`.\n\n`phax orient` runs inside the phase worktree, but nothing ties that worktree back to its run. The call sends a file name or an id and nothing about the phase, and its telemetry uses a placeholder run id. Each worktree has a gitignored `.phax-context/` folder, written by the agent (handoff, summary) and by phax.\n\nTwo Approved specs change the gate. `gate-request` lets a gate step read `{$schema, phase, base, terminal, phases}` on stdin: the phase, the commit its branch started from, whether it is the last phase, and the plan projection `[{id, files}]` (create ∪ edit, optional files excluded). `drop-gate-scopes` makes every reported finding fail the step, so the diagnostics provider (the audit) alone decides what is due.\n\nNo project configures `orient` (phax, steme-lab, phax-cockpit and louloupapers, checked 2026-10-05). Only `examples/hello-world/orient.mjs` implements it. steme plans `steme brief` (roadmap-1.0 item 8, not built), which reads the ledger its audit builds (item 0.13). \"Brief\" already names the prose a person gives a headless authoring session (`phax artifact new … --headless --brief <file|->`, kept under `docs/briefs/`). NEXT_STEPS §Road to 1.0.0 freezes the CLI and config contract. This spec changes that surface on purpose before the freeze.",
+  "problem": "orient answers with the rule in general: an id, a title, a severity, a trigger and, on expand, a body. It never says how the code stands. An agent about to edit a file learns that `core-no-adapters` applies. It does not learn that line 3 already breaks it, that a registration is still missing, or that a known violation is accepted debt to leave alone. It cannot tell which guarantees this phase must satisfy and which a later phase will.\n\nThe provider could not say so even if it knew, because it receives only file names. It gets no phase, no base and no plan, so it can see neither what this phase changed nor what is due now. A pull from inside the worktree carries nothing of the phase at all. The audit that judges the phase reads a different input, the gate request, so the advice and the verdict can disagree about the same file.\n\nThe rest of the contract also works against the agent. Expanding a row costs a second round trip per rule. Severity is a second rank beside the provider's order. Pulls are not recorded, so a run cannot be explained by what the agent was told. The query at phase start has no time limit, so a wedged provider wedges the phase it was meant to inform. All of this is CLI and config surface that is about to freeze for 1.0.",
+  "productGoal": {
+    "statement": "A brief tells the agent what the project's standard expects of the files it touches, and how each expectation stands there. For each guarantee and place it gives the state (met, missing, forbidden, or accepted debt), what is wrong, the repair, and whether it is due this phase or later. phax pushes the phase's brief, in compact form, into the first prompt. The agent pulls more with `phax brief` on any path, planned or not, existing or not, and gets the answer in whole form. The brief provider receives the same facts of the phase that the audit receives in the gate request, plus the paths asked about. The provider's two verbs (`steme brief`, `steme audit`) therefore read one account of the phase and cannot disagree. A brief never blocks: when the provider fails, is too slow or has nothing to say, phax reports it and the phase goes on. `orient`, `phax orient`, the row format and `orient-brief.json` are retired with no shim.",
+    "guidingRule": "A brief informs and the audit decides: phax carries the phase's facts to the provider and its answer to the agent, and judges, ranks and filters nothing in between."
+  },
+  "terminology": [
+    {
+      "term": "Brief",
+      "definition": "The brief provider's answer about a set of paths: the guarantees that range over them, and the state of each guarantee at each place. It feeds forward and only informs: it never fails, blocks or retries anything."
+    },
+    {
+      "term": "Audit",
+      "definition": "The gate's diagnostics step (for steme, `steme audit` declaring `\"input\": \"gate-request\"`). It blocks: its findings fail the gate. This spec does not change it."
+    },
+    {
+      "term": "Brief provider",
+      "definition": "The command configured under `brief`. It reads a brief request on stdin and prints a brief answer on stdout."
+    },
+    {
+      "term": "Pushed brief",
+      "definition": "The phase's brief. phax requests it once, when a fresh phase starts, and weaves its compact form into the phase's first prompt."
+    },
+    {
+      "term": "Pulled brief",
+      "definition": "A brief the agent asks for during the phase with `phax brief`. phax prints its whole form."
+    },
+    {
+      "term": "Phase facts",
+      "definition": "The keys `phase`, `base`, `terminal` and `phases`, with the values and meanings that the gate request of the same phase carries."
+    },
+    {
+      "term": "Brief request",
+      "definition": "The JSON document on the provider's stdin, in the persisted format `brief-request`. Inside a phase it holds `$schema`, the phase facts and `files`. Outside a phase it holds `$schema` and `files` only."
+    },
+    {
+      "term": "Phase request file",
+      "definition": "`.phax-context/brief-request.json` in a phase worktree, written by phax. It holds the phase's brief request with `files: null`, and it is how `phax brief` knows which phase it runs in."
+    },
+    {
+      "term": "Guarantee",
+      "definition": "One expectation of the project's standard, as the provider knows it: an `id` and a `statement`."
+    },
+    {
+      "term": "Place",
+      "definition": "A location `{file, line?}` where a guarantee ranges, with the guarantee's state there. A file that does not exist yet can be a place."
+    },
+    {
+      "term": "State",
+      "definition": "`met`: the guarantee holds there. `missing`: something it requires is absent. `forbidden`: something it forbids is present. `accepted`: a known violation recorded as accepted debt, to leave alone."
+    },
+    {
+      "term": "Due",
+      "definition": "Carried by a `missing` or `forbidden` place: the provider's word on when the place must be resolved. It is `this-phase`, `later`, or `null` when the request carried no phase facts."
+    },
+    {
+      "term": "Compact form",
+      "definition": "One line per guarantee: its id and statement, then each non-`met` place's state, location and due. It omits `what` and repair."
+    },
+    {
+      "term": "Whole form",
+      "definition": "Every guarantee with its id and statement, and every place with its state, location, due, `what` and repair."
+    },
+    {
+      "term": "Brief time limit",
+      "definition": "A fixed wall-clock limit. When it passes, phax stops the provider and treats the brief as failed. The limit is not configurable."
+    },
+    {
+      "term": "Brief record",
+      "definition": "A file `brief-NN.json` in the phase folder, in the persisted format `brief-record`. It holds one brief call's request as sent and its outcome. `00` is the pushed brief; pulled briefs are numbered from `01` in call order."
+    },
+    {
+      "term": "Authoring brief",
+      "definition": "The prose a person writes for a headless authoring session (`--brief <file|->`, kept under `docs/briefs/`). It shares one sense with the provider brief: what an agent is given before it writes. They share no command, key, file or format. A person writes the authoring brief for an authoring agent; the brief provider computes a provider brief for a phase agent. A brief at plan authoring, where the provider's verb reaches the authoring moment, is a later spec."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "r-config",
+      "title": "The `brief` provider key",
+      "pattern": "optional",
+      "statement": "WHERE `\"brief\": { \"command\": … }` is declared in `phax.json`, `phax.local.json` or `~/.phax/config.json` THE system SHALL use that command as the brief provider, with a nearer layer overriding a farther one in the order `orient` used, and SHALL run it split on spaces with no shell, from the phase worktree inside a phase or from the current directory outside one."
+    },
+    {
+      "id": "r-orient-key",
+      "title": "`orient` leaves the configuration contract",
+      "pattern": "ubiquitous",
+      "statement": "The system shall have no `orient` key in the configuration contract of `phax.json`, `phax.local.json` and `~/.phax/config.json`, so a layer that still declares it meets the refusal every unknown key meets today (exit 2), with no message of its own and no migration."
+    },
+    {
+      "id": "r-schema-upgrade",
+      "title": "The local schemas describe `brief`",
+      "pattern": "event",
+      "statement": "WHEN `phax schema upgrade` runs THE system SHALL write a `phax.schema.json` and a `phax.user.schema.json` that describe the `brief` key and have no `orient` property, and SHALL leave `phax.json` unchanged."
+    },
+    {
+      "id": "r-orient-retired",
+      "title": "`phax orient` and its artifacts are gone",
+      "pattern": "ubiquitous",
+      "statement": "The system shall have no `phax orient` command, shall write no `orient-brief.json`, and shall put no orientation section in any prompt."
+    },
+    {
+      "id": "r-request-stdin",
+      "title": "One request on stdin",
+      "pattern": "ubiquitous",
+      "statement": "The system shall write one brief request to the brief provider's stdin and then close stdin, for every brief it requests."
+    },
+    {
+      "id": "r-pushed-once",
+      "title": "The pushed brief, once per phase start",
+      "pattern": "event",
+      "statement": "WHEN a phase starts with a brief provider configured THE system SHALL request the pushed brief once, before building the phase's first prompt, and SHALL NOT request it again when the phase is resumed."
+    },
+    {
+      "id": "r-phase-facts",
+      "title": "The phase facts are the gate request's",
+      "pattern": "state",
+      "statement": "WHILE a brief is requested for a phase THE system SHALL put the phase facts in the request, with exactly the values that the gate request of that phase carries."
+    },
+    {
+      "id": "r-phase-brief",
+      "title": "The phase's brief has `files: null`",
+      "pattern": "event",
+      "statement": "WHEN the pushed brief is requested, or `phax brief` runs inside a phase with no path, THE system SHALL send the phase's brief request with `files` set to `null`."
+    },
+    {
+      "id": "r-paths",
+      "title": "Named paths, existing or not",
+      "pattern": "event",
+      "statement": "WHEN `phax brief` runs with one or more paths THE system SHALL set `files` to those paths, each relative to the worktree root, in the order given and without duplicates, sending a path that does not exist exactly as it sends one that does."
+    },
+    {
+      "id": "r-outside",
+      "title": "Outside a phase, no phase facts",
+      "pattern": "event",
+      "statement": "WHEN `phax brief` runs with paths outside a phase THE system SHALL send a request holding only `$schema` and `files`."
+    },
+    {
+      "id": "r-usage-errors",
+      "title": "Usage errors",
+      "pattern": "unwanted",
+      "statement": "IF `phax brief` runs outside a phase with no path, or is given a path that resolves outside the worktree, THEN the system SHALL refuse the call as a usage error (exit 2) without running the provider."
+    },
+    {
+      "id": "r-facts-only",
+      "title": "Facts, never a judgement",
+      "pattern": "ubiquitous",
+      "statement": "The system shall put no key in a brief request other than `$schema`, the phase facts and `files`: no state, rank, filter, touched files, diff or judgement."
+    },
+    {
+      "id": "r-facts-file",
+      "title": "The phase request file",
+      "pattern": "event",
+      "statement": "WHEN a phase starts or resumes with a brief provider configured THE system SHALL write the phase request file into the phase worktree before the agent's turn."
+    },
+    {
+      "id": "r-facts-read",
+      "title": "`phax brief` learns its phase from the file",
+      "pattern": "event",
+      "statement": "WHEN `phax brief` runs from any directory of a worktree that holds a phase request file THE system SHALL take the phase facts from that file, and it SHALL treat the call as outside a phase when no such file exists."
+    },
+    {
+      "id": "r-answer",
+      "title": "The brief answer",
+      "pattern": "ubiquitous",
+      "statement": "The system shall accept as a brief answer only a document `{ \"guarantees\": [...] }` whose guarantees are `{id, statement, places}` and whose places are, by state, `met` `{location, state}`, `missing` or `forbidden` `{location, state, due, what, repair}`, or `accepted` `{location, state, what}`, ignoring any key beyond these."
+    },
+    {
+      "id": "r-order",
+      "title": "The provider's order is the rank",
+      "pattern": "ubiquitous",
+      "statement": "The system shall render and record guarantees and places in the provider's order, never sorting, grouping, filtering or deduplicating them."
+    },
+    {
+      "id": "r-pushed-compact",
+      "title": "The compact form in the first prompt",
+      "pattern": "event",
+      "statement": "WHEN the pushed brief is answered THE system SHALL weave its compact form into a `## Brief for this phase` section of the phase's first prompt."
+    },
+    {
+      "id": "r-cap",
+      "title": "A cap of 50 guarantees on the pushed form",
+      "pattern": "unwanted",
+      "statement": "IF the pushed brief holds more than 50 guarantees THEN the system SHALL weave the first 50 and one line that gives the number not shown and names `phax brief`."
+    },
+    {
+      "id": "r-pulled-whole",
+      "title": "The whole form on demand",
+      "pattern": "event",
+      "statement": "WHEN `phax brief` receives an answer THE system SHALL print the answer's whole form to stdout and exit 0."
+    },
+    {
+      "id": "r-empty",
+      "title": "Nothing to report",
+      "pattern": "event",
+      "statement": "WHEN an answer holds no guarantee THE system SHALL say that the provider has nothing to report, in the brief section for the pushed brief, and on stdout with exit 0 for a pulled brief."
+    },
+    {
+      "id": "r-time-limit",
+      "title": "The brief time limit",
+      "pattern": "event",
+      "statement": "WHEN the brief provider has not exited within the brief time limit THE system SHALL stop it and treat the brief as failed."
+    },
+    {
+      "id": "r-pushed-failure",
+      "title": "A failed pushed brief does not stop the phase",
+      "pattern": "unwanted",
+      "statement": "IF the pushed brief fails (the provider exits non-zero, prints no answer that decodes, or exceeds the brief time limit) THEN the system SHALL warn in the run output, naming the phase and the reason, SHALL weave the brief section with a line saying the brief is unavailable and why, and SHALL run the phase."
+    },
+    {
+      "id": "r-pulled-failure",
+      "title": "A failed pulled brief is reported",
+      "pattern": "unwanted",
+      "statement": "IF a pulled brief fails THEN `phax brief` SHALL print the reason on stderr and exit 1."
+    },
+    {
+      "id": "r-no-verdict",
+      "title": "A brief changes no verdict",
+      "pattern": "ubiquitous",
+      "statement": "The system shall let no brief, no brief answer and no brief failure change a gate verdict, the fix loop, a phase or run state, or the exit code of `phax run` or `phax resume`."
+    },
+    {
+      "id": "r-grant",
+      "title": "`phax brief` is allowed to the in-phase agent",
+      "pattern": "optional",
+      "statement": "WHERE a brief provider is configured THE system SHALL allow `phax brief` to the in-phase agent without an `agentCommands` entry, recording it in `security.json` with source `brief`."
+    },
+    {
+      "id": "r-unconfigured-phase",
+      "title": "No provider, no brief in the phase",
+      "pattern": "optional",
+      "statement": "WHERE no brief provider is configured THE system SHALL weave no brief section, SHALL write no phase request file and no brief record, and SHALL not grant `phax brief`."
+    },
+    {
+      "id": "r-unconfigured-cli",
+      "title": "No provider, `phax brief` says so",
+      "pattern": "unwanted",
+      "statement": "IF `phax brief` runs with no brief provider configured THEN the system SHALL exit 1 with a message naming the `brief` key."
+    },
+    {
+      "id": "r-prompt-instructions",
+      "title": "What the agent is told",
+      "pattern": "optional",
+      "statement": "WHERE a brief provider is configured THE system SHALL end the brief section with instructions to run `phax brief <path>…` before touching any file, planned or not and existing or not; to run `phax brief` with no path for the phase's brief in whole form; and to run the gate commands listed in the prompt to learn where the phase stands."
+    },
+    {
+      "id": "r-record-pushed",
+      "title": "The pushed brief is recorded",
+      "pattern": "event",
+      "statement": "WHEN the pushed brief is answered or fails THE system SHALL save `brief-00.json` in the phase folder, holding `moment: \"pushed\"`, the request exactly as sent, and the outcome."
+    },
+    {
+      "id": "r-record-pulled",
+      "title": "Each pulled brief is recorded",
+      "pattern": "event",
+      "statement": "WHEN `phax brief` runs inside a phase THE system SHALL include in that phase's record a brief record holding `moment: \"pulled\"`, the request exactly as sent and the outcome, numbered from `01` in call order across all of the phase's sessions."
+    },
+    {
+      "id": "r-record-outside",
+      "title": "Nothing recorded outside a phase",
+      "pattern": "ubiquitous",
+      "statement": "The system shall record nothing for a `phax brief` call made outside a phase."
+    },
+    {
+      "id": "r-formats",
+      "title": "Two persisted formats",
+      "pattern": "ubiquitous",
+      "statement": "The system shall define `brief-request` and `brief-record` as persisted formats in `@lbdremy/phax-schemas`, each with `$schema` `https://docs.phax.run/schemas/<format>/<release>.json`, a parser (`parseBriefRequest`, `parseBriefRecord`), recognition by `parseDocument`, and a JSON Schema under `json/`."
+    },
+    {
+      "id": "r-explain",
+      "title": "`records explain` shows the briefs",
+      "pattern": "event",
+      "statement": "WHEN `phax records explain <commit> --briefs` runs on a phase record THE system SHALL print each of the phase's brief records in number order, each under its file name."
+    },
+    {
+      "id": "r-docs",
+      "title": "The docs describe the brief, not orient",
+      "pattern": "ubiquitous",
+      "statement": "The system's README, `phax --usage`, CLI reference, generated config schemas, 1.0 announcement draft and hello-world example shall describe the brief provider and `phax brief`, and none of them shall describe `orient` or `phax orient`."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "config: `brief` provider key in phax.json / phax.local.json / ~/.phax/config.json",
+      "binding": "normative",
+      "before": "{\n  \"orient\": { \"command\": \"node ./orient.mjs\" },\n  \"planAuditor\": { \"command\": \"node ./audit-plan.mjs\" },\n  \"gateProfiles\": { … }\n}",
+      "after": "{\n  \"brief\": { \"command\": \"steme brief\" },\n  \"planAuditor\": { \"command\": \"node ./audit-plan.mjs\" },\n  \"gateProfiles\": {\n    \"standard\": [\n      { \"command\": \"steme audit\", \"surface\": \"structural\", \"firing\": \"every-phase\",\n        \"output\": \"diagnostics\", \"input\": \"gate-request\" }\n    ]\n  }\n}\n\n# `brief` is {command} only, split on spaces, no shell. It is accepted in all three layers: phax.local.json, then ~/.phax/config.json, then phax.json.\n# `orient` is no longer a key in any layer. phax does not tie `brief` to any gate step.\n# Each provider has two verbs, configured separately, and they share only the facts phax sends."
+    },
+    {
+      "surface": "cli: a config that still declares `orient`",
+      "binding": "indicative",
+      "before": "$ phax validate\n✓ phax.json is valid",
+      "after": "$ phax validate\n✗ phax.json: is unexpected  at: orient\n$? = 2\n\n# This is the refusal every unknown key meets today: no dedicated message, no migration.\n# Normative: exit 2. Indicative: the wording, which is the existing unknown-key message."
+    },
+    {
+      "surface": "cli: phax schema upgrade",
+      "binding": "indicative",
+      "before": "phax.schema.json / phax.user.schema.json: property \"orient\" (\"The orient provider command. … Full contract: `phax --usage`, cmd orient.\")",
+      "after": "$ phax schema upgrade          # phax.json is not read, validated or modified\nphax.schema.json, phax.user.schema.json: property \"brief\", no \"orient\"\n\"brief\": { \"command\": … }  — \"The brief provider command, split on whitespace with no shell. phax writes a brief request on its stdin and reads a brief answer on stdout. A brief informs and never blocks. Full contract: `phax --usage`, cmd brief.\"\n\n# Normative: `brief` present, `orient` absent, phax.json untouched. Indicative: the description wording."
+    },
+    {
+      "surface": "api: brief request on the provider's stdin",
+      "binding": "normative",
+      "before": "{\"files\": [\"src/core/billing/invoice.ts\", \"src/core/billing/old.ts\"]}     # index\n{\"expand\": \"core-no-adapters\"}                                             # expand",
+      "after": "# The pushed brief at phase start, and `phax brief` with no path inside the phase:\n{\n  \"$schema\": \"https://docs.phax.run/schemas/brief-request/0.19.0.json\",\n  \"phase\": \"phase-02\",\n  \"base\": \"3f2a91c0d6e84b1f9a7c2e5d8b0a4f6c1e3d7b92\",\n  \"terminal\": false,\n  \"phases\": [\n    { \"id\": \"phase-01\", \"files\": [\"src/core/billing/port.ts\"] },\n    { \"id\": \"phase-02\", \"files\": [\"src/core/billing/invoice.ts\"] },\n    { \"id\": \"phase-03\", \"files\": [\"src/cli/invoice.ts\", \"tests/invoice.test.ts\"] }\n  ],\n  \"files\": null\n}\n\n# `phax brief billing/tax.ts billing/invoice.ts billing/tax.ts`, run from src/core inside phase-02\n# (tax.ts does not exist yet):\n{ \"$schema\": \"…/brief-request/0.19.0.json\", \"phase\": \"phase-02\", \"base\": \"3f2a91c0…\", \"terminal\": false,\n  \"phases\": [ …as above… ],\n  \"files\": [\"src/core/billing/tax.ts\", \"src/core/billing/invoice.ts\"] }\n\n# `phax brief src/core/billing/invoice.ts` outside a phase:\n{ \"$schema\": \"…/brief-request/0.19.0.json\", \"files\": [\"src/core/billing/invoice.ts\"] }\n\n# Normative: the two variants and their keys. `phase`, `base`, `terminal` and `phases` hold the same values as the\n# phase's gate request. `files` is null for the phase's brief, otherwise worktree-root-relative paths, deduplicated,\n# in the order given, never checked for existence. Values above are illustrative; the release number is illustrative."
+    },
+    {
+      "surface": "file: <phase worktree>/.phax-context/brief-request.json",
+      "binding": "normative",
+      "before": null,
+      "after": "<worktree>/.phax-context/brief-request.json\n{ \"$schema\": \"…/brief-request/0.19.0.json\", \"phase\": \"phase-02\", \"base\": \"3f2a91c0…\",\n  \"terminal\": false, \"phases\": [ … ], \"files\": null }\n\n# Written by phax at phase start and on resume, before the agent's turn, only when `brief` is configured.\n# It is gitignored like the rest of .phax-context/. `phax brief` reads it from any directory of the worktree.\n# Replay by hand: steme brief < .phax-context/brief-request.json"
+    },
+    {
+      "surface": "api: brief answer on the provider's stdout",
+      "binding": "normative",
+      "before": "{\"rows\": [{\"id\": \"core-no-adapters\", \"title\": \"…\", \"severity\": \"error\", \"trigger\": \"src/core/\"}]}\n{\"row\": {\"id\": \"core-no-adapters\", \"title\": \"…\", \"severity\": \"error\", \"trigger\": \"src/core/\", \"body\": \"…\"}}",
+      "after": "{\n  \"guarantees\": [\n    {\n      \"id\": \"core-no-adapters\",\n      \"statement\": \"src/core imports no adapter from src/infra\",\n      \"places\": [\n        { \"location\": { \"file\": \"src/core/billing/invoice.ts\", \"line\": 3 }, \"state\": \"forbidden\",\n          \"due\": \"this-phase\", \"what\": \"imports src/infra/stripe.ts\",\n          \"repair\": \"depend on PaymentPort from src/core/billing/port.ts\" },\n        { \"location\": { \"file\": \"src/core/billing/port.ts\" }, \"state\": \"met\" }\n      ]\n    },\n    {\n      \"id\": \"cli-commands-registered\",\n      \"statement\": \"every command module is registered in src/cli/index.ts\",\n      \"places\": [\n        { \"location\": { \"file\": \"src/cli/index.ts\" }, \"state\": \"missing\", \"due\": \"later\",\n          \"what\": \"invoiceCommand is not registered\",\n          \"repair\": \"register invoiceCommand in src/cli/index.ts\" }\n      ]\n    },\n    {\n      \"id\": \"money-as-cents\",\n      \"statement\": \"amounts are integer cents\",\n      \"places\": [\n        { \"location\": { \"file\": \"src/core/billing/legacy.ts\", \"line\": 40 }, \"state\": \"accepted\",\n          \"what\": \"floats kept until the legacy export is retired\" }\n      ]\n    }\n  ]\n}\n\n# Place variants: met {location, state}; missing | forbidden {location, state, due, what, repair}; accepted {location, state, what}.\n# due: \"this-phase\" | \"later\" | null (null when the request carried no phase facts). location: {file, line?}, as in a diagnostics finding.\n# The order is the provider's rank; phax never re-sorts. { \"guarantees\": [] } means nothing to report. Extra keys are ignored.\n# No severity, no title, no trigger, no body."
+    },
+    {
+      "surface": "api: brief section of the phase's first prompt",
+      "binding": "indicative",
+      "before": "## Orientation for this phase (expand a row before touching its files)\n\n- [error] core-no-adapters — src/core imports no adapter (when: src/core/)\n- …and 12 more not shown. Use `phax orient --file <path>` to reach any file's rows.\n\nExpand a row's full detail with `phax orient <id>`.\nFor a file not listed above — including one the plan did not predict — get its index with `phax orient --file <path>`.",
+      "after": "## Brief for this phase\n\nWhat the project's standard expects of the files this phase plans, and how each expectation stands, in the provider's order. It informs; the gate decides.\n\n- core-no-adapters — src/core imports no adapter from src/infra · forbidden src/core/billing/invoice.ts:3 (this phase)\n- cli-commands-registered — every command module is registered in src/cli/index.ts · missing src/cli/index.ts (later)\n- money-as-cents — amounts are integer cents · accepted src/core/billing/legacy.ts:40\n- …and 12 more not shown. `phax brief` prints the phase's brief whole.\n\nBefore touching any file, whether planned or not and existing or not yet created, run `phax brief <path> [<path>…]` to see the guarantees over it, their state there, what is wrong and how to repair it.\n`phax brief` with no path prints this phase's brief whole.\nTo learn where the phase stands, run the gate commands listed below. The brief never fails the phase.\n\n# Pushed brief unavailable:  \"The brief is unavailable at phase start (brief provider exited with code 1). `phax brief` may still answer.\" followed by the same instructions.\n# Empty answer:              \"The brief provider has nothing to report on this phase's planned files.\" followed by the same instructions.\n# Normative: the section is present whenever `brief` is configured and absent otherwise; it has one line per guarantee in provider order,\n# each with id, statement and the non-met places' state, location and due, and no `what` or repair; it has a cap of 50 with a not-shown line naming `phax brief`;\n# and it carries the three instructions. Indicative: the heading, the separators and the wording."
+    },
+    {
+      "surface": "cli: phax brief [path…]",
+      "binding": "normative",
+      "before": "$ phax orient core-no-adapters\n$ phax orient --file src/jobs/sync.ts\n[error] core-no-adapters — src/core imports no adapter",
+      "after": "$ phax brief src/core/billing/invoice.ts src/core/billing/tax.ts      # inside phase-02\ncore-no-adapters — src/core imports no adapter from src/infra\n  forbidden  src/core/billing/invoice.ts:3   due this phase\n    what:    imports src/infra/stripe.ts\n    repair:  depend on PaymentPort from src/core/billing/port.ts\n  met        src/core/billing/port.ts\nmoney-as-cents — amounts are integer cents\n  missing    src/core/billing/tax.ts   due this phase\n    what:    tax amounts are computed as floats in the plan\n    repair:  compute tax in integer cents\n$? = 0\n\n$ phax brief                       # inside a phase: the phase's brief, whole\n$ phax brief src/util/x.ts\nNo brief for src/util/x.ts.\n$? = 0\n\n$ phax brief                       # outside a phase\n✗ phax brief: outside a phase, name at least one path\n$? = 2\n\n$ phax brief ../elsewhere.ts\n✗ phax brief: ../elsewhere.ts is outside the worktree\n$? = 2\n\n$ phax brief src/a.ts              # the provider exits 1, prints non-JSON, or exceeds the time limit\n✗ brief provider exited with code 1: <stderr excerpt>\n$? = 1\n\n$ phax brief src/a.ts              # no `brief` key\n✗ No brief provider is configured: add \"brief\": { \"command\": \"…\" } to phax.json\n$? = 1\n\n# Normative: the command name, variadic paths and no other argument or flag; the request each form sends;\n# exit 0 on any answer, 1 on failure or no provider, 2 on usage errors; a whole-form answer carries every field.\n# Indicative: the layout and the wording."
+    },
+    {
+      "surface": "cli: run output when the pushed brief fails",
+      "binding": "indicative",
+      "before": "[phax] Warning: phase \"phase-02\" — orient provider query failed (Orient provider exited with code 1). Dispatching without an orientation brief.",
+      "after": "[phax] Warning: phase \"phase-02\" — brief unavailable (brief provider exited with code 1). The phase runs without it.\n\n# Normative: one warning naming the phase and the reason, and the phase is dispatched. Indicative: the wording."
+    },
+    {
+      "surface": "file: <phase folder>/brief-NN.json",
+      "binding": "normative",
+      "before": "orient-brief.json\n{ \"kind\": \"ok\", \"files\": [ … ], \"rows\": [ … ], \"rowCount\": 3, \"wovenRowCount\": 3 }\n# or { \"kind\": \"failed\", \"files\": [ … ], \"error\": \"…\" } or { \"kind\": \"not-configured\" }",
+      "after": "<phase folder>/\n  prompt.md\n  brief-00.json        # the pushed brief\n  brief-01.json        # the first `phax brief` of the phase\n  brief-02.json\n  checks-attempt-01.log\n  checks-attempt-01.request.json\n  …\n  (no orient-brief.json; no brief file at all when `brief` is not configured)\n\nbrief-01.json:\n{\n  \"$schema\": \"https://docs.phax.run/schemas/brief-record/0.19.0.json\",\n  \"moment\": \"pulled\",\n  \"request\": { \"$schema\": \"…/brief-request/0.19.0.json\", \"phase\": \"phase-02\", \"base\": \"3f2a91c0…\",\n               \"terminal\": false, \"phases\": [ … ], \"files\": [\"src/core/billing/tax.ts\"] },\n  \"outcome\": { \"kind\": \"answered\", \"answer\": { \"guarantees\": [ … ] } }\n}\n\n# moment: \"pushed\" (00 only) | \"pulled\".\n# outcome: { \"kind\": \"answered\", \"answer\" } | { \"kind\": \"failed\", \"reason\": \"brief provider exited with code 1\" }\n# Every brief file rides the phase record on phax/records/v1. Replay: jq -c .request brief-01.json | steme brief"
+    },
+    {
+      "surface": "file: security.json agent commands",
+      "binding": "normative",
+      "before": "{ \"command\": \"phax orient\", \"source\": \"orient\", \"explicit\": false, … }",
+      "after": "{ \"command\": \"phax brief\", \"source\": \"brief\", \"explicit\": false, … }\n\n# source: \"config\" | \"gate\" | \"brief\". The value \"orient\" leaves the enum."
+    },
+    {
+      "surface": "package: @lbdremy/phax-schemas — formats `brief-request` and `brief-record`",
+      "binding": "normative",
+      "before": "README §Persisted formats has no brief row; the package exports no brief parser. orient-brief.json is not a package format.",
+      "after": "| Brief request | `brief-request` | `<worktree>/.phax-context/brief-request.json`, `request` in a brief record | `parseBriefRequest` | `json/brief-request.schema.json` |\n| Brief record  | `brief-record`  | `<record>/brief-NN.json`                                              | `parseBriefRecord`  | `json/brief-record.schema.json`  |\n\nimport { parseBriefRecord } from \"@lbdremy/phax-schemas\";\nconst parsed = parseBriefRecord(JSON.parse(raw));\n// parsed.ok === true → parsed.value: { moment, request, outcome }\n// parseDocument identifies each by its `$schema`. Unreleased shapes are recorded as `<format>/next.schema.json`."
+    },
+    {
+      "surface": "cli: phax records explain <commit> --briefs",
+      "binding": "indicative",
+      "before": "$ phax records explain 9c1e2f4 --gates\n# flags: --prompt, --diff, --transcript, --gates",
+      "after": "$ phax records explain 9c1e2f4 --briefs\nphase-02 · claude-code (claude-sonnet-5, medium)\n--- brief-00.json ---\n{ \"$schema\": \"…/brief-record/0.19.0.json\", \"moment\": \"pushed\", … }\n--- brief-01.json ---\n{ \"$schema\": \"…/brief-record/0.19.0.json\", \"moment\": \"pulled\", … }\n\n# Normative: the `--briefs` flag, and every brief record printed in number order under its file name. Indicative: the header line."
+    },
+    {
+      "surface": "cli: phax --usage",
+      "binding": "normative",
+      "before": "cmd \"orient\" {\n    help \"Pull orientation from the configured orient provider: expand a row by id, or pass --file to get an index for an arbitrary file\"\n    arg \"[id]\"\n    flag \"--file\" { arg \"<path>\" }\n}",
+      "after": "cmd \"brief\" {\n    help \"Ask the configured brief provider which guarantees range over the given paths and how each stands there; with no path, inside a phase, the phase's brief\"\n    arg \"[path]...\"\n}\n(cmd \"orient\" removed; `records explain` gains flag \"--briefs\")\n\n# Normative: `brief` replaces `orient`, takes variadic paths and has no flags. The long help carries the request and answer contract.\n# Indicative: the help wording."
+    },
+    {
+      "surface": "file: examples/hello-world/",
+      "binding": "indicative",
+      "before": "phax.json  \"orient\": { \"command\": \"node ./orient.mjs\" }\norient.mjs # static rows by prefix, index and expand",
+      "after": "phax.json  \"brief\": { \"command\": \"node ./brief.mjs\" }, no \"orient\"\nbrief.mjs  # reads the brief request; for files null, briefs the gated phase's planned files from `phases`;\n           # reports `hw-no-io` over src/: met, or forbidden with what and repair where greet.ts imports node:fs\n(orient.mjs deleted)"
+    }
+  ],
+  "nonGoals": [
+    "The brief at plan authoring (the architecture brief): the same provider verb at an earlier moment, left to a later spec.",
+    "The audit and the gate: the gate request, verdicts, fix prompts and attribution belong to `gate-request` and `drop-gate-scopes`, and nothing in them changes here.",
+    "A diagnostic `id`, accepted debt in the audit's document, ranges, structured repair and a decision class.",
+    "phax ranking, filtering, grouping or deduplicating guarantees, computing a state or a due, or checking an answer against its request. Decoding the shape is the only check.",
+    "Briefs in fix-loop prompts, in review or compliance prompts, or woven again on resume.",
+    "Asking for a guarantee by id (`phax brief <id>`), a `--json` output for `phax brief`, or any flag on it.",
+    "Severity, title, trigger or a body in the answer.",
+    "A configurable time limit or cap, or per-provider options in the `brief` key.",
+    "Recording `phax brief` calls made outside a phase.",
+    "Renaming the authoring `--brief` flag or `docs/briefs/`.",
+    "Migrating a config that declares `orient`, refusing it with a message of its own, or reading `orient-brief.json` and the `orient` agent-command source in earlier records.",
+    "Building steme's `steme brief`, and the cross-run durable context layer (NEXT_STEPS) that once named the orient provider."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "ac-pushed-request",
+      "name": "The pushed brief carries the gate request's facts",
+      "given": "a three-phase run whose phax.json declares `\"brief\": { \"command\": \"node ./brief.mjs\" }` and a gate step declaring `\"input\": \"gate-request\"`, where brief.mjs saves its stdin and prints `{ \"guarantees\": [] }`",
+      "when": "phase-02 starts and its gate later runs",
+      "then": "brief.mjs ran once, before the first prompt was written. Its saved stdin is a JSON object with exactly the keys `$schema`, `phase`, `base`, `terminal`, `phases` and `files`. `$schema` starts with `https://docs.phax.run/schemas/brief-request/` and `files` is `null`. `phase`, `base`, `terminal` and `phases` equal those of phase-02's `checks-attempt-01.request.json`.",
+      "refs": [
+        "r-config",
+        "r-request-stdin",
+        "r-pushed-once",
+        "r-phase-facts",
+        "r-phase-brief",
+        "r-facts-only"
+      ]
+    },
+    {
+      "id": "ac-layers",
+      "name": "A nearer layer overrides the provider",
+      "given": "`\"brief\": { \"command\": \"node ./a.mjs\" }` in phax.json and `\"brief\": { \"command\": \"node ./b.mjs\" }` in phax.local.json",
+      "when": "a phase starts",
+      "then": "b.mjs receives the pushed brief request and a.mjs is not run",
+      "refs": [
+        "r-config"
+      ]
+    },
+    {
+      "id": "ac-orient-refused",
+      "name": "A config with `orient` meets the ordinary refusal",
+      "given": "in turn, `phax.json`, `phax.local.json` and `~/.phax/config.json` each declaring `\"orient\": { \"command\": \"node ./orient.mjs\" }`, with the other layers clean",
+      "when": "`phax validate` runs, then `phax run --plan <plan>` runs",
+      "then": "both exit 2 before any run or worktree is created, with the message every unknown key gets today and no message specific to `orient`",
+      "refs": [
+        "r-orient-key"
+      ]
+    },
+    {
+      "id": "ac-schema-upgrade",
+      "name": "`phax schema upgrade` describes `brief`",
+      "given": "a project whose `phax.json` still declares `orient` and whose `phax.schema.json` predates the change",
+      "when": "`phax schema upgrade` runs",
+      "then": "it succeeds, `phax.schema.json` and `phax.user.schema.json` have a `brief` property and no `orient` property, and `phax.json` is byte-for-byte unchanged",
+      "refs": [
+        "r-schema-upgrade"
+      ]
+    },
+    {
+      "id": "ac-orient-gone",
+      "name": "orient leaves no trace",
+      "given": "a run with `brief` configured",
+      "when": "`phax orient --file src/a.ts` runs, `phax --usage` is read, and phase-01 completes",
+      "then": "`phax orient` fails as an unknown command. The usage spec has `cmd \"brief\"` and no `cmd \"orient\"`. The phase folder has no `orient-brief.json`. `prompt.md` contains neither `Orientation` nor `phax orient`.",
+      "refs": [
+        "r-orient-retired"
+      ]
+    },
+    {
+      "id": "ac-facts-file",
+      "name": "The worktree knows its phase, across a resume",
+      "given": "phase-02 started with `brief` configured, then stopped with its gate exhausted, and `.phax-context/brief-request.json` deleted from its worktree",
+      "when": "the agent's first turn begins, and later `phax resume <run>` runs",
+      "then": "at the first turn, the file holds a JSON value equal to the `request` of `brief-00.json`. After the resume, the file exists again with the same value. brief.mjs was not run by the resume, and `brief-00.json` is unchanged.",
+      "refs": [
+        "r-facts-file",
+        "r-pushed-once"
+      ]
+    },
+    {
+      "id": "ac-pull-paths",
+      "name": "A pull names paths, existing or not",
+      "given": "phase-02's worktree, where `src/core/billing/tax.ts` does not exist",
+      "when": "the agent runs `phax brief billing/tax.ts billing/invoice.ts billing/tax.ts` from `src/core`",
+      "then": "brief.mjs receives phase-02's phase facts, identical to those in the phase request file, and `files` equal to `[\"src/core/billing/tax.ts\", \"src/core/billing/invoice.ts\"]`. Nothing marks tax.ts as missing.",
+      "refs": [
+        "r-facts-read",
+        "r-paths"
+      ]
+    },
+    {
+      "id": "ac-pull-phase",
+      "name": "`phax brief` with no path is the phase's brief, whole",
+      "given": "phase-02's worktree and a provider that answers one guarantee with a `forbidden` place carrying `due`, `what` and `repair`",
+      "when": "the agent runs `phax brief` with no argument",
+      "then": "the request sent equals the phase request file, with `files` `null`. stdout shows the guarantee's id and statement and the place's state, location, due, `what` and repair. The exit code is 0.",
+      "refs": [
+        "r-phase-brief",
+        "r-facts-read",
+        "r-pulled-whole"
+      ]
+    },
+    {
+      "id": "ac-outside",
+      "name": "Outside a phase, files only and nothing recorded",
+      "given": "a clone of the repository with no `.phax-context/brief-request.json` and `brief` configured",
+      "when": "`phax brief src/greet.ts`, then `phax brief`, then `phax brief ../elsewhere.ts` run",
+      "then": "the first sends exactly `{ \"$schema\": …, \"files\": [\"src/greet.ts\"] }` and writes nothing under any run or phase folder. The second and third exit 2 without running the provider.",
+      "refs": [
+        "r-outside",
+        "r-usage-errors",
+        "r-record-outside"
+      ]
+    },
+    {
+      "id": "ac-compact-cap",
+      "name": "The pushed form is compact, ordered and capped",
+      "given": "a provider answering 53 guarantees `g01` … `g53` in that order, `g01` with a `forbidden` place at `src/a.ts:3` due `this-phase` whose `what` is `W1` and repair is `R1`",
+      "when": "a phase starts",
+      "then": "`prompt.md` has a `## Brief for this phase` section listing `g01` through `g50`, one line each, in that order. `g01`'s line holds its id, its statement, `forbidden`, `src/a.ts:3` and `this phase`, but neither `W1` nor `R1`. A following line says 3 more are not shown and names `phax brief`.",
+      "refs": [
+        "r-pushed-compact",
+        "r-cap",
+        "r-order"
+      ]
+    },
+    {
+      "id": "ac-whole-order",
+      "name": "A pull prints everything in the provider's order",
+      "given": "the same 53-guarantee answer, with places in the order the provider gave",
+      "when": "`phax brief src/a.ts` runs in the phase",
+      "then": "stdout lists all 53 guarantees in the provider's order, and every place in its order with state, location, due, `what` and repair where the state has them. The exit code is 0.",
+      "refs": [
+        "r-pulled-whole",
+        "r-order"
+      ]
+    },
+    {
+      "id": "ac-answer-shape",
+      "name": "The answer's variants are checked, extra keys ignored",
+      "given": "in turn, an answer with a place `\"state\": \"stale\"`, one with a `missing` place lacking `repair`, and one with a `met` place `{ \"location\": { \"file\": \"src/a.ts\" }, \"state\": \"met\", \"score\": 3 }`",
+      "when": "each is returned to `phax brief src/a.ts` and as the pushed brief",
+      "then": "the first two make `phax brief` exit 1 with a schema failure on stderr, and the pushed brief is marked unavailable while the phase runs. The third is printed and woven with no error.",
+      "refs": [
+        "r-answer",
+        "r-pulled-failure",
+        "r-pushed-failure"
+      ]
+    },
+    {
+      "id": "ac-empty",
+      "name": "Nothing to report",
+      "given": "a provider answering `{ \"guarantees\": [] }`",
+      "when": "a phase starts and the agent runs `phax brief src/x.ts`",
+      "then": "the brief section says the provider has nothing to report and keeps the instructions, and `phax brief` prints `No brief for src/x.ts.` and exits 0",
+      "refs": [
+        "r-empty"
+      ]
+    },
+    {
+      "id": "ac-pushed-failure",
+      "name": "A failing, silent or slow pushed brief never blocks",
+      "given": "in turn, a provider that exits 1, one that prints `not json` with exit 0, and one that never exits",
+      "when": "phase-01 of a one-phase run starts each time",
+      "then": "each time the agent is dispatched; for the never-exiting provider this happens after the brief time limit, and that provider process is no longer running. The run output warns naming `phase-01` and the reason. The brief section says the brief is unavailable and why, and keeps the instructions. `brief-00.json` has `moment` `pushed` and outcome `{ \"kind\": \"failed\", \"reason\": … }`. The run ends with the same state and exit code as the same run with no `brief` configured.",
+      "refs": [
+        "r-pushed-failure",
+        "r-time-limit",
+        "r-record-pushed",
+        "r-no-verdict"
+      ]
+    },
+    {
+      "id": "ac-pulled-failure",
+      "name": "A failing pull is reported and recorded",
+      "given": "phase-02 with a provider that exits 1 on a pull",
+      "when": "the agent runs `phax brief src/a.ts`",
+      "then": "stderr carries the reason and the exit code is 1. The phase goes on. The phase's record holds a brief record with `moment` `pulled`, the request as sent, and outcome `failed`.",
+      "refs": [
+        "r-pulled-failure",
+        "r-record-pulled"
+      ]
+    },
+    {
+      "id": "ac-no-verdict",
+      "name": "A brief judges nothing",
+      "given": "a provider whose answer holds a `forbidden` place due `this-phase` on a planned file, and an audit step that prints `{ \"diagnostics\": [] }`",
+      "when": "the phase's gate runs",
+      "then": "the gate passes, `gate-attribution.json` records `pass` for the audit step, and the phase commits",
+      "refs": [
+        "r-no-verdict"
+      ]
+    },
+    {
+      "id": "ac-grant",
+      "name": "`phax brief` is granted only with a provider",
+      "given": "a run in `secure` mode on a provider with a command allowlist, first with `brief` configured and then without it",
+      "when": "a phase runs",
+      "then": "with `brief` configured, `security.json` lists `{ \"command\": \"phax brief\", \"source\": \"brief\", \"explicit\": false, … }` and the agent's `phax brief` call succeeds. Without it, no such entry exists.",
+      "refs": [
+        "r-grant"
+      ]
+    },
+    {
+      "id": "ac-unconfigured",
+      "name": "No provider, no brief",
+      "given": "a project with no `brief` key in any layer",
+      "when": "a phase runs and `phax brief src/a.ts` runs in its worktree",
+      "then": "`prompt.md` has no brief section. The phase folder has no `brief-NN.json`. The worktree has no `.phax-context/brief-request.json`. `phax brief` exits 1 with a message naming the `brief` key.",
+      "refs": [
+        "r-unconfigured-phase",
+        "r-unconfigured-cli"
+      ]
+    },
+    {
+      "id": "ac-instructions",
+      "name": "The agent is told how to pull and where to look for the verdict",
+      "given": "`brief` configured",
+      "when": "a phase's first prompt is built",
+      "then": "the brief section tells the agent to run `phax brief <path>` on any file, planned or not and existing or not, before touching it, and to run `phax brief` with no path for the phase's whole brief. It also says the gate commands listed in the prompt are how to learn where the phase stands.",
+      "refs": [
+        "r-prompt-instructions"
+      ]
+    },
+    {
+      "id": "ac-records",
+      "name": "The record carries and shows every brief",
+      "given": "a committed phase with records enabled, whose agent ran `phax brief` three times across two sessions (a resume in between), the second call failing",
+      "when": "`phax records explain <record commit> --briefs` runs, and `jq -c .request brief-01.json | node ./brief.mjs` runs in the same tree",
+      "then": "the record holds `brief-00.json` (`pushed`) and `brief-01.json` through `brief-03.json` (`pulled`), in call order, each with its request as sent and its outcome, `brief-02.json` being `failed`. The command prints the four files in number order, each under `--- brief-NN.json ---`. The replay prints the answer recorded in `brief-01.json`.",
+      "refs": [
+        "r-record-pushed",
+        "r-record-pulled",
+        "r-explain"
+      ]
+    },
+    {
+      "id": "ac-formats",
+      "name": "The two formats are published",
+      "given": "a `brief-01.json` written by phax and the `request` it holds",
+      "when": "they are passed to `parseBriefRecord`, `parseBriefRequest` and `parseDocument` from `@lbdremy/phax-schemas`",
+      "then": "each parse succeeds, and `parseDocument` identifies `brief-record` and `brief-request`. The package ships `json/brief-record.schema.json` and `json/brief-request.schema.json`. README §Persisted formats has both rows. The snapshot gate passes with both `next` shapes recorded.",
+      "refs": [
+        "r-formats"
+      ]
+    },
+    {
+      "id": "ac-docs",
+      "name": "Docs and example describe the brief",
+      "given": "the repository after the change",
+      "when": "`examples/hello-world/` is inspected, `phax validate` runs there, and README.md, docs/cli/reference.md, phax.usage.kdl, phax.schema.json, phax.user.schema.json and docs/blog/announcing-phax-1.0.md are searched",
+      "then": "hello-world's phax.json declares `brief` and no `orient`. `brief.mjs` exists and `orient.mjs` does not. `phax validate` exits 0, and the example-provider integration test passes against `brief.mjs`. README §Extend phax has a Brief provider section and no Orient provider section. No searched file mentions `phax orient` or an `orient` key.",
+      "refs": [
+        "r-docs"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "q-answer-shape",
+      "question": "What shape does the brief answer take?",
+      "options": [
+        {
+          "id": "structured",
+          "label": "Structured: guarantees → places with a per-state variant; phax renders the compact and whole forms and records the data",
+          "abandons": "The provider's control over wording and layout. A field set is frozen before 1.0 for a provider that is not built yet."
+        },
+        {
+          "id": "text",
+          "label": "Text the provider renders: `{compact, whole}` strings that phax weaves and prints verbatim",
+          "abandons": "The brief as data. Records would hold prose no tool can read back, phax could not cap the pushed form by guarantee or check the states, and the provider would maintain two renderings."
+        },
+        {
+          "id": "both",
+          "label": "Both: the structured answer plus provider-rendered text",
+          "abandons": "One account of the answer. The two renderings can disagree, and both become contract."
+        }
+      ],
+      "recommendation": "structured",
+      "rationale": "One structured answer serves both moments: phax cuts the compact form from it and prints the whole form, so the provider answers once. steme's ledger is structured already, and the states are exactly what the agent needs to read. The frozen field set is the acceptable loss because it is kept to what the first consumer needs (id, statement, location, state, due, what, repair), and extra keys pass decoding, so steme can add fields before phax reads them."
+    },
+    {
+      "id": "q-phase-identity",
+      "question": "How does `phax brief`, run by the agent inside the phase worktree, learn the phase it is in?",
+      "options": [
+        {
+          "id": "file",
+          "label": "A file phax writes into the worktree: `.phax-context/brief-request.json`, the phase's brief request with `files: null`",
+          "abandons": "Tamper-proof facts. `.phax-context/` is writable by the agent, which could edit or delete the file and so mislead its own brief, though never a verdict."
+        },
+        {
+          "id": "env",
+          "label": "An environment variable in the agent's session (run and phase ids)",
+          "abandons": "Provider neutrality. Whether a variable reaches the commands an agent runs is up to each provider CLI (Codex filters its shell environment by policy), and every resumed session must be launched with it."
+        },
+        {
+          "id": "flags",
+          "label": "Flags on the command: `phax brief --run <id> --phase <id> [paths]`",
+          "abandons": "An agent that never handles plumbing. Every call repeats ids phax already knows, and a wrong id sends another phase's facts."
+        },
+        {
+          "id": "none",
+          "label": "None: `phax brief` always briefs as the code stands",
+          "abandons": "The phase facts on every pull. A pulled brief could not say what is due this phase, which is half the need."
+        }
+      ],
+      "recommendation": "file",
+      "rationale": "The file works the same under every provider and under a sandbox that confines the agent to its worktree. It survives a resume because phax rewrites it. It holds the facts themselves, so `phax brief` never has to reach into the run state, and a person can replay it with `steme brief < .phax-context/brief-request.json`. The tampering risk is the acceptable loss: an edited file can only mislead the agent's own advice, and the audit reads its facts from phax, not from the worktree."
+    },
+    {
+      "id": "q-request-format",
+      "question": "Is the brief's request the gate request's format, or its own?",
+      "options": [
+        {
+          "id": "own",
+          "label": "Its own format `brief-request`: the gate request's four fact keys with the same names, types and values, plus `files`; outside a phase, `$schema` and `files` only",
+          "abandons": "A single parser for both verbs. A provider reads two formats, one being the other plus `files`."
+        },
+        {
+          "id": "extend-gate",
+          "label": "The gate request extended with `files` (null for the gate)",
+          "abandons": "gate-request's settled \"exactly five keys\" (Approved §5.6), and a gate step would receive a key that means nothing to it. It also leaves no shape for a call outside a phase."
+        },
+        {
+          "id": "gate-plus-argv",
+          "label": "The gate request verbatim on stdin, with the paths as arguments to the provider command",
+          "abandons": "Stdin as the single channel. Paths become argv that the provider must parse, and outside a phase there is no gate request to send."
+        }
+      ],
+      "recommendation": "own",
+      "rationale": "The facts are shared by value, not by format: for the same phase, `phase`, `base`, `terminal` and `phases` are identical in both documents, which is what keeps the two verbs from disagreeing. The approved gate request stays untouched. The out-of-phase call gets an explicit variant instead of null facts, and `$schema` tells a provider which verb it is serving. A second, nearly identical parser is a small price."
+    },
+    {
+      "id": "q-cap",
+      "question": "Does the pushed form keep a cap, and which?",
+      "options": [
+        {
+          "id": "fifty",
+          "label": "Keep a cap of 50 guarantees, in provider order, with a not-shown line naming `phax brief`",
+          "abandons": "The provider's whole word in the prompt. Guarantees past the 50th reach the agent only if it pulls, whether or not they are due this phase."
+        },
+        {
+          "id": "none",
+          "label": "No cap",
+          "abandons": "A bound on every phase prompt. A provider answering with thousands of guarantees inflates the cost of each first prompt."
+        },
+        {
+          "id": "size",
+          "label": "A cap in bytes or lines",
+          "abandons": "A cut the agent can reason about. Where the text stops depends on statement lengths, not on rank, and the cut can fall mid-guarantee."
+        }
+      ],
+      "recommendation": "fifty",
+      "rationale": "Order is the provider's rank, so the cut drops what the provider ranks lowest, and the not-shown line says how to reach the rest. Counting guarantees keeps each one whole. 50 is today's value and has caused no trouble. Losing the tail from the prompt is acceptable because the tail is one `phax brief` away and a provider that ranks due guarantees first loses nothing that matters."
+    },
+    {
+      "id": "q-by-id",
+      "question": "Can a guarantee be asked for by id (`phax brief <id> [paths]`)?",
+      "options": [
+        {
+          "id": "no",
+          "label": "No: `phax brief [path…]` only",
+          "abandons": "Re-reading one guarantee without the others on the same paths. The agent finds it in the whole answer instead."
+        },
+        {
+          "id": "yes",
+          "label": "Yes: `phax brief <id> [paths]`, with the request gaining a `guarantee` key",
+          "abandons": "One argument grammar: an id and a path are both bare words, and `money-as-cents` could be a file. It also adds a request key and a provider behaviour the first consumer does not need."
+        }
+      ],
+      "recommendation": "no",
+      "rationale": "orient needed expand because its index carried no body. A whole brief already carries every statement, state, `what` and repair, so the agent never needs a second round trip. Keeping to what the first consumer needs, the lost convenience is small and can be added later as a new key without breaking the request."
+    },
+    {
+      "id": "q-severity",
+      "question": "Does severity survive once state is in the answer?",
+      "options": [
+        {
+          "id": "drop",
+          "label": "Drop severity",
+          "abandons": "A per-guarantee weight independent of order. A provider can no longer say error versus info."
+        },
+        {
+          "id": "keep",
+          "label": "Keep `severity: error|warn|info` per guarantee, beside state",
+          "abandons": "One ranking signal. Severity and order can disagree, and phax would render a second rank that it did not make and cannot reconcile."
+        }
+      ],
+      "recommendation": "drop",
+      "rationale": "State says what to do at a place (fix what is missing or forbidden, leave accepted debt alone), and due says when; order says what matters most. Severity added a third axis that only made sense when the answer carried no state, and the audit, not the brief, is where weight becomes a verdict. Losing the explicit label is acceptable because the provider still ranks by order."
+    }
+  ],
+  "planningNote": {
+    "settled": [
+      "Config: `brief: {command}` in the three layers, with `orient`'s precedence. `orient` leaves the contract and gets the ordinary unknown-key refusal (exit 2) with no migration. `phax schema upgrade` regenerates both local schemas and never touches `phax.json`.",
+      "Request: its own format, `brief-request`. Inside a phase it holds `$schema`, the phase facts (the same values as the phase's gate request) and `files`: `null` for the phase's brief, otherwise the named paths, worktree-root-relative, deduplicated, in the order given and never checked for existence. Outside a phase it holds `$schema` and `files` only. Usage errors exit 2.",
+      "Phase identity: the phase request file `.phax-context/brief-request.json`, written at phase start and on resume when `brief` is configured. `phax brief` reads it from any directory of the worktree, and without it the call is outside a phase.",
+      "Answer: structured `{guarantees: [{id, statement, places}]}` with per-state place variants. `due` sits on `missing` and `forbidden` places. `location` is shaped like a diagnostics finding's `{file, line?}`. Extra keys are ignored. The provider's order is the rank. There is no severity, title, trigger or body.",
+      "Pushed brief: requested once per fresh phase start, before the first prompt, and not on resume or in fix and review prompts. It is woven in compact form under `## Brief for this phase`, capped at 50 guarantees with a not-shown line, and followed by the three instructions. It covers the projection's files (create ∪ edit, optional files excluded); the agent pulls an optional file when it decides to touch it.",
+      "Pulled brief: `phax brief [path…]` prints the whole form. It exits 0 on any answer, 1 on failure or a missing provider, and 2 on usage errors. There is no lookup by id.",
+      "Never blocks: every call has a brief time limit. A failure produces a run-output warning, an unavailable line in the prompt and a `failed` record, and it never affects a verdict, a state or an exit code of `phax run` or `phax resume`.",
+      "Records: `brief-NN.json` (format `brief-record`), with `00` the pushed brief and `01`… the pulled ones in call order across sessions. They ride the phase record and print with `phax records explain --briefs`. Nothing is recorded outside a phase, and `orient-brief.json` is no longer written.",
+      "Grant: `phax brief` is allowed automatically when `brief` is configured, with `security.json` source `brief`."
+    ],
+    "open": [
+      "The value of the brief time limit. Recommended: 60 seconds for both moments, held as a constant.",
+      "How a pulled call's record reaches the phase folder. The in-phase agent's sandbox may confine `phax brief`'s writes to the worktree, so writing under `.phax-context/` and collecting before the phase record is written is the likely route. Pulls made after the phase's record is written (a kept-open final phase in review) need a defined answer; not recording them is acceptable.",
+      "A phase request file that is present but does not decode. Recommended: refuse with exit 1 naming the file, rather than silently briefing as outside a phase.",
+      "How `base` is available before the agent's first turn. gate-request leaves open whether `base` is recorded at branch creation or derived later. The pushed brief needs it at phase start, which favours recording it when the branch is created, and one mechanism should serve both.",
+      "The exact compact line, the whole-form layout, the section heading and the instruction wording (indicative in §6).",
+      "Whether `phax records explain` without flags mentions the briefs. A one-line count is suggested.",
+      "Renaming the `orient.*` telemetry events and the orient internals.",
+      "The steme-corpus coordination note (`02-product/phax-steme-coordination.md`: §Along a run, §What is lost, or latent, §The changes rows 4 and 5, §The architecture brief, at plan authoring) could not be read from this authoring session. It is reflected as the brief summarizes it, and the planner should cross-check it. This spec supersedes rows 4 and 5."
+    ],
+    "constraints": [
+      "A brief never blocks, and phax judges nothing in it: it ranks, filters and deduplicates nothing, computes no state or due, and does not cross-check the answer against the request. Decoding the shape is the only check.",
+      "Depends on gate-request (Approved): the phase facts are the gate request's, with the same values for the same phase.",
+      "Independent of drop-gate-scopes, but both rewrite the hello-world example and README §Extend phax. Coordinate so the example ends with `brief`, no `orient` and no `scopes`, and the README hook count is right.",
+      "No shims: `orient` is an unknown key, and `orient-brief.json`, the row format, the index and expand contract and the `orient` agent-command source are gone. Earlier records are neither rewritten nor read specially.",
+      "phax does not tie the `brief` provider to any gate step. `steme brief` and `steme audit` are configured separately and share only the facts phax sends.",
+      "This spec lands before steme builds item 8 (`steme brief`). Keep the answer to the fields named here so the first consumer is not frozen into more.",
+      "Relation to oracle-phases (Approved, not built; its text is unchanged): its `oracles: {command}` key mirrored `orient`, and it now sits beside `brief` and `planAuditor` with the same shape.",
+      "This changes CLI and config surface on purpose before the 1.0 freeze: one command and one key are replaced, one flag is added to `records explain`, and two persisted formats are added."
+    ]
+  },
+  "docsPage": {
+    "kind": "page",
+    "page": "README §Extend phax › Brief provider (replacing §Orient provider), with the `brief-request` and `brief-record` rows in §Persisted formats and `phax brief` in docs/cli/reference.md",
+    "reader": "The author of a brief provider, such as steme's `steme brief`, who needs to know what phax sends at phase start and on each pull, what answer it expects, and that phax never judges the answer. A secondary reader is the operator who wants to see what the agent was told during a run.",
+    "example": "Declare `\"brief\": { \"command\": \"node ./brief.mjs\" }`. In brief.mjs, read stdin to the end and parse it. When `files` is null, brief the files of the `phases` entry whose `id` is `phase`. Otherwise brief `files`, which may include paths that do not exist yet. When `phase` is present, set `due` to `this-phase` or `later` from what later entries of `phases` still plan; outside a phase, set it to null. Print `{ \"guarantees\": [{ \"id\": \"hw-no-io\", \"statement\": \"greet has no I/O\", \"places\": [{ \"location\": { \"file\": \"src/greet.ts\", \"line\": 1 }, \"state\": \"forbidden\", \"due\": \"this-phase\", \"what\": \"imports node:fs\", \"repair\": \"remove the import; greet is pure\" }] }] }`, most important first. Replay a phase's brief with `node ./brief.mjs < .phax-context/brief-request.json`, and a recorded one with `jq -c .request brief-01.json | node ./brief.mjs`."
+  }
+}
