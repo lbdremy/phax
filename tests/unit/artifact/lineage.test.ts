@@ -6,6 +6,7 @@ import {
   readApprovalStore,
   readSpecApprovalRecord,
 } from "../../../src/app/approvalRecordStore.js";
+import { ApprovalLedgerUnreadableError } from "../../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../../src/infra/fakes/fs.js";
 import type { FileSystem } from "../../../src/ports/fs.js";
 import { PHAX_RELEASE } from "../../../src/schemas/release.js";
@@ -533,5 +534,93 @@ describe("approval store over a pre-schema ledger", () => {
       Effect.zipRight(putApprovalRecord(PLAN, planRecord), readApprovalStore()),
     );
     expect(value).toEqual({ records: { [PLAN]: planRecord } });
+  });
+});
+
+// Runs an effect over a fake file system and returns its Either, with the files.
+function failure<A>(
+  files: Readonly<Record<string, string>>,
+  effect: Effect.Effect<A, unknown, FileSystem>,
+) {
+  const fs = makeFakeFileSystem();
+  for (const [path, text] of Object.entries(files)) fs.impl.setFile(path, text);
+  const result = Effect.runSync(effect.pipe(Effect.either, Effect.provide(fs.layer)));
+  return { result, fs: fs.impl };
+}
+
+// An unreadable ledger must never be rewritten from an empty copy: a ledger a
+// newer phax wrote, one that fails to decode, or bad JSON is refused by every
+// read and every write, and left byte for byte as it was. A missing ledger is
+// still an empty one.
+describe("approval store over an unreadable ledger", () => {
+  const PLAN = "docs/plans/2609101222-foo-plan.md";
+  const OTHER_PLAN = "docs/plans/2609101223-bar-plan.md";
+  const SPEC = "docs/specs/2609101222-foo.md";
+  const planRecord: ApprovalRecord = {
+    planFingerprint: "plan-fp",
+    approvedAt: "2026-08-10T00:00:00.000Z",
+    baseline: "a".repeat(40),
+    sourceSpec: null,
+  };
+  const specRecord: SpecApprovalRecord = {
+    specFingerprint: "spec-fp",
+    approvedAt: "2026-08-10T00:00:00.000Z",
+    baseline: "b".repeat(40),
+  };
+  const [major = 0] = PHAX_RELEASE.split(".").map(Number);
+  const NEWER = `${major + 1}.0.0`;
+
+  const unreadablePlanLedgers: ReadonlyArray<readonly [string, string, string]> = [
+    [
+      "written by a newer release",
+      JSON.stringify({
+        $schema: schemaUrl("plan-approvals", NEWER),
+        records: { [PLAN]: planRecord },
+      }),
+      `newer than this phax (${PHAX_RELEASE})`,
+    ],
+    [
+      "that fails to decode",
+      JSON.stringify({ $schema: schemaUrl("plan-approvals", PHAX_RELEASE), records: 42 }),
+      APPROVALS_FILE_PATH,
+    ],
+    ["that is not JSON", "{ not json", "not valid JSON"],
+  ];
+
+  it.each(unreadablePlanLedgers)("refuses to read a plan ledger %s", (_, text, expected) => {
+    const { result } = failure({ [APPROVALS_FILE_PATH]: text }, readApprovalStore());
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(ApprovalLedgerUnreadableError);
+      expect((result.left as ApprovalLedgerUnreadableError).message).toContain(expected);
+    }
+  });
+
+  it.each(unreadablePlanLedgers)("never rewrites a plan ledger %s", (_, text) => {
+    const { result, fs } = failure(
+      { [APPROVALS_FILE_PATH]: text },
+      putApprovalRecord(OTHER_PLAN, planRecord),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    expect(fs.getFile(APPROVALS_FILE_PATH)).toBe(text);
+  });
+
+  it("never rewrites a spec ledger written by a newer release", () => {
+    const text = JSON.stringify({
+      $schema: schemaUrl("spec-approvals", NEWER),
+      records: { [SPEC]: specRecord },
+    });
+    const { result, fs } = failure(
+      { [SPEC_APPROVALS_FILE_PATH]: text },
+      putSpecApprovalRecord(SPEC, specRecord),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(ApprovalLedgerUnreadableError);
+    expect(fs.getFile(SPEC_APPROVALS_FILE_PATH)).toBe(text);
+  });
+
+  it("still reads a missing ledger as empty", () => {
+    const { result } = failure({}, readApprovalStore());
+    expect(result).toEqual(Either.right({ records: {} }));
   });
 });

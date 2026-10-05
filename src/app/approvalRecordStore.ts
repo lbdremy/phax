@@ -1,5 +1,6 @@
 import { Effect, Either } from "effect";
 import { createHash } from "node:crypto";
+import { ApprovalLedgerUnreadableError } from "../domain/errors.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { APPROVALS_FILE_PATH, SPEC_APPROVALS_FILE_PATH } from "../domain/artifact/lineage.js";
 import { fingerprintSource } from "../domain/artifact/frontmatter.js";
@@ -28,11 +29,15 @@ function sortedKeys<R>(records: Record<string, R>): Record<string, R> {
   return sorted;
 }
 
+// A missing ledger is an empty one. An unreadable one — a newer release's,
+// one that fails to decode, or bad JSON — is refused, never read as empty:
+// every put/remove below writes back what it read, so an empty read would
+// replace the whole ledger with one record.
 function readStoreFile<T>(
   filePath: string,
   read: (file: string, input: unknown) => Either.Either<T, PersistedReadError>,
   empty: T,
-): Effect.Effect<T, FsError, FileSystem> {
+): Effect.Effect<T, FsError | ApprovalLedgerUnreadableError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     if (!(yield* fs.exists(filePath))) return empty;
@@ -41,10 +46,20 @@ function readStoreFile<T>(
     try {
       parsed = JSON.parse(text);
     } catch {
-      return empty;
+      return yield* Effect.fail(
+        new ApprovalLedgerUnreadableError({
+          message: `${filePath}: not valid JSON — fix it or restore it from git`,
+          ledgerPath: filePath,
+        }),
+      );
     }
     const decoded = read(filePath, parsed);
-    return Either.isLeft(decoded) ? empty : decoded.right;
+    if (Either.isLeft(decoded)) {
+      return yield* Effect.fail(
+        new ApprovalLedgerUnreadableError({ message: decoded.left.message, ledgerPath: filePath }),
+      );
+    }
+    return decoded.right;
   });
 }
 
@@ -52,7 +67,11 @@ function readStoreFile<T>(
 
 const EMPTY_PLAN_STORE: PlanApprovals = { records: {} };
 
-export function readApprovalStore(): Effect.Effect<PlanApprovals, FsError, FileSystem> {
+export function readApprovalStore(): Effect.Effect<
+  PlanApprovals,
+  FsError | ApprovalLedgerUnreadableError,
+  FileSystem
+> {
   return readStoreFile(APPROVALS_FILE_PATH, readPlanApprovalsFile, EMPTY_PLAN_STORE);
 }
 
@@ -72,14 +91,16 @@ function writePlanApprovalStore(
 export function putApprovalRecord(
   planPath: string,
   record: ApprovalRecord,
-): Effect.Effect<void, FsError, FileSystem> {
+): Effect.Effect<void, FsError | ApprovalLedgerUnreadableError, FileSystem> {
   return Effect.gen(function* () {
     const store = yield* readApprovalStore();
     yield* writePlanApprovalStore({ ...store.records, [planPath]: record });
   });
 }
 
-export function removeApprovalRecord(planPath: string): Effect.Effect<void, FsError, FileSystem> {
+export function removeApprovalRecord(
+  planPath: string,
+): Effect.Effect<void, FsError | ApprovalLedgerUnreadableError, FileSystem> {
   return Effect.gen(function* () {
     const store = yield* readApprovalStore();
     if (!(planPath in store.records)) return;
@@ -93,7 +114,11 @@ export function removeApprovalRecord(planPath: string): Effect.Effect<void, FsEr
 
 const EMPTY_SPEC_STORE: SpecApprovals = { records: {} };
 
-function readSpecApprovalStore(): Effect.Effect<SpecApprovals, FsError, FileSystem> {
+function readSpecApprovalStore(): Effect.Effect<
+  SpecApprovals,
+  FsError | ApprovalLedgerUnreadableError,
+  FileSystem
+> {
   return readStoreFile(SPEC_APPROVALS_FILE_PATH, readSpecApprovalsFile, EMPTY_SPEC_STORE);
 }
 
@@ -116,14 +141,14 @@ function writeSpecApprovalStore(
 
 export function readSpecApprovalRecord(
   specPath: string,
-): Effect.Effect<SpecApprovalRecord | null, FsError, FileSystem> {
+): Effect.Effect<SpecApprovalRecord | null, FsError | ApprovalLedgerUnreadableError, FileSystem> {
   return Effect.map(readSpecApprovalStore(), (store) => store.records[specPath] ?? null);
 }
 
 export function putSpecApprovalRecord(
   specPath: string,
   record: SpecApprovalRecord,
-): Effect.Effect<void, FsError, FileSystem> {
+): Effect.Effect<void, FsError | ApprovalLedgerUnreadableError, FileSystem> {
   return Effect.gen(function* () {
     const store = yield* readSpecApprovalStore();
     yield* writeSpecApprovalStore({ ...store.records, [specPath]: record });
@@ -132,7 +157,7 @@ export function putSpecApprovalRecord(
 
 export function removeSpecApprovalRecord(
   specPath: string,
-): Effect.Effect<void, FsError, FileSystem> {
+): Effect.Effect<void, FsError | ApprovalLedgerUnreadableError, FileSystem> {
   return Effect.gen(function* () {
     const store = yield* readSpecApprovalStore();
     if (!(specPath in store.records)) return;
