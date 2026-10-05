@@ -48,7 +48,7 @@ import {
   RateLimitError,
   RecordsSyncRequiredError,
   RegistryCorruptionError,
-  ApprovalLedgerUnreadableError,
+  ApprovalRecordUnreadableError,
   SecurityEnforcementError,
   SecurityPreflightError,
   SkillEditConsentError,
@@ -64,7 +64,7 @@ import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 /**
  * Turn a resolved config into the repo-rooted `FileSystem` layer every command
  * with a config must use. Relative paths crossing the port (`docs/plans`,
- * `docs/plans/approvals.json`) then resolve against `config.repoRoot` — matching
+ * `docs/plans/approvals/<plan>.json`) then resolve against `config.repoRoot` — matching
  * git's own work-from-anywhere contract — while absolute paths (`stateRoot`,
  * `PHAX_HOME_DIR`) pass through unchanged. The architectural guard in
  * `tests/unit/architecturalGuards.test.ts` forbids a command from reaching for
@@ -185,7 +185,7 @@ export function exitCodeForError(err: unknown): number {
     err instanceof ArtifactDirtyWriteSetError ||
     err instanceof ArtifactSidecarDivergedError ||
     err instanceof ArtifactCreationError ||
-    err instanceof ApprovalLedgerUnreadableError
+    err instanceof ApprovalRecordUnreadableError
   )
     return 12;
   return 1;

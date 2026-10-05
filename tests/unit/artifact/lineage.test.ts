@@ -1,23 +1,28 @@
-import { Effect, Either } from "effect";
+import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import {
-  putApprovalRecord,
+  planApprovalRecordExists,
+  putPlanApprovalRecord,
   putSpecApprovalRecord,
-  readApprovalStore,
+  readPlanApprovalRecord,
   readSpecApprovalRecord,
+  removePlanApprovalRecord,
+  removeSpecApprovalRecord,
+  specApprovalRecordExists,
 } from "../../../src/app/approvalRecordStore.js";
-import { ApprovalLedgerUnreadableError } from "../../../src/domain/errors.js";
+import {
+  ApprovalRecordUnreadableError,
+  ArtifactValidationError,
+} from "../../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../../src/infra/fakes/fs.js";
-import type { FileSystem } from "../../../src/ports/fs.js";
+import { FileSystem, type FileSystemOps } from "../../../src/ports/fs.js";
 import { PHAX_RELEASE } from "../../../src/schemas/release.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import type { SpecApprovalRecord } from "../../../src/schemas/specApprovalRecord.js";
 import {
-  APPROVALS_FILE_PATH,
   clearApproved,
   computeStaleness,
   readSourceSpec,
-  SPEC_APPROVALS_FILE_PATH,
   specApprovalVerdict,
   stampApproved,
   STALENESS_REASONS,
@@ -231,12 +236,6 @@ describe("specApprovalVerdict", () => {
       kind: "recorded",
       editedSinceApproval: true,
     });
-  });
-});
-
-describe("SPEC_APPROVALS_FILE_PATH", () => {
-  it("points to docs/specs/approvals.json", () => {
-    expect(SPEC_APPROVALS_FILE_PATH).toBe("docs/specs/approvals.json");
   });
 });
 
@@ -454,10 +453,6 @@ describe("approval record sidecar schema", () => {
     };
     expect(Either.isLeft(decodeApprovalRecordFile(bad))).toBe(true);
   });
-
-  it("exposes the sidecar file path constant", () => {
-    expect(APPROVALS_FILE_PATH).toBe("docs/plans/approvals.json");
-  });
 });
 
 function written(fs: { getFile(path: string): string | undefined }, path: string) {
@@ -475,65 +470,182 @@ function runWith<A>(
   return { value, fs: fs.impl };
 }
 
-// ac-own-legacy: a ledger 0.16.0 committed is read through the frozen
-// pre-schema decoder, and rewritten with $schema at the next approval.
-describe("approval store over a pre-schema ledger", () => {
-  const PLAN = "docs/plans/2609101222-foo-plan.md";
-  const OTHER_PLAN = "docs/plans/2609101223-bar-plan.md";
-  const SPEC = "docs/specs/2609101222-foo.md";
-  const OTHER_SPEC = "docs/specs/2609101223-bar.md";
-  const planRecord: ApprovalRecord = {
-    planFingerprint: "plan-fp",
-    approvedAt: "2026-08-10T00:00:00.000Z",
-    baseline: "a".repeat(40),
-    sourceSpec: null,
-  };
-  const specRecord: SpecApprovalRecord = {
-    specFingerprint: "spec-fp",
-    approvedAt: "2026-08-10T00:00:00.000Z",
-    baseline: "b".repeat(40),
-  };
+const PLAN = "docs/plans/2609101222-foo-plan.md";
+const PLAN_RECORD = "docs/plans/approvals/2609101222-foo-plan.json";
+const OTHER_PLAN = "docs/plans/2609101223-bar-plan.md";
+const OTHER_PLAN_RECORD = "docs/plans/approvals/2609101223-bar-plan.json";
+const SPEC = "docs/specs/2609101222-foo.md";
+const SPEC_RECORD = "docs/specs/approvals/2609101222-foo.json";
+const OTHER_SPEC = "docs/specs/2609101223-bar.md";
+const OTHER_SPEC_RECORD = "docs/specs/approvals/2609101223-bar.json";
+const OLD_PLAN_LEDGER = "docs/plans/approvals.json";
+const OLD_SPEC_LEDGER = "docs/specs/approvals.json";
 
-  it("reads the plan ledger, then rewrites it with $schema and no version", () => {
-    const legacy = JSON.stringify({ version: 1, records: { [PLAN]: planRecord } });
-    const { value, fs } = runWith(
-      { [APPROVALS_FILE_PATH]: legacy },
-      Effect.flatMap(readApprovalStore(), (store) =>
-        Effect.as(putApprovalRecord(OTHER_PLAN, planRecord), store),
-      ),
-    );
-    expect(value).toEqual({ records: { [PLAN]: planRecord } });
+const planRecord: ApprovalRecord = {
+  planFingerprint: "plan-fp",
+  approvedAt: "2026-08-10T00:00:00.000Z",
+  baseline: "a".repeat(40),
+  sourceSpec: { path: SPEC, fingerprint: "spec-fp" },
+};
+const specRecord: SpecApprovalRecord = {
+  specFingerprint: "spec-fp",
+  approvedAt: "2026-08-10T00:00:00.000Z",
+  baseline: "b".repeat(40),
+};
 
-    const ledger = written(fs, APPROVALS_FILE_PATH);
-    expect(Object.keys(ledger)[0]).toBe("$schema");
-    expect(ledger["$schema"]).toBe(schemaUrl("plan-approvals", PHAX_RELEASE));
-    expect(ledger).not.toHaveProperty("version");
-    expect(ledger["records"]).toEqual({ [PLAN]: planRecord, [OTHER_PLAN]: planRecord });
+function planRecordText(artifact: string, release = PHAX_RELEASE): string {
+  return JSON.stringify(
+    { $schema: schemaUrl("plan-approval-record", release), artifact, ...planRecord },
+    null,
+    2,
+  );
+}
+
+function specRecordText(artifact: string, release = PHAX_RELEASE): string {
+  return JSON.stringify(
+    { $schema: schemaUrl("spec-approval-record", release), artifact, ...specRecord },
+    null,
+    2,
+  );
+}
+
+// Plan approval writes its own record file; spec approval too.
+describe("approval record store: one file per artifact", () => {
+  it("writes a plan's record file with $schema, artifact, then the record fields", () => {
+    const { fs } = runWith({}, putPlanApprovalRecord(PLAN, planRecord));
+    const file = written(fs, PLAN_RECORD);
+    expect(Object.keys(file)).toEqual([
+      "$schema",
+      "artifact",
+      "planFingerprint",
+      "approvedAt",
+      "baseline",
+      "sourceSpec",
+    ]);
+    expect(file).toEqual({
+      $schema: schemaUrl("plan-approval-record", PHAX_RELEASE),
+      artifact: PLAN,
+      ...planRecord,
+    });
+    expect(fs.getFile(OLD_PLAN_LEDGER)).toBeUndefined();
   });
 
-  it("reads the spec ledger, then rewrites it with $schema and no version", () => {
-    const legacy = JSON.stringify({ version: 1, records: { [SPEC]: specRecord } });
-    const { value, fs } = runWith(
-      { [SPEC_APPROVALS_FILE_PATH]: legacy },
-      Effect.flatMap(readSpecApprovalRecord(SPEC), (existing) =>
-        Effect.as(putSpecApprovalRecord(OTHER_SPEC, specRecord), existing),
-      ),
-    );
-    expect(value).toEqual(specRecord);
-
-    const ledger = written(fs, SPEC_APPROVALS_FILE_PATH);
-    expect(Object.keys(ledger)[0]).toBe("$schema");
-    expect(ledger["$schema"]).toBe(schemaUrl("spec-approvals", PHAX_RELEASE));
-    expect(ledger).not.toHaveProperty("version");
-    expect(ledger["records"]).toEqual({ [SPEC]: specRecord, [OTHER_SPEC]: specRecord });
+  it("writes a spec's record file with $schema, artifact, then the record fields", () => {
+    const { fs } = runWith({}, putSpecApprovalRecord(SPEC, specRecord));
+    const file = written(fs, SPEC_RECORD);
+    expect(Object.keys(file)).toEqual([
+      "$schema",
+      "artifact",
+      "specFingerprint",
+      "approvedAt",
+      "baseline",
+    ]);
+    expect(file).toEqual({
+      $schema: schemaUrl("spec-approval-record", PHAX_RELEASE),
+      artifact: SPEC,
+      ...specRecord,
+    });
+    expect(fs.getFile(OLD_SPEC_LEDGER)).toBeUndefined();
   });
 
-  it("reads back the ledger it wrote", () => {
+  it("reads back the record it wrote, carrying artifact", () => {
     const { value } = runWith(
       {},
-      Effect.zipRight(putApprovalRecord(PLAN, planRecord), readApprovalStore()),
+      Effect.zipRight(putPlanApprovalRecord(PLAN, planRecord), readPlanApprovalRecord(PLAN)),
     );
-    expect(value).toEqual({ records: { [PLAN]: planRecord } });
+    expect(value).toEqual({ artifact: PLAN, ...planRecord });
+    const { value: spec } = runWith(
+      {},
+      Effect.zipRight(putSpecApprovalRecord(SPEC, specRecord), readSpecApprovalRecord(SPEC)),
+    );
+    expect(spec).toEqual({ artifact: SPEC, ...specRecord });
+  });
+
+  it("replaces only the artifact's own file on re-approval", () => {
+    const other = specRecordText(OTHER_SPEC);
+    const reapproved = { ...specRecord, specFingerprint: "spec-fp-2" };
+    const { fs } = runWith(
+      { [SPEC_RECORD]: specRecordText(SPEC), [OTHER_SPEC_RECORD]: other },
+      putSpecApprovalRecord(SPEC, reapproved),
+    );
+    expect(written(fs, SPEC_RECORD)["specFingerprint"]).toBe("spec-fp-2");
+    expect(fs.getFile(OTHER_SPEC_RECORD)).toBe(other);
+  });
+
+  it("removes only the artifact's own file", () => {
+    const other = planRecordText(OTHER_PLAN);
+    const { fs } = runWith(
+      { [PLAN_RECORD]: planRecordText(PLAN), [OTHER_PLAN_RECORD]: other },
+      removePlanApprovalRecord(PLAN),
+    );
+    expect(fs.getFile(PLAN_RECORD)).toBeUndefined();
+    expect(fs.getFile(OTHER_PLAN_RECORD)).toBe(other);
+
+    const { fs: specFs } = runWith(
+      { [SPEC_RECORD]: specRecordText(SPEC) },
+      removeSpecApprovalRecord(SPEC),
+    );
+    expect(specFs.getFile(SPEC_RECORD)).toBeUndefined();
+  });
+
+  it("removing a missing record file is a no-op", () => {
+    const { fs } = runWith({}, removePlanApprovalRecord(PLAN));
+    expect(fs.getFile(PLAN_RECORD)).toBeUndefined();
+  });
+
+  it("reports whether the artifact's own record file exists", () => {
+    const { value } = runWith(
+      { [OTHER_PLAN_RECORD]: planRecordText(OTHER_PLAN), [SPEC_RECORD]: "{ not json" },
+      Effect.all([planApprovalRecordExists(PLAN), specApprovalRecordExists(SPEC)]),
+    );
+    expect(value).toEqual([false, true]);
+  });
+
+  it("never reads another artifact's record file, even an unreadable one", () => {
+    const { value, fs } = runWith(
+      { [OTHER_PLAN_RECORD]: "{ not json" },
+      Effect.zipRight(putPlanApprovalRecord(PLAN, planRecord), readPlanApprovalRecord(PLAN)),
+    );
+    expect(value).toEqual({ artifact: PLAN, ...planRecord });
+    expect(fs.getFile(OTHER_PLAN_RECORD)).toBe("{ not json");
+  });
+});
+
+// A missing record file is no record.
+describe("approval record store: no record", () => {
+  it("reads a missing record file as no record", () => {
+    const { value } = runWith(
+      {},
+      Effect.all([readPlanApprovalRecord(PLAN), readSpecApprovalRecord(SPEC)]),
+    );
+    expect(value).toEqual([null, null]);
+  });
+
+  it("reads a non-live path as no record without touching disk", () => {
+    const untouchable = Layer.succeed(
+      FileSystem,
+      new Proxy({} as FileSystemOps, {
+        get: (_, name) => () => Effect.die(`touched disk: ${String(name)}`),
+      }),
+    );
+    const value = Effect.runSync(
+      Effect.all([
+        readPlanApprovalRecord("docs/plans/archive/2609101222-foo-plan.md"),
+        readSpecApprovalRecord("docs/specs/archive/2609101222-foo.md"),
+        readPlanApprovalRecord("docs/plans/nested/2609101222-foo-plan.md"),
+        planApprovalRecordExists("docs/plans/archive/2609101222-foo-plan.md"),
+      ]).pipe(Effect.provide(untouchable)),
+    );
+    expect(value).toEqual([null, null, null, false]);
+  });
+
+  it("refuses to write a record for a path that is not a live artifact", () => {
+    const { result } = failure(
+      {},
+      putPlanApprovalRecord("docs/plans/nested/2609101222-foo-plan.md", planRecord),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(ArtifactValidationError);
   });
 });
 
@@ -548,79 +660,99 @@ function failure<A>(
   return { result, fs: fs.impl };
 }
 
-// An unreadable ledger must never be rewritten from an empty copy: a ledger a
-// newer phax wrote, one that fails to decode, or bad JSON is refused by every
-// read and every write, and left byte for byte as it was. A missing ledger is
-// still an empty one.
-describe("approval store over an unreadable ledger", () => {
-  const PLAN = "docs/plans/2609101222-foo-plan.md";
-  const OTHER_PLAN = "docs/plans/2609101223-bar-plan.md";
-  const SPEC = "docs/specs/2609101222-foo.md";
-  const planRecord: ApprovalRecord = {
-    planFingerprint: "plan-fp",
-    approvedAt: "2026-08-10T00:00:00.000Z",
-    baseline: "a".repeat(40),
-    sourceSpec: null,
-  };
-  const specRecord: SpecApprovalRecord = {
-    specFingerprint: "spec-fp",
-    approvedAt: "2026-08-10T00:00:00.000Z",
-    baseline: "b".repeat(40),
-  };
+// An unreadable record file is never read as no record, never rewritten and
+// never deleted: a file that is not JSON, has no $schema, a newer release
+// wrote, or that fails to decode is refused by every read and every write,
+// and left byte for byte as it was.
+describe("approval record store over an unreadable record file", () => {
   const [major = 0] = PHAX_RELEASE.split(".").map(Number);
   const NEWER = `${major + 1}.0.0`;
+  const { $schema: _schema, ...withoutSchema } = JSON.parse(planRecordText(PLAN)) as Record<
+    string,
+    unknown
+  >;
 
-  const unreadablePlanLedgers: ReadonlyArray<readonly [string, string, string]> = [
+  const unreadablePlanRecords: ReadonlyArray<readonly [string, string, string]> = [
+    ["that is not JSON", "{ not json", "not valid JSON"],
+    ["without $schema", JSON.stringify(withoutSchema), "has no $schema"],
     [
       "written by a newer release",
-      JSON.stringify({
-        $schema: schemaUrl("plan-approvals", NEWER),
-        records: { [PLAN]: planRecord },
-      }),
+      planRecordText(PLAN, NEWER),
       `newer than this phax (${PHAX_RELEASE})`,
     ],
     [
       "that fails to decode",
-      JSON.stringify({ $schema: schemaUrl("plan-approvals", PHAX_RELEASE), records: 42 }),
-      APPROVALS_FILE_PATH,
+      JSON.stringify({ ...JSON.parse(planRecordText(PLAN)), baseline: "not-hex" }),
+      PLAN_RECORD,
     ],
-    ["that is not JSON", "{ not json", "not valid JSON"],
   ];
 
-  it.each(unreadablePlanLedgers)("refuses to read a plan ledger %s", (_, text, expected) => {
-    const { result } = failure({ [APPROVALS_FILE_PATH]: text }, readApprovalStore());
+  it.each(unreadablePlanRecords)("refuses to read a plan record file %s", (_, text, expected) => {
+    const { result } = failure({ [PLAN_RECORD]: text }, readPlanApprovalRecord(PLAN));
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ApprovalLedgerUnreadableError);
-      expect((result.left as ApprovalLedgerUnreadableError).message).toContain(expected);
+      expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+      const error = result.left as ApprovalRecordUnreadableError;
+      expect(error.recordPath).toBe(PLAN_RECORD);
+      expect(error.message.startsWith(`${PLAN_RECORD}: `)).toBe(true);
+      expect(error.message).toContain(expected);
     }
   });
 
-  it.each(unreadablePlanLedgers)("never rewrites a plan ledger %s", (_, text) => {
-    const { result, fs } = failure(
-      { [APPROVALS_FILE_PATH]: text },
-      putApprovalRecord(OTHER_PLAN, planRecord),
-    );
-    expect(Either.isLeft(result)).toBe(true);
-    expect(fs.getFile(APPROVALS_FILE_PATH)).toBe(text);
+  it.each(unreadablePlanRecords)("never rewrites or deletes a plan record file %s", (_, text) => {
+    for (const effect of [
+      putPlanApprovalRecord(PLAN, planRecord),
+      removePlanApprovalRecord(PLAN),
+    ]) {
+      const { result, fs } = failure({ [PLAN_RECORD]: text }, effect);
+      expect(Either.isLeft(result)).toBe(true);
+      expect(fs.getFile(PLAN_RECORD)).toBe(text);
+    }
   });
 
-  it("never rewrites a spec ledger written by a newer release", () => {
-    const text = JSON.stringify({
-      $schema: schemaUrl("spec-approvals", NEWER),
-      records: { [SPEC]: specRecord },
-    });
+  it("never rewrites a spec record file written by a newer release", () => {
+    const text = specRecordText(SPEC, NEWER);
     const { result, fs } = failure(
-      { [SPEC_APPROVALS_FILE_PATH]: text },
+      { [SPEC_RECORD]: text },
       putSpecApprovalRecord(SPEC, specRecord),
     );
     expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(ApprovalLedgerUnreadableError);
-    expect(fs.getFile(SPEC_APPROVALS_FILE_PATH)).toBe(text);
+    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+    expect(fs.getFile(SPEC_RECORD)).toBe(text);
+  });
+});
+
+// A copied record does not approve another artifact: a record file whose
+// `artifact` names another path is refused and kept.
+describe("approval record store over a copied record file", () => {
+  it("refuses a plan record that records another plan", () => {
+    const copied = planRecordText(OTHER_PLAN);
+    for (const effect of [
+      readPlanApprovalRecord(PLAN),
+      putPlanApprovalRecord(PLAN, planRecord),
+      removePlanApprovalRecord(PLAN),
+    ]) {
+      const { result, fs } = failure({ [PLAN_RECORD]: copied }, effect);
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+        expect((result.left as ApprovalRecordUnreadableError).message).toBe(
+          `${PLAN_RECORD}: records ${OTHER_PLAN}, not ${PLAN} — restore it from git, or delete it and re-approve`,
+        );
+      }
+      expect(fs.getFile(PLAN_RECORD)).toBe(copied);
+    }
   });
 
-  it("still reads a missing ledger as empty", () => {
-    const { result } = failure({}, readApprovalStore());
-    expect(result).toEqual(Either.right({ records: {} }));
+  it("refuses a spec record that records another spec", () => {
+    const { result } = failure(
+      { [SPEC_RECORD]: specRecordText(OTHER_SPEC) },
+      readSpecApprovalRecord(SPEC),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+      expect((result.left as ApprovalRecordUnreadableError).recordPath).toBe(SPEC_RECORD);
+    }
   });
 });

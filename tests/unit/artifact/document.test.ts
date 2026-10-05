@@ -72,6 +72,13 @@ describe("classifyArtifactPath", () => {
     expect(classifyArtifactPath("src/domain/artifact/status.ts")).toBeNull();
     expect(classifyArtifactPath("README.md")).toBeNull();
   });
+
+  it("returns null for any path under an approvals/ directory", () => {
+    expect(classifyArtifactPath("docs/plans/approvals/2609101221-foo-plan.json")).toBeNull();
+    expect(classifyArtifactPath("docs/specs/approvals/2609101221-foo.json")).toBeNull();
+    expect(classifyArtifactPath("docs/plans/approvals/2609101221-foo-plan.md")).toBeNull();
+    expect(classifyArtifactPath("docs/specs/approvals/2609101221-foo.md")).toBeNull();
+  });
 });
 
 describe("archivePathFor", () => {
@@ -108,6 +115,15 @@ describe("validateArtifact", () => {
 
   it("rejects a non-artifact path", () => {
     assertLeftValidation(validateArtifact("README.md", SPEC_DOC));
+  });
+
+  it.each([
+    "docs/specs/approvals/2609101221-foo.md",
+    "docs/plans/approvals/2609101221-foo-plan.json",
+  ])("refuses the record path %s as not a recognized artifact path", (path) => {
+    const result = validateArtifact(path, SPEC_DOC);
+    assertLeftValidation(result);
+    expect(result.left.message).toContain(`${path} is not a recognized artifact path`);
   });
 
   it("refuses an off-grammar spec name, naming the file and the grammar", () => {

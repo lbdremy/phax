@@ -1,170 +1,218 @@
 import { Effect, Either } from "effect";
 import { createHash } from "node:crypto";
-import { ApprovalLedgerUnreadableError } from "../domain/errors.js";
+import { ApprovalRecordUnreadableError, ArtifactValidationError } from "../domain/errors.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { APPROVALS_FILE_PATH, SPEC_APPROVALS_FILE_PATH } from "../domain/artifact/lineage.js";
+import { approvalRecordPathFor } from "../domain/artifact/approvalRecordFile.js";
 import { fingerprintSource } from "../domain/artifact/frontmatter.js";
+import type { ArtifactKind } from "../domain/artifact/status.js";
 import {
-  encodeApprovalRecordFile,
+  encodePlanRecordFile,
   type ApprovalRecord,
-  type PlanApprovals,
+  type PlanRecord,
 } from "../schemas/approvalRecord.js";
 import {
-  readPlanApprovalsFile,
-  readSpecApprovalsFile,
+  readPlanRecordFile,
+  readSpecRecordFile,
   withSchemaUrl,
   type PersistedReadError,
 } from "../schemas/persisted.js";
 import {
-  encodeSpecApprovalRecordFile,
+  encodeSpecRecordFile,
   type SpecApprovalRecord,
-  type SpecApprovals,
+  type SpecRecord,
 } from "../schemas/specApprovalRecord.js";
 
-function sortedKeys<R>(records: Record<string, R>): Record<string, R> {
-  const sorted: Record<string, R> = {};
-  for (const key of Object.keys(records).toSorted()) {
-    sorted[key] = records[key] as R;
-  }
-  return sorted;
-}
+// Each artifact's approval record is its own file, located from the artifact
+// path alone (approvalRecordPathFor). No operation reads or writes another
+// artifact's record file, so transitions of different artifacts never touch
+// the same path.
 
-// A missing ledger is an empty one. An unreadable one — a newer release's,
-// one that fails to decode, or bad JSON — is refused, never read as empty:
-// every put/remove below writes back what it read, so an empty read would
-// replace the whole ledger with one record.
-function readStoreFile<T>(
-  filePath: string,
-  read: (file: string, input: unknown) => Either.Either<T, PersistedReadError>,
-  empty: T,
-): Effect.Effect<T, FsError | ApprovalLedgerUnreadableError, FileSystem> {
+type RecordReader<R> = (file: string, input: unknown) => Either.Either<R, PersistedReadError>;
+
+// A missing file is no record, and so is a path that is not a live artifact
+// (no disk access). An unreadable file — not JSON, failing to decode, without
+// `$schema`, from a newer release, or naming another artifact — is refused,
+// never read as no record.
+function readRecordFile<R extends { readonly artifact: string }>(
+  kind: ArtifactKind,
+  artifactPath: string,
+  read: RecordReader<R>,
+): Effect.Effect<R | null, FsError | ApprovalRecordUnreadableError, FileSystem> {
   return Effect.gen(function* () {
+    const recordPath = approvalRecordPathFor(kind, artifactPath);
+    if (recordPath === null) return null;
     const fs = yield* FileSystem;
-    if (!(yield* fs.exists(filePath))) return empty;
-    const text = yield* fs.readText(filePath);
+    if (!(yield* fs.exists(recordPath))) return null;
+    const text = yield* fs.readText(recordPath);
     let parsed: unknown;
     try {
       parsed = JSON.parse(text);
     } catch {
       return yield* Effect.fail(
-        new ApprovalLedgerUnreadableError({
-          message: `${filePath}: not valid JSON — fix it or restore it from git`,
-          ledgerPath: filePath,
+        new ApprovalRecordUnreadableError({
+          message: `${recordPath}: not valid JSON — fix it or restore it from git`,
+          recordPath,
         }),
       );
     }
-    const decoded = read(filePath, parsed);
+    const decoded = read(recordPath, parsed);
     if (Either.isLeft(decoded)) {
       return yield* Effect.fail(
-        new ApprovalLedgerUnreadableError({ message: decoded.left.message, ledgerPath: filePath }),
+        new ApprovalRecordUnreadableError({ message: decoded.left.message, recordPath }),
+      );
+    }
+    if (decoded.right.artifact !== artifactPath) {
+      return yield* Effect.fail(
+        new ApprovalRecordUnreadableError({
+          message: `${recordPath}: records ${decoded.right.artifact}, not ${artifactPath} — restore it from git, or delete it and re-approve`,
+          recordPath,
+        }),
       );
     }
     return decoded.right;
   });
 }
 
-// ── Plan approval store ────────────────────────────────────────────────────
-
-const EMPTY_PLAN_STORE: PlanApprovals = { records: {} };
-
-export function readApprovalStore(): Effect.Effect<
-  PlanApprovals,
-  FsError | ApprovalLedgerUnreadableError,
-  FileSystem
-> {
-  return readStoreFile(APPROVALS_FILE_PATH, readPlanApprovalsFile, EMPTY_PLAN_STORE);
+// Only a live artifact carries a record. validateArtifact accepts a plan or
+// spec nested below docs/plans/ or docs/specs/, which has no record path, so
+// approving one is refused here, before anything is written.
+function liveRecordPath(
+  kind: ArtifactKind,
+  artifactPath: string,
+): Effect.Effect<string, ArtifactValidationError> {
+  const recordPath = approvalRecordPathFor(kind, artifactPath);
+  if (recordPath !== null) return Effect.succeed(recordPath);
+  return Effect.fail(
+    new ArtifactValidationError({
+      path: artifactPath,
+      message: `${artifactPath} is not directly under docs/${kind}s/ — only a live ${kind} carries an approval record`,
+    }),
+  );
 }
 
-function writePlanApprovalStore(
-  records: Record<string, ApprovalRecord>,
-): Effect.Effect<void, FsError, FileSystem> {
+// Reads first, so an unreadable existing file is refused and left byte-identical.
+function putRecordFile<R extends { readonly artifact: string }>(
+  kind: ArtifactKind,
+  artifactPath: string,
+  read: RecordReader<R>,
+  render: () => string,
+): Effect.Effect<
+  void,
+  FsError | ApprovalRecordUnreadableError | ArtifactValidationError,
+  FileSystem
+> {
   return Effect.gen(function* () {
+    const recordPath = yield* liveRecordPath(kind, artifactPath);
+    yield* readRecordFile(kind, artifactPath, read);
     const fs = yield* FileSystem;
-    const ledger: PlanApprovals = { records: sortedKeys(records) };
-    yield* fs.writeAtomic(
-      APPROVALS_FILE_PATH,
-      JSON.stringify(encodeApprovalRecordFile(withSchemaUrl("plan-approvals", ledger)), null, 2),
-    );
+    yield* fs.mkdirp(recordPath.slice(0, recordPath.lastIndexOf("/")));
+    yield* fs.writeAtomic(recordPath, render());
   });
 }
 
-export function putApprovalRecord(
+function removeRecordFile<R extends { readonly artifact: string }>(
+  kind: ArtifactKind,
+  artifactPath: string,
+  read: RecordReader<R>,
+): Effect.Effect<void, FsError | ApprovalRecordUnreadableError, FileSystem> {
+  return Effect.gen(function* () {
+    const recordPath = approvalRecordPathFor(kind, artifactPath);
+    if (recordPath === null) return;
+    // Reads first, so an unreadable file is refused rather than deleted.
+    if ((yield* readRecordFile(kind, artifactPath, read)) === null) return;
+    const fs = yield* FileSystem;
+    yield* fs.remove(recordPath);
+  });
+}
+
+function recordFileExists(
+  kind: ArtifactKind,
+  artifactPath: string,
+): Effect.Effect<boolean, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const recordPath = approvalRecordPathFor(kind, artifactPath);
+    if (recordPath === null) return false;
+    const fs = yield* FileSystem;
+    return yield* fs.exists(recordPath);
+  });
+}
+
+// ── Plan approval records ──────────────────────────────────────────────────
+
+export function readPlanApprovalRecord(
+  planPath: string,
+): Effect.Effect<PlanRecord | null, FsError | ApprovalRecordUnreadableError, FileSystem> {
+  return readRecordFile("plan", planPath, readPlanRecordFile);
+}
+
+export function putPlanApprovalRecord(
   planPath: string,
   record: ApprovalRecord,
-): Effect.Effect<void, FsError | ApprovalLedgerUnreadableError, FileSystem> {
-  return Effect.gen(function* () {
-    const store = yield* readApprovalStore();
-    yield* writePlanApprovalStore({ ...store.records, [planPath]: record });
-  });
-}
-
-export function removeApprovalRecord(
-  planPath: string,
-): Effect.Effect<void, FsError | ApprovalLedgerUnreadableError, FileSystem> {
-  return Effect.gen(function* () {
-    const store = yield* readApprovalStore();
-    if (!(planPath in store.records)) return;
-    const next = { ...store.records };
-    delete next[planPath];
-    yield* writePlanApprovalStore(next);
-  });
-}
-
-// ── Spec approval store ────────────────────────────────────────────────────
-
-const EMPTY_SPEC_STORE: SpecApprovals = { records: {} };
-
-function readSpecApprovalStore(): Effect.Effect<
-  SpecApprovals,
-  FsError | ApprovalLedgerUnreadableError,
+): Effect.Effect<
+  void,
+  FsError | ApprovalRecordUnreadableError | ArtifactValidationError,
   FileSystem
 > {
-  return readStoreFile(SPEC_APPROVALS_FILE_PATH, readSpecApprovalsFile, EMPTY_SPEC_STORE);
+  return putRecordFile("plan", planPath, readPlanRecordFile, () =>
+    JSON.stringify(
+      encodePlanRecordFile(
+        withSchemaUrl("plan-approval-record", { artifact: planPath, ...record }),
+      ),
+      null,
+      2,
+    ),
+  );
 }
 
-function writeSpecApprovalStore(
-  records: Record<string, SpecApprovalRecord>,
-): Effect.Effect<void, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const ledger: SpecApprovals = { records: sortedKeys(records) };
-    yield* fs.writeAtomic(
-      SPEC_APPROVALS_FILE_PATH,
-      JSON.stringify(
-        encodeSpecApprovalRecordFile(withSchemaUrl("spec-approvals", ledger)),
-        null,
-        2,
-      ),
-    );
-  });
+export function removePlanApprovalRecord(
+  planPath: string,
+): Effect.Effect<void, FsError | ApprovalRecordUnreadableError, FileSystem> {
+  return removeRecordFile("plan", planPath, readPlanRecordFile);
 }
+
+export function planApprovalRecordExists(
+  planPath: string,
+): Effect.Effect<boolean, FsError, FileSystem> {
+  return recordFileExists("plan", planPath);
+}
+
+// ── Spec approval records ──────────────────────────────────────────────────
 
 export function readSpecApprovalRecord(
   specPath: string,
-): Effect.Effect<SpecApprovalRecord | null, FsError | ApprovalLedgerUnreadableError, FileSystem> {
-  return Effect.map(readSpecApprovalStore(), (store) => store.records[specPath] ?? null);
+): Effect.Effect<SpecRecord | null, FsError | ApprovalRecordUnreadableError, FileSystem> {
+  return readRecordFile("spec", specPath, readSpecRecordFile);
 }
 
 export function putSpecApprovalRecord(
   specPath: string,
   record: SpecApprovalRecord,
-): Effect.Effect<void, FsError | ApprovalLedgerUnreadableError, FileSystem> {
-  return Effect.gen(function* () {
-    const store = yield* readSpecApprovalStore();
-    yield* writeSpecApprovalStore({ ...store.records, [specPath]: record });
-  });
+): Effect.Effect<
+  void,
+  FsError | ApprovalRecordUnreadableError | ArtifactValidationError,
+  FileSystem
+> {
+  return putRecordFile("spec", specPath, readSpecRecordFile, () =>
+    JSON.stringify(
+      encodeSpecRecordFile(
+        withSchemaUrl("spec-approval-record", { artifact: specPath, ...record }),
+      ),
+      null,
+      2,
+    ),
+  );
 }
 
 export function removeSpecApprovalRecord(
   specPath: string,
-): Effect.Effect<void, FsError | ApprovalLedgerUnreadableError, FileSystem> {
-  return Effect.gen(function* () {
-    const store = yield* readSpecApprovalStore();
-    if (!(specPath in store.records)) return;
-    const next = { ...store.records };
-    delete next[specPath];
-    yield* writeSpecApprovalStore(next);
-  });
+): Effect.Effect<void, FsError | ApprovalRecordUnreadableError, FileSystem> {
+  return removeRecordFile("spec", specPath, readSpecRecordFile);
+}
+
+export function specApprovalRecordExists(
+  specPath: string,
+): Effect.Effect<boolean, FsError, FileSystem> {
+  return recordFileExists("spec", specPath);
 }
 
 // ── Shared ─────────────────────────────────────────────────────────────────

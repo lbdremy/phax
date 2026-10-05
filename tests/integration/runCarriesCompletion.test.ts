@@ -22,7 +22,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { readPhaxPlanFile, withSchemaUrl } from "../../src/schemas/persisted.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -39,6 +39,7 @@ const shortName = Either.getOrThrow(decodeShortName("my-run"));
 
 const PLAN_REL = "docs/plans/2609101270-run-carry-plan.md";
 const PLAN_ARCHIVE = "docs/plans/archive/2609101270-run-carry-plan.md";
+const PLAN_RECORD = "docs/plans/approvals/2609101270-run-carry-plan.json";
 const SPEC_REL = "docs/specs/2609101270-run-carry.md";
 const SPEC_ARCHIVE = "docs/specs/archive/2609101270-run-carry.md";
 
@@ -111,19 +112,16 @@ function specMd(status: string): string {
   return `---\nstatus: ${status}\ndate: 2026-01-01\naudience: test\nscope: test\n---\n# Some spec\n\n## Overview\n\nBody.\n`;
 }
 
-function approvalsJson(): string {
+// The plan's own approval record file.
+function planRecordJson(): string {
   return JSON.stringify(
-    {
-      version: 1,
-      records: {
-        [PLAN_REL]: {
-          planFingerprint: "planfp",
-          approvedAt: "2026-08-14T00:00:00.000Z",
-          baseline: "a".repeat(40),
-          sourceSpec: { path: SPEC_REL, fingerprint: "specfp" },
-        },
-      },
-    },
+    withSchemaUrl("plan-approval-record", {
+      artifact: PLAN_REL,
+      planFingerprint: "planfp",
+      approvedAt: "2026-08-14T00:00:00.000Z",
+      baseline: "a".repeat(40),
+      sourceSpec: { path: SPEC_REL, fingerprint: "specfp" },
+    }),
     null,
     2,
   );
@@ -136,7 +134,8 @@ async function seedWorktreeArtifacts(worktreePath: string, planStatus: string, s
   await mkdir(join(worktreePath, "docs", "plans"), { recursive: true });
   await mkdir(join(worktreePath, "docs", "specs"), { recursive: true });
   await writeFile(join(worktreePath, PLAN_REL), planMd(planStatus, sourceSpec));
-  await writeFile(join(worktreePath, "docs", "plans", "approvals.json"), approvalsJson());
+  await mkdir(join(worktreePath, "docs", "plans", "approvals"), { recursive: true });
+  await writeFile(join(worktreePath, PLAN_RECORD), planRecordJson());
   if (sourceSpec !== "null") {
     await writeFile(join(worktreePath, SPEC_REL), specMd("Approved"));
   }
@@ -256,6 +255,10 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
     expect(await readFile(join(worktreePath, SPEC_ARCHIVE), "utf8")).toContain("status: Completed");
     expect(existsSync(join(worktreePath, PLAN_REL))).toBe(false);
     expect(existsSync(join(worktreePath, SPEC_REL))).toBe(false);
+    // The plan's own record file is deleted; no ledger is ever written.
+    expect(existsSync(join(worktreePath, PLAN_RECORD))).toBe(false);
+    expect(existsSync(join(worktreePath, "docs", "plans", "approvals.json"))).toBe(false);
+    expect(existsSync(join(worktreePath, "docs", "specs", "approvals.json"))).toBe(false);
 
     // The origin repository (repoRoot) never saw a docs/ tree — completion is
     // rooted at the worktree (spec 27 §5.5).

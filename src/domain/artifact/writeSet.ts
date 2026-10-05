@@ -1,5 +1,5 @@
+import { approvalRecordPathFor } from "./approvalRecordFile.js";
 import { archivePathFor } from "./document.js";
-import { APPROVALS_FILE_PATH, SPEC_APPROVALS_FILE_PATH } from "./lineage.js";
 import { parseArtifactName } from "./name.js";
 import { sidecarPathFor } from "./sidecar.js";
 import { type ArtifactKind, type ArtifactStatus, isTerminalStatus } from "./status.js";
@@ -7,22 +7,24 @@ import { type ArtifactKind, type ArtifactStatus, isTerminalStatus } from "./stat
 // A headless-authored artifact's sidecar travels with it: it joins the
 // write-set beside the `.md`, and on a terminal target its archived path joins
 // beside the archived `.md`.
+//
+// The artifact's own record file joins only when it exists before or after the
+// transition: commitPaths stages with a pathspec that must match something.
+// Approve writes it, so it always joins; reopen, complete and abandon delete
+// it, so it joins only when `hasRecordFile` says it exists beforehand. No
+// transition lists another artifact's record file.
 export function transitionWriteSet(
   kind: ArtifactKind,
   repoRelPath: string,
   target: ArtifactStatus,
-  { hasSidecar }: { readonly hasSidecar: boolean },
+  { hasSidecar, hasRecordFile }: { readonly hasSidecar: boolean; readonly hasRecordFile: boolean },
 ): readonly string[] {
   const paths = [repoRelPath];
   if (hasSidecar) paths.push(sidecarPathFor(repoRelPath));
-  if (
-    kind === "plan" &&
-    (target === "Approved" || target === "Draft" || isTerminalStatus(target))
-  ) {
-    paths.push(APPROVALS_FILE_PATH);
-  }
-  if (kind === "spec" && (target === "Approved" || isTerminalStatus(target))) {
-    paths.push(SPEC_APPROVALS_FILE_PATH);
+  const recordPath = approvalRecordPathFor(kind, repoRelPath);
+  const deletesRecord = (kind === "plan" && target === "Draft") || isTerminalStatus(target);
+  if (recordPath !== null && (target === "Approved" || (deletesRecord && hasRecordFile))) {
+    paths.push(recordPath);
   }
   if (isTerminalStatus(target)) {
     paths.push(archivePathFor(repoRelPath));

@@ -11,7 +11,7 @@ import { Effect, Either, Layer } from "effect";
 import { beforeAll, describe, expect, it } from "vitest";
 import { CURRENT_SHAPES } from "../../packages/schemas/src/generated/index.js";
 import { parseDocument } from "../../packages/schemas/src/index.js";
-import { putApprovalRecord, putSpecApprovalRecord } from "../../src/app/approvalRecordStore.js";
+import { putPlanApprovalRecord, putSpecApprovalRecord } from "../../src/app/approvalRecordStore.js";
 import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorArtifact.js";
 import { dispatch, type DispatcherContext } from "../../src/app/dispatcher.js";
 import { runGates } from "../../src/app/gates.js";
@@ -279,6 +279,8 @@ function formatAt(
   }
   if (location === "docs/plans/approvals.json") return "plan-approvals";
   if (location === "docs/specs/approvals.json") return "spec-approvals";
+  if (/^docs\/plans\/approvals\/[^/]+\.json$/.test(location)) return "plan-approval-record";
+  if (/^docs\/specs\/approvals\/[^/]+\.json$/.test(location)) return "spec-approval-record";
   if (/^docs\/specs\/[^/]+\.json$/.test(location)) return "spec-document";
   if (/^docs\/plans\/[^/]+\.json$/.test(location)) return "plan-document";
   return undefined;
@@ -345,7 +347,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
 
   // A plan approval and a spec approval.
   await run(
-    putApprovalRecord("docs/plans/2601010900-example-plan.md", {
+    putPlanApprovalRecord("docs/plans/2601010900-example-plan.md", {
       planFingerprint: "plan-fingerprint-0001",
       approvedAt: SPEC_NOW,
       baseline: BASELINE,
@@ -537,12 +539,10 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
 }
 
 /**
- * The formats no writer produces yet. The approval record formats are
- * declared before the per-file store writes them: phase-02 of the
- * approval-record-files plan swaps this to plan-approvals and spec-approvals,
- * the old ledgers phax never writes again.
+ * The formats no writer produces: the old approval ledgers, read only to
+ * migrate them to record files and never written again.
  */
-const NOT_YET_WRITTEN: ReadonlyArray<FormatId> = ["plan-approval-record", "spec-approval-record"];
+const NEVER_WRITTEN: ReadonlyArray<FormatId> = ["plan-approvals", "spec-approvals"];
 
 describe("every persisted file phax writes", () => {
   let written: ReadonlyArray<Written> = [];
@@ -553,8 +553,14 @@ describe("every persisted file phax writes", () => {
 
   it("covers every format id phax writes", () => {
     expect(new Set(written.map((file) => file.format))).toEqual(
-      new Set(FORMAT_IDS.filter((id) => !NOT_YET_WRITTEN.includes(id))),
+      new Set(FORMAT_IDS.filter((id) => !NEVER_WRITTEN.includes(id))),
     );
+  });
+
+  it("never writes an old approval ledger", () => {
+    const locations = written.map((file) => file.location);
+    expect(locations).not.toContain("docs/plans/approvals.json");
+    expect(locations).not.toContain("docs/specs/approvals.json");
   });
 
   it("starts with $schema naming its format at the root package.json release", () => {

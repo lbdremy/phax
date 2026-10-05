@@ -1,5 +1,6 @@
 import { Either } from "effect";
 import { ArtifactValidationError } from "../errors.js";
+import { isApprovalRecordPath } from "./approvalRecordFile.js";
 import { decodeArtifactFrontmatter, type FrontmatterProblem } from "./frontmatter.js";
 import { artifactNameGrammar, parseArtifactName } from "./name.js";
 import { type ArtifactKind, type ArtifactStatus, isTerminalStatus } from "./status.js";
@@ -15,6 +16,8 @@ const PLAN_ARCHIVE_DIR = "docs/plans/archive/";
 const PLAN_DIR = "docs/plans/";
 
 export function classifyArtifactPath(repoRelPath: string): ArtifactClassification | null {
+  // Record files sit under docs/plans/ and docs/specs/ but are never artifacts.
+  if (isApprovalRecordPath(repoRelPath)) return null;
   if (repoRelPath.startsWith(SPEC_ARCHIVE_DIR)) return { kind: "spec", inArchive: true };
   if (repoRelPath.startsWith(SPEC_DIR)) return { kind: "spec", inArchive: false };
   if (repoRelPath.startsWith(PLAN_ARCHIVE_DIR)) return { kind: "plan", inArchive: true };

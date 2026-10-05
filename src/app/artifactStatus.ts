@@ -2,7 +2,7 @@ import { Effect, Either } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError, type GitOps } from "../ports/git.js";
 import {
-  type ApprovalLedgerUnreadableError,
+  type ApprovalRecordUnreadableError,
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
   ArtifactSidecarDivergedError,
@@ -45,11 +45,13 @@ import {
 import { transitionCommitMessage, transitionWriteSet } from "../domain/artifact/writeSet.js";
 import {
   artifactFingerprint,
-  putApprovalRecord,
+  planApprovalRecordExists,
+  putPlanApprovalRecord,
   putSpecApprovalRecord,
   readSpecApprovalRecord,
-  removeApprovalRecord,
+  removePlanApprovalRecord,
   removeSpecApprovalRecord,
+  specApprovalRecordExists,
 } from "./approvalRecordStore.js";
 
 export type SpecApprovalInfo =
@@ -117,7 +119,7 @@ function computeSpecApprovalInfo(
   repoRelPath: string,
   md: string,
   status: ArtifactStatus,
-): Effect.Effect<SpecApprovalInfo, FsError | ApprovalLedgerUnreadableError, FileSystem> {
+): Effect.Effect<SpecApprovalInfo, FsError | ApprovalRecordUnreadableError, FileSystem> {
   return Effect.gen(function* () {
     const decoded = decodeArtifactFrontmatter("spec", md);
     const stamp = Either.isRight(decoded) ? decoded.right.approved : undefined;
@@ -151,7 +153,7 @@ export function inspectArtifact(
   repoRelPath: string,
 ): Effect.Effect<
   ArtifactReport,
-  FsError | ArtifactValidationError | ApprovalLedgerUnreadableError,
+  FsError | ArtifactValidationError | ApprovalRecordUnreadableError,
   FileSystem
 > {
   return Effect.gen(function* () {
@@ -254,7 +256,7 @@ export function transitionArtifact(
 ): Effect.Effect<
   ArtifactTransitionResult,
   | FsError
-  | ApprovalLedgerUnreadableError
+  | ApprovalRecordUnreadableError
   | ArtifactValidationError
   | InvalidArtifactTransitionError
   | SpecNotApprovedError
@@ -302,8 +304,13 @@ export function transitionArtifact(
       );
     }
 
+    const hasRecordFile =
+      kind === "plan"
+        ? yield* planApprovalRecordExists(repoRelPath)
+        : yield* specApprovalRecordExists(repoRelPath);
     const writeSet = transitionWriteSet(kind, repoRelPath, target, {
       hasSidecar: sidecar !== null,
+      hasRecordFile,
     });
     if (opts.commit) {
       const dirty = yield* git.dirtyPaths(opts.repoRoot, writeSet);
@@ -412,7 +419,7 @@ export function transitionArtifact(
       }
       updatedMd = stamped.right;
       const planFingerprint = artifactFingerprint(updatedMd);
-      yield* putApprovalRecord(repoRelPath, {
+      yield* putPlanApprovalRecord(repoRelPath, {
         planFingerprint,
         approvedAt: opts.nowIso,
         baseline,
@@ -423,8 +430,8 @@ export function transitionArtifact(
 
     // Reopen (Stale → Draft) is the mirror of completion's cleanup: the plan is
     // about to be rewritten, so it must not keep an approval of its old text —
-    // clear both the `approved:` stamp and the approvals.json record. Both must
-    // land before finalizeTransition, which commits the write-set.
+    // clear both the `approved:` stamp and the plan's own record file. Both
+    // must land before finalizeTransition, which commits the write-set.
     if (kind === "plan" && target === "Draft") {
       const cleared = clearApproved(updatedMd);
       if (Either.isLeft(cleared)) {
@@ -436,7 +443,7 @@ export function transitionArtifact(
         );
       }
       updatedMd = cleared.right;
-      yield* removeApprovalRecord(repoRelPath);
+      yield* removePlanApprovalRecord(repoRelPath);
     }
 
     if (kind === "spec" && isTerminalStatus(target)) {
@@ -464,10 +471,10 @@ export function transitionArtifact(
           }),
         );
       }
-      // The ledger goes first: an unreadable one is refused before anything
-      // moves. Run completion reads a plan missing from its source path as
-      // already completed, so a move left uncommitted would be skipped.
-      if (kind === "plan") yield* removeApprovalRecord(repoRelPath);
+      // The record file goes first: an unreadable one is refused before
+      // anything moves. Run completion reads a plan missing from its source
+      // path as already completed, so a move left uncommitted would be skipped.
+      if (kind === "plan") yield* removePlanApprovalRecord(repoRelPath);
       if (kind === "spec") yield* removeSpecApprovalRecord(repoRelPath);
       const archiveDir = destination.slice(0, destination.lastIndexOf("/"));
       yield* fs.mkdirp(archiveDir);

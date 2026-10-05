@@ -2,7 +2,7 @@ import { Effect, Either } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { type Git, type GitError } from "../ports/git.js";
 import type {
-  ApprovalLedgerUnreadableError,
+  ApprovalRecordUnreadableError,
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
   ArtifactSidecarDivergedError,
@@ -52,7 +52,7 @@ export interface CompleteRunArtifactsInput {
 // turns every member into the ArtifactCompletionFailed pause.
 export type RunCompletionError =
   | FsError
-  | ApprovalLedgerUnreadableError
+  | ApprovalRecordUnreadableError
   | ArtifactValidationError
   | InvalidArtifactTransitionError
   | SpecNotApprovedError
