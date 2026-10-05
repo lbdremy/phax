@@ -201,7 +201,7 @@
       "id": "orphan",
       "title": "Orphan records warn",
       "pattern": "event",
-      "statement": "WHEN `phax plans status` or `phax artifact status` runs and a record file of the reported kind is an orphan THE system SHALL print a warning naming the record file to delete, without changing the exit code or any file."
+      "statement": "WHEN `phax plans status` or `phax artifact status` runs and a record file of the reported kind is an orphan THE system SHALL print a warning naming the record file to delete, without changing the exit code or any file; and `phax plans status --json` SHALL carry every orphan plan record in a required `orphanRecords` array beside `report` (empty when there is none), each entry naming the record file and the artifact path it derives."
     },
     {
       "id": "legacy-refuse",
@@ -299,7 +299,7 @@
       "surface": "cli: orphan warning in phax plans status and phax artifact status",
       "binding": "indicative",
       "before": "=== Plan Staleness Report ===\n\ndocs/plans/2610051200-foo-plan.md: fresh\n$? = 0",
-      "after": "=== Plan Staleness Report ===\n\ndocs/plans/2610051200-foo-plan.md: fresh\nwarning: orphan approval record docs/plans/approvals/2609300900-gone-plan.json — docs/plans/2609300900-gone-plan.md does not exist; delete the record file\n$? = 0\n\nThe warning goes to stderr (per §9 Q8), so `phax plans status --json` stdout keeps its current shape. `phax artifact status <path>` prints the same warning for orphan records of the inspected artifact's kind. Normative: a warning, naming the record file, with an unchanged exit code."
+      "after": "=== Plan Staleness Report ===\n\ndocs/plans/2610051200-foo-plan.md: fresh\nwarning: orphan approval record docs/plans/approvals/2609300900-gone-plan.json — docs/plans/2609300900-gone-plan.md does not exist; delete the record file\n$? = 0\n\nThe warning goes to stderr. With `--json`, the document gains a required `orphanRecords` array beside `report` (per §9 Q8), and stdout stays one JSON document:\n\n    {\n      \"report\": [ { \"path\": \"docs/plans/2610051200-foo-plan.md\", \"result\": { \"kind\": \"fresh\" } } ],\n      \"orphanRecords\": [ { \"recordFile\": \"docs/plans/approvals/2609300900-gone-plan.json\", \"artifact\": \"docs/plans/2609300900-gone-plan.md\" } ]\n    }\n\n`phax artifact status <path>` prints the same warning for orphan records of the inspected artifact's kind. Normative: a warning, naming the record file, with an unchanged exit code; and the required `orphanRecords` key of `phax plans status --json`, each entry naming the record file and its artifact path (key names indicative)."
     },
     {
       "surface": "cli: unreadable record refusal",
@@ -321,7 +321,7 @@
     "A git merge driver, a record index file, or keeping completed records and ignoring them on read.",
     "Avoiding the conflict when both branches transition the same artifact. A modify/delete on one record file is a real divergence and stays a conflict.",
     "Migrating implicitly on any command other than `phax artifact migrate-approvals`, and migrating another repository's ledgers for it.",
-    "Any CLI command, flag or exit code beyond `phax artifact migrate-approvals`. Existing `--json` output shapes stay as they are.",
+    "Any CLI command, flag or exit code beyond `phax artifact migrate-approvals`, and any `--json` change beyond the additive `orphanRecords` key of `phax plans status --json`.",
     "Removing `plan-approvals` or `spec-approvals` from `@lbdremy/phax-schemas`."
   ],
   "acceptanceCriteria": [
@@ -463,7 +463,7 @@
       "name": "Orphan record files warn",
       "given": "`docs/plans/approvals/2609300900-gone-plan.json` whose plan does not exist, and `docs/specs/approvals/2609010000-gone.json` whose spec does not exist",
       "when": "`phax plans status` (with and without `--json`) runs, and `phax artifact status` runs on a live spec",
-      "then": "each prints a warning naming the orphan record file of its kind to delete. Exit codes are those the commands give without the orphan, the `--json` stdout keeps its current shape, and no file changes",
+      "then": "each prints a warning naming the orphan record file of its kind to delete. Exit codes are those the commands give without the orphan, the `--json` document keeps `report` unchanged and lists the plan orphan in `orphanRecords` (an empty array when the orphan is deleted), and no file changes",
       "refs": [
         "orphan"
       ]
@@ -681,7 +681,7 @@
     },
     {
       "id": "q6-command-name",
-      "question": "What is the migration command called?",
+      "question": "What is the migration command called? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "migrate-approvals",
@@ -700,11 +700,11 @@
         }
       ],
       "recommendation": "migrate-approvals",
-      "rationale": "Losing a shared verb costs nothing today: no other migration is planned, and a future one can take its own name. The other two options give up either clarity or a frozen top level."
+      "rationale": "Decided by the author on 2026-10-05. Losing a shared verb costs nothing today: no other migration is planned, and a future one can take its own name. The other two options give up either clarity or a frozen top level."
     },
     {
       "id": "q7-migrate-orphans",
-      "question": "What does the migration do with a ledger entry whose artifact is gone?",
+      "question": "What does the migration do with a ledger entry whose artifact is gone? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "carry",
@@ -718,29 +718,29 @@
         }
       ],
       "recommendation": "carry",
-      "rationale": "The migration must be verifiable as lossless. An orphan record file costs one warning and one deletion by a human who can judge it."
+      "rationale": "Decided by the author on 2026-10-05. The migration must be verifiable as lossless. An orphan record file costs one warning and one deletion by a human who can judge it."
     },
     {
       "id": "q8-warning-channel",
-      "question": "Where does the orphan warning go when `phax plans status --json` runs?",
+      "question": "Where does a `phax plans status --json` consumer find orphan records? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "stderr",
-          "label": "stderr, in both modes; `--json` stdout is unchanged",
-          "abandons": "Machine-readable orphan detection for `--json` consumers."
+          "label": "stderr only, in both modes; `--json` stdout is unchanged",
+          "abandons": "Machine-readable orphan detection: a `--json` consumer cannot see an orphan without scraping stderr."
         },
         {
           "id": "json-field",
-          "label": "A new field in the `--json` document",
-          "abandons": "The current `--json` shape, a top-level array that consumers parse today. Changing it would be a CLI contract change beyond the one command this spec allows."
+          "label": "A required `orphanRecords` key in the `--json` document, beside `report`",
+          "abandons": "A byte-identical `--json` document: it gains one always-present key. The document is an object (`{ \"report\": [...] }`), not a top-level array, so the key is additive and existing readers of `report` are unaffected."
         }
       ],
-      "recommendation": "stderr",
-      "rationale": "Orphans are housekeeping, not a staleness verdict. Keeping the published JSON shape stable matters more right before the freeze."
+      "recommendation": "json-field",
+      "rationale": "Decided by the author on 2026-10-05, after checking the current shape: `phax plans status --json` prints `{ \"report\": [...] }`, so an always-present `orphanRecords` array (empty when there is none) is additive. The text mode keeps the stderr warning."
     },
     {
       "id": "q9-refusal-scope",
-      "question": "Does an old ledger of one kind refuse commands for both kinds?",
+      "question": "Does an old ledger of one kind refuse commands for both kinds? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "either",
@@ -754,11 +754,11 @@
         }
       ],
       "recommendation": "either",
-      "rationale": "The migration handles both ledgers in one command, so a single rule costs nothing and leaves no half-migrated state to reason about."
+      "rationale": "Decided by the author on 2026-10-05. The migration handles both ledgers in one command, so a single rule costs nothing and leaves no half-migrated state to reason about."
     },
     {
       "id": "q10-format-ids",
-      "question": "What are the new format ids?",
+      "question": "What are the new format ids? (Decided by the author on 2026-10-05; not reopened.)",
       "options": [
         {
           "id": "record-suffix",
@@ -772,7 +772,7 @@
         }
       ],
       "recommendation": "record-suffix",
-      "rationale": "Both pairs live side by side in the package indefinitely, so a reader must never confuse a record with a ledger."
+      "rationale": "Decided by the author on 2026-10-05. Both pairs live side by side in the package indefinitely, so a reader must never confuse a record with a ledger."
     }
   ],
   "planningNote": {
@@ -794,7 +794,7 @@
       "The `.md`-only walks in `findDependentPlans` and `plansStalenessReport` already skip the `approvals/` entry. Keep them that way and cover it with a test. `phax plans lint` has no tree walk: it classifies the one path it is given, so it changes only through `classifyArtifactPath`.",
       "New formats `plan-approval-record` and `spec-approval-record` are declared in `src/schemas/` and `packages/schemas/src/formats/repository.ts`, with readers in `src/schemas/persisted.ts`. They have no pre-schema shape: a record file without `$schema` is unreadable. If the package's format definition requires a pre-schema entry, the planner decides how a format born with `$schema` declares none. `plan-approvals` and `spec-approvals` keep their decoders, including the frozen ones in `src/schemas/history/`, which only the migration uses; the frozen files and `history.lock.json` entries stay untouched.",
       "The path-scoped commit must accept a write-set path that is absent before and after (abandoning a never-approved Draft). A pathspec that matches nothing must not fail the commit, and a deleted path must be committed as a deletion.",
-      "No CLI change beyond `phax artifact migrate-approvals`, added through `phax.usage.kdl`, `src/cli/cliDocs.ts` and the regenerated `docs/cli/reference.md`. Also update the README (persisted-formats table, the 'stale right after its approval' known issue), `.claude/skills/phax-cli/SKILL.md`, `.claude/skills/phax-spec/SKILL.md`, and the docs-site pages built from them.",
+      "No CLI change beyond `phax artifact migrate-approvals` and the additive `orphanRecords` key of `phax plans status --json`, added through `phax.usage.kdl`, `src/cli/cliDocs.ts` and the regenerated `docs/cli/reference.md`. Also update the README (persisted-formats table, the 'stale right after its approval' known issue), `.claude/skills/phax-cli/SKILL.md`, `.claude/skills/phax-spec/SKILL.md`, and the docs-site pages built from them.",
       "Merge acceptance criteria are integration tests using real git merges in temporary repositories. Every ledger and record in the tests is made up; nothing from `~/.phax` or another repository enters this repository.",
       "Do not touch staleness reasons, fingerprint coverage or `baseline` semantics. approval-ground is redrafted on top of this spec: its §9 Q2 and Q4 reduce to the plan's own record file and own path."
     ]
