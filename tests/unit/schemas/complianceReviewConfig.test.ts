@@ -59,7 +59,7 @@ describe("ComplianceReviewConfigSchema", () => {
 
 describe("resolveComplianceReviewConfig", () => {
   it("pins DEFAULT_COMPLIANCE_REVIEW_MODEL to a catalog-present id", () => {
-    expect(DEFAULT_COMPLIANCE_REVIEW_MODEL).toBe("claude-sonnet-5");
+    expect(DEFAULT_COMPLIANCE_REVIEW_MODEL).toBe("claude-sonnet-5-5");
     expect(entryFor(DEFAULT_COMPLIANCE_REVIEW_MODEL, DEFAULT_PROVIDER_CONFIG)).toBeDefined();
   });
 

@@ -175,8 +175,8 @@ export interface ResolvedComplianceReviewConfig {
   readonly effort: Effort;
 }
 
-// $2/$10 vs Sonnet 4.6's $3/$15, same effort curve
-export const DEFAULT_COMPLIANCE_REVIEW_MODEL = "claude-sonnet-5";
+// $2/$10, same as Sonnet 5; 41 vs 28 at medium on AA (2026-10-05 read)
+export const DEFAULT_COMPLIANCE_REVIEW_MODEL = "claude-sonnet-5-5";
 
 export function resolveComplianceReviewConfig(
   raw: ComplianceReviewConfig | undefined,

@@ -352,7 +352,7 @@ Each entry below is a versioned model id from the provider catalog with its effo
 ### Choosing a model and effort
 
 - The default phase model is `claude-opus-5-5`: it is the cheapest Opus-tier entry and matches or beats `claude-fable-5-1` from `medium` effort up.
-- Use `claude-sonnet-5` for mechanical phases (catalog/table edits, renames, doc sweeps).
+- Use `claude-sonnet-5-5` for mechanical phases (catalog/table edits, renames, doc sweeps).
 - Use `claude-fable-5-1` only for a stated reason that Opus 5.5 cannot serve, and record that reason in Technical arbitrations.
 - Use the lowest effort that succeeds. Opus 5.5 is weakest at `low` (below Fable 5.1), so use `medium` or above for phases that need real reasoning.
 - A plan that changes the catalog itself must name only models already in the shipped catalog: the run-start preflight uses the running binary's catalog, not the one the plan adds.
