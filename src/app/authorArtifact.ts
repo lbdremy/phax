@@ -17,7 +17,7 @@ import {
 import { sidecarPathFor } from "../domain/artifact/sidecar.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import { formatStamp } from "../domain/artifact/name.js";
-import { stripJsonCodeFence } from "../domain/authoring/jsonText.js";
+import { extractJsonDocumentText } from "../domain/authoring/jsonText.js";
 import { AUTHORING_PROMPT_FILENAME, buildAuthoringPrompt } from "../domain/authoring/prompt.js";
 import { renderPlanBody } from "../domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../domain/authoring/renderSpec.js";
@@ -168,7 +168,7 @@ function parseAuthoredDocument(
 ): Either.Either<AuthoredDocument, AuthoringDocumentError> {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(stripJsonCodeFence(finalText));
+    parsed = JSON.parse(extractJsonDocumentText(finalText));
   } catch {
     return Either.left(
       documentError(

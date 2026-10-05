@@ -304,6 +304,21 @@ describe("authorArtifact — spec", () => {
     expect(Either.isRight(result)).toBe(true);
     expect(fs.getFile(SPEC_SIDECAR)).toBeDefined();
   });
+
+  it("accepts a document preceded by a sentence of prose", async () => {
+    const { fs, git, run } = setup(
+      "Ground read. Writing the spec document now.\n" + JSON.stringify(SPEC_DOCUMENT),
+    );
+
+    const result = await run(input());
+
+    expect(Either.isRight(result)).toBe(true);
+    expect(fs.getFile(SPEC_PATH)).toBeDefined();
+    expect(fs.getFile(SPEC_SIDECAR)).toBeDefined();
+    const commit = git.calls.find((call) => call.method === "commitPaths");
+    if (commit?.method !== "commitPaths") throw new Error("no commit");
+    expect(commit.paths).toEqual([SPEC_PATH, SPEC_SIDECAR]);
+  });
 });
 
 describe("authorArtifact — plan", () => {
@@ -377,7 +392,9 @@ describe("authorArtifact — failures land nothing", () => {
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isRight(result)) return;
     expect(result.left).toBeInstanceOf(AuthoringDocumentError);
-    expect(result.left.message).toContain("not JSON");
+    expect(result.left.message).toBe(
+      "spec document rejected — the session's final message is not JSON: Here is your spec: it is great.",
+    );
     expect(repoFiles(fs)).toEqual([]);
     expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
     expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);

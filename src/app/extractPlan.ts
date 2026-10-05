@@ -16,7 +16,7 @@ import {
   UsageLimitError,
 } from "../domain/errors.js";
 import { formatParseError } from "../schemas/formatError.js";
-import { stripJsonCodeFence } from "../domain/authoring/jsonText.js";
+import { extractJsonDocumentText } from "../domain/authoring/jsonText.js";
 
 const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
@@ -80,7 +80,7 @@ export function extractPlanLlm(
 
     let parsed: unknown;
     try {
-      parsed = JSON.parse(stripJsonCodeFence(runResult.finalText));
+      parsed = JSON.parse(extractJsonDocumentText(runResult.finalText));
     } catch {
       return yield* Effect.fail(
         new PlanValidationError({
