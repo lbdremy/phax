@@ -26,11 +26,6 @@
       "approvedAt": "2026-09-28T16:08:36.591Z",
       "baseline": "ddc1a9a73b20c3a5bafce185f03a014d78a833cc"
     },
-    "docs/specs/2610051433-approval-record-files.md": {
-      "specFingerprint": "004c2997348800c7779644ddaea99900b631457f027d2e77d621e8692a631d5b",
-      "approvedAt": "2026-10-05T14:45:32.098Z",
-      "baseline": "90d76438547c8707ffe88b983294c1b969f7bb15"
-    },
     "docs/specs/2610051439-gate-request.md": {
       "specFingerprint": "5a99b3b13e003669b52ff545f6de3e84ba0fa0bbe4ec1d0035f6b6bda74f6cfd",
       "approvedAt": "2026-10-05T15:12:19.541Z",
