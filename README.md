@@ -227,7 +227,7 @@ A read-only check, with no model: the plan's structure, its planned files agains
 | `phax artifact abandon <path>`  | `Draft`, `Approved`; `Stale` (plan)                            | `Abandoned`                                   |
 | `phax artifact status <path>`   | any                                                            | — prints the status and the legal transitions |
 
-Each transition rewrites the status in the file's frontmatter and commits it on its own, and refuses when the files it writes have uncommitted changes. `Completed` and `Abandoned` move the file, and its sidecar, into the folder's `archive/`. Approving records the approval in `docs/specs/approvals.json` or `docs/plans/approvals.json`, with the commit it was made against; approving a plan is refused while its spec's approval is missing or the spec has changed since. A run completes its own plan, and its spec where it can, on the run's branch.
+Each transition rewrites the status in the file's frontmatter and commits it on its own, and refuses when the files it writes have uncommitted changes. `Completed` and `Abandoned` move the file, and its sidecar, into the folder's `archive/`. Approving writes the artifact's own approval record file, `docs/specs/approvals/<spec>.json` or `docs/plans/approvals/<plan>.json`, with the commit it was made against; `Completed`, `Abandoned` and `Reopen` delete that file in the same commit, and no transition touches another artifact's record; approving a plan is refused while its spec's approval is missing or the spec has changed since. A run completes its own plan, and its spec where it can, on the run's branch.
 
 ### Keep several plans in step
 
@@ -543,7 +543,18 @@ phax reads no environment variable for its configuration: everything is in `phax
 - **Lock conflict.** Another phax is working on that run, or one died; `phax unlock <run>` clears a stale lock.
 - **The handoff is missing.** The phase ended in `handoff_failed`: `phax enter <run>` takes you back into its session.
 - **A rate or usage limit.** The run stopped at exit 8 and keeps its place: `phax resume <run>` when the limit resets.
-- **A plan is stale right after its approval.** A plan that lists `docs/plans/approvals.json` among its files reads its own approval as a change. Leave the ledger out of its files for now; the fix is planned.
+- **A plan is stale right after its approval.** A plan that lists its own record file, `docs/plans/approvals/<plan>.json`, among its files reads its own approval as a change. Leave that file out of the plan's lists. Another plan's approvals never affect it.
+- **Approval records are per-artifact files.** Approval records were one shared ledger per kind; each is now a file of its own under `docs/plans/approvals/` and `docs/specs/approvals/`. After upgrading, `phax artifact approve` and `phax run` refuse with exit 12 while `docs/plans/approvals.json` or `docs/specs/approvals.json` exists. Run the one-time migration, which splits both ledgers into record files in one commit:
+
+  ```console
+  $ phax artifact approve docs/plans/2610051200-foo-plan.md
+  ✗ docs/plans/approvals.json is an approval ledger from an older phax — run `phax artifact migrate-approvals` first
+  $ phax artifact migrate-approvals
+  docs/plans/approvals.json → 1 record file
+    docs/plans/approvals/2606291247-smolvm-isolation-spike-plan.json
+  committed a1b2c3d chore(approvals): migrate approval ledgers to record files
+  $ phax artifact approve docs/plans/2610051200-foo-plan.md   # now writes docs/plans/approvals/2610051200-foo-plan.json
+  ```
 
 Something else? `phax report <run>` opens a GitHub issue with the run's telemetry.
 

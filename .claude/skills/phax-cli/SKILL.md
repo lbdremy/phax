@@ -92,8 +92,8 @@ legal transitions (see `--usage` for the exact subcommands and flags):
   legal transitions.
 - `phax artifact approve <path>` — the `Draft → Approved` gate; run it on a plan
   under `docs/plans/` before `phax run`. Approving stamps `approved: { date, baseline }`
-  into the frontmatter and writes a record to the sidecar (`docs/plans/approvals.json` for
-  plans, `docs/specs/approvals.json` for specs). Re-approving an already-`Approved` artifact
+  into the frontmatter and writes the artifact's own record file (`docs/plans/approvals/<plan file name>.json`
+  for plans, `docs/specs/approvals/<spec file name>.json` for specs). Re-approving an already-`Approved` artifact
   is legal — it re-records the approval against the current content, the correct way to log an
   in-place revision (don't hand-edit the stamp). Approving a plan whose `Source-Spec` is an
   Approved spec that is **unrecorded** or **edited since** its approval is refused with exit
@@ -101,7 +101,16 @@ legal transitions (see `--usage` for the exact subcommands and flags):
 - `phax artifact stale` / `reopen` — mark a plan `Stale`, or reopen a `Stale`
   plan back to `Draft` (plans only).
 - `phax artifact abandon` / `complete` — terminal transitions; phax moves the file
-  into the matching `archive/` directory as part of the transition.
+  into the matching `archive/` directory and deletes its record file as part of the transition.
+  Reopen deletes the plan's record file the same way. No transition touches another
+  artifact's record file.
+- `phax artifact migrate-approvals` — the one-time upgrade from the old shared ledgers
+  (`docs/plans/approvals.json`, `docs/specs/approvals.json`) to per-artifact record files
+  under `docs/plans/approvals/` and `docs/specs/approvals/`, in one commit. Exits 0 when
+  migrated or when there is nothing to migrate; exits 12, writing nothing, on an unreadable
+  ledger, an entry that is not a live artifact path, an uncommitted change to a path it
+  would write, or an existing record file holding a different record. While a ledger
+  exists, every other approval command exits 12 and names this command.
 
 Transitions are validated: an illegal one is refused and names the legal set, and
 a terminal status must live under `archive/` (status and location must agree). A

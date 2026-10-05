@@ -899,11 +899,11 @@ phax artifact status docs/specs/2609030749-spec-approval-ground.md
 
 Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved artifact re-records the approval, refreshing its timestamp and baseline — this is the correct way to record an in-place revision of a spec, not editing the date by hand. Rewrites the frontmatter status key in place.
 
-For specs: stamps `approved: { date, baseline }` in the frontmatter and writes a record to docs/specs/approvals.json.
-For plans: stamps `approved: { date, baseline }` in the frontmatter and writes a record to docs/plans/approvals.json. Plan approval refuses with exit 12 if the declared Source-Spec is Approved but its approval is unrecorded or edited since approval — re-approve the spec first.
+For specs: stamps `approved: { date, baseline }` in the frontmatter and writes the spec's approval record file, docs/specs/approvals/<spec file name>.json.
+For plans: stamps `approved: { date, baseline }` in the frontmatter and writes the plan's approval record file, docs/plans/approvals/<plan file name>.json. Plan approval refuses with exit 12 if the declared Source-Spec is Approved but its approval is unrecorded or edited since approval — re-approve the spec first.
 For headless-authored artifacts (either kind): approval refuses with exit 12 when the JSON document sidecar is diverged (the body differs from the sidecar's rendering) or invalid, naming the two remedies — re-author the artifact with --headless, or delete the sidecar to demote the artifact to hand-authored.
 
-Side effects: writes the artifact file and commits the transition's write-set (the artifact file, its JSON document sidecar when headless-authored, plus the approval record) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.
+Side effects: writes the artifact file and commits the transition's write-set (the artifact file, its JSON document sidecar when headless-authored, plus its own approval record file under docs/plans/approvals/ or docs/specs/approvals/) in a single commit; no transition touches another artifact's record file. Refuses with exit code 12 if any write-set path already has uncommitted changes.
 
 ### Arguments
 
@@ -947,7 +947,7 @@ phax artifact stale docs/plans/2607101056-typescript-7-migration-plan.md
 
 Abandons an artifact — a terminal status distinct from Completed, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).
 
-Side effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Abandoned and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.
+Side effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Abandoned, deletes its approval record file under docs/plans/approvals/ or docs/specs/approvals/ if it has one, and commits the move and the deletion in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.
 
 ### Arguments
 
@@ -967,7 +967,7 @@ phax artifact abandon docs/plans/2607101056-typescript-7-migration-plan.md
 
 Completes an artifact — a terminal status for work that ran to completion. Legal from Approved (specs) or Approved or Stale (plans).
 
-Side effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Completed and commits the move (and, for plans, the approval-record removal) in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.
+Side effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Completed, deletes its approval record file under docs/plans/approvals/ or docs/specs/approvals/ if it has one, and commits the move and the deletion in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes.
 
 ### Arguments
 
@@ -987,7 +987,7 @@ phax artifact complete docs/specs/2608091526-artifact-lifecycle-status.md
 
 Reopens a Stale plan back to Draft, for when re-planning is needed before re-approval. Legal from Stale only. Rewrites the frontmatter status key in place.
 
-Side effects: writes the plan file and commits the write-set in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.
+Side effects: writes the plan file, deletes the plan's approval record file docs/plans/approvals/<plan file name>.json if it has one, and commits both in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes.
 
 ### Arguments
 

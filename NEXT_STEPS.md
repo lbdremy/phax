@@ -27,7 +27,8 @@ Decided 2026-09-15: the first four were the blockers (`phax prune`, the fourth, 
       follow-ups*; spec `approval-ground`, Draft). The run-before-preflight slug burn was fixed
       2026-10-03 (PR #112). A 1.0 whose `approve` → `run` sequence can refuse itself is not 1.0.
 - [ ] **A persisted-format stability promise.** `phax.json` (`version: 1`), the run status
-      files, `approvals.json`, `phax/records/v1`. The no-shims rule is right for 0.x, but 1.0
+      files, the approval record formats (`plan-approval-record`, `spec-approval-record`; the old
+      `approvals.json` ledgers are read only to migrate), `phax/records/v1`. The no-shims rule is right for 0.x, but 1.0
       means a config written under 1.0 still loads under 1.x — the louloupapers repo already
       shows what the alternative looks like (a `phax.json` the CLI refuses). Decide the
       contract (frozen `version: 1` + a migration command, or a documented "re-run `phax
@@ -116,7 +117,7 @@ cross-field checks registered by id so the build writes the same list into the s
       **Decided 2026-10-05:** a required plan field (`completesSpec: true|false`) — the run
       completes the spec only when it is true; lint and the planning skill carry it. Its own
       spec.
-- [ ] **A run's completion conflicts with approvals made on main during the run.** Found
+- [x] **A run's completion conflicts with approvals made on main during the run.** Found
       2026-10-03 on PR #112: the run branch's completion commit removes the plan's entry from
       `docs/plans/approvals.json`, and approving another plan on main meanwhile edits the same
       JSON object, so the PR conflicts and CI never runs until the branch is rebased by hand
@@ -124,6 +125,7 @@ cross-field checks registered by id so the build writes the same list into the s
       record (a merge driver would not help: GitHub's mergeability check never runs one). A
       persisted-format change, so before the 1.0 freeze; its own spec, landing before
       `approval-ground`, whose §9 (Q2, Q4) it simplifies — redraft that §9 on top of it.
+      Shipped as spec `approval-record-files` (`docs/specs/2610051433-approval-record-files.md`).
 
 - [ ] **A plan whose footprint names `docs/plans/approvals.json` is stale at its own
       approval.** Spec `approval-ground` drafted 2026-10-04
@@ -136,6 +138,13 @@ cross-field checks registered by id so the build writes the same list into the s
       both `approvals.json` out of that plan's lists. Fix: exclude the transition commit
       from the ground-change window (baseline = the approval commit, or ignore the
       transition's own write-set), and cover it with a staleness test.
+      With per-artifact record files (`approval-record-files`), the approval-ground §9 Q2 and Q4
+      reduce to the plan's own record file and its own path: another artifact's record never
+      counts as ground change, so redraft those two questions on that basis.
+- [ ] **Migrate this repository's own approval ledgers after the release that ships
+      `approval-record-files`.** Run `phax artifact migrate-approvals` by hand on a clean tree,
+      once `docs/plans/approvals.json` and `docs/specs/approvals.json` are the only ledgers left.
+      The spec ledger is still pre-schema, so check the migration output before committing.
 
 ## Records consumers (the substrate shipped in 0.9)
 
