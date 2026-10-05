@@ -20,7 +20,7 @@ import {
   type PersistedSpec,
 } from "../../src/schemas/persisted.js";
 import { PHAX_RELEASE } from "../../src/schemas/release.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { compareReleases, schemaUrl, type FormatId } from "../../src/schemas/schemaUrl.js";
 import {
   preSchemaDocuments,
   validDocuments,
@@ -368,5 +368,77 @@ describe("format readers", () => {
     const refused = left(read(file, wrongUrl));
     expect(refused.message).toMatch(new RegExp(`^${file}: .*\\$schema`));
     expect(refused.message).not.toContain("without $schema");
+  });
+});
+
+describe("documents from another release", () => {
+  // Every release derives from PHAX_RELEASE, so a release cut leaves the table
+  // right; each row asserts its own precondition, so a cut that voids one fails
+  // loudly instead of silently testing nothing.
+  const [major, minor, patch] = PHAX_RELEASE.split(".").map(Number) as [number, number, number];
+  const older =
+    patch > 0
+      ? `${major}.${minor}.${patch - 1}`
+      : minor > 0
+        ? `${major}.${minor - 1}.0`
+        : `${major - 1}.0.0`;
+
+  // `sortsAbove`: whether the release string sorts above PHAX_RELEASE, for the
+  // rows where lexical and numeric order must disagree.
+  type Case = readonly [name: string, release: string, newer: boolean, sortsAbove: boolean | null];
+  const releases: ReadonlyArray<Case> = [
+    ["newer patch", `${major}.${minor}.${patch + 1}`, true, null],
+    ["newer minor", `${major}.${minor + 1}.0`, true, null],
+    ["newer major", `${major + 1}.0.0`, true, null],
+    // A minor with more digits: numerically newer, sorts lower as a string.
+    ["newer but lexically lower", `${major}.${10 ** String(minor).length}.0`, true, false],
+    ["equal", PHAX_RELEASE, false, null],
+    ["older", older, false, null],
+    // A single-digit minor below a two-digit one: older, sorts higher as a string.
+    ["older but lexically higher", `${major}.9.0`, false, true],
+  ];
+
+  it.each(releases)("the %s case (%s) holds its precondition", (_name, release, newer, above) => {
+    const order = compareReleases(release, PHAX_RELEASE);
+    if (newer) expect(order).toBeGreaterThan(0);
+    else expect(order).toBeLessThanOrEqual(0);
+    if (above !== null) expect(release > PHAX_RELEASE).toBe(above);
+  });
+
+  type AnyReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  const readers: ReadonlyArray<readonly [FormatId, AnyReader, string]> = [
+    ["registry", readRegistryFile, "run registry"],
+    ["run-status", readRunStatusFile, "run status"],
+    ["phase-status", readPhaseStatusFile, "phase status"],
+    ["phax-plan", readPhaxPlanFile, "phax-plan"],
+    ["compliance-review", readComplianceReviewFile, "compliance review"],
+    ["plan-approvals", readPlanApprovalsFile, "plan approvals ledger"],
+    ["spec-approvals", readSpecApprovalsFile, "spec approvals ledger"],
+    ["spec-document", readSpecDocumentFile, "spec document"],
+    ["plan-document", readPlanDocumentFile, "plan document"],
+    ["gate-attribution", readGateAttributionFile, "gate attribution"],
+    ["phase-file-reconciliation", readPhaseFileReconciliationFile, "phase file reconciliation"],
+    ["phase-record-manifest", readRecordManifestFile, "phase record manifest"],
+    ["authoring-record-manifest", readRecordManifestFile, "authoring record manifest"],
+  ];
+
+  const table = readers.flatMap(([id, read, label]) =>
+    releases.map(([name, release, newer]) => [id, name, read, label, release, newer] as const),
+  );
+
+  it.each(table)("%s at the %s release", (id, _name, read, label, release, newer) => {
+    const file = `/home/example/.phax/example/${id}.json`;
+    const result = read(file, withKey(validDocuments[id], "$schema", schemaUrl(id, release)));
+    if (!newer) {
+      right(result);
+      return;
+    }
+    const error = left(result);
+    expect(error).toEqual({
+      _tag: "PersistedReadError",
+      file,
+      format: id,
+      message: `${file}: ${label} written by phax ${release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+    });
   });
 });
