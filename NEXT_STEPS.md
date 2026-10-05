@@ -102,6 +102,9 @@ cross-field checks registered by id so the build writes the same list into the s
       (`a77ce12b`). Fix: complete a spec only when no other live plan names it and the
       caller says it is the last (e.g. a plan-level `completes-spec: true`, or
       `phax artifact complete` left to the operator), and never silently.
+      **Decided 2026-10-05:** a required plan field (`completesSpec: true|false`) — the run
+      completes the spec only when it is true; lint and the planning skill carry it. Its own
+      spec.
 - [ ] **Authoring records are not auto-pushed.** Found 2026-09-29: with `records.autoPush`
       true in phax and steme-lab, `phax records status` still listed 13 (phax) and 1
       (steme-lab) authoring records from headless `artifact new` sessions as pending; pushed
@@ -127,8 +130,10 @@ cross-field checks registered by id so the build writes the same list into the s
       2026-10-03 on PR #112: the run branch's completion commit removes the plan's entry from
       `docs/plans/approvals.json`, and approving another plan on main meanwhile edits the same
       JSON object, so the PR conflicts and CI never runs until the branch is rebased by hand
-      (main's ledger minus the completed entry). Candidates: a ledger merge driver, or one file
-      per approval record.
+      (main's ledger minus the completed entry). **Decided 2026-10-05:** one file per approval
+      record (a merge driver would not help: GitHub's mergeability check never runs one). A
+      persisted-format change, so before the 1.0 freeze; its own spec, landing before
+      `approval-ground`, whose §9 (Q2, Q4) it simplifies — redraft that §9 on top of it.
 
 - [ ] **A plan whose footprint names `docs/plans/approvals.json` is stale at its own
       approval.** Spec `approval-ground` drafted 2026-10-04
