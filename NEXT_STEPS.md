@@ -5,41 +5,43 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-09-15. Since the previous prune: the artifact-timestamp-naming spec
-(`2609091040`) shipped through its plan on 2026-09-10 (`4114e063`..`e029960e` — the
-`<YYMMDDHHMM>-<slug>` name grammar, enforced in every reader and in `plans lint`, every spec
-and plan migrated, `phax artifact new spec|plan` stamped from the clock, the skills taught to
-reference by slug), merged as PR #97 and completed (`30631178` / `b3d834d5`), followed by one
-same-day fix (`debb3c14` refuse a spec slug that would name an off-grammar spec). v0.14.0
-shipped 2026-09-15 (`8da9d82e`): the release workflow passed, the GitHub release carries the
-four binaries, and `@lbdremy/phax@latest` is 0.14.0. The run was archived and the global
-install bumped the same day. Two approved specs remain, both parked (23, 24); nothing is in
-flight and the registry holds only `archived` entries.
+Last pruned 2026-10-05. Since the previous prune (2026-09-15, v0.14.0), all of these landed and
+were completed: headless authoring (0.15/0.16), the `schemas-package` spec in five plans
+(PRs #104–#110; `@lbdremy/phax-schemas` first published in 0.17.0 on 2026-10-03),
+`preflight-before-naming` (PR #112), `phax prune` (`run-prune`, PR #113), and the docs site
+(`docs-site`, live at docs.phax.run since v0.18.0 on 2026-10-04; both npm packages approved
+and the global install bumped on 2026-10-05). Five approved specs are open:
+artifact-decide is next; headless-review and oracle-phases follow it; 23 and 24 stay parked. One
+spec is a Draft waiting on the author (approval-ground). No plan is in flight.
 
-## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0
+## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
 Everything the 1.0 announcement (`docs/blog/announcing-phax-1.0.md`) describes is shipped,
 except `isolated` mode, which the post itself disclaims. The feature surface is not what
 holds 1.0 back; the things below are. Ordered by what 1.0 would be lying about if skipped.
-Decided 2026-09-15: the first four are the blockers; the last three are wanted but do not
-hold the tag.
+Decided 2026-09-15: the first four were the blockers (`phax prune`, the fourth, landed
+2026-10-04 in PR #113, so three remain); the last three are wanted but do not hold the tag.
 
-- [ ] **Two known happy-path defects.** The run-before-preflight slug burn (fixed
-      2026-10-03, PR #112) and the approval-commit staleness (both under *Small follow-ups*). A 1.0 whose `approve` →
-      `run` sequence can refuse itself is not 1.0.
+- [ ] **One known happy-path defect left.** The approval-commit staleness (under *Small
+      follow-ups*; spec `approval-ground`, Draft). The run-before-preflight slug burn was fixed
+      2026-10-03 (PR #112). A 1.0 whose `approve` → `run` sequence can refuse itself is not 1.0.
 - [ ] **A persisted-format stability promise.** `phax.json` (`version: 1`), the run status
       files, `approvals.json`, `phax/records/v1`. The no-shims rule is right for 0.x, but 1.0
       means a config written under 1.0 still loads under 1.x — the louloupapers repo already
       shows what the alternative looks like (a `phax.json` the CLI refuses). Decide the
       contract (frozen `version: 1` + a migration command, or a documented "re-run `phax
       init`" policy) and write it down in the README.
+      Part of it: **phax must not rewrite a document from a newer release.** phax accepts
+      `$schema` from any release as long as the format id matches (the package refuses a
+      newer one). After a downgrade, the registry and run/phase status — decoded tolerantly,
+      unknown keys ignored — would be read, stripped of the newer fields and rewritten
+      without them: data loss. phax should refuse (or at least not rewrite) a file whose
+      `$schema` names a release newer than its own, as the package does. Live since 0.18.0
+      exists (found in the PR #109 side review, 2026-10-02).
 - [ ] **CLI contract freeze.** `phax.usage.kdl` had a breaking change in 0.13 (`extract-plan`
-      removed) and another candidate is queued (`prune`). Land the last renames from
+      removed), and 0.18 added `prune`. Land the last renames from
       `docs/vocabulary-review.md` §"Top fixes" (at least 1, 2 and 4 — they change output and
       flag values) *before* 1.0, then hold the contract for one or two 0.x releases.
-- [x] **`phax prune`.** Landed 2026-10-04 (PR #113). Without it a slug is held forever by its archived run; the `-2` habit
-      is the visible symptom. Small, and it closes the run lifecycle (created → … → archived →
-      gone).
 - [ ] **Distribution polish.** macOS binaries are neither signed nor notarized
       (`docs/release.md`); npm install works, the raw binary is Gatekeeper-blocked. Either
       sign, or make npm the only documented install path for 1.0.
@@ -53,6 +55,36 @@ hold the tag.
 
 Not blockers, on purpose: specs 23/24, records consumers, the durable context layer, the
 desktop — none is promised by the announcement.
+
+## Next up — the steme experiment specs, in order
+
+Three approved specs that the steme roadmap-1.0 experiment needs before it starts (raised
+2026-09-22/23; the steme conductor is their first consumer — see
+`/Volumes/Work/steme/steme-corpus/docs/corpus/01-vision/roadmap-1.0-experiment-protocol.md`
+§3.2 and its item-0 schedule). None of them holds up the 1.0 tag, since all three only add to
+the CLI and to `phax.json`. But the experiment pins the release that carries them, so they come
+before that release. All three were drafted by headless authoring, re-drafted 2026-09-25 after
+that morning's decisions, and arbitrated and approved 2026-09-28/29. Their §9 answers are in
+each sidecar. They run one after another, not in parallel, because each builds on the formats
+the previous one changes. The first in the chain, `schemas-package`, is Completed.
+
+- [ ] **`artifact-decide`** — `docs/specs/2609250815-artifact-decide.md`. **Next.** No plan
+      yet: `phax artifact new plan artifact-decide --spec docs/specs/2609250815-artifact-decide.md`.
+      Decide runs on Drafts only, `artifact reopen` moves an artifact from Approved back to Draft,
+      every artifact gets the approval lock, §9 is hand-authored, and `--by` names who decided.
+      If the spec ships in more than one plan, revert the run's spec completion on every plan
+      but the last (see *Small follow-ups*).
+- [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. It reuses decide's
+      approver form, skill and escalation block (`docs/ideas/headless-code-review.md`).
+- [ ] **`oracle-phases`** — `docs/specs/2609281159-oracle-phases.md`. Oracle-first phases
+      behind a pluggable `oracles` provider. Nothing needs it before steme item 1.1.
+
+Deferred from `schemas-package` with the author (2026-09-29): **a Standard Schema export** per
+format (only if a consumer needs to hand the schemas to a non-Effect validator; the cockpit
+parses with Effect, losslessly); **deterministic JSON Schema annotations** for hand-written
+filters — one source per rule (a regex that is both the filter and the `pattern`), and
+cross-field checks registered by id so the build writes the same list into the schema
+(`x-phax-checks`) — for non-TypeScript readers only.
 
 ## Small follow-ups
 
@@ -98,25 +130,6 @@ desktop — none is promised by the announcement.
       (main's ledger minus the completed entry). Candidates: a ledger merge driver, or one file
       per approval record.
 
-- [x] **`phax run` allocates the run before its preflight.** **Fixed 2026-10-03** (spec
-      `preflight-before-naming` Completed; PR #112): every run-independent preflight runs before
-      the run is named, from one shared set that `resume` re-checks; a guard test pins the order. Found 2026-09-08: `run`
-      creates the run folder and the registry entry, then `executePlan` runs the
-      required-commands, mcp, records and clean-tree preflights. A preflight refusal leaves
-      a `created` run holding the slug, and the retry gets `-2`. Seven of the ten `-2`
-      pairs in the local registry are exactly that (first attempt holds only the
-      snapshotted plan and status; second attempt 28 s to 3 min later). Fix: run every
-      preflight that needs only the plan and the config before `createRunFolder`, so a
-      refused run never exists. Still open after plan 33 (checked 2026-09-09):
-      `phax plans lint` now catches the `commands` and `models` causes before a run is
-      started, but `src/cli/commands/run.ts` still calls `createRunFolder` before
-      `executePlan`, so a refusal from any other preflight still burns the slug.
-      Partly done 2026-09-24 (claude-skill-edit-grant review): the skill edit consent
-      check now runs in `run.ts` before the run is named, through
-      `src/app/skillEditConsent.ts`, and `executePlan` keeps its copy to guard resume.
-      Follow that pattern for the rest, starting with the required-commands preflight
-      (`SecurityPreflightError`, plan + config only), then mcp, records and clean-tree.
-
 - [ ] **A plan whose footprint names `docs/plans/approvals.json` is stale at its own
       approval.** Spec `approval-ground` drafted 2026-10-04
       (`docs/specs/2610040727-approval-ground.md`, Draft): its four §9 questions (scope, recognition,
@@ -156,12 +169,6 @@ desktop — none is promised by the announcement.
       2026-09-03, so a spec approval now has its own fingerprinted record and the
       living-spec piste has a baseline to fold deltas into; build on it rather than
       beside it.
-- [x] **`phax prune` — delete archived runs.** **Landed 2026-10-04** (spec `run-prune`
-      Completed; PR #113): archived runs of the current namespace, by name or `--all`, preview +
-      confirm, branches deleted unless they hold unpreserved commits (`--force`); exit codes and
-      the README table follow `exitCodeForError`. The usage-spec generator now marks variadic
-      arguments (`[short-name]...`, `<plan>...`). First `--all --dry-run` here: 97 of 101 runs
-      prunable, 65 GB.
 - [ ] **Prune follow-ups, from the first real `--all --dry-run` (2026-10-04).** The author keeps
       every archived run until phax-cockpit is up. Of `~/.phax/archive` (phax namespace), ~70 GB are
       archived worktrees and 0.3 GB the run folders the cockpit reads; `phax/records/v1` starts on
@@ -181,110 +188,6 @@ desktop — none is promised by the announcement.
       spec 23 (decision requests carry the `recommendation` it adopts) and needs a roadmap
       artifact, a decision policy, budget/stop conditions and a machine-distinguishable
       approval. First target: the steme CLI from its corpus.
-- [ ] **Three additive specs the steme roadmap-1.0 experiment needs before it starts**
-      (raised 2026-09-22/23, the steme conductor is the first consumer; see
-      `/Volumes/Work/steme/steme-corpus/docs/corpus/01-vision/roadmap-1.0-experiment-protocol.md`
-      §3.2 and its item-0 schedule). None holds the 1.0 tag — all are additive to the CLI
-      and to `phax.json` — but the experiment pins the release that carries them, so
-      they come before that release and after nothing:
-      **Drafted 2026-09-24 by headless authoring** (`phax artifact new spec … --headless --brief
-      docs/briefs/<slug>.md`, Opus 5.5 high, one session each, sidecars and authoring records
-      committed): `docs/specs/2609241238-schemas-package.md` (Draft). `headless-review` (the
-      slug avoids a `-plan` suffix, reserved for plan files) and `artifact-decide` were
-      **re-drafted on 2026-09-25** after that morning's arbitration decisions (two modes,
-      propose-and-escalate, dismissed findings, the doctrine skills landed by hand, the
-      doctrine format): first drafts Abandoned in `archive/`, second drafts
-      `2609250815-artifact-decide.md` (7 §9) and `2609250823-headless-review.md` (7 §9).
-      **Arbitrated and Approved 2026-09-28** with a fourth, `2609281159-oracle-phases.md`
-      (oracle-first phases behind a pluggable `oracles` provider; steme roadmap 0.12): §9
-      answers written into each sidecar and re-rendered with `scripts/rerender-spec.ts`
-      (artifact-decide reworked: decide on Draft only, `artifact reopen` from Approved, the
-      approval lock on every artifact, the hand-authored §9 format, `--by`; schemas-package
-      reads every format version ever written, with `producedBy`, snapshots and a history
-      corpus). **Plan order:** schemas-package (its snapshot gate then catches the others'
-      format changes) → artifact-decide → headless-review (reuses decide's approver form,
-      skill and escalation block) → oracle-phases (no consumer before steme item 1.1).
-      Sequential, not parallel: each builds on the formats the previous one changes.
-      **schemas-package ships in five plans** (decided 2026-09-28; each useful alone, each
-      authored after the previous one lands, since `plans lint` walks the tree as it is):
-      1 read the phase record (the example validated before generalising) → 2 read every
-      format → 3 guards (snapshots, `next`, history corpus) → 4 phax writes `$schema` →
-      5 publication. All carry the slug `schemas-package`, named by title ("… 1/5 — …").
-      Brief: `docs/briefs/schemas-package-plan.md`, rewritten before each plan.
-      **Plan 1/5 landed 2026-09-29** (read the phase record manifest; PR #104 merged, run
-      archived; the run completed the spec by mistake, reverted in `1e40621b`). **Plan 2/5 landed 2026-09-29** (read every
-      format, from the committed shape survey; PR #105 merged, run archived; the run again
-      completed the spec by mistake, reverted). **Plan 3/5** first ran as "guards" with a
-      history corpus built from `~/.phax`, which leaked private repositories' runs into public
-      branches: PRs #106 and #107 closed unmerged (2026-09-29/30). The author then dropped reading
-      history (spec §9 q-support-start, 2026-09-30): support starts at the first release that
-      writes `$schema`; plan 3 is rewritten as "support starts now" — remove the legacy decoders,
-      the real-document fixtures (two held a louloupapers run) and the shape survey, add snapshots
-      and the gate. Plan 3/5 "support starts now" landed 2026-09-30
-      (PR #108, run archived; the spec-completion pair was dropped from the branch before
-      merge). **Plan 4/5 landed 2026-10-02** (phax writes `$schema`; frozen decoders in
-      `src/schemas/history/`, phax never imports `packages/`; PR #109 merged with the
-      side-review cleanups, run archived). **Plan 5/5 (publication) landed 2026-10-03** (PR #110: `release.sh`
-      cuts the `next` shapes, lockstep stage publish with a tarball smoke in CI and release,
-      README table and §11 section; the review's publishability fixes in `ae5dd1f7`); run
-      archived. **The `schemas-package` spec is Completed.** **Released in 0.17.0 (2026-10-03)**: `@lbdremy/phax-schemas`
-      published beside `@lbdremy/phax` from the tag, with provenance (a deprecated `0.0.0`
-      placeholder was hand-published first to set up its trusted publisher). **Next: the
-      artifact-decide plan.**
-      **Before 1.0: phax must not rewrite a document from a newer release.** phax accepts
-      `$schema` from any release as long as the format id matches (the package refuses a
-      newer one). After a downgrade, the registry and run/phase status — decoded tolerantly,
-      unknown keys ignored — would be read, stripped of the newer fields and rewritten
-      without them: data loss. phax should refuse (or at least not rewrite) a file whose
-      `$schema` names a release newer than its own, as the package does. Harmless until a
-      release after 0.17.0 exists (found in the PR #109 side review, 2026-10-02).
-      Deferred with the author (2026-09-29), not in plans 2–5: **a Standard Schema export**
-      per format (only if a consumer needs to hand the schemas to a non-Effect validator;
-      the cockpit parses with Effect, losslessly); **deterministic JSON Schema annotations**
-      for hand-written filters — one source per rule (a regex that is both the filter and the
-      `pattern`), and cross-field checks registered by id so the build writes the same list
-      into the schema (`x-phax-checks`) — for non-TypeScript readers only.
-      1. **`headless-authoring`** — `docs/ideas/headless-authoring.md`: `artifact new
-         spec|plan --headless --brief <file>`; phax spawns the authoring session with the
-         skill and an output schema, receives JSON only (plan in the `phax-plan.json`
-         shape, extraction cache seeded; spec in a new spec schema whose open questions
-         take spec 23's decision-request shape), renders the Markdown, stamps, commits,
-         records. Moves two of the four model-invocation points inside phax; the spec
-         schema is a new format, shipped experimental.
-         **Shipped 2026-09-23** (spec + plan `headless-authoring`, now Completed):
-         `artifact new spec|plan --headless --brief <file|->` with `--model`/`--effort`
-         and `authoring.{spec,plan}` config defaults; spec and plan document schemas
-         (`phax artifact schema spec|plan`), deterministic renderers, a JSON sidecar that
-         travels with transitions and blocks `approve` when diverged, an extraction-cache
-         seed keyed on the plan body, and one authoring record per session resolved by
-         `records explain`. The skills teach the document shape; all three formats are
-         experimental (README "Experimental formats").
-      2. **`review-as-plan`** — `docs/ideas/headless-code-review.md`: `review-code
-         --headless` (JSON only: `code-review.json` + `review-plan.json`/`.md`), `run
-         --append <run> <plan>` (a new run transition: appended phases, same records
-         lineage, one PR), `review.code.enabled` / `append` / `maxPasses` symmetric with
-         `review.compliance`; per pass, compliance then code review, no plan on a
-         `divergent` verdict. Ideally the first spec written through (1).
-      3. **`schemas-package`** — the persisted-format schemas (`src/schemas`: registry,
-         run status, records, approvals, compliance and code-review documents, phax-plan)
-         published alone as a typed npm package, freezing nothing beyond the 1.0 promise;
-         a read-only records consumer gets typed parsing.
-- [ ] **The docs site, in the release pipeline** — decided 2026-09-25 with the author. Spec `docs-site` Approved
-      2026-10-04 (`docs/specs/2610040828-docs-site.md`, §9 decided by the author: latest release only,
-      README split by headings, a committed release ledger, deploy before the npm publishes, derived
-      dark+light tokens, a first geometric logo, the 1.0 post held; the site build a terminal gate step, not in
-      `check:full`); plan Approved 2026-10-04 (`docs/plans/2610040847-docs-site-plan.md`, 7 phases,
-      IBM Plex Sans + Mono), running. One-time hand setup before the first deploy: see `docs/release.md`.
-      `docs.phax.run` is a rendering of what the repo already holds (`docs/cli/reference.md`
-      generated from `phax.usage.kdl`, the README, `security.md`, `release.md`, the model
-      catalog, `docs/blog/`), built with rspress from a `site/` folder — not an app, not a
-      workspace: the same deliverable as the binaries and the npm publish, deployed on the
-      release tag. Hosting: **Cloudflare Workers Static Assets** (Cloudflare's stated
-      recommendation for new projects as of 2026-09; Pages keeps working but gets no new
-      features): a `wrangler.jsonc` with `assets.directory` on the rspress output, no Worker
-      script, preview URLs per version. This is the pipeline steme's docs site (roadmap
-      item 0.6) copies afterwards. The marketing site `www.phax.run` and the cockpit
-      `app.phax.run` live in the private `phax-cockpit` monorepo, not here.
 - [ ] **Library readiness, then local and cloud modes** — `docs/ideas/local-and-cloud-modes.md`
       (2026-09-22/23). After 1.0, beside autopilot. The consumption form is decided: a
       **library** (`app` + `ports` exported, adapter sets shipped by phax, the CLI one
@@ -316,11 +219,10 @@ desktop — none is promised by the announcement.
 
 ## Approved specs — parked
 
-Two approved specs are open, 23 and 24, both parked since 2026-08-14. Nothing is in flight.
-Both remaining specs are plannable at any time. Pick one up with `phax artifact new plan
-<slug> --spec <path>`, write it with the `phax-planning` skill and run `phax plans lint` on
-it — the advisory auditor fires there too. Note that plan staleness is a **plan** property,
-so a spec parked here does not rot; the plans written against them do.
+Specs 23 and 24 have been parked since 2026-08-14. Either can be planned at any time: start one
+with `phax artifact new plan <slug> --spec <path>`, write it with the `phax-planning` skill and
+run `phax plans lint` on it (the advisory auditor fires there too). Plan staleness is a property
+of the **plan**, so a spec parked here does not rot; the plans written against it do.
 
 ### Housekeeping
 
@@ -340,14 +242,11 @@ so a spec parked here does not rot; the plans written against them do.
       GitHub stacked PRs (`gh stack`, public preview 2026-07-30) with a
       single-integration-PR fallback. The largest piece of work left; consumes 21 + 22.
 
-### Stale plans with no active spec
+### Approved plan with no active spec
 
-- [ ] Re-approve plan 41 (`41-claude-protected-path-approval-hook-plan.md`) when you
-      next intend to run it. It is `Stale` (`ground-changed`: its footprint still names
-      the `.agents/` mirror the `phax-planning` skill rewrite deleted). `Stale →
-      Approved` is a legal direct transition — no Draft round-trip — but it needs a real
-      read against `main` first. Plan 39 (`39-smolvm-isolation-spike-plan.md`) was
-      re-approved 2026-09-08 and `phax plans status` still reports it fresh.
+- [ ] The smolvm isolation spike (`docs/plans/2606291247-smolvm-isolation-spike-plan.md`) was
+      re-approved 2026-09-08, and its PR #60 is still open at phase 05. Resume it or abandon it.
+      (Plan 41, `claude-protected-path-approval-hook`, was abandoned on 2026-09-23.)
 
 ## Longer horizon (unspecced, revisit deliberately)
 
