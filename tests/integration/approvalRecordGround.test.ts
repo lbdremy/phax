@@ -112,4 +112,21 @@ describe("Another plan's lifecycle no longer stales a plan", () => {
       evidence: [{ reason: "ground-changed", baseline, files: [recordOf(PLAN_Q)] }],
     });
   });
+
+  // Q's record is deleted after P's baseline while P's own, near-identical
+  // record is added. Git's rename detection paired the two and listed only P's
+  // record, so this deletion went unseen until changedFilesSince used --no-renames.
+  it("is ground change when Q, approved before P, is completed after P's approval", async () => {
+    await transition(PLAN_Q, "Approved");
+    const baseline = git(["rev-parse", "HEAD"]).trim();
+    await transition(PLAN_P, "Approved");
+    await transition(PLAN_Q, "Completed");
+
+    const verdict = await stalenessOfP([recordOf(PLAN_Q)]);
+
+    expect(verdict).toEqual({
+      kind: "stale",
+      evidence: [{ reason: "ground-changed", baseline, files: [recordOf(PLAN_Q)] }],
+    });
+  });
 });
