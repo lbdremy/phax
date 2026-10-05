@@ -315,7 +315,7 @@ phax review-compliance <run>    # an agent checks the work against the plan, pha
 phax publish-pr <run>           # push the final branch and open a pull request, or reuse the open one
 ```
 
-The compliance review changes nothing; its verdict goes into the pull request's description. Its model is `review.compliance`, `claude-sonnet-5` at `medium` by default. `publish-pr` needs a GitHub remote and an authenticated `gh`; the remote, base branch and title are set under `publish`.
+The compliance review changes nothing; its verdict goes into the pull request's description. Its model is `review.compliance`, `claude-sonnet-5-5` at `medium` by default. `publish-pr` needs a GitHub remote and an authenticated `gh`; the remote, base branch and title are set under `publish`.
 
 ### After the merge
 

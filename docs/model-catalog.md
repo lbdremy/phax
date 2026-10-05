@@ -10,7 +10,7 @@ Update it in the same change that touches the catalog or a default, and append
 a row to the refresh log at the bottom.
 
 **State described:** the catalog as it stands after
-`docs/plans/archive/2609230815-catalog-opus-5-5-gpt-6-sol-luna-plan.md` landed.
+`docs/plans/archive/2610051453-catalog-sonnet-5-5-plan.md` landed.
 
 ## 1. Sources of truth
 
@@ -152,14 +152,30 @@ launch page (<https://www.anthropic.com/claude-opus-5-5>, read 2026-09-23):
 Opus 5's quality in about half the output tokens. These are vendor figures,
 not independent measurements.
 
+Sonnet 5.5's figures are from the 2026-10-05 read, on the same scale as
+2026-09-23. On that scale, low/medium/high/xhigh/max, with max-effort index
+tokens:
+
+- Sonnet 5.5: 36/41/47/52/56, 420M.
+- Sonnet 5: 24/28/32/34/38, 370M; AA now lists it deprecated.
+- Opus 5.5: 42/51/54/56/58, 260M.
+- Fable 5.1: 47/49/51/53/53, 190M.
+
+Claude Code 2.1.289 publishes no `effort_cost_index` for Sonnet 5.5.
+Anthropic's announcement (<https://www.anthropic.com/claude-sonnet-5-5>, read
+2026-10-05) claims it is 30%+ faster than Sonnet 5 and up to 30% cheaper per
+task; these are vendor figures. The announcement also lists breaking API
+changes from Sonnet 5, including that forced tool use now errors.
+
 | Model                       | $/1M in / out | AA Intelligence (max) | AA $/task | Output tokens on index run | effort_cost_index low / medium / high / xhigh / max |
 | --------------------------- | ------------- | --------------------- | --------- | -------------------------- | --------------------------------------------------- |
 | `claude-haiku-4-5-20251001` | 1 / 5         | —                     | —         | —                          | no ladder                                           |
 | `claude-sonnet-4-6`         | 3 / 15        | 29                    | n/a (AA: deprecated) | n/a              | 0.47 / 0.74 / 1 / 2.41 / 5.59                       |
+| `claude-sonnet-5-5`         | 2 / 10        | 56 (2026-10-05 scale) | —         | 420M (2026-10-05)          | not published                                       |
 | `claude-sonnet-5`           | 2 / 10        | 45                    | 3.31      | 320M                       | 0.47 / 0.74 / 1 / 2.41 / 5.59                       |
 | `claude-opus-4-8`           | 5 / 25        | 48                    | 2.60      | 130M                       | 0.72 / 0.90 / 1 / 1.65 / 1.88                       |
 | `claude-opus-5`             | 5 / 25        | 54                    | 4.21      | 120M                       | 0.67 / 0.76 / 1 / 1.60 / 1.70                       |
-| `claude-opus-5-5`           | 4 / 20 (cache read 0.20) | 58 (2026-09-23 scale) | —   | —                          | not published                                       |
+| `claude-opus-5-5`           | 4 / 20 (cache read 0.20) | 58 (2026-09-23 scale) | —   | 260M (2026-10-05)          | not published                                       |
 | `claude-fable-5`            | 10 / 50       | 53                    | —         | —                          | 0.60 / 0.77 / 1 / 1.74 / 1.91                       |
 | `claude-fable-5-1`          | 10 / 50 (cache read 0.25) | 57        | 6.12      | 160M                       | 0.60 / 0.77 / 1 / 1.74 / 1.91                       |
 
@@ -170,10 +186,10 @@ data says so.
 
 | Job                | Where                                                      | Default                        | Effort   | Justification                                                                                                                                                          | Previous            |
 | ------------------ | ---------------------------------------------------------- | ------------------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| Code review        | `DEFAULT_CODE_REVIEW_MODEL`, `src/schemas/phaxConfig.ts`   | `claude-opus-5-5`              | `high`   | 20% cheaper per token than Opus 5 (4/20 vs 5/25). On the 2026-09-23 index it beats Fable 5.1 from `medium` up (54 vs 51 at `high`); Opus 5 is no longer listed. Fewer tokens too: Anthropic's launch page reports a ~40% cost drop vs Opus 5 on typical workloads and Opus 5 quality in about half the output tokens. Fable 5.1 rejected: 2.5× per token for a lower score at `high`; a customer migration on the launch page cost 51% less on Opus 5.5. | `claude-opus-5`     |
-| Plan adjustment    | `DEFAULT_MODEL`, `src/cli/commands/adjustPlan.ts`          | `claude-opus-5-5`              | `high`   | Same reasoning as code review.                                                                                                                                         | `claude-opus-5`     |
-| Compliance review  | `DEFAULT_COMPLIANCE_REVIEW_MODEL`, `src/schemas/phaxConfig.ts` | `claude-sonnet-5`          | `medium` | A third cheaper per token than Sonnet 4.6, +16 points, identical effort-cost curve; AA lists Sonnet 4.6 deprecated. Effort stays `medium`: Sonnet 5 at `max` generates 2.7× Opus 5's tokens. Re-checked 2026-09-23, unchanged: no newer Sonnet, and Opus 5.5 is 2× per token. | `claude-sonnet-4-6` |
-| Plan extraction    | `DEFAULT_EXTRACT_MODEL`, `src/schemas/phaxConfig.ts`       | `claude-haiku-4-5-20251001`    | `low`    | Cheapest tier; no newer Haiku; next candidate (`claude-sonnet-5` low) is 2× per token for a structured-extraction job Haiku passes. Re-checked 2026-09-23, unchanged: still no newer Haiku. | unchanged           |
+| Code review        | `DEFAULT_CODE_REVIEW_MODEL`, `src/schemas/phaxConfig.ts`   | `claude-opus-5-5`              | `high`   | 20% cheaper per token than Opus 5 (4/20 vs 5/25). On the 2026-09-23 index it beats Fable 5.1 from `medium` up (54 vs 51 at `high`); Opus 5 is no longer listed. Fewer tokens too: Anthropic's launch page reports a ~40% cost drop vs Opus 5 on typical workloads and Opus 5 quality in about half the output tokens. Fable 5.1 rejected: 2.5× per token for a lower score at `high`; a customer migration on the launch page cost 51% less on Opus 5.5. Re-checked 2026-10-05, unchanged: Sonnet 5.5 beats Opus 5.5 `high` (54) only at `max` (56), where Sonnet 5's cost index was 5.59× `high`, and it spent 420M index tokens against Opus 5.5's 260M. | `claude-opus-5`     |
+| Plan adjustment    | `DEFAULT_MODEL`, `src/cli/commands/adjustPlan.ts`          | `claude-opus-5-5`              | `high`   | Same reasoning as code review. Re-checked 2026-10-05, unchanged: Sonnet 5.5 beats Opus 5.5 `high` (54) only at `max` (56), where Sonnet 5's cost index was 5.59× `high`, and it spent 420M index tokens against Opus 5.5's 260M.                                                                                 | `claude-opus-5`     |
+| Compliance review  | `DEFAULT_COMPLIANCE_REVIEW_MODEL`, `src/schemas/phaxConfig.ts` | `claude-sonnet-5-5`        | `medium` | Same $2/$10 per token as Sonnet 5, and 41 vs 28 at `medium` on the 2026-10-05 index. Accepted loss: about 13% more output tokens on the max-effort index run (420M vs 370M); no per-effort figure exists. Opus 5.5 is still 2× per token. | `claude-sonnet-5`   |
+| Plan extraction    | `DEFAULT_EXTRACT_MODEL`, `src/schemas/phaxConfig.ts`       | `claude-haiku-4-5-20251001`    | `low`    | Cheapest tier; no newer Haiku; next candidate (`claude-sonnet-5` low) is 2× per token for a structured-extraction job Haiku passes. Re-checked 2026-09-23, unchanged: still no newer Haiku. Re-checked 2026-10-05, unchanged: still no newer Haiku. | unchanged           |
 
 Explicit `review.code`, `review.compliance` and `agent.extractPlan` settings
 in `phax.json` always win over these defaults.
@@ -204,3 +220,4 @@ Run through this each time a provider ships or retires a model:
 | 2026-07-13 | GPT-5.6 Sol/Terra/Luna, Claude Fable 5, Claude Sonnet 5, `ultra` effort; anchors on AA Agentic Index                              | `0667c17`                                 |
 | 2026-09-07 | Claude Fable 5.1, Claude Opus 5, GPT-6 Astra (→ Fable 5.1, `downgrade`); `ultracode` on every xhigh-capable Claude entry; defaults re-pointed on cost (Opus 5, Sonnet 5) | `phax/catalog-fable-5-1-opus-5-gpt-6-astra` |
 | 2026-09-23 | Claude Opus 5.5; Claude families newest-first (aliases → current model); GPT-6 Sol → Opus 5.5 (downgrade), GPT-6 Luna → Sonnet 5; GPT-5.6 deprecated; Astra ↔ Fable 5.1 equivalent; review/adjust-plan defaults → Opus 5.5; planning skill recommends Opus 5.5 | `phax/catalog-opus-5-5-gpt-6-sol-and-luna` |
+| 2026-10-05 | Claude Sonnet 5.5 (`sonnet` alias → Sonnet 5.5; Sonnet 5 kept active); GPT-6 Sol re-anchored Opus 5.5 → Sonnet 5.5 (`equivalent` at medium, else `downgrade`), Opus 5.5 left with no codex route; compliance default → Sonnet 5.5; planning skill recommends Sonnet 5.5 for mechanical phases | `phax/catalog-sonnet-5-5` |
