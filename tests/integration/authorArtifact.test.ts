@@ -2,7 +2,11 @@
 /* eslint-disable unicorn/no-thenable */
 import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
-import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorArtifact.js";
+import {
+  authorArtifact,
+  recordPushWarning,
+  type AuthorArtifactInput,
+} from "../../src/app/authorArtifact.js";
 import { cacheEntryPath } from "../../src/app/planCacheStore.js";
 import { exitCodeForAuthoringError, exitCodeForError } from "../../src/cli/commands/runLayers.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
@@ -176,6 +180,7 @@ function input(overrides: Partial<AuthorArtifactInput> = {}): AuthorArtifactInpu
     extractPlanEffort: "medium",
     nowIso: NOW,
     records: RECORDS_OFF,
+    publishRemote: "origin",
     output: { warn: () => {} },
     ...overrides,
   };
@@ -239,6 +244,7 @@ describe("authorArtifact — spec", () => {
       authoringId: "2609230835-plan-prune",
       sessionFolder: SESSION_FOLDER,
       record: { kind: "records-off" },
+      recordPush: { kind: "no-record" },
     });
 
     const doc = decodeSpecDocument(SPEC_DOCUMENT);
@@ -631,6 +637,145 @@ describe("authorArtifact — authoring record", () => {
     }
     expect(git.calls.some((call) => call.method === "commitPaths")).toBe(true);
     expect(recordWrites(git)).toHaveLength(0);
+  });
+});
+
+function recordPushes(git: ReturnType<typeof makeFakeGit>["impl"]) {
+  return git.calls.flatMap((call) => (call.method === "pushBranch" ? [call] : []));
+}
+
+describe("authorArtifact — authoring record push", () => {
+  const PUBLISH_REMOTE = "upstream";
+  const CLONE_PATH = "/state/records/acme";
+  const AUTO_PUSH_IN_REPO: ResolvedRecordsConfig = { ...RECORDS_IN_REPO, autoPush: true };
+  const AUTO_PUSH_REPO: ResolvedRecordsConfig = {
+    ...AUTO_PUSH_IN_REPO,
+    destination: { kind: "repo", remote: "https://example.com/acme-records.git" },
+  };
+
+  it("an in-repo destination pushes the records branch to the publish remote at the repo root", async () => {
+    const { git, run } = setup(JSON.stringify(SPEC_DOCUMENT));
+
+    const result = await run(input({ records: AUTO_PUSH_IN_REPO, publishRemote: PUBLISH_REMOTE }));
+
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isLeft(result)) return;
+    expect(recordPushes(git)).toEqual([
+      { method: "pushBranch", branch: "phax/records/v1", remote: PUBLISH_REMOTE, repo: REPO_ROOT },
+    ]);
+    // The push shares the record, so it follows the record write.
+    const writeIndex = git.calls.findIndex((call) => call.method === "writeTreeCommit");
+    const pushIndex = git.calls.findIndex((call) => call.method === "pushBranch");
+    expect(pushIndex).toBeGreaterThan(writeIndex);
+    expect(result.right.recordPush).toEqual({
+      kind: "pushed",
+      remote: PUBLISH_REMOTE,
+      path: REPO_ROOT,
+    });
+    expect(recordPushWarning(result.right.recordPush)).toBeUndefined();
+  });
+
+  it("a dedicated repo destination pushes to origin at the records clone", async () => {
+    const { git, run } = setup(JSON.stringify(SPEC_DOCUMENT));
+
+    const result = await run(
+      input({
+        records: AUTO_PUSH_REPO,
+        recordsClonePath: CLONE_PATH,
+        publishRemote: PUBLISH_REMOTE,
+      }),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    expect(recordPushes(git)).toEqual([
+      { method: "pushBranch", branch: "phax/records/v1", remote: "origin", repo: CLONE_PATH },
+    ]);
+  });
+
+  it("autoPush false pushes nothing", async () => {
+    const { git, run } = setup(JSON.stringify(SPEC_DOCUMENT));
+
+    const result = await run(input({ records: RECORDS_IN_REPO, publishRemote: PUBLISH_REMOTE }));
+
+    expect(Either.isRight(result) && result.right.recordPush).toEqual({ kind: "not-configured" });
+    expect(recordPushes(git)).toHaveLength(0);
+  });
+
+  it("records off pushes nothing — there is no record to share", async () => {
+    const { git, run } = setup(JSON.stringify(SPEC_DOCUMENT));
+
+    const result = await run(
+      input({ records: { ...RECORDS_OFF, autoPush: true }, publishRemote: PUBLISH_REMOTE }),
+    );
+
+    expect(Either.isRight(result) && result.right.recordPush).toEqual({ kind: "no-record" });
+    expect(recordPushes(git)).toHaveLength(0);
+  });
+
+  it("a failed session whose record is written still pushes it", async () => {
+    const { git, run } = setup("Here is your spec: it is great.");
+
+    const result = await run(input({ records: AUTO_PUSH_IN_REPO, publishRemote: PUBLISH_REMOTE }));
+
+    expect(Either.isLeft(result) && result.left instanceof AuthoringDocumentError).toBe(true);
+    expect(recordWrites(git)).toHaveLength(1);
+    expect(recordPushes(git)).toEqual([
+      { method: "pushBranch", branch: "phax/records/v1", remote: PUBLISH_REMOTE, repo: REPO_ROOT },
+    ]);
+  });
+
+  it("a failed push never fails a committed session; it surfaces as a warning", async () => {
+    const { git, run } = setup(JSON.stringify(SPEC_DOCUMENT));
+    git.failNextPushBranch("remote rejected");
+
+    const result = await run(input({ records: AUTO_PUSH_IN_REPO, publishRemote: PUBLISH_REMOTE }));
+
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isLeft(result)) return;
+    expect(result.right.commit.subject).toBe("docs(specs): draft plan-prune");
+    expect(result.right.recordPush).toEqual({
+      kind: "failed",
+      remote: PUBLISH_REMOTE,
+      path: REPO_ROOT,
+      message: "remote rejected",
+    });
+    expect(recordPushWarning(result.right.recordPush)).toBe(
+      `authoring record not pushed to ${PUBLISH_REMOTE} (remote rejected) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${REPO_ROOT} push ${PUBLISH_REMOTE} phax/records/v1\``,
+    );
+  });
+
+  it("a failed session's push warning goes to the output port, after its record warning", async () => {
+    const { git, run } = setup("not json");
+    git.failNextPushBranch("network unreachable");
+    const warnings: string[] = [];
+
+    const result = await run(
+      input({
+        records: AUTO_PUSH_IN_REPO,
+        publishRemote: PUBLISH_REMOTE,
+        output: { warn: (message) => warnings.push(message) },
+      }),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    expect(warnings).toEqual([
+      `authoring record not pushed to ${PUBLISH_REMOTE} (network unreachable) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${REPO_ROOT} push ${PUBLISH_REMOTE} phax/records/v1\``,
+    ]);
+  });
+
+  it("recordPushWarning names the remote, the pending state and the git push", () => {
+    const warning = recordPushWarning({
+      kind: "failed",
+      remote: "origin",
+      path: CLONE_PATH,
+      message: "denied",
+    });
+    expect(warning).toContain("not pushed to origin (denied)");
+    expect(warning).toContain("stays pending");
+    expect(warning).toContain("`phax records status`");
+    expect(warning).toContain(`\`git -C ${CLONE_PATH} push origin phax/records/v1\``);
+    expect(recordPushWarning({ kind: "no-record" })).toBeUndefined();
+    expect(recordPushWarning({ kind: "not-configured" })).toBeUndefined();
   });
 });
 

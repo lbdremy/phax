@@ -50,7 +50,9 @@ import {
   type ArtifactTarget,
 } from "./createArtifact.js";
 import { planMdSha256, writeCacheEntry } from "./planCacheStore.js";
+import { pushRecordsBranch, type RecordsPushResult } from "./recordsSync.js";
 import { writeAuthoringRecord, type WriteAuthoringRecordResult } from "./writeAuthoringRecord.js";
+import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
 
 /** Files of an authoring session folder, `<stateRoot>/authoring/<authoringId>/`. */
 export const AUTHORING_BRIEF_FILENAME = "brief.md";
@@ -82,9 +84,11 @@ export interface AuthorArtifactInput {
   readonly records: ResolvedRecordsConfig;
   /** The local records clone, required for a dedicated `repo` records destination. */
   readonly recordsClonePath?: string | undefined;
+  /** `publish.remote` from `phax.json`: the push target for an in-repo records destination. */
+  readonly publishRemote: string;
   /**
-   * Where a failed session's record warning goes. A committed session's record
-   * is returned in the result for the caller to render instead.
+   * Where a failed session's record and push warnings go. A committed session's
+   * record and push are returned in the result for the caller to render instead.
    */
   readonly output: Pick<OutputPort, "warn">;
 }
@@ -98,6 +102,12 @@ export type AuthoringRecordStatus =
   | WriteAuthoringRecordResult
   | { readonly kind: "write-failed"; readonly message: string };
 
+/**
+ * What became of pushing the session's record. `no-record`: the record was not
+ * written, so there is nothing to push. A push never fails the authoring.
+ */
+export type AuthoringRecordPush = RecordsPushResult | { readonly kind: "no-record" };
+
 export interface AuthorArtifactResult {
   /** Repo-relative path of the rendered artifact. */
   readonly path: string;
@@ -110,6 +120,8 @@ export interface AuthorArtifactResult {
   readonly sessionFolder: string;
   /** The authoring record, written after the artifact commit. */
   readonly record: AuthoringRecordStatus;
+  /** The push of `phax/records/v1` after the record was written. */
+  readonly recordPush: AuthoringRecordPush;
 }
 
 export type AuthorArtifactError =
@@ -231,7 +243,7 @@ function runAuthoringSession(
     readonly observed: { sessionId?: string };
   },
 ): Effect.Effect<
-  Omit<AuthorArtifactResult, "record">,
+  Omit<AuthorArtifactResult, "record" | "recordPush">,
   AuthorArtifactError,
   FileSystem | Git | Backend
 > {
@@ -325,7 +337,8 @@ function runAuthoringSession(
  * schema-valid document as its final message, render the artifact with the
  * interactive frontmatter, write the JSON sidecar beside it, seed the extraction
  * cache for a plan, and commit exactly the two paths. Every session that ran —
- * committed or failed — then writes one authoring record on `phax/records/v1`.
+ * committed or failed — then writes one authoring record on `phax/records/v1`,
+ * pushed when `records.autoPush` is on.
  *
  * Every refusal (the interactive path's, plus an existing sidecar) precedes the
  * session and records nothing; a document failure writes nothing to the
@@ -382,12 +395,24 @@ export function authorArtifact(
       sessionId: observed.sessionId,
       sourceSha: Either.isRight(outcome) ? outcome.right.commit.hash : undefined,
     });
+    // A written record is shared like publish shares phase records.
+    const recordPush: AuthoringRecordPush =
+      record.kind === "written"
+        ? yield* pushRecordsBranch({
+            records: input.records,
+            repoRoot: input.repoRoot,
+            publishRemote: input.publishRemote,
+            recordsClonePath: input.recordsClonePath,
+          })
+        : { kind: "no-record" };
     if (Either.isLeft(outcome)) {
       const warning = recordWarning(record);
       if (warning !== undefined) input.output.warn(warning);
+      const pushWarning = recordPushWarning(recordPush);
+      if (pushWarning !== undefined) input.output.warn(pushWarning);
       return yield* Effect.fail(outcome.left);
     }
-    return { ...outcome.right, record };
+    return { ...outcome.right, record, recordPush };
   });
 }
 
@@ -446,4 +471,14 @@ export function recordWarning(record: AuthoringRecordStatus): string | undefined
     case "write-failed":
       return `failed to write the authoring record (${record.message})`;
   }
+}
+
+/**
+ * The warning a record push deserves, or undefined unless it failed. A failed
+ * push leaves the record pending and names the git push that would share it
+ * (there is no `phax records push`).
+ */
+export function recordPushWarning(push: AuthoringRecordPush): string | undefined {
+  if (push.kind !== "failed") return undefined;
+  return `authoring record not pushed to ${push.remote} (${push.message}) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${push.path} push ${push.remote} ${RECORDS_BRANCH_NAME}\``;
 }

@@ -27,6 +27,7 @@ import { DEFAULT_MODEL_ROUTING } from "../../../src/domain/routing/defaults.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 import type {
   AuthorArtifactResult,
+  AuthoringRecordPush,
   AuthoringRecordStatus,
 } from "../../../src/app/authorArtifact.js";
 
@@ -533,7 +534,10 @@ const WRITTEN_RECORD: AuthoringRecordStatus = {
   fileCount: 5,
 };
 
-function authoredResult(record: AuthoringRecordStatus): AuthorArtifactResult {
+function authoredResult(
+  record: AuthoringRecordStatus,
+  recordPush: AuthoringRecordPush = { kind: "not-configured" },
+): AuthorArtifactResult {
   return {
     path: "docs/specs/2609230835-plan-prune.md",
     sidecarPath: "docs/specs/2609230835-plan-prune.json",
@@ -541,6 +545,7 @@ function authoredResult(record: AuthoringRecordStatus): AuthorArtifactResult {
     authoringId: "2609230835-plan-prune",
     sessionFolder: "/fake-state/authoring/2609230835-plan-prune",
     record,
+    recordPush,
   };
 }
 
@@ -694,6 +699,40 @@ describe("runCreateArtifactHeadless", () => {
     expect(lines.at(-1)).toBe(
       "WARN: authoring record refused: the source repo is public (remedy: turn transcripts off)",
     );
+  });
+
+  it("passes the publish remote and warns after the record line when the push fails, still exiting 0", async () => {
+    await mockHappyPathConfig();
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+    authorArtifact.mockReturnValue(
+      Effect.succeed(
+        authoredResult(WRITTEN_RECORD, {
+          kind: "failed",
+          remote: "origin",
+          path: "/fake-repo",
+          message: "remote rejected",
+        }),
+      ),
+    );
+
+    const { out, lines } = makeOutput();
+    const code = await runCreateArtifactHeadless(
+      "spec",
+      "plan-prune",
+      undefined,
+      { headless: true, brief: "-" },
+      out,
+      { readStdin: async () => "brief" },
+    );
+
+    expect(code).toBe(0);
+    expect(authorArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({ publishRemote: "origin" }),
+    );
+    expect(lines.slice(-2)).toEqual([
+      "record authoring/2609230835-plan-prune",
+      "WARN: authoring record not pushed to origin (remote rejected) — it stays pending (`phax records status` lists it); share it with `git -C /fake-repo push origin phax/records/v1`",
+    ]);
   });
 
   it("failure: AuthoringDocumentError prints the message and exits 5", async () => {
