@@ -30,6 +30,8 @@ The provider config (`~/.phax/providers.json`) holds the catalog. Every entry is
       "families": {
         "claude-sonnet": {
           "models": [
+            { "id": "claude-sonnet-5-5", "efforts": ["low", "medium", "high", "xhigh", "max", "ultracode"], "status": "active" },
+            { "id": "claude-sonnet-5", "efforts": ["low", "medium", "high", "xhigh", "max", "ultracode"], "status": "active" },
             { "id": "claude-sonnet-4-6", "efforts": ["low", "medium", "high", "max"], "status": "active" }
           ]
         },

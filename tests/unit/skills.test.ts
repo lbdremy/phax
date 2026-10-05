@@ -37,6 +37,7 @@ describe("phax-planning skill", () => {
 
   it("lists all valid model IDs", () => {
     expect(content).toContain("claude-sonnet-4-6");
+    expect(content).toContain("claude-sonnet-5-5");
     expect(content).toContain("claude-opus-4-8");
     expect(content).toContain("claude-haiku-4-5-20251001");
     expect(content).toContain("claude-fable-5-1");

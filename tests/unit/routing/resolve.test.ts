@@ -224,7 +224,7 @@ describe("resolveModel — alias resolution picks the newest-first entry", () =>
     expect(result.relationship).toBe("equivalent");
   });
 
-  it("sonnet/medium resolves to claude-sonnet-5 via requestedModelNormalization", () => {
+  it("sonnet/medium resolves to claude-sonnet-5-5 via requestedModelNormalization", () => {
     const result = resolveModel(
       { model: "sonnet", effort: "medium" },
       claudeOnly,
@@ -232,9 +232,34 @@ describe("resolveModel — alias resolution picks the newest-first entry", () =>
     );
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-sonnet");
-    expect(result.selected.concreteModel).toBe("claude-sonnet-5");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5-5");
     expect(result.selected.thinking).toBe("medium");
     expect(result.relationship).toBe("equivalent");
+  });
+
+  it("claude-sonnet-5-5/medium resolves exactly to claude-code claude-sonnet-5-5", () => {
+    const result = resolveModel(
+      { model: "claude-sonnet-5-5", effort: "medium" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5-5");
+    expect(result.selected.thinking).toBe("medium");
+    expect(result.relationship).toBe("exact");
+  });
+
+  it("claude-sonnet-5/medium keeps its own exact resolution after Sonnet 5.5 is added", () => {
+    const result = resolveModel(
+      { model: "claude-sonnet-5", effort: "medium" },
+      claudeOnly,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5");
+    expect(result.selected.thinking).toBe("medium");
+    expect(result.relationship).toBe("exact");
   });
 
   it("fable/high resolves to claude-fable-5-1 via requestedModelNormalization", () => {
@@ -454,7 +479,7 @@ describe("resolveModel — terminal claude-code fallback", () => {
     expect(result.requested.family).toBe("claude-sonnet");
     expect(result.selected.provider).toBe("claude-code");
     expect(result.selected.family).toBe("claude-sonnet");
-    expect(result.selected.concreteModel).toBe("claude-sonnet-5");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5-5");
   });
 
   it("preserves selected family when heuristic matches (e.g., unknown opus id)", () => {

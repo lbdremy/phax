@@ -34,7 +34,8 @@ Efforts are per entry, never per family. Status `active` unless stated.
 | Id                          | Family          | Efforts                                          | Read from                                                                                              | Since                    |
 | --------------------------- | --------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------ |
 | `claude-haiku-4-5-20251001` | `claude-haiku`  | `none`                                           | No effort ladder in Claude Code; still the newest Haiku (`latest_per_family.haiku`)                    | initial catalog          |
-| `claude-sonnet-5`           | `claude-sonnet` | `low medium high xhigh max ultracode`            | `xhigh_effort`; `ultracode` added when Claude Code 2.1.263 was confirmed to gate it on xhigh only     | `0667c17`; ultracode 2026-09-07 refresh |
+| `claude-sonnet-5-5`         | `claude-sonnet` | `low medium high xhigh max ultracode`            | Claude Code 2.1.289 table, `xhigh_effort` + `max_effort`, `pricing: tier_2_10`, `default_effort: medium`, `fallback_3p: claude-sonnet-5`, 1M context, 128k max output; released 2026-09-28; no dated variant | 2026-10-05 refresh |
+| `claude-sonnet-5`           | `claude-sonnet` | `low medium high xhigh max ultracode`            | `xhigh_effort`; `ultracode` added when Claude Code 2.1.263 was confirmed to gate it on xhigh only. Kept `active` on purpose: Claude Code 2.1.289 still serves it, Anthropic lists it as Legacy (still available) with no deprecation date, AA now lists it deprecated, and it anchors GPT-6 Luna. | `0667c17`; ultracode 2026-09-07 refresh; kept active 2026-10-05 |
 | `claude-sonnet-4-6`         | `claude-sonnet` | `low medium high max`                            | No `xhigh_effort` capability, hence no `ultracode`                                                     | initial catalog          |
 | `claude-opus-5-5`           | `claude-opus`   | `low medium high xhigh max ultracode`            | Claude Code 2.1.280 table, `xhigh_effort`, knowledge cutoff June 2026, `latest_per_family.opus`         | 2026-09-23 refresh |
 | `claude-opus-5`             | `claude-opus`   | `low medium high xhigh max ultracode`            | Claude Code 2.1.263 table, `xhigh_effort`, knowledge cutoff May 2026; kept active — still served by Claude Code 2.1.280, no longer on the AA index | 2026-09-07 refresh                 |
@@ -45,7 +46,7 @@ Efforts are per entry, never per family. Status `active` unless stated.
 Order inside a family is newest first: `pickActiveEntry` resolves an alias
 (`opus`, `sonnet`, `fable`, `gpt`, …) or any id it doesn't recognize to the
 first active entry, so the first entry is the family's current model. `opus`
-now resolves to `claude-opus-5-5`, `sonnet` to `claude-sonnet-5` and `fable`
+now resolves to `claude-opus-5-5`, `sonnet` to `claude-sonnet-5-5` and `fable`
 to `claude-fable-5-1`. Adding a version means prepending it, never appending.
 
 ### codex-cli
