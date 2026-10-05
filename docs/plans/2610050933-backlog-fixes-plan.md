@@ -268,18 +268,18 @@ The argument is now parsed with parseRunRef, the namespace defaulting to the con
 **Recommended model:** claude-opus-5-5
 **Recommended effort:** medium
 
-When the commit of an artifact's write-set fails, the refusal tells the operator what probably happened and what to do. This applies to the headless authoring commit and to every transition (approve, complete, abandon, …). It names the paths, suspects a commit hook (often a formatter), and prints the exact commit to run with phax's intended subject. When a sidecar is involved, it adds that reformatting the sidecar is safe.
+When the commit of an artifact's write-set fails, the refusal tells the operator what probably happened and what to do. This applies to the headless authoring commit and to every transition (approve, complete, abandon, …). It names the paths, suspects a commit hook (often a formatter), and prints the exact commit to run with phax's intended message, trailers included. When a sidecar is involved, it adds that reformatting the sidecar is safe.
 
 ### Detailed instructions
 
-- Write the regressions first. In a new `tests/unit/artifact/commitFailedError.test.ts`, assert that `new ArtifactCommitFailedError({ paths, cause, subject }).message` names every path, the cause, a commit hook and a formatter, the subject, and a pasteable commit of exactly those paths. Today's message only says "commit them manually", so this fails until the change.
-- In `tests/integration/authorArtifact.test.ts`, extend the existing failed-commit test: the error's `subject` is `docs(specs): draft <slug>`, and the message carries the sidecar sentence.
-- In `tests/integration/artifactStatus.test.ts`, extend the failed transition-commit test: the message carries that transition's subject (from `transitionCommitMessage`), and carries no sidecar sentence for a hand-authored artifact.
-- In `src/domain/errors.ts`, give `ArtifactCommitFailedError` a required `subject: string` field. Rewrite `message` to say, in this order: `Wrote <paths> but the commit failed: <cause>.`; that a commit hook (often a formatter) may have rejected them; then the remedy: run the repository's formatter on those paths, then commit exactly them with phax's subject. Print the remedy as a pasteable command, `git commit -m "<subject>" -- <path> <path>…`, quoting the subject so it pastes into a POSIX shell (escape any `"`).
+- Write the regressions first. In a new `tests/unit/artifact/commitFailedError.test.ts`, assert that `new ArtifactCommitFailedError({ paths, cause, commitMessage }).message` names every path, the cause, a commit hook and a formatter, and a pasteable commit of exactly those paths that carries the subject and the body with its trailers (an `Authoring-Id:` line survives the quoting). Today's message only says "commit them manually", so this fails until the change.
+- In `tests/integration/authorArtifact.test.ts`, extend the existing failed-commit test: the error's `commitMessage` is `authoringCommitMessage`'s (subject `docs(specs): draft <slug>`, body ending in the `Authoring-Id` trailer), and the message carries the sidecar sentence and that trailer.
+- In `tests/integration/artifactStatus.test.ts`, extend the failed transition-commit test: the message carries that transition's subject and body (from `transitionCommitMessage`), and carries no sidecar sentence for a hand-authored artifact.
+- In `src/domain/errors.ts`, give `ArtifactCommitFailedError` a required `commitMessage: { subject: string; body: string }` field: the full message phax tried to commit, trailers included (`Authoring-Id` for a headless-authored artifact, which `phax records explain` resolves). Rewrite `message` to say, in this order: `Wrote <paths> but the commit failed: <cause>.`; that a commit hook (often a formatter) may have rejected them; then the remedy: run the repository's formatter on those paths, then commit exactly them with phax's full message. Print the remedy as a pasteable command, `git commit -m '<subject>' -m '<body>' -- <path> <path>…`, each part POSIX single-quoted (a `'` inside becomes `'\''`), so a multi-line body pastes intact with its trailers.
 - When a JSON sidecar is among the paths, append one sentence to the message to this effect: formatting the JSON sidecar is safe, because phax compares its parsed document with the Markdown, not its bytes. A path counts as a sidecar when it equals `sidecarPathFor(p)` for another listed `.md` path `p` (`src/domain/artifact/sidecar.ts`). If importing that module from `errors.ts` creates a cycle, apply the same `.md` → `.json` rule inline.
 - Before writing the sidecar sentence, verify that it is true. `sidecarAgreement` in `src/domain/artifact/sidecar.ts` runs `JSON.parse`, decodes, renders, and compares with the normalised Markdown body, so the sidecar's bytes never matter. It is true; keep it only if it still is. Do not claim the Markdown may be reformatted freely: a formatter that rewrites the body can make it diverge from its sidecar.
 - Word the message so that it holds for every caller. It must not mention authoring or a session; only the sidecar sentence is conditional.
-- Update the only two constructors. In `src/app/authorArtifact.ts`, pass the `subject` from `authoringCommitMessage`. In `src/app/artifactStatus.ts` `finalizeTransition`, pass the `subject` from `transitionCommitMessage`. `src/app/completeRunArtifacts.ts` and `src/app/planStaleness.ts` only name the type and need no change.
+- Update the only two constructors. In `src/app/authorArtifact.ts`, pass the `{ subject, body }` from `authoringCommitMessage`. In `src/app/artifactStatus.ts` `finalizeTransition`, pass the `{ subject, body }` from `transitionCommitMessage`. `src/app/completeRunArtifacts.ts` and `src/app/planStaleness.ts` only name the type and need no change.
 - Update the test constructors that `pnpm test:type` would otherwise reject: `tests/unit/cli/artifact.test.ts` and the constructor near the end of `tests/integration/authorArtifact.test.ts`. Existing assertions on "commit failed" keep passing.
 - Leave exit codes alone. `exitCodeForAuthoringError` still maps this error to 12, and a transition keeps `exitCodeForError`'s code. Do not edit `src/cli/commands/runLayers.ts`.
 - No doc quotes the old message: `grep` finds "commit them manually" only in `src/domain/errors.ts`. So no docs change; re-check this before finishing.
@@ -303,25 +303,24 @@ When the commit of an artifact's write-set fails, the refusal tells the operator
 
 ### Boundary contracts
 
-Producer: `ArtifactCommitFailedError` (`src/domain/errors.ts`), now `{ paths, cause, subject }`. Its `message` is the whole user-facing refusal. Constructors: `runAuthoringSession` (`src/app/authorArtifact.ts`) and `finalizeTransition` (`src/app/artifactStatus.ts`), each passing the subject it tried to commit with. Consumers: the CLI renders `err.message` unchanged and maps exit codes unchanged.
+Producer: `ArtifactCommitFailedError` (`src/domain/errors.ts`), now `{ paths, cause, commitMessage }`. Its `message` is the whole user-facing refusal. Constructors: `runAuthoringSession` (`src/app/authorArtifact.ts`) and `finalizeTransition` (`src/app/artifactStatus.ts`), each passing the full message (subject and body) it tried to commit with. Consumers: the CLI renders `err.message` unchanged and maps exit codes unchanged.
 
 ### Test strategy
 
-Test-first. `tests/unit/artifact/commitFailedError.test.ts` (domain message: one case with a spec and its sidecar, one with a single hand-authored plan and the plan approvals ledger) is written before the change and fails today. Integration: the existing failed-commit tests in `tests/integration/authorArtifact.test.ts` and `tests/integration/artifactStatus.test.ts` are extended to assert the subject and the conditional sidecar sentence. `pnpm test:type` keeps every test constructor in step with the new required field.
+Test-first. `tests/unit/artifact/commitFailedError.test.ts` (domain message: one case with a spec and its sidecar, one with a single hand-authored plan and the plan approvals ledger) is written before the change and fails today. Integration: the existing failed-commit tests in `tests/integration/authorArtifact.test.ts` and `tests/integration/artifactStatus.test.ts` are extended to assert the subject, the body (with the `Authoring-Id` trailer for authoring) and the conditional sidecar sentence. `pnpm test:type` keeps every test constructor in step with the new required field.
 
 ### Implementation order
 
 1. Unit test for the message (red).
 2. Extend the two integration failed-commit tests.
-3. Add the subject field and the new message in src/domain/errors.ts.
-4. Pass the subject from authorArtifact.ts and artifactStatus.ts; update the test constructors.
+3. Add the commitMessage field and the new message in src/domain/errors.ts.
+4. Pass the commit message from authorArtifact.ts and artifactStatus.ts; update the test constructors.
 5. Run the standard gate.
 
 ### Excluded scope
 
 - Running a repository's formatter from phax, or writing the sidecar in any repository's format.
 - Changing exit codes or `runLayers.ts`.
-- Including the commit body or trailers in the printed remedy.
 
 ### Verification
 
@@ -339,7 +338,7 @@ The new field on `ArtifactCommitFailedError` and the exact message text for both
 
 When a repo's pre-commit hook rejected the files phax had written (a formatter's `--check` on the JSON sidecar, in one case), ArtifactCommitFailedError only said "commit them manually". The plan and sidecar stayed staged and uncommitted, with no hint why.
 
-The error now carries the commit subject phax would have used. Its message names the paths, says that a commit hook (often a formatter) may have rejected them, and gives the remedy: run the repository's formatter on those paths, then commit exactly them with the printed subject. When a JSON sidecar is among the paths, it adds that formatting the sidecar is safe, because agreement compares the parsed document, not its bytes. The wording holds for headless authoring and for every artifact transition. Exit codes are unchanged.
+The error now carries the full commit message phax would have used, trailers included. Its message names the paths, says that a commit hook (often a formatter) may have rejected them, and gives the remedy: run the repository's formatter on those paths, then commit exactly them with the printed message, so an authoring commit keeps the Authoring-Id trailer that records explain resolves. When a JSON sidecar is among the paths, it adds that formatting the sidecar is safe, because agreement compares the parsed document, not its bytes. The wording holds for headless authoring and for every artifact transition. Exit codes are unchanged.
 
 ---
 
