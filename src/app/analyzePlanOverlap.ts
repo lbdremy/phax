@@ -16,6 +16,7 @@ import type {
   ReadjustmentImpactResult,
 } from "../domain/planOverlap/types.js";
 import { loadOrExtractPlan } from "./loadOrExtractPlan.js";
+import { resolveLandedRun } from "./resolveLandedRun.js";
 import { decodeGlobalFileReconciliation } from "../schemas/globalReconciliation.js";
 
 export class AnalyzePlanOverlapError extends Data.TaggedError("AnalyzePlanOverlapError")<{
@@ -203,4 +204,28 @@ export function analyzeReadjustmentImpact(
     const otherFootprints = inputs.map(buildFootprint);
     return computeReadjustmentImpact(landedFootprint, otherFootprints);
   });
+}
+
+/**
+ * `plans overlap --landed <run>`: resolves the raw `<short>` or `<namespace>.<short>`
+ * argument to a live or archived run folder, then reports its impact on the plans.
+ * The result is labelled with the run key: an archived run folder is named `runs`.
+ */
+export function analyzeLandedRunImpact(
+  landed: { readonly ref: string; readonly namespace: string },
+  planMdPaths: readonly string[],
+  opts: AnalyzePlanOverlapOptions,
+): Effect.Effect<ReadjustmentImpactResult, AnalyzePlanOverlapError, Backend | FileSystem> {
+  return resolveLandedRun({
+    landed: landed.ref,
+    namespace: landed.namespace,
+    stateRoot: opts.stateRoot,
+  }).pipe(
+    Effect.mapError((e) => new AnalyzePlanOverlapError({ message: e.message })),
+    Effect.flatMap(({ key, runPath }) =>
+      analyzeReadjustmentImpact(runPath, planMdPaths, opts).pipe(
+        Effect.map((impact) => ({ ...impact, landedLabel: key })),
+      ),
+    ),
+  );
 }

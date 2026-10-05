@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
-import { analyzePlanOverlap, analyzeReadjustmentImpact } from "../../app/analyzePlanOverlap.js";
+import { analyzeLandedRunImpact, analyzePlanOverlap } from "../../app/analyzePlanOverlap.js";
 import { renderPlanOverlap, renderReadjustmentImpact } from "../../domain/planOverlap/render.js";
 import type {
   PlanOverlapResult,
@@ -12,8 +12,6 @@ import type {
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
-import { decodeShortName } from "../../domain/branded.js";
-import { resolveRun } from "../../app/resolveRunInfo.js";
 import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 
@@ -87,23 +85,12 @@ export async function runPlansOverlap(
   const loaderOpts = { model, effort, stateRoot, noExtract, nowIso };
 
   if (opts.landed !== undefined) {
-    const shortNameResult = decodeShortName(opts.landed);
-    if (Either.isLeft(shortNameResult)) {
-      out.error(`Invalid run name "${opts.landed}": must match ^[a-z][a-z0-9-]*$ (1–64 chars)`);
-      return 1;
-    }
-    const infoResult = resolveRun(config.namespace, shortNameResult.right, stateRoot);
-    if (Either.isLeft(infoResult)) {
-      out.error(`Could not resolve run "${opts.landed}": ${infoResult.left}`);
-      return 1;
-    }
-    const { runPath } = infoResult.right;
-
     const impactResult = await Effect.runPromise(
-      analyzeReadjustmentImpact(runPath, resolvedPlanMdPaths, loaderOpts).pipe(
-        Effect.either,
-        Effect.provide(nodeLayer(config)),
-      ),
+      analyzeLandedRunImpact(
+        { ref: opts.landed, namespace: config.namespace },
+        resolvedPlanMdPaths,
+        loaderOpts,
+      ).pipe(Effect.either, Effect.provide(nodeLayer(config))),
     );
 
     if (Either.isLeft(impactResult)) {
