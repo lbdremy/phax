@@ -165,13 +165,16 @@ export function putPlanApprovalRecord(
   FileSystem
 > {
   return putRecordFile("plan", planPath, readPlanRecordFile, () =>
-    JSON.stringify(
-      encodePlanRecordFile(
-        withSchemaUrl("plan-approval-record", { artifact: planPath, ...record }),
-      ),
-      null,
-      2,
-    ),
+    renderPlanRecordFile({ artifact: planPath, ...record }),
+  );
+}
+
+/** The bytes of a plan record file: `$schema`, `artifact`, then the record fields. */
+export function renderPlanRecordFile(record: PlanRecord): string {
+  return JSON.stringify(
+    encodePlanRecordFile(withSchemaUrl("plan-approval-record", record)),
+    null,
+    2,
   );
 }
 
@@ -204,13 +207,16 @@ export function putSpecApprovalRecord(
   FileSystem
 > {
   return putRecordFile("spec", specPath, readSpecRecordFile, () =>
-    JSON.stringify(
-      encodeSpecRecordFile(
-        withSchemaUrl("spec-approval-record", { artifact: specPath, ...record }),
-      ),
-      null,
-      2,
-    ),
+    renderSpecRecordFile({ artifact: specPath, ...record }),
+  );
+}
+
+/** The bytes of a spec record file: `$schema`, `artifact`, then the record fields. */
+export function renderSpecRecordFile(record: SpecRecord): string {
+  return JSON.stringify(
+    encodeSpecRecordFile(withSchemaUrl("spec-approval-record", record)),
+    null,
+    2,
   );
 }
 

@@ -66,6 +66,23 @@ export interface OrphanApprovalRecord {
   readonly artifact: string;
 }
 
+/** One old ledger split by `phax artifact migrate-approvals`, with its record files, sorted. */
+export interface MigratedApprovalLedger {
+  readonly ledgerPath: string;
+  readonly recordFiles: readonly string[];
+}
+
+/** The outcome of `phax artifact migrate-approvals`. */
+export type ApprovalMigrationResult =
+  | { readonly kind: "nothing-to-migrate" }
+  | {
+      readonly kind: "migrated";
+      readonly ledgers: readonly MigratedApprovalLedger[];
+      /** Migrated entries whose artifact does not exist, sorted by record file. */
+      readonly orphans: readonly OrphanApprovalRecord[];
+      readonly commit: { readonly hash: string; readonly subject: string };
+    };
+
 /** Any path under an approvals/ directory belongs to the record files, never to an artifact. */
 export function isApprovalRecordPath(path: string): boolean {
   return path.startsWith(PLAN_APPROVAL_RECORD_DIR) || path.startsWith(SPEC_APPROVAL_RECORD_DIR);

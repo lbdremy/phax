@@ -23,7 +23,8 @@ import { recordsClonePath } from "../../app/recordsSync.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
-import { renderOrphanRecordWarning } from "../../domain/artifact/render.js";
+import { migrateApprovals } from "../../app/migrateApprovals.js";
+import { renderMigrationReport, renderOrphanRecordWarning } from "../../domain/artifact/render.js";
 import type { ArtifactKind, ArtifactStatus } from "../../domain/artifact/status.js";
 import { getPlanDocumentJsonSchema } from "../../schemas/planDocument.js";
 import { getSpecDocumentJsonSchema } from "../../schemas/specDocument.js";
@@ -135,6 +136,22 @@ export async function runArtifactTransition(
   }
   if (madeCommit !== undefined) {
     out.log(`Commit: ${madeCommit.hash.slice(0, 7)} — ${madeCommit.subject}`);
+  }
+  return 0;
+}
+
+export async function runArtifactMigrateApprovals(out: OutputPort): Promise<number> {
+  const repoRoot = findGitRoot(process.cwd());
+  const effect = migrateApprovals({ repoRoot }).pipe(Effect.provide(buildLayer(repoRoot)));
+  const result = await Effect.runPromise(Effect.either(effect));
+  if (Either.isLeft(result)) {
+    out.error(result.left.message);
+    return exitCodeForError(result.left);
+  }
+
+  for (const line of renderMigrationReport(result.right)) out.log(line);
+  if (result.right.kind === "migrated") {
+    for (const orphan of result.right.orphans) out.warn(renderOrphanRecordWarning(orphan));
   }
   return 0;
 }
@@ -458,6 +475,14 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
     )
     .action((kind: ArtifactKind) => {
       const exitCode = runArtifactSchema(kind, out);
+      process.exit(exitCode);
+    });
+
+  artifactCmd
+    .command("migrate-approvals")
+    .description("Split the old approval ledgers into one record file per artifact (one-time)")
+    .action(async () => {
+      const exitCode = await runArtifactMigrateApprovals(out);
       process.exit(exitCode);
     });
 
