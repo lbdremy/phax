@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "$schema": "https://docs.phax.run/schemas/spec-approvals/0.18.0.json",
   "records": {
     "docs/specs/2608091526-batch-execution-disjoint-plans.md": {
       "specFingerprint": "b19da59fbf82a781a6e034aef4fbe27507a63137cbc7c165d8ad8031cfd99c81",
@@ -25,6 +25,11 @@
       "specFingerprint": "e706e68d969febb8b9bf4199bf0abdcc95b5114430d5a3ae34a84becb36fa41a",
       "approvedAt": "2026-09-28T16:08:36.591Z",
       "baseline": "ddc1a9a73b20c3a5bafce185f03a014d78a833cc"
+    },
+    "docs/specs/2610051433-approval-record-files.md": {
+      "specFingerprint": "004c2997348800c7779644ddaea99900b631457f027d2e77d621e8692a631d5b",
+      "approvedAt": "2026-10-05T14:45:32.098Z",
+      "baseline": "90d76438547c8707ffe88b983294c1b969f7bb15"
     }
   }
 }
