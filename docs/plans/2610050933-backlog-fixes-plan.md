@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-10-05
+  baseline: 99a42cd
 ---
 # Backlog fixes — authoring, records, overlap, newer documents
 
