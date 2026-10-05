@@ -24,6 +24,7 @@ import {
   APPROVALS_FILE_PATH,
   SPEC_APPROVALS_FILE_PATH,
 } from "../../src/domain/artifact/lineage.js";
+import { archivePathFor } from "../../src/domain/artifact/document.js";
 import { decodeApprovalRecordFile } from "../../src/schemas/approvalRecord.js";
 import { decodeSpecApprovalRecordFile } from "../../src/schemas/specApprovalRecord.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
@@ -901,6 +902,32 @@ describe("transitionArtifact", () => {
       expect(fsImpl.getFile(SPEC_APPROVALS_FILE_PATH)).toBe("{ not valid json");
       expect(fsImpl.getFile("docs/specs/2609101221-foo.md")).toBe(DRAFT_SPEC);
     });
+
+    // An archival refused after the move would leave it uncommitted, and run
+    // completion reads a plan gone from its source path as already completed.
+    it.each([
+      ["plan", APPROVALS_FILE_PATH, "docs/plans/2609101240-thing-plan.md", APPROVED_PLAN],
+      ["spec", SPEC_APPROVALS_FILE_PATH, "docs/specs/2609101221-foo.md", APPROVED_SPEC],
+    ])(
+      "refuses to complete a %s when its ledger is corrupt, before moving it",
+      async (_, ledgerPath, path, md) => {
+        const { fsImpl, layer } = makeHarness();
+        fsImpl.setFile(ledgerPath, "{ not valid json");
+        fsImpl.setFile(path, md);
+
+        const result = await run(
+          transitionArtifact(path, "Completed", DEFAULT_OPTS).pipe(Effect.provide(layer)),
+        );
+
+        expect(Either.isLeft(result)).toBe(true);
+        if (Either.isLeft(result)) {
+          expect(result.left).toBeInstanceOf(ApprovalLedgerUnreadableError);
+        }
+        expect(fsImpl.getFile(ledgerPath)).toBe("{ not valid json");
+        expect(fsImpl.getFile(path)).toBe(md);
+        expect(fsImpl.getFile(archivePathFor(path))).toBeUndefined();
+      },
+    );
   });
 
   describe("reopen clears the approval", () => {
