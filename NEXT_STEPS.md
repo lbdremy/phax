@@ -11,8 +11,9 @@ were completed: headless authoring (0.15/0.16), the `schemas-package` spec in fi
 `preflight-before-naming` (PR #112), `phax prune` (`run-prune`, PR #113), and the docs site
 (`docs-site`, live at docs.phax.run since v0.18.0 on 2026-10-04; both npm packages approved
 and the global install bumped on 2026-10-05). Five approved specs are open:
-artifact-decide is next; headless-review and oracle-phases follow it; 23 and 24 stay parked. One
-spec is a Draft waiting on the author (approval-ground). No plan is in flight.
+artifact-decide is next; headless-review and oracle-phases follow it; 23 and 24 stay parked.
+Drafts waiting on the author: approval-ground, and the two steme gate specs (gate-request,
+drop-gate-scopes). No plan is in flight.
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -71,6 +72,29 @@ the previous one changes. The first in the chain, `schemas-package`, is Complete
       approver form, skill and escalation block (`docs/ideas/headless-code-review.md`).
 - [ ] **`oracle-phases`** — `docs/specs/2609281159-oracle-phases.md`. Oracle-first phases
       behind a pluggable `oracles` provider. Nothing needs it before steme item 1.1.
+
+## Before steme's audit — the gate request, then scopes dropped
+
+Two specs that steme's audit (`steme audit`, steme roadmap-1.0 item 0.13, not built yet) is
+written against, so they land before that item builds its gate projection; otherwise steme
+builds a scopes provider that is then thrown away. Raised 2026-10-05 from the phax–steme
+coordination note (`/Volumes/Work/steme/steme-corpus/docs/corpus/02-product/phax-steme-coordination.md`,
+changes 8 and 9). Both Drafts, authored headless from `docs/briefs/`; the author decides §9 and
+approves. In this order, shipped in the same release:
+
+- [ ] **`gate-request`** — `docs/specs/2610051439-gate-request.md`. Additive: a gate step that
+      declares it reads `{phase, base, terminal, phases: [{id, files}]}` on stdin, saved beside
+      the attempt so the verdict replays. How it relates to `oracle-phases`' request is in the spec.
+- [ ] **`drop-gate-scopes`** — `docs/specs/2610051445-drop-gate-scopes.md`. After the first: a
+      `completion` fails like an `invariant`; the `scopes` provider, closure, pending and
+      `gate-pending` retired; `gate-diagnostics` without `scopes`. A config change, so before
+      the CLI/config freeze of the road to 1.0.
+
+Not prerequisites, and not specced yet (same note, changes 1–7 and the brief): a stable `id` on a
+diagnostic (oscillation), a `decision` class that stops for the owner, `accepted` debt in the
+document, orient's index and expand requests carrying the plan and the files, a structured
+repair, `endLine`, and a `brief` provider at plan authoring. The optional keys pass phax's
+documents already, so steme can write them before phax reads them.
 
 Deferred from `schemas-package` with the author (2026-09-29): **a Standard Schema export** per
 format (only if a consumer needs to hand the schemas to a non-Effect validator; the cockpit
