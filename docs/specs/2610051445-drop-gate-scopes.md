@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-05
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-05
+  baseline: 46cb189
 ---
 # Drop gate scopes — completion findings fail the step like invariants; the scope provider, the pending state and `gate-pending` are retired
 

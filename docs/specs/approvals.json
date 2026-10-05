@@ -35,6 +35,11 @@
       "specFingerprint": "5a99b3b13e003669b52ff545f6de3e84ba0fa0bbe4ec1d0035f6b6bda74f6cfd",
       "approvedAt": "2026-10-05T15:12:19.541Z",
       "baseline": "12d8a13e436809a74443913953282cb195b04cda"
+    },
+    "docs/specs/2610051445-drop-gate-scopes.md": {
+      "specFingerprint": "cfda2c4fdf6dca08daacc7a49036c732bf00a3cdca18d57cd2b5d887c257200d",
+      "approvedAt": "2026-10-05T15:12:19.717Z",
+      "baseline": "46cb189bf3a0ee5058bbf6007cb510f20ca8207b"
     }
   }
 }
