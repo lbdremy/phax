@@ -83,6 +83,7 @@ describe("runArtifactStatus", () => {
         legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
         approval: { kind: "none" },
         authoring: { kind: "interactive" },
+        orphanRecords: [],
       }),
     );
 
@@ -100,6 +101,41 @@ describe("runArtifactStatus", () => {
     expect(text).toContain("Approved");
     expect(text).toContain("Legal transitions:");
     expect(text).toContain("Stale, Abandoned, Completed");
+    expect(lines.filter((l) => l.startsWith("WARN: "))).toEqual([]);
+  });
+
+  it("warns once per orphan record of the kind, keeping the exit code and stdout lines", async () => {
+    const { inspectArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
+    const report = {
+      kind: "spec" as const,
+      status: "Draft" as const,
+      legalTargets: ["Approved" as const, "Abandoned" as const],
+      approval: { kind: "none" as const },
+      authoring: { kind: "interactive" as const },
+    };
+    inspectArtifact.mockReturnValue(Effect.succeed({ ...report, orphanRecords: [] }));
+    const clean = makeOutput();
+    const cleanCode = await runArtifactStatus("docs/specs/2609101221-foo.md", clean.out);
+
+    inspectArtifact.mockReturnValue(
+      Effect.succeed({
+        ...report,
+        orphanRecords: [
+          {
+            recordFile: "docs/specs/approvals/2609010000-gone.json",
+            artifact: "docs/specs/2609010000-gone.md",
+          },
+        ],
+      }),
+    );
+    const { out, lines } = makeOutput();
+    const code = await runArtifactStatus("docs/specs/2609101221-foo.md", out);
+
+    expect(code).toBe(cleanCode);
+    expect(lines.filter((l) => !l.startsWith("WARN: "))).toEqual(clean.lines);
+    expect(lines.filter((l) => l.startsWith("WARN: "))).toEqual([
+      "WARN: warning: orphan approval record docs/specs/approvals/2609010000-gone.json — docs/specs/2609010000-gone.md does not exist; delete the record file",
+    ]);
   });
 
   it("returns exit code 12 and surfaces the validation message on failure", async () => {

@@ -2,7 +2,12 @@ import { Effect, Either } from "effect";
 import { createHash } from "node:crypto";
 import { ApprovalRecordUnreadableError, ArtifactValidationError } from "../domain/errors.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { approvalRecordPathFor } from "../domain/artifact/approvalRecordFile.js";
+import {
+  approvalRecordDirFor,
+  approvalRecordPathFor,
+  artifactPathForRecordFile,
+  type OrphanApprovalRecord,
+} from "../domain/artifact/approvalRecordFile.js";
 import { fingerprintSource } from "../domain/artifact/frontmatter.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import {
@@ -213,6 +218,35 @@ export function specApprovalRecordExists(
   specPath: string,
 ): Effect.Effect<boolean, FsError, FileSystem> {
   return recordFileExists("spec", specPath);
+}
+
+// ── Orphans ────────────────────────────────────────────────────────────────
+
+/**
+ * The record files of `kind` whose artifact does not exist, sorted by record
+ * file. Contents are never read, so an unreadable orphan is still only an
+ * orphan; entries that are not record files (wrong extension, directories)
+ * are ignored.
+ */
+export function findOrphanApprovalRecords(
+  kind: ArtifactKind,
+): Effect.Effect<readonly OrphanApprovalRecord[], FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const dir = approvalRecordDirFor(kind);
+    const dirPath = dir.slice(0, -1);
+    if (!(yield* fs.exists(dirPath))) return [];
+    const orphans: OrphanApprovalRecord[] = [];
+    // Sorted: the Node adapter's readdir order is not guaranteed.
+    for (const entry of (yield* fs.list(dirPath)).toSorted()) {
+      const recordFile = `${dir}${entry}`;
+      const owner = artifactPathForRecordFile(recordFile);
+      if (owner === null || owner.kind !== kind) continue;
+      if (yield* fs.exists(owner.artifact)) continue;
+      orphans.push({ recordFile, artifact: owner.artifact });
+    }
+    return orphans;
+  });
 }
 
 // ── Shared ─────────────────────────────────────────────────────────────────

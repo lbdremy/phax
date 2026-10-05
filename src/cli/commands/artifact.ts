@@ -23,6 +23,7 @@ import { recordsClonePath } from "../../app/recordsSync.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
+import { renderOrphanRecordWarning } from "../../domain/artifact/render.js";
 import type { ArtifactKind, ArtifactStatus } from "../../domain/artifact/status.js";
 import { getPlanDocumentJsonSchema } from "../../schemas/planDocument.js";
 import { getSpecDocumentJsonSchema } from "../../schemas/specDocument.js";
@@ -89,7 +90,7 @@ export async function runArtifactStatus(pathArg: string, out: OutputPort): Promi
     return exitCodeForError(result.left);
   }
 
-  const { kind, status, legalTargets, approval, authoring } = result.right;
+  const { kind, status, legalTargets, approval, authoring, orphanRecords } = result.right;
   out.log(`Path:              ${repoRelPath}`);
   out.log(`Kind:              ${kind}`);
   out.log(`Status:            ${status}`);
@@ -103,6 +104,7 @@ export async function runArtifactStatus(pathArg: string, out: OutputPort): Promi
   out.log(
     `Legal transitions: ${legalTargets.length > 0 ? legalTargets.join(", ") : "(none — terminal)"}`,
   );
+  for (const orphan of orphanRecords) out.warn(renderOrphanRecordWarning(orphan));
   return 0;
 }
 

@@ -27,7 +27,12 @@ import type {
 } from "../domain/artifact/render.js";
 import { buildFootprint } from "../domain/planOverlap/compute.js";
 import { planInputFromPhaxPlan } from "../domain/planOverlap/fromPhaxPlan.js";
-import { artifactFingerprint, readPlanApprovalRecord } from "./approvalRecordStore.js";
+import type { OrphanApprovalRecord } from "../domain/artifact/approvalRecordFile.js";
+import {
+  artifactFingerprint,
+  findOrphanApprovalRecords,
+  readPlanApprovalRecord,
+} from "./approvalRecordStore.js";
 import { transitionArtifact, type TransitionArtifactOptions } from "./artifactStatus.js";
 import type { ExtractPlanError } from "./extractPlan.js";
 import { loadOrExtractPlan } from "./loadOrExtractPlan.js";
@@ -168,7 +173,23 @@ export interface StalenessReportOptions {
   readonly noExtract?: boolean | undefined;
 }
 
+export interface PlansStalenessResult {
+  readonly report: StalenessReport;
+  /** Plan record files whose plan does not exist; they never change `report`. */
+  readonly orphanRecords: readonly OrphanApprovalRecord[];
+}
+
 export function plansStalenessReport(
+  opts: StalenessReportOptions,
+): Effect.Effect<PlansStalenessResult, FsError, FileSystem | Git | Backend> {
+  return Effect.gen(function* () {
+    const report = yield* approvedPlansReport(opts);
+    const orphanRecords = yield* findOrphanApprovalRecords("plan");
+    return { report, orphanRecords };
+  });
+}
+
+function approvedPlansReport(
   opts: StalenessReportOptions,
 ): Effect.Effect<StalenessReport, FsError, FileSystem | Git | Backend> {
   return Effect.gen(function* () {

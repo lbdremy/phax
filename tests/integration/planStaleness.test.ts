@@ -551,7 +551,7 @@ describe("plansStalenessReport", () => {
     const beforeStale = fsImpl.getFile("docs/plans/2609101241-stale-plan.md");
     const beforeDraft = fsImpl.getFile("docs/plans/2609101242-draft-plan.md");
 
-    const report = await Effect.runPromise(
+    const { report } = await Effect.runPromise(
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
     );
 
@@ -584,10 +584,10 @@ describe("plansStalenessReport", () => {
 
   it("returns an empty report when docs/plans does not exist", async () => {
     const { layer } = fullHarness();
-    const report = await Effect.runPromise(
+    const result = await Effect.runPromise(
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
     );
-    expect(report).toEqual([]);
+    expect(result).toEqual({ report: [], orphanRecords: [] });
   });
 
   it("a per-plan extraction failure yields an error entry and the sweep still completes", async () => {
@@ -612,7 +612,7 @@ describe("plansStalenessReport", () => {
       ),
     );
 
-    const report = await Effect.runPromise(
+    const { report } = await Effect.runPromise(
       plansStalenessReport({ ...REPORT_OPTS, noExtract: true }).pipe(Effect.provide(layer)),
     );
 
@@ -633,7 +633,7 @@ describe("plansStalenessReport", () => {
       "---\nstatus: Nonsense\nsource-spec: null\n---\n# Some plan\n\n## Overview\n\nBody text.\n",
     );
 
-    const report = await Effect.runPromise(
+    const { report } = await Effect.runPromise(
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
     );
 
@@ -670,7 +670,7 @@ describe("plansStalenessReport", () => {
       deterministicPlanMd({ status: "Completed", sourceSpec: "(none)" }),
     );
 
-    const report = await Effect.runPromise(
+    const { report } = await Effect.runPromise(
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
     );
 
@@ -707,7 +707,7 @@ describe("applyStalenessReport", () => {
       approvedStaleMd.replace("Body text.", "Body text v2 — edited after approval."),
     );
 
-    const report = await Effect.runPromise(
+    const { report } = await Effect.runPromise(
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
     );
 
@@ -745,7 +745,7 @@ describe("applyStalenessReport", () => {
     // baseline is gone, so the plan computes missing-record while still Approved.
     gitImpl.existingCommits.delete(gitImpl.headCommitValue);
 
-    const report = await Effect.runPromise(
+    const { report } = await Effect.runPromise(
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
     );
     expect(report.find((e) => e.path === "docs/plans/2609101240-thing-plan.md")?.result.kind).toBe(
@@ -806,7 +806,7 @@ describe("per-artifact approval record files", () => {
     );
     expect(verdictA).toEqual(Either.right({ kind: "fresh" }));
 
-    const report = await Effect.runPromise(
+    const { report } = await Effect.runPromise(
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
     );
     expect(report.map((e) => e.path)).toEqual([PLAN_A, PLAN_B, PLAN_C]);
@@ -856,7 +856,7 @@ describe("per-artifact approval record files", () => {
       expect(verdict.left.message).toContain(`${RECORD_A}: plan approval record has no $schema`);
     }
 
-    const report = await Effect.runPromise(
+    const { report } = await Effect.runPromise(
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
     );
     expect(report.map((e) => e.result.kind)).toEqual(["error"]);
@@ -869,9 +869,92 @@ describe("per-artifact approval record files", () => {
     await approve(fsImpl, layer, PLAN_A);
     fsImpl.setFile("docs/plans/approvals/2609101299-gone-plan.json", "{ not valid json");
 
-    const report = await Effect.runPromise(
+    const { report } = await Effect.runPromise(
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
     );
     expect(report).toEqual([{ path: PLAN_A, result: { kind: "fresh" } }]);
+  });
+});
+
+describe("orphan record files", () => {
+  const PLAN_A = "docs/plans/2609101240-alpha-plan.md";
+  const GONE_RECORD = "docs/plans/approvals/2609300900-gone-plan.json";
+  const GONE_PLAN = "docs/plans/2609300900-gone-plan.md";
+  const SPEC_ORPHAN = "docs/specs/approvals/2609010000-gone.json";
+
+  async function approvedPlanHarness() {
+    const harness = fullHarness();
+    harness.fsImpl.setFile(
+      PLAN_A,
+      deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/x.ts"] }),
+    );
+    const approved = await run(
+      transitionArtifact(PLAN_A, "Approved", APPROVE_OPTS).pipe(Effect.provide(harness.layer)),
+    );
+    expect(Either.isRight(approved)).toBe(true);
+    return harness;
+  }
+
+  function report(layer: ReturnType<typeof fullHarness>["layer"]) {
+    return Effect.runPromise(plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)));
+  }
+
+  it("lists a plan record whose plan does not exist, leaving the report and every file unchanged", async () => {
+    const { fsImpl, layer } = await approvedPlanHarness();
+    const without = await report(layer);
+    expect(without.orphanRecords).toEqual([]);
+
+    // Contents are copied from a live record: the orphan rule looks at names only.
+    fsImpl.setFile(GONE_RECORD, fsImpl.getFile("docs/plans/approvals/2609101240-alpha-plan.json")!);
+    // A spec orphan is another kind: plans status never reports it.
+    fsImpl.setFile(SPEC_ORPHAN, "{}");
+    const before = new Map(fsImpl.files);
+
+    const withOrphan = await report(layer);
+    expect(withOrphan.orphanRecords).toEqual([{ recordFile: GONE_RECORD, artifact: GONE_PLAN }]);
+    expect(withOrphan.report).toEqual(without.report);
+    expect(fsImpl.files).toEqual(before);
+
+    await Effect.runPromise(
+      Effect.flatMap(FileSystem, (fs) => fs.remove(GONE_RECORD)).pipe(Effect.provide(layer)),
+    );
+    expect((await report(layer)).orphanRecords).toEqual([]);
+  });
+
+  it("an unreadable orphan is still only an orphan", async () => {
+    const { fsImpl, layer } = await approvedPlanHarness();
+    fsImpl.setFile(GONE_RECORD, "{ not valid json");
+
+    const result = await report(layer);
+    expect(result.orphanRecords).toEqual([{ recordFile: GONE_RECORD, artifact: GONE_PLAN }]);
+    expect(result.report).toEqual([{ path: PLAN_A, result: { kind: "fresh" } }]);
+  });
+
+  it("a record whose plan was completed into archive/ is an orphan; other entries are ignored", async () => {
+    const { fsImpl, layer } = await approvedPlanHarness();
+    fsImpl.setFile("docs/plans/archive/2609300900-gone-plan.md", "archived");
+    fsImpl.setFile(GONE_RECORD, "{}");
+    fsImpl.setFile("docs/plans/approvals/notes.txt", "not a record");
+    fsImpl.setFile("docs/plans/approvals/nested/2609300901-deep-plan.json", "{}");
+
+    const result = await report(layer);
+    expect(result.orphanRecords).toEqual([{ recordFile: GONE_RECORD, artifact: GONE_PLAN }]);
+  });
+
+  it("orders orphans by record file", async () => {
+    const { fsImpl, layer } = await approvedPlanHarness();
+    fsImpl.setFile("docs/plans/approvals/2609300902-zeta-plan.json", "{}");
+    fsImpl.setFile("docs/plans/approvals/2609300901-eta-plan.json", "{}");
+
+    const result = await report(layer);
+    expect(result.orphanRecords.map((o) => o.recordFile)).toEqual([
+      "docs/plans/approvals/2609300901-eta-plan.json",
+      "docs/plans/approvals/2609300902-zeta-plan.json",
+    ]);
+  });
+
+  it("reports no orphans when no approvals directory exists", async () => {
+    const { layer } = fullHarness();
+    expect(await report(layer)).toEqual({ report: [], orphanRecords: [] });
   });
 });

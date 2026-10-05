@@ -8,6 +8,7 @@ import { hasLintErrors } from "../../domain/plan/lint.js";
 import { renderLintReport } from "../../domain/plan/lintRender.js";
 import { plansStalenessReport, applyStalenessReport } from "../../app/planStaleness.js";
 import {
+  renderOrphanRecordWarning,
   renderStalenessReport,
   renderStalenessApply,
   type StalenessFlip,
@@ -61,7 +62,9 @@ export async function runPlansStatus(
     out.error(reportResult.left.message);
     return exitCodeForError(reportResult.left);
   }
-  const report = reportResult.right;
+  const { report, orphanRecords } = reportResult.right;
+  // stderr in both modes, so a --json stdout stays one document.
+  for (const orphan of orphanRecords) out.warn(renderOrphanRecordWarning(orphan));
 
   const applied = opts.apply === true;
   let flipped: readonly StalenessFlip[] = [];
@@ -80,7 +83,13 @@ export async function runPlansStatus(
   }
 
   if (opts.json === true) {
-    out.log(JSON.stringify(applied ? { report, applied: flipped } : { report }, null, 2));
+    out.log(
+      JSON.stringify(
+        applied ? { report, orphanRecords, applied: flipped } : { report, orphanRecords },
+        null,
+        2,
+      ),
+    );
     return 0;
   }
 

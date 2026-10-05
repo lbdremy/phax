@@ -11,6 +11,7 @@ import { resolveRecordsConfig } from "../../../src/schemas/recordsConfig.js";
 import { resolveSecurityConfig } from "../../../src/schemas/securityConfig.js";
 import type { StalenessReport } from "../../../src/domain/artifact/render.js";
 import type { LintReport } from "../../../src/app/lintPlan.js";
+import type { PlansStalenessResult } from "../../../src/app/planStaleness.js";
 import { ArtifactValidationError } from "../../../src/domain/errors.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({
@@ -28,13 +29,14 @@ vi.mock("../../../src/app/lintPlan.js", () => ({
 
 function makeOutput() {
   const lines: string[] = [];
+  const warnings: string[] = [];
   const errors: string[] = [];
   const out = {
     log: (m: string) => lines.push(m),
-    warn: (m: string) => lines.push(`WARN: ${m}`),
+    warn: (m: string) => warnings.push(m),
     error: (m: string) => errors.push(m),
   };
-  return { out, lines, errors };
+  return { out, lines, warnings, errors };
 }
 
 function makeConfig(): ResolvedConfig {
@@ -73,6 +75,15 @@ const FRESH_STALE_REPORT: StalenessReport = [
   },
 ];
 
+const FRESH_STALE_RESULT: PlansStalenessResult = { report: FRESH_STALE_REPORT, orphanRecords: [] };
+
+const GONE_PLAN_ORPHAN = {
+  recordFile: "docs/plans/approvals/2609300900-gone-plan.json",
+  artifact: "docs/plans/2609300900-gone-plan.md",
+};
+const GONE_PLAN_WARNING =
+  "warning: orphan approval record docs/plans/approvals/2609300900-gone-plan.json — docs/plans/2609300900-gone-plan.md does not exist; delete the record file";
+
 async function setupConfig() {
   const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
   loadConfig.mockReturnValue(Either.right(makeConfig()));
@@ -94,7 +105,7 @@ describe("runPlansStatus", () => {
     const { plansStalenessReport, applyStalenessReport } = vi.mocked(
       await import("../../../src/app/planStaleness.js"),
     );
-    plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_REPORT));
+    plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_RESULT));
 
     const { out, lines } = makeOutput();
     const code = await runPlansStatus({}, out);
@@ -112,7 +123,7 @@ describe("runPlansStatus", () => {
     const { plansStalenessReport, applyStalenessReport } = vi.mocked(
       await import("../../../src/app/planStaleness.js"),
     );
-    plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_REPORT));
+    plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_RESULT));
     applyStalenessReport.mockReturnValue(
       Effect.succeed([
         {
@@ -136,7 +147,7 @@ describe("runPlansStatus", () => {
     const { plansStalenessReport, applyStalenessReport } = vi.mocked(
       await import("../../../src/app/planStaleness.js"),
     );
-    plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_REPORT));
+    plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_RESULT));
 
     const { out } = makeOutput();
     await runPlansStatus({}, out);
@@ -161,14 +172,51 @@ describe("runPlansStatus", () => {
   it("--json emits the report as JSON", async () => {
     await setupConfig();
     const { plansStalenessReport } = vi.mocked(await import("../../../src/app/planStaleness.js"));
-    plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_REPORT));
+    plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_RESULT));
 
     const { out, lines } = makeOutput();
     const code = await runPlansStatus({ json: true }, out);
 
     expect(code).toBe(0);
     const parsed = JSON.parse(lines.join("\n")) as { report: StalenessReport };
-    expect(parsed.report).toEqual(FRESH_STALE_REPORT);
+    expect(parsed).toEqual({ report: FRESH_STALE_REPORT, orphanRecords: [] });
+  });
+
+  it("warns about an orphan record on stderr, keeping stdout and the exit code", async () => {
+    await setupConfig();
+    const { plansStalenessReport } = vi.mocked(await import("../../../src/app/planStaleness.js"));
+    plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_RESULT));
+    const clean = makeOutput();
+    const cleanCode = await runPlansStatus({}, clean.out);
+
+    plansStalenessReport.mockReturnValue(
+      Effect.succeed({ report: FRESH_STALE_REPORT, orphanRecords: [GONE_PLAN_ORPHAN] }),
+    );
+    const { out, lines, warnings } = makeOutput();
+    const code = await runPlansStatus({}, out);
+
+    expect(code).toBe(cleanCode);
+    expect(warnings).toEqual([GONE_PLAN_WARNING]);
+    expect(lines).toEqual(clean.lines);
+    expect(clean.warnings).toEqual([]);
+  });
+
+  it("--json carries orphanRecords beside an unchanged report and still warns on stderr", async () => {
+    await setupConfig();
+    const { plansStalenessReport } = vi.mocked(await import("../../../src/app/planStaleness.js"));
+    plansStalenessReport.mockReturnValue(
+      Effect.succeed({ report: FRESH_STALE_REPORT, orphanRecords: [GONE_PLAN_ORPHAN] }),
+    );
+
+    const { out, lines, warnings } = makeOutput();
+    const code = await runPlansStatus({ json: true }, out);
+
+    expect(code).toBe(0);
+    expect(JSON.parse(lines.join("\n"))).toEqual({
+      report: FRESH_STALE_REPORT,
+      orphanRecords: [GONE_PLAN_ORPHAN],
+    });
+    expect(warnings).toEqual([GONE_PLAN_WARNING]);
   });
 });
 
