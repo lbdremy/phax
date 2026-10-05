@@ -395,6 +395,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
         extractPlanEffort: "medium",
         nowIso: SPEC_NOW,
         records: RECORDS_IN_REPO,
+        publishRemote: "origin",
         output: { warn: () => {} },
         ...overrides,
       }),

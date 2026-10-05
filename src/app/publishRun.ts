@@ -12,7 +12,7 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { GitHub, type GitHubError } from "../ports/github.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
-import { pushRecordsAtPublish } from "./recordsSync.js";
+import { pushRecordsBranch } from "./recordsSync.js";
 import {
   makeAdapterCallStartedTelemetryEvent,
   makeAdapterCallSucceededTelemetryEvent,
@@ -118,7 +118,7 @@ export function publishRun(
     const pushRecordsIfConfigured = (): Effect.Effect<void, never, Git> =>
       Effect.gen(function* () {
         if (opts.records === undefined) return;
-        const result = yield* pushRecordsAtPublish({
+        const result = yield* pushRecordsBranch({
           records: opts.records,
           repoRoot: opts.repoRoot,
           publishRemote: publish.remote,

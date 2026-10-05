@@ -17,7 +17,7 @@ import {
   transitionArtifact,
 } from "../../app/artifactStatus.js";
 import { createArtifact } from "../../app/createArtifact.js";
-import { authorArtifact, recordWarning } from "../../app/authorArtifact.js";
+import { authorArtifact, recordPushWarning, recordWarning } from "../../app/authorArtifact.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { recordsClonePath } from "../../app/recordsSync.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
@@ -309,6 +309,7 @@ export async function runCreateArtifactHeadless(
       extractPlanEffort: config.extractPlanEffort,
       nowIso: new Date().toISOString(),
       records: config.records,
+      publishRemote: config.publish.remote,
       output: out,
       ...(config.records.destination.kind === "repo"
         ? { recordsClonePath: recordsClonePath(config.stateRoot, config.namespace) }
@@ -322,13 +323,15 @@ export async function runCreateArtifactHeadless(
     return exitCodeForAuthoringError(result.left);
   }
 
-  const { path, sidecarPath, commit, record } = result.right;
+  const { path, sidecarPath, commit, record, recordPush } = result.right;
   out.log(`created ${path} (Draft, headless)`);
   out.log(`sidecar ${sidecarPath}`);
   out.log(`commit ${commit.hash.slice(0, 7)} — ${commit.subject}`);
   if (record.kind === "written") out.log(`record ${record.key}`);
   else if (record.kind === "records-off") out.log("record off");
   else out.warn(recordWarning(record) ?? "authoring record not written");
+  const pushWarning = recordPushWarning(recordPush);
+  if (pushWarning !== undefined) out.warn(pushWarning);
   return 0;
 }
 

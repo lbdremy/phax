@@ -158,15 +158,16 @@ export interface RecordsPushInput {
 }
 
 /**
- * Push `phax/records/v1` when auto-push is on, at publish time (spec §5.8):
- * to the source repo's publish remote for an in-repo destination, or to the
- * local records clone's `origin` for a dedicated repo. Records mirror the
- * work rather than lead it — the record is already committed locally when
- * its phase commits, so this call only shares what already exists. Never
- * fails: a rejected or unreachable push is reported so the caller can leave
- * the records pending rather than fail the publish.
+ * Push `phax/records/v1` when auto-push is on (spec §5.8): to the source
+ * repo's publish remote for an in-repo destination, or to the local records
+ * clone's `origin` for a dedicated repo. Called after publish and after a
+ * headless authoring record is written. Records mirror the work rather than
+ * lead it — a record is already committed locally when it is written, so
+ * this call only shares what already exists. Never fails: a rejected or
+ * unreachable push is reported so the caller can leave the records pending
+ * rather than fail its own command.
  */
-export function pushRecordsAtPublish(
+export function pushRecordsBranch(
   input: RecordsPushInput,
 ): Effect.Effect<RecordsPushResult, never, Git> {
   return Effect.gen(function* () {

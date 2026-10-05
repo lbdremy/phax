@@ -8,7 +8,7 @@ import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git, type GitError } from "../../src/ports/git.js";
 import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
 import { computeRecordsPending } from "../../src/app/recordsStatus.js";
-import { pushRecordsAtPublish } from "../../src/app/recordsSync.js";
+import { pushRecordsBranch } from "../../src/app/recordsSync.js";
 import { publishRun } from "../../src/app/publishRun.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
@@ -92,7 +92,7 @@ describe("records push and pending status (real git)", () => {
     ]);
 
     const pushResult = await run(
-      pushRecordsAtPublish({ records: IN_REPO_CONFIG, repoRoot: repoDir, publishRemote: "origin" }),
+      pushRecordsBranch({ records: IN_REPO_CONFIG, repoRoot: repoDir, publishRemote: "origin" }),
     );
     expect(pushResult).toEqual({ kind: "pushed", remote: "origin", path: repoDir });
 
@@ -109,7 +109,7 @@ describe("records push and pending status (real git)", () => {
   it("only a later, unpushed phase is reported pending after an earlier push", async () => {
     await writeRecordCommit(repoDir, "run-1", "phase-01", "a");
     await run(
-      pushRecordsAtPublish({ records: IN_REPO_CONFIG, repoRoot: repoDir, publishRemote: "origin" }),
+      pushRecordsBranch({ records: IN_REPO_CONFIG, repoRoot: repoDir, publishRemote: "origin" }),
     );
 
     await writeRecordCommit(repoDir, "run-1", "phase-02", "b");
@@ -131,7 +131,7 @@ describe("records push and pending status (real git)", () => {
     );
 
     const pushResult = await run(
-      pushRecordsAtPublish({ records: IN_REPO_CONFIG, repoRoot: repoDir, publishRemote: "origin" }),
+      pushRecordsBranch({ records: IN_REPO_CONFIG, repoRoot: repoDir, publishRemote: "origin" }),
     );
     expect(pushResult.kind).toBe("failed");
 
@@ -165,7 +165,7 @@ describe("records push and pending status (real git)", () => {
     };
 
     const pushResult = await run(
-      pushRecordsAtPublish({
+      pushRecordsBranch({
         records: repoRecords,
         repoRoot: repoDir,
         publishRemote: "origin",
@@ -195,7 +195,7 @@ describe("records push and pending status (real git)", () => {
       autoPush: false,
     };
     const pushResult = await run(
-      pushRecordsAtPublish({ records: off, repoRoot: repoDir, publishRemote: "origin" }),
+      pushRecordsBranch({ records: off, repoRoot: repoDir, publishRemote: "origin" }),
     );
     expect(pushResult).toEqual({ kind: "not-configured" });
 
