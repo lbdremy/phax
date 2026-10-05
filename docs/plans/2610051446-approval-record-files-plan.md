@@ -3,7 +3,7 @@ status: Approved
 source-spec: docs/specs/2610051433-approval-record-files.md
 approved:
   date: 2026-10-05
-  baseline: 15e42b0
+  baseline: 9f92590
 ---
 # Approval record files
 

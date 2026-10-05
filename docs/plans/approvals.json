@@ -9,8 +9,8 @@
     },
     "docs/plans/2610051446-approval-record-files-plan.md": {
       "planFingerprint": "a125b67c427563ace5e572261d747b6180cca9d856f95f1cd9fdd8d22fbc0d01",
-      "approvedAt": "2026-10-05T15:08:35.297Z",
-      "baseline": "15e42b0eeb18604b739d1369a057436eacc2a82e",
+      "approvedAt": "2026-10-05T15:11:16.186Z",
+      "baseline": "9f9259091600921ce8ed690a7fe6e60b0ac6db3c",
       "sourceSpec": {
         "path": "docs/specs/2610051433-approval-record-files.md",
         "fingerprint": "004c2997348800c7779644ddaea99900b631457f027d2e77d621e8692a631d5b"
