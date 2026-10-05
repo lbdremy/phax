@@ -45,6 +45,7 @@ import {
 import { transitionCommitMessage, transitionWriteSet } from "../domain/artifact/writeSet.js";
 import {
   artifactFingerprint,
+  findOrphanApprovalRecords,
   planApprovalRecordExists,
   putPlanApprovalRecord,
   putSpecApprovalRecord,
@@ -53,6 +54,7 @@ import {
   removeSpecApprovalRecord,
   specApprovalRecordExists,
 } from "./approvalRecordStore.js";
+import type { OrphanApprovalRecord } from "../domain/artifact/approvalRecordFile.js";
 
 export type SpecApprovalInfo =
   | { readonly kind: "none" }
@@ -78,6 +80,8 @@ export interface ArtifactReport {
   readonly legalTargets: readonly ArtifactStatus[];
   readonly approval: SpecApprovalInfo;
   readonly authoring: ArtifactAuthoring;
+  /** Record files of the inspected artifact's kind whose artifact does not exist. */
+  readonly orphanRecords: readonly OrphanApprovalRecord[];
 }
 
 interface Sidecar {
@@ -172,8 +176,9 @@ export function inspectArtifact(
     const approval: SpecApprovalInfo =
       kind === "spec" ? yield* computeSpecApprovalInfo(repoRelPath, md, status) : { kind: "none" };
     const authoring = authoringOf(yield* readSidecar(repoRelPath, kind, md));
+    const orphanRecords = yield* findOrphanApprovalRecords(kind);
 
-    return { kind, status, legalTargets, approval, authoring };
+    return { kind, status, legalTargets, approval, authoring, orphanRecords };
   });
 }
 

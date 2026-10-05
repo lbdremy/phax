@@ -137,7 +137,7 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
     );
     expect(Either.isRight(rootedReport)).toBe(true);
     if (Either.isRight(rootedReport)) {
-      expect(rootedReport.right.map((e) => e.path)).toEqual([PLAN_REL]);
+      expect(rootedReport.right.report.map((e) => e.path)).toEqual([PLAN_REL]);
     }
 
     // Identity layer from the same subdirectory: docs/plans is invisible, so the
@@ -153,7 +153,7 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
     );
     expect(Either.isRight(identityReport)).toBe(true);
     if (Either.isRight(identityReport)) {
-      expect(identityReport.right).toEqual([]);
+      expect(identityReport.right).toEqual({ report: [], orphanRecords: [] });
     }
   });
 });

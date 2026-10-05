@@ -40,6 +40,7 @@ describe("runArtifactStatus — approval rendering", () => {
           editedSinceApproval: false,
         },
         authoring: INTERACTIVE,
+        orphanRecords: [],
       }),
     );
 
@@ -66,6 +67,7 @@ describe("runArtifactStatus — approval rendering", () => {
           editedSinceApproval: true,
         },
         authoring: INTERACTIVE,
+        orphanRecords: [],
       }),
     );
 
@@ -87,6 +89,7 @@ describe("runArtifactStatus — approval rendering", () => {
         legalTargets: ["Approved", "Abandoned", "Completed"],
         approval: { kind: "unrecorded" },
         authoring: INTERACTIVE,
+        orphanRecords: [],
       }),
     );
 
@@ -108,6 +111,7 @@ describe("runArtifactStatus — approval rendering", () => {
         legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
         approval: { kind: "none" },
         authoring: INTERACTIVE,
+        orphanRecords: [],
       }),
     );
 
@@ -158,6 +162,7 @@ describe("runArtifactStatus — authoring rendering", () => {
         legalTargets: ["Approved", "Abandoned"],
         approval: { kind: "none" },
         authoring,
+        orphanRecords: [],
       }),
     );
 

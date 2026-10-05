@@ -49,6 +49,17 @@ export function artifactPathForRecordFile(
   return null;
 }
 
+/** The approvals directory holding every record file of `kind`, with its trailing slash. */
+export function approvalRecordDirFor(kind: ArtifactKind): string {
+  return RECORD_DIR[kind];
+}
+
+/** A record file whose artifact does not exist: reported, never failed on or deleted. */
+export interface OrphanApprovalRecord {
+  readonly recordFile: string;
+  readonly artifact: string;
+}
+
 /** Any path under an approvals/ directory belongs to the record files, never to an artifact. */
 export function isApprovalRecordPath(path: string): boolean {
   return path.startsWith(PLAN_APPROVAL_RECORD_DIR) || path.startsWith(SPEC_APPROVAL_RECORD_DIR);

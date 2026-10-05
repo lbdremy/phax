@@ -1,3 +1,4 @@
+import type { OrphanApprovalRecord } from "./approvalRecordFile.js";
 import type { PlanStalenessVerdict, StalenessEvidence } from "./lineage.js";
 
 export interface StalenessReportEntry {
@@ -56,6 +57,10 @@ export function renderStalenessReport(report: StalenessReport): string {
   }
 
   return lines.join("\n");
+}
+
+export function renderOrphanRecordWarning(orphan: OrphanApprovalRecord): string {
+  return `warning: orphan approval record ${orphan.recordFile} — ${orphan.artifact} does not exist; delete the record file`;
 }
 
 export function renderStalenessApply(flipped: readonly StalenessFlip[]): string {

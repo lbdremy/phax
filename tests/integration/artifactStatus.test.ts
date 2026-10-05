@@ -133,8 +133,32 @@ describe("inspectArtifact", () => {
         legalTargets: ["Approved", "Stale", "Abandoned", "Completed"],
         approval: { kind: "none" },
         authoring: { kind: "interactive" },
+        orphanRecords: [],
       });
     }
+  });
+
+  it("lists orphan record files of the inspected kind only, changing no file", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile("docs/specs/2609101221-foo.md", DRAFT_SPEC);
+    impl.setFile("docs/specs/approvals/2609010000-gone.json", "{ not valid json");
+    impl.setFile("docs/plans/approvals/2609300900-gone-plan.json", "{}");
+    const before = new Map(impl.files);
+
+    const result = await run(
+      inspectArtifact("docs/specs/2609101221-foo.md").pipe(Effect.provide(layer)),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) {
+      expect(result.right.orphanRecords).toEqual([
+        {
+          recordFile: "docs/specs/approvals/2609010000-gone.json",
+          artifact: "docs/specs/2609010000-gone.md",
+        },
+      ]);
+    }
+    expect(impl.files).toEqual(before);
   });
 
   it("surfaces ArtifactValidationError for a missing status line", async () => {
