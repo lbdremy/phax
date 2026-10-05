@@ -48,6 +48,7 @@ import {
   RateLimitError,
   RecordsSyncRequiredError,
   RegistryCorruptionError,
+  ApprovalLedgerUnreadableError,
   SecurityEnforcementError,
   SecurityPreflightError,
   SkillEditConsentError,
@@ -183,7 +184,8 @@ export function exitCodeForError(err: unknown): number {
     err instanceof PlanStaleError ||
     err instanceof ArtifactDirtyWriteSetError ||
     err instanceof ArtifactSidecarDivergedError ||
-    err instanceof ArtifactCreationError
+    err instanceof ArtifactCreationError ||
+    err instanceof ApprovalLedgerUnreadableError
   )
     return 12;
   return 1;

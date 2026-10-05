@@ -186,6 +186,19 @@ export class RegistryCorruptionError extends Data.TaggedError("RegistryCorruptio
   registryPath: string;
 }> {}
 
+/**
+ * An approval ledger (`docs/plans/approvals.json` or `docs/specs/approvals.json`)
+ * exists but cannot be read: a newer phax wrote it, it fails to decode, or it
+ * is not JSON. phax refuses rather than reading it as empty, because the next
+ * approval would rewrite it with a single record. `message` starts with the file.
+ */
+export class ApprovalLedgerUnreadableError extends Data.TaggedError(
+  "ApprovalLedgerUnreadableError",
+)<{
+  message: string;
+  ledgerPath: string;
+}> {}
+
 export class LockConflictError extends Data.TaggedError("LockConflictError")<{
   message: string;
   shortName: string;

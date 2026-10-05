@@ -9,6 +9,7 @@ import { artifactFingerprint } from "../../src/app/approvalRecordStore.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import {
+  ApprovalLedgerUnreadableError,
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
   ArtifactSidecarDivergedError,
@@ -860,10 +861,13 @@ describe("transitionArtifact", () => {
       expect(fsImpl.getFile("docs/specs/archive/2609101221-foo.md")).toContain("approved:");
     });
 
-    it("does not block a plan transition when approvals.json is corrupt", async () => {
+    // A corrupt ledger is refused, never overwritten: reading it as empty
+    // would replace every other approval record with this one.
+    it("refuses a plan transition when approvals.json is corrupt, touching nothing", async () => {
       const { fsImpl, layer } = makeHarness();
+      const plan = planMd("Draft", "null");
       fsImpl.setFile(APPROVALS_FILE_PATH, "{ not valid json");
-      fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("Draft", "null"));
+      fsImpl.setFile("docs/plans/2609101240-thing-plan.md", plan);
 
       const result = await run(
         transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", DEFAULT_OPTS).pipe(
@@ -871,12 +875,15 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isRight(result)).toBe(true);
-      const storeText = fsImpl.getFile(APPROVALS_FILE_PATH) as string;
-      expect(() => JSON.parse(storeText)).not.toThrow();
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ApprovalLedgerUnreadableError);
+      }
+      expect(fsImpl.getFile(APPROVALS_FILE_PATH)).toBe("{ not valid json");
+      expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toBe(plan);
     });
 
-    it("does not block a spec transition when docs/specs/approvals.json is corrupt", async () => {
+    it("refuses a spec transition when docs/specs/approvals.json is corrupt, touching nothing", async () => {
       const { fsImpl, layer } = makeHarness();
       fsImpl.setFile(SPEC_APPROVALS_FILE_PATH, "{ not valid json");
       fsImpl.setFile("docs/specs/2609101221-foo.md", DRAFT_SPEC);
@@ -887,9 +894,12 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isRight(result)).toBe(true);
-      const storeText = fsImpl.getFile(SPEC_APPROVALS_FILE_PATH) as string;
-      expect(() => JSON.parse(storeText)).not.toThrow();
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ApprovalLedgerUnreadableError);
+      }
+      expect(fsImpl.getFile(SPEC_APPROVALS_FILE_PATH)).toBe("{ not valid json");
+      expect(fsImpl.getFile("docs/specs/2609101221-foo.md")).toBe(DRAFT_SPEC);
     });
   });
 

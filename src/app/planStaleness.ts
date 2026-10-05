@@ -3,6 +3,7 @@ import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import {
+  type ApprovalLedgerUnreadableError,
   type ArtifactCommitFailedError,
   type ArtifactDirtyWriteSetError,
   type ArtifactSidecarDivergedError,
@@ -61,7 +62,7 @@ export function computeStalenessForPlan(
   opts: ComputeStalenessOptions,
 ): Effect.Effect<
   PlanStalenessVerdict,
-  FsError | GitError | ArtifactValidationError,
+  FsError | GitError | ArtifactValidationError | ApprovalLedgerUnreadableError,
   FileSystem | Git
 > {
   return Effect.gen(function* () {
@@ -137,7 +138,7 @@ export function computePlanStaleness(
   opts: ComputePlanStalenessOptions,
 ): Effect.Effect<
   PlanStalenessVerdict,
-  FsError | GitError | ArtifactValidationError | ExtractPlanError,
+  FsError | GitError | ArtifactValidationError | ExtractPlanError | ApprovalLedgerUnreadableError,
   FileSystem | Git | Backend
 > {
   return Effect.gen(function* () {
@@ -213,6 +214,7 @@ export function applyStalenessReport(
 ): Effect.Effect<
   readonly StalenessFlip[],
   | FsError
+  | ApprovalLedgerUnreadableError
   | ArtifactValidationError
   | InvalidArtifactTransitionError
   | SpecNotApprovedError

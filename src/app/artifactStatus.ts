@@ -2,6 +2,7 @@ import { Effect, Either } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError, type GitOps } from "../ports/git.js";
 import {
+  type ApprovalLedgerUnreadableError,
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
   ArtifactSidecarDivergedError,
@@ -116,7 +117,7 @@ function computeSpecApprovalInfo(
   repoRelPath: string,
   md: string,
   status: ArtifactStatus,
-): Effect.Effect<SpecApprovalInfo, FsError, FileSystem> {
+): Effect.Effect<SpecApprovalInfo, FsError | ApprovalLedgerUnreadableError, FileSystem> {
   return Effect.gen(function* () {
     const decoded = decodeArtifactFrontmatter("spec", md);
     const stamp = Either.isRight(decoded) ? decoded.right.approved : undefined;
@@ -148,7 +149,11 @@ function computeSpecApprovalInfo(
 
 export function inspectArtifact(
   repoRelPath: string,
-): Effect.Effect<ArtifactReport, FsError | ArtifactValidationError, FileSystem> {
+): Effect.Effect<
+  ArtifactReport,
+  FsError | ArtifactValidationError | ApprovalLedgerUnreadableError,
+  FileSystem
+> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const md = yield* fs.readText(repoRelPath);
@@ -249,6 +254,7 @@ export function transitionArtifact(
 ): Effect.Effect<
   ArtifactTransitionResult,
   | FsError
+  | ApprovalLedgerUnreadableError
   | ArtifactValidationError
   | InvalidArtifactTransitionError
   | SpecNotApprovedError

@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
+  ApprovalLedgerUnreadableError,
   GateFailedError,
   InvalidArtifactTransitionError,
   LockConflictError,
@@ -137,6 +138,13 @@ describe("exitCodeForError families", () => {
         from: "draft",
         to: "archived",
         legalTargets: [],
+      }),
+    ],
+    [
+      12,
+      new ApprovalLedgerUnreadableError({
+        message: "docs/plans/approvals.json: not valid JSON",
+        ledgerPath: "docs/plans/approvals.json",
       }),
     ],
   ];
