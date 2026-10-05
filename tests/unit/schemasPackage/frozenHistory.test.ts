@@ -21,7 +21,7 @@ import {
 } from "../../../packages/schemas/src/generated/index.js";
 import { readPackageVersion } from "../../../src/cli/commands/usage.js";
 import { PHAX_RELEASE } from "../../../src/schemas/release.js";
-import { FORMAT_IDS } from "../../../src/schemas/schemaUrl.js";
+import { FORMAT_IDS, PRE_SCHEMA_FORMAT_IDS } from "../../../src/schemas/schemaUrl.js";
 import { checkSchemas, readSchemasState, writeSchemas } from "../../../scripts/schemas-check.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -49,8 +49,11 @@ describe("schemas-check on the committed tree", () => {
     expect(checkSchemas(state)).toEqual([]);
   });
 
-  it("pins exactly one frozen module per format id, by its repo-relative path", () => {
-    const expected = FORMAT_IDS.map((id) => `src/schemas/history/${id}/pre-schema.ts`).toSorted();
+  // A format born with $schema has no pre-schema shape, so no frozen module.
+  it("pins exactly one frozen module per format with a pre-schema shape, by its repo-relative path", () => {
+    const expected = PRE_SCHEMA_FORMAT_IDS.map(
+      (id) => `src/schemas/history/${id}/pre-schema.ts`,
+    ).toSorted();
     expect(Object.keys(state.lock)).toEqual(expected);
     expect([...state.historyFiles.keys()]).toEqual(expected);
     expect(readFileSync(join(repoRoot, "packages/schemas/history.lock.json"), "utf8")).toBe(

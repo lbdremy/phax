@@ -536,6 +536,14 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   return written;
 }
 
+/**
+ * The formats no writer produces yet. The approval record formats are
+ * declared before the per-file store writes them: phase-02 of the
+ * approval-record-files plan swaps this to plan-approvals and spec-approvals,
+ * the old ledgers phax never writes again.
+ */
+const NOT_YET_WRITTEN: ReadonlyArray<FormatId> = ["plan-approval-record", "spec-approval-record"];
+
 describe("every persisted file phax writes", () => {
   let written: ReadonlyArray<Written> = [];
 
@@ -543,8 +551,10 @@ describe("every persisted file phax writes", () => {
     written = await driveWriters();
   });
 
-  it("covers all 15 format ids", () => {
-    expect(new Set(written.map((file) => file.format))).toEqual(new Set(FORMAT_IDS));
+  it("covers every format id phax writes", () => {
+    expect(new Set(written.map((file) => file.format))).toEqual(
+      new Set(FORMAT_IDS.filter((id) => !NOT_YET_WRITTEN.includes(id))),
+    );
   });
 
   it("starts with $schema naming its format at the root package.json release", () => {

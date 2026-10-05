@@ -1,6 +1,6 @@
 # @lbdremy/phax-schemas
 
-The schemas of the files [phax](https://github.com/lbdremy/phax) writes — its run registry, run and phase status, `phax-plan.json`, compliance reviews, approvals ledgers, spec and plan documents, and the records on the `phax/records/v1` branch — with a typed parse function for each. Read phax's files from a dashboard, a cockpit or a docs pipeline with phax's own types and verdicts, without phax installed.
+The schemas of the files [phax](https://github.com/lbdremy/phax) writes — its run registry, run and phase status, `phax-plan.json`, compliance reviews, approval record files and the old approvals ledgers, spec and plan documents, and the records on the `phax/records/v1` branch — with a typed parse function for each. Read phax's files from a dashboard, a cockpit or a docs pipeline with phax's own types and verdicts, without phax installed.
 
 ```bash
 npm install @lbdremy/phax-schemas

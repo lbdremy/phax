@@ -1,6 +1,6 @@
 // The only source of test documents for the schemas package (spec §5.11).
 // Every document is a made-up value typed as a format's frozen pre-schema
-// type. `preSchemaDocuments` encodes it through the frozen module, so it
+// type, or, for a format born with $schema, as phax's in-memory type. `preSchemaDocuments` encodes it through the frozen module, so it
 // survives phax's later shape changes; `validDocuments` encodes it through
 // phax's own schema, so a schema change breaks the build rather than silently
 // staling a fixture. Nothing here comes from a phax home, a records branch or
@@ -12,7 +12,11 @@ import {
   preSchemaUnsupportedMessage,
 } from "../../../packages/schemas/src/shapes.js";
 import { BranchNameSchema } from "../../../src/domain/branded.js";
-import { ApprovalRecordFileSchema } from "../../../src/schemas/approvalRecord.js";
+import {
+  ApprovalRecordFileSchema,
+  PlanRecordFileSchema,
+  type PlanRecord,
+} from "../../../src/schemas/approvalRecord.js";
 import { AuthoringRecordManifestFileSchema } from "../../../src/schemas/authoringRecord.js";
 import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
 import { GateAttributionFileSchema } from "../../../src/schemas/gateAttribution.js";
@@ -84,8 +88,17 @@ import { PhaseFileReconciliationFileSchema } from "../../../src/schemas/reconcil
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
 import { RegistryFileSchema } from "../../../src/schemas/registry.js";
 import { RunRecordManifestFileSchema } from "../../../src/schemas/runRecord.js";
-import { compareReleases, schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
-import { SpecApprovalRecordFileSchema } from "../../../src/schemas/specApprovalRecord.js";
+import {
+  compareReleases,
+  schemaUrl,
+  type FormatId,
+  type PreSchemaFormatId,
+} from "../../../src/schemas/schemaUrl.js";
+import {
+  SpecApprovalRecordFileSchema,
+  SpecRecordFileSchema,
+  type SpecRecord,
+} from "../../../src/schemas/specApprovalRecord.js";
 import { SpecDocumentFileSchema } from "../../../src/schemas/specDocument.js";
 import { PhaseStatusFileSchema, RunStatusFileSchema } from "../../../src/schemas/status.js";
 
@@ -230,6 +243,23 @@ const specApprovals: SpecApprovalsPreSchema = {
       baseline: BASELINE,
     },
   },
+};
+
+// A format born with $schema has no frozen type: its record is typed as
+// phax's in-memory value.
+const planRecord: PlanRecord = {
+  artifact: "docs/plans/example.md",
+  planFingerprint: "plan-fingerprint-0001",
+  approvedAt: CREATED_AT,
+  baseline: BASELINE,
+  sourceSpec: { path: "docs/specs/example.md", fingerprint: "spec-fingerprint-0001" },
+};
+
+const specRecord: SpecRecord = {
+  artifact: "docs/specs/example.md",
+  specFingerprint: "spec-fingerprint-0001",
+  approvedAt: CREATED_AT,
+  baseline: BASELINE,
 };
 
 const phaseRecordManifest: PhaseRecordManifestPreSchema = {
@@ -411,10 +441,11 @@ const planDocument: PlanDocumentPreSchema = {
 };
 
 /**
- * One minimal document per format id in its pre-schema shape, without
- * `$schema`, encoded through the format's frozen module.
+ * One minimal document per format id with a pre-schema shape, without
+ * `$schema`, encoded through the format's frozen module. A format born with
+ * `$schema` has none.
  */
-export const preSchemaDocuments: { readonly [F in FormatId]: Doc } = {
+export const preSchemaDocuments: { readonly [F in PreSchemaFormatId]: Doc } = {
   registry: encoded(RegistryPreSchemaSchema, registry),
   "run-status": encoded(RunStatusPreSchemaSchema, runStatus),
   "phase-status": encoded(PhaseStatusPreSchemaSchema, phaseStatus),
@@ -496,6 +527,14 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   "plan-document": encoded(
     PlanDocumentFileSchema,
     withSchemaUrl("plan-document", stepped(planDocument)),
+  ),
+  "plan-approval-record": encoded(
+    PlanRecordFileSchema,
+    withSchemaUrl("plan-approval-record", planRecord),
+  ),
+  "spec-approval-record": encoded(
+    SpecRecordFileSchema,
+    withSchemaUrl("spec-approval-record", specRecord),
   ),
 };
 

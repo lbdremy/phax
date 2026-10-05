@@ -21,8 +21,10 @@ import {
   phaseFileReconciliationFormat,
 } from "../../../packages/schemas/src/formats/recordTimeline.js";
 import {
+  planApprovalRecordFormat,
   planApprovalsFormat,
   planDocumentFormat,
+  specApprovalRecordFormat,
   specApprovalsFormat,
   specDocumentFormat,
 } from "../../../packages/schemas/src/formats/repository.js";
@@ -81,6 +83,8 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "gate-pending": gatePendingFormat.current.shape.decode,
   "spec-document": specDocumentFormat.current.shape.decode,
   "plan-document": planDocumentFormat.current.shape.decode,
+  "plan-approval-record": planApprovalRecordFormat.current.shape.decode,
+  "spec-approval-record": specApprovalRecordFormat.current.shape.decode,
   "record-manifest": decodeRecordManifestFile,
 };
 
@@ -136,6 +140,8 @@ describe("the JSON Schema table", () => {
       gatePendingFormat,
       specDocumentFormat,
       planDocumentFormat,
+      planApprovalRecordFormat,
+      specApprovalRecordFormat,
     ];
     for (const definition of definitions) {
       const entry = JSON_SCHEMA_FORMATS.find(({ format }) => format === definition.id);
@@ -160,10 +166,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 16 files and no failure", () => {
+  it("renders 18 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(16);
+    expect(rendered.files.size).toBe(18);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

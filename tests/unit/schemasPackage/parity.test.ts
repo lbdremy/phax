@@ -11,15 +11,20 @@ import {
   parsePhaseRecordManifest,
   parsePhaseStatus,
   parsePhaxPlan,
+  parsePlanApprovalRecord,
   parsePlanApprovals,
   parsePlanDocument,
   parseRecordManifest,
   parseRegistry,
   parseRunStatus,
+  parseSpecApprovalRecord,
   parseSpecApprovals,
   parseSpecDocument,
 } from "../../../packages/schemas/src/index.js";
-import { decodeApprovalRecordFile } from "../../../src/schemas/approvalRecord.js";
+import {
+  decodeApprovalRecordFile,
+  decodePlanRecordFile,
+} from "../../../src/schemas/approvalRecord.js";
 import {
   decodeAuthoringRecordManifestFile,
   decodeRecordManifestFile,
@@ -35,7 +40,10 @@ import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconcil
 import { decodeRegistryFile } from "../../../src/schemas/registry.js";
 import { decodeRunRecordManifestFile } from "../../../src/schemas/runRecord.js";
 import { FORMAT_IDS, schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
-import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
+import {
+  decodeSpecApprovalRecordFile,
+  decodeSpecRecordFile,
+} from "../../../src/schemas/specApprovalRecord.js";
 import { decodeSpecDocumentFile } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
@@ -190,6 +198,22 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodePlanDocumentFile,
     wrongType: ["phases", {}],
     required: "preamble",
+    excess: "error",
+  },
+  "plan-approval-record": {
+    id: "plan-approval-record",
+    parse: parsePlanApprovalRecord,
+    phax: decodePlanRecordFile,
+    wrongType: ["sourceSpec", "docs/specs/example.md"],
+    required: "artifact",
+    excess: "error",
+  },
+  "spec-approval-record": {
+    id: "spec-approval-record",
+    parse: parseSpecApprovalRecord,
+    phax: decodeSpecRecordFile,
+    wrongType: ["baseline", "abc1234"],
+    required: "artifact",
     excess: "error",
   },
 };

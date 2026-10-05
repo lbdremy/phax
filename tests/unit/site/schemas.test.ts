@@ -19,7 +19,13 @@ import {
   servedSchemas,
   type SchemaSources,
 } from "../../../site/build/schemas.js";
-import { FORMAT_IDS } from "../../../src/schemas/schemaUrl.js";
+import {
+  FORMAT_IDS,
+  PRE_SCHEMA_FORMAT_IDS,
+  SCHEMA_BORN_FORMAT_IDS,
+  compareReleases,
+  isRelease,
+} from "../../../src/schemas/schemaUrl.js";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
 const real = readSchemaSources(repoRoot);
@@ -29,20 +35,41 @@ const realVersion = (
 
 const bytes = (text: string): Uint8Array => new TextEncoder().encode(text);
 
-/** Every format with `pre-schema` and 0.17.0; registry also at 0.18.0, run-status at next. */
+/**
+ * Every format with a pre-schema shape at `pre-schema` and 0.17.0; registry
+ * also at 0.18.0, run-status at next. Every format born with $schema at next
+ * only, so nothing serves it yet.
+ */
 function madeUpSnapshots(): Map<string, Map<string, Uint8Array>> {
-  const snapshots = new Map<string, Map<string, Uint8Array>>(
-    FORMAT_IDS.map((id) => [
-      id,
-      new Map([
-        ["pre-schema", bytes(`{"pre":"${id}"}\n`)],
-        ["0.17.0", bytes(`{"id":"${id}","at":"0.17.0"}\n`)],
-      ]),
-    ]),
-  );
+  const snapshots = new Map<string, Map<string, Uint8Array>>([
+    ...PRE_SCHEMA_FORMAT_IDS.map(
+      (id) =>
+        [
+          id,
+          new Map([
+            ["pre-schema", bytes(`{"pre":"${id}"}\n`)],
+            ["0.17.0", bytes(`{"id":"${id}","at":"0.17.0"}\n`)],
+          ]),
+        ] as const,
+    ),
+    ...SCHEMA_BORN_FORMAT_IDS.map(
+      (id) => [id, new Map([["next", bytes(`{"id":"${id}","at":"next"}\n`)]])] as const,
+    ),
+  ]);
   snapshots.get("registry")?.set("0.18.0", bytes('{"id":"registry","at":"0.18.0"}\n'));
   snapshots.get("run-status")?.set("next", bytes('{"id":"run-status","at":"next"}\n'));
   return snapshots;
+}
+
+/**
+ * The first release a format is served at: its lowest release-named
+ * snapshot, or undefined while it has none (a format born with $schema
+ * before the release that ships it).
+ */
+function servedFrom(id: string): string | undefined {
+  return [...(real.snapshots.get(id)?.keys() ?? [])]
+    .filter((name) => isRelease(name))
+    .toSorted(compareReleases)[0];
 }
 
 function namesOf(
@@ -54,17 +81,25 @@ function namesOf(
 describe("servedSchemas on the real ledger and snapshots", () => {
   const ledger = parseLedger(real.ledger ?? "");
 
-  it("serves one /schemas/<id>/<release>.json per format and release, 0.17.0 byte for byte", () => {
+  // A format born with $schema is served from the release whose snapshot
+  // first names it; every format with a pre-schema shape from 0.17.0.
+  it("serves one /schemas/<id>/<release>.json per format and release from the format's first, 0.17.0 byte for byte", () => {
     expect(ledger?.releases[0]).toBe("0.17.0");
     expect(ledger?.releases.at(-1)).toBe(realVersion);
     if (ledger === undefined) return;
+    for (const id of PRE_SCHEMA_FORMAT_IDS) expect(servedFrom(id), id).toBe("0.17.0");
     const served = servedSchemas(ledger, real.snapshots);
     expect([...served.files.keys()].toSorted()).toEqual(
       ledger.releases
-        .flatMap((release) => FORMAT_IDS.map((id) => `/schemas/${id}/${release}.json`))
+        .flatMap((release) =>
+          FORMAT_IDS.filter((id) => {
+            const first = servedFrom(id);
+            return first !== undefined && compareReleases(first, release) <= 0;
+          }).map((id) => `/schemas/${id}/${release}.json`),
+        )
         .toSorted(),
     );
-    for (const id of FORMAT_IDS) {
+    for (const id of PRE_SCHEMA_FORMAT_IDS) {
       expect(served.files.get(`/schemas/${id}/0.17.0.json`)).toEqual(
         readFileSync(join(repoRoot, snapshotPath(id, "0.17.0"))),
       );
@@ -94,8 +129,11 @@ describe("servedSchemas on a made-up ledger", () => {
     expect(served.files.get("/schemas/run-status/0.18.0.json")).toBe(
       snapshots.get("run-status")?.get("0.17.0"),
     );
-    for (const id of FORMAT_IDS) {
+    for (const id of PRE_SCHEMA_FORMAT_IDS) {
       expect(served.files.get(`/schemas/${id}/0.17.0.json`)).toBe(snapshots.get(id)?.get("0.17.0"));
+    }
+    for (const id of SCHEMA_BORN_FORMAT_IDS) {
+      expect([...served.files.keys()].filter((path) => path.includes(`/${id}/`))).toEqual([]);
     }
     const contents = [...served.files.values()].map((content) => new TextDecoder().decode(content));
     expect(contents.some((content) => content.includes('"pre"'))).toBe(false);
@@ -197,14 +235,14 @@ describe("the generator serves the schemas", () => {
     expect([...result.publicFiles.keys()]).toEqual(
       [
         "/_headers",
-        ...FORMAT_IDS.map((id) => `/schemas/${id}/0.17.0.json`),
+        ...PRE_SCHEMA_FORMAT_IDS.map((id) => `/schemas/${id}/0.17.0.json`),
         SCHEMA_INDEX_PATH,
       ].toSorted(),
     );
     expect(PUBLIC_DIR).toBe("docs/public");
     const page = result.files.get("docs/reference/formats.md") ?? "";
     expect(page).toContain("## Served JSON Schemas \\{#served-json-schemas\\}");
-    for (const id of FORMAT_IDS) {
+    for (const id of PRE_SCHEMA_FORMAT_IDS) {
       expect(page).toContain(`- \`https://docs.phax.run/schemas/${id}/0.17.0.json\``);
     }
     expect(result.files.get("docs/index.md")).not.toContain("schemas");

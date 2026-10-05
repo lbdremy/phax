@@ -24,4 +24,6 @@ export const CURRENT_SHAPES = {
   "gate-pending": "0.17.0",
   "spec-document": "0.17.0",
   "plan-document": "0.17.0",
+  "plan-approval-record": "next",
+  "spec-approval-record": "next",
 } as const;

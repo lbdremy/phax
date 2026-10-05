@@ -16,8 +16,10 @@ import {
   phaseFileReconciliationFormat,
 } from "../src/formats/recordTimeline.js";
 import {
+  planApprovalRecordFormat,
   planApprovalsFormat,
   planDocumentFormat,
+  specApprovalRecordFormat,
   specApprovalsFormat,
   specDocumentFormat,
 } from "../src/formats/repository.js";
@@ -56,6 +58,8 @@ type JsonSchemaFormatId = FormatId | "record-manifest";
 
 interface CurrentShape {
   readonly label: string;
+  /** The frozen pre-schema shape; null for a format born with `$schema`. */
+  readonly preSchema?: object | null;
   /** The released shapes the format has a frozen decoder for, by release. */
   readonly releases: ReadonlyArray<readonly [string, unknown]>;
   readonly current: {
@@ -81,6 +85,8 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "gate-pending": gatePendingFormat,
   "spec-document": specDocumentFormat,
   "plan-document": planDocumentFormat,
+  "plan-approval-record": planApprovalRecordFormat,
+  "spec-approval-record": specApprovalRecordFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -102,6 +108,8 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "gate-pending": "ignore",
   "spec-document": "error",
   "plan-document": "error",
+  "plan-approval-record": "error",
+  "spec-approval-record": "error",
   "record-manifest": "error",
 };
 

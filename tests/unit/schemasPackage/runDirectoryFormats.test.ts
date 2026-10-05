@@ -19,7 +19,7 @@ import { newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
 import { decodeRegistryFile } from "../../../src/schemas/registry.js";
-import type { FormatId } from "../../../src/schemas/schemaUrl.js";
+import type { PreSchemaFormatId } from "../../../src/schemas/schemaUrl.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
@@ -33,7 +33,7 @@ import {
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 
 interface RunDirectoryFormat {
-  readonly id: FormatId;
+  readonly id: PreSchemaFormatId;
   readonly parse: (input: unknown) => {
     readonly ok: boolean;
     readonly shape?: string;
