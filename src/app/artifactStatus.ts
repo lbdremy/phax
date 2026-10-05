@@ -464,6 +464,11 @@ export function transitionArtifact(
           }),
         );
       }
+      // The ledger goes first: an unreadable one is refused before anything
+      // moves. Run completion reads a plan missing from its source path as
+      // already completed, so a move left uncommitted would be skipped.
+      if (kind === "plan") yield* removeApprovalRecord(repoRelPath);
+      if (kind === "spec") yield* removeSpecApprovalRecord(repoRelPath);
       const archiveDir = destination.slice(0, destination.lastIndexOf("/"));
       yield* fs.mkdirp(archiveDir);
       yield* fs.writeAtomic(destination, updatedMd);
@@ -472,8 +477,6 @@ export function transitionArtifact(
         yield* fs.writeAtomic(sidecarDestination, sidecar.text);
         yield* fs.remove(sidecar.path);
       }
-      if (kind === "plan") yield* removeApprovalRecord(repoRelPath);
-      if (kind === "spec") yield* removeSpecApprovalRecord(repoRelPath);
       const result: ArtifactTransitionResult = { status: target, path: destination };
       return yield* finalizeTransition(git, kind, target, repoRelPath, writeSet, opts, result);
     }
