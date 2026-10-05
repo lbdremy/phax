@@ -86,6 +86,28 @@ describe("NodeGitLayer baseline operations", () => {
     expect(files).toEqual(["new.ts"]);
   });
 
+  // Rename detection would pair a deleted file with a near-identical added one
+  // and list only the new path, so a footprint naming the old path (a record
+  // file deleted at completion, a plan moved into archive/) saw no change.
+  it("changedFilesSince lists both paths of a rename, committed or not", async () => {
+    await writeFile(join(repoDir, "old.md"), "# same content\n".repeat(20));
+    runGit("add .", repoDir);
+    runGit("commit -m 'docs: add old.md'", repoDir);
+    const baseline = headSha(repoDir);
+
+    runGit("mv old.md archive.md", repoDir);
+    runGit("commit -m 'docs: move old.md'", repoDir);
+    runGit("mv README.md MOVED.md", repoDir);
+
+    const files = await Effect.runPromise(
+      Effect.flatMap(Git, (git) => git.changedFilesSince(baseline, repoDir)).pipe(
+        Effect.provide(NodeGitLayer),
+      ),
+    );
+
+    expect([...files].toSorted()).toEqual(["MOVED.md", "README.md", "archive.md", "old.md"]);
+  });
+
   it("changedFilesSince includes an uncommitted working-tree edit", async () => {
     const baseline = headSha(repoDir);
 

@@ -293,8 +293,11 @@ export const NodeGitLayer = Layer.succeed(Git, {
       Effect.map(({ exitCode }) => exitCode === 0),
     ),
 
+  // `--no-renames`: with rename detection, a deleted file paired with a
+  // near-identical added one is listed only under the new path, so a footprint
+  // naming the old path (a moved plan, a deleted record file) would miss it.
   changedFilesSince: (baseline, repo) =>
-    gitRun(["diff", "--name-only", baseline, "--"], repo).pipe(
+    gitRun(["diff", "--name-only", "--no-renames", baseline, "--"], repo).pipe(
       Effect.map(({ stdout }) => parseChangedFilesOutput(stdout)),
     ),
 
