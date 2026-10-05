@@ -92,12 +92,13 @@ spoke → hub lookups. Rules that have held since July 2026:
 
 The Intelligence Index was **re-scaled** between the 2026-09-07 and the
 2026-09-23 reads (Fable 5.1 at max was 57, now 53), so numbers are only
-comparable within a single read.
+comparable within a single read. The 2026-10-05 read is on the 2026-09-23
+scale (Opus 5.5 and Fable 5.1 unchanged).
 
 | Spoke           | Anchor              | Relation     | Basis                                                                                                                                                             | Since     |
 | --------------- | ------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | `gpt-5.5`       | `claude-sonnet-4-6` (low/medium/high), `claude-opus-4-8` medium (xhigh) | `equivalent` | Original spec §12 table                                                                                                                                            | initial   |
-| `gpt-6-sol`     | `claude-opus-5-5`   | `downgrade`  | AA Intelligence Index, 2026-09-23, low/medium/high/xhigh/max: Sol 34/40/43/44/48 vs Opus 5.5 42/51/54/56/58. Sol sits between Sonnet 5 (24/28/32/34/38) and Opus 5.5 with no Claude entry within a point; anchoring high gives Opus 5.5, the default phase model, a codex route under `allowDowngrade: true`. | 2026-09-23 refresh |
+| `gpt-6-sol`     | `claude-sonnet-5-5` | `equivalent` at `medium`, else `downgrade` | AA Intelligence Index, low/medium/high/xhigh/max: Sol 34/40/43/44/48 (2026-09-23 read) vs Sonnet 5.5 36/41/47/52/56 (2026-10-05 read, same scale). It was anchored to Opus 5.5 (42/51/54/56/58); Sonnet 5.5 is closer at every effort. `ultra` anchors to `max`. | 2026-09-23 refresh; re-anchored 2026-10-05 refresh |
 | `gpt-6-luna`    | `claude-sonnet-5`   | `downgrade` at `low`, else `equivalent` | AA Intelligence Index, 2026-09-23: Luna 21/29/32/34/37 vs Sonnet 5 24/28/32/34/38 — within a point from `medium` up, 3 points under at `low`. | 2026-09-23 refresh |
 | `gpt-6-astra`   | `claude-fable-5-1`  | `equivalent` | AA Intelligence Index, 2026-09-23: Astra 46/50/51/52/53 vs Fable 5.1 47/49/51/53/53 — within 1 point everywhere. Was `downgrade` on the 2026-09-07 revision (Astra 49/52/53/54/55 vs Fable 5.1 51/53/54/56/57). | 2026-09-07 refresh; `equivalent` 2026-09-23 refresh |
 | `gpt-5.6-sol`   | `claude-fable-5`    | `equivalent` | AA Agentic Index, July 2026: Sol 54.0 vs Fable 5 52.8. Spoke deprecated — edge kept for fallback only.                                                            | `0667c17` |
@@ -115,14 +116,20 @@ Which Claude entries lost their codex route when the GPT-5.6 variants were
 deprecated: `claude-fable-5` (its only codex anchor was `gpt-5.6-sol`) and
 `claude-opus-4-8` at `low`/`high`/`xhigh`/`max` (anchored only by
 `gpt-5.6-terra`). Opus 4.8 keeps `medium`, via `gpt-5.5` at `xhigh`.
+`claude-opus-5-5` lost its only codex route when Sol re-anchored to Sonnet
+5.5 (2026-10-05). The default phase model is therefore Claude-only: an Opus
+5.5 phase never reaches codex, whatever the priority or `allowDowngrade`
+says. In `claude-opus`, only Opus 4.8 at `medium` keeps a codex route, via
+`gpt-5.5` at `xhigh`.
 
-Consequence of the `downgrade` edges — all of Sol, and Luna at `low`: with
-`allowDowngrade: true` (the default) an Opus 5.5 phase reaches codex as
-`gpt-6-sol` when codex is first in priority, labelled `downgrade`; with
-`false` it stays on Claude. In the other direction a Sol phase falling back to
-Claude lands on Opus 5.5 as an `upgrade` under both settings. Astra ↔ Fable
-5.1 and Luna ↔ Sonnet 5 above `low` are `equivalent`, so those route under
-both settings.
+Consequence of the `downgrade` edges — Sol at every effort except `medium`,
+and Luna at `low`: with `allowDowngrade: true` (the default) and codex first
+in priority, a Sonnet 5.5 phase reaches codex as `gpt-6-sol`, labelled
+`equivalent` at `medium` and `downgrade` at `low`/`high`/`xhigh`/`max`; with
+`false` it reaches codex only at `medium`. In the other direction a Sol phase
+falling back to Claude lands on Sonnet 5.5, `equivalent` at `medium` and
+`upgrade` elsewhere, under both settings. Astra ↔ Fable 5.1 and Luna ↔ Sonnet
+5 above `low` are `equivalent`, so those route under both settings.
 
 ## 4. Cost basis and phax's built-in defaults
 

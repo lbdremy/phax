@@ -333,18 +333,18 @@ describe("resolveModel — GPT-6 Astra anchored to Fable 5.1 (equivalent)", () =
 });
 
 describe("resolveModel — GPT-6 Sol and Luna", () => {
-  it("claude-opus-5-5/high routes to codex-cli/gpt-6-sol/high when allowDowngrade=true", () => {
+  it("claude-opus-5-5/high stays on claude-code even when allowDowngrade=true (no codex route)", () => {
     const routing: ModelRouting = {
       ...DEFAULT_MODEL_ROUTING,
       providerPriority: ["codex-cli", "claude-code"],
       allowDowngrade: true,
     };
     const result = resolveModel({ model: "claude-opus-5-5", effort: "high" }, routing, allEnabled);
-    expect(result.selected.provider).toBe("codex-cli");
-    expect(result.selected.family).toBe("openai-gpt");
-    expect(result.selected.concreteModel).toBe("gpt-6-sol");
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-opus");
+    expect(result.selected.concreteModel).toBe("claude-opus-5-5");
     expect(result.selected.thinking).toBe("high");
-    expect(result.relationship).toBe("downgrade");
+    expect(result.relationship).toBe("exact");
   });
 
   it("claude-opus-5-5/high stays on claude-code when allowDowngrade=false", () => {
@@ -374,17 +374,84 @@ describe("resolveModel — GPT-6 Sol and Luna", () => {
     expect(result.relationship).toBe("equivalent");
   });
 
-  it("gpt-6-sol/max falls back to claude-opus-5-5/max when codex is disabled (upgrade)", () => {
+  it("claude-sonnet-5-5/high routes to codex-cli/gpt-6-sol/high when allowDowngrade=true", () => {
+    const routing: ModelRouting = {
+      ...DEFAULT_MODEL_ROUTING,
+      providerPriority: ["codex-cli", "claude-code"],
+      allowDowngrade: true,
+    };
+    const result = resolveModel(
+      { model: "claude-sonnet-5-5", effort: "high" },
+      routing,
+      allEnabled,
+    );
+    expect(result.selected.provider).toBe("codex-cli");
+    expect(result.selected.family).toBe("openai-gpt");
+    expect(result.selected.concreteModel).toBe("gpt-6-sol");
+    expect(result.selected.thinking).toBe("high");
+    expect(result.relationship).toBe("downgrade");
+  });
+
+  it("claude-sonnet-5-5/high stays on claude-code when allowDowngrade=false", () => {
+    const routing: ModelRouting = {
+      ...DEFAULT_MODEL_ROUTING,
+      providerPriority: ["codex-cli", "claude-code"],
+      allowDowngrade: false,
+    };
+    const result = resolveModel(
+      { model: "claude-sonnet-5-5", effort: "high" },
+      routing,
+      allEnabled,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5-5");
+    expect(result.selected.thinking).toBe("high");
+    expect(result.relationship).toBe("exact");
+  });
+
+  it("claude-sonnet-5-5/medium routes to gpt-6-sol even when allowDowngrade=false (equivalent)", () => {
+    const routing: ModelRouting = {
+      ...DEFAULT_MODEL_ROUTING,
+      providerPriority: ["codex-cli", "claude-code"],
+      allowDowngrade: false,
+    };
+    const result = resolveModel(
+      { model: "claude-sonnet-5-5", effort: "medium" },
+      routing,
+      allEnabled,
+    );
+    expect(result.selected.provider).toBe("codex-cli");
+    expect(result.selected.family).toBe("openai-gpt");
+    expect(result.selected.concreteModel).toBe("gpt-6-sol");
+    expect(result.selected.thinking).toBe("medium");
+    expect(result.relationship).toBe("equivalent");
+  });
+
+  it("gpt-6-sol/max falls back to claude-sonnet-5-5/max when codex is disabled (upgrade)", () => {
     const result = resolveModel(
       { model: "gpt-6-sol", effort: "max" },
       DEFAULT_MODEL_ROUTING,
       DEFAULT_PROVIDER_CONFIG,
     );
     expect(result.selected.provider).toBe("claude-code");
-    expect(result.selected.family).toBe("claude-opus");
-    expect(result.selected.concreteModel).toBe("claude-opus-5-5");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5-5");
     expect(result.selected.thinking).toBe("max");
     expect(result.relationship).toBe("upgrade");
+  });
+
+  it("gpt-6-sol/medium falls back to claude-sonnet-5-5/medium when codex is disabled (equivalent)", () => {
+    const result = resolveModel(
+      { model: "gpt-6-sol", effort: "medium" },
+      DEFAULT_MODEL_ROUTING,
+      DEFAULT_PROVIDER_CONFIG,
+    );
+    expect(result.selected.provider).toBe("claude-code");
+    expect(result.selected.family).toBe("claude-sonnet");
+    expect(result.selected.concreteModel).toBe("claude-sonnet-5-5");
+    expect(result.selected.thinking).toBe("medium");
+    expect(result.relationship).toBe("equivalent");
   });
 });
 

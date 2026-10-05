@@ -8,14 +8,14 @@ This page explains how routing works. Why the catalog contains what it contains 
 
 Six families span the three providers:
 
-| Family           | Providers                              |
-| ---------------- | -------------------------------------- |
-| `claude-haiku`   | claude-code                            |
-| `claude-sonnet`  | claude-code, mistral-vibe (equivalent) |
-| `claude-opus`    | claude-code, codex-cli (equivalent)    |
-| `claude-fable`   | claude-code, codex-cli (equivalent)    |
-| `mistral-medium` | mistral-vibe                           |
-| `openai-gpt`     | codex-cli                              |
+| Family           | Providers                                                       |
+| ---------------- | --------------------------------------------------------------- |
+| `claude-haiku`   | claude-code                                                     |
+| `claude-sonnet`  | claude-code, mistral-vibe (equivalent), codex-cli (equivalent) |
+| `claude-opus`    | claude-code, codex-cli (equivalent)                             |
+| `claude-fable`   | claude-code, codex-cli (equivalent)                             |
+| `mistral-medium` | mistral-vibe                                                    |
+| `openai-gpt`     | codex-cli                                                       |
 
 ## Versioned catalog
 
@@ -82,7 +82,7 @@ Resolution uses this table in three directions:
 
 A hub → spoke lookup **never selects a spoke whose catalog entry is `status: "deprecated"`**; the spoke → hub direction ignores status, so a phase that still names a retired id keeps its Claude fallback.
 
-The shipped table uses `downgrade` for `gpt-6-sol` → `claude-opus-5-5` (and for `gpt-6-luna` at `low`): under `allowDowngrade: false` a `claude-opus-5-5` phase stays on Claude Code, while a `gpt-6-sol` phase still falls back to `claude-opus-5-5` because the inverted spoke → hub direction is an `upgrade`. `gpt-6-astra` → `claude-fable-5-1` is `equivalent`, so it routes under both settings.
+The shipped table anchors `gpt-6-sol` → `claude-sonnet-5-5`, `equivalent` at `medium` and `downgrade` at every other effort (and uses `downgrade` for `gpt-6-luna` at `low`): under `allowDowngrade: false` a `claude-sonnet-5-5` phase reaches Codex only at `medium` and otherwise stays on Claude Code, while a `gpt-6-sol` phase always falls back to `claude-sonnet-5-5` because the inverted spoke → hub direction is `equivalent` or an `upgrade`. `claude-opus-5-5` has no Codex spoke, so an Opus 5.5 phase never leaves Claude Code. `gpt-6-astra` → `claude-fable-5-1` is `equivalent`, so it routes under both settings.
 
 ## Resolution algorithm
 
@@ -238,6 +238,16 @@ If `codex-cli` is disabled, the terminal translates spoke → hub: `equivalence[
 - Two spokes anchor `{claude: "claude-sonnet-5", effort: "medium"}`: `gpt-6-luna` and `gpt-5.6-luna`
 - `gpt-5.6-luna` is `status: "deprecated"` → skipped
 - **Result**: `codex-cli`, `gpt-6-luna`, effort `medium`, relationship `equivalent`
+
+### Example 8 — claude-sonnet-5-5/high, codex-cli first (downgrade edge)
+
+- Request: `claude-sonnet-5-5` / `high`, `allowDowngrade: true`
+- Plan family: `claude-sonnet`; `codex-cli` serves `openai-gpt` → hub → spoke lookup
+- `gpt-6-sol` anchors `{claude: "claude-sonnet-5-5", effort: "high"}` with relation `downgrade`
+- **Result**: `codex-cli`, `gpt-6-sol`, effort `high`, relationship `downgrade`
+
+With `allowDowngrade: false` the `downgrade` edge is skipped and the request falls through to the `claude-code` terminal.
+- **Result**: `claude-code`, `claude-sonnet-5-5`, effort `high`, relationship `exact`
 
 ## Editing the routing config
 
