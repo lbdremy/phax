@@ -316,7 +316,11 @@ function runAuthoringSession(
     const committed = yield* Effect.either(git.commitPaths(input.repoRoot, paths, subject, body));
     if (Either.isLeft(committed)) {
       return yield* Effect.fail(
-        new ArtifactCommitFailedError({ paths, cause: committed.left.message }),
+        new ArtifactCommitFailedError({
+          paths,
+          cause: committed.left.message,
+          commitMessage: { subject, body },
+        }),
       );
     }
     const hash = yield* git.headCommit(input.repoRoot);

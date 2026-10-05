@@ -504,7 +504,11 @@ function finalizeTransition(
     const committed = yield* Effect.either(git.commitPaths(opts.repoRoot, writeSet, subject, body));
     if (Either.isLeft(committed)) {
       return yield* Effect.fail(
-        new ArtifactCommitFailedError({ paths: writeSet, cause: committed.left.message }),
+        new ArtifactCommitFailedError({
+          paths: writeSet,
+          cause: committed.left.message,
+          commitMessage: { subject, body },
+        }),
       );
     }
 

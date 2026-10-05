@@ -393,6 +393,10 @@ describe("runArtifactTransition", () => {
         new ArtifactCommitFailedError({
           paths: ["docs/plans/2607101056-typescript-7-migration-plan.md"],
           cause: "pre-commit hook failed",
+          commitMessage: {
+            subject: "chore(plans): approve typescript-7-migration",
+            body: "Transitions docs/plans/2607101056-typescript-7-migration-plan.md to Approved (approve).",
+          },
         }),
       ),
     );
