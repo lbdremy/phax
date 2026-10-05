@@ -14,10 +14,16 @@
 // `defineFormat` does: a document with `$schema` is read only by phax's
 // current file decoder; a
 // document without `$schema` is read only by the frozen pre-schema decoder,
-// then stepped to the current shape. On the way out, `withSchemaUrl` stamps the
-// `$schema` a writer puts first.
+// then stepped to the current shape. A format born with `$schema` has no
+// pre-schema decoder, so a document of it without `$schema` is refused. On the
+// way out, `withSchemaUrl` stamps the `$schema` a writer puts first.
 import { Either, type ParseResult } from "effect";
-import { decodeApprovalRecordFile, type PlanApprovals } from "./approvalRecord.js";
+import {
+  decodeApprovalRecordFile,
+  decodePlanRecordFile,
+  type PlanApprovals,
+  type PlanRecord,
+} from "./approvalRecord.js";
 import {
   decodeRecordManifestFile,
   type RecordManifest,
@@ -47,8 +53,20 @@ import {
 } from "./reconciliation.js";
 import { decodeRegistryFile, type Registry } from "./registry.js";
 import { PHAX_RELEASE } from "./release.js";
-import { compareReleases, parseSchemaUrl, schemaUrl, type FormatId } from "./schemaUrl.js";
-import { decodeSpecApprovalRecordFile, type SpecApprovals } from "./specApprovalRecord.js";
+import {
+  compareReleases,
+  parseSchemaUrl,
+  schemaUrl,
+  type FormatId,
+  type PreSchemaFormatId,
+  type SchemaBornFormatId,
+} from "./schemaUrl.js";
+import {
+  decodeSpecApprovalRecordFile,
+  decodeSpecRecordFile,
+  type SpecApprovals,
+  type SpecRecord,
+} from "./specApprovalRecord.js";
 import { decodeSpecDocumentFile, type SpecDocument } from "./specDocument.js";
 import {
   decodePhaseStatusFile,
@@ -74,7 +92,7 @@ type Decode<T> = (input: unknown) => Either.Either<T, ParseResult.ParseError>;
 
 /** How one persisted format is read: its two decoders and their steps to the in-memory value. */
 export interface PersistedSpec<Current, PreSchema, InMemory> {
-  readonly format: FormatId;
+  readonly format: PreSchemaFormatId;
   readonly label: string;
   readonly file: string;
   readonly decodeCurrent: Decode<Current>;
@@ -110,27 +128,7 @@ export function readPersisted<Current, PreSchema, InMemory>(
   if (!isDocumentObject(input)) {
     return Either.left(readError(file, format, `a ${label} is a JSON object`));
   }
-  if (Object.hasOwn(input, "$schema")) {
-    const named = parseSchemaUrl(input["$schema"]);
-    if (
-      named !== undefined &&
-      named.formatId === format &&
-      compareReleases(named.release, PHAX_RELEASE) > 0
-    ) {
-      return Either.left(
-        readError(
-          file,
-          format,
-          `${label} written by phax ${named.release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
-        ),
-      );
-    }
-    const current = spec.decodeCurrent(input);
-    if (Either.isLeft(current)) {
-      return Either.left(readError(file, format, formatFirstViolation(current.left)));
-    }
-    return Either.right(spec.fromCurrent(current.right));
-  }
+  if (Object.hasOwn(input, "$schema")) return readCurrent(input, spec);
   const preSchema = spec.decodePreSchema(input);
   if (Either.isLeft(preSchema)) {
     return Either.left(
@@ -152,6 +150,69 @@ export function readPersisted<Current, PreSchema, InMemory>(
     );
   }
   return Either.right(stepped.right);
+}
+
+/** Steps 2 and 3 of `readPersisted`, shared by both readers: a document with its own `$schema` key. */
+function readCurrent<Current, InMemory>(
+  input: Readonly<Record<string, unknown>>,
+  spec: {
+    readonly format: FormatId;
+    readonly label: string;
+    readonly file: string;
+    readonly decodeCurrent: Decode<Current>;
+    readonly fromCurrent: (value: Current) => InMemory;
+  },
+): Either.Either<InMemory, PersistedReadError> {
+  const { file, format, label } = spec;
+  const named = parseSchemaUrl(input["$schema"]);
+  if (
+    named !== undefined &&
+    named.formatId === format &&
+    compareReleases(named.release, PHAX_RELEASE) > 0
+  ) {
+    return Either.left(
+      readError(
+        file,
+        format,
+        `${label} written by phax ${named.release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+      ),
+    );
+  }
+  const current = spec.decodeCurrent(input);
+  if (Either.isLeft(current)) {
+    return Either.left(readError(file, format, formatFirstViolation(current.left)));
+  }
+  return Either.right(spec.fromCurrent(current.right));
+}
+
+/** How a format born with `$schema` is read: its one decoder and its step to the in-memory value. */
+export interface SchemaBornPersistedSpec<Current, InMemory> {
+  readonly format: SchemaBornFormatId;
+  readonly label: string;
+  readonly file: string;
+  readonly decodeCurrent: Decode<Current>;
+  readonly fromCurrent: (value: Current) => InMemory;
+}
+
+/**
+ * Reads one parsed JSON document as a format born with `$schema`. Never
+ * throws. A non-object fails, and a document with its own `$schema` key is
+ * read exactly as `readPersisted` reads one. A document without `$schema`
+ * fails: phax wrote every document of the format with one, so there is no
+ * pre-schema decoder to try.
+ */
+export function readSchemaBornPersisted<Current, InMemory>(
+  input: unknown,
+  spec: SchemaBornPersistedSpec<Current, InMemory>,
+): Either.Either<InMemory, PersistedReadError> {
+  const { file, format, label } = spec;
+  if (!isDocumentObject(input)) {
+    return Either.left(readError(file, format, `a ${label} is a JSON object`));
+  }
+  if (Object.hasOwn(input, "$schema")) return readCurrent(input, spec);
+  return Either.left(
+    readError(file, format, `${label} has no $schema — every ${label} is written with one`),
+  );
 }
 
 type Reader<T> = (file: string, input: unknown) => Either.Either<T, PersistedReadError>;
@@ -252,6 +313,26 @@ export const readSpecApprovalsFile: Reader<SpecApprovals> = (file, input) =>
     decodePreSchema: decodeSpecApprovalsPreSchema,
     fromCurrent: ({ $schema: _schema, ...ledger }) => ledger,
     fromPreSchema: ({ version: _version, ...ledger }) => Either.right(ledger),
+  });
+
+/** Reads one plan's `docs/plans/approvals/<plan>.json`. Born with `$schema`. */
+export const readPlanRecordFile: Reader<PlanRecord> = (file, input) =>
+  readSchemaBornPersisted(input, {
+    format: "plan-approval-record",
+    label: "plan approval record",
+    file,
+    decodeCurrent: decodePlanRecordFile,
+    fromCurrent: ({ $schema: _schema, ...record }) => record,
+  });
+
+/** Reads one spec's `docs/specs/approvals/<spec>.json`. Born with `$schema`. */
+export const readSpecRecordFile: Reader<SpecRecord> = (file, input) =>
+  readSchemaBornPersisted(input, {
+    format: "spec-approval-record",
+    label: "spec approval record",
+    file,
+    decodeCurrent: decodeSpecRecordFile,
+    fromCurrent: ({ $schema: _schema, ...record }) => record,
   });
 
 /** Reads a spec's JSON sidecar. The pre-schema sidecar carries every fact phax needs. */

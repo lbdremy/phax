@@ -21,9 +21,11 @@ import type {
   LatestPhaseStatus,
   LatestPhaxPlan,
   LatestRegistry,
+  LatestPlanApprovalRecord,
   LatestPlanApprovals,
   LatestPlanDocument,
   LatestRunStatus,
+  LatestSpecApprovalRecord,
   LatestSpecApprovals,
   LatestSpecDocument,
   Parsed,
@@ -37,6 +39,8 @@ import type {
   PhaseStatusShape,
   PhaxPlan,
   PhaxPlanShape,
+  PlanApprovalRecord,
+  PlanApprovalRecordShape,
   PlanApprovals,
   PlanApprovalsShape,
   PlanDocument,
@@ -47,6 +51,8 @@ import type {
   RegistryShape,
   RunStatus,
   RunStatusShape,
+  SpecApprovalRecord,
+  SpecApprovalRecordShape,
   SpecApprovals,
   SpecApprovalsShape,
   SpecDocument,
@@ -78,11 +84,13 @@ import {
   parsePhaseRecordManifest,
   parsePhaseStatus,
   parsePhaxPlan,
+  parsePlanApprovalRecord,
   parsePlanApprovals,
   parsePlanDocument,
   parseRecordManifest,
   parseRegistry,
   parseRunStatus,
+  parseSpecApprovalRecord,
   parseSpecApprovals,
   parseSpecDocument,
   toLatestAuthoringRecordManifest,
@@ -94,10 +102,12 @@ import {
   toLatestPhaseRecordManifest,
   toLatestPhaseStatus,
   toLatestPhaxPlan,
+  toLatestPlanApprovalRecord,
   toLatestPlanApprovals,
   toLatestPlanDocument,
   toLatestRegistry,
   toLatestRunStatus,
+  toLatestSpecApprovalRecord,
   toLatestSpecApprovals,
   toLatestSpecDocument,
 } from "../../packages/schemas/src/index.js";
@@ -106,6 +116,8 @@ import type { CurrentShapeName, FormatSpec, Shape } from "../../packages/schemas
 import type {
   ApprovalRecordFile,
   PlanApprovals as PhaxPlanApprovals,
+  PlanRecord as PhaxPlanRecord,
+  PlanRecordFile as PhaxPlanRecordFile,
 } from "../../src/schemas/approvalRecord.js";
 import type {
   AuthoringRecordManifest as PhaxAuthoringRecordManifest,
@@ -140,6 +152,8 @@ import type {
 import type {
   SpecApprovalRecordFile,
   SpecApprovals as PhaxSpecApprovals,
+  SpecRecord as PhaxSpecRecord,
+  SpecRecordFile as PhaxSpecRecordFile,
 } from "../../src/schemas/specApprovalRecord.js";
 import type {
   SpecDocument as PhaxSpecDocument,
@@ -277,6 +291,37 @@ const nextWithoutPreSchema: FormatSpec<Toy> = {
 };
 void nextWithoutPreSchema;
 
+// A format born with $schema: preSchema null, no pre-schema shape, and only a
+// format id born with $schema
+type BornToy = { "0.10.0": { b: 2 }; next: { c: 3 } };
+declare const bornShapes: { readonly [K in keyof BornToy]: Shape<BornToy[K]> };
+const born: FormatSpec<BornToy> = {
+  id: "plan-approval-record",
+  label: "toy",
+  preSchema: null,
+  releases: [["0.10.0", bornShapes["0.10.0"]]],
+  current: { name: "next", shape: bornShapes.next },
+};
+void born;
+// @ts-expect-error: a format phax wrote before $schema is never born with it
+const bornPreSchemaFormat: FormatSpec<BornToy> = {
+  id: "gate-pending",
+  label: "toy",
+  preSchema: null,
+  releases: [],
+  current: { name: "next", shape: bornShapes.next },
+};
+void bornPreSchemaFormat;
+// @ts-expect-error: a format born with $schema has no frozen pre-schema module
+const bornWithPreSchema: FormatSpec<Toy> = {
+  id: "plan-approval-record",
+  label: "toy",
+  preSchema: toyShapes["pre-schema"],
+  releases: [],
+  current: { name: "next", shape: toyShapes.next },
+};
+void bornWithPreSchema;
+
 // parseDocument names the format and the shape, and narrows to the exact type
 const document = parseDocument({});
 const documentAsParsed: Parsed<AnyDocument["value"]> = document;
@@ -298,6 +343,8 @@ const formats: Equals<
   | "phase-file-reconciliation"
   | "gate-diagnostics"
   | "gate-pending"
+  | "plan-approval-record"
+  | "spec-approval-record"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -323,6 +370,12 @@ if (document.ok) {
     const exact: Equals<typeof document.value, FrozenSpecApprovals> = true;
     void exact;
   }
+  if (document.format === "plan-approval-record") {
+    const exact: Equals<typeof document.value, PhaxPlanRecordFile> = true;
+    const recordShape: Equals<typeof document.shape, Current<"plan-approval-record">> = true;
+    void exact;
+    void recordShape;
+  }
   if (document.format === "spec-document" && document.shape === CURRENT_SHAPES["spec-document"]) {
     const exact: Equals<typeof document.value, PhaxSpecDocumentFile> = true;
     void exact;
@@ -345,8 +398,8 @@ if (parsedDocument.ok && parsedDocument.shape === "0.12.0") {
   void toyValue;
 }
 
-// Every format reads two shapes: its frozen pre-schema shape and its current
-// shape, named by CURRENT_SHAPES
+// Every format reads its current shape, named by CURRENT_SHAPES; a format
+// phax wrote before $schema also reads its frozen pre-schema shape
 const shapeIds: Equals<
   | RegistryShape
   | RunStatusShape
@@ -362,7 +415,9 @@ const shapeIds: Equals<
   | GateAttributionShape
   | PhaseFileReconciliationShape
   | GateDiagnosticsShape
-  | GatePendingShape,
+  | GatePendingShape
+  | PlanApprovalRecordShape
+  | SpecApprovalRecordShape,
   "pre-schema" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -382,7 +437,27 @@ const eachShapeId: [
   Equals<PhaseFileReconciliationShape, "pre-schema" | Current<"phase-file-reconciliation">>,
   Equals<GateDiagnosticsShape, "pre-schema" | Current<"gate-diagnostics">>,
   Equals<GatePendingShape, "pre-schema" | Current<"gate-pending">>,
-] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+  Equals<PlanApprovalRecordShape, Current<"plan-approval-record">>,
+  Equals<SpecApprovalRecordShape, Current<"spec-approval-record">>,
+] = [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+];
 void eachShapeId;
 
 /** The value a parse function's success carries. */
@@ -420,7 +495,27 @@ const parseValues: [
   >,
   Equals<Value<typeof parseGateDiagnostics>, FrozenGateDiagnostics | GateDiagnosticsFile>,
   Equals<Value<typeof parseGatePending>, FrozenGatePending | GatePendingFile>,
-] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+  Equals<Value<typeof parsePlanApprovalRecord>, PhaxPlanRecordFile>,
+  Equals<Value<typeof parseSpecApprovalRecord>, PhaxSpecRecordFile>,
+] = [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+];
 void parseValues;
 
 // Each shape carries its own type: the frozen module's for pre-schema, phax's
@@ -470,8 +565,48 @@ const latestTypes: [
   Equals<LatestPhaseFileReconciliation, PhaxPhaseFileReconciliation>,
   Equals<LatestGateDiagnostics, GateDiagnosticsDocument>,
   Equals<LatestGatePending, GatePendingDocument>,
-] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+  Equals<LatestPlanApprovalRecord, PhaxPlanRecord>,
+  Equals<LatestSpecApprovalRecord, PhaxSpecRecord>,
+] = [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+];
 void latestTypes;
+
+// A format born with $schema: its record is phax's own type, both ways, and
+// its in-memory value carries no $schema
+declare const packagePlanRecord: PlanApprovalRecord;
+declare const packageSpecRecord: SpecApprovalRecord;
+const planRecordToPhax: PhaxPlanRecordFile = packagePlanRecord;
+const specRecordToPhax: PhaxSpecRecordFile = packageSpecRecord;
+void planRecordToPhax;
+void specRecordToPhax;
+const recordUpgrades: [
+  Equals<Parameters<typeof toLatestPlanApprovalRecord>, [value: PhaxPlanRecordFile]>,
+  Equals<Parameters<typeof toLatestSpecApprovalRecord>, [value: PhaxSpecRecordFile]>,
+] = [true, true];
+void recordUpgrades;
+declare const latestPlanRecord: LatestPlanApprovalRecord;
+// @ts-expect-error: the in-memory plan approval record carries no $schema
+void latestPlanRecord.$schema;
+declare const latestSpecRecord: LatestSpecApprovalRecord;
+// @ts-expect-error: the in-memory spec approval record carries no $schema
+void latestSpecRecord.$schema;
 
 declare const latestRegistry: LatestRegistry;
 // @ts-expect-error: the latest registry carries no version

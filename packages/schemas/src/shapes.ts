@@ -6,6 +6,8 @@ import {
   isRelease,
   parseSchemaUrl,
   type FormatId,
+  type PreSchemaFormatId,
+  type SchemaBornFormatId,
 } from "../../../src/schemas/schemaUrl.js";
 import {
   FIRST_SUPPORTED_RELEASE,
@@ -43,7 +45,7 @@ type NamedShape<M, K extends ShapeId<M>> = {
  * pre-schema decoder, and no release has written `$schema` yet.
  */
 interface CurrentPreSchemaSpec<M> {
-  readonly id: FormatId;
+  readonly id: PreSchemaFormatId;
   readonly label: string;
   readonly preSchema?: never;
   readonly releases: readonly [];
@@ -57,7 +59,7 @@ interface CurrentPreSchemaSpec<M> {
  * release.
  */
 interface FrozenPreSchemaSpec<M> {
-  readonly id: FormatId;
+  readonly id: PreSchemaFormatId;
   readonly label: string;
   readonly preSchema: Shape<PreSchemaValue<M>>;
   readonly releases: ReadonlyArray<ReleaseEntry<M>>;
@@ -65,10 +67,24 @@ interface FrozenPreSchemaSpec<M> {
 }
 
 /**
- * A format's table of shapes, over `M`: shape id → value type. Every map has
- * a `pre-schema` shape, the one phax wrote before it wrote `$schema`.
+ * A format born with `$schema`: phax wrote every document of it with one, so
+ * it has no pre-schema shape (`preSchema: null`) and its map no `pre-schema`
+ * key. `releases` and `current` are as for a frozen pre-schema format.
  */
-export type FormatSpec<M> = CurrentPreSchemaSpec<M> | FrozenPreSchemaSpec<M>;
+interface SchemaBornSpec<M> {
+  readonly id: SchemaBornFormatId;
+  readonly label: string;
+  readonly preSchema: null;
+  readonly releases: ReadonlyArray<ReleaseEntry<M>>;
+  readonly current: NamedShape<M, Extract<ShapeId<M>, "next"> | ReleaseName<ShapeId<M>>>;
+}
+
+/**
+ * A format's table of shapes, over `M`: shape id → value type. A format phax
+ * wrote before it wrote `$schema` has a `pre-schema` shape; a format born
+ * with `$schema` has none.
+ */
+export type FormatSpec<M> = CurrentPreSchemaSpec<M> | FrozenPreSchemaSpec<M> | SchemaBornSpec<M>;
 
 export type FormatDefinition<M> = FormatSpec<M> & {
   readonly packageVersion: string;
@@ -125,6 +141,11 @@ export function preSchemaUnsupportedMessage(
   return `${label} ${older} — not supported (${violation})`;
 }
 
+/** A document without `$schema` of a format born with `$schema`. */
+export function missingSchemaMessage(label: string): string {
+  return `${label} has no $schema — every ${label} is written with one`;
+}
+
 function describe(value: unknown): string {
   if (typeof value === "string") return JSON.stringify(value);
   if (value === null) return "null";
@@ -173,7 +194,9 @@ function decodeAs(shape: string, entry: AnyShape, input: unknown): Decoded {
  *    the pre-schema decoder: the frozen `preSchema` module when the slot is
  *    filled, else `current.shape`. It resolves to shape `pre-schema`, or fails
  *    at the decoder's first violation with `preSchemaUnsupportedMessage`. No
- *    other decoder is tried.
+ *    other decoder is tried. For a format born with `$schema`
+ *    (`preSchema: null`) it fails at `$schema` with `missingSchemaMessage`,
+ *    and no decoder is tried.
  *
  * `packageVersion` defaults to `PACKAGE_VERSION` and `firstSupportedRelease`
  * to `FIRST_SUPPORTED_RELEASE`; tests inject both.
@@ -193,7 +216,8 @@ export function defineFormat<M>(
   const { id, label } = spec;
   const current = spec.current as { readonly name: string; readonly shape: AnyShape };
   const releases = spec.releases as ReadonlyArray<readonly [string, AnyShape]>;
-  const preSchema = (spec.preSchema ?? current.shape) as AnyShape;
+  const preSchema =
+    spec.preSchema === null ? null : ((spec.preSchema ?? current.shape) as AnyShape);
   const releaseShapes = isRelease(current.name)
     ? [...releases, [current.name, current.shape] as const]
     : releases;
@@ -228,6 +252,7 @@ export function defineFormat<M>(
   }
 
   function byPreSchema(input: object): Decoded {
+    if (preSchema === null) return failure("$schema", missingSchemaMessage(label));
     const read = decodeAs("pre-schema", preSchema, input);
     if (read.ok) return read;
     return failure(

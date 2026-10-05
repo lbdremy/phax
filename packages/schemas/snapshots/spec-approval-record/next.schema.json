@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax spec approval record",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "artifact",
+    "specFingerprint",
+    "approvedAt",
+    "baseline"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The spec-approval-record format and the phax release that wrote this file: https://docs.phax.run/schemas/spec-approval-record/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/spec-approval-record\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "artifact": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "specFingerprint": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "approvedAt": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "baseline": {
+      "$ref": "#/$defs/NonEmptyString",
+      "description": "a string matching the pattern ^[0-9a-f]{40}$",
+      "pattern": "^[0-9a-f]{40}$"
+    }
+  },
+  "additionalProperties": false
+}

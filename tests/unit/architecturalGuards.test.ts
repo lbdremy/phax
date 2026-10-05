@@ -768,6 +768,8 @@ const BRIDGE_ONLY_DECODERS: { readonly [F in FormatId]: ReadonlyArray<string> } 
   "gate-pending": ["decodeGatePendingFile"],
   "spec-document": ["decodeSpecDocumentFile"],
   "plan-document": ["decodePlanDocumentFile"],
+  "plan-approval-record": ["decodePlanRecordFile"],
+  "spec-approval-record": ["decodeSpecRecordFile"],
 };
 
 /** Whether `content` names `name` as a whole word. */

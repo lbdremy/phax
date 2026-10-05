@@ -8,12 +8,15 @@ import {
   readPhaxPlanFile,
   readPlanApprovalsFile,
   readPlanDocumentFile,
+  readPlanRecordFile,
   readRecordManifestFile,
   readPhaseStatusFile,
   readRegistryFile,
   readRunStatusFile,
+  readSchemaBornPersisted,
   readSpecApprovalsFile,
   readSpecDocumentFile,
+  readSpecRecordFile,
   withSchemaUrl,
   type MissingFact,
   type PersistedReadError,
@@ -133,6 +136,61 @@ describe("readPersisted", () => {
 
   it("never throws, even when a decoder sees an odd value", () => {
     expect(() => readPersisted(Object.create(null), spec())).not.toThrow();
+  });
+});
+
+describe("readSchemaBornPersisted", () => {
+  function bornSpec() {
+    const calls = { current: 0 };
+    const decodeCurrent = Schema.decodeUnknownEither(ToyCurrent);
+    return {
+      format: "plan-approval-record" as const,
+      label: "toy record",
+      file: FILE,
+      decodeCurrent: (input: unknown) => {
+        calls.current += 1;
+        return decodeCurrent(input);
+      },
+      fromCurrent: (value: typeof ToyCurrent.Type): Toy => ({ name: value.name, from: "current" }),
+      calls,
+    };
+  }
+
+  it("refuses a non-object, naming the file", () => {
+    for (const input of [null, [], "text", 3]) {
+      expect(left(readSchemaBornPersisted(input, bornSpec()))).toEqual({
+        _tag: "PersistedReadError",
+        file: FILE,
+        format: "plan-approval-record",
+        message: `${FILE}: a toy record is a JSON object`,
+      });
+    }
+  });
+
+  it("reads a $schema document by the current decoder", () => {
+    const toy = bornSpec();
+    const doc = { $schema: "https://example.test/toy.json", name: "alpha" };
+    expect(right(readSchemaBornPersisted(doc, toy))).toEqual({ name: "alpha", from: "current" });
+    expect(toy.calls).toEqual({ current: 1 });
+  });
+
+  it("refuses a document without $schema, naming the file, and tries no decoder", () => {
+    const toy = bornSpec();
+    const error = left(readSchemaBornPersisted({ version: 1, name: "beta" }, toy));
+    expect(error.message).toBe(
+      `${FILE}: toy record has no $schema — every toy record is written with one`,
+    );
+    expect(toy.calls).toEqual({ current: 0 });
+  });
+
+  it("refuses a document a newer release wrote, before decoding it", () => {
+    const toy = bornSpec();
+    const release = `${Number(PHAX_RELEASE.split(".")[0]) + 1}.0.0`;
+    const doc = { $schema: schemaUrl("plan-approval-record", release), name: "gamma" };
+    expect(left(readSchemaBornPersisted(doc, toy)).message).toBe(
+      `${FILE}: toy record written by phax ${release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+    );
+    expect(toy.calls).toEqual({ current: 0 });
   });
 });
 
@@ -420,6 +478,8 @@ describe("documents from another release", () => {
     ["phase-file-reconciliation", readPhaseFileReconciliationFile, "phase file reconciliation"],
     ["phase-record-manifest", readRecordManifestFile, "phase record manifest"],
     ["authoring-record-manifest", readRecordManifestFile, "authoring record manifest"],
+    ["plan-approval-record", readPlanRecordFile, "plan approval record"],
+    ["spec-approval-record", readSpecRecordFile, "spec approval record"],
   ];
 
   const table = readers.flatMap(([id, read, label]) =>

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { findJsonSchemaGaps } from "../../packages/schemas/build/jsonSchemas.js";
 import {
   FORMAT_IDS,
+  PRE_SCHEMA_FORMAT_IDS,
+  SCHEMA_BORN_FORMAT_IDS,
   SCHEMA_URL_BASE,
   compareReleases,
   isFormatId,
@@ -22,11 +24,20 @@ describe("schemaUrl", () => {
     expect(parseSchemaUrl(schemaUrl(id, "0.10.2"))).toEqual({ formatId: id, release: "0.10.2" });
   });
 
-  it("lists the fifteen formats of spec §4 without code-review", () => {
-    expect(FORMAT_IDS).toHaveLength(15);
-    expect(new Set(FORMAT_IDS).size).toBe(15);
+  it("lists the fifteen formats of spec §4 and the two approval record formats, without code-review", () => {
+    expect(FORMAT_IDS).toHaveLength(17);
+    expect(new Set(FORMAT_IDS).size).toBe(17);
+    expect(FORMAT_IDS.slice(-2)).toEqual(["plan-approval-record", "spec-approval-record"]);
     expect(isFormatId("code-review")).toBe(false);
     expect(isFormatId("phase-record-manifest")).toBe(true);
+  });
+
+  it("splits the formats into those with a pre-schema shape and those born with $schema", () => {
+    expect(SCHEMA_BORN_FORMAT_IDS).toEqual(["plan-approval-record", "spec-approval-record"]);
+    expect(PRE_SCHEMA_FORMAT_IDS).toEqual(
+      FORMAT_IDS.filter((id) => !SCHEMA_BORN_FORMAT_IDS.some((born) => born === id)),
+    );
+    expect(PRE_SCHEMA_FORMAT_IDS).toHaveLength(15);
   });
 });
 

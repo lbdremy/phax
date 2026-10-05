@@ -1,10 +1,14 @@
 import {
+  planApprovalRecordFormat,
   planApprovalsFormat,
   planDocumentFormat,
+  specApprovalRecordFormat,
   specApprovalsFormat,
   specDocumentFormat,
+  type PlanApprovalRecordShapes,
   type PlanApprovalsShapes,
   type PlanDocumentShapes,
+  type SpecApprovalRecordShapes,
   type SpecApprovalsShapes,
   type SpecDocumentShapes,
 } from "./formats/repository.js";
@@ -88,14 +92,19 @@ export {
 } from "./formats/runDirectory.js";
 
 // The files of a repository. Each schema and type is phax's own file schema
-// and type, under the name the spec gives it.
+// and type, under the name the spec gives it. PlanApprovals and SpecApprovals
+// are the old ledgers, read to migrate to approval record files.
 export {
   ApprovalRecordFileSchema as PlanApprovalsSchema,
+  PlanRecordFileSchema as PlanApprovalRecordSchema,
   type ApprovalRecordFile as PlanApprovals,
+  type PlanRecordFile as PlanApprovalRecord,
 } from "../../../src/schemas/approvalRecord.js";
 export {
   SpecApprovalRecordFileSchema as SpecApprovalsSchema,
+  SpecRecordFileSchema as SpecApprovalRecordSchema,
   type SpecApprovalRecordFile as SpecApprovals,
+  type SpecRecordFile as SpecApprovalRecord,
 } from "../../../src/schemas/specApprovalRecord.js";
 export {
   SpecDocumentFileSchema as SpecDocumentSchema,
@@ -106,20 +115,28 @@ export {
   type PlanDocumentFile as PlanDocument,
 } from "../../../src/schemas/planDocument.js";
 export {
+  parsePlanApprovalRecord,
   parsePlanApprovals,
   parsePlanDocument,
+  parseSpecApprovalRecord,
   parseSpecApprovals,
   parseSpecDocument,
+  toLatestPlanApprovalRecord,
   toLatestPlanApprovals,
   toLatestPlanDocument,
+  toLatestSpecApprovalRecord,
   toLatestSpecApprovals,
   toLatestSpecDocument,
+  type LatestPlanApprovalRecord,
   type LatestPlanApprovals,
   type LatestPlanDocument,
+  type LatestSpecApprovalRecord,
   type LatestSpecApprovals,
   type LatestSpecDocument,
+  type PlanApprovalRecordShape,
   type PlanApprovalsShape,
   type PlanDocumentShape,
+  type SpecApprovalRecordShape,
   type SpecApprovalsShape,
   type SpecDocumentShape,
 } from "./formats/repository.js";
@@ -188,7 +205,7 @@ export {
 // Each format's pre-schema shape, exactly what phax wrote before it wrote
 // $schema: the schema and type of phax's frozen module under
 // src/schemas/history/. Their decoders stay private; the parse functions
-// read them.
+// read them. A format born with $schema has none.
 export {
   RegistryPreSchemaSchema,
   type RegistryPreSchema,
@@ -269,6 +286,8 @@ type DocumentShapes = EveryFormat<{
   "phase-file-reconciliation": PhaseFileReconciliationShapes;
   "gate-diagnostics": GateDiagnosticsShapes;
   "gate-pending": GatePendingShapes;
+  "plan-approval-record": PlanApprovalRecordShapes;
+  "spec-approval-record": SpecApprovalRecordShapes;
 }>;
 
 /** The id of every format `parseDocument` reads: every `FormatId`. */
@@ -299,4 +318,6 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "phase-file-reconciliation": phaseFileReconciliationFormat,
     "gate-diagnostics": gateDiagnosticsFormat,
     "gate-pending": gatePendingFormat,
+    "plan-approval-record": planApprovalRecordFormat,
+    "spec-approval-record": specApprovalRecordFormat,
   });

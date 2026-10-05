@@ -18,10 +18,15 @@ import * as registry from "../../../src/schemas/history/registry/pre-schema.js";
 import * as runStatus from "../../../src/schemas/history/run-status/pre-schema.js";
 import * as specApprovals from "../../../src/schemas/history/spec-approvals/pre-schema.js";
 import * as specDocument from "../../../src/schemas/history/spec-document/pre-schema.js";
-import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
+import {
+  FORMAT_IDS,
+  PRE_SCHEMA_FORMAT_IDS,
+  type FormatId,
+  type PreSchemaFormatId,
+} from "../../../src/schemas/schemaUrl.js";
 
-/** Each format's frozen module under src/schemas/history/. */
-const FROZEN_MODULES: { readonly [F in FormatId]: object } = {
+/** The frozen module under src/schemas/history/ of each format with a pre-schema shape. */
+const FROZEN_MODULES: { readonly [F in PreSchemaFormatId]: object } = {
   registry,
   "run-status": runStatus,
   "phase-status": phaseStatus,
@@ -76,6 +81,7 @@ describe("schemas package entry", () => {
       "PhaseStatusSchema",
       "PhaxPlanPreSchemaSchema",
       "PhaxPlanSchema",
+      "PlanApprovalRecordSchema",
       "PlanApprovalsPreSchemaSchema",
       "PlanApprovalsSchema",
       "PlanDocumentPreSchemaSchema",
@@ -85,6 +91,7 @@ describe("schemas package entry", () => {
       "RegistrySchema",
       "RunStatusPreSchemaSchema",
       "RunStatusSchema",
+      "SpecApprovalRecordSchema",
       "SpecApprovalsPreSchemaSchema",
       "SpecApprovalsSchema",
       "SpecDocumentPreSchemaSchema",
@@ -101,11 +108,13 @@ describe("schemas package entry", () => {
       "parsePhaseRecordManifest",
       "parsePhaseStatus",
       "parsePhaxPlan",
+      "parsePlanApprovalRecord",
       "parsePlanApprovals",
       "parsePlanDocument",
       "parseRecordManifest",
       "parseRegistry",
       "parseRunStatus",
+      "parseSpecApprovalRecord",
       "parseSpecApprovals",
       "parseSpecDocument",
       "toLatestAuthoringRecordManifest",
@@ -117,25 +126,26 @@ describe("schemas package entry", () => {
       "toLatestPhaseRecordManifest",
       "toLatestPhaseStatus",
       "toLatestPhaxPlan",
+      "toLatestPlanApprovalRecord",
       "toLatestPlanApprovals",
       "toLatestPlanDocument",
       "toLatestRegistry",
       "toLatestRunStatus",
+      "toLatestSpecApprovalRecord",
       "toLatestSpecApprovals",
       "toLatestSpecDocument",
     ]);
   });
 
-  it("exports a schema, a pre-schema schema, a parse function and an upgrade for every format id, plus the union, parseDocument and the unknown marker", () => {
-    const names = FORMAT_IDS.map(pascal);
+  it("exports a schema, a parse function and an upgrade for every format id, a pre-schema schema for every format with a pre-schema shape, plus the union, parseDocument and the unknown marker", () => {
     expect(Object.keys(entry).toSorted()).toEqual(
       [
-        ...names.flatMap((name) => [
+        ...FORMAT_IDS.map(pascal).flatMap((name) => [
           `${name}Schema`,
-          `${name}PreSchemaSchema`,
           `parse${name}`,
           `toLatest${name}`,
         ]),
+        ...PRE_SCHEMA_FORMAT_IDS.map((id) => `${pascal(id)}PreSchemaSchema`),
         "RecordManifestSchema",
         "parseRecordManifest",
         "parseDocument",
@@ -159,11 +169,14 @@ describe("schemas package entry", () => {
   });
 
   it("re-exports phax's repository schemas under the spec's names, never a copy", async () => {
-    const { ApprovalRecordFileSchema } = await import("../../../src/schemas/approvalRecord.js");
-    const { SpecApprovalRecordFileSchema } =
+    const { ApprovalRecordFileSchema, PlanRecordFileSchema } =
+      await import("../../../src/schemas/approvalRecord.js");
+    const { SpecApprovalRecordFileSchema, SpecRecordFileSchema } =
       await import("../../../src/schemas/specApprovalRecord.js");
     const { SpecDocumentFileSchema } = await import("../../../src/schemas/specDocument.js");
     const { PlanDocumentFileSchema } = await import("../../../src/schemas/planDocument.js");
+    expect(entry.PlanApprovalRecordSchema).toBe(PlanRecordFileSchema);
+    expect(entry.SpecApprovalRecordSchema).toBe(SpecRecordFileSchema);
     expect(entry.PlanApprovalsSchema).toBe(ApprovalRecordFileSchema);
     expect(entry.SpecApprovalsSchema).toBe(SpecApprovalRecordFileSchema);
     expect(entry.SpecDocumentSchema).toBe(SpecDocumentFileSchema);
@@ -191,7 +204,7 @@ describe("schemas package entry", () => {
     expect(entry.GatePendingSchema).toBe(GatePendingFileSchema);
   });
 
-  it.each(FORMAT_IDS)(
+  it.each(PRE_SCHEMA_FORMAT_IDS)(
     "re-exports the %s frozen module's schema, never a copy, and never its decoder",
     (id) => {
       const frozen = FROZEN_MODULES[id] as Readonly<Record<string, unknown>>;

@@ -40,7 +40,11 @@ import * as registry from "../../../src/schemas/history/registry/pre-schema.js";
 import * as runStatus from "../../../src/schemas/history/run-status/pre-schema.js";
 import * as specApprovals from "../../../src/schemas/history/spec-approvals/pre-schema.js";
 import * as specDocument from "../../../src/schemas/history/spec-document/pre-schema.js";
-import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
+import {
+  PRE_SCHEMA_FORMAT_IDS,
+  type FormatId,
+  type PreSchemaFormatId,
+} from "../../../src/schemas/schemaUrl.js";
 import { preSchemaDocuments, withKey, withoutKey } from "./documents.js";
 
 interface FrozenModule {
@@ -49,8 +53,11 @@ interface FrozenModule {
   readonly parse: (input: unknown) => { readonly ok: true; readonly shape: string } | ParseFailure;
 }
 
-/** Each format's frozen module, and the package parse function that reads it. */
-const FROZEN: { readonly [F in FormatId]: FrozenModule } = {
+/**
+ * The frozen module of each format with a pre-schema shape, and the package
+ * parse function that reads it. A format born with $schema has none.
+ */
+const FROZEN: { readonly [F in PreSchemaFormatId]: FrozenModule } = {
   registry: {
     schema: registry.RegistryPreSchemaSchema,
     decode: registry.decodeRegistryPreSchema,
@@ -144,7 +151,7 @@ const MODULES = {
   "gate-pending": gatePending,
   "spec-document": specDocument,
   "plan-document": planDocument,
-} satisfies { readonly [F in FormatId]: object };
+} satisfies { readonly [F in PreSchemaFormatId]: object };
 
 const snapshotsDir = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -177,13 +184,16 @@ function firstViolationPath(result: Either.Either<unknown, ParseResult.ParseErro
 }
 
 describe("the frozen pre-schema modules", () => {
-  it.each(FORMAT_IDS)("%s: exports exactly its schema and its Either decoder at runtime", (id) => {
-    expect(Object.keys(MODULES[id]).toSorted()).toEqual(
-      [`${pascal(id)}PreSchemaSchema`, `decode${pascal(id)}PreSchema`].toSorted(),
-    );
-  });
+  it.each(PRE_SCHEMA_FORMAT_IDS)(
+    "%s: exports exactly its schema and its Either decoder at runtime",
+    (id) => {
+      expect(Object.keys(MODULES[id]).toSorted()).toEqual(
+        [`${pascal(id)}PreSchemaSchema`, `decode${pascal(id)}PreSchema`].toSorted(),
+      );
+    },
+  );
 
-  it.each(FORMAT_IDS)("%s: renders the committed pre-schema snapshot", (id) => {
+  it.each(PRE_SCHEMA_FORMAT_IDS)("%s: renders the committed pre-schema snapshot", (id) => {
     const entry = tableEntry(id);
     const { files, failures } = renderJsonSchemas([{ ...entry, schema: FROZEN[id].schema }]);
     expect(failures).toEqual([]);
@@ -193,14 +203,17 @@ describe("the frozen pre-schema modules", () => {
     expect(JSON.parse(rendered ?? "null")).toEqual(JSON.parse(snapshot));
   });
 
-  it.each(FORMAT_IDS)("%s: the package reads its pre-schema document as pre-schema", (id) => {
-    expect(FROZEN[id].parse(preSchemaDocuments[id])).toMatchObject({
-      ok: true,
-      shape: "pre-schema",
-    });
-  });
+  it.each(PRE_SCHEMA_FORMAT_IDS)(
+    "%s: the package reads its pre-schema document as pre-schema",
+    (id) => {
+      expect(FROZEN[id].parse(preSchemaDocuments[id])).toMatchObject({
+        ok: true,
+        shape: "pre-schema",
+      });
+    },
+  );
 
-  it.each(FORMAT_IDS)("%s: the frozen decoder rejects a wrong type at its key", (id) => {
+  it.each(PRE_SCHEMA_FORMAT_IDS)("%s: the frozen decoder rejects a wrong type at its key", (id) => {
     const document = preSchemaDocuments[id];
     const [key] = Object.keys(document);
     if (key === undefined) throw new Error(`${id}: empty test document`);
@@ -208,19 +221,22 @@ describe("the frozen pre-schema modules", () => {
     expect(firstViolationPath(FROZEN[id].decode(withKey(document, key, wrong)))).toBe(key);
   });
 
-  it.each(FORMAT_IDS)("%s: the frozen decoder rejects a missing required key", (id) => {
+  it.each(PRE_SCHEMA_FORMAT_IDS)("%s: the frozen decoder rejects a missing required key", (id) => {
     const document = preSchemaDocuments[id];
     const [key] = Object.keys(document);
     if (key === undefined) throw new Error(`${id}: empty test document`);
     expect(firstViolationPath(FROZEN[id].decode(withoutKey(document, key)))).toBe(key);
   });
 
-  it.each(FORMAT_IDS)("%s: the frozen decoder treats an unknown key as phax did", (id) => {
-    const extra = withKey(preSchemaDocuments[id], "unexpectedKey", true);
-    if (tableEntry(id).excess === "error") {
-      expect(firstViolationPath(FROZEN[id].decode(extra))).toBe("unexpectedKey");
-    } else {
-      expect(Either.isRight(FROZEN[id].decode(extra))).toBe(true);
-    }
-  });
+  it.each(PRE_SCHEMA_FORMAT_IDS)(
+    "%s: the frozen decoder treats an unknown key as phax did",
+    (id) => {
+      const extra = withKey(preSchemaDocuments[id], "unexpectedKey", true);
+      if (tableEntry(id).excess === "error") {
+        expect(firstViolationPath(FROZEN[id].decode(extra))).toBe("unexpectedKey");
+      } else {
+        expect(Either.isRight(FROZEN[id].decode(extra))).toBe(true);
+      }
+    },
+  );
 });

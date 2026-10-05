@@ -3,7 +3,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Either, type ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
-import { decodeApprovalRecordFile } from "../../../src/schemas/approvalRecord.js";
+import {
+  decodeApprovalRecordFile,
+  decodePlanRecordFile,
+} from "../../../src/schemas/approvalRecord.js";
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
@@ -30,8 +33,17 @@ import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconcil
 import { decodeRegistryFile } from "../../../src/schemas/registry.js";
 import { decodeRunRecordManifestFile } from "../../../src/schemas/runRecord.js";
 import { PHAX_RELEASE } from "../../../src/schemas/release.js";
-import { FORMAT_IDS, schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
-import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
+import {
+  FORMAT_IDS,
+  PRE_SCHEMA_FORMAT_IDS,
+  schemaUrl,
+  type FormatId,
+  type PreSchemaFormatId,
+} from "../../../src/schemas/schemaUrl.js";
+import {
+  decodeSpecApprovalRecordFile,
+  decodeSpecRecordFile,
+} from "../../../src/schemas/specApprovalRecord.js";
 import { decodeSpecDocumentFile } from "../../../src/schemas/specDocument.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
@@ -63,10 +75,12 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "gate-pending": decodeGatePendingFile,
   "spec-document": decodeSpecDocumentFile,
   "plan-document": decodePlanDocumentFile,
+  "plan-approval-record": decodePlanRecordFile,
+  "spec-approval-record": decodeSpecRecordFile,
 };
 
-/** Each format's frozen pre-schema decoder. */
-const FROZEN_DECODERS: { readonly [F in FormatId]: Decode } = {
+/** The frozen pre-schema decoder of each format with a pre-schema shape. */
+const FROZEN_DECODERS: { readonly [F in PreSchemaFormatId]: Decode } = {
   registry: decodeRegistryPreSchema,
   "run-status": decodeRunStatusPreSchema,
   "phase-status": decodePhaseStatusPreSchema,
@@ -96,9 +110,11 @@ function walk(dir: string): Array<{ readonly path: string; readonly directory: b
 }
 
 describe("the test documents", () => {
-  it("have one document per format id", () => {
+  it("have one document per format id, and a pre-schema one per format with a pre-schema shape", () => {
     expect(Object.keys(validDocuments).toSorted()).toEqual([...FORMAT_IDS].toSorted());
-    expect(Object.keys(preSchemaDocuments).toSorted()).toEqual([...FORMAT_IDS].toSorted());
+    expect(Object.keys(preSchemaDocuments).toSorted()).toEqual(
+      [...PRE_SCHEMA_FORMAT_IDS].toSorted(),
+    );
   });
 
   it.each(FORMAT_IDS)("%s: is accepted by phax's own decoder", (id) => {
@@ -108,12 +124,15 @@ describe("the test documents", () => {
     );
   });
 
-  it.each(FORMAT_IDS)("%s: the pre-schema document is accepted by its frozen decoder", (id) => {
-    const decoded = FROZEN_DECODERS[id](preSchemaDocuments[id]);
-    expect(Either.isRight(decoded), JSON.stringify(Either.isLeft(decoded) && decoded.left)).toBe(
-      true,
-    );
-  });
+  it.each(PRE_SCHEMA_FORMAT_IDS)(
+    "%s: the pre-schema document is accepted by its frozen decoder",
+    (id) => {
+      const decoded = FROZEN_DECODERS[id](preSchemaDocuments[id]);
+      expect(Either.isRight(decoded), JSON.stringify(Either.isLeft(decoded) && decoded.left)).toBe(
+        true,
+      );
+    },
+  );
 
   it("pre-schema documents carry no $schema", () => {
     for (const document of Object.values(preSchemaDocuments)) {

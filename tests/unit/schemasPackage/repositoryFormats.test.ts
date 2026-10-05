@@ -4,21 +4,31 @@ import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
   parseDocument,
+  parsePlanApprovalRecord,
   parsePlanApprovals,
   parsePlanDocument,
+  parseSpecApprovalRecord,
   parseSpecApprovals,
   parseSpecDocument,
+  toLatestPlanApprovalRecord,
   toLatestPlanApprovals,
   toLatestPlanDocument,
+  toLatestSpecApprovalRecord,
   toLatestSpecApprovals,
   toLatestSpecDocument,
 } from "../../../packages/schemas/src/index.js";
-import { newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
-import { decodeApprovalRecordFile } from "../../../src/schemas/approvalRecord.js";
+import { missingSchemaMessage, newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
+import {
+  decodeApprovalRecordFile,
+  decodePlanRecordFile,
+} from "../../../src/schemas/approvalRecord.js";
 import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
-import type { FormatId } from "../../../src/schemas/schemaUrl.js";
+import type { PreSchemaFormatId, SchemaBornFormatId } from "../../../src/schemas/schemaUrl.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
-import { decodeSpecApprovalRecordFile } from "../../../src/schemas/specApprovalRecord.js";
+import {
+  decodeSpecApprovalRecordFile,
+  decodeSpecRecordFile,
+} from "../../../src/schemas/specApprovalRecord.js";
 import {
   SpecDocumentFileSchema,
   SpecDocumentSchema,
@@ -36,7 +46,7 @@ import {
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 
 interface RepositoryFormat {
-  readonly id: FormatId;
+  readonly id: PreSchemaFormatId;
   readonly parse: (input: unknown) => {
     readonly ok: boolean;
     readonly shape?: string;
@@ -135,6 +145,103 @@ describe.each(FORMATS)("$id", (format) => {
 
   it("rejects a document that carries both $schema and version", () => {
     expect(format.parse(withKey(document, "version", 1)).ok).toBe(false);
+  });
+
+  it("fails a document written by a newer release with the upgrade message", () => {
+    const newer = withKey(document, "$schema", schemaUrl(format.id, NEWER_RELEASE));
+    const message = newerReleaseMessage(format.id, NEWER_RELEASE, PACKAGE_VERSION);
+    for (const result of [format.parse(newer), parseDocument(newer)]) {
+      expect(result).toEqual({ ok: false, error: { path: "$schema", message } });
+    }
+  });
+});
+
+// The old ledgers stay readable in every released $schema shape (§5.21): a
+// document any release wrote resolves to the latest shape at or below it.
+describe.each(["plan-approvals", "spec-approvals"] as const)(
+  "%s, the old ledger read to migrate",
+  (id) => {
+    const format = FORMATS.find((entry) => entry.id === id);
+    if (format === undefined) throw new Error(`${id}: no format entry`);
+    const document = validDocuments[id];
+
+    it.each(["0.17.0", "0.18.0"])("parses a document written by phax %s", (release) => {
+      const written = withKey(document, "$schema", schemaUrl(id, release));
+      expect(format.parse(written)).toMatchObject({ ok: true, shape: CURRENT_SHAPES[id] });
+      expect(parseDocument(written)).toMatchObject({ ok: true, format: id });
+    });
+  },
+);
+
+interface RecordFormat {
+  readonly id: SchemaBornFormatId;
+  readonly parse: (input: unknown) => {
+    readonly ok: boolean;
+    readonly shape?: string;
+    readonly value?: unknown;
+  };
+  readonly phax: Decode;
+  readonly toLatest: (value: never) => unknown;
+  /** The old ledger of the same kind, whose $schema the record refuses. */
+  readonly ledger: PreSchemaFormatId;
+}
+
+const RECORD_FORMATS: ReadonlyArray<RecordFormat> = [
+  {
+    id: "plan-approval-record",
+    parse: parsePlanApprovalRecord,
+    phax: decodePlanRecordFile,
+    toLatest: toLatestPlanApprovalRecord,
+    ledger: "plan-approvals",
+  },
+  {
+    id: "spec-approval-record",
+    parse: parseSpecApprovalRecord,
+    phax: decodeSpecRecordFile,
+    toLatest: toLatestSpecApprovalRecord,
+    ledger: "spec-approvals",
+  },
+];
+
+describe.each(RECORD_FORMATS)("$id, born with $schema", (format) => {
+  const document = validDocuments[format.id];
+  const current = CURRENT_SHAPES[format.id];
+  const label = FORMAT_DEFINITIONS[format.id].label;
+
+  it("is named next until a release renames it", () => {
+    expect(current).toBe("next");
+  });
+
+  it("parses the document phax writes as shape next, with phax's value", () => {
+    const phax = format.phax(document);
+    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    expect(format.parse(document)).toEqual({ ok: true, shape: current, value: phax.right });
+    expect(parseDocument(document)).toMatchObject({ ok: true, format: format.id, shape: current });
+  });
+
+  it("fails a document without $schema at $schema, trying no decoder", () => {
+    const failure = { ok: false, error: { path: "$schema", message: missingSchemaMessage(label) } };
+    expect(format.parse(withoutKey(document, "$schema"))).toEqual(failure);
+    expect(format.parse(withKey(withoutKey(document, "$schema"), "version", 1))).toEqual(failure);
+    expect(format.parse({})).toEqual(failure);
+  });
+
+  it("fails a $schema naming the old ledger", () => {
+    const ledger = withKey(document, "$schema", schemaUrl(format.ledger, PACKAGE_VERSION));
+    expect(format.parse(ledger)).toMatchObject({ ok: false, error: { path: "$schema" } });
+  });
+
+  it("rejects an unknown key and a missing artifact, as phax's strict decoder does", () => {
+    for (const input of [withKey(document, "extra", true), withoutKey(document, "artifact")]) {
+      expect(format.parse(input).ok).toBe(false);
+      expect(Either.isLeft(format.phax(input))).toBe(true);
+    }
+  });
+
+  it("drops $schema on upgrade and keeps every other key", () => {
+    const result = format.parse(document);
+    if (!result.ok) throw new Error("document rejected");
+    expect(format.toLatest(result.value as never)).toEqual(withoutKey(document, "$schema"));
   });
 
   it("fails a document written by a newer release with the upgrade message", () => {

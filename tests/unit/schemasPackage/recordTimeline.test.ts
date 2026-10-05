@@ -20,7 +20,11 @@ import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.
 import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
 import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
-import { schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
+import {
+  schemaUrl,
+  type FormatId,
+  type PreSchemaFormatId,
+} from "../../../src/schemas/schemaUrl.js";
 import {
   belowOwnReleaseMessage,
   preSchemaDocuments,
@@ -41,7 +45,7 @@ type Parse = (input: unknown) => {
 const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
 
 interface TimelineFormat {
-  readonly id: FormatId;
+  readonly id: PreSchemaFormatId;
   readonly parse: Parse;
   readonly phax: Decode;
   readonly toLatest: (value: never) => unknown;
@@ -130,7 +134,7 @@ describe.each(FORMATS)("$id", (format) => {
 // shapes, and as phax writes it today.
 type Folder = { readonly [name: string]: Doc };
 
-function folder(documents: { readonly [F in FormatId]: Doc }): Folder {
+function folder(documents: { readonly [F in PreSchemaFormatId]: Doc }): Folder {
   return {
     "checks-attempt-02.pending.json": documents["gate-pending"],
     "record.json": documents["phase-record-manifest"],

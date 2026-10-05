@@ -8,8 +8,10 @@ import { Schema } from "effect";
 export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
 
 /**
- * Every persisted format of spec §4. `code-review` joins with the
- * headless-review plan, which ships that document.
+ * Every persisted format: the fifteen of spec §4, then the two approval
+ * record formats of spec approval-record-files, appended so existing order
+ * stays stable. `code-review` joins with the headless-review plan, which
+ * ships that document.
  */
 export const FORMAT_IDS = [
   "registry",
@@ -27,6 +29,8 @@ export const FORMAT_IDS = [
   "gate-pending",
   "spec-document",
   "plan-document",
+  "plan-approval-record",
+  "spec-approval-record",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -34,6 +38,30 @@ export type FormatId = (typeof FORMAT_IDS)[number];
 export function isFormatId(value: string): value is FormatId {
   return (FORMAT_IDS as ReadonlyArray<string>).includes(value);
 }
+
+/**
+ * The formats born with `$schema`: phax wrote every one of their documents
+ * with it, so they have no pre-schema shape and no frozen pre-schema module,
+ * and a document of theirs without `$schema` is unreadable.
+ */
+export const SCHEMA_BORN_FORMAT_IDS = [
+  "plan-approval-record",
+  "spec-approval-record",
+] as const satisfies ReadonlyArray<FormatId>;
+
+export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];
+
+/** The formats phax wrote before it wrote `$schema`: each has a pre-schema shape. */
+export type PreSchemaFormatId = Exclude<FormatId, SchemaBornFormatId>;
+
+export function isSchemaBornFormatId(value: string): value is SchemaBornFormatId {
+  return (SCHEMA_BORN_FORMAT_IDS as ReadonlyArray<string>).includes(value);
+}
+
+/** Every format with a pre-schema shape, in `FORMAT_IDS` order. */
+export const PRE_SCHEMA_FORMAT_IDS: ReadonlyArray<PreSchemaFormatId> = FORMAT_IDS.filter(
+  (id): id is PreSchemaFormatId => !isSchemaBornFormatId(id),
+);
 
 const RELEASE_TRIPLE = String.raw`(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)`;
 const RELEASE = new RegExp(`^${RELEASE_TRIPLE}$`);
