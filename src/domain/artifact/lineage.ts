@@ -111,9 +111,6 @@ export function computeStaleness(input: ComputeStalenessInput): PlanStalenessVer
   return { kind: "stale", evidence };
 }
 
-export const APPROVALS_FILE_PATH = "docs/plans/approvals.json";
-export const SPEC_APPROVALS_FILE_PATH = "docs/specs/approvals.json";
-
 export type SpecApprovalVerdict =
   | { readonly kind: "unrecorded" }
   | { readonly kind: "recorded"; readonly editedSinceApproval: boolean };

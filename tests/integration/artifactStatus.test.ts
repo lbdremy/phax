@@ -9,7 +9,7 @@ import { artifactFingerprint } from "../../src/app/approvalRecordStore.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import {
-  ApprovalLedgerUnreadableError,
+  ApprovalRecordUnreadableError,
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
   ArtifactSidecarDivergedError,
@@ -20,14 +20,14 @@ import {
   SpecNotApprovedError,
   SpecRetirementBlockedError,
 } from "../../src/domain/errors.js";
-import {
-  APPROVALS_FILE_PATH,
-  SPEC_APPROVALS_FILE_PATH,
-} from "../../src/domain/artifact/lineage.js";
+import { approvalRecordPathFor } from "../../src/domain/artifact/approvalRecordFile.js";
 import { archivePathFor } from "../../src/domain/artifact/document.js";
-import { decodeApprovalRecordFile } from "../../src/schemas/approvalRecord.js";
-import { decodeSpecApprovalRecordFile } from "../../src/schemas/specApprovalRecord.js";
+import type { ArtifactKind } from "../../src/domain/artifact/status.js";
+import { decodePlanRecordFile } from "../../src/schemas/approvalRecord.js";
+import { decodeSpecRecordFile } from "../../src/schemas/specApprovalRecord.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { decodeSpecDocument } from "../../src/schemas/specDocument.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
@@ -70,6 +70,33 @@ scope: test
 
 Body text.
 `;
+}
+
+const THING_RECORD = "docs/plans/approvals/2609101240-thing-plan.json";
+const FOO_RECORD = "docs/specs/approvals/2609101221-foo.json";
+
+function recordPath(kind: ArtifactKind, artifactPath: string): string {
+  const path = approvalRecordPathFor(kind, artifactPath);
+  if (path === null) throw new Error(`${artifactPath} has no record path`);
+  return path;
+}
+
+// The artifact's own record file, decoded, without $schema and artifact (which
+// must name the artifact); undefined when the file does not exist.
+function recordOf(
+  fsImpl: { getFile(path: string): string | undefined },
+  kind: ArtifactKind,
+  artifactPath: string,
+): Record<string, unknown> | undefined {
+  const text = fsImpl.getFile(recordPath(kind, artifactPath));
+  if (text === undefined) return undefined;
+  const parsed: unknown = JSON.parse(text);
+  const decoded: Either.Either<{ readonly artifact: string }, unknown> =
+    kind === "plan" ? decodePlanRecordFile(parsed) : decodeSpecRecordFile(parsed);
+  if (Either.isLeft(decoded)) throw new Error(`${artifactPath}: record does not decode`);
+  const { $schema: _schema, artifact, ...record } = decoded.right as Record<string, unknown>;
+  expect(artifact).toBe(artifactPath);
+  return record;
 }
 
 function run<A, E>(effect: Effect.Effect<A, E, never>) {
@@ -379,18 +406,12 @@ describe("transitionArtifact", () => {
       expect(updatedMd).toContain("date: 2026-08-10");
       expect(updatedMd).toContain(gitImpl.headCommitValue.slice(0, 7));
 
-      const storeText = fsImpl.getFile(SPEC_APPROVALS_FILE_PATH) as string;
-      expect(storeText).toBeDefined();
-      const decoded = decodeSpecApprovalRecordFile(JSON.parse(storeText));
-      expect(Either.isRight(decoded)).toBe(true);
-      if (Either.isRight(decoded)) {
-        const record = decoded.right.records["docs/specs/2609101221-foo.md"];
-        expect(record).toEqual({
-          specFingerprint: artifactFingerprint(updatedMd),
-          approvedAt: DEFAULT_OPTS.nowIso,
-          baseline: gitImpl.headCommitValue,
-        });
-      }
+      expect(recordOf(fsImpl, "spec", "docs/specs/2609101221-foo.md")).toEqual({
+        specFingerprint: artifactFingerprint(updatedMd),
+        approvedAt: DEFAULT_OPTS.nowIso,
+        baseline: gitImpl.headCommitValue,
+      });
+      expect(fsImpl.getFile("docs/specs/approvals.json")).toBeUndefined();
     });
 
     it("re-approval on an Approved spec replaces the record's baseline", async () => {
@@ -415,21 +436,45 @@ describe("transitionArtifact", () => {
 
       expect(Either.isRight(result)).toBe(true);
 
-      const storeText = fsImpl.getFile(SPEC_APPROVALS_FILE_PATH) as string;
-      const decoded = decodeSpecApprovalRecordFile(JSON.parse(storeText));
-      expect(Either.isRight(decoded)).toBe(true);
-      if (Either.isRight(decoded)) {
-        expect(Object.keys(decoded.right.records)).toEqual(["docs/specs/2609101221-foo.md"]);
-        expect(decoded.right.records["docs/specs/2609101221-foo.md"]?.baseline).toBe(
-          "1".repeat(40),
-        );
-        expect(decoded.right.records["docs/specs/2609101221-foo.md"]?.approvedAt).toBe(
-          secondNowIso,
-        );
-      }
+      const record = recordOf(fsImpl, "spec", "docs/specs/2609101221-foo.md");
+      expect(record?.["baseline"]).toBe("1".repeat(40));
+      expect(record?.["approvedAt"]).toBe(secondNowIso);
     });
 
-    it("re-approval commit carries the spec file and docs/specs/approvals.json", async () => {
+    // Spec approval writes its own record file: approve, edit the body,
+    // re-approve; only that spec's record file is replaced.
+    it("re-approval after a body edit replaces only the spec's own record file", async () => {
+      const { fsImpl, layer } = makeHarness();
+      const SPEC = "docs/specs/2609101221-foo.md";
+      const OTHER_RECORD = "docs/specs/approvals/2609101299-other.json";
+      const otherText = JSON.stringify(
+        withSchemaUrl("spec-approval-record", {
+          artifact: "docs/specs/2609101299-other.md",
+          specFingerprint: "other-fp",
+          approvedAt: "2026-01-01T00:00:00.000Z",
+          baseline: "e".repeat(40),
+        }),
+        null,
+        2,
+      );
+      fsImpl.setFile(OTHER_RECORD, otherText);
+      fsImpl.setFile(SPEC, DRAFT_SPEC);
+
+      await run(transitionArtifact(SPEC, "Approved", DEFAULT_OPTS).pipe(Effect.provide(layer)));
+      const editedMd = (fsImpl.getFile(SPEC) as string).replace("Body text.", "Body text v2.");
+      fsImpl.setFile(SPEC, editedMd);
+      const result = await run(
+        transitionArtifact(SPEC, "Approved", DEFAULT_OPTS).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      expect(recordOf(fsImpl, "spec", SPEC)?.["specFingerprint"]).toBe(
+        artifactFingerprint(fsImpl.getFile(SPEC) as string),
+      );
+      expect(fsImpl.getFile(OTHER_RECORD)).toBe(otherText);
+    });
+
+    it("re-approval commit carries the spec file and its own record file", async () => {
       const { fsImpl, gitImpl, layer } = makeHarness();
       fsImpl.setFile("docs/specs/2609101221-foo.md", DRAFT_SPEC);
 
@@ -441,7 +486,8 @@ describe("transitionArtifact", () => {
 
       gitImpl.setHeadCommit("1".repeat(40));
       gitImpl.enqueueDirtyPaths([]);
-      gitImpl.enqueueDirtyPaths(["docs/specs/2609101221-foo.md", SPEC_APPROVALS_FILE_PATH]);
+      const specRecord = recordPath("spec", "docs/specs/2609101221-foo.md");
+      gitImpl.enqueueDirtyPaths(["docs/specs/2609101221-foo.md", specRecord]);
 
       const result = await run(
         transitionArtifact("docs/specs/2609101221-foo.md", "Approved", {
@@ -454,10 +500,7 @@ describe("transitionArtifact", () => {
       const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
       expect(commitCalls).toHaveLength(1);
       if (commitCalls[0]?.method === "commitPaths") {
-        expect(commitCalls[0].paths).toEqual([
-          "docs/specs/2609101221-foo.md",
-          SPEC_APPROVALS_FILE_PATH,
-        ]);
+        expect(commitCalls[0].paths).toEqual(["docs/specs/2609101221-foo.md", specRecord]);
       }
     });
   });
@@ -647,21 +690,50 @@ describe("transitionArtifact", () => {
       expect(updatedMd).toContain("date: 2026-08-10");
       expect(updatedMd).toContain(gitImpl.headCommitValue.slice(0, 7));
 
-      const storeText = fsImpl.getFile(APPROVALS_FILE_PATH);
-      expect(storeText).toBeDefined();
-      const decoded = decodeApprovalRecordFile(JSON.parse(storeText as string));
-      expect(Either.isRight(decoded)).toBe(true);
-      if (Either.isRight(decoded)) {
-        const record = decoded.right.records["docs/plans/2609101240-thing-plan.md"];
-        expect(record).toEqual({
-          planFingerprint: artifactFingerprint(updatedMd as string),
-          approvedAt: DEFAULT_OPTS.nowIso,
-          baseline: gitImpl.headCommitValue,
-          sourceSpec: {
-            path: "docs/specs/2609101222-foo.md",
-            fingerprint: artifactFingerprint(specSource),
-          },
-        });
+      const recordText = fsImpl.getFile(recordPath("plan", "docs/plans/2609101240-thing-plan.md"));
+      expect(Object.keys(JSON.parse(recordText as string))).toEqual([
+        "$schema",
+        "artifact",
+        "planFingerprint",
+        "approvedAt",
+        "baseline",
+        "sourceSpec",
+      ]);
+      expect(recordOf(fsImpl, "plan", "docs/plans/2609101240-thing-plan.md")).toEqual({
+        planFingerprint: artifactFingerprint(updatedMd as string),
+        approvedAt: DEFAULT_OPTS.nowIso,
+        baseline: gitImpl.headCommitValue,
+        sourceSpec: {
+          path: "docs/specs/2609101222-foo.md",
+          fingerprint: artifactFingerprint(specSource),
+        },
+      });
+      expect(fsImpl.getFile("docs/plans/approvals.json")).toBeUndefined();
+    });
+
+    // Plan approval writes its own record file: the commit holds exactly the
+    // plan and its record file.
+    it("the approve commit holds exactly the plan and its own record file", async () => {
+      const { fsImpl, gitImpl, layer } = makeHarness();
+      const PLAN = "docs/plans/2609101240-thing-plan.md";
+      fsImpl.setFile(PLAN, planMd("Draft", "null"));
+      gitImpl.enqueueDirtyPaths([]);
+      gitImpl.enqueueDirtyPaths([PLAN, recordPath("plan", PLAN)]);
+
+      const result = await run(
+        transitionArtifact(PLAN, "Approved", { ...DEFAULT_OPTS, commit: true }).pipe(
+          Effect.provide(layer),
+        ),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
+      expect(commitCalls).toHaveLength(1);
+      if (commitCalls[0]?.method === "commitPaths") {
+        expect(commitCalls[0].paths).toEqual([
+          PLAN,
+          "docs/plans/approvals/2609101240-thing-plan.json",
+        ]);
       }
     });
 
@@ -676,12 +748,9 @@ describe("transitionArtifact", () => {
       );
       expect(Either.isRight(result)).toBe(true);
 
-      const storeText = fsImpl.getFile(APPROVALS_FILE_PATH) as string;
-      const decoded = decodeApprovalRecordFile(JSON.parse(storeText));
-      expect(Either.isRight(decoded)).toBe(true);
-      if (Either.isRight(decoded)) {
-        expect(decoded.right.records["docs/plans/2609101240-thing-plan.md"]?.sourceSpec).toBeNull();
-      }
+      expect(
+        recordOf(fsImpl, "plan", "docs/plans/2609101240-thing-plan.md")?.["sourceSpec"],
+      ).toBeNull();
     });
 
     it("re-approval replaces the sidecar entry with a fresh baseline", async () => {
@@ -705,18 +774,9 @@ describe("transitionArtifact", () => {
       );
       expect(Either.isRight(result)).toBe(true);
 
-      const storeText = fsImpl.getFile(APPROVALS_FILE_PATH) as string;
-      const decoded = decodeApprovalRecordFile(JSON.parse(storeText));
-      expect(Either.isRight(decoded)).toBe(true);
-      if (Either.isRight(decoded)) {
-        expect(Object.keys(decoded.right.records)).toEqual(["docs/plans/2609101240-thing-plan.md"]);
-        expect(decoded.right.records["docs/plans/2609101240-thing-plan.md"]?.baseline).toBe(
-          "1".repeat(40),
-        );
-        expect(decoded.right.records["docs/plans/2609101240-thing-plan.md"]?.approvedAt).toBe(
-          secondNowIso,
-        );
-      }
+      const record = recordOf(fsImpl, "plan", "docs/plans/2609101240-thing-plan.md");
+      expect(record?.["baseline"]).toBe("1".repeat(40));
+      expect(record?.["approvedAt"]).toBe(secondNowIso);
     });
   });
 
@@ -793,8 +853,9 @@ describe("transitionArtifact", () => {
     });
   });
 
-  describe("sidecar hygiene", () => {
-    it("removes the sidecar entry when an Approved plan goes terminal", async () => {
+  // Complete and abandon delete the record file.
+  describe("record file hygiene", () => {
+    it("deletes the plan's record file when an Approved plan goes terminal", async () => {
       const { fsImpl, layer } = makeHarness();
       fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("Draft", "null"));
 
@@ -803,13 +864,7 @@ describe("transitionArtifact", () => {
           Effect.provide(layer),
         ),
       );
-      const beforeStore = decodeApprovalRecordFile(
-        JSON.parse(fsImpl.getFile(APPROVALS_FILE_PATH) as string),
-      );
-      expect(Either.isRight(beforeStore)).toBe(true);
-      if (Either.isRight(beforeStore)) {
-        expect(beforeStore.right.records["docs/plans/2609101240-thing-plan.md"]).toBeDefined();
-      }
+      expect(recordOf(fsImpl, "plan", "docs/plans/2609101240-thing-plan.md")).toBeDefined();
 
       await run(
         transitionArtifact("docs/plans/2609101240-thing-plan.md", "Abandoned", DEFAULT_OPTS).pipe(
@@ -817,16 +872,13 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      const afterStore = decodeApprovalRecordFile(
-        JSON.parse(fsImpl.getFile(APPROVALS_FILE_PATH) as string),
-      );
-      expect(Either.isRight(afterStore)).toBe(true);
-      if (Either.isRight(afterStore)) {
-        expect(afterStore.right.records["docs/plans/2609101240-thing-plan.md"]).toBeUndefined();
-      }
+      expect(fsImpl.getFile(THING_RECORD)).toBeUndefined();
+      expect(
+        fsImpl.getFile("docs/plans/archive/approvals/2609101240-thing-plan.json"),
+      ).toBeUndefined();
     });
 
-    it("removes the spec sidecar entry when an Approved spec goes terminal; archived file keeps the stamp", async () => {
+    it("deletes the spec's record file when an Approved spec goes terminal; archived file keeps the stamp", async () => {
       const { fsImpl, layer } = makeHarness();
       fsImpl.setFile("docs/specs/2609101221-foo.md", DRAFT_SPEC);
 
@@ -835,14 +887,7 @@ describe("transitionArtifact", () => {
           Effect.provide(layer),
         ),
       );
-
-      const beforeStore = decodeSpecApprovalRecordFile(
-        JSON.parse(fsImpl.getFile(SPEC_APPROVALS_FILE_PATH) as string),
-      );
-      expect(Either.isRight(beforeStore)).toBe(true);
-      if (Either.isRight(beforeStore)) {
-        expect(beforeStore.right.records["docs/specs/2609101221-foo.md"]).toBeDefined();
-      }
+      expect(recordOf(fsImpl, "spec", "docs/specs/2609101221-foo.md")).toBeDefined();
 
       await run(
         transitionArtifact("docs/specs/2609101221-foo.md", "Completed", DEFAULT_OPTS).pipe(
@@ -850,43 +895,159 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      const afterStore = decodeSpecApprovalRecordFile(
-        JSON.parse(fsImpl.getFile(SPEC_APPROVALS_FILE_PATH) as string),
-      );
-      expect(Either.isRight(afterStore)).toBe(true);
-      if (Either.isRight(afterStore)) {
-        expect(afterStore.right.records["docs/specs/2609101221-foo.md"]).toBeUndefined();
-      }
+      expect(fsImpl.getFile(FOO_RECORD)).toBeUndefined();
+      expect(fsImpl.getFile("docs/specs/archive/approvals/2609101221-foo.json")).toBeUndefined();
 
       // Archived file keeps the approved: stamp
       expect(fsImpl.getFile("docs/specs/archive/2609101221-foo.md")).toContain("approved:");
     });
 
-    // A corrupt ledger is refused, never overwritten: reading it as empty
-    // would replace every other approval record with this one.
-    it("refuses a plan transition when approvals.json is corrupt, touching nothing", async () => {
+    // Record files are not artifacts.
+    it("refuses to inspect or transition a record file as an artifact", async () => {
       const { fsImpl, layer } = makeHarness();
-      const plan = planMd("Draft", "null");
-      fsImpl.setFile(APPROVALS_FILE_PATH, "{ not valid json");
-      fsImpl.setFile("docs/plans/2609101240-thing-plan.md", plan);
+      fsImpl.setFile(THING_RECORD, "{}");
+
+      const failures: unknown[] = [
+        Either.flip(await run(inspectArtifact(THING_RECORD).pipe(Effect.provide(layer)))),
+        Either.flip(
+          await run(
+            transitionArtifact(THING_RECORD, "Approved", DEFAULT_OPTS).pipe(Effect.provide(layer)),
+          ),
+        ),
+      ];
+      for (const failure of failures) {
+        expect(failure).toMatchObject({
+          _tag: "Right",
+          right: expect.objectContaining({
+            _tag: "ArtifactValidationError",
+            message: expect.stringContaining("is not a recognized artifact path"),
+          }),
+        });
+      }
+      expect(fsImpl.getFile(THING_RECORD)).toBe("{}");
+    });
+
+    it("the dependent-plan check ignores the approvals/ directory", async () => {
+      const { fsImpl, layer } = makeHarness();
+      fsImpl.setFile("docs/specs/2609101221-foo.md", APPROVED_SPEC);
+      fsImpl.setFile(THING_RECORD, "{ not valid json");
 
       const result = await run(
-        transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", DEFAULT_OPTS).pipe(
+        transitionArtifact("docs/specs/2609101221-foo.md", "Completed", DEFAULT_OPTS).pipe(
           Effect.provide(layer),
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ApprovalLedgerUnreadableError);
-      }
-      expect(fsImpl.getFile(APPROVALS_FILE_PATH)).toBe("{ not valid json");
-      expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toBe(plan);
+      expect(Either.isRight(result)).toBe(true);
+      expect(fsImpl.getFile(THING_RECORD)).toBe("{ not valid json");
     });
 
-    it("refuses a spec transition when docs/specs/approvals.json is corrupt, touching nothing", async () => {
+    it("a never-approved Draft spec's abandon commits without a record path", async () => {
+      const { fsImpl, gitImpl, layer } = makeHarness();
+      fsImpl.setFile("docs/specs/2609101221-foo.md", DRAFT_SPEC);
+      gitImpl.enqueueDirtyPaths([]);
+      gitImpl.enqueueDirtyPaths([
+        "docs/specs/2609101221-foo.md",
+        "docs/specs/archive/2609101221-foo.md",
+      ]);
+
+      const result = await run(
+        transitionArtifact("docs/specs/2609101221-foo.md", "Abandoned", {
+          ...DEFAULT_OPTS,
+          commit: true,
+        }).pipe(Effect.provide(layer)),
+      );
+
+      expect(Either.isRight(result)).toBe(true);
+      const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
+      expect(commitCalls).toHaveLength(1);
+      if (commitCalls[0]?.method === "commitPaths") {
+        expect(commitCalls[0].paths).toEqual([
+          "docs/specs/2609101221-foo.md",
+          "docs/specs/archive/2609101221-foo.md",
+        ]);
+      }
+    });
+
+    it("leaves another artifact's record file byte-identical", async () => {
       const { fsImpl, layer } = makeHarness();
-      fsImpl.setFile(SPEC_APPROVALS_FILE_PATH, "{ not valid json");
+      const OTHER = "docs/plans/approvals/2609101299-other-plan.json";
+      fsImpl.setFile(OTHER, "{ not valid json");
+      fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("Draft", "null"));
+
+      for (const target of ["Approved", "Stale", "Draft", "Approved", "Completed"] as const) {
+        const result = await run(
+          transitionArtifact("docs/plans/2609101240-thing-plan.md", target, DEFAULT_OPTS).pipe(
+            Effect.provide(layer),
+          ),
+        );
+        expect(Either.isRight(result)).toBe(true);
+      }
+      expect(fsImpl.getFile(OTHER)).toBe("{ not valid json");
+    });
+
+    // An unreadable record file is refused, never overwritten or deleted.
+    const [major = 0] = PHAX_RELEASE.split(".").map(Number);
+    const unreadable: ReadonlyArray<readonly [string, (artifact: string) => string]> = [
+      ["not JSON", () => "{ not valid json"],
+      [
+        "without $schema",
+        (artifact) =>
+          JSON.stringify({
+            artifact,
+            planFingerprint: "fp",
+            approvedAt: "2026-01-01T00:00:00.000Z",
+            baseline: "a".repeat(40),
+            sourceSpec: null,
+          }),
+      ],
+      [
+        "from a newer release",
+        (artifact) =>
+          JSON.stringify({
+            $schema: schemaUrl("plan-approval-record", `${major + 1}.0.0`),
+            artifact,
+            planFingerprint: "fp",
+            approvedAt: "2026-01-01T00:00:00.000Z",
+            baseline: "a".repeat(40),
+            sourceSpec: null,
+          }),
+      ],
+      [
+        "failing to decode",
+        (artifact) =>
+          JSON.stringify(withSchemaUrl("plan-approval-record", { artifact, planFingerprint: 42 })),
+      ],
+    ];
+
+    it.each(unreadable)(
+      "refuses a plan approval when its record file is %s, touching nothing",
+      async (_, text) => {
+        const { fsImpl, layer } = makeHarness();
+        const plan = planMd("Draft", "null");
+        const recordText = text("docs/plans/2609101240-thing-plan.md");
+        fsImpl.setFile(THING_RECORD, recordText);
+        fsImpl.setFile("docs/plans/2609101240-thing-plan.md", plan);
+
+        const result = await run(
+          transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", DEFAULT_OPTS).pipe(
+            Effect.provide(layer),
+          ),
+        );
+
+        expect(Either.isLeft(result)).toBe(true);
+        if (Either.isLeft(result)) {
+          expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+          expect(exitCodeForError(result.left)).toBe(12);
+        }
+        expect(fsImpl.getFile(THING_RECORD)).toBe(recordText);
+        expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toBe(plan);
+      },
+    );
+
+    it("refuses a spec transition when its record file is not JSON, touching nothing", async () => {
+      const { fsImpl, layer } = makeHarness();
+      fsImpl.setFile(FOO_RECORD, "{ not valid json");
       fsImpl.setFile("docs/specs/2609101221-foo.md", DRAFT_SPEC);
 
       const result = await run(
@@ -897,22 +1058,22 @@ describe("transitionArtifact", () => {
 
       expect(Either.isLeft(result)).toBe(true);
       if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ApprovalLedgerUnreadableError);
+        expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
       }
-      expect(fsImpl.getFile(SPEC_APPROVALS_FILE_PATH)).toBe("{ not valid json");
+      expect(fsImpl.getFile(FOO_RECORD)).toBe("{ not valid json");
       expect(fsImpl.getFile("docs/specs/2609101221-foo.md")).toBe(DRAFT_SPEC);
     });
 
     // An archival refused after the move would leave it uncommitted, and run
     // completion reads a plan gone from its source path as already completed.
     it.each([
-      ["plan", APPROVALS_FILE_PATH, "docs/plans/2609101240-thing-plan.md", APPROVED_PLAN],
-      ["spec", SPEC_APPROVALS_FILE_PATH, "docs/specs/2609101221-foo.md", APPROVED_SPEC],
+      ["plan", THING_RECORD, "docs/plans/2609101240-thing-plan.md", APPROVED_PLAN],
+      ["spec", FOO_RECORD, "docs/specs/2609101221-foo.md", APPROVED_SPEC],
     ])(
-      "refuses to complete a %s when its ledger is corrupt, before moving it",
-      async (_, ledgerPath, path, md) => {
+      "refuses to complete a %s when its record file is corrupt, before moving it",
+      async (_, ownRecord, path, md) => {
         const { fsImpl, layer } = makeHarness();
-        fsImpl.setFile(ledgerPath, "{ not valid json");
+        fsImpl.setFile(ownRecord, "{ not valid json");
         fsImpl.setFile(path, md);
 
         const result = await run(
@@ -921,13 +1082,75 @@ describe("transitionArtifact", () => {
 
         expect(Either.isLeft(result)).toBe(true);
         if (Either.isLeft(result)) {
-          expect(result.left).toBeInstanceOf(ApprovalLedgerUnreadableError);
+          expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
         }
-        expect(fsImpl.getFile(ledgerPath)).toBe("{ not valid json");
+        expect(fsImpl.getFile(ownRecord)).toBe("{ not valid json");
         expect(fsImpl.getFile(path)).toBe(md);
         expect(fsImpl.getFile(archivePathFor(path))).toBeUndefined();
       },
     );
+
+    // A copied record does not approve another artifact.
+    it("refuses a plan whose record file records another plan", async () => {
+      const { fsImpl, layer } = makeHarness();
+      const copied = JSON.stringify(
+        withSchemaUrl("plan-approval-record", {
+          artifact: "docs/plans/2609101299-other-plan.md",
+          planFingerprint: "fp",
+          approvedAt: "2026-01-01T00:00:00.000Z",
+          baseline: "a".repeat(40),
+          sourceSpec: null,
+        }),
+      );
+      fsImpl.setFile(THING_RECORD, copied);
+      fsImpl.setFile("docs/plans/2609101240-thing-plan.md", APPROVED_PLAN);
+
+      const result = await run(
+        transitionArtifact("docs/plans/2609101240-thing-plan.md", "Completed", DEFAULT_OPTS).pipe(
+          Effect.provide(layer),
+        ),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) {
+        expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+        expect(result.left.message).toContain(
+          "records docs/plans/2609101299-other-plan.md, not docs/plans/2609101240-thing-plan.md",
+        );
+      }
+      expect(fsImpl.getFile(THING_RECORD)).toBe(copied);
+      expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toBe(APPROVED_PLAN);
+    });
+
+    it("refuses a plan approval whose declared spec's record file records another spec", async () => {
+      const { fsImpl, layer } = makeHarness();
+      fsImpl.setFile("docs/specs/2609101221-foo.md", APPROVED_SPEC);
+      fsImpl.setFile(
+        FOO_RECORD,
+        JSON.stringify(
+          withSchemaUrl("spec-approval-record", {
+            artifact: "docs/specs/2609101299-other.md",
+            specFingerprint: artifactFingerprint(APPROVED_SPEC),
+            approvedAt: "2026-01-01T00:00:00.000Z",
+            baseline: "a".repeat(40),
+          }),
+        ),
+      );
+      fsImpl.setFile(
+        "docs/plans/2609101240-thing-plan.md",
+        planMd("Draft", "docs/specs/2609101221-foo.md"),
+      );
+
+      const result = await run(
+        transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", DEFAULT_OPTS).pipe(
+          Effect.provide(layer),
+        ),
+      );
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+      expect(fsImpl.getFile(THING_RECORD)).toBeUndefined();
+    });
   });
 
   describe("reopen clears the approval", () => {
@@ -948,13 +1171,7 @@ describe("transitionArtifact", () => {
 
       // Both artifacts of the approval survive the Approved → Stale exit.
       expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toContain("approved:");
-      const staleStore = decodeApprovalRecordFile(
-        JSON.parse(fsImpl.getFile(APPROVALS_FILE_PATH) as string),
-      );
-      expect(Either.isRight(staleStore)).toBe(true);
-      if (Either.isRight(staleStore)) {
-        expect(staleStore.right.records["docs/plans/2609101240-thing-plan.md"]).toBeDefined();
-      }
+      expect(recordOf(fsImpl, "plan", "docs/plans/2609101240-thing-plan.md")).toBeDefined();
 
       const result = await run(
         transitionArtifact("docs/plans/2609101240-thing-plan.md", "Draft", DEFAULT_OPTS).pipe(
@@ -965,13 +1182,38 @@ describe("transitionArtifact", () => {
 
       // The reopened plan claims no approval, in the frontmatter or the sidecar.
       expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).not.toContain("approved:");
-      const afterStore = decodeApprovalRecordFile(
-        JSON.parse(fsImpl.getFile(APPROVALS_FILE_PATH) as string),
+      expect(fsImpl.getFile(THING_RECORD)).toBeUndefined();
+    });
+
+    // Reopen deletes the plan's record file; another plan's record file is
+    // left byte-identical.
+    it("reopen leaves another plan's record file byte-identical", async () => {
+      const { fsImpl, layer } = makeHarness();
+      const OTHER = "docs/plans/approvals/2609101299-other-plan.json";
+      const otherText = JSON.stringify(
+        withSchemaUrl("plan-approval-record", {
+          artifact: "docs/plans/2609101299-other-plan.md",
+          planFingerprint: "fp",
+          approvedAt: "2026-01-01T00:00:00.000Z",
+          baseline: "a".repeat(40),
+          sourceSpec: null,
+        }),
+        null,
+        2,
       );
-      expect(Either.isRight(afterStore)).toBe(true);
-      if (Either.isRight(afterStore)) {
-        expect(afterStore.right.records["docs/plans/2609101240-thing-plan.md"]).toBeUndefined();
+      fsImpl.setFile(OTHER, otherText);
+      fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("Draft", "null"));
+
+      for (const target of ["Approved", "Stale", "Draft"] as const) {
+        await run(
+          transitionArtifact("docs/plans/2609101240-thing-plan.md", target, DEFAULT_OPTS).pipe(
+            Effect.provide(layer),
+          ),
+        );
       }
+
+      expect(fsImpl.getFile(THING_RECORD)).toBeUndefined();
+      expect(fsImpl.getFile(OTHER)).toBe(otherText);
     });
 
     it("Approved → Stale retains the record (pinned arbitration)", async () => {
@@ -991,17 +1233,11 @@ describe("transitionArtifact", () => {
 
       // The record is the fingerprint/baseline the plan went stale against; a
       // direct Stale → Approved is legal, so the record must survive here.
-      const store = decodeApprovalRecordFile(
-        JSON.parse(fsImpl.getFile(APPROVALS_FILE_PATH) as string),
-      );
-      expect(Either.isRight(store)).toBe(true);
-      if (Either.isRight(store)) {
-        expect(store.right.records["docs/plans/2609101240-thing-plan.md"]).toBeDefined();
-      }
+      expect(recordOf(fsImpl, "plan", "docs/plans/2609101240-thing-plan.md")).toBeDefined();
       expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toContain("approved:");
     });
 
-    it("the reopen commit carries the plan and approvals.json, leaving nothing uncommitted", async () => {
+    it("the reopen commit carries the plan and its record file, leaving nothing uncommitted", async () => {
       const { fsImpl, gitImpl, layer } = makeHarness();
       fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("Draft", "null"));
 
@@ -1017,7 +1253,7 @@ describe("transitionArtifact", () => {
       );
 
       gitImpl.enqueueDirtyPaths([]); // pre-write precondition: clean
-      gitImpl.enqueueDirtyPaths(["docs/plans/2609101240-thing-plan.md", APPROVALS_FILE_PATH]); // post-write
+      gitImpl.enqueueDirtyPaths(["docs/plans/2609101240-thing-plan.md", THING_RECORD]); // post-write
 
       const result = await run(
         transitionArtifact("docs/plans/2609101240-thing-plan.md", "Draft", {
@@ -1033,15 +1269,12 @@ describe("transitionArtifact", () => {
           subject: "chore(plans): reopen thing",
         });
       }
-      // The commit stages exactly the write-set — plan + approvals.json — so no
-      // approvals.json edit is left behind in the working tree.
+      // The commit stages exactly the write-set — plan + its record file — so
+      // the record file's deletion is not left behind in the working tree.
       const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
       expect(commitCalls).toHaveLength(1);
       if (commitCalls[0]?.method === "commitPaths") {
-        expect(commitCalls[0].paths).toEqual([
-          "docs/plans/2609101240-thing-plan.md",
-          APPROVALS_FILE_PATH,
-        ]);
+        expect(commitCalls[0].paths).toEqual(["docs/plans/2609101240-thing-plan.md", THING_RECORD]);
       }
     });
   });
@@ -1051,7 +1284,7 @@ describe("transitionArtifact", () => {
       const { fsImpl, gitImpl, layer } = makeHarness();
       fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("Draft", "null"));
       gitImpl.enqueueDirtyPaths([]); // pre-write precondition: clean
-      gitImpl.enqueueDirtyPaths(["docs/plans/2609101240-thing-plan.md", APPROVALS_FILE_PATH]); // post-write: changed
+      gitImpl.enqueueDirtyPaths(["docs/plans/2609101240-thing-plan.md", THING_RECORD]); // post-write: changed
 
       const result = await run(
         transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", {
@@ -1072,19 +1305,31 @@ describe("transitionArtifact", () => {
         {
           method: "commitPaths",
           repo: DEFAULT_OPTS.repoRoot,
-          paths: ["docs/plans/2609101240-thing-plan.md", APPROVALS_FILE_PATH],
+          paths: ["docs/plans/2609101240-thing-plan.md", THING_RECORD],
           subject: "chore(plans): approve thing",
           body: expect.stringContaining("docs/plans/2609101240-thing-plan.md"),
         },
       ]);
     });
 
-    it("archive captures the source removal and archive addition in one commit", async () => {
+    it("archive captures the source removal, record deletion and archive addition in one commit", async () => {
       const { fsImpl, gitImpl, layer } = makeHarness();
       fsImpl.setFile("docs/specs/2609101221-foo.md", APPROVED_SPEC);
+      fsImpl.setFile(
+        FOO_RECORD,
+        JSON.stringify(
+          withSchemaUrl("spec-approval-record", {
+            artifact: "docs/specs/2609101221-foo.md",
+            specFingerprint: artifactFingerprint(APPROVED_SPEC),
+            approvedAt: "2026-01-01T00:00:00.000Z",
+            baseline: "a".repeat(40),
+          }),
+        ),
+      );
       gitImpl.enqueueDirtyPaths([]);
       gitImpl.enqueueDirtyPaths([
         "docs/specs/2609101221-foo.md",
+        FOO_RECORD,
         "docs/specs/archive/2609101221-foo.md",
       ]);
 
@@ -1101,10 +1346,11 @@ describe("transitionArtifact", () => {
       if (commitCalls[0]?.method === "commitPaths") {
         expect(commitCalls[0].paths).toEqual([
           "docs/specs/2609101221-foo.md",
-          "docs/specs/approvals.json",
+          FOO_RECORD,
           "docs/specs/archive/2609101221-foo.md",
         ]);
       }
+      expect(fsImpl.getFile(FOO_RECORD)).toBeUndefined();
     });
 
     it("refuses a dirty write-set target before writing anything", async () => {
@@ -1128,7 +1374,7 @@ describe("transitionArtifact", () => {
         }
       }
       expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toBe(source);
-      expect(fsImpl.getFile(APPROVALS_FILE_PATH)).toBeUndefined();
+      expect(fsImpl.getFile(THING_RECORD)).toBeUndefined();
       expect(gitImpl.calls.some((c) => c.method === "commitPaths")).toBe(false);
     });
 
@@ -1174,7 +1420,7 @@ describe("transitionArtifact", () => {
       const { fsImpl, gitImpl, layer } = makeHarness();
       fsImpl.setFile("docs/plans/2609101240-thing-plan.md", planMd("Draft", "null"));
       gitImpl.enqueueDirtyPaths([]);
-      gitImpl.enqueueDirtyPaths(["docs/plans/2609101240-thing-plan.md", APPROVALS_FILE_PATH]);
+      gitImpl.enqueueDirtyPaths(["docs/plans/2609101240-thing-plan.md", THING_RECORD]);
       gitImpl.failNextCommitPaths("fatal: unable to auto-detect email address");
 
       const result = await run(
@@ -1188,10 +1434,7 @@ describe("transitionArtifact", () => {
       if (Either.isLeft(result)) {
         expect(result.left).toBeInstanceOf(ArtifactCommitFailedError);
         if (result.left instanceof ArtifactCommitFailedError) {
-          expect(result.left.paths).toEqual([
-            "docs/plans/2609101240-thing-plan.md",
-            APPROVALS_FILE_PATH,
-          ]);
+          expect(result.left.paths).toEqual(["docs/plans/2609101240-thing-plan.md", THING_RECORD]);
           expect(result.left.cause).toContain("unable to auto-detect email address");
           expect(result.left.commitMessage).toEqual({
             subject: "chore(plans): approve thing",
@@ -1205,7 +1448,7 @@ describe("transitionArtifact", () => {
       }
       // The transition's writes stayed in place despite the commit failure.
       expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toContain("status: Approved");
-      expect(fsImpl.getFile(APPROVALS_FILE_PATH)).toBeDefined();
+      expect(fsImpl.getFile(THING_RECORD)).toBeDefined();
     });
   });
 });
@@ -1218,6 +1461,7 @@ function edited(body: string): string {
 describe("headless-authored artifacts (JSON sidecar)", () => {
   const SPEC = "docs/specs/2609230835-plan-prune.md";
   const SIDECAR = "docs/specs/2609230835-plan-prune.json";
+  const SPEC_RECORD = "docs/specs/approvals/2609230835-plan-prune.json";
   const ARCHIVED_SPEC = "docs/specs/archive/2609230835-plan-prune.md";
   const ARCHIVED_SIDECAR = "docs/specs/archive/2609230835-plan-prune.json";
 
@@ -1339,10 +1583,10 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
   });
 
   describe("transitionArtifact", () => {
-    it("approve commits the artifact, its sidecar and the approvals file", async () => {
+    it("approve commits the artifact, its sidecar and its record file", async () => {
       const { fsImpl, gitImpl, layer } = headlessHarness(headlessSpecMd("Draft"));
       gitImpl.enqueueDirtyPaths([]);
-      gitImpl.enqueueDirtyPaths([SPEC, SPEC_APPROVALS_FILE_PATH]);
+      gitImpl.enqueueDirtyPaths([SPEC, SPEC_RECORD]);
 
       const result = await run(
         transitionArtifact(SPEC, "Approved", { ...DEFAULT_OPTS, commit: true }).pipe(
@@ -1354,7 +1598,7 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
       const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
       expect(commitCalls).toHaveLength(1);
       if (commitCalls[0]?.method === "commitPaths") {
-        expect(commitCalls[0].paths).toEqual([SPEC, SIDECAR, SPEC_APPROVALS_FILE_PATH]);
+        expect(commitCalls[0].paths).toEqual([SPEC, SIDECAR, SPEC_RECORD]);
       }
       // The frontmatter stamp does not diverge the pair.
       expect(fsImpl.getFile(SIDECAR)).toBe(SIDECAR_JSON);
@@ -1383,13 +1627,8 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
       const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
       expect(commitCalls).toHaveLength(1);
       if (commitCalls[0]?.method === "commitPaths") {
-        expect(commitCalls[0].paths).toEqual([
-          SPEC,
-          SIDECAR,
-          SPEC_APPROVALS_FILE_PATH,
-          ARCHIVED_SPEC,
-          ARCHIVED_SIDECAR,
-        ]);
+        // No record file exists, so none joins the write-set.
+        expect(commitCalls[0].paths).toEqual([SPEC, SIDECAR, ARCHIVED_SPEC, ARCHIVED_SIDECAR]);
       }
     });
 
@@ -1416,7 +1655,7 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
         );
       }
       expect(fsImpl.getFile(SPEC)).toBe(source);
-      expect(fsImpl.getFile(SPEC_APPROVALS_FILE_PATH)).toBeUndefined();
+      expect(fsImpl.getFile(SPEC_RECORD)).toBeUndefined();
       expect(gitImpl.calls.some((c) => c.method === "commitPaths")).toBe(false);
     });
 

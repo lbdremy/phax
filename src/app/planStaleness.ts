@@ -3,7 +3,7 @@ import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import {
-  type ApprovalLedgerUnreadableError,
+  type ApprovalRecordUnreadableError,
   type ArtifactCommitFailedError,
   type ArtifactDirtyWriteSetError,
   type ArtifactSidecarDivergedError,
@@ -27,15 +27,12 @@ import type {
 } from "../domain/artifact/render.js";
 import { buildFootprint } from "../domain/planOverlap/compute.js";
 import { planInputFromPhaxPlan } from "../domain/planOverlap/fromPhaxPlan.js";
-import { artifactFingerprint, readApprovalStore } from "./approvalRecordStore.js";
+import { artifactFingerprint, readPlanApprovalRecord } from "./approvalRecordStore.js";
 import { transitionArtifact, type TransitionArtifactOptions } from "./artifactStatus.js";
 import type { ExtractPlanError } from "./extractPlan.js";
 import { loadOrExtractPlan } from "./loadOrExtractPlan.js";
 
-// Mirrors resolveDeclaredSpec in artifactStatus.ts. Duplicated deliberately:
-// this phase's boundary contract exports only readApprovalStore and
-// artifactFingerprint from that phase's work, so declared-spec resolution is
-// re-derived here rather than importing a phase-03 private helper.
+// Mirrors resolveDeclaredSpec in artifactStatus.ts.
 function resolveSpecPath(declaredPath: string): Effect.Effect<string | null, FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -62,12 +59,11 @@ export function computeStalenessForPlan(
   opts: ComputeStalenessOptions,
 ): Effect.Effect<
   PlanStalenessVerdict,
-  FsError | GitError | ArtifactValidationError | ApprovalLedgerUnreadableError,
+  FsError | GitError | ArtifactValidationError | ApprovalRecordUnreadableError,
   FileSystem | Git
 > {
   return Effect.gen(function* () {
-    const store = yield* readApprovalStore();
-    const record = store.records[planPath] ?? null;
+    const record = yield* readPlanApprovalRecord(planPath);
 
     if (record === null) {
       return computeStaleness({
@@ -138,7 +134,7 @@ export function computePlanStaleness(
   opts: ComputePlanStalenessOptions,
 ): Effect.Effect<
   PlanStalenessVerdict,
-  FsError | GitError | ArtifactValidationError | ExtractPlanError | ApprovalLedgerUnreadableError,
+  FsError | GitError | ArtifactValidationError | ExtractPlanError | ApprovalRecordUnreadableError,
   FileSystem | Git | Backend
 > {
   return Effect.gen(function* () {
@@ -214,7 +210,7 @@ export function applyStalenessReport(
 ): Effect.Effect<
   readonly StalenessFlip[],
   | FsError
-  | ApprovalLedgerUnreadableError
+  | ApprovalRecordUnreadableError
   | ArtifactValidationError
   | InvalidArtifactTransitionError
   | SpecNotApprovedError

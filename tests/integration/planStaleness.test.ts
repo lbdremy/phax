@@ -11,7 +11,8 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { renderStalenessApply, renderStalenessReport } from "../../src/domain/artifact/render.js";
-import { ArtifactValidationError } from "../../src/domain/errors.js";
+import { ApprovalRecordUnreadableError, ArtifactValidationError } from "../../src/domain/errors.js";
+import { FileSystem } from "../../src/ports/fs.js";
 
 const REPO_ROOT = "/fake-repo";
 const NOW_ISO = "2026-08-10T12:00:00.000Z";
@@ -761,5 +762,116 @@ describe("applyStalenessReport", () => {
       expect(flipped.right[0]?.verdict.kind).toBe("missing-record");
     }
     expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toContain("status: Stale");
+  });
+});
+
+describe("per-artifact approval record files", () => {
+  const PLAN_A = "docs/plans/2609101240-alpha-plan.md";
+  const PLAN_B = "docs/plans/2609101241-beta-plan.md";
+  const PLAN_C = "docs/plans/2609101242-gamma-plan.md";
+  const RECORD_A = "docs/plans/approvals/2609101240-alpha-plan.json";
+  const RECORD_B = "docs/plans/approvals/2609101241-beta-plan.json";
+  const RECORD_C = "docs/plans/approvals/2609101242-gamma-plan.json";
+
+  async function approve(
+    fsImpl: { setFile(path: string, text: string): void },
+    layer: ReturnType<typeof fullHarness>["layer"],
+    path: string,
+  ) {
+    fsImpl.setFile(
+      path,
+      deterministicPlanMd({ status: "Draft", sourceSpec: "(none)", create: ["src/x.ts"] }),
+    );
+    const approved = await run(
+      transitionArtifact(path, "Approved", APPROVE_OPTS).pipe(Effect.provide(layer)),
+    );
+    expect(Either.isRight(approved)).toBe(true);
+  }
+
+  // Another plan's record is never read.
+  it("an unreadable record of another plan never affects a plan", async () => {
+    const { fsImpl, layer } = fullHarness();
+    await approve(fsImpl, layer, PLAN_A);
+    await approve(fsImpl, layer, PLAN_B);
+    fsImpl.setFile(RECORD_B, "{ not valid json");
+
+    // Approving C succeeds with B's record unreadable.
+    await approve(fsImpl, layer, PLAN_C);
+    expect(fsImpl.getFile(RECORD_C)).toBeDefined();
+
+    const verdictA = await run(
+      computeStalenessForPlan(PLAN_A, fsImpl.getFile(PLAN_A) as string, [], {
+        repoRoot: REPO_ROOT,
+      }).pipe(Effect.provide(layer)),
+    );
+    expect(verdictA).toEqual(Either.right({ kind: "fresh" }));
+
+    const report = await Effect.runPromise(
+      plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
+    );
+    expect(report.map((e) => e.path)).toEqual([PLAN_A, PLAN_B, PLAN_C]);
+    expect(report.find((e) => e.path === PLAN_A)?.result).toEqual({ kind: "fresh" });
+    expect(report.find((e) => e.path === PLAN_C)?.result).toEqual({ kind: "fresh" });
+    const b = report.find((e) => e.path === PLAN_B)?.result;
+    expect(b?.kind).toBe("error");
+    if (b?.kind === "error") expect(b.message).toContain(`${RECORD_B}: not valid JSON`);
+
+    expect(fsImpl.getFile(RECORD_B)).toBe("{ not valid json");
+  });
+
+  // A missing record file is no record.
+  it("a plan whose record file is missing computes missing-record", async () => {
+    const { fsImpl, layer } = fullHarness();
+    await approve(fsImpl, layer, PLAN_A);
+    await Effect.runPromise(
+      Effect.flatMap(FileSystem, (fs) => fs.remove(RECORD_A)).pipe(Effect.provide(layer)),
+    );
+
+    const verdict = await run(
+      computeStalenessForPlan(PLAN_A, fsImpl.getFile(PLAN_A) as string, [], {
+        repoRoot: REPO_ROOT,
+      }).pipe(Effect.provide(layer)),
+    );
+    expect(Either.isRight(verdict) && verdict.right.kind).toBe("missing-record");
+  });
+
+  // Unreadable record files are refused and kept.
+  it("refuses a plan's own unreadable record file, reporting an error entry", async () => {
+    const { fsImpl, layer } = fullHarness();
+    await approve(fsImpl, layer, PLAN_A);
+    const { $schema: _schema, ...withoutSchema } = JSON.parse(
+      fsImpl.getFile(RECORD_A) as string,
+    ) as Record<string, unknown>;
+    const text = JSON.stringify(withoutSchema);
+    fsImpl.setFile(RECORD_A, text);
+
+    const verdict = await run(
+      computeStalenessForPlan(PLAN_A, fsImpl.getFile(PLAN_A) as string, [], {
+        repoRoot: REPO_ROOT,
+      }).pipe(Effect.provide(layer)),
+    );
+    expect(Either.isLeft(verdict)).toBe(true);
+    if (Either.isLeft(verdict)) {
+      expect(verdict.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+      expect(verdict.left.message).toContain(`${RECORD_A}: plan approval record has no $schema`);
+    }
+
+    const report = await Effect.runPromise(
+      plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
+    );
+    expect(report.map((e) => e.result.kind)).toEqual(["error"]);
+    expect(fsImpl.getFile(RECORD_A)).toBe(text);
+  });
+
+  // Record files are not artifacts: the walk sees only the .md entries.
+  it("the staleness report ignores the approvals/ directory", async () => {
+    const { fsImpl, layer } = fullHarness();
+    await approve(fsImpl, layer, PLAN_A);
+    fsImpl.setFile("docs/plans/approvals/2609101299-gone-plan.json", "{ not valid json");
+
+    const report = await Effect.runPromise(
+      plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
+    );
+    expect(report).toEqual([{ path: PLAN_A, result: { kind: "fresh" } }]);
   });
 });
