@@ -91,8 +91,8 @@ both Approved 2026-10-05, no plan yet. In this order, shipped in the same releas
       `completion` fails like an `invariant`; the `scopes` provider, closure, pending and
       `gate-pending` retired; `gate-diagnostics` without `scopes`. A config change, so before
       the CLI/config freeze of the road to 1.0.
-- [ ] **`brief-replaces-orient`** — `docs/specs/2610051526-brief-replaces-orient.md`. Draft, §9
-      decided 2026-10-05, waiting for approval. orient designed again from the agent's need: a
+- [ ] **`brief-replaces-orient`** — `docs/specs/2610051526-brief-replaces-orient.md`. Approved
+      2026-10-05, no plan yet. orient designed again from the agent's need: a
       **brief** is feed-forward and never blocks (the audit is the gate's and blocks); woven into
       the phase's first prompt from the plan and pulled with `phax brief [path…]` on any path,
       existing or not; it answers with each guarantee's state, as structured data, from the same
