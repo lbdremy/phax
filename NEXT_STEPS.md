@@ -31,13 +31,6 @@ Decided 2026-09-15: the first four were the blockers (`phax prune`, the fourth, 
       shows what the alternative looks like (a `phax.json` the CLI refuses). Decide the
       contract (frozen `version: 1` + a migration command, or a documented "re-run `phax
       init`" policy) and write it down in the README.
-      Part of it: **phax must not rewrite a document from a newer release.** phax accepts
-      `$schema` from any release as long as the format id matches (the package refuses a
-      newer one). After a downgrade, the registry and run/phase status — decoded tolerantly,
-      unknown keys ignored — would be read, stripped of the newer fields and rewritten
-      without them: data loss. phax should refuse (or at least not rewrite) a file whose
-      `$schema` names a release newer than its own, as the package does. Live since 0.18.0
-      exists (found in the PR #109 side review, 2026-10-02).
 - [ ] **CLI contract freeze.** `phax.usage.kdl` had a breaking change in 0.13 (`extract-plan`
       removed), and 0.18 added `prune`. Land the last renames from
       `docs/vocabulary-review.md` §"Top fixes" (at least 1, 2 and 4 — they change output and
@@ -88,13 +81,6 @@ cross-field checks registered by id so the build writes the same list into the s
 
 ## Small follow-ups
 
-- [ ] **Headless authoring rejects a document preceded by a sentence.** Found 2026-09-28
-      authoring `oracle-phases`: two of three sessions ended with "Ground read. Writing the
-      spec document now." followed by a valid document, and `authorArtifact.ts` refused it
-      as "not JSON" (exit 5, nothing written). `stripJsonCodeFence` handles a fence but not
-      a leading sentence. Workaround in use: a closing line in the brief ("your final
-      message is the spec document JSON and nothing else"). Fix: tell the session so in
-      the authoring prompt itself, or accept the last top-level JSON object of the message.
 - [ ] **A run completes its source spec even when more plans are to come.** Found
       2026-09-29 on `schemas-package` plan 1/5 (PR #104): at run end phax completed the
       plan (correct) and the spec (`f8d2366`, spec moved to `archive/`, its approval
@@ -105,27 +91,6 @@ cross-field checks registered by id so the build writes the same list into the s
       **Decided 2026-10-05:** a required plan field (`completesSpec: true|false`) — the run
       completes the spec only when it is true; lint and the planning skill carry it. Its own
       spec.
-- [ ] **Authoring records are not auto-pushed.** Found 2026-09-29: with `records.autoPush`
-      true in phax and steme-lab, `phax records status` still listed 13 (phax) and 1
-      (steme-lab) authoring records from headless `artifact new` sessions as pending; pushed
-      by hand with `git push origin phax/records/v1`. Phase records are pushed at run end;
-      the authoring path writes its record but never pushes. Fix: push after an authoring
-      record is written, as the run path does.
-- [ ] **Headless authoring's commit fails under a repo's formatter hook.** Found 2026-09-28
-      authoring `oracle-markers` in steme-lab: lefthook's `oxfmt --check` rejected the
-      sidecar (`JSON.stringify(…, 2)` layout), so phax exited 12 with both files staged and
-      uncommitted. Committed by hand after `oxfmt` (formatting the sidecar keeps it in sync,
-      since agreement compares the parsed document). Fix: write the sidecar in the repo's
-      format (run the configured formatter on it before committing), or name this remedy in
-      the refusal.
-
-- [ ] **`plans overlap --landed` cannot read an archived run.** Found 2026-10-03: it resolves
-      the run only under `~/.phax/runs/` ("No run-status.json"), so once a merged run is archived —
-      the normal next step — the confirmed check is gone, although
-      `~/.phax/archive/<ns>.<name>/runs/global-file-reconciliation.json` still holds the real diff.
-      It also refuses a qualified name (`phax.<name>`) that other commands print. Resolve archived
-      runs through the registry's `archivePath`, and accept the qualified name.
-
 - [ ] **A run's completion conflicts with approvals made on main during the run.** Found
       2026-10-03 on PR #112: the run branch's completion commit removes the plan's entry from
       `docs/plans/approvals.json`, and approving another plan on main meanwhile edits the same
