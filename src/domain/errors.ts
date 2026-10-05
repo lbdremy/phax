@@ -374,12 +374,49 @@ export class ArtifactDirtyWriteSetError extends Data.TaggedError("ArtifactDirtyW
   }
 }
 
+// POSIX single-quoting: the word pastes into a shell intact, newlines included.
+function shellQuote(word: string): string {
+  return `'${word.replaceAll("'", `'\\''`)}'`;
+}
+
+/**
+ * The commit of an artifact write-set failed (headless authoring or any
+ * transition). `commitMessage` is the full message phax tried to commit with,
+ * trailers included, so the printed remedy reproduces it exactly — an
+ * authoring commit keeps the `Authoring-Id` trailer `phax records explain`
+ * resolves.
+ */
 export class ArtifactCommitFailedError extends Data.TaggedError("ArtifactCommitFailedError")<{
   paths: readonly string[];
   cause: string;
+  commitMessage: { readonly subject: string; readonly body: string };
 }> {
   override get message(): string {
-    return `Wrote ${this.paths.join(", ")} but the commit failed: ${this.cause} — commit them manually`;
+    const cause = this.cause.trim().replace(/\.$/, "");
+    const command = [
+      "git commit",
+      `-m ${shellQuote(this.commitMessage.subject)}`,
+      `-m ${shellQuote(this.commitMessage.body)}`,
+      "--",
+      ...this.paths.map(shellQuote),
+    ].join(" ");
+    const lines = [
+      `Wrote ${this.paths.join(", ")} but the commit failed: ${cause}.`,
+      "A commit hook (often a formatter) may have rejected them.",
+      "Run the repository's formatter on those paths, then commit exactly them with phax's message:",
+      `  ${command}`,
+    ];
+    // A sidecar is the `.json` twin of a listed `.md` (sidecarPathFor's rule,
+    // inlined: importing the artifact modules here would form a cycle).
+    const sidecars = this.paths.filter(
+      (p) => p.endsWith(".json") && this.paths.includes(`${p.slice(0, -".json".length)}.md`),
+    );
+    if (sidecars.length > 0) {
+      lines.push(
+        `Formatting the JSON sidecar (${sidecars.join(", ")}) is safe: phax compares its parsed document with the Markdown, not its bytes.`,
+      );
+    }
+    return lines.join("\n");
   }
 }
 

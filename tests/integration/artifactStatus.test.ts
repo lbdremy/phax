@@ -1156,6 +1156,14 @@ describe("transitionArtifact", () => {
             APPROVALS_FILE_PATH,
           ]);
           expect(result.left.cause).toContain("unable to auto-detect email address");
+          expect(result.left.commitMessage).toEqual({
+            subject: "chore(plans): approve thing",
+            body: "Transitions docs/plans/2609101240-thing-plan.md to Approved (approve).",
+          });
+          expect(result.left.message).toContain(
+            "git commit -m 'chore(plans): approve thing' -m 'Transitions docs/plans/2609101240-thing-plan.md to Approved (approve).' --",
+          );
+          expect(result.left.message).not.toContain("JSON sidecar");
         }
       }
       // The transition's writes stayed in place despite the commit failure.

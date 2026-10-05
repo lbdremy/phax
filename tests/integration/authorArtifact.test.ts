@@ -502,6 +502,13 @@ describe("authorArtifact — failures land nothing", () => {
       if (result.left instanceof ArtifactCommitFailedError) {
         expect(result.left.paths).toEqual([SPEC_PATH, SPEC_SIDECAR]);
         expect(result.left.cause).toContain("pre-commit hook failed");
+        expect(result.left.commitMessage.subject).toBe("docs(specs): draft plan-prune");
+        expect(result.left.commitMessage.body).toMatch(/\nAuthoring-Id: 2609230835-plan-prune$/);
+        expect(result.left.message).toContain("-m 'docs(specs): draft plan-prune'");
+        expect(result.left.message).toContain("Authoring-Id: 2609230835-plan-prune'");
+        expect(result.left.message).toContain(
+          `Formatting the JSON sidecar (${SPEC_SIDECAR}) is safe`,
+        );
       }
     }
     expect(repoFiles(fs)).toEqual([SPEC_SIDECAR, SPEC_PATH]);
@@ -803,7 +810,11 @@ describe("authorArtifact — exit codes", () => {
   });
 
   it("leaves a transition's failed commit on its generic exit code", () => {
-    const err = new ArtifactCommitFailedError({ paths: [SPEC_PATH], cause: "hook failed" });
+    const err = new ArtifactCommitFailedError({
+      paths: [SPEC_PATH],
+      cause: "hook failed",
+      commitMessage: { subject: "chore(specs): approve plan-prune", body: "Transitions it." },
+    });
     expect(exitCodeForError(err)).toBe(1);
   });
 });
