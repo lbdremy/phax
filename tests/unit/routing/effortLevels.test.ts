@@ -95,6 +95,18 @@ describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
     expect(effortsFor("claude-sonnet-5", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
   });
 
+  it("claude-sonnet-5-5 supports low|medium|high|xhigh|max|ultracode", () => {
+    const expected: readonly ThinkingLevel[] = [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultracode",
+    ];
+    expect(effortsFor("claude-sonnet-5-5", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
+  });
+
   it("gpt-6-astra supports low|medium|high|xhigh|max|ultra", () => {
     const expected: readonly ThinkingLevel[] = ["low", "medium", "high", "xhigh", "max", "ultra"];
     expect(effortsFor("gpt-6-astra", DEFAULT_PROVIDER_CONFIG)).toEqual(expected);
@@ -140,6 +152,7 @@ describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
       "claude-fable-5",
       "claude-fable-5-1",
       "claude-sonnet-5",
+      "claude-sonnet-5-5",
       "gpt-5.5",
       "gpt-6-astra",
       "gpt-6-sol",

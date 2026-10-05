@@ -44,6 +44,7 @@ const providerCfgWithDeprecated: ProviderConfig = {
 describe("familyOfId", () => {
   it("returns the family for a Claude id in the catalog", () => {
     expect(familyOfId("claude-sonnet-4-6", DEFAULT_PROVIDER_CONFIG)).toBe("claude-sonnet");
+    expect(familyOfId("claude-sonnet-5-5", DEFAULT_PROVIDER_CONFIG)).toBe("claude-sonnet");
     expect(familyOfId("claude-opus-4-8", DEFAULT_PROVIDER_CONFIG)).toBe("claude-opus");
     expect(familyOfId("claude-haiku-4-5-20251001", DEFAULT_PROVIDER_CONFIG)).toBe("claude-haiku");
     expect(familyOfId("claude-fable-5-1", DEFAULT_PROVIDER_CONFIG)).toBe("claude-fable");

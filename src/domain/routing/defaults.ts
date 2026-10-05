@@ -142,6 +142,11 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
         "claude-sonnet": {
           models: [
             {
+              id: "claude-sonnet-5-5",
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
+              status: "active",
+            },
+            {
               id: "claude-sonnet-5",
               efforts: ["low", "medium", "high", "xhigh", "max", "ultracode"],
               status: "active",
