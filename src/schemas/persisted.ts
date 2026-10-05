@@ -5,8 +5,14 @@
 // and pass the file path only so it appears in messages. It never imports
 // packages/.
 //
-// It resolves a document the way the schemas package's `defineFormat` does: a
-// document with `$schema` is read only by phax's current file decoder; a
+// First, it refuses a document whose `$schema` names a release newer than the
+// running one: reading it would drop the fields that release added, and the
+// next write would lose them. Releases compare as semver, through the
+// `compareReleases` the schemas package also uses.
+//
+// Otherwise it resolves a document the way the schemas package's
+// `defineFormat` does: a document with `$schema` is read only by phax's
+// current file decoder; a
 // document without `$schema` is read only by the frozen pre-schema decoder,
 // then stepped to the current shape. On the way out, `withSchemaUrl` stamps the
 // `$schema` a writer puts first.
@@ -41,7 +47,7 @@ import {
 } from "./reconciliation.js";
 import { decodeRegistryFile, type Registry } from "./registry.js";
 import { PHAX_RELEASE } from "./release.js";
-import { schemaUrl, type FormatId } from "./schemaUrl.js";
+import { compareReleases, parseSchemaUrl, schemaUrl, type FormatId } from "./schemaUrl.js";
 import { decodeSpecApprovalRecordFile, type SpecApprovals } from "./specApprovalRecord.js";
 import { decodeSpecDocumentFile, type SpecDocument } from "./specDocument.js";
 import {
@@ -88,8 +94,12 @@ function readError(file: string, format: FormatId, message: string): PersistedRe
 /**
  * Reads one parsed JSON document as a persisted format. Never throws. In order:
  * 1. a non-object fails;
- * 2. a document with its own `$schema` key is read only by `decodeCurrent`;
- * 3. a document without `$schema` is read only by `decodePreSchema`, then
+ * 2. a document whose `$schema` names this format at a release newer than
+ *    `PHAX_RELEASE` is refused, so it is never rewritten without the fields
+ *    that release added;
+ * 3. any other document with its own `$schema` key is read only by
+ *    `decodeCurrent`;
+ * 4. a document without `$schema` is read only by `decodePreSchema`, then
  *    `fromPreSchema`, which refuses when a fact phax needs is missing.
  */
 export function readPersisted<Current, PreSchema, InMemory>(
@@ -101,6 +111,20 @@ export function readPersisted<Current, PreSchema, InMemory>(
     return Either.left(readError(file, format, `a ${label} is a JSON object`));
   }
   if (Object.hasOwn(input, "$schema")) {
+    const named = parseSchemaUrl(input["$schema"]);
+    if (
+      named !== undefined &&
+      named.formatId === format &&
+      compareReleases(named.release, PHAX_RELEASE) > 0
+    ) {
+      return Either.left(
+        readError(
+          file,
+          format,
+          `${label} written by phax ${named.release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+        ),
+      );
+    }
     const current = spec.decodeCurrent(input);
     if (Either.isLeft(current)) {
       return Either.left(readError(file, format, formatFirstViolation(current.left)));
