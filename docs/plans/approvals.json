@@ -6,12 +6,6 @@
       "approvedAt": "2026-09-08T08:19:41.314Z",
       "baseline": "322ba3a5795a658d8d7ee48200b14e9b61ad8933",
       "sourceSpec": null
-    },
-    "docs/plans/2610050933-backlog-fixes-plan.md": {
-      "planFingerprint": "03c48654c1b1bb1f77bde318d6611c5d310babdd541f9281f8f888d62fc0234d",
-      "approvedAt": "2026-10-05T09:59:12.669Z",
-      "baseline": "99a42cd420af03572f5bc4b8b590c2e2562b89ea",
-      "sourceSpec": null
     }
   }
 }
