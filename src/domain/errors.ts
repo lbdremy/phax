@@ -214,6 +214,19 @@ export class ApprovalLedgerMigrationRequiredError extends Data.TaggedError(
   ledgerPath: string;
 }> {}
 
+/**
+ * `phax artifact migrate-approvals` refuses before writing anything: a ledger
+ * entry's key is not a live artifact path of the ledger's kind, or a target
+ * record file already exists and is unreadable or holds a different record.
+ * `path` is the file that causes the refusal; `message` starts with the ledger.
+ */
+export class ApprovalMigrationRefusedError extends Data.TaggedError(
+  "ApprovalMigrationRefusedError",
+)<{
+  message: string;
+  path: string;
+}> {}
+
 export class LockConflictError extends Data.TaggedError("LockConflictError")<{
   message: string;
   shortName: string;

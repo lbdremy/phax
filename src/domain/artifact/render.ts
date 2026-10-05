@@ -1,4 +1,9 @@
-import type { OrphanApprovalRecord } from "./approvalRecordFile.js";
+import {
+  OLD_PLAN_LEDGER_PATH,
+  OLD_SPEC_LEDGER_PATH,
+  type ApprovalMigrationResult,
+  type OrphanApprovalRecord,
+} from "./approvalRecordFile.js";
 import type { PlanStalenessVerdict, StalenessEvidence } from "./lineage.js";
 
 export interface StalenessReportEntry {
@@ -61,6 +66,27 @@ export function renderStalenessReport(report: StalenessReport): string {
 
 export function renderOrphanRecordWarning(orphan: OrphanApprovalRecord): string {
   return `warning: orphan approval record ${orphan.recordFile} — ${orphan.artifact} does not exist; delete the record file`;
+}
+
+function recordFileCount(n: number): string {
+  return `${n} record file${n === 1 ? "" : "s"}`;
+}
+
+/**
+ * The stdout lines of `phax artifact migrate-approvals`. Orphans are not part
+ * of it: each is a `renderOrphanRecordWarning` line on stderr.
+ */
+export function renderMigrationReport(result: ApprovalMigrationResult): readonly string[] {
+  if (result.kind === "nothing-to-migrate") {
+    return [`nothing to migrate: no ${OLD_PLAN_LEDGER_PATH} or ${OLD_SPEC_LEDGER_PATH}`];
+  }
+  const lines: string[] = [];
+  for (const ledger of result.ledgers) {
+    lines.push(`${ledger.ledgerPath} → ${recordFileCount(ledger.recordFiles.length)}`);
+    for (const recordFile of ledger.recordFiles) lines.push(`  ${recordFile}`);
+  }
+  lines.push(`committed ${result.commit.hash.slice(0, 7)} ${result.commit.subject}`);
+  return lines;
 }
 
 export function renderStalenessApply(flipped: readonly StalenessFlip[]): string {

@@ -6,11 +6,13 @@ import {
   runArtifactStatus,
   runArtifactTransition,
   runArtifactArchiveRefusal,
+  runArtifactMigrateApprovals,
   runArtifactSchema,
   runCreateArtifact,
   runCreateArtifactHeadless,
 } from "../../../src/cli/commands/artifact.js";
 import {
+  ApprovalMigrationRefusedError,
   ArtifactCommitFailedError,
   ArtifactCreationError,
   ArtifactDirtyWriteSetError,
@@ -34,6 +36,10 @@ import type {
 vi.mock("../../../src/app/artifactStatus.js", () => ({
   inspectArtifact: vi.fn(),
   transitionArtifact: vi.fn(),
+}));
+
+vi.mock("../../../src/app/migrateApprovals.js", () => ({
+  migrateApprovals: vi.fn(),
 }));
 
 vi.mock("../../../src/app/createArtifact.js", () => ({
@@ -521,6 +527,80 @@ describe("runCreateArtifact", () => {
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("Plan_Prune");
+  });
+});
+
+describe("runArtifactMigrateApprovals", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("logs the report on stdout, warns each orphan on stderr, exits 0", async () => {
+    const { migrateApprovals } = vi.mocked(await import("../../../src/app/migrateApprovals.js"));
+    migrateApprovals.mockReturnValue(
+      Effect.succeed({
+        kind: "migrated",
+        ledgers: [
+          {
+            ledgerPath: "docs/specs/approvals.json",
+            recordFiles: ["docs/specs/approvals/2609010000-gone.json"],
+          },
+        ],
+        orphans: [
+          {
+            recordFile: "docs/specs/approvals/2609010000-gone.json",
+            artifact: "docs/specs/2609010000-gone.md",
+          },
+        ],
+        commit: { hash: "a1b2c3d4e5f6", subject: "chore(approvals): migrate" },
+      }),
+    );
+
+    const { out, lines, errors } = makeOutput();
+    const code = await runArtifactMigrateApprovals(out);
+
+    expect(code).toBe(0);
+    expect(errors).toEqual([]);
+    expect(lines).toEqual([
+      "docs/specs/approvals.json → 1 record file",
+      "  docs/specs/approvals/2609010000-gone.json",
+      "committed a1b2c3d chore(approvals): migrate",
+      "WARN: warning: orphan approval record docs/specs/approvals/2609010000-gone.json — docs/specs/2609010000-gone.md does not exist; delete the record file",
+    ]);
+  });
+
+  it("reports nothing to migrate and exits 0", async () => {
+    const { migrateApprovals } = vi.mocked(await import("../../../src/app/migrateApprovals.js"));
+    migrateApprovals.mockReturnValue(Effect.succeed({ kind: "nothing-to-migrate" }));
+
+    const { out, lines } = makeOutput();
+    expect(await runArtifactMigrateApprovals(out)).toBe(0);
+    expect(lines).toEqual([
+      "nothing to migrate: no docs/plans/approvals.json or docs/specs/approvals.json",
+    ]);
+  });
+
+  it("surfaces a refusal and exits 12", async () => {
+    const { migrateApprovals } = vi.mocked(await import("../../../src/app/migrateApprovals.js"));
+    const message =
+      "docs/plans/approvals.json: entry docs/plans/archive/2609010000-old-plan.md is not a live plan path — remove the entry, then rerun";
+    migrateApprovals.mockReturnValue(
+      Effect.fail(
+        new ApprovalMigrationRefusedError({ message, path: "docs/plans/approvals.json" }),
+      ),
+    );
+
+    const { out, lines, errors } = makeOutput();
+    expect(await runArtifactMigrateApprovals(out)).toBe(12);
+    expect(errors).toEqual([message]);
+    expect(lines).toEqual([]);
+  });
+
+  it("is registered under artifact as migrate-approvals", () => {
+    const program = new Command();
+    registerArtifactCommand(program, makeOutput().out);
+    const artifactCmd = program.commands.find((c) => c.name() === "artifact");
+    expect(artifactCmd?.commands.map((c) => c.name())).toContain("migrate-approvals");
   });
 });
 

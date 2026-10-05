@@ -614,6 +614,12 @@ cmd "artifact" {
             help "Document kind: spec or plan"
         }
     }
+
+    cmd "migrate-approvals" {
+        help "Split the old approval ledgers into one record file per artifact (one-time)"
+        long_help "Reads docs/plans/approvals.json and docs/specs/approvals.json in any released shape, writes one record file per entry under docs/plans/approvals/ and docs/specs/approvals/, deletes the ledgers, and commits exactly those paths in one commit. Exits 0 when migrated or when there is nothing to migrate; exits 12, writing nothing, on an unreadable ledger, an entry that is not a live artifact path, an uncommitted change to any path it would write, or an existing record file holding a different record.\n\nAn entry whose artifact no longer exists still migrates, and is reported on stderr as an orphan record file to delete. An existing record file that already holds the entry's record is kept as is.\n\nSide effects: writes the record files, deletes the ledgers and commits those paths in one commit."
+        example "phax artifact migrate-approvals"
+    }
 }
 
 cmd "plans" {

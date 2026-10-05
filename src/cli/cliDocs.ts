@@ -215,6 +215,12 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     examples: ["phax artifact schema spec", "phax artifact schema plan"],
   },
 
+  "artifact migrate-approvals": {
+    longHelp:
+      "Reads docs/plans/approvals.json and docs/specs/approvals.json in any released shape, writes one record file per entry under docs/plans/approvals/ and docs/specs/approvals/, deletes the ledgers, and commits exactly those paths in one commit. Exits 0 when migrated or when there is nothing to migrate; exits 12, writing nothing, on an unreadable ledger, an entry that is not a live artifact path, an uncommitted change to any path it would write, or an existing record file holding a different record.\n\nAn entry whose artifact no longer exists still migrates, and is reported on stderr as an orphan record file to delete. An existing record file that already holds the entry's record is kept as is.\n\nSide effects: writes the record files, deletes the ledgers and commits those paths in one commit.",
+    examples: ["phax artifact migrate-approvals"],
+  },
+
   "artifact new": {
     longHelp:
       "Parent command for creating a Draft spec or plan named from the current UTC minute: <YYMMDDHHMM>-<slug>.md for a spec, <YYMMDDHHMM>-<slug>-plan.md for a plan. The instant is captured when the command runs, never chosen or backdated. A bad slug, an existing target name, or (for a plan) a --spec that is missing or not a spec all refuse with exit code 12 before anything is written.",
