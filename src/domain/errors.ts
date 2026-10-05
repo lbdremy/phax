@@ -200,6 +200,20 @@ export class ApprovalRecordUnreadableError extends Data.TaggedError(
   recordPath: string;
 }> {}
 
+/**
+ * An approval ledger from an older phax (`docs/plans/approvals.json` or
+ * `docs/specs/approvals.json`) still exists. Every command that reads or
+ * writes approval records refuses before writing anything until
+ * `phax artifact migrate-approvals` splits it into record files. Either
+ * ledger refuses commands for both kinds.
+ */
+export class ApprovalLedgerMigrationRequiredError extends Data.TaggedError(
+  "ApprovalLedgerMigrationRequiredError",
+)<{
+  message: string;
+  ledgerPath: string;
+}> {}
+
 export class LockConflictError extends Data.TaggedError("LockConflictError")<{
   message: string;
   shortName: string;

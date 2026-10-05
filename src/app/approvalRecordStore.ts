@@ -1,8 +1,14 @@
 import { Effect, Either } from "effect";
 import { createHash } from "node:crypto";
-import { ApprovalRecordUnreadableError, ArtifactValidationError } from "../domain/errors.js";
+import {
+  ApprovalLedgerMigrationRequiredError,
+  ApprovalRecordUnreadableError,
+  ArtifactValidationError,
+} from "../domain/errors.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import {
+  OLD_PLAN_LEDGER_PATH,
+  OLD_SPEC_LEDGER_PATH,
   approvalRecordDirFor,
   approvalRecordPathFor,
   artifactPathForRecordFile,
@@ -246,6 +252,33 @@ export function findOrphanApprovalRecords(
       orphans.push({ recordFile, artifact: owner.artifact });
     }
     return orphans;
+  });
+}
+
+// ── Old ledgers ────────────────────────────────────────────────────────────
+
+/**
+ * Refuses while either old approval ledger exists, plan ledger first. Every
+ * use case that reads or writes records calls this before anything else, so
+ * nothing is written; `phax artifact migrate-approvals` is the only reader of
+ * the ledgers and never calls it.
+ */
+export function refuseOldApprovalLedgers(): Effect.Effect<
+  void,
+  FsError | ApprovalLedgerMigrationRequiredError,
+  FileSystem
+> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    for (const ledgerPath of [OLD_PLAN_LEDGER_PATH, OLD_SPEC_LEDGER_PATH]) {
+      if (!(yield* fs.exists(ledgerPath))) continue;
+      return yield* Effect.fail(
+        new ApprovalLedgerMigrationRequiredError({
+          message: `${ledgerPath} is an approval ledger from an older phax — run \`phax artifact migrate-approvals\` first`,
+          ledgerPath,
+        }),
+      );
+    }
   });
 }
 

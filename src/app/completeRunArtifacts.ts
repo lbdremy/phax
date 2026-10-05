@@ -2,6 +2,7 @@ import { Effect, Either } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { type Git, type GitError } from "../ports/git.js";
 import type {
+  ApprovalLedgerMigrationRequiredError,
   ApprovalRecordUnreadableError,
   ArtifactCommitFailedError,
   ArtifactDirtyWriteSetError,
@@ -53,6 +54,7 @@ export interface CompleteRunArtifactsInput {
 export type RunCompletionError =
   | FsError
   | ApprovalRecordUnreadableError
+  | ApprovalLedgerMigrationRequiredError
   | ArtifactValidationError
   | InvalidArtifactTransitionError
   | SpecNotApprovedError
