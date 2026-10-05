@@ -7,15 +7,6 @@
       "baseline": "322ba3a5795a658d8d7ee48200b14e9b61ad8933",
       "sourceSpec": null
     },
-    "docs/plans/2610051446-approval-record-files-plan.md": {
-      "planFingerprint": "a125b67c427563ace5e572261d747b6180cca9d856f95f1cd9fdd8d22fbc0d01",
-      "approvedAt": "2026-10-05T15:11:16.186Z",
-      "baseline": "9f9259091600921ce8ed690a7fe6e60b0ac6db3c",
-      "sourceSpec": {
-        "path": "docs/specs/2610051433-approval-record-files.md",
-        "fingerprint": "004c2997348800c7779644ddaea99900b631457f027d2e77d621e8692a631d5b"
-      }
-    },
     "docs/plans/2610051453-catalog-sonnet-5-5-plan.md": {
       "planFingerprint": "fdeaa6e378fd951c7bdf0e0d1edef83ac1de32374066f11b869b47acc1732428",
       "approvedAt": "2026-10-05T15:11:05.029Z",

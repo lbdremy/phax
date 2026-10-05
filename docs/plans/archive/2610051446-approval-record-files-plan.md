@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610051433-approval-record-files.md
 approved:
   date: 2026-10-05
