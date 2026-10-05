@@ -6,6 +6,8 @@ import { Either } from "effect";
 import { EXTRACTOR_VERSION, planCacheKey } from "../../src/domain/planCache/key.js";
 import { planMdSha256, cacheEntryPath } from "../../src/app/planCacheStore.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { encodeRegistryFile } from "../../src/schemas/registry.js";
 
 vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -376,6 +378,100 @@ describe("runPlansOverlap --landed", () => {
     const exitCode = await runPlansOverlap([planPath], { landed: "INVALID_NAME" }, out);
 
     expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toMatch(/invalid run name/i);
+    expect(errors.join("\n")).toContain('"INVALID_NAME" is not a valid run short name');
+  });
+
+  it("archived run: reads the landed diff from the archive folder", async () => {
+    const planPath = join(tmpDir, "plan-f.md");
+    const md = makePlanMd("plan-f");
+    await writeFile(planPath, md);
+    await seedCache(stateRoot, md, "plan-f", [], ["src/shared.ts"]);
+
+    const archivePath = join(stateRoot, "archive", `${NAMESPACE}.shipped-run`);
+    await mkdir(join(archivePath, "runs"), { recursive: true });
+    await writeFile(
+      join(archivePath, "runs", "global-file-reconciliation.json"),
+      JSON.stringify(makeReconciliation([], ["src/shared.ts"], [])),
+    );
+    const now = "2026-06-01T00:00:00.000Z";
+    await writeFile(
+      join(stateRoot, "registry.json"),
+      JSON.stringify(
+        encodeRegistryFile(
+          withSchemaUrl("registry", {
+            runs: [
+              {
+                namespace: NAMESPACE,
+                shortName: "shipped-run",
+                runId: "shipped-001",
+                state: "archived" as const,
+                branch: "phax/shipped-run",
+                projectName: NAMESPACE,
+                phasesCount: 1,
+                createdAt: now,
+                updatedAt: now,
+                archivePath,
+              },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
+    const logs: string[] = [];
+    const out = {
+      log: (m: string) => logs.push(m),
+      error: (m: string) => logs.push(`ERR: ${m}`),
+      warn: vi.fn(),
+    };
+
+    const exitCode = await runPlansOverlap([planPath], { landed: "shipped-run" }, out);
+
+    expect(exitCode).toBe(0);
+    const output = logs.join("\n");
+    expect(output).toContain("src/shared.ts");
+    expect(output).toContain(`${NAMESPACE}.shipped-run`);
+    expect(output).toMatch(/impacted|re-adjustment/i);
+  });
+
+  it("qualified <namespace>.<short> name on a live run is accepted", async () => {
+    const planPath = join(tmpDir, "plan-g.md");
+    const md = makePlanMd("plan-g");
+    await writeFile(planPath, md);
+    await seedCache(stateRoot, md, "plan-g", [], ["src/shared.ts"]);
+
+    await buildFakeRunFolder(
+      stateRoot,
+      "landed-run",
+      makeReconciliation([], ["src/shared.ts"], []),
+    );
+
+    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
+    const logs: string[] = [];
+    const out = {
+      log: (m: string) => logs.push(m),
+      error: (m: string) => logs.push(`ERR: ${m}`),
+      warn: vi.fn(),
+    };
+
+    const exitCode = await runPlansOverlap([planPath], { landed: `${NAMESPACE}.landed-run` }, out);
+
+    expect(exitCode).toBe(0);
+    expect(logs.join("\n")).toContain("src/shared.ts");
+  });
+
+  it("unknown run: exit 1 naming the run as unknown", async () => {
+    const planPath = join(tmpDir, "plan-h.md");
+    await writeFile(planPath, makePlanMd("plan-h"));
+
+    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
+    const errors: string[] = [];
+    const out = { log: vi.fn(), error: (m: string) => errors.push(m), warn: vi.fn() };
+
+    const exitCode = await runPlansOverlap([planPath], { landed: "never-ran" }, out);
+
+    expect(exitCode).toBe(1);
+    expect(errors.join("\n")).toContain(`Run "${NAMESPACE}.never-ran" is unknown`);
   });
 });
