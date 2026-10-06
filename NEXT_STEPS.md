@@ -123,6 +123,13 @@ spec of its own. In this order:
         plus `files`);
       - the phase is found from `.phax-context/brief-request.json`; 50 guarantees pushed; no
         severity; a fixed 60 s limit; review-time pulls answered but not recorded.
+- [ ] **The plan auditor's answer carries `$schema`.** Decided 2026-10-06 by the author: every
+      JSON document crossing a provider boundary is versioned, requests and answers alike. The
+      gate request and brief request already carry `$schema`, and `drop-gate-scopes` (diagnostics
+      document) and `brief-provider` (brief answer) require it on their answers. The plan auditor
+      (`planAuditor`, `phax plans lint`'s advisory check) still receives `{phases}` and answers
+      without one. Version its request and its answer the same way, with an answer that has no
+      `$schema` refused and no fallback. A small spec of its own, before the 1.0 freeze.
 - [ ] **`oracle-phases` wording.** It quotes the diagnostics shape with `scopes?`, says its
       `oracles` key "mirrors `scopes`", and lists "deriving oracles from `scopes`" as a non-goal.
       Sweep that text when `drop-gate-scopes` lands. No change to its design.
