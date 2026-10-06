@@ -15,7 +15,7 @@ This spec lands after `drop-orient` and `drop-gate-scopes`, and describes the ga
 
 A gate step in `phax.json` is `{command, surface, firing, output?}`, in `gateProfiles` and `workspaces[].gateProfiles`. Unknown keys are refused. phax splits the command on spaces and runs it without a shell, in the phase's worktree, after the agent's turn and before the phase commit. At that point the phase's work is uncommitted in the working tree. Steps run in profile order, and the attempt stops at the first failing step. A step's stdin is not connected, so a read gets end of file at once.
 
-An `output: "diagnostics"` step prints `{"diagnostics": [...]}`. Every finding it reports, `invariant` or `completion`, fails the step. phax schedules nothing: the provider alone decides what is due, and today it can decide only from git. Beside each `checks-attempt-NN.log`, phax writes the failing document as `checks-attempt-NN.diagnostics.json`, plus `gate-attribution.json` for the phase. Every file in the phase folder goes into the phase's record on `phax/records/v1`. `phax records explain --gates` prints only the `checks-attempt-NN.log` files.
+An `output: "diagnostics"` step prints `{"$schema": "…/gate-diagnostics/<release>.json", "diagnostics": [...]}`. Every finding it reports, `invariant` or `completion`, fails the step. phax schedules nothing: the provider alone decides what is due, and today it can decide only from git. Beside each `checks-attempt-NN.log`, phax writes the failing document as `checks-attempt-NN.diagnostics.json`, plus `gate-attribution.json` for the phase. Every file in the phase folder goes into the phase's record on `phax/records/v1`. `phax records explain --gates` prints only the `checks-attempt-NN.log` files.
 
 The other remaining extension point, the plan auditor, follows the shared contract: a command, a JSON document on stdin, a JSON document on stdout. It receives the plan projection `{phases: [{id, files}]}`, where files are create ∪ edit, deduplicated, with optional files excluded. Nothing else of the plan leaves phax. README §Extend phax says every hook reads a JSON request on stdin, but a gate step reads nothing.
 
@@ -282,14 +282,14 @@ after:
 before:
 
     $ node ./audit.mjs
-    {"diagnostics":[]}
+    {"$schema":"…/gate-diagnostics/0.20.0.json","diagnostics":[]}
     exit 0
 
 after:
 
     $ node ./audit.mjs
     stdin: checks-attempt-01.request.json
-    {"diagnostics":[]}
+    {"$schema":"…/gate-diagnostics/0.20.0.json","diagnostics":[]}
     exit 0
 
     # Normative: a `stdin:` line directly after the `$` line, naming the request file. Indicative: anything else on that line.
@@ -319,7 +319,7 @@ before:
     …
     --- checks-attempt-01.log ---
     $ node ./audit.mjs
-    {"diagnostics":[]}
+    {"$schema":"…/gate-diagnostics/0.20.0.json","diagnostics":[]}
     exit 0
 
 after:
@@ -330,7 +330,7 @@ after:
     --- checks-attempt-01.log ---
     $ node ./audit.mjs
     stdin: checks-attempt-01.request.json
-    {"diagnostics":[]}
+    {"$schema":"…/gate-diagnostics/0.20.0.json","diagnostics":[]}
     exit 0
     --- checks-attempt-01.request.json ---
     {

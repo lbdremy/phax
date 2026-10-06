@@ -13,6 +13,16 @@ This replaces the spec drafted and approved on 2026-10-05 (`docs/specs/261005144
 - No requirement, surface or example names the gate request, its `input` key or its request file.
 - The hello-world example has no `orient` hook either, since `drop-orient` lands first.
 
+**Provider answers carry `$schema` too (author, 2026-10-06).** Every JSON document that crosses a provider boundary is versioned, in both directions, so several versions can be supported.
+- The diagnostics document a gate step prints on stdout carries a required `$schema` naming the `gate-diagnostics` format and the release whose shape it is written in, e.g. `{"$schema": "https://docs.phax.run/schemas/gate-diagnostics/0.20.0.json", "diagnostics": [...]}`.
+- phax decodes every answer version it supports, through the schemas package's existing history mechanism, and refuses a newer one by name, as it does for files.
+- A document with no `$schema` fails the step as a malformed diagnostics document. That is a hard rule with no fallback: nobody produces diagnostics output today.
+- Say how the saved `checks-attempt-NN.diagnostics.json` relates to what the step printed (saved as printed, or re-stamped), and how the shape released in 0.17.0–0.19.0 (no `$schema` on stdout) is treated. It is not read back.
+- Update every surface example, acceptance criterion and the hello-world `audit.mjs` so they print `$schema`.
+- The plan auditor's answer gets the same rule in a separate change, not in this spec.
+
+**This spec is re-authored a second time (2026-10-06).** The version approved earlier that day (`docs/specs/archive/2610060957-drop-gate-scopes.md`) is abandoned only to add the rule above. Carry over its §9 Q1–Q9 verbatim as decided questions, Q9 included, and add the answer-`$schema` rule as one more decided question.
+
 Decided 2026-10-05, carried over unchanged:
 - **The problem.** phax schedules completion findings itself. Before each non-terminal gate with a diagnostics step, it asks the `scopes` provider which scopes are closed. It keeps a completion pending while any scope that finding names is open, shows it to the agent as optional work, and writes a `gate-pending` record. That splits one decision across two commands and two formats, and it makes phax keep closure and pending state it cannot judge. The provider decides what is due and reports only that (steme-corpus `02-product/phax-steme-coordination.md`, change 9).
 - **A completion finding fails the step, exactly like an invariant.** Both classes stay in the document, because they say which kind of failure it is: something required is missing, or something forbidden is present. Neither carries `scopes`.
