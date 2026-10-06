@@ -180,6 +180,7 @@ const PLAN_DOCUMENT = {
   version: 1,
   kind: "plan",
   sourceSpec: SOURCE_SPEC,
+  completesSpec: true,
   run: { shortName: SHORT_NAME, title: "Example run", requiredCommands: [] },
   preamble: {
     summary: "An example plan.",

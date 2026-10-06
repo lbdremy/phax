@@ -35,6 +35,7 @@ import {
   registryFormat,
   runStatusFormat,
 } from "../../../packages/schemas/src/formats/runDirectory.js";
+import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
 import { writeJsonSchemas } from "../../../scripts/schemas-json.js";
 import { BranchNameSchema } from "../../../src/domain/branded.js";
 import { decodeRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
@@ -201,27 +202,39 @@ describe("renderJsonSchemas over the real table", () => {
     expect(schema["description"]).toContain("`refs` entry names an existing requirement");
   });
 
-  // The authoring contract never gains $schema: `phax artifact schema spec|plan`
+  // The authoring contract never gains $schema: `phax artifact schema spec`
   // and the authoring prompt still print the shape 0.16.0 printed.
-  it.each([
-    ["spec-document", getSpecDocumentJsonSchema],
-    ["plan-document", getPlanDocumentJsonSchema],
-  ] as const)(
-    "keeps the %s authoring contract equal to its pre-schema snapshot, apart from the title",
-    (id, contract) => {
-      const snapshot: object = JSON.parse(
-        readFileSync(
-          join(
-            import.meta.dirname,
-            `../../../packages/schemas/snapshots/${id}/pre-schema.schema.json`,
-          ),
-          "utf8",
-        ),
-      );
-      expect(withoutTitle(contract())).toEqual(withoutTitle(snapshot));
-    },
-  );
+  it("keeps the spec-document authoring contract equal to its pre-schema snapshot, apart from the title", () => {
+    expect(withoutTitle(getSpecDocumentJsonSchema())).toEqual(
+      withoutTitle(readSnapshot("spec-document", "pre-schema")),
+    );
+  });
+
+  // The plan document's contract gained completesSpec with its file shape, and
+  // still carries `version` where the file carries `$schema`.
+  it("keeps the plan-document authoring contract equal to its current file snapshot, with version for $schema", () => {
+    const file = readSnapshot("plan-document", CURRENT_SHAPES["plan-document"]) as {
+      readonly required: ReadonlyArray<string>;
+      readonly properties: Readonly<Record<string, unknown>>;
+    };
+    const { $schema: _url, ...properties } = file.properties;
+    const expected = {
+      ...file,
+      required: ["version", ...file.required.filter((key) => key !== "$schema")],
+      properties: { version: { type: "number", enum: [1] }, ...properties },
+    };
+    expect(withoutTitle(getPlanDocumentJsonSchema())).toEqual(withoutTitle(expected));
+  });
 });
+
+function readSnapshot(id: string, name: string): object {
+  return JSON.parse(
+    readFileSync(
+      join(import.meta.dirname, `../../../packages/schemas/snapshots/${id}/${name}.schema.json`),
+      "utf8",
+    ),
+  );
+}
 
 const isEven = (n: number) => n % 2 === 0;
 

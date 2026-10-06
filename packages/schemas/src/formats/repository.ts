@@ -21,6 +21,11 @@ import {
   type PlanApprovalsPreSchema,
 } from "../../../../src/schemas/history/plan-approvals/pre-schema.js";
 import {
+  PlanDocumentV0_17_0Schema,
+  decodePlanDocumentV0_17_0,
+  type PlanDocumentV0_17_0,
+} from "../../../../src/schemas/history/plan-document/0.17.0.js";
+import {
   PlanDocumentPreSchemaSchema,
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
@@ -59,7 +64,7 @@ import {
 } from "../../../../src/schemas/specDocument.js";
 import { CURRENT_SHAPES } from "../generated/index.js";
 import type { ParsedShape } from "../parsed.js";
-import { defineFormat, type CurrentShapeName } from "../shapes.js";
+import { UNKNOWN, defineFormat, type CurrentShapeName, type Unknown } from "../shapes.js";
 
 // A document without `$schema` is read by the format's frozen pre-schema
 // module as shape `pre-schema`, or fails when the format is born with
@@ -252,7 +257,10 @@ export function toLatestSpecDocument(
 
 // ── plan document
 
-export type PlanDocumentShapes = { "pre-schema": PlanDocumentPreSchema } & {
+export type PlanDocumentShapes = {
+  "pre-schema": PlanDocumentPreSchema;
+  "0.17.0": PlanDocumentV0_17_0;
+} & {
   [K in CurrentShapeName<"plan-document">]: PlanDocumentFile;
 };
 
@@ -263,7 +271,7 @@ export const planDocumentFormat = defineFormat<PlanDocumentShapes>({
   id: "plan-document",
   label: "plan document",
   preSchema: { schema: PlanDocumentPreSchemaSchema, decode: decodePlanDocumentPreSchema },
-  releases: [],
+  releases: [["0.17.0", { schema: PlanDocumentV0_17_0Schema, decode: decodePlanDocumentV0_17_0 }]],
   current: {
     name: CURRENT_SHAPES["plan-document"],
     shape: { schema: PlanDocumentFileSchema, decode: decodePlanDocumentFile },
@@ -274,17 +282,45 @@ export const planDocumentFormat = defineFormat<PlanDocumentShapes>({
 export const parsePlanDocument: (input: unknown) => ParsedShape<PlanDocumentShapes> =
   planDocumentFormat.parse;
 
-/** The latest plan document: phax's in-memory value, with no `version` and no `$schema`. */
-export type LatestPlanDocument = PlanDocument;
+/**
+ * The latest plan document: phax's in-memory value, with no `version` and no
+ * `$schema`. A document older than `completesSpec` that names a source spec
+ * never said whether its plan completes it: its `completesSpec` is `Unknown`.
+ */
+export type LatestPlanDocument =
+  | PlanDocument
+  | (Omit<PlanDocument, "sourceSpec" | "completesSpec"> & {
+      readonly sourceSpec: string;
+      readonly completesSpec: Unknown;
+    });
 
-/** Upgrades a parsed plan document in memory. Keeps every recorded fact; never invents one. */
+/**
+ * Upgrades a parsed plan document in memory. Keeps every recorded fact; never
+ * invents one: an older shape's `completesSpec` is null beside `sourceSpec:
+ * null`, the only value that variant allows, and `Unknown` beside a spec path.
+ */
 export function toLatestPlanDocument(
-  value: PlanDocumentPreSchema | PlanDocumentFile,
+  value: PlanDocumentPreSchema | PlanDocumentV0_17_0 | PlanDocumentFile,
 ): LatestPlanDocument {
-  if ("$schema" in value) {
+  if ("completesSpec" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return withUnrecordedCompletesSpec(recorded);
+  }
   const { version: _version, ...recorded } = value;
-  return recorded;
+  return withUnrecordedCompletesSpec(recorded);
+}
+
+function withUnrecordedCompletesSpec(
+  recorded: Omit<PlanDocument, "sourceSpec" | "completesSpec"> & {
+    readonly sourceSpec: string | null;
+  },
+): LatestPlanDocument {
+  const { sourceSpec } = recorded;
+  return sourceSpec === null
+    ? { ...recorded, sourceSpec, completesSpec: null }
+    : { ...recorded, sourceSpec, completesSpec: UNKNOWN };
 }

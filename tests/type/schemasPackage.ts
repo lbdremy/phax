@@ -45,6 +45,7 @@ import type {
   PlanApprovalsShape,
   PlanDocument,
   PlanDocumentShape,
+  PlanDocumentV0_17_0,
   RecordManifest,
   RecordManifestFormat,
   Registry,
@@ -57,6 +58,7 @@ import type {
   SpecApprovalsShape,
   SpecDocument,
   SpecDocumentShape,
+  Unknown,
   AuthoringRecordManifestPreSchema,
   ComplianceReviewPreSchema,
   GateAttributionPreSchema,
@@ -177,6 +179,7 @@ import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "
 import type { PhaseStatusPreSchema as FrozenPhaseStatus } from "../../src/schemas/history/phase-status/pre-schema.js";
 import type { PhaxPlanPreSchema as FrozenPhaxPlan } from "../../src/schemas/history/phax-plan/pre-schema.js";
 import type { PlanApprovalsPreSchema as FrozenPlanApprovals } from "../../src/schemas/history/plan-approvals/pre-schema.js";
+import type { PlanDocumentV0_17_0 as FrozenPlanDocumentV0_17_0 } from "../../src/schemas/history/plan-document/0.17.0.js";
 import type { PlanDocumentPreSchema as FrozenPlanDocument } from "../../src/schemas/history/plan-document/pre-schema.js";
 import type { RegistryPreSchema as FrozenRegistry } from "../../src/schemas/history/registry/pre-schema.js";
 import type { RunStatusPreSchema as FrozenRunStatus } from "../../src/schemas/history/run-status/pre-schema.js";
@@ -430,7 +433,7 @@ const eachShapeId: [
   Equals<PlanApprovalsShape, "pre-schema" | Current<"plan-approvals">>,
   Equals<SpecApprovalsShape, "pre-schema" | Current<"spec-approvals">>,
   Equals<SpecDocumentShape, "pre-schema" | Current<"spec-document">>,
-  Equals<PlanDocumentShape, "pre-schema" | Current<"plan-document">>,
+  Equals<PlanDocumentShape, "pre-schema" | "0.17.0" | Current<"plan-document">>,
   Equals<PhaseRecordManifestShape, "pre-schema" | Current<"phase-record-manifest">>,
   Equals<AuthoringRecordManifestShape, "pre-schema" | Current<"authoring-record-manifest">>,
   Equals<GateAttributionShape, "pre-schema" | Current<"gate-attribution">>,
@@ -482,7 +485,10 @@ const parseValues: [
   Equals<Value<typeof parsePlanApprovals>, FrozenPlanApprovals | ApprovalRecordFile>,
   Equals<Value<typeof parseSpecApprovals>, FrozenSpecApprovals | SpecApprovalRecordFile>,
   Equals<Value<typeof parseSpecDocument>, FrozenSpecDocument | PhaxSpecDocumentFile>,
-  Equals<Value<typeof parsePlanDocument>, FrozenPlanDocument | PhaxPlanDocumentFile>,
+  Equals<
+    Value<typeof parsePlanDocument>,
+    FrozenPlanDocument | FrozenPlanDocumentV0_17_0 | PhaxPlanDocumentFile
+  >,
   Equals<Value<typeof parsePhaseRecordManifest>, FrozenPhaseRecordManifest | RunRecordManifestFile>,
   Equals<
     Value<typeof parseAuthoringRecordManifest>,
@@ -558,7 +564,14 @@ const latestTypes: [
   Equals<LatestPlanApprovals, PhaxPlanApprovals>,
   Equals<LatestSpecApprovals, PhaxSpecApprovals>,
   Equals<LatestSpecDocument, PhaxSpecDocument>,
-  Equals<LatestPlanDocument, PhaxPlanDocument>,
+  Equals<
+    LatestPlanDocument,
+    | PhaxPlanDocument
+    | (Omit<PhaxPlanDocument, "sourceSpec" | "completesSpec"> & {
+        readonly sourceSpec: string;
+        readonly completesSpec: Unknown;
+      })
+  >,
   Equals<LatestPhaseRecordManifest, PhaxRunRecordManifest>,
   Equals<LatestAuthoringRecordManifest, PhaxAuthoringRecordManifest>,
   Equals<LatestGateAttribution, PhaxGateAttribution>,
@@ -732,7 +745,7 @@ const toLatestParameters: [
   >,
   Equals<
     Parameters<typeof toLatestPlanDocument>,
-    [value: FrozenPlanDocument | PhaxPlanDocumentFile]
+    [value: FrozenPlanDocument | FrozenPlanDocumentV0_17_0 | PhaxPlanDocumentFile]
   >,
   Equals<
     Parameters<typeof toLatestPhaseRecordManifest>,
@@ -781,10 +794,13 @@ const planApprovalsIsPhax: Equals<PlanApprovals, ApprovalRecordFile> = true;
 const specApprovalsIsPhax: Equals<SpecApprovals, SpecApprovalRecordFile> = true;
 const specDocumentIsPhax: Equals<SpecDocument, PhaxSpecDocumentFile> = true;
 const planDocumentIsPhax: Equals<PlanDocument, PhaxPlanDocumentFile> = true;
+// A released shape that is no longer current is its frozen module's type.
+const planDocumentV0_17_0IsFrozen: Equals<PlanDocumentV0_17_0, FrozenPlanDocumentV0_17_0> = true;
 void planApprovalsIsPhax;
 void specApprovalsIsPhax;
 void specDocumentIsPhax;
 void planDocumentIsPhax;
+void planDocumentV0_17_0IsFrozen;
 declare const phaxPlanApprovals: ApprovalRecordFile;
 declare const packagePlanApprovals: PlanApprovals;
 const planApprovalsToPackage: PlanApprovals = phaxPlanApprovals;

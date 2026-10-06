@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
+  isUnknown,
   parseDocument,
   parsePlanApprovalRecord,
   parsePlanApprovals,
@@ -35,6 +36,7 @@ import {
   decodeSpecDocumentFile,
 } from "../../../src/schemas/specDocument.js";
 import {
+  latestPreSchema,
   preSchemaDocuments,
   preSchemaUnsupported,
   validDocuments,
@@ -120,7 +122,7 @@ describe.each(FORMATS)("$id", (format) => {
   it("upgrades by dropping version and keeping everything else", () => {
     const result = format.parse(preSchema);
     if (!result.ok) throw new Error("document rejected");
-    expect(format.toLatest(result.value as never)).toEqual(withoutKey(preSchema, "version"));
+    expect(format.toLatest(result.value as never)).toEqual(latestPreSchema(format.id));
   });
 
   it("drops $schema on upgrade, and carries no version", () => {
@@ -252,6 +254,65 @@ describe.each(RECORD_FORMATS)("$id, born with $schema", (format) => {
     for (const result of [format.parse(newer), parseDocument(newer)]) {
       expect(result).toEqual({ ok: false, error: { path: "$schema", message } });
     }
+  });
+});
+
+describe("the plan document's completesSpec history", () => {
+  const spec = "docs/specs/example.md";
+  const current = validDocuments["plan-document"];
+  const { completesSpec: _unrecorded, ...withoutCompletesSpec } = current;
+  /** A sidecar as phax 0.17.0 through 0.19.x wrote it: `$schema`, no completesSpec. */
+  function older(release: string, sourceSpec: string | null): Doc {
+    return {
+      ...withoutCompletesSpec,
+      $schema: schemaUrl("plan-document", release),
+      sourceSpec,
+    };
+  }
+
+  it("parses a 0.17.0 document as shape 0.17.0 through the frozen module", () => {
+    const document = older("0.17.0", null);
+    expect(parsePlanDocument(document)).toEqual({ ok: true, shape: "0.17.0", value: document });
+  });
+
+  it("reads a document stamped at the package's own release without completesSpec as shape 0.17.0", () => {
+    const result = parsePlanDocument(older(PACKAGE_VERSION, spec));
+    expect(result).toMatchObject({ ok: true, shape: "0.17.0" });
+  });
+
+  it("refuses completesSpec in a 0.17.0 document", () => {
+    const result = parsePlanDocument({ ...older("0.17.0", null), completesSpec: null });
+    expect(result).toMatchObject({ ok: false, error: { path: "completesSpec" } });
+  });
+
+  it("upgrades an older spec-less document with completesSpec: null", () => {
+    for (const document of [older("0.17.0", null), preSchemaDocuments["plan-document"]]) {
+      const result = parsePlanDocument(document);
+      if (!result.ok) throw new Error("document rejected");
+      expect(toLatestPlanDocument(result.value)).toMatchObject({
+        sourceSpec: null,
+        completesSpec: null,
+      });
+    }
+  });
+
+  it("upgrades an older document beside a spec path with completesSpec Unknown, never a boolean", () => {
+    const preSchema = withKey(preSchemaDocuments["plan-document"], "sourceSpec", spec);
+    for (const document of [older("0.17.0", spec), preSchema]) {
+      const result = parsePlanDocument(document);
+      if (!result.ok) throw new Error("document rejected");
+      const latest = toLatestPlanDocument(result.value);
+      expect(latest.sourceSpec).toBe(spec);
+      expect(isUnknown(latest.completesSpec)).toBe(true);
+    }
+  });
+
+  it("keeps a current document's completesSpec", () => {
+    const document = { ...current, sourceSpec: spec, completesSpec: false };
+    const result = parsePlanDocument(document);
+    expect(result).toMatchObject({ ok: true, shape: CURRENT_SHAPES["plan-document"] });
+    if (!result.ok) return;
+    expect(toLatestPlanDocument(result.value)).toEqual(withoutKey(document, "$schema"));
   });
 });
 

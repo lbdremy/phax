@@ -347,7 +347,13 @@ export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
     fromPreSchema: ({ version: _version, ...doc }) => Either.right(doc),
   });
 
-/** Reads a plan's JSON sidecar. The pre-schema sidecar carries every fact phax needs. */
+/**
+ * Reads a plan's JSON sidecar. A pre-schema sidecar never recorded
+ * `completesSpec`: beside `sourceSpec: null` it steps to null, the only value
+ * that variant allows; beside a spec path it is refused rather than given an
+ * invented boolean. A `$schema` sidecar is read by the current decoder only, so
+ * one written by 0.17.0–0.19.x, which lacks `completesSpec`, is refused too.
+ */
 export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
   readPersisted(input, {
     format: "plan-document",
@@ -356,7 +362,10 @@ export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
     decodeCurrent: decodePlanDocumentFile,
     decodePreSchema: decodePlanDocumentPreSchema,
     fromCurrent: ({ $schema: _schema, ...doc }) => doc,
-    fromPreSchema: ({ version: _version, ...doc }) => Either.right(doc),
+    fromPreSchema: ({ version: _version, sourceSpec, ...doc }) =>
+      sourceSpec === null
+        ? Either.right({ ...doc, sourceSpec, completesSpec: null })
+        : Either.left({ fact: "completesSpec" }),
   });
 
 /**

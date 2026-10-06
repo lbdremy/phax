@@ -10,6 +10,7 @@ import {
   renderReleaseModule,
   sha256,
 } from "../../../packages/schemas/build/generated.js";
+import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
 import {
   currentShapeNames,
   firstSupportedRelease,
@@ -49,11 +50,17 @@ describe("schemas-check on the committed tree", () => {
     expect(checkSchemas(state)).toEqual([]);
   });
 
-  // A format born with $schema has no pre-schema shape, so no frozen module.
-  it("pins exactly one frozen module per format with a pre-schema shape, by its repo-relative path", () => {
-    const expected = PRE_SCHEMA_FORMAT_IDS.map(
-      (id) => `src/schemas/history/${id}/pre-schema.ts`,
-    ).toSorted();
+  // A format born with $schema has no pre-schema shape, so no pre-schema module;
+  // a released shape that is no longer current has a module of its own.
+  it("pins exactly one frozen module per pre-schema shape and per released shape, by its repo-relative path", () => {
+    const expected = [
+      ...PRE_SCHEMA_FORMAT_IDS.map((id) => `src/schemas/history/${id}/pre-schema.ts`),
+      ...FORMAT_IDS.flatMap((id) =>
+        FORMAT_DEFINITIONS[id].releases.map(
+          ([release]) => `src/schemas/history/${id}/${release}.ts`,
+        ),
+      ),
+    ].toSorted();
     expect(Object.keys(state.lock)).toEqual(expected);
     expect([...state.historyFiles.keys()]).toEqual(expected);
     expect(readFileSync(join(repoRoot, "packages/schemas/history.lock.json"), "utf8")).toBe(

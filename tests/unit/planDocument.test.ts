@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Either, Schema } from "effect";
 import {
   decodePlanDocument,
+  decodePlanDocumentFile,
   getPlanDocumentJsonSchema,
   projectExtractedPlan,
 } from "../../src/schemas/planDocument.js";
@@ -35,7 +36,8 @@ function validPlanDocument() {
   return {
     version: 1,
     kind: "plan",
-    sourceSpec: "docs/specs/2609230835-headless-authoring.md",
+    sourceSpec: "docs/specs/2609230835-headless-authoring.md" as string | null,
+    completesSpec: true as boolean | null,
     run: {
       shortName: "headless-authoring",
       title: "Headless authoring",
@@ -93,6 +95,67 @@ describe("decodePlanDocument", () => {
   it("rejects an empty phase list", () => {
     expect(rejection({ ...validPlanDocument(), phases: [] })).toBe("phases[0]: is missing");
   });
+
+  it("accepts both legal lineage pairs: a spec path with a boolean, null with null", () => {
+    for (const completesSpec of [true, false]) {
+      expect(Either.isRight(decodePlanDocument({ ...validPlanDocument(), completesSpec }))).toBe(
+        true,
+      );
+    }
+    const specLess = { ...validPlanDocument(), sourceSpec: null, completesSpec: null };
+    expect(Either.isRight(decodePlanDocument(specLess))).toBe(true);
+  });
+
+  it("rejects a document without completesSpec", () => {
+    const { completesSpec: _dropped, ...doc } = validPlanDocument();
+    expect(rejection(doc)).toBe("completesSpec: is missing");
+  });
+
+  it("rejects completesSpec true beside sourceSpec: null", () => {
+    expect(rejection({ ...validPlanDocument(), sourceSpec: null, completesSpec: true })).toBe(
+      "completesSpec is a boolean beside a sourceSpec path and null beside sourceSpec: null",
+    );
+  });
+
+  it("rejects completesSpec null beside a sourceSpec path", () => {
+    expect(rejection({ ...validPlanDocument(), completesSpec: null })).toBe(
+      "completesSpec is a boolean beside a sourceSpec path and null beside sourceSpec: null",
+    );
+  });
+
+  it("rejects a non-boolean completesSpec", () => {
+    expect(rejection({ ...validPlanDocument(), completesSpec: "yes" })).toMatch(/^completesSpec: /);
+  });
+});
+
+describe("decodePlanDocumentFile", () => {
+  const $schema = "https://docs.phax.run/schemas/plan-document/0.19.0.json";
+
+  function fileDoc(lineage: { sourceSpec: string | null; completesSpec: boolean | null }) {
+    const { version: _version, ...doc } = validPlanDocument();
+    return { $schema, ...doc, ...lineage };
+  }
+
+  it("accepts the legal lineage pairs and refuses the cross pairs and a missing completesSpec", () => {
+    const spec = "docs/specs/2609230835-headless-authoring.md";
+    expect(
+      Either.isRight(decodePlanDocumentFile(fileDoc({ sourceSpec: spec, completesSpec: false }))),
+    ).toBe(true);
+    expect(
+      Either.isRight(decodePlanDocumentFile(fileDoc({ sourceSpec: null, completesSpec: null }))),
+    ).toBe(true);
+    expect(
+      Either.isLeft(decodePlanDocumentFile(fileDoc({ sourceSpec: null, completesSpec: false }))),
+    ).toBe(true);
+    expect(
+      Either.isLeft(decodePlanDocumentFile(fileDoc({ sourceSpec: spec, completesSpec: null }))),
+    ).toBe(true);
+    const { completesSpec: _dropped, ...missing } = fileDoc({
+      sourceSpec: spec,
+      completesSpec: true,
+    });
+    expect(Either.isLeft(decodePlanDocumentFile(missing))).toBe(true);
+  });
 });
 
 describe("projectExtractedPlan", () => {
@@ -127,6 +190,31 @@ describe("getPlanDocumentJsonSchema", () => {
   it("is titled experimental", () => {
     const schema = getPlanDocumentJsonSchema() as { title: string; required: string[] };
     expect(schema.title).toBe("phax plan document (experimental)");
-    expect(schema.required).toEqual(["version", "kind", "sourceSpec", "run", "preamble", "phases"]);
+    expect(schema.required).toEqual([
+      "version",
+      "kind",
+      "sourceSpec",
+      "completesSpec",
+      "run",
+      "preamble",
+      "phases",
+    ]);
+  });
+
+  it("states the two legal sourceSpec/completesSpec pairs", () => {
+    const schema = getPlanDocumentJsonSchema() as { allOf: unknown };
+    expect(schema.allOf).toEqual([
+      {
+        oneOf: [
+          {
+            properties: {
+              sourceSpec: { type: "string", minLength: 1 },
+              completesSpec: { type: "boolean" },
+            },
+          },
+          { properties: { sourceSpec: { type: "null" }, completesSpec: { type: "null" } } },
+        ],
+      },
+    ]);
   });
 });

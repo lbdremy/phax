@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
 import * as entry from "../../../packages/schemas/src/index.js";
+import * as planDocumentV0_17_0 from "../../../src/schemas/history/plan-document/0.17.0.js";
 import * as authoringRecordManifest from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import * as complianceReview from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import * as gateAttribution from "../../../src/schemas/history/gate-attribution/pre-schema.js";
@@ -86,6 +88,7 @@ describe("schemas package entry", () => {
       "PlanApprovalsSchema",
       "PlanDocumentPreSchemaSchema",
       "PlanDocumentSchema",
+      "PlanDocumentV0_17_0Schema",
       "RecordManifestSchema",
       "RegistryPreSchemaSchema",
       "RegistrySchema",
@@ -137,7 +140,7 @@ describe("schemas package entry", () => {
     ]);
   });
 
-  it("exports a schema, a parse function and an upgrade for every format id, a pre-schema schema for every format with a pre-schema shape, plus the union, parseDocument and the unknown marker", () => {
+  it("exports a schema, a parse function and an upgrade for every format id, a pre-schema schema for every format with a pre-schema shape, a schema for every released shape that is no longer current, plus the union, parseDocument and the unknown marker", () => {
     expect(Object.keys(entry).toSorted()).toEqual(
       [
         ...FORMAT_IDS.map(pascal).flatMap((name) => [
@@ -146,6 +149,11 @@ describe("schemas package entry", () => {
           `toLatest${name}`,
         ]),
         ...PRE_SCHEMA_FORMAT_IDS.map((id) => `${pascal(id)}PreSchemaSchema`),
+        ...FORMAT_IDS.flatMap((id) =>
+          FORMAT_DEFINITIONS[id].releases.map(
+            ([release]) => `${pascal(id)}V${release.replaceAll(".", "_")}Schema`,
+          ),
+        ),
         "RecordManifestSchema",
         "parseRecordManifest",
         "parseDocument",
@@ -215,6 +223,12 @@ describe("schemas package entry", () => {
       expect(Object.keys(entry)).not.toContain(`decode${pascal(id)}PreSchema`);
     },
   );
+
+  it("re-exports the plan-document 0.17.0 frozen module's schema, never a copy, and never its decoder", () => {
+    expect(entry.PlanDocumentV0_17_0Schema).toBe(planDocumentV0_17_0.PlanDocumentV0_17_0Schema);
+    expect(planDocumentV0_17_0.decodePlanDocumentV0_17_0).toBeDefined();
+    expect(Object.keys(entry)).not.toContain("decodePlanDocumentV0_17_0");
+  });
 
   it("is the only code subpath in the package manifest's exports; ./json/* holds data", () => {
     const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as {

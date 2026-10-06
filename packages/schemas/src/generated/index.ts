@@ -23,7 +23,7 @@ export const CURRENT_SHAPES = {
   "gate-diagnostics": "0.17.0",
   "gate-pending": "0.17.0",
   "spec-document": "0.17.0",
-  "plan-document": "0.17.0",
+  "plan-document": "next",
   "plan-approval-record": "0.19.0",
   "spec-approval-record": "0.19.0",
 } as const;

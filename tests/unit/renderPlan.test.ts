@@ -23,6 +23,7 @@ function fixture(): PlanDocument {
     version: 1,
     kind: "plan",
     sourceSpec: "docs/specs/2609230835-headless-authoring.md",
+    completesSpec: true,
     run: {
       shortName: "headless-authoring",
       title: "Headless authoring",
@@ -195,7 +196,11 @@ describe("renderPlanBody round trip through the deterministic parser", () => {
 
   it("parses with a frontmatter block prepended, and lint finds no structure error", () => {
     const doc = fixture();
-    const md = `---\nstatus: Draft\nsource-spec: ${doc.sourceSpec ?? "null"}\n---\n\n${renderPlanBody(doc)}`;
+    const lineage =
+      doc.sourceSpec === null
+        ? "source-spec: null"
+        : `source-spec: ${doc.sourceSpec}\ncompletes-spec: ${String(doc.completesSpec)}`;
+    const md = `---\nstatus: Draft\n${lineage}\n---\n\n${renderPlanBody(doc)}`;
     expect(collectPlanStructureErrors(md)).toEqual([]);
     const { fromMarkdown, fromDocument } = roundTrip(doc, md);
     expect(fromMarkdown.plan).toEqual(fromDocument.plan);

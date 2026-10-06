@@ -17,6 +17,7 @@ import {
 } from "../../../packages/schemas/build/jsonSchemas.js";
 import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
 import {
+  UNKNOWN,
   parseAuthoringRecordManifest,
   parseComplianceReview,
   parseGateAttribution,
@@ -242,6 +243,23 @@ describe("phax's bridge and the package agree", () => {
     expect(read(`/work/example-repo/${id}.json`, document)).toEqual(
       Either.right(PACKAGE_LATEST[id](document)),
     );
+  });
+
+  // Where they part: a pre-schema plan sidecar beside a spec path never said
+  // whether its plan completes the spec. The package keeps that as Unknown;
+  // phax, which needs the fact, refuses the sidecar.
+  it("plan-document: a pre-schema sidecar beside a spec path is Unknown to the package, refused by phax", () => {
+    const document = {
+      ...preSchemaDocuments["plan-document"],
+      sourceSpec: "docs/specs/example.md",
+    };
+    expect(PACKAGE_LATEST["plan-document"](document)).toMatchObject({
+      sourceSpec: "docs/specs/example.md",
+      completesSpec: UNKNOWN,
+    });
+    const read = readPlanDocumentFile("/work/example-repo/plan-document.json", document);
+    expect(Either.isLeft(read)).toBe(true);
+    if (Either.isLeft(read)) expect(read.left.message).toContain("lacks completesSpec");
   });
 
   it.each(PRE_SCHEMA_FORMAT_IDS)(
