@@ -115,6 +115,7 @@ const PLAN_DOCUMENT = {
   version: 1,
   kind: "plan",
   sourceSpec: SOURCE_SPEC,
+  completesSpec: true,
   run: { shortName: "plan-prune", title: "Plan prune", requiredCommands: [] },
   preamble: {
     summary: "One phase: the prune command.",
@@ -384,17 +385,30 @@ describe("authorArtifact — plan", () => {
     expect(backend.runCalls[0]?.prompt).toContain("# Plan prune");
   });
 
-  it("takes the source spec from --spec, not from the session's document", async () => {
-    const { fs, run } = setup(JSON.stringify({ ...PLAN_DOCUMENT, sourceSpec: null }));
+  it("takes the lineage from --spec and --last, not from the session's document", async () => {
+    const { fs, run } = setup(
+      JSON.stringify({ ...PLAN_DOCUMENT, sourceSpec: null, completesSpec: null }),
+    );
     fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
 
     const result = await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }));
 
     expect(Either.isRight(result)).toBe(true);
-    expect(JSON.parse(fs.getFile(PLAN_SIDECAR) ?? "").sourceSpec).toBe(SOURCE_SPEC);
+    const sidecar = JSON.parse(fs.getFile(PLAN_SIDECAR) ?? "");
+    expect(sidecar.sourceSpec).toBe(SOURCE_SPEC);
+    expect(sidecar.completesSpec).toBe(true);
   });
 
-  it("renders completes-spec from --not-last, right after source-spec", async () => {
+  it("states --last in the prompt", async () => {
+    const { fs, backend, run } = setup(JSON.stringify(PLAN_DOCUMENT));
+    fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
+
+    await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }));
+
+    expect(backend.runCalls[0]?.prompt).toContain("- Set `completesSpec` to `true`.");
+  });
+
+  it("--not-last wins over the session's completesSpec: true, in the frontmatter and the sidecar", async () => {
     const { fs, run } = setup(JSON.stringify(PLAN_DOCUMENT));
     fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
 
@@ -406,6 +420,24 @@ describe("authorArtifact — plan", () => {
     const md = fs.getFile(PLAN_PATH) ?? "";
     expect(md).toContain(`source-spec: ${SOURCE_SPEC}\ncompletes-spec: false\n`);
     expect(Either.isRight(validateArtifact(PLAN_PATH, md))).toBe(true);
+    const sidecar = fs.getFile(PLAN_SIDECAR) ?? "";
+    const notLast = { ...PLAN_DOCUMENT, completesSpec: false };
+    expect(JSON.parse(sidecar)).toEqual(stamped("plan-document", notLast));
+    expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBe(sidecar);
+  });
+
+  it("a plan without --spec gets null for both sourceSpec and completesSpec", async () => {
+    const { fs, run } = setup(
+      JSON.stringify({ ...PLAN_DOCUMENT, sourceSpec: null, completesSpec: null }),
+    );
+
+    const result = await run(input({ kind: "plan", sourceSpec: null, completion: NO_FLAGS }));
+
+    expect(Either.isRight(result)).toBe(true);
+    const sidecar = JSON.parse(fs.getFile(PLAN_SIDECAR) ?? "");
+    expect(sidecar.sourceSpec).toBeNull();
+    expect(sidecar.completesSpec).toBeNull();
+    expect(fs.getFile(PLAN_PATH) ?? "").not.toContain("completes-spec");
   });
 });
 
@@ -443,6 +475,26 @@ describe("authorArtifact — failures land nothing", () => {
     expect(repoFiles(fs)).toEqual([]);
     expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
     expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
+  });
+
+  it("a plan document without completesSpec, or with true beside sourceSpec: null, is refused writing nothing", async () => {
+    const { completesSpec: _dropped, ...withoutCompletesSpec } = PLAN_DOCUMENT;
+    const documents = [withoutCompletesSpec, { ...PLAN_DOCUMENT, sourceSpec: null }];
+    for (const document of documents) {
+      const { fs, git, run } = setup(JSON.stringify(document));
+      fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
+
+      const result = await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }));
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isRight(result)) return;
+      expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+      expect(result.left.message).toContain("plan document rejected — ");
+      expect(result.left.message).toContain("completesSpec");
+      expect(repoFiles(fs)).toEqual([SOURCE_SPEC]);
+      expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
+      expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
+    }
   });
 
   it("a document of the other kind is rejected", async () => {

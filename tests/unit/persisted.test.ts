@@ -25,6 +25,7 @@ import {
 import { PHAX_RELEASE } from "../../src/schemas/release.js";
 import { compareReleases, schemaUrl, type FormatId } from "../../src/schemas/schemaUrl.js";
 import {
+  latestPreSchema,
   preSchemaDocuments,
   validDocuments,
   versionOnePhaseRecordManifest,
@@ -305,7 +306,7 @@ describe("format readers", () => {
       "docs/plans/2609230835-example-plan.json",
     ],
   ])("%s: reads both shapes to the same in-memory value", (id, read, label, file) => {
-    const { version: _version, ...expected } = preSchemaDocuments[id];
+    const expected = latestPreSchema(id);
     const fromPreSchema = right(read(file, preSchemaDocuments[id]));
     const fromCurrent = right(read(file, validDocuments[id]));
     expect(fromPreSchema).toEqual(expected);
@@ -326,6 +327,45 @@ describe("format readers", () => {
       read(file, withKey(preSchemaDocuments[id], "$schema", schemaUrl(id, "0.1.0"))),
     );
     expect(both.message).not.toContain("without $schema");
+  });
+
+  describe("plan-document: completesSpec", () => {
+    const file = "docs/plans/2609230835-example-plan.json";
+    const specPath = "docs/specs/2609230835-example.md";
+
+    it("steps a spec-less pre-schema sidecar to completesSpec: null", () => {
+      expect(right(readPlanDocumentFile(file, preSchemaDocuments["plan-document"]))).toMatchObject({
+        sourceSpec: null,
+        completesSpec: null,
+      });
+    });
+
+    it("refuses a pre-schema sidecar beside a spec path rather than invent completesSpec", () => {
+      const beside = withKey(preSchemaDocuments["plan-document"], "sourceSpec", specPath);
+      expect(left(readPlanDocumentFile(file, beside)).message).toBe(
+        `${file}: plan document written before $schema lacks completesSpec, which phax needs — not supported`,
+      );
+    });
+
+    it("refuses a $schema sidecar written before completesSpec (0.17.0–0.19.x)", () => {
+      const { completesSpec: _unrecorded, ...older } = validDocuments["plan-document"];
+      const refused = left(
+        readPlanDocumentFile(file, withKey(older, "$schema", schemaUrl("plan-document", "0.19.0"))),
+      );
+      expect(refused.message).toBe(`${file}: completesSpec: is missing`);
+    });
+
+    it("reads a current sidecar beside a spec path with its boolean", () => {
+      const current = {
+        ...validDocuments["plan-document"],
+        sourceSpec: specPath,
+        completesSpec: false,
+      };
+      expect(right(readPlanDocumentFile(file, current))).toMatchObject({
+        sourceSpec: specPath,
+        completesSpec: false,
+      });
+    });
   });
 
   it.each<readonly ["phase-record-manifest" | "authoring-record-manifest", string, string]>([

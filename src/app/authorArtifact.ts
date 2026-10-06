@@ -274,12 +274,21 @@ function runAuthoringSession(
     const parsed = parseAuthoredDocument(input.kind, input.slug, agentResult.finalText);
     if (Either.isLeft(parsed)) return yield* Effect.fail(parsed.left);
 
-    // `--spec` is authoritative for a plan's source spec: the frontmatter carries
-    // it, so the sidecar must agree with the frontmatter whatever the session said.
-    const sourceSpec = target.sourceSpec?.path ?? null;
+    // `--spec` and `--last`/`--not-last` are authoritative for a plan's lineage:
+    // the frontmatter carries them, so the sidecar must agree with the
+    // frontmatter whatever the session said.
+    const lineage = targetLineage(target);
     const authored: AuthoredDocument =
       parsed.right.kind === "plan"
-        ? { kind: "plan", doc: { ...parsed.right.doc, sourceSpec } }
+        ? {
+            kind: "plan",
+            doc: {
+              ...parsed.right.doc,
+              ...(lineage === null
+                ? { sourceSpec: null, completesSpec: null }
+                : { sourceSpec: lineage.path, completesSpec: lineage.completesSpec }),
+            },
+          }
         : parsed.right;
 
     const sidecarText = encodeDocument(authored);
@@ -375,6 +384,7 @@ export function authorArtifact(
       jsonSchema: input.kind === "spec" ? getSpecDocumentJsonSchema() : getPlanDocumentJsonSchema(),
       brief: input.brief.text,
       sourceSpec: target.sourceSpec,
+      completesSpec: target.completesSpec,
       slug: input.slug,
     });
     yield* fs.mkdirp(folder);

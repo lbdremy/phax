@@ -407,10 +407,12 @@ const specDocument: SpecDocumentPreSchema = {
   docsPage: { kind: "none", why: "Nothing user-facing." },
 };
 
+// Spec-less, so that phax's bridge and the package step it alike: a pre-schema
+// sidecar never recorded `completesSpec`, which only null may stand for.
 const planDocument: PlanDocumentPreSchema = {
   version: 1,
   kind: "plan",
-  sourceSpec: "docs/specs/example.md",
+  sourceSpec: null,
   run: { shortName: "example-run", title: "Example run", requiredCommands: [] },
   preamble: {
     summary: "An example plan.",
@@ -476,6 +478,17 @@ function stepped<T extends { readonly version: number }>(value: T): Omit<T, "ver
 }
 
 /**
+ * A format's pre-schema document as phax's bridge and the package's
+ * `toLatest*` both read it: without `version`, and with each fact a later
+ * shape added set to the only value the document allows — a spec-less plan
+ * document's `completesSpec` is null.
+ */
+export function latestPreSchema(id: PreSchemaFormatId): Doc {
+  const { version: _version, ...rest } = preSchemaDocuments[id];
+  return id === "plan-document" ? { ...rest, completesSpec: null } : rest;
+}
+
+/**
  * One minimal document per format id, in the shape phax writes today:
  * `$schema` first, stamped by `withSchemaUrl`.
  */
@@ -526,7 +539,11 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "plan-document": encoded(
     PlanDocumentFileSchema,
-    withSchemaUrl("plan-document", stepped(planDocument)),
+    withSchemaUrl("plan-document", {
+      ...stepped(planDocument),
+      sourceSpec: null,
+      completesSpec: null,
+    }),
   ),
   "plan-approval-record": encoded(
     PlanRecordFileSchema,

@@ -58,6 +58,7 @@ const PLAN_DOCUMENT = {
   version: 1,
   kind: "plan",
   sourceSpec: null,
+  completesSpec: null,
   run: { shortName: "plan-prune", title: "Plan prune", requiredCommands: [] },
   preamble: {
     summary: "One phase: the prune command.",
@@ -149,8 +150,20 @@ describe("sidecarAgreement", () => {
 
   it("is in-sync for a plan", () => {
     const md = `---\nstatus: Draft\nsource-spec: null\n---\n${planBody()}`;
-    const sidecarJson = JSON.stringify(PLAN_DOCUMENT, null, 2);
+    // A spec-less 0.16.0 sidecar: no completesSpec, which steps to null.
+    const { completesSpec: _unrecorded, ...preSchema } = PLAN_DOCUMENT;
+    const sidecarJson = JSON.stringify(preSchema, null, 2);
     expect(sidecarAgreement({ md, sidecarJson, kind: "plan" })).toBe("in-sync");
+  });
+
+  it("is invalid for a $schema plan sidecar written before completesSpec", () => {
+    const md = `---\nstatus: Draft\nsource-spec: null\n---\n${planBody()}`;
+    const { completesSpec: _unrecorded, ...older } = JSON.parse(
+      stampedJson("plan-document", PLAN_DOCUMENT),
+    );
+    const agreement = sidecarAgreement({ md, sidecarJson: JSON.stringify(older), kind: "plan" });
+    expect(agreement).toMatchObject({ kind: "invalid" });
+    expect(typeof agreement === "object" && agreement.message).toContain("completesSpec");
   });
 
   it("is in-sync for a sidecar written with $schema", () => {

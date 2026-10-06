@@ -12,6 +12,8 @@ export interface AuthoringPromptInput {
   readonly brief: string;
   /** A plan's source spec (path and Markdown); null for a spec or a plan without one. */
   readonly sourceSpec: { readonly path: string; readonly markdown: string } | null;
+  /** Whether a plan completes its source spec (`--last`/`--not-last`); null for a spec or a plan without one. */
+  readonly completesSpec: boolean | null;
   readonly slug: string;
 }
 
@@ -35,9 +37,15 @@ export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
     "- Write no files: phax renders the Markdown artifact from your JSON, writes it and commits it.",
     "- The JSON object is your final message.",
     ...(input.sourceSpec !== null
-      ? [`- Set \`sourceSpec\` to \`${input.sourceSpec.path}\`.`]
+      ? [
+          `- Set \`sourceSpec\` to \`${input.sourceSpec.path}\`.`,
+          `- Set \`completesSpec\` to \`${String(input.completesSpec)}\`.`,
+        ]
       : input.kind === "plan"
-        ? ["- Set `sourceSpec` to null: this plan has no source spec."]
+        ? [
+            "- Set `sourceSpec` to null: this plan has no source spec.",
+            "- Set `completesSpec` to null: this plan has no source spec.",
+          ]
         : []),
     "",
     `## ${documentName} JSON Schema`,

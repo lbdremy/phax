@@ -242,6 +242,14 @@ export {
   PlanDocumentPreSchemaSchema,
   type PlanDocumentPreSchema,
 } from "../../../src/schemas/history/plan-document/pre-schema.js";
+
+// Each released shape that is no longer current: the schema and type of
+// phax's frozen module under src/schemas/history/<id>/<release>.ts. Their
+// decoders stay private; the parse functions read them.
+export {
+  PlanDocumentV0_17_0Schema,
+  type PlanDocumentV0_17_0,
+} from "../../../src/schemas/history/plan-document/0.17.0.js";
 export {
   PhaseRecordManifestPreSchemaSchema,
   type PhaseRecordManifestPreSchema,

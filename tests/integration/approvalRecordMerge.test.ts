@@ -345,6 +345,7 @@ describe("Plan approval writes its own record file", () => {
       version: 1,
       kind: "plan",
       sourceSpec: null,
+      completesSpec: null,
       run: { shortName: "alpha-feature", title: "Alpha feature", requiredCommands: [] },
       preamble: {
         summary: "One phase: the alpha command.",
@@ -380,7 +381,8 @@ describe("Plan approval writes its own record file", () => {
       PLAN_A,
       `---\nstatus: Draft\nsource-spec: null\n---\n${renderPlanBody(decoded.right)}`,
     );
-    writeRepoFile(sidecar, JSON.stringify(planDocument, null, 2));
+    const { version: _version, ...fields } = planDocument;
+    writeRepoFile(sidecar, JSON.stringify(withSchemaUrl("plan-document", fields), null, 2));
     commitAll();
 
     await transition(PLAN_A, "Approved");
