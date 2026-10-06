@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610060955-completes-spec.md
+approved:
+  date: 2026-10-06
+  baseline: 539f9f9
 ---
 # A plan says whether its run completes its source spec
 
