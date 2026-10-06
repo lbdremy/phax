@@ -1,7 +1,0 @@
-{
-  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
-  "artifact": "docs/specs/2610051526-brief-replaces-orient.md",
-  "specFingerprint": "45939dbcbf549f823e47a1ec598aaf84ce2f01c97b4a3a5b7f62c240f770355f",
-  "approvedAt": "2026-10-05T15:47:10.114Z",
-  "baseline": "a41b4fcc6b9303b85e208587f92c52292a4c84e2"
-}
