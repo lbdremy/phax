@@ -1,4 +1,4 @@
-# Idea: a fourth provider — `coverage`
+# Idea: a `coverage` provider
 
 > Status: **brainstorm**. Captured 2026-09-23 from the steme roadmap-1.0 conversation —
 > not a spec, not a plan. Nothing below is committed. Related: the two existing
@@ -12,7 +12,7 @@ A review-by-trajectory UI wants, for a run's diff, **which lines a machine alrea
 judged and which ones need a human**. steme can produce that (its coverage map, evaluated
 per change, with attribution down to the line), but the UI should not depend on steme:
 it should render a document, and any tool that can name what it proved about a line
-should be able to emit it. Hence a provider, like the other three.
+should be able to emit it. Hence a provider, like the others.
 
 ```
 "coverage": { "command": "…" }
