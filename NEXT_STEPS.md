@@ -149,8 +149,9 @@ cross-field checks registered by id so the build writes the same list into the s
       With per-artifact record files (`approval-record-files`), the approval-ground §9 Q2 and Q4
       reduce to the plan's own record file and its own path: another artifact's record never
       counts as ground change, so redraft those two questions on that basis.
-- [ ] **Migrate this repository's own approval ledgers after the release that ships
-      `approval-record-files`.** Run `phax artifact migrate-approvals` by hand on a clean tree,
+- [x] **Migrate this repository's own approval ledgers after the release that ships
+      `approval-record-files`.** **Done 2026-10-06** with 0.19.0: here `6f74d287` (both ledgers →
+      1 plan and 8 spec record files), steme-lab `d2fe0f7` (empty ledger deleted). Run `phax artifact migrate-approvals` by hand on a clean tree,
       once `docs/plans/approvals.json` and `docs/specs/approvals.json` are the only ledgers left.
       The spec ledger is still pre-schema, so check the migration commit (it commits by itself).
       Do the same in steme-lab, whose plan ledger is pre-schema and empty: the migration only
