@@ -1,8 +1,0 @@
-{
-  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.19.0.json",
-  "artifact": "docs/plans/2610060955-own-approval-ground-plan.md",
-  "planFingerprint": "ebadde24788b7b706d69f0ad9a0579b026a69b3d49a60cbf6f30c1d313868565",
-  "approvedAt": "2026-10-06T12:01:26.831Z",
-  "baseline": "9e1d6abbfd88c81a1c2f832a2f21b310d6fcf9f8",
-  "sourceSpec": null
-}
