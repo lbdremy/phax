@@ -208,8 +208,10 @@ describe.each(RECORD_FORMATS)("$id, born with $schema", (format) => {
   const current = CURRENT_SHAPES[format.id];
   const label = FORMAT_DEFINITIONS[format.id].label;
 
+  // `next` until a release cut renames it, then the release that cut it
+  // (release.sh writes CURRENT_SHAPES), so this holds before and after a cut.
   it("is named next until a release renames it", () => {
-    expect(current).toBe("next");
+    expect(current).toMatch(/^(next|\d+\.\d+\.\d+)$/);
   });
 
   it("parses the document phax writes as shape next, with phax's value", () => {
