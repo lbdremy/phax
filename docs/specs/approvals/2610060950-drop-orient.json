@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+  "artifact": "docs/specs/2610060950-drop-orient.md",
+  "specFingerprint": "2a4d0abedfde8ef74cfc89018caa9497a8ef9010a5ed364c73fe0988b30dacd9",
+  "approvedAt": "2026-10-06T12:01:25.946Z",
+  "baseline": "d21b0dc5dc7556b45c492afe45406782154eaa70"
+}
