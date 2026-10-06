@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Either, SchemaAST } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   makeAdapterCallFailedTelemetryEvent,
@@ -6,16 +6,16 @@ import {
   makeAdapterCallSucceededTelemetryEvent,
   makeArtifactGeneratedTelemetryEvent,
   makeGateEvaluatedTelemetryEvent,
-  makeOrientBriefComputedTelemetryEvent,
-  makeOrientPullEmptyTelemetryEvent,
-  makeOrientPullServedTelemetryEvent,
   makeSecurityPolicyAppliedTelemetryEvent,
   makeStateTransitionTelemetryEvent,
   makeStepCompletedTelemetryEvent,
   makeStepStartedTelemetryEvent,
 } from "../../../src/domain/telemetry/events.js";
 import { decodeRunId } from "../../../src/domain/branded.js";
-import { decodeSemanticTelemetryEvent } from "../../../src/schemas/telemetryEvents.js";
+import {
+  decodeSemanticTelemetryEvent,
+  SemanticTelemetryEventSchema,
+} from "../../../src/schemas/telemetryEvents.js";
 
 const runId = Either.getOrThrow(decodeRunId("test-run-001"));
 
@@ -249,95 +249,32 @@ describe("makeSecurityPolicyAppliedTelemetryEvent", () => {
   });
 });
 
-describe("makeOrientBriefComputedTelemetryEvent", () => {
-  it("produces a value the schema accepts", () => {
-    const event = makeOrientBriefComputedTelemetryEvent({
-      runId,
-      phase: "phase-05",
-      fileCount: 3,
-      rowCount: 2,
+describe("SemanticTelemetryEventSchema accepted types", () => {
+  it("accepts exactly the ten semantic event types", () => {
+    const union = SemanticTelemetryEventSchema.ast;
+    if (!SchemaAST.isUnion(union)) throw new Error("expected a union schema");
+    const types = union.types.map((member) => {
+      if (!SchemaAST.isTypeLiteral(member)) throw new Error("expected a struct member");
+      const typeField = member.propertySignatures.find((p) => p.name === "type");
+      if (typeField === undefined || !SchemaAST.isLiteral(typeField.type)) {
+        throw new Error("expected a literal type field");
+      }
+      return typeField.type.literal;
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
-  });
-
-  it("sets type to orient.brief.computed", () => {
-    const event = makeOrientBriefComputedTelemetryEvent({
-      runId,
-      phase: "phase-05",
-      fileCount: 3,
-      rowCount: 2,
-    });
-    expect(event.type).toBe("orient.brief.computed");
-  });
-
-  it("preserves optional operationId when provided", () => {
-    const event = makeOrientBriefComputedTelemetryEvent({
-      runId,
-      operationId: "op-123",
-      phase: "phase-05",
-      fileCount: 3,
-      rowCount: 2,
-    });
-    expect(event.operationId).toBe("op-123");
-  });
-});
-
-describe("makeOrientPullServedTelemetryEvent", () => {
-  it("produces a value the schema accepts", () => {
-    const event = makeOrientPullServedTelemetryEvent({
-      runId,
-      kind: "expand",
-      subject: "row-1",
-    });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
-  });
-
-  it("sets type to orient.pull.served", () => {
-    const event = makeOrientPullServedTelemetryEvent({
-      runId,
-      kind: "file",
-      subject: "src/index.ts",
-    });
-    expect(event.type).toBe("orient.pull.served");
-  });
-
-  it("accepts the file pull kind", () => {
-    const event = makeOrientPullServedTelemetryEvent({
-      runId,
-      kind: "file",
-      subject: "src/index.ts",
-    });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
-  });
-});
-
-describe("makeOrientPullEmptyTelemetryEvent", () => {
-  it("produces a value the schema accepts", () => {
-    const event = makeOrientPullEmptyTelemetryEvent({
-      runId,
-      kind: "expand",
-      subject: "row-missing",
-    });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
-  });
-
-  it("sets type to orient.pull.empty", () => {
-    const event = makeOrientPullEmptyTelemetryEvent({
-      runId,
-      kind: "expand",
-      subject: "row-missing",
-    });
-    expect(event.type).toBe("orient.pull.empty");
-  });
-
-  it("preserves optional operationId when provided", () => {
-    const event = makeOrientPullEmptyTelemetryEvent({
-      runId,
-      operationId: "op-456",
-      kind: "file",
-      subject: "src/unknown.ts",
-    });
-    expect(event.operationId).toBe("op-456");
+    expect(types.toSorted()).toEqual(
+      [
+        "state.transition",
+        "adapter.call.started",
+        "adapter.call.succeeded",
+        "adapter.call.failed",
+        "step.started",
+        "step.completed",
+        "gate.evaluated",
+        "artifact.generated",
+        "agent.model.resolved",
+        "security.policy.applied",
+      ].toSorted(),
+    );
   });
 });
 

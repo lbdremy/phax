@@ -611,7 +611,6 @@ export function executePlan(
           gateCommands: gateCommandStrings,
           requiredCommands: plan.run.requiredCommands,
           provider: binding.provider,
-          orientEnabled: config.orient !== undefined,
         });
         agentOptions = {
           provider: binding.provider,
@@ -759,7 +758,6 @@ export function executePlan(
           gateCommands: gateCommandStrings,
           requiredCommands: plan.run.requiredCommands,
           provider: resolution.selected.provider,
-          orientEnabled: config.orient !== undefined,
         });
         const postureMarks: Array<"partial-filesystem" | "mcp-unenforced" | "command-precision"> = [
           ...evaluation.marks,

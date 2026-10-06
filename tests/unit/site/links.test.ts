@@ -6,7 +6,7 @@ import { INTRO, definePageMap } from "../../../site/build/pageMap.js";
 const README = [
   "# tool",
   "",
-  "Read [orient](docs/cli/reference.md#phax-orient), [shell rules](docs/security.md#shell-command-execution) and [modes](#security-modes).",
+  "Read [validate](docs/cli/reference.md#phax-validate), [shell rules](docs/security.md#shell-command-execution) and [modes](#security-modes).",
   "",
   "Start at the [quickstart](#quickstart) or see the [generated reference](#generated-reference).",
   "",
@@ -51,7 +51,7 @@ const SPEC_KIT = [
 
 const SOURCES: ReadonlyMap<string, string> = new Map([
   ["README.md", README],
-  ["docs/cli/reference.md", "# CLI reference\n\n## phax orient\n\nOrients.\n"],
+  ["docs/cli/reference.md", "# CLI reference\n\n## phax validate\n\nValidates.\n"],
   [
     "docs/security.md",
     "# Security\n\n## Shell command execution\n\nSee [above](#shell-command-execution).\n",
@@ -121,7 +121,7 @@ function withSource(path: string, text: string): ReadonlyMap<string, string> {
 describe("link rewriting", () => {
   it("points README links at the route and anchor serving the target", () => {
     const index = page("0.17.0", "docs/index.md");
-    expect(index).toContain("[orient](/reference/cli#phax-orient)");
+    expect(index).toContain("[validate](/reference/cli#phax-validate)");
     expect(index).toContain("[shell rules](/security#shell-command-execution)");
     expect(index).toContain("[modes](/guide/security-modes#security-modes)");
   });
@@ -187,9 +187,9 @@ describe("link rewriting", () => {
     expect(links).toContainEqual({
       source: "README.md",
       line: 3,
-      link: "docs/cli/reference.md#phax-orient",
+      link: "docs/cli/reference.md#phax-validate",
       route: "/reference/cli",
-      anchor: "phax-orient",
+      anchor: "phax-validate",
     });
     expect(links).toContainEqual({
       source: "docs/comparisons/openspec-vs-tool.md",
@@ -231,7 +231,7 @@ describe("broken links", () => {
     expect(
       generate(
         "0.17.0",
-        withSource("README.md", README.replace("#phax-orient", "#phax-no-such-command")),
+        withSource("README.md", README.replace("#phax-validate", "#phax-no-such-command")),
       ).findings,
     ).toEqual([
       "✗ README.md:3: docs/cli/reference.md#phax-no-such-command — no such anchor on /reference/cli",

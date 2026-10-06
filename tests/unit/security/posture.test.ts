@@ -362,6 +362,33 @@ describe("SecurityPostureSchema", () => {
       expect(Either.isLeft(result)).toBe(true);
     });
 
+    const postureWithSource = (source: string) => ({
+      ...baseSecurePosture,
+      agentCommands: [
+        {
+          command: "node",
+          source,
+          explicit: true,
+          requiredByPlan: false,
+          enforcement: "prefix" as const,
+          degraded: false,
+        },
+      ],
+    });
+
+    it.each(["config", "gate"])("accepts agentCommands source %s", (source) => {
+      const result = decodeSecurityPosture(postureWithSource(source));
+      expect(Either.isRight(result)).toBe(true);
+      if (Either.isRight(result)) {
+        expect(result.right.agentCommands[0]?.source).toBe(source);
+      }
+    });
+
+    it("rejects an agentCommands source outside config and gate", () => {
+      const result = decodeSecurityPosture(postureWithSource("plugin"));
+      expect(Either.isLeft(result)).toBe(true);
+    });
+
     it("round-trips posture with agentCommands", () => {
       const posture = {
         ...baseSecurePosture,

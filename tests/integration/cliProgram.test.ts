@@ -31,7 +31,6 @@ const TOP_LEVEL_COMMANDS = [
   "artifact",
   "completions",
   "report",
-  "orient",
   "records",
 ] as const;
 

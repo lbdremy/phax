@@ -289,12 +289,6 @@ export class SkillInstallError extends Data.TaggedError("SkillInstallError")<{
   message: string;
 }> {}
 
-export class OrientProviderError extends Data.TaggedError("OrientProviderError")<{
-  message: string;
-  exitCode?: number;
-  stderrExcerpt?: string;
-}> {}
-
 export class ScopesProviderError extends Data.TaggedError("ScopesProviderError")<{
   message: string;
   exitCode?: number;
