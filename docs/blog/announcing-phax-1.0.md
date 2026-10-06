@@ -396,7 +396,7 @@ the `phax init` wizard) asks whether to include transcripts and whether to push 
 it announces the destination, it doesn't offer a choice, and it tells you in so many words that
 making a private repo public later publishes every transcript already in its history.
 
-## Providers
+## Plugging in your own tools
 
 phax has **two providers** you can plug into `phax.json`, and they speak the same
 shape — a command phax runs with no shell, one JSON request on stdin, one JSON response on
