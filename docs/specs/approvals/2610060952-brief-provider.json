@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+  "artifact": "docs/specs/2610060952-brief-provider.md",
+  "specFingerprint": "4c0cc4cf4c16031d58934481f3b1a2bab56d33bd76e7d2469959f69e1008b233",
+  "approvedAt": "2026-10-06T12:01:26.476Z",
+  "baseline": "806805e43c8d3f4a788f3f8bb642b0e1e41302ef"
+}
