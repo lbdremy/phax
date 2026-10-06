@@ -27,7 +27,7 @@ Write a spec, then a plan, and approve each. `artifact new` creates the file wit
 phax artifact new spec greet            # docs/specs/2610041200-greet.md, Draft
 phax artifact approve docs/specs/2610041200-greet.md
 
-phax artifact new plan greet --spec docs/specs/2610041200-greet.md
+phax artifact new plan greet --spec docs/specs/2610041200-greet.md --last
 phax plans lint docs/plans/2610041201-greet-plan.md
 phax artifact approve docs/plans/2610041201-greet-plan.md
 ```
@@ -36,7 +36,7 @@ Or let phax drive each authoring session from a short brief, and get a committed
 
 ```bash
 phax artifact new spec greet --headless --brief spec-brief.md
-phax artifact new plan greet --headless --brief plan-brief.md --spec docs/specs/2610041200-greet.md
+phax artifact new plan greet --headless --brief plan-brief.md --spec docs/specs/2610041200-greet.md --last
 ```
 
 Run the plan. Each phase runs, passes its gates and commits; the last one stays open for you:
@@ -111,7 +111,7 @@ exec zsh
 
 **Spec and plan.** A spec says what to build and why: requirements, acceptance criteria, and the questions still open. A plan says how: an ordered list of phases, each with its instructions, the files it will create and edit, the gate it must pass and its commit message. Both are Markdown files with a status in their frontmatter, under `docs/specs/` and `docs/plans/`. phax calls them **artifacts**.
 
-**Lifecycle.** An artifact moves through statuses: `Draft` → `Approved` → `Completed`, or `Abandoned` if the work is dropped. A plan can also be marked `Stale` when the ground it was approved on has changed (`phax plans status` tells you). `phax artifact` makes every transition and commits it; an approval records what the artifact was approved against, so phax can tell later whether it still holds. A run completes its plan, and its spec where it can, on the run's own branch, so the merge lands the code and the completion together.
+**Lifecycle.** An artifact moves through statuses: `Draft` → `Approved` → `Completed`, or `Abandoned` if the work is dropped. A plan can also be marked `Stale` when the ground it was approved on has changed (`phax plans status` tells you). `phax artifact` makes every transition and commits it; an approval records what the artifact was approved against, so phax can tell later whether it still holds. A run completes its plan on the run's own branch, and its spec only when the plan says it is the spec's last (`completes-spec: true`) and no other live plan still needs it, so the merge lands the code and the completion together.
 
 **Run and phase.** `phax run` turns an approved plan into a **run**, named from the plan's title as `<namespace>.<name>`, where the namespace is your project's `name` in `phax.json`. Each **phase** runs in its own Git worktree on its own branch, `phax/<name>--phase-NN`, branched from the previous phase, so the last phase's branch carries the whole change.
 
@@ -181,10 +181,28 @@ phax schema upgrade                    # after upgrading phax: regenerate the ed
 
 ```bash
 phax artifact new spec <slug>                     # docs/specs/<YYMMDDHHMM>-<slug>.md
-phax artifact new plan <slug> --spec <spec path>  # docs/plans/<YYMMDDHHMM>-<slug>-plan.md
+phax artifact new plan <slug> --spec <spec path> --last  # docs/plans/<YYMMDDHHMM>-<slug>-plan.md
 ```
 
-phax names the file from the current UTC minute and the slug, with a `Draft` status, and refuses any other name (exit 12). A plan carries its spec's slug and names it as its `source-spec`; `--spec` can be left out when a plan has no spec. Fill the file in with your agent: the `phax-spec` and `phax-planning` skills hold the formats, and point at the right sections — requirements and acceptance criteria for a spec; for each plan phase, its instructions, the files it creates and edits, its gate and its commit. [`examples/hello-world/plan.md`](examples/hello-world/plan.md) is a small worked plan.
+phax names the file from the current UTC minute and the slug, with a `Draft` status, and refuses any other name (exit 12). A plan carries its spec's slug and names it as its `source-spec`; `--spec` can be left out when a plan has no spec. With `--spec`, say whether the plan is the spec's last: `--last` or `--not-last` (see below). Fill the file in with your agent: the `phax-spec` and `phax-planning` skills hold the formats, and point at the right sections — requirements and acceptance criteria for a spec; for each plan phase, its instructions, the files it creates and edits, its gate and its commit. [`examples/hello-world/plan.md`](examples/hello-world/plan.md) is a small worked plan.
+
+**One spec, several plans.** `--last` writes `completes-spec: true`, so the plan's run completes the spec; `--not-last` writes `completes-spec: false`, so the run leaves the spec live. Every plan of a spec except the last says `--not-last`. Splitting a spec across three plans:
+
+```bash
+phax artifact new plan greet-core --spec docs/specs/2610041200-greet.md --not-last   # plan 1 of 3
+phax artifact new plan greet-cli  --spec docs/specs/2610041200-greet.md --not-last   # plan 2 of 3
+phax artifact new plan greet-docs --spec docs/specs/2610041200-greet.md --last       # plan 3 of 3
+```
+
+Plan 1's frontmatter reads:
+
+```markdown
+---
+status: Draft
+source-spec: docs/specs/2610041200-greet.md
+completes-spec: false
+---
+```
 
 ### Let phax write them
 
@@ -192,7 +210,7 @@ With `--headless`, phax runs the authoring session itself from a brief: it gives
 
 ```bash
 phax artifact new spec greet --headless --brief brief.md
-phax artifact new plan greet --headless --brief brief.md --spec docs/specs/2610041200-greet.md
+phax artifact new plan greet --headless --brief brief.md --spec docs/specs/2610041200-greet.md --last
 cat brief.md | phax artifact new spec greet --headless --brief -
 ```
 
@@ -227,7 +245,7 @@ A read-only check, with no model: the plan's structure, its planned files agains
 | `phax artifact abandon <path>`  | `Draft`, `Approved`; `Stale` (plan)                            | `Abandoned`                                   |
 | `phax artifact status <path>`   | any                                                            | — prints the status and the legal transitions |
 
-Each transition rewrites the status in the file's frontmatter and commits it on its own, and refuses when the files it writes have uncommitted changes. `Completed` and `Abandoned` move the file, and its sidecar, into the folder's `archive/`. Approving writes the artifact's own approval record file, `docs/specs/approvals/<spec>.json` or `docs/plans/approvals/<plan>.json`, with the commit it was made against; completing or abandoning an artifact, or reopening a plan, deletes that file in the same commit, and no transition touches another artifact's record; approving a plan is refused while its spec's approval is missing or the spec has changed since. A run completes its own plan, and its spec where it can, on the run's branch.
+Each transition rewrites the status in the file's frontmatter and commits it on its own, and refuses when the files it writes have uncommitted changes. `Completed` and `Abandoned` move the file, and its sidecar, into the folder's `archive/`. Approving writes the artifact's own approval record file, `docs/specs/approvals/<spec>.json` or `docs/plans/approvals/<plan>.json`, with the commit it was made against; completing or abandoning an artifact, or reopening a plan, deletes that file in the same commit, and no transition touches another artifact's record; approving a plan is refused while its spec's approval is missing or the spec has changed since. A run completes its own plan, and its spec only when the plan says it is the spec's last (`completes-spec: true`) and no other live plan still needs it, on the run's branch.
 
 ### Keep several plans in step
 
@@ -268,7 +286,7 @@ Then, for each phase:
 5. The agent writes the phase's handoff.
 6. phax commits with the planned message, then compares the files changed with the files planned (`file-reconciliation.json` in the phase's folder).
 
-A phase that changes nothing stops the run (exit 9). The last phase runs the gate's `terminal` steps too, then the run stops at `review_open`. Its plan, and its spec where it can, are completed on the run's branch. The run's folder is `~/.phax/runs/<namespace>.<name>/`; when the run ends, phax prints what happened and the next command to run. On a Mac, keep it awake for long runs: `caffeinate -ims phax run --plan <plan>`.
+A phase that changes nothing stops the run (exit 9). The last phase runs the gate's `terminal` steps too, then the run stops at `review_open`. Its plan is completed on the run's branch, and its spec too when the plan says it is the spec's last (`completes-spec: true`) and no other live plan still needs it. The run's folder is `~/.phax/runs/<namespace>.<name>/`; when the run ends, phax prints what happened and the next command to run. On a Mac, keep it awake for long runs: `caffeinate -ims phax run --plan <plan>`.
 
 ### When a run stops
 
@@ -535,6 +553,7 @@ phax reads no environment variable for its configuration: everything is in `phax
 - **Lock conflict.** Another phax is working on that run, or one died; `phax unlock <run>` clears a stale lock.
 - **The handoff is missing.** The phase ended in `handoff_failed`: `phax enter <run>` takes you back into its session.
 - **A rate or usage limit.** The run stopped at exit 8 and keeps its place: `phax resume <run>` when the limit resets.
+- **A plan with a source spec is refused for lacking `completes-spec`.** A plan whose `source-spec` names a spec must carry `completes-spec: true` (its run completes the spec) or `false` (more plans follow); `plans lint`, `artifact approve` and `run` refuse it with exit 12. Add the key by hand, then re-approve an Approved plan, since changing the value makes it stale. A headless plan's older `.json` sidecar lacks `completesSpec` too: re-author or delete it.
 - **Approval records are per-artifact files.** Approval records were one shared ledger per kind; each is now a file of its own under `docs/plans/approvals/` and `docs/specs/approvals/`. After upgrading, `phax artifact approve` and `phax run` refuse with exit 12 while `docs/plans/approvals.json` or `docs/specs/approvals.json` exists. Run the one-time migration, which splits both ledgers into record files in one commit:
 
   ```console
