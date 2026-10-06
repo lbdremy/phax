@@ -376,7 +376,7 @@ The agent can run your gate commands and the commands in `security.agentCommands
 
 ## Extend phax
 
-Three hooks let your own tools inform a run. Each is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout.
+Three hooks let your own tools inform a run: a gate step that prints diagnostics, and two providers. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout.
 
 ### Diagnostics gate steps
 
