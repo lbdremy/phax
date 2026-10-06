@@ -88,7 +88,7 @@ a green field. Nobody configures `orient` or `scopes` and nobody consumes the di
 compatibility. Decided with it: orient's retirement leaves `brief-replaces-orient` for a new
 spec of its own. In this order:
 
-- [ ] **`drop-orient`** — `docs/specs/2610060950-drop-orient.md`, Draft, §9 decided 2026-10-06
+- [x] **`drop-orient`** — `docs/specs/2610060950-drop-orient.md`, Draft, §9 decided 2026-10-06
       (kept history: `docs/specs`, `docs/plans`, `docs/briefs`, `docs/spikes`). Takes over
       the retirement half of `brief-replaces-orient`:
       - `orient` in every config layer, and `phax orient` with its usage, long help and
@@ -358,13 +358,12 @@ public sources, `phax records sync`) — so the remaining gap is the *consumer*,
 the storage; the plan DAG is analyzed but not executed (spec 24); and staleness
 propagation stops at one hop.
 
-- [ ] Cross-run durable context layer — feed the orient provider from phax's own run
-      history (handoffs, deviations, final reports) instead of leaving the archive a
+- [ ] Cross-run durable context layer — feed phax's registered providers from phax's own
+      run history (handoffs, deviations, final reports) instead of leaving the archive a
       filing cabinet. Unblocked 2026-08-21: the record travels, so the layer can be
-      **shared, not local**. First raw material already exists and is still unread:
-      the per-phase orientation brief (`orient-brief.json`, plan 49) and, since 0.10,
-      the per-phase `verifiedSurfaces` manifest field. Since 0.13 there is a third
-      registered provider (the plan auditor) that could read the same history.
+      **shared, not local**. The raw material that already exists and is still unread is
+      the per-phase `verifiedSurfaces` manifest field (since 0.10). The plan auditor
+      (since 0.13) could read the same history.
 - [ ] Staleness propagation depth — spec 22 stops deliberately at one hop
       (spec → plan). Same record/fingerprint/footprint mechanism could later cover any
       derived artifact (reviews, reports, generated docs): "which summaries are now

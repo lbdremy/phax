@@ -149,7 +149,7 @@ inside-out, guided by the plan's phases, or focused on what the enforcement laye
 cover.
 
 The reviewer stays free to choose. The goal is not to constrain the method; it is to
-**orient attention**.
+**direct attention**.
 
 The last mode is the strongest and it depends on an external input: a map of what the
 enforcement layer actually guaranteed for this change, and — more usefully — its
