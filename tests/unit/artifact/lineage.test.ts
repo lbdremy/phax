@@ -27,6 +27,7 @@ import {
   stampApproved,
   STALENESS_REASONS,
   type ApprovalRecordLike,
+  type PlanStalenessVerdict,
   type StalenessEvidence,
   type StalenessReason,
 } from "../../../src/domain/artifact/lineage.js";
@@ -262,9 +263,16 @@ describe("STALENESS_REASONS", () => {
   });
 });
 
+// Made-up plan paths for staleness judgement; JUDGED_PLAN matches record()'s key.
+const JUDGED_PLAN = "docs/plans/2609101222-foo-plan.md";
+const JUDGED_RECORD = "docs/plans/approvals/2609101222-foo-plan.json";
+const JUDGED_SIDECAR = "docs/plans/2609101222-foo-plan.json";
+const OTHER_JUDGED_RECORD = "docs/plans/approvals/2609101223-bar-plan.json";
+
 describe("computeStaleness", () => {
   it("is fresh when nothing changed", () => {
     const verdict = computeStaleness({
+      planPath: JUDGED_PLAN,
       record: record(),
       baselineExists: true,
       currentPlanFingerprint: "plan-fp",
@@ -277,6 +285,7 @@ describe("computeStaleness", () => {
 
   it("reports spec-changed alone", () => {
     const verdict = computeStaleness({
+      planPath: JUDGED_PLAN,
       record: record(),
       baselineExists: true,
       currentPlanFingerprint: "plan-fp",
@@ -292,6 +301,7 @@ describe("computeStaleness", () => {
 
   it("reports ground-changed naming exactly the intersecting files", () => {
     const verdict = computeStaleness({
+      planPath: JUDGED_PLAN,
       record: record(),
       baselineExists: true,
       currentPlanFingerprint: "plan-fp",
@@ -307,6 +317,7 @@ describe("computeStaleness", () => {
 
   it("reports self-changed alone", () => {
     const verdict = computeStaleness({
+      planPath: JUDGED_PLAN,
       record: record(),
       baselineExists: true,
       currentPlanFingerprint: "plan-fp-2",
@@ -319,6 +330,7 @@ describe("computeStaleness", () => {
 
   it("reports all three reasons together in enum order", () => {
     const verdict = computeStaleness({
+      planPath: JUDGED_PLAN,
       record: record(),
       baselineExists: true,
       currentPlanFingerprint: "plan-fp-2",
@@ -338,6 +350,7 @@ describe("computeStaleness", () => {
 
   it("is fresh when changed files are disjoint from the footprint", () => {
     const verdict = computeStaleness({
+      planPath: JUDGED_PLAN,
       record: record(),
       baselineExists: true,
       currentPlanFingerprint: "plan-fp",
@@ -350,6 +363,7 @@ describe("computeStaleness", () => {
 
   it("is missing-record with no record", () => {
     const verdict = computeStaleness({
+      planPath: JUDGED_PLAN,
       record: null,
       baselineExists: true,
       currentPlanFingerprint: "plan-fp",
@@ -362,6 +376,7 @@ describe("computeStaleness", () => {
 
   it("is missing-record when the baseline has vanished", () => {
     const verdict = computeStaleness({
+      planPath: JUDGED_PLAN,
       record: record(),
       baselineExists: false,
       currentPlanFingerprint: "plan-fp",
@@ -377,6 +392,7 @@ describe("computeStaleness", () => {
 
   it("a spec-less record never reports spec-changed", () => {
     const verdict = computeStaleness({
+      planPath: JUDGED_PLAN,
       record: record({ sourceSpec: null }),
       baselineExists: true,
       currentPlanFingerprint: "plan-fp",
@@ -385,6 +401,89 @@ describe("computeStaleness", () => {
       footprint: [],
     });
     expect(verdict).toEqual({ kind: "fresh" });
+  });
+});
+
+describe("computeStaleness: a plan's own approval is never ground change", () => {
+  const BASELINE = "a".repeat(40);
+
+  function judge(
+    changed: readonly string[],
+    footprint: readonly string[],
+    opts: { readonly planPath?: string; readonly planFingerprint?: string } = {},
+  ): PlanStalenessVerdict {
+    return computeStaleness({
+      planPath: opts.planPath ?? JUDGED_PLAN,
+      record: record(),
+      baselineExists: true,
+      currentPlanFingerprint: opts.planFingerprint ?? "plan-fp",
+      currentSpecFingerprint: "spec-fp",
+      changedFilesSinceBaseline: changed,
+      footprint,
+    });
+  }
+
+  it.each([
+    {
+      name: "(a) the plan's own path",
+      changed: [JUDGED_PLAN],
+      footprint: [JUDGED_PLAN],
+      planPath: JUDGED_PLAN,
+      expected: { kind: "fresh" },
+    },
+    {
+      name: "(b) the plan's own record file",
+      changed: [JUDGED_RECORD],
+      footprint: [JUDGED_RECORD],
+      planPath: JUDGED_PLAN,
+      expected: { kind: "fresh" },
+    },
+    {
+      name: "(c) another plan's record file",
+      changed: [OTHER_JUDGED_RECORD],
+      footprint: [OTHER_JUDGED_RECORD],
+      planPath: JUDGED_PLAN,
+      expected: {
+        kind: "stale",
+        evidence: [{ reason: "ground-changed", baseline: BASELINE, files: [OTHER_JUDGED_RECORD] }],
+      },
+    },
+    {
+      name: "(d) the plan's own sidecar",
+      changed: [JUDGED_SIDECAR],
+      footprint: [JUDGED_SIDECAR],
+      planPath: JUDGED_PLAN,
+      expected: {
+        kind: "stale",
+        evidence: [{ reason: "ground-changed", baseline: BASELINE, files: [JUDGED_SIDECAR] }],
+      },
+    },
+    {
+      name: "(e) own path and record alongside a real change",
+      changed: [JUDGED_PLAN, JUDGED_RECORD, "src/a.ts"],
+      footprint: [JUDGED_PLAN, JUDGED_RECORD, "src/a.ts"],
+      planPath: JUDGED_PLAN,
+      expected: {
+        kind: "stale",
+        evidence: [{ reason: "ground-changed", baseline: BASELINE, files: ["src/a.ts"] }],
+      },
+    },
+    {
+      name: "(g) a loose plan outside docs/plans/",
+      changed: ["plan.md"],
+      footprint: ["plan.md"],
+      planPath: "plan.md",
+      expected: { kind: "fresh" },
+    },
+  ])("$name", ({ changed, footprint, planPath, expected }) => {
+    expect(judge(changed, footprint, { planPath })).toEqual(expected);
+  });
+
+  it("(f) the plan's own edited content is self-changed only", () => {
+    expect(judge([JUDGED_PLAN], [JUDGED_PLAN], { planFingerprint: "plan-fp-2" })).toEqual({
+      kind: "stale",
+      evidence: [{ reason: "self-changed" }],
+    });
   });
 });
 

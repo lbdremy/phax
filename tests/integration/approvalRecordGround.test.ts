@@ -12,9 +12,12 @@ import type { ArtifactStatus } from "../../src/domain/artifact/status.js";
 import { makeRootedNodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 
-// Spec approval-record-files §5.22: another artifact's lifecycle writes only
-// its own record file, so it is ground change for a plan only when that plan's
-// footprint names that file. All repositories and artifacts here are made up.
+// Two ground-change rules over a real repository. Spec approval-record-files
+// §5.22: another artifact's lifecycle writes only its own record file, so it is
+// ground change for a plan only when that plan's footprint names that file.
+// Plan own-approval-ground: a plan's own path and its own record file are never
+// ground change, so its own approval commit never stales it. All repositories
+// and artifacts here are made up.
 
 const NOW = "2026-10-05T12:00:00.000Z";
 
@@ -127,6 +130,33 @@ describe("Another plan's lifecycle no longer stales a plan", () => {
     expect(verdict).toEqual({
       kind: "stale",
       evidence: [{ reason: "ground-changed", baseline, files: [recordOf(PLAN_Q)] }],
+    });
+  });
+});
+
+describe("A plan's own approval is never ground change", () => {
+  const OWN_FOOTPRINT = [PLAN_P, recordOf(PLAN_P), "src/feature/pi.ts"];
+
+  it("is fresh right after approve when the footprint names its own path and record", async () => {
+    await transition(PLAN_P, "Approved");
+
+    const verdict = await stalenessOfP(OWN_FOOTPRINT);
+
+    expect(verdict).toEqual({ kind: "fresh" });
+  });
+
+  it("is ground change once another footprint file changes", async () => {
+    const baseline = git(["rev-parse", "HEAD"]).trim();
+    await transition(PLAN_P, "Approved");
+    writeRepoFile("src/feature/pi.ts", "export const pi = 3;\n");
+    git(["add", "src/feature/pi.ts"]);
+    git(["commit", "-q", "-m", "feat: pi"]);
+
+    const verdict = await stalenessOfP(OWN_FOOTPRINT);
+
+    expect(verdict).toEqual({
+      kind: "stale",
+      evidence: [{ reason: "ground-changed", baseline, files: ["src/feature/pi.ts"] }],
     });
   });
 });

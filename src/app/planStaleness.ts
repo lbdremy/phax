@@ -79,6 +79,7 @@ export function computeStalenessForPlan(
 
     if (record === null) {
       return computeStaleness({
+        planPath,
         record: null,
         baselineExists: false,
         currentPlanFingerprint: "",
@@ -92,6 +93,7 @@ export function computeStalenessForPlan(
     const baselineExists = yield* git.commitExists(record.baseline, opts.repoRoot);
     if (!baselineExists) {
       return computeStaleness({
+        planPath,
         record,
         baselineExists: false,
         currentPlanFingerprint: "",
@@ -122,6 +124,7 @@ export function computeStalenessForPlan(
     const changedFilesSinceBaseline = yield* git.changedFilesSince(record.baseline, opts.repoRoot);
 
     return computeStaleness({
+      planPath,
       record,
       baselineExists: true,
       currentPlanFingerprint,
