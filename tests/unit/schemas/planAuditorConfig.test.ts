@@ -42,10 +42,9 @@ describe("PlanAuditorConfigSchema", () => {
 });
 
 describe("PhaxConfigSchema planAuditor block", () => {
-  it("decodes a config with a planAuditor block next to orient and scopes", () => {
+  it("decodes a config with a planAuditor block next to scopes", () => {
     const result = decodePhaxConfig({
       ...minimalValidPhaxConfig,
-      orient: { command: "orient-provider" },
       scopes: { command: "scopes-provider" },
       planAuditor: { command: "audit-plan" },
     });

@@ -37,10 +37,10 @@ describe("ScopesConfigSchema", () => {
 });
 
 describe("PhaxConfigSchema scopes block", () => {
-  it("decodes a config with a scopes block next to orient", () => {
+  it("decodes a config with a scopes block next to planAuditor", () => {
     const result = decodePhaxConfig({
       ...minimalValidPhaxConfig,
-      orient: { command: "orient-provider" },
+      planAuditor: { command: "audit-plan" },
       scopes: { command: "scopes-provider" },
     });
     expect(Either.isRight(result)).toBe(true);
