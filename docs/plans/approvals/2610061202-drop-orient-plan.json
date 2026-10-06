@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.19.0.json",
+  "artifact": "docs/plans/2610061202-drop-orient-plan.md",
+  "planFingerprint": "865d67d3f43438e3cfd33c96ca19d9dd7d9b2b6bb5a861ca14f1efb9ada26800",
+  "approvedAt": "2026-10-06T12:17:50.689Z",
+  "baseline": "43ec2ac90abe7262a796dd0877860113f732d9ec",
+  "sourceSpec": {
+    "path": "docs/specs/2610060950-drop-orient.md",
+    "fingerprint": "2a4d0abedfde8ef74cfc89018caa9497a8ef9010a5ed364c73fe0988b30dacd9"
+  }
+}
