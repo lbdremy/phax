@@ -10,6 +10,7 @@ import { runKey } from "../domain/runRef.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { readPhaseFileReconciliationFile } from "../schemas/persisted.js";
+import { SOURCE_SPEC_OUTCOME_FILENAME } from "./completeRunArtifacts.js";
 
 export interface PhaseContent {
   readonly phaseId: string;
@@ -28,6 +29,23 @@ export interface ReviewHandoffInputs {
   readonly global: GlobalFileReconciliation;
   readonly globalMd: string;
   readonly phaseContents: readonly PhaseContent[];
+  // The run folder's source-spec-outcome.md, when run completion wrote one.
+  readonly sourceSpecOutcomeMd: string | undefined;
+}
+
+// Reads the source-spec outcome run completion left in the run folder, or
+// undefined when the plan had no spec outcome to state (no fragment written).
+export function loadSourceSpecOutcome(
+  info: RunReviewInfo,
+): Effect.Effect<string | undefined, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(info.runPath, SOURCE_SPEC_OUTCOME_FILENAME);
+    if (!(yield* fs.exists(path))) {
+      return undefined;
+    }
+    return yield* fs.readText(path);
+  });
 }
 
 export function loadPhaseContents(
@@ -136,7 +154,8 @@ export function loadReviewHandoffInputs(
       runKey(info.namespace, info.shortName),
     );
     const { phaseContents } = yield* loadPhaseContents(info);
+    const sourceSpecOutcomeMd = yield* loadSourceSpecOutcome(info);
 
-    return { global, globalMd, phaseContents };
+    return { global, globalMd, phaseContents, sourceSpecOutcomeMd };
   });
 }
