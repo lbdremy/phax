@@ -376,7 +376,7 @@ The agent can run your gate commands and the commands in `security.agentCommands
 
 ## Extend phax
 
-Four hooks let your own tools inform a run. Each is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout.
+Three hooks let your own tools inform a run. Each is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout.
 
 ### Diagnostics gate steps
 
@@ -397,14 +397,6 @@ A gate step with `"output": "diagnostics"` prints a JSON document instead of a l
 ```
 
 The step must print the document every time it runs, `{ "diagnostics": [] }` when it passes; empty or non-JSON output counts as a missing document and fails the step, even on exit 0. An `invariant` finding fails the step. A `completion` finding names the `scopes` it belongs to, and fails the step only once all of them are closed according to your scope provider; until then it is pending, shown to the agent as optional work. The failing findings, not the raw log, are what the agent is asked to fix.
-
-### Orient provider
-
-```json
-{ "orient": { "command": "node ./orient.mjs" } }
-```
-
-Rules or notes attached to parts of your codebase, which phax weaves into each phase's prompt for the files it plans to touch. phax asks `{"files": [...]}` and expects `{"rows": [{"id", "title", "severity", "trigger"}]}`; it asks `{"expand": "<id>"}` and expects `{"row": {..., "body"}}` or `{"row": null}`. The agent can call `phax orient` during the phase. Full contract: [`phax orient`](docs/cli/reference.md#phax-orient).
 
 ### Scope provider
 
@@ -582,7 +574,6 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax adjust-plan <FLAGS> <plan>` — Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.
 - `phax init [--force] [--yes]` — Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service.
 - `phax report [--no-gist] [short-name]` — Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.
-- `phax orient [--file <path>] [id]` — Requires an orient provider in phax.json:
 - `phax completions <shell>` — Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.
 - `phax resume [FLAGS] <short-name>` — Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Prompts for confirmation before proceeding unless --yes is set.
 - `phax reset-phase [FLAGS] <short-name> [phase-id]` — Reset a stuck or failed phase so phax resume re-runs it from scratch

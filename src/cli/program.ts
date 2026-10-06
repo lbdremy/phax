@@ -34,7 +34,6 @@ import { runInit } from "./commands/init.js";
 import { registerSchemaCommand } from "./commands/schema.js";
 import { runCompletions } from "./commands/completions.js";
 import { runReport } from "./commands/report.js";
-import { runOrient } from "./commands/orient.js";
 
 export function buildProgram(): Command {
   const program = new Command();
@@ -331,18 +330,6 @@ export function buildProgram(): Command {
     .option("--no-gist", "Inline the full log in the issue body instead of creating a secret gist")
     .action(async (shortName: string | undefined, opts: { noGist?: boolean }) => {
       const exitCode = await runReport(shortName, opts, consoleOutput);
-      process.exit(exitCode);
-    });
-
-  program
-    .command("orient")
-    .description(
-      "Pull orientation from the configured orient provider: expand a row by id, or pass --file to get an index for an arbitrary file",
-    )
-    .argument("[id]", "Row id to expand")
-    .option("--file <path>", "Return an index for an arbitrary file instead of expanding a row id")
-    .action(async (id: string | undefined, opts: { file?: string }) => {
-      const exitCode = await runOrient(id, opts, consoleOutput);
       process.exit(exitCode);
     });
 

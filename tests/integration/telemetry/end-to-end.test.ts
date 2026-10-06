@@ -207,5 +207,22 @@ describe("executePlan — semantic telemetry end-to-end", () => {
     // Snapshot the semantic trace projection for the contract.
     const snapshot = fakeTelemetry.impl.getSemanticTraceSnapshot();
     expect(snapshot).toMatchSnapshot("semantic-trace-snapshot");
+
+    // Every traced event is one of the ten semantic event types.
+    const knownTypes = new Set([
+      "state.transition",
+      "adapter.call.started",
+      "adapter.call.succeeded",
+      "adapter.call.failed",
+      "step.started",
+      "step.completed",
+      "gate.evaluated",
+      "artifact.generated",
+      "agent.model.resolved",
+      "security.policy.applied",
+    ]);
+    for (const entry of snapshot) {
+      expect(knownTypes.has(entry.type), entry.type).toBe(true);
+    }
   });
 });

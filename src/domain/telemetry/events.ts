@@ -102,31 +102,6 @@ export interface SecurityPolicyAppliedTelemetryEvent {
   }[];
 }
 
-export interface OrientBriefComputedTelemetryEvent {
-  readonly type: "orient.brief.computed";
-  readonly runId: RunId;
-  readonly operationId?: string;
-  readonly phase: string;
-  readonly fileCount: number;
-  readonly rowCount: number;
-}
-
-export interface OrientPullServedTelemetryEvent {
-  readonly type: "orient.pull.served";
-  readonly runId: RunId;
-  readonly operationId?: string;
-  readonly kind: "expand" | "file";
-  readonly subject: string;
-}
-
-export interface OrientPullEmptyTelemetryEvent {
-  readonly type: "orient.pull.empty";
-  readonly runId: RunId;
-  readonly operationId?: string;
-  readonly kind: "expand" | "file";
-  readonly subject: string;
-}
-
 export type SemanticTelemetryEvent =
   | StateTransitionTelemetryEvent
   | AdapterCallStartedTelemetryEvent
@@ -137,10 +112,7 @@ export type SemanticTelemetryEvent =
   | GateEvaluatedTelemetryEvent
   | ArtifactGeneratedTelemetryEvent
   | ModelResolvedTelemetryEvent
-  | SecurityPolicyAppliedTelemetryEvent
-  | OrientBriefComputedTelemetryEvent
-  | OrientPullServedTelemetryEvent
-  | OrientPullEmptyTelemetryEvent;
+  | SecurityPolicyAppliedTelemetryEvent;
 
 export const makeStateTransitionTelemetryEvent = (
   fields: Omit<StateTransitionTelemetryEvent, "type">,
@@ -184,15 +156,3 @@ export const makeSecurityPolicyAppliedTelemetryEvent = (
   type: "security.policy.applied",
   ...fields,
 });
-
-export const makeOrientBriefComputedTelemetryEvent = (
-  fields: Omit<OrientBriefComputedTelemetryEvent, "type">,
-): OrientBriefComputedTelemetryEvent => ({ type: "orient.brief.computed", ...fields });
-
-export const makeOrientPullServedTelemetryEvent = (
-  fields: Omit<OrientPullServedTelemetryEvent, "type">,
-): OrientPullServedTelemetryEvent => ({ type: "orient.pull.served", ...fields });
-
-export const makeOrientPullEmptyTelemetryEvent = (
-  fields: Omit<OrientPullEmptyTelemetryEvent, "type">,
-): OrientPullEmptyTelemetryEvent => ({ type: "orient.pull.empty", ...fields });
