@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-06
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-06
+  baseline: 96c361e
 ---
 # Brief provider — a feed-forward brief of guarantees and their state, pushed into the phase's first prompt and pulled with `phax brief`
 
