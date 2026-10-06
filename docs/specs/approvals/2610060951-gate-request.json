@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
   "artifact": "docs/specs/2610060951-gate-request.md",
-  "specFingerprint": "0a5f5442c688cc9cbbdc249c8a90e7d5bcd0696bcc0bf8a8271297303a7bf044",
-  "approvedAt": "2026-10-06T12:01:26.296Z",
-  "baseline": "145c98447517ca75ac4ee170a5fa494ad6f65a7a"
+  "specFingerprint": "011b3dda3e48235fe84ad1e351ba6807b4aa4aebad3f95553c590ec1bb69feb5",
+  "approvedAt": "2026-10-06T13:45:37.642Z",
+  "baseline": "6a8f4218f1275cb68276ae703b8ea4162c94f800"
 }
