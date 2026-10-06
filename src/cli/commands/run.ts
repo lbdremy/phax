@@ -71,8 +71,9 @@ export function pickGateProfileId(config: ResolvedConfig): string | null {
 }
 
 // Render the run-completion report (spec 27 §6) as output lines: one line per
-// completed artifact carrying its short commit hash, and — when the chain gate
-// kept the source spec live — a skip line naming the blocking plans. Pure
+// completed artifact carrying its short commit hash, and — when the source spec
+// stayed live — a kept line: naming the blocking plans when the chain gate kept
+// it, or saying the plan does not complete it (completes-spec: false). Pure
 // formatting; presence of the per-artifact commit-hash lines is normative, the
 // wording is not.
 export function renderArtifactCompletions(report: RunCompletionReport): string[] {
@@ -84,11 +85,14 @@ export function renderArtifactCompletions(report: RunCompletionReport): string[]
       lines.push(`✓ completed ${t.path} — already complete`);
     }
   }
-  if (report.skippedSpec !== undefined) {
-    lines.push(`○ spec ${report.skippedSpec.path} kept: non-terminal dependent plans remain`);
-    for (const blocker of report.skippedSpec.blockedBy) {
+  const kept = report.keptSpec;
+  if (kept?.reason === "blocked") {
+    lines.push(`○ spec ${kept.path} kept: non-terminal dependent plans remain`);
+    for (const blocker of kept.blockedBy) {
       lines.push(`    ${blocker.path}    ${blocker.status}`);
     }
+  } else if (kept?.reason === "not-completing") {
+    lines.push(`○ spec ${kept.path} kept: this plan does not complete it (completes-spec: false)`);
   }
   return lines;
 }

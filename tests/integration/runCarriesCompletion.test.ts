@@ -104,8 +104,8 @@ function makeConfig(stateRoot: string): ResolvedConfig {
   };
 }
 
-function planMd(status: string, sourceSpec: string): string {
-  const completes = sourceSpec === "null" ? "" : "completes-spec: true\n";
+function planMd(status: string, sourceSpec: string, completesSpec = true): string {
+  const completes = sourceSpec === "null" ? "" : `completes-spec: ${completesSpec}\n`;
   return `---\nstatus: ${status}\nsource-spec: ${sourceSpec}\n${completes}---\n# Some plan\n\n## Overview\n\nBody.\n`;
 }
 
@@ -129,12 +129,17 @@ function planRecordJson(): string {
 }
 
 /** Lay out the lifecycle artifacts inside the final phase's worktree. */
-async function seedWorktreeArtifacts(worktreePath: string, planStatus: string, sourceSpec: string) {
+async function seedWorktreeArtifacts(
+  worktreePath: string,
+  planStatus: string,
+  sourceSpec: string,
+  completesSpec = true,
+) {
   await mkdir(join(worktreePath, ".phax-context"), { recursive: true });
   await writeFile(join(worktreePath, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
   await mkdir(join(worktreePath, "docs", "plans"), { recursive: true });
   await mkdir(join(worktreePath, "docs", "specs"), { recursive: true });
-  await writeFile(join(worktreePath, PLAN_REL), planMd(planStatus, sourceSpec));
+  await writeFile(join(worktreePath, PLAN_REL), planMd(planStatus, sourceSpec, completesSpec));
   await mkdir(join(worktreePath, "docs", "plans", "approvals"), { recursive: true });
   await writeFile(join(worktreePath, PLAN_RECORD), planRecordJson());
   if (sourceSpec !== "null") {
@@ -270,6 +275,83 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
     expect(existsSync(join(runPath, "review-handoff.md"))).toBe(true);
     const commitCalls = fakeGit.impl.calls.filter((c) => c.method === "commitPaths");
     expect(commitCalls).toHaveLength(2);
+
+    // The spec outcome reaches the run folder and the review handoff.
+    const shortHash = specTransition?.commit?.hash.slice(0, 7) ?? "";
+    const outcome = await readFile(join(runPath, "source-spec-outcome.md"), "utf8");
+    expect(outcome).toContain(`${SPEC_ARCHIVE}\` — completed on this branch (${shortHash})`);
+    const handoff = await readFile(join(runPath, "review-handoff.md"), "utf8");
+    expect(handoff).toContain(`## Source spec\n\n${outcome.trimEnd()}`);
+
+    const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
+      state: string;
+    };
+    expect(runStatus.state).toBe("review_open");
+  });
+
+  it("with completes-spec: false, completes only the plan and states the kept spec in the handoff", async () => {
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+    const config = makeConfig(stateRoot);
+    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+
+    const { fakeGit, fakeShell, fakeBackend } = commonFakes(worktreePath);
+    // Only the plan's transition checks dirtyPaths: clean pre-write, its write set post-write.
+    fakeGit.impl.enqueueDirtyPaths([]);
+    fakeGit.impl.enqueueDirtyPaths([PLAN_REL]);
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      makeFakeGitHub().layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+    );
+
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, "# My Plan", plan, config, PLAN_REL).pipe(Effect.provide(layers)),
+    );
+    await seedWorktreeArtifacts(worktreePath, "Approved", SPEC_REL, false);
+    const specBefore = await readFile(join(worktreePath, SPEC_REL), "utf8");
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          namespace: "test-project",
+          plan,
+          planMd: "# My Plan",
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+          planRepoRelPath: PLAN_REL,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+    if (Either.isLeft(result)) console.error("FAILED:", result.left);
+    expect(Either.isRight(result)).toBe(true);
+    if (!Either.isRight(result)) return;
+
+    const report = result.right.artifactCompletions;
+    expect(report?.transitions).toHaveLength(1);
+    expect(report?.transitions[0]).toMatchObject({ kind: "plan", path: PLAN_ARCHIVE });
+    expect(report?.keptSpec).toEqual({ reason: "not-completing", path: SPEC_REL });
+
+    // The run branch carries only the plan's completion; the spec is untouched.
+    const commitCalls = fakeGit.impl.calls.filter((c) => c.method === "commitPaths");
+    expect(commitCalls).toHaveLength(1);
+    expect(await readFile(join(worktreePath, PLAN_ARCHIVE), "utf8")).toContain("status: Completed");
+    expect(await readFile(join(worktreePath, SPEC_REL), "utf8")).toBe(specBefore);
+    expect(existsSync(join(worktreePath, SPEC_ARCHIVE))).toBe(false);
+
+    const keptLine = `\`${SPEC_REL}\` — kept: this plan does not complete it (completes-spec: false)`;
+    expect(await readFile(join(runPath, "source-spec-outcome.md"), "utf8")).toBe(`${keptLine}\n`);
+    const handoff = await readFile(join(runPath, "review-handoff.md"), "utf8");
+    expect(handoff).toContain(`## Source spec\n\n${keptLine}\n`);
 
     const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
       state: string;

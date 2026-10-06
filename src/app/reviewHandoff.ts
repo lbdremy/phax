@@ -10,7 +10,11 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { writeFinalReport } from "./finalReport.js";
 import { generateGlobalReconciliation } from "./generateGlobalReconciliation.js";
-import { loadPhaseContents, type PhaseContent } from "./loadReviewHandoffInputs.js";
+import {
+  loadPhaseContents,
+  loadSourceSpecOutcome,
+  type PhaseContent,
+} from "./loadReviewHandoffInputs.js";
 
 export interface GenerateReviewHandoffOpts {
   readonly allowPartial: boolean;
@@ -19,6 +23,16 @@ export interface GenerateReviewHandoffOpts {
 export type { PhaseContent };
 
 const PLAN_COMPLIANCE_REVIEW_HEADING = "## Plan compliance review";
+const SOURCE_SPEC_HEADING = "## Source spec";
+
+// Optional run-folder fragments a handoff build may carry. Each one, when
+// present, renders as its own section; when absent, no section appears.
+export interface ReviewHandoffExtras {
+  // The plan compliance review (compliance-review.md).
+  readonly complianceReviewMd?: string | undefined;
+  // The source-spec outcome written by run completion (source-spec-outcome.md).
+  readonly sourceSpecOutcomeMd?: string | undefined;
+}
 
 function buildUnexplainedSection(
   global: GlobalFileReconciliation,
@@ -63,8 +77,9 @@ export function buildReviewHandoffContent(
   global: GlobalFileReconciliation,
   globalMd: string,
   phases: readonly PhaseContent[],
-  complianceReviewMd?: string,
+  extras: ReviewHandoffExtras = {},
 ): string {
+  const { complianceReviewMd, sourceSpecOutcomeMd } = extras;
   const passed = info.phaseStatuses.filter(
     (p) => isPhaseTerminal(p.state) && p.state !== "skipped",
   ).length;
@@ -102,7 +117,7 @@ export function buildReviewHandoffContent(
 - **Gate Profile**: ${info.gateProfileId ?? "(none)"}
 - **Phases**: ${passed}/${total} passed
 - See [final-report.md](final-report.md) for security details and entry/resume instructions.
-
+${sourceSpecOutcomeMd !== undefined ? `\n${SOURCE_SPEC_HEADING}\n\n${sourceSpecOutcomeMd.trimEnd()}\n` : ""}
 ${globalMd}
 
 ## Global unplanned changes
@@ -160,7 +175,10 @@ export function generateReviewHandoff(
       );
     }
 
-    const reviewHandoffContent = buildReviewHandoffContent(info, global, globalMd, phaseContents);
+    const sourceSpecOutcomeMd = yield* loadSourceSpecOutcome(info);
+    const reviewHandoffContent = buildReviewHandoffContent(info, global, globalMd, phaseContents, {
+      sourceSpecOutcomeMd,
+    });
     yield* fs.writeAtomic(join(info.runPath, "review-handoff.md"), reviewHandoffContent);
 
     yield* writeFinalReport(info);

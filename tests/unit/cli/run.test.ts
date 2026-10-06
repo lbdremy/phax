@@ -666,7 +666,8 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
             alreadyComplete: false,
           },
         ],
-        skippedSpec: {
+        keptSpec: {
+          reason: "blocked",
           path: "docs/specs/2609101270-run-carry.md",
           blockedBy: [{ path: "docs/plans/2609101271-sibling-plan.md", status: "Approved" }],
         },
@@ -678,9 +679,40 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
     await runRun({ plan: "plan.md" }, out);
 
     const stdout = lines.join("\n");
-    expect(stdout).toContain("spec docs/specs/2609101270-run-carry.md kept");
-    expect(stdout).toContain("docs/plans/2609101271-sibling-plan.md");
-    expect(stdout).toContain("Approved");
+    expect(stdout).toContain(
+      "○ spec docs/specs/2609101270-run-carry.md kept: non-terminal dependent plans remain",
+    );
+    expect(stdout).toContain("    docs/plans/2609101271-sibling-plan.md    Approved");
+    expect(stdout).not.toContain("does not complete it");
+  });
+
+  it("renders the kept line when the plan does not complete its spec", async () => {
+    await setupSuccessRun({
+      committedPhases: ["phase-01"],
+      finalPhaseId: "phase-01",
+      artifactCompletions: {
+        transitions: [
+          {
+            kind: "plan",
+            path: "docs/plans/archive/2609101270-run-carry-plan.md",
+            commit: { hash: "9c2d411abcdef0123456789", subject: "chore(plans): complete" },
+            alreadyComplete: false,
+          },
+        ],
+        keptSpec: { reason: "not-completing", path: "docs/specs/2609101270-run-carry.md" },
+      },
+    });
+
+    const { runRun } = await import("../../../src/cli/commands/run.js");
+    const { out, lines } = makeOutput();
+    await runRun({ plan: "plan.md" }, out);
+
+    const stdout = lines.join("\n");
+    expect(stdout).toContain("completed docs/plans/archive/2609101270-run-carry-plan.md — 9c2d411");
+    expect(stdout).toContain(
+      "○ spec docs/specs/2609101270-run-carry.md kept: this plan does not complete it (completes-spec: false)",
+    );
+    expect(stdout).not.toContain("non-terminal dependent plans remain");
   });
 
   it("renders nothing extra when the completion report is empty", async () => {

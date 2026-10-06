@@ -391,7 +391,7 @@ export function publishRun(
         { baseBranch },
       );
     }
-    const { global, globalMd, phaseContents } = loadResult.right;
+    const { global, globalMd, phaseContents, sourceSpecOutcomeMd } = loadResult.right;
 
     const title = selectPrTitle({
       ...(publish.title !== undefined ? { configuredTitle: publish.title } : {}),
@@ -406,13 +406,10 @@ export function publishRun(
       ? complianceReadResult.right
       : undefined;
 
-    const reviewHandoffMd = buildReviewHandoffContent(
-      info,
-      global,
-      globalMd,
-      phaseContents,
+    const reviewHandoffMd = buildReviewHandoffContent(info, global, globalMd, phaseContents, {
       complianceReviewMd,
-    );
+      sourceSpecOutcomeMd,
+    });
 
     const built = buildPrBody({
       reviewHandoffMd,

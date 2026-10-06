@@ -29,14 +29,47 @@ export interface RunCompletionTransition {
   readonly alreadyComplete: boolean;
 }
 
-export interface RunCompletionSkippedSpec {
-  readonly path: string;
-  readonly blockedBy: readonly { readonly path: string; readonly status: string }[];
-}
+// Why the run left its source spec live: the chain gate found live dependent
+// plans (`blocked`), or the plan says it does not complete its spec
+// (`completes-spec: false` → `not-completing`).
+export type RunCompletionKeptSpec =
+  | {
+      readonly reason: "blocked";
+      readonly path: string;
+      readonly blockedBy: readonly { readonly path: string; readonly status: string }[];
+    }
+  | { readonly reason: "not-completing"; readonly path: string };
 
 export interface RunCompletionReport {
   readonly transitions: readonly RunCompletionTransition[];
-  readonly skippedSpec?: RunCompletionSkippedSpec;
+  readonly keptSpec?: RunCompletionKeptSpec;
+}
+
+// Run-folder fragment carrying the rendered source-spec outcome from run
+// completion to every later review-handoff build (generate, regenerate,
+// publish). Absent when the plan has no spec outcome to state.
+export const SOURCE_SPEC_OUTCOME_FILENAME = "source-spec-outcome.md";
+
+// Renders the source-spec outcome of a run-completion report as the body of the
+// review handoff's `## Source spec` section, or undefined when the report states
+// no spec outcome (loose plan, spec-less plan, spec neither Approved nor Completed).
+export function renderSourceSpecOutcome(report: RunCompletionReport): string | undefined {
+  const spec = report.transitions.find((t) => t.kind === "spec");
+  if (spec !== undefined) {
+    if (spec.commit !== undefined) {
+      return `\`${spec.path}\` — completed on this branch (${spec.commit.hash.slice(0, 7)})`;
+    }
+    return `\`${spec.path}\` — already complete`;
+  }
+  const kept = report.keptSpec;
+  if (kept === undefined) {
+    return undefined;
+  }
+  if (kept.reason === "not-completing") {
+    return `\`${kept.path}\` — kept: this plan does not complete it (completes-spec: false)`;
+  }
+  const blockers = kept.blockedBy.map((b) => `${b.path}, ${b.status}`).join("; ");
+  return `\`${kept.path}\` — kept: live plans remain (${blockers})`;
 }
 
 export interface CompleteRunArtifactsInput {
@@ -67,8 +100,9 @@ export type RunCompletionError =
   | GitError;
 
 // Applies the plan's Approved → Completed transition inside the run worktree,
-// then rides the source spec's transition along where the chain gate allows,
-// reporting a blocked spec as a skip rather than a failure. Transitions run
+// then — only when the plan says `completes-spec: true` — rides the source
+// spec's transition along where the chain gate allows, reporting a kept spec
+// (blocked, or not completed by this plan) rather than a failure. Transitions run
 // through transitionArtifact unchanged, against a `rootedAt` view of the
 // FileSystem so the filesystem and git sides agree on the worktree tree.
 export function completeRunArtifacts(
@@ -120,6 +154,11 @@ function completeInWorktree(
     if (declaration === null || declaration.kind !== "spec") {
       return { transitions };
     }
+    // A plan that is not its spec's last leaves the spec wholly untouched: no
+    // resolve, read, validation or transition.
+    if (!declaration.completesSpec) {
+      return { transitions, keptSpec: { reason: "not-completing", path: declaration.path } };
+    }
     const specPath = yield* resolveDeclaredSpec(declaration.path);
     if (specPath === null) {
       return { transitions };
@@ -139,13 +178,13 @@ function completeInWorktree(
     }
 
     // The chain gate is evaluated by transitionArtifact itself; a live dependent
-    // surfaces as SpecRetirementBlockedError, which becomes a skip report.
+    // surfaces as SpecRetirementBlockedError, which becomes a kept-spec report.
     const specResult = yield* Effect.either(transitionArtifact(specPath, "Completed", opts));
     if (Either.isLeft(specResult)) {
       if (specResult.left instanceof SpecRetirementBlockedError) {
         return {
           transitions,
-          skippedSpec: { path: specPath, blockedBy: specResult.left.dependents },
+          keptSpec: { reason: "blocked", path: specPath, blockedBy: specResult.left.dependents },
         };
       }
       return yield* Effect.fail(specResult.left);

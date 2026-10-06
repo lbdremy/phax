@@ -338,4 +338,40 @@ describe("publishRun", () => {
     expect(prBodyFile).toBeDefined();
     expect(prBodyFile).not.toContain("## Plan compliance review");
   });
+
+  it("states the source-spec outcome in the PR body when source-spec-outcome.md exists", async () => {
+    const { fs, git, github, layers } = setupLayers();
+    seedSuccessPreconditions({ fs, git });
+    github.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/42");
+
+    const outcome =
+      "`docs/specs/2609101270-demo.md` — kept: this plan does not complete it (completes-spec: false)";
+    fs.impl.setFile(`${runPath}/source-spec-outcome.md`, `${outcome}\n`);
+
+    await Effect.runPromise(
+      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
+        Effect.provide(layers),
+      ),
+    );
+
+    const prBodyFile = fs.impl.getFile(`${runPath}/pr-body.md`);
+    expect(prBodyFile).toBeDefined();
+    expect(prBodyFile).toContain(`## Source spec\n\n${outcome}\n`);
+  });
+
+  it("PR body has no Source spec section when source-spec-outcome.md is absent", async () => {
+    const { fs, git, github, layers } = setupLayers();
+    seedSuccessPreconditions({ fs, git });
+    github.impl.setCreatedPrUrl("https://github.com/owner/repo/pull/42");
+
+    await Effect.runPromise(
+      publishRun(makeInfo(), defaultConfig(), { repoRoot, now: constNow }).pipe(
+        Effect.provide(layers),
+      ),
+    );
+
+    const prBodyFile = fs.impl.getFile(`${runPath}/pr-body.md`);
+    expect(prBodyFile).toBeDefined();
+    expect(prBodyFile).not.toContain("## Source spec");
+  });
 });

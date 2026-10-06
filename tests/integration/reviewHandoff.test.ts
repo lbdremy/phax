@@ -189,6 +189,35 @@ describe("generateReviewHandoff", () => {
     expect(handoff).toContain("Global File Reconciliation");
   });
 
+  it("review-handoff.md carries the run folder's source-spec outcome under ## Source spec", async () => {
+    const { impl, layers } = setupLayers();
+    const info = makeRunReviewInfo(["phase-01"]);
+    setupPhaseFiles(impl, "phase-01", makeEmptyReconciliationJson("phase-01"));
+    const outcome =
+      "`docs/specs/2609101270-demo.md` — kept: this plan does not complete it (completes-spec: false)";
+    impl.setFile(`${runPath}/source-spec-outcome.md`, `${outcome}\n`);
+
+    await Effect.runPromise(
+      generateReviewHandoff(info, { allowPartial: false }).pipe(Effect.provide(layers)),
+    );
+
+    const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
+    expect(handoff).toContain(`## Source spec\n\n${outcome}\n`);
+  });
+
+  it("review-handoff.md has no ## Source spec section without the outcome fragment", async () => {
+    const { impl, layers } = setupLayers();
+    const info = makeRunReviewInfo(["phase-01"]);
+    setupPhaseFiles(impl, "phase-01", makeEmptyReconciliationJson("phase-01"));
+
+    await Effect.runPromise(
+      generateReviewHandoff(info, { allowPartial: false }).pipe(Effect.provide(layers)),
+    );
+
+    const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
+    expect(handoff).not.toContain("## Source spec");
+  });
+
   it("review-handoff.md embeds per-phase file-reconciliation.md content verbatim", async () => {
     const { impl, layers } = setupLayers();
     const info = makeRunReviewInfo(["phase-01"]);

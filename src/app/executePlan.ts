@@ -44,7 +44,12 @@ import { Git, type GitError } from "../ports/git.js";
 import { GitHub } from "../ports/github.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
-import { completeRunArtifacts, type RunCompletionReport } from "./completeRunArtifacts.js";
+import {
+  completeRunArtifacts,
+  renderSourceSpecOutcome,
+  SOURCE_SPEC_OUTCOME_FILENAME,
+  type RunCompletionReport,
+} from "./completeRunArtifacts.js";
 import { publishRun } from "./publishRun.js";
 import { reviewCompliance } from "./reviewCompliance.js";
 import {
@@ -1218,6 +1223,17 @@ export function executePlan(
               }),
             ),
           );
+          // The spec outcome reaches every later handoff build (this one,
+          // `phax review-handoff`, publish) through a run-folder fragment; a
+          // resume re-entering completion rewrites it identically.
+          const sourceSpecOutcome = renderSourceSpecOutcome(artifactCompletions);
+          if (sourceSpecOutcome !== undefined) {
+            const fs = yield* FileSystem;
+            yield* fs.writeAtomic(
+              join(infoResult.right.runPath, SOURCE_SPEC_OUTCOME_FILENAME),
+              `${sourceSpecOutcome}\n`,
+            );
+          }
         }
 
         // running/{committed} → review_open. The reducer emits OpenRunReview

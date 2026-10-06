@@ -6,6 +6,7 @@ import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   completeRunArtifacts,
+  renderSourceSpecOutcome,
   type RunCompletionReport,
 } from "../../src/app/completeRunArtifacts.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
@@ -24,8 +25,8 @@ const SPEC_ARCHIVE = "docs/specs/archive/2609101270-run-carry.md";
 const PLAN_RECORD = "docs/plans/approvals/2609101270-run-carry-plan.json";
 const SPEC_RECORD = "docs/specs/approvals/2609101270-run-carry.json";
 
-function planMd(status: string, sourceSpec: string): string {
-  const completes = sourceSpec === "null" ? "" : "completes-spec: true\n";
+function planMd(status: string, sourceSpec: string, completesSpec = true): string {
+  const completes = sourceSpec === "null" ? "" : `completes-spec: ${completesSpec}\n`;
   return `---\nstatus: ${status}\nsource-spec: ${sourceSpec}\n${completes}---\n# Some plan\n\n## Overview\n\nBody text.\n`;
 }
 
@@ -174,9 +175,9 @@ describe("completeRunArtifacts", () => {
     expect(git(["status", "--porcelain"]).trim()).toBe("");
   });
 
-  it("rides the source spec along in a second, separate commit", async () => {
+  it("with completes-spec: true, rides the source spec along in a second, separate commit", async () => {
     writeRepoFile(SPEC_PATH, specMd("Approved"));
-    writeRepoFile(PLAN_PATH, planMd("Approved", SPEC_PATH));
+    writeRepoFile(PLAN_PATH, planMd("Approved", SPEC_PATH, true));
     writePlanRecord(PLAN_PATH, SPEC_PATH);
     writeSpecRecord(SPEC_PATH);
     commitAll();
@@ -185,8 +186,8 @@ describe("completeRunArtifacts", () => {
 
     expect(Either.isRight(result)).toBe(true);
     if (!Either.isRight(result)) return;
-    const { transitions, skippedSpec } = result.right;
-    expect(skippedSpec).toBeUndefined();
+    const { transitions, keptSpec } = result.right;
+    expect(keptSpec).toBeUndefined();
     expect(transitions).toHaveLength(2);
     const plan = transitions.find((t) => t.kind === "plan");
     const spec = transitions.find((t) => t.kind === "spec");
@@ -207,11 +208,11 @@ describe("completeRunArtifacts", () => {
     expect(git(["status", "--porcelain"]).trim()).toBe("");
   });
 
-  it("skips the spec when a sibling plan still depends on it, naming the blocker", async () => {
+  it("with completes-spec: true, keeps the spec when a sibling plan still depends on it, naming the blocker", async () => {
     const siblingPath = "docs/plans/2609101271-sibling-plan.md";
     writeRepoFile(SPEC_PATH, specMd("Approved"));
-    writeRepoFile(PLAN_PATH, planMd("Approved", SPEC_PATH));
-    writeRepoFile(siblingPath, planMd("Approved", SPEC_PATH));
+    writeRepoFile(PLAN_PATH, planMd("Approved", SPEC_PATH, true));
+    writeRepoFile(siblingPath, planMd("Approved", SPEC_PATH, false));
     writePlanRecord(PLAN_PATH, SPEC_PATH);
     commitAll();
 
@@ -219,16 +220,75 @@ describe("completeRunArtifacts", () => {
 
     expect(Either.isRight(result)).toBe(true);
     if (!Either.isRight(result)) return;
-    const { transitions, skippedSpec } = result.right;
+    const { transitions, keptSpec } = result.right;
     expect(transitions).toHaveLength(1);
     expect(transitions[0]).toMatchObject({ kind: "plan", alreadyComplete: false });
-    expect(skippedSpec).toEqual({
+    expect(keptSpec).toEqual({
+      reason: "blocked",
       path: SPEC_PATH,
       blockedBy: [{ path: siblingPath, status: "Approved" }],
     });
     // The spec stays put and Approved.
     expect(readRepoFile(SPEC_PATH)).toContain("status: Approved");
     expect(readRepoFile(SPEC_ARCHIVE)).toBeUndefined();
+  });
+
+  it("with completes-spec: false, completes only the plan and leaves the spec and its record untouched", async () => {
+    writeRepoFile(SPEC_PATH, specMd("Approved"));
+    writeRepoFile(PLAN_PATH, planMd("Approved", SPEC_PATH, false));
+    writePlanRecord(PLAN_PATH, SPEC_PATH);
+    writeSpecRecord(SPEC_PATH);
+    commitAll();
+    const before = headCount();
+    const specBefore = readRepoFile(SPEC_PATH);
+    const specRecordBefore = readRepoFile(SPEC_RECORD);
+
+    const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
+
+    expect(Either.isRight(result)).toBe(true);
+    if (!Either.isRight(result)) return;
+    const { transitions, keptSpec } = result.right;
+    expect(transitions).toHaveLength(1);
+    expect(transitions[0]).toMatchObject({
+      kind: "plan",
+      path: PLAN_ARCHIVE,
+      alreadyComplete: false,
+    });
+    expect(keptSpec).toEqual({ reason: "not-completing", path: SPEC_PATH });
+    // Exactly one commit — the plan's — and it touches nothing of the spec.
+    expect(headCount()).toBe(before + 1);
+    const planDiff = git(["show", "--name-status", transitions[0]?.commit?.hash as string]);
+    expect(planDiff).not.toContain(SPEC_PATH);
+    expect(planDiff).not.toContain(SPEC_RECORD);
+    // The spec keeps its status, location and approval record file.
+    expect(readRepoFile(SPEC_PATH)).toBe(specBefore);
+    expect(readRepoFile(SPEC_PATH)).toContain("status: Approved");
+    expect(readRepoFile(SPEC_ARCHIVE)).toBeUndefined();
+    expect(readRepoFile(SPEC_RECORD)).toBe(specRecordBefore);
+    expect(git(["status", "--porcelain"]).trim()).toBe("");
+  });
+
+  it("with completes-spec: false, idempotent re-entry makes no commit and still keeps the spec", async () => {
+    writeRepoFile(SPEC_PATH, specMd("Approved"));
+    writeRepoFile(PLAN_PATH, planMd("Approved", SPEC_PATH, false));
+    writePlanRecord(PLAN_PATH, SPEC_PATH);
+    writeSpecRecord(SPEC_PATH);
+    commitAll();
+
+    const first = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
+    expect(Either.isRight(first)).toBe(true);
+    const commitsAfterFirst = headCount();
+
+    const second = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
+    expect(Either.isRight(second)).toBe(true);
+    if (!Either.isRight(second)) return;
+    expect(headCount()).toBe(commitsAfterFirst);
+    expect(second.right).toEqual({
+      transitions: [{ kind: "plan", path: PLAN_ARCHIVE, alreadyComplete: true }],
+      keptSpec: { reason: "not-completing", path: SPEC_PATH },
+    });
+    expect(readRepoFile(SPEC_PATH)).toContain("status: Approved");
+    expect(readRepoFile(SPEC_RECORD)).toBeDefined();
   });
 
   it("is idempotent: a second run creates no commit and reports both already complete", async () => {
@@ -296,5 +356,67 @@ describe("completeRunArtifacts", () => {
     expect(readRepoFile(probeArchive)).toContain("status: Completed");
     // The rooting kept the write inside the worktree — the process cwd never saw it.
     expect(existsSync(cwdProbe)).toBe(false);
+  });
+});
+
+describe("renderSourceSpecOutcome", () => {
+  const planDone = {
+    kind: "plan" as const,
+    path: PLAN_ARCHIVE,
+    commit: { hash: "9c2d411abcdef", subject: "chore(plans): complete" },
+    alreadyComplete: false,
+  };
+
+  it("is undefined when the report states no spec outcome", () => {
+    expect(renderSourceSpecOutcome({ transitions: [] })).toBeUndefined();
+    expect(renderSourceSpecOutcome({ transitions: [planDone] })).toBeUndefined();
+  });
+
+  it("states a completed spec with its short hash, or already complete on re-entry", () => {
+    expect(
+      renderSourceSpecOutcome({
+        transitions: [
+          planDone,
+          {
+            kind: "spec",
+            path: SPEC_ARCHIVE,
+            commit: { hash: "1f04e22abcdef", subject: "chore(specs): complete" },
+            alreadyComplete: false,
+          },
+        ],
+      }),
+    ).toBe(`\`${SPEC_ARCHIVE}\` — completed on this branch (1f04e22)`);
+    expect(
+      renderSourceSpecOutcome({
+        transitions: [{ kind: "spec", path: SPEC_ARCHIVE, alreadyComplete: true }],
+      }),
+    ).toBe(`\`${SPEC_ARCHIVE}\` — already complete`);
+  });
+
+  it("states a spec kept by live plans, naming each blocker and its status", () => {
+    expect(
+      renderSourceSpecOutcome({
+        transitions: [planDone],
+        keptSpec: {
+          reason: "blocked",
+          path: SPEC_PATH,
+          blockedBy: [
+            { path: "docs/plans/a-plan.md", status: "Approved" },
+            { path: "docs/plans/b-plan.md", status: "Draft" },
+          ],
+        },
+      }),
+    ).toBe(
+      `\`${SPEC_PATH}\` — kept: live plans remain (docs/plans/a-plan.md, Approved; docs/plans/b-plan.md, Draft)`,
+    );
+  });
+
+  it("states a spec kept because the plan does not complete it", () => {
+    expect(
+      renderSourceSpecOutcome({
+        transitions: [planDone],
+        keptSpec: { reason: "not-completing", path: SPEC_PATH },
+      }),
+    ).toBe(`\`${SPEC_PATH}\` — kept: this plan does not complete it (completes-spec: false)`);
   });
 });
