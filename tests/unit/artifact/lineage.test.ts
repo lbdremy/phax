@@ -23,6 +23,7 @@ import {
   clearApproved,
   computeStaleness,
   readSourceSpec,
+  resolveCompletesSpec,
   specApprovalVerdict,
   stampApproved,
   STALENESS_REASONS,
@@ -84,6 +85,41 @@ describe("readSourceSpec", () => {
 
   it("returns null when the source-spec key is missing", () => {
     expect(readSourceSpec("---\nstatus: Draft\n---\n# Plan\n\n## Overview\n")).toBeNull();
+  });
+});
+
+describe("resolveCompletesSpec", () => {
+  it.each([
+    { hasSourceSpec: true, last: true, notLast: false, expected: true },
+    { hasSourceSpec: true, last: false, notLast: true, expected: false },
+    { hasSourceSpec: false, last: false, notLast: false, expected: null },
+  ])(
+    "spec $hasSourceSpec, --last $last, --not-last $notLast → $expected",
+    ({ expected, ...flags }) => {
+      expect(resolveCompletesSpec(flags)).toEqual(Either.right(expected));
+    },
+  );
+
+  it.each([
+    {
+      flags: { hasSourceSpec: true, last: false, notLast: false },
+      message:
+        "--spec needs --last (this plan is the spec's last) or --not-last (more plans follow)",
+    },
+    {
+      flags: { hasSourceSpec: true, last: true, notLast: true },
+      message: "--last and --not-last are opposites: pass exactly one with --spec",
+    },
+    {
+      flags: { hasSourceSpec: false, last: true, notLast: false },
+      message: "--last needs --spec: a plan without a source spec completes none",
+    },
+    {
+      flags: { hasSourceSpec: false, last: false, notLast: true },
+      message: "--not-last needs --spec: a plan without a source spec completes none",
+    },
+  ])("refuses: $message", ({ flags, message }) => {
+    expect(resolveCompletesSpec(flags)).toEqual(Either.left(message));
   });
 });
 

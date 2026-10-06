@@ -64,6 +64,10 @@ vi.mock("../../../src/domain/routing/resolve.js", () => ({
   resolveModel: vi.fn(),
 }));
 
+const NO_FLAGS = { last: false, notLast: false } as const;
+const LAST = { last: true, notLast: false } as const;
+const NOT_LAST = { last: false, notLast: true } as const;
+
 function makeOutput() {
   const lines: string[] = [];
   const errors: string[] = [];
@@ -464,47 +468,93 @@ describe("runCreateArtifact", () => {
   it("spec: logs the created path with (Draft), exits 0", async () => {
     const { createArtifact } = vi.mocked(await import("../../../src/app/createArtifact.js"));
     createArtifact.mockReturnValue(
-      Effect.succeed({ path: "docs/specs/2609091412-plan-prune.md", sourceSpec: null }),
+      Effect.succeed({
+        path: "docs/specs/2609091412-plan-prune.md",
+        sourceSpec: null,
+        completesSpec: null,
+      }),
     );
 
     const { out, lines } = makeOutput();
-    const code = await runCreateArtifact("spec", "plan-prune", undefined, out);
+    const code = await runCreateArtifact("spec", "plan-prune", undefined, NO_FLAGS, out);
 
     expect(code).toBe(0);
     expect(lines).toEqual(["created docs/specs/2609091412-plan-prune.md (Draft)"]);
   });
 
-  it("plan: logs the created path with the bound source-spec, exits 0", async () => {
+  it.each([
+    { completion: LAST, completesSpec: true },
+    { completion: NOT_LAST, completesSpec: false },
+  ])(
+    "plan: logs the created path with the bound source-spec and completes-spec $completesSpec, exits 0",
+    async ({ completion, completesSpec }) => {
+      const { createArtifact } = vi.mocked(await import("../../../src/app/createArtifact.js"));
+      createArtifact.mockReturnValue(
+        Effect.succeed({
+          path: "docs/plans/2609101030-plan-prune-plan.md",
+          sourceSpec: "docs/specs/2609091412-plan-prune.md",
+          completesSpec,
+        }),
+      );
+
+      const { out, lines } = makeOutput();
+      const code = await runCreateArtifact(
+        "plan",
+        "plan-prune",
+        "docs/specs/2609091412-plan-prune.md",
+        completion,
+        out,
+      );
+
+      expect(code).toBe(0);
+      expect(createArtifact).toHaveBeenCalledWith(expect.objectContaining({ completion }));
+      expect(lines).toEqual([
+        `created docs/plans/2609101030-plan-prune-plan.md (Draft, source-spec docs/specs/2609091412-plan-prune.md, completes-spec ${String(completesSpec)})`,
+      ]);
+    },
+  );
+
+  it.each([
+    {
+      completion: NO_FLAGS,
+      spec: "docs/specs/2609091412-plan-prune.md",
+      message:
+        "--spec needs --last (this plan is the spec's last) or --not-last (more plans follow)",
+    },
+    {
+      completion: { last: true, notLast: true },
+      spec: "docs/specs/2609091412-plan-prune.md",
+      message: "--last and --not-last are opposites: pass exactly one with --spec",
+    },
+    {
+      completion: LAST,
+      spec: undefined,
+      message: "--last needs --spec: a plan without a source spec completes none",
+    },
+  ])("plan: a refused flag pairing exits 12 with its message ($message)", async (c) => {
     const { createArtifact } = vi.mocked(await import("../../../src/app/createArtifact.js"));
-    createArtifact.mockReturnValue(
-      Effect.succeed({
-        path: "docs/plans/2609101030-plan-prune-plan.md",
-        sourceSpec: "docs/specs/2609091412-plan-prune.md",
-      }),
-    );
+    createArtifact.mockReturnValue(Effect.fail(new ArtifactCreationError({ message: c.message })));
 
-    const { out, lines } = makeOutput();
-    const code = await runCreateArtifact(
-      "plan",
-      "plan-prune",
-      "docs/specs/2609091412-plan-prune.md",
-      out,
-    );
+    const { out, lines, errors } = makeOutput();
+    const code = await runCreateArtifact("plan", "plan-prune", c.spec, c.completion, out);
 
-    expect(code).toBe(0);
-    expect(lines).toEqual([
-      "created docs/plans/2609101030-plan-prune-plan.md (Draft, source-spec docs/specs/2609091412-plan-prune.md)",
-    ]);
+    expect(code).toBe(12);
+    expect(errors).toEqual([c.message]);
+    expect(lines).toEqual([]);
   });
 
   it("plan: logs source-spec null when no --spec is given", async () => {
     const { createArtifact } = vi.mocked(await import("../../../src/app/createArtifact.js"));
     createArtifact.mockReturnValue(
-      Effect.succeed({ path: "docs/plans/2609101031-catalog-refresh-plan.md", sourceSpec: null }),
+      Effect.succeed({
+        path: "docs/plans/2609101031-catalog-refresh-plan.md",
+        sourceSpec: null,
+        completesSpec: null,
+      }),
     );
 
     const { out, lines } = makeOutput();
-    const code = await runCreateArtifact("plan", "catalog-refresh", undefined, out);
+    const code = await runCreateArtifact("plan", "catalog-refresh", undefined, NO_FLAGS, out);
 
     expect(code).toBe(0);
     expect(lines).toEqual([
@@ -523,7 +573,7 @@ describe("runCreateArtifact", () => {
     );
 
     const { out, errors } = makeOutput();
-    const code = await runCreateArtifact("spec", "Plan_Prune", undefined, out);
+    const code = await runCreateArtifact("spec", "Plan_Prune", undefined, NO_FLAGS, out);
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("Plan_Prune");
@@ -739,7 +789,14 @@ describe("runCreateArtifactHeadless", () => {
     const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
 
     const { out, errors } = makeOutput();
-    const code = await runCreateArtifactHeadless("spec", "plan-prune", undefined, {}, out);
+    const code = await runCreateArtifactHeadless(
+      "spec",
+      "plan-prune",
+      undefined,
+      NO_FLAGS,
+      {},
+      out,
+    );
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("--brief");
@@ -756,6 +813,7 @@ describe("runCreateArtifactHeadless", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "-" },
       out,
       { readStdin: async () => "write a spec about plan pruning" },
@@ -781,6 +839,7 @@ describe("runCreateArtifactHeadless", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "-" },
       out,
       { readStdin: async () => "brief" },
@@ -810,6 +869,7 @@ describe("runCreateArtifactHeadless", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "-" },
       out,
       { readStdin: async () => "brief" },
@@ -840,6 +900,7 @@ describe("runCreateArtifactHeadless", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "-" },
       out,
       { readStdin: async () => "brief" },
@@ -874,6 +935,7 @@ describe("runCreateArtifactHeadless", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "-" },
       out,
       { readStdin: async () => "brief" },
@@ -896,6 +958,7 @@ describe("runCreateArtifactHeadless", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "-" },
       out,
       { readStdin: async () => "brief" },
@@ -917,6 +980,7 @@ describe("runCreateArtifactHeadless", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "-" },
       out,
       { readStdin: async () => "brief" },
@@ -936,6 +1000,7 @@ describe("runCreateArtifactHeadless", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "-", model: "flag-model", effort: "high" },
       out,
       { readStdin: async () => "brief" },
@@ -956,6 +1021,7 @@ describe("runCreateArtifactHeadless", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "-" },
       out,
       { readStdin: async () => "brief" },
@@ -966,6 +1032,52 @@ describe("runCreateArtifactHeadless", () => {
     );
   });
 
+  it("passes the raw --last/--not-last flags to authorArtifact", async () => {
+    await mockHappyPathConfig();
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+    authorArtifact.mockReturnValue(Effect.succeed(authoredResult(WRITTEN_RECORD)));
+
+    const { out } = makeOutput();
+    await runCreateArtifactHeadless(
+      "plan",
+      "plan-prune",
+      "docs/specs/2609091412-plan-prune.md",
+      NOT_LAST,
+      { headless: true, brief: "-" },
+      out,
+      { readStdin: async () => "brief" },
+    );
+
+    expect(authorArtifact).toHaveBeenCalledWith(expect.objectContaining({ completion: NOT_LAST }));
+  });
+
+  it("failure: a bad --last/--not-last pairing exits 12", async () => {
+    await mockHappyPathConfig();
+    const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
+    authorArtifact.mockReturnValue(
+      Effect.fail(
+        new ArtifactCreationError({
+          message:
+            "--spec needs --last (this plan is the spec's last) or --not-last (more plans follow)",
+        }),
+      ),
+    );
+
+    const { out, errors } = makeOutput();
+    const code = await runCreateArtifactHeadless(
+      "plan",
+      "plan-prune",
+      "docs/specs/2609091412-plan-prune.md",
+      NO_FLAGS,
+      { headless: true, brief: "-" },
+      out,
+      { readStdin: async () => "brief" },
+    );
+
+    expect(code).toBe(12);
+    expect(errors.join("\n")).toContain("--spec needs --last");
+  });
+
   it("invalid --effort refuses before calling authorArtifact", async () => {
     const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
 
@@ -974,6 +1086,7 @@ describe("runCreateArtifactHeadless", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "-", effort: "extreme" },
       out,
     );
