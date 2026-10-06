@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+  "artifact": "docs/specs/2610061345-drop-gate-scopes.md",
+  "specFingerprint": "b9681228dcec92f613cff368a00f705c983762bf8ba19fdab7009c15b7405440",
+  "approvedAt": "2026-10-06T13:55:04.088Z",
+  "baseline": "dbcbfee39e1ed300de71723c18f3d92ffd570ede"
+}
