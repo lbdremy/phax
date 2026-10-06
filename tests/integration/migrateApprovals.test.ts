@@ -79,7 +79,8 @@ function ledgerJson(
 }
 
 function planMd(status: string, sourceSpec = "null"): string {
-  return `---\nstatus: ${status}\nsource-spec: ${sourceSpec}\n---\n# Some plan\n\n## Overview\n\nBody text.\n`;
+  const completes = sourceSpec === "null" ? "" : "completes-spec: true\n";
+  return `---\nstatus: ${status}\nsource-spec: ${sourceSpec}\n${completes}---\n# Some plan\n\n## Overview\n\nBody text.\n`;
 }
 
 function specMd(status: string): string {

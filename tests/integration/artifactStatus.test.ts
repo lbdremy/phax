@@ -46,10 +46,11 @@ Body text.
 `;
 
 function planMd(status: string, sourceSpec: string): string {
+  const completes = sourceSpec === "null" ? "" : "completes-spec: true\n";
   return `---
 status: ${status}
 source-spec: ${sourceSpec}
----
+${completes}---
 # Some plan
 
 ## Overview
@@ -408,6 +409,34 @@ describe("transitionArtifact", () => {
       expect(result.left).toBeInstanceOf(ArtifactValidationError);
     }
     expect(fsImpl.getFile("docs/specs/2609101221-foo.md")).toBe(NO_STATUS_PLAN);
+  });
+
+  it("refuses to approve a plan naming a spec without completes-spec, writing nothing", async () => {
+    const { fsImpl, gitImpl, layer } = makeHarness();
+    const plan = "docs/plans/2609101240-thing-plan.md";
+    const keyless = planMd("Draft", "docs/specs/2609101221-foo.md").replace(
+      "completes-spec: true\n",
+      "",
+    );
+    fsImpl.setFile("docs/specs/2609101221-foo.md", APPROVED_SPEC);
+    fsImpl.setFile(plan, keyless);
+    gitImpl.enqueueDirtyPaths([]);
+
+    const result = await run(
+      transitionArtifact(plan, "Approved", { ...DEFAULT_OPTS, commit: true }).pipe(
+        Effect.provide(layer),
+      ),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(ArtifactValidationError);
+      expect(result.left.message).toContain("completes-spec: is missing");
+      expect(exitCodeForError(result.left)).toBe(12);
+    }
+    expect(fsImpl.getFile(plan)).toBe(keyless);
+    expect(fsImpl.getFile(THING_RECORD)).toBeUndefined();
+    expect(gitImpl.calls.filter((c) => c.method === "commitPaths")).toEqual([]);
   });
 
   describe("spec approval", () => {

@@ -41,7 +41,7 @@ export function archivePathFor(repoRelPath: string): string {
 // messages so an author sees exactly what a spec or plan block may contain.
 const ALLOWED_KEYS: Record<ArtifactKind, string> = {
   spec: "status, date, audience, scope",
-  plan: "status, source-spec, approved",
+  plan: "status, source-spec, completes-spec (required with a source spec, absent without), approved",
 };
 
 export function frontmatterProblemMessage(

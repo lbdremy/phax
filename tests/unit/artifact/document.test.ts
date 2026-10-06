@@ -24,11 +24,13 @@ Body text.
 `;
 }
 
-function planFm(status: string, sourceSpec: string): string {
+// `completes-spec` follows a spec path (true unless given) and is absent beside null.
+function planFm(status: string, sourceSpec: string, completesSpec = "true"): string {
+  const completes = sourceSpec === "null" ? "" : `completes-spec: ${completesSpec}\n`;
   return `---
 status: ${status}
 source-spec: ${sourceSpec}
----
+${completes}---
 # Some plan
 
 ## Overview
@@ -280,12 +282,52 @@ status: Completed
     expect(Either.isRight(result)).toBe(true);
   });
 
-  it("accepts a plan declaring a spec path", () => {
+  it.each(["true", "false"])(
+    "accepts a plan declaring a spec path with completes-spec: %s",
+    (v) => {
+      const result = validateArtifact(
+        "docs/plans/2609101221-foo-plan.md",
+        planFm("Draft", "docs/specs/2609101222-foo.md", v),
+      );
+      expect(Either.isRight(result)).toBe(true);
+    },
+  );
+
+  const ALLOWED_PLAN_KEYS =
+    "allowed for a plan: status, source-spec, completes-spec (required with a source spec, absent without), approved";
+
+  it("rejects a plan declaring a spec path without completes-spec, naming it", () => {
+    const md = `---\nstatus: Draft\nsource-spec: docs/specs/2609101222-foo.md\n---\n# Some plan\n`;
+    const result = validateArtifact("docs/plans/2609101221-foo-plan.md", md);
+    assertLeftValidation(result);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toContain(ALLOWED_PLAN_KEYS);
+      expect(result.left.message).toContain("completes-spec: is missing");
+    }
+  });
+
+  it("rejects a non-boolean completes-spec, naming it", () => {
     const result = validateArtifact(
       "docs/plans/2609101221-foo-plan.md",
-      planFm("Draft", "docs/specs/2609101222-foo.md"),
+      planFm("Draft", "docs/specs/2609101222-foo.md", "yes"),
     );
-    expect(Either.isRight(result)).toBe(true);
+    assertLeftValidation(result);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toContain(ALLOWED_PLAN_KEYS);
+      expect(result.left.message).toContain("completes-spec: must be true or false");
+    }
+  });
+
+  it("rejects completes-spec beside source-spec: null, naming it as inconsistent", () => {
+    const md = `---\nstatus: Draft\nsource-spec: null\ncompletes-spec: false\n---\n# Some plan\n`;
+    const result = validateArtifact("docs/plans/2609101221-foo-plan.md", md);
+    assertLeftValidation(result);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toContain(ALLOWED_PLAN_KEYS);
+      expect(result.left.message).toContain(
+        "completes-spec: is inconsistent with source-spec: null",
+      );
+    }
   });
 });
 

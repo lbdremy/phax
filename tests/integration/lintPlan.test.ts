@@ -11,8 +11,8 @@ const PLAN_REL = "docs/plans/2609101260-thing-plan.md";
 const PLAN_PATH = `${REPO_ROOT}/${PLAN_REL}`;
 const DRAFT_FRONTMATTER = "---\nstatus: Draft\nsource-spec: null\n---\n";
 
-function frontmatterWithSpec(sourceSpec: string): string {
-  return `---\nstatus: Draft\nsource-spec: ${sourceSpec}\n---\n`;
+function frontmatterWithSpec(sourceSpec: string, completesSpec = "true"): string {
+  return `---\nstatus: Draft\nsource-spec: ${sourceSpec}\ncompletes-spec: ${completesSpec}\n---\n`;
 }
 
 const config = {
@@ -332,6 +332,55 @@ describe("lintPlan", () => {
         expect(report.findings).toEqual([]);
       }
     });
+
+    it.each([
+      [
+        "no completes-spec beside a spec path",
+        "---\nstatus: Draft\nsource-spec: docs/specs/2609101200-thing.md\n---\n",
+        "completes-spec: is missing",
+      ],
+      [
+        "a non-boolean completes-spec",
+        frontmatterWithSpec("docs/specs/2609101200-thing.md", '"yes"'),
+        "completes-spec: must be true or false",
+      ],
+      [
+        "completes-spec beside source-spec: null",
+        "---\nstatus: Draft\nsource-spec: null\ncompletes-spec: false\n---\n",
+        "completes-spec: is inconsistent with source-spec: null",
+      ],
+    ])(
+      "fails with ArtifactValidationError naming completes-spec for %s",
+      async (_label, frontmatter, detail) => {
+        const result = await Effect.runPromise(
+          Effect.either(
+            lintEffect(planMd({ frontmatter, edit: "- src/a.ts" }), {
+              "/repo/src/a.ts": "export {}",
+            }),
+          ),
+        );
+
+        expect(Either.isLeft(result)).toBe(true);
+        if (Either.isLeft(result)) {
+          expect(result.left).toBeInstanceOf(ArtifactValidationError);
+          expect((result.left as ArtifactValidationError).message).toContain(detail);
+        }
+      },
+    );
+
+    it.each(["true", "false"])(
+      "lints a plan with completes-spec: %s without a validation refusal",
+      async (completesSpec) => {
+        const report = await runLint(
+          planMd({
+            frontmatter: frontmatterWithSpec("docs/specs/2609101200-thing.md", completesSpec),
+            edit: "- src/a.ts",
+          }),
+          { "/repo/src/a.ts": "export {}" },
+        );
+        expect(report.findings).toEqual([]);
+      },
+    );
 
     it("skips both checks for a loose plan.md outside docs/plans/", async () => {
       for (const frontmatter of ["", frontmatterWithSpec("docs/specs/2609101200-other.md")]) {

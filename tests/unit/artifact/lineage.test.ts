@@ -38,20 +38,40 @@ import {
   type ApprovalRecord,
 } from "../../../src/schemas/approvalRecord.js";
 
-function planFm(opts: { status?: string; sourceSpec?: string; approved?: string; body?: string }) {
+// `completes-spec` follows a spec path (true unless given) and is absent beside null.
+function planFm(opts: {
+  status?: string;
+  sourceSpec?: string;
+  completesSpec?: boolean;
+  approved?: string;
+  body?: string;
+}) {
   const status = opts.status ?? "Draft";
   const sourceSpec = opts.sourceSpec ?? "null";
+  const completes =
+    sourceSpec === "null" ? "" : `completes-spec: ${String(opts.completesSpec ?? true)}\n`;
   const approved = opts.approved !== undefined ? `${opts.approved}\n` : "";
   const body = opts.body ?? "Body text.";
-  return `---\nstatus: ${status}\nsource-spec: ${sourceSpec}\n${approved}---\n# Plan\n\n## Overview\n\n${body}\n`;
+  return `---\nstatus: ${status}\nsource-spec: ${sourceSpec}\n${completes}${approved}---\n# Plan\n\n## Overview\n\n${body}\n`;
 }
 
 describe("readSourceSpec", () => {
-  it("reads a path-form declaration", () => {
-    expect(readSourceSpec(planFm({ sourceSpec: "docs/specs/2609101222-foo.md" }))).toEqual({
+  it.each([true, false])("reads a path-form declaration with completes-spec: %s", (value) => {
+    expect(
+      readSourceSpec(planFm({ sourceSpec: "docs/specs/2609101222-foo.md", completesSpec: value })),
+    ).toEqual({
       kind: "spec",
       path: "docs/specs/2609101222-foo.md",
+      completesSpec: value,
     });
+  });
+
+  it("returns null when completes-spec is missing beside a spec path", () => {
+    expect(
+      readSourceSpec(
+        "---\nstatus: Draft\nsource-spec: docs/specs/2609101222-foo.md\n---\n# Plan\n\n## Overview\n",
+      ),
+    ).toBeNull();
   });
 
   it("reads the explicit null form", () => {
@@ -85,6 +105,11 @@ describe("fingerprintSource (approval-fingerprint neutrality)", () => {
 
   it("changes when the source-spec value changes", () => {
     const changed = planFm({ sourceSpec: "docs/specs/2609101223-bar.md" });
+    expect(fingerprintSource(changed)).not.toBe(fingerprintSource(BASE));
+  });
+
+  it("changes when the completes-spec value flips", () => {
+    const changed = planFm({ sourceSpec: "docs/specs/2609101222-foo.md", completesSpec: false });
     expect(fingerprintSource(changed)).not.toBe(fingerprintSource(BASE));
   });
 

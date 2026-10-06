@@ -105,7 +105,8 @@ function makeConfig(stateRoot: string): ResolvedConfig {
 }
 
 function planMd(status: string, sourceSpec: string): string {
-  return `---\nstatus: ${status}\nsource-spec: ${sourceSpec}\n---\n# Some plan\n\n## Overview\n\nBody.\n`;
+  const completes = sourceSpec === "null" ? "" : "completes-spec: true\n";
+  return `---\nstatus: ${status}\nsource-spec: ${sourceSpec}\n${completes}---\n# Some plan\n\n## Overview\n\nBody.\n`;
 }
 
 function specMd(status: string): string {
