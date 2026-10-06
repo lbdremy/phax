@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPhasePrompt, MAX_ORIENTATION_ROWS } from "../../src/app/promptGeneration.js";
-import type { OrientRow } from "../../src/schemas/orient.js";
+import { buildPhasePrompt } from "../../src/app/promptGeneration.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 
 const samplePhase: PhaxPlanPhase = {
@@ -159,105 +158,6 @@ describe("buildPhasePrompt", () => {
     });
     expect(prompt).toContain("## Previous phase file reconciliation");
     expect(prompt).toContain("No deviations.");
-  });
-
-  it("does not include the orientation section when orientationIndex is absent", () => {
-    const prompt = buildPhasePrompt({
-      planMd: "# Plan",
-      planJson: samplePlan,
-      currentPhase: samplePhase,
-      gateCommands: sampleGateCommands,
-    });
-    expect(prompt).not.toContain("## Orientation for this phase");
-  });
-
-  it("produces byte-identical output when orientationIndex is absent", () => {
-    const opts = {
-      planMd: "# Plan",
-      planJson: samplePlan,
-      currentPhase: samplePhase,
-      gateCommands: sampleGateCommands,
-    };
-    const withoutField = buildPhasePrompt(opts);
-    const withUndefinedField = buildPhasePrompt({ ...opts, orientationIndex: undefined });
-    expect(withUndefinedField).toBe(withoutField);
-  });
-
-  it("renders the orientation section with rows and pull instructions when orientationIndex is provided", () => {
-    const rows: OrientRow[] = [
-      { id: "row-1", title: "Watch the shell port", severity: "warn", trigger: "touches shell.ts" },
-      { id: "row-2", title: "Auth invariant", severity: "error", trigger: "touches auth.ts" },
-    ];
-    const prompt = buildPhasePrompt({
-      planMd: "# Plan",
-      planJson: samplePlan,
-      currentPhase: samplePhase,
-      gateCommands: sampleGateCommands,
-      orientationIndex: rows,
-    });
-    expect(prompt).toContain(
-      "## Orientation for this phase (expand a row before touching its files)",
-    );
-    expect(prompt).toContain("- [warn] row-1 — Watch the shell port (when: touches shell.ts)");
-    expect(prompt).toContain("- [error] row-2 — Auth invariant (when: touches auth.ts)");
-    expect(prompt).toContain("phax orient <id>");
-    expect(prompt).toContain("phax orient --file <path>");
-  });
-
-  it("caps the woven rows at MAX_ORIENTATION_ROWS and notes the remainder", () => {
-    const rows: OrientRow[] = Array.from({ length: MAX_ORIENTATION_ROWS + 7 }, (_, i) => ({
-      id: `row-${i}`,
-      title: `Title ${i}`,
-      severity: "info" as const,
-      trigger: `touches file-${i}.ts`,
-    }));
-    const prompt = buildPhasePrompt({
-      planMd: "# Plan",
-      planJson: samplePlan,
-      currentPhase: samplePhase,
-      gateCommands: sampleGateCommands,
-      orientationIndex: rows,
-    });
-    const rendered = prompt.split("\n").filter((line) => /^- \[info\] row-\d+ /.test(line));
-    expect(rendered).toHaveLength(MAX_ORIENTATION_ROWS);
-    expect(prompt).toContain(`- [info] row-${MAX_ORIENTATION_ROWS - 1} —`);
-    expect(prompt).not.toContain(`- [info] row-${MAX_ORIENTATION_ROWS} —`);
-    expect(prompt).toContain("…and 7 more not shown");
-  });
-
-  it("renders the orientation section with a fallback line when orientationIndex is empty", () => {
-    const prompt = buildPhasePrompt({
-      planMd: "# Plan",
-      planJson: samplePlan,
-      currentPhase: samplePhase,
-      gateCommands: sampleGateCommands,
-      orientationIndex: [],
-    });
-    expect(prompt).toContain(
-      "## Orientation for this phase (expand a row before touching its files)",
-    );
-    expect(prompt).toContain("(no rows returned for this phase's planned files)");
-    expect(prompt).toContain("phax orient <id>");
-    expect(prompt).toContain("phax orient --file <path>");
-  });
-
-  it("places the orientation section between the current phase and execution rules", () => {
-    const rows: OrientRow[] = [
-      { id: "row-1", title: "Watch X", severity: "info", trigger: "touches foo.ts" },
-    ];
-    const prompt = buildPhasePrompt({
-      planMd: "# Plan",
-      planJson: samplePlan,
-      currentPhase: samplePhase,
-      gateCommands: sampleGateCommands,
-      orientationIndex: rows,
-    });
-    const currentPhaseIdx = prompt.indexOf("## Current phase");
-    const orientationIdx = prompt.indexOf("## Orientation for this phase");
-    const executionRulesIdx = prompt.indexOf("## Execution rules");
-    expect(currentPhaseIdx).toBeGreaterThan(-1);
-    expect(orientationIdx).toBeGreaterThan(currentPhaseIdx);
-    expect(executionRulesIdx).toBeGreaterThan(orientationIdx);
   });
 
   it("matches the expected snapshot", () => {

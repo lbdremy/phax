@@ -1,13 +1,15 @@
 import { Effect, Either, Layer } from "effect";
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { readdirSync } from "node:fs";
+import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
+import { resetPhase } from "../../src/app/resetPhase.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { readAgentBinding } from "../../src/app/agentBinding.js";
 import { decodeShortName } from "../../src/domain/branded.js";
-import type { ClaudeSessionId } from "../../src/domain/branded.js";
+import type { ClaudeSessionId, RunId } from "../../src/domain/branded.js";
 import {
   AgentSessionIdMissingError,
   GateAttemptsExhaustedError,
@@ -19,7 +21,6 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
-import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import {
@@ -27,7 +28,6 @@ import {
   resolveCodeReviewConfig,
   resolveComplianceReviewConfig,
   resolvePublishConfig,
-  type OrientConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
@@ -688,35 +688,6 @@ describe("executePlan — happy-path 2-phase run", () => {
     }
   });
 });
-
-function setupCommonFakes(worktreePath: string) {
-  const fakeGit = makeFakeGit();
-  fakeGit.impl.setRepoIsClean(true);
-  fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
-
-  const fakeShell = makeFakeShell();
-  fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-  fakeShell.impl.setResponse("git rev-parse HEAD", {
-    exitCode: 0,
-    stdout: "deadbeef12345678\n",
-    stderr: "",
-  });
-  fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
-
-  const fakeBackend = makeFakeBackend();
-  fakeBackend.impl.addRunResponse({
-    sessionId: "sess-01" as ClaudeSessionId,
-    outputPath: "",
-    finalText: "",
-  });
-  fakeBackend.impl.addResumeResponse({
-    sessionId: "sess-01-handoff" as ClaudeSessionId,
-    outputPath: "",
-    finalText: "",
-  });
-
-  return { fakeGit, fakeShell, fakeBackend };
-}
 
 function makeStatusTestConfig(root: string): ResolvedConfig {
   return {
@@ -2354,227 +2325,296 @@ describe("executePlan — records destination refusal", () => {
   });
 });
 
-describe("executePlan — orient dispatch weaving", () => {
+const baselineRawPlan = {
+  version: 1,
+  run: {
+    shortName: "my-run",
+    title: "My Run",
+    branch: "ai/my-run",
+    requiredCommands: [],
+  },
+  phases: (["01", "02", "03"] as const).map((n) => ({
+    id: `phase-${n}`,
+    title: `Phase ${n}`,
+    model: "claude-sonnet-4-6",
+    effort: "low" as const,
+    planMarkdownAnchor: `#phase-${n}-work`,
+    plannedFilesToCreate: [`src/new-${n}.ts`],
+    plannedFilesToEdit: [`src/edit-${n}.ts`],
+    optionalFilesToEdit: [],
+    commit: { subject: `ai(phase-${n}): step ${n}`, body: `Does step ${n}.` },
+  })),
+};
+
+const BASELINE_PLAN_MD = "# Baseline Plan\n\nThree made-up phases.\n";
+
+// What a fresh phase start leaves in the phase folder by the time the agent
+// launches, sorted by name.
+const BASELINE_PHASE_FOLDER_AT_LAUNCH = [
+  "agent-binding.json",
+  "model-resolution.json",
+  "prompt.md",
+  "security.json",
+  "setup.log",
+  "status.json",
+];
+
+interface AgentLaunch {
+  readonly phaseId: string;
+  readonly shellCallsAtLaunch: ReadonlyArray<{ command: readonly string[]; cwd: string }>;
+  readonly folderEntries: readonly string[];
+}
+
+// A three-phase run with no provider configured: setup `pnpm install`, gate
+// `pnpm test`. The gate starts failing once phase-02's agent launches, so a
+// plain start pauses with phase-02 in gates_exhausted.
+function makeBaselineScenario(root: string) {
+  const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", baselineRawPlan));
+  const base = makeStatusTestConfig(root);
+  const config: ResolvedConfig = {
+    ...base,
+    raw: {
+      ...base.raw,
+      gateProfiles: {
+        full: [{ command: "pnpm test", surface: "local", firing: "every-phase", output: "log" }],
+      },
+      commands: { setup: ["pnpm install"], cleanup: ["true"] },
+    },
+  };
+  const worktreeOf = (phaseId: string) => join(root, "worktrees", "test-project.my-run", phaseId);
+
+  const fakeGit = makeFakeGit();
+  fakeGit.impl.setRepoIsClean(true);
+  fakeGit.impl.enqueueWorktreeIsClean(worktreeOf("phase-01"), false, true);
+
+  const fakeShell = makeFakeShell();
+  for (const command of ["pnpm install", "pnpm test", "true", "git diff HEAD^ HEAD"]) {
+    fakeShell.impl.setResponse(command, { exitCode: 0, stdout: "", stderr: "" });
+  }
+  fakeShell.impl.setResponse("git rev-parse HEAD", {
+    exitCode: 0,
+    stdout: "deadbeef12345678\n",
+    stderr: "",
+  });
+
+  const fakeBackend = makeFakeBackend();
+  for (const id of ["sess-01", "sess-02"]) {
+    fakeBackend.impl.addRunResponse({
+      sessionId: id as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+  }
+  // phase-01's handoff, then phase-02's single fix attempt.
+  for (const id of ["sess-01-handoff", "sess-02-fix"]) {
+    fakeBackend.impl.addResumeResponse({
+      sessionId: id as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+  }
+
+  const launches: AgentLaunch[] = [];
+  fakeBackend.impl.setOnRunAgent((_prompt, options) => {
+    const folder = options.phaseFolderPath ?? "";
+    const phaseId = basename(folder);
+    if (phaseId === "phase-02" && !launches.some((l) => l.phaseId === "phase-02")) {
+      fakeShell.impl.setResponse("pnpm test", { exitCode: 1, stdout: "", stderr: "red" });
+    }
+    launches.push({
+      phaseId,
+      shellCallsAtLaunch: fakeShell.impl.calls.map((c) => ({
+        command: [...c.command],
+        cwd: c.cwd ?? "",
+      })),
+      folderEntries: readdirSync(folder).toSorted(),
+    });
+  });
+
+  const layers = Layer.mergeAll(
+    fakeGit.layer,
+    fakeShell.layer,
+    fakeBackend.layer,
+    NodeFileSystemLayer,
+    NoopSystemTelemetryLayer,
+    makeFakeGitHub().layer,
+  );
+
+  const execute = (runPath: string, runId: RunId, startIndex: number) =>
+    Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          namespace: "test-project",
+          plan,
+          planMd: BASELINE_PLAN_MD,
+          config,
+          gateProfileId: "full",
+          allowDirty: startIndex > 0,
+          runPath,
+          runId,
+          startIndex,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+
+  return {
+    fakeGit,
+    fakeShell,
+    fakeBackend,
+    layers,
+    launches,
+    worktreeOf,
+    execute,
+    async startRun() {
+      for (const phaseId of ["phase-01", "phase-02", "phase-03"]) {
+        await mkdir(join(worktreeOf(phaseId), ".phax-context"), { recursive: true });
+        await writeFile(
+          join(worktreeOf(phaseId), ".phax-context", "phase-handoff.md"),
+          HANDOFF_CONTENT,
+        );
+      }
+      const { runPath, runId } = await Effect.runPromise(
+        createRunFolder(shortName, BASELINE_PLAN_MD, plan, config).pipe(Effect.provide(layers)),
+      );
+      const result = await execute(runPath, runId, 0);
+      return { runPath, runId, result };
+    },
+    async phaseState(runPath: string, phaseId: string): Promise<string> {
+      const status = JSON.parse(await readFile(join(runPath, phaseId, "status.json"), "utf8")) as {
+        state: string;
+      };
+      return status.state;
+    },
+    // Replace run-specific values with fixed placeholders so a snapshot holds
+    // no machine path, id or timestamp.
+    normalize(text: string, runPath: string, runId: RunId): string {
+      return text
+        .replaceAll(runPath, "<RUN_PATH>")
+        .replaceAll(root, "<STATE_ROOT>")
+        .replaceAll(runId, "<RUN_ID>");
+    },
+  };
+}
+
+describe("executePlan — phase start on the no-provider baseline", () => {
   let stateRoot: string;
 
-  const orientRawPlan = {
-    version: 1,
-    run: {
-      shortName: "my-run",
-      title: "My Run",
-      branch: "ai/my-run",
-      requiredCommands: [],
-    },
-    phases: [
-      {
-        id: "phase-01",
-        title: "First Phase",
-        model: "claude-sonnet-4-6",
-        effort: "low" as const,
-        planMarkdownAnchor: "#phase-01-first",
-        plannedFilesToCreate: ["src/foo.ts"],
-        plannedFilesToEdit: ["src/bar.ts"],
-        optionalFilesToEdit: [],
-        commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
-      },
-    ],
-  } as const;
-
   beforeEach(async () => {
-    stateRoot = await mkdtemp(join(tmpdir(), "phax-orient-test-"));
-    const worktree = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
-    await mkdir(join(worktree, ".phax-context"), { recursive: true });
-    await writeFile(join(worktree, ".phax-context", "phase-handoff.md"), HANDOFF_CONTENT);
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-baseline-test-"));
   });
 
   afterEach(async () => {
     await rm(stateRoot, { recursive: true, force: true });
   });
 
-  function makeOrientTestConfig(root: string, orient?: OrientConfig): ResolvedConfig {
-    const base = makeStatusTestConfig(root);
-    return orient !== undefined ? { ...base, orient } : base;
-  }
+  it("case 1: starts no process between setup and agent launch, and pins each first prompt", async () => {
+    const s = makeBaselineScenario(stateRoot);
+    const { runPath, runId, result } = await s.startRun();
 
-  it("weaves the orientation index into prompt.md and records orient.brief.computed when a provider is registered", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", orientRawPlan));
-    const config = makeOrientTestConfig(stateRoot, { command: "orient-provider" });
-    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+    // phase-02's gate never passes, so the run pauses there.
+    expect(Either.isLeft(result)).toBe(true);
+    expect(s.launches.map((l) => l.phaseId)).toEqual(["phase-01", "phase-02"]);
 
-    const { fakeGit, fakeShell, fakeBackend } = setupCommonFakes(worktreePath);
-    fakeShell.impl.setResponse("orient-provider", {
-      exitCode: 0,
-      stdout: JSON.stringify({
-        rows: [{ id: "row-1", title: "Watch X", severity: "warn", trigger: "touches foo.ts" }],
-      }),
-      stderr: "",
-    });
+    for (const launch of s.launches) {
+      // The last process started before the agent is the phase's setup command.
+      expect(launch.shellCallsAtLaunch.at(-1)).toEqual({
+        command: ["pnpm", "install"],
+        cwd: s.worktreeOf(launch.phaseId),
+      });
+    }
 
-    const fakeTelemetry = makeFakeSystemTelemetry();
-
-    const layers = Layer.mergeAll(
-      fakeGit.layer,
-      fakeShell.layer,
-      fakeBackend.layer,
-      NodeFileSystemLayer,
-      fakeTelemetry.layer,
-      makeFakeGitHub().layer,
-    );
-
-    const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
-    );
-
-    const result = await Effect.runPromise(
-      Effect.either(
-        executePlan({
-          shortName,
-          namespace: "test-project",
-          plan,
-          planMd: "# My Plan",
-          config,
-          gateProfileId: "full",
-          allowDirty: false,
-          runPath,
-          runId,
-          startIndex: 0,
-        }).pipe(Effect.provide(layers)),
-      ),
-    );
-
-    expect(Either.isRight(result)).toBe(true);
-
-    const promptText = await readFile(join(runPath, "phase-01", "prompt.md"), "utf8");
-    expect(promptText).toContain(
-      "## Orientation for this phase (expand a row before touching its files)",
-    );
-    expect(promptText).toContain("- [warn] row-1 — Watch X");
-    expect(promptText).toContain("phax orient <id>");
-    expect(promptText).toContain("phax orient --file <path>");
-
-    const briefEvents = fakeTelemetry.impl
-      .events()
-      .filter((e) => e.type === "orient.brief.computed");
-    expect(briefEvents).toHaveLength(1);
-    expect(briefEvents[0]).toMatchObject({
-      phase: "phase-01",
-      fileCount: 2,
-      rowCount: 1,
-    });
-
-    const orientCalls = fakeShell.impl.calls.filter(
-      (c) => c.command.join(" ") === "orient-provider",
-    );
-    expect(orientCalls).toHaveLength(1);
-    expect(JSON.parse(orientCalls[0]?.stdin ?? "{}")).toEqual({
-      files: ["src/foo.ts", "src/bar.ts"],
-    });
+    for (const phaseId of ["phase-01", "phase-02"]) {
+      const prompt = await readFile(join(runPath, phaseId, "prompt.md"), "utf8");
+      expect(s.normalize(prompt, runPath, runId)).toMatchSnapshot(`${phaseId} prompt.md`);
+    }
   });
 
-  it("dispatches the prompt unchanged and proceeds when the orient provider fails", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", orientRawPlan));
-    const config = makeOrientTestConfig(stateRoot, { command: "orient-provider" });
-    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+  it("case 2: the phase folder holds exactly the baseline files at agent launch", async () => {
+    const s = makeBaselineScenario(stateRoot);
+    await s.startRun();
 
-    const { fakeGit, fakeShell, fakeBackend } = setupCommonFakes(worktreePath);
-    fakeShell.impl.setResponse("orient-provider", { exitCode: 1, stdout: "", stderr: "boom" });
-
-    const fakeTelemetry = makeFakeSystemTelemetry();
-
-    const layers = Layer.mergeAll(
-      fakeGit.layer,
-      fakeShell.layer,
-      fakeBackend.layer,
-      NodeFileSystemLayer,
-      fakeTelemetry.layer,
-      makeFakeGitHub().layer,
-    );
-
-    const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
-    );
-
-    const result = await Effect.runPromise(
-      Effect.either(
-        executePlan({
-          shortName,
-          namespace: "test-project",
-          plan,
-          planMd: "# My Plan",
-          config,
-          gateProfileId: "full",
-          allowDirty: false,
-          runPath,
-          runId,
-          startIndex: 0,
-        }).pipe(Effect.provide(layers)),
-      ),
-    );
-
-    // A provider failure is advisory-only: the phase still completes successfully.
-    expect(Either.isRight(result)).toBe(true);
-
-    const promptText = await readFile(join(runPath, "phase-01", "prompt.md"), "utf8");
-    expect(promptText).not.toContain("## Orientation for this phase");
-
-    const briefEvents = fakeTelemetry.impl
-      .events()
-      .filter((e) => e.type === "orient.brief.computed");
-    expect(briefEvents).toHaveLength(0);
+    expect(s.launches[0]?.phaseId).toBe("phase-01");
+    expect(s.launches[0]?.folderEntries).toEqual(BASELINE_PHASE_FOLDER_AT_LAUNCH);
   });
 
-  it("does not query a provider and leaves the prompt unchanged when no orient block is configured", async () => {
-    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", orientRawPlan));
-    const config = makeOrientTestConfig(stateRoot);
-    const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
+  it("case 3: resume, reset-phase, then resume again start phase-02 on the baseline", async () => {
+    const s = makeBaselineScenario(stateRoot);
+    const { runPath, runId } = await s.startRun();
+    const promptPath = join(runPath, "phase-02", "prompt.md");
+    const goldenPrompt = await readFile(promptPath, "utf8");
 
-    const { fakeGit, fakeShell, fakeBackend } = setupCommonFakes(worktreePath);
+    // The real provider's session writer records the session id on the phase
+    // status; the fake backend does not, so record it as that writer would.
+    const statusPath = join(runPath, "phase-02", "status.json");
+    const status = JSON.parse(await readFile(statusPath, "utf8")) as Record<string, unknown>;
+    await writeFile(statusPath, JSON.stringify({ ...status, claudeSessionId: "sess-02" }));
 
-    const fakeTelemetry = makeFakeSystemTelemetry();
+    // Resume from gates_exhausted: re-enters the gate loop, never re-starts the phase.
+    const promptStat = await stat(promptPath);
+    const shellCallsBefore = s.fakeShell.impl.calls.length;
+    s.fakeBackend.impl.addResumeResponse({
+      sessionId: "sess-02-fix-2" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    const firstResume = await s.execute(runPath, runId, 1);
+    expect(Either.isLeft(firstResume)).toBe(true);
+    if (Either.isLeft(firstResume)) {
+      expect(firstResume.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    }
+    expect(s.launches).toHaveLength(2);
+    expect(
+      s.fakeShell.impl.calls
+        .slice(shellCallsBefore)
+        .filter((c) => c.command.join(" ") === "pnpm install"),
+    ).toHaveLength(0);
+    expect(await readFile(promptPath, "utf8")).toBe(goldenPrompt);
+    expect((await stat(promptPath)).mtimeMs).toBe(promptStat.mtimeMs);
+    expect(await s.phaseState(runPath, "phase-02")).toBe("gates_exhausted");
 
-    const layers = Layer.mergeAll(
-      fakeGit.layer,
-      fakeShell.layer,
-      fakeBackend.layer,
-      NodeFileSystemLayer,
-      fakeTelemetry.layer,
-      makeFakeGitHub().layer,
-    );
-
-    const { runPath, runId } = await Effect.runPromise(
-      createRunFolder(shortName, "# My Plan", plan, config).pipe(Effect.provide(layers)),
-    );
-
-    const result = await Effect.runPromise(
+    const reset = await Effect.runPromise(
       Effect.either(
-        executePlan({
+        resetPhase({
           shortName,
           namespace: "test-project",
-          plan,
-          planMd: "# My Plan",
-          config,
-          gateProfileId: "full",
-          allowDirty: false,
-          runPath,
-          runId,
-          startIndex: 0,
-        }).pipe(Effect.provide(layers)),
+          phaseId: "phase-02",
+          stateRoot,
+          repoRoot: stateRoot,
+        }).pipe(Effect.provide(s.layers)),
       ),
     );
+    expect(Either.isRight(reset)).toBe(true);
 
-    expect(Either.isRight(result)).toBe(true);
+    // Resume after the reset: phase-02 starts fresh and, with the gate fixed,
+    // the run proceeds through phase-03 to review.
+    s.fakeShell.impl.setResponse("pnpm test", { exitCode: 0, stdout: "", stderr: "" });
+    s.fakeGit.impl.enqueueWorktreeIsClean(s.worktreeOf("phase-02"), false, true);
+    s.fakeGit.impl.enqueueWorktreeIsClean(s.worktreeOf("phase-03"), false);
+    for (const id of ["sess-02b", "sess-03"]) {
+      s.fakeBackend.impl.addRunResponse({
+        sessionId: id as ClaudeSessionId,
+        outputPath: "",
+        finalText: "",
+      });
+      s.fakeBackend.impl.addResumeResponse({
+        sessionId: `${id}-handoff` as ClaudeSessionId,
+        outputPath: "",
+        finalText: "",
+      });
+    }
+    const secondResume = await s.execute(runPath, runId, 1);
+    expect(Either.isRight(secondResume)).toBe(true);
 
-    const promptText = await readFile(join(runPath, "phase-01", "prompt.md"), "utf8");
-    expect(promptText).not.toContain("## Orientation for this phase");
-
-    const orientCalls = fakeShell.impl.calls.filter(
-      (c) => c.command.join(" ") === "orient-provider",
-    );
-    expect(orientCalls).toHaveLength(0);
-
-    const briefEvents = fakeTelemetry.impl
-      .events()
-      .filter((e) => e.type === "orient.brief.computed");
-    expect(briefEvents).toHaveLength(0);
+    const freshLaunch = s.launches[2];
+    expect(freshLaunch?.phaseId).toBe("phase-02");
+    expect(freshLaunch?.shellCallsAtLaunch.at(-1)).toEqual({
+      command: ["pnpm", "install"],
+      cwd: s.worktreeOf("phase-02"),
+    });
+    expect(freshLaunch?.folderEntries).toEqual(BASELINE_PHASE_FOLDER_AT_LAUNCH);
+    expect(await readFile(promptPath, "utf8")).toBe(goldenPrompt);
+    expect(await s.phaseState(runPath, "phase-02")).toBe("cleaned_up");
+    expect(await s.phaseState(runPath, "phase-03")).toBe("review_open");
   });
 });
