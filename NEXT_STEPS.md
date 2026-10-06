@@ -67,8 +67,6 @@ the previous one changes. The first in the chain, `schemas-package`, is Complete
       yet: `phax artifact new plan artifact-decide --spec docs/specs/2609250815-artifact-decide.md`.
       Decide runs on Drafts only, `artifact reopen` moves an artifact from Approved back to Draft,
       every artifact gets the approval lock, §9 is hand-authored, and `--by` names who decided.
-      If the spec ships in more than one plan, revert the run's spec completion on every plan
-      but the last (see *Small follow-ups*).
 - [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. It reuses decide's
       approver form, skill and escalation block (`docs/ideas/headless-code-review.md`).
 - [ ] **`oracle-phases`** — `docs/specs/2609281159-oracle-phases.md`. Oracle-first phases
@@ -149,7 +147,7 @@ cross-field checks registered by id so the build writes the same list into the s
 
 ## Small follow-ups
 
-- [ ] **A run completes its source spec even when more plans are to come.** Found
+- [x] **A run completes its source spec even when more plans are to come.** (Shipped: the `completes-spec` spec.) Found
       2026-09-29 on `schemas-package` plan 1/5 (PR #104): at run end phax completed the
       plan (correct) and the spec (`f8d2366`, spec moved to `archive/`, its approval
       record removed), although plans 2–5 remain. Reverted by hand on the PR branch

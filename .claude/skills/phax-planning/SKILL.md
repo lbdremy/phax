@@ -70,8 +70,9 @@ field; the top-level heading is the sole source of the run's identity.
 
 ## Plan frontmatter block
 
-Create a repo-tracked plan with `phax artifact new plan <slug> --spec <spec path>`
-(omit `--spec` when there is no source spec): it names the file
+Create a repo-tracked plan with
+`phax artifact new plan <slug> --spec <spec path> --last|--not-last`
+(omit all three when there is no source spec; both flags are refused without `--spec`): it names the file
 `docs/plans/<YYMMDDHHMM>-<slug>-plan.md` from the clock — the slug must equal the
 source spec's slug, which `phax plans lint` checks — and writes the frontmatter
 block; you fill in the body. Never compute the stamp yourself, and refer to a plan
@@ -83,6 +84,7 @@ Every plan carries a YAML frontmatter block at offset 0, before the `# ` title:
 ---
 status: Approved
 source-spec: docs/specs/<YYMMDDHHMM>-<slug>.md
+completes-spec: false
 ---
 ```
 
@@ -96,6 +98,12 @@ source-spec: docs/specs/<YYMMDDHHMM>-<slug>.md
 - **`source-spec`** — the spec this plan implements
   (`docs/specs/<YYMMDDHHMM>-<slug>.md`), or `null` when there is no source spec. It is the
   lineage anchor for staleness tracking.
+- **`completes-spec`** — `true` when this plan is its spec's last and its run completes
+  the spec, `false` when more plans of the spec follow. Required when `source-spec` names
+  a spec; absent (refused) when it is `null`. Every plan of a spec except the last says
+  `false`. The chain gate still applies on top of `true`. The value is fingerprinted, so
+  changing it on an Approved plan makes the plan stale. `--last` writes `true`,
+  `--not-last` writes `false`.
 - **`approved`** — optional; a mapping with `date` and `baseline` written by
   `phax artifact approve` when it stamps the approval. Absent on a plan that has
   never been approved.
@@ -529,6 +537,8 @@ Top-level keys:
 - `version`: `1`; `kind`: `"plan"`.
 - `sourceSpec`: the `--spec` path given to phax, or `null` without one (the prompt says
   which). phax sets it from `--spec` regardless, so frontmatter and sidecar agree.
+- `completesSpec`: `true` or `false` beside a `sourceSpec` path, `null` without one. phax
+  sets it from `--last`/`--not-last` regardless.
 - `run`: `{ shortName, title, requiredCommands }` — the extracted run fields
   (`# <Title>`, `## Required commands`).
 - `preamble`: `{ summary, requiredCommandsNote, technicalArbitrations }` — the prose under
