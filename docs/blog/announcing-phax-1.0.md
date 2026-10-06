@@ -396,22 +396,13 @@ the `phax init` wizard) asks whether to include transcripts and whether to push 
 it announces the destination, it doesn't offer a choice, and it tells you in so many words that
 making a private repo public later publishes every transcript already in its history.
 
-## Orientation before the gate
+## Providers
 
-The gate is corrective: it fires *after* the agent has written code. 1.0 adds a preventive leg.
-Register an **orient provider** and, when a phase is dispatched, phax asks it for a **brief**
-keyed by the phase's planned files — the conventions, boundaries, and patterns the project
-already knows about those files — and weaves it into the prompt as an *index* the agent can
-expand on demand (`phax orient <id>`), including for files the plan didn't predict. It's purely
-advisory: the brief arms the agent, it never jails it — the gate remains the only leg with teeth.
-No provider registered? The prompt is dispatched unchanged.
-
-Orient is one of **three providers** you can plug into `phax.json`, and they all speak the same
+phax has **two providers** you can plug into `phax.json`, and they speak the same
 shape — a command phax runs with no shell, one JSON request on stdin, one JSON response on
 stdout, and the contract documented in `phax --usage` so you don't reverse-engineer it from a
 failure. Each sits at a different point of the run:
 
-- **`orient`** — *before the phase*: the brief above.
 - **`scopes`** — *during the gate*: given the plan projection, it says which units of the
   codebase are closed by which phase, so a completion diagnostic can wait for the phase that
   owns it (the scheduling rule from the gates section).
@@ -422,7 +413,7 @@ failure. Each sits at a different point of the run:
   code, and a slow or crashing auditor is one warning, not a broken lint.
 
 phax owns none of the knowledge these providers carry. It owns the *timing*: the same
-plan-derived signal — which files, which phase — offered at three points where an outside tool
+plan-derived signal — which files, which phase — offered at two points where an outside tool
 can use it.
 
 ## What 1.0 ships with
