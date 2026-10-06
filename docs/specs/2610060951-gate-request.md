@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-06
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-06
+  baseline: 145c984
 ---
 # Gate request — a gate step reads the phase's base, terminal-ness and plan projection on stdin
 
