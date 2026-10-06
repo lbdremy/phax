@@ -12,7 +12,7 @@ were completed: headless authoring (0.15/0.16), the `schemas-package` spec in fi
 (`docs-site`, live at docs.phax.run since v0.18.0 on 2026-10-04; both npm packages approved
 and the global install bumped on 2026-10-05). Five approved specs are open:
 artifact-decide is next; headless-review and oracle-phases follow it; 23 and 24 stay parked.
-Drafts waiting on the author: approval-ground, and the two steme gate specs (gate-request,
+Drafts waiting on the author: the two steme gate specs (gate-request,
 drop-gate-scopes). No plan is in flight.
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
@@ -21,11 +21,11 @@ Everything the 1.0 announcement (`docs/blog/announcing-phax-1.0.md`) describes i
 except `isolated` mode, which the post itself disclaims. The feature surface is not what
 holds 1.0 back; the things below are. Ordered by what 1.0 would be lying about if skipped.
 Decided 2026-09-15: the first four were the blockers (`phax prune`, the fourth, landed
-2026-10-04 in PR #113, so three remain); the last three are wanted but do not hold the tag.
+2026-10-04 in PR #113, so two remain once the happy-path defect is closed); the last three are wanted but do not hold the tag.
 
-- [ ] **One known happy-path defect left.** The approval-commit staleness (under *Small
-      follow-ups*; spec `approval-ground`, Draft). The run-before-preflight slug burn was fixed
-      2026-10-03 (PR #112). A 1.0 whose `approve` → `run` sequence can refuse itself is not 1.0.
+- [x] **Both known happy-path defects are fixed.** The run-before-preflight slug burn
+      (2026-10-03, PR #112) and the approval-commit staleness (`approval-record-files` +
+      `own-approval-ground`; see *Small follow-ups*). A 1.0 whose `approve` → `run` sequence can refuse itself is not 1.0.
 - [ ] **A persisted-format stability promise.** `phax.json` (`version: 1`), the run status
       files, the approval record formats (`plan-approval-record`, `spec-approval-record`; the old
       `approvals.json` ledgers are read only to migrate), `phax/records/v1`. The no-shims rule is right for 0.x, but 1.0
@@ -172,7 +172,7 @@ cross-field checks registered by id so the build writes the same list into the s
       `approval-ground`, whose §9 (Q2, Q4) it simplifies — redraft that §9 on top of it.
       Shipped as spec `approval-record-files` (`docs/specs/2610051433-approval-record-files.md`).
 
-- [ ] **A plan whose footprint names `docs/plans/approvals.json` is stale at its own
+- [x] **A plan whose footprint names `docs/plans/approvals.json` is stale at its own
       approval.** Spec `approval-ground` drafted 2026-10-04
       (`docs/specs/2610040727-approval-ground.md`, Draft): its four §9 questions (scope, recognition,
       baseline meaning, ledger comparison) wait for the author. Found 2026-09-10 launching the artifact-timestamp-naming plan: `phax
@@ -189,6 +189,9 @@ cross-field checks registered by id so the build writes the same list into the s
       **2026-10-06:** the draft spec is abandoned; what is left (a footprint naming the plan's own
       path or own record file) is the spec-less plan `own-approval-ground`
       (`docs/plans/2610060955-own-approval-ground-plan.md`, Draft).
+      **Fixed:** spec `approval-record-files` (0.19.0: an approval writes only its own frontmatter
+      and record file) and plan `own-approval-ground` (a plan's own path and its own record file
+      are never ground change). Spec `approval-ground` was abandoned in favour of the plan.
 - [x] **Migrate this repository's own approval ledgers after the release that ships
       `approval-record-files`.** **Done 2026-10-06** with 0.19.0: here `6f74d287` (both ledgers →
       1 plan and 8 spec record files), steme-lab `d2fe0f7` (empty ledger deleted). Run `phax artifact migrate-approvals` by hand on a clean tree,
