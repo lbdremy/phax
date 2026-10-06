@@ -212,6 +212,21 @@ cross-field checks registered by id so the build writes the same list into the s
       a dry-run total line. One kept commit never landed: `48df09a8` (the diagnostics step must
       print `{ "diagnostics": [] }` on success) — restore that README sentence before any
       `--force`.
+- [ ] **A terser PR description.** Raised 2026-10-06 by the author: the body `publish-pr` writes
+      (`pr-body.md`, assembled in `src/app/publishRun.ts`) is too verbose to review from. The
+      approval-record-files run (PR #119, 7 phases) produced 731 lines / 52 KB:
+      - two H1s ("PHAX Run Review Handoff", "Run Review Handoff");
+      - the global file-reconciliation table;
+      - the whole compliance review, including its per-phase findings and ledgers;
+      - then, for every phase, its full file reconciliation and its full handoff.
+
+      Headings also nest wrongly (a `## PHAX File Reconciliation` under a `####`). Goal: a body a
+      reviewer reads top to bottom, keeping what decides a review: the verdict and attention
+      points, deviations and unplanned or missing changes, decisions taken, follow-ups. Move the
+      rest behind links or collapsed `<details>`: per-phase reconciliation tables, handoff
+      narratives, and anything already in the commits. The full material stays in the run folder
+      and the records. Start by listing what each section is for and who reads it, then brief a
+      spec. Mind GitHub's body limit (65,536 characters): a longer run would already be cut off.
 - [ ] **`phax autopilot` — the lifecycle driven in a loop from a corpus.** Raised
       2026-09-15, captured in `docs/ideas/autopilot.md`. Explicitly after 1.0: a
       deterministic supervisor (not a master agent) over roadmap → spec → decide → plan →
