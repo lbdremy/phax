@@ -23,6 +23,7 @@
       "git show-ref",
       "git cat-file",
       "git ls-tree",
+      "git grep",
       "pnpm test:integration",
       "node"
     ]
