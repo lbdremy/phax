@@ -172,7 +172,7 @@ changes from Sonnet 5, including that forced tool use now errors.
 | `claude-haiku-4-5-20251001` | 1 / 5         | —                     | —         | —                          | no ladder                                           |
 | `claude-sonnet-4-6`         | 3 / 15        | 29                    | n/a (AA: deprecated) | n/a              | 0.47 / 0.74 / 1 / 2.41 / 5.59                       |
 | `claude-sonnet-5-5`         | 2 / 10        | 56 (2026-10-05 scale) | —         | 420M (2026-10-05)          | not published                                       |
-| `claude-sonnet-5`           | 2 / 10        | 45                    | 3.31      | 320M                       | 0.47 / 0.74 / 1 / 2.41 / 5.59                       |
+| `claude-sonnet-5`           | 2 / 10        | 45 (2026-09-07 scale) | 3.31      | 320M (2026-09-07)          | 0.47 / 0.74 / 1 / 2.41 / 5.59                       |
 | `claude-opus-4-8`           | 5 / 25        | 48                    | 2.60      | 130M                       | 0.72 / 0.90 / 1 / 1.65 / 1.88                       |
 | `claude-opus-5`             | 5 / 25        | 54                    | 4.21      | 120M                       | 0.67 / 0.76 / 1 / 1.60 / 1.70                       |
 | `claude-opus-5-5`           | 4 / 20 (cache read 0.20) | 58 (2026-09-23 scale) | —   | 260M (2026-10-05)          | not published                                       |
