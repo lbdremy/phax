@@ -23,6 +23,7 @@ Body text.
 const PLAN_DOC = `---
 status: Approved
 source-spec: docs/specs/2609101226-artifact-frontmatter-metadata.md
+completes-spec: true
 approved:
   date: 2026-08-11
   baseline: 4ae687b
@@ -96,6 +97,7 @@ describe("decodeArtifactFrontmatter", () => {
       Either.right({
         status: "Approved",
         "source-spec": "docs/specs/2609101226-artifact-frontmatter-metadata.md",
+        "completes-spec": true,
         approved: { date: "2026-08-11", baseline: "4ae687b" },
       }),
     );
@@ -106,7 +108,7 @@ describe("decodeArtifactFrontmatter", () => {
     const decoded = decodeArtifactFrontmatter("plan", md);
     expect(Either.isRight(decoded)).toBe(true);
     if (!Either.isRight(decoded)) return;
-    expect((decoded.right as { "source-spec": string | null })["source-spec"]).toBeNull();
+    expect(decoded.right["source-spec"]).toBeNull();
   });
 
   it("decodes a plan with approved absent as valid", () => {
@@ -138,6 +140,67 @@ describe("decodeArtifactFrontmatter", () => {
     if (decoded.left.kind === "schema") {
       expect(decoded.left.detail).toContain("source-spec");
     }
+  });
+
+  it("decodes completes-spec: false beside a source-spec path", () => {
+    const md = `---\nstatus: Draft\nsource-spec: docs/specs/1-a.md\ncompletes-spec: false\n---\n\n# Plan\n`;
+    const decoded = decodeArtifactFrontmatter("plan", md);
+    expect(decoded).toEqual(
+      Either.right({
+        status: "Draft",
+        "source-spec": "docs/specs/1-a.md",
+        "completes-spec": false,
+      }),
+    );
+  });
+
+  it("fails naming completes-spec when it is missing beside a source-spec path", () => {
+    const md = `---\nstatus: Draft\nsource-spec: docs/specs/1-a.md\n---\n\n# Plan\n`;
+    const decoded = decodeArtifactFrontmatter("plan", md);
+    expect(decoded).toEqual(
+      Either.left({
+        kind: "schema",
+        detail: expect.stringContaining("completes-spec: is missing"),
+      }),
+    );
+  });
+
+  it.each([
+    ["a quoted string", '"yes"', '"yes"'],
+    ["a bare yes", "yes", '"yes"'],
+    ["null", "null", "null"],
+  ])("fails naming completes-spec when its value is %s", (_label, raw, shown) => {
+    const md = `---\nstatus: Draft\nsource-spec: docs/specs/1-a.md\ncompletes-spec: ${raw}\n---\n\n# Plan\n`;
+    const decoded = decodeArtifactFrontmatter("plan", md);
+    expect(decoded).toEqual(
+      Either.left({
+        kind: "schema",
+        detail: expect.stringContaining(`completes-spec: must be true or false, actual ${shown}`),
+      }),
+    );
+  });
+
+  it.each(["true", "false"])(
+    "fails naming completes-spec as inconsistent beside source-spec: null (value %s)",
+    (raw) => {
+      const md = `---\nstatus: Draft\nsource-spec: null\ncompletes-spec: ${raw}\n---\n\n# Plan\n`;
+      const decoded = decodeArtifactFrontmatter("plan", md);
+      expect(decoded).toEqual(
+        Either.left({
+          kind: "schema",
+          detail: expect.stringContaining("completes-spec: is inconsistent with source-spec: null"),
+        }),
+      );
+    },
+  );
+
+  it("names an unknown key beside a source-spec path without blaming completes-spec", () => {
+    const md = `---\nstatus: Draft\nsource-spec: docs/specs/1-a.md\ncompletes-spec: true\nstaus: Draft\n---\n\n# Plan\n`;
+    const decoded = decodeArtifactFrontmatter("plan", md);
+    expect(Either.isLeft(decoded)).toBe(true);
+    if (!Either.isLeft(decoded) || decoded.left.kind !== "schema") return;
+    expect(decoded.left.detail).toContain("staus");
+    expect(decoded.left.detail).not.toContain("completes-spec:");
   });
 
   it("fails on a bad status value", () => {
@@ -323,6 +386,12 @@ describe("fingerprintSource", () => {
       "source-spec: docs/specs/2609101226-artifact-frontmatter-metadata.md",
       "source-spec: docs/specs/2609101227-other.md",
     );
+    expect(fingerprintSource(PLAN_DOC)).not.toBe(fingerprintSource(other));
+  });
+
+  it("differs when completes-spec flips", () => {
+    const other = PLAN_DOC.replace("completes-spec: true", "completes-spec: false");
+    expect(other).not.toBe(PLAN_DOC);
     expect(fingerprintSource(PLAN_DOC)).not.toBe(fingerprintSource(other));
   });
 

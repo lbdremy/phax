@@ -8,18 +8,23 @@ import {
 } from "./frontmatter.js";
 
 export type SourceSpecDeclaration =
-  | { readonly kind: "spec"; readonly path: string }
+  | { readonly kind: "spec"; readonly path: string; readonly completesSpec: boolean }
   | { readonly kind: "none" };
 
-// Reads a plan's `source-spec` frontmatter key. Callers invoke this only after
-// validateArtifact has accepted the plan, so a decode failure (which validation
-// would already have rejected) is reported as "no declaration".
+// Reads a plan's `source-spec` and `completes-spec` frontmatter keys. Callers
+// invoke this only after validateArtifact has accepted the plan, so a decode
+// failure (which validation would already have rejected) is reported as "no
+// declaration".
 export function readSourceSpec(md: string): SourceSpecDeclaration | null {
   const decoded = decodeArtifactFrontmatter("plan", md);
   if (Either.isLeft(decoded)) return null;
-  const value = (decoded.right as { readonly "source-spec": string | null })["source-spec"];
-  if (value === null) return { kind: "none" };
-  return { kind: "spec", path: value };
+  const frontmatter = decoded.right;
+  if (frontmatter["source-spec"] === null) return { kind: "none" };
+  return {
+    kind: "spec",
+    path: frontmatter["source-spec"],
+    completesSpec: frontmatter["completes-spec"],
+  };
 }
 
 // Upserts the `approved` frontmatter mapping (date + short baseline), replacing

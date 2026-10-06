@@ -28,7 +28,8 @@ function specMd(status: string): string {
 
 function planMd(sourceSpec: string): string {
   const ss = sourceSpec === "(none)" ? "null" : sourceSpec;
-  return `---\nstatus: Draft\nsource-spec: ${ss}\n---\n# Some plan\n\n## Overview\n\nBody text.\n`;
+  const completes = ss === "null" ? "" : "completes-spec: true\n";
+  return `---\nstatus: Draft\nsource-spec: ${ss}\n${completes}---\n# Some plan\n\n## Overview\n\nBody text.\n`;
 }
 
 function run<A, E>(effect: Effect.Effect<A, E, never>) {
@@ -155,6 +156,47 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
         evidence: [{ reason: "spec-changed", specPath: "docs/specs/2609101222-foo.md" }],
       });
     }
+  });
+
+  it("flipping completes-spec on an Approved, fresh plan reports self-changed", async () => {
+    const { fsImpl, layer } = coreHarness();
+    fsImpl.setFile("docs/specs/2609101222-foo.md", specMd("Draft"));
+    fsImpl.setFile(
+      "docs/plans/2609101240-thing-plan.md",
+      planMd("docs/specs/2609101222-foo.md").replace(
+        "completes-spec: true",
+        "completes-spec: false",
+      ),
+    );
+
+    await run(
+      transitionArtifact("docs/specs/2609101222-foo.md", "Approved", APPROVE_OPTS).pipe(
+        Effect.provide(layer),
+      ),
+    );
+    await run(
+      transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", APPROVE_OPTS).pipe(
+        Effect.provide(layer),
+      ),
+    );
+    const approvedPlanMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
+    expect(approvedPlanMd).toContain("status: Approved");
+
+    const before = await run(
+      computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", approvedPlanMd, [], {
+        repoRoot: REPO_ROOT,
+      }).pipe(Effect.provide(layer)),
+    );
+    expect(before).toEqual(Either.right({ kind: "fresh" }));
+
+    const flipped = approvedPlanMd.replace("completes-spec: false", "completes-spec: true");
+    expect(flipped).not.toBe(approvedPlanMd);
+    const after = await run(
+      computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", flipped, [], {
+        repoRoot: REPO_ROOT,
+      }).pipe(Effect.provide(layer)),
+    );
+    expect(after).toEqual(Either.right({ kind: "stale", evidence: [{ reason: "self-changed" }] }));
   });
 
   it("a spec-less ((none)) plan never reports spec-changed", async () => {
@@ -434,10 +476,11 @@ function deterministicPlanMd(opts: {
       ? opts.create.map((f) => `- ${f}`).join("\n")
       : "- (none)";
   const ss = opts.sourceSpec === "(none)" ? "null" : opts.sourceSpec;
+  const completes = ss === "null" ? "" : "completes-spec: true\n";
   return `---
 status: ${opts.status}
 source-spec: ${ss}
----
+${completes}---
 # Some plan
 
 ## Overview

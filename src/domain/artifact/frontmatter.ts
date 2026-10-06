@@ -67,6 +67,18 @@ function parseYamlMapping(yamlText: string): Either.Either<Document, Frontmatter
 }
 
 export function decodeArtifactFrontmatter(
+  kind: "spec",
+  md: string,
+): Either.Either<SpecFrontmatter, FrontmatterProblem>;
+export function decodeArtifactFrontmatter(
+  kind: "plan",
+  md: string,
+): Either.Either<PlanFrontmatter, FrontmatterProblem>;
+export function decodeArtifactFrontmatter(
+  kind: ArtifactKind,
+  md: string,
+): Either.Either<SpecFrontmatter | PlanFrontmatter, FrontmatterProblem>;
+export function decodeArtifactFrontmatter(
   kind: ArtifactKind,
   md: string,
 ): Either.Either<SpecFrontmatter | PlanFrontmatter, FrontmatterProblem> {

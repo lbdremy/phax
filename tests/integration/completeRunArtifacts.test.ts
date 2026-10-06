@@ -25,7 +25,8 @@ const PLAN_RECORD = "docs/plans/approvals/2609101270-run-carry-plan.json";
 const SPEC_RECORD = "docs/specs/approvals/2609101270-run-carry.json";
 
 function planMd(status: string, sourceSpec: string): string {
-  return `---\nstatus: ${status}\nsource-spec: ${sourceSpec}\n---\n# Some plan\n\n## Overview\n\nBody text.\n`;
+  const completes = sourceSpec === "null" ? "" : "completes-spec: true\n";
+  return `---\nstatus: ${status}\nsource-spec: ${sourceSpec}\n${completes}---\n# Some plan\n\n## Overview\n\nBody text.\n`;
 }
 
 function specMd(status: string): string {
