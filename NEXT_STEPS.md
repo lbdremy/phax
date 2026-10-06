@@ -152,7 +152,25 @@ cross-field checks registered by id so the build writes the same list into the s
 - [ ] **Migrate this repository's own approval ledgers after the release that ships
       `approval-record-files`.** Run `phax artifact migrate-approvals` by hand on a clean tree,
       once `docs/plans/approvals.json` and `docs/specs/approvals.json` are the only ledgers left.
-      The spec ledger is still pre-schema, so check the migration output before committing.
+      The spec ledger is still pre-schema, so check the migration commit (it commits by itself).
+      Do the same in steme-lab, whose plan ledger is pre-schema and empty: the migration only
+      deletes it. Until both are migrated, approve, `plans status`, `artifact status` and
+      `phax run` refuse there with exit 12. louloupapers is unaffected: its `phax.json` is already
+      refused (see *Housekeeping*).
+- [ ] **The real e2e's Codex and Vibe flows run on Claude.** Found 2026-10-06 running
+      `PHAX_E2E_RUN=1 PHAX_E2E_BACKEND=claude pnpm test:e2e:real` before the 0.19.0 release:
+      `tests/e2e/realFlow.test.ts` fails "each phase recorded the expected security posture and
+      provider" for `[codex-cli] (secure)` and `[mistral-vibe] (unsafe)`: both phases ran on
+      `claude-code`. The fixture plan (`tests/e2e/fixtures/minimal-repo/plan.md`) asks for
+      `claude-haiku-4-5-20251001` at `none`. That has no Codex anchor. Vibe's `off` alias does anchor
+      to it, but Vibe was not chosen either, and why is not checked yet (enablement in the default
+      provider config, or the alias). Routing falls back to the terminal Claude Code. It is
+      not a regression: `resolveModel` gives the same answer on v0.18.0 and on main. The test's
+      premise ("the forced provider supplies its concrete model", `tests/e2e/helpers/tempEnv.ts`)
+      no longer holds. Fix the fixture: give its phases a model and effort that both providers
+      anchor (e.g. `claude-sonnet-5` `medium` ↔ GPT-6 Luna, and a Vibe-anchored one), or assert the
+      routing reason instead. Until then the real e2e exercises neither Codex nor Vibe, which
+      weakens *Provider coverage on record* above.
 
 ## Records consumers (the substrate shipped in 0.9)
 
