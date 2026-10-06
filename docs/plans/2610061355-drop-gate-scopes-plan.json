@@ -1,0 +1,408 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.19.0.json",
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2610061345-drop-gate-scopes.md",
+  "run": {
+    "shortName": "drop-gate-scopes",
+    "title": "Drop gate scopes",
+    "requiredCommands": [
+      "pnpm exec tsx",
+      "pnpm dev schema upgrade",
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli",
+      "git grep",
+      "node"
+    ]
+  },
+  "preamble": {
+    "summary": "Implements the Approved spec `drop-gate-scopes` (docs/specs/2610061345-drop-gate-scopes.md) in one run. It lands after `drop-orient` (PR #122) and before `gate-request` and `brief-provider`. Nothing in this plan names the gate request, its `input` key, its request file or the brief.\n\nAfter the run, a diagnostics gate step fails on any finding it reports, completion or invariant, on every phase. phax keeps no schedule of its own: the `scopes` provider, closure resolution, pending findings, the `pending` step result, `.pending.json`, the `gate-pending` format, the fix prompt's pending section, the green-gate pending line and the `missing-provider` failure are all removed. The document a step prints must carry a `$schema` naming `gate-diagnostics` and the release whose shape it is written in. phax decodes every answer release it supports, refuses a newer one by name, and fails an unstamped, foreign or pre-answer document as malformed. `gate-diagnostics` and `gate-attribution` get next shapes. `gate-pending` leaves `@lbdremy/phax-schemas`, and the site keeps serving the three URLs it has already published.\n\nThe hard drop holds in every phase. No phase adds a shim, migration, dedicated refusal or message, deprecation, alias, upgrade note or \"removed\" section. No test names a leftover `scopes` key or a finding that carries one. Nothing restates the ordinary unknown-key refusal or the ordinary tolerance of extra keys. Nothing reads earlier-release gate files beyond the frozen decoders the history convention requires. Kept history is what `drop-orient` defined (`docs/specs/`, `docs/plans/`, `docs/briefs/`, `docs/spikes/`, `NEXT_STEPS.md`), plus the frozen history of `gate-diagnostics` and `gate-attribution` and the frozen copy of the served `gate-pending` schemas.\n\nThe order is inside-out: the verdict and its two persisted shapes, then the retirement of `gate-pending`, then the versioned answer, then the config contract, then the docs and the sweep. Every phase stays green under the `standard` gate profile, knip included. Test documents are made up: nothing from `~/.phax` or another repository enters this repository. No `.claude/skills/` file mentions gate scopes, so the run needs no `--allow-skill-edits`. A phase that finds one reports it in its handoff instead of editing it.",
+    "requiredCommandsNote": "Every command above is already in `security.agentCommands` in phax.json, and the gate commands come from the `standard` profile. The plan therefore needs no PHAX security configuration change and no `--allow-skill-edits`. `pnpm exec tsx` runs `scripts/schemas-check.ts` (and `--write`). `pnpm dev schema upgrade` regenerates the two local config schemas. `pnpm gen:usage-spec` and `pnpm docs:cli` regenerate the usage spec and the CLI reference. `node` makes byte-exact file copies. `git grep` runs the live-tree sweep.",
+    "technicalArbitrations": [
+      "Phase split: the verdict phase also carries the two next shapes (a completion without `scopes`, and an attribution `result` of `pass|fail`), because the shapes are the verdict's own types. The loss accepted is a large first phase that mixes gate code with the package's history convention. In exchange, no test is written with `scopes` on a completion only to be stripped a phase later.",
+      "The hello-world `scopes` key and `scopes.mjs` leave in the config phase (phase-04), not the docs phase. The example's phax.json is decoded by the strict config schema in tests, so the key must go when the contract drops it. The loss accepted is that the example changes in two phases (`audit.mjs` in phase-03, `phax.json` and `scopes.mjs` in phase-04).",
+      "The printed document is decoded in phax's persisted-file bridge (src/schemas/persisted.ts) with the package's URL-resolution rules mirrored, not by importing packages/. phax never imports packages/, and only the bridge may name `decodeGateDiagnosticsFile`. The loss accepted is two resolvers (package and bridge) that must stay aligned.",
+      "Where answer shapes start: a frozen constant in the bridge names 0.19.0, the last release whose `gate-diagnostics` shape only described the saved file. A document is an answer when its release is newer than 0.19.0, or equals the running release (a development build reads its own release as the next shape, as the package does). The loss accepted is a hard-coded release in code. It is a historical fact that never changes and needs no release-cut step.",
+      "The hello-world stamp names the running release (0.19.0 until the cut), and the release cut rewrites that one literal to the release it cuts. The loss accepted is that the cut learns about one example file. Any static stamp is refused either before the cut (newer than the running release) or after it (pre-answer release).",
+      "Served `gate-pending` URLs: frozen byte copies live at `site/retired-schemas/<format id>/<release>.json`. The site build serves and lists them generically, a retired id may not be a current format id, and the deploy guard is unchanged. The loss accepted is a permanent directory of retired schemas and one more input to the site build.",
+      "`toLatest*` for older shapes: `toLatestGateDiagnostics` returns the latest type for every shape (an older completion's fields all fit, and its recorded keys are kept as read). `toLatestGateAttribution` uses overloads: it returns the latest type for the current shape, and the older value without `$schema`, under its own type, for `pre-schema` and `0.17.0`. The loss accepted is a single return type for every attribution input. Nothing is invented (no `pending` becomes `fail`), and no test or doc names those cases.",
+      "phax's own `readGateAttributionFile` keeps its pre-schema path. A pre-schema attribution is stepped to the in-memory value only when every step result is `pass` or `fail`. Otherwise the existing generic MissingFact refusal returns it, through the existing mechanism, and no test names that case. The loss accepted is that such a pre-0.17.0 record names no verified surface, which is the same outcome as any unreadable attribution today.",
+      "The live-tree sweep runs as a `git grep` agent check in phase-05, and its output is recorded in the handoff for review. It is not committed as a test. The loss accepted is that there is no permanent regression guard: a committed test would itself hold the swept vocabulary."
+    ]
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-01-verdict-and-shapes",
+      "plannedFilesToCreate": [
+        "src/schemas/history/gate-diagnostics/0.17.0.ts",
+        "src/schemas/history/gate-attribution/0.17.0.ts",
+        "packages/schemas/snapshots/gate-diagnostics/next.schema.json",
+        "packages/schemas/snapshots/gate-attribution/next.schema.json"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/gates.ts",
+        "src/app/executePlan.ts",
+        "src/app/fixLoop.ts",
+        "src/app/eventAdapter.ts",
+        "src/app/scopes.ts",
+        "src/domain/errors.ts",
+        "src/domain/events.ts",
+        "src/domain/gate/fixPrompt.ts",
+        "src/domain/gate/diagnosticsPath.ts",
+        "src/domain/gate/scheduleDiagnostics.ts",
+        "src/domain/plan/projection.ts",
+        "src/schemas/gateDiagnostics.ts",
+        "src/schemas/gateAttribution.ts",
+        "src/schemas/persisted.ts",
+        "packages/schemas/src/formats/recordTimeline.ts",
+        "packages/schemas/src/generated/index.ts",
+        "packages/schemas/history.lock.json",
+        "tests/integration/gates.test.ts",
+        "tests/integration/fixLoop.test.ts",
+        "tests/integration/eventAdapter.test.ts",
+        "tests/integration/persistedProducer.test.ts",
+        "tests/integration/executePlan.test.ts",
+        "tests/integration/dispatcher.test.ts",
+        "tests/integration/telemetry/adapterFailures.test.ts",
+        "tests/integration/scopes.test.ts",
+        "tests/integration/scopesScheduling.test.ts",
+        "tests/unit/scheduleDiagnostics.test.ts",
+        "tests/unit/fixPrompt.test.ts",
+        "tests/unit/diagnosticsPath.test.ts",
+        "tests/unit/planProjection.test.ts",
+        "tests/unit/events.test.ts",
+        "tests/unit/reducer.test.ts",
+        "tests/unit/readmeExitCodes.test.ts",
+        "tests/unit/telemetry/reportBuilders.test.ts",
+        "tests/unit/schemas/gateDiagnostics.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/type/schemasPackage.ts"
+      ],
+      "optionalFilesToEdit": [
+        "packages/schemas/src/index.ts",
+        "src/cli/commands/runLayers.ts",
+        "tests/unit/persisted.test.ts",
+        "tests/integration/writeRecord.test.ts",
+        "tests/unit/schemasPackage/recordTimeline.test.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/schemasPackage/documents.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/currentShapes.test.ts",
+        "tests/unit/schemasPackage/jsonSchemas.test.ts",
+        "tests/unit/schemasPackage/frozenHistory.test.ts",
+        "tests/unit/schemasPackage/shapes.test.ts",
+        "tests/unit/schemasPackage/snapshots.test.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/parseDocument.test.ts",
+        "tests/unit/schemasPackage/preSchemaModules.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate)!: fail every diagnostics finding and drop scope scheduling",
+        "body": "A diagnostics step now fails on any finding it reports, completion or invariant, on every phase. phax no longer schedules completion findings: scope closure, the scope query and its log lines, pending findings, the pending result, the .pending.json writer, the fix prompt's pending section, the green-gate pending line and the missing-provider failure are removed, together with the scope query use case, ScopesProviderError, PendingStep and the scope request projection.\n\ngate-diagnostics and gate-attribution get next shapes: a completion carries the same fields as an invariant, and a step result is pass or fail. Their 0.17.0 shapes are frozen as src/schemas/history/<id>/0.17.0.ts, listed in each format's releases and pinned in the history lock. The pre-schema and 0.17.0 snapshots are unchanged."
+      },
+      "title": "The verdict and its two shapes",
+      "objective": "A diagnostics gate step fails whenever its decoded document holds a finding, of either class, on every phase, and phax keeps no closure, pending state or scope query. The two gate formats the verdict writes describe only what phax writes now: a completion finding has the invariant's field set, and an attribution step result is `pass` or `fail`. Their 0.17.0 shapes stay readable through frozen modules.",
+      "detailedInstructions": [
+        "Verdict in src/app/gates.ts. Delete the `GateScheduling` interface, the `scheduling` option of `RunGatesOptions`, the closure variable and the whole closure block (the terminal shortcut, the scope query, its `$ <cmd>` / `stdin:` / answer log lines and the provider-failure branch), `writePendingDoc`, `pendingSteps`, the `missing-provider` branch and the `result: \"pending\"` branch. Keep the stdout decode as it is in this phase (phase-03 replaces it). Then apply these rules: a decoded document with at least one finding fails the step whatever the exit code (record `fail`, save the diagnostics document as today, and fail the gate with message `Gate command failed: <cmd> (<n> diagnostic(s))` and every finding in provider order). An empty list with exit 0 passes. An empty list with a non-zero exit, or an undecodable document, stays the provider error it is today. `GateOutcome` becomes `{ attemptLogPath }`. A gate attempt starts no process other than the selected steps, and its log holds only their entries.",
+        "Remove the `scopes` part of `DIAGNOSTICS_EXPECTED_SHAPE` (the `\"scopes\"?: [...]` element). phase-03 rewrites the constant to carry `$schema`. In this phase, only drop the scope element so the provider error never mentions scopes.",
+        "Delete src/domain/gate/scheduleDiagnostics.ts and src/app/scopes.ts. In src/domain/errors.ts, delete `PendingStep`, the `pending` field of `GateFailedError` and `ScopesProviderError`. In src/domain/events.ts, delete the `pending` field of `GatePassed` and `GateFailed`. Remove their plumbing in src/app/eventAdapter.ts and src/app/fixLoop.ts. In src/domain/gate/diagnosticsPath.ts, delete `pendingPathFor` and keep `diagnosticsPathFor`. In src/domain/plan/projection.ts, delete `ScopesRequest` and `makeScopesRequest`, and keep `projectPhases` and `makePlanAuditRequest` untouched (the plan auditor uses them). Keep src/app/providerQuery.ts unchanged.",
+        "src/domain/gate/fixPrompt.ts: delete `renderPendingDiagnostic`, `renderPendingSection` and the `pending` input. Both prompts (diagnostics failure and log failure) lose the pending section. Every other line, including `renderDiagnostic`, stays byte-identical, so a completion and an invariant render exactly as failing findings render today, in provider order, with no class tag and no legend.",
+        "src/app/executePlan.ts: stop passing `scheduling` to the gate and delete the green-gate pending line (the `gateOutcome.pending` block). Print nothing in its place. Keep `isFinal` and `selectGateSteps` (terminal-firing selection) as they are.",
+        "src/schemas/gateDiagnostics.ts: the completion diagnostic loses `scopes`, so `InvariantDiagnosticSchema` and `CompletionDiagnosticSchema` share exactly `rule`, `class`, `location: {file, line?}`, `message` and `repair`. Keep the file schema as `$schema` followed by the document's fields. src/schemas/gateAttribution.ts: the step `result` becomes `Schema.Literal(\"pass\", \"fail\")`.",
+        "Freeze the 0.17.0 shapes. Create src/schemas/history/gate-diagnostics/0.17.0.ts and src/schemas/history/gate-attribution/0.17.0.ts, each the exact file schema phax wrote from 0.17.0 to 0.19.x: `$schema` plus a completion carrying non-empty `scopes` for gate-diagnostics, and `$schema` plus `result` `pass|fail|pending` for gate-attribution. Follow the header comment and naming conventions of the sibling pre-schema modules. Each frozen module imports only `effect`, so inline the `$schema` URL pattern (the `<base>/<id>/<X.Y.Z>.json` regex and its description) instead of importing src/schemas/schemaUrl.ts. Make each render to the same JSON Schema as packages/schemas/snapshots/<id>/0.17.0.schema.json. If no existing test checks that a format's `releases` modules render to their released snapshots, add that check in tests/unit/schemasPackage/frozenHistory.test.ts.",
+        "packages/schemas/src/formats/recordTimeline.ts: add each frozen module as the format's `0.17.0` entry in `releases`, and add `\"0.17.0\"` to `GateDiagnosticsShapes` and `GateAttributionShapes`. `toLatestGateDiagnostics` accepts every shape and returns `LatestGateDiagnostics` (drop `$schema`; an older completion's fields all fit the latest type, so add no mapping). `toLatestGateAttribution` uses overloads: the current shape returns `LatestGateAttribution`; `pre-schema` and `0.17.0` return the recorded value without `$schema`, under its own type; and a union overload returns the union. Never map `pending` to anything, and write no test or doc about these older-value cases. Export the new shapes from packages/schemas/src/index.ts only if the existing pattern exports release shapes.",
+        "src/schemas/persisted.ts: `readGateAttributionFile` keeps its pre-schema path. Because the pre-schema result admits `pending`, step it to the in-memory value only when every step result is `pass` or `fail`. Otherwise return the existing MissingFact left with a fact phrased without scope or pending vocabulary (for example `a pass or fail result for every step`). Add no test for that case.",
+        "Record the shape changes only through the script: run `pnpm exec tsx scripts/schemas-check.ts --write`. It writes packages/schemas/snapshots/gate-diagnostics/next.schema.json and packages/schemas/snapshots/gate-attribution/next.schema.json, sets `CURRENT_SHAPES` to `next` for both in packages/schemas/src/generated/index.ts, and pins the two 0.17.0 modules in packages/schemas/history.lock.json. Never edit a snapshot, the generated index or the lock by hand. Then run `pnpm exec tsx scripts/schemas-check.ts` and confirm it passes. Confirm with `git diff` that the `pre-schema` and `0.17.0` snapshots of both formats, and both pre-schema modules, are byte-identical.",
+        "tests/unit/architecturalGuards.test.ts: add the two new frozen modules to `CLOSURE_SRC_ALLOWLIST`. tests/type/schemasPackage.ts: the two shape unions gain `\"0.17.0\"`.",
+        "Tests. Delete tests/unit/scheduleDiagnostics.test.ts, tests/integration/scopesScheduling.test.ts and tests/integration/scopes.test.ts. Remove every scope, closure, pending and missing-provider case from the mixed tests (gates, fixLoop, fixPrompt, diagnosticsPath, eventAdapter, planProjection, persistedProducer, telemetry adapterFailures, events, reducer, dispatcher, readmeExitCodes, telemetry reportBuilders, schemas/gateDiagnostics). Every completion fixture loses `scopes`. In tests/integration/persistedProducer.test.ts, drop the pending scenario and the scope-provider shell response. phax no longer writes `gate-pending`, but the id stays in `FORMAT_IDS` until phase-02, so add it to the test's never-written list for now.",
+        "Write these tests before the implementation: (1) gates.test: a stamped-free (current contract) completion finding on a non-terminal phase fails the step, with attribution `fail`, a saved diagnostics file, and the finding in `GateFailedError.diagnostics`. (2) gates.test: the same finding on a terminal and a non-terminal run gives the same verdict, file shape and failure. (3) gates.test: with a fake shell that records every process, a non-terminal attempt of `pnpm test` (log) then `node ./audit.mjs` (diagnostics) starts exactly those two processes, its log's `$` lines are exactly those two, and no log line starts with `stdin:`. (4) gates.test: across attempts, no `.pending.json` is ever written and every attribution result is `pass` or `fail`. (5) fixPrompt.test: a completion followed by an invariant renders in that order, and the `## Diagnostics` section equals today's rendering for two failing findings. Neither prompt has a pending or optional section. (6) executePlan.test: a passing diagnostics gate (empty list, exit 0) prints exactly what a passing gate with no findings printed before this change (capture the current output as the golden before editing executePlan), with no line counting pending findings. (7) gates.test: the profile order, the stop at the first failure, terminal firing and attribution of exactly the steps that ran are unchanged."
+      ],
+      "boundaryContracts": "app → domain: `runGates` (src/app/gates.ts) no longer takes scheduling input. It consumes only the selected steps, cwd and attempt paths, and produces `{ attemptLogPath }` or `GateFailedError { message, command, exitCode, logPath, diagnostics, stderrExcerpt? }` with no `pending`. domain events: `GatePassed { attempt, … }` and `GateFailed { …, diagnostics }` lose `pending`. The reducer and telemetry consume them unchanged otherwise. domain prompt: `buildFixPrompt` consumes `{ command, exitCode, attempt, logContent, logPath, diagnostics }`. schemas → package: the package's `gate-diagnostics` and `gate-attribution` formats consume phax's file schemas as their `next` shape, and the new frozen modules as their `0.17.0` release entries.",
+      "testStrategy": "Write the verdict tests first (gates integration tests with the fake shell and fake fs, fixPrompt unit tests, the executePlan golden for a green gate), then implement. The package side is covered by the existing schemasPackage suite plus `scripts/schemas-check.ts`, which fails on a released snapshot with no frozen decoder, a missing next snapshot or a lock mismatch. Type-level coverage comes from tests/type/schemasPackage.ts under `pnpm test:type`. Deleted scope-only tests are not replaced.",
+      "implementationOrder": [
+        "Write the failing verdict, process-recording, no-pending-file, fix-prompt and green-gate tests.",
+        "Change the domain: delete scheduleDiagnostics, PendingStep, ScopesProviderError and the scope request projection, and strip the pending section from fixPrompt and the pending fields from events.",
+        "Change src/app: gates.ts verdict and log, fixLoop and eventAdapter plumbing, executePlan wiring and green line, and delete app/scopes.ts.",
+        "Change the schemas: completion without scopes and attribution pass|fail, then the frozen 0.17.0 modules, recordTimeline releases and toLatest typing, and the bridge pre-schema step.",
+        "Run `pnpm exec tsx scripts/schemas-check.ts --write`, then the check, and verify the released snapshots and pre-schema modules are byte-identical.",
+        "Update the remaining mixed tests and type tests, then run the full gate."
+      ],
+      "excludedScope": [
+        "The required `$schema` on the printed document, the answer decoder, re-stamping the saved file and the hello-world `audit.mjs` (phase-03).",
+        "Removing `gate-pending` from FORMAT_IDS, the package, the snapshots or the README, and the served-URL copy (phase-02).",
+        "The `scopes` config key, `ScopesConfigSchema`, `GATE_OUTPUT_DESCRIPTION`, src/schemas/scopes.ts, the local config schemas and the hello-world scopes provider (phase-04).",
+        "README, blog, docs/ideas and NEXT_STEPS edits (phase-05).",
+        "Any change to the plan auditor, src/app/providerQuery.ts, `projectPhases` or `makePlanAuditRequest`."
+      ],
+      "verification": "The `standard` gate profile in phax.json. Also run `pnpm exec tsx scripts/schemas-check.ts` (it must pass) and confirm the released snapshots and pre-schema modules of both gate formats are byte-identical to HEAD^.",
+      "expectedHandoff": "Record the following in the handoff:\n- The new `runGates` / `GateOutcome` / `GateFailedError` shapes.\n- The exported names of the two frozen 0.17.0 modules and how recordTimeline lists them.\n- The final signatures of `toLatestGateDiagnostics` and `toLatestGateAttribution`.\n- How `readGateAttributionFile` steps a pre-schema attribution.\n- The temporary never-written entry for `gate-pending` in tests/integration/persistedProducer.test.ts, which phase-02 must remove.\n- The `scripts/schemas-check.ts` output.\n- Any file-plan deviation phax flags, with its reason (deleted files appear under planned files to edit)."
+    },
+    {
+      "id": "phase-02",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-02-retire-gate-pending",
+      "plannedFilesToCreate": [
+        "site/retired-schemas/gate-pending/0.17.0.json",
+        "site/retired-schemas/gate-pending/0.18.0.json",
+        "site/retired-schemas/gate-pending/0.19.0.json"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/schemaUrl.ts",
+        "src/schemas/gatePending.ts",
+        "src/schemas/history/gate-pending/pre-schema.ts",
+        "packages/schemas/snapshots/gate-pending/pre-schema.schema.json",
+        "packages/schemas/snapshots/gate-pending/0.17.0.schema.json",
+        "packages/schemas/src/formats/recordTimeline.ts",
+        "packages/schemas/src/index.ts",
+        "packages/schemas/build/jsonSchemas.ts",
+        "packages/schemas/src/generated/index.ts",
+        "packages/schemas/history.lock.json",
+        "site/build/schemas.ts",
+        ".oxfmtrc.json",
+        "README.md",
+        "tests/unit/schemas/gatePending.test.ts",
+        "tests/unit/schemaUrl.test.ts",
+        "tests/unit/site/schemas.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/type/schemasPackage.ts",
+        "tests/integration/persistedProducer.test.ts",
+        "tests/unit/schemasPackage/recordTimeline.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/schemasPackage/documents.test.ts",
+        "tests/unit/schemasPackage/preSchemaModules.test.ts",
+        "tests/unit/schemasPackage/frozenHistory.test.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/parseDocument.test.ts",
+        "tests/unit/schemasPackage/currentShapes.test.ts",
+        "tests/unit/schemasPackage/jsonSchemas.test.ts",
+        "tests/unit/schemasPackage/shapes.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "site/build/generate.ts",
+        "site/build/site.ts",
+        "tests/unit/site/generate.test.ts",
+        "tests/unit/schemasPackage/snapshots.test.ts",
+        "tests/unit/schemasPackage/repositoryFormats.test.ts",
+        "scripts/schemas-check.ts",
+        "packages/schemas/README.md"
+      ],
+      "commit": {
+        "subject": "refactor(schemas)!: retire gate-pending and keep its served URLs",
+        "body": "gate-pending leaves the schemas package and phax. The format id, file schema, parser, upgrade function, types, pre-schema module, snapshots and JSON Schema are removed, and the history lock loses its entry. README §Persisted formats loses its row.\n\nThe gate-pending schemas docs.phax.run already serves (0.17.0, 0.18.0 and 0.19.0) stay up, byte for byte, from frozen copies under site/retired-schemas/. The site build serves and lists them generically, serves none for later releases, and the deploy guard is unchanged."
+      },
+      "title": "Retire gate-pending, keep its served URLs",
+      "objective": "`gate-pending` is gone from phax and `@lbdremy/phax-schemas`: no format id, parser, type, snapshot, frozen module or JSON Schema, and no README row. Every `gate-pending` schema URL docs.phax.run already serves keeps serving the same bytes and stays listed in `/schemas/index.json`, so the unchanged deploy guard passes.",
+      "detailedInstructions": [
+        "Make the frozen copy first, before deleting anything. With `node -e` and `fs.copyFileSync`, copy packages/schemas/snapshots/gate-pending/0.17.0.schema.json byte for byte to site/retired-schemas/gate-pending/0.17.0.json, 0.18.0.json and 0.19.0.json. These are exactly the bytes site/build/schemas.ts serves today for those three ledger releases, because each serves the latest release-named snapshot at or before the release. Verify all three with a byte comparison (`node -e`) and record it in the handoff.",
+        "Add `site/retired-schemas` to the `ignorePatterns` of .oxfmtrc.json so `pnpm format` never rewrites the copies.",
+        "site/build/schemas.ts: extend `SchemaSources` with the retired schemas. `readSchemaSources` reads every `site/retired-schemas/<id>/<X.Y.Z>.json` as raw bytes. `publicSchemas` serves each at `/schemas/<id>/<X.Y.Z>.json` and lists it in the index beside the snapshot-served paths, all sorted. Report a finding (and serve nothing) when a retired id is a current `FORMAT_IDS` entry, when a retired release is not in the release ledger, or when a retired path collides with a served one. A retired format is never served for a release it has no copy for. The code must not name the retired format: read the directory generically. Leave site/build/deploy-guard.ts untouched.",
+        "Remove `gate-pending` from `FORMAT_IDS` in src/schemas/schemaUrl.ts and fix the count in its doc comment. Delete src/schemas/gatePending.ts, src/schemas/history/gate-pending/pre-schema.ts and both files under packages/schemas/snapshots/gate-pending/ (the directory goes too, because the snapshot check reports a directory that names no format).",
+        "packages/schemas: in src/formats/recordTimeline.ts, delete the gate-pending section and its imports, and update the file's header comment. In src/index.ts, delete every gate-pending export (`parseGatePending`, `toLatestGatePending`, `LatestGatePending`, `GatePendingShape`, `GatePendingShapes`, the schema, the pre-schema re-exports), its `DocumentShapes` entry and its `parseDocument` entry. In build/jsonSchemas.ts, delete its format and excess-property entries. Then run `pnpm exec tsx scripts/schemas-check.ts --write`, which drops `gate-pending` from `CURRENT_SHAPES` and its lock entry, and then run `pnpm exec tsx scripts/schemas-check.ts`. Across phase-01 and phase-02, packages/schemas/history.lock.json must differ from the pre-run lock by exactly three entries: gate-pending's pre-schema removed, and the two 0.17.0 modules added.",
+        "README.md §Persisted formats: delete the `Gate pending` row. Touch nothing else in the README in this phase.",
+        "Tests. Delete tests/unit/schemas/gatePending.test.ts. Update the FORMAT_IDS and PRE_SCHEMA_FORMAT_IDS counts in tests/unit/schemaUrl.test.ts, and remove gate-pending from `CLOSURE_SRC_ALLOWLIST` and `BRIDGE_ONLY_DECODERS` in tests/unit/architecturalGuards.test.ts. In tests/integration/persistedProducer.test.ts, remove the `.pending.json` mapping and the temporary never-written entry that phase-01 added. Remove gate-pending from tests/type/schemasPackage.ts and from every schemasPackage test and fixture. Where a test used `gate-pending` only as an arbitrary fixture id (frozenHistory's renderer fixture), switch it to another real format id or a made-up id. No test may contain the string `gate-pending` or `GatePending` once this phase ends.",
+        "tests/unit/site/schemas.test.ts: write these tests before the site change, using a made-up retired id (not `gate-pending`) and made-up bytes. (1) Retired files are served byte for byte at their paths and listed in the index, together with the snapshot-served paths. (2) No path is served for a ledger release the retired id has no copy for. (3) A retired id that is also a current format id is a finding. (4) A retired release missing from the ledger is a finding. Also add one test that reads the real repository (`readSchemaSources` on the repo root plus `publicSchemas`) and asserts that the served paths include `/schemas/<retired id>/<R>.json` for each file under site/retired-schemas/, with bytes equal to the file. Iterate the directory rather than naming the id."
+      ],
+      "boundaryContracts": "site build ← repository: `readSchemaSources(repoRoot)` produces, besides the ledger and the snapshots, the retired schemas (format id → release → bytes). `publicSchemas` consumes them and produces served files plus `/schemas/index.json`, a superset of every path the live index lists today. The deploy guard consumes only the built directory and the live index, and is unchanged. package ← phax: the package's format table and `parseDocument` consume `FORMAT_IDS`, which no longer holds `gate-pending`.",
+      "testStrategy": "Write the site unit tests on `publicSchemas` / `servedSchemas` first (pure functions with in-memory sources), plus the repository-reading test. The package removal is covered by the existing schemasPackage suite, the type tests and `scripts/schemas-check.ts`. Run `pnpm site:build` locally only if the terminal gate is in doubt; it runs in the gate only on the terminal phase.",
+      "implementationOrder": [
+        "Copy the three served bytes into site/retired-schemas/ and verify them byte for byte, then add the .oxfmtrc.json ignore entry.",
+        "Write the site tests, then extend site/build/schemas.ts.",
+        "Remove gate-pending from FORMAT_IDS and delete src/schemas/gatePending.ts, its pre-schema module and its snapshots.",
+        "Remove gate-pending from the package (recordTimeline, index, jsonSchemas), then run schemas-check --write and the check.",
+        "Remove the README row.",
+        "Update the remaining tests and type tests, then run the full gate."
+      ],
+      "excludedScope": [
+        "Any change to site/build/deploy-guard.ts or to the ledger.",
+        "Serving any gate-pending URL for a release after 0.19.0.",
+        "The answer `$schema` (phase-03), the config key (phase-04) and the README hook sections (phase-05).",
+        "Editing or removing any released snapshot of gate-diagnostics or gate-attribution."
+      ],
+      "verification": "The `standard` gate profile in phax.json. Also run `pnpm exec tsx scripts/schemas-check.ts` (it must pass) and the byte comparison of the three retired copies against the deleted 0.17.0 snapshot (`git show HEAD^:packages/schemas/snapshots/gate-pending/0.17.0.schema.json`, compared with `node`).",
+      "expectedHandoff": "Record the following in the handoff:\n- The retired-schema directory layout and the new `SchemaSources` field.\n- The findings the site build reports for retired schemas.\n- The byte-comparison result for the three copies.\n- The final history.lock.json diff against the pre-run lock (exactly three entries).\n- The new FORMAT_IDS count.\n- Every test where gate-pending was a fixture id, and what replaced it.\n- Any file-plan deviation phax flags, with its reason."
+    },
+    {
+      "id": "phase-03",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "planMarkdownAnchor": "#phase-03-versioned-diagnostics-answer",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/persisted.ts",
+        "src/schemas/gateDiagnostics.ts",
+        "src/app/gates.ts",
+        "examples/hello-world/audit.mjs",
+        "scripts/release-cut.ts",
+        "docs/release.md",
+        "tests/unit/releaseCut.test.ts",
+        "tests/unit/persisted.test.ts",
+        "tests/unit/schemas/gateDiagnostics.test.ts",
+        "tests/integration/gates.test.ts",
+        "tests/integration/fixLoop.test.ts",
+        "tests/integration/exampleProviders.test.ts",
+        "tests/integration/persistedProducer.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/integration/executePlan.test.ts",
+        "tests/integration/eventAdapter.test.ts",
+        "tests/integration/telemetry/adapterFailures.test.ts",
+        "scripts/release.sh",
+        "src/app/fixLoop.ts"
+      ],
+      "commit": {
+        "subject": "feat(gate)!: require a versioned $schema on the diagnostics document",
+        "body": "A diagnostics step's stdout document must carry a $schema naming gate-diagnostics at the release whose shape it is written in. phax's persisted-file bridge reads it as an answer: a release newer than the running one is refused by name. A document without $schema, of another format, or stamped with a release whose shape only described the saved file fails the step as a malformed provider answer, and the error states the expected document with the running release.\n\nThe saved checks-attempt-NN.diagnostics.json is re-stamped: the decoded document in the current shape under the running release, while the attempt log keeps the print verbatim. The hello-world audit.mjs prints a $schema naming the running release, and the release cut rewrites that stamp to the release it cuts."
+      },
+      "title": "The diagnostics document names its version",
+      "objective": "A diagnostics step's document is read by the `gate-diagnostics` version its `$schema` names. phax decodes every answer release up to the running one, refuses a newer one by name, and fails an unstamped, foreign or pre-answer document as malformed, with no unversioned fallback. The saved diagnostics file is always the current shape under the running release, and hello-world's `audit.mjs` prints a stamp the shipped phax accepts, before and after the release cut.",
+      "detailedInstructions": [
+        "Answer reader in the bridge (src/schemas/persisted.ts). It must live in the bridge, because only the bridge and the declaring module may name `decodeGateDiagnosticsFile`, and phax never imports packages/. Add a reader for the diagnostics answer that returns either the decoded document (`{ diagnostics }`, without `$schema` or any extra key) or a failure tagged `malformed` (with a reason) or `newer` (with a message). It checks, in order: (1) the input is a JSON object; (2) it has its own `$schema` key; (3) `parseSchemaUrl` succeeds and names `gate-diagnostics`; (4) a release newer than `PHAX_RELEASE` (`compareReleases`) is `newer`, with the message `gate-diagnostics <release> is newer than this phax (<PHAX_RELEASE>) — upgrade phax to read it`; (5) the release is an answer release, meaning it equals `PHAX_RELEASE` or is newer than a frozen constant naming `0.19.0` (the last release whose gate-diagnostics shape described only the saved file), and otherwise the document is `malformed`; (6) `decodeGateDiagnosticsFile` succeeds, and otherwise the document is `malformed` with the first violation. Document the constant and the rule in a comment, and use no scope or pending vocabulary.",
+        "src/schemas/gateDiagnostics.ts: delete the bare stdout contract `decodeGateDiagnosticsDocument` and its comment, and keep the in-memory document type (`GateDiagnosticsDocument`, which the package's `LatestGateDiagnostics` uses). Delete `encodeGateDiagnosticsDocument` if nothing uses it anymore (knip will tell).",
+        "src/app/gates.ts: replace the bare decode with the bridge's answer reader. Invalid JSON and `malformed` both log, and fail with, `provider error: step declared diagnostics output but returned none: <reason>` followed by the expected-document suffix. Turn `DIAGNOSTICS_EXPECTED_SHAPE` into a value built from the running release, verbatim: ` — expected {\"$schema\": \"<schemaUrl(\"gate-diagnostics\", PHAX_RELEASE)>\", \"diagnostics\": [{\"rule\", \"class\": \"invariant\"|\"completion\", \"location\": {\"file\", \"line\"?}, \"message\", \"repair\"}]} on stdout`. `newer` logs and fails with `provider error: <message>`. Every provider-error path records attribution `fail`, writes no diagnostics file and passes `diagnostics: []`, so no fix prompt lists a finding from that document. The stdout stays in the log verbatim.",
+        "Re-stamp the saved file. When a step fails on findings, write `encodeGateDiagnosticsFile(withSchemaUrl(\"gate-diagnostics\", { diagnostics }))` from the decoded findings only. Never spread the printed document: `withSchemaUrl` puts its `$schema` first and a spread `$schema` would override it. The file then has exactly `$schema` (the running release) and `diagnostics`, whatever release and extra keys were printed.",
+        "examples/hello-world/audit.mjs: print `JSON.stringify({ $schema: \"https://docs.phax.run/schemas/gate-diagnostics/<PHAX_RELEASE>.json\", diagnostics })`, with the literal release equal to src/schemas/release.ts today (0.19.0). Keep its checks and its HW_NO_IO invariant unchanged.",
+        "scripts/release-cut.ts: before writing anything, read examples/hello-world/audit.mjs and require exactly one literal matching `https://docs.phax.run/schemas/gate-diagnostics/X.Y.Z.json`. If the file is missing or the count differs, throw `… — nothing cut` like the other preconditions. After the other writes, replace that release with the cut version, keeping every other byte, and add the path to `changed` so scripts/release.sh stages it. In docs/release.md, add this step to the list of what `scripts/release-cut.ts` does.",
+        "Write these tests before the implementation. In tests/unit/persisted.test.ts (answer reader, made-up documents): a document at the running release decodes and loses extra keys; a release newer than the running one is `newer`, with the message naming `gate-diagnostics`, that release and the running release; no `$schema`, a `gate-attribution` URL, a malformed URL, and `0.18.0` are each `malformed`; a schema violation is `malformed`. In tests/integration/gates.test.ts, cover each criterion: (a) `{ \"$schema\": <gate-diagnostics at running release>, \"diagnostics\": [] }` with exit 0 passes, the same with exit 1 is a provider error, and `not json` with exit 0 is a provider error whose message contains the expected document verbatim with the running release; (b) `{ \"diagnostics\": [] }`, a `gate-attribution` stamp and a `gate-diagnostics/0.18.0.json` stamp each fail as malformed with the expected document and attribution `fail`; (c) a `99.0.0` stamp with one `no-cycles` invariant fails as a provider error naming `gate-diagnostics`, `99.0.0` and the running release, with no `checks-attempt-01.diagnostics.json` and an empty `diagnostics` list; (d) a one-line print stamped at the running release with one invariant and an extra top-level `\"generator\": \"audit.mjs\"` key appears verbatim in the attempt log, and the saved file has exactly the keys `$schema` (running release) and `diagnostics`; (e) a stamped completion finding on a non-terminal phase fails, and its saved file parses as the current shape. In tests/unit/releaseCut.test.ts: the cut rewrites the example stamp and reports the path, refuses (writing nothing) when the stamp is missing or duplicated, and the existing fixture trees gain the example file.",
+        "Update every other diagnostics fixture to print a stamped document at the running release (build the URL with `schemaUrl(\"gate-diagnostics\", PHAX_RELEASE)`, never a hard-coded release): tests/integration/fixLoop.test.ts, tests/integration/persistedProducer.test.ts, tests/unit/schemas/gateDiagnostics.test.ts and any optional test that prints diagnostics. In tests/integration/exampleProviders.test.ts, decode `audit.mjs` output through the bridge's answer reader (accepted means the stamp is an answer release the build reads), assert one HW_NO_IO invariant in the violating temp copy, and assert an empty list on the example tree. Leave its scope-provider and phax.json cases for phase-04."
+      ],
+      "boundaryContracts": "provider → phax: a diagnostics step prints `{ \"$schema\": \"https://docs.phax.run/schemas/gate-diagnostics/<release>.json\", \"diagnostics\": [{ rule, class, location: { file, line? }, message, repair }] }`, in the `gate-diagnostics` next shape. Extra keys are tolerated and dropped. app → bridge: gates.ts consumes the bridge's answer reader, which produces the decoded document or a `malformed`/`newer` failure. It never names the file decoder itself. phax → record: the saved `.diagnostics.json` is phax's own write under the running release. release cut → example: the cut owns the one stamp literal in examples/hello-world/audit.mjs.",
+      "testStrategy": "Write the answer-reader unit tests first, because the reader is a pure function over made-up documents. Then write the gate integration tests for each criterion (fake shell, fake fs), then the release-cut unit tests on fixture trees. The example integration test runs the real `audit.mjs` with `node` and decodes its output with the bridge's reader, which ties the example's stamp to what the build accepts.",
+      "implementationOrder": [
+        "Write the answer-reader tests, then add the reader and its answer-release constant to src/schemas/persisted.ts.",
+        "Write the gate criterion tests, then switch src/app/gates.ts to the reader, the release-bearing expected document and the re-stamped save.",
+        "Remove the bare stdout decoder from src/schemas/gateDiagnostics.ts.",
+        "Stamp examples/hello-world/audit.mjs and update tests/integration/exampleProviders.test.ts.",
+        "Write the release-cut tests, then teach scripts/release-cut.ts to rewrite the stamp, and update docs/release.md.",
+        "Update the remaining diagnostics fixtures and run the full gate."
+      ],
+      "excludedScope": [
+        "Any lenient or unversioned reading: no fallback for a document without `$schema`, and no reading of the 0.17.0–0.19.x shape from a provider.",
+        "Reading any saved `.diagnostics.json` back.",
+        "Changing the plan auditor's request or answer, or adding `$schema` to them.",
+        "The config key, GATE_OUTPUT_DESCRIPTION and the local config schemas (phase-04), and README text (phase-05).",
+        "Changing the package's `defineFormat` resolution."
+      ],
+      "verification": "The `standard` gate profile in phax.json. Also dry-run the cut on a copy of the tree (`pnpm exec tsx scripts/release-cut.ts 0.20.0 --root <copy>`) and confirm it lists examples/hello-world/audit.mjs and rewrites its stamp. Do not run it on the real tree.",
+      "expectedHandoff": "Record the following in the handoff:\n- The answer reader's exported name, signature and failure tags.\n- The answer-release constant and its rule.\n- The exact provider-error strings (malformed suffix and newer message).\n- The stamp literal in audit.mjs.\n- The release-cut precondition and rewrite, with the dry-run output.\n- Which fixtures were re-stamped.\n- Any file-plan deviation phax flags, with its reason."
+    },
+    {
+      "id": "phase-04",
+      "model": "claude-sonnet-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-04-config-contract",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/schemas/phaxConfig.ts",
+        "src/domain/config/mergeLayers.ts",
+        "src/app/loadConfig.ts",
+        "src/schemas/scopes.ts",
+        "phax.schema.json",
+        "phax.user.schema.json",
+        "examples/hello-world/phax.json",
+        "examples/hello-world/scopes.mjs",
+        "tests/unit/schemas/scopes.test.ts",
+        "tests/unit/schemas/scopesConfig.test.ts",
+        "tests/unit/mergeLayers.test.ts",
+        "tests/unit/phaxConfigJsonSchema.test.ts",
+        "tests/unit/phaxUserOverlaySchema.test.ts",
+        "tests/unit/schemas/planAuditorConfig.test.ts",
+        "tests/integration/exampleProviders.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "src/cli/cliDocs.ts",
+        "tests/unit/loadConfig.test.ts",
+        "tests/integration/loadConfig.test.ts"
+      ],
+      "commit": {
+        "subject": "feat(config)!: drop the scopes provider key",
+        "body": "The configuration contract of phax.json, phax.local.json and ~/.phax/config.json no longer has a scope provider. ScopesConfigSchema, the key in both config schemas, its layer merge and its pass-through are removed, together with the provider's answer schema. Every other key keeps its layer precedence.\n\nThe gate step output description now shows the document's $schema and states that an invariant and a completion both fail the step. phax.schema.json and phax.user.schema.json are regenerated with `phax schema upgrade`. The hello-world example drops its scopes key and scopes.mjs."
+      },
+      "title": "The config contract without a scope provider",
+      "objective": "`scopes` is no longer part of the configuration contract in any layer, and every other key and its precedence are unchanged. The generated `phax.schema.json` and `phax.user.schema.json` list exactly the contract's properties and describe the versioned diagnostics document with no scope, closure or pending wording. The hello-world example declares only `planAuditor` and its diagnostics step.",
+      "detailedInstructions": [
+        "src/schemas/phaxConfig.ts: delete `ScopesConfigSchema`, `ScopesConfig`, the `scopes` property of the project schema and of the user overlay schema, and `scopes` in `ResolvedConfig`. Rewrite `GATE_OUTPUT_DESCRIPTION` as follows: `\"log\" (default) streams raw command output. \"diagnostics\" expects {\"$schema\": \"https://docs.phax.run/schemas/gate-diagnostics/<release>.json\", \"diagnostics\": [{\"rule\", \"class\": \"invariant\"|\"completion\", \"location\": {\"file\", \"line\"?}, \"message\", \"repair\"}]} on stdout.` Follow it with the verdict rules: a non-empty list fails the step whatever the exit code, an invariant and a completion alike; exit 0 with an empty list passes; a missing, undecodable or malformed document (one without $schema included), or a non-zero exit with an empty list, is a provider error that fails the step with the raw log; a document from a newer release is refused by name. Then keep the sentence about the saved file and the fix prompt. The description must not contain the substrings `scope`, `closed` or `pending`.",
+        "src/domain/config/mergeLayers.ts: delete the scopes scalar override and its output field. src/app/loadConfig.ts: delete the pass-through. Do not touch any other key's merge.",
+        "Delete src/schemas/scopes.ts, tests/unit/schemas/scopes.test.ts and tests/unit/schemas/scopesConfig.test.ts. In tests/unit/mergeLayers.test.ts, remove the scopes cases and keep (or reshape) the three-layer test so it asserts `planAuditor` alone: it resolves from phax.local.json, then from ~/.phax/config.json once phax.local.json is cleared, then from phax.json once both user layers are cleared. In tests/unit/schemas/planAuditorConfig.test.ts, the planAuditor case no longer sits next to scopes. No test may assert anything about a config that still declares `scopes`: do not test the unknown-key refusal for it.",
+        "tests/unit/phaxConfigJsonSchema.test.ts and tests/unit/phaxUserOverlaySchema.test.ts: delete the `scopes.command` tests. Assert that the top-level properties of the generated project schema are exactly `$schema, version, name, state, agent, commands, fileReconciliation, security, publish, planAuditor, review, authoring, gateProfiles, workspaces, records`, and that those of the user overlay are exactly `state, agent, commands, fileReconciliation, security, publish, planAuditor, review, authoring, gateProfiles, workspaces`. Assert that the gate step `output` description contains `$schema` and none of `scope`, `closed` or `pending`. Keep or add the assertion that the committed phax.schema.json and phax.user.schema.json equal the generated ones.",
+        "Regenerate the local schemas with `pnpm dev schema upgrade` at the repo root. Confirm with `git diff` that phax.json is byte-for-byte unchanged and that only phax.schema.json and phax.user.schema.json changed. Run `pnpm gen:usage-spec` and `pnpm docs:cli`. They should produce no diff, because the usage spec and the reference carry no scope text. Commit any diff they do produce, and report it.",
+        "examples/hello-world/phax.json: delete the `scopes` key and keep `planAuditor`, `security` and the diagnostics step exactly as they are. Delete examples/hello-world/scopes.mjs. In tests/integration/exampleProviders.test.ts: the directory's `.mjs` files are exactly `audit-plan.mjs` and `audit.mjs`; the decoded config's hooks are exactly `planAuditor` (command `node ./audit-plan.mjs`) plus the unchanged `standard` profile with the diagnostics step `node ./audit.mjs`; and the scope-provider describe block and its import are removed."
+      ],
+      "boundaryContracts": "config files → domain: `decodePhaxConfig` and the user-overlay decoder produce a config with no `scopes` member. `mergeLayers` consumes three layers and produces a `ResolvedConfig` without it. The precedence of every remaining key is unchanged. `phax schema upgrade` consumes the Effect config schemas and produces the two JSON Schemas. It never reads or writes phax.json.",
+      "testStrategy": "Update the JSON Schema unit tests first, so they assert the exact property lists and the description rule and fail against the current schema, then remove the key. mergeLayers keeps a unit test of planAuditor precedence across three layers. The example integration test checks the example's files and decoded config. The generated-schema equality test catches a forgotten regeneration.",
+      "implementationOrder": [
+        "Update phaxConfigJsonSchema and phaxUserOverlaySchema tests to the new property lists and description rule.",
+        "Remove the key from src/schemas/phaxConfig.ts and rewrite GATE_OUTPUT_DESCRIPTION.",
+        "Remove the key from mergeLayers and loadConfig, then update mergeLayers and planAuditorConfig tests.",
+        "Delete src/schemas/scopes.ts and the two scope-only schema tests.",
+        "Update the hello-world phax.json, delete scopes.mjs, and update exampleProviders.",
+        "Run `pnpm dev schema upgrade`, `pnpm gen:usage-spec` and `pnpm docs:cli`, check that phax.json is unchanged, then run the full gate."
+      ],
+      "excludedScope": [
+        "Any dedicated refusal, message, migration or deprecation for a leftover `scopes` key, and any test of the ordinary unknown-key refusal for it.",
+        "Rewriting phax.json or the user layers.",
+        "README and other docs (phase-05).",
+        "Any change to `planAuditor` or its contract."
+      ],
+      "verification": "The `standard` gate profile in phax.json, with phax.json unchanged (`git diff --quiet -- phax.json`).",
+      "expectedHandoff": "Record the following in the handoff:\n- The final GATE_OUTPUT_DESCRIPTION text.\n- The top-level property lists of both generated schemas.\n- Whether `pnpm gen:usage-spec` and `pnpm docs:cli` produced any diff.\n- Confirmation that phax.json is unchanged.\n- The hello-world example's remaining files and hooks.\n- Any file-plan deviation phax flags, with its reason."
+    },
+    {
+      "id": "phase-05",
+      "model": "claude-sonnet-5-5",
+      "effort": "medium",
+      "planMarkdownAnchor": "#phase-05-docs-and-sweep",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "README.md",
+        "docs/blog/announcing-phax-1.0.md",
+        "docs/ideas/coverage-provider.md",
+        "docs/ideas/change-gates-from-the-harness.md",
+        "NEXT_STEPS.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/cli/reference.md",
+        "phax.usage.kdl",
+        "site/pages.ts"
+      ],
+      "commit": {
+        "subject": "docs: describe the versioned diagnostics document and sweep scope machinery",
+        "body": "README §Extend phax now lists two hooks. §Diagnostics gate steps shows the document's $schema, says a document without it fails the step, and says that an invariant and a completion finding both fail it: the provider reports only what is due. §Scope provider is gone.\n\nThe 1.0 announcement draft counts one provider, and docs/ideas no longer mention the scope provider. NEXT_STEPS ticks drop-gate-scopes and points at the current drop-gate-scopes and brief-provider spec paths. A git grep of the live tree finds none of the removed vocabulary."
+      },
+      "title": "Docs and the live-tree sweep",
+      "objective": "The docs describe the gate as it now is: a diagnostics document that names its version, both finding classes failing the step, a provider that alone decides what is due, two hooks and one provider. The live tree holds none of the scope machinery's vocabulary outside kept history.",
+      "detailedInstructions": [
+        "README.md §Extend phax: change the opening to say `Two hooks` (a gate step that prints diagnostics, and one provider), and keep exactly two subsections, `Diagnostics gate steps` and `Plan auditor`. Delete the whole `### Scope provider` subsection, its example and its request/answer text.",
+        "README.md §Diagnostics gate steps: the example document gains a first key `\"$schema\": \"https://docs.phax.run/schemas/gate-diagnostics/0.20.0.json\"`. Say that `$schema` names the `gate-diagnostics` release the document is written for, that a document without it fails the step, and that a release newer than the running phax is refused. Replace the completion/scopes sentence: an `invariant` finding (something forbidden is present) and a `completion` finding (something required is missing) both fail the step; phax never decides when a finding is due, so report only what is; the failing findings, not the raw log, are what the agent is asked to fix. Use spec §6 and §11 as the wording reference. Add no removal note, upgrade note or \"removed\" section.",
+        "docs/blog/announcing-phax-1.0.md: rewrite the gates paragraph so that invariants and completion findings both fail the step, and the auditor reports a missing piece only once it is due. Change the providers passage to `one provider`, with exactly the `planAuditor` bullet, and drop the scopes bullet. Make every count match what is listed (\"offered at one point\").",
+        "docs/ideas/coverage-provider.md: the providers list reads `(gate diagnostics, the plan auditor)`. docs/ideas/change-gates-from-the-harness.md: reword the scope-closure mention without the scope provider (for example, `the plan's file ownership instead of a naming convention`).",
+        "NEXT_STEPS.md §Before steme's audit: tick the `drop-gate-scopes` item under the file's own rule. Fix its spec path to `docs/specs/2610061345-drop-gate-scopes.md`, fix the `brief-provider` path to `docs/specs/2610061346-brief-provider.md` (both re-authored 2026-10-06 for versioned answers), and correct any stale status text on those two lines. Leave the `oracle-phases` wording item open: this spec does not ask this plan to edit oracle-phases.",
+        "Run the sweep: the exact `git grep -n -E …` command of spec §8 `The live tree is swept` (copy it from docs/specs/2610061345-drop-gate-scopes.md), with `':!site/retired-schemas/'` appended to its pathspecs. It must print nothing and exit 1. Fix any live-tree hit, unless it is in a `.claude/skills/` file: report that instead of editing it, because this run has no `--allow-skill-edits`. Paste the command and its (empty) output into the handoff.",
+        "Regenerate `phax.usage.kdl` and `docs/cli/reference.md` with `pnpm gen:usage-spec` and `pnpm docs:cli`, and confirm that they equal the committed files."
+      ],
+      "boundaryContracts": null,
+      "testStrategy": "Docs only: no new tests. The existing README-driven tests (exit codes, site build from README sections on the terminal gate) must stay green. The mechanical check is the `git grep` sweep, run by the agent and recorded in the handoff, plus the regenerated usage spec and reference equalling the committed ones.",
+      "implementationOrder": [
+        "Edit README §Extend phax and §Diagnostics gate steps.",
+        "Edit the 1.0 announcement draft and the two docs/ideas files.",
+        "Update NEXT_STEPS.md.",
+        "Regenerate the usage spec and CLI reference and check that there is no diff.",
+        "Run the git grep sweep, fix any live-tree hits, and run the full gate (terminal: build, site build and deno smokes)."
+      ],
+      "excludedScope": [
+        "Editing docs/specs/, docs/plans/, docs/briefs/, docs/spikes/ or archived artifacts, including the oracle-phases spec.",
+        "Any \"removed\" section, upgrade note or deprecation text.",
+        "Editing `.claude/skills/` files.",
+        "Code changes beyond fixing a sweep hit."
+      ],
+      "verification": "The `standard` gate profile in phax.json (this terminal phase also runs build, site:build and the deno smokes), plus the spec §8 `git grep` sweep with `':!site/retired-schemas/'` appended, which must print nothing and exit 1.",
+      "expectedHandoff": "Record the following in the handoff:\n- The final hook count and subsection list of README §Extend phax.\n- The announcement's provider count and bullets.\n- The NEXT_STEPS lines changed.\n- The exact sweep command and its empty output with exit status 1.\n- Any live-tree hit that was fixed, and any `.claude/skills/` hit that was reported instead of edited.\n- Whether the usage spec and reference regenerated without a diff.\n- Any file-plan deviation phax flags, with its reason."
+    }
+  ]
+}
