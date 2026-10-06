@@ -88,7 +88,8 @@ a green field. Nobody configures `orient` or `scopes` and nobody consumes the di
 compatibility. Decided with it: orient's retirement leaves `brief-replaces-orient` for a new
 spec of its own. In this order:
 
-- [ ] **`drop-orient`** — new spec, not written yet: brief it, author it headless. Takes over
+- [ ] **`drop-orient`** — `docs/specs/2610060950-drop-orient.md`, Draft, §9 decided 2026-10-06
+      (kept history: `docs/specs`, `docs/plans`, `docs/briefs`, `docs/spikes`). Takes over
       the retirement half of `brief-replaces-orient`:
       - `orient` in every config layer, and `phax orient` with its usage, long help and
         reference entry;
@@ -101,29 +102,27 @@ spec of its own. In this order:
 
       A leftover `orient` key meets the ordinary unknown-key refusal. Also update the
       cross-run-context item below, which names the orient provider and `orient-brief.json`.
-- [ ] **`drop-gate-scopes`** — `docs/specs/2610051445-drop-gate-scopes.md`, Approved 2026-10-05.
-      Reopen it to drop its dependency on `gate-request`: the context and planning note that say
-      it ships after and with it, and the hello-world requirement that the diagnostics step
-      declares `"input": "gate-request"` (that moves to `gate-request`). Then re-approve. Content
-      unchanged: a `completion` fails like an `invariant`; the `scopes` provider, closure, pending,
-      `missing-provider` and `gate-pending` retired; `gate-diagnostics` without `scopes`.
-- [ ] **`gate-request`** — `docs/specs/2610051439-gate-request.md`, Approved. Additive: a gate
-      step that declares it reads `{phase, base, terminal, phases: [{id, files}]}` on stdin,
-      saved beside the attempt so the verdict replays. Its "additive to scopes" text (§5.15/§5.16
-      keep scope scheduling "until the next spec retires it") becomes moot once scopes are gone:
-      reopen and simplify, or leave it to the plan to note. How it relates to `oracle-phases`'
-      request is in the spec.
-- [ ] **`brief-replaces-orient`** — `docs/specs/2610051526-brief-replaces-orient.md`, Approved
-      2026-10-05, no plan yet. Reopen it to make it purely additive (the orient retirement moves
-      to `drop-orient`), then re-approve. A **brief** is feed-forward and never blocks (the audit
-      is the gate's and blocks):
+- [ ] **`drop-gate-scopes`** — `docs/specs/2610060957-drop-gate-scopes.md`, Draft, §9 decided
+      2026-10-06. Re-authored as a hard drop (the 2026-10-05 version is abandoned): no leftover
+      `scopes` named or tested, no removal note, no dependency on `gate-request`. A `completion`
+      fails like an `invariant`; the `scopes` provider, closure, pending, `missing-provider` and
+      `gate-pending` removed; the already-served `gate-pending` `$schema` URLs stay up from a
+      frozen copy (the docs-site guard is unchanged).
+- [ ] **`gate-request`** — `docs/specs/2610060951-gate-request.md`, Draft, §9 decided 2026-10-06.
+      Re-authored for the green field (the 2026-10-05 version is abandoned). A gate step that
+      declares it reads `{phase, base, terminal, phases: [{id, files}]}` on stdin, saved beside
+      the attempt so the verdict replays; `base` is noted when the phase branch is created. The
+      hello-world diagnostics step declares the input.
+- [ ] **`brief-provider`** — `docs/specs/2610060952-brief-provider.md`, Draft, §9 decided
+      2026-10-06. Replaces `brief-replaces-orient` (abandoned): purely additive, orient is already
+      gone. A **brief** is feed-forward and never blocks (the audit is the gate's and blocks):
       - woven into the phase's first prompt from the plan, and pulled with `phax brief [path…]`
         on any path, existing or not;
       - it answers with each guarantee's state, as structured data, from the same provider as
         the audit (`steme brief` / `steme audit`, a `brief-request` with the gate request's facts
         plus `files`);
       - the phase is found from `.phax-context/brief-request.json`; 50 guarantees pushed; no
-        severity.
+        severity; a fixed 60 s limit; review-time pulls answered but not recorded.
 - [ ] **`oracle-phases` wording.** It quotes the diagnostics shape with `scopes?`, says its
       `oracles` key "mirrors `scopes`", and lists "deriving oracles from `scopes`" as a non-goal.
       Sweep that text when `drop-gate-scopes` lands. No change to its design.
@@ -150,9 +149,12 @@ cross-field checks registered by id so the build writes the same list into the s
       (`a77ce12b`). Fix: complete a spec only when no other live plan names it and the
       caller says it is the last (e.g. a plan-level `completes-spec: true`, or
       `phax artifact complete` left to the operator), and never silently.
-      **Decided 2026-10-05:** a required plan field (`completesSpec: true|false`) — the run
-      completes the spec only when it is true; lint and the planning skill carry it. Its own
-      spec.
+      **Decided 2026-10-05:** a required plan field — the run completes the spec only when it
+      is true; lint and the planning skill carry it. Spec `completes-spec`
+      (`docs/specs/2610060955-completes-spec.md`, Draft, §9 decided 2026-10-06): frontmatter
+      `completes-spec`, mirrored in the plan document; refused on a plan without a spec;
+      `phax artifact new plan --spec … --last | --not-last` required; no lint advisories; live
+      plans by hand.
 - [x] **A run's completion conflicts with approvals made on main during the run.** Found
       2026-10-03 on PR #112: the run branch's completion commit removes the plan's entry from
       `docs/plans/approvals.json`, and approving another plan on main meanwhile edits the same
@@ -177,6 +179,9 @@ cross-field checks registered by id so the build writes the same list into the s
       With per-artifact record files (`approval-record-files`), the approval-ground §9 Q2 and Q4
       reduce to the plan's own record file and its own path: another artifact's record never
       counts as ground change, so redraft those two questions on that basis.
+      **2026-10-06:** the draft spec is abandoned; what is left (a footprint naming the plan's own
+      path or own record file) is the spec-less plan `own-approval-ground`
+      (`docs/plans/2610060955-own-approval-ground-plan.md`, Draft).
 - [x] **Migrate this repository's own approval ledgers after the release that ships
       `approval-record-files`.** **Done 2026-10-06** with 0.19.0: here `6f74d287` (both ledgers →
       1 plan and 8 spec record files), steme-lab `d2fe0f7` (empty ledger deleted). Run `phax artifact migrate-approvals` by hand on a clean tree,
@@ -186,6 +191,13 @@ cross-field checks registered by id so the build writes the same list into the s
       deletes it. Until both are migrated, approve, `plans status`, `artifact status` and
       `phax run` refuse there with exit 12. louloupapers is unaffected: its `phax.json` is already
       refused (see *Housekeeping*).
+- [ ] **Headless authoring loses a whole session to one malformed JSON character.** Found
+      2026-10-06: the first `drop-gate-scopes` authoring session (~7 min) ended with a
+      22.9 KB document holding a stray code expression (`".replace("check s","checks")`) at char
+      22 700, and phax refused it as "not JSON" with nothing written; the rerun succeeded. Fix:
+      retry the session once on an unparsable or schema-invalid document (feeding the parse error
+      back), or have the provider enforce the output schema (Claude Code's structured output).
+      The failed session's output stays in `~/.phax/authoring/<stamp>-<slug>/output.jsonl`.
 - [ ] **The real e2e's Codex and Vibe flows run on Claude.** Found 2026-10-06 running
       `PHAX_E2E_RUN=1 PHAX_E2E_BACKEND=claude pnpm test:e2e:real` before the 0.19.0 release:
       `tests/e2e/realFlow.test.ts` fails "each phase recorded the expected security posture and
