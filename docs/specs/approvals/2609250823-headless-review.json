@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+  "artifact": "docs/specs/2609250823-headless-review.md",
+  "specFingerprint": "ea7abc534f7771584a9251d15776dea3a4fb18eb506f638102cb7d5d6f91db4c",
+  "approvedAt": "2026-09-29T08:42:18.989Z",
+  "baseline": "8a37ac368b8b32aabefdd48496e7cd3cfa6b635c"
+}

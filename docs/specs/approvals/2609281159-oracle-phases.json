@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+  "artifact": "docs/specs/2609281159-oracle-phases.md",
+  "specFingerprint": "e706e68d969febb8b9bf4199bf0abdcc95b5114430d5a3ae34a84becb36fa41a",
+  "approvedAt": "2026-09-28T16:08:36.591Z",
+  "baseline": "ddc1a9a73b20c3a5bafce185f03a014d78a833cc"
+}
