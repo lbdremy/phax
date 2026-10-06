@@ -689,7 +689,7 @@
     },
     {
       "id": "q7-base-source",
-      "question": "Where does a phase's `base` come from once its branch exists: on a later fix-loop attempt, on a resume, or after the branch it was created from has moved?",
+      "question": "Where does a phase's `base` come from once its branch exists: on a later fix-loop attempt, on a resume, or after the branch it was created from has moved? (Decided by the author on 2026-10-06; not reopened.)",
       "options": [
         {
           "id": "noted-at-creation",
@@ -703,7 +703,7 @@
         }
       ],
       "recommendation": "noted-at-creation",
-      "rationale": "A wrong base is the one failure the provider cannot detect: it would audit the wrong change and report a confident verdict. The refusal costs only phases already in flight when this lands that also gain a declaring step mid-run. None can exist before this release, since `input` is new, and the no-shims rule already prefers an actionable refusal to a fallback. oracle-phases needs the same fact for its own `base`, so one noted base serves both."
+      "rationale": "Decided by the author on 2026-10-06, as recommended. A wrong base is the one failure the provider cannot detect: it would audit the wrong change and report a confident verdict. The refusal costs only phases already in flight when this lands that also gain a declaring step mid-run. None can exist before this release, since `input` is new, and the no-shims rule already prefers an actionable refusal to a fallback. oracle-phases needs the same fact for its own `base`, so one noted base serves both."
     }
   ],
   "planningNote": {

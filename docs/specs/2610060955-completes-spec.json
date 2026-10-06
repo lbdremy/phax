@@ -165,13 +165,13 @@
       "id": "new-flag",
       "title": "Plan creation sets the value",
       "pattern": "event",
-      "statement": "WHEN `phax artifact new plan` is invoked with `--spec` and exactly one of `--completes-spec` or `--no-completes-spec` THE system SHALL write `completes-spec: true` or `completes-spec: false` respectively into the new plan's frontmatter, after `source-spec`."
+      "statement": "WHEN `phax artifact new plan` is invoked with `--spec` and exactly one of `--last` or `--not-last` THE system SHALL write `completes-spec: true` or `completes-spec: false` respectively into the new plan's frontmatter, after `source-spec`."
     },
     {
       "id": "new-refusal",
       "title": "Plan creation refuses an unstated or meaningless value",
       "pattern": "unwanted",
-      "statement": "IF `phax artifact new plan` is given `--spec` with neither or both of `--completes-spec` and `--no-completes-spec`, or either flag without `--spec`, THEN the system SHALL refuse with exit code 12 before writing anything."
+      "statement": "IF `phax artifact new plan` is given `--spec` with neither or both of `--last` and `--not-last`, or either flag without `--spec`, THEN the system SHALL refuse with exit code 12 before writing anything."
     },
     {
       "id": "headless-mirror",
@@ -215,7 +215,7 @@
       "surface": "cli: phax artifact new plan",
       "binding": "indicative",
       "before": "phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md\ncreated docs/plans/2610010900-widgets-plan.md (Draft, source-spec docs/specs/2609291000-widgets.md)",
-      "after": "phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --no-completes-spec\ncreated docs/plans/2610010900-widgets-plan.md (Draft, source-spec docs/specs/2609291000-widgets.md, completes-spec false)\n\nphax artifact new plan widgets --spec docs/specs/2609291000-widgets.md\n✗ --spec needs --completes-spec (this plan is the spec's last) or --no-completes-spec (more plans follow)\n$? = 12\n\nphax artifact new plan catalog-refresh --completes-spec\n✗ --completes-spec needs --spec: a plan without a source spec completes none\n$? = 12\n\n# a required pair of opposite flags and exit 12: normative; flag spelling and wording: indicative"
+      "after": "phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --not-last\ncreated docs/plans/2610010900-widgets-plan.md (Draft, source-spec docs/specs/2609291000-widgets.md, completes-spec false)\n\nphax artifact new plan widgets --spec docs/specs/2609291000-widgets.md\n✗ --spec needs --last (this plan is the spec's last) or --not-last (more plans follow)\n$? = 12\n\nphax artifact new plan catalog-refresh --last\n✗ --last needs --spec: a plan without a source spec completes none\n$? = 12\n\n# a required pair of opposite flags and exit 12: normative; flag spelling and wording: indicative"
     },
     {
       "surface": "cli: run completion output (phax run, phax resume)",
@@ -342,7 +342,7 @@
       "id": "ac-new-flag",
       "name": "Plan creation writes the stated value",
       "given": "an existing spec docs/specs/2609291000-widgets.md",
-      "when": "`phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --no-completes-spec` runs (and separately with `--completes-spec`)",
+      "when": "`phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --not-last` runs (and separately with `--last`)",
       "then": "the created plan's frontmatter reads `completes-spec: false` (respectively `true`) after `source-spec`, and the confirmation line names the value",
       "refs": [
         "new-flag"
@@ -352,7 +352,7 @@
       "id": "ac-new-refusal",
       "name": "Plan creation refuses an unstated or meaningless value",
       "given": "an existing spec",
-      "when": "`phax artifact new plan widgets --spec <spec>` runs with neither flag, then with both, then `phax artifact new plan catalog-refresh --completes-spec` runs without `--spec`",
+      "when": "`phax artifact new plan widgets --spec <spec>` runs with neither flag, then with both, then `phax artifact new plan catalog-refresh --last` runs without `--spec`",
       "then": "each exits 12 and no plan file is written",
       "refs": [
         "new-refusal"
@@ -361,7 +361,7 @@
     {
       "id": "ac-headless",
       "name": "Headless authoring takes the value from the flags",
-      "given": "`phax artifact new plan widgets --spec <spec> --no-completes-spec --headless --brief brief.md` against a stubbed session that returns `completesSpec: true`",
+      "given": "`phax artifact new plan widgets --spec <spec> --not-last --headless --brief brief.md` against a stubbed session that returns `completesSpec: true`",
       "when": "the session's document is accepted",
       "then": "the committed sidecar carries `completesSpec: false` and the rendered plan's frontmatter reads `completes-spec: false`",
       "refs": [
@@ -415,7 +415,7 @@
     },
     {
       "id": "q-location",
-      "question": "Where does the value live, and how do the frontmatter, the plan document and phax-plan.json stay consistent?",
+      "question": "Where does the value live, and how do the frontmatter, the plan document and phax-plan.json stay consistent? (Decided by the author on 2026-10-06; not reopened.)",
       "options": [
         {
           "id": "frontmatter-mirrored",
@@ -434,11 +434,11 @@
         }
       ],
       "recommendation": "frontmatter-mirrored",
-      "rationale": "Lineage already lives in the frontmatter beside `source-spec`. The approval fingerprint covers it there, and run completion already reads that block. The mirror follows the established `sourceSpec` precedent, so the sidecar stays a complete description. Its drift risk is the same one `sourceSpec` has, and phax never reads the mirror to decide anything."
+      "rationale": "Decided by the author on 2026-10-06, as recommended. Lineage already lives in the frontmatter beside `source-spec`. The approval fingerprint covers it there, and run completion already reads that block. The mirror follows the established `sourceSpec` precedent, so the sidecar stays a complete description. Its drift risk is the same one `sourceSpec` has, and phax never reads the mirror to decide anything."
     },
     {
       "id": "q-specless",
-      "question": "What does a plan with `source-spec: null` carry?",
+      "question": "What does a plan with `source-spec: null` carry? (Decided by the author on 2026-10-06; not reopened.)",
       "options": [
         {
           "id": "absent",
@@ -457,20 +457,20 @@
         }
       ],
       "recommendation": "absent",
-      "rationale": "Explicit per-variant shapes beat a permissive superset. The key exists exactly where it means something, and each variant has one legal form. The document uses null only because its own rule forbids missing keys."
+      "rationale": "Decided by the author on 2026-10-06, as recommended. Explicit per-variant shapes beat a permissive superset. The key exists exactly where it means something, and each variant has one legal form. The document uses null only because its own rule forbids missing keys."
     },
     {
       "id": "q-creation",
-      "question": "How does `phax artifact new plan` set the value?",
+      "question": "How does `phax artifact new plan` set the value? (Decided by the author on 2026-10-06; not reopened.)",
       "options": [
         {
           "id": "required-flag",
-          "label": "With `--spec`, exactly one of `--completes-spec` / `--no-completes-spec` is required and authoritative in both interactive and headless modes; either flag without `--spec` is refused",
+          "label": "With `--spec`, exactly one of `--last` / `--not-last` is required and authoritative in both interactive and headless modes; either flag without `--spec` is refused",
           "abandons": "a zero-decision `artifact new plan` for the common one-plan spec, plus every existing invocation and example gaining a flag"
         },
         {
           "id": "default-true",
-          "label": "Default `true` with `--spec`; `--no-completes-spec` opts out",
+          "label": "Default `true` with `--spec`; `--not-last` opts out",
           "abandons": "protection where the defect arose: the author of plan 1/5 who forgets the flag gets today's behavior, caught only if someone reads the frontmatter at approval"
         },
         {
@@ -480,11 +480,11 @@
         }
       ],
       "recommendation": "required-flag",
-      "rationale": "The defect is a silent default. Forcing the statement at creation costs one flag, while a default reproduces the defect for anyone who does not think about it. Making the flags authoritative in headless mode mirrors how `--spec` governs `sourceSpec`."
+      "rationale": "Decided by the author on 2026-10-06, as recommended, with shorter flag names: `--last` / `--not-last` (the frontmatter key stays `completes-spec`). The defect is a silent default. Forcing the statement at creation costs one flag, while a default reproduces the defect for anyone who does not think about it. Making the flags authoritative in headless mode mirrors how `--spec` governs `sourceSpec`."
     },
     {
       "id": "q-lint-advisories",
-      "question": "Does `plans lint` warn about two live plans both saying `true` for one spec, or a spec whose live plans all say `false`?",
+      "question": "Does `plans lint` warn about two live plans both saying `true` for one spec, or a spec whose live plans all say `false`? (Decided by the author on 2026-10-06; not reopened.)",
       "options": [
         {
           "id": "none",
@@ -503,11 +503,11 @@
         }
       ],
       "recommendation": "none",
-      "rationale": "Neither situation is a defect. The chain gate already makes two `true` plans safe, and the run output and handoff show each non-completing plan's choice. Spec 27 rejected a warning on a designed path for the same reason."
+      "rationale": "Decided by the author on 2026-10-06, as recommended. Neither situation is a defect. The chain gate already makes two `true` plans safe, and the run output and handoff show each non-completing plan's choice. Spec 27 rejected a warning on a designed path for the same reason."
     },
     {
       "id": "q-migration",
-      "question": "How do live plans gain the field?",
+      "question": "How do live plans gain the field? (Decided by the author on 2026-10-06; not reopened.)",
       "options": [
         {
           "id": "by-hand",
@@ -521,7 +521,7 @@
         }
       ],
       "recommendation": "by-hand",
-      "rationale": "Nobody else runs multi-plan specs, and the value is a judgement no command can supply. The only live plan here today has `source-spec: null` and needs nothing under q-specless. Any plan with a spec that goes live before the implementing run lands gains the key by hand. If it is Approved, it is re-approved, since the key is fingerprinted."
+      "rationale": "Decided by the author on 2026-10-06, as recommended. Nobody else runs multi-plan specs, and the value is a judgement no command can supply. The only live plan here today has `source-spec: null` and needs nothing under q-specless. Any plan with a spec that goes live before the implementing run lands gains the key by hand. If it is Approved, it is re-approved, since the key is fingerprinted."
     }
   ],
   "planningNote": {
@@ -551,6 +551,6 @@
     "kind": "page",
     "page": "README.md — the artifact lifecycle section, at the sentence on run completion",
     "reader": "an operator splitting one spec across several plans, who needs the spec to stay live until the last plan's run",
-    "example": "phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --no-completes-spec   # plan 1 of 3\nphax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --completes-spec      # plan 3 of 3\n\n# plan 1's frontmatter:\n---\nstatus: Draft\nsource-spec: docs/specs/2609291000-widgets.md\ncompletes-spec: false\n---"
+    "example": "phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --not-last   # plan 1 of 3\nphax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --last      # plan 3 of 3\n\n# plan 1's frontmatter:\n---\nstatus: Draft\nsource-spec: docs/specs/2609291000-widgets.md\ncompletes-spec: false\n---"
   }
 }

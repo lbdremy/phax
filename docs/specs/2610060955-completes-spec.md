@@ -101,11 +101,11 @@ WHEN the `completes-spec` value of an Approved plan changes after its approval T
 
 ### 5.9 Plan creation sets the value
 
-WHEN `phax artifact new plan` is invoked with `--spec` and exactly one of `--completes-spec` or `--no-completes-spec` THE system SHALL write `completes-spec: true` or `completes-spec: false` respectively into the new plan's frontmatter, after `source-spec`.
+WHEN `phax artifact new plan` is invoked with `--spec` and exactly one of `--last` or `--not-last` THE system SHALL write `completes-spec: true` or `completes-spec: false` respectively into the new plan's frontmatter, after `source-spec`.
 
 ### 5.10 Plan creation refuses an unstated or meaningless value
 
-IF `phax artifact new plan` is given `--spec` with neither or both of `--completes-spec` and `--no-completes-spec`, or either flag without `--spec`, THEN the system SHALL refuse with exit code 12 before writing anything.
+IF `phax artifact new plan` is given `--spec` with neither or both of `--last` and `--not-last`, or either flag without `--spec`, THEN the system SHALL refuse with exit code 12 before writing anything.
 
 ### 5.11 Headless authoring mirrors the CLI value
 
@@ -190,15 +190,15 @@ before:
 
 after:
 
-    phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --no-completes-spec
+    phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --not-last
     created docs/plans/2610010900-widgets-plan.md (Draft, source-spec docs/specs/2609291000-widgets.md, completes-spec false)
 
     phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md
-    ✗ --spec needs --completes-spec (this plan is the spec's last) or --no-completes-spec (more plans follow)
+    ✗ --spec needs --last (this plan is the spec's last) or --not-last (more plans follow)
     $? = 12
 
-    phax artifact new plan catalog-refresh --completes-spec
-    ✗ --completes-spec needs --spec: a plan without a source spec completes none
+    phax artifact new plan catalog-refresh --last
+    ✗ --last needs --spec: a plan without a source spec completes none
     $? = 12
 
     # a required pair of opposite flags and exit 12: normative; flag spelling and wording: indicative
@@ -310,15 +310,15 @@ Given an Approved plan with `completes-spec: false` that `phax plans status` rep
 
 ### Plan creation writes the stated value
 
-Given an existing spec docs/specs/2609291000-widgets.md, when `phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --no-completes-spec` runs (and separately with `--completes-spec`), then the created plan's frontmatter reads `completes-spec: false` (respectively `true`) after `source-spec`, and the confirmation line names the value. (refs §5.9)
+Given an existing spec docs/specs/2609291000-widgets.md, when `phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --not-last` runs (and separately with `--last`), then the created plan's frontmatter reads `completes-spec: false` (respectively `true`) after `source-spec`, and the confirmation line names the value. (refs §5.9)
 
 ### Plan creation refuses an unstated or meaningless value
 
-Given an existing spec, when `phax artifact new plan widgets --spec <spec>` runs with neither flag, then with both, then `phax artifact new plan catalog-refresh --completes-spec` runs without `--spec`, then each exits 12 and no plan file is written. (refs §5.10)
+Given an existing spec, when `phax artifact new plan widgets --spec <spec>` runs with neither flag, then with both, then `phax artifact new plan catalog-refresh --last` runs without `--spec`, then each exits 12 and no plan file is written. (refs §5.10)
 
 ### Headless authoring takes the value from the flags
 
-Given `phax artifact new plan widgets --spec <spec> --no-completes-spec --headless --brief brief.md` against a stubbed session that returns `completesSpec: true`, when the session's document is accepted, then the committed sidecar carries `completesSpec: false` and the rendered plan's frontmatter reads `completes-spec: false`. (refs §5.11)
+Given `phax artifact new plan widgets --spec <spec> --not-last --headless --brief brief.md` against a stubbed session that returns `completesSpec: true`, when the session's document is accepted, then the committed sidecar carries `completesSpec: false` and the rendered plan's frontmatter reads `completes-spec: false`. (refs §5.11)
 
 ### The plan document enforces the variant
 
@@ -338,44 +338,44 @@ Given the bundled phax-planning SKILL.md, when its plan frontmatter section is r
 
 Recommendation: A required plan field (`completes-spec: true|false`); the run completes the spec only when it is true, with the chain gate on top — Decided 2026-10-05. Only the author knows whether more plans follow, so the plan must say it. A required field keeps spec 27's single merge for the last plan and costs one stated fact per plan.
 
-### Q2 — Where does the value live, and how do the frontmatter, the plan document and phax-plan.json stay consistent?
+### Q2 — Where does the value live, and how do the frontmatter, the plan document and phax-plan.json stay consistent? (Decided by the author on 2026-10-06; not reopened.)
 
 - Frontmatter key `completes-spec` is the value phax reads; the plan document mirrors it as `completesSpec`, set from the CLI like `sourceSpec`; phax-plan.json does not carry it — abandons: a single copy: a hand edit of the frontmatter after authoring leaves the sidecar's mirror behind, exactly as `sourceSpec` can drift today
 - Frontmatter only; the plan document is unchanged — abandons: the sidecar as the full authored lineage: its readers (schemas-package consumers, the cockpit) see `sourceSpec` but cannot tell whether the plan completes it
 - A field of phax-plan.json — abandons: a deterministic read: the extracted plan is derived, cached and model-assisted, and holds phases rather than lineage, so the run's decision would rest on an extraction
 
-Recommendation: Frontmatter key `completes-spec` is the value phax reads; the plan document mirrors it as `completesSpec`, set from the CLI like `sourceSpec`; phax-plan.json does not carry it — Lineage already lives in the frontmatter beside `source-spec`. The approval fingerprint covers it there, and run completion already reads that block. The mirror follows the established `sourceSpec` precedent, so the sidecar stays a complete description. Its drift risk is the same one `sourceSpec` has, and phax never reads the mirror to decide anything.
+Recommendation: Frontmatter key `completes-spec` is the value phax reads; the plan document mirrors it as `completesSpec`, set from the CLI like `sourceSpec`; phax-plan.json does not carry it — Decided by the author on 2026-10-06, as recommended. Lineage already lives in the frontmatter beside `source-spec`. The approval fingerprint covers it there, and run completion already reads that block. The mirror follows the established `sourceSpec` precedent, so the sidecar stays a complete description. Its drift risk is the same one `sourceSpec` has, and phax never reads the mirror to decide anything.
 
-### Q3 — What does a plan with `source-spec: null` carry?
+### Q3 — What does a plan with `source-spec: null` carry? (Decided by the author on 2026-10-06; not reopened.)
 
 - No `completes-spec` key; its presence is refused (the plan document carries `completesSpec: null`, since every document key is required) — abandons: a uniform key set: the allowed frontmatter keys now depend on the `source-spec` variant, and the frontmatter and document spell "not applicable" differently (absent vs null)
 - `completes-spec: false` required — abandons: meaning: `false` claims a decision about a spec that does not exist, and `true` beside `null` becomes a nonsense value that lint must police
 - `completes-spec: null` required — abandons: economy: a key with no information that every spec-less plan, loose plan.md included, must still write
 
-Recommendation: No `completes-spec` key; its presence is refused (the plan document carries `completesSpec: null`, since every document key is required) — Explicit per-variant shapes beat a permissive superset. The key exists exactly where it means something, and each variant has one legal form. The document uses null only because its own rule forbids missing keys.
+Recommendation: No `completes-spec` key; its presence is refused (the plan document carries `completesSpec: null`, since every document key is required) — Decided by the author on 2026-10-06, as recommended. Explicit per-variant shapes beat a permissive superset. The key exists exactly where it means something, and each variant has one legal form. The document uses null only because its own rule forbids missing keys.
 
-### Q4 — How does `phax artifact new plan` set the value?
+### Q4 — How does `phax artifact new plan` set the value? (Decided by the author on 2026-10-06; not reopened.)
 
-- With `--spec`, exactly one of `--completes-spec` / `--no-completes-spec` is required and authoritative in both interactive and headless modes; either flag without `--spec` is refused — abandons: a zero-decision `artifact new plan` for the common one-plan spec, plus every existing invocation and example gaining a flag
-- Default `true` with `--spec`; `--no-completes-spec` opts out — abandons: protection where the defect arose: the author of plan 1/5 who forgets the flag gets today's behavior, caught only if someone reads the frontmatter at approval
+- With `--spec`, exactly one of `--last` / `--not-last` is required and authoritative in both interactive and headless modes; either flag without `--spec` is refused — abandons: a zero-decision `artifact new plan` for the common one-plan spec, plus every existing invocation and example gaining a flag
+- Default `true` with `--spec`; `--not-last` opts out — abandons: protection where the defect arose: the author of plan 1/5 who forgets the flag gets today's behavior, caught only if someone reads the frontmatter at approval
 - In headless mode the session decides from the brief — abandons: determinism: an agent guesses a lineage fact, and interactive creation still needs another rule
 
-Recommendation: With `--spec`, exactly one of `--completes-spec` / `--no-completes-spec` is required and authoritative in both interactive and headless modes; either flag without `--spec` is refused — The defect is a silent default. Forcing the statement at creation costs one flag, while a default reproduces the defect for anyone who does not think about it. Making the flags authoritative in headless mode mirrors how `--spec` governs `sourceSpec`.
+Recommendation: With `--spec`, exactly one of `--last` / `--not-last` is required and authoritative in both interactive and headless modes; either flag without `--spec` is refused — Decided by the author on 2026-10-06, as recommended, with shorter flag names: `--last` / `--not-last` (the frontmatter key stays `completes-spec`). The defect is a silent default. Forcing the statement at creation costs one flag, while a default reproduces the defect for anyone who does not think about it. Making the flags authoritative in headless mode mirrors how `--spec` governs `sourceSpec`.
 
-### Q5 — Does `plans lint` warn about two live plans both saying `true` for one spec, or a spec whose live plans all say `false`?
+### Q5 — Does `plans lint` warn about two live plans both saying `true` for one spec, or a spec whose live plans all say `false`? (Decided by the author on 2026-10-06; not reopened.)
 
 - Neither; lint checks the plan it is given, as today — abandons: an early hint that a multi-plan spec's statements look odd
 - Advisory warnings for both cases — abandons: signal honesty: all-`false` is the designed state while the last plan is unwritten (plans authored one at a time), and two `true` plans are handled harmlessly by the chain gate, so both warnings fire on legitimate paths and train warning-blindness
 - Warn only on two live `true` plans — abandons: lint's single-plan scope: it must scan sibling plans for a case the chain gate already makes harmless
 
-Recommendation: Neither; lint checks the plan it is given, as today — Neither situation is a defect. The chain gate already makes two `true` plans safe, and the run output and handoff show each non-completing plan's choice. Spec 27 rejected a warning on a designed path for the same reason.
+Recommendation: Neither; lint checks the plan it is given, as today — Decided by the author on 2026-10-06, as recommended. Neither situation is a defect. The chain gate already makes two `true` plans safe, and the run output and handoff show each non-completing plan's choice. Spec 27 rejected a warning on a designed path for the same reason.
 
-### Q6 — How do live plans gain the field?
+### Q6 — How do live plans gain the field? (Decided by the author on 2026-10-06; not reopened.)
 
 - By hand, in the implementing plan — abandons: a repeatable path for other repositories with live plans that name a spec
 - A one-time migration command — abandons: scope: a new command, and the decision it cannot make (whether each plan is its spec's last) still falls to a human
 
-Recommendation: By hand, in the implementing plan — Nobody else runs multi-plan specs, and the value is a judgement no command can supply. The only live plan here today has `source-spec: null` and needs nothing under q-specless. Any plan with a spec that goes live before the implementing run lands gains the key by hand. If it is Approved, it is re-approved, since the key is fingerprinted.
+Recommendation: By hand, in the implementing plan — Decided by the author on 2026-10-06, as recommended. Nobody else runs multi-plan specs, and the value is a judgement no command can supply. The only live plan here today has `source-spec: null` and needs nothing under q-specless. Any plan with a spec that goes live before the implementing run lands gains the key by hand. If it is Approved, it is re-approved, since the key is fingerprinted.
 
 ## 10. Implementation-planning note
 
@@ -409,8 +409,8 @@ Page: README.md — the artifact lifecycle section, at the sentence on run compl
 
 Reader: an operator splitting one spec across several plans, who needs the spec to stay live until the last plan's run
 
-Example: phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --no-completes-spec   # plan 1 of 3
-phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --completes-spec      # plan 3 of 3
+Example: phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --not-last   # plan 1 of 3
+phax artifact new plan widgets --spec docs/specs/2609291000-widgets.md --last      # plan 3 of 3
 
 # plan 1's frontmatter:
 ---

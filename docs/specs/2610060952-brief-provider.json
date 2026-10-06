@@ -860,7 +860,7 @@
     },
     {
       "id": "q7",
-      "question": "What happens to a `phax brief` call made in a phase worktree after that phase's record is written (the kept-open final phase in review)?",
+      "question": "What happens to a `phax brief` call made in a phase worktree after that phase's record is written (the kept-open final phase in review)? (Decided by the author on 2026-10-06; not reopened.)",
       "options": [
         {
           "id": "answer-unrecorded",
@@ -879,11 +879,11 @@
         }
       ],
       "recommendation": "answer-unrecorded",
-      "rationale": "The record explains the gated phase, and every brief that shaped that work was made before the record was written, so it is captured. Review-time pulls inform edits that the review itself accounts for. Losing their trace is the cheapest of the three losses: amending records changes a persisted contract, and refusing removes the advice when it is still useful."
+      "rationale": "Decided by the author on 2026-10-06, as recommended. The record explains the gated phase, and every brief that shaped that work was made before the record was written, so it is captured. Review-time pulls inform edits that the review itself accounts for. Losing their trace is the cheapest of the three losses: amending records changes a persisted contract, and refusing removes the advice when it is still useful."
     },
     {
       "id": "q8",
-      "question": "What does `phax brief` do when the phase request file is present but does not decode?",
+      "question": "What does `phax brief` do when the phase request file is present but does not decode? (Decided by the author on 2026-10-06; not reopened.)",
       "options": [
         {
           "id": "refuse",
@@ -897,11 +897,11 @@
         }
       ],
       "recommendation": "refuse",
-      "rationale": "A present file means the call is inside a phase. Silently falling back would hand the agent advice without the half of the need that depends on the phase (what is due now). A loud refusal costs one call and names the file to fix."
+      "rationale": "Decided by the author on 2026-10-06, as recommended. A present file means the call is inside a phase. Silently falling back would hand the agent advice without the half of the need that depends on the phase (what is due now). A loud refusal costs one call and names the file to fix."
     },
     {
       "id": "q9",
-      "question": "Is the brief time limit fixed or configurable, and how long is it?",
+      "question": "Is the brief time limit fixed or configurable, and how long is it? (Decided by the author on 2026-10-06; not reopened.)",
       "options": [
         {
           "id": "fixed-60",
@@ -920,7 +920,7 @@
         }
       ],
       "recommendation": "fixed-60",
-      "rationale": "A brief reads a ledger the audit has already built, so it should answer in seconds. A fixed limit keeps every provider key `{command}` and keeps the config contract small before the freeze. If a real provider is too slow, the cost is a brief marked unavailable, never a blocked phase, and a key can be added later without breaking any existing config."
+      "rationale": "Decided by the author on 2026-10-06, as recommended. A brief reads a ledger the audit has already built, so it should answer in seconds. A fixed limit keeps every provider key `{command}` and keeps the config contract small before the freeze. If a real provider is too slow, the cost is a brief marked unavailable, never a blocked phase, and a key can be added later without breaking any existing config."
     }
   ],
   "planningNote": {

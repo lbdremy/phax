@@ -519,12 +519,12 @@ Recommendation: `checks-attempt-NN.request.json` — Decided by the author on 20
 
 Recommendation: Every phase of the run in execution order: the original plan's phases, then each appended plan's, through the gated phase's plan — Decided by the author on 2026-10-05, as recommended. The future, the part the provider needs from the plan, is the same under both options. Keeping the past phases makes the request of an appended phase the same kind of document as any other: every phase of the run, the gated one included. `base` and git already scope the change.
 
-### Q7 — Where does a phase's `base` come from once its branch exists: on a later fix-loop attempt, on a resume, or after the branch it was created from has moved?
+### Q7 — Where does a phase's `base` come from once its branch exists: on a later fix-loop attempt, on a resume, or after the branch it was created from has moved? (Decided by the author on 2026-10-06; not reopened.)
 
 - phax notes the base when it creates the phase branch and reads it back on every attempt, resume included — abandons: Phases whose branch an earlier release created. They have no noted base, so one that meets a declaring step on resume must be reset first (refused with a message naming `phax reset-phase`). The noted base also becomes persisted phase state.
 - phax recomputes it at each gate from git, as the fork point between the phase branch and the branch it was created from — abandons: Base as a fact rather than an inference. Once the source branch moves, is rewritten or is deleted after the phase branched, the fork point silently becomes a different commit, or none. The provider is then handed a wrong past with nothing to tell it so.
 
-Recommendation: phax notes the base when it creates the phase branch and reads it back on every attempt, resume included — A wrong base is the one failure the provider cannot detect: it would audit the wrong change and report a confident verdict. The refusal costs only phases already in flight when this lands that also gain a declaring step mid-run. None can exist before this release, since `input` is new, and the no-shims rule already prefers an actionable refusal to a fallback. oracle-phases needs the same fact for its own `base`, so one noted base serves both.
+Recommendation: phax notes the base when it creates the phase branch and reads it back on every attempt, resume included — Decided by the author on 2026-10-06, as recommended. A wrong base is the one failure the provider cannot detect: it would audit the wrong change and report a confident verdict. The refusal costs only phases already in flight when this lands that also gain a declaring step mid-run. None can exist before this release, since `input` is new, and the no-shims rule already prefers an actionable refusal to a fallback. oracle-phases needs the same fact for its own `base`, so one noted base serves both.
 
 ## 10. Implementation-planning note
 

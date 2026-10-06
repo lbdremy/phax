@@ -537,7 +537,7 @@
     },
     {
       "id": "q-kept-history",
-      "question": "Where does kept history end, that is, which tracked files may still name orient after this change? The brief lists archived artifacts, the git history and written records, but the ground has live Approved specs, authoring briefs, dated spikes and the author's queue that name it.",
+      "question": "Where does kept history end, that is, which tracked files may still name orient after this change? The brief lists archived artifacts, the git history and written records, but the ground has live Approved specs, authoring briefs, dated spikes and the author's queue that name it. (Decided by the author on 2026-10-06; not reopened.)",
       "options": [
         {
           "id": "history-paths",
@@ -556,7 +556,7 @@
         }
       ],
       "recommendation": "history-paths",
-      "rationale": "It is the only option that keeps both of the brief's rules: the live tree forgets orient, and other specs are not edited here. Live specs and plans are changed through their own revision and approval, and this spec and its plan are archived by the run that carries them. Briefs and spikes are dated records of what was asked and found. The sweep can still be checked mechanically (ac-sweep). The loss is temporary and named: §10 lists the wording each live spec's revision must change."
+      "rationale": "Decided by the author on 2026-10-06, as recommended. It is the only option that keeps both of the brief's rules: the live tree forgets orient, and other specs are not edited here. Live specs and plans are changed through their own revision and approval, and this spec and its plan are archived by the run that carries them. Briefs and spikes are dated records of what was asked and found. The sweep can still be checked mechanically (ac-sweep). The loss is temporary and named: §10 lists the wording each live spec's revision must change."
     }
   ],
   "planningNote": {

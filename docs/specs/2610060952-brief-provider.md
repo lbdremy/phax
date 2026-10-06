@@ -709,28 +709,28 @@ Recommendation: No: `phax brief [path…]` only — Decided by the author on 202
 
 Recommendation: Drop severity — Decided by the author on 2026-10-05, as recommended. State says what to do at a place (fix what is missing or forbidden, leave accepted debt alone), and due says when; order says what matters most. Severity added a third axis that only made sense when the answer carried no state, and the audit, not the brief, is where weight becomes a verdict. Losing the explicit label is acceptable because the provider still ranks by order.
 
-### Q7 — What happens to a `phax brief` call made in a phase worktree after that phase's record is written (the kept-open final phase in review)?
+### Q7 — What happens to a `phax brief` call made in a phase worktree after that phase's record is written (the kept-open final phase in review)? (Decided by the author on 2026-10-06; not reopened.)
 
 - Answer it with the phase's facts and record nothing — abandons: A complete account of what was asked during review. Pulls made while the final phase is kept open leave no trace in the record.
 - Record it into the already-written record, or a follow-up record — abandons: A phase record written once. `phax/records/v1` would need an amendment path it does not have, for calls that no longer shape the phase's gated work.
 - Refuse the call once the record is written — abandons: The brief during review, when a person or a review session still edits files in that worktree and needs the same advice.
 
-Recommendation: Answer it with the phase's facts and record nothing — The record explains the gated phase, and every brief that shaped that work was made before the record was written, so it is captured. Review-time pulls inform edits that the review itself accounts for. Losing their trace is the cheapest of the three losses: amending records changes a persisted contract, and refusing removes the advice when it is still useful.
+Recommendation: Answer it with the phase's facts and record nothing — Decided by the author on 2026-10-06, as recommended. The record explains the gated phase, and every brief that shaped that work was made before the record was written, so it is captured. Review-time pulls inform edits that the review itself accounts for. Losing their trace is the cheapest of the three losses: amending records changes a persisted contract, and refusing removes the advice when it is still useful.
 
-### Q8 — What does `phax brief` do when the phase request file is present but does not decode?
+### Q8 — What does `phax brief` do when the phase request file is present but does not decode? (Decided by the author on 2026-10-06; not reopened.)
 
 - Exit 1 naming the file, without running the provider — abandons: An answer while the file is damaged. The agent must restore it (a resume rewrites it), or delete it to brief as outside a phase.
 - Brief as outside a phase — abandons: Noticing the damage. Every pull silently loses the phase facts and `due`, and nothing says why.
 
-Recommendation: Exit 1 naming the file, without running the provider — A present file means the call is inside a phase. Silently falling back would hand the agent advice without the half of the need that depends on the phase (what is due now). A loud refusal costs one call and names the file to fix.
+Recommendation: Exit 1 naming the file, without running the provider — Decided by the author on 2026-10-06, as recommended. A present file means the call is inside a phase. Silently falling back would hand the agent advice without the half of the need that depends on the phase (what is due now). A loud refusal costs one call and names the file to fix.
 
-### Q9 — Is the brief time limit fixed or configurable, and how long is it?
+### Q9 — Is the brief time limit fixed or configurable, and how long is it? (Decided by the author on 2026-10-06; not reopened.)
 
 - A fixed 60 seconds, the same for pushed and pulled briefs — abandons: A provider that needs longer on a large repository. It is cut off, and the phase runs without its brief, or the pull fails.
 - A `timeoutSeconds` beside `command` in the `brief` key — abandons: The `{command}`-only shape every provider key shares, and one more config key frozen at 1.0 before the first consumer has shown it needs one.
 - No limit — abandons: Never blocking. A wedged provider wedges the phase start, as orient's unbounded query could.
 
-Recommendation: A fixed 60 seconds, the same for pushed and pulled briefs — A brief reads a ledger the audit has already built, so it should answer in seconds. A fixed limit keeps every provider key `{command}` and keeps the config contract small before the freeze. If a real provider is too slow, the cost is a brief marked unavailable, never a blocked phase, and a key can be added later without breaking any existing config.
+Recommendation: A fixed 60 seconds, the same for pushed and pulled briefs — Decided by the author on 2026-10-06, as recommended. A brief reads a ledger the audit has already built, so it should answer in seconds. A fixed limit keeps every provider key `{command}` and keeps the config contract small before the freeze. If a real provider is too slow, the cost is a brief marked unavailable, never a blocked phase, and a key can be added later without breaking any existing config.
 
 ## 10. Implementation-planning note
 
