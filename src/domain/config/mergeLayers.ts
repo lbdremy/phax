@@ -147,10 +147,6 @@ export function mergeConfigLayers(input: {
   const publishTitle =
     localUser?.publish?.title ?? globalUser?.publish?.title ?? project.publish?.title;
 
-  // orient: scalar override (command is required when orient is present)
-  const orientCommand =
-    localUser?.orient?.command ?? globalUser?.orient?.command ?? project.orient?.command;
-
   // scopes: scalar override (command is required when scopes is present)
   const scopesCommand =
     localUser?.scopes?.command ?? globalUser?.scopes?.command ?? project.scopes?.command;
@@ -291,7 +287,6 @@ export function mergeConfigLayers(input: {
           },
         }
       : {}),
-    ...(orientCommand !== undefined ? { orient: { command: orientCommand } } : {}),
     ...(scopesCommand !== undefined ? { scopes: { command: scopesCommand } } : {}),
     ...(planAuditorCommand !== undefined ? { planAuditor: { command: planAuditorCommand } } : {}),
     ...(compliance !== undefined || codeReview !== undefined

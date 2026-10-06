@@ -4,7 +4,6 @@
   "state": { "root": "~/.phax" },
   "agent": { "maxFixAttempts": 1 },
   "security": { "agentCommands": ["node"] },
-  "orient": { "command": "node ./orient.mjs" },
   "scopes": { "command": "node ./scopes.mjs" },
   "planAuditor": { "command": "node ./audit-plan.mjs" },
   "commands": {

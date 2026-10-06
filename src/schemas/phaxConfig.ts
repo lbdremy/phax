@@ -15,15 +15,6 @@ export const PublishConfigSchema = Schema.Struct({
 
 export type PublishConfig = Schema.Schema.Type<typeof PublishConfigSchema>;
 
-export const OrientConfigSchema = Schema.Struct({
-  command: Schema.NonEmptyString.annotations({
-    description:
-      "The orient provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes a JSON request to the provider's stdin and reads a JSON response from stdout. Full contract: `phax --usage`, cmd orient.",
-  }),
-});
-
-export type OrientConfig = Schema.Schema.Type<typeof OrientConfigSchema>;
-
 export const ScopesConfigSchema = Schema.Struct({
   command: Schema.NonEmptyString.annotations({
     description:
@@ -216,7 +207,6 @@ export const PhaxConfigSchema = Schema.Struct({
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
-  orient: Schema.optional(OrientConfigSchema),
   scopes: Schema.optional(ScopesConfigSchema),
   planAuditor: Schema.optional(PlanAuditorConfigSchema),
   review: Schema.optional(
@@ -264,7 +254,6 @@ export interface ResolvedConfig {
   readonly fileReconciliationMode: "report_only" | "warn";
   readonly security: ResolvedSecurityConfig;
   readonly publish: ResolvedPublishConfig;
-  readonly orient?: OrientConfig;
   readonly scopes?: ScopesConfig;
   readonly planAuditor?: PlanAuditorConfig;
   readonly complianceReview: ResolvedComplianceReviewConfig;
@@ -304,7 +293,6 @@ export const PhaxUserOverlaySchema = Schema.Struct({
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
-  orient: Schema.optional(OrientConfigSchema),
   scopes: Schema.optional(ScopesConfigSchema),
   planAuditor: Schema.optional(PlanAuditorConfigSchema),
   review: Schema.optional(

@@ -189,19 +189,6 @@
       },
       "additionalProperties": false
     },
-    "orient": {
-      "type": "object",
-      "required": ["command"],
-      "properties": {
-        "command": {
-          "type": "string",
-          "description": "The orient provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes a JSON request to the provider's stdin and reads a JSON response from stdout. Full contract: `phax --usage`, cmd orient.",
-          "title": "nonEmptyString",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
-    },
     "scopes": {
       "type": "object",
       "required": ["command"],

@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { getPhaxConfigJsonSchema } from "../../src/schemas/phaxConfig.js";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+  getPhaxConfigJsonSchema,
+  getPhaxUserOverlayJsonSchema,
+} from "../../src/schemas/phaxConfig.js";
 
 function findGateStepSchema(node: unknown): Record<string, unknown> | undefined {
   if (node === null || typeof node !== "object") return undefined;
@@ -50,16 +55,56 @@ describe("getPhaxConfigJsonSchema", () => {
     expect(required).not.toContain("output");
   });
 
-  it("has a description on orient.command mentioning whitespace and phax --usage", () => {
+  it("has exactly the contract's top-level properties in the project schema", () => {
     const schema = getPhaxConfigJsonSchema() as Record<string, unknown>;
-    const properties = schema["properties"] as Record<string, unknown>;
-    const orient = properties["orient"] as Record<string, unknown>;
-    const orientDefs = orient["properties"] as Record<string, unknown> | undefined;
-    const command = (orientDefs?.["command"] ?? orient) as Record<string, unknown>;
-    const desc = command["description"] as string | undefined;
-    expect(typeof desc).toBe("string");
-    expect(desc).toContain("whitespace");
-    expect(desc).toContain("phax --usage");
+    expect(Object.keys(schema["properties"] as object).toSorted()).toEqual(
+      [
+        "$schema",
+        "version",
+        "name",
+        "state",
+        "agent",
+        "commands",
+        "fileReconciliation",
+        "security",
+        "publish",
+        "scopes",
+        "planAuditor",
+        "review",
+        "authoring",
+        "gateProfiles",
+        "workspaces",
+        "records",
+      ].toSorted(),
+    );
+  });
+
+  it("has exactly the contract's top-level properties in the user schema", () => {
+    const schema = getPhaxUserOverlayJsonSchema() as Record<string, unknown>;
+    expect(Object.keys(schema["properties"] as object).toSorted()).toEqual(
+      [
+        "state",
+        "agent",
+        "commands",
+        "fileReconciliation",
+        "security",
+        "publish",
+        "scopes",
+        "planAuditor",
+        "review",
+        "authoring",
+        "gateProfiles",
+        "workspaces",
+      ].toSorted(),
+    );
+  });
+
+  it("commits root schema files equal to the generated ones", () => {
+    const root = new URL("../../", import.meta.url).pathname;
+    const committed = JSON.parse(readFileSync(join(root, "phax.schema.json"), "utf8"));
+    const committedUser = JSON.parse(readFileSync(join(root, "phax.user.schema.json"), "utf8"));
+    expect(committed).toEqual(JSON.parse(JSON.stringify(getPhaxConfigJsonSchema())));
+    expect(committedUser).toEqual(JSON.parse(JSON.stringify(getPhaxUserOverlayJsonSchema())));
   });
 
   it("lists scopes.command as present, not required, with a description naming closed", () => {

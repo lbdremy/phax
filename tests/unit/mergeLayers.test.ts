@@ -271,35 +271,32 @@ describe("mergeConfigLayers", () => {
     });
   });
 
-  describe("orient: scalar override", () => {
-    it("keeps the project orient block when a user layer says nothing about orient", () => {
-      const project = makeProject({ orient: { command: "orient-provider" } });
-      const localUser = makeOverlay({ state: { root: "~/.local" } });
-      const result = mergeConfigLayers({ project, localUser });
-      expect(result.orient?.command).toBe("orient-provider");
+  describe("scopes and planAuditor across three layers", () => {
+    const project = makeProject({
+      scopes: { command: "project-scopes" },
+      planAuditor: { command: "project-auditor" },
+    });
+    const globalUser = makeOverlay({
+      scopes: { command: "global-scopes" },
+      planAuditor: { command: "global-auditor" },
+    });
+    const localUser = makeOverlay({
+      scopes: { command: "local-scopes" },
+      planAuditor: { command: "local-auditor" },
     });
 
-    it("local orient command overrides global and project", () => {
-      const project = makeProject({ orient: { command: "project-provider" } });
-      const globalUser = makeOverlay({ orient: { command: "global-provider" } });
-      const localUser = makeOverlay({ orient: { command: "local-provider" } });
-      const result = mergeConfigLayers({ project, globalUser, localUser });
-      expect(result.orient?.command).toBe("local-provider");
-    });
+    it("resolves each from the local layer, then global once local is cleared, then project", () => {
+      const all = mergeConfigLayers({ project, globalUser, localUser });
+      expect(all.scopes?.command).toBe("local-scopes");
+      expect(all.planAuditor?.command).toBe("local-auditor");
 
-    it("a user layer can enable orient when the project config has none", () => {
-      const project = makeProject();
-      const globalUser = makeOverlay({ orient: { command: "global-provider" } });
-      const result = mergeConfigLayers({ project, globalUser });
-      expect(result.orient?.command).toBe("global-provider");
-    });
+      const noLocal = mergeConfigLayers({ project, globalUser });
+      expect(noLocal.scopes?.command).toBe("global-scopes");
+      expect(noLocal.planAuditor?.command).toBe("global-auditor");
 
-    it("omits orient entirely when no layer configures it", () => {
-      const result = mergeConfigLayers({
-        project: makeProject(),
-        localUser: makeOverlay({ state: { root: "~/.local" } }),
-      });
-      expect(result.orient).toBeUndefined();
+      const projectOnly = mergeConfigLayers({ project });
+      expect(projectOnly.scopes?.command).toBe("project-scopes");
+      expect(projectOnly.planAuditor?.command).toBe("project-auditor");
     });
   });
 
