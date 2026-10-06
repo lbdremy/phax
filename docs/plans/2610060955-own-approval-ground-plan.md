@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-10-06
+  baseline: 9e1d6ab
 ---
 # A plan's own approval is never ground change
 
