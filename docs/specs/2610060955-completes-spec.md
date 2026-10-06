@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-06
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-06
+  baseline: 58dc720
 ---
 # A Plan Says Whether Its Run Completes Its Source Spec
 
