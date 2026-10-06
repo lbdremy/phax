@@ -369,7 +369,12 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   const authoring: ReadonlyArray<readonly [Partial<AuthorArtifactInput>, string, FormatId]> = [
     [{ kind: "spec", nowIso: SPEC_NOW }, JSON.stringify(SPEC_DOCUMENT), "spec-document"],
     [
-      { kind: "plan", nowIso: PLAN_NOW, sourceSpec: SOURCE_SPEC },
+      {
+        kind: "plan",
+        nowIso: PLAN_NOW,
+        sourceSpec: SOURCE_SPEC,
+        completion: { last: true, notLast: false },
+      },
       JSON.stringify(PLAN_DOCUMENT),
       "plan-document",
     ],
@@ -386,6 +391,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
         slug: "example",
         brief: { text: "An example brief.\n", path: "brief.md" },
         sourceSpec: null,
+        completion: { last: false, notLast: false },
         model: "example-model",
         effort: "high",
         resolution,

@@ -47,7 +47,9 @@ import {
   planSkeleton,
   resolveArtifactTarget,
   specSkeleton,
+  targetLineage,
   type ArtifactTarget,
+  type CompletionFlags,
 } from "./createArtifact.js";
 import { planMdSha256, writeCacheEntry } from "./planCacheStore.js";
 import { pushRecordsBranch, type RecordsPushResult } from "./recordsSync.js";
@@ -66,6 +68,8 @@ export interface AuthorArtifactInput {
   readonly brief: { readonly text: string; readonly path: string | null };
   /** A plan's `--spec` path (validated like the interactive path); null otherwise. */
   readonly sourceSpec: string | null;
+  /** A plan's raw `--last` / `--not-last` flags, paired against `--spec` before the session. */
+  readonly completion: CompletionFlags;
   /** The selected authoring model and effort (flag → config → catalog), as requested. */
   readonly model: string;
   readonly effort: Effort;
@@ -221,11 +225,11 @@ function encodeDocument(authored: AuthoredDocument): string {
 function renderArtifact(
   authored: AuthoredDocument,
   nowIso: string,
-  sourceSpec: string | null,
+  target: ArtifactTarget,
 ): string {
   return authored.kind === "spec"
     ? specSkeleton(nowIso) + renderSpecBody(authored.doc)
-    : planSkeleton(sourceSpec) + renderPlanBody(authored.doc);
+    : planSkeleton(targetLineage(target)) + renderPlanBody(authored.doc);
 }
 
 // Steps 3–7: spawn the session, accept its document, render, seed, write, commit.
@@ -281,7 +285,7 @@ function runAuthoringSession(
     const sidecarText = encodeDocument(authored);
     yield* fs.writeAtomic(join(session.folder, AUTHORING_DOCUMENT_FILENAME), sidecarText);
 
-    const artifactMd = renderArtifact(authored, input.nowIso, sourceSpec);
+    const artifactMd = renderArtifact(authored, input.nowIso, target);
 
     // Seeded before the artifact is written: the entry is content-addressed, so a
     // seed whose artifact never lands is inert, and a failed seed lands nothing.

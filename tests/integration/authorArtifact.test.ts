@@ -18,6 +18,7 @@ import {
 } from "../../src/domain/errors.js";
 import { EXTRACTOR_VERSION, planCacheKey } from "../../src/domain/planCache/key.js";
 import type { RoutingResolution } from "../../src/domain/routing/types.js";
+import { validateArtifact } from "../../src/domain/artifact/document.js";
 import { splitFrontmatter } from "../../src/domain/artifact/frontmatter.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
@@ -163,12 +164,17 @@ const fakeSecurity: ResolvedSecurityConfig = {
   agentCommands: [],
 };
 
+const NO_FLAGS = { last: false, notLast: false } as const;
+const LAST = { last: true, notLast: false } as const;
+const NOT_LAST = { last: false, notLast: true } as const;
+
 function input(overrides: Partial<AuthorArtifactInput> = {}): AuthorArtifactInput {
   return {
     kind: "spec",
     slug: "plan-prune",
     brief: { text: "Prune archived runs.\nFree their slugs.\n", path: "brief.md" },
     sourceSpec: null,
+    completion: NO_FLAGS,
     model: "claude-opus-5-5",
     effort: "high",
     resolution: fakeResolution,
@@ -332,7 +338,7 @@ describe("authorArtifact — plan", () => {
     const { fs, git, run } = setup(JSON.stringify(PLAN_DOCUMENT));
     fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
 
-    const result = await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC }));
+    const result = await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }));
 
     expect(Either.isRight(result)).toBe(true);
     if (Either.isLeft(result)) return;
@@ -343,7 +349,7 @@ describe("authorArtifact — plan", () => {
     const doc = decodePlanDocument(PLAN_DOCUMENT);
     if (Either.isLeft(doc)) throw new Error("fixture does not decode");
     const md = fs.getFile(PLAN_PATH) ?? "";
-    expect(md).toContain(`source-spec: ${SOURCE_SPEC}`);
+    expect(md).toContain(`source-spec: ${SOURCE_SPEC}\ncompletes-spec: true\n`);
     expect(splitFrontmatter(md)?.body).toBe(renderPlanBody(doc.right));
     const sidecar = fs.getFile(PLAN_SIDECAR) ?? "";
     const written: Record<string, unknown> = JSON.parse(sidecar);
@@ -373,7 +379,7 @@ describe("authorArtifact — plan", () => {
     const { fs, backend, run } = setup(JSON.stringify(PLAN_DOCUMENT));
     fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
 
-    await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC }));
+    await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }));
 
     expect(backend.runCalls[0]?.prompt).toContain("# Plan prune");
   });
@@ -382,10 +388,24 @@ describe("authorArtifact — plan", () => {
     const { fs, run } = setup(JSON.stringify({ ...PLAN_DOCUMENT, sourceSpec: null }));
     fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
 
-    const result = await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC }));
+    const result = await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }));
 
     expect(Either.isRight(result)).toBe(true);
     expect(JSON.parse(fs.getFile(PLAN_SIDECAR) ?? "").sourceSpec).toBe(SOURCE_SPEC);
+  });
+
+  it("renders completes-spec from --not-last, right after source-spec", async () => {
+    const { fs, run } = setup(JSON.stringify(PLAN_DOCUMENT));
+    fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
+
+    const result = await run(
+      input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: NOT_LAST }),
+    );
+
+    expect(Either.isRight(result)).toBe(true);
+    const md = fs.getFile(PLAN_PATH) ?? "";
+    expect(md).toContain(`source-spec: ${SOURCE_SPEC}\ncompletes-spec: false\n`);
+    expect(Either.isRight(validateArtifact(PLAN_PATH, md))).toBe(true);
   });
 });
 
@@ -472,11 +492,32 @@ describe("authorArtifact — failures land nothing", () => {
     expect(bad.backend.runCalls.length).toBe(0);
 
     const missing = setup(JSON.stringify(PLAN_DOCUMENT));
-    const missingSpec = await missing.run(input({ kind: "plan", sourceSpec: SOURCE_SPEC }));
+    const missingSpec = await missing.run(
+      input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }),
+    );
     expect(Either.isLeft(missingSpec) && missingSpec.left instanceof ArtifactCreationError).toBe(
       true,
     );
     expect(missing.backend.runCalls.length).toBe(0);
+  });
+
+  it("a bad --last/--not-last pairing is refused before the session, writing nothing", async () => {
+    const cases: ReadonlyArray<Partial<AuthorArtifactInput>> = [
+      { kind: "plan", sourceSpec: SOURCE_SPEC, completion: NO_FLAGS },
+      { kind: "plan", sourceSpec: SOURCE_SPEC, completion: { last: true, notLast: true } },
+      { kind: "plan", sourceSpec: null, completion: LAST },
+    ];
+    for (const overrides of cases) {
+      const { fs, backend, run } = setup(JSON.stringify(PLAN_DOCUMENT));
+      fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
+
+      const result = await run(input(overrides));
+
+      expect(Either.isLeft(result) && result.left instanceof ArtifactCreationError).toBe(true);
+      expect(backend.runCalls.length).toBe(0);
+      expect(repoFiles(fs)).toEqual([SOURCE_SPEC]);
+      expect(fs.getFile(`${SESSION_FOLDER}/brief.md`)).toBeUndefined();
+    }
   });
 
   it("a rate limit from the backend propagates as RateLimitError", async () => {

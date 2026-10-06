@@ -9,11 +9,19 @@ import {
   parseArtifactName,
 } from "../domain/artifact/name.js";
 import { classifyArtifactPath, validateArtifact } from "../domain/artifact/document.js";
+import { resolveCompletesSpec } from "../domain/artifact/lineage.js";
+
+/** The raw `--last` / `--not-last` flags of `artifact new plan`. */
+export interface CompletionFlags {
+  readonly last: boolean;
+  readonly notLast: boolean;
+}
 
 export interface CreateArtifactInput {
   readonly kind: ArtifactKind;
   readonly slug: string;
   readonly sourceSpec: string | null;
+  readonly completion: CompletionFlags;
   readonly nowIso: string;
   readonly repoRoot: string;
 }
@@ -21,12 +29,15 @@ export interface CreateArtifactInput {
 export interface CreateArtifactResult {
   readonly path: string;
   readonly sourceSpec: string | null;
+  /** The plan's `completes-spec`, or null without a source spec (always null for a spec). */
+  readonly completesSpec: boolean | null;
 }
 
 export interface ArtifactTargetInput {
   readonly kind: ArtifactKind;
   readonly slug: string;
   readonly sourceSpec: string | null;
+  readonly completion: CompletionFlags;
   readonly nowIso: string;
 }
 
@@ -43,6 +54,14 @@ export interface ArtifactTarget {
   readonly path: string;
   /** A plan's validated source spec, or null (always null for a spec). */
   readonly sourceSpec: ResolvedSourceSpec | null;
+  /** A plan's `completes-spec` from `--last`/`--not-last`; null without a source spec. */
+  readonly completesSpec: boolean | null;
+}
+
+/** A plan's lineage as its frontmatter states it: the source spec and whether it completes it. */
+export interface PlanLineage {
+  readonly path: string;
+  readonly completesSpec: boolean;
 }
 
 export function specSkeleton(nowIso: string): string {
@@ -56,12 +75,24 @@ scope: functional behavior and consumption surface
 `;
 }
 
-export function planSkeleton(sourceSpec: string | null): string {
+// `completes-spec` sits right after `source-spec`, and only when a spec is bound.
+export function planSkeleton(lineage: PlanLineage | null): string {
+  const lineageLines =
+    lineage === null
+      ? "source-spec: null"
+      : `source-spec: ${lineage.path}\ncompletes-spec: ${String(lineage.completesSpec)}`;
   return `---
 status: Draft
-source-spec: ${sourceSpec ?? "null"}
+${lineageLines}
 ---
 `;
+}
+
+/** The lineage a plan target's frontmatter states, or null for a spec-less plan. */
+export function targetLineage(target: ArtifactTarget): PlanLineage | null {
+  return target.sourceSpec === null || target.completesSpec === null
+    ? null
+    : { path: target.sourceSpec.path, completesSpec: target.completesSpec };
 }
 
 // Validates and resolves the --spec argument for `artifact new plan`: it must
@@ -103,12 +134,27 @@ function resolveSourceSpec(
 }
 
 // The refusals shared by the interactive and headless `artifact new` paths —
-// bad slug, off-grammar name, existing target, missing or invalid source spec —
-// resolved without writing anything.
+// a plan's `--spec` without exactly one of `--last`/`--not-last` (or either flag
+// without `--spec`), bad slug, off-grammar name, existing target, missing or
+// invalid source spec — resolved without writing anything.
 export function resolveArtifactTarget(
   input: ArtifactTargetInput,
 ): Effect.Effect<ArtifactTarget, ArtifactCreationError | FsError, FileSystem> {
   return Effect.gen(function* () {
+    // A spec ignores the flags: the CLI never offers them on `new spec`.
+    let completesSpec: boolean | null = null;
+    if (input.kind === "plan") {
+      const resolved = resolveCompletesSpec({
+        hasSourceSpec: input.sourceSpec !== null,
+        last: input.completion.last,
+        notLast: input.completion.notLast,
+      });
+      if (Either.isLeft(resolved)) {
+        return yield* Effect.fail(new ArtifactCreationError({ message: resolved.left }));
+      }
+      completesSpec = resolved.right;
+    }
+
     if (!isSlug(input.slug)) {
       return yield* Effect.fail(
         new ArtifactCreationError({
@@ -141,25 +187,30 @@ export function resolveArtifactTarget(
         ? yield* resolveSourceSpec(input.sourceSpec)
         : null;
 
-    return { dir, path, sourceSpec };
+    return { dir, path, sourceSpec, completesSpec };
   });
 }
 
 // Creates a `Draft` spec or plan skeleton named from the current UTC minute
-// and the given slug. Every refusal (bad slug, existing target, missing or
-// invalid source spec) fails before anything is written.
+// and the given slug. Every refusal (bad slug, bad `--last`/`--not-last`
+// pairing, existing target, missing or invalid source spec) fails before
+// anything is written.
 export function createArtifact(
   input: CreateArtifactInput,
 ): Effect.Effect<CreateArtifactResult, ArtifactCreationError | FsError, FileSystem> {
   return Effect.gen(function* () {
     const target = yield* resolveArtifactTarget(input);
-    const sourceSpec = target.sourceSpec?.path ?? null;
 
-    const content = input.kind === "spec" ? specSkeleton(input.nowIso) : planSkeleton(sourceSpec);
+    const content =
+      input.kind === "spec" ? specSkeleton(input.nowIso) : planSkeleton(targetLineage(target));
     const fs = yield* FileSystem;
     yield* fs.mkdirp(target.dir);
     yield* fs.writeAtomic(target.path, content);
 
-    return { path: target.path, sourceSpec };
+    return {
+      path: target.path,
+      sourceSpec: target.sourceSpec?.path ?? null,
+      completesSpec: target.completesSpec,
+    };
   });
 }

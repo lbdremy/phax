@@ -963,7 +963,7 @@ phax artifact reopen docs/plans/2607101056-typescript-7-migration-plan.md
 
 - **Usage**: `phax artifact new <SUBCOMMAND>`
 
-Parent command for creating a Draft spec or plan named from the current UTC minute: <YYMMDDHHMM>-<slug>.md for a spec, <YYMMDDHHMM>-<slug>-plan.md for a plan. The instant is captured when the command runs, never chosen or backdated. A bad slug, an existing target name, or (for a plan) a --spec that is missing or not a spec all refuse with exit code 12 before anything is written.
+Parent command for creating a Draft spec or plan named from the current UTC minute: <YYMMDDHHMM>-<slug>.md for a spec, <YYMMDDHHMM>-<slug>-plan.md for a plan. The instant is captured when the command runs, never chosen or backdated. A bad slug, an existing target name, or (for a plan) a --spec that is missing or not a spec, a --spec without exactly one of --last/--not-last, or either flag without --spec all refuse with exit code 12 before anything is written.
 
 ### Examples
 
@@ -1019,7 +1019,7 @@ phax artifact new spec plan-prune --headless --brief brief.md
 
 - **Usage**: `phax artifact new plan [FLAGS] <slug>`
 
-Creates a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md, with a frontmatter-only skeleton (status, source-spec). Pass --spec <path> to bind an existing spec as the plan's source-spec; the path must classify as a spec (live or archived), exist, and pass artifact validation. Without --spec, source-spec is written as null. The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.
+Creates a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md, with a frontmatter-only skeleton (status, source-spec, and completes-spec when a spec is bound). Pass --spec <path> to bind an existing spec as the plan's source-spec; the path must classify as a spec (live or archived), exist, and pass artifact validation. With --spec, pass exactly one of --last or --not-last: --last writes completes-spec: true (this plan is the spec's last, and its run completes the spec), --not-last writes completes-spec: false (more plans of the spec follow, and its run leaves the spec live). Every plan of a spec except the last says --not-last; no default is ever inferred. Without --spec, source-spec is written as null with no completes-spec, and both flags are refused. The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.
 
 Side effects: writes the new plan file. Does not commit — transition commands (phax artifact approve) commit, creation does not.
 
@@ -1036,6 +1036,14 @@ Slug matching `[a-z0-9]+(-[a-z0-9]+)*`
 #### `--spec <path>`
 
 Path to the source spec to bind as source-spec
+
+#### `--last`
+
+This plan is its spec's last: its run completes the spec
+
+#### `--not-last`
+
+More plans of the spec follow: its run leaves the spec live
 
 #### `--headless`
 
@@ -1056,7 +1064,11 @@ Override the authoring effort (low|medium|high)
 ### Examples
 
 ```
-phax artifact new plan plan-prune --spec docs/specs/2609091412-plan-prune.md
+phax artifact new plan plan-prune-store --spec docs/specs/2609091412-plan-prune.md --not-last
+```
+
+```
+phax artifact new plan plan-prune-cli --spec docs/specs/2609091412-plan-prune.md --last
 ```
 
 ```
@@ -1064,7 +1076,7 @@ phax artifact new plan catalog-refresh
 ```
 
 ```
-phax artifact new plan plan-prune --headless --brief brief.md --spec docs/specs/2609091412-plan-prune.md
+phax artifact new plan plan-prune --headless --brief brief.md --spec docs/specs/2609091412-plan-prune.md --last
 ```
 
 ## `phax artifact schema`

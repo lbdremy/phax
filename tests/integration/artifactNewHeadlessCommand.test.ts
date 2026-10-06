@@ -1,7 +1,14 @@
 // Acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
 import { execSync } from "node:child_process";
-import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -14,6 +21,8 @@ import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js"
 // End-to-end through the command function: real temp git and filesystem, a
 // fake backend swapped in through runCreateArtifactHeadless's deps seam — the
 // only layer left unreal is the provider session itself.
+
+const NO_FLAGS = { last: false, notLast: false } as const;
 
 function makeOutput() {
   const lines: string[] = [];
@@ -142,6 +151,7 @@ describe("artifact new spec --headless (command)", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "brief.md" },
       out,
       { backendLayer: backend.layer },
@@ -190,6 +200,7 @@ describe("artifact new spec --headless (command)", () => {
       "spec",
       "plan-prune-stdin",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "-" },
       out,
       {
@@ -229,6 +240,7 @@ describe("artifact new spec --headless (command)", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true, brief: "brief.md" },
       out,
       { backendLayer: backend.layer },
@@ -275,6 +287,7 @@ describe("artifact new spec --headless (command)", () => {
       "spec",
       "plan-prune",
       undefined,
+      NO_FLAGS,
       { headless: true },
       out,
       { backendLayer: backend.layer },
@@ -283,5 +296,42 @@ describe("artifact new spec --headless (command)", () => {
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("--brief");
     expect(backend.impl.runCalls).toHaveLength(0);
+  });
+});
+
+describe("artifact new plan --headless (command)", () => {
+  const SPEC_PATH = "docs/specs/2609091412-plan-prune.md";
+
+  beforeEach(() => {
+    mkdirSync(join(repoDir, "docs/specs"), { recursive: true });
+    writeFileSync(
+      join(repoDir, SPEC_PATH),
+      "---\nstatus: Draft\ndate: 2026-09-09\naudience: implementation planning with Claude Code\nscope: functional behavior and consumption surface\n---\n# Plan prune\n",
+    );
+  });
+
+  it.each([
+    { label: "--spec without --last or --not-last", spec: SPEC_PATH, last: false, notLast: false },
+    { label: "--spec with both flags", spec: SPEC_PATH, last: true, notLast: true },
+    { label: "--last without --spec", spec: undefined, last: true, notLast: false },
+    { label: "--not-last without --spec", spec: undefined, last: false, notLast: true },
+  ])("$label: refuses before the session, exits 12, writes nothing", async (c) => {
+    const backend = makeFakeBackend();
+
+    const { out, errors } = makeOutput();
+    const code = await runCreateArtifactHeadless(
+      "plan",
+      "plan-prune",
+      c.spec,
+      { last: c.last, notLast: c.notLast },
+      { headless: true, brief: "brief.md" },
+      out,
+      { backendLayer: backend.layer },
+    );
+
+    expect(code).toBe(12);
+    expect(errors.join("\n")).toMatch(/--last|--not-last/);
+    expect(backend.impl.runCalls).toHaveLength(0);
+    expect(existsSync(join(repoDir, "docs/plans"))).toBe(false);
   });
 });

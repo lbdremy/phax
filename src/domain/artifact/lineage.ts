@@ -27,6 +27,36 @@ export function readSourceSpec(md: string): SourceSpecDeclaration | null {
   };
 }
 
+export interface CompletesSpecFlags {
+  readonly hasSourceSpec: boolean;
+  readonly last: boolean;
+  readonly notLast: boolean;
+}
+
+// The `artifact new plan` pairing rule: with `--spec`, exactly one of `--last`
+// (true) or `--not-last` (false); without it, neither (null). Never inferred.
+export function resolveCompletesSpec(
+  flags: CompletesSpecFlags,
+): Either.Either<boolean | null, string> {
+  const { hasSourceSpec, last, notLast } = flags;
+  if (!hasSourceSpec) {
+    if (last || notLast) {
+      const given = last ? "--last" : "--not-last";
+      return Either.left(`${given} needs --spec: a plan without a source spec completes none`);
+    }
+    return Either.right(null);
+  }
+  if (last && notLast) {
+    return Either.left("--last and --not-last are opposites: pass exactly one with --spec");
+  }
+  if (!last && !notLast) {
+    return Either.left(
+      "--spec needs --last (this plan is the spec's last) or --not-last (more plans follow)",
+    );
+  }
+  return Either.right(last);
+}
+
 // Upserts the `approved` frontmatter mapping (date + short baseline), replacing
 // any previous value in place and leaving every other key and the body
 // byte-identical. Fails with a FrontmatterProblem when the block is absent or

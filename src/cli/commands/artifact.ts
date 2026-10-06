@@ -16,7 +16,7 @@ import {
   inspectArtifact,
   transitionArtifact,
 } from "../../app/artifactStatus.js";
-import { createArtifact } from "../../app/createArtifact.js";
+import { createArtifact, type CompletionFlags } from "../../app/createArtifact.js";
 import { authorArtifact, recordPushWarning, recordWarning } from "../../app/authorArtifact.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { recordsClonePath } from "../../app/recordsSync.js";
@@ -160,12 +160,20 @@ export async function runCreateArtifact(
   kind: ArtifactKind,
   slug: string,
   sourceSpecArg: string | undefined,
+  completion: CompletionFlags,
   out: OutputPort,
 ): Promise<number> {
   const repoRoot = findGitRoot(process.cwd());
   const sourceSpec =
     sourceSpecArg === undefined ? null : toRepoRelativePath(sourceSpecArg, repoRoot);
-  const input = { kind, slug, sourceSpec, nowIso: new Date().toISOString(), repoRoot };
+  const input = {
+    kind,
+    slug,
+    sourceSpec,
+    completion,
+    nowIso: new Date().toISOString(),
+    repoRoot,
+  };
   const effect = createArtifact(input).pipe(
     Effect.provide(makeRootedNodeFileSystemLayer(repoRoot)),
   );
@@ -175,11 +183,15 @@ export async function runCreateArtifact(
     return exitCodeForError(result.left);
   }
 
-  const { path, sourceSpec: boundSpec } = result.right;
+  const { path, sourceSpec: boundSpec, completesSpec } = result.right;
   if (kind === "spec") {
     out.log(`created ${path} (Draft)`);
+  } else if (boundSpec === null || completesSpec === null) {
+    out.log(`created ${path} (Draft, source-spec null)`);
   } else {
-    out.log(`created ${path} (Draft, source-spec ${boundSpec ?? "null"})`);
+    out.log(
+      `created ${path} (Draft, source-spec ${boundSpec}, completes-spec ${String(completesSpec)})`,
+    );
   }
   return 0;
 }
@@ -232,6 +244,15 @@ export interface HeadlessArtifactOptions {
   readonly effort?: string;
 }
 
+interface PlanCreationOptions extends HeadlessArtifactOptions {
+  readonly spec?: string;
+  readonly last?: boolean;
+  readonly notLast?: boolean;
+}
+
+// `artifact new spec` offers neither `--last` nor `--not-last`.
+const NO_COMPLETION_FLAGS: CompletionFlags = { last: false, notLast: false };
+
 export interface HeadlessArtifactDeps {
   readonly backendLayer?: Layer.Layer<Backend>;
   /** Repo visibility for the records destination policy (transcripts in-repo only). */
@@ -243,6 +264,7 @@ export async function runCreateArtifactHeadless(
   kind: ArtifactKind,
   slug: string,
   sourceSpecArg: string | undefined,
+  completion: CompletionFlags,
   opts: HeadlessArtifactOptions,
   out: OutputPort,
   deps: HeadlessArtifactDeps = {},
@@ -317,6 +339,7 @@ export async function runCreateArtifactHeadless(
       slug,
       brief,
       sourceSpec,
+      completion,
       model: selection.model,
       effort: selection.effort,
       resolution,
@@ -441,8 +464,15 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
     .option("--effort <effort>", "Override the authoring effort (low|medium|high)")
     .action(async (slug: string, cmdOpts: HeadlessArtifactOptions) => {
       const exitCode = cmdOpts.headless
-        ? await runCreateArtifactHeadless("spec", slug, undefined, cmdOpts, out)
-        : await runCreateArtifact("spec", slug, undefined, out);
+        ? await runCreateArtifactHeadless(
+            "spec",
+            slug,
+            undefined,
+            NO_COMPLETION_FLAGS,
+            cmdOpts,
+            out,
+          )
+        : await runCreateArtifact("spec", slug, undefined, NO_COMPLETION_FLAGS, out);
       process.exit(exitCode);
     });
 
@@ -451,6 +481,8 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
     .description("Create a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md")
     .argument("<slug>", "Slug matching `[a-z0-9]+(-[a-z0-9]+)*`")
     .option("--spec <path>", "Path to the source spec to bind as source-spec")
+    .option("--last", "This plan is its spec's last: its run completes the spec")
+    .option("--not-last", "More plans of the spec follow: its run leaves the spec live")
     .option(
       "--headless",
       "Author via a recorded agent session from a brief instead of a blank skeleton (experimental)",
@@ -458,10 +490,12 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
     .option("--brief <file|->", "Path to a brief file, or - to read the brief from stdin")
     .option("--model <model>", "Override the authoring model (default: flag → config → catalog)")
     .option("--effort <effort>", "Override the authoring effort (low|medium|high)")
-    .action(async (slug: string, cmdOpts: { spec?: string } & HeadlessArtifactOptions) => {
+    .action(async (slug: string, cmdOpts: PlanCreationOptions) => {
+      // The pairing rule lives in the use case; the CLI passes the raw flags.
+      const completion = { last: cmdOpts.last === true, notLast: cmdOpts.notLast === true };
       const exitCode = cmdOpts.headless
-        ? await runCreateArtifactHeadless("plan", slug, cmdOpts.spec, cmdOpts, out)
-        : await runCreateArtifact("plan", slug, cmdOpts.spec, out);
+        ? await runCreateArtifactHeadless("plan", slug, cmdOpts.spec, completion, cmdOpts, out)
+        : await runCreateArtifact("plan", slug, cmdOpts.spec, completion, out);
       process.exit(exitCode);
     });
 
