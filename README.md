@@ -543,7 +543,6 @@ phax reads no environment variable for its configuration: everything is in `phax
 - **Lock conflict.** Another phax is working on that run, or one died; `phax unlock <run>` clears a stale lock.
 - **The handoff is missing.** The phase ended in `handoff_failed`: `phax enter <run>` takes you back into its session.
 - **A rate or usage limit.** The run stopped at exit 8 and keeps its place: `phax resume <run>` when the limit resets.
-- **A plan is stale right after its approval.** A plan that lists its own record file, `docs/plans/approvals/<plan>.json`, among its files reads its own approval as a change. Leave that file out of the plan's lists. Another plan's approval affects it only when the plan lists that plan's record file.
 - **Approval records are per-artifact files.** Approval records were one shared ledger per kind; each is now a file of its own under `docs/plans/approvals/` and `docs/specs/approvals/`. After upgrading, `phax artifact approve` and `phax run` refuse with exit 12 while `docs/plans/approvals.json` or `docs/specs/approvals.json` exists. Run the one-time migration, which splits both ledgers into record files in one commit:
 
   ```console
