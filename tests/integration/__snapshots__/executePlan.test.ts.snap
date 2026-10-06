@@ -1,0 +1,402 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`executePlan — phase start on the no-provider baseline > case 1: starts no process between setup and agent launch, and pins each first prompt > phase-01 prompt.md 1`] = `
+"# Execute one implementation phase
+
+You are executing one phase of a multi-phase AI-assisted development workflow.
+
+You must only execute the current phase.
+
+Do not broaden the scope.
+Do not anticipate future phases unless strictly necessary to avoid breaking the current phase.
+Do not redesign unrelated parts of the system.
+Do not add speculative features.
+Do not change the planned commit message.
+Do not run \`git commit\` yourself — phax commits your changes after gates pass.
+Write \`phase-handoff.md\` and \`summary.md\` inside \`.phax-context/\` (gitignored phax metadata folder), not at the worktree root.
+
+## Source intent/spec document
+
+(not provided — see human-readable plan below)
+
+## Human-readable approved plan
+
+# Baseline Plan
+
+Three made-up phases.
+
+
+## Machine-readable execution plan
+
+{
+  "run": {
+    "shortName": "my-run",
+    "title": "My Run",
+    "branch": "ai/my-run",
+    "requiredCommands": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Phase 01",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-01-work",
+      "plannedFilesToCreate": [
+        "src/new-01.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/edit-01.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "ai(phase-01): step 01",
+        "body": "Does step 01."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Phase 02",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-02-work",
+      "plannedFilesToCreate": [
+        "src/new-02.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/edit-02.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "ai(phase-02): step 02",
+        "body": "Does step 02."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Phase 03",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-03-work",
+      "plannedFilesToCreate": [
+        "src/new-03.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/edit-03.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "ai(phase-03): step 03",
+        "body": "Does step 03."
+      }
+    }
+  ]
+}
+
+## Previous phase handoff
+
+(no previous phase)
+
+## Current phase
+
+{
+  "id": "phase-01",
+  "title": "Phase 01",
+  "model": "claude-sonnet-4-6",
+  "effort": "low",
+  "planMarkdownAnchor": "#phase-01-work",
+  "plannedFilesToCreate": [
+    "src/new-01.ts"
+  ],
+  "plannedFilesToEdit": [
+    "src/edit-01.ts"
+  ],
+  "optionalFilesToEdit": [],
+  "commit": {
+    "subject": "ai(phase-01): step 01",
+    "body": "Does step 01."
+  }
+}
+
+## Execution rules
+
+- Respect the current phase scope.
+- Preserve existing behavior unless the spec explicitly changes it.
+- Prefer small, coherent changes.
+- Keep architectural boundaries explicit.
+- Do not include unrelated refactors.
+- Do not implement excluded scope.
+- Do not move work from future phases into this phase unless required to keep the current phase coherent.
+- If any planned file was not touched or any unplanned (non-optional) file was changed, explain why under "## What the next phase needs to know" in \`phase-handoff.md\`.
+- Run the gate commands again after your changes to verify the gates are satisfied.
+pnpm test
+
+## Required output
+
+At the end, produce two Markdown artifacts inside \`.phax-context/\`:
+
+1. \`.phax-context/summary.md\`, a concise record of what happened in the phase;
+2. \`.phax-context/phase-handoff.md\`, the context that should be passed to the next phase.
+
+\`summary.md\` should use this format:
+
+# Phase summary
+
+## Completed
+
+## Decisions made
+
+## Files changed
+
+## Important constraints preserved
+
+## Known limitations
+
+## Follow-up for next phase
+
+\`phase-handoff.md\` must contain exactly these four sections in order (phax validates them):
+
+## What was delivered
+## Key decisions and why
+## Exact locations (file paths and exported names)
+## What the next phase needs to know
+
+### What was delivered
+One sentence per significant artifact: what exists now that did not before.
+Name files and exported symbols. Do not summarise the phase objective — the reader already has \`plan.md\`.
+
+### Key decisions and why
+List only decisions a future reader would find surprising or that constrain the next phase.
+Include the reason. Omit decisions the code makes obvious.
+
+### Exact locations (file paths and exported names)
+A flat list of every file and symbol the next phase imports, e.g.:
+  src/ports/fs.ts  — FileSystem port (ReadFileSystem, WriteFileSystem)
+
+### What the next phase needs to know
+Facts not derivable from reading the code: invariants, known gaps, ordering constraints,
+deliberate non-implementations, and workarounds that look odd but are intentional.
+If the file-plan deviation report above lists any deviations, justify each one here.
+
+Tone: short sentences, bullet lists, 150–400 words total.
+No transcript summaries — write decisions and facts only.
+Never say 'I implemented X' — state what exists.
+Keep it 150–400 words. No session transcript summaries.
+
+The handoff must be concise but sufficient for the next phase to start in a fresh Claude Code session using only:
+
+- \`plan.md\`;
+- \`phax-plan.json\`;
+- the current phase definition;
+- the previous \`phase-handoff.md\`."
+`;
+
+exports[`executePlan — phase start on the no-provider baseline > case 1: starts no process between setup and agent launch, and pins each first prompt > phase-02 prompt.md 1`] = `
+"# Execute one implementation phase
+
+You are executing one phase of a multi-phase AI-assisted development workflow.
+
+You must only execute the current phase.
+
+Do not broaden the scope.
+Do not anticipate future phases unless strictly necessary to avoid breaking the current phase.
+Do not redesign unrelated parts of the system.
+Do not add speculative features.
+Do not change the planned commit message.
+Do not run \`git commit\` yourself — phax commits your changes after gates pass.
+Write \`phase-handoff.md\` and \`summary.md\` inside \`.phax-context/\` (gitignored phax metadata folder), not at the worktree root.
+
+## Source intent/spec document
+
+(not provided — see human-readable plan below)
+
+## Human-readable approved plan
+
+# Baseline Plan
+
+Three made-up phases.
+
+
+## Machine-readable execution plan
+
+{
+  "run": {
+    "shortName": "my-run",
+    "title": "My Run",
+    "branch": "ai/my-run",
+    "requiredCommands": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Phase 01",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-01-work",
+      "plannedFilesToCreate": [
+        "src/new-01.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/edit-01.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "ai(phase-01): step 01",
+        "body": "Does step 01."
+      }
+    },
+    {
+      "id": "phase-02",
+      "title": "Phase 02",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-02-work",
+      "plannedFilesToCreate": [
+        "src/new-02.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/edit-02.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "ai(phase-02): step 02",
+        "body": "Does step 02."
+      }
+    },
+    {
+      "id": "phase-03",
+      "title": "Phase 03",
+      "model": "claude-sonnet-4-6",
+      "effort": "low",
+      "planMarkdownAnchor": "#phase-03-work",
+      "plannedFilesToCreate": [
+        "src/new-03.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/edit-03.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "commit": {
+        "subject": "ai(phase-03): step 03",
+        "body": "Does step 03."
+      }
+    }
+  ]
+}
+
+## Previous phase handoff
+
+## What was delivered
+Phase completed successfully.
+## Key decisions and why
+No major decisions.
+## Exact locations (file paths and exported names)
+No new exports.
+## What the next phase needs to know
+Ready to proceed.
+
+## Previous phase file reconciliation
+
+## PHAX File Reconciliation
+
+### Planned to create
+- [ ] src/new-01.ts
+
+### Planned to edit
+- [ ] src/edit-01.ts
+
+**Summary:** Deviations detected — see sections above.
+
+## Current phase
+
+{
+  "id": "phase-02",
+  "title": "Phase 02",
+  "model": "claude-sonnet-4-6",
+  "effort": "low",
+  "planMarkdownAnchor": "#phase-02-work",
+  "plannedFilesToCreate": [
+    "src/new-02.ts"
+  ],
+  "plannedFilesToEdit": [
+    "src/edit-02.ts"
+  ],
+  "optionalFilesToEdit": [],
+  "commit": {
+    "subject": "ai(phase-02): step 02",
+    "body": "Does step 02."
+  }
+}
+
+## Execution rules
+
+- Respect the current phase scope.
+- Preserve existing behavior unless the spec explicitly changes it.
+- Prefer small, coherent changes.
+- Keep architectural boundaries explicit.
+- Do not include unrelated refactors.
+- Do not implement excluded scope.
+- Do not move work from future phases into this phase unless required to keep the current phase coherent.
+- If any planned file was not touched or any unplanned (non-optional) file was changed, explain why under "## What the next phase needs to know" in \`phase-handoff.md\`.
+- Run the gate commands again after your changes to verify the gates are satisfied.
+pnpm test
+
+## Required output
+
+At the end, produce two Markdown artifacts inside \`.phax-context/\`:
+
+1. \`.phax-context/summary.md\`, a concise record of what happened in the phase;
+2. \`.phax-context/phase-handoff.md\`, the context that should be passed to the next phase.
+
+\`summary.md\` should use this format:
+
+# Phase summary
+
+## Completed
+
+## Decisions made
+
+## Files changed
+
+## Important constraints preserved
+
+## Known limitations
+
+## Follow-up for next phase
+
+\`phase-handoff.md\` must contain exactly these four sections in order (phax validates them):
+
+## What was delivered
+## Key decisions and why
+## Exact locations (file paths and exported names)
+## What the next phase needs to know
+
+### What was delivered
+One sentence per significant artifact: what exists now that did not before.
+Name files and exported symbols. Do not summarise the phase objective — the reader already has \`plan.md\`.
+
+### Key decisions and why
+List only decisions a future reader would find surprising or that constrain the next phase.
+Include the reason. Omit decisions the code makes obvious.
+
+### Exact locations (file paths and exported names)
+A flat list of every file and symbol the next phase imports, e.g.:
+  src/ports/fs.ts  — FileSystem port (ReadFileSystem, WriteFileSystem)
+
+### What the next phase needs to know
+Facts not derivable from reading the code: invariants, known gaps, ordering constraints,
+deliberate non-implementations, and workarounds that look odd but are intentional.
+If the file-plan deviation report above lists any deviations, justify each one here.
+
+Tone: short sentences, bullet lists, 150–400 words total.
+No transcript summaries — write decisions and facts only.
+Never say 'I implemented X' — state what exists.
+Keep it 150–400 words. No session transcript summaries.
+
+The handoff must be concise but sufficient for the next phase to start in a fresh Claude Code session using only:
+
+- \`plan.md\`;
+- \`phax-plan.json\`;
+- the current phase definition;
+- the previous \`phase-handoff.md\`."
+`;

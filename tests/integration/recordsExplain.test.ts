@@ -2,8 +2,10 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { Command } from "commander";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Effect, Either, Layer } from "effect";
+import { registerRecordsCommand } from "../../src/cli/commands/records.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NodeShellLayer } from "../../src/infra/shell.js";
@@ -111,6 +113,23 @@ function writeFullRecordCommit(
     phaseRecordMessage(manifest.runId, manifest.phaseId, manifest.outcome, manifest.shape),
     extraFiles,
   );
+}
+
+/** Runs `phax records <args>` in-process; returns its exit code and output lines. */
+async function records(args: readonly string[]) {
+  const logs: string[] = [];
+  const errors: string[] = [];
+  const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+  const program = new Command().exitOverride();
+  registerRecordsCommand(program, {
+    log: (m) => logs.push(m),
+    warn: (m) => errors.push(m),
+    error: (m) => errors.push(m),
+  });
+  await program.parseAsync(["records", ...args], { from: "user" });
+  const code = exit.mock.calls.at(-1)?.[0];
+  exit.mockRestore();
+  return { code, logs, errors, text: logs.join("\n") };
 }
 
 // A phase manifest as phax wrote it before `$schema`: version 2, no `$schema`.
@@ -378,6 +397,98 @@ describe("records explain and list (real git)", () => {
     );
     if (listed.kind !== "listed") throw new Error("expected listed");
     expect(listed.records).toMatchObject([{ kind: "phase", phaseId, outcome: "committed" }]);
+  });
+
+  describe("records commands on a record carrying a file this release never writes", () => {
+    let tempHome: string;
+    let originalHome: string | undefined;
+    let originalCwd: string;
+
+    beforeEach(() => {
+      originalCwd = process.cwd();
+      originalHome = process.env["HOME"];
+      tempHome = mkdtempSync(join(tmpdir(), "phax-records-explain-home-"));
+      process.env["HOME"] = tempHome;
+      writeFileSync(
+        join(repoDir, "phax.json"),
+        JSON.stringify({
+          version: 1,
+          name: "test",
+          gateProfiles: {
+            fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+          },
+          records: { transcript: false, destination: { kind: "in-repo" }, autoPush: false },
+        }),
+      );
+      process.chdir(repoDir);
+    });
+
+    afterEach(() => {
+      process.chdir(originalCwd);
+      if (originalHome === undefined) delete process.env["HOME"];
+      else process.env["HOME"] = originalHome;
+      removeTempDir(tempHome);
+      vi.restoreAllMocks();
+    });
+
+    it("lists and explains the record, prints its prompt, diff and gates, and leaves the extra file intact", async () => {
+      const runId = "run-extra-1786800000010";
+      const phaseId = "phase-01";
+      const sha = commitWithTrailers(repoDir, runId, phaseId);
+      const legacyNote = '{\n  "note": "made-up file from another release"\n}\n';
+      const prompt = "# Recorded prompt\n\nDo the made-up thing.";
+      const diff = ["diff --git a/y.ts b/y.ts", "--- a/y.ts", "+++ b/y.ts", "+new line"].join("\n");
+      const manifest: RunRecordManifest = {
+        runId,
+        phaseId,
+        shape: "skeleton",
+        sourceSha: sha,
+        model: "claude-sonnet-5",
+        effort: "high",
+        provider: "claude-code",
+        outcome: "committed",
+        usage: { available: false },
+        verifiedSurfaces: ["local"],
+      };
+      await writeFullRecordCommit(repoDir, manifest, {
+        "prompt.md": prompt,
+        "diff.patch": diff,
+        "checks-attempt-01.log": "gate log one",
+        "legacy-note.json": legacyNote,
+      });
+      const recordsTip = execGit(["rev-parse", RECORDS_BRANCH], repoDir).trim();
+
+      const listed = await records(["list"]);
+      expect(listed.code).toBe(0);
+      expect(listed.errors).toEqual([]);
+      expect(listed.text).toContain(`${runId}  ${phaseId}  skeleton  committed`);
+
+      const plain = await records(["explain", sha]);
+      expect(plain.code).toBe(0);
+      expect(plain.errors).toEqual([]);
+      expect(plain.text).toContain(`${phaseId} · claude-code (claude-sonnet-5, high)`);
+      expect(plain.text).toContain("gates    committed after 1 attempt(s)   surfaces  local");
+      expect(plain.text).toContain(`prompt   ${prompt.length} bytes   diff  1 files, +1 -0`);
+
+      const withPrompt = await records(["explain", sha, "--prompt"]);
+      expect(withPrompt.code).toBe(0);
+      expect(withPrompt.logs).toContain(prompt);
+
+      const withDiff = await records(["explain", sha, "--diff"]);
+      expect(withDiff.code).toBe(0);
+      expect(withDiff.logs).toContain(diff);
+
+      const withGates = await records(["explain", sha, "--gates"]);
+      expect(withGates.code).toBe(0);
+      expect(withGates.logs).toContain("--- checks-attempt-01.log ---");
+      expect(withGates.logs).toContain("gate log one");
+
+      // Reading never rewrites the record: the tip and the extra file are unchanged.
+      expect(execGit(["rev-parse", RECORDS_BRANCH], repoDir).trim()).toBe(recordsTip);
+      expect(
+        execGit(["show", `${RECORDS_BRANCH}:${runId}/${phaseId}/legacy-note.json`], repoDir),
+      ).toBe(legacyNote);
+    });
   });
 
   it("reports a version-1 phase manifest as unsupported and leaves it out of the list", async () => {

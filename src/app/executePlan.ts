@@ -53,7 +53,6 @@ import {
   makeAdapterCallFailedTelemetryEvent,
   makeArtifactGeneratedTelemetryEvent,
   makeModelResolvedTelemetryEvent,
-  makeOrientBriefComputedTelemetryEvent,
   makeSecurityPolicyAppliedTelemetryEvent,
   makeStepStartedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
@@ -81,10 +80,6 @@ import type { RecordPhaseOutcome } from "../schemas/runRecord.js";
 import type { ProviderId } from "../domain/routing/types.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
-import { excerpt, queryOrientIndex } from "./orient.js";
-import type { OrientRow } from "../schemas/orient.js";
-import { encodeOrientBrief, type OrientBrief } from "../schemas/orientBrief.js";
-import { MAX_ORIENTATION_ROWS } from "./promptGeneration.js";
 import { recordGateProfileInRunStatus } from "./gates.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
@@ -693,73 +688,6 @@ export function executePlan(
 
         const fs = yield* FileSystem;
 
-        // Advisory orientation brief: a provider failure must never fail, block,
-        // or retry the phase (spec §5.4) — a typed Either failure just skips
-        // weaving and leaves the prompt unchanged.
-        let orientationIndex: readonly OrientRow[] | undefined;
-        let orientBrief: OrientBrief;
-        if (config.orient !== undefined) {
-          const plannedFiles = Array.from(
-            new Set([
-              ...phase.plannedFilesToCreate,
-              ...phase.plannedFilesToEdit,
-              ...phase.optionalFilesToEdit,
-            ]),
-          );
-          const orientResult = yield* queryOrientIndex(
-            config.orient,
-            plannedFiles,
-            worktreePath as string,
-          );
-          if (Either.isRight(orientResult)) {
-            orientationIndex = orientResult.right.rows;
-            orientBrief = {
-              kind: "ok",
-              files: plannedFiles,
-              rows: orientResult.right.rows,
-              rowCount: orientResult.right.rows.length,
-              wovenRowCount: Math.min(orientResult.right.rows.length, MAX_ORIENTATION_ROWS),
-            };
-            yield* telemetry.recordEvent(
-              makeOrientBriefComputedTelemetryEvent({
-                runId,
-                operationId: phase.id,
-                phase: phase.id,
-                fileCount: plannedFiles.length,
-                rowCount: orientResult.right.rows.length,
-              }),
-            );
-          } else {
-            orientBrief = {
-              kind: "failed",
-              files: plannedFiles,
-              error: excerpt(orientResult.left.message),
-            };
-            process.stderr.write(
-              `[phax] Warning: phase "${phase.id}" — orient provider query failed (${orientResult.left.message}). Dispatching without an orientation brief.\n`,
-            );
-          }
-        } else {
-          orientBrief = { kind: "not-configured" };
-        }
-
-        // Evidence, not a gate: a failure to persist the brief must never fail
-        // the phase, mirroring the provider-failure handling above.
-        yield* fs
-          .writeAtomic(
-            join(phaseFolderPath, "orient-brief.json"),
-            JSON.stringify(encodeOrientBrief(orientBrief), null, 2),
-          )
-          .pipe(
-            Effect.catchAll((err) =>
-              Effect.sync(() => {
-                process.stderr.write(
-                  `[phax] Warning: phase "${phase.id}" — failed to write orient-brief.json (${err.message}).\n`,
-                );
-              }),
-            ),
-          );
-
         const promptText = buildPhasePrompt({
           planMd,
           planJson: plan,
@@ -767,7 +695,6 @@ export function executePlan(
           previousHandoff,
           previousReconciliation,
           gateCommands: gateCommandStrings,
-          ...(orientationIndex !== undefined ? { orientationIndex } : {}),
         });
 
         yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);

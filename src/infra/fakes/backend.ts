@@ -51,8 +51,19 @@ export class FakeBackendImpl implements BackendOps {
    */
   private autoHandoffContent: string | undefined;
 
+  /**
+   * When set, called synchronously at the start of every `runAgent` call,
+   * before any response is returned — lets a test observe the world (other
+   * fakes' call logs, the phase folder) at the exact moment the agent launches.
+   */
+  private onRunAgent: ((prompt: string, options: AgentRunOptions) => void) | undefined;
+
   setAutoHandoffContent(content: string): void {
     this.autoHandoffContent = content;
+  }
+
+  setOnRunAgent(callback: (prompt: string, options: AgentRunOptions) => void): void {
+    this.onRunAgent = callback;
   }
 
   addRunResponse(result: AgentRunResult): void {
@@ -120,6 +131,7 @@ export class FakeBackendImpl implements BackendOps {
   ): Effect.Effect<AgentRunResult, AgentInvocationError | RateLimitError | UsageLimitError> {
     const callIndex = this.runIdx;
     this.runCalls.push({ prompt, options });
+    this.onRunAgent?.(prompt, options);
     if (this.rateLimitAtRunIndex === callIndex) {
       this.runIdx++;
       return Effect.fail(this.limitError());
