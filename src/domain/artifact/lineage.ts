@@ -1,4 +1,5 @@
 import { Either } from "effect";
+import { approvalRecordPathFor } from "./approvalRecordFile.js";
 import {
   decodeArtifactFrontmatter,
   removeFrontmatterKeys,
@@ -67,6 +68,8 @@ export interface ApprovalRecordLike {
 }
 
 export interface ComputeStalenessInput {
+  // The repo-relative path of the plan being judged.
+  readonly planPath: string;
   readonly record: ApprovalRecordLike | null;
   readonly baselineExists: boolean;
   readonly currentPlanFingerprint: string;
@@ -97,8 +100,17 @@ export function computeStaleness(input: ComputeStalenessInput): PlanStalenessVer
     evidence.push({ reason: "spec-changed", specPath: record.sourceSpec.path });
   }
 
+  // The plan's own content is judged by self-changed through its fingerprint,
+  // and its own record file is written only by its own transitions, so neither
+  // counts as ground. Another artifact's record and the plan's own sidecar still do.
+  const ownRecordPath = approvalRecordPathFor("plan", input.planPath);
+  const notGround = new Set(
+    ownRecordPath === null ? [input.planPath] : [input.planPath, ownRecordPath],
+  );
   const footprintSet = new Set(input.footprint);
-  const groundChanged = input.changedFilesSinceBaseline.filter((file) => footprintSet.has(file));
+  const groundChanged = input.changedFilesSinceBaseline.filter(
+    (file) => !notGround.has(file) && footprintSet.has(file),
+  );
   if (groundChanged.length > 0) {
     evidence.push({ reason: "ground-changed", baseline: record.baseline, files: groundChanged });
   }
