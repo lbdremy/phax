@@ -188,7 +188,7 @@ cross-field checks registered by id so the build writes the same list into the s
       counts as ground change, so redraft those two questions on that basis.
       **2026-10-06:** the draft spec is abandoned; what is left (a footprint naming the plan's own
       path or own record file) is the spec-less plan `own-approval-ground`
-      (`docs/plans/2610060955-own-approval-ground-plan.md`, Draft).
+      (`docs/plans/archive/2610060955-own-approval-ground-plan.md`, Completed by this run).
       **Fixed:** spec `approval-record-files` (0.19.0: an approval writes only its own frontmatter
       and record file) and plan `own-approval-ground` (a plan's own path and its own record file
       are never ground change). Spec `approval-ground` was abandoned in favour of the plan.
