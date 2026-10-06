@@ -74,31 +74,59 @@ the previous one changes. The first in the chain, `schemas-package`, is Complete
 - [ ] **`oracle-phases`** — `docs/specs/2609281159-oracle-phases.md`. Oracle-first phases
       behind a pluggable `oracles` provider. Nothing needs it before steme item 1.1.
 
-## Before steme's audit — the gate request, then scopes dropped
+## Before steme's audit — drop orient and scopes, then the gate request, then the brief
 
-Two specs that steme's audit (`steme audit`, steme roadmap-1.0 item 0.13, not built yet) is
-written against, so they land before that item builds its gate projection; otherwise steme
-builds a scopes provider that is then thrown away. Raised 2026-10-05 from the phax–steme
+Specs that steme's audit (`steme audit`, steme roadmap-1.0 item 0.13, not built yet) and
+`steme brief` are written against, so they land before steme builds its gate projection; otherwise
+steme builds a scopes provider that is then thrown away. Raised 2026-10-05 from the phax–steme
 coordination note (`/Volumes/Work/steme/steme-corpus/docs/corpus/02-product/phax-steme-coordination.md`,
-changes 8 and 9). Both Drafts, authored headless from `docs/briefs/`, §9 decided by the author on
-2026-10-05 (nobody uses scopes or the diagnostics output yet, so no compatibility is kept);
-both Approved 2026-10-05, no plan yet. In this order, shipped in the same release:
+changes 8 and 9).
 
-- [ ] **`gate-request`** — `docs/specs/2610051439-gate-request.md`. Additive: a gate step that
-      declares it reads `{phase, base, terminal, phases: [{id, files}]}` on stdin, saved beside
-      the attempt so the verdict replays. How it relates to `oracle-phases`' request is in the spec.
-- [ ] **`drop-gate-scopes`** — `docs/specs/2610051445-drop-gate-scopes.md`. After the first: a
-      `completion` fails like an `invariant`; the `scopes` provider, closure, pending and
-      `gate-pending` retired; `gate-diagnostics` without `scopes`. A config change, so before
-      the CLI/config freeze of the road to 1.0.
-- [ ] **`brief-replaces-orient`** — `docs/specs/2610051526-brief-replaces-orient.md`. Approved
-      2026-10-05, no plan yet. orient designed again from the agent's need: a
-      **brief** is feed-forward and never blocks (the audit is the gate's and blocks); woven into
-      the phase's first prompt from the plan and pulled with `phax brief [path…]` on any path,
-      existing or not; it answers with each guarantee's state, as structured data, from the same
-      provider as the audit (`steme brief` / `steme audit`, a `brief-request` with the gate
-      request's facts plus `files`); the phase found from `.phax-context/brief-request.json`; 50
-      guarantees pushed; no severity; `orient` retired, no shims (nobody configures it).
+**Reordered 2026-10-06 by the author: the removals come first**, so the new features are built on
+a green field. Nobody configures `orient` or `scopes` and nobody consumes the diagnostics output
+(phax, steme-lab, phax-cockpit, louloupapers, checked 2026-10-05), so both go with no shim and no
+compatibility. Decided with it: orient's retirement leaves `brief-replaces-orient` for a new
+spec of its own. In this order:
+
+- [ ] **`drop-orient`** — new spec, not written yet: brief it, author it headless. Takes over
+      the retirement half of `brief-replaces-orient`:
+      - `orient` in every config layer, and `phax orient` with its usage, long help and
+        reference entry;
+      - the index and expand requests, the row format (`src/schemas/orient.ts`), the phase-start
+        query and the prompt section (`MAX_ORIENTATION_ROWS`);
+      - `orient-brief.json` (`src/schemas/orientBrief.ts`) and the `orient` agent-command grant
+        (`security.json` source `orient`);
+      - `examples/hello-world/orient.mjs`, and the README's "Orient provider" section and hook
+        count.
+
+      A leftover `orient` key meets the ordinary unknown-key refusal. Also update the
+      cross-run-context item below, which names the orient provider and `orient-brief.json`.
+- [ ] **`drop-gate-scopes`** — `docs/specs/2610051445-drop-gate-scopes.md`, Approved 2026-10-05.
+      Reopen it to drop its dependency on `gate-request`: the context and planning note that say
+      it ships after and with it, and the hello-world requirement that the diagnostics step
+      declares `"input": "gate-request"` (that moves to `gate-request`). Then re-approve. Content
+      unchanged: a `completion` fails like an `invariant`; the `scopes` provider, closure, pending,
+      `missing-provider` and `gate-pending` retired; `gate-diagnostics` without `scopes`.
+- [ ] **`gate-request`** — `docs/specs/2610051439-gate-request.md`, Approved. Additive: a gate
+      step that declares it reads `{phase, base, terminal, phases: [{id, files}]}` on stdin,
+      saved beside the attempt so the verdict replays. Its "additive to scopes" text (§5.15/§5.16
+      keep scope scheduling "until the next spec retires it") becomes moot once scopes are gone:
+      reopen and simplify, or leave it to the plan to note. How it relates to `oracle-phases`'
+      request is in the spec.
+- [ ] **`brief-replaces-orient`** — `docs/specs/2610051526-brief-replaces-orient.md`, Approved
+      2026-10-05, no plan yet. Reopen it to make it purely additive (the orient retirement moves
+      to `drop-orient`), then re-approve. A **brief** is feed-forward and never blocks (the audit
+      is the gate's and blocks):
+      - woven into the phase's first prompt from the plan, and pulled with `phax brief [path…]`
+        on any path, existing or not;
+      - it answers with each guarantee's state, as structured data, from the same provider as
+        the audit (`steme brief` / `steme audit`, a `brief-request` with the gate request's facts
+        plus `files`);
+      - the phase is found from `.phax-context/brief-request.json`; 50 guarantees pushed; no
+        severity.
+- [ ] **`oracle-phases` wording.** It quotes the diagnostics shape with `scopes?`, says its
+      `oracles` key "mirrors `scopes`", and lists "deriving oracles from `scopes`" as a non-goal.
+      Sweep that text when `drop-gate-scopes` lands. No change to its design.
 
 Not prerequisites, and not specced yet (same note, changes 1–3, 6, 7 and the brief at plan
 authoring): a stable `id` on a diagnostic (oscillation), a `decision` class that stops for the
