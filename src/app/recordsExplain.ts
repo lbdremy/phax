@@ -87,6 +87,33 @@ function decodeText(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
 }
 
+/**
+ * The gate artifacts of a phase record in attempt order: each
+ * `checks-attempt-NN.log` followed directly by its `checks-attempt-NN.request.json`
+ * when the record holds one. An attempt that never reached a declaring step has
+ * no request, and its log stands alone.
+ */
+export function gateArtifactsInOrder(
+  artifacts: ReadonlyMap<string, Uint8Array>,
+): ReadonlyArray<readonly [string, Uint8Array]> {
+  const attempts: Array<{ readonly attempt: number; readonly stem: string }> = [];
+  for (const name of artifacts.keys()) {
+    const match = /^(checks-attempt-(\d+))\.log$/.exec(name);
+    if (match?.[1] !== undefined && match[2] !== undefined) {
+      attempts.push({ attempt: Number(match[2]), stem: match[1] });
+    }
+  }
+  attempts.sort((a, b) => a.attempt - b.attempt);
+  const ordered: Array<readonly [string, Uint8Array]> = [];
+  for (const { stem } of attempts) {
+    for (const name of [`${stem}.log`, `${stem}.request.json`]) {
+      const bytes = artifacts.get(name);
+      if (bytes !== undefined) ordered.push([name, bytes]);
+    }
+  }
+  return ordered;
+}
+
 function parseTrailers(body: string): ReadonlyMap<string, string> {
   const trailers = new Map<string, string>();
   for (const line of body.split("\n")) {

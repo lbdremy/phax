@@ -711,7 +711,7 @@ cmd "records" {
             help "Print the full transcript"
         }
         flag "--gates" {
-            help "Print the gate check logs"
+            help "Print the gate check logs, each followed by its gate request"
         }
     }
 }

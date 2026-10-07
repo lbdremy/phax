@@ -11,6 +11,7 @@ import {
 import { computeRecordsPending, groupPendingByRun } from "../../app/recordsStatus.js";
 import {
   explainRecord,
+  gateArtifactsInOrder,
   type ExplainedAuthoringRecord,
   type ExplainedRecord,
   type ExplainOutcome,
@@ -349,11 +350,9 @@ function renderFoundRecord(
   if (opts.diff === true) printArtifact(record, "diff.patch", out);
   if (opts.transcript === true) printArtifact(record, "output.jsonl", out);
   if (opts.gates === true) {
-    for (const [name, bytes] of record.artifacts) {
-      if (/^checks-attempt-\d+\.log$/.test(name)) {
-        out.log(`--- ${name} ---`);
-        out.log(new TextDecoder().decode(bytes));
-      }
+    for (const [name, bytes] of gateArtifactsInOrder(record.artifacts)) {
+      out.log(`--- ${name} ---`);
+      out.log(new TextDecoder().decode(bytes));
     }
   }
 
@@ -485,7 +484,7 @@ export function registerRecordsCommand(program: Command, out: OutputPort): void 
     .option("--prompt", "Print the full prompt")
     .option("--diff", "Print the full diff")
     .option("--transcript", "Print the full transcript")
-    .option("--gates", "Print the gate check logs")
+    .option("--gates", "Print the gate check logs, each followed by its gate request")
     .action(async (sha: string, opts: RecordsExplainOptions) => {
       const exitCode = await runRecordsExplain(sha, opts, out);
       process.exit(exitCode);
