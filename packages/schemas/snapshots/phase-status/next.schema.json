@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax phase status",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "phaseId",
+    "phaseIndex",
+    "state",
+    "model",
+    "effort",
+    "createdAt",
+    "updatedAt",
+    "branchName",
+    "base"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The phase-status format and the phax release that wrote this file: https://docs.phax.run/schemas/phase-status/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/phase-status\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "phaseId": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "phaseIndex": {
+      "type": "number"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "setting_up_worktree",
+        "running",
+        "gates_failed",
+        "gates_exhausted",
+        "fixing",
+        "failed",
+        "passed",
+        "committed",
+        "cleaning_up",
+        "cleaned_up",
+        "review_open",
+        "handoff_failed",
+        "skipped",
+        "rate_limited"
+      ]
+    },
+    "model": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "effort": {
+      "type": "string",
+      "enum": [
+        "none",
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultracode",
+        "ultra"
+      ]
+    },
+    "createdAt": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "updatedAt": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "branchName": {
+      "type": "string",
+      "description": "a string at most 255 character(s) long",
+      "title": "maxLength(255)",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$"
+    },
+    "base": {
+      "type": "string",
+      "description": "The full object name of the commit this phase's branch was created from, noted when phax created the branch.",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+    },
+    "worktreePath": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "claudeSessionId": {
+      "$ref": "#/$defs/NonEmptyString"
+    },
+    "commitHash": {
+      "$ref": "#/$defs/NonEmptyString"
+    }
+  },
+  "additionalProperties": true
+}

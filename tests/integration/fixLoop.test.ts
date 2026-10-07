@@ -22,13 +22,14 @@ const phaseFolderPath = `${runPath}/phase-01`;
 const sessionId = "sess-abc123" as ClaudeSessionId;
 
 const phaseStatusJson = JSON.stringify({
-  version: 1,
+  $schema: schemaUrl("phase-status", PHAX_RELEASE),
   phaseId: "phase-01",
   phaseIndex: 0,
   state: "running",
   model: "claude-sonnet-4-6",
   effort: "low",
   branchName: "ai/my-run--phase-01",
+  base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 });

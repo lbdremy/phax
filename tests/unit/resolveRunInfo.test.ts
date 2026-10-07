@@ -32,6 +32,7 @@ function makePhaseStatus(shortName: string): object {
     model: "claude-sonnet-4-6",
     effort: "low",
     branchName: `phax/${shortName}--phase-01`,
+    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: now,
     updatedAt: now,
   };
@@ -99,5 +100,43 @@ describe("resolveRun — qualified key lookup", () => {
     const result = resolveRun("ns-a", shortName, stateRoot);
 
     expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+describe("resolveRun — a phase status phax cannot read", () => {
+  let stateRoot: string;
+
+  beforeEach(() => {
+    stateRoot = mkdtempSync(join(tmpdir(), "phax-resolverun-test-"));
+  });
+
+  afterEach(() => {
+    rmSync(stateRoot, { recursive: true, force: true });
+  });
+
+  const shortName = Either.getOrThrow(decodeShortName("fix-bug"));
+  const statusPath = (): string =>
+    join(stateRoot, "runs", "my-project.fix-bug", "phase-01", "status.json");
+
+  it("refuses the run with the reader's message when phase-01/status.json lacks base", () => {
+    writeRun(stateRoot, "my-project", "fix-bug");
+    const { base: _base, ...withoutBase } = makePhaseStatus("fix-bug") as Record<string, unknown>;
+    writeFileSync(statusPath(), JSON.stringify(withoutBase));
+
+    const result = resolveRun("my-project", shortName, stateRoot);
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isRight(result)) throw new Error("expected a refusal");
+    expect(result.left).toMatch(new RegExp(`^${statusPath()}: .*base`));
+  });
+
+  it("still skips a phase folder without status.json", () => {
+    writeRun(stateRoot, "my-project", "fix-bug");
+    mkdirSync(join(stateRoot, "runs", "my-project.fix-bug", "phase-02"));
+
+    const result = resolveRun("my-project", shortName, stateRoot);
+
+    if (Either.isLeft(result)) throw new Error(`expected success: ${result.left}`);
+    expect(result.right.phaseStatuses.map((p) => p.phaseId)).toEqual(["phase-01"]);
   });
 });

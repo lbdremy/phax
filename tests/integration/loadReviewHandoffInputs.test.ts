@@ -38,6 +38,7 @@ function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
         createdAt: "2026-01-01T00:00:00Z",
         updatedAt: "2026-01-01T00:00:00Z",
         branchName: "phax/test-run--phase-01" as BranchName,
+        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
       },
       {
         phaseId: "phase-02",
@@ -48,6 +49,7 @@ function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
         createdAt: "2026-01-01T00:01:00Z",
         updatedAt: "2026-01-01T00:01:00Z",
         branchName: "phax/test-run--phase-02" as BranchName,
+        base: "b2c3d4e5f60718293a4b5c6d7e8f901234567890",
       },
     ],
     planPhases: [
@@ -282,6 +284,7 @@ describe("loadPhaseContents", () => {
           createdAt: "2026-01-01T00:01:00Z",
           updatedAt: "2026-01-01T00:01:00Z",
           branchName: "phax/test-run--phase-02" as BranchName,
+          base: "b2c3d4e5f60718293a4b5c6d7e8f901234567890",
         },
         {
           phaseId: "phase-01",
@@ -292,6 +295,7 @@ describe("loadPhaseContents", () => {
           createdAt: "2026-01-01T00:00:00Z",
           updatedAt: "2026-01-01T00:00:00Z",
           branchName: "phax/test-run--phase-01" as BranchName,
+          base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
         },
       ],
     });

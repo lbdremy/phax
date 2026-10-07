@@ -164,6 +164,9 @@ const runStatus: RunStatusPreSchema = {
   gateProfileId: "standard",
 };
 
+/** A made-up full commit sha: the base a phase status written today notes. */
+export const EXAMPLE_BASE = "0123456789abcdef0123456789abcdef01234567";
+
 const phaseStatus: PhaseStatusPreSchema = {
   version: 1,
   phaseId: "phase-01",
@@ -472,7 +475,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   "run-status": encoded(RunStatusFileSchema, withSchemaUrl("run-status", stepped(runStatus))),
   "phase-status": encoded(
     PhaseStatusFileSchema,
-    withSchemaUrl("phase-status", stepped(phaseStatus)),
+    withSchemaUrl("phase-status", { ...stepped(phaseStatus), base: EXAMPLE_BASE }),
   ),
   "phax-plan": encoded(PhaxPlanFileSchema, withSchemaUrl("phax-plan", stepped(phaxPlan))),
   "compliance-review": encoded(

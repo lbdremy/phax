@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Either } from "effect";
 import { EXTRACTOR_VERSION, planCacheKey } from "../../src/domain/planCache/key.js";
 import { planMdSha256, cacheEntryPath } from "../../src/app/planCacheStore.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(() => ({ status: 0, error: undefined })),
@@ -88,13 +90,14 @@ async function buildFakeRun(
   await writeFile(
     join(phaseDir, "status.json"),
     JSON.stringify({
-      version: 1,
+      $schema: schemaUrl("phase-status", PHAX_RELEASE),
       phaseId: "phase-01",
       phaseIndex: 0,
       state: "review_open",
       model: "claude-sonnet-4-6",
       effort: "low",
       branchName: `ai/${shortName}--phase-01`,
+      base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
       createdAt: now,
       updatedAt: now,
       worktreePath: join(stateRoot, "worktrees", shortName, "phase-01"),

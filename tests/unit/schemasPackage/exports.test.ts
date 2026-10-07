@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
 import * as entry from "../../../packages/schemas/src/index.js";
 import * as planDocumentV0_17_0 from "../../../src/schemas/history/plan-document/0.17.0.js";
+import * as phaseStatusV0_17_0 from "../../../src/schemas/history/phase-status/0.17.0.js";
 import * as authoringRecordManifest from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import * as complianceReview from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import * as gateAttribution from "../../../src/schemas/history/gate-attribution/pre-schema.js";
@@ -79,6 +80,7 @@ describe("schemas package entry", () => {
       "PhaseRecordManifestSchema",
       "PhaseStatusPreSchemaSchema",
       "PhaseStatusSchema",
+      "PhaseStatusV0_17_0Schema",
       "PhaxPlanPreSchemaSchema",
       "PhaxPlanSchema",
       "PlanApprovalRecordSchema",
@@ -222,6 +224,12 @@ describe("schemas package entry", () => {
     expect(entry.PlanDocumentV0_17_0Schema).toBe(planDocumentV0_17_0.PlanDocumentV0_17_0Schema);
     expect(planDocumentV0_17_0.decodePlanDocumentV0_17_0).toBeDefined();
     expect(Object.keys(entry)).not.toContain("decodePlanDocumentV0_17_0");
+  });
+
+  it("re-exports the phase-status 0.17.0 frozen module's schema, never a copy, and never its decoder", () => {
+    expect(entry.PhaseStatusV0_17_0Schema).toBe(phaseStatusV0_17_0.PhaseStatusV0_17_0Schema);
+    expect(phaseStatusV0_17_0.decodePhaseStatusV0_17_0).toBeDefined();
+    expect(Object.keys(entry)).not.toContain("decodePhaseStatusV0_17_0");
   });
 
   it("is the only code subpath in the package manifest's exports; ./json/* holds data", () => {

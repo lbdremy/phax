@@ -75,7 +75,7 @@ async function seedGatesExhaustedRun(opts: {
   const phaseFolder = join(opts.runPath, "phase-01");
   await mkdir(phaseFolder, { recursive: true });
   const phaseStatus: Record<string, unknown> = {
-    version: 1,
+    $schema: schemaUrl("phase-status", PHAX_RELEASE),
     phaseId: "phase-01",
     phaseIndex: 0,
     state: "gates_exhausted",
@@ -84,6 +84,7 @@ async function seedGatesExhaustedRun(opts: {
     createdAt: now,
     updatedAt: now,
     branchName: "ai/my-run--phase-01",
+    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     worktreePath: opts.worktreePath,
   };
   if (opts.claudeSessionId !== undefined) {

@@ -6,6 +6,8 @@ import { Either } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { resolvePhaseInfo } from "../../src/app/resolveRunInfo.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(() => ({ status: 0, error: undefined })),
@@ -53,13 +55,14 @@ async function buildFakeRunFolder(
     await writeFile(
       join(phaseDir, "status.json"),
       JSON.stringify({
-        version: 1,
+        $schema: schemaUrl("phase-status", PHAX_RELEASE),
         phaseId: phase.id,
         phaseIndex: phase.index,
         state: phase.state,
         model: "claude-sonnet-4-6",
         effort: "low",
         branchName: `ai/my-run--${phase.id}`,
+        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
         createdAt: now,
         updatedAt: now,
         ...(phase.worktreePath ? { worktreePath: phase.worktreePath } : {}),

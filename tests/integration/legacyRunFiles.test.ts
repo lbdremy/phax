@@ -1,7 +1,9 @@
-// ac-own-legacy for run files: a run directory written before phax wrote
-// `$schema` (run-status.json and status.json with `version: 1`) is still read by
-// the dispatcher and by run info, and its files are rewritten with `$schema`
-// first on the next state change. Every run directory here is made up.
+// ac-own-legacy for run files: a run-status.json written before phax wrote
+// `$schema` (`version: 1`) is still read by the dispatcher and by run info, and
+// rewritten with `$schema` first on the next state change. A phase status
+// written before `$schema` lacks `base` and is refused
+// (tests/unit/persisted.test.ts), so the phase status here is one phax writes
+// today. Every run directory here is made up.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -48,8 +50,8 @@ const preSchemaRunStatus = {
   planRepoRelPath: "docs/plans/example.md",
 };
 
-const preSchemaPhaseStatus = {
-  version: 1,
+const phaseStatus = {
+  $schema: schemaUrl("phase-status", rootVersion),
   phaseId: "phase-01",
   phaseIndex: 0,
   state: "running",
@@ -58,6 +60,7 @@ const preSchemaPhaseStatus = {
   createdAt: CREATED_AT,
   updatedAt: CREATED_AT,
   branchName: "phax/example-run--phase-01",
+  base: "0123456789abcdef0123456789abcdef01234567",
   worktreePath: "/work/example-repo/worktrees/phase-01",
   claudeSessionId: "session-0001",
 };
@@ -70,7 +73,7 @@ function withoutKeys(doc: Record<string, unknown>, ...keys: string[]): Record<st
   return Object.fromEntries(Object.entries(doc).filter(([key]) => !keys.includes(key)));
 }
 
-describe("a run directory written before $schema", () => {
+describe("a run status written before $schema", () => {
   let stateRoot: string;
   let runPath: string;
   let runStatusPath: string;
@@ -83,7 +86,7 @@ describe("a run directory written before $schema", () => {
     phaseStatusPath = join(runPath, "phase-01", "status.json");
     mkdirSync(join(runPath, "phase-01"), { recursive: true });
     writeFileSync(runStatusPath, JSON.stringify(preSchemaRunStatus, null, 2));
-    writeFileSync(phaseStatusPath, JSON.stringify(preSchemaPhaseStatus, null, 2));
+    writeFileSync(phaseStatusPath, JSON.stringify(phaseStatus, null, 2));
   });
 
   afterEach(() => {
@@ -97,10 +100,10 @@ describe("a run directory written before $schema", () => {
     expect(result.right.runState).toBe("running");
     expect(result.right.gateProfileId).toBe("standard");
     expect(result.right.phaseStatuses).toHaveLength(1);
-    expect(result.right.phaseStatuses[0]).toEqual(withoutKeys(preSchemaPhaseStatus, "version"));
+    expect(result.right.phaseStatuses[0]).toEqual(withoutKeys(phaseStatus, "$schema"));
   });
 
-  it("is read by the dispatcher, and one transition rewrites both files with $schema first", async () => {
+  it("is read by the dispatcher, and one transition rewrites it with $schema first", async () => {
     const layer = Layer.mergeAll(
       NodeFileSystemLayer,
       makeFakeSystemTelemetry().layer,
@@ -115,8 +118,8 @@ describe("a run directory written before $schema", () => {
       phase: "phase-01" as PhaseId,
       kind: "rate_limit",
       cause: new RateLimitError({ message: "rate limited", rawMessage: "429 example" }),
-      worktreePath: preSchemaPhaseStatus.worktreePath as WorktreePath,
-      sessionId: preSchemaPhaseStatus.claudeSessionId as ClaudeSessionId,
+      worktreePath: phaseStatus.worktreePath as WorktreePath,
+      sessionId: phaseStatus.claudeSessionId as ClaudeSessionId,
     };
 
     const result = await Effect.runPromise(
@@ -139,14 +142,11 @@ describe("a run directory written before $schema", () => {
     ).toEqual(withoutKeys(preSchemaRunStatus, "version", "state", "updatedAt"));
     expect(runStatus["state"]).toBe("rate_limited");
 
-    const phaseStatus = readJson(phaseStatusPath);
-    expect(Object.keys(phaseStatus)[0]).toBe("$schema");
-    expect(phaseStatus["$schema"]).toBe(schemaUrl("phase-status", rootVersion));
-    expect(phaseStatus).not.toHaveProperty("version");
-    expect(withoutKeys(phaseStatus, "$schema", "state", "updatedAt")).toEqual(
-      withoutKeys(preSchemaPhaseStatus, "version", "state", "updatedAt"),
+    const rewritten = readJson(phaseStatusPath);
+    expect(withoutKeys(rewritten, "state", "updatedAt")).toEqual(
+      withoutKeys(phaseStatus, "state", "updatedAt"),
     );
-    expect(phaseStatus["state"]).toBe("rate_limited");
+    expect(rewritten["state"]).toBe("rate_limited");
 
     const reread = resolveRun(NAMESPACE, Either.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
     expect(Either.isRight(reread)).toBe(true);

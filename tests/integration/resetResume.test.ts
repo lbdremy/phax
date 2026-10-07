@@ -7,6 +7,8 @@ import { decodeShortName } from "../../src/domain/branded.js";
 import { resolveRun } from "../../src/app/resolveRunInfo.js";
 import { inspectResume } from "../../src/app/resume.js";
 import { runKey } from "../../src/domain/runRef.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const NAMESPACE = "test-project";
 const SHORT_NAME = Either.getOrThrow(decodeShortName("my-run"));
@@ -136,13 +138,14 @@ describe("resolveRun + inspectResume after reset-phase", () => {
     await writeFile(
       join(phase01Dir, "status.json"),
       JSON.stringify({
-        version: 1,
+        $schema: schemaUrl("phase-status", PHAX_RELEASE),
         phaseId: "phase-01",
         phaseIndex: 0,
         state: "running",
         model: "claude-sonnet-4-6",
         effort: "low",
         branchName: "ai/my-run--phase-01",
+        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
         createdAt: NOW,
         updatedAt: NOW,
         worktreePath: join(stateRoot, "worktrees", "test-project.my-run", "phase-01"),

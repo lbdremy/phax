@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runReviewHandoff } from "../../src/cli/commands/reviewHandoff.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 interface TestOutput {
   logs: string[];
@@ -43,13 +45,14 @@ function makeRunStatusJson(state: string): string {
 
 function makePhaseStatusJson(phaseId: string): string {
   return JSON.stringify({
-    version: 1,
+    $schema: schemaUrl("phase-status", PHAX_RELEASE),
     phaseId,
     phaseIndex: 0,
     state: "committed",
     model: "claude-sonnet-4-6",
     effort: "low",
     branchName: `feature/${SHORT_NAME}--${phaseId}`,
+    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: NOW,
     updatedAt: NOW,
     worktreePath: `/fake/worktrees/${SHORT_NAME}/${phaseId}`,

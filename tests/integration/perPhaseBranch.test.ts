@@ -9,21 +9,33 @@
  */
 
 import { Effect, Either, Layer } from "effect";
+import { execSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
+import { createPhaseFolder } from "../../src/app/phaseFolder.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
-import { preparePhaseBranch } from "../../src/app/worktree.js";
+import { preparePhaseBranch, type PreparedPhaseBranch } from "../../src/app/worktree.js";
 import { decodePhaseId, decodeShortName, decodeBranchName } from "../../src/domain/branded.js";
-import type { ClaudeSessionId } from "../../src/domain/branded.js";
+import type { BranchName, ClaudeSessionId, PhaseId } from "../../src/domain/branded.js";
+import { UnsafeGitStateError } from "../../src/domain/errors.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
+import { NodeGitLayer } from "../../src/infra/git.js";
+import type { FileSystem } from "../../src/ports/fs.js";
+import type { Git } from "../../src/ports/git.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
+import type { PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import type { PhaseStatus } from "../../src/schemas/status.js";
+import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import {
   resolveAuthoringConfig,
   resolveCodeReviewConfig,
@@ -31,7 +43,11 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
-import { readPhaxPlanFile } from "../../src/schemas/persisted.js";
+import { readPhaseStatusFile, readPhaxPlanFile } from "../../src/schemas/persisted.js";
+
+// Made-up full commit shas for the fake git's branch tips.
+const RUN_TIP = "1111111111111111111111111111111111111111";
+const PHASE_01_TIP = "2222222222222222222222222222222222222222";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -92,20 +108,26 @@ describe("preparePhaseBranch — unit", () => {
     const phase02Id = Either.getOrThrow(decodePhaseId("phase-02"));
 
     // Phase-01 branches off the run branch.
-    const branch01 = await Effect.runPromise(
+    fakeGit.impl.setBranchRef("ai/my-run", RUN_TIP);
+    const prepared01 = await Effect.runPromise(
       preparePhaseBranch(baseBranch, phase01Id, baseBranch, "/repo").pipe(
         Effect.provide(fakeGit.layer),
       ),
     );
-    expect(branch01).toBe("ai/my-run--phase-01");
+    expect(prepared01).toEqual({ kind: "created", branch: "ai/my-run--phase-01", base: RUN_TIP });
 
-    // Phase-02 branches off phase-01.
-    const branch02 = await Effect.runPromise(
-      preparePhaseBranch(baseBranch, phase02Id, branch01, "/repo").pipe(
+    // Phase-02 branches off phase-01, at phase-01's tip.
+    fakeGit.impl.setBranchRef("ai/my-run--phase-01", PHASE_01_TIP);
+    const prepared02 = await Effect.runPromise(
+      preparePhaseBranch(baseBranch, phase02Id, prepared01.branch, "/repo").pipe(
         Effect.provide(fakeGit.layer),
       ),
     );
-    expect(branch02).toBe("ai/my-run--phase-02");
+    expect(prepared02).toEqual({
+      kind: "created",
+      branch: "ai/my-run--phase-02",
+      base: PHASE_01_TIP,
+    });
 
     const createCalls = fakeGit.impl.calls.filter((c) => c.method === "createBranch");
     expect(createCalls).toHaveLength(2);
@@ -131,10 +153,166 @@ describe("preparePhaseBranch — unit", () => {
         Effect.provide(fakeGit.layer),
       ),
     );
-    expect(result).toBe("ai/my-run--phase-01");
+    expect(result).toEqual({ kind: "existing", branch: "ai/my-run--phase-01" });
 
     const createCalls = fakeGit.impl.calls.filter((c) => c.method === "createBranch");
     expect(createCalls).toHaveLength(0);
+  });
+
+  it("notes a deterministic full sha for a source branch the fake has no ref for", async () => {
+    const fakeGit = makeFakeGit();
+    const baseBranch = Either.getOrThrow(decodeBranchName("ai/my-run"));
+    const phase01Id = Either.getOrThrow(decodePhaseId("phase-01"));
+
+    const prepared = await Effect.runPromise(
+      preparePhaseBranch(baseBranch, phase01Id, baseBranch, "/repo").pipe(
+        Effect.provide(fakeGit.layer),
+      ),
+    );
+    if (prepared.kind !== "created") throw new Error("expected a created branch");
+    expect(prepared.base).toMatch(/^[0-9a-f]{40}$/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The noted base, against a real git repository
+// ---------------------------------------------------------------------------
+
+describe("the noted base — real git", () => {
+  let repoDir: string;
+  let runPath: string;
+  const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", rawPlan));
+  const phase01 = plan.phases[0];
+  const phase02 = plan.phases[1]!;
+  const runBranch = Either.getOrThrow(decodeBranchName("ai/my-run"));
+  const phase01Id = Either.getOrThrow(decodePhaseId("phase-01"));
+  const phase02Id = Either.getOrThrow(decodePhaseId("phase-02"));
+  const layers = Layer.mergeAll(NodeGitLayer, NodeFileSystemLayer);
+
+  function git(args: string): string {
+    return execSync(`git ${args}`, { cwd: repoDir, stdio: "pipe" }).toString().trim();
+  }
+
+  function commitOn(branch: string, file: string): string {
+    git(`checkout -q ${branch}`);
+    writeFileSync(join(repoDir, file), `${file}\n`);
+    git(`add ${file}`);
+    git(`commit -q -m "chore: ${file}"`);
+    git("checkout -q main");
+    return git(`rev-parse ${branch}`);
+  }
+
+  function prepare(phaseId: PhaseId, from: BranchName) {
+    return preparePhaseBranch(runBranch, phaseId, from, repoDir);
+  }
+
+  function noteBase(phase: PhaxPlanPhase, index: number, prepared: PreparedPhaseBranch) {
+    return createPhaseFolder(runPath, phase, index, prepared, repoDir);
+  }
+
+  function readStatus(phaseId: string): PhaseStatus {
+    const file = join(runPath, phaseId, "status.json");
+    const raw = JSON.parse(readFileSync(file, "utf8")) as unknown;
+    return Either.getOrThrow(readPhaseStatusFile(file, raw));
+  }
+
+  const run = <A, E>(effect: Effect.Effect<A, E, Git | FileSystem>): Promise<A> =>
+    Effect.runPromise(effect.pipe(Effect.provide(layers)));
+
+  beforeEach(async () => {
+    repoDir = mkdtempSync(join(tmpdir(), "phax-noted-base-"));
+    runPath = await mkdtemp(join(tmpdir(), "phax-noted-base-run-"));
+    git("init -q -b main");
+    disableGitAutoMaintenance(repoDir);
+    git("config --local user.email test@phax.test");
+    git("config --local user.name 'phax test'");
+    writeFileSync(join(repoDir, "README.md"), "# example\n");
+    git("add README.md");
+    git('commit -q -m "chore: initial commit"');
+    git("branch ai/my-run");
+    commitOn("ai/my-run", "run.txt");
+  });
+
+  afterEach(async () => {
+    removeTempDir(repoDir);
+    await rm(runPath, { recursive: true, force: true });
+  });
+
+  it("notes the full sha of the source branch's tip when phax creates the branch", async () => {
+    const runTip = git("rev-parse ai/my-run");
+
+    const prepared = await run(prepare(phase01Id, runBranch));
+    expect(prepared).toEqual({ kind: "created", branch: "ai/my-run--phase-01", base: runTip });
+
+    await run(noteBase(phase01, 0, prepared));
+    expect(readStatus("phase-01").base).toBe(runTip);
+  });
+
+  it("notes phase-01's tip as phase-02's base", async () => {
+    const prepared01 = await run(prepare(phase01Id, runBranch));
+    await run(noteBase(phase01, 0, prepared01));
+    const phase01Tip = commitOn("ai/my-run--phase-01", "phase-01.txt");
+
+    const prepared02 = await run(prepare(phase02Id, prepared01.branch));
+    await run(noteBase(phase02, 1, prepared02));
+    expect(readStatus("phase-02").base).toBe(phase01Tip);
+  });
+
+  it("keeps the noted base after commits on the phase branch and a moved source branch", async () => {
+    const runTip = git("rev-parse ai/my-run");
+    const prepared = await run(prepare(phase01Id, runBranch));
+    await run(noteBase(phase01, 0, prepared));
+
+    commitOn("ai/my-run--phase-01", "work.txt");
+    commitOn("ai/my-run", "moved.txt");
+
+    const again = await run(prepare(phase01Id, runBranch));
+    expect(again).toEqual({ kind: "existing", branch: "ai/my-run--phase-01" });
+    await run(noteBase(phase01, 0, again));
+    expect(readStatus("phase-01").base).toBe(runTip);
+  });
+
+  it("notes the new source tip after the branch is deleted and the folder archived", async () => {
+    const prepared = await run(prepare(phase01Id, runBranch));
+    await run(noteBase(phase01, 0, prepared));
+
+    git("branch -D ai/my-run--phase-01");
+    renameSync(join(runPath, "phase-01"), join(runPath, "phase-01.archived"));
+    const newTip = commitOn("ai/my-run", "moved.txt");
+
+    const recreated = await run(prepare(phase01Id, runBranch));
+    expect(recreated).toEqual({ kind: "created", branch: "ai/my-run--phase-01", base: newTip });
+    await run(noteBase(phase01, 0, recreated));
+    expect(readStatus("phase-01").base).toBe(newTip);
+  });
+
+  it("replaces the noted base, keeping every other fact, when phax re-creates the branch", async () => {
+    const prepared = await run(prepare(phase01Id, runBranch));
+    await run(noteBase(phase01, 0, prepared));
+    const before = readStatus("phase-01");
+
+    git("branch -D ai/my-run--phase-01");
+    const newTip = commitOn("ai/my-run", "moved.txt");
+
+    const recreated = await run(prepare(phase01Id, runBranch));
+    await run(noteBase(phase01, 0, recreated));
+    const after = readStatus("phase-01");
+    expect(after.base).toBe(newTip);
+    expect({ ...after, base: before.base, updatedAt: before.updatedAt }).toEqual(before);
+  });
+
+  it("refuses a phase branch that exists without a phase status, naming the branch", async () => {
+    git("branch ai/my-run--phase-01 ai/my-run");
+
+    const prepared = await run(prepare(phase01Id, runBranch));
+    expect(prepared.kind).toBe("existing");
+    const result = await run(Effect.either(noteBase(phase01, 0, prepared)));
+
+    if (Either.isRight(result)) throw new Error("expected a refusal");
+    expect(result.left).toBeInstanceOf(UnsafeGitStateError);
+    expect(result.left.message).toContain('"ai/my-run--phase-01"');
+    expect(result.left.message).toContain("git branch -D ai/my-run--phase-01");
+    expect(existsSync(join(runPath, "phase-01", "status.json"))).toBe(false);
   });
 });
 
@@ -368,13 +546,14 @@ describe("executePlan — per-phase branch regression", () => {
     await writeFile(
       join(phase01FolderPath, "status.json"),
       JSON.stringify({
-        version: 1,
+        $schema: schemaUrl("phase-status", PHAX_RELEASE),
         phaseId: "phase-01",
         phaseIndex: 0,
         state: "committed",
         model: "claude-sonnet-4-6",
         effort: "low",
         branchName: "ai/my-run--phase-01",
+        base: RUN_TIP,
         createdAt: now,
         updatedAt: now,
         worktreePath: join(stateRoot, "worktrees", "test-project.my-run", "phase-01"),

@@ -20,6 +20,11 @@ import {
   type PhaseStatusPreSchema,
 } from "../../../../src/schemas/history/phase-status/pre-schema.js";
 import {
+  PhaseStatusV0_17_0Schema,
+  decodePhaseStatusV0_17_0,
+  type PhaseStatusV0_17_0,
+} from "../../../../src/schemas/history/phase-status/0.17.0.js";
+import {
   PhaxPlanPreSchemaSchema,
   decodePhaxPlanPreSchema,
   type PhaxPlanPreSchema,
@@ -58,7 +63,7 @@ import {
 } from "../../../../src/schemas/status.js";
 import { CURRENT_SHAPES } from "../generated/index.js";
 import type { ParsedShape } from "../parsed.js";
-import { defineFormat, type CurrentShapeName } from "../shapes.js";
+import { UNKNOWN, defineFormat, type CurrentShapeName, type Unknown } from "../shapes.js";
 
 // A document without `$schema` is read by the format's frozen pre-schema
 // module as shape `pre-schema`; a `$schema` document is read by phax's decoder
@@ -135,7 +140,10 @@ export function toLatestRunStatus(value: RunStatusPreSchema | RunStatusFile): La
 
 // ── phase status
 
-export type PhaseStatusShapes = { "pre-schema": PhaseStatusPreSchema } & {
+export type PhaseStatusShapes = {
+  "pre-schema": PhaseStatusPreSchema;
+  "0.17.0": PhaseStatusV0_17_0;
+} & {
   [K in CurrentShapeName<"phase-status">]: PhaseStatusFile;
 };
 
@@ -146,7 +154,7 @@ export const phaseStatusFormat = defineFormat<PhaseStatusShapes>({
   id: "phase-status",
   label: "phase status",
   preSchema: { schema: PhaseStatusPreSchemaSchema, decode: decodePhaseStatusPreSchema },
-  releases: [],
+  releases: [["0.17.0", { schema: PhaseStatusV0_17_0Schema, decode: decodePhaseStatusV0_17_0 }]],
   current: {
     name: CURRENT_SHAPES["phase-status"],
     shape: { schema: PhaseStatusFileSchema, decode: decodePhaseStatusFile },
@@ -157,19 +165,32 @@ export const phaseStatusFormat = defineFormat<PhaseStatusShapes>({
 export const parsePhaseStatus: (input: unknown) => ParsedShape<PhaseStatusShapes> =
   phaseStatusFormat.parse;
 
-/** The latest phase status: phax's in-memory value, with no `version` and no `$schema`. */
-export type LatestPhaseStatus = PhaseStatus;
+/**
+ * The latest phase status: phax's in-memory value, with no `version` and no
+ * `$schema`. A status older than `base` never recorded the commit its branch
+ * was created from: its `base` is `Unknown`.
+ */
+export type LatestPhaseStatus =
+  | PhaseStatus
+  | (Omit<PhaseStatus, "base"> & { readonly base: Unknown });
 
-/** Upgrades a parsed phase status in memory. Keeps every recorded fact; never invents one. */
+/**
+ * Upgrades a parsed phase status in memory. Keeps every recorded fact; never
+ * invents one: an older shape's `base` is `Unknown`.
+ */
 export function toLatestPhaseStatus(
-  value: PhaseStatusPreSchema | PhaseStatusFile,
+  value: PhaseStatusPreSchema | PhaseStatusV0_17_0 | PhaseStatusFile,
 ): LatestPhaseStatus {
-  if ("$schema" in value) {
+  if ("base" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return { ...recorded, base: UNKNOWN };
+  }
   const { version: _version, ...recorded } = value;
-  return recorded;
+  return { ...recorded, base: UNKNOWN };
 }
 
 // ── phax-plan

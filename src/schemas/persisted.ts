@@ -256,7 +256,13 @@ export const readRunStatusFile: Reader<RunStatus> = (file, input) =>
     fromPreSchema: ({ version: _version, ...status }) => Either.right(status),
   });
 
-/** Reads a phase's `status.json`. The pre-schema phase status carries every fact phax needs. */
+/**
+ * Reads a phase's `status.json`. A pre-schema phase status never recorded
+ * `base`, the commit its branch was created from, so it is refused rather than
+ * given one re-derived from git. A `$schema` status is read by the current
+ * decoder only, so one written by 0.17.0–0.19.x, which lacks `base`, is
+ * refused too.
+ */
 export const readPhaseStatusFile: Reader<PhaseStatus> = (file, input) =>
   readPersisted(input, {
     format: "phase-status",
@@ -265,7 +271,7 @@ export const readPhaseStatusFile: Reader<PhaseStatus> = (file, input) =>
     decodeCurrent: decodePhaseStatusFile,
     decodePreSchema: decodePhaseStatusPreSchema,
     fromCurrent: ({ $schema: _schema, ...status }) => status,
-    fromPreSchema: ({ version: _version, ...status }) => Either.right(status),
+    fromPreSchema: () => Either.left({ fact: "base" }),
   });
 
 /** Reads a run's `phax-plan.json`. The pre-schema phax-plan carries every fact phax needs. */

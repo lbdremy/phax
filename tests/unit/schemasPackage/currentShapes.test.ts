@@ -215,9 +215,14 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
 };
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);
+// phax refuses every pre-schema phase status (it never recorded `base`); the
+// package reads it with `base` Unknown. Covered below where they part.
 const PRE_SCHEMA_READ_BY_PHAX = PRE_SCHEMA_FORMAT_IDS.filter(
-  (id) => BRIDGE_READERS[id] !== undefined,
+  (id) => BRIDGE_READERS[id] !== undefined && id !== "phase-status",
 );
+// A pre-schema phase status upgrades with `base` Unknown, a phax-written one
+// keeps its base, so the two never upgrade alike.
+const UPGRADED_ALIKE = PRE_SCHEMA_FORMAT_IDS.filter((id) => id !== "phase-status");
 
 describe("phax's bridge and the package agree", () => {
   it.each(PRE_SCHEMA_READ_BY_PHAX)(
@@ -258,7 +263,18 @@ describe("phax's bridge and the package agree", () => {
     if (Either.isLeft(read)) expect(read.left.message).toContain("lacks completesSpec");
   });
 
-  it.each(PRE_SCHEMA_FORMAT_IDS)(
+  // Where they part: a pre-schema phase status never recorded the commit its
+  // branch was created from. The package keeps that as Unknown; phax, which
+  // needs the fact, refuses the status.
+  it("phase-status: a pre-schema status is Unknown base to the package, refused by phax", () => {
+    const document = preSchemaDocuments["phase-status"];
+    expect(PACKAGE_LATEST["phase-status"](document)).toMatchObject({ base: UNKNOWN });
+    const read = readPhaseStatusFile("/work/example-repo/phase-status.json", document);
+    expect(Either.isLeft(read)).toBe(true);
+    if (Either.isLeft(read)) expect(read.left.message).toContain("lacks base");
+  });
+
+  it.each(UPGRADED_ALIKE)(
     "%s: the package upgrades a pre-schema and a phax-written document alike",
     (id) => {
       expect(PACKAGE_LATEST[id](preSchemaDocuments[id])).toEqual(

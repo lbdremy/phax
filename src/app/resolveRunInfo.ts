@@ -83,10 +83,12 @@ function loadRunReviewInfo(
     const statusPath = join(runPath, dir, "status.json");
     const raw = tryReadJson(statusPath);
     if (raw === undefined) continue;
+    // A status.json phax cannot read (e.g. one an earlier release wrote,
+    // without `base`) refuses the whole run: skipping it would make resume
+    // take that phase as never started.
     const decoded = readPhaseStatusFile(statusPath, raw);
-    if (Either.isRight(decoded)) {
-      phaseStatuses.push(decoded.right);
-    }
+    if (Either.isLeft(decoded)) return Either.left(decoded.left.message);
+    phaseStatuses.push(decoded.right);
   }
 
   const finalPhaseStatus = phaseStatuses.toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
