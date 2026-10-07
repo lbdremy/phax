@@ -2,8 +2,8 @@
 status: Approved
 source-spec: docs/specs/2610061345-drop-gate-scopes.md
 approved:
-  date: 2026-10-06
-  baseline: af467f7
+  date: 2026-10-07
+  baseline: 1bdaafa
 ---
 # Drop gate scopes
 

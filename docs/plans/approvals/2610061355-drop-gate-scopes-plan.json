@@ -2,8 +2,8 @@
   "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.19.0.json",
   "artifact": "docs/plans/2610061355-drop-gate-scopes-plan.md",
   "planFingerprint": "11edf88d69b6bd9649556f6e1d8f5b4ee4d844063a7b4105cadb0dc24c2f6c94",
-  "approvedAt": "2026-10-06T14:08:16.014Z",
-  "baseline": "af467f7b3519a2ee0bc9c1354c86bdc0c2ce8ac8",
+  "approvedAt": "2026-10-07T14:06:59.613Z",
+  "baseline": "1bdaafa6cb6226c1aeeac5b87716452a9cbfbcc6",
   "sourceSpec": {
     "path": "docs/specs/2610061345-drop-gate-scopes.md",
     "fingerprint": "b9681228dcec92f613cff368a00f705c983762bf8ba19fdab7009c15b7405440"
