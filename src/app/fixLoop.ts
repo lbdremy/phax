@@ -49,6 +49,8 @@ export interface RunGatesWithFixLoopOptions {
   readonly startAttempt?: number;
   /** Canonical worktree path emitted in FixAttemptsExhausted (defaults to cwd). */
   readonly worktreePath?: string;
+  /** The phase's serialized gate request, passed unchanged to every attempt. */
+  readonly gateRequest: string;
 }
 
 export function runGatesWithFixLoop(
@@ -78,6 +80,7 @@ export function runGatesWithFixLoop(
     run,
     phaseId,
     runPath,
+    gateRequest,
   } = opts;
   const startAttempt = opts.startAttempt ?? 1;
   const resolvedWorktreePath = opts.worktreePath ?? cwd;
@@ -135,6 +138,7 @@ export function runGatesWithFixLoop(
           attemptLogPath: logPath(attempt),
           attributionPath: join(phaseFolderPath, "gate-attribution.json"),
           phaseId,
+          gateRequest,
         }),
       );
 

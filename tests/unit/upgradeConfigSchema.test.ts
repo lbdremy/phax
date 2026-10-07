@@ -63,6 +63,45 @@ describe("upgradeConfigSchema", () => {
     expect(result.kind).toBe("updated");
   });
 
+  it("declares the gate step input key as gate-request only, with no default, leaving phax.json alone", () => {
+    const phaxJson = JSON.stringify({
+      version: 1,
+      name: "example",
+      gateProfiles: {
+        standard: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+      },
+    });
+    writeFileSync(join(repoDir, "phax.json"), phaxJson);
+
+    upgradeConfigSchema(repoDir);
+
+    expect(readFileSync(join(repoDir, "phax.json"), "utf8")).toBe(phaxJson);
+    type StepSchema = {
+      required: string[];
+      properties: Record<string, { enum?: unknown[]; default?: unknown; description?: string }>;
+    };
+    type ProfilesSchema = { patternProperties: Record<string, { items: StepSchema }> };
+    for (const file of ["phax.schema.json", "phax.user.schema.json"]) {
+      const schema = JSON.parse(readFileSync(join(repoDir, file), "utf8")) as {
+        properties: {
+          gateProfiles: ProfilesSchema;
+          workspaces: { items: { properties: { gateProfiles: ProfilesSchema } } };
+        };
+      };
+      const steps = [
+        schema.properties.gateProfiles.patternProperties[""]!.items,
+        schema.properties.workspaces.items.properties.gateProfiles.patternProperties[""]!.items,
+      ];
+      for (const step of steps) {
+        const input = step.properties["input"];
+        expect(input?.enum, file).toEqual(["gate-request"]);
+        expect(input && "default" in input, file).toBe(false);
+        expect(input?.description, file).toContain("checks-attempt-NN.request.json");
+        expect(step.required, file).not.toContain("input");
+      }
+    }
+  });
+
   it("writes the schema even when phax.json contains invalid JSON", () => {
     writeFileSync(join(repoDir, "phax.json"), "not valid json {{");
     const result = upgradeConfigSchema(repoDir);

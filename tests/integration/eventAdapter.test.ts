@@ -254,6 +254,8 @@ describe("adaptGateRun", () => {
   ] as const;
   const cwd = worktreePath as string;
   const logPath = `${phaseFolderPath}/checks-attempt-01.log`;
+  // A made-up gate request.
+  const gateRequest = '{\n  "phase": "phase-01"\n}';
 
   it("all gates pass → GatePassed", async () => {
     const fakeShell = makeFakeShell();
@@ -261,7 +263,7 @@ describe("adaptGateRun", () => {
     const layer = Layer.mergeAll(fakeShell.layer, fakeFs.layer);
 
     const event = await Effect.runPromise(
-      adaptGateRun(gateSteps, cwd, logPath, 1, base).pipe(Effect.provide(layer)),
+      adaptGateRun(gateSteps, cwd, logPath, gateRequest, 1, base).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("GatePassed");
@@ -278,7 +280,7 @@ describe("adaptGateRun", () => {
     const layer = Layer.mergeAll(fakeShell.layer, fakeFs.layer);
 
     const event = await Effect.runPromise(
-      adaptGateRun(gateSteps, cwd, logPath, 2, base).pipe(Effect.provide(layer)),
+      adaptGateRun(gateSteps, cwd, logPath, gateRequest, 2, base).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("GateFailed");
@@ -289,6 +291,23 @@ describe("adaptGateRun", () => {
       expect(event.attempt).toBe(2);
       expect(event.diagnostics).toEqual([]);
     }
+  });
+
+  it("passes the gate request to a declaring step and saves it beside the log", async () => {
+    const fakeShell = makeFakeShell();
+    const fakeFs = makeFakeFileSystem();
+    const layer = Layer.mergeAll(fakeShell.layer, fakeFs.layer);
+    const declaring = [{ ...gateSteps[0], input: "gate-request" }] as const;
+
+    const event = await Effect.runPromise(
+      adaptGateRun(declaring, cwd, logPath, gateRequest, 1, base).pipe(Effect.provide(layer)),
+    );
+
+    expect(event.type).toBe("GatePassed");
+    expect(fakeShell.impl.calls[0]?.stdin).toBe(gateRequest);
+    expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-01.request.json`)).toBe(
+      gateRequest,
+    );
   });
 });
 

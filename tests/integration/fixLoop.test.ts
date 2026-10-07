@@ -1,6 +1,8 @@
 import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { runGatesWithFixLoop } from "../../src/app/fixLoop.js";
+import { serializeGateRequest } from "../../src/app/gates.js";
+import { makeGateRequest } from "../../src/domain/gate/gateRequest.js";
 import { GateAttemptsExhaustedError } from "../../src/domain/errors.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -46,6 +48,16 @@ const runStatusJson = JSON.stringify({
   currentPhaseIndex: 0,
 });
 
+// A made-up gate request; only declaring steps ever see it.
+const gateRequest = serializeGateRequest(
+  makeGateRequest({
+    phaseId: "phase-01",
+    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+    terminal: true,
+    phases: [{ id: "phase-01", plannedFilesToCreate: ["src/greet.ts"], plannedFilesToEdit: [] }],
+  }),
+);
+
 const security: SecurityPolicy = {
   mode: "unsafe",
   filesystem: { allowRead: [], allowWrite: [] },
@@ -74,6 +86,7 @@ const baseOpts = {
   run: "my-run",
   phaseId: "phase-01",
   runPath,
+  gateRequest,
 };
 
 function makeResumeResult(newSessionId = "sess-fixed") {
@@ -359,6 +372,45 @@ describe("runGatesWithFixLoop", () => {
     // Artifacts numbered from startAttempt, not from 1
     expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-01.log`)).toBeUndefined();
     expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-03.log`)).toBeDefined();
+  });
+
+  it("hands a declaring step the same request bytes on every attempt", async () => {
+    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
+
+    seedStatusFiles(fakeFs);
+    fakeBackend.impl.addResumeResponse(makeResumeResult("sess-fix-1"));
+    fakeBackend.impl.addResumeResponse(makeResumeResult("sess-fix-2"));
+    fakeShell.impl.enqueue(
+      { exitCode: 1, stdout: "", stderr: "fail 1" },
+      { exitCode: 1, stdout: "", stderr: "fail 2" },
+      { exitCode: 0, stdout: "ok", stderr: "" },
+    );
+
+    await Effect.runPromise(
+      runGatesWithFixLoop({
+        ...baseOpts,
+        steps: [
+          {
+            command: "node ./audit.mjs",
+            surface: "structural",
+            firing: "every-phase",
+            output: "log",
+            input: "gate-request",
+          },
+        ],
+        maxFixAttempts: 2,
+      }).pipe(Effect.provide(layer)),
+    );
+
+    const requests = [1, 2, 3].map((attempt) =>
+      fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-0${attempt}.request.json`),
+    );
+    expect(requests).toEqual([gateRequest, gateRequest, gateRequest]);
+    expect(fakeShell.impl.calls.map((call) => call.stdin)).toEqual([
+      gateRequest,
+      gateRequest,
+      gateRequest,
+    ]);
   });
 
   it("gate-attribution.json reflects the final attempt, not intermediate failures", async () => {

@@ -106,6 +106,8 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
           run: "my-run",
           phaseId: "phase-01",
           runPath,
+          // No step declares an input, so the request is never read.
+          gateRequest: "{}",
         }).pipe(Effect.provide(layer)),
       ),
     );

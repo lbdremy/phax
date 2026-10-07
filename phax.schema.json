@@ -302,6 +302,11 @@
                 "type": "string",
                 "enum": ["log", "diagnostics"],
                 "description": "\"log\" (default) streams raw command output. \"diagnostics\" expects {\"$schema\": \"https://docs.phax.run/schemas/gate-diagnostics/<release>.json\", \"diagnostics\": [{\"rule\", \"class\": \"invariant\"|\"completion\", \"location\": {\"file\", \"line\"?}, \"message\", \"repair\"}]} on stdout. Verdict rules: a non-empty list fails the step whatever the exit code, an invariant and a completion alike; exit 0 with an empty list passes; a missing, undecodable or malformed document (one without $schema included), or a non-zero exit with an empty list, is a provider error that fails the step with the raw log; a document from a newer release is refused by name. A failing document is saved as checks-attempt-NN.diagnostics.json and drives the fix prompt."
+              },
+              "input": {
+                "type": "string",
+                "enum": ["gate-request"],
+                "description": "Absent: the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json."
               }
             },
             "additionalProperties": false
@@ -354,6 +359,11 @@
                       "type": "string",
                       "enum": ["log", "diagnostics"],
                       "description": "\"log\" (default) streams raw command output. \"diagnostics\" expects {\"$schema\": \"https://docs.phax.run/schemas/gate-diagnostics/<release>.json\", \"diagnostics\": [{\"rule\", \"class\": \"invariant\"|\"completion\", \"location\": {\"file\", \"line\"?}, \"message\", \"repair\"}]} on stdout. Verdict rules: a non-empty list fails the step whatever the exit code, an invariant and a completion alike; exit 0 with an empty list passes; a missing, undecodable or malformed document (one without $schema included), or a non-zero exit with an empty list, is a provider error that fails the step with the raw log; a document from a newer release is refused by name. A failing document is saved as checks-attempt-NN.diagnostics.json and drives the fix prompt."
+                    },
+                    "input": {
+                      "type": "string",
+                      "enum": ["gate-request"],
+                      "description": "Absent: the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json."
                     }
                   },
                   "additionalProperties": false

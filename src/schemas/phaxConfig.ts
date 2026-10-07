@@ -59,6 +59,9 @@ const GATE_OUTPUT_DESCRIPTION =
   " Verdict rules: a non-empty list fails the step whatever the exit code, an invariant and a completion alike; exit 0 with an empty list passes; a missing, undecodable or malformed document (one without $schema included), or a non-zero exit with an empty list, is a provider error that fails the step with the raw log; a document from a newer release is refused by name." +
   " A failing document is saved as checks-attempt-NN.diagnostics.json and drives the fix prompt.";
 
+const GATE_INPUT_DESCRIPTION =
+  "Absent: the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json.";
+
 const GateStepSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: SurfaceSchema,
@@ -66,6 +69,16 @@ const GateStepSchema = Schema.Struct({
   output: Schema.optionalWith(GateOutputSchema, { default: () => "log" as const }).annotations({
     description: GATE_OUTPUT_DESCRIPTION,
   }),
+  // The description rides the jsonSchema annotation: a plain `description` on
+  // the literal would replace `Expected "gate-request"` in the config refusal,
+  // and one on the property signature is dropped from this transformed
+  // struct's JSON Schema.
+  input: Schema.optionalWith(
+    Schema.Literal("gate-request").annotations({
+      jsonSchema: { description: GATE_INPUT_DESCRIPTION },
+    }),
+    { exact: true },
+  ),
 });
 export type GateStep = Schema.Schema.Type<typeof GateStepSchema>;
 

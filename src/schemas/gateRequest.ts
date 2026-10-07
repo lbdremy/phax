@@ -43,3 +43,5 @@ export type GateRequestFile = Schema.Schema.Type<typeof GateRequestFileSchema>;
 export const decodeGateRequestFile = Schema.decodeUnknownEither(GateRequestFileSchema, {
   onExcessProperty: "error",
 });
+
+export const encodeGateRequestFile = Schema.encodeSync(GateRequestFileSchema);

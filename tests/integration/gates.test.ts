@@ -1,11 +1,26 @@
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
-import { describe, expect, it } from "vitest";
-import { runGates } from "../../src/app/gates.js";
+import { afterAll, describe, expect, it } from "vitest";
+import { runGates, serializeGateRequest } from "../../src/app/gates.js";
+import { makeGateRequest } from "../../src/domain/gate/gateRequest.js";
 import { selectGateSteps } from "../../src/domain/gate/selectSteps.js";
 import { GateFailedError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
+import { NodeFileSystemLayer } from "../../src/infra/fs.js";
+import { NodeShellLayer } from "../../src/infra/shell.js";
 import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { Surface } from "../../src/schemas/surface.js";
 import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
@@ -25,6 +40,18 @@ const cwd = "/fake/worktrees/my-run/phase-01";
 const logPath = "/fake/runs/my-run/phase-01/checks-attempt-01.log";
 const attributionPath = "/fake/runs/my-run/phase-01/gate-attribution.json";
 const phaseId = "phase-01";
+// A made-up gate request; only declaring steps ever see it.
+const gateRequest = serializeGateRequest(
+  makeGateRequest({
+    phaseId,
+    base: "0123456789abcdef0123456789abcdef01234567",
+    terminal: false,
+    phases: [
+      { id: "phase-01", plannedFilesToCreate: ["src/greet.ts"], plannedFilesToEdit: [] },
+      { id: "phase-02", plannedFilesToCreate: [], plannedFilesToEdit: ["src/greet.ts"] },
+    ],
+  }),
+);
 
 function steps(...commands: string[]): GateStep[] {
   return commands.map((command) => ({
@@ -64,6 +91,7 @@ describe("runGates", () => {
         steps: steps("pnpm test", "pnpm lint"),
         cwd,
         attemptLogPath: logPath,
+        gateRequest,
       }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
     );
 
@@ -83,6 +111,7 @@ describe("runGates", () => {
         steps: steps("pnpm test"),
         cwd,
         attemptLogPath: logPath,
+        gateRequest,
       }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
     );
 
@@ -107,6 +136,7 @@ describe("runGates", () => {
           steps: steps("pnpm test"),
           cwd,
           attemptLogPath: logPath,
+          gateRequest,
         }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
       ),
     );
@@ -132,6 +162,7 @@ describe("runGates", () => {
           steps: steps("pnpm test"),
           cwd,
           attemptLogPath: logPath,
+          gateRequest,
         }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
       ),
     );
@@ -154,6 +185,7 @@ describe("runGates", () => {
           steps: steps("pnpm test", "pnpm lint"),
           cwd,
           attemptLogPath: logPath,
+          gateRequest,
         }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
       ),
     );
@@ -172,6 +204,7 @@ describe("runGates", () => {
         steps: steps("pnpm test"),
         cwd,
         attemptLogPath: logPath,
+        gateRequest,
       }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
     );
 
@@ -192,6 +225,7 @@ describe("runGates", () => {
         steps: steps("pnpm test"),
         cwd,
         attemptLogPath: logPath,
+        gateRequest,
       }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
     );
 
@@ -211,6 +245,7 @@ describe("runGates", () => {
           steps: steps("pnpm test"),
           cwd,
           attemptLogPath: logPath,
+          gateRequest,
         }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
       );
 
@@ -230,6 +265,7 @@ describe("runGates", () => {
           ],
           cwd,
           attemptLogPath: logPath,
+          gateRequest,
           attributionPath,
           phaseId,
         }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
@@ -265,6 +301,7 @@ describe("runGates", () => {
             ],
             cwd,
             attemptLogPath: logPath,
+            gateRequest,
             attributionPath,
             phaseId,
           }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
@@ -307,6 +344,7 @@ describe("runGates", () => {
             steps: [diagnosticsStep("pnpm audit")],
             cwd,
             attemptLogPath: logPath,
+            gateRequest,
             attributionPath,
             phaseId,
           }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
@@ -349,6 +387,7 @@ describe("runGates", () => {
           steps: [diagnosticsStep("pnpm audit")],
           cwd,
           attemptLogPath: logPath,
+          gateRequest,
           attributionPath,
           phaseId,
         }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
@@ -375,6 +414,7 @@ describe("runGates", () => {
             steps: [diagnosticsStep("pnpm audit")],
             cwd,
             attemptLogPath: logPath,
+            gateRequest,
             attributionPath,
             phaseId,
           }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
@@ -410,6 +450,7 @@ describe("runGates", () => {
             steps: [diagnosticsStep("pnpm audit")],
             cwd,
             attemptLogPath: logPath,
+            gateRequest,
             attributionPath,
             phaseId,
           }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
@@ -452,6 +493,7 @@ describe("runGates", () => {
             steps: [diagnosticsStep("pnpm audit")],
             cwd,
             attemptLogPath: logPath,
+            gateRequest,
             attributionPath,
             phaseId,
           }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
@@ -500,6 +542,7 @@ describe("runGates", () => {
             steps: gateSteps,
             cwd,
             attemptLogPath: logPath,
+            gateRequest,
             attributionPath,
             phaseId,
           }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
@@ -644,6 +687,7 @@ describe("runGates", () => {
         steps: opts.steps,
         cwd,
         attemptLogPath: opts.attemptLogPath ?? logPath,
+        gateRequest,
         attributionPath,
         phaseId,
       }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)));
@@ -821,5 +865,237 @@ describe("runGates", () => {
         { command: "node ./audit.mjs", surface: "structural", result: "fail" },
       ]);
     });
+  });
+});
+
+function plainStep(command: string, extra: Partial<GateStep> = {}): GateStep {
+  return { command, surface: "structural", firing: "every-phase", output: "log", ...extra };
+}
+
+function declaring(command: string, extra: Partial<GateStep> = {}): GateStep {
+  return plainStep(command, { input: "gate-request", ...extra });
+}
+
+/** The log line right after `line`, or undefined when `line` is absent. */
+function lineAfter(lines: readonly string[], line: string): string | undefined {
+  const index = lines.indexOf(line);
+  return index === -1 ? undefined : lines[index + 1];
+}
+
+/** A temp dir holding the made-up scripts, and the attempt's paths in it. */
+interface Workspace {
+  readonly dir: string;
+  readonly logPath: string;
+  readonly requestPath: string;
+  readonly attributionPath: string;
+}
+
+function runReal(ws: Workspace, gateSteps: readonly GateStep[], request: string = gateRequest) {
+  return Effect.runPromise(
+    Effect.either(
+      runGates({
+        steps: gateSteps,
+        cwd: ws.dir,
+        attemptLogPath: ws.logPath,
+        attributionPath: ws.attributionPath,
+        phaseId,
+        gateRequest: request,
+      }).pipe(Effect.provide(Layer.mergeAll(NodeFileSystemLayer, NodeShellLayer))),
+    ),
+  );
+}
+
+function readLogLines(ws: Workspace): string[] {
+  return readFileSync(ws.logPath, "utf8").split("\n");
+}
+
+function readAttribution(ws: Workspace): GateAttribution {
+  return JSON.parse(readFileSync(ws.attributionPath, "utf8")) as GateAttribution;
+}
+
+// The request on stdin, through the real Node shell so the pipe behaviour is
+// exercised. Every script and request is made up and lives in a temp dir.
+describe("runGates with a declaring step (Node shell)", () => {
+  const finding = {
+    rule: "no-node-io",
+    class: "invariant",
+    location: { file: "src/io.ts" },
+    message: "src/io.ts imports node:fs",
+    repair: "move the I/O behind a port",
+  };
+  const scripts: Readonly<Record<string, string>> = {
+    // Copies stdin to the file named by its argument, then summarises it.
+    "echo.mjs": [
+      'import { writeFileSync } from "node:fs";',
+      'let input = "";',
+      "for await (const chunk of process.stdin) input += chunk;",
+      'writeFileSync(process.argv[2] ?? "stdin-copy.json", input);',
+      "const request = JSON.parse(input);",
+      "console.log(`phase=${request.phase} base=${request.base} terminal=${request.terminal} bytes=${Buffer.byteLength(input)}`);",
+    ].join("\n"),
+    // Counts the bytes it reads on stdin.
+    "count.mjs": [
+      "let bytes = 0;",
+      "for await (const chunk of process.stdin) bytes += chunk.length;",
+      "console.log(`bytes=${bytes}`);",
+    ].join("\n"),
+    // Exits with its argument at once, never reading stdin.
+    "exit.mjs": "process.exit(Number(process.argv[2] ?? 0));",
+    // Reads stdin to end of file, then reports one finding.
+    "diag.mjs": [
+      "for await (const _ of process.stdin);",
+      `console.log(${JSON.stringify(printed([finding]))});`,
+    ].join("\n"),
+  };
+
+  const tempDirs: string[] = [];
+  afterAll(() => {
+    for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function workspace(): Workspace {
+    const dir = mkdtempSync(join(tmpdir(), "phax-gate-request-"));
+    tempDirs.push(dir);
+    for (const [name, content] of Object.entries(scripts)) {
+      writeFileSync(join(dir, name), content);
+    }
+    const phaseFolder = join(dir, "phase-01");
+    mkdirSync(phaseFolder);
+    return {
+      dir,
+      logPath: join(phaseFolder, "checks-attempt-01.log"),
+      requestPath: join(phaseFolder, "checks-attempt-01.request.json"),
+      attributionPath: join(phaseFolder, "gate-attribution.json"),
+    };
+  }
+
+  it("saves exactly the bytes a declaring step reads to end of file", async () => {
+    const ws = workspace();
+
+    const result = await runReal(ws, [declaring("node ./echo.mjs copy.json")]);
+
+    expect(Either.isRight(result)).toBe(true);
+    const saved = readFileSync(ws.requestPath);
+    expect(readFileSync(join(ws.dir, "copy.json")).equals(saved)).toBe(true);
+    expect(saved.toString("utf8")).toBe(gateRequest);
+  });
+
+  it("writes the same bytes to every declaring step of the attempt", async () => {
+    const ws = workspace();
+
+    await runReal(ws, [declaring("node ./echo.mjs a.json"), declaring("node ./echo.mjs b.json")]);
+
+    const saved = readFileSync(ws.requestPath);
+    expect(readFileSync(join(ws.dir, "a.json")).equals(saved)).toBe(true);
+    expect(readFileSync(join(ws.dir, "b.json")).equals(saved)).toBe(true);
+    expect(readLogLines(ws).filter((line) => line.startsWith("stdin:"))).toEqual([
+      "stdin: checks-attempt-01.request.json",
+      "stdin: checks-attempt-01.request.json",
+    ]);
+  });
+
+  it("leaves a non-declaring step's stdin unconnected: no bytes, no line, no file", async () => {
+    const ws = workspace();
+
+    const result = await runReal(ws, [plainStep("node ./count.mjs")]);
+
+    expect(Either.isRight(result)).toBe(true);
+    const lines = readLogLines(ws);
+    expect(lineAfter(lines, "$ node ./count.mjs")).toBe("bytes=0");
+    expect(lines.some((line) => line.startsWith("stdin:"))).toBe(false);
+    expect(existsSync(ws.requestPath)).toBe(false);
+  });
+
+  it("writes no request when a non-declaring step fails before the declaring one", async () => {
+    const ws = workspace();
+
+    const result = await runReal(ws, [
+      plainStep("node ./exit.mjs 1"),
+      declaring("node ./echo.mjs"),
+    ]);
+
+    expect(Either.isLeft(result)).toBe(true);
+    expect(existsSync(ws.requestPath)).toBe(false);
+    expect(readLogLines(ws).some((line) => line.startsWith("stdin:"))).toBe(false);
+  });
+
+  it("logs the stdin line directly after the declaring step's $ line only", async () => {
+    const ws = workspace();
+    writeFileSync(join(ws.dir, "audit.mjs"), scripts["echo.mjs"]!);
+
+    await runReal(ws, [plainStep("node ./count.mjs"), declaring("node ./audit.mjs")]);
+
+    const lines = readLogLines(ws);
+    expect(lineAfter(lines, "$ node ./audit.mjs")).toBe("stdin: checks-attempt-01.request.json");
+    expect(lineAfter(lines, "$ node ./count.mjs")).toBe("bytes=0");
+  });
+
+  it("keeps the exit-code verdict for a declaring log step", async () => {
+    for (const [code, verdict] of [
+      [0, "pass"],
+      [1, "fail"],
+    ] as const) {
+      const ws = workspace();
+      await runReal(ws, [declaring(`node ./exit.mjs ${code}`)]);
+      expect(readAttribution(ws).steps.map((s) => s.result)).toEqual([verdict]);
+    }
+  });
+
+  it("fails a declaring diagnostics step that reports one finding", async () => {
+    const ws = workspace();
+
+    const result = await runReal(ws, [declaring("node ./diag.mjs", { output: "diagnostics" })]);
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect((result.left as GateFailedError).diagnostics).toEqual([finding]);
+    }
+    expect(readAttribution(ws).steps.map((s) => s.result)).toEqual(["fail"]);
+  });
+
+  it("passes a declaring step that exits at once without reading a request over 128 KiB", async () => {
+    const ws = workspace();
+    const large = serializeGateRequest(
+      makeGateRequest({
+        phaseId,
+        base: "0123456789abcdef0123456789abcdef01234567",
+        terminal: false,
+        phases: [
+          {
+            id: "phase-01",
+            plannedFilesToCreate: Array.from(
+              { length: 5000 },
+              (_, i) => `src/generated/module-${String(i).padStart(4, "0")}.ts`,
+            ),
+            plannedFilesToEdit: [],
+          },
+        ],
+      }),
+    );
+    expect(Buffer.byteLength(large)).toBeGreaterThan(128 * 1024);
+
+    const result = await runReal(ws, [declaring("node ./exit.mjs 0")], large);
+
+    expect(Either.isRight(result)).toBe(true);
+    expect(readFileSync(ws.requestPath, "utf8")).toBe(large);
+  });
+
+  it("replays the step's gate-time output from the saved request", async () => {
+    const ws = workspace();
+    await runReal(ws, [declaring("node ./echo.mjs")]);
+    const gateTime = lineAfter(readLogLines(ws), "stdin: checks-attempt-01.request.json");
+
+    // node echo.mjs < phase-01/checks-attempt-01.request.json
+    const fd = openSync(ws.requestPath, "r");
+    const replay = spawnSync(process.execPath, ["echo.mjs", "replay.json"], {
+      cwd: ws.dir,
+      stdio: [fd, "pipe", "pipe"],
+      encoding: "utf8",
+    });
+    closeSync(fd);
+
+    expect(replay.status).toBe(0);
+    expect(gateTime).toMatch(/^phase=phase-01 base=[0-9a-f]{40} terminal=false bytes=\d+$/);
+    expect(replay.stdout.trimEnd()).toBe(gateTime);
   });
 });

@@ -84,14 +84,15 @@ import type { RecordPhaseOutcome } from "../schemas/runRecord.js";
 import type { ProviderId } from "../domain/routing/types.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
-import { recordGateProfileInRunStatus } from "./gates.js";
+import { recordGateProfileInRunStatus, serializeGateRequest } from "./gates.js";
+import { makeGateRequest } from "../domain/gate/gateRequest.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
 import { readPreviousHandoff, readPreviousReconciliation } from "./handoffInjection.js";
 import type { ReconciliationResult } from "../domain/reconciliation/types.js";
 import { readPhaseFileReconciliationFile } from "../schemas/persisted.js";
 import { createPhaseFolder } from "./phaseFolder.js";
-import { recordPhaseWorktreeAndBranch } from "./phaseStatusUpdates.js";
+import { readPhaseBase, recordPhaseWorktreeAndBranch } from "./phaseStatusUpdates.js";
 import { buildPhasePrompt } from "./promptGeneration.js";
 import { resolveRun } from "./resolveRunInfo.js";
 import { setupPhase } from "./setup.js";
@@ -937,6 +938,13 @@ export function executePlan(
         // loop starts at `resumeAttempt + 1` with a fresh fix budget so prior
         // attempt artifacts are preserved.
         const phaseSteps = selectGateSteps(gateSteps, isFinal);
+        // One request per phase entry, from the base noted when phax created
+        // the branch — never re-derived from git — so every attempt, and a
+        // resume, hands declaring steps the same facts.
+        const base = yield* readPhaseBase(phaseFolderPath);
+        const gateRequest = serializeGateRequest(
+          makeGateRequest({ phaseId: phase.id, base, terminal: isFinal, phases: plan.phases }),
+        );
         yield* runGatesWithFixLoop({
           steps: phaseSteps,
           cwd: worktreePath as string,
@@ -947,6 +955,7 @@ export function executePlan(
           run: shortName as string,
           phaseId: phase.id,
           runPath,
+          gateRequest,
           ...(isResumeFromGate
             ? { startAttempt: resumeAttempt + 1, worktreePath: worktreePath as string }
             : {}),
