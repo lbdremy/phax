@@ -48,7 +48,6 @@
         "packages/schemas/src/index.ts",
         "packages/schemas/src/generated/index.ts",
         "packages/schemas/history.lock.json",
-        "packages/schemas/json/phase-status.schema.json",
         "tests/unit/persisted.test.ts",
         "tests/integration/legacyRunFiles.test.ts",
         "tests/integration/perPhaseBranch.test.ts",
@@ -157,7 +156,6 @@
       "plannedFilesToCreate": [
         "src/schemas/gateRequest.ts",
         "packages/schemas/snapshots/gate-request/next.schema.json",
-        "packages/schemas/json/gate-request.schema.json",
         "tests/unit/schemas/gateRequest.test.ts"
       ],
       "plannedFilesToEdit": [
@@ -384,7 +382,7 @@
         "In `### Diagnostics gate steps`, change 'phax never decides when a finding is due, so report only what is' to point to the gate request as the way a provider learns what is due.",
         "README §Set up a project, `gateProfiles` bullet: name the optional `input` key (`\"gate-request\"`, the only value) with a link to the new subsection.",
         "examples/hello-world/phax.json: add `\"input\": \"gate-request\"` to the `node ./audit.mjs` step only.",
-        "examples/hello-world/audit.mjs: read the request with `JSON.parse(readFileSync(0, \"utf8\"))`. When `terminal` is true, audit every .ts under src/ as today. Otherwise audit only the .ts files under src/ that changed since `request.base`: `git diff --name-only <base>` together with `git ls-files --others --exclude-standard`, run through `execFileSync` from node:child_process without a shell, keeping files that still exist. Keep the rule, message and repair as they are. The script must keep exactly one gate-diagnostics `$schema` literal, because scripts/release-cut.ts rewrites that one literal at each release cut. Leave its current release value as the cut left it.",
+        "examples/hello-world/audit.mjs: read the request from the `process.stdin` stream to end of file (`for await (const chunk of process.stdin)`), then `JSON.parse` it. Never use `readFileSync(0)` or `/dev/stdin`: they fail on some pipes (EAGAIN, ENXIO). When `terminal` is true, audit every .ts under src/ as today. Otherwise audit only the .ts files under src/ that changed since `request.base`: `git diff --name-only <base>` together with `git ls-files --others --exclude-standard`, run through `execFileSync` from node:child_process without a shell, keeping files that still exist. Keep the rule, message and repair as they are. The script must keep exactly one gate-diagnostics `$schema` literal, because scripts/release-cut.ts rewrites that one literal at each release cut. Leave its current release value as the cut left it.",
         "tests/integration/exampleProviders.test.ts: add the spec's criterion. In a made-up temp git repository, copy audit.mjs and commit a base with a clean src/greet.ts. Add src/io.ts importing `node:fs`, write a request with `terminal: false` and that base, and run `node ./audit.mjs < request.json`: the output is a diagnostics document naming src/io.ts. With `base` set to a commit that already contains the file and nothing changed since, the output is `{\"$schema\": …, \"diagnostics\": []}`. Also assert the example's phax.json step declares `\"input\": \"gate-request\"`.",
         "NEXT_STEPS.md: tick `gate-request` in §'Before steme's audit', in the same style as the drop-gate-scopes entry. Update the status paragraph near the top that says no plan is in flight only as far as needed to stay true. Do not touch other sections.",
         "Any example value is made up; nothing from ~/.phax or another repository."
