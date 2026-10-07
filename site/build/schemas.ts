@@ -200,11 +200,20 @@ export function servedSchemas<T>(
     }
   }
   const sorted = new Map([...files].toSorted(([left], [right]) => (left < right ? -1 : 1)));
+  return {
+    files: sorted,
+    index: renderSchemaIndex(ledger, [...sorted.keys()]),
+    headers: SCHEMA_HEADERS,
+  };
+}
+
+/** /schemas/index.json for `paths`, already sorted: 2-space JSON plus a newline. */
+function renderSchemaIndex(ledger: ReleaseLedger, paths: ReadonlyArray<string>): string {
   const index: SchemaIndex = {
     releases: [...ledger.releases].toSorted(compareReleases),
-    paths: [...sorted.keys()],
+    paths: [...paths],
   };
-  return { files: sorted, index: `${JSON.stringify(index, null, 2)}\n`, headers: SCHEMA_HEADERS };
+  return `${JSON.stringify(index, null, 2)}\n`;
 }
 
 export interface SchemaSources {
@@ -253,14 +262,10 @@ export function publicSchemas(sources: SchemaSources, packageVersion: string): P
       ),
     ].toSorted(([left], [right]) => (left < right ? -1 : 1)),
   );
-  const index: SchemaIndex = {
-    releases: [...ledger.releases].toSorted(compareReleases),
-    paths: [...served.keys()],
-  };
   const encoder = new TextEncoder();
   const files = new Map<string, Uint8Array>([
     ...served,
-    [SCHEMA_INDEX_PATH, encoder.encode(`${JSON.stringify(index, null, 2)}\n`)],
+    [SCHEMA_INDEX_PATH, encoder.encode(renderSchemaIndex(ledger, [...served.keys()]))],
     [HEADERS_PATH, encoder.encode(current.headers)],
   ]);
   return {

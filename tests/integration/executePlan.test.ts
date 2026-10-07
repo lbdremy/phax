@@ -2742,9 +2742,9 @@ describe("executePlan — a green diagnostics gate", () => {
     vi.restoreAllMocks();
 
     expect(Either.isRight(result)).toBe(true);
-    // Golden captured from a passing gate with no findings before the change.
+    // A passing gate with no findings prints nothing, as it did before the
+    // change (derived from the code at the time, not captured from a run).
     expect(printed.join("")).toBe(GREEN_GATE_GOLDEN);
-    expect(printed.join("")).not.toMatch(/pending/);
 
     for (const phaseId of ["phase-01", "phase-02", "phase-03"]) {
       const log = await readFile(join(runPath, phaseId, "checks-attempt-01.log"), "utf8");
