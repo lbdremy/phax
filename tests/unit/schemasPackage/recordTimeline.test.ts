@@ -229,7 +229,6 @@ describe.each(RECORD_FOLDERS)(
       expect(ordered.map(({ attempt }) => attempt)).toEqual([1, 2]);
       expect(ordered[0]?.diagnostics?.diagnostics.map((entry) => entry.class)).toEqual([
         "invariant",
-        "completion",
       ]);
       expect(ordered[1]?.pending?.steps[0]?.pending[0]?.openScopes).toEqual(["phase-02"]);
     });

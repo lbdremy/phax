@@ -251,6 +251,14 @@ export {
   type PlanDocumentV0_17_0,
 } from "../../../src/schemas/history/plan-document/0.17.0.js";
 export {
+  GateAttributionV0_17_0Schema,
+  type GateAttributionV0_17_0,
+} from "../../../src/schemas/history/gate-attribution/0.17.0.js";
+export {
+  GateDiagnosticsV0_17_0Schema,
+  type GateDiagnosticsV0_17_0,
+} from "../../../src/schemas/history/gate-diagnostics/0.17.0.js";
+export {
   PhaseRecordManifestPreSchemaSchema,
   type PhaseRecordManifestPreSchema,
 } from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";

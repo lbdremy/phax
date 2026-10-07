@@ -1,6 +1,17 @@
 import { Schema } from "effect";
-import { CompletionDiagnosticSchema } from "./gateDiagnostics.js";
 import { schemaUrlField } from "./schemaUrl.js";
+
+const CompletionDiagnosticSchema = Schema.Struct({
+  class: Schema.Literal("completion"),
+  scopes: Schema.NonEmptyArray(Schema.NonEmptyString),
+  rule: Schema.NonEmptyString,
+  location: Schema.Struct({
+    file: Schema.NonEmptyString,
+    line: Schema.optionalWith(Schema.Int.pipe(Schema.positive()), { exact: true }),
+  }),
+  message: Schema.NonEmptyString,
+  repair: Schema.NonEmptyString,
+});
 
 const PendingDiagnosticSchema = Schema.Struct({
   diagnostic: CompletionDiagnosticSchema,

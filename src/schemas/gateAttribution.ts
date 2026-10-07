@@ -5,7 +5,7 @@ import { SurfaceSchema } from "./surface.js";
 const GateStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: SurfaceSchema,
-  result: Schema.Literal("pass", "fail", "pending"),
+  result: Schema.Literal("pass", "fail"),
 });
 
 export type GateStepResult = Schema.Schema.Type<typeof GateStepResultSchema>;

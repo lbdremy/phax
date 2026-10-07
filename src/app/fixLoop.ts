@@ -27,16 +27,13 @@ import {
 import { makeSystemErrorReport } from "../domain/telemetry/errors.js";
 import { reportAgentFailure } from "./telemetry/reportBuilders.js";
 import { dispatch } from "./dispatcher.js";
-import { runGates, type GateOutcome, type GateScheduling } from "./gates.js";
+import { runGates, type GateOutcome } from "./gates.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
 import { buildFixPrompt } from "../domain/gate/fixPrompt.js";
 
 export interface RunGatesWithFixLoopOptions {
   readonly steps: readonly GateStep[];
   readonly cwd: string;
-  /** Terminal-ness, the registered scope provider, and the plan projection,
-   *  forwarded to `runGates` per attempt. */
-  readonly scheduling: GateScheduling;
   readonly phaseFolderPath: string;
   readonly sessionId: ClaudeSessionId;
   readonly agentOptions: AgentRunOptions;
@@ -74,7 +71,6 @@ export function runGatesWithFixLoop(
   const {
     steps,
     cwd,
-    scheduling,
     phaseFolderPath,
     sessionId,
     agentOptions,
@@ -136,7 +132,6 @@ export function runGatesWithFixLoop(
         runGates({
           steps,
           cwd,
-          scheduling,
           attemptLogPath: logPath(attempt),
           attributionPath: join(phaseFolderPath, "gate-attribution.json"),
           phaseId,
@@ -164,7 +159,6 @@ export function runGatesWithFixLoop(
           ...eventBase(),
           type: "GatePassed",
           attempt,
-          pending: gateResult.right.pending,
         };
         yield* dispatch(gatePassedEvent, dispatchCtx);
         return gateResult.right;
@@ -214,7 +208,6 @@ export function runGatesWithFixLoop(
         logPath: error.logPath,
         attempt,
         diagnostics: error.diagnostics,
-        pending: error.pending,
       };
       yield* dispatch(gateFailedEvent, dispatchCtx);
 
@@ -257,7 +250,6 @@ export function runGatesWithFixLoop(
         logContent,
         logPath: error.logPath,
         diagnostics: error.diagnostics,
-        pending: error.pending,
       });
 
       yield* telemetry.recordEvent(

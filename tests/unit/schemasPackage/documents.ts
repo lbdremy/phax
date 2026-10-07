@@ -310,13 +310,13 @@ const authoringRecordManifest: AuthoringRecordManifestPreSchema = {
   },
 };
 
-const gateAttribution: GateAttributionPreSchema = {
+const gateAttribution = {
   phase: "phase-01",
   steps: [
     { command: "pnpm typecheck", surface: "structural", result: "pass" },
     { command: "pnpm test", surface: "local", result: "fail" },
   ],
-};
+} satisfies GateAttributionPreSchema;
 
 const phaseFileReconciliation: PhaseFileReconciliationPreSchema = {
   phaseId: "phase-01",
@@ -352,7 +352,6 @@ const gateDiagnostics: GateDiagnosticsPreSchema = {
       message: "src/domain/example.ts imports node:fs",
       repair: "read the file through the fs port",
     },
-    completion,
   ],
 };
 

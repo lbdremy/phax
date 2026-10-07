@@ -55,26 +55,19 @@ describe("decodeGateDiagnosticsDocument", () => {
     expect(Either.isRight(decoded)).toBe(true);
   });
 
-  it("decodes a valid completion diagnostic with scopes", () => {
-    const decoded = decodeGateDiagnosticsDocument({
-      diagnostics: [
-        {
-          rule: "wiring-incomplete",
-          class: "completion",
-          scopes: ["core"],
-          location: { file: "src/foo.ts", line: 12 },
-          message: "core not wired up",
-          repair: "wire up core",
-        },
-      ],
-    });
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
-      expect(decoded.right.diagnostics[0]?.class).toBe("completion");
-    }
+  it("decodes a valid completion diagnostic with the invariant's fields", () => {
+    const completion = {
+      rule: "wiring-incomplete",
+      class: "completion" as const,
+      location: { file: "src/foo.ts", line: 12 },
+      message: "core not wired up",
+      repair: "wire up core",
+    };
+    const decoded = decodeGateDiagnosticsDocument({ diagnostics: [completion] });
+    expect(decoded).toEqual(Either.right({ diagnostics: [completion] }));
   });
 
-  it("rejects a completion diagnostic without scopes", () => {
+  it("rejects a completion diagnostic missing repair", () => {
     const decoded = decodeGateDiagnosticsDocument({
       diagnostics: [
         {
@@ -82,23 +75,6 @@ describe("decodeGateDiagnosticsDocument", () => {
           class: "completion",
           location: { file: "src/foo.ts", line: 12 },
           message: "core not wired up",
-          repair: "wire up core",
-        },
-      ],
-    });
-    expect(Either.isLeft(decoded)).toBe(true);
-  });
-
-  it("rejects a completion diagnostic with an empty scopes list", () => {
-    const decoded = decodeGateDiagnosticsDocument({
-      diagnostics: [
-        {
-          rule: "wiring-incomplete",
-          class: "completion",
-          scopes: [],
-          location: { file: "src/foo.ts", line: 12 },
-          message: "core not wired up",
-          repair: "wire up core",
         },
       ],
     });
@@ -156,7 +132,6 @@ describe("decodeGateDiagnosticsDocument", () => {
         {
           rule: "wiring-incomplete",
           class: "completion" as const,
-          scopes: ["core", "adapters"] as const,
           location: { file: "src/foo.ts" },
           message: "core not wired up",
           repair: "wire up core",
