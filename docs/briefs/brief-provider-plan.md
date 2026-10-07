@@ -1,0 +1,38 @@
+Write the phax plan for the Approved spec `brief-provider` (`docs/specs/2610061346-brief-provider.md`, with its sidecar `.json`). The spec is the source of truth. Its §9 Q1–Q10 were decided by the author (2026-10-05 and 2026-10-06): implement them and do not reopen them.
+
+Order: `drop-orient` (PR #122), `drop-gate-scopes` (PR #124) and `gate-request` have landed. This is the last of the chain in NEXT_STEPS §"Before steme's audit". Author this plan only once `gate-request` is merged, and read the code as it stands then.
+
+**One plan carries the whole spec, so it completes the spec.** If the installed phax is 0.19.x when this plan runs, a second plan would not help anyway: 0.19 completes the source spec at the end of the first run. If the installed phax is 0.20 or later, the plan carries `completes-spec: true` (create it with `--last`).
+
+**The ground has moved since the spec was written.** Read the code, not the briefs or the spec's §1 ground, for the following; where the spec's §10 "Left open" list is now answered by landed code, follow the code and record the choice in `## Technical arbitrations`:
+- **Answer versioning (Q10).** phax never imports `packages/`. The diagnostics answer is read in the bridge by `readGateDiagnosticsAnswer` (`src/schemas/persisted.ts`): own `$schema` required, the URL must name the format, a release newer than `PHAX_RELEASE` is refused by name, a release is an answer release when it equals the running release or is newer than the last release without the format, and the current decoder then decodes it. A unit test fails as soon as the format's snapshots hold a second answer shape. Give `brief-answer` the same reader shape and the same guard test, as a sibling, not a generalisation of the diagnostics reader unless sharing is trivially exact. The spec's "through the schemas package's history mechanism" is met the same way it is for diagnostics: one answer shape exists, and the guard forces the change that adds a second to teach the reader.
+- **Where `base` comes from at phase start.** `gate-request` notes `base` in `phase-status` when phax creates the phase branch, before the first prompt, and builds the gate request with a pure domain builder from the phase status's base, the terminal flag and `plan.phases`. The brief request's phase facts are built by the same builder from the same inputs, so the two documents cannot differ for the same phase. Do not re-derive any fact.
+- **Spec §1 says "phax decodes each [request] through the history mechanism".** phax only writes `gate-request` and `brief-request`; it reads back only answers and its own persisted files. Read `brief-request.json` in the worktree through a bridge reader like any persisted file.
+- **The coordination note** (`02-product/phax-steme-coordination.md`, rows 4 and 5 and §"The gate request") was cross-checked on 2026-10-07 by the author's session against this spec: consistent, and the spec supersedes rows 4 and 5. Nothing to change. Nothing from that note or any other repository enters this repository.
+
+Still left to the planner by the spec's §10 (decide each, with its dominant loss, in the arbitrations):
+- **How a pulled brief's record reaches the phase folder.** The in-phase agent's sandbox may write the worktree and the phax state root in `secure` mode today, but do not rely on the state root: the spec's likely route (write under `.phax-context/`, collect into the phase folder before the phase record is written) works under every sandbox posture. Recommended: that route, with `NN` assigned so the pushed brief stays `00` and pulls keep call order across sessions.
+- **How `brief-record` embeds the answer.** Recommended: the answer as printed, an open object whose own `$schema` the package parser resolves, since the record keeps the answer never re-stamped and with any extra key.
+- The compact line, the whole-form layout, the section heading, the instruction wording and the refusal wording (indicative in §6).
+- Whether `phax records explain` without flags mentions the briefs (a one-line count is suggested).
+- Telemetry: recommended none; the records are the account. Say so in the arbitrations.
+- A pulled brief's provider reading data outside the worktree (steme's ledger) is not this plan's to solve: name it in excluded scope, for steme item 8.
+
+Phase shape: inside-out, each phase green on its own, tests in the same phase (no oracle phases). Suggested, adjust if a boundary is wrong:
+1. **The three formats.** `brief-request`, `brief-answer` and `brief-record`: file schemas, `FORMAT_IDS`, package parsers and `parseDocument`, JSON Schemas, `next` snapshots through `pnpm exec tsx scripts/schemas-check.ts --write` (never by hand), README §Persisted formats rows, and the bridge's answer reader with its guard test.
+2. **The provider and the request.** The `brief: {command}` key in the three config layers (like `planAuditor`), `phax schema upgrade` regeneration, the request builder reusing the gate request's facts, the provider call through `src/app/providerQuery.ts` with the fixed 60-second limit, and the `brief` grant source in `security.json` with `phax brief` granted only when the provider is configured.
+3. **The pushed brief.** `.phax-context/brief-request.json` written at phase start and on resume when `brief` is configured; the brief requested once per fresh phase start, after the worktree is ready and before the first prompt; the compact section capped at 50 with the not-shown line and the three instructions; a failure is a run-output warning, an unavailable line and a `failed` record, never a block; `brief-00.json`.
+4. **The pulled brief.** `phax brief [path…]`: phase identity from the file from any directory of the worktree, the whole form in the provider's order, exit 0 on any answer and 1 otherwise, the records route, Q7's after-record behaviour, and no record outside a phase. Usage spec and reference regenerated with `pnpm gen:usage-spec` and `pnpm docs:cli`.
+5. **The record view.** `phax records explain --briefs`.
+6. **Docs and the example.** README §Extend phax › Brief provider and the hook count; `docs/cli/reference.md`; hello-world `brief.mjs` and its `brief` key, with `tests/integration/exampleProviders.test.ts`. `brief.mjs` prints exactly one `brief-answer` `$schema` literal, and `scripts/release-cut.ts` rewrites it at each cut the way it rewrites `audit.mjs`'s (extend the cut and its test). `NEXT_STEPS.md`: tick `brief-provider` in §"Before steme's audit".
+
+Constraints:
+- A brief never blocks and phax judges nothing in it: no ranking, filtering, deduplication, state, `due` or cross-check against the request. Decoding the answer by its `$schema` is the only check.
+- Purely additive: one key, one command, one prompt section, one `records explain` flag, one grant source value and three formats. Nothing about gate steps, the gate request or the verdict changes.
+- No back-compat shim: every new format is born with a required `$schema`; no unstamped shape is ever read.
+- Test documents and fixtures are made up; nothing from `~/.phax` or another repository enters this public repository.
+- Respect the layers; no new `node:fs` in `app/`, `domain/` or `cli/`; the command file holds no logic.
+- No `.claude/skills/` edit is expected. If a phase finds a skill that should mention the brief, it reports it in the handoff instead of editing it, so the run needs no `--allow-skill-edits`.
+- Gate: the plan must pass `phax plans lint`; every phase is verified by the `standard` gate profile.
+
+Output: your final message is the plan document JSON and nothing else — no sentence before or after it, no code fence.
