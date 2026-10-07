@@ -147,10 +147,6 @@ export function mergeConfigLayers(input: {
   const publishTitle =
     localUser?.publish?.title ?? globalUser?.publish?.title ?? project.publish?.title;
 
-  // scopes: scalar override (command is required when scopes is present)
-  const scopesCommand =
-    localUser?.scopes?.command ?? globalUser?.scopes?.command ?? project.scopes?.command;
-
   // planAuditor: scalar override (command is required when planAuditor is present)
   const planAuditorCommand =
     localUser?.planAuditor?.command ??
@@ -287,7 +283,6 @@ export function mergeConfigLayers(input: {
           },
         }
       : {}),
-    ...(scopesCommand !== undefined ? { scopes: { command: scopesCommand } } : {}),
     ...(planAuditorCommand !== undefined ? { planAuditor: { command: planAuditorCommand } } : {}),
     ...(compliance !== undefined || codeReview !== undefined
       ? {

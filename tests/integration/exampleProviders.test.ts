@@ -6,7 +6,6 @@ import { tmpdir } from "node:os";
 import { Either } from "effect";
 import { readGateDiagnosticsAnswer } from "../../src/schemas/persisted.js";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
-import { decodeScopesResponse } from "../../src/schemas/scopes.js";
 import { decodePlanAuditResponse } from "../../src/schemas/planAudit.js";
 import { extractPlanDeterministic } from "../../src/domain/plan/parsePlanMarkdown.js";
 import { finalizeExtractedPlan } from "../../src/domain/plan/finalize.js";
@@ -71,47 +70,19 @@ describe("examples/hello-world phax.json", () => {
     const scripts = readdirSync(exampleDir)
       .filter((f) => f.endsWith(".mjs"))
       .toSorted();
-    expect(scripts).toEqual(["audit-plan.mjs", "audit.mjs", "scopes.mjs"]);
+    expect(scripts).toEqual(["audit-plan.mjs", "audit.mjs"]);
   });
 
-  it("decodes with decodePhaxConfig and has scopes, planAuditor and a diagnostics step", () => {
+  it("decodes with decodePhaxConfig and has planAuditor and a diagnostics step", () => {
     const raw = JSON.parse(readFileSync(join(exampleDir, "phax.json"), "utf8"));
     const result = decodePhaxConfig(raw);
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
       const config = result.right;
-      const hookKeys = (["scopes", "planAuditor"] as const).filter((k) => config[k] !== undefined);
-      expect(hookKeys).toEqual(["scopes", "planAuditor"]);
-      expect(config.scopes?.command).toBe("node ./scopes.mjs");
       expect(config.planAuditor?.command).toBe("node ./audit-plan.mjs");
-      expect(config.scopes).toBeDefined();
-      expect(config.scopes?.command).toBeTruthy();
-      expect(config.planAuditor).toBeDefined();
-      expect(config.planAuditor?.command).toBeTruthy();
       const steps = config.gateProfiles?.["standard"] ?? [];
       const diagStep = steps.find((s) => s.output === "diagnostics");
       expect(diagStep?.command).toBe("node ./audit.mjs");
-    }
-  });
-});
-
-describe("examples/hello-world scopes provider", () => {
-  const scopesScript = join(exampleDir, "scopes.mjs");
-
-  it("decodes a closed-scopes response and closes the greet scope at phase-01", () => {
-    const request = JSON.stringify({
-      phase: "phase-01",
-      phases: [
-        { id: "phase-01", files: ["src/greet.ts"] },
-        { id: "phase-02", files: ["tests/greet.test.ts"] },
-      ],
-    });
-    const { stdout, status } = runScript(scopesScript, request, exampleDir);
-    expect(status).toBe(0);
-    const result = decodeScopesResponse(JSON.parse(stdout));
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.closed).toEqual(["greet"]);
     }
   });
 });
