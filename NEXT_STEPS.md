@@ -12,8 +12,8 @@ were completed: headless authoring (0.15/0.16), the `schemas-package` spec in fi
 (`docs-site`, live at docs.phax.run since v0.18.0 on 2026-10-04; both npm packages approved
 and the global install bumped on 2026-10-05). Five approved specs are open:
 artifact-decide is next; headless-review and oracle-phases follow it; 23 and 24 stay parked.
-Drafts waiting on the author: the two steme gate specs (gate-request,
-drop-gate-scopes). No plan is in flight.
+The steme gate specs (drop-gate-scopes, gate-request, brief-provider) are Approved;
+drop-gate-scopes has landed. No plan is in flight.
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -136,7 +136,7 @@ spec of its own. In this order:
 
       A leftover `orient` key meets the ordinary unknown-key refusal. Also update the
       cross-run-context item below, which names the orient provider and `orient-brief.json`.
-- [ ] **`drop-gate-scopes`** — `docs/specs/2610060957-drop-gate-scopes.md`, Draft, §9 decided
+- [x] **`drop-gate-scopes`** — `docs/specs/2610061345-drop-gate-scopes.md`, Approved, §9 decided
       2026-10-06. Re-authored as a hard drop (the 2026-10-05 version is abandoned): no leftover
       `scopes` named or tested, no removal note, no dependency on `gate-request`. A `completion`
       fails like an `invariant`; the `scopes` provider, closure, pending, `missing-provider` and
@@ -147,8 +147,8 @@ spec of its own. In this order:
       declares it reads `{phase, base, terminal, phases: [{id, files}]}` on stdin, saved beside
       the attempt so the verdict replays; `base` is noted when the phase branch is created. The
       hello-world diagnostics step declares the input.
-- [ ] **`brief-provider`** — `docs/specs/2610060952-brief-provider.md`, Draft, §9 decided
-      2026-10-06. Replaces `brief-replaces-orient` (abandoned): purely additive, orient is already
+- [ ] **`brief-provider`** — `docs/specs/2610061346-brief-provider.md`, Approved, §9 decided
+      2026-10-06 (re-authored for versioned answers). Replaces `brief-replaces-orient` (abandoned): purely additive, orient is already
       gone. A **brief** is feed-forward and never blocks (the audit is the gate's and blocks):
       - woven into the phase's first prompt from the plan, and pulled with `phax brief [path…]`
         on any path, existing or not;
