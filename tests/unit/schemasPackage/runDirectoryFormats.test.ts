@@ -14,6 +14,8 @@ import {
   toLatestPhaxPlan,
   toLatestRegistry,
   toLatestRunStatus,
+  UNKNOWN,
+  isUnknown,
 } from "../../../packages/schemas/src/index.js";
 import { newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
@@ -23,11 +25,13 @@ import type { PreSchemaFormatId } from "../../../src/schemas/schemaUrl.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
+  EXAMPLE_BASE,
   preSchemaDocuments,
   preSchemaUnsupported,
   validDocuments,
   withKey,
   withoutKey,
+  type Doc,
 } from "./documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
@@ -41,6 +45,8 @@ interface RunDirectoryFormat {
   };
   readonly phax: Decode;
   readonly toLatest: (value: never) => unknown;
+  /** Facts a later shape added, as the upgrade marks them on a pre-schema document. */
+  readonly unrecorded?: Doc;
 }
 
 const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
@@ -56,6 +62,7 @@ const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
     parse: parsePhaseStatus,
     phax: decodePhaseStatusFile,
     toLatest: toLatestPhaseStatus,
+    unrecorded: { base: UNKNOWN },
   },
   { id: "phax-plan", parse: parsePhaxPlan, phax: decodePhaxPlanFile, toLatest: toLatestPhaxPlan },
   {
@@ -113,17 +120,24 @@ describe.each(FORMATS)("$id", (format) => {
     );
   });
 
-  it("upgrades by dropping version and keeping everything else", () => {
+  it("upgrades by dropping version, keeping everything else and marking what it never recorded", () => {
     const result = format.parse(preSchema);
     if (!result.ok) throw new Error("document rejected");
-    expect(format.toLatest(result.value as never)).toEqual(withoutKey(preSchema, "version"));
+    expect(format.toLatest(result.value as never)).toEqual({
+      ...withoutKey(preSchema, "version"),
+      ...format.unrecorded,
+    });
   });
 
-  it("upgrades the pre-schema document and the document phax writes to the same value", () => {
+  it("upgrades the pre-schema document and the document phax writes to the same recorded facts", () => {
     const old = format.parse(preSchema);
     const written = format.parse(document);
     if (!old.ok || !written.ok) throw new Error("document rejected");
-    expect(format.toLatest(written.value as never)).toEqual(format.toLatest(old.value as never));
+    const recorded = (latest: unknown): Doc =>
+      Object.keys(format.unrecorded ?? {}).reduce(withoutKey, latest as Doc);
+    expect(recorded(format.toLatest(written.value as never))).toEqual(
+      recorded(format.toLatest(old.value as never)),
+    );
   });
 
   it("fails a document written by a newer release with the upgrade message", () => {
@@ -174,5 +188,44 @@ describe("toLatestPhaxPlan", () => {
     expect(latest.phases[0].plannedFilesToCreate).toEqual(["src/example.ts"]);
     expect(latest.phases[0].plannedFilesToEdit).toEqual(["src/index.ts"]);
     expect(latest.phases[0].optionalFilesToEdit).toEqual(["README.md"]);
+  });
+});
+
+describe("the phase status's base history", () => {
+  const current = validDocuments["phase-status"];
+  /** A status as phax 0.17.0 through 0.19.x wrote it: `$schema`, no base. */
+  function older(release: string): Doc {
+    return withKey(withoutKey(current, "base"), "$schema", schemaUrl("phase-status", release));
+  }
+
+  it("parses a 0.17.0 document as shape 0.17.0 through the frozen module", () => {
+    const document = older("0.17.0");
+    expect(parsePhaseStatus(document)).toEqual({ ok: true, shape: "0.17.0", value: document });
+  });
+
+  it("reads a document stamped at the package's own release without base as shape 0.17.0", () => {
+    expect(parsePhaseStatus(older(PACKAGE_VERSION))).toMatchObject({ ok: true, shape: "0.17.0" });
+  });
+
+  it("upgrades an older document with base Unknown, never a sha", () => {
+    for (const document of [older("0.17.0"), preSchemaDocuments["phase-status"]]) {
+      const result = parsePhaseStatus(document);
+      if (!result.ok) throw new Error("document rejected");
+      expect(isUnknown(toLatestPhaseStatus(result.value).base)).toBe(true);
+    }
+  });
+
+  it("reads a document with base as the current shape and keeps its base", () => {
+    const result = parsePhaseStatus(current);
+    expect(result).toMatchObject({ ok: true, shape: CURRENT_SHAPES["phase-status"] });
+    if (!result.ok) return;
+    expect(toLatestPhaseStatus(result.value).base).toBe(EXAMPLE_BASE);
+  });
+
+  it("never keeps a base that is not a full commit sha", () => {
+    const result = parsePhaseStatus(withKey(current, "base", "0123456"));
+    expect(result).toMatchObject({ ok: true, shape: "0.17.0" });
+    if (!result.ok) return;
+    expect(isUnknown(toLatestPhaseStatus(result.value).base)).toBe(true);
   });
 });

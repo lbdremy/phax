@@ -631,14 +631,21 @@ export function executePlan(
         // Each phase gets its own branch (<run.branch>--<phaseId>) so multiple
         // worktrees can coexist — git refuses to check out one branch in two
         // worktrees simultaneously.
-        phaseBranch = yield* preparePhaseBranch(
+        const preparedBranch = yield* preparePhaseBranch(
           branch,
           phaseIdResult.right,
           previousPhaseBranch,
           config.repoRoot,
         );
+        phaseBranch = preparedBranch.branch;
 
-        phaseFolderPath = yield* createPhaseFolder(runPath, phase, i, phaseBranch);
+        phaseFolderPath = yield* createPhaseFolder(
+          runPath,
+          phase,
+          i,
+          preparedBranch,
+          config.repoRoot,
+        );
         currentPhaseId = phase.id;
         currentPhaseFolderPath = phaseFolderPath;
         currentWorktreePath = undefined;

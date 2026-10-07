@@ -40,6 +40,7 @@ function makePhaseStatus(state: string): object {
     model: "claude-sonnet-4-6",
     effort: "low",
     branchName: "ai/test-run--phase-01",
+    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: now,
     updatedAt: now,
   };
@@ -262,13 +263,14 @@ describe("inspectResume", () => {
 
     const makeSkippedStatus = (id: string, index: number) =>
       JSON.stringify({
-        version: 1,
+        $schema: schemaUrl("phase-status", PHAX_RELEASE),
         phaseId: id,
         phaseIndex: index,
         state: "skipped",
         model: "claude-sonnet-4-6",
         effort: "low",
         branchName: `ai/test-run--${id}`,
+        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
         createdAt: now,
         updatedAt: now,
       });

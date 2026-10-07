@@ -106,6 +106,7 @@ function makeRunInfo(
         createdAt: "2026-01-01T00:00:00Z",
         updatedAt: "2026-01-01T00:00:00Z",
         branchName: `phax/${shortName}--${phaseId}` as never,
+        base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
         worktreePath: `/fake-worktrees/${shortName}/${phaseId}`,
       },
     ],

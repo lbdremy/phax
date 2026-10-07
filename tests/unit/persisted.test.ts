@@ -30,11 +30,13 @@ import {
 import { PHAX_RELEASE } from "../../src/schemas/release.js";
 import { compareReleases, schemaUrl, type FormatId } from "../../src/schemas/schemaUrl.js";
 import {
+  EXAMPLE_BASE,
   latestPreSchema,
   preSchemaDocuments,
   validDocuments,
   versionOnePhaseRecordManifest,
   withKey,
+  withoutKey,
 } from "./schemasPackage/documents.js";
 
 // Toy formats: a pre-schema shape with `version: 1`, and a current shape with
@@ -258,9 +260,8 @@ describe("format readers", () => {
   });
 
   type StatusReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
-  it.each<readonly ["run-status" | "phase-status", StatusReader, string]>([
+  it.each<readonly ["run-status", StatusReader, string]>([
     ["run-status", readRunStatusFile, "run status"],
-    ["phase-status", readPhaseStatusFile, "phase status"],
   ])("%s: reads both shapes to the same in-memory value", (id, read, label) => {
     const file = `/home/example/.phax/runs/example.example-run/${id}.json`;
     const fromPreSchema = right(read(file, preSchemaDocuments[id]));
@@ -282,6 +283,39 @@ describe("format readers", () => {
     const refused = left(read(file, wrongUrl));
     expect(refused.message).toMatch(new RegExp(`^${file}: .*\\$schema`));
     expect(refused.message).not.toContain("without $schema");
+  });
+
+  describe("phase-status: base", () => {
+    const file = "/home/example/.phax/runs/example.example-run/phase-01/status.json";
+
+    it("reads a status with base back unchanged, dropping $schema", () => {
+      const { $schema: _schema, ...expected } = validDocuments["phase-status"];
+      const status = right(readPhaseStatusFile(file, validDocuments["phase-status"]));
+      expect(status).toEqual(expected);
+      expect(status).toHaveProperty("base", EXAMPLE_BASE);
+    });
+
+    it("refuses a $schema status without base, naming the file", () => {
+      const error = left(
+        readPhaseStatusFile(file, withoutKey(validDocuments["phase-status"], "base")),
+      );
+      expect(error.format).toBe("phase-status");
+      expect(error.message).toMatch(new RegExp(`^${file}: .*base`));
+      expect(error.message).not.toContain("without $schema");
+    });
+
+    it("refuses a pre-schema status: it lacks base", () => {
+      const error = left(readPhaseStatusFile(file, preSchemaDocuments["phase-status"]));
+      expect(error.format).toBe("phase-status");
+      expect(error.message).toBe(
+        `${file}: phase status written before $schema lacks base, which phax needs — not supported`,
+      );
+    });
+
+    it("refuses a base that is not a full commit sha", () => {
+      const short = withKey(validDocuments["phase-status"], "base", "0123456");
+      expect(left(readPhaseStatusFile(file, short)).message).toMatch(new RegExp(`^${file}: `));
+    });
   });
 
   type StrictReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;

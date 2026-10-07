@@ -11,7 +11,7 @@ export const FIRST_SUPPORTED_RELEASE: string | null = "0.17.0";
 export const CURRENT_SHAPES = {
   registry: "0.17.0",
   "run-status": "0.17.0",
-  "phase-status": "0.17.0",
+  "phase-status": "next",
   "phax-plan": "0.17.0",
   "compliance-review": "0.17.0",
   "plan-approvals": "0.17.0",

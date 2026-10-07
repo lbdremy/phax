@@ -7,6 +7,17 @@ import { decodeBranchName, decodeWorktreePath } from "../domain/branded.js";
 import { UnsafeGitStateError, WorktreeCreationError } from "../domain/errors.js";
 import { runKey } from "../domain/runRef.js";
 
+const FULL_COMMIT_SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
+
+/**
+ * A phase branch after `preparePhaseBranch`: phax just created it, and `base`
+ * is the full sha of the commit it was created from; or it already existed,
+ * and its base is whatever the phase status noted when phax created it.
+ */
+export type PreparedPhaseBranch =
+  | { readonly kind: "created"; readonly branch: BranchName; readonly base: string }
+  | { readonly kind: "existing"; readonly branch: BranchName };
+
 /**
  * Ensure a per-phase branch exists, creating it from `fromBranch` if absent.
  *
@@ -16,13 +27,16 @@ import { runKey } from "../domain/runRef.js";
  *
  * Phase-01 branches off the run branch; phase-N branches off phase-(N-1). The
  * caller maintains `fromBranch` across iterations and passes it in.
+ *
+ * A branch it creates is resolved right away: its tip is exactly the commit it
+ * was created from, the phase's `base`.
  */
 export function preparePhaseBranch(
   baseBranch: BranchName,
   phaseId: PhaseId,
   fromBranch: BranchName,
   repoRoot: string,
-): Effect.Effect<BranchName, UnsafeGitStateError | GitError, Git> {
+): Effect.Effect<PreparedPhaseBranch, UnsafeGitStateError | GitError, Git> {
   return Effect.gen(function* () {
     const git = yield* Git;
     const phaseBranchStr = `${baseBranch}--${phaseId}`;
@@ -38,11 +52,19 @@ export function preparePhaseBranch(
     const phaseBranch = branchResult.right;
 
     const exists = yield* git.branchExists(phaseBranch, repoRoot);
-    if (!exists) {
-      yield* git.createBranch(phaseBranch, fromBranch, repoRoot);
-    }
+    if (exists) return { kind: "existing", branch: phaseBranch };
 
-    return phaseBranch;
+    yield* git.createBranch(phaseBranch, fromBranch, repoRoot);
+    const base = yield* git.resolveRef(repoRoot, phaseBranch);
+    if (base === null || !FULL_COMMIT_SHA.test(base)) {
+      return yield* Effect.fail(
+        new UnsafeGitStateError({
+          message: `Phase branch "${phaseBranch}" was created from "${fromBranch}", but its commit could not be resolved to a full object name (got ${base === null ? "nothing" : `"${base}"`})`,
+          repoPath: repoRoot,
+        }),
+      );
+    }
+    return { kind: "created", branch: phaseBranch, base };
   });
 }
 

@@ -180,15 +180,20 @@ describe("createRunFolder", () => {
 });
 
 describe("createPhaseFolder", () => {
+  const REPO_ROOT = "/work/example-repo";
+  const CREATED = {
+    kind: "created",
+    branch: "feature/my-run--phase-01" as BranchName,
+    base: "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
+  } as const;
+
   it("creates a status.json with state: pending", async () => {
     const { impl, layer } = makeFakeFileSystem();
     const runPath = `${stateRoot}/runs/my-run`;
     const phase = plan.phases[0]!;
 
     await Effect.runPromise(
-      createPhaseFolder(runPath, phase, 0, "feature/my-run--phase-01" as BranchName).pipe(
-        Effect.provide(layer),
-      ),
+      createPhaseFolder(runPath, phase, 0, CREATED, REPO_ROOT).pipe(Effect.provide(layer)),
     );
 
     const raw = impl.getFile(`${runPath}/phase-01/status.json`);
@@ -205,6 +210,8 @@ describe("createPhaseFolder", () => {
       expect(decoded.right.phaseIndex).toBe(0);
       expect(decoded.right.model).toBe("claude-sonnet-4-6");
       expect(decoded.right.effort).toBe("low");
+      expect(decoded.right.branchName).toBe("feature/my-run--phase-01");
+      expect(decoded.right.base).toBe(CREATED.base);
     }
   });
 
@@ -214,9 +221,7 @@ describe("createPhaseFolder", () => {
     const phase = plan.phases[0]!;
 
     const phasePath = await Effect.runPromise(
-      createPhaseFolder(runPath, phase, 0, "feature/my-run--phase-01" as BranchName).pipe(
-        Effect.provide(layer),
-      ),
+      createPhaseFolder(runPath, phase, 0, CREATED, REPO_ROOT).pipe(Effect.provide(layer)),
     );
 
     expect(phasePath).toBe(`${runPath}/phase-01`);

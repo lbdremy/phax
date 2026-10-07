@@ -83,6 +83,14 @@ export type RunStatusFile = Schema.Schema.Type<typeof RunStatusFileSchema>;
 export const decodeRunStatusFile = Schema.decodeUnknownEither(RunStatusFileSchema);
 export const encodeRunStatus = Schema.encodeSync(RunStatusFileSchema);
 
+/** A commit's full object name: 40 hex digits (SHA-1) or 64 (SHA-256). */
+export const FullCommitShaSchema = Schema.String.pipe(
+  Schema.pattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
+  Schema.annotations({
+    description: "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",
+  }),
+);
+
 const phaseStatusFields = {
   phaseId: Schema.NonEmptyString,
   phaseIndex: Schema.Number,
@@ -92,6 +100,10 @@ const phaseStatusFields = {
   createdAt: Schema.NonEmptyString,
   updatedAt: Schema.NonEmptyString,
   branchName: BranchNameSchema,
+  base: FullCommitShaSchema.annotations({
+    description:
+      "The full object name of the commit this phase's branch was created from, noted when phax created the branch.",
+  }),
   worktreePath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
   claudeSessionId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
   commitHash: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),

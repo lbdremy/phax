@@ -317,7 +317,19 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   if (Either.isLeft(created)) throw new Error("createRunFolder failed");
   const phase = plan.phases[0];
   if (phase === undefined) throw new Error("no phase");
-  await run(createPhaseFolder(RUN_PATH, phase, 0, "phax/example-run--phase-01" as BranchName));
+  await run(
+    createPhaseFolder(
+      RUN_PATH,
+      phase,
+      0,
+      {
+        kind: "created",
+        branch: "phax/example-run--phase-01" as BranchName,
+        base: "0123456789abcdef0123456789abcdef01234567",
+      },
+      REPO_ROOT,
+    ),
+  );
 
   // Two dispatched transitions: the run starts, then its phase.
   const ctx: DispatcherContext = {

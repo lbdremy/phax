@@ -241,6 +241,10 @@ export {
   type PlanDocumentV0_17_0,
 } from "../../../src/schemas/history/plan-document/0.17.0.js";
 export {
+  PhaseStatusV0_17_0Schema,
+  type PhaseStatusV0_17_0,
+} from "../../../src/schemas/history/phase-status/0.17.0.js";
+export {
   GateAttributionV0_17_0Schema,
   type GateAttributionV0_17_0,
 } from "../../../src/schemas/history/gate-attribution/0.17.0.js";

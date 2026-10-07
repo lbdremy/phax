@@ -268,6 +268,7 @@ describe("gates_exhausted phase state", () => {
       createdAt: "2026-06-10T00:00:00.000Z",
       updatedAt: "2026-06-10T00:01:00.000Z",
       branchName: "phax/plan-12--phase-01",
+      base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     };
     const result = decodePhaseStatusFile(raw);
     expect(Either.isRight(result)).toBe(true);

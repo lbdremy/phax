@@ -159,6 +159,13 @@ export class FakeGitImpl implements GitOps {
   createBranch(branch: BranchName, from: BranchName, repo: string): Effect.Effect<void, GitError> {
     this.calls.push({ method: "createBranch", branch, from, repo });
     this.existingBranches.add(branch);
+    // The new branch points where `from` does: its recorded ref, else a
+    // deterministic sha derived from its name, so `resolveRef` answers a full
+    // sha for every branch phax creates.
+    this.fakeRefs.set(
+      `refs/heads/${branch}`,
+      this.fakeRefs.get(`refs/heads/${from}`) ?? fakeOidFromString(`branch:${from}`),
+    );
     return Effect.void;
   }
 
@@ -192,6 +199,7 @@ export class FakeGitImpl implements GitOps {
     this.deletedBranches.push({ name, force, repo });
     this.existingBranches.delete(name);
     this.checkedOutBranches.delete(name);
+    this.fakeRefs.delete(`refs/heads/${name}`);
     return Effect.void;
   }
 
@@ -391,6 +399,11 @@ export class FakeGitImpl implements GitOps {
     this.fakeCommits.set(commitOid, { tree: treeOid, parent, message: input.message });
     this.fakeRefs.set(ref, commitOid);
     return Effect.succeed(commitOid);
+  }
+
+  /** Moves a branch's tip, as a commit on it or a reset would. */
+  setBranchRef(branch: string, sha: string): void {
+    this.fakeRefs.set(`refs/heads/${branch}`, sha);
   }
 
   resolveRef(repo: string, ref: string): Effect.Effect<string | null, GitError> {

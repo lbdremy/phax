@@ -25,6 +25,8 @@ import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import {
   createPreflightRepo,
   FIXTURE_EFFORT,
@@ -114,13 +116,14 @@ async function pauseAfterPhase01(roots: PreflightRepo): Promise<string> {
   await writeFile(
     join(phase01, "status.json"),
     JSON.stringify({
-      version: 1,
+      $schema: schemaUrl("phase-status", PHAX_RELEASE),
       phaseId: "phase-01",
       phaseIndex: 0,
       state: "committed",
       model: FIXTURE_MODEL,
       effort: FIXTURE_EFFORT,
       branchName: `${plan.run.branch}--phase-01`,
+      base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
       createdAt: now,
       updatedAt: now,
       worktreePath: join(roots.stateRoot, "worktrees", `${roots.namespace}.foo`, "phase-01"),

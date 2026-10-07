@@ -21,6 +21,7 @@ function makePhaseStatus(phaseId: string, phaseIndex: number): PhaseStatus {
     model: "claude-sonnet-4-6",
     effort: "low",
     branchName: `feature/test-run--${phaseId}` as BranchName,
+    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: now,
     updatedAt: now,
     worktreePath: `/fake/worktrees/test-run/${phaseId}`,

@@ -18,6 +18,7 @@ function makePhaseStatusJson(extra: Record<string, unknown> = {}): string {
     model: "claude-sonnet-4-6",
     effort: "low",
     branchName: "ai/my-run--phase-01",
+    base: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     createdAt: now,
     updatedAt: now,
     ...extra,
@@ -72,16 +73,12 @@ describe("recordPhaseWorktreeAndBranch", () => {
     }
   });
 
-  it("rewrites a status.json written before $schema with $schema first and no version", async () => {
+  it("leaves a status.json written before $schema untouched: it never noted base, so it is refused", async () => {
     const fakeFs = makeFakeFileSystem();
-    const { $schema: _schema, ...preSchema } = JSON.parse(makePhaseStatusJson()) as Record<
-      string,
-      unknown
-    >;
-    fakeFs.impl.setFile(
-      `${phaseFolderPath}/status.json`,
-      JSON.stringify({ version: 1, ...preSchema }),
-    );
+    const current = JSON.parse(makePhaseStatusJson()) as Record<string, unknown>;
+    const { $schema: _schema, base: _base, ...preSchema } = current;
+    const original = JSON.stringify({ version: 1, ...preSchema });
+    fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, original);
 
     await Effect.runPromise(
       recordPhaseWorktreeAndBranch(
@@ -91,14 +88,7 @@ describe("recordPhaseWorktreeAndBranch", () => {
       ).pipe(Effect.provide(fakeFs.layer)),
     );
 
-    const persisted = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)!) as Record<
-      string,
-      unknown
-    >;
-    expect(Object.keys(persisted)[0]).toBe("$schema");
-    expect(persisted["$schema"]).toBe(schemaUrl("phase-status", PHAX_RELEASE));
-    expect(persisted).not.toHaveProperty("version");
-    expect(persisted["worktreePath"]).toBe("/fake/worktrees/my-run/phase-01");
+    expect(fakeFs.impl.getFile(`${phaseFolderPath}/status.json`)).toBe(original);
   });
 
   it("is a no-op when status.json does not exist", async () => {
