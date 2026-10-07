@@ -88,11 +88,9 @@ changes stops the run with a clear exit code instead of committing nothing and p
 A step that declares `"output": "diagnostics"` feeds the fix loop something better than a raw
 log: a list of **structured findings** — rule, location, message, and a repair pointer — so the
 agent is told *which* rule broke and where the guide that fixes it lives, instead of parsing
-stdout by eye. And because the plan says which phase creates which file, phax can tell an
-auditor *when* a finding is fair: a "this wiring is missing" diagnostic against a file a later
-phase is planned to add is reported as pending work, not as a failure, until the phase that
-owns it has landed. Invariants fail immediately; completion findings fail exactly once the
-plan says they should.
+stdout by eye. Invariants ("this forbidden thing is present") and completion findings ("this
+required thing is missing") both fail the step. phax doesn't schedule them: the auditor knows
+what it checks, and reports a missing piece only once it is due.
 
 The same principle reaches back to the plan itself. Turning `plan.md` into the structured form
 that drives a run is a **deterministic parser first**: a well-formed plan extracts instantly,
@@ -398,23 +396,19 @@ making a private repo public later publishes every transcript already in its his
 
 ## Plugging in your own tools
 
-phax has **two providers** you can plug into `phax.json`, and they speak the same
-shape — a command phax runs with no shell, one JSON request on stdin, one JSON response on
-stdout, and the contract documented in `phax --usage` so you don't reverse-engineer it from a
-failure. Each sits at a different point of the run:
+phax has **one provider** you can plug into `phax.json`: a command phax runs with no shell,
+one JSON request on stdin, one JSON response on stdout, and the contract documented in
+`phax --usage` so you don't reverse-engineer it from a failure. It is offered at one point
+of the run:
 
-- **`scopes`** — *during the gate*: given the plan projection, it says which units of the
-  codebase are closed by which phase, so a completion diagnostic can wait for the phase that
-  owns it (the scheduling rule from the gates section).
 - **`planAuditor`** — *before the run*: `phax plans lint` hands it the plan projection — the
   ordered phases and their planned files, nothing else — and reports what it returns as
   advisory warnings. A plan that opens a cross-part requirement in phase 2 and never closes it
   gets flagged before a single token is spent. Advisory means advisory: it never sets the exit
   code, and a slow or crashing auditor is one warning, not a broken lint.
 
-phax owns none of the knowledge these providers carry. It owns the *timing*: the same
-plan-derived signal — which files, which phase — offered at two points where an outside tool
-can use it.
+phax owns none of the knowledge the provider carries. It owns the *timing*: the plan-derived
+signal — which files, which phase — offered at the point where an outside tool can use it.
 
 ## What 1.0 ships with
 

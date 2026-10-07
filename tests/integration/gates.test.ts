@@ -746,7 +746,7 @@ describe("runGates", () => {
       expect(log.some((line) => line.startsWith("stdin:"))).toBe(false);
     });
 
-    it("never writes a .pending.json and records only pass or fail across attempts", async () => {
+    it("records only pass or fail and writes only diagnostics files beside the log", async () => {
       const fakeFs = makeFakeFileSystem();
       const answers = [[completion], [invariant, completion], []];
       const results: string[] = [];
@@ -771,7 +771,9 @@ describe("runGates", () => {
 
       expect(results).toEqual(["fail", "fail", "pass"]);
       expect(
-        [...fakeFs.impl.files.keys()].filter((path) => path.endsWith(".pending.json")),
+        [...fakeFs.impl.files.keys()].filter(
+          (path) => /\.[a-z]+\.json$/.test(path) && !path.endsWith(".diagnostics.json"),
+        ),
       ).toEqual([]);
     });
 

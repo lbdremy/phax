@@ -26,4 +26,4 @@ are about the change and belong in phax, not in steme's rules:
 
 Neither changes the CLI contract; both are new gate steps or lint rules behind config.
 Open: whether (1) should count generated files, and whether (2) can be derived from
-`scopes` closure instead of a naming convention.
+the plan's file ownership instead of a naming convention.

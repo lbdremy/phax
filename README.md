@@ -394,7 +394,7 @@ The agent can run your gate commands and the commands in `security.agentCommands
 
 ## Extend phax
 
-Three hooks let your own tools inform a run: a gate step that prints diagnostics, and two providers. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout.
+Two hooks let your own tools inform a run: a gate step that prints diagnostics, and one provider. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout.
 
 ### Diagnostics gate steps
 
@@ -402,6 +402,7 @@ A gate step with `"output": "diagnostics"` prints a JSON document instead of a l
 
 ```json
 {
+  "$schema": "https://docs.phax.run/schemas/gate-diagnostics/0.20.0.json",
   "diagnostics": [
     {
       "rule": "no-cycles",
@@ -414,27 +415,9 @@ A gate step with `"output": "diagnostics"` prints a JSON document instead of a l
 }
 ```
 
-The step must print the document every time it runs, `{ "diagnostics": [] }` when it passes; empty or non-JSON output counts as a missing document and fails the step, even on exit 0. An `invariant` finding fails the step. A `completion` finding names the `scopes` it belongs to, and fails the step only once all of them are closed according to your scope provider; until then it is pending, shown to the agent as optional work. The failing findings, not the raw log, are what the agent is asked to fix.
+`$schema` names the `gate-diagnostics` release the document is written for. A document without it fails the step, and so does one stamped with a release newer than the running phax.
 
-### Scope provider
-
-```json
-{ "scopes": { "command": "node ./scopes.mjs" } }
-```
-
-Answers which scopes are closed, for completion findings. Before each gate that has a diagnostics step, except the last phase's (which closes every scope), phax sends the phase and every phase's planned files:
-
-```json
-{
-  "phase": "phase-02",
-  "phases": [
-    { "id": "phase-01", "files": ["src/core/billing/port.ts"] },
-    { "id": "phase-02", "files": ["src/core/billing/invoice.ts"] }
-  ]
-}
-```
-
-and expects `{"closed": ["<scope>", ...]}`. A completion finding with no scope provider configured, or a provider that fails, fails the gate with the reason.
+The step must print the document every time it runs, `{ "$schema": …, "diagnostics": [] }` when it passes; empty or non-JSON output counts as a missing document and fails the step, even on exit 0. An `invariant` finding (something forbidden is present) and a `completion` finding (something required is missing) both fail the step. phax never decides when a finding is due, so report only what is. The failing findings, not the raw log, are what the agent is asked to fix.
 
 ### Plan auditor
 

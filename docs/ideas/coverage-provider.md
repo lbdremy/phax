@@ -2,7 +2,7 @@
 
 > Status: **brainstorm**. Captured 2026-09-23 from the steme roadmap-1.0 conversation —
 > not a spec, not a plan. Nothing below is committed. Related: the two existing
-> providers (`scopes`, `planAuditor`) and diagnostics gate steps, [`desktop-app.md`](./desktop-app.md)
+> providers (gate diagnostics, the plan auditor) and diagnostics gate steps, [`desktop-app.md`](./desktop-app.md)
 > (the run screen), steme's `02-product/guarantee-coverage-map.md` and
 > `03-architecture/developer-experience/review-map-reading-direction.md`.
 
