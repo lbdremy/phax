@@ -1,0 +1,596 @@
+---
+status: Draft
+source-spec: docs/specs/2610060951-gate-request.md
+---
+# Gate request
+
+Implements the Approved spec `gate-request` (docs/specs/2610060951-gate-request.md), all of it: this plan completes the spec. A gate step that declares `"input": "gate-request"` gets a JSON request on stdin: `{$schema, phase, base, terminal, phases: [{id, files}]}`. phax saves the exact bytes as `checks-attempt-NN.request.json` beside the attempt log and writes a `stdin:` line in the log. The request rides the phase record, and `phax records explain --gates` prints it right after its attempt's log. A step without the declaration is spawned exactly as today, with stdin not connected. The spec's §9 Q1–Q7 were decided by the author and are not reopened. The author also decided on 2026-10-07 where the noted base is kept (see Technical arbitrations).
+
+Ground truth: `drop-orient` and `drop-gate-scopes` have landed, and their specs are archived. Read the code for the gate as it is, not the briefs. A diagnostics document carries `$schema` since `drop-gate-scopes`, so every example prints `{"$schema": "https://docs.phax.run/schemas/gate-diagnostics/<release>.json", "diagnostics": [...]}`. `run --append` (headless-review) is not built: this plan notes base for the branches phax creates today. Those are phase-01 from the run branch, phase-N from phase-(N-1)'s branch, and the re-created branch after `reset-phase`.
+
+The phases go inside-out and each is green on its own: the noted base, the `gate-request` format, the declaration and the request on stdin, the record view, then docs and the example. Every phase is verified by the `standard` gate profile.
+
+## Required commands
+
+- `pnpm exec tsx`
+- `pnpm dev schema upgrade`
+- `pnpm gen:usage-spec`
+- `pnpm docs:cli`
+
+Every command above is already allowed by `security.agentCommands` in this repository's phax.json, so the preflight passes with no configuration change. `pnpm exec tsx` runs `scripts/schemas-check.ts --write` and `scripts/schemas-json.ts`. `pnpm dev schema upgrade` regenerates `phax.schema.json` and `phax.user.schema.json`. `pnpm gen:usage-spec` and `pnpm docs:cli` regenerate `phax.usage.kdl` and the README CLI reference.
+
+## Technical arbitrations
+
+- Where the noted base is kept (decided by the author, 2026-10-07): `base` is a required field of the `phase-status` format's next shape. It holds the full object name of the commit the phase's branch was created from, and is never re-derived. The per-variant shape the author preferred collapses to one variant from the ground: `status.json` is first written by `createPhaseFolder`, which runs only after `preparePhaseBranch`. So no phase-status document ever exists for a phase whose branch was not created yet, and `base` is required and non-null on every state, with no nullable field. The spec's name `base` is kept: the sibling `commitHash` does not force another name.
+- Older phase-status files are refused, not stepped (decided by the author). A `$schema` status written by 0.17.0–0.19.x goes through the current decoder only and is refused as missing `base`. A pre-schema status is refused through the existing generic MissingFact refusal (`fromPreSchema` returns `{ fact: "base" }`). There is no migration, no dedicated message and no upgrade note. Loss accepted: every run folder written before this release is unreadable until it is removed by hand. Readers of `status.json` and what each does with such a folder: `loadRunReviewInfo` (resolveRunInfo.ts) now refuses with the reader's message, so `phax resume`, `phax reset-phase`, `phax archive` and every command that resolves a run by name refuse it. Those are open, enter, enter-phase, path, shell, session-info, review-handoff, review-compliance, review-code, publish-pr, adjust-plan and unlock. `phax ls` falls back to the run's registry row. In-run readers (dispatcher refuses; effect runner, phaseStatusUpdates and the session writer skip the patch) are never reached for such a folder. `phax prune` and the records code (writeRecord, records explain/sync/push) never read `status.json` and are unaffected. There is no `phax status` command.
+- `loadRunReviewInfo` refuses instead of skipping. Today it silently skips a `status.json` the reader rejects. For an old run, resume would then take phase-01 as never started and re-enter a fresh-run path. The loader now returns the reader's message when a `phase-NN/status.json` exists and is refused. A phase folder with no `status.json` is still skipped. Loss accepted: commands that need only run-level facts (archive, path, open) refuse such runs too, and `phax ls` shows only the registry row for them.
+- Spec §5.11 and its criterion 'A phase without a known base is refused on resume' are met by the generic phase-status refusal. A phase whose branch an earlier release created can no longer be loaded at all, so it is never gated with a request. The dedicated refusal naming `phax reset-phase` has no case left to fire on and is not built, and no test names an earlier-release status file beyond the reader's generic refusal. Knowingly not met: the criterion's last sentence, 'the same run with no declaring step resumes as before'. Under the author's decision, no pre-release run resumes.
+- Package-side frozen module: the snapshot gate (packages/schemas/build/snapshots.ts) refuses a released snapshot that no decoder reads. Following the plan-document/0.17.0 precedent, `src/schemas/history/phase-status/0.17.0.ts` is added for the schemas package only. The package's `parsePhaseStatus` keeps reading 0.17.0 files, and `toLatestPhaseStatus` marks their `base` as `Unknown`. phax's own reader stays current-only and never imports the module.
+- Base is noted only when phax creates the branch. `preparePhaseBranch` returns an explicit variant: created with its base, or already existing. The base is the full sha `resolveRef` gives for the new branch right after `createBranch`. A branch phax creates always writes its base into the phase status: a new status, or the existing status's `base` replaced. If the branch already exists and the phase has no `status.json`, phax refuses with an UnsafeGitStateError naming the branch. Loss accepted: a leftover phase branch, for example after a `reset-phase` whose branch deletion failed, must be deleted by hand. It is never adopted at its current tip.
+- Request bytes: `JSON.stringify(document, null, 2)` with no trailing newline, the way phax writes every other JSON file in the phase folder. Keys come in spec order: `$schema`, `phase`, `base`, `terminal`, `phases`. The same string is written to stdin and saved, so the two are byte-identical. It is built once per phase entry from the phase status's `base`, the loop's `isFinal` and `plan.phases`, then passed unchanged to every attempt. A resume rebuilds it from the same inputs, so only `$schema` can differ across releases. Loss accepted: compactness on stdin for large plans.
+- README placement (recommended by the spec, adopted): a 'Gate request' subsection under §Extend phax, next to 'Diagnostics gate steps'. The section intro becomes true for gate steps that declare `input`. The `gate-request` row is added to §Persisted formats in phase-02, because `tests/unit/readmePersistedFormats.test.ts` ties the table to `FORMAT_IDS`.
+
+---
+
+## phase-01 — The noted base {#phase-01-noted-base}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** high
+
+Every phase status records `base`, the commit its branch was created from. phax notes it at branch creation and never re-derives it, so later phases can hand it to a gate step. A phase status written by an earlier release is refused by the reader, and run info surfaces that refusal instead of hiding it.
+
+### Detailed instructions
+
+- Schema (src/schemas/status.ts): export `FullCommitShaSchema`, a string with the pattern `^[0-9a-f]{40}([0-9a-f]{24})?$` (SHA-1 or SHA-256 full object name) and a description annotation. Add `base: FullCommitShaSchema` to `phaseStatusFields`, required and non-null, with the annotation 'The full object name of the commit this phase's branch was created from, noted when phax created the branch.' Place it right after `branchName`. Unknown keys stay ignored, as today.
+- Reader (src/schemas/persisted.ts): `readPhaseStatusFile` keeps reading a `$schema` document with the current decoder only, so a 0.17.0–0.19.x file without `base` is refused by the ordinary decode violation. Change its `fromPreSchema` to `() => Either.left({ fact: "base" })`. Update its doc comment the way `readPlanDocumentFile`'s explains `completesSpec`. Add no other refusal path and no dedicated message.
+- Branch creation (src/app/worktree.ts): make `preparePhaseBranch` return an explicit variant, `PreparedPhaseBranch = { kind: "created"; branch: BranchName; base: string } | { kind: "existing"; branch: BranchName }`. When the branch is absent, call `git.createBranch` as today, then `git.resolveRef(repoRoot, branch)` on the new branch. Its tip is exactly the commit it was created from. Fail with UnsafeGitStateError if the result is null or not a full sha. No new Git port method: `resolveRef` exists.
+- Phase folder (src/app/phaseFolder.ts): `createPhaseFolder` takes the `PreparedPhaseBranch` instead of a bare branch name. (1) No status.json and `created`: write the initial status with `base`. (2) status.json exists and `created`: phax just re-created the branch, so read the status through `readPhaseStatusFile`, replace its `base` (and `branchName`) and write it back stamped with `withSchemaUrl`. (3) status.json exists and `existing`: keep the file untouched, as today; its noted base stands. (4) No status.json and `existing`: fail with UnsafeGitStateError. Its message names the branch, says its starting commit is unknown to phax, and tells the user to delete the branch (`git branch -D <branch>`) and resume.
+- Caller (src/app/executePlan.ts): pass the `PreparedPhaseBranch` to `createPhaseFolder` and keep using `.branch` where `phaseBranch` is used today. The resume branches that skip `preparePhaseBranch` (gate, handoff, commit, cleanup, completion) are unchanged; their status.json already carries the base. Do not touch `reset-phase`: it archives the phase folder and deletes the branch, so the re-run takes case (1) and notes a new base.
+- Run info (src/app/resolveRunInfo.ts): in `loadRunReviewInfo`, when a `phase-NN/status.json` is present (`tryReadJson` returns a value) but `readPhaseStatusFile` refuses it, return `Either.left(decoded.left.message)` instead of skipping it. A phase folder with no readable JSON keeps today's behaviour. Then check, by reading the callers, what each command does with that Left, and confirm the reader list in the Technical arbitrations. Report any difference in the handoff and do not change those commands.
+- Fake git (src/infra/fakes/git.ts): make `createBranch` record a tip for the new branch in the fake's ref map. Use the source branch's recorded ref when it has one, otherwise a deterministic 40-hex sha derived from the source name (for example sha1 of it via node:crypto, allowed in infra). Then `resolveRef` returns a full sha for every branch phax creates. Keep `addExistingBranch` as it is (no ref), and add a small setter only if a test needs to move a branch's ref.
+- Schemas package, following the plan-document/0.17.0 precedent: create `src/schemas/history/phase-status/0.17.0.ts`. It is a self-contained frozen copy of the phase-status `$schema` shape exactly as 0.17.0–0.19.x wrote it: the same fields as today's `PhaseStatusFileSchema` before `base`, its own `$schema` pattern, phase-state and effort literals and branch-name refinement with the jsonSchema annotation, unknown keys ignored. It must render byte-identical to `packages/schemas/snapshots/phase-status/0.17.0.schema.json`, and it is imported by nothing in phax. In `packages/schemas/src/formats/runDirectory.ts`, add `"0.17.0": PhaseStatusV0_17_0` to `PhaseStatusShapes` and the release entry to `phaseStatusFormat.releases`. `LatestPhaseStatus` becomes `PhaseStatus | (Omit<PhaseStatus, "base"> & { readonly base: Unknown })`, and `toLatestPhaseStatus` keeps every recorded fact, marking `base` as `UNKNOWN` for pre-schema and 0.17.0 values. Export `PhaseStatusV0_17_0Schema` and its type from `packages/schemas/src/index.ts` beside the other released shapes.
+- Generated files: run `pnpm exec tsx scripts/schemas-check.ts --write`. It records `snapshots/phase-status/next.schema.json`, sets `CURRENT_SHAPES["phase-status"]` to `next` and pins the new frozen module in `history.lock.json`. Then run `pnpm exec tsx scripts/schemas-json.ts` to refresh `packages/schemas/json/phase-status.schema.json`. Never write these by hand.
+- Test fixtures: every test that writes a phase status (raw JSON or a typed `PhaseStatus`) needs a 40-hex `base`. Grep `tests/` for phase-status fixtures (objects with `phaseIndex` and `branchName`), and use made-up shas only. Narrow `tests/integration/legacyRunFiles.test.ts` to the run-status legacy reading. Its pre-schema phase status is now refused, and that refusal is covered generically in `tests/unit/persisted.test.ts`.
+- Respect the layers: no new `node:fs` import in app/, domain/ or cli/. All git access goes through the Git port.
+
+### Planned files to create
+
+- `src/schemas/history/phase-status/0.17.0.ts`
+- `packages/schemas/snapshots/phase-status/next.schema.json`
+
+### Planned files to edit
+
+- `src/schemas/status.ts`
+- `src/schemas/persisted.ts`
+- `src/app/worktree.ts`
+- `src/app/phaseFolder.ts`
+- `src/app/executePlan.ts`
+- `src/app/resolveRunInfo.ts`
+- `src/infra/fakes/git.ts`
+- `packages/schemas/src/formats/runDirectory.ts`
+- `packages/schemas/src/index.ts`
+- `packages/schemas/src/generated/index.ts`
+- `packages/schemas/history.lock.json`
+- `packages/schemas/json/phase-status.schema.json`
+- `tests/unit/persisted.test.ts`
+- `tests/integration/legacyRunFiles.test.ts`
+- `tests/integration/perPhaseBranch.test.ts`
+- `tests/integration/runFolder.test.ts`
+- `tests/unit/resolveRunInfo.test.ts`
+- `tests/unit/schemasPackage/documents.ts`
+- `tests/unit/schemasPackage/runDirectoryFormats.test.ts`
+- `tests/type/schemasPackage.ts`
+
+### Optional files that may be edited
+
+- `src/domain/errors.ts`
+- `tests/integration/persistedProducer.test.ts`
+- `tests/integration/dispatcher.test.ts`
+- `tests/integration/executePlan.test.ts`
+- `tests/integration/fixLoop.test.ts`
+- `tests/integration/sessionInfo.test.ts`
+- `tests/integration/plansOverlapLanded.test.ts`
+- `tests/integration/resumeFromCleanup.test.ts`
+- `tests/integration/adjustPlanCommand.test.ts`
+- `tests/integration/finalReview.test.ts`
+- `tests/integration/reviewHandoffCommand.test.ts`
+- `tests/integration/loadReviewHandoffInputs.test.ts`
+- `tests/integration/reviewCode.test.ts`
+- `tests/integration/finalReport.test.ts`
+- `tests/integration/archive.test.ts`
+- `tests/integration/resetPhase.test.ts`
+- `tests/integration/rateLimit.test.ts`
+- `tests/integration/eventAdapter.test.ts`
+- `tests/integration/resumeFromCompletion.test.ts`
+- `tests/integration/skillEditConsent.test.ts`
+- `tests/integration/resumeHandoff.test.ts`
+- `tests/integration/resumeFromCommit.test.ts`
+- `tests/integration/resume.test.ts`
+- `tests/integration/telemetry/adapterFailures.test.ts`
+- `tests/integration/enterPhase.test.ts`
+- `tests/integration/enter.test.ts`
+- `tests/integration/resumePreflightRechecks.test.ts`
+- `tests/integration/reviewCodeCommand.test.ts`
+- `tests/integration/resetResume.test.ts`
+- `tests/integration/reviewHandoff.test.ts`
+- `tests/unit/schemas.test.ts`
+- `tests/unit/state.test.ts`
+- `tests/unit/reviewHandoffContent.test.ts`
+- `tests/unit/resume.test.ts`
+- `tests/unit/phaseStatusUpdates.test.ts`
+- `tests/unit/cli/enterPhase.test.ts`
+- `tests/unit/resolveRunRef.test.ts`
+- `tests/unit/cli/resume.test.ts`
+- `tests/unit/schemasPackage/exports.test.ts`
+- `tests/unit/schemasPackage/currentShapes.test.ts`
+- `tests/unit/schemasPackage/parity.test.ts`
+- `tests/unit/schemasPackage/jsonSchemas.test.ts`
+- `tests/unit/schemasPackage/documents.test.ts`
+- `tests/unit/schemasPackage/frozenHistory.test.ts`
+- `tests/unit/schemasPackage/preSchemaModules.test.ts`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/e2e/resetPhase.test.ts`
+- `tests/e2e/gateExhaustionResume.test.ts`
+
+### Boundary contracts
+
+app → Git port: `preparePhaseBranch` needs the commit a just-created branch points to. The port already provides `resolveRef(repo, ref) → sha | null`, and the fake must honour it for created branches. app → schemas bridge: `createPhaseFolder` writes a `PhaseStatus` that now requires `base`. `readPhaseStatusFile` is the only reader, and its refusal reaches the CLI through `loadRunReviewInfo`'s Left. schemas package → frozen module: the package reads the released 0.17.0 shape through `src/schemas/history/phase-status/0.17.0.ts`; phax never imports it.
+
+### Test strategy
+
+Write first: (1) tests/unit/persisted.test.ts. A `$schema` phase status without `base` is refused with a message naming the file. A pre-schema phase status is refused with 'lacks base' (update the existing pre-schema stepping case into this refusal; name no release). A current status with `base` reads back unchanged. (2) tests/integration/perPhaseBranch.test.ts with a real temporary git repository (NodeGit layer), plus the existing fake-git cases. `preparePhaseBranch` returns `created` with `base` equal to the full sha of the source branch's tip, or `existing` for a present branch. `createPhaseFolder` writes that base. After a commit on the phase branch and a move of the source branch, the status's `base` is unchanged. After the branch is deleted and the folder archived, a re-run notes the new source tip. An existing branch with no status.json is refused with a message naming the branch. (3) tests/unit/resolveRunInfo.test.ts: a run whose phase-01/status.json lacks `base` gives a Left carrying the reader's message, and a phase folder without status.json is still skipped. Then: tests/integration/runFolder.test.ts asserts the written status carries `base`. tests/unit/schemasPackage/runDirectoryFormats.test.ts and documents.ts: `parsePhaseStatus` reads a made-up 0.17.0 document as shape `0.17.0`, `toLatestPhaseStatus` gives `base` Unknown, and a next document reads as the current shape. tests/type/schemasPackage.ts covers the `LatestPhaseStatus` union. Fix every fixture the stricter reader now refuses.
+
+### Implementation order
+
+1. status.ts schema (`FullCommitShaSchema`, required `base`) and persisted.ts pre-schema refusal, with the persisted.test.ts cases.
+2. Frozen `src/schemas/history/phase-status/0.17.0.ts`, the runDirectory.ts release entry, the `toLatestPhaseStatus` / `LatestPhaseStatus` change and the index export; then `scripts/schemas-check.ts --write` and `scripts/schemas-json.ts`.
+3. Fake git `createBranch` ref recording.
+4. `preparePhaseBranch` variant, `createPhaseFolder` cases, executePlan wiring, with the perPhaseBranch and runFolder tests.
+5. `loadRunReviewInfo` refusal with the resolveRunInfo test.
+6. Fixture sweep across tests until `pnpm test` and `pnpm test:type` are green.
+
+### Excluded scope
+
+- Building, sending or saving the gate request; the `input` key (phase-03).
+- Reading `base` back for a gate (phase-03); nothing consumes it in this phase.
+- The `gate-request` format (phase-02).
+- A dedicated refusal naming `phax reset-phase` for an earlier-release phase (spec §5.11 is met by the generic refusal), a migration, an upgrade note, or any test naming an earlier-release status file beyond the generic refusal.
+- Base noting for `run --append` (`r-base-append`), left to whichever of gate-request and headless-review ships second.
+- Any change to `reset-phase`, `prune` or the records writers.
+- Any `.claude/skills/` edit: report a skill that needs one in the handoff instead.
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The `PreparedPhaseBranch` type and the exact signatures of `preparePhaseBranch` (src/app/worktree.ts) and `createPhaseFolder` (src/app/phaseFolder.ts). `FullCommitShaSchema` exported from src/schemas/status.ts, which phase-02 imports. Confirmation that the status.json `base` is written only when phax creates the branch, plus the refusal message for an existing branch without a status. The verified list of commands that reach `loadRunReviewInfo` (or the dispatcher) and what each does with a refused status.json, with any difference from the Technical arbitrations. The new frozen module path and the generated files the scripts touched. Which test fixtures were updated. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(phase-status): note each phase's base when phax creates its branch`
+
+### Commit body
+
+A phase's status.json now records `base`: the full object name of the
+commit its branch was created from. phax notes it when it creates the
+branch (from the run branch for phase-01, from the previous phase's
+branch otherwise, and again when a reset phase's branch is re-created).
+Commits on the phase branch, and a moved or deleted source branch, never
+change it.
+
+`base` is required in phase-status's next shape. A status written by
+an earlier release is refused, not stepped: a $schema file by the
+current decoder, a pre-schema one through the generic missing-fact
+refusal. Run info now refuses an unreadable status.json instead of
+skipping it, so an older run folder is refused by resume, reset-phase
+and every command that resolves a run. A phase branch that already
+exists without a phase status is refused rather than adopted at its tip.
+
+The schemas package freezes the released 0.17.0 shape, so
+parsePhaseStatus still reads those files, with `base` Unknown.
+
+---
+
+## phase-02 — The gate-request format {#phase-02-gate-request-format}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** medium
+
+The gate request becomes a published persisted format. phax declares its schema, the schemas package parses it with `parseGateRequest` and `parseDocument`, its JSON Schema ships as `json/gate-request.schema.json`, and its `next` snapshot is recorded, ready for phase-03 to write.
+
+### Detailed instructions
+
+- Create src/schemas/gateRequest.ts. `GateRequestFileSchema` is a Struct with fields in this order: `$schema: schemaUrlField("gate-request")`; `phase` as a string matching `^phase-\d{2}$`; `base: FullCommitShaSchema` (from src/schemas/status.ts, phase-01); `terminal: Schema.Boolean`; and `phases` as an Array of Struct `{ id: string matching ^phase-\d{2}$, files: Array(String) }`. Give each field a description annotation taken from spec §4: phase is the gated phase; base is the commit the gated phase's branch was created from; terminal is true exactly when the gated phase is the run's terminal phase; phases is every phase of the run in execution order with its planned create ∪ edit files, optional files excluded. Export the in-memory type `GateRequest` (the fields without `$schema`), the file type, and `decodeGateRequestFile = Schema.decodeUnknownEither(GateRequestFileSchema, { onExcessProperty: "error" })`, so exactly five keys are allowed (spec §5.6). Do not export an encoder yet: phase-03 adds it where it is used, and knip refuses an unused export.
+- src/schemas/schemaUrl.ts: append `"gate-request"` to `FORMAT_IDS` (after `spec-approval-record`, keeping the existing order) and to `SCHEMA_BORN_FORMAT_IDS`. It has no pre-schema shape. Update the FORMAT_IDS doc comment.
+- packages/schemas/src/formats/recordTimeline.ts: add `GateRequestShapes`, `GateRequestShape` and `gateRequestFormat`. Build them with `defineFormat` as a schema-born format, the way `planApprovalRecordFormat` is: no pre-schema, no releases, current shape `CURRENT_SHAPES["gate-request"]`, label 'gate request'. Also add `parseGateRequest` (doc: reads an attempt's `checks-attempt-NN.request.json`; never throws), `LatestGateRequest = GateRequest` and `toLatestGateRequest`, which drops `$schema`.
+- packages/schemas/src/index.ts: export `GateRequestFileSchema as GateRequestSchema`, `type GateRequestFile as GateRequest`, `parseGateRequest`, `toLatestGateRequest`, `GateRequestShape` and `LatestGateRequest` in the timeline block. Add `"gate-request": GateRequestShapes` to `DocumentShapes` and `gateRequestFormat` to `parseDocument`'s definitions.
+- packages/schemas/build/jsonSchemas.ts: add `"gate-request": gateRequestFormat` to `FORMAT_DEFINITIONS` and `"gate-request": "error"` to `EXCESS`.
+- Run `pnpm exec tsx scripts/schemas-check.ts --write`, which writes `snapshots/gate-request/next.schema.json` and `CURRENT_SHAPES["gate-request"] = "next"`. Then run `pnpm exec tsx scripts/schemas-json.ts`, which writes `json/gate-request.schema.json`. Never write them by hand. Leave the stale `json/gate-pending.schema.json` alone unless a gate requires otherwise.
+- README.md §Persisted formats: add the row `| Gate request | `gate-request` | `<record>/checks-attempt-NN.request.json` | `parseGateRequest` | `json/gate-request.schema.json` |` after the Gate diagnostics row, keeping the table aligned (oxfmt). `tests/unit/readmePersistedFormats.test.ts` ties the table to FORMAT_IDS.
+- tests/integration/persistedProducer.test.ts: add `"gate-request"` to `NEVER_WRITTEN` with a one-line comment that phax starts writing it in the gate-request plan's next phase. Phase-03 removes it.
+- Test documents are made up: a 40-hex base, phases `phase-01`/`phase-02` with invented files.
+
+### Planned files to create
+
+- `src/schemas/gateRequest.ts`
+- `packages/schemas/snapshots/gate-request/next.schema.json`
+- `packages/schemas/json/gate-request.schema.json`
+- `tests/unit/schemas/gateRequest.test.ts`
+
+### Planned files to edit
+
+- `src/schemas/schemaUrl.ts`
+- `packages/schemas/src/formats/recordTimeline.ts`
+- `packages/schemas/src/index.ts`
+- `packages/schemas/build/jsonSchemas.ts`
+- `packages/schemas/src/generated/index.ts`
+- `README.md`
+- `tests/unit/schemasPackage/documents.ts`
+- `tests/unit/schemasPackage/parity.test.ts`
+- `tests/unit/schemasPackage/recordTimeline.test.ts`
+- `tests/integration/persistedProducer.test.ts`
+- `tests/type/schemasPackage.ts`
+
+### Optional files that may be edited
+
+- `tests/unit/schemaUrl.test.ts`
+- `tests/unit/schemasPackage/currentShapes.test.ts`
+- `tests/unit/schemasPackage/jsonSchemas.test.ts`
+- `tests/unit/schemasPackage/exports.test.ts`
+- `tests/unit/schemasPackage/parseDocument.test.ts`
+- `tests/unit/schemasPackage/documents.test.ts`
+- `tests/unit/schemasPackage/snapshots.test.ts`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/unit/site/schemas.test.ts`
+- `site/build/schemas.ts`
+- `packages/schemas/README.md`
+- `scripts/schemas-smoke.ts`
+
+### Boundary contracts
+
+phax schemas → schemas package: the package re-exports phax's own `GateRequestFileSchema` and decoder; it declares nothing of its own. The contract fixed here, which phase-03's writer and the later `brief-provider` spec inherit, is five keys with their names and meanings, every key required, and no extra key.
+
+### Test strategy
+
+Write first: tests/unit/schemas/gateRequest.test.ts. A valid document decodes. Each of the following is rejected: a missing key, an extra top-level key, an extra key in a phases entry, a 7-character base, a phase id not matching phase-NN, a non-boolean terminal, and a `$schema` naming another format. Then the package tests. In documents.ts and parity.test.ts, add the `gate-request` entry (valid document, phax decoder, `excess: "error"`). recordTimeline.test.ts: `parseGateRequest` reads a next document as the current shape, and `parseDocument` identifies `gate-request`. tests/type/schemasPackage.ts: the new exports and the `DocumentShapes` entry type-check. Adjust any test that enumerates FORMAT_IDS or the JSON Schema files (schemaUrl, currentShapes, jsonSchemas, exports, site schemas) so it includes the new id.
+
+### Implementation order
+
+1. src/schemas/gateRequest.ts and its unit test.
+2. FORMAT_IDS and SCHEMA_BORN_FORMAT_IDS.
+3. Package format, index exports, `parseDocument` entry, build/jsonSchemas.ts.
+4. Run `scripts/schemas-check.ts --write` and `scripts/schemas-json.ts`.
+5. README row, persistedProducer NEVER_WRITTEN entry, package and type tests.
+
+### Excluded scope
+
+- Writing the request anywhere, the `input` config key, the log line (phase-03).
+- A phax-side reader of the request file in src/schemas/persisted.ts: phax only writes it.
+- An encoder export (phase-03).
+- Releasing the format: it stays `next` until a release cut.
+- Any `.claude/skills/` edit.
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The exact exports of src/schemas/gateRequest.ts (`GateRequestFileSchema`, `GateRequest`, `GateRequestFile`, `decodeGateRequestFile`) and their field order. Confirmation that `"gate-request"` is in FORMAT_IDS and SCHEMA_BORN_FORMAT_IDS and listed in persistedProducer's NEVER_WRITTEN, which phase-03 must remove. The generated files the scripts wrote. The package exports added. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(schemas): add the gate-request persisted format`
+
+### Commit body
+
+Define `gate-request`, the document phax will write on a declaring gate
+step's stdin and save as checks-attempt-NN.request.json: exactly
+`$schema`, `phase`, `base`, `terminal` and `phases: [{id, files}]`, every
+key required, no other key allowed.
+
+The format is born with $schema. It joins FORMAT_IDS, the schemas
+package reads it with parseGateRequest and parseDocument, ships
+json/gate-request.schema.json, and records its unreleased shape as a
+`next` snapshot. README §Persisted formats gets its row.
+
+---
+
+## phase-03 — The declaration and the request on stdin {#phase-03-request-on-stdin}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** high
+
+A gate step can declare `"input": "gate-request"`, and phax then writes the phase's gate request on its stdin and saves it beside the attempt. A provider can audit what the phase changed since `base` and decide by itself what is due, while every non-declaring step runs exactly as before.
+
+### Detailed instructions
+
+- Config (src/schemas/phaxConfig.ts): add `input: Schema.optionalWith(Schema.Literal("gate-request"), { exact: true })` to `GateStepSchema`, with no default. Annotate it: 'Absent: the step's stdin is not connected. "gate-request": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json.' The same struct serves `gateProfiles` and `workspaces[].gateProfiles`. Confirm that an unknown value goes through the existing config refusal with exit 2, and that the message names the step path (for example `gateProfiles.standard[1].input`) and `gate-request`. Adjust message formatting only if the path or the allowed value is missing.
+- Regenerate the editor schemas with `pnpm dev schema upgrade` (`phax.schema.json`, `phax.user.schema.json`); phax.json must stay byte-identical.
+- Domain (src/domain/gate/gateRequest.ts, pure): `makeGateRequest({ phaseId, base, terminal, phases })` returns `GateRequest` with keys in the order phase, base, terminal, phases. `phases` comes from `projectPhases(phases)` (src/domain/plan/projection.ts), the plan auditor's projection: create ∪ edit, deduplicated in plan order, optional files excluded. Also add `requestPathFor(attemptLogPath)`, which mirrors `diagnosticsPathFor`: strip a trailing `.log` and append `.request.json`.
+- Encoder (src/schemas/gateRequest.ts): add `encodeGateRequestFile = Schema.encodeSync(GateRequestFileSchema)`.
+- Bytes (src/app/gates.ts): export `serializeGateRequest(request: GateRequest): string`, returning `JSON.stringify(encodeGateRequestFile(withSchemaUrl("gate-request", request)), null, 2)`. No trailing newline. These exact bytes go to stdin and to the file.
+- Base read-back (src/app/phaseStatusUpdates.ts): add `readPhaseBase(phaseFolderPath): Effect<string, FsError, FileSystem>`. It reads `status.json` through `readPhaseStatusFile` and fails with an FsError carrying the reader's message when the file is refused.
+- runGates (src/app/gates.ts): add the required option `gateRequest: string`. Per attempt, keep `requestWritten = false` and derive the request path with `requestPathFor(attemptLogPath)`. For each step, push `$ <command>` as today. If `step.input === "gate-request"`: when no request is written yet, `fs.writeAtomic(requestPath, gateRequest)` before spawning; push `stdin: <basename of requestPath>` directly after the `$` line; call `shell.run({ command, cwd, stdin: gateRequest })`. Otherwise call `shell.run({ command, cwd })` exactly as today, with no stdin key. Leave the verdict code, attribution, diagnostics saving and the stop at the first failure untouched. The Node shell adapter already writes stdin, ends it and swallows EPIPE; do not change src/infra/shell.ts.
+- Fix loop (src/app/fixLoop.ts): add `gateRequest: string` to `RunGatesWithFixLoopOptions` and pass it unchanged to every `runGates` attempt.
+- Event adapter (src/app/eventAdapter.ts): `adaptGateRun` gains a `gateRequest: string` parameter passed to `runGates`; update its test.
+- executePlan (src/app/executePlan.ts): right before `runGatesWithFixLoop`, on both the fresh and the resume-from-gate path, read `base` with `readPhaseBase(phaseFolderPath)`. Build `serializeGateRequest(makeGateRequest({ phaseId: phase.id, base, terminal: isFinal, phases: plan.phases }))`, using the same `isFinal` passed to `selectGateSteps`, and pass the result as `gateRequest`. Never derive base from git here.
+- persistedProducer (tests/integration/persistedProducer.test.ts): remove `gate-request` from NEVER_WRITTEN. Make the driven run's diagnostics step declare `input`, and map `*.request.json` to `gate-request` so the written request is checked against its format.
+- Every test script and document is made up. Use the real Node shell layer for the stdin tests so the pipe behaviour is exercised.
+
+### Planned files to create
+
+- `src/domain/gate/gateRequest.ts`
+- `tests/unit/gateRequest.test.ts`
+- `tests/integration/gateRequest.test.ts`
+
+### Planned files to edit
+
+- `src/schemas/phaxConfig.ts`
+- `src/schemas/gateRequest.ts`
+- `src/app/gates.ts`
+- `src/app/fixLoop.ts`
+- `src/app/executePlan.ts`
+- `src/app/eventAdapter.ts`
+- `src/app/phaseStatusUpdates.ts`
+- `phax.schema.json`
+- `phax.user.schema.json`
+- `tests/integration/gates.test.ts`
+- `tests/integration/fixLoop.test.ts`
+- `tests/integration/eventAdapter.test.ts`
+- `tests/integration/persistedProducer.test.ts`
+- `tests/unit/cli/validate.test.ts`
+- `tests/unit/upgradeConfigSchema.test.ts`
+
+### Optional files that may be edited
+
+- `src/domain/plan/projection.ts`
+- `tests/unit/phaxConfigJsonSchema.test.ts`
+- `tests/unit/phaxUserOverlaySchema.test.ts`
+- `tests/unit/gateProfile.test.ts`
+- `tests/unit/cli/schemaUpgrade.test.ts`
+- `tests/unit/phaseStatusUpdates.test.ts`
+- `tests/integration/executePlan.test.ts`
+- `tests/integration/resume.test.ts`
+- `tests/integration/rateLimit.test.ts`
+- `tests/integration/telemetry/adapterFailures.test.ts`
+- `tests/e2e/gateExhaustionResume.test.ts`
+- `tests/integration/nodeShell.test.ts`
+
+### Boundary contracts
+
+app → Shell port: a declaring step uses the existing `ShellRunOptions.stdin`, and a non-declaring step never sets it, so the adapter spawns it with stdin `ignore` exactly as today. app → FileSystem port: the request file is written with `writeAtomic` before the first declaring step of an attempt. executePlan → fixLoop → runGates: the one request string per phase travels unchanged. domain → schemas: `makeGateRequest` produces the `GateRequest` type that phase-02 defined, and the bridge stamps `$schema`. Producer/consumer on stdin (normative, spec §6): the bytes are `{$schema, phase, base, terminal, phases}`, then end of file.
+
+### Test strategy
+
+Write first, as the stable contracts: tests/unit/gateRequest.test.ts covers `makeGateRequest` (key order, projection with optional files excluded and duplicates removed, terminal passthrough) and `requestPathFor`. Then tests/integration/gates.test.ts, with the real Node shell layer and made-up node scripts in a temp dir:
+- A declaring step's saved stdin equals `checks-attempt-01.request.json` byte for byte.
+- A non-declaring step reads 0 bytes, doesn't block, gets no `stdin:` line and no request file.
+- A failing non-declaring step before a declaring one leaves no request file and no `stdin:` line.
+- The line after `$ node ./audit.mjs` is `stdin: checks-attempt-01.request.json`, and the line after the preceding step's `$` line is not a `stdin:` line.
+- A declaring `output: log` step passes on exit 0 and fails on exit 1 in gate-attribution.json; a declaring diagnostics step with one finding fails.
+- A declaring step that exits at once without reading, with a request over 128 KiB, passes with no error or hang.
+- A step reading to end of file terminates and its copy equals the saved file.
+- `node echo.mjs < checks-attempt-01.request.json` reproduces the step's gate-time output.
+
+tests/integration/fixLoop.test.ts: three attempts with a declaring step produce byte-identical request files. tests/integration/gateRequest.test.ts drives executePlan with fakes on a three-phase plan:
+- phase-02's request has exactly the five keys, the right `$schema` prefix, `phase`, `base` equal to phase-02's status base (phase-01's fake tip at creation), `terminal` false, and the projection.
+- A single-phase plan gives `terminal` true and one entry.
+- A resume after gates are exhausted writes a new attempt whose request equals attempt 01's byte for byte.
+- Moving phase-01's fake ref between attempts leaves `base` unchanged.
+
+tests/unit/cli/validate.test.ts: `input: "stdin"` exits 2 naming the path and `gate-request`, and a workspace profile with a declaring log step is accepted. tests/unit/upgradeConfigSchema.test.ts: the step schema has `input` with const `gate-request` and no default, and phax.json is unchanged.
+
+### Implementation order
+
+1. Domain `makeGateRequest` and `requestPathFor` with unit tests.
+2. Encoder in src/schemas/gateRequest.ts; `serializeGateRequest`; `readPhaseBase`.
+3. Config `input` key with validate tests; `pnpm dev schema upgrade` and its test.
+4. `runGates` stdin, request file and log line, with gates.test.ts.
+5. fixLoop and eventAdapter plumbing with their tests.
+6. executePlan wiring with tests/integration/gateRequest.test.ts; persistedProducer update.
+
+### Excluded scope
+
+- `phax records explain --gates` printing the request (phase-04).
+- README, hello-world example and NEXT_STEPS (phase-05).
+- Any touched-file list, diff, closure, impact or verdict hint in the request; flags or environment variables as a channel.
+- Connecting stdin, or an explicit `"none"` value, for non-declaring steps; any change to `output`, `firing`, `surface`, attribution or the fix loop's budget.
+- `run --append` and the `r-base-append` rule; the oracle-phases request; the plan auditor's request.
+- Changes to src/infra/shell.ts.
+- Any `.claude/skills/` edit.
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The `input` key's schema and description. The signatures of `makeGateRequest` and `requestPathFor` (src/domain/gate/gateRequest.ts), `serializeGateRequest` (src/app/gates.ts) and `readPhaseBase` (src/app/phaseStatusUpdates.ts), plus the new `gateRequest` option on `runGates` and `runGatesWithFixLoop`. The exact log-line format and the request file name. The exact config refusal message seen for an unknown `input` value. Confirmation that phax.json is unchanged by `schema upgrade`. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(gates): write the gate request on a declaring step's stdin`
+
+### Commit body
+
+A gate step may now declare `"input": "gate-request"`, the only value;
+no key means no input. Accepted with either output kind, in
+gateProfiles and workspaces[].gateProfiles. An unknown value is a
+config error (exit 2).
+
+phax builds one request per phase from the plan auditor's projection,
+the phase's noted base and the terminal firing condition, and writes
+the same bytes to every declaring step of every attempt, then closes
+stdin. Before an attempt's first declaring step it saves those bytes
+as checks-attempt-NN.request.json, and logs `stdin: <file>` after
+the step's `$` line. A step without the declaration is spawned exactly
+as before, and the verdict rules do not change.
+
+phax.schema.json and phax.user.schema.json are regenerated.
+
+---
+
+## phase-04 — The request in the record {#phase-04-records-explain}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Someone explaining a recorded commit sees, for each gate attempt, the exact request the provider received, printed directly after that attempt's log. A verdict can then be replayed and explained from the record alone.
+
+### Detailed instructions
+
+- App (src/app/recordsExplain.ts): export a pure function such as `gateArtifactsInOrder(artifacts: ReadonlyMap<string, Uint8Array>): ReadonlyArray<readonly [string, Uint8Array]>`. It lists the `checks-attempt-NN.log` artifacts in ascending attempt order, each followed directly by `checks-attempt-NN.request.json` when the record holds one. Keep `checksAttemptCount` counting `.log` files only.
+- CLI (src/cli/commands/records.ts): replace the inline regex loop under `opts.gates` with a render of `gateArtifactsInOrder(record.artifacts)`, each entry as `--- <name> ---` followed by its decoded text. No other logic in the command file.
+- Help text: change the `--gates` option description to say it also prints each attempt's gate request (for example 'Print the gate check logs, each followed by its gate request'). Then run `pnpm gen:usage-spec` (phax.usage.kdl) and `pnpm docs:cli`, which regenerates the README CLI reference block. Edit no other part of README in this phase.
+- Confirm by test, not by code change, that writeRecord already includes `checks-attempt-NN.request.json`, because it lists every file of the phase folder. Add an assertion to the existing writeRecord or recordsExplain test only if neither already covers a request file.
+- Test records are made up; nothing from ~/.phax or another repository.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `src/app/recordsExplain.ts`
+- `src/cli/commands/records.ts`
+- `tests/integration/recordsExplain.test.ts`
+- `phax.usage.kdl`
+- `README.md`
+
+### Optional files that may be edited
+
+- `tests/integration/writeRecord.test.ts`
+- `tests/unit/generateUsageSpec.test.ts`
+- `src/cli/cliDocs.ts`
+
+### Boundary contracts
+
+cli → app: the command needs, for the `--gates` view, the ordered list of (artifact name, bytes) to print. The app provides it from the record's artifact map. The stable shape is log-then-its-request per attempt, in attempt order.
+
+### Test strategy
+
+tests/integration/recordsExplain.test.ts (write first): a made-up phase record with checks-attempt-01.log, checks-attempt-01.request.json, checks-attempt-02.log, checks-attempt-02.request.json and a diagnostics file. The `--gates` output prints `--- checks-attempt-01.request.json ---` and its content directly after the attempt-01 log, likewise for attempt 02, and never prints the diagnostics file. A record whose attempts have no request file prints exactly as before. A unit-level check of `gateArtifactsInOrder` ordering may live in the same file. Ensure the regenerated usage spec passes its existing test.
+
+### Implementation order
+
+1. `gateArtifactsInOrder` in src/app/recordsExplain.ts with its test.
+2. CLI render change and help text.
+3. `pnpm gen:usage-spec` and `pnpm docs:cli`.
+
+### Excluded scope
+
+- Printing diagnostics documents or gate-attribution.json under `--gates` (spec non-goal).
+- Rewriting records written before this change.
+- README prose outside the generated CLI reference block (phase-05).
+- Any `.claude/skills/` edit.
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The exported function name and signature in src/app/recordsExplain.ts. The new `--gates` help text. Which generated files `gen:usage-spec` and `docs:cli` changed. Whether a test already proved that writeRecord carries request files, or which assertion was added. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(records): print each attempt's gate request in records explain --gates`
+
+### Commit body
+
+A phase record already carries every file of the phase folder, so each
+attempt's checks-attempt-NN.request.json rides it. `phax records
+explain --gates` now prints that request directly after its attempt's
+log, under `--- checks-attempt-NN.request.json ---`. An attempt
+without a request prints as before.
+
+The ordering lives in the app layer; the command only renders it. The
+usage spec and the README CLI reference are regenerated for the
+updated --gates help.
+
+---
+
+## phase-05 — Docs and the example {#phase-05-docs-example}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** medium
+
+A gate-step provider author, such as steme's audit, can learn from the README how to read the gate request, and see it work in the hello-world example. That example's audit scopes itself by `base` and `terminal`.
+
+### Detailed instructions
+
+- README §Extend phax: rewrite the intro so it is true. A provider reads a JSON request on stdin and answers JSON on stdout, and a gate step reads a request only when it declares `"input": "gate-request"`; otherwise its stdin is not connected.
+- Add a `### Gate request` subsection right after `### Diagnostics gate steps`. Show the declaring step `{ "command": "node ./audit.mjs", "surface": "structural", "firing": "every-phase", "output": "diagnostics", "input": "gate-request" }` and the request shape with all five keys, using made-up values and a `0.20.0` `$schema`, as the README's diagnostics example does. Say what each key means. Explain the use: read stdin to the end and parse it; the past is `git diff --name-only <base>` plus the untracked files; the future is the `phases` entries after `phase`; when `terminal` is true, audit everything; print `{"$schema": "https://docs.phax.run/schemas/gate-diagnostics/0.20.0.json", "diagnostics": [...]}`, never a document without `$schema`. Then cover the saved copy `checks-attempt-NN.request.json` and the `stdin:` log line, replay with `node ./audit.mjs < checks-attempt-01.request.json`, and the fact that any output kind may declare it. phax sends facts, never a judgement: the provider decides what is due.
+- In `### Diagnostics gate steps`, change 'phax never decides when a finding is due, so report only what is' to point to the gate request as the way a provider learns what is due.
+- README §Set up a project, `gateProfiles` bullet: name the optional `input` key (`"gate-request"`, the only value) with a link to the new subsection.
+- examples/hello-world/phax.json: add `"input": "gate-request"` to the `node ./audit.mjs` step only.
+- examples/hello-world/audit.mjs: read the request with `JSON.parse(readFileSync(0, "utf8"))`. When `terminal` is true, audit every .ts under src/ as today. Otherwise audit only the .ts files under src/ that changed since `request.base`: `git diff --name-only <base>` together with `git ls-files --others --exclude-standard`, run through `execFileSync` from node:child_process without a shell, keeping files that still exist. Keep the rule, message and repair as they are. The script must keep exactly one gate-diagnostics `$schema` literal, because scripts/release-cut.ts rewrites that one literal at each release cut. Leave its current release value as the cut left it.
+- tests/integration/exampleProviders.test.ts: add the spec's criterion. In a made-up temp git repository, copy audit.mjs and commit a base with a clean src/greet.ts. Add src/io.ts importing `node:fs`, write a request with `terminal: false` and that base, and run `node ./audit.mjs < request.json`: the output is a diagnostics document naming src/io.ts. With `base` set to a commit that already contains the file and nothing changed since, the output is `{"$schema": …, "diagnostics": []}`. Also assert the example's phax.json step declares `"input": "gate-request"`.
+- NEXT_STEPS.md: tick `gate-request` in §'Before steme's audit', in the same style as the drop-gate-scopes entry. Update the status paragraph near the top that says no plan is in flight only as far as needed to stay true. Do not touch other sections.
+- Any example value is made up; nothing from ~/.phax or another repository.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `README.md`
+- `examples/hello-world/phax.json`
+- `examples/hello-world/audit.mjs`
+- `tests/integration/exampleProviders.test.ts`
+- `NEXT_STEPS.md`
+
+### Optional files that may be edited
+
+- `tests/unit/releaseCut.test.ts`
+- `tests/unit/examplePlanDeterministic.test.ts`
+- `tests/integration/lintPlan.test.ts`
+- `examples/hello-world/plan.md`
+
+### Test strategy
+
+tests/integration/exampleProviders.test.ts carries the hello-world criterion (written first, against the current audit.mjs, so it fails until the script reads stdin). It uses a temp git repository and spawns node and git through child_process in the test, never the user's state. The existing hello-world tests (release cut stamp, deterministic example plan, plan lint) must stay green. README changes are covered by oxfmt's format check and the persisted-formats table test.
+
+### Implementation order
+
+1. Example test in exampleProviders.test.ts.
+2. audit.mjs reads the request; phax.json declares the input.
+3. README: intro, Gate request subsection, Diagnostics wording, gate step reference.
+4. NEXT_STEPS tick.
+
+### Excluded scope
+
+- Any change to phax source under src/.
+- The `brief-provider` spec, `brief-request`, `phax brief`.
+- Scoping the hello-world audit by later phases' planned files (the README explains the pattern; the example stays a base/terminal demo).
+- A docs site page beyond the README section.
+- Any `.claude/skills/` edit: report a skill that should mention the gate request in the handoff.
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The README sections touched and the new subsection's anchor. The audit.mjs behaviour (terminal vs base-scoped) and the git commands it runs. Confirmation that audit.mjs still holds exactly one gate-diagnostics `$schema` literal. Any project skill that should now mention the gate request (reported, not edited). Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`docs: document the gate request; hello-world audit reads it`
+
+### Commit body
+
+README §Extend phax gains a Gate request section for provider authors:
+declare `"input": "gate-request"`, read the request from stdin, take the
+past from git since `base` and the future from the later `phases`, and
+replay a verdict with `node ./audit.mjs < checks-attempt-01.request.json`.
+The section intro now says which gate steps read a request, and the
+gate step reference names the `input` key.
+
+The hello-world diagnostics step declares the input; audit.mjs reads
+the request, audits every .ts under src/ on the terminal phase and only
+the files changed since `base` otherwise. NEXT_STEPS ticks gate-request.
