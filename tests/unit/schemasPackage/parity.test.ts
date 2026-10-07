@@ -6,6 +6,7 @@ import {
   parseComplianceReview,
   parseGateAttribution,
   parseGateDiagnostics,
+  parseGateRequest,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -32,6 +33,7 @@ import {
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
+import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
 import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
 import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
@@ -212,6 +214,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeSpecRecordFile,
     wrongType: ["baseline", "abc1234"],
     required: "artifact",
+    excess: "error",
+  },
+  "gate-request": {
+    id: "gate-request",
+    parse: parseGateRequest,
+    phax: decodeGateRequestFile,
+    wrongType: ["base", "abc1234"],
+    required: "terminal",
     excess: "error",
   },
 };
@@ -408,6 +418,12 @@ const NESTED: ReadonlyArray<readonly [FormatId, string, Doc, Verdict]> = [
     "plan-document",
     "a phase with an unknown effort",
     withFirst(validDocuments["plan-document"], "phases", { effort: "extreme" }),
+    "rejected",
+  ],
+  [
+    "gate-request",
+    "a phases entry with an extra key",
+    withFirst(validDocuments["gate-request"], "phases", { optional: ["src/extra.ts"] }),
     "rejected",
   ],
 ];

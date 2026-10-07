@@ -21,9 +21,11 @@ import {
 import {
   gateAttributionFormat,
   gateDiagnosticsFormat,
+  gateRequestFormat,
   phaseFileReconciliationFormat,
   type GateAttributionShapes,
   type GateDiagnosticsShapes,
+  type GateRequestShapes,
   type PhaseFileReconciliationShapes,
 } from "./formats/recordTimeline.js";
 import {
@@ -178,16 +180,24 @@ export {
   type GateDiagnosticsFile as GateDiagnostics,
 } from "../../../src/schemas/gateDiagnostics.js";
 export {
+  GateRequestFileSchema as GateRequestSchema,
+  type GateRequestFile as GateRequest,
+} from "../../../src/schemas/gateRequest.js";
+export {
   parseGateAttribution,
   parseGateDiagnostics,
+  parseGateRequest,
   parsePhaseFileReconciliation,
   toLatestGateAttribution,
   toLatestGateDiagnostics,
+  toLatestGateRequest,
   toLatestPhaseFileReconciliation,
   type GateAttributionShape,
   type GateDiagnosticsShape,
+  type GateRequestShape,
   type LatestGateAttribution,
   type LatestGateDiagnostics,
+  type LatestGateRequest,
   type LatestPhaseFileReconciliation,
   type PhaseFileReconciliationShape,
 } from "./formats/recordTimeline.js";
@@ -293,6 +303,7 @@ type DocumentShapes = EveryFormat<{
   "gate-diagnostics": GateDiagnosticsShapes;
   "plan-approval-record": PlanApprovalRecordShapes;
   "spec-approval-record": SpecApprovalRecordShapes;
+  "gate-request": GateRequestShapes;
 }>;
 
 /** The id of every format `parseDocument` reads: every `FormatId`. */
@@ -324,4 +335,5 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "gate-diagnostics": gateDiagnosticsFormat,
     "plan-approval-record": planApprovalRecordFormat,
     "spec-approval-record": specApprovalRecordFormat,
+    "gate-request": gateRequestFormat,
   });

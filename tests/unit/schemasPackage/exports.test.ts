@@ -74,6 +74,7 @@ describe("schemas package entry", () => {
       "GateDiagnosticsPreSchemaSchema",
       "GateDiagnosticsSchema",
       "GateDiagnosticsV0_17_0Schema",
+      "GateRequestSchema",
       "PhaseFileReconciliationPreSchemaSchema",
       "PhaseFileReconciliationSchema",
       "PhaseRecordManifestPreSchemaSchema",
@@ -106,6 +107,7 @@ describe("schemas package entry", () => {
       "parseDocument",
       "parseGateAttribution",
       "parseGateDiagnostics",
+      "parseGateRequest",
       "parsePhaseFileReconciliation",
       "parsePhaseRecordManifest",
       "parsePhaseStatus",
@@ -123,6 +125,7 @@ describe("schemas package entry", () => {
       "toLatestComplianceReview",
       "toLatestGateAttribution",
       "toLatestGateDiagnostics",
+      "toLatestGateRequest",
       "toLatestPhaseFileReconciliation",
       "toLatestPhaseRecordManifest",
       "toLatestPhaseStatus",
@@ -203,9 +206,11 @@ describe("schemas package entry", () => {
     const { PhaseFileReconciliationFileSchema } =
       await import("../../../src/schemas/reconciliation.js");
     const { GateDiagnosticsFileSchema } = await import("../../../src/schemas/gateDiagnostics.js");
+    const { GateRequestFileSchema } = await import("../../../src/schemas/gateRequest.js");
     expect(entry.GateAttributionSchema).toBe(GateAttributionFileSchema);
     expect(entry.PhaseFileReconciliationSchema).toBe(PhaseFileReconciliationFileSchema);
     expect(entry.GateDiagnosticsSchema).toBe(GateDiagnosticsFileSchema);
+    expect(entry.GateRequestSchema).toBe(GateRequestFileSchema);
   });
 
   it.each(PRE_SCHEMA_FORMAT_IDS)(

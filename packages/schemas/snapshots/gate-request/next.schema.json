@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax gate request",
+  "type": "object",
+  "required": [
+    "$schema",
+    "phase",
+    "base",
+    "terminal",
+    "phases"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The gate-request format and the phax release that wrote this file: https://docs.phax.run/schemas/gate-request/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/gate-request\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "phase": {
+      "type": "string",
+      "description": "The gated phase.",
+      "pattern": "^phase-\\d{2}$"
+    },
+    "base": {
+      "type": "string",
+      "description": "The full object name of the commit the gated phase's branch was created from.",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+    },
+    "terminal": {
+      "type": "boolean",
+      "description": "True exactly when the gated phase is the run's terminal phase."
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "files"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The phase's id.",
+            "pattern": "^phase-\\d{2}$"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The phase's planned files to create and to edit, deduplicated in plan order; optional files are excluded."
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Every phase of the run, in execution order, with its planned files."
+    }
+  },
+  "additionalProperties": false
+}

@@ -517,6 +517,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/complianceReview.ts",
   "src/schemas/gateAttribution.ts",
   "src/schemas/gateDiagnostics.ts",
+  "src/schemas/gateRequest.ts",
   "src/schemas/history/authoring-record-manifest/pre-schema.ts",
   "src/schemas/history/compliance-review/pre-schema.ts",
   "src/schemas/history/gate-attribution/0.17.0.ts",
@@ -771,6 +772,7 @@ const BRIDGE_ONLY_DECODERS: { readonly [F in FormatId]: ReadonlyArray<string> } 
   "plan-document": ["decodePlanDocumentFile"],
   "plan-approval-record": ["decodePlanRecordFile"],
   "spec-approval-record": ["decodeSpecRecordFile"],
+  "gate-request": ["decodeGateRequestFile"],
 };
 
 /** Whether `content` names `name` as a whole word. */

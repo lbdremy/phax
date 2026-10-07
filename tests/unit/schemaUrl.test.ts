@@ -24,16 +24,24 @@ describe("schemaUrl", () => {
     expect(parseSchemaUrl(schemaUrl(id, "0.10.2"))).toEqual({ formatId: id, release: "0.10.2" });
   });
 
-  it("lists the fourteen formats of spec §4 phax still writes and the two approval record formats, without code-review", () => {
-    expect(FORMAT_IDS).toHaveLength(16);
-    expect(new Set(FORMAT_IDS).size).toBe(16);
-    expect(FORMAT_IDS.slice(-2)).toEqual(["plan-approval-record", "spec-approval-record"]);
+  it("lists the fourteen formats of spec §4 phax still writes, the two approval record formats and the gate request, without code-review", () => {
+    expect(FORMAT_IDS).toHaveLength(17);
+    expect(new Set(FORMAT_IDS).size).toBe(17);
+    expect(FORMAT_IDS.slice(-3)).toEqual([
+      "plan-approval-record",
+      "spec-approval-record",
+      "gate-request",
+    ]);
     expect(isFormatId("code-review")).toBe(false);
     expect(isFormatId("phase-record-manifest")).toBe(true);
   });
 
   it("splits the formats into those with a pre-schema shape and those born with $schema", () => {
-    expect(SCHEMA_BORN_FORMAT_IDS).toEqual(["plan-approval-record", "spec-approval-record"]);
+    expect(SCHEMA_BORN_FORMAT_IDS).toEqual([
+      "plan-approval-record",
+      "spec-approval-record",
+      "gate-request",
+    ]);
     expect(PRE_SCHEMA_FORMAT_IDS).toEqual(
       FORMAT_IDS.filter((id) => !SCHEMA_BORN_FORMAT_IDS.some((born) => born === id)),
     );

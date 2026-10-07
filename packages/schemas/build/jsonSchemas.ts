@@ -12,6 +12,7 @@ import {
 import {
   gateAttributionFormat,
   gateDiagnosticsFormat,
+  gateRequestFormat,
   phaseFileReconciliationFormat,
 } from "../src/formats/recordTimeline.js";
 import {
@@ -85,6 +86,7 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "plan-document": planDocumentFormat,
   "plan-approval-record": planApprovalRecordFormat,
   "spec-approval-record": specApprovalRecordFormat,
+  "gate-request": gateRequestFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -107,6 +109,7 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "plan-document": "error",
   "plan-approval-record": "error",
   "spec-approval-record": "error",
+  "gate-request": "error",
   "record-manifest": "error",
 };
 
