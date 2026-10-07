@@ -263,6 +263,25 @@ describe("schemas-check findings", () => {
     );
   });
 
+  it("fails a lock entry naming a deleted module of a retired format, naming the --write command", () => {
+    const path = "src/schemas/history/old-format/pre-schema.ts";
+    const lock = { ...state.lock, [path]: sha256("") };
+    expect(checkSchemas({ ...state, lock })).toEqual([
+      `✗ packages/schemas/history.lock.json names ${path}, a module of a retired format — run ${WRITE_COMMAND}`,
+    ]);
+  });
+
+  it("--write drops the lock entries of a retired format's deleted modules, and only those", () => {
+    const retired = "src/schemas/history/old-format/pre-schema.ts";
+    const deleted = "src/schemas/history/phase-record-manifest/0.1.0.ts";
+    const lock = { ...state.lock, [retired]: sha256(""), [deleted]: sha256("") };
+    const written = writeSchemas({ ...state, lock });
+    expect(written.mismatched).toEqual([]);
+    const pinned = Object.keys(JSON.parse(written.lock) as Record<string, string>);
+    expect(pinned).not.toContain(retired);
+    expect(pinned).toContain(deleted);
+  });
+
   it("--write names the current shapes its own snapshot writes record", () => {
     // The registry's shape changed after release 0.1.0: --write records next,
     // and the index it writes already names next.
@@ -337,10 +356,10 @@ describe("refreshLock and renderGeneratedIndex", () => {
     const rendered = renderGeneratedIndex({
       packageVersion: "1.2.3",
       firstSupportedRelease: "0.17.0",
-      currentShapes: { "gate-pending": "next", registry: "0.17.0" },
+      currentShapes: { "gate-diagnostics": "next", registry: "0.17.0" },
     });
     expect(rendered).toContain(
-      'export const CURRENT_SHAPES = {\n  registry: "0.17.0",\n  "gate-pending": "next",\n} as const;\n',
+      'export const CURRENT_SHAPES = {\n  registry: "0.17.0",\n  "gate-diagnostics": "next",\n} as const;\n',
     );
   });
 });
@@ -360,7 +379,7 @@ describe("firstSupportedRelease", () => {
     const snapshots = new Map([
       ["registry", dir("pre-schema", "0.18.0", "next")],
       ["run-status", dir("pre-schema", "0.17.0", "0.20.0")],
-      ["gate-pending", dir("0.9.1")],
+      ["gate-diagnostics", dir("0.9.1")],
     ]);
     expect(firstSupportedRelease(snapshots)).toBe("0.9.1");
   });

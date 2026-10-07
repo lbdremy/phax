@@ -12,7 +12,6 @@ import {
   parseComplianceReview,
   parseGateAttribution,
   parseGateDiagnostics,
-  parseGatePending,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -29,7 +28,6 @@ import * as authoringRecordManifest from "../../../src/schemas/history/authoring
 import * as complianceReview from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import * as gateAttribution from "../../../src/schemas/history/gate-attribution/pre-schema.js";
 import * as gateDiagnostics from "../../../src/schemas/history/gate-diagnostics/pre-schema.js";
-import * as gatePending from "../../../src/schemas/history/gate-pending/pre-schema.js";
 import * as phaseFileReconciliation from "../../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
 import * as phaseRecordManifest from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import * as phaseStatus from "../../../src/schemas/history/phase-status/pre-schema.js";
@@ -118,11 +116,6 @@ const FROZEN: { readonly [F in PreSchemaFormatId]: FrozenModule } = {
     decode: gateDiagnostics.decodeGateDiagnosticsPreSchema,
     parse: parseGateDiagnostics,
   },
-  "gate-pending": {
-    schema: gatePending.GatePendingPreSchemaSchema,
-    decode: gatePending.decodeGatePendingPreSchema,
-    parse: parseGatePending,
-  },
   "spec-document": {
     schema: specDocument.SpecDocumentPreSchemaSchema,
     decode: specDocument.decodeSpecDocumentPreSchema,
@@ -148,7 +141,6 @@ const MODULES = {
   "gate-attribution": gateAttribution,
   "phase-file-reconciliation": phaseFileReconciliation,
   "gate-diagnostics": gateDiagnostics,
-  "gate-pending": gatePending,
   "spec-document": specDocument,
   "plan-document": planDocument,
 } satisfies { readonly [F in PreSchemaFormatId]: object };

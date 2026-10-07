@@ -8,7 +8,7 @@ import { Schema } from "effect";
 export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
 
 /**
- * Every persisted format: the fifteen of spec §4, then the two approval
+ * Every persisted format: the fourteen of spec §4 phax still writes, then the two approval
  * record formats of spec approval-record-files, appended so existing order
  * stays stable. `code-review` joins with the headless-review plan, which
  * ships that document.
@@ -26,7 +26,6 @@ export const FORMAT_IDS = [
   "gate-attribution",
   "phase-file-reconciliation",
   "gate-diagnostics",
-  "gate-pending",
   "spec-document",
   "plan-document",
   "plan-approval-record",

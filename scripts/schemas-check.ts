@@ -223,16 +223,37 @@ export function checkSchemas(state: SchemasState): string[] {
     );
   }
   for (const path of Object.keys(state.lock)) {
-    if (!state.historyFiles.has(path)) {
-      findings.push(`✗ ${LOCK_PATH} names ${path}, which does not exist — restore the module`);
-    }
+    if (state.historyFiles.has(path)) continue;
+    findings.push(
+      isRetiredModule(path)
+        ? `✗ ${LOCK_PATH} names ${path}, a module of a retired format — run ${WRITE_COMMAND}`
+        : `✗ ${LOCK_PATH} names ${path}, which does not exist — restore the module`,
+    );
   }
   return [...findings, ...checkSnapshots(state)];
 }
 
+/** True when `path` is a frozen module under a directory that names no current format id. */
+function isRetiredModule(path: string): boolean {
+  const [formatId = ""] = path.slice(HISTORY_DIR.length + 1).split("/");
+  return !(FORMAT_IDS as ReadonlyArray<string>).includes(formatId);
+}
+
+/** `lock` without the entries of deleted modules of retired formats. */
+function withoutRetired(
+  lock: HistoryLock,
+  historyFiles: SchemasState["historyFiles"],
+): HistoryLock {
+  return Object.fromEntries(
+    Object.entries(lock).filter(([path]) => historyFiles.has(path) || !isRetiredModule(path)),
+  );
+}
+
 /**
  * What `--write` produces: the generated index, phax's release module, the
- * lock with missing entries added, and the snapshot files to write (repo-relative path →
+ * lock with missing entries added and the entries of a retired format's
+ * deleted modules dropped (a directory under src/schemas/history/ that names
+ * no current format id), and the snapshot files to write (repo-relative path →
  * content) or remove. The index names the current shapes the snapshots record
  * once those writes and removals are applied, so one `--write` leaves the
  * check green. `mismatched` lists the lock entries it refused to change; when
@@ -246,7 +267,10 @@ export function writeSchemas(state: SchemasState): {
   snapshotWrites: ReadonlyMap<string, string>;
   snapshotRemovals: ReadonlyArray<string>;
 } {
-  const { lock, mismatched } = refreshLock(state.lock, state.historyFiles);
+  const { lock, mismatched } = refreshLock(
+    withoutRetired(state.lock, state.historyFiles),
+    state.historyFiles,
+  );
   const { writes, removals } = planSnapshotWrites(state);
   const currentShapes = currentShapeNames(snapshotsAfter(state, writes, removals)).names;
   return {

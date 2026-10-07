@@ -5,20 +5,16 @@ import {
   parseDocument,
   parseGateAttribution,
   parseGateDiagnostics,
-  parseGatePending,
   parsePhaseFileReconciliation,
   parseRecordManifest,
   toLatestGateAttribution,
   toLatestGateDiagnostics,
-  toLatestGatePending,
   toLatestPhaseFileReconciliation,
   type LatestGateDiagnostics,
-  type LatestGatePending,
 } from "../../../packages/schemas/src/index.js";
 import { newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
-import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import {
   schemaUrl,
@@ -69,12 +65,6 @@ const FORMATS: ReadonlyArray<TimelineFormat> = [
     parse: parseGateDiagnostics,
     phax: decodeGateDiagnosticsFile,
     toLatest: toLatestGateDiagnostics,
-  },
-  {
-    id: "gate-pending",
-    parse: parseGatePending,
-    phax: decodeGatePendingFile,
-    toLatest: toLatestGatePending,
   },
 ];
 
@@ -136,7 +126,7 @@ type Folder = { readonly [name: string]: Doc };
 
 function folder(documents: { readonly [F in PreSchemaFormatId]: Doc }): Folder {
   return {
-    "checks-attempt-02.pending.json": documents["gate-pending"],
+    "checks-attempt-02.diagnostics.json": documents["gate-diagnostics"],
     "record.json": documents["phase-record-manifest"],
     "file-reconciliation.json": documents["phase-file-reconciliation"],
     "checks-attempt-01.diagnostics.json": documents["gate-diagnostics"],
@@ -207,30 +197,25 @@ describe.each(RECORD_FOLDERS)(
     it("orders the fix-loop attempts by the numbers in their file names", () => {
       const attempts: Array<{
         readonly attempt: number;
-        readonly diagnostics?: LatestGateDiagnostics;
-        readonly pending?: LatestGatePending;
+        readonly diagnostics: LatestGateDiagnostics;
       }> = [];
       for (const name of contents.keys()) {
-        const match = /^checks-attempt-(\d+)\.(diagnostics|pending)\.json$/.exec(name);
+        const match = /^checks-attempt-(\d+)\.diagnostics\.json$/.exec(name);
         if (match === null) continue;
-        const attempt = Number(match[1]);
-        if (match[2] === "diagnostics") {
-          const result = parseGateDiagnostics(read(name));
-          expect(result, name).toMatchObject({ ok: true, shape: shape("gate-diagnostics") });
-          if (result.ok)
-            attempts.push({ attempt, diagnostics: toLatestGateDiagnostics(result.value) });
-        } else {
-          const result = parseGatePending(read(name));
-          expect(result, name).toMatchObject({ ok: true, shape: shape("gate-pending") });
-          if (result.ok) attempts.push({ attempt, pending: toLatestGatePending(result.value) });
+        const result = parseGateDiagnostics(read(name));
+        expect(result, name).toMatchObject({ ok: true, shape: shape("gate-diagnostics") });
+        if (result.ok) {
+          attempts.push({
+            attempt: Number(match[1]),
+            diagnostics: toLatestGateDiagnostics(result.value),
+          });
         }
       }
       const ordered = attempts.toSorted((a, b) => a.attempt - b.attempt);
       expect(ordered.map(({ attempt }) => attempt)).toEqual([1, 2]);
-      expect(ordered[0]?.diagnostics?.diagnostics.map((entry) => entry.class)).toEqual([
-        "invariant",
-      ]);
-      expect(ordered[1]?.pending?.steps[0]?.pending[0]?.openScopes).toEqual(["phase-02"]);
+      for (const { diagnostics } of ordered) {
+        expect(diagnostics.diagnostics.map((entry) => entry.class)).toEqual(["invariant"]);
+      }
     });
   },
 );

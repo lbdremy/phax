@@ -22,7 +22,6 @@ import {
   parseComplianceReview,
   parseGateAttribution,
   parseGateDiagnostics,
-  parseGatePending,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -39,7 +38,6 @@ import {
   toLatestComplianceReview,
   toLatestGateAttribution,
   toLatestGateDiagnostics,
-  toLatestGatePending,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
   toLatestPhaseStatus,
@@ -188,7 +186,6 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
     toLatestPhaseFileReconciliation,
   ),
   "gate-diagnostics": latest(parseGateDiagnostics, toLatestGateDiagnostics),
-  "gate-pending": latest(parseGatePending, toLatestGatePending),
   "spec-document": latest(parseSpecDocument, toLatestSpecDocument),
   "plan-document": latest(parsePlanDocument, toLatestPlanDocument),
   "plan-approval-record": latest(parsePlanApprovalRecord, toLatestPlanApprovalRecord),
@@ -197,7 +194,7 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
 
-// phax never reads gate diagnostics or gate pending documents back.
+// phax never reads gate diagnostics documents back.
 const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   registry: readRegistryFile,
   "run-status": readRunStatusFile,
@@ -211,7 +208,6 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "gate-attribution": readGateAttributionFile,
   "phase-file-reconciliation": readPhaseFileReconciliationFile,
   "gate-diagnostics": undefined,
-  "gate-pending": undefined,
   "spec-document": readSpecDocumentFile,
   "plan-document": readPlanDocumentFile,
   "plan-approval-record": readPlanRecordFile,

@@ -6,7 +6,6 @@ import {
   parseComplianceReview,
   parseGateAttribution,
   parseGateDiagnostics,
-  parseGatePending,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -33,7 +32,6 @@ import {
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
-import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
 import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
 import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
@@ -180,14 +178,6 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeGateDiagnosticsFile,
     wrongType: ["diagnostics", {}],
     required: "diagnostics",
-    excess: "ignore",
-  },
-  "gate-pending": {
-    id: "gate-pending",
-    parse: parseGatePending,
-    phax: decodeGatePendingFile,
-    wrongType: ["closed", "phase-01"],
-    required: "closed",
     excess: "ignore",
   },
   "spec-document": {
@@ -406,12 +396,6 @@ const NESTED: ReadonlyArray<readonly [FormatId, string, Doc, Verdict]> = [
     "gate-diagnostics",
     "a diagnostic at line 0",
     { diagnostics: [{ ...completion, location: { file: "a.ts", line: 0 } }] },
-    "rejected",
-  ],
-  [
-    "gate-pending",
-    "a step with nothing pending",
-    withKey(validDocuments["gate-pending"], "steps", [{ command: "pnpm test", pending: [] }]),
     "rejected",
   ],
   [

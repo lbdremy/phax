@@ -21,11 +21,9 @@ import {
 import {
   gateAttributionFormat,
   gateDiagnosticsFormat,
-  gatePendingFormat,
   phaseFileReconciliationFormat,
   type GateAttributionShapes,
   type GateDiagnosticsShapes,
-  type GatePendingShapes,
   type PhaseFileReconciliationShapes,
 } from "./formats/recordTimeline.js";
 import {
@@ -180,24 +178,16 @@ export {
   type GateDiagnosticsFile as GateDiagnostics,
 } from "../../../src/schemas/gateDiagnostics.js";
 export {
-  GatePendingFileSchema as GatePendingSchema,
-  type GatePendingFile as GatePending,
-} from "../../../src/schemas/gatePending.js";
-export {
   parseGateAttribution,
   parseGateDiagnostics,
-  parseGatePending,
   parsePhaseFileReconciliation,
   toLatestGateAttribution,
   toLatestGateDiagnostics,
-  toLatestGatePending,
   toLatestPhaseFileReconciliation,
   type GateAttributionShape,
   type GateDiagnosticsShape,
-  type GatePendingShape,
   type LatestGateAttribution,
   type LatestGateDiagnostics,
-  type LatestGatePending,
   type LatestPhaseFileReconciliation,
   type PhaseFileReconciliationShape,
 } from "./formats/recordTimeline.js";
@@ -278,10 +268,6 @@ export {
   GateDiagnosticsPreSchemaSchema,
   type GateDiagnosticsPreSchema,
 } from "../../../src/schemas/history/gate-diagnostics/pre-schema.js";
-export {
-  GatePendingPreSchemaSchema,
-  type GatePendingPreSchema,
-} from "../../../src/schemas/history/gate-pending/pre-schema.js";
 
 // Fails to compile when a format id has no entry: parseDocument reads every one.
 type EveryFormat<M extends { readonly [F in FormatId]: unknown }> = M;
@@ -301,7 +287,6 @@ type DocumentShapes = EveryFormat<{
   "gate-attribution": GateAttributionShapes;
   "phase-file-reconciliation": PhaseFileReconciliationShapes;
   "gate-diagnostics": GateDiagnosticsShapes;
-  "gate-pending": GatePendingShapes;
   "plan-approval-record": PlanApprovalRecordShapes;
   "spec-approval-record": SpecApprovalRecordShapes;
 }>;
@@ -333,7 +318,6 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "gate-attribution": gateAttributionFormat,
     "phase-file-reconciliation": phaseFileReconciliationFormat,
     "gate-diagnostics": gateDiagnosticsFormat,
-    "gate-pending": gatePendingFormat,
     "plan-approval-record": planApprovalRecordFormat,
     "spec-approval-record": specApprovalRecordFormat,
   });

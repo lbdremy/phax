@@ -11,12 +11,10 @@ import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authorin
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnostics.js";
-import { decodeGatePendingFile } from "../../../src/schemas/gatePending.js";
 import { decodeAuthoringRecordManifestPreSchema } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import { decodeGateAttributionPreSchema } from "../../../src/schemas/history/gate-attribution/pre-schema.js";
 import { decodeGateDiagnosticsPreSchema } from "../../../src/schemas/history/gate-diagnostics/pre-schema.js";
-import { decodeGatePendingPreSchema } from "../../../src/schemas/history/gate-pending/pre-schema.js";
 import { decodePhaseFileReconciliationPreSchema } from "../../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
 import { decodePhaseRecordManifestPreSchema } from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import { decodePhaseStatusPreSchema } from "../../../src/schemas/history/phase-status/pre-schema.js";
@@ -72,7 +70,6 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "gate-attribution": decodeGateAttributionFile,
   "phase-file-reconciliation": decodePhaseFileReconciliationFile,
   "gate-diagnostics": decodeGateDiagnosticsDocument,
-  "gate-pending": decodeGatePendingFile,
   "spec-document": decodeSpecDocumentFile,
   "plan-document": decodePlanDocumentFile,
   "plan-approval-record": decodePlanRecordFile,
@@ -93,7 +90,6 @@ const FROZEN_DECODERS: { readonly [F in PreSchemaFormatId]: Decode } = {
   "gate-attribution": decodeGateAttributionPreSchema,
   "phase-file-reconciliation": decodePhaseFileReconciliationPreSchema,
   "gate-diagnostics": decodeGateDiagnosticsPreSchema,
-  "gate-pending": decodeGatePendingPreSchema,
   "spec-document": decodeSpecDocumentPreSchema,
   "plan-document": decodePlanDocumentPreSchema,
 };

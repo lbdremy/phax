@@ -15,6 +15,7 @@
     "packages/schemas/snapshots",
     "packages/schemas/releases.json",
     "site/generated",
+    "site/retired-schemas",
     "site/doc_build"
   ]
 }

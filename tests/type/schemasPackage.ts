@@ -9,13 +9,10 @@ import type {
   GateAttributionShape,
   GateDiagnostics,
   GateDiagnosticsShape,
-  GatePending,
-  GatePendingShape,
   LatestAuthoringRecordManifest,
   LatestComplianceReview,
   LatestGateAttribution,
   LatestGateDiagnostics,
-  LatestGatePending,
   LatestPhaseFileReconciliation,
   LatestPhaseRecordManifest,
   LatestPhaseStatus,
@@ -65,7 +62,6 @@ import type {
   ComplianceReviewPreSchema,
   GateAttributionPreSchema,
   GateDiagnosticsPreSchema,
-  GatePendingPreSchema,
   PhaseFileReconciliationPreSchema,
   PhaseRecordManifestPreSchema,
   PhaseStatusPreSchema,
@@ -83,7 +79,6 @@ import {
   parseDocument,
   parseGateAttribution,
   parseGateDiagnostics,
-  parseGatePending,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -101,7 +96,6 @@ import {
   toLatestComplianceReview,
   toLatestGateAttribution,
   toLatestGateDiagnostics,
-  toLatestGatePending,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
   toLatestPhaseStatus,
@@ -140,7 +134,6 @@ import type {
   GateDiagnosticsDocument,
   GateDiagnosticsFile,
 } from "../../src/schemas/gateDiagnostics.js";
-import type { GatePendingDocument, GatePendingFile } from "../../src/schemas/gatePending.js";
 import type {
   PhaseFileReconciliation as PhaxPhaseFileReconciliation,
   PhaseFileReconciliationFile as PhaxPhaseFileReconciliationFile,
@@ -177,7 +170,6 @@ import type { GateAttributionV0_17_0 as FrozenGateAttributionV0_17_0 } from "../
 import type { GateAttributionPreSchema as FrozenGateAttribution } from "../../src/schemas/history/gate-attribution/pre-schema.js";
 import type { GateDiagnosticsV0_17_0 as FrozenGateDiagnosticsV0_17_0 } from "../../src/schemas/history/gate-diagnostics/0.17.0.js";
 import type { GateDiagnosticsPreSchema as FrozenGateDiagnostics } from "../../src/schemas/history/gate-diagnostics/pre-schema.js";
-import type { GatePendingPreSchema as FrozenGatePending } from "../../src/schemas/history/gate-pending/pre-schema.js";
 import type { PhaseFileReconciliationPreSchema as FrozenPhaseFileReconciliation } from "../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
 import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import type { PhaseStatusPreSchema as FrozenPhaseStatus } from "../../src/schemas/history/phase-status/pre-schema.js";
@@ -258,13 +250,13 @@ failure.error.path = "outcome";
 // FormatSpec's two variants are mutually exclusive
 declare const toyShapes: { readonly [K in keyof Toy]: Shape<Toy[K]> };
 const unfilled: FormatSpec<{ "pre-schema": { a: 1 } }> = {
-  id: "gate-pending",
+  id: "gate-diagnostics",
   label: "toy",
   releases: [],
   current: { name: "pre-schema", shape: toyShapes["pre-schema"] },
 };
 const filled: FormatSpec<Toy> = {
-  id: "gate-pending",
+  id: "gate-diagnostics",
   label: "toy",
   preSchema: toyShapes["pre-schema"],
   releases: [["0.10.0", toyShapes["0.10.0"]]],
@@ -274,7 +266,7 @@ void unfilled;
 void filled;
 // @ts-expect-error: a filled pre-schema slot never names pre-schema as the current shape
 const filledWithPreSchemaCurrent: FormatSpec<Toy> = {
-  id: "gate-pending",
+  id: "gate-diagnostics",
   label: "toy",
   preSchema: toyShapes["pre-schema"],
   releases: [],
@@ -282,7 +274,7 @@ const filledWithPreSchemaCurrent: FormatSpec<Toy> = {
 };
 void filledWithPreSchemaCurrent;
 const unfilledWithReleases: FormatSpec<Toy> = {
-  id: "gate-pending",
+  id: "gate-diagnostics",
   label: "toy",
   // @ts-expect-error: an unfilled pre-schema slot has no releases
   releases: [["0.10.0", toyShapes["0.10.0"]]],
@@ -291,7 +283,7 @@ const unfilledWithReleases: FormatSpec<Toy> = {
 void unfilledWithReleases;
 // @ts-expect-error: a current shape named next needs a frozen pre-schema module
 const nextWithoutPreSchema: FormatSpec<Toy> = {
-  id: "gate-pending",
+  id: "gate-diagnostics",
   label: "toy",
   releases: [],
   current: { name: "next", shape: toyShapes.next },
@@ -312,7 +304,7 @@ const born: FormatSpec<BornToy> = {
 void born;
 // @ts-expect-error: a format phax wrote before $schema is never born with it
 const bornPreSchemaFormat: FormatSpec<BornToy> = {
-  id: "gate-pending",
+  id: "gate-diagnostics",
   label: "toy",
   preSchema: null,
   releases: [],
@@ -349,7 +341,6 @@ const formats: Equals<
   | "gate-attribution"
   | "phase-file-reconciliation"
   | "gate-diagnostics"
-  | "gate-pending"
   | "plan-approval-record"
   | "spec-approval-record"
 > = true;
@@ -398,7 +389,7 @@ if (document.ok) {
 const oneParameter: Equals<Parameters<typeof parseDocument>, [input: unknown]> = true;
 void oneParameter;
 declare const parsedDocument: ParsedDocument<{
-  "gate-pending": { "pre-schema": { a: string }; "0.12.0": { b: string } };
+  "gate-diagnostics": { "pre-schema": { a: string }; "0.12.0": { b: string } };
 }>;
 if (parsedDocument.ok && parsedDocument.shape === "0.12.0") {
   const toyValue: Equals<typeof parsedDocument.value, { b: string }> = true;
@@ -422,7 +413,6 @@ const shapeIds: Equals<
   | GateAttributionShape
   | PhaseFileReconciliationShape
   | GateDiagnosticsShape
-  | GatePendingShape
   | PlanApprovalRecordShape
   | SpecApprovalRecordShape,
   "pre-schema" | Current<FormatId>
@@ -443,11 +433,9 @@ const eachShapeId: [
   Equals<GateAttributionShape, "pre-schema" | "0.17.0" | Current<"gate-attribution">>,
   Equals<PhaseFileReconciliationShape, "pre-schema" | Current<"phase-file-reconciliation">>,
   Equals<GateDiagnosticsShape, "pre-schema" | "0.17.0" | Current<"gate-diagnostics">>,
-  Equals<GatePendingShape, "pre-schema" | Current<"gate-pending">>,
   Equals<PlanApprovalRecordShape, Current<"plan-approval-record">>,
   Equals<SpecApprovalRecordShape, Current<"spec-approval-record">>,
 ] = [
-  true,
   true,
   true,
   true,
@@ -510,11 +498,9 @@ const parseValues: [
     Value<typeof parseGateDiagnostics>,
     FrozenGateDiagnostics | FrozenGateDiagnosticsV0_17_0 | GateDiagnosticsFile
   >,
-  Equals<Value<typeof parseGatePending>, FrozenGatePending | GatePendingFile>,
   Equals<Value<typeof parsePlanApprovalRecord>, PhaxPlanRecordFile>,
   Equals<Value<typeof parseSpecApprovalRecord>, PhaxSpecRecordFile>,
 ] = [
-  true,
   true,
   true,
   true,
@@ -539,9 +525,7 @@ void parseValues;
 const shapeValues: [
   Equals<ShapeValue<typeof parseRegistry, "pre-schema">, FrozenRegistry>,
   Equals<ShapeValue<typeof parseRegistry, Current<"registry">>, PhaxRegistryFile>,
-  Equals<ShapeValue<typeof parseGatePending, "pre-schema">, FrozenGatePending>,
-  Equals<ShapeValue<typeof parseGatePending, Current<"gate-pending">>, GatePendingFile>,
-] = [true, true, true, true];
+] = [true, true];
 void shapeValues;
 
 // The package re-exports each frozen module's type under its own name
@@ -560,8 +544,7 @@ const frozenTypes: [
   Equals<GateAttributionPreSchema, FrozenGateAttribution>,
   Equals<PhaseFileReconciliationPreSchema, FrozenPhaseFileReconciliation>,
   Equals<GateDiagnosticsPreSchema, FrozenGateDiagnostics>,
-  Equals<GatePendingPreSchema, FrozenGatePending>,
-] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true];
 void frozenTypes;
 
 // Each Latest type is phax's in-memory type: no version, no $schema
@@ -587,11 +570,9 @@ const latestTypes: [
   Equals<LatestGateAttribution, PhaxGateAttribution>,
   Equals<LatestPhaseFileReconciliation, PhaxPhaseFileReconciliation>,
   Equals<LatestGateDiagnostics, GateDiagnosticsDocument>,
-  Equals<LatestGatePending, GatePendingDocument>,
   Equals<LatestPlanApprovalRecord, PhaxPlanRecord>,
   Equals<LatestSpecApprovalRecord, PhaxSpecRecord>,
 ] = [
-  true,
   true,
   true,
   true,
@@ -697,9 +678,6 @@ void latestReconciliation.$schema;
 declare const latestDiagnostics: LatestGateDiagnostics;
 // @ts-expect-error: the in-memory gate diagnostics document carries no $schema
 void latestDiagnostics.$schema;
-declare const latestPending: LatestGatePending;
-// @ts-expect-error: the in-memory gate pending document carries no $schema
-void latestPending.$schema;
 
 // Each toLatest takes phax's own type and the frozen pre-schema type
 declare const phaxRunStatus: PhaxRunStatusFile;
@@ -777,8 +755,7 @@ const toLatestParameters: [
     Parameters<typeof toLatestGateDiagnostics>,
     [value: FrozenGateDiagnostics | FrozenGateDiagnosticsV0_17_0 | GateDiagnosticsFile]
   >,
-  Equals<Parameters<typeof toLatestGatePending>, [value: FrozenGatePending | GatePendingFile]>,
-] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true];
 void toLatestParameters;
 
 // ── run-directory formats
@@ -887,7 +864,6 @@ if (anyManifest.ok) {
 const gateAttributionIsPhax: Equals<GateAttribution, PhaxGateAttributionFile> = true;
 const reconciliationIsPhax: Equals<PhaseFileReconciliation, PhaxPhaseFileReconciliationFile> = true;
 const gateDiagnosticsIsPhax: Equals<GateDiagnostics, GateDiagnosticsFile> = true;
-const gatePendingIsPhax: Equals<GatePending, GatePendingFile> = true;
 // A released shape that is no longer current is its frozen module's type.
 const gateAttributionV0_17_0IsFrozen: Equals<GateAttributionV0_17_0, FrozenGateAttributionV0_17_0> =
   true;
@@ -896,7 +872,6 @@ const gateDiagnosticsV0_17_0IsFrozen: Equals<GateDiagnosticsV0_17_0, FrozenGateD
 void gateAttributionIsPhax;
 void reconciliationIsPhax;
 void gateDiagnosticsIsPhax;
-void gatePendingIsPhax;
 void gateAttributionV0_17_0IsFrozen;
 void gateDiagnosticsV0_17_0IsFrozen;
 // The current gate attribution upgrades to the latest value.
