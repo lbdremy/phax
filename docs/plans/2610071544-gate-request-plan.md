@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610060951-gate-request.md
+approved:
+  date: 2026-10-07
+  baseline: "7676391"
 ---
 # Gate request
 
