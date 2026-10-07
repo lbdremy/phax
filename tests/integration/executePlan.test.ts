@@ -3,7 +3,7 @@ import { readdirSync } from "node:fs";
 import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { resetPhase } from "../../src/app/resetPhase.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
@@ -2618,3 +2618,136 @@ describe("executePlan — phase start on the no-provider baseline", () => {
     expect(await s.phaseState(runPath, "phase-03")).toBe("review_open");
   });
 });
+
+describe("executePlan — a green diagnostics gate", () => {
+  let stateRoot: string;
+
+  beforeEach(async () => {
+    stateRoot = await mkdtemp(join(tmpdir(), "phax-green-diagnostics-test-"));
+  });
+
+  afterEach(async () => {
+    await rm(stateRoot, { recursive: true, force: true });
+    vi.restoreAllMocks();
+  });
+
+  it("prints exactly what a passing gate with no findings printed before, on every phase", async () => {
+    const plan = Either.getOrThrow(readPhaxPlanFile("phax-plan.json", baselineRawPlan));
+    const base = makeStatusTestConfig(stateRoot);
+    const config: ResolvedConfig = {
+      ...base,
+      raw: {
+        ...base.raw,
+        gateProfiles: {
+          full: [
+            {
+              command: "node ./audit.mjs",
+              surface: "local",
+              firing: "every-phase",
+              output: "diagnostics",
+            },
+          ],
+        },
+        commands: { setup: ["pnpm install"], cleanup: ["true"] },
+      },
+    };
+    const worktreeOf = (phaseId: string) =>
+      join(stateRoot, "worktrees", "test-project.my-run", phaseId);
+
+    const fakeGit = makeFakeGit();
+    fakeGit.impl.setRepoIsClean(true);
+    for (const phaseId of ["phase-01", "phase-02"]) {
+      fakeGit.impl.enqueueWorktreeIsClean(worktreeOf(phaseId), false, true);
+    }
+    fakeGit.impl.enqueueWorktreeIsClean(worktreeOf("phase-03"), false);
+
+    const fakeShell = makeFakeShell();
+    for (const command of ["pnpm install", "true", "git diff HEAD^ HEAD"]) {
+      fakeShell.impl.setResponse(command, { exitCode: 0, stdout: "", stderr: "" });
+    }
+    fakeShell.impl.setResponse("node ./audit.mjs", {
+      exitCode: 0,
+      stdout: JSON.stringify({ diagnostics: [] }),
+      stderr: "",
+    });
+    fakeShell.impl.setResponse("git rev-parse HEAD", {
+      exitCode: 0,
+      stdout: "deadbeef12345678\n",
+      stderr: "",
+    });
+
+    const fakeBackend = makeFakeBackend();
+    for (const id of ["sess-01", "sess-02", "sess-03"]) {
+      fakeBackend.impl.addRunResponse({
+        sessionId: id as ClaudeSessionId,
+        outputPath: "",
+        finalText: "",
+      });
+      fakeBackend.impl.addResumeResponse({
+        sessionId: `${id}-handoff` as ClaudeSessionId,
+        outputPath: "",
+        finalText: "",
+      });
+    }
+
+    const layers = Layer.mergeAll(
+      fakeGit.layer,
+      fakeShell.layer,
+      fakeBackend.layer,
+      NodeFileSystemLayer,
+      NoopSystemTelemetryLayer,
+      makeFakeGitHub().layer,
+    );
+
+    for (const phaseId of ["phase-01", "phase-02", "phase-03"]) {
+      await mkdir(join(worktreeOf(phaseId), ".phax-context"), { recursive: true });
+      await writeFile(
+        join(worktreeOf(phaseId), ".phax-context", "phase-handoff.md"),
+        HANDOFF_CONTENT,
+      );
+    }
+    const { runPath, runId } = await Effect.runPromise(
+      createRunFolder(shortName, BASELINE_PLAN_MD, plan, config).pipe(Effect.provide(layers)),
+    );
+
+    const printed: string[] = [];
+    const capture = (chunk: string | Uint8Array): boolean => {
+      printed.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+      return true;
+    };
+    vi.spyOn(process.stderr, "write").mockImplementation(capture);
+    vi.spyOn(process.stdout, "write").mockImplementation(capture);
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        executePlan({
+          shortName,
+          namespace: "test-project",
+          plan,
+          planMd: BASELINE_PLAN_MD,
+          config,
+          gateProfileId: "full",
+          allowDirty: false,
+          runPath,
+          runId,
+          startIndex: 0,
+        }).pipe(Effect.provide(layers)),
+      ),
+    );
+    vi.restoreAllMocks();
+
+    expect(Either.isRight(result)).toBe(true);
+    // Golden captured from a passing gate with no findings before the change.
+    expect(printed.join("")).toBe(GREEN_GATE_GOLDEN);
+    expect(printed.join("")).not.toMatch(/pending/);
+
+    for (const phaseId of ["phase-01", "phase-02", "phase-03"]) {
+      const log = await readFile(join(runPath, phaseId, "checks-attempt-01.log"), "utf8");
+      expect(log.split("\n").filter((line) => line.startsWith("$ "))).toEqual([
+        "$ node ./audit.mjs",
+      ]);
+    }
+  });
+});
+
+const GREEN_GATE_GOLDEN = "";

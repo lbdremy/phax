@@ -12,7 +12,6 @@ import type {
 } from "../domain/branded.js";
 import { decodeBranchName, decodePhaseId, decodeWorktreePath } from "../domain/branded.js";
 import { selectGateSteps } from "../domain/gate/selectSteps.js";
-import { makeScopesRequest } from "../domain/plan/projection.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
   AgentInvocationError,
@@ -931,14 +930,9 @@ export function executePlan(
         // loop starts at `resumeAttempt + 1` with a fresh fix budget so prior
         // attempt artifacts are preserved.
         const phaseSteps = selectGateSteps(gateSteps, isFinal);
-        const gateOutcome = yield* runGatesWithFixLoop({
+        yield* runGatesWithFixLoop({
           steps: phaseSteps,
           cwd: worktreePath as string,
-          scheduling: {
-            isTerminal: isFinal,
-            scopesProvider: config.scopes,
-            request: makeScopesRequest(plan.phases, phase.id),
-          },
           phaseFolderPath,
           sessionId,
           agentOptions,
@@ -950,23 +944,6 @@ export function executePlan(
             ? { startAttempt: resumeAttempt + 1, worktreePath: worktreePath as string }
             : {}),
         });
-
-        if (gateOutcome.pending.length > 0) {
-          const openScopes = [
-            ...new Set(
-              gateOutcome.pending.flatMap((step) =>
-                step.pending.flatMap((pending) => pending.openScopes),
-              ),
-            ),
-          ].toSorted();
-          const pendingCount = gateOutcome.pending.reduce(
-            (total, step) => total + step.pending.length,
-            0,
-          );
-          process.stderr.write(
-            `[phax] phase "${phase.id}" gate: green — ${pendingCount} completion diagnostic(s) pending (scopes still open: ${openScopes.join(", ")})\n`,
-          );
-        }
       }
 
       if (!isResumeFromHandoff && !isResumeFromCleanup && !isResumeFromCompletion) {

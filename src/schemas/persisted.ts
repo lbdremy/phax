@@ -368,9 +368,16 @@ export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
         : Either.left({ fact: "completesSpec" }),
   });
 
+type GateStepResult = GateAttribution["steps"][number];
+
+function isPassOrFail(step: { readonly result: string }): step is GateStepResult {
+  return step.result === "pass" || step.result === "fail";
+}
+
 /**
- * Reads a phase's `gate-attribution.json`. It never carried a `version`: the
- * pre-schema attribution is the in-memory value as it is.
+ * Reads a phase's `gate-attribution.json`. It never carried a `version`: a
+ * pre-schema attribution whose every step result is `pass` or `fail` is the
+ * in-memory value as it is; any other is refused.
  */
 export const readGateAttributionFile: Reader<GateAttribution> = (file, input) =>
   readPersisted(input, {
@@ -380,7 +387,10 @@ export const readGateAttributionFile: Reader<GateAttribution> = (file, input) =>
     decodeCurrent: decodeGateAttributionFile,
     decodePreSchema: decodeGateAttributionPreSchema,
     fromCurrent: ({ $schema: _schema, ...attribution }) => attribution,
-    fromPreSchema: Either.right,
+    fromPreSchema: ({ phase, steps }) =>
+      steps.every(isPassOrFail)
+        ? Either.right({ phase, steps })
+        : Either.left({ fact: "a pass or fail result for every step" }),
   });
 
 /**

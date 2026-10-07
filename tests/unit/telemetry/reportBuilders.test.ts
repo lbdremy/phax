@@ -166,7 +166,6 @@ describe("GateFailedError stderrExcerpt", () => {
       exitCode: 1,
       logPath: "/runs/my-run/phase-01/checks-attempt-01.log",
       diagnostics: [],
-      pending: [],
       stderrExcerpt: "test suite failed",
     });
 

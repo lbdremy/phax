@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
-import { runGates, type GateScheduling } from "../../src/app/gates.js";
+import { runGates } from "../../src/app/gates.js";
+import { selectGateSteps } from "../../src/domain/gate/selectSteps.js";
 import { GateFailedError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
@@ -9,7 +10,6 @@ import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { Surface } from "../../src/schemas/surface.js";
 import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
-import { makeScopesRequest } from "../../src/domain/plan/projection.js";
 
 // The release phax stamps: the root package.json version, read here rather
 // than through the generated constant.
@@ -23,17 +23,6 @@ const cwd = "/fake/worktrees/my-run/phase-01";
 const logPath = "/fake/runs/my-run/phase-01/checks-attempt-01.log";
 const attributionPath = "/fake/runs/my-run/phase-01/gate-attribution.json";
 const phaseId = "phase-01";
-
-const request = makeScopesRequest(
-  [{ id: phaseId, plannedFilesToCreate: [], plannedFilesToEdit: [] }],
-  phaseId,
-);
-
-/** Default scheduling: non-terminal, no provider registered, request for the
- *  single fake phase. Override per test. */
-function scheduling(overrides: Partial<GateScheduling> = {}): GateScheduling {
-  return { isTerminal: false, scopesProvider: undefined, request, ...overrides };
-}
 
 function steps(...commands: string[]): GateStep[] {
   return commands.map((command) => ({
@@ -53,22 +42,6 @@ function diagnosticsStep(command: string): GateStep {
 }
 
 const diagnosticsPath = "/fake/runs/my-run/phase-01/checks-attempt-01.diagnostics.json";
-const pendingPath = "/fake/runs/my-run/phase-01/checks-attempt-01.pending.json";
-
-function completionDoc(rule: string, scopes: readonly [string, ...string[]]): string {
-  return JSON.stringify({
-    diagnostics: [
-      {
-        rule,
-        class: "completion",
-        scopes,
-        location: { file: "src/core/x.ts" },
-        message: `${rule} pending`,
-        repair: "wire it up",
-      },
-    ],
-  });
-}
 
 describe("runGates", () => {
   it("succeeds when all commands exit 0", async () => {
@@ -80,7 +53,6 @@ describe("runGates", () => {
       runGates({
         steps: steps("pnpm test", "pnpm lint"),
         cwd,
-        scheduling: scheduling(),
         attemptLogPath: logPath,
       }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
     );
@@ -100,7 +72,6 @@ describe("runGates", () => {
       runGates({
         steps: steps("pnpm test"),
         cwd,
-        scheduling: scheduling(),
         attemptLogPath: logPath,
       }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
     );
@@ -125,7 +96,6 @@ describe("runGates", () => {
         runGates({
           steps: steps("pnpm test"),
           cwd,
-          scheduling: scheduling(),
           attemptLogPath: logPath,
         }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
       ),
@@ -151,7 +121,6 @@ describe("runGates", () => {
         runGates({
           steps: steps("pnpm test"),
           cwd,
-          scheduling: scheduling(),
           attemptLogPath: logPath,
         }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
       ),
@@ -174,7 +143,6 @@ describe("runGates", () => {
         runGates({
           steps: steps("pnpm test", "pnpm lint"),
           cwd,
-          scheduling: scheduling(),
           attemptLogPath: logPath,
         }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
       ),
@@ -193,7 +161,6 @@ describe("runGates", () => {
       runGates({
         steps: steps("pnpm test"),
         cwd,
-        scheduling: scheduling(),
         attemptLogPath: logPath,
       }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
     );
@@ -214,7 +181,6 @@ describe("runGates", () => {
       runGates({
         steps: steps("pnpm test"),
         cwd,
-        scheduling: scheduling(),
         attemptLogPath: logPath,
       }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
     );
@@ -234,7 +200,6 @@ describe("runGates", () => {
         runGates({
           steps: steps("pnpm test"),
           cwd,
-          scheduling: scheduling(),
           attemptLogPath: logPath,
         }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
       );
@@ -254,7 +219,6 @@ describe("runGates", () => {
             stepWithSurface("pnpm audit:architecture", "structural"),
           ],
           cwd,
-          scheduling: scheduling(),
           attemptLogPath: logPath,
           attributionPath,
           phaseId,
@@ -290,7 +254,6 @@ describe("runGates", () => {
               stepWithSurface("pnpm build", "product"),
             ],
             cwd,
-            scheduling: scheduling(),
             attemptLogPath: logPath,
             attributionPath,
             phaseId,
@@ -336,7 +299,6 @@ describe("runGates", () => {
           runGates({
             steps: [diagnosticsStep("pnpm audit")],
             cwd,
-            scheduling: scheduling(),
             attemptLogPath: logPath,
             attributionPath,
             phaseId,
@@ -382,7 +344,6 @@ describe("runGates", () => {
         runGates({
           steps: [diagnosticsStep("pnpm audit")],
           cwd,
-          scheduling: scheduling(),
           attemptLogPath: logPath,
           attributionPath,
           phaseId,
@@ -409,7 +370,6 @@ describe("runGates", () => {
           runGates({
             steps: [diagnosticsStep("pnpm audit")],
             cwd,
-            scheduling: scheduling(),
             attemptLogPath: logPath,
             attributionPath,
             phaseId,
@@ -445,7 +405,6 @@ describe("runGates", () => {
           runGates({
             steps: [diagnosticsStep("pnpm audit")],
             cwd,
-            scheduling: scheduling(),
             attemptLogPath: logPath,
             attributionPath,
             phaseId,
@@ -485,7 +444,6 @@ describe("runGates", () => {
           runGates({
             steps: [diagnosticsStep("pnpm audit")],
             cwd,
-            scheduling: scheduling(),
             attemptLogPath: logPath,
             attributionPath,
             phaseId,
@@ -512,49 +470,56 @@ describe("runGates", () => {
     });
   });
 
-  describe("scheduling", () => {
-    const scopesConfig = { command: "scopes-provider" } as const;
+  describe("verdict", () => {
+    const completion = {
+      rule: "wire-adapters",
+      class: "completion",
+      location: { file: "src/core/x.ts" },
+      message: "the adapter is not wired",
+      repair: "wire it up",
+    } as const;
 
-    const invariantDoc = JSON.stringify({
-      diagnostics: [
-        {
-          rule: "no-console",
-          class: "invariant",
-          location: { file: "src/index.ts", line: 3 },
-          message: "no console",
-          repair: "remove it",
-        },
-      ],
-    });
+    const invariant = {
+      rule: "no-console",
+      class: "invariant",
+      location: { file: "src/index.ts", line: 3 },
+      message: "no console",
+      repair: "remove it",
+    } as const;
+
+    const auditStep: GateStep = {
+      command: "node ./audit.mjs",
+      surface: "structural",
+      firing: "every-phase",
+      output: "diagnostics",
+    };
 
     function run(opts: {
       readonly steps: readonly GateStep[];
-      readonly scheduling: GateScheduling;
       readonly setup: (shell: ReturnType<typeof makeFakeShell>) => void;
+      readonly fakeFs?: ReturnType<typeof makeFakeFileSystem>;
+      readonly attemptLogPath?: string;
     }) {
-      const fakeFs = makeFakeFileSystem();
+      const fakeFs = opts.fakeFs ?? makeFakeFileSystem();
       const fakeShell = makeFakeShell();
       opts.setup(fakeShell);
       const effect = runGates({
         steps: opts.steps,
         cwd,
-        scheduling: opts.scheduling,
-        attemptLogPath: logPath,
+        attemptLogPath: opts.attemptLogPath ?? logPath,
         attributionPath,
         phaseId,
       }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)));
       return { fakeFs, fakeShell, effect };
     }
 
-    it("fails an invariant diagnostic whatever the provider answers", async () => {
+    it("fails a completion finding on a non-terminal phase, records fail and saves the file", async () => {
       const { fakeFs, effect } = run({
-        steps: [diagnosticsStep("pnpm audit")],
-        scheduling: scheduling({ scopesProvider: scopesConfig }),
+        steps: selectGateSteps([auditStep], false),
         setup: (shell) => {
-          shell.impl.setResponse("pnpm audit", { exitCode: 0, stdout: invariantDoc, stderr: "" });
-          shell.impl.setResponse("scopes-provider", {
+          shell.impl.setResponse("node ./audit.mjs", {
             exitCode: 0,
-            stdout: JSON.stringify({ closed: ["core", "adapters"] }),
+            stdout: JSON.stringify({ diagnostics: [completion] }),
             stderr: "",
           });
         },
@@ -565,121 +530,66 @@ describe("runGates", () => {
       expect(Either.isLeft(result)).toBe(true);
       if (Either.isLeft(result)) {
         const err = result.left as GateFailedError;
-        expect(err.diagnostics).toHaveLength(1);
-        expect(err.diagnostics[0]?.rule).toBe("no-console");
-        expect(err.pending).toEqual([]);
+        expect(err).toBeInstanceOf(GateFailedError);
+        expect(err.message).toBe("Gate command failed: node ./audit.mjs (1 diagnostic(s))");
+        expect(err.diagnostics).toEqual([completion]);
       }
-      expect(fakeFs.impl.getFile(pendingPath)).toBeUndefined();
-    });
-
-    it("records a completion as pending while a scope is open", async () => {
-      const { fakeFs, effect } = run({
-        steps: [diagnosticsStep("pnpm audit")],
-        scheduling: scheduling({ scopesProvider: scopesConfig }),
-        setup: (shell) => {
-          shell.impl.setResponse("pnpm audit", {
-            exitCode: 0,
-            stdout: completionDoc("wire-adapters", ["core", "adapters"]),
-            stderr: "",
-          });
-          shell.impl.setResponse("scopes-provider", {
-            exitCode: 0,
-            stdout: JSON.stringify({ closed: ["core"] }),
-            stderr: "",
-          });
-        },
-      });
-
-      const outcome = await Effect.runPromise(effect);
-
-      expect(outcome.pending).toHaveLength(1);
-      expect(outcome.pending[0]?.command).toBe("pnpm audit");
-      expect(outcome.pending[0]?.pending[0]?.openScopes).toEqual(["adapters"]);
-
       const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
       expect(record.steps).toEqual([
-        { command: "pnpm audit", surface: "local", result: "pending" },
+        { command: "node ./audit.mjs", surface: "structural", result: "fail" },
       ]);
-
-      const pendingDoc = fakeFs.impl.getFile(pendingPath);
-      expect(pendingDoc).toBeDefined();
-      const parsed = JSON.parse(pendingDoc!) as { closed: string[]; steps: unknown[] };
-      expect(Object.keys(parsed)[0]).toBe("$schema");
-      expect(parsed).toHaveProperty("$schema", schemaUrl("gate-pending", rootVersion));
-      expect(parsed.closed).toEqual(["core"]);
-
-      expect(fakeFs.impl.getFile(diagnosticsPath)).toBeUndefined();
+      expect(JSON.parse(fakeFs.impl.getFile(diagnosticsPath)!)).toEqual({
+        $schema: schemaUrl("gate-diagnostics", rootVersion),
+        diagnostics: [completion],
+      });
     });
 
-    it("fails a completion once all its scopes are closed", async () => {
-      const { fakeFs, effect } = run({
-        steps: [diagnosticsStep("pnpm audit")],
-        scheduling: scheduling({ scopesProvider: scopesConfig }),
-        setup: (shell) => {
-          shell.impl.setResponse("pnpm audit", {
-            exitCode: 0,
-            stdout: completionDoc("wire-adapters", ["core", "adapters"]),
-            stderr: "",
+    it("gives the same verdict, file and failure on a terminal and a non-terminal phase", async () => {
+      const outcomes = await Promise.all(
+        [false, true].map(async (isTerminal) => {
+          const { fakeFs, effect } = run({
+            steps: selectGateSteps([auditStep], isTerminal),
+            setup: (shell) => {
+              shell.impl.setResponse("node ./audit.mjs", {
+                exitCode: 1,
+                stdout: JSON.stringify({ diagnostics: [completion, invariant] }),
+                stderr: "",
+              });
+            },
           });
-          shell.impl.setResponse("scopes-provider", {
-            exitCode: 0,
-            stdout: JSON.stringify({ closed: ["core", "adapters"] }),
-            stderr: "",
-          });
-        },
-      });
-
-      const result = await Effect.runPromise(Effect.either(effect));
-
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        const err = result.left as GateFailedError;
-        expect(err.diagnostics).toHaveLength(1);
-        expect(err.diagnostics[0]?.rule).toBe("wire-adapters");
-        expect(err.pending).toEqual([]);
-      }
-      expect(fakeFs.impl.getFile(diagnosticsPath)).toBeDefined();
-      expect(fakeFs.impl.getFile(pendingPath)).toBeUndefined();
-    });
-
-    it("closes every scope at the terminal phase without querying the provider", async () => {
-      const { fakeShell, effect } = run({
-        steps: [diagnosticsStep("pnpm audit")],
-        scheduling: scheduling({ isTerminal: true, scopesProvider: scopesConfig }),
-        setup: (shell) => {
-          shell.impl.setResponse("pnpm audit", {
-            exitCode: 0,
-            stdout: completionDoc("wire-adapters", ["core", "adapters"]),
-            stderr: "",
-          });
-        },
-      });
-
-      const result = await Effect.runPromise(Effect.either(effect));
-
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        const err = result.left as GateFailedError;
-        expect(err.diagnostics).toHaveLength(1);
-      }
-      expect(fakeShell.impl.calls.filter((c) => c.command[0] === "scopes-provider")).toHaveLength(
-        0,
+          const result = await Effect.runPromise(Effect.either(effect));
+          if (Either.isRight(result)) throw new Error("the gate passed");
+          const err = result.left as GateFailedError;
+          return {
+            message: err.message,
+            command: err.command,
+            exitCode: err.exitCode,
+            diagnostics: err.diagnostics,
+            saved: fakeFs.impl.getFile(diagnosticsPath),
+            attribution: fakeFs.impl.getFile(attributionPath),
+          };
+        }),
       );
+
+      expect(outcomes[0]?.diagnostics).toEqual([completion, invariant]);
+      expect(outcomes[0]?.message).toBe("Gate command failed: node ./audit.mjs (2 diagnostic(s))");
+      expect(outcomes[1]).toEqual(outcomes[0]);
     });
 
-    it("queries the provider with the projection before any step runs", async () => {
-      const { fakeShell, effect } = run({
-        steps: [diagnosticsStep("pnpm audit")],
-        scheduling: scheduling({ scopesProvider: scopesConfig }),
+    it("starts only the selected steps and logs only their entries", async () => {
+      const { fakeFs, fakeShell, effect } = run({
+        steps: selectGateSteps(
+          [
+            { command: "pnpm test", surface: "local", firing: "every-phase", output: "log" },
+            auditStep,
+          ],
+          false,
+        ),
         setup: (shell) => {
-          shell.impl.setResponse("pnpm audit", {
+          shell.impl.setResponse("pnpm test", { exitCode: 0, stdout: "ok", stderr: "" });
+          shell.impl.setResponse("node ./audit.mjs", {
             exitCode: 0,
-            stdout: completionDoc("wire-adapters", ["core"]),
-            stderr: "",
-          });
-          shell.impl.setResponse("scopes-provider", {
-            exitCode: 0,
-            stdout: JSON.stringify({ closed: [] }),
+            stdout: JSON.stringify({ diagnostics: [] }),
             stderr: "",
           });
         },
@@ -687,192 +597,94 @@ describe("runGates", () => {
 
       await Effect.runPromise(effect);
 
-      expect(fakeShell.impl.calls[0]?.command).toEqual(["scopes-provider"]);
-      expect(fakeShell.impl.calls[0]?.stdin).toBe(JSON.stringify(request));
-      expect(fakeShell.impl.calls[1]?.command).toEqual(["pnpm", "audit"]);
+      expect(fakeShell.impl.calls.map((call) => call.command)).toEqual([
+        ["pnpm", "test"],
+        ["node", "./audit.mjs"],
+      ]);
+      const log = fakeFs.impl.getFile(logPath)!.split("\n");
+      expect(log.filter((line) => line.startsWith("$ "))).toEqual([
+        "$ pnpm test",
+        "$ node ./audit.mjs",
+      ]);
+      expect(log.some((line) => line.startsWith("stdin:"))).toBe(false);
     });
 
-    it("treats a completion with no provider registered as a configuration error", async () => {
-      const { fakeFs, fakeShell, effect } = run({
-        steps: [diagnosticsStep("pnpm audit")],
-        scheduling: scheduling(),
-        setup: (shell) => {
-          shell.impl.setResponse("pnpm audit", {
-            exitCode: 0,
-            stdout: completionDoc("wire-adapters", ["core"]),
-            stderr: "",
-          });
-        },
-      });
-
-      const result = await Effect.runPromise(Effect.either(effect));
-
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        const err = result.left as GateFailedError;
-        expect(err.message).toContain("scopes");
-        expect(err.message).toContain("phax.json");
-        expect(err.diagnostics).toEqual([]);
-        expect(err.pending).toEqual([]);
-      }
-      expect(fakeShell.impl.calls.filter((c) => c.command[0] === "scopes-provider")).toHaveLength(
-        0,
-      );
-      expect(fakeFs.impl.getFile(diagnosticsPath)).toBeDefined();
-      const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
-      expect(record.steps).toEqual([{ command: "pnpm audit", surface: "local", result: "fail" }]);
-    });
-
-    it("fails the gate when the scope provider exits non-zero, before any step runs", async () => {
-      const { fakeFs, fakeShell, effect } = run({
-        steps: [diagnosticsStep("pnpm audit")],
-        scheduling: scheduling({ scopesProvider: scopesConfig }),
-        setup: (shell) => {
-          shell.impl.setResponse("pnpm audit", {
-            exitCode: 0,
-            stdout: completionDoc("wire-adapters", ["core"]),
-            stderr: "",
-          });
-          shell.impl.setResponse("scopes-provider", { exitCode: 1, stdout: "", stderr: "boom" });
-        },
-      });
-
-      const result = await Effect.runPromise(Effect.either(effect));
-
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        const err = result.left as GateFailedError;
-        expect(err.command).toBe("scopes-provider");
-        expect(err.exitCode).toBe(1);
-        expect(err.message).toContain("Scope provider");
-      }
-      expect(fakeShell.impl.calls.filter((c) => c.command[0] === "pnpm")).toHaveLength(0);
-      const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
-      expect(record.steps).toEqual([]);
-    });
-
-    it("fails the gate when the scope provider returns non-JSON", async () => {
-      const { effect } = run({
-        steps: [diagnosticsStep("pnpm audit")],
-        scheduling: scheduling({ scopesProvider: scopesConfig }),
-        setup: (shell) => {
-          shell.impl.setResponse("pnpm audit", {
-            exitCode: 0,
-            stdout: completionDoc("wire-adapters", ["core"]),
-            stderr: "",
-          });
-          shell.impl.setResponse("scopes-provider", {
-            exitCode: 0,
-            stdout: "not json",
-            stderr: "",
-          });
-        },
-      });
-
-      const result = await Effect.runPromise(Effect.either(effect));
-
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        const err = result.left as GateFailedError;
-        expect(err.command).toBe("scopes-provider");
-        expect(err.message).toContain("invalid JSON");
-      }
-    });
-
-    it("splits a mixed document into failing invariants and pending completions", async () => {
-      const mixedDoc = JSON.stringify({
-        diagnostics: [
-          {
-            rule: "no-console",
-            class: "invariant",
-            location: { file: "src/index.ts", line: 3 },
-            message: "no console",
-            repair: "remove it",
-          },
-          {
-            rule: "wire-adapters",
-            class: "completion",
-            scopes: ["core"],
-            location: { file: "src/core/x.ts" },
-            message: "wire it",
-            repair: "wire it up",
-          },
-        ],
-      });
-
-      const { fakeFs, effect } = run({
-        steps: [diagnosticsStep("pnpm audit")],
-        scheduling: scheduling({ scopesProvider: scopesConfig }),
-        setup: (shell) => {
-          shell.impl.setResponse("pnpm audit", { exitCode: 0, stdout: mixedDoc, stderr: "" });
-          shell.impl.setResponse("scopes-provider", {
-            exitCode: 0,
-            stdout: JSON.stringify({ closed: [] }),
-            stderr: "",
-          });
-        },
-      });
-
-      const result = await Effect.runPromise(Effect.either(effect));
-
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        const err = result.left as GateFailedError;
-        expect(err.diagnostics).toHaveLength(1);
-        expect(err.diagnostics[0]?.class).toBe("invariant");
-        expect(err.pending).toHaveLength(1);
-        expect(err.pending[0]?.pending[0]?.diagnostic.rule).toBe("wire-adapters");
-      }
-      expect(fakeFs.impl.getFile(pendingPath)).toBeDefined();
-    });
-
-    it("carries earlier pending on a later plain-step failure and writes the pending file", async () => {
-      const { fakeFs, effect } = run({
-        steps: [diagnosticsStep("pnpm audit"), stepWithSurface("pnpm test", "local")],
-        scheduling: scheduling({ scopesProvider: scopesConfig }),
-        setup: (shell) => {
-          shell.impl.setResponse("pnpm audit", {
-            exitCode: 0,
-            stdout: completionDoc("wire-adapters", ["core"]),
-            stderr: "",
-          });
-          shell.impl.setResponse("scopes-provider", {
-            exitCode: 0,
-            stdout: JSON.stringify({ closed: [] }),
-            stderr: "",
-          });
-          shell.impl.setResponse("pnpm test", { exitCode: 1, stdout: "", stderr: "fail" });
-        },
-      });
-
-      const result = await Effect.runPromise(Effect.either(effect));
-
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        const err = result.left as GateFailedError;
-        expect(err.command).toBe("pnpm test");
-        expect(err.pending).toHaveLength(1);
-        expect(err.pending[0]?.command).toBe("pnpm audit");
-      }
-      expect(fakeFs.impl.getFile(pendingPath)).toBeDefined();
-    });
-
-    it("leaves pending empty for a passing plain profile", async () => {
+    it("never writes a .pending.json and records only pass or fail across attempts", async () => {
       const fakeFs = makeFakeFileSystem();
-      const fakeShell = makeFakeShell();
-      fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "", stderr: "" });
+      const answers = [
+        { diagnostics: [completion] },
+        { diagnostics: [invariant, completion] },
+        { diagnostics: [] },
+      ];
+      const results: string[] = [];
+      for (const [index, answer] of answers.entries()) {
+        const attemptLogPath = `/fake/runs/my-run/phase-01/checks-attempt-0${index + 1}.log`;
+        const { effect } = run({
+          fakeFs,
+          attemptLogPath,
+          steps: [auditStep],
+          setup: (shell) => {
+            shell.impl.setResponse("node ./audit.mjs", {
+              exitCode: 0,
+              stdout: JSON.stringify(answer),
+              stderr: "",
+            });
+          },
+        });
+        await Effect.runPromise(Effect.either(effect));
+        const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
+        results.push(...record.steps.map((step) => step.result));
+      }
 
-      const outcome = await Effect.runPromise(
-        runGates({
-          steps: steps("pnpm test"),
-          cwd,
-          scheduling: scheduling(),
-          attemptLogPath: logPath,
-        }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
-      );
+      expect(results).toEqual(["fail", "fail", "pass"]);
+      expect(
+        [...fakeFs.impl.files.keys()].filter((path) => path.endsWith(".pending.json")),
+      ).toEqual([]);
+    });
 
-      expect(outcome.pending).toEqual([]);
-      expect(fakeFs.impl.getFile(pendingPath)).toBeUndefined();
+    it("keeps the profile order, the stop at the first failure, terminal firing and attribution", async () => {
+      const profile: readonly GateStep[] = [
+        { command: "pnpm lint", surface: "local", firing: "every-phase", output: "log" },
+        auditStep,
+        { command: "pnpm test", surface: "local", firing: "every-phase", output: "log" },
+        { command: "pnpm build", surface: "product", firing: "terminal", output: "log" },
+      ];
+      expect(selectGateSteps(profile, false).map((step) => step.command)).toEqual([
+        "pnpm lint",
+        "node ./audit.mjs",
+        "pnpm test",
+      ]);
+      expect(selectGateSteps(profile, true).map((step) => step.command)).toEqual([
+        "pnpm lint",
+        "node ./audit.mjs",
+        "pnpm test",
+        "pnpm build",
+      ]);
+
+      const { fakeFs, fakeShell, effect } = run({
+        steps: selectGateSteps(profile, true),
+        setup: (shell) => {
+          shell.impl.setDefaultResponse({ exitCode: 0, stdout: "", stderr: "" });
+          shell.impl.setResponse("node ./audit.mjs", {
+            exitCode: 0,
+            stdout: JSON.stringify({ diagnostics: [completion] }),
+            stderr: "",
+          });
+        },
+      });
+
+      const result = await Effect.runPromise(Effect.either(effect));
+
+      expect(Either.isLeft(result)).toBe(true);
+      expect(fakeShell.impl.calls.map((call) => call.command.join(" "))).toEqual([
+        "pnpm lint",
+        "node ./audit.mjs",
+      ]);
+      const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
+      expect(record.steps).toEqual([
+        { command: "pnpm lint", surface: "local", result: "pass" },
+        { command: "node ./audit.mjs", surface: "structural", result: "fail" },
+      ]);
     });
   });
 });

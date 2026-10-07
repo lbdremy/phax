@@ -29,7 +29,6 @@ import {
   type WorktreePath,
 } from "../../src/domain/branded.js";
 import type { PhaxEvent } from "../../src/domain/events.js";
-import { makeScopesRequest } from "../../src/domain/plan/projection.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { RoutingResolution } from "../../src/domain/routing/types.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
@@ -214,8 +213,7 @@ approved:
 # Example spec
 `;
 
-// A gate step's stdout: one failing invariant and one completion left
-// pending while its scope is open.
+// A gate step's stdout: one invariant and one completion, both failing.
 const MIXED_DIAGNOSTICS = JSON.stringify({
   diagnostics: [
     {
@@ -228,7 +226,6 @@ const MIXED_DIAGNOSTICS = JSON.stringify({
     {
       rule: "wire-example",
       class: "completion",
-      scopes: ["later"],
       location: { file: "src/example.ts" },
       message: "the example module is not wired yet",
       repair: "wire it in a later phase",
@@ -416,27 +413,14 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     authoringKinds.set(authored.right.authoringId, format);
   }
 
-  // One gate run: attribution, diagnostics and pending documents.
+  // One gate run: attribution and diagnostics documents.
   shell.impl.setResponse("pnpm audit", { exitCode: 1, stdout: MIXED_DIAGNOSTICS, stderr: "" });
-  shell.impl.setResponse("scopes-provider", {
-    exitCode: 0,
-    stdout: JSON.stringify({ closed: [] }),
-    stderr: "",
-  });
   await run(
     runGates({
       steps: [
         { command: "pnpm audit", surface: "local", firing: "every-phase", output: "diagnostics" },
       ],
       cwd: WORKTREE,
-      scheduling: {
-        isTerminal: false,
-        scopesProvider: { command: "scopes-provider" },
-        request: makeScopesRequest(
-          [{ id: "phase-01", plannedFilesToCreate: [], plannedFilesToEdit: [] }],
-          "phase-01",
-        ),
-      },
       attemptLogPath: `${PHASE_FOLDER}/checks-attempt-01.log`,
       attributionPath: `${PHASE_FOLDER}/gate-attribution.json`,
       phaseId: "phase-01",
@@ -547,9 +531,10 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
 
 /**
  * The formats no writer produces: the old approval ledgers, read only to
- * migrate them to record files and never written again.
+ * migrate them to record files and never written again, and gate-pending,
+ * which no writer produces any more.
  */
-const NEVER_WRITTEN: ReadonlyArray<FormatId> = ["plan-approvals", "spec-approvals"];
+const NEVER_WRITTEN: ReadonlyArray<FormatId> = ["plan-approvals", "spec-approvals", "gate-pending"];
 
 describe("every persisted file phax writes", () => {
   let written: ReadonlyArray<Written> = [];

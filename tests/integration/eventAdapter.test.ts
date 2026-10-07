@@ -23,8 +23,6 @@ import {
 } from "../../src/app/eventAdapter.js";
 import type { CommitPhaseOptions } from "../../src/app/commit.js";
 import type { CleanupPhaseOptions } from "../../src/app/cleanup.js";
-import type { GateScheduling } from "../../src/app/gates.js";
-import { makeScopesRequest } from "../../src/domain/plan/projection.js";
 
 const runId = "my-run" as RunId;
 const phaseId = "phase-01" as PhaseId;
@@ -253,14 +251,6 @@ describe("adaptGateRun", () => {
   ] as const;
   const cwd = worktreePath as string;
   const logPath = `${phaseFolderPath}/checks-attempt-01.log`;
-  const scheduling: GateScheduling = {
-    isTerminal: false,
-    scopesProvider: undefined,
-    request: makeScopesRequest(
-      [{ id: phaseId as string, plannedFilesToCreate: [], plannedFilesToEdit: [] }],
-      phaseId as string,
-    ),
-  };
 
   it("all gates pass → GatePassed", async () => {
     const fakeShell = makeFakeShell();
@@ -268,14 +258,13 @@ describe("adaptGateRun", () => {
     const layer = Layer.mergeAll(fakeShell.layer, fakeFs.layer);
 
     const event = await Effect.runPromise(
-      adaptGateRun(gateSteps, cwd, logPath, scheduling, 1, base).pipe(Effect.provide(layer)),
+      adaptGateRun(gateSteps, cwd, logPath, 1, base).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("GatePassed");
     if (event.type === "GatePassed") {
       expect(event.attempt).toBe(1);
       expect(event.eventId).toBe("evt-1");
-      expect(event.pending).toEqual([]);
     }
   });
 
@@ -286,7 +275,7 @@ describe("adaptGateRun", () => {
     const layer = Layer.mergeAll(fakeShell.layer, fakeFs.layer);
 
     const event = await Effect.runPromise(
-      adaptGateRun(gateSteps, cwd, logPath, scheduling, 2, base).pipe(Effect.provide(layer)),
+      adaptGateRun(gateSteps, cwd, logPath, 2, base).pipe(Effect.provide(layer)),
     );
 
     expect(event.type).toBe("GateFailed");
@@ -296,7 +285,6 @@ describe("adaptGateRun", () => {
       expect(event.logPath).toBe(logPath);
       expect(event.attempt).toBe(2);
       expect(event.diagnostics).toEqual([]);
-      expect(event.pending).toEqual([]);
     }
   });
 });

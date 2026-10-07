@@ -46,6 +46,8 @@ import type {
   PlanDocument,
   PlanDocumentShape,
   PlanDocumentV0_17_0,
+  GateAttributionV0_17_0,
+  GateDiagnosticsV0_17_0,
   RecordManifest,
   RecordManifestFormat,
   Registry,
@@ -171,7 +173,9 @@ import type {
 } from "../../src/schemas/runRecord.js";
 import type { AuthoringRecordManifestPreSchema as FrozenAuthoringRecordManifest } from "../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import type { ComplianceReviewPreSchema as FrozenComplianceReview } from "../../src/schemas/history/compliance-review/pre-schema.js";
+import type { GateAttributionV0_17_0 as FrozenGateAttributionV0_17_0 } from "../../src/schemas/history/gate-attribution/0.17.0.js";
 import type { GateAttributionPreSchema as FrozenGateAttribution } from "../../src/schemas/history/gate-attribution/pre-schema.js";
+import type { GateDiagnosticsV0_17_0 as FrozenGateDiagnosticsV0_17_0 } from "../../src/schemas/history/gate-diagnostics/0.17.0.js";
 import type { GateDiagnosticsPreSchema as FrozenGateDiagnostics } from "../../src/schemas/history/gate-diagnostics/pre-schema.js";
 import type { GatePendingPreSchema as FrozenGatePending } from "../../src/schemas/history/gate-pending/pre-schema.js";
 import type { PhaseFileReconciliationPreSchema as FrozenPhaseFileReconciliation } from "../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
@@ -436,9 +440,9 @@ const eachShapeId: [
   Equals<PlanDocumentShape, "pre-schema" | "0.17.0" | Current<"plan-document">>,
   Equals<PhaseRecordManifestShape, "pre-schema" | Current<"phase-record-manifest">>,
   Equals<AuthoringRecordManifestShape, "pre-schema" | Current<"authoring-record-manifest">>,
-  Equals<GateAttributionShape, "pre-schema" | Current<"gate-attribution">>,
+  Equals<GateAttributionShape, "pre-schema" | "0.17.0" | Current<"gate-attribution">>,
   Equals<PhaseFileReconciliationShape, "pre-schema" | Current<"phase-file-reconciliation">>,
-  Equals<GateDiagnosticsShape, "pre-schema" | Current<"gate-diagnostics">>,
+  Equals<GateDiagnosticsShape, "pre-schema" | "0.17.0" | Current<"gate-diagnostics">>,
   Equals<GatePendingShape, "pre-schema" | Current<"gate-pending">>,
   Equals<PlanApprovalRecordShape, Current<"plan-approval-record">>,
   Equals<SpecApprovalRecordShape, Current<"spec-approval-record">>,
@@ -494,12 +498,18 @@ const parseValues: [
     Value<typeof parseAuthoringRecordManifest>,
     FrozenAuthoringRecordManifest | PhaxAuthoringRecordManifestFile
   >,
-  Equals<Value<typeof parseGateAttribution>, FrozenGateAttribution | PhaxGateAttributionFile>,
+  Equals<
+    Value<typeof parseGateAttribution>,
+    FrozenGateAttribution | FrozenGateAttributionV0_17_0 | PhaxGateAttributionFile
+  >,
   Equals<
     Value<typeof parsePhaseFileReconciliation>,
     FrozenPhaseFileReconciliation | PhaxPhaseFileReconciliationFile
   >,
-  Equals<Value<typeof parseGateDiagnostics>, FrozenGateDiagnostics | GateDiagnosticsFile>,
+  Equals<
+    Value<typeof parseGateDiagnostics>,
+    FrozenGateDiagnostics | FrozenGateDiagnosticsV0_17_0 | GateDiagnosticsFile
+  >,
   Equals<Value<typeof parseGatePending>, FrozenGatePending | GatePendingFile>,
   Equals<Value<typeof parsePlanApprovalRecord>, PhaxPlanRecordFile>,
   Equals<Value<typeof parseSpecApprovalRecord>, PhaxSpecRecordFile>,
@@ -757,7 +767,7 @@ const toLatestParameters: [
   >,
   Equals<
     Parameters<typeof toLatestGateAttribution>,
-    [value: FrozenGateAttribution | PhaxGateAttributionFile]
+    [value: FrozenGateAttribution | FrozenGateAttributionV0_17_0 | PhaxGateAttributionFile]
   >,
   Equals<
     Parameters<typeof toLatestPhaseFileReconciliation>,
@@ -765,7 +775,7 @@ const toLatestParameters: [
   >,
   Equals<
     Parameters<typeof toLatestGateDiagnostics>,
-    [value: FrozenGateDiagnostics | GateDiagnosticsFile]
+    [value: FrozenGateDiagnostics | FrozenGateDiagnosticsV0_17_0 | GateDiagnosticsFile]
   >,
   Equals<Parameters<typeof toLatestGatePending>, [value: FrozenGatePending | GatePendingFile]>,
 ] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
@@ -878,10 +888,21 @@ const gateAttributionIsPhax: Equals<GateAttribution, PhaxGateAttributionFile> = 
 const reconciliationIsPhax: Equals<PhaseFileReconciliation, PhaxPhaseFileReconciliationFile> = true;
 const gateDiagnosticsIsPhax: Equals<GateDiagnostics, GateDiagnosticsFile> = true;
 const gatePendingIsPhax: Equals<GatePending, GatePendingFile> = true;
+// A released shape that is no longer current is its frozen module's type.
+const gateAttributionV0_17_0IsFrozen: Equals<GateAttributionV0_17_0, FrozenGateAttributionV0_17_0> =
+  true;
+const gateDiagnosticsV0_17_0IsFrozen: Equals<GateDiagnosticsV0_17_0, FrozenGateDiagnosticsV0_17_0> =
+  true;
 void gateAttributionIsPhax;
 void reconciliationIsPhax;
 void gateDiagnosticsIsPhax;
 void gatePendingIsPhax;
+void gateAttributionV0_17_0IsFrozen;
+void gateDiagnosticsV0_17_0IsFrozen;
+// The current gate attribution upgrades to the latest value.
+declare const phaxGateAttribution: PhaxGateAttributionFile;
+const upgradedGateAttribution: LatestGateAttribution = toLatestGateAttribution(phaxGateAttribution);
+void upgradedGateAttribution;
 declare const phaxGateDiagnostics: GateDiagnosticsFile;
 declare const packageGateDiagnostics: GateDiagnostics;
 const gateDiagnosticsToPackage: GateDiagnostics = phaxGateDiagnostics;

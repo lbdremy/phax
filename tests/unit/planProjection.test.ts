@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  makePlanAuditRequest,
-  makeScopesRequest,
-  projectPhases,
-} from "../../src/domain/plan/projection.js";
+import { makePlanAuditRequest, projectPhases } from "../../src/domain/plan/projection.js";
 
 const phases = [
   {
@@ -61,31 +57,6 @@ describe("projectPhases", () => {
       } as unknown as (typeof phases)[number],
     ]);
     expect(projected[0]?.files).toEqual([]);
-  });
-});
-
-describe("makeScopesRequest", () => {
-  it("shapes exactly { phase, phases: [{ id, files }] }", () => {
-    const request = makeScopesRequest(phases, "phase-02");
-
-    expect(Object.keys(request).toSorted()).toEqual(["phase", "phases"]);
-    for (const phase of request.phases) {
-      expect(Object.keys(phase).toSorted()).toEqual(["files", "id"]);
-    }
-  });
-
-  it("sets phase to the gated phase id", () => {
-    const request = makeScopesRequest(phases, "phase-02");
-    expect(request.phase).toBe("phase-02");
-  });
-
-  it("carries every phase's projection regardless of the gated phase", () => {
-    const request = makeScopesRequest(phases, "phase-02");
-    expect(request.phases).toEqual([
-      { id: "phase-01", files: ["src/core/billing/port.ts"] },
-      { id: "phase-02", files: ["src/core/billing/invoice.ts"] },
-      { id: "phase-03", files: ["src/adapters/billing/stripe.ts"] },
-    ]);
   });
 });
 

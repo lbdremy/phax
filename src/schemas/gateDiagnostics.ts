@@ -20,7 +20,6 @@ export type InvariantDiagnostic = Schema.Schema.Type<typeof InvariantDiagnosticS
 
 export const CompletionDiagnosticSchema = Schema.Struct({
   class: Schema.Literal("completion"),
-  scopes: Schema.NonEmptyArray(Schema.NonEmptyString),
   ...GateDiagnosticFields,
 });
 

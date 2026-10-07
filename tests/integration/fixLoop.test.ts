@@ -8,7 +8,6 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
-import { makeScopesRequest } from "../../src/domain/plan/projection.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
 
 const runPath = "/fake/runs/my-run";
@@ -54,14 +53,6 @@ const baseOpts = {
     { command: "pnpm test", surface: "local", firing: "every-phase", output: "log" },
   ] as const,
   cwd,
-  scheduling: {
-    isTerminal: false,
-    scopesProvider: undefined,
-    request: makeScopesRequest(
-      [{ id: "phase-01", plannedFilesToCreate: [], plannedFilesToEdit: [] }],
-      "phase-01",
-    ),
-  },
   phaseFolderPath,
   sessionId,
   agentOptions: {
@@ -250,12 +241,11 @@ describe("runGatesWithFixLoop", () => {
     expect(prompt).not.toContain("## Gate output");
   });
 
-  it("splits mixed findings: the invariant fails, the open completion is pending", async () => {
+  it("feeds an invariant and a completion into the fix prompt alike, in provider order", async () => {
     const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
 
     seedStatusFiles(fakeFs);
     fakeBackend.impl.addResumeResponse(makeResumeResult());
-    const scopesConfig = { command: "scopes-provider" } as const;
     const mixedDocument = JSON.stringify({
       diagnostics: [
         {
@@ -268,89 +258,38 @@ describe("runGatesWithFixLoop", () => {
         {
           rule: "missing-wiring",
           class: "completion",
-          scopes: ["core"],
           location: { file: "src/core/billing/port.ts" },
           message: "billing port is not wired up",
           repair: "wire the port into the adapter registry",
         },
       ],
     });
-    fakeShell.impl.setResponse("pnpm audit", { exitCode: 1, stdout: mixedDocument, stderr: "" });
-    fakeShell.impl.setResponse("scopes-provider", {
-      exitCode: 0,
-      stdout: JSON.stringify({ closed: [] }),
-      stderr: "",
-    });
-
-    await Effect.runPromise(
-      Effect.either(
-        runGatesWithFixLoop({
-          ...baseOpts,
-          steps: [
-            {
-              command: "pnpm audit",
-              surface: "local",
-              firing: "every-phase",
-              output: "diagnostics",
-            },
-          ] as const,
-          scheduling: { ...baseOpts.scheduling, scopesProvider: scopesConfig },
-        }).pipe(Effect.provide(layer)),
-      ),
+    fakeShell.impl.enqueue(
+      { exitCode: 1, stdout: mixedDocument, stderr: "" },
+      { exitCode: 0, stdout: JSON.stringify({ diagnostics: [] }), stderr: "" },
     );
 
-    expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
-    const { prompt } = fakeBackend.impl.resumeCalls[0]!;
-    const diagnosticsIndex = prompt.indexOf("## Diagnostics");
-    const pendingIndex = prompt.indexOf("## Pending");
-    expect(diagnosticsIndex).toBeGreaterThan(-1);
-    expect(pendingIndex).toBeGreaterThan(diagnosticsIndex);
-    expect(prompt.slice(diagnosticsIndex, pendingIndex)).toContain("no-console");
-    expect(prompt.slice(diagnosticsIndex, pendingIndex)).not.toContain("missing-wiring");
-    expect(prompt).toContain("missing-wiring");
-    expect(prompt).toContain("not required to pass");
-  });
-
-  it("dispatches GatePassed without entering the fix loop when a step is pending-only", async () => {
-    const { layer, fakeFs, fakeShell, fakeBackend } = makeLayers();
-
-    seedStatusFiles(fakeFs);
-    const scopesConfig = { command: "scopes-provider" } as const;
-    const completionOnlyDocument = JSON.stringify({
-      diagnostics: [
-        {
-          rule: "missing-wiring",
-          class: "completion",
-          scopes: ["core"],
-          location: { file: "src/core/billing/port.ts" },
-          message: "billing port is not wired up",
-          repair: "wire the port into the adapter registry",
-        },
-      ],
-    });
-    fakeShell.impl.setResponse("pnpm audit", {
-      exitCode: 1,
-      stdout: completionOnlyDocument,
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("scopes-provider", {
-      exitCode: 0,
-      stdout: JSON.stringify({ closed: [] }),
-      stderr: "",
-    });
-
-    const outcome = await Effect.runPromise(
+    await Effect.runPromise(
       runGatesWithFixLoop({
         ...baseOpts,
         steps: [
           { command: "pnpm audit", surface: "local", firing: "every-phase", output: "diagnostics" },
         ] as const,
-        scheduling: { ...baseOpts.scheduling, scopesProvider: scopesConfig },
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(outcome.pending).toHaveLength(1);
-    expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
+    expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
+    const { prompt } = fakeBackend.impl.resumeCalls[0]!;
+    expect(prompt).toContain("**Failed step:** `pnpm audit` (2 diagnostic(s))");
+    const diagnosticsSection = prompt.slice(
+      prompt.indexOf("## Diagnostics"),
+      prompt.indexOf("## Required action"),
+    );
+    expect(diagnosticsSection.indexOf("no-console")).toBeGreaterThan(-1);
+    expect(diagnosticsSection.indexOf("missing-wiring")).toBeGreaterThan(
+      diagnosticsSection.indexOf("no-console"),
+    );
+    expect(prompt).not.toMatch(/pending|optional/i);
   });
 
   it("uses the session id from the fix result in the next gate attempt", async () => {

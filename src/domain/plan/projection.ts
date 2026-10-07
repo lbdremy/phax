@@ -5,11 +5,6 @@ export interface ProjectedPhase {
   readonly files: readonly string[];
 }
 
-export interface ScopesRequest {
-  readonly phase: string;
-  readonly phases: readonly ProjectedPhase[];
-}
-
 type ProjectablePhase = Pick<PhaxPlanPhase, "id" | "plannedFilesToCreate" | "plannedFilesToEdit">;
 
 export function projectPhases(phases: ReadonlyArray<ProjectablePhase>): readonly ProjectedPhase[] {
@@ -17,16 +12,6 @@ export function projectPhases(phases: ReadonlyArray<ProjectablePhase>): readonly
     id: phase.id,
     files: [...new Set([...phase.plannedFilesToCreate, ...phase.plannedFilesToEdit])],
   }));
-}
-
-export function makeScopesRequest(
-  phases: ReadonlyArray<ProjectablePhase>,
-  gatedPhaseId: string,
-): ScopesRequest {
-  return {
-    phase: gatedPhaseId,
-    phases: projectPhases(phases),
-  };
 }
 
 export interface PlanAuditRequest {

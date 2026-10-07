@@ -10,7 +10,12 @@ import {
   renderReleaseModule,
   sha256,
 } from "../../../packages/schemas/build/generated.js";
-import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
+import type { Schema } from "effect";
+import {
+  FORMAT_DEFINITIONS,
+  JSON_SCHEMA_FORMATS,
+  renderJsonSchemas,
+} from "../../../packages/schemas/build/jsonSchemas.js";
 import {
   currentShapeNames,
   firstSupportedRelease,
@@ -66,6 +71,29 @@ describe("schemas-check on the committed tree", () => {
     expect(readFileSync(join(repoRoot, "packages/schemas/history.lock.json"), "utf8")).toBe(
       renderLock(state.lock),
     );
+  });
+
+  it("renders each format's released shape module to its released snapshot", () => {
+    const rendered = FORMAT_IDS.flatMap((id) => {
+      const entry = JSON_SCHEMA_FORMATS.find((format) => format.format === id);
+      if (entry === undefined) throw new Error(`no JSON Schema entry for ${id}`);
+      return FORMAT_DEFINITIONS[id].releases.map(([release, shape]) => {
+        const { schema } = shape as { readonly schema: Schema.Schema.Any };
+        const { files, failures } = renderJsonSchemas([{ ...entry, schema }]);
+        expect(failures).toEqual([]);
+        return { id, release, content: files.get(entry.fileName) };
+      });
+    });
+    expect(rendered.map(({ id, release }) => `${id}/${release}`)).toEqual(
+      expect.arrayContaining(["gate-attribution/0.17.0", "gate-diagnostics/0.17.0"]),
+    );
+    for (const { id, release, content } of rendered) {
+      const snapshot = state.snapshots.get(id)?.get(`${release}.schema.json`);
+      expect(snapshot, `${id}/${release}`).toBeDefined();
+      expect(JSON.parse(content ?? "null"), `${id}/${release}`).toEqual(
+        JSON.parse(snapshot ?? "null"),
+      );
+    }
   });
 
   it("carries the root package.json version into the generated index", () => {
