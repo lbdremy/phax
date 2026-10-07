@@ -44,4 +44,9 @@ for (const filePath of tsFiles) {
   });
 }
 
-process.stdout.write(JSON.stringify({ diagnostics }) + "\n");
+process.stdout.write(
+  JSON.stringify({
+    $schema: "https://docs.phax.run/schemas/gate-diagnostics/0.19.0.json",
+    diagnostics,
+  }) + "\n",
+);

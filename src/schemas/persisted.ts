@@ -17,6 +17,9 @@
 // then stepped to the current shape. A format born with `$schema` has no
 // pre-schema decoder, so a document of it without `$schema` is refused. On the
 // way out, `withSchemaUrl` stamps the `$schema` a writer puts first.
+//
+// It also reads the one answer phax decodes with a file decoder: the
+// `gate-diagnostics` document a gate step prints (`readGateDiagnosticsAnswer`).
 import { Either, type ParseResult } from "effect";
 import {
   decodeApprovalRecordFile,
@@ -32,6 +35,7 @@ import {
 import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
 import { formatFirstViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
+import { decodeGateDiagnosticsFile, type GateDiagnosticsDocument } from "./gateDiagnostics.js";
 import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "./history/compliance-review/pre-schema.js";
 import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-schema.js";
@@ -392,6 +396,70 @@ export const readGateAttributionFile: Reader<GateAttribution> = (file, input) =>
         ? Either.right({ phase, steps })
         : Either.left({ fact: "a pass or fail result for every step" }),
   });
+
+/**
+ * The last release whose `gate-diagnostics` shape described only the file phax
+ * saves. A document a gate step prints is an answer, and its `$schema` names
+ * the answer's release: one newer than this, or the running release itself (a
+ * development build reads its own release as the next shape, as the schemas
+ * package does). A historical fact: it never moves at a release cut.
+ */
+const LAST_SAVED_FILE_ONLY_DIAGNOSTICS_RELEASE = "0.19.0";
+
+/** Why a gate step's diagnostics document was not read. */
+export type GateDiagnosticsAnswerError =
+  | { readonly kind: "malformed"; readonly reason: string }
+  | { readonly kind: "newer"; readonly message: string };
+
+function malformed(reason: string): Either.Either<never, GateDiagnosticsAnswerError> {
+  return Either.left({ kind: "malformed", reason });
+}
+
+/**
+ * Reads the parsed document a diagnostics gate step printed. Never throws. In
+ * order:
+ * 1. a non-object is malformed;
+ * 2. a document without its own `$schema` key is malformed: there is no
+ *    unversioned reading;
+ * 3. a `$schema` that is not a `gate-diagnostics` schema URL is malformed;
+ * 4. a release newer than `PHAX_RELEASE` is refused as `newer`, by name;
+ * 5. a release that is neither the running one nor newer than
+ *    `LAST_SAVED_FILE_ONLY_DIAGNOSTICS_RELEASE` is malformed;
+ * 6. a document the file decoder rejects is malformed, with the first
+ *    violation.
+ * The decoded document keeps only `diagnostics`: `$schema` and any extra key
+ * are dropped.
+ */
+export function readGateDiagnosticsAnswer(
+  input: unknown,
+): Either.Either<GateDiagnosticsDocument, GateDiagnosticsAnswerError> {
+  if (!isDocumentObject(input)) return malformed("the document is not a JSON object");
+  if (!Object.hasOwn(input, "$schema")) return malformed("the document has no $schema");
+  const named = parseSchemaUrl(input["$schema"]);
+  if (named === undefined || named.formatId !== "gate-diagnostics") {
+    return malformed(`$schema ${JSON.stringify(input["$schema"])} does not name gate-diagnostics`);
+  }
+  const { release } = named;
+  if (compareReleases(release, PHAX_RELEASE) > 0) {
+    return Either.left({
+      kind: "newer",
+      message: `gate-diagnostics ${release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+    });
+  }
+  if (
+    release !== PHAX_RELEASE &&
+    compareReleases(release, LAST_SAVED_FILE_ONLY_DIAGNOSTICS_RELEASE) <= 0
+  ) {
+    return malformed(
+      `gate-diagnostics ${release} names the saved file's shape, not a gate step's document`,
+    );
+  }
+  const decoded = decodeGateDiagnosticsFile(input);
+  if (Either.isLeft(decoded)) {
+    return malformed(`schema mismatch: ${formatFirstViolation(decoded.left)}`);
+  }
+  return Either.right({ diagnostics: decoded.right.diagnostics });
+}
 
 /**
  * Reads a phase's `file-reconciliation.json`. It never carried a `version`:

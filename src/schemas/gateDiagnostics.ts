@@ -38,14 +38,11 @@ export const GateDiagnosticsDocumentSchema = Schema.Struct({
 
 export type GateDiagnosticsDocument = Schema.Schema.Type<typeof GateDiagnosticsDocumentSchema>;
 
-// The document a gate step prints on stdout: decoded with this contract, never through the bridge.
-export const decodeGateDiagnosticsDocument = Schema.decodeUnknownEither(
-  GateDiagnosticsDocumentSchema,
-);
-
 /**
- * An attempt's `.diagnostics.json` as phax writes it: `$schema` first, then the
- * stdout contract's fields. Unknown keys are ignored.
+ * A `gate-diagnostics` document: `$schema` first, then the findings. It is both
+ * what a gate step prints on stdout, read through the bridge's
+ * `readGateDiagnosticsAnswer`, and an attempt's `.diagnostics.json` as phax
+ * writes it. Unknown keys are ignored.
  */
 export const GateDiagnosticsFileSchema = Schema.Struct({
   $schema: schemaUrlField("gate-diagnostics"),
@@ -56,5 +53,3 @@ export type GateDiagnosticsFile = Schema.Schema.Type<typeof GateDiagnosticsFileS
 
 export const decodeGateDiagnosticsFile = Schema.decodeUnknownEither(GateDiagnosticsFileSchema);
 export const encodeGateDiagnosticsFile = Schema.encodeSync(GateDiagnosticsFileSchema);
-// The stdout contract, without `$schema`: the pre-schema file shape.
-export const encodeGateDiagnosticsDocument = Schema.encodeSync(GateDiagnosticsDocumentSchema);

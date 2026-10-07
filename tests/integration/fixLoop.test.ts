@@ -9,6 +9,12 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+
+// The $schema a diagnostics step prints: gate-diagnostics at the running release.
+const diagnosticsSchema = schemaUrl("gate-diagnostics", PHAX_RELEASE);
+const noDiagnostics = JSON.stringify({ $schema: diagnosticsSchema, diagnostics: [] });
 
 const runPath = "/fake/runs/my-run";
 const cwd = "/fake/worktrees/my-run/phase-01";
@@ -210,6 +216,7 @@ describe("runGatesWithFixLoop", () => {
     seedStatusFiles(fakeFs);
     fakeBackend.impl.addResumeResponse(makeResumeResult());
     const diagnosticsDocument = JSON.stringify({
+      $schema: diagnosticsSchema,
       diagnostics: [
         {
           rule: "no-console",
@@ -222,7 +229,7 @@ describe("runGatesWithFixLoop", () => {
     });
     fakeShell.impl.enqueue(
       { exitCode: 1, stdout: diagnosticsDocument, stderr: "" },
-      { exitCode: 0, stdout: JSON.stringify({ diagnostics: [] }), stderr: "" },
+      { exitCode: 0, stdout: noDiagnostics, stderr: "" },
     );
 
     await Effect.runPromise(
@@ -247,6 +254,7 @@ describe("runGatesWithFixLoop", () => {
     seedStatusFiles(fakeFs);
     fakeBackend.impl.addResumeResponse(makeResumeResult());
     const mixedDocument = JSON.stringify({
+      $schema: diagnosticsSchema,
       diagnostics: [
         {
           rule: "no-console",
@@ -266,7 +274,7 @@ describe("runGatesWithFixLoop", () => {
     });
     fakeShell.impl.enqueue(
       { exitCode: 1, stdout: mixedDocument, stderr: "" },
-      { exitCode: 0, stdout: JSON.stringify({ diagnostics: [] }), stderr: "" },
+      { exitCode: 0, stdout: noDiagnostics, stderr: "" },
     );
 
     await Effect.runPromise(

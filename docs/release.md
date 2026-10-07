@@ -78,6 +78,7 @@ The version must be `MAJOR.MINOR.PATCH` and newer than the current one — pre-r
    - renames every `packages/schemas/snapshots/<format id>/next.schema.json` to `<version>.schema.json`, so each format's current shape is named by the release;
    - regenerates `PACKAGE_VERSION`, `FIRST_SUPPORTED_RELEASE` and `CURRENT_SHAPES` (`packages/schemas/src/generated/index.ts`) and `src/schemas/release.ts`;
    - appends the new version to the release ledger `packages/schemas/releases.json`, which the docs site reads to serve every release's schemas;
+   - rewrites the one `gate-diagnostics` `$schema` literal that `examples/hello-world/audit.mjs` prints to the new version, so the example's document names the release that reads it. The cut refuses, before writing anything, when that file is missing or holds a number of such literals other than one;
 2. regenerates the usage spec and the CLI docs;
 3. stages exactly the paths the cut changed (renames included) and the regenerated files, and commits `chore: release v1.2.3`;
 4. creates the signed tag `v1.2.3` and pushes the commit and the tag.

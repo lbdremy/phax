@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, cpSync, readFileSync, readdirSyn
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Either } from "effect";
-import { decodeGateDiagnosticsDocument } from "../../src/schemas/gateDiagnostics.js";
+import { readGateDiagnosticsAnswer } from "../../src/schemas/persisted.js";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 import { decodeScopesResponse } from "../../src/schemas/scopes.js";
 import { decodePlanAuditResponse } from "../../src/schemas/planAudit.js";
@@ -36,17 +36,17 @@ function runScript(
 describe("examples/hello-world audit provider", () => {
   const auditScript = join(exampleDir, "audit.mjs");
 
-  it("decodes an empty diagnostics list on the example tree (no src/ node: imports)", () => {
+  // Read as phax reads a gate step's document: accepted means the example's
+  // stamp names an answer release this build reads.
+  it("prints an empty diagnostics list on the example tree (no src/ node: imports)", () => {
     const { stdout, status } = runScript(auditScript, "", exampleDir);
     expect(status).toBe(0);
-    const result = decodeGateDiagnosticsDocument(JSON.parse(stdout));
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.diagnostics).toHaveLength(0);
-    }
+    expect(readGateDiagnosticsAnswer(JSON.parse(stdout))).toEqual(
+      Either.right({ diagnostics: [] }),
+    );
   });
 
-  it("reports HW_NO_IO for a node: import in a temp copy with a violating file", () => {
+  it("reports one HW_NO_IO invariant for a node: import in a temp copy with a violating file", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "phax-hw-"));
     cpSync(exampleDir, tmpDir, { recursive: true });
     mkdirSync(join(tmpDir, "src"), { recursive: true });
@@ -54,14 +54,14 @@ describe("examples/hello-world audit provider", () => {
 
     const { stdout, status } = runScript(auditScript, "", tmpDir);
     expect(status).toBe(0);
-    const result = decodeGateDiagnosticsDocument(JSON.parse(stdout));
+    const result = readGateDiagnosticsAnswer(JSON.parse(stdout));
     expect(Either.isRight(result)).toBe(true);
     if (Either.isRight(result)) {
-      const diags = result.right.diagnostics;
-      expect(diags.length).toBeGreaterThanOrEqual(1);
-      const d = diags[0]!;
-      expect(d.rule).toBe("HW_NO_IO");
-      expect(d.location.line).toBeGreaterThan(0);
+      const [finding, ...rest] = result.right.diagnostics;
+      expect(rest).toEqual([]);
+      expect(finding?.rule).toBe("HW_NO_IO");
+      expect(finding?.class).toBe("invariant");
+      expect(finding?.location).toEqual({ file: "src/x.ts", line: 1 });
     }
   });
 });

@@ -9,6 +9,8 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { Surface } from "../../src/schemas/surface.js";
 import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
+import { decodeGateDiagnosticsFile } from "../../src/schemas/gateDiagnostics.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 // The release phax stamps: the root package.json version, read here rather
@@ -42,6 +44,14 @@ function diagnosticsStep(command: string): GateStep {
 }
 
 const diagnosticsPath = "/fake/runs/my-run/phase-01/checks-attempt-01.diagnostics.json";
+
+/** The document a diagnostics step prints: `$schema` naming gate-diagnostics at `release`. */
+function printed(diagnostics: ReadonlyArray<object>, release: string = PHAX_RELEASE): string {
+  return JSON.stringify({ $schema: schemaUrl("gate-diagnostics", release), diagnostics });
+}
+
+// The expected document every malformed-answer error states, verbatim.
+const expectedDocument = `expected {"$schema": "${schemaUrl("gate-diagnostics", PHAX_RELEASE)}", "diagnostics": [{"rule", "class": "invariant"|"completion", "location": {"file", "line"?}, "message", "repair"}]} on stdout`;
 
 describe("runGates", () => {
   it("succeeds when all commands exit 0", async () => {
@@ -273,17 +283,14 @@ describe("runGates", () => {
   });
 
   describe("diagnostics output", () => {
-    const oneDiagnostic = JSON.stringify({
-      diagnostics: [
-        {
-          rule: "no-console",
-          class: "invariant",
-          location: { file: "src/index.ts", line: 12 },
-          message: "Unexpected console statement",
-          repair: "Remove the console.log call",
-        },
-      ],
-    });
+    const consoleFinding = {
+      rule: "no-console",
+      class: "invariant",
+      location: { file: "src/index.ts", line: 12 },
+      message: "Unexpected console statement",
+      repair: "Remove the console.log call",
+    } as const;
+    const oneDiagnostic = printed([consoleFinding]);
 
     it("fails a non-empty document whatever the exit code and persists it", async () => {
       const fakeFs = makeFakeFileSystem();
@@ -318,16 +325,13 @@ describe("runGates", () => {
       const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
       expect(record.steps).toEqual([{ command: "pnpm audit", surface: "local", result: "fail" }]);
 
-      // The step's stdout carries no $schema and is still accepted; the file
-      // phax writes from it starts with $schema.
-      expect(JSON.parse(oneDiagnostic)).not.toHaveProperty("$schema");
       const doc = fakeFs.impl.getFile(diagnosticsPath);
       expect(doc).toBeDefined();
       const written = JSON.parse(doc!) as Record<string, unknown>;
       expect(Object.keys(written)[0]).toBe("$schema");
       expect(written).toEqual({
         $schema: schemaUrl("gate-diagnostics", rootVersion),
-        ...(JSON.parse(oneDiagnostic) as object),
+        diagnostics: [consoleFinding],
       });
     });
 
@@ -336,7 +340,7 @@ describe("runGates", () => {
       const fakeShell = makeFakeShell();
       fakeShell.impl.setResponse("pnpm audit", {
         exitCode: 0,
-        stdout: JSON.stringify({ diagnostics: [] }),
+        stdout: printed([]),
         stderr: "",
       });
 
@@ -361,7 +365,7 @@ describe("runGates", () => {
       const fakeShell = makeFakeShell();
       fakeShell.impl.setResponse("pnpm audit", {
         exitCode: 2,
-        stdout: JSON.stringify({ diagnostics: [] }),
+        stdout: printed([]),
         stderr: "",
       });
 
@@ -435,7 +439,10 @@ describe("runGates", () => {
       const fakeShell = makeFakeShell();
       fakeShell.impl.setResponse("pnpm audit", {
         exitCode: 0,
-        stdout: JSON.stringify({ wrong: "shape" }),
+        stdout: JSON.stringify({
+          $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
+          wrong: "shape",
+        }),
         stderr: "",
       });
 
@@ -467,6 +474,136 @@ describe("runGates", () => {
       expect(fakeFs.impl.getFile(diagnosticsPath)).toBeUndefined();
       const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
       expect(record.steps).toEqual([{ command: "pnpm audit", surface: "local", result: "fail" }]);
+    });
+  });
+
+  describe("the versioned document", () => {
+    const cycle = {
+      rule: "no-cycles",
+      class: "invariant",
+      location: { file: "src/example/a.ts", line: 2 },
+      message: "a imports b, which imports a",
+      repair: "move the shared type into its own module",
+    } as const;
+
+    async function gate(
+      stdout: string,
+      exitCode = 0,
+      gateSteps: readonly GateStep[] = [diagnosticsStep("node ./audit.mjs")],
+    ) {
+      const fakeFs = makeFakeFileSystem();
+      const fakeShell = makeFakeShell();
+      fakeShell.impl.setResponse("node ./audit.mjs", { exitCode, stdout, stderr: "" });
+      const result = await Effect.runPromise(
+        Effect.either(
+          runGates({
+            steps: gateSteps,
+            cwd,
+            attemptLogPath: logPath,
+            attributionPath,
+            phaseId,
+          }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+        ),
+      );
+      const attribution = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
+      return {
+        result,
+        error: Either.isLeft(result) ? (result.left as GateFailedError) : undefined,
+        log: fakeFs.impl.getFile(logPath)!,
+        saved: fakeFs.impl.getFile(diagnosticsPath),
+        results: attribution.steps.map((step) => step.result),
+      };
+    }
+
+    it("passes an empty list at the running release on exit 0", async () => {
+      const { result, saved, results } = await gate(printed([]));
+      expect(Either.isRight(result)).toBe(true);
+      expect(saved).toBeUndefined();
+      expect(results).toEqual(["pass"]);
+    });
+
+    it("treats an empty list at the running release on a non-zero exit as a provider error", async () => {
+      const { error, saved, results } = await gate(printed([]), 1);
+      expect(error?.message).toBe('Gate step "node ./audit.mjs" exited 1 with no diagnostics');
+      expect(error?.diagnostics).toEqual([]);
+      expect(saved).toBeUndefined();
+      expect(results).toEqual(["fail"]);
+    });
+
+    it("states the expected document, with the running release, when stdout is not JSON", async () => {
+      const { error, log, saved, results } = await gate("not json");
+      expect(error?.message).toContain(
+        "declared diagnostics output but returned none: invalid JSON",
+      );
+      expect(error?.message).toContain(expectedDocument);
+      expect(log).toContain(`provider error: step declared diagnostics output but returned none`);
+      expect(log).toContain(expectedDocument);
+      expect(saved).toBeUndefined();
+      expect(results).toEqual(["fail"]);
+    });
+
+    it.each([
+      ["no $schema", JSON.stringify({ diagnostics: [] })],
+      [
+        "a gate-attribution $schema",
+        JSON.stringify({ $schema: schemaUrl("gate-attribution", PHAX_RELEASE), diagnostics: [] }),
+      ],
+      ["a gate-diagnostics 0.18.0 $schema", printed([], "0.18.0")],
+    ])("fails a document with %s as malformed", async (_name, stdout) => {
+      const { error, saved, results } = await gate(stdout);
+      expect(error).toBeInstanceOf(GateFailedError);
+      expect(error?.message).toContain("declared diagnostics output but returned none");
+      expect(error?.message.endsWith(expectedDocument)).toBe(true);
+      expect(error?.diagnostics).toEqual([]);
+      expect(saved).toBeUndefined();
+      expect(results).toEqual(["fail"]);
+    });
+
+    it("refuses a newer release by name and lists none of its findings", async () => {
+      const { error, log, saved, results } = await gate(printed([cycle], "99.0.0"), 1);
+      const refusal = `gate-diagnostics 99.0.0 is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`;
+      expect(error?.message).toContain(refusal);
+      expect(error?.diagnostics).toEqual([]);
+      expect(log).toContain(`provider error: ${refusal}`);
+      expect(saved).toBeUndefined();
+      expect(results).toEqual(["fail"]);
+    });
+
+    it("keeps the print verbatim in the log and re-stamps the saved file", async () => {
+      const print = JSON.stringify({
+        $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
+        diagnostics: [cycle],
+        generator: "audit.mjs",
+      });
+      const { error, log, saved } = await gate(print, 1);
+      expect(error?.diagnostics).toEqual([cycle]);
+      expect(log.split("\n")).toContain(print);
+      const file = JSON.parse(saved!) as Record<string, unknown>;
+      expect(Object.keys(file)).toEqual(["$schema", "diagnostics"]);
+      expect(file).toEqual({
+        $schema: schemaUrl("gate-diagnostics", rootVersion),
+        diagnostics: [cycle],
+      });
+    });
+
+    it("fails a stamped completion finding on a non-terminal phase and saves the current shape", async () => {
+      const completion = {
+        rule: "wire-adapters",
+        class: "completion",
+        location: { file: "src/example/b.ts" },
+        message: "the adapter is not wired",
+        repair: "wire it up",
+      } as const;
+      const nonTerminal = selectGateSteps([diagnosticsStep("node ./audit.mjs")], false);
+      const { error, saved, results } = await gate(printed([completion]), 0, nonTerminal);
+      expect(error?.diagnostics).toEqual([completion]);
+      expect(results).toEqual(["fail"]);
+      expect(decodeGateDiagnosticsFile(JSON.parse(saved!))).toEqual(
+        Either.right({
+          $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
+          diagnostics: [completion],
+        }),
+      );
     });
   });
 
@@ -519,7 +656,7 @@ describe("runGates", () => {
         setup: (shell) => {
           shell.impl.setResponse("node ./audit.mjs", {
             exitCode: 0,
-            stdout: JSON.stringify({ diagnostics: [completion] }),
+            stdout: printed([completion]),
             stderr: "",
           });
         },
@@ -552,7 +689,7 @@ describe("runGates", () => {
             setup: (shell) => {
               shell.impl.setResponse("node ./audit.mjs", {
                 exitCode: 1,
-                stdout: JSON.stringify({ diagnostics: [completion, invariant] }),
+                stdout: printed([completion, invariant]),
                 stderr: "",
               });
             },
@@ -589,7 +726,7 @@ describe("runGates", () => {
           shell.impl.setResponse("pnpm test", { exitCode: 0, stdout: "ok", stderr: "" });
           shell.impl.setResponse("node ./audit.mjs", {
             exitCode: 0,
-            stdout: JSON.stringify({ diagnostics: [] }),
+            stdout: printed([]),
             stderr: "",
           });
         },
@@ -611,11 +748,7 @@ describe("runGates", () => {
 
     it("never writes a .pending.json and records only pass or fail across attempts", async () => {
       const fakeFs = makeFakeFileSystem();
-      const answers = [
-        { diagnostics: [completion] },
-        { diagnostics: [invariant, completion] },
-        { diagnostics: [] },
-      ];
+      const answers = [[completion], [invariant, completion], []];
       const results: string[] = [];
       for (const [index, answer] of answers.entries()) {
         const attemptLogPath = `/fake/runs/my-run/phase-01/checks-attempt-0${index + 1}.log`;
@@ -626,7 +759,7 @@ describe("runGates", () => {
           setup: (shell) => {
             shell.impl.setResponse("node ./audit.mjs", {
               exitCode: 0,
-              stdout: JSON.stringify(answer),
+              stdout: printed(answer),
               stderr: "",
             });
           },
@@ -667,7 +800,7 @@ describe("runGates", () => {
           shell.impl.setDefaultResponse({ exitCode: 0, stdout: "", stderr: "" });
           shell.impl.setResponse("node ./audit.mjs", {
             exitCode: 0,
-            stdout: JSON.stringify({ diagnostics: [completion] }),
+            stdout: printed([completion]),
             stderr: "",
           });
         },
