@@ -46,6 +46,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { PHAX_RELEASE } from "../../src/schemas/release.js";
 import { FORMAT_IDS, schemaUrl, type FormatId } from "../../src/schemas/schemaUrl.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 
@@ -213,8 +214,10 @@ approved:
 # Example spec
 `;
 
-// A gate step's stdout: one invariant and one completion, both failing.
+// A gate step's stdout, stamped at the running release: one invariant and one
+// completion, both failing.
 const MIXED_DIAGNOSTICS = JSON.stringify({
+  $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
   diagnostics: [
     {
       rule: "no-io-in-domain",

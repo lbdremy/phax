@@ -10,7 +10,7 @@ import {
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
-import { decodeGateDiagnosticsDocument } from "../../../src/schemas/gateDiagnostics.js";
+import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
 import { decodeAuthoringRecordManifestPreSchema } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import { decodeGateAttributionPreSchema } from "../../../src/schemas/history/gate-attribution/pre-schema.js";
@@ -69,7 +69,7 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "authoring-record-manifest": decodeAuthoringRecordManifestFile,
   "gate-attribution": decodeGateAttributionFile,
   "phase-file-reconciliation": decodePhaseFileReconciliationFile,
-  "gate-diagnostics": decodeGateDiagnosticsDocument,
+  "gate-diagnostics": decodeGateDiagnosticsFile,
   "spec-document": decodeSpecDocumentFile,
   "plan-document": decodePlanDocumentFile,
   "plan-approval-record": decodePlanRecordFile,

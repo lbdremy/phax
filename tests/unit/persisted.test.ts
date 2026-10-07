@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   readComplianceReviewFile,
   readGateAttributionFile,
+  readGateDiagnosticsAnswer,
   readPersisted,
   readPhaseFileReconciliationFile,
   readPhaxPlanFile,
@@ -18,6 +19,7 @@ import {
   readSpecDocumentFile,
   readSpecRecordFile,
   withSchemaUrl,
+  type GateDiagnosticsAnswerError,
   type MissingFact,
   type PersistedReadError,
   type PersistedSpec,
@@ -540,5 +542,69 @@ describe("documents from another release", () => {
       format: id,
       message: `${file}: ${label} written by phax ${release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
     });
+  });
+});
+
+function refusal(input: unknown): GateDiagnosticsAnswerError {
+  const result = readGateDiagnosticsAnswer(input);
+  if (Either.isRight(result)) throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
+  return result.left;
+}
+
+describe("readGateDiagnosticsAnswer", () => {
+  const invariant = {
+    rule: "no-cycles",
+    class: "invariant",
+    location: { file: "src/example/a.ts", line: 4 },
+    message: "a imports b, which imports a",
+    repair: "move the shared type into its own module",
+  } as const;
+
+  const [major, minor, patch] = PHAX_RELEASE.split(".").map(Number) as [number, number, number];
+
+  it("decodes a document at the running release and drops $schema and extra keys", () => {
+    const result = readGateDiagnosticsAnswer({
+      $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
+      diagnostics: [invariant],
+      generator: "example-audit",
+    });
+    expect(result).toEqual(Either.right({ diagnostics: [invariant] }));
+  });
+
+  it("refuses a newer release by name", () => {
+    const newer = `${major}.${minor}.${patch + 1}`;
+    expect(
+      refusal({ $schema: schemaUrl("gate-diagnostics", newer), diagnostics: [invariant] }),
+    ).toEqual({
+      kind: "newer",
+      message: `gate-diagnostics ${newer} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+    });
+  });
+
+  it.each([
+    ["no $schema", { diagnostics: [] }],
+    [
+      "a gate-attribution URL",
+      { $schema: schemaUrl("gate-attribution", PHAX_RELEASE), diagnostics: [] },
+    ],
+    ["a malformed URL", { $schema: "https://example.com/gate-diagnostics.json", diagnostics: [] }],
+    ["the 0.18.0 release", { $schema: schemaUrl("gate-diagnostics", "0.18.0"), diagnostics: [] }],
+    [
+      "a schema violation",
+      {
+        $schema: schemaUrl("gate-diagnostics", PHAX_RELEASE),
+        diagnostics: [{ ...invariant, class: "warning" }],
+      },
+    ],
+  ])("refuses %s as malformed", (_name, input) => {
+    const error = refusal(input);
+    expect(error.kind).toBe("malformed");
+    expect(error.kind === "malformed" ? error.reason : "").not.toBe("");
+  });
+
+  it("refuses a non-object as malformed and never throws", () => {
+    for (const value of [null, undefined, 3, "text", ["a"], { $schema: 4 }]) {
+      expect(refusal(value).kind).toBe("malformed");
+    }
   });
 });

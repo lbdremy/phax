@@ -4,24 +4,27 @@ import type { GateStep, ResolvedConfig } from "../schemas/phaxConfig.js";
 import { GateFailedError } from "../domain/errors.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import { readRunStatusFile, withSchemaUrl } from "../schemas/persisted.js";
+import {
+  readGateDiagnosticsAnswer,
+  readRunStatusFile,
+  withSchemaUrl,
+} from "../schemas/persisted.js";
 import { encodeRunStatus } from "../schemas/status.js";
 import { encodeGateAttributionFile, type GateStepResult } from "../schemas/gateAttribution.js";
 import {
-  decodeGateDiagnosticsDocument,
   encodeGateDiagnosticsFile,
   type GateDiagnostic,
   type GateDiagnosticsDocument,
 } from "../schemas/gateDiagnostics.js";
-import { formatParseError } from "../schemas/formatError.js";
+import { PHAX_RELEASE } from "../schemas/release.js";
+import { schemaUrl } from "../schemas/schemaUrl.js";
 import { diagnosticsPathFor } from "../domain/gate/diagnosticsPath.js";
 
 export interface GateOutcome {
   readonly attemptLogPath: string;
 }
 
-const DIAGNOSTICS_EXPECTED_SHAPE =
-  ' — expected {"diagnostics": [{"rule", "class": "invariant"|"completion", "location": {"file", "line"?}, "message", "repair"}]} on stdout';
+const DIAGNOSTICS_EXPECTED_SHAPE = ` — expected {"$schema": "${schemaUrl("gate-diagnostics", PHAX_RELEASE)}", "diagnostics": [{"rule", "class": "invariant"|"completion", "location": {"file", "line"?}, "message", "repair"}]} on stdout`;
 
 export function resolveGateProfile(
   config: ResolvedConfig,
@@ -102,10 +105,15 @@ export function runGates(
       return Effect.gen(function* () {
         yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
         if (params.document !== undefined) {
+          // phax's own write under the running release, from the decoded
+          // findings only: never the printed document, whose release and extra
+          // keys stay in the log.
           yield* fs.writeAtomic(
             diagnosticsPathFor(attemptLogPath),
             JSON.stringify(
-              encodeGateDiagnosticsFile(withSchemaUrl("gate-diagnostics", params.document)),
+              encodeGateDiagnosticsFile(
+                withSchemaUrl("gate-diagnostics", { diagnostics: params.document.diagnostics }),
+              ),
               null,
               2,
             ),
@@ -138,43 +146,47 @@ export function runGates(
       logLines.push("");
 
       if (step.output === "diagnostics") {
-        // The step promised a diagnostics document on stdout. Decode it; the
-        // verdict comes from the document, not the exit code.
+        // The step promised a versioned diagnostics document on stdout. Read it
+        // through the bridge; the verdict comes from the document, not the
+        // exit code.
+        function returnedNone(reason: string) {
+          logLines.push(
+            `provider error: step declared diagnostics output but returned none: ${reason}${DIAGNOSTICS_EXPECTED_SHAPE}`,
+          );
+          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+          return failGate({
+            rawCommand,
+            exitCode: result.exitCode,
+            message: `Gate step "${rawCommand}" declared diagnostics output but returned none: ${reason}${DIAGNOSTICS_EXPECTED_SHAPE}`,
+            diagnostics: [],
+            stderr: result.stderr,
+          });
+        }
+
         let parsed: unknown;
         try {
           parsed = JSON.parse(result.stdout) as unknown;
         } catch (cause) {
-          const reason = `invalid JSON: ${cause instanceof Error ? cause.message : String(cause)}`;
-          logLines.push(
-            `provider error: step declared diagnostics output but returned none: ${reason}${DIAGNOSTICS_EXPECTED_SHAPE}`,
+          return yield* returnedNone(
+            `invalid JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
           );
+        }
+
+        const answer = readGateDiagnosticsAnswer(parsed);
+        if (Either.isLeft(answer)) {
+          if (answer.left.kind === "malformed") return yield* returnedNone(answer.left.reason);
+          logLines.push(`provider error: ${answer.left.message}`);
           stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
           return yield* failGate({
             rawCommand,
             exitCode: result.exitCode,
-            message: `Gate step "${rawCommand}" declared diagnostics output but returned none: ${reason}${DIAGNOSTICS_EXPECTED_SHAPE}`,
+            message: `Gate step "${rawCommand}": ${answer.left.message}`,
             diagnostics: [],
             stderr: result.stderr,
           });
         }
 
-        const decoded = decodeGateDiagnosticsDocument(parsed);
-        if (Either.isLeft(decoded)) {
-          const reason = `schema mismatch: ${formatParseError(decoded.left)}`;
-          logLines.push(
-            `provider error: step declared diagnostics output but returned none: ${reason}${DIAGNOSTICS_EXPECTED_SHAPE}`,
-          );
-          stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
-          return yield* failGate({
-            rawCommand,
-            exitCode: result.exitCode,
-            message: `Gate step "${rawCommand}" declared diagnostics output but returned none: ${reason}${DIAGNOSTICS_EXPECTED_SHAPE}`,
-            diagnostics: [],
-            stderr: result.stderr,
-          });
-        }
-
-        const document = decoded.right;
+        const document = answer.right;
 
         if (document.diagnostics.length === 0) {
           if (result.exitCode === 0) {

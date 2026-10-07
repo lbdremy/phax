@@ -50,6 +50,7 @@ const COPIED_FILES = [
   "packages/schemas/package.json",
   "packages/schemas/history.lock.json",
   "packages/schemas/releases.json",
+  "examples/hello-world/audit.mjs",
 ];
 const COPIED_DIRS = ["src", "packages/schemas/snapshots", "packages/schemas/src"];
 const MANIFESTS = ["package.json", "npm/package.json", "packages/schemas/package.json"];
@@ -57,6 +58,7 @@ const GENERATED_INDEX = "packages/schemas/src/generated/index.ts";
 const RELEASE_MODULE = "src/schemas/release.ts";
 const LOCK = "packages/schemas/history.lock.json";
 const LEDGER = "packages/schemas/releases.json";
+const EXAMPLE_AUDIT = "examples/hello-world/audit.mjs";
 /** Every path the cut could touch, as files or directories. */
 const CUT_SCOPE = [
   ...MANIFESTS,
@@ -65,7 +67,13 @@ const CUT_SCOPE = [
   RELEASE_MODULE,
   LOCK,
   LEDGER,
+  EXAMPLE_AUDIT,
 ];
+
+/** The gate-diagnostics `$schema` literal the example audit prints at `release`. */
+function exampleStamp(release: string): string {
+  return `"${schemaUrl("gate-diagnostics", release)}"`;
+}
 
 function ledgerOf(root: string): ReadonlyArray<string> {
   return (JSON.parse(readFileSync(join(root, LEDGER), "utf8")) as { releases: string[] }).releases;
@@ -243,8 +251,9 @@ describe("cutRelease on a copy of the tree", () => {
 
     const after = hashTree(copy, ["."]);
     expect(differences(before, after)).toEqual(
-      [...MANIFESTS, GENERATED_INDEX, RELEASE_MODULE, LEDGER].toSorted(),
+      [...MANIFESTS, GENERATED_INDEX, RELEASE_MODULE, LEDGER, EXAMPLE_AUDIT].toSorted(),
     );
+    expect(readFileSync(join(copy, EXAMPLE_AUDIT), "utf8")).toContain(exampleStamp(Y));
     expect(ledgerOf(copy).slice(-2)).toEqual([X, Y]);
     expect(changed).toEqual(differences(before, after));
     for (const manifest of MANIFESTS) expect(versionOf(copy, manifest)).toBe(Y);
@@ -270,7 +279,43 @@ describe("cutRelease on a copy of the tree", () => {
     expect(changed).toContain(LEDGER);
   });
 
+  it(`rewrites the example audit's stamp to ${X}, keeping every other byte, and reports it`, () => {
+    const before = readFileSync(join(copy, EXAMPLE_AUDIT), "utf8");
+    expect(before).toContain(exampleStamp(rootVersion));
+
+    const { changed } = cutRelease(copy, X);
+
+    expect(readFileSync(join(copy, EXAMPLE_AUDIT), "utf8")).toBe(
+      before.replace(exampleStamp(rootVersion), exampleStamp(X)),
+    );
+    expect(changed).toContain(EXAMPLE_AUDIT);
+  });
+
   describe("refuses before writing anything", () => {
+    it("a missing example audit", () => {
+      rmSync(join(copy, EXAMPLE_AUDIT));
+      const before = hashTree(copy, ["."]);
+      expect(() => cutRelease(copy, X)).toThrow(`${EXAMPLE_AUDIT} is missing — nothing cut`);
+      expect(hashTree(copy, ["."])).toEqual(before);
+    });
+
+    it.each([
+      ["without a stamp", (content: string) => content.replace(exampleStamp(rootVersion), '""'), 0],
+      [
+        "with a duplicated stamp",
+        (content: string) => `${content}// ${exampleStamp(rootVersion)}\n`,
+        2,
+      ],
+    ])("an example audit %s", (_label, edit, found) => {
+      const path = join(copy, EXAMPLE_AUDIT);
+      writeFileSync(path, edit(readFileSync(path, "utf8")));
+      const before = hashTree(copy, ["."]);
+      expect(() => cutRelease(copy, X)).toThrow(
+        `${EXAMPLE_AUDIT} must hold exactly one gate-diagnostics $schema literal, found ${found} — nothing cut`,
+      );
+      expect(hashTree(copy, ["."])).toEqual(before);
+    });
+
     it("a missing release ledger", () => {
       rmSync(join(copy, LEDGER));
       const before = hashTree(copy, ["."]);
