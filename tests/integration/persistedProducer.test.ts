@@ -267,7 +267,6 @@ function formatAt(
   if (name === "gate-attribution.json") return "gate-attribution";
   if (name === "file-reconciliation.json") return "phase-file-reconciliation";
   if (name.endsWith(".diagnostics.json")) return "gate-diagnostics";
-  if (name.endsWith(".pending.json")) return "gate-pending";
   if (name === "record.json") {
     return location.includes("authoring/") ? "authoring-record-manifest" : "phase-record-manifest";
   }
@@ -531,10 +530,9 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
 
 /**
  * The formats no writer produces: the old approval ledgers, read only to
- * migrate them to record files and never written again, and gate-pending,
- * which no writer produces any more.
+ * migrate them to record files and never written again.
  */
-const NEVER_WRITTEN: ReadonlyArray<FormatId> = ["plan-approvals", "spec-approvals", "gate-pending"];
+const NEVER_WRITTEN: ReadonlyArray<FormatId> = ["plan-approvals", "spec-approvals"];
 
 describe("every persisted file phax writes", () => {
   let written: ReadonlyArray<Written> = [];

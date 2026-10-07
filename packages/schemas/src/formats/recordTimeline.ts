@@ -1,6 +1,6 @@
 // A phase record's timeline files: its gate attribution, its file
-// reconciliation, and each fix-loop attempt's gate diagnostics and gate
-// pending documents. Each pre-schema and released shape that is no longer
+// reconciliation, and each fix-loop attempt's gate diagnostics document.
+// Each pre-schema and released shape that is no longer
 // current is phax's frozen module under src/schemas/history/; each current
 // shape, named by `CURRENT_SHAPES` (`next` until a release renames it), is
 // phax's own file schema and decoder. The package declares none of its own.
@@ -16,12 +16,6 @@ import {
   type GateDiagnosticsDocument,
   type GateDiagnosticsFile,
 } from "../../../../src/schemas/gateDiagnostics.js";
-import {
-  GatePendingFileSchema,
-  decodeGatePendingFile,
-  type GatePendingDocument,
-  type GatePendingFile,
-} from "../../../../src/schemas/gatePending.js";
 import {
   GateAttributionPreSchemaSchema,
   decodeGateAttributionPreSchema,
@@ -42,11 +36,6 @@ import {
   decodeGateDiagnosticsV0_17_0,
   type GateDiagnosticsV0_17_0,
 } from "../../../../src/schemas/history/gate-diagnostics/0.17.0.js";
-import {
-  GatePendingPreSchemaSchema,
-  decodeGatePendingPreSchema,
-  type GatePendingPreSchema,
-} from "../../../../src/schemas/history/gate-pending/pre-schema.js";
 import {
   PhaseFileReconciliationPreSchemaSchema,
   decodePhaseFileReconciliationPreSchema,
@@ -210,44 +199,6 @@ export type LatestGateDiagnostics = GateDiagnosticsDocument;
 export function toLatestGateDiagnostics(
   value: GateDiagnosticsPreSchema | GateDiagnosticsV0_17_0 | GateDiagnosticsFile,
 ): LatestGateDiagnostics {
-  if ("$schema" in value) {
-    const { $schema: _schema, ...recorded } = value;
-    return recorded;
-  }
-  return value;
-}
-
-// ── gate pending
-
-export type GatePendingShapes = { "pre-schema": GatePendingPreSchema } & {
-  [K in CurrentShapeName<"gate-pending">]: GatePendingFile;
-};
-
-/** The id of every gate pending shape the package reads. */
-export type GatePendingShape = keyof GatePendingShapes;
-
-export const gatePendingFormat = defineFormat<GatePendingShapes>({
-  id: "gate-pending",
-  label: "gate pending document",
-  preSchema: { schema: GatePendingPreSchemaSchema, decode: decodeGatePendingPreSchema },
-  releases: [],
-  current: {
-    name: CURRENT_SHAPES["gate-pending"],
-    shape: { schema: GatePendingFileSchema, decode: decodeGatePendingFile },
-  },
-});
-
-/** Reads an attempt's `checks-attempt-NN.pending.json`. Never throws. */
-export const parseGatePending: (input: unknown) => ParsedShape<GatePendingShapes> =
-  gatePendingFormat.parse;
-
-/** The latest gate pending document: phax's in-memory value, with no `$schema`. */
-export type LatestGatePending = GatePendingDocument;
-
-/** Upgrades a parsed gate pending document in memory: drops `$schema`, keeps every other fact. */
-export function toLatestGatePending(
-  value: GatePendingPreSchema | GatePendingFile,
-): LatestGatePending {
   if ("$schema" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;

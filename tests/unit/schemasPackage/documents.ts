@@ -21,7 +21,6 @@ import { AuthoringRecordManifestFileSchema } from "../../../src/schemas/authorin
 import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
 import { GateAttributionFileSchema } from "../../../src/schemas/gateAttribution.js";
 import { GateDiagnosticsFileSchema } from "../../../src/schemas/gateDiagnostics.js";
-import { GatePendingFileSchema } from "../../../src/schemas/gatePending.js";
 import {
   AuthoringRecordManifestPreSchemaSchema,
   type AuthoringRecordManifestPreSchema,
@@ -38,10 +37,6 @@ import {
   GateDiagnosticsPreSchemaSchema,
   type GateDiagnosticsPreSchema,
 } from "../../../src/schemas/history/gate-diagnostics/pre-schema.js";
-import {
-  GatePendingPreSchemaSchema,
-  type GatePendingPreSchema,
-} from "../../../src/schemas/history/gate-pending/pre-schema.js";
 import {
   PhaseFileReconciliationPreSchemaSchema,
   type PhaseFileReconciliationPreSchema,
@@ -101,8 +96,6 @@ import {
 } from "../../../src/schemas/specApprovalRecord.js";
 import { SpecDocumentFileSchema } from "../../../src/schemas/specDocument.js";
 import { PhaseStatusFileSchema, RunStatusFileSchema } from "../../../src/schemas/status.js";
-
-type CompletionDiagnostic = GatePendingPreSchema["steps"][number]["pending"][number]["diagnostic"];
 
 export type Doc = Readonly<Record<string, unknown>>;
 
@@ -334,15 +327,6 @@ const phaseFileReconciliation: PhaseFileReconciliationPreSchema = {
   hasDeviations: false,
 };
 
-const completion: CompletionDiagnostic = {
-  class: "completion",
-  scopes: ["phase-02"],
-  rule: "planned-file-missing",
-  location: { file: "src/later.ts" },
-  message: "the planned file src/later.ts does not exist yet",
-  repair: "create src/later.ts, as phase-02 plans",
-};
-
 const gateDiagnostics: GateDiagnosticsPreSchema = {
   diagnostics: [
     {
@@ -352,13 +336,6 @@ const gateDiagnostics: GateDiagnosticsPreSchema = {
       message: "src/domain/example.ts imports node:fs",
       repair: "read the file through the fs port",
     },
-  ],
-};
-
-const gatePending: GatePendingPreSchema = {
-  closed: ["phase-01"],
-  steps: [
-    { command: "pnpm test", pending: [{ diagnostic: completion, openScopes: ["phase-02"] }] },
   ],
 };
 
@@ -465,7 +442,6 @@ export const preSchemaDocuments: { readonly [F in PreSchemaFormatId]: Doc } = {
     phaseFileReconciliation,
   ),
   "gate-diagnostics": encoded(GateDiagnosticsPreSchemaSchema, gateDiagnostics),
-  "gate-pending": encoded(GatePendingPreSchemaSchema, gatePending),
   "spec-document": encoded(SpecDocumentPreSchemaSchema, specDocument),
   "plan-document": encoded(PlanDocumentPreSchemaSchema, planDocument),
 };
@@ -531,7 +507,6 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     GateDiagnosticsFileSchema,
     withSchemaUrl("gate-diagnostics", gateDiagnostics),
   ),
-  "gate-pending": encoded(GatePendingFileSchema, withSchemaUrl("gate-pending", gatePending)),
   "spec-document": encoded(
     SpecDocumentFileSchema,
     withSchemaUrl("spec-document", stepped(specDocument)),

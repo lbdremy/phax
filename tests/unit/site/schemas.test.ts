@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { snapshotPath } from "../../../packages/schemas/build/snapshots.js";
@@ -122,7 +122,7 @@ describe("servedSchemas on a made-up ledger", () => {
   const served = servedSchemas({ releases: ["0.17.0", "0.18.0"] }, snapshots);
 
   it("serves each format's latest release-named snapshot at or before each release", () => {
-    expect(served.files.size).toBe(30);
+    expect(served.files.size).toBe(28);
     expect(served.files.get("/schemas/registry/0.18.0.json")).toBe(
       snapshots.get("registry")?.get("0.18.0"),
     );
@@ -155,6 +155,80 @@ describe("servedSchemas on a made-up ledger", () => {
       "  Cache-Control: public, max-age=3600",
       "",
     ]);
+  });
+});
+
+describe("publicSchemas with retired schemas", () => {
+  const ledger = `${JSON.stringify({ releases: ["0.17.0", "0.18.0"] }, null, 2)}\n`;
+  const copy = bytes('{"retired":"old-format","at":"0.17.0"}\n');
+  const sources = (
+    retired: ReadonlyMap<string, ReadonlyMap<string, Uint8Array>>,
+  ): SchemaSources => ({ ledger, snapshots: madeUpSnapshots(), retired });
+
+  it("serves each retired copy byte for byte at its path and lists it beside the snapshot-served paths", () => {
+    const result = publicSchemas(
+      sources(new Map([["old-format", new Map([["0.17.0", copy]])]])),
+      "0.18.0",
+    );
+    expect(result.findings).toEqual([]);
+    expect(result.files.get("/schemas/old-format/0.17.0.json")).toBe(copy);
+    const current = servedSchemas(parseLedger(ledger) ?? { releases: [] }, madeUpSnapshots());
+    const paths = [...current.files.keys(), "/schemas/old-format/0.17.0.json"].toSorted();
+    expect(result.served).toEqual(paths);
+    const index = parseSchemaIndex(new TextDecoder().decode(result.files.get(SCHEMA_INDEX_PATH)));
+    expect(index).toEqual({ releases: ["0.17.0", "0.18.0"], paths });
+  });
+
+  it("serves nothing for a ledger release the retired id has no copy for", () => {
+    const result = publicSchemas(
+      sources(new Map([["old-format", new Map([["0.17.0", copy]])]])),
+      "0.18.0",
+    );
+    expect(result.files.has("/schemas/old-format/0.18.0.json")).toBe(false);
+    expect(result.served.filter((path) => path.includes("/old-format/"))).toEqual([
+      "/schemas/old-format/0.17.0.json",
+    ]);
+  });
+
+  it("fails a retired id that is a current format id, serving nothing", () => {
+    const result = publicSchemas(
+      sources(new Map([["registry", new Map([["0.18.0", copy]])]])),
+      "0.18.0",
+    );
+    expect(result.findings).toEqual([
+      "✗ site/retired-schemas/registry: registry is a current format id",
+      "✗ site/retired-schemas/registry/0.18.0.json: /schemas/registry/0.18.0.json is already served",
+    ]);
+    expect(result.files.size).toBe(0);
+  });
+
+  it("fails a retired release the ledger lacks, serving nothing", () => {
+    const result = publicSchemas(
+      sources(new Map([["old-format", new Map([["0.16.0", copy]])]])),
+      "0.18.0",
+    );
+    expect(result.findings).toEqual([
+      "✗ site/retired-schemas/old-format/0.16.0.json: release 0.16.0 is not in the release ledger",
+    ]);
+    expect(result.files.size).toBe(0);
+  });
+
+  it("serves every copy under site/retired-schemas/ of the real repository byte for byte", () => {
+    const result = publicSchemas(real, realVersion);
+    expect(result.findings).toEqual([]);
+    const root = join(repoRoot, "site/retired-schemas");
+    const copies = readdirSync(root, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .flatMap((entry) =>
+        readdirSync(join(root, entry.name)).map((file) => [entry.name, file] as const),
+      );
+    expect(copies.length).toBeGreaterThan(0);
+    for (const [id, file] of copies) {
+      expect(result.served).toContain(`/schemas/${id}/${file}`);
+      expect(result.files.get(`/schemas/${id}/${file}`)).toEqual(
+        readFileSync(join(root, id, file)),
+      );
+    }
   });
 });
 
@@ -220,6 +294,7 @@ describe("the generator serves the schemas", () => {
   const schemas: SchemaSources = {
     ledger: `${JSON.stringify({ releases: ["0.17.0"] }, null, 2)}\n`,
     snapshots,
+    retired: new Map(),
   };
   const generate = (version: string, sources: SchemaSources | null = schemas) =>
     generateSite({
@@ -252,7 +327,7 @@ describe("the generator serves the schemas", () => {
       "served-json-schemas",
     ]);
     expect(schemasLine(result.summary)).toBe(
-      "site: schemas — 15 served (ledger: 1 × 15 formats), ledger agrees with package.json",
+      "site: schemas — 14 served (ledger: 1 × 14 formats), ledger agrees with package.json",
     );
   });
 

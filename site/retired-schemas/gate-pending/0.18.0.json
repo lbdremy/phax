@@ -16,10 +16,16 @@
   },
   "type": "object",
   "required": [
+    "$schema",
     "closed",
     "steps"
   ],
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The gate-pending format and the phax release that wrote this file: https://docs.phax.run/schemas/gate-pending/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/gate-pending\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
     "closed": {
       "type": "array",
       "items": {

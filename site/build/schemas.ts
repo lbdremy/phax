@@ -3,7 +3,11 @@
 // by the release cut) lists every release; for each release and each format,
 // the format's latest release-named snapshot at or before that release is
 // served at /schemas/<format id>/<release>.json, byte for byte. `pre-schema`
-// and `next` are never served. Pure, except readSchemaSources.
+// and `next` are never served. A retired format (no longer in FORMAT_IDS)
+// keeps the URLs it was served at: each frozen copy under
+// site/retired-schemas/<format id>/<release>.json is served byte for byte at
+// /schemas/<format id>/<release>.json, and nothing is served for a release
+// it has no copy for. Pure, except readSchemaSources.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -20,6 +24,7 @@ import {
 } from "../../src/schemas/schemaUrl.js";
 
 export const LEDGER_PATH = "packages/schemas/releases.json";
+export const RETIRED_SCHEMAS_DIR = "site/retired-schemas";
 
 /** packages/schemas/releases.json: every release, oldest first. */
 export interface ReleaseLedger {
@@ -207,6 +212,8 @@ export interface SchemaSources {
   readonly ledger: string | undefined;
   /** Format id → snapshot name → the snapshot file's bytes. */
   readonly snapshots: ReadonlyMap<string, ReadonlyMap<string, Uint8Array>>;
+  /** Retired format id → release → the frozen copy's bytes (site/retired-schemas/). */
+  readonly retired: ReadonlyMap<string, ReadonlyMap<string, Uint8Array>>;
 }
 
 export interface PublicSchemas {
@@ -235,20 +242,65 @@ export function publicSchemas(sources: SchemaSources, packageVersion: string): P
   const names = new Map([...sources.snapshots].map(([id, named]) => [id, [...named.keys()]]));
   const findings = checkLedger(ledger, packageVersion, names);
   if (findings.length > 0) return { ...none, findings };
-  const served = servedSchemas(ledger, sources.snapshots);
+  const current = servedSchemas(ledger, sources.snapshots);
+  const retiredFindings = checkRetired(ledger, sources.retired, current.files);
+  if (retiredFindings.length > 0) return { ...none, findings: retiredFindings };
+  const served = new Map(
+    [
+      ...current.files,
+      ...[...sources.retired].flatMap(([formatId, copies]) =>
+        [...copies].map(([release, content]) => [servedPath(formatId, release), content] as const),
+      ),
+    ].toSorted(([left], [right]) => (left < right ? -1 : 1)),
+  );
+  const index: SchemaIndex = {
+    releases: [...ledger.releases].toSorted(compareReleases),
+    paths: [...served.keys()],
+  };
   const encoder = new TextEncoder();
   const files = new Map<string, Uint8Array>([
-    ...served.files,
-    [SCHEMA_INDEX_PATH, encoder.encode(served.index)],
-    [HEADERS_PATH, encoder.encode(served.headers)],
+    ...served,
+    [SCHEMA_INDEX_PATH, encoder.encode(`${JSON.stringify(index, null, 2)}\n`)],
+    [HEADERS_PATH, encoder.encode(current.headers)],
   ]);
   return {
     files: new Map([...files].toSorted(([left], [right]) => (left < right ? -1 : 1))),
-    served: [...served.files.keys()],
+    served: [...served.keys()],
     releases: ledger.releases.length,
-    formats: new Set([...served.files.keys()].map((path) => path.split("/")[2])).size,
+    formats: new Set([...current.files.keys()].map((path) => path.split("/")[2])).size,
     findings: [],
   };
+}
+
+/**
+ * Every finding about the retired schemas, as `✗ …` lines: a retired id that
+ * is a current format id, a retired release the ledger lacks, and a retired
+ * path a current format already serves.
+ */
+function checkRetired(
+  ledger: ReleaseLedger,
+  retired: ReadonlyMap<string, ReadonlyMap<string, Uint8Array>>,
+  served: ReadonlyMap<string, Uint8Array>,
+): ReadonlyArray<string> {
+  const findings: Array<string> = [];
+  const listed = new Set(ledger.releases);
+  for (const [formatId, copies] of [...retired].toSorted(([left], [right]) =>
+    left < right ? -1 : 1,
+  )) {
+    if (isFormatId(formatId)) {
+      findings.push(`✗ ${RETIRED_SCHEMAS_DIR}/${formatId}: ${formatId} is a current format id`);
+    }
+    for (const release of [...copies.keys()].toSorted(compareReleases)) {
+      const file = `${RETIRED_SCHEMAS_DIR}/${formatId}/${release}.json`;
+      if (!listed.has(release)) {
+        findings.push(`✗ ${file}: release ${release} is not in the release ledger`);
+      }
+      if (served.has(servedPath(formatId, release))) {
+        findings.push(`✗ ${file}: ${servedPath(formatId, release)} is already served`);
+      }
+    }
+  }
+  return findings;
 }
 
 /** The ledger and every snapshot under `repoRoot`, read as raw bytes. */
@@ -268,5 +320,24 @@ export function readSchemaSources(repoRoot: string): SchemaSources {
   return {
     ledger: existsSync(ledgerFile) ? readFileSync(ledgerFile, "utf8") : undefined,
     snapshots,
+    retired: readRetiredSchemas(join(repoRoot, RETIRED_SCHEMAS_DIR)),
   };
+}
+
+/** Every `<format id>/<X.Y.Z>.json` under `root`, as format id → release → raw bytes. */
+function readRetiredSchemas(root: string): ReadonlyMap<string, ReadonlyMap<string, Uint8Array>> {
+  const retired = new Map<string, ReadonlyMap<string, Uint8Array>>();
+  if (!existsSync(root)) return retired;
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const copies = new Map<string, Uint8Array>();
+    for (const file of readdirSync(join(root, entry.name), { withFileTypes: true })) {
+      const release = file.name.endsWith(".json") ? file.name.slice(0, -".json".length) : "";
+      if (file.isFile() && isRelease(release)) {
+        copies.set(release, readFileSync(join(root, entry.name, file.name)));
+      }
+    }
+    retired.set(entry.name, copies);
+  }
+  return retired;
 }

@@ -235,11 +235,11 @@ describe("currentShapeNames", () => {
 
   it("names the highest release when there is no next, ordering 0.10.0 above 0.9.0", () => {
     const { names, findings } = currentShapeNames(
-      everyFormat({ registry: ["pre-schema", "0.9.0", "0.10.0"], "gate-pending": ["0.17.0"] }),
+      everyFormat({ registry: ["pre-schema", "0.9.0", "0.10.0"], "gate-diagnostics": ["0.17.0"] }),
     );
     expect(findings).toEqual([]);
     expect(names.registry).toBe("0.10.0");
-    expect(names["gate-pending"]).toBe("0.17.0");
+    expect(names["gate-diagnostics"]).toBe("0.17.0");
     expect(names["run-status"]).toBe("next");
   });
 

@@ -12,7 +12,6 @@ import {
 import {
   gateAttributionFormat,
   gateDiagnosticsFormat,
-  gatePendingFormat,
   phaseFileReconciliationFormat,
 } from "../src/formats/recordTimeline.js";
 import {
@@ -82,7 +81,6 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "gate-attribution": gateAttributionFormat,
   "phase-file-reconciliation": phaseFileReconciliationFormat,
   "gate-diagnostics": gateDiagnosticsFormat,
-  "gate-pending": gatePendingFormat,
   "spec-document": specDocumentFormat,
   "plan-document": planDocumentFormat,
   "plan-approval-record": planApprovalRecordFormat,
@@ -105,7 +103,6 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "gate-attribution": "ignore",
   "phase-file-reconciliation": "ignore",
   "gate-diagnostics": "ignore",
-  "gate-pending": "ignore",
   "spec-document": "error",
   "plan-document": "error",
   "plan-approval-record": "error",
