@@ -17,7 +17,7 @@ import {
 import { Git, type GitError } from "../../src/ports/git.js";
 import { Shell, type ShellError } from "../../src/ports/shell.js";
 import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
-import { explainRecord } from "../../src/app/recordsExplain.js";
+import { explainRecord, gateArtifactsInOrder } from "../../src/app/recordsExplain.js";
 import { listRecords } from "../../src/app/recordsList.js";
 import { encodeRunRecordManifest, type RunRecordManifest } from "../../src/schemas/runRecord.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
@@ -26,6 +26,10 @@ import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js"
 
 const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName("phax/records/v1"));
 const LAYER = Layer.mergeAll(NodeGitLayer, NodeShellLayer);
+
+function bytes(text: string): Uint8Array {
+  return new TextEncoder().encode(text);
+}
 
 function execGit(args: readonly string[], cwd: string): string {
   return execFileSync("git", [...args], { cwd, encoding: "utf8" });
@@ -399,6 +403,23 @@ describe("records explain and list (real git)", () => {
     expect(listed.records).toMatchObject([{ kind: "phase", phaseId, outcome: "committed" }]);
   });
 
+  it("orders gate artifacts by attempt, a request directly after its log", () => {
+    const artifacts = new Map<string, Uint8Array>([
+      ["checks-attempt-10.log", bytes("ten")],
+      ["checks-attempt-02.log", bytes("two")],
+      ["checks-attempt-02.request.json", bytes("{}")],
+      ["checks-attempt-01.log", bytes("one")],
+      ["checks-attempt-01.diagnostics.json", bytes("{}")],
+      ["prompt.md", bytes("p")],
+    ]);
+    expect(gateArtifactsInOrder(artifacts).map(([name]) => name)).toEqual([
+      "checks-attempt-01.log",
+      "checks-attempt-02.log",
+      "checks-attempt-02.request.json",
+      "checks-attempt-10.log",
+    ]);
+  });
+
   describe("records commands on a record carrying a file this release never writes", () => {
     let tempHome: string;
     let originalHome: string | undefined;
@@ -429,6 +450,47 @@ describe("records explain and list (real git)", () => {
       else process.env["HOME"] = originalHome;
       removeTempDir(tempHome);
       vi.restoreAllMocks();
+    });
+
+    it("prints each attempt's gate request directly after its log, in attempt order", async () => {
+      const runId = "run-gates-1786800000011";
+      const phaseId = "phase-01";
+      const sha = commitWithTrailers(repoDir, runId, phaseId);
+      const manifest: RunRecordManifest = {
+        runId,
+        phaseId,
+        shape: "skeleton",
+        sourceSha: sha,
+        model: "claude-sonnet-5",
+        effort: "high",
+        provider: "claude-code",
+        outcome: "committed",
+        usage: { available: false },
+        verifiedSurfaces: ["local"],
+      };
+      await writeFullRecordCommit(repoDir, manifest, {
+        "checks-attempt-02.request.json": '{"attempt":2}',
+        "checks-attempt-02.log": "gate log two",
+        "checks-attempt-01.request.json": '{"attempt":1}',
+        "checks-attempt-01.log": "gate log one",
+        "checks-attempt-01.diagnostics.json": '{"diagnostics":[]}',
+      });
+
+      const withGates = await records(["explain", sha, "--gates"]);
+      expect(withGates.code).toBe(0);
+      const gateLines = withGates.logs.slice(
+        withGates.logs.indexOf("--- checks-attempt-01.log ---"),
+      );
+      expect(gateLines).toEqual([
+        "--- checks-attempt-01.log ---",
+        "gate log one",
+        "--- checks-attempt-01.request.json ---",
+        '{"attempt":1}',
+        "--- checks-attempt-02.log ---",
+        "gate log two",
+        "--- checks-attempt-02.request.json ---",
+        '{"attempt":2}',
+      ]);
     });
 
     it("lists and explains the record, prints its prompt, diff and gates, and leaves the extra file intact", async () => {

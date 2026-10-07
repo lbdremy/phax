@@ -1323,4 +1323,4 @@ Print the full transcript
 
 #### `--gates`
 
-Print the gate check logs
+Print the gate check logs, each followed by its gate request
