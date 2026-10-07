@@ -196,6 +196,12 @@ cross-field checks registered by id so the build writes the same list into the s
       `completes-spec`, mirrored in the plan document; refused on a plan without a spec;
       `phax artifact new plan --spec … --last | --not-last` required; no lint advisories; live
       plans by hand.
+- [ ] **Add `completes-spec` to live plans once 0.20 is installed.** Shipped 2026-10-07 (PR #123)
+      after 0.19.0, which refuses the key as unknown frontmatter: until 0.20 is installed, plans
+      authored and run here carry no key. After installing it, every live plan with a source spec
+      (not under `archive/`) gains `completes-spec: true|false` in its frontmatter **and**
+      `"completesSpec"` in its JSON sidecar if it has one: 0.20 refuses a sidecar stamped
+      0.17.0–0.19.x without it. Then re-approve each plan (the field is part of the fingerprint).
 - [x] **A run's completion conflicts with approvals made on main during the run.** Found
       2026-10-03 on PR #112: the run branch's completion commit removes the plan's entry from
       `docs/plans/approvals.json`, and approving another plan on main meanwhile edits the same
