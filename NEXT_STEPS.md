@@ -37,6 +37,42 @@ Decided 2026-09-15: the first four were the blockers (`phax prune`, the fourth, 
       removed), and 0.18 added `prune`. Land the last renames from
       `docs/vocabulary-review.md` §"Top fixes" (at least 1, 2 and 4 — they change output and
       flag values) *before* 1.0, then hold the contract for one or two 0.x releases.
+- [ ] **Migrate to Effect 4, before the freeze and after the gate chain.** Effect 4.0 was released on
+      2026-10-06 (`effect@4.0.1`): a ground-up rewrite, one lockstep `effect` package, and
+      `@effect/platform` merged into it. Effect 3.x keeps getting bug fixes until at least
+      September 2029, so nothing forces the move. **It must land before 1.0** anyway:
+      `@lbdremy/phax-schemas` exports Effect 3 `Schema` values (`RunStatusSchema`, …) and depends
+      on `effect ^3.14`, so Effect's major version is part of the package's public API. Moving
+      after 1.0 would be a breaking major of the package and of the cockpit, which parses with
+      Effect. Decided 2026-10-06 by the author: after `drop-gate-scopes`, `gate-request` and
+      `brief-provider`, not in the middle of that chain. It is its own spec.
+
+      **Sized 2026-10-07** by a spike: `effect@4.0.1` swapped in, both platform packages removed,
+      nothing committed. The result was 1,502 type errors in 224 `src` files and 2,910 in 443 test
+      files. Most of them cascade from about ten mechanical root causes:
+      - the `Either` module is gone (104 imports); `Effect.either` (96 uses) and
+        `Schema.decodeUnknownEither` → `decodeUnknownExit` (77);
+      - `Context.Tag` → `Context.Service` on the ten ports, which cascades into 164
+        `yield* FileSystem/Git/…` errors;
+      - the Schema filters `minLength`/`pattern`/`maxLength`/`between`/`filter`/`positive`/
+        `minItems` → `.check(isMinLength(…))` and the like (~60); `Schema.optionalWith` (27);
+      - `Effect.catchAll`/`orElse` → `Effect.catch` (25); `ParseResult` → `SchemaIssue` (5);
+        `.annotations`, `timeoutTo` and `async` (~10).
+
+      The two platform packages are declared but unused in `src`, so they can just be removed.
+      The native TypeScript 7 compiler type-checks Effect 4 fine.
+
+      **What will not be mechanical:**
+      - The rewritten JSON Schema generator will change every format's snapshot text even where
+        the data is unchanged, so every format gets a `next` snapshot.
+      - The parse-error wording behind refusal messages (`formatFirstViolation`) changes, and many
+        tests assert it.
+      - `Exit` replaces `Either` in decode results.
+      - Check that the frozen pre-schema decoders under `src/schemas/history/` keep their exact
+        behaviour.
+
+      Migration guide: `https://github.com/Effect-TS/effect/blob/main/MIGRATION.md`, with its
+      `migration/*.md` sub-guides.
 - [ ] **Distribution polish.** macOS binaries are neither signed nor notarized
       (`docs/release.md`); npm install works, the raw binary is Gatekeeper-blocked. Either
       sign, or make npm the only documented install path for 1.0.
