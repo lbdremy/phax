@@ -142,7 +142,7 @@ spec of its own. In this order:
       fails like an `invariant`; the `scopes` provider, closure, pending, `missing-provider` and
       `gate-pending` removed; the already-served `gate-pending` `$schema` URLs stay up from a
       frozen copy (the docs-site guard is unchanged).
-- [ ] **`gate-request`** — `docs/specs/2610060951-gate-request.md`, Draft, §9 decided 2026-10-06.
+- [ ] **`gate-request`** — `docs/specs/2610060951-gate-request.md`, Approved, §9 decided 2026-10-06.
       Re-authored for the green field (the 2026-10-05 version is abandoned). A gate step that
       declares it reads `{phase, base, terminal, phases: [{id, files}]}` on stdin, saved beside
       the attempt so the verdict replays; `base` is noted when the phase branch is created. The
