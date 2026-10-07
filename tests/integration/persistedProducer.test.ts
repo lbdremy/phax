@@ -14,7 +14,8 @@ import { parseDocument } from "../../packages/schemas/src/index.js";
 import { putPlanApprovalRecord, putSpecApprovalRecord } from "../../src/app/approvalRecordStore.js";
 import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorArtifact.js";
 import { dispatch, type DispatcherContext } from "../../src/app/dispatcher.js";
-import { runGates } from "../../src/app/gates.js";
+import { runGates, serializeGateRequest } from "../../src/app/gates.js";
+import { makeGateRequest } from "../../src/domain/gate/gateRequest.js";
 import { createPhaseFolder } from "../../src/app/phaseFolder.js";
 import { reconcilePhaseFiles } from "../../src/app/reconcilePhaseFiles.js";
 import { reviewCompliance } from "../../src/app/reviewCompliance.js";
@@ -270,6 +271,7 @@ function formatAt(
   if (name === "gate-attribution.json") return "gate-attribution";
   if (name === "file-reconciliation.json") return "phase-file-reconciliation";
   if (name.endsWith(".diagnostics.json")) return "gate-diagnostics";
+  if (name.endsWith(".request.json")) return "gate-request";
   if (name === "record.json") {
     return location.includes("authoring/") ? "authoring-record-manifest" : "phase-record-manifest";
   }
@@ -427,17 +429,31 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     authoringKinds.set(authored.right.authoringId, format);
   }
 
-  // One gate run: attribution and diagnostics documents.
+  // One gate run: request, attribution and diagnostics documents.
   shell.impl.setResponse("pnpm audit", { exitCode: 1, stdout: MIXED_DIAGNOSTICS, stderr: "" });
   await run(
     runGates({
       steps: [
-        { command: "pnpm audit", surface: "local", firing: "every-phase", output: "diagnostics" },
+        {
+          command: "pnpm audit",
+          surface: "local",
+          firing: "every-phase",
+          output: "diagnostics",
+          input: "gate-request",
+        },
       ],
       cwd: WORKTREE,
       attemptLogPath: `${PHASE_FOLDER}/checks-attempt-01.log`,
       attributionPath: `${PHASE_FOLDER}/gate-attribution.json`,
       phaseId: "phase-01",
+      gateRequest: serializeGateRequest(
+        makeGateRequest({
+          phaseId: "phase-01",
+          base: "0123456789abcdef0123456789abcdef01234567",
+          terminal: true,
+          phases: plan.phases,
+        }),
+      ),
     }),
   );
 
@@ -547,12 +563,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
  * The formats no writer produces: the old approval ledgers, read only to
  * migrate them to record files and never written again.
  */
-const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
-  "plan-approvals",
-  "spec-approvals",
-  // phax starts writing it in the gate-request plan's next phase.
-  "gate-request",
-];
+const NEVER_WRITTEN: ReadonlyArray<FormatId> = ["plan-approvals", "spec-approvals"];
 
 describe("every persisted file phax writes", () => {
   let written: ReadonlyArray<Written> = [];

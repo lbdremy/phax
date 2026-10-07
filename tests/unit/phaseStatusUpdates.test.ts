@@ -1,8 +1,9 @@
 import { Effect, Either } from "effect";
 import { describe, expect, it } from "vitest";
-import { recordPhaseWorktreeAndBranch } from "../../src/app/phaseStatusUpdates.js";
+import { readPhaseBase, recordPhaseWorktreeAndBranch } from "../../src/app/phaseStatusUpdates.js";
 import type { BranchName, WorktreePath } from "../../src/domain/branded.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import { FsError } from "../../src/ports/fs.js";
 import { PHAX_RELEASE } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
@@ -24,6 +25,38 @@ function makePhaseStatusJson(extra: Record<string, unknown> = {}): string {
     ...extra,
   });
 }
+
+describe("readPhaseBase", () => {
+  it("reads the noted base back from status.json", async () => {
+    const fakeFs = makeFakeFileSystem();
+    fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, makePhaseStatusJson());
+
+    const base = await Effect.runPromise(
+      readPhaseBase(phaseFolderPath).pipe(Effect.provide(fakeFs.layer)),
+    );
+
+    expect(base).toBe("a1b2c3d4e5f60718293a4b5c6d7e8f9012345678");
+  });
+
+  it("fails with the reader's message when status.json is refused", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const { base: _base, ...withoutBase } = JSON.parse(makePhaseStatusJson()) as Record<
+      string,
+      unknown
+    >;
+    fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, JSON.stringify(withoutBase));
+
+    const result = await Effect.runPromise(
+      Effect.either(readPhaseBase(phaseFolderPath).pipe(Effect.provide(fakeFs.layer))),
+    );
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(FsError);
+      expect(result.left.message).toContain(`${phaseFolderPath}/status.json`);
+    }
+  });
+});
 
 describe("recordPhaseWorktreeAndBranch", () => {
   it("persists worktreePath and branchName matching the <base>--<phaseId> pattern", async () => {

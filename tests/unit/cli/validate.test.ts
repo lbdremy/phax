@@ -1,6 +1,10 @@
-import { resolve } from "node:path";
+import { execSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { Either } from "effect";
+import { exitCodeForError } from "../../../src/cli/commands/runLayers.js";
 import { runValidate } from "../../../src/cli/commands/validate.js";
 import { ConfigValidationError, PlanValidationError } from "../../../src/domain/errors.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
@@ -251,6 +255,94 @@ describe("runValidate", () => {
       expect(combined).toContain("phax-plan.json");
       expect(combined).not.toContain(resolvedPath);
       expect(combined).not.toContain("/repo/nested");
+    });
+  });
+
+  // A gate step's `input` key, through the real config loader in a made-up
+  // repository. HOME points at the temp dir so no user overlay is read.
+  describe("gate step input", () => {
+    let repoDir: string;
+    let cwdSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(async () => {
+      repoDir = mkdtempSync(join(tmpdir(), "phax-validate-input-"));
+      execSync("git init", { cwd: repoDir, stdio: "ignore" });
+      vi.stubEnv("HOME", repoDir);
+      cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(repoDir);
+      const actual = await vi.importActual<typeof import("../../../src/app/loadConfig.js")>(
+        "../../../src/app/loadConfig.js",
+      );
+      const { loadConfig, describeConfigSources } = vi.mocked(
+        await import("../../../src/app/loadConfig.js"),
+      );
+      loadConfig.mockImplementation(actual.loadConfig);
+      describeConfigSources.mockImplementation(actual.describeConfigSources);
+    });
+
+    afterEach(() => {
+      cwdSpy.mockRestore();
+      vi.unstubAllEnvs();
+      rmSync(repoDir, { recursive: true, force: true });
+    });
+
+    function writeConfig(config: object): void {
+      writeFileSync(join(repoDir, "phax.json"), JSON.stringify(config));
+    }
+
+    const logStep = { command: "pnpm test", surface: "local", firing: "every-phase" };
+
+    it("refuses an unknown input value, naming the step path and gate-request (exit 2)", async () => {
+      writeConfig({
+        version: 1,
+        name: "example",
+        gateProfiles: {
+          standard: [logStep, { ...logStep, command: "node ./audit.mjs", input: "stdin" }],
+        },
+      });
+
+      const { loadConfig } = await vi.importActual<typeof import("../../../src/app/loadConfig.js")>(
+        "../../../src/app/loadConfig.js",
+      );
+      const refused = loadConfig(repoDir);
+      expect(Either.isLeft(refused)).toBe(true);
+      if (Either.isLeft(refused)) {
+        expect(exitCodeForError(refused.left)).toBe(2);
+      }
+
+      const { out, errors } = makeOutput();
+      const code = runValidate({}, out);
+
+      expect(code).toBe(1);
+      const combined = errors.join("\n");
+      expect(combined).toContain(
+        'gateProfiles.standard.1.input: Expected "gate-request", actual "stdin"',
+      );
+    });
+
+    it("accepts a workspace profile with a declaring log step", () => {
+      mkdirSync(join(repoDir, "packages", "app"), { recursive: true });
+      writeConfig({
+        version: 1,
+        name: "example",
+        gateProfiles: { standard: [logStep] },
+        workspaces: [
+          {
+            id: "app",
+            name: "App",
+            path: "packages/app",
+            gateProfiles: {
+              standard: [{ ...logStep, command: "node ./audit.mjs", input: "gate-request" }],
+            },
+          },
+        ],
+      });
+
+      const { out, lines, errors } = makeOutput();
+      const code = runValidate({}, out);
+
+      expect(errors).toEqual([]);
+      expect(code).toBe(0);
+      expect(lines.some((l) => l.includes("config is valid"))).toBe(true);
     });
   });
 });

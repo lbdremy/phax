@@ -1,8 +1,8 @@
 import { Effect, Either } from "effect";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import type { GateStep, ResolvedConfig } from "../schemas/phaxConfig.js";
 import { GateFailedError } from "../domain/errors.js";
-import { Shell, type ShellError } from "../ports/shell.js";
+import { Shell, type ShellError, type ShellRunResult } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import {
   readGateDiagnosticsAnswer,
@@ -19,12 +19,23 @@ import {
 import { PHAX_RELEASE } from "../schemas/release.js";
 import { schemaUrl } from "../schemas/schemaUrl.js";
 import { diagnosticsPathFor } from "../domain/gate/diagnosticsPath.js";
+import { requestPathFor } from "../domain/gate/gateRequest.js";
+import { encodeGateRequestFile, type GateRequest } from "../schemas/gateRequest.js";
 
 export interface GateOutcome {
   readonly attemptLogPath: string;
 }
 
 const DIAGNOSTICS_EXPECTED_SHAPE = ` — expected {"$schema": "${schemaUrl("gate-diagnostics", PHAX_RELEASE)}", "diagnostics": [{"rule", "class": "invariant"|"completion", "location": {"file", "line"?}, "message", "repair"}]} on stdout`;
+
+/**
+ * The exact bytes of a phase's gate request: what a declaring step reads on
+ * stdin and what is saved as `checks-attempt-NN.request.json`. Stamped with
+ * the running release's `$schema`, two-space indented, no trailing newline.
+ */
+export function serializeGateRequest(request: GateRequest): string {
+  return JSON.stringify(encodeGateRequestFile(withSchemaUrl("gate-request", request)), null, 2);
+}
 
 export function resolveGateProfile(
   config: ResolvedConfig,
@@ -62,18 +73,24 @@ export interface RunGatesOptions {
    *  including the first failure) are recorded here as a GateAttribution. */
   readonly attributionPath?: string;
   readonly phaseId?: string;
+  /** The phase's serialized gate request (`serializeGateRequest`). Written on
+   *  the stdin of every step that declares `input: "gate-request"`, and saved
+   *  beside the attempt log before the attempt's first declaring step. */
+  readonly gateRequest: string;
 }
 
 export function runGates(
   opts: RunGatesOptions,
 ): Effect.Effect<GateOutcome, GateFailedError | FsError | ShellError, Shell | FileSystem> {
-  const { steps, cwd, attemptLogPath, attributionPath, phaseId } = opts;
+  const { steps, cwd, attemptLogPath, attributionPath, phaseId, gateRequest } = opts;
+  const requestPath = requestPathFor(attemptLogPath);
   return Effect.gen(function* () {
     const shell = yield* Shell;
     const fs = yield* FileSystem;
 
     const logLines: string[] = [];
     const stepResults: GateStepResult[] = [];
+    let requestWritten = false;
 
     function writeAttribution(): Effect.Effect<void, FsError> {
       if (attributionPath === undefined || phaseId === undefined) {
@@ -138,7 +155,17 @@ export function runGates(
       const command = parseCommandTokens(rawCommand);
       logLines.push(`$ ${rawCommand}`);
 
-      const result = yield* shell.run({ command, cwd });
+      let result: ShellRunResult;
+      if (step.input === "gate-request") {
+        if (!requestWritten) {
+          yield* fs.writeAtomic(requestPath, gateRequest);
+          requestWritten = true;
+        }
+        logLines.push(`stdin: ${basename(requestPath)}`);
+        result = yield* shell.run({ command, cwd, stdin: gateRequest });
+      } else {
+        result = yield* shell.run({ command, cwd });
+      }
 
       if (result.stdout) logLines.push(result.stdout.trimEnd());
       if (result.stderr) logLines.push(result.stderr.trimEnd());
