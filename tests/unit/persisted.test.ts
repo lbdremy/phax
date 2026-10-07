@@ -1,3 +1,6 @@
+import { readdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
@@ -606,5 +609,26 @@ describe("readGateDiagnosticsAnswer", () => {
     for (const value of [null, undefined, 3, "text", ["a"], { $schema: 4 }]) {
       expect(refusal(value).kind).toBe("malformed");
     }
+  });
+
+  // The reader decodes every answer release with the current decoder, which is
+  // right only while one answer shape exists. An answer shape is the `next`
+  // snapshot or a release-named one newer than 0.19.0, the last release whose
+  // shape described only the saved file.
+  it("is written for a single answer shape", () => {
+    const dir = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../packages/schemas/snapshots/gate-diagnostics",
+    );
+    const answerShapes = readdirSync(dir)
+      .map((file) => file.replace(/\.schema\.json$/, ""))
+      .filter(
+        (name) =>
+          name === "next" || (/^\d+\.\d+\.\d+$/.test(name) && compareReleases(name, "0.19.0") > 0),
+      );
+    expect(
+      answerShapes,
+      "a second gate-diagnostics answer shape: teach readGateDiagnosticsAnswer to decode each answer release with its own shape",
+    ).toHaveLength(1);
   });
 });
