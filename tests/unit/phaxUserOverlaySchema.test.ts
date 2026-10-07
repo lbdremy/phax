@@ -134,22 +134,6 @@ describe("getPhaxUserOverlayJsonSchema", () => {
     expect(properties["gateProfiles"]).toBeDefined();
   });
 
-  it("lists scopes.command as present, not required, with a description naming closed", () => {
-    const schema = getPhaxUserOverlayJsonSchema() as Record<string, unknown>;
-    const properties = schema["properties"] as Record<string, unknown>;
-    const scopes = properties["scopes"] as Record<string, unknown>;
-    expect(scopes).toBeDefined();
-    const required = (schema["required"] as string[] | undefined) ?? [];
-    expect(required).not.toContain("scopes");
-    const scopesDefs = scopes["properties"] as Record<string, unknown> | undefined;
-    const command = (scopesDefs?.["command"] ?? scopes) as Record<string, unknown>;
-    const scopesRequired = (scopes["required"] as string[] | undefined) ?? [];
-    expect(scopesRequired).toContain("command");
-    const desc = command["description"] as string | undefined;
-    expect(typeof desc).toBe("string");
-    expect(desc).toContain("closed");
-  });
-
   it("lists planAuditor.command as present, not required, with a description naming findings", () => {
     const schema = getPhaxUserOverlayJsonSchema() as Record<string, unknown>;
     const properties = schema["properties"] as Record<string, unknown>;

@@ -4,7 +4,6 @@
   "state": { "root": "~/.phax" },
   "agent": { "maxFixAttempts": 1 },
   "security": { "agentCommands": ["node"] },
-  "scopes": { "command": "node ./scopes.mjs" },
   "planAuditor": { "command": "node ./audit-plan.mjs" },
   "commands": {
     "setup": ["pnpm install"],

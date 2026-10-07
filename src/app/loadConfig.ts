@@ -273,7 +273,6 @@ export function loadConfig(
     fileReconciliationMode: config.fileReconciliation?.mode ?? "report_only",
     security: resolvedSecurity,
     publish: resolvePublishConfig(config.publish),
-    ...(config.scopes !== undefined ? { scopes: config.scopes } : {}),
     ...(config.planAuditor !== undefined ? { planAuditor: config.planAuditor } : {}),
     complianceReview: resolveComplianceReviewConfig(config.review?.compliance),
     codeReview: resolveCodeReviewConfig(config.review?.code),

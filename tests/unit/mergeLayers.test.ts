@@ -271,64 +271,20 @@ describe("mergeConfigLayers", () => {
     });
   });
 
-  describe("scopes and planAuditor across three layers", () => {
-    const project = makeProject({
-      scopes: { command: "project-scopes" },
-      planAuditor: { command: "project-auditor" },
-    });
-    const globalUser = makeOverlay({
-      scopes: { command: "global-scopes" },
-      planAuditor: { command: "global-auditor" },
-    });
-    const localUser = makeOverlay({
-      scopes: { command: "local-scopes" },
-      planAuditor: { command: "local-auditor" },
-    });
+  describe("planAuditor across three layers", () => {
+    const project = makeProject({ planAuditor: { command: "project-auditor" } });
+    const globalUser = makeOverlay({ planAuditor: { command: "global-auditor" } });
+    const localUser = makeOverlay({ planAuditor: { command: "local-auditor" } });
 
-    it("resolves each from the local layer, then global once local is cleared, then project", () => {
+    it("resolves from the local layer, then global once local is cleared, then project", () => {
       const all = mergeConfigLayers({ project, globalUser, localUser });
-      expect(all.scopes?.command).toBe("local-scopes");
       expect(all.planAuditor?.command).toBe("local-auditor");
 
       const noLocal = mergeConfigLayers({ project, globalUser });
-      expect(noLocal.scopes?.command).toBe("global-scopes");
       expect(noLocal.planAuditor?.command).toBe("global-auditor");
 
       const projectOnly = mergeConfigLayers({ project });
-      expect(projectOnly.scopes?.command).toBe("project-scopes");
       expect(projectOnly.planAuditor?.command).toBe("project-auditor");
-    });
-  });
-
-  describe("scopes: scalar override", () => {
-    it("keeps the project scopes block when a user layer says nothing about scopes", () => {
-      const project = makeProject({ scopes: { command: "scopes-provider" } });
-      const localUser = makeOverlay({ state: { root: "~/.local" } });
-      const result = mergeConfigLayers({ project, localUser });
-      expect(result.scopes?.command).toBe("scopes-provider");
-    });
-
-    it("local scopes command overrides global and project", () => {
-      const project = makeProject({ scopes: { command: "project-provider" } });
-      const globalUser = makeOverlay({ scopes: { command: "global-provider" } });
-      const localUser = makeOverlay({ scopes: { command: "local-provider" } });
-      const result = mergeConfigLayers({ project, globalUser, localUser });
-      expect(result.scopes?.command).toBe("local-provider");
-    });
-
-    it("a user layer can enable scopes when the project config has none", () => {
-      const project = makeProject();
-      const globalUser = makeOverlay({ scopes: { command: "global-provider" } });
-      const result = mergeConfigLayers({ project, globalUser });
-      expect(result.scopes?.command).toBe("global-provider");
-    });
-
-    it("omits scopes entirely when no layer configures it", () => {
-      const result = mergeConfigLayers({
-        project: makeProject(),
-        localUser: makeOverlay({ state: { root: "~/.local" } }),
-      });
-      expect(result.scopes).toBeUndefined();
     });
   });
 

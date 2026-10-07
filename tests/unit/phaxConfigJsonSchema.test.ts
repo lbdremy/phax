@@ -68,7 +68,6 @@ describe("getPhaxConfigJsonSchema", () => {
         "fileReconciliation",
         "security",
         "publish",
-        "scopes",
         "planAuditor",
         "review",
         "authoring",
@@ -89,7 +88,6 @@ describe("getPhaxConfigJsonSchema", () => {
         "fileReconciliation",
         "security",
         "publish",
-        "scopes",
         "planAuditor",
         "review",
         "authoring",
@@ -105,22 +103,6 @@ describe("getPhaxConfigJsonSchema", () => {
     const committedUser = JSON.parse(readFileSync(join(root, "phax.user.schema.json"), "utf8"));
     expect(committed).toEqual(JSON.parse(JSON.stringify(getPhaxConfigJsonSchema())));
     expect(committedUser).toEqual(JSON.parse(JSON.stringify(getPhaxUserOverlayJsonSchema())));
-  });
-
-  it("lists scopes.command as present, not required, with a description naming closed", () => {
-    const schema = getPhaxConfigJsonSchema() as Record<string, unknown>;
-    const properties = schema["properties"] as Record<string, unknown>;
-    const scopes = properties["scopes"] as Record<string, unknown>;
-    expect(scopes).toBeDefined();
-    const required = (schema["required"] as string[] | undefined) ?? [];
-    expect(required).not.toContain("scopes");
-    const scopesDefs = scopes["properties"] as Record<string, unknown> | undefined;
-    const command = (scopesDefs?.["command"] ?? scopes) as Record<string, unknown>;
-    const scopesRequired = (scopes["required"] as string[] | undefined) ?? [];
-    expect(scopesRequired).toContain("command");
-    const desc = command["description"] as string | undefined;
-    expect(typeof desc).toBe("string");
-    expect(desc).toContain("closed");
   });
 
   it("lists planAuditor.command as present, not required, with a description naming findings", () => {
@@ -158,8 +140,12 @@ describe("getPhaxConfigJsonSchema", () => {
       "non-empty",
       "empty list",
       "provider error",
+      "$schema",
     ]) {
       expect(desc, `missing token: ${token}`).toContain(token);
+    }
+    for (const token of ["scope", "closed", "pending"]) {
+      expect(desc, `unexpected token: ${token}`).not.toContain(token);
     }
   });
 });

@@ -42,10 +42,9 @@ describe("PlanAuditorConfigSchema", () => {
 });
 
 describe("PhaxConfigSchema planAuditor block", () => {
-  it("decodes a config with a planAuditor block next to scopes", () => {
+  it("decodes a config with a planAuditor block", () => {
     const result = decodePhaxConfig({
       ...minimalValidPhaxConfig,
-      scopes: { command: "scopes-provider" },
       planAuditor: { command: "audit-plan" },
     });
     expect(Either.isRight(result)).toBe(true);
