@@ -22,6 +22,7 @@ import {
   parseComplianceReview,
   parseGateAttribution,
   parseGateDiagnostics,
+  parseGateRequest,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -38,6 +39,7 @@ import {
   toLatestComplianceReview,
   toLatestGateAttribution,
   toLatestGateDiagnostics,
+  toLatestGateRequest,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
   toLatestPhaseStatus,
@@ -190,11 +192,12 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "plan-document": latest(parsePlanDocument, toLatestPlanDocument),
   "plan-approval-record": latest(parsePlanApprovalRecord, toLatestPlanApprovalRecord),
   "spec-approval-record": latest(parseSpecApprovalRecord, toLatestSpecApprovalRecord),
+  "gate-request": latest(parseGateRequest, toLatestGateRequest),
 };
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
 
-// phax never reads gate diagnostics documents back.
+// phax never reads gate diagnostics documents or gate requests back.
 const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   registry: readRegistryFile,
   "run-status": readRunStatusFile,
@@ -212,6 +215,7 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "plan-document": readPlanDocumentFile,
   "plan-approval-record": readPlanRecordFile,
   "spec-approval-record": readSpecRecordFile,
+  "gate-request": undefined,
 };
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);

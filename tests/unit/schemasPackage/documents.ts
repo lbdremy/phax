@@ -21,6 +21,7 @@ import { AuthoringRecordManifestFileSchema } from "../../../src/schemas/authorin
 import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
 import { GateAttributionFileSchema } from "../../../src/schemas/gateAttribution.js";
 import { GateDiagnosticsFileSchema } from "../../../src/schemas/gateDiagnostics.js";
+import { GateRequestFileSchema, type GateRequest } from "../../../src/schemas/gateRequest.js";
 import {
   AuthoringRecordManifestPreSchemaSchema,
   type AuthoringRecordManifestPreSchema,
@@ -342,6 +343,16 @@ const gateDiagnostics: GateDiagnosticsPreSchema = {
   ],
 };
 
+const gateRequest: GateRequest = {
+  phase: "phase-02",
+  base: EXAMPLE_BASE,
+  terminal: false,
+  phases: [
+    { id: "phase-01", files: ["src/example.ts", "tests/example.test.ts"] },
+    { id: "phase-02", files: ["src/other.ts"] },
+  ],
+};
+
 const specDocument: SpecDocumentPreSchema = {
   version: 1,
   kind: "spec",
@@ -530,6 +541,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     SpecRecordFileSchema,
     withSchemaUrl("spec-approval-record", specRecord),
   ),
+  "gate-request": encoded(GateRequestFileSchema, withSchemaUrl("gate-request", gateRequest)),
 };
 
 /**

@@ -5,16 +5,19 @@ import {
   parseDocument,
   parseGateAttribution,
   parseGateDiagnostics,
+  parseGateRequest,
   parsePhaseFileReconciliation,
   parseRecordManifest,
   toLatestGateAttribution,
   toLatestGateDiagnostics,
+  toLatestGateRequest,
   toLatestPhaseFileReconciliation,
   type LatestGateDiagnostics,
 } from "../../../packages/schemas/src/index.js";
-import { newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
+import { missingSchemaMessage, newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
+import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import {
   schemaUrl,
@@ -219,6 +222,55 @@ describe.each(RECORD_FOLDERS)(
     });
   },
 );
+
+// An attempt's gate request is born with $schema: no pre-schema shape, and
+// any key beyond its five is refused, as phax's decoder does.
+describe("gate-request, born with $schema", () => {
+  const document = validDocuments["gate-request"];
+  const current = CURRENT_SHAPES["gate-request"];
+
+  it("parses the document phax writes as its current shape, with phax's value", () => {
+    expect(Object.keys(document)).toEqual(["$schema", "phase", "base", "terminal", "phases"]);
+    const phax = decodeGateRequestFile(document);
+    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    expect(parseGateRequest(document)).toEqual({ ok: true, shape: current, value: phax.right });
+  });
+
+  it("is identified by parseDocument from its $schema", () => {
+    expect(parseDocument(document)).toMatchObject({
+      ok: true,
+      format: "gate-request",
+      shape: current,
+    });
+  });
+
+  it("fails a document without $schema at $schema", () => {
+    expect(parseGateRequest(withoutKey(document, "$schema"))).toMatchObject({
+      ok: false,
+      error: { path: "$schema", message: missingSchemaMessage("gate request") },
+    });
+  });
+
+  it("rejects an extra key, as phax's strict decoder does", () => {
+    const extra = withKey(document, "touched", ["src/example.ts"]);
+    expect(parseGateRequest(extra).ok).toBe(false);
+    expect(Either.isLeft(decodeGateRequestFile(extra))).toBe(true);
+  });
+
+  it("drops $schema on upgrade and keeps every other key", () => {
+    const result = parseGateRequest(document);
+    if (!result.ok) throw new Error("document rejected");
+    expect(toLatestGateRequest(result.value)).toEqual(withoutKey(document, "$schema"));
+  });
+
+  it("fails a document written by a newer release with the upgrade message", () => {
+    const newer = withKey(document, "$schema", schemaUrl("gate-request", NEWER_RELEASE));
+    const message = newerReleaseMessage("gate-request", NEWER_RELEASE, PACKAGE_VERSION);
+    for (const result of [parseGateRequest(newer), parseDocument(newer)]) {
+      expect(result).toEqual({ ok: false, error: { path: "$schema", message } });
+    }
+  });
+});
 
 it("a phax-written timeline file without its $schema is the pre-schema shape", () => {
   for (const { id, parse } of FORMATS) {

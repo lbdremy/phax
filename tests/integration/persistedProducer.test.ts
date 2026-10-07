@@ -547,7 +547,12 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
  * The formats no writer produces: the old approval ledgers, read only to
  * migrate them to record files and never written again.
  */
-const NEVER_WRITTEN: ReadonlyArray<FormatId> = ["plan-approvals", "spec-approvals"];
+const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
+  "plan-approvals",
+  "spec-approvals",
+  // phax starts writing it in the gate-request plan's next phase.
+  "gate-request",
+];
 
 describe("every persisted file phax writes", () => {
   let written: ReadonlyArray<Written> = [];

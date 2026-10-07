@@ -9,10 +9,13 @@ import type {
   GateAttributionShape,
   GateDiagnostics,
   GateDiagnosticsShape,
+  GateRequest,
+  GateRequestShape,
   LatestAuthoringRecordManifest,
   LatestComplianceReview,
   LatestGateAttribution,
   LatestGateDiagnostics,
+  LatestGateRequest,
   LatestPhaseFileReconciliation,
   LatestPhaseRecordManifest,
   LatestPhaseStatus,
@@ -80,6 +83,7 @@ import {
   parseDocument,
   parseGateAttribution,
   parseGateDiagnostics,
+  parseGateRequest,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -97,6 +101,7 @@ import {
   toLatestComplianceReview,
   toLatestGateAttribution,
   toLatestGateDiagnostics,
+  toLatestGateRequest,
   toLatestPhaseFileReconciliation,
   toLatestPhaseRecordManifest,
   toLatestPhaseStatus,
@@ -135,6 +140,10 @@ import type {
   GateDiagnosticsDocument,
   GateDiagnosticsFile,
 } from "../../src/schemas/gateDiagnostics.js";
+import type {
+  GateRequest as PhaxGateRequest,
+  GateRequestFile as PhaxGateRequestFile,
+} from "../../src/schemas/gateRequest.js";
 import type {
   PhaseFileReconciliation as PhaxPhaseFileReconciliation,
   PhaseFileReconciliationFile as PhaxPhaseFileReconciliationFile,
@@ -345,6 +354,7 @@ const formats: Equals<
   | "gate-diagnostics"
   | "plan-approval-record"
   | "spec-approval-record"
+  | "gate-request"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -416,7 +426,8 @@ const shapeIds: Equals<
   | PhaseFileReconciliationShape
   | GateDiagnosticsShape
   | PlanApprovalRecordShape
-  | SpecApprovalRecordShape,
+  | SpecApprovalRecordShape
+  | GateRequestShape,
   "pre-schema" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -437,7 +448,9 @@ const eachShapeId: [
   Equals<GateDiagnosticsShape, "pre-schema" | "0.17.0" | Current<"gate-diagnostics">>,
   Equals<PlanApprovalRecordShape, Current<"plan-approval-record">>,
   Equals<SpecApprovalRecordShape, Current<"spec-approval-record">>,
+  Equals<GateRequestShape, Current<"gate-request">>,
 ] = [
+  true,
   true,
   true,
   true,
@@ -505,7 +518,9 @@ const parseValues: [
   >,
   Equals<Value<typeof parsePlanApprovalRecord>, PhaxPlanRecordFile>,
   Equals<Value<typeof parseSpecApprovalRecord>, PhaxSpecRecordFile>,
+  Equals<Value<typeof parseGateRequest>, PhaxGateRequestFile>,
 ] = [
+  true,
   true,
   true,
   true,
@@ -580,7 +595,9 @@ const latestTypes: [
   Equals<LatestGateDiagnostics, GateDiagnosticsDocument>,
   Equals<LatestPlanApprovalRecord, PhaxPlanRecord>,
   Equals<LatestSpecApprovalRecord, PhaxSpecRecord>,
+  Equals<LatestGateRequest, PhaxGateRequest>,
 ] = [
+  true,
   true,
   true,
   true,
@@ -619,6 +636,25 @@ void latestPlanRecord.$schema;
 declare const latestSpecRecord: LatestSpecApprovalRecord;
 // @ts-expect-error: the in-memory spec approval record carries no $schema
 void latestSpecRecord.$schema;
+
+// The gate request is born with $schema too: phax's own type, both ways, and
+// its in-memory value carries no $schema
+const gateRequestIsPhax: Equals<GateRequest, PhaxGateRequestFile> = true;
+void gateRequestIsPhax;
+const gateRequestUpgrade: Equals<
+  Parameters<typeof toLatestGateRequest>,
+  [value: PhaxGateRequestFile]
+> = true;
+void gateRequestUpgrade;
+declare const latestGateRequest: LatestGateRequest;
+// @ts-expect-error: the in-memory gate request carries no $schema
+void latestGateRequest.$schema;
+if (document.ok && document.format === "gate-request") {
+  const exact: Equals<typeof document.value, PhaxGateRequestFile> = true;
+  const requestShape: Equals<typeof document.shape, Current<"gate-request">> = true;
+  void exact;
+  void requestShape;
+}
 
 declare const latestRegistry: LatestRegistry;
 // @ts-expect-error: the latest registry carries no version

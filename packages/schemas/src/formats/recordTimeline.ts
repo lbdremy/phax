@@ -1,5 +1,6 @@
 // A phase record's timeline files: its gate attribution, its file
-// reconciliation, and each fix-loop attempt's gate diagnostics document.
+// reconciliation, and each fix-loop attempt's gate diagnostics document and
+// gate request.
 // Each pre-schema and released shape that is no longer
 // current is phax's frozen module under src/schemas/history/; each current
 // shape, named by `CURRENT_SHAPES` (`next` until a release renames it), is
@@ -16,6 +17,12 @@ import {
   type GateDiagnosticsDocument,
   type GateDiagnosticsFile,
 } from "../../../../src/schemas/gateDiagnostics.js";
+import {
+  GateRequestFileSchema,
+  decodeGateRequestFile,
+  type GateRequest,
+  type GateRequestFile,
+} from "../../../../src/schemas/gateRequest.js";
 import {
   GateAttributionPreSchemaSchema,
   decodeGateAttributionPreSchema,
@@ -204,4 +211,38 @@ export function toLatestGateDiagnostics(
     return recorded;
   }
   return value;
+}
+
+// ── gate request
+
+// Born with `$schema`: no pre-schema shape. Unknown keys are refused.
+export type GateRequestShapes = {
+  [K in CurrentShapeName<"gate-request">]: GateRequestFile;
+};
+
+/** The id of every gate request shape the package reads. */
+export type GateRequestShape = keyof GateRequestShapes;
+
+export const gateRequestFormat = defineFormat<GateRequestShapes>({
+  id: "gate-request",
+  label: "gate request",
+  preSchema: null,
+  releases: [],
+  current: {
+    name: CURRENT_SHAPES["gate-request"],
+    shape: { schema: GateRequestFileSchema, decode: decodeGateRequestFile },
+  },
+});
+
+/** Reads an attempt's `checks-attempt-NN.request.json`. Never throws. */
+export const parseGateRequest: (input: unknown) => ParsedShape<GateRequestShapes> =
+  gateRequestFormat.parse;
+
+/** The latest gate request: phax's in-memory value, with no `$schema`. */
+export type LatestGateRequest = GateRequest;
+
+/** Upgrades a parsed gate request in memory: drops `$schema`, keeps every other fact. */
+export function toLatestGateRequest(value: GateRequestFile): LatestGateRequest {
+  const { $schema: _schema, ...recorded } = value;
+  return recorded;
 }

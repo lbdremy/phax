@@ -11,6 +11,7 @@ import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authorin
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
+import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
 import { decodeAuthoringRecordManifestPreSchema } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewPreSchema } from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import { decodeGateAttributionPreSchema } from "../../../src/schemas/history/gate-attribution/pre-schema.js";
@@ -74,6 +75,7 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "plan-document": decodePlanDocumentFile,
   "plan-approval-record": decodePlanRecordFile,
   "spec-approval-record": decodeSpecRecordFile,
+  "gate-request": decodeGateRequestFile,
 };
 
 /** The frozen pre-schema decoder of each format with a pre-schema shape. */

@@ -9,8 +9,8 @@ export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
 
 /**
  * Every persisted format: the fourteen of spec §4 phax still writes, then the two approval
- * record formats of spec approval-record-files, appended so existing order
- * stays stable. `code-review` joins with the headless-review plan, which
+ * record formats of spec approval-record-files, then the gate request of spec
+ * gate-request, appended so existing order stays stable. `code-review` joins with the headless-review plan, which
  * ships that document.
  */
 export const FORMAT_IDS = [
@@ -30,6 +30,7 @@ export const FORMAT_IDS = [
   "plan-document",
   "plan-approval-record",
   "spec-approval-record",
+  "gate-request",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -46,6 +47,7 @@ export function isFormatId(value: string): value is FormatId {
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
   "spec-approval-record",
+  "gate-request",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];
