@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const NODE_IMPORT_RE = /from\s+"node:|require\("node:/;
@@ -23,9 +24,36 @@ function walkTs(dir) {
   return files;
 }
 
+// The gate request phax writes on stdin: {$schema, phase, base, terminal, phases}.
+// Read the stream to its end; readFileSync(0) fails on some pipes.
+async function readRequest() {
+  let text = "";
+  for await (const chunk of process.stdin) text += chunk;
+  return JSON.parse(text);
+}
+
+function git(args, cwd) {
+  return execFileSync("git", args, { cwd, encoding: "utf8" }).split("\n").filter(Boolean);
+}
+
+// The .ts files under src/ changed since base: tracked changes plus untracked
+// files, keeping only those that still exist.
+function changedTs(cwd, base) {
+  const paths = new Set([
+    ...git(["diff", "--name-only", "--relative", base], cwd),
+    ...git(["ls-files", "--others", "--exclude-standard"], cwd),
+  ]);
+  return [...paths]
+    .filter((p) => p.startsWith("src/") && p.endsWith(".ts"))
+    .map((p) => join(cwd, p))
+    .filter((p) => existsSync(p))
+    .toSorted();
+}
+
+const request = await readRequest();
 const cwd = process.cwd();
-const srcDir = join(cwd, "src");
-const tsFiles = walkTs(srcDir);
+// The terminal phase audits everything; any other phase only what it changed.
+const tsFiles = request.terminal ? walkTs(join(cwd, "src")) : changedTs(cwd, request.base);
 const diagnostics = [];
 
 for (const filePath of tsFiles) {

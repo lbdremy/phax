@@ -13,7 +13,7 @@ were completed: headless authoring (0.15/0.16), the `schemas-package` spec in fi
 and the global install bumped on 2026-10-05). Five approved specs are open:
 artifact-decide is next; headless-review and oracle-phases follow it; 23 and 24 stay parked.
 The steme gate specs (drop-gate-scopes, gate-request, brief-provider) are Approved;
-drop-gate-scopes has landed. No plan is in flight.
+drop-gate-scopes and gate-request have landed. No plan is in flight.
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -142,11 +142,12 @@ spec of its own. In this order:
       fails like an `invariant`; the `scopes` provider, closure, pending, `missing-provider` and
       `gate-pending` removed; the already-served `gate-pending` `$schema` URLs stay up from a
       frozen copy (the docs-site guard is unchanged).
-- [ ] **`gate-request`** — `docs/specs/2610060951-gate-request.md`, Approved, §9 decided 2026-10-06.
+- [x] **`gate-request`** — `docs/specs/2610060951-gate-request.md`, Approved, §9 decided 2026-10-06.
       Re-authored for the green field (the 2026-10-05 version is abandoned). A gate step that
-      declares it reads `{phase, base, terminal, phases: [{id, files}]}` on stdin, saved beside
-      the attempt so the verdict replays; `base` is noted when the phase branch is created. The
-      hello-world diagnostics step declares the input.
+      declares it reads `{$schema, phase, base, terminal, phases: [{id, files}]}` on stdin, saved
+      beside the attempt so the verdict replays; `base` is noted in the phase status when the
+      phase branch is created, and a pre-release run folder is refused. The hello-world
+      diagnostics step declares the input.
 - [ ] **`brief-provider`** — `docs/specs/2610061346-brief-provider.md`, Approved, §9 decided
       2026-10-06 (re-authored for versioned answers). Replaces `brief-replaces-orient` (abandoned): purely additive, orient is already
       gone. A **brief** is feed-forward and never blocks (the audit is the gate's and blocks):
