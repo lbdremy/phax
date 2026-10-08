@@ -8,6 +8,12 @@ export class FsError extends Data.TaggedError("FsError")<{
 export interface FileSystemOps {
   readText(path: string): Effect.Effect<string, FsError>;
   writeAtomic(path: string, content: string): Effect.Effect<void, FsError>;
+  /**
+   * Writes `content` at `path` only when nothing exists there yet, and says
+   * whether it did: false means something was already there, left untouched.
+   * Never overwrites, so concurrent callers can each claim a distinct name.
+   */
+  createExclusive(path: string, content: string): Effect.Effect<boolean, FsError>;
   appendLine(path: string, line: string): Effect.Effect<void, FsError>;
   mkdirp(path: string): Effect.Effect<void, FsError>;
   exists(path: string): Effect.Effect<boolean, FsError>;

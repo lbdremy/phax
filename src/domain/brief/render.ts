@@ -68,3 +68,42 @@ export function renderBriefSection(
         ];
   return [HEADING, "", INTRO, "", ...body, "", ...INSTRUCTIONS].join("\n");
 }
+
+// The widest state, `forbidden`, sets the column the locations start at.
+const STATE_WIDTH = "forbidden".length;
+
+function wholePlaceLines(place: BriefPlace): readonly string[] {
+  const due =
+    place.state === "met" || place.state === "accepted" || place.due === null
+      ? ""
+      : place.due === "this-phase"
+        ? "   due this phase"
+        : "   due later";
+  const lines = [`  ${place.state.padEnd(STATE_WIDTH)}  ${locationText(place)}${due}`];
+  if (place.state !== "met") lines.push(`    what:    ${place.what}`);
+  if (place.state === "missing" || place.state === "forbidden") {
+    lines.push(`    repair:  ${place.repair}`);
+  }
+  return lines;
+}
+
+/**
+ * A brief in whole form, as `phax brief` prints it: every guarantee and every
+ * place in the provider's order, with state, location, due, what and repair
+ * wherever the state has them. No trailing newline.
+ */
+export function renderWholeBrief(answer: BriefAnswer): string {
+  return answer.guarantees
+    .flatMap((guarantee) => [
+      `${guarantee.id} — ${guarantee.statement}`,
+      ...guarantee.places.flatMap(wholePlaceLines),
+    ])
+    .join("\n");
+}
+
+/** What `phax brief` prints for an empty answer; `null` is the phase's brief. */
+export function renderNoBrief(files: readonly string[] | null): string {
+  return files === null
+    ? "No brief for this phase's planned files."
+    : `No brief for ${files.join(", ")}.`;
+}
