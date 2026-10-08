@@ -58,7 +58,7 @@ const guarantees =
 
 process.stdout.write(
   JSON.stringify({
-    $schema: "https://docs.phax.run/schemas/brief-answer/0.19.0.json",
+    $schema: "https://docs.phax.run/schemas/brief-answer/0.20.0.json",
     guarantees,
   }) + "\n",
 );
