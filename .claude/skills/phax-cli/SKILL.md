@@ -26,8 +26,8 @@ default; also Mistral Vibe and OpenAI Codex) through isolated, **gated phases**.
 Each phase runs in its **own Git worktree**, executes the agent, then runs a
 **gate profile** (typecheck, tests, lint, …) with a **same-session fix loop** —
 the agent fixes gate failures in the same context before the phase may commit.
-The **final phase worktree stays open** for human review; phax never pushes or
-opens a PR on its own.
+The **final phase worktree stays open** for human review. phax pushes the branch and
+opens a PR only when `phax.json` sets `publish.auto`, or when you run `phax publish-pr`.
 
 ## Run lifecycle — the command you reach for depends on the state
 
