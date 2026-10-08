@@ -33,6 +33,12 @@ Decided 2026-09-15: the first four were the blockers (`phax prune`, the fourth, 
       shows what the alternative looks like (a `phax.json` the CLI refuses). Decide the
       contract (frozen `version: 1` + a migration command, or a documented "re-run `phax
       init`" policy) and write it down in the README.
+      **Provider answers, decided 2026-10-08 by the author:** before 1.0, an answer in an older
+      shape of a format that changed is refused by name. From 1.0 it is read through its frozen
+      shape and lifted, as phax reads its own older files. At 1.0 the guard tests that hold each
+      answer reader to one shape must fail and name this rule, not be deleted. Stamps name the
+      format's shape, not the running release (`open-next-release`), so a provider upgrades only
+      when a format it speaks changes.
 - [ ] **CLI contract freeze.** `phax.usage.kdl` had a breaking change in 0.13 (`extract-plan`
       removed), and 0.18 added `prune`. Land the last renames from
       `docs/vocabulary-review.md` §"Top fixes" (at least 1, 2 and 4 — they change output and
@@ -186,6 +192,22 @@ spec of its own. In this order:
         that refusal without warning;
       - the brief provider, with `phax brief [path…]` and `records explain --briefs`;
       - the gate step keys `output` and `input` (the gate request on stdin).
+- [ ] **What steme now knows reaches phax, in this order (decided 2026-10-08 by the author).**
+      steme's guarantee model was restructured (steme-surface §10, §14.1; decisions 27–30): packs,
+      a standard, a unit manifest, repairs rendered as blueprints and skills, accepted debt keyed
+      by the ledger. phax's formats flatten or drop most of it.
+      1. `open-next-release`, with stamps that name the format's shape (brief
+         `docs/briefs/open-next-release.md`): consumers upgrade only when a format changes.
+      2. `structured-diagnostics` (brief `docs/briefs/structured-diagnostics.md`): the finding's
+         identity, statement apart from what is wrong, ranges and related files, the repair as
+         data, accepted debt carried and shown, the whole document saved.
+      3. The brief answer, the same way, in its own spec, reusing step 2's vocabulary.
+      4. A `decision` class that stops the phase for the owner, joining the parked
+         `phase-decision-requests` spec.
+
+      steme's side, not phax's: its target stamps `gate-diagnostics/0.19.0`, which phax 0.20
+      refuses; its brief answers carry steme's own `$schema` and an object `repair`; its copy of
+      the brief-request schema pins 0.19.0.
 
 Not prerequisites, and not specced yet (same note, changes 1–3, 6, 7 and the brief at plan
 authoring): a stable `id` on a diagnostic (oscillation), a `decision` class that stops for the
