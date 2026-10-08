@@ -737,6 +737,34 @@ describe("records explain and list (real git)", () => {
       expect(outcome.record.artifacts.has("output.jsonl")).toBe(true);
     });
 
+    it("--briefs on an authoring record says it carries no provider briefs", async () => {
+      const artifact = "docs/specs/2609230835-plan-prune.md";
+      const sha = commitArtifact("2609230835-plan-prune", artifact);
+      await recordSession("2609230835-plan-prune", artifact, { sourceSha: sha });
+      writeFileSync(
+        join(repoDir, "phax.json"),
+        JSON.stringify({
+          version: 1,
+          name: "test",
+          gateProfiles: {
+            fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+          },
+          records: { transcript: false, destination: { kind: "in-repo" }, autoPush: false },
+        }),
+      );
+      const originalCwd = process.cwd();
+      process.chdir(repoDir);
+      try {
+        const withBriefs = await records(["explain", sha, "--briefs"]);
+        expect(withBriefs.code).toBe(0);
+        expect(withBriefs.logs).toContain("(an authoring record carries no provider briefs)");
+        // The authoring brief's size line stays: it is the person-written brief.
+        expect(withBriefs.text).toContain(`brief    ${"the brief\n".length} bytes`);
+      } finally {
+        process.chdir(originalCwd);
+      }
+    });
+
     it("explains an authoring manifest written before $schema", async () => {
       const authoringId = "2609230835-legacy";
       const artifact = "docs/specs/2609230835-legacy.md";
