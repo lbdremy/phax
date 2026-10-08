@@ -18,6 +18,14 @@ import {
   type PlanRecord,
 } from "../../../src/schemas/approvalRecord.js";
 import { AuthoringRecordManifestFileSchema } from "../../../src/schemas/authoringRecord.js";
+import {
+  BriefAnswerFileSchema,
+  BriefRecordFileSchema,
+  BriefRequestFileSchema,
+  type BriefAnswer,
+  type BriefRecord,
+  type PhaseBriefRequest,
+} from "../../../src/schemas/brief.js";
 import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
 import { GateAttributionFileSchema } from "../../../src/schemas/gateAttribution.js";
 import { GateDiagnosticsFileSchema } from "../../../src/schemas/gateDiagnostics.js";
@@ -353,6 +361,36 @@ const gateRequest: GateRequest = {
   ],
 };
 
+const briefRequest: PhaseBriefRequest = {
+  ...gateRequest,
+  files: ["src/example.ts", "src/missing.ts"],
+};
+
+const briefAnswer: BriefAnswer = {
+  guarantees: [
+    {
+      id: "example-no-io",
+      statement: "nothing under src/ imports a node: module",
+      places: [
+        {
+          location: { file: "src/example.ts", line: 3 },
+          state: "forbidden",
+          due: "this-phase",
+          what: "imports node:fs",
+          repair: "remove the import",
+        },
+        { location: { file: "src/missing.ts" }, state: "met" },
+      ],
+    },
+  ],
+};
+
+const briefRecord: BriefRecord = {
+  moment: "pulled",
+  request: withSchemaUrl("brief-request", briefRequest),
+  outcome: { kind: "answered", answer: withSchemaUrl("brief-answer", briefAnswer) },
+};
+
 const specDocument: SpecDocumentPreSchema = {
   version: 1,
   kind: "spec",
@@ -542,6 +580,9 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     withSchemaUrl("spec-approval-record", specRecord),
   ),
   "gate-request": encoded(GateRequestFileSchema, withSchemaUrl("gate-request", gateRequest)),
+  "brief-request": encoded(BriefRequestFileSchema, withSchemaUrl("brief-request", briefRequest)),
+  "brief-answer": encoded(BriefAnswerFileSchema, withSchemaUrl("brief-answer", briefAnswer)),
+  "brief-record": encoded(BriefRecordFileSchema, withSchemaUrl("brief-record", briefRecord)),
 };
 
 /**

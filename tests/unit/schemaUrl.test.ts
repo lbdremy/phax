@@ -24,13 +24,16 @@ describe("schemaUrl", () => {
     expect(parseSchemaUrl(schemaUrl(id, "0.10.2"))).toEqual({ formatId: id, release: "0.10.2" });
   });
 
-  it("lists the fourteen formats of spec §4 phax still writes, the two approval record formats and the gate request, without code-review", () => {
-    expect(FORMAT_IDS).toHaveLength(17);
-    expect(new Set(FORMAT_IDS).size).toBe(17);
-    expect(FORMAT_IDS.slice(-3)).toEqual([
+  it("lists the fourteen formats of spec §4 phax still writes, the two approval record formats, the gate request and the three brief formats, without code-review", () => {
+    expect(FORMAT_IDS).toHaveLength(20);
+    expect(new Set(FORMAT_IDS).size).toBe(20);
+    expect(FORMAT_IDS.slice(-6)).toEqual([
       "plan-approval-record",
       "spec-approval-record",
       "gate-request",
+      "brief-request",
+      "brief-answer",
+      "brief-record",
     ]);
     expect(isFormatId("code-review")).toBe(false);
     expect(isFormatId("phase-record-manifest")).toBe(true);
@@ -41,6 +44,9 @@ describe("schemaUrl", () => {
       "plan-approval-record",
       "spec-approval-record",
       "gate-request",
+      "brief-request",
+      "brief-answer",
+      "brief-record",
     ]);
     expect(PRE_SCHEMA_FORMAT_IDS).toEqual(
       FORMAT_IDS.filter((id) => !SCHEMA_BORN_FORMAT_IDS.some((born) => born === id)),

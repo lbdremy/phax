@@ -11,6 +11,11 @@ import {
   type JsonSchemaFormat,
 } from "../../../packages/schemas/build/jsonSchemas.js";
 import {
+  briefAnswerFormat,
+  briefRecordFormat,
+  briefRequestFormat,
+} from "../../../packages/schemas/src/formats/brief.js";
+import {
   authoringRecordManifestFormat,
   phaseRecordManifestFormat,
 } from "../../../packages/schemas/src/formats/recordManifests.js";
@@ -86,6 +91,9 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "plan-approval-record": planApprovalRecordFormat.current.shape.decode,
   "spec-approval-record": specApprovalRecordFormat.current.shape.decode,
   "gate-request": gateRequestFormat.current.shape.decode,
+  "brief-request": briefRequestFormat.current.shape.decode,
+  "brief-answer": briefAnswerFormat.current.shape.decode,
+  "brief-record": briefRecordFormat.current.shape.decode,
   "record-manifest": decodeRecordManifestFile,
 };
 
@@ -142,6 +150,9 @@ describe("the JSON Schema table", () => {
       planDocumentFormat,
       planApprovalRecordFormat,
       specApprovalRecordFormat,
+      briefRequestFormat,
+      briefAnswerFormat,
+      briefRecordFormat,
     ];
     for (const definition of definitions) {
       const entry = JSON_SCHEMA_FORMATS.find(({ format }) => format === definition.id);
@@ -160,15 +171,16 @@ describe("the JSON Schema table", () => {
       "gate-attribution",
       "phase-file-reconciliation",
       "gate-diagnostics",
+      "brief-answer",
     ]);
   });
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 18 files and no failure", () => {
+  it("renders 21 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(18);
+    expect(rendered.files.size).toBe(21);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

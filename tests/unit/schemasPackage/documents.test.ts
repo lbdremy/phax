@@ -8,6 +8,11 @@ import {
   decodePlanRecordFile,
 } from "../../../src/schemas/approvalRecord.js";
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
+import {
+  decodeBriefAnswerFile,
+  decodeBriefRecordFile,
+  decodeBriefRequestFile,
+} from "../../../src/schemas/brief.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
@@ -76,6 +81,9 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "plan-approval-record": decodePlanRecordFile,
   "spec-approval-record": decodeSpecRecordFile,
   "gate-request": decodeGateRequestFile,
+  "brief-request": decodeBriefRequestFile,
+  "brief-answer": decodeBriefAnswerFile,
+  "brief-record": decodeBriefRecordFile,
 };
 
 /** The frozen pre-schema decoder of each format with a pre-schema shape. */

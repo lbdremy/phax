@@ -1,4 +1,12 @@
 import {
+  briefAnswerFormat,
+  briefRecordFormat,
+  briefRequestFormat,
+  type BriefAnswerShapes,
+  type BriefRecordShapes,
+  type BriefRequestShapes,
+} from "./formats/brief.js";
+import {
   planApprovalRecordFormat,
   planApprovalsFormat,
   planDocumentFormat,
@@ -202,6 +210,32 @@ export {
   type PhaseFileReconciliationShape,
 } from "./formats/recordTimeline.js";
 
+// The documents of a brief: the request on a brief provider's stdin, the
+// answer it prints and the record of one brief call. Each schema and type is
+// phax's own file schema and type, under the name the spec gives it.
+export {
+  BriefAnswerFileSchema as BriefAnswerSchema,
+  BriefRecordFileSchema as BriefRecordSchema,
+  BriefRequestFileSchema as BriefRequestSchema,
+  type BriefAnswerFile as BriefAnswer,
+  type BriefRecordFile as BriefRecord,
+  type BriefRequestFile as BriefRequest,
+} from "../../../src/schemas/brief.js";
+export {
+  parseBriefAnswer,
+  parseBriefRecord,
+  parseBriefRequest,
+  toLatestBriefAnswer,
+  toLatestBriefRecord,
+  toLatestBriefRequest,
+  type BriefAnswerShape,
+  type BriefRecordShape,
+  type BriefRequestShape,
+  type LatestBriefAnswer,
+  type LatestBriefRecord,
+  type LatestBriefRequest,
+} from "./formats/brief.js";
+
 // Each format's pre-schema shape, exactly what phax wrote before it wrote
 // $schema: the schema and type of phax's frozen module under
 // src/schemas/history/. Their decoders stay private; the parse functions
@@ -304,6 +338,9 @@ type DocumentShapes = EveryFormat<{
   "plan-approval-record": PlanApprovalRecordShapes;
   "spec-approval-record": SpecApprovalRecordShapes;
   "gate-request": GateRequestShapes;
+  "brief-request": BriefRequestShapes;
+  "brief-answer": BriefAnswerShapes;
+  "brief-record": BriefRecordShapes;
 }>;
 
 /** The id of every format `parseDocument` reads: every `FormatId`. */
@@ -336,4 +373,7 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "plan-approval-record": planApprovalRecordFormat,
     "spec-approval-record": specApprovalRecordFormat,
     "gate-request": gateRequestFormat,
+    "brief-request": briefRequestFormat,
+    "brief-answer": briefAnswerFormat,
+    "brief-record": briefRecordFormat,
   });

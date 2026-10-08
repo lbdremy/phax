@@ -66,6 +66,9 @@ describe("schemas package entry", () => {
     expect(Object.keys(entry).toSorted()).toEqual([
       "AuthoringRecordManifestPreSchemaSchema",
       "AuthoringRecordManifestSchema",
+      "BriefAnswerSchema",
+      "BriefRecordSchema",
+      "BriefRequestSchema",
       "ComplianceReviewPreSchemaSchema",
       "ComplianceReviewSchema",
       "GateAttributionPreSchemaSchema",
@@ -103,6 +106,9 @@ describe("schemas package entry", () => {
       "UNKNOWN",
       "isUnknown",
       "parseAuthoringRecordManifest",
+      "parseBriefAnswer",
+      "parseBriefRecord",
+      "parseBriefRequest",
       "parseComplianceReview",
       "parseDocument",
       "parseGateAttribution",
@@ -122,6 +128,9 @@ describe("schemas package entry", () => {
       "parseSpecApprovals",
       "parseSpecDocument",
       "toLatestAuthoringRecordManifest",
+      "toLatestBriefAnswer",
+      "toLatestBriefRecord",
+      "toLatestBriefRequest",
       "toLatestComplianceReview",
       "toLatestGateAttribution",
       "toLatestGateDiagnostics",
@@ -211,6 +220,14 @@ describe("schemas package entry", () => {
     expect(entry.PhaseFileReconciliationSchema).toBe(PhaseFileReconciliationFileSchema);
     expect(entry.GateDiagnosticsSchema).toBe(GateDiagnosticsFileSchema);
     expect(entry.GateRequestSchema).toBe(GateRequestFileSchema);
+  });
+
+  it("re-exports phax's brief file schemas under the spec's names, never a copy", async () => {
+    const { BriefAnswerFileSchema, BriefRecordFileSchema, BriefRequestFileSchema } =
+      await import("../../../src/schemas/brief.js");
+    expect(entry.BriefRequestSchema).toBe(BriefRequestFileSchema);
+    expect(entry.BriefAnswerSchema).toBe(BriefAnswerFileSchema);
+    expect(entry.BriefRecordSchema).toBe(BriefRecordFileSchema);
   });
 
   it.each(PRE_SCHEMA_FORMAT_IDS)(

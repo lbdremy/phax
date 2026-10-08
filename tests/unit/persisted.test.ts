@@ -4,6 +4,11 @@ import { fileURLToPath } from "node:url";
 import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
+  LAST_RELEASE_WITHOUT_BRIEF_ANSWER,
+  describeBriefAnswerError,
+  readBriefAnswer,
+  readBriefRecordFile,
+  readBriefRequestFile,
   readComplianceReviewFile,
   readGateAttributionFile,
   readGateDiagnosticsAnswer,
@@ -22,6 +27,7 @@ import {
   readSpecDocumentFile,
   readSpecRecordFile,
   withSchemaUrl,
+  type BriefAnswerError,
   type GateDiagnosticsAnswerError,
   type MissingFact,
   type PersistedReadError,
@@ -559,6 +565,8 @@ describe("documents from another release", () => {
     ["authoring-record-manifest", readRecordManifestFile, "authoring record manifest"],
     ["plan-approval-record", readPlanRecordFile, "plan approval record"],
     ["spec-approval-record", readSpecRecordFile, "spec approval record"],
+    ["brief-request", readBriefRequestFile, "brief request"],
+    ["brief-record", readBriefRecordFile, "brief record"],
   ];
 
   const table = readers.flatMap(([id, read, label]) =>
@@ -664,5 +672,171 @@ describe("readGateDiagnosticsAnswer", () => {
       answerShapes,
       "a second gate-diagnostics answer shape: teach readGateDiagnosticsAnswer to decode each answer release with its own shape",
     ).toHaveLength(1);
+  });
+});
+
+function briefRefusal(input: unknown): BriefAnswerError {
+  const result = readBriefAnswer(input);
+  if (Either.isRight(result)) throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
+  return result.left;
+}
+
+describe("readBriefAnswer", () => {
+  const guarantee = {
+    id: "core-no-adapters",
+    statement: "src/core imports no adapter from src/infra",
+    places: [
+      {
+        location: { file: "src/core/billing/invoice.ts", line: 3 },
+        state: "forbidden",
+        due: "this-phase",
+        what: "imports src/infra/stripe.ts",
+        repair: "depend on PaymentPort from src/core/billing/port.ts",
+      },
+      { location: { file: "src/core/billing/port.ts" }, state: "met" },
+    ],
+  } as const;
+
+  const [major, minor, patch] = PHAX_RELEASE.split(".").map(Number) as [number, number, number];
+
+  it("is pinned to the release current when the format was added", () => {
+    expect(LAST_RELEASE_WITHOUT_BRIEF_ANSWER).toBe("0.19.0");
+  });
+
+  it("decodes an answer at the running release and drops $schema and extra keys", () => {
+    const result = readBriefAnswer({
+      $schema: schemaUrl("brief-answer", PHAX_RELEASE),
+      guarantees: [guarantee],
+      generator: "example-brief",
+    });
+    expect(result).toEqual(Either.right({ guarantees: [guarantee] }));
+  });
+
+  it("decodes an empty answer", () => {
+    const answer = { $schema: schemaUrl("brief-answer", PHAX_RELEASE), guarantees: [] };
+    expect(readBriefAnswer(answer)).toEqual(Either.right({ guarantees: [] }));
+  });
+
+  it("refuses a newer release by name", () => {
+    const newer = `${major}.${minor}.${patch + 1}`;
+    const error = briefRefusal({
+      $schema: schemaUrl("brief-answer", newer),
+      guarantees: [guarantee],
+    });
+    expect(error).toEqual({
+      kind: "newer",
+      reason: `brief-answer written by phax ${newer} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+    });
+  });
+
+  it("refuses an answer without $schema", () => {
+    expect(briefRefusal({ guarantees: [] })).toEqual({
+      kind: "schema",
+      reason: "a brief-answer document must carry $schema",
+    });
+  });
+
+  it.each([
+    ["a gate-diagnostics URL", schemaUrl("gate-diagnostics", PHAX_RELEASE)],
+    ["not a url", "not a url"],
+    ["a number", 4],
+  ])("refuses %s at $schema, naming the value", (_name, value) => {
+    const error = briefRefusal({ $schema: value, guarantees: [] });
+    expect(error.kind).toBe("schema");
+    expect(error.reason).toContain(JSON.stringify(value));
+  });
+
+  it("refuses a release at or below the last release without the format", () => {
+    expect(briefRefusal({ $schema: schemaUrl("brief-answer", "0.18.0"), guarantees: [] })).toEqual({
+      kind: "schema",
+      reason: "brief-answer 0.18.0 has no known shape",
+    });
+  });
+
+  it("refuses a variant violation as a shape error", () => {
+    const error = briefRefusal({
+      $schema: schemaUrl("brief-answer", PHAX_RELEASE),
+      guarantees: [{ ...guarantee, places: [{ location: { file: "a.ts" }, state: "stale" }] }],
+    });
+    expect(error.kind).toBe("shape");
+    expect(error.reason).toMatch(/^schema mismatch: /);
+  });
+
+  it("refuses a non-object as a shape error and never throws", () => {
+    for (const value of [null, undefined, 3, "text", ["a"]]) {
+      expect(briefRefusal(value).kind).toBe("shape");
+    }
+  });
+
+  it("describes each error in one line", () => {
+    expect(describeBriefAnswerError({ kind: "schema", reason: "x" })).toBe(
+      "brief answer refused at $schema: x",
+    );
+    expect(describeBriefAnswerError({ kind: "newer", reason: "y" })).toBe(
+      "brief answer refused at $schema: y",
+    );
+    expect(describeBriefAnswerError({ kind: "shape", reason: "z" })).toBe(
+      "brief answer refused: z",
+    );
+    expect(describeBriefAnswerError(briefRefusal({ guarantees: [] }))).toBe(
+      "brief answer refused at $schema: a brief-answer document must carry $schema",
+    );
+  });
+
+  // The reader decodes every answer release with the current decoder, which is
+  // right only while one answer shape exists. An answer shape is the `next`
+  // snapshot or a release-named one newer than LAST_RELEASE_WITHOUT_BRIEF_ANSWER.
+  it("is written for a single answer shape", () => {
+    const dir = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../packages/schemas/snapshots/brief-answer",
+    );
+    const answerShapes = readdirSync(dir)
+      .map((file) => file.replace(/\.schema\.json$/, ""))
+      .filter(
+        (name) =>
+          name === "next" ||
+          (/^\d+\.\d+\.\d+$/.test(name) &&
+            compareReleases(name, LAST_RELEASE_WITHOUT_BRIEF_ANSWER) > 0),
+      );
+    expect(
+      answerShapes,
+      "a second brief-answer answer shape: teach readBriefAnswer to decode each answer release with its own shape",
+    ).toHaveLength(1);
+  });
+});
+
+describe("brief request and record files", () => {
+  const requestFile = "/work/example-repo/.phax-context/brief-request.json";
+  const recordFile = "/home/example/.phax/runs/example/phase-02/brief-01.json";
+
+  it("readBriefRequestFile reads the phase request, dropping $schema", () => {
+    const document = validDocuments["brief-request"];
+    expect(right(readBriefRequestFile(requestFile, document))).toEqual(
+      withoutKey(document, "$schema"),
+    );
+  });
+
+  it("readBriefRequestFile reads the outside request, dropping $schema", () => {
+    const document = { $schema: schemaUrl("brief-request", PHAX_RELEASE), files: ["src/a.ts"] };
+    expect(right(readBriefRequestFile(requestFile, document))).toEqual({ files: ["src/a.ts"] });
+  });
+
+  it("readBriefRecordFile drops only the record's own $schema", () => {
+    const document = validDocuments["brief-record"];
+    const record = right(readBriefRecordFile(recordFile, document));
+    expect(record).toEqual(withoutKey(document, "$schema"));
+    expect(record.request).toHaveProperty("$schema");
+    expect(record.outcome.kind === "answered" && record.outcome.answer).toHaveProperty("$schema");
+  });
+
+  type BriefReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  it.each<readonly [string, BriefReader, string, Readonly<Record<string, unknown>>]>([
+    [requestFile, readBriefRequestFile, "brief request", validDocuments["brief-request"]],
+    [recordFile, readBriefRecordFile, "brief record", validDocuments["brief-record"]],
+  ])("%s without $schema is refused", (file, read, label, document) => {
+    expect(left(read(file, withoutKey(document, "$schema"))).message).toBe(
+      `${file}: ${label} has no $schema — every ${label} is written with one`,
+    );
   });
 });

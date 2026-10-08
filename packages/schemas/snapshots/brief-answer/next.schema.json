@@ -1,0 +1,266 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax brief answer",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    },
+    "Int": {
+      "type": "integer",
+      "description": "an integer",
+      "title": "int"
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "guarantees"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The brief-answer format and the phax release that wrote this file: https://docs.phax.run/schemas/brief-answer/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/brief-answer\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "guarantees": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "statement",
+          "places"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "statement": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "places": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "location",
+                    "state"
+                  ],
+                  "properties": {
+                    "location": {
+                      "type": "object",
+                      "required": [
+                        "file"
+                      ],
+                      "properties": {
+                        "file": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        },
+                        "line": {
+                          "$ref": "#/$defs/Int",
+                          "description": "a positive number",
+                          "title": "positive",
+                          "exclusiveMinimum": 0
+                        }
+                      },
+                      "additionalProperties": true
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "met"
+                      ]
+                    }
+                  },
+                  "additionalProperties": true,
+                  "description": "The guarantee holds at the place."
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "location",
+                    "state",
+                    "due",
+                    "what",
+                    "repair"
+                  ],
+                  "properties": {
+                    "location": {
+                      "type": "object",
+                      "required": [
+                        "file"
+                      ],
+                      "properties": {
+                        "file": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        },
+                        "line": {
+                          "$ref": "#/$defs/Int",
+                          "description": "a positive number",
+                          "title": "positive",
+                          "exclusiveMinimum": 0
+                        }
+                      },
+                      "additionalProperties": true
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "missing"
+                      ]
+                    },
+                    "due": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "this-phase",
+                            "later"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The provider's word on when the place must be resolved: this-phase, later, or null when the request carried no phase facts. phax never computes or checks it."
+                    },
+                    "what": {
+                      "type": "string",
+                      "description": "What stands at the place, in the provider's words.",
+                      "title": "nonEmptyString",
+                      "minLength": 1
+                    },
+                    "repair": {
+                      "type": "string",
+                      "description": "How to bring the place in line with the guarantee.",
+                      "title": "nonEmptyString",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": true,
+                  "description": "Something the guarantee requires is absent at the place."
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "location",
+                    "state",
+                    "due",
+                    "what",
+                    "repair"
+                  ],
+                  "properties": {
+                    "location": {
+                      "type": "object",
+                      "required": [
+                        "file"
+                      ],
+                      "properties": {
+                        "file": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        },
+                        "line": {
+                          "$ref": "#/$defs/Int",
+                          "description": "a positive number",
+                          "title": "positive",
+                          "exclusiveMinimum": 0
+                        }
+                      },
+                      "additionalProperties": true
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "forbidden"
+                      ]
+                    },
+                    "due": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "this-phase",
+                            "later"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The provider's word on when the place must be resolved: this-phase, later, or null when the request carried no phase facts. phax never computes or checks it."
+                    },
+                    "what": {
+                      "type": "string",
+                      "description": "What stands at the place, in the provider's words.",
+                      "title": "nonEmptyString",
+                      "minLength": 1
+                    },
+                    "repair": {
+                      "type": "string",
+                      "description": "How to bring the place in line with the guarantee.",
+                      "title": "nonEmptyString",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": true,
+                  "description": "Something the guarantee forbids is present at the place."
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "location",
+                    "state",
+                    "what"
+                  ],
+                  "properties": {
+                    "location": {
+                      "type": "object",
+                      "required": [
+                        "file"
+                      ],
+                      "properties": {
+                        "file": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        },
+                        "line": {
+                          "$ref": "#/$defs/Int",
+                          "description": "a positive number",
+                          "title": "positive",
+                          "exclusiveMinimum": 0
+                        }
+                      },
+                      "additionalProperties": true
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "accepted"
+                      ]
+                    },
+                    "what": {
+                      "type": "string",
+                      "description": "What stands at the place, in the provider's words.",
+                      "title": "nonEmptyString",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": true,
+                  "description": "A known violation recorded as accepted debt, to leave alone."
+                }
+              ]
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "description": "The guarantees that range over the requested paths, in the provider's order, which is its rank. An empty array means nothing to report."
+    }
+  },
+  "additionalProperties": true
+}
