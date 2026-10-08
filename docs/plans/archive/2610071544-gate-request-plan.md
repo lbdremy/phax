@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610060951-gate-request.md
 approved:
   date: 2026-10-07
