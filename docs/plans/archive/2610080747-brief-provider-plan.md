@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610061346-brief-provider.md
 approved:
   date: 2026-10-08
