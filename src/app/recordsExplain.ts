@@ -114,6 +114,23 @@ export function gateArtifactsInOrder(
   return ordered;
 }
 
+/**
+ * The brief records of a phase record in number order: every `brief-NN.json`
+ * (two or more digits), sorted by numeric value so `brief-10` follows `brief-02`.
+ */
+export function briefArtifactsInOrder(
+  artifacts: ReadonlyMap<string, Uint8Array>,
+): ReadonlyArray<readonly [string, Uint8Array]> {
+  const briefs: Array<{ readonly number: number; readonly entry: readonly [string, Uint8Array] }> =
+    [];
+  for (const [name, bytes] of artifacts) {
+    const match = /^brief-(\d{2,})\.json$/.exec(name);
+    if (match?.[1] !== undefined) briefs.push({ number: Number(match[1]), entry: [name, bytes] });
+  }
+  briefs.sort((a, b) => a.number - b.number);
+  return briefs.map((brief) => brief.entry);
+}
+
 function parseTrailers(body: string): ReadonlyMap<string, string> {
   const trailers = new Map<string, string>();
   for (const line of body.split("\n")) {

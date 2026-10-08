@@ -11,6 +11,7 @@ import {
 import { computeRecordsPending, groupPendingByRun } from "../../app/recordsStatus.js";
 import {
   explainRecord,
+  briefArtifactsInOrder,
   gateArtifactsInOrder,
   type ExplainedAuthoringRecord,
   type ExplainedRecord,
@@ -174,6 +175,7 @@ interface RecordsExplainOptions {
   diff?: boolean;
   transcript?: boolean;
   gates?: boolean;
+  briefs?: boolean;
 }
 
 async function runRecordsExplain(
@@ -308,6 +310,7 @@ function renderFoundAuthoringRecord(
   if (opts.diff === true) printArtifact(record, "diff.patch", out);
   if (opts.transcript === true) printArtifact(record, "output.jsonl", out);
   if (opts.gates === true) out.log("(an authoring record carries no gate logs)");
+  if (opts.briefs === true) out.log("(an authoring record carries no provider briefs)");
 
   return 0;
 }
@@ -345,12 +348,21 @@ function renderFoundRecord(
       : "absent";
   const handoffLabel = record.handoffPresent ? "present" : "absent";
   out.log(`prompt   ${promptLabel}   diff  ${diffLabel}   handoff  ${handoffLabel}`);
+  const briefs = briefArtifactsInOrder(record.artifacts);
+  if (briefs.length > 0) out.log(`briefs   ${briefs.length} (--briefs prints them)`);
 
   if (opts.prompt === true) printArtifact(record, "prompt.md", out);
   if (opts.diff === true) printArtifact(record, "diff.patch", out);
   if (opts.transcript === true) printArtifact(record, "output.jsonl", out);
   if (opts.gates === true) {
     for (const [name, bytes] of gateArtifactsInOrder(record.artifacts)) {
+      out.log(`--- ${name} ---`);
+      out.log(new TextDecoder().decode(bytes));
+    }
+  }
+  if (opts.briefs === true) {
+    if (briefs.length === 0) out.log("(no brief records in this record)");
+    for (const [name, bytes] of briefs) {
       out.log(`--- ${name} ---`);
       out.log(new TextDecoder().decode(bytes));
     }
@@ -485,6 +497,7 @@ export function registerRecordsCommand(program: Command, out: OutputPort): void 
     .option("--diff", "Print the full diff")
     .option("--transcript", "Print the full transcript")
     .option("--gates", "Print the gate check logs, each followed by its gate request")
+    .option("--briefs", "Print the phase's brief records (brief-NN.json) in number order")
     .action(async (sha: string, opts: RecordsExplainOptions) => {
       const exitCode = await runRecordsExplain(sha, opts, out);
       process.exit(exitCode);

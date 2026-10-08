@@ -452,6 +452,73 @@ describe("records explain and list (real git)", () => {
       vi.restoreAllMocks();
     });
 
+    it("prints brief records in number order under --briefs and counts them in the summary", async () => {
+      const runId = "run-briefs-1786800000012";
+      const phaseId = "phase-01";
+      const sha = commitWithTrailers(repoDir, runId, phaseId);
+      const manifest: RunRecordManifest = {
+        runId,
+        phaseId,
+        shape: "skeleton",
+        sourceSha: sha,
+        model: "claude-sonnet-5",
+        effort: "high",
+        provider: "claude-code",
+        outcome: "committed",
+        usage: { available: false },
+        verifiedSurfaces: ["local"],
+      };
+      await writeFullRecordCommit(repoDir, manifest, {
+        "brief-10.json": '{"n":10}',
+        "brief-02.json": '{"n":2}',
+        "brief-00.json": '{"n":0}',
+        "brief-01.json": '{"n":1}',
+        "checks-attempt-01.request.json": '{"attempt":1}',
+        "checks-attempt-01.log": "gate log one",
+      });
+
+      const plain = await records(["explain", sha]);
+      expect(plain.logs.join("\n")).toContain("briefs   4 (--briefs prints them)");
+
+      const withBriefs = await records(["explain", sha, "--briefs"]);
+      expect(withBriefs.code).toBe(0);
+      const briefLines = withBriefs.logs.slice(withBriefs.logs.indexOf("--- brief-00.json ---"));
+      expect(briefLines).toEqual([
+        "--- brief-00.json ---",
+        '{"n":0}',
+        "--- brief-01.json ---",
+        '{"n":1}',
+        "--- brief-02.json ---",
+        '{"n":2}',
+        "--- brief-10.json ---",
+        '{"n":10}',
+      ]);
+    });
+
+    it("shows no briefs line and a none-message for a record without brief files", async () => {
+      const runId = "run-nobriefs-1786800000013";
+      const phaseId = "phase-01";
+      const sha = commitWithTrailers(repoDir, runId, phaseId);
+      const manifest: RunRecordManifest = {
+        runId,
+        phaseId,
+        shape: "skeleton",
+        sourceSha: sha,
+        model: "claude-sonnet-5",
+        effort: "high",
+        provider: "claude-code",
+        outcome: "committed",
+        usage: { available: false },
+        verifiedSurfaces: ["local"],
+      };
+      await writeFullRecordCommit(repoDir, manifest, { "checks-attempt-01.log": "gate log one" });
+
+      const plain = await records(["explain", sha]);
+      expect(plain.logs.join("\n")).not.toContain("briefs ");
+      const withBriefs = await records(["explain", sha, "--briefs"]);
+      expect(withBriefs.logs).toContain("(no brief records in this record)");
+    });
+
     it("prints each attempt's gate request directly after its log, in attempt order", async () => {
       const runId = "run-gates-1786800000011";
       const phaseId = "phase-01";
