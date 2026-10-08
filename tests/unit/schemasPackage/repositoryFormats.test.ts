@@ -275,9 +275,15 @@ describe("the plan document's completesSpec history", () => {
     expect(parsePlanDocument(document)).toEqual({ ok: true, shape: "0.17.0", value: document });
   });
 
-  it("reads a document stamped at the package's own release without completesSpec as shape 0.17.0", () => {
-    const result = parsePlanDocument(older(PACKAGE_VERSION, spec));
+  // Literal releases, not PACKAGE_VERSION: the answer must not change when a release is cut.
+  it("reads a document stamped 0.19.0, the last release without completesSpec, as shape 0.17.0", () => {
+    const result = parsePlanDocument(older("0.19.0", spec));
     expect(result).toMatchObject({ ok: true, shape: "0.17.0" });
+  });
+
+  it("refuses a document stamped 0.20.0, the first release with completesSpec, that lacks it", () => {
+    const result = parsePlanDocument(older("0.20.0", spec));
+    expect(result).toMatchObject({ ok: false, error: { path: "completesSpec" } });
   });
 
   it("refuses completesSpec in a 0.17.0 document", () => {

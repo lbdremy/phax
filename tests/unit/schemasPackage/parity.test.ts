@@ -86,9 +86,11 @@ interface FormatParity {
   /** How phax's decoder treats a key its schema does not name. */
   readonly excess: "error" | "ignore";
   /**
-   * Where the package fails the wrong-type document, when not at the wrong key:
-   * a document at the package's own release that `next` rejects is read again
-   * by the latest released shape, whose violation the package reports.
+   * Where the package fails the wrong-type document while the format's current
+   * shape is `next`, when not at the wrong key: a document at the package's own
+   * release that `next` rejects is read again by the latest released shape,
+   * whose violation the package reports. Once a release names the shape, the
+   * package fails at the wrong key, so a stale entry is harmless; drop it then.
    */
   readonly releasedShapePath?: string;
 }
@@ -205,8 +207,6 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     wrongType: ["phases", {}],
     required: "preamble",
     excess: "error",
-    // The 0.17.0 shape has no completesSpec.
-    releasedShapePath: "completesSpec",
   },
   "plan-approval-record": {
     id: "plan-approval-record",
@@ -284,7 +284,10 @@ describe.each(FORMAT_IDS.map((id) => FORMATS[id]))(
         readonly ok: boolean;
         readonly error?: { readonly path: string };
       };
-      expect(result.error?.path.split(".")[0]).toBe(format.releasedShapePath ?? key);
+      // A string, since the type holds only the names the last release wrote.
+      const current: string = CURRENT_SHAPES[format.id];
+      const expected = current === "next" ? format.releasedShapePath : undefined;
+      expect(result.error?.path.split(".")[0]).toBe(expected ?? key);
     });
   },
 );

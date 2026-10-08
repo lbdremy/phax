@@ -203,8 +203,13 @@ describe("the phase status's base history", () => {
     expect(parsePhaseStatus(document)).toEqual({ ok: true, shape: "0.17.0", value: document });
   });
 
-  it("reads a document stamped at the package's own release without base as shape 0.17.0", () => {
-    expect(parsePhaseStatus(older(PACKAGE_VERSION))).toMatchObject({ ok: true, shape: "0.17.0" });
+  // Literal releases, not PACKAGE_VERSION: the answer must not change when a release is cut.
+  it("reads a document stamped 0.19.0, the last release without base, as shape 0.17.0", () => {
+    expect(parsePhaseStatus(older("0.19.0"))).toMatchObject({ ok: true, shape: "0.17.0" });
+  });
+
+  it("refuses a document stamped 0.20.0, the first release with base, that lacks it", () => {
+    expect(parsePhaseStatus(older("0.20.0"))).toMatchObject({ ok: false, error: { path: "base" } });
   });
 
   it("upgrades an older document with base Unknown, never a sha", () => {
@@ -224,8 +229,6 @@ describe("the phase status's base history", () => {
 
   it("never keeps a base that is not a full commit sha", () => {
     const result = parsePhaseStatus(withKey(current, "base", "0123456"));
-    expect(result).toMatchObject({ ok: true, shape: "0.17.0" });
-    if (!result.ok) return;
-    expect(isUnknown(toLatestPhaseStatus(result.value).base)).toBe(true);
+    expect(result).toMatchObject({ ok: false, error: { path: "base" } });
   });
 });
