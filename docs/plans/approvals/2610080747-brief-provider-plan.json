@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.19.0.json",
+  "artifact": "docs/plans/2610080747-brief-provider-plan.md",
+  "planFingerprint": "3be116d765860ece95c77ff099f0879c0a0b2b61cc3271cdb566fb96ada11ab1",
+  "approvedAt": "2026-10-08T08:53:06.792Z",
+  "baseline": "fa82a2574ee0ed8c86ad5216f944510a16cf2942",
+  "sourceSpec": {
+    "path": "docs/specs/2610061346-brief-provider.md",
+    "fingerprint": "fab25dd91137e8e8dac52a9fc29b17fc3b368befc8d8c497d40703cd457263d2"
+  }
+}
