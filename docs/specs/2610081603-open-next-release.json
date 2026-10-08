@@ -5,7 +5,7 @@
   "ground": [
     {
       "path": "docs/briefs/open-next-release.md",
-      "note": "The brief: both decisions of 2026-10-08, their motive, what the spec must cover, the constraints."
+      "note": "The brief: both decisions of 2026-10-08, their motive, what the spec must cover, the constraints. §9 Q1–Q6 were decided by the author on 2026-10-08, all as recommended."
     },
     {
       "path": "NEXT_STEPS.md",
@@ -632,7 +632,7 @@
   "openQuestions": [
     {
       "id": "q-open-version",
-      "question": "Which version does release.sh open after a release?",
+      "question": "Which version does release.sh open after a release? (Decided by the author on 2026-10-08; not reopened.)",
       "options": [
         {
           "id": "next-minor",
@@ -651,11 +651,11 @@
         }
       ],
       "recommendation": "next-minor",
-      "rationale": "It fits every release phax has cut since `$schema` existed. A wrong guess costs one `--open` commit, and the cut's refusal names that command."
+      "rationale": "Decided by the author on 2026-10-08, as recommended. It fits every release phax has cut since `$schema` existed. A wrong guess costs one `--open` commit, and the cut's refusal names that command."
     },
     {
       "id": "q-not-opened",
-      "question": "What happens when the release to ship is not the opened version (0.21.0 opened, 0.21.1 or 0.22.0 wanted)?",
+      "question": "What happens when the release to ship is not the opened version (0.21.0 opened, 0.21.1 or 0.22.0 wanted)? (Decided by the author on 2026-10-08; not reopened.)",
       "options": [
         {
           "id": "refuse-reopen",
@@ -669,11 +669,11 @@
         }
       ],
       "recommendation": "refuse-reopen",
-      "rationale": "It keeps the invariant that matters: the version that ships is the one every commit of the cycle stamped and CI rehearsed. Either way, documents a development build stamped with the abandoned opened version are unsupported (non-goals). Re-opening makes that moment visible as a commit."
+      "rationale": "Decided by the author on 2026-10-08, as recommended. It keeps the invariant that matters: the version that ships is the one every commit of the cycle stamped and CI rehearsed. Either way, documents a development build stamped with the abandoned opened version are unsupported (non-goals). Re-opening makes that moment visible as a commit."
     },
     {
       "id": "q-ledger",
-      "question": "When does the release ledger gain a release?",
+      "question": "When does the release ledger gain a release? (Decided by the author on 2026-10-08; not reopened.)",
       "options": [
         {
           "id": "at-cut",
@@ -687,11 +687,11 @@
         }
       ],
       "recommendation": "at-cut",
-      "rationale": "The ledger feeds the public schema URLs, and a served URL can never be withdrawn (the deploy guard refuses). It must name only what shipped. The looser site check is paid back by the tag-time ledger check, which also closes a hole: once manifests name the opened version, they alone would accept a tag on a commit that was never cut."
+      "rationale": "Decided by the author on 2026-10-08, as recommended. The ledger feeds the public schema URLs, and a served URL can never be withdrawn (the deploy guard refuses). It must name only what shipped. The looser site check is paid back by the tag-time ledger check, which also closes a hole: once manifests name the opened version, they alone would accept a tag on a commit that was never cut."
     },
     {
       "id": "q-shape-names",
-      "question": "How does phax know each format's current stamp at run time, given that it never imports `packages/`?",
+      "question": "How does phax know each format's current stamp at run time, given that it never imports `packages/`? (Decided by the author on 2026-10-08; not reopened.)",
       "options": [
         {
           "id": "generated-table",
@@ -710,11 +710,11 @@
         }
       ],
       "recommendation": "generated-table",
-      "rationale": "The generator already writes `src/schemas/release.ts` from package.json and already reads the snapshots for CURRENT_SHAPES. One more generated fact keeps the dependency direction and the build unchanged, and the drift it adds is exactly what `schemas:check` exists to refuse."
+      "rationale": "Decided by the author on 2026-10-08, as recommended. The generator already writes `src/schemas/release.ts` from package.json and already reads the snapshots for CURRENT_SHAPES. One more generated fact keeps the dependency direction and the build unchanged, and the drift it adds is exactly what `schemas:check` exists to refuse."
     },
     {
       "id": "q-provider-learns",
-      "question": "How does a provider learn which stamp to answer in?",
+      "question": "How does a provider learn which stamp to answer in? (Decided by the author on 2026-10-08; not reopened.)",
       "options": [
         {
           "id": "docs-and-refusal",
@@ -733,11 +733,11 @@
         }
       ],
       "recommendation": "docs-and-refusal",
-      "rationale": "With shape stamps a pinned constant breaks only when the format it names changes, which is when the provider must change its code anyway. The refusal that names the expected URL is the signal it needs then, and it adds no surface."
+      "rationale": "Decided by the author on 2026-10-08, as recommended. With shape stamps a pinned constant breaks only when the format it names changes, which is when the provider must change its code anyway. The refusal that names the expected URL is the signal it needs then, and it adds no surface."
     },
     {
       "id": "q-dev-marker",
-      "question": "Does a development build mark its version as unreleased?",
+      "question": "Does a development build mark its version as unreleased? (Decided by the author on 2026-10-08; not reopened.)",
       "options": [
         {
           "id": "bare",
@@ -751,7 +751,7 @@
         }
       ],
       "recommendation": "bare",
-      "rationale": "npm and GitHub Releases carry only tagged builds, so an opened version reaches only contributors running from source, where `git describe` already says whether the build is a release. The marker would cost a moving part in the cut for a reader who already has the answer."
+      "rationale": "Decided by the author on 2026-10-08, as recommended. npm and GitHub Releases carry only tagged builds, so an opened version reaches only contributors running from source, where `git describe` already says whether the build is a release. The marker would cost a moving part in the cut for a reader who already has the answer."
     }
   ],
   "planningNote": {
@@ -763,7 +763,7 @@
       "The answer readers drop their exception for the running release. Their lower bound becomes the format's current stamp. Stamps at or below 0.19.0 keep their existing refusals.",
       "Before 1.0, older-shape answers are refused by name (author, 2026-10-08). The guard tests that hold each answer reader to one shape must, at 1.0, fail and name that rule rather than be deleted.",
       "FIRST_SUPPORTED_RELEASE and the development-build message are unchanged.",
-      "Recommended defaults, pending §9: open the next minor, refuse a cut of any version other than the opened one, the ledger gains a release at its cut, a generated stamp table in `src/schemas/release.ts`, providers learn their stamp from the docs and from refusals, and the version stays bare."
+      "Decided in §9 (author, 2026-10-08): open the next minor, refuse a cut of any version other than the opened one, the ledger gains a release at its cut, a generated stamp table in `src/schemas/release.ts`, providers learn their stamp from the docs and from refusals, and the version stays bare."
     ],
     "open": [
       "The spelling of `--open`, of the stamp table, and of the refusal and hint messages.",

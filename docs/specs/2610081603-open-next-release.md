@@ -28,7 +28,7 @@ release.sh then regenerates `phax.usage.kdl` and `docs/cli/reference.md`, tests 
 
 Ground read:
 
-- `docs/briefs/open-next-release.md` — The brief: both decisions of 2026-10-08, their motive, what the spec must cover, the constraints.
+- `docs/briefs/open-next-release.md` — The brief: both decisions of 2026-10-08, their motive, what the spec must cover, the constraints. §9 Q1–Q6 were decided by the author on 2026-10-08, all as recommended.
 - `NEXT_STEPS.md` — Where this sits: first of the three steps toward guarantee-reports. Also the provider-answer decision of 2026-10-08: older shapes are refused by name before 1.0, and read through their frozen shape and lifted after it.
 - `docs/release.md` — The release process as documented today: the cut's steps, the rehearsal, the workflow's version check and the docs deploy.
 - `scripts/release.sh` — Cut, regenerate the usage spec and CLI docs, test, commit, tag, push. --rehearse stops before committing.
@@ -489,50 +489,50 @@ Given the change merged on main, when the manifests, the generated files and the
 
 ## 9. Open questions for implementation planning
 
-### Q1 — Which version does release.sh open after a release?
+### Q1 — Which version does release.sh open after a release? (Decided by the author on 2026-10-08; not reopened.)
 
 - Always the next minor (X.(Y+1).0) — abandons: Patch releases without a re-opening: a hotfix cycle, and after 1.0 any patch-only cycle, pays one `--open` commit.
 - Always the next patch (X.Y.(Z+1)) — abandons: Matching how phax actually releases: every release since 0.17.0 has been a minor, so nearly every cycle would re-open.
 - Chosen by the operator at each release (a required argument) — abandons: A release that takes one decision: it asks the operator to predict the next cycle's size at the moment it starts.
 
-Recommendation: Always the next minor (X.(Y+1).0) — It fits every release phax has cut since `$schema` existed. A wrong guess costs one `--open` commit, and the cut's refusal names that command.
+Recommendation: Always the next minor (X.(Y+1).0) — Decided by the author on 2026-10-08, as recommended. It fits every release phax has cut since `$schema` existed. A wrong guess costs one `--open` commit, and the cut's refusal names that command.
 
-### Q2 — What happens when the release to ship is not the opened version (0.21.0 opened, 0.21.1 or 0.22.0 wanted)?
+### Q2 — What happens when the release to ship is not the opened version (0.21.0 opened, 0.21.1 or 0.22.0 wanted)? (Decided by the author on 2026-10-08; not reopened.)
 
 - The cut refuses; the operator re-opens with `--open`, then cuts — abandons: A one-command release when the cycle turned out bigger or smaller than opened: one more commit, and a CI round on it.
 - The cut accepts any version newer than the last release and re-stamps the manifests, the generated files and the examples — abandons: A rehearsed cut that renames no stamp: CI rehearsed the opened version, so the version actually cut was never rehearsed, and the cut takes back the manifest bump and the example rewrite this spec removes.
 
-Recommendation: The cut refuses; the operator re-opens with `--open`, then cuts — It keeps the invariant that matters: the version that ships is the one every commit of the cycle stamped and CI rehearsed. Either way, documents a development build stamped with the abandoned opened version are unsupported (non-goals). Re-opening makes that moment visible as a commit.
+Recommendation: The cut refuses; the operator re-opens with `--open`, then cuts — Decided by the author on 2026-10-08, as recommended. It keeps the invariant that matters: the version that ships is the one every commit of the cycle stamped and CI rehearsed. Either way, documents a development build stamped with the abandoned opened version are unsupported (non-goals). Re-opening makes that moment visible as a commit.
 
-### Q3 — When does the release ledger gain a release?
+### Q3 — When does the release ledger gain a release? (Decided by the author on 2026-10-08; not reopened.)
 
 - At the cut, in the release commit (as today) — abandons: The invariant that the ledger ends at package.json's version on every commit. It holds only on release commits, so the site's check loosens to 'at or below', and the release workflow must check equality at the tag.
 - At the opening, so the ledger always ends at package.json's version — abandons: The ledger as a list of shipped releases: main's ledger names a version that may never ship, a re-opening rewrites it, and every main build of the site serves URLs for an unreleased version.
 
-Recommendation: At the cut, in the release commit (as today) — The ledger feeds the public schema URLs, and a served URL can never be withdrawn (the deploy guard refuses). It must name only what shipped. The looser site check is paid back by the tag-time ledger check, which also closes a hole: once manifests name the opened version, they alone would accept a tag on a commit that was never cut.
+Recommendation: At the cut, in the release commit (as today) — Decided by the author on 2026-10-08, as recommended. The ledger feeds the public schema URLs, and a served URL can never be withdrawn (the deploy guard refuses). It must name only what shipped. The looser site check is paid back by the tag-time ledger check, which also closes a hole: once manifests name the opened version, they alone would accept a tag on a commit that was never cut.
 
-### Q4 — How does phax know each format's current stamp at run time, given that it never imports `packages/`?
+### Q4 — How does phax know each format's current stamp at run time, given that it never imports `packages/`? (Decided by the author on 2026-10-08; not reopened.)
 
 - A per-format table generated into `src/schemas/release.ts` from the snapshots, with `next` resolved to the opened version, and held by the schemas check — abandons: A single copy of the shape names: CURRENT_SHAPES and phax's table are two generated outputs of the same snapshots, kept equal by the check.
 - phax imports CURRENT_SHAPES from the package — abandons: The one-way dependency decided in q-historical-location (2026-10-01): phax would import `packages/`, which widens its TypeScript root and moves its build output.
 - Each schema module declares its format's stamp by hand — abandons: Snapshots as the one source of a shape's name: a contributor who changes a format must also remember to bump a literal, and nothing generated catches a missed bump.
 
-Recommendation: A per-format table generated into `src/schemas/release.ts` from the snapshots, with `next` resolved to the opened version, and held by the schemas check — The generator already writes `src/schemas/release.ts` from package.json and already reads the snapshots for CURRENT_SHAPES. One more generated fact keeps the dependency direction and the build unchanged, and the drift it adds is exactly what `schemas:check` exists to refuse.
+Recommendation: A per-format table generated into `src/schemas/release.ts` from the snapshots, with `next` resolved to the opened version, and held by the schemas check — Decided by the author on 2026-10-08, as recommended. The generator already writes `src/schemas/release.ts` from package.json and already reads the snapshots for CURRENT_SHAPES. One more generated fact keeps the dependency direction and the build unchanged, and the drift it adds is exactly what `schemas:check` exists to refuse.
 
-### Q5 — How does a provider learn which stamp to answer in?
+### Q5 — How does a provider learn which stamp to answer in? (Decided by the author on 2026-10-08; not reopened.)
 
 - The README and the docs site document each format's shape, and every refusal or missing-document hint names the URL phax reads — abandons: A machine-readable answer at run time: a provider pins its answer stamp as a constant and learns a format changed when the new phax refuses it.
 - A new command (e.g. `phax schemas --json`) prints every format's current stamp — abandons: A smaller CLI surface before the 1.0 freeze: one more command and output format to hold, built for consumers whose constants now break only when a format changes.
 - phax passes the expected answer URL in the provider's environment — abandons: A contract carried by the documents alone: a second, unversioned channel beside the request, outside every published schema.
 
-Recommendation: The README and the docs site document each format's shape, and every refusal or missing-document hint names the URL phax reads — With shape stamps a pinned constant breaks only when the format it names changes, which is when the provider must change its code anyway. The refusal that names the expected URL is the signal it needs then, and it adds no surface.
+Recommendation: The README and the docs site document each format's shape, and every refusal or missing-document hint names the URL phax reads — Decided by the author on 2026-10-08, as recommended. With shape stamps a pinned constant breaks only when the format it names changes, which is when the provider must change its code anyway. The refusal that names the expected URL is the signal it needs then, and it adds no surface.
 
-### Q6 — Does a development build mark its version as unreleased?
+### Q6 — Does a development build mark its version as unreleased? (Decided by the author on 2026-10-08; not reopened.)
 
 - No: `phax --version`, the usage spec and the CLI reference print the bare opened version — abandons: Telling a development build from a release at a glance: a contributor's bug report says 0.21.0 before 0.21.0 exists.
 - Yes: `--version` prints e.g. `0.21.0 (unreleased)` in a development build — abandons: One version string: it needs a third generated fact that the cut sets and the opening clears, and `--version` stops matching the usage spec generated from the same tree.
 
-Recommendation: No: `phax --version`, the usage spec and the CLI reference print the bare opened version — npm and GitHub Releases carry only tagged builds, so an opened version reaches only contributors running from source, where `git describe` already says whether the build is a release. The marker would cost a moving part in the cut for a reader who already has the answer.
+Recommendation: No: `phax --version`, the usage spec and the CLI reference print the bare opened version — Decided by the author on 2026-10-08, as recommended. npm and GitHub Releases carry only tagged builds, so an opened version reaches only contributors running from source, where `git describe` already says whether the build is a release. The marker would cost a moving part in the cut for a reader who already has the answer.
 
 ## 10. Implementation-planning note
 
@@ -545,7 +545,7 @@ Settled:
 - The answer readers drop their exception for the running release. Their lower bound becomes the format's current stamp. Stamps at or below 0.19.0 keep their existing refusals.
 - Before 1.0, older-shape answers are refused by name (author, 2026-10-08). The guard tests that hold each answer reader to one shape must, at 1.0, fail and name that rule rather than be deleted.
 - FIRST_SUPPORTED_RELEASE and the development-build message are unchanged.
-- Recommended defaults, pending §9: open the next minor, refuse a cut of any version other than the opened one, the ledger gains a release at its cut, a generated stamp table in `src/schemas/release.ts`, providers learn their stamp from the docs and from refusals, and the version stays bare.
+- Decided in §9 (author, 2026-10-08): open the next minor, refuse a cut of any version other than the opened one, the ledger gains a release at its cut, a generated stamp table in `src/schemas/release.ts`, providers learn their stamp from the docs and from refusals, and the version stays bare.
 
 Left open:
 
