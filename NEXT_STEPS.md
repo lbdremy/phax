@@ -178,6 +178,14 @@ spec of its own. In this order:
 - [ ] **`oracle-phases` wording.** It quotes the diagnostics shape with `scopes?`, says its
       `oracles` key "mirrors `scopes`", and lists "deriving oracles from `scopes`" as a non-goal.
       Sweep that text when `drop-gate-scopes` lands. No change to its design.
+- [ ] **Teach the skills what the gate chain added.** `brief-provider` left the skills out of
+      scope; its handoffs (PR #126) ask for them. `phax-cli` and `phax-planning`
+      (`.claude/skills/`) should cover:
+      - the phase guard, first: inside a phase worktree phax refuses every command except
+        `phax brief` and the read-only ones, and an agent following the skills today would hit
+        that refusal without warning;
+      - the brief provider, with `phax brief [path…]` and `records explain --briefs`;
+      - the gate step keys `output` and `input` (the gate request on stdin).
 
 Not prerequisites, and not specced yet (same note, changes 1–3, 6, 7 and the brief at plan
 authoring): a stable `id` on a diagnostic (oscillation), a `decision` class that stops for the
