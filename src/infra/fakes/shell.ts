@@ -1,6 +1,7 @@
 import { Effect, Layer } from "effect";
 import {
   Shell,
+  ShellError,
   type ShellOps,
   type ShellRunOptions,
   type ShellRunResult,
@@ -17,6 +18,7 @@ export class FakeShellImpl implements ShellOps {
   readonly responses = new Map<string, FakeShellResponse>();
   defaultResponse: FakeShellResponse = { exitCode: 0, stdout: "", stderr: "" };
   readonly queue: FakeShellResponse[] = [];
+  private readonly failures = new Map<string, string>();
 
   setResponse(command: string, response: FakeShellResponse): void {
     this.responses.set(command, response);
@@ -30,12 +32,21 @@ export class FakeShellImpl implements ShellOps {
     this.queue.push(...responses);
   }
 
-  run(options: ShellRunOptions): Effect.Effect<ShellRunResult> {
+  /** Makes `run` fail with a `ShellError` for this command, as a timeout or spawn failure does. */
+  setFailure(command: string, message: string): void {
+    this.failures.set(command, message);
+  }
+
+  run(options: ShellRunOptions): Effect.Effect<ShellRunResult, ShellError> {
     this.calls.push(options);
+    const key = options.command.join(" ");
+    const failure = this.failures.get(key);
+    if (failure !== undefined) {
+      return Effect.fail(new ShellError({ message: failure, argv: options.command }));
+    }
     if (this.queue.length > 0) {
       return Effect.succeed(this.queue.shift()!);
     }
-    const key = options.command.join(" ");
     const response = this.responses.get(key) ?? this.defaultResponse;
     return Effect.succeed(response);
   }
