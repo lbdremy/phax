@@ -202,6 +202,13 @@ cross-field checks registered by id so the build writes the same list into the s
 
 ## Small follow-ups
 
+- [ ] **`open-next-release`: open the next version as soon as a release is tagged.** Raised
+      2026-10-08 after the 0.20.0 release gate failed (as 0.19.0's had): mid-cycle, the
+      manifests name the last release, so a `$schema` stamp means two shapes until the cut, and
+      tests, the schemas package's fallback and the answer readers depend on which side of the
+      cut they run. Brief: `docs/briefs/open-next-release.md`. PR #127 (CI rehearses a cut in
+      seconds; `release.sh` tests the cut before committing) catches the symptom meanwhile.
+
 - [x] **A run completes its source spec even when more plans are to come.** (Shipped: the `completes-spec` spec.) Found
       2026-09-29 on `schemas-package` plan 1/5 (PR #104): at run end phax completed the
       plan (correct) and the spec (`f8d2366`, spec moved to `archive/`, its approval
