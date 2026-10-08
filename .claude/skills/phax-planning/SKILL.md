@@ -245,6 +245,15 @@ Write the file lists to make this signal useful:
 - Do not list files you only read. Reconciliation is about writes.
 - Use repo-relative POSIX paths, exactly as they appear in `git`.
 
+The planned files to create and edit (not the optional list) also leave phax as
+facts. A gate step that declares `"input": "gate-request"` receives every phase's
+planned files on stdin, and so does a brief provider. A diagnostics step can then
+let a finding pass in this phase when a later phase plans to touch its file. A
+phase's brief covers that phase's planned files. So, when a later phase is meant to
+finish what an earlier one starts, list the shared file in the later phase's
+create or edit section, not under optional. Otherwise a diagnostics gate sees
+nothing still to come, and fails the earlier phase.
+
 ### Editing skill files
 
 Claude Code protects `.claude/`, so a secure phase can write a `.claude/skills/...` file
@@ -485,6 +494,18 @@ is a token-prefix of the required command (`deno` covers `deno fmt`).
   for the next phase to proceed without re-reading earlier phases.
 - **Comprehensive instructions.** Make sure each phase has enough detail for the
   model and effort you picked to execute it successfully.
+- **No phax lifecycle commands in a phase.** A phase runs inside a phase worktree,
+  where phax refuses every command except `phax brief` and the read-only ones
+  (`plans lint`, `artifact status`, `records explain`, …). Never instruct a phase to
+  approve, complete or abandon an artifact, or to run, resume, archive or publish.
+  Those steps belong to the operator, in the main checkout. In a project whose tests
+  start the phax CLI as a process, those tests also run inside the phase worktree,
+  so give each one its own temporary repository as its working directory.
+- **Briefs are already in the prompt.** When the project configures a `brief`
+  provider, each phase's first prompt carries the brief for its planned files. Do not
+  restate the project's standard in the instructions. A phase that works on paths
+  outside its planned files can be told to run `phax brief <path>` before editing
+  them.
 
 ## What makes a good phase boundary
 

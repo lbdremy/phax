@@ -75,6 +75,50 @@ the preflight refuses (exit 11). `phax resume` inherits the consent, and the gra
 recorded per phase in `security.json` (`skillEditGrants`). See `--usage` for the flag
 contract.
 
+## Inside a phase worktree — the phase guard
+
+A phase worktree is a linked Git worktree whose root holds `.phax-context/`. Run from
+anywhere inside one, phax refuses every command that acts on phax state or on an
+artifact's lifecycle, before the command runs, and names the main checkout as the place to
+run it. That covers `run`, `resume`, `archive`, `publish-pr`, `review-*`,
+`artifact approve`/`new`/…, `plans status --apply`, and also `enter`, `shell` and `open`.
+What still runs inside:
+
+- `phax brief [path…]`;
+- the read-only commands: `validate`, `ls`, `path`, `session-info`, `completions`,
+  `plans lint`, `plans status`, `artifact status`, `artifact schema`, `records explain`,
+  `records status`, `records list`, `security status`;
+- `schema upgrade`, which writes only the working tree's local schemas.
+
+The guard has no flag or environment variable to turn it off, and it catches people too:
+in `phax shell` or the kept-open final phase, leave the worktree to run `review-compliance`
+or `publish-pr`. It is accident-proofing, not a security boundary; the sandbox's write
+scope is the boundary.
+
+## Gate steps, briefs and records
+
+These are `phax.json` keys rather than commands, so `--usage` does not show them. The
+README (sections *Diagnostics gate steps*, *Gate request*, *Brief provider*, *Plan
+auditor*) holds the exact formats.
+
+- **`"output": "diagnostics"`** on a gate step: the step prints a JSON document with
+  `$schema` and `diagnostics`, and phax reads the verdict from it, not from the exit code.
+  An `invariant` or `completion` finding fails the step; the findings are what the agent is
+  asked to fix.
+- **`"input": "gate-request"`** on a gate step: the step gets `{$schema, phase, base,
+  terminal, phases}` on stdin, the facts it needs to decide what is due now and what a
+  later phase is planned to bring. Each attempt's request is saved as
+  `checks-attempt-NN.request.json`; `phax records explain <commit> --gates` prints it after
+  its log.
+- **`brief`** (a provider command): tells the agent what the project's standard expects of
+  some paths and how each expectation stands. It is pushed into a phase's first prompt and
+  pulled with `phax brief [path…]`, from inside a phase or from your own checkout. A brief
+  never blocks; the gate still decides. In `secure` mode the phase agent is granted
+  `phax brief` (source `brief` in `security.json`). Each brief is recorded as
+  `brief-NN.json`; `phax records explain <commit> --briefs` prints them.
+- **`planAuditor`** (a provider command): advisory findings for `phax plans lint`, never
+  during a run.
+
 ## Artifact lifecycle — specs and plans carry an enforced status
 
 Specs (`docs/specs/`) and plans (`docs/plans/`) each carry a `status` key in

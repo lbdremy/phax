@@ -178,7 +178,7 @@ spec of its own. In this order:
 - [ ] **`oracle-phases` wording.** It quotes the diagnostics shape with `scopes?`, says its
       `oracles` key "mirrors `scopes`", and lists "deriving oracles from `scopes`" as a non-goal.
       Sweep that text when `drop-gate-scopes` lands. No change to its design.
-- [ ] **Teach the skills what the gate chain added.** `brief-provider` left the skills out of
+- [x] **Teach the skills what the gate chain added.** `brief-provider` left the skills out of
       scope; its handoffs (PR #126) ask for them. `phax-cli` and `phax-planning`
       (`.claude/skills/`) should cover:
       - the phase guard, first: inside a phase worktree phax refuses every command except
