@@ -63,7 +63,8 @@ describe("CLI error messages", () => {
 
     it("Draft plan: non-zero exit, message names the file and status, no stack trace", () => {
       // The CLI runs from a made-up repository; the plan lives outside it.
-      tmpDir = mkdtempSync(join(tmpdir(), "phax-cli-errors-"));
+      // Canonical, so the plan prints as ../plan.md on macOS too, where /var is a symlink.
+      tmpDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-cli-errors-")));
       const repo = join(tmpDir, "repo");
       mkdirSync(repo);
       execSync("git init -q", { cwd: repo });
@@ -86,8 +87,7 @@ describe("CLI error messages", () => {
       const result = runCli(["run", "--plan", planPath], repo);
       expect(result.status).not.toBe(0);
       const combined = (result.stderr ?? "") + (result.stdout ?? "");
-      // The path is printed relative to the repository, so name the file only.
-      expect(combined).toContain("plan.md is still in Draft status");
+      expect(combined).toContain("../plan.md is still in Draft status");
       expect(combined).not.toMatch(/at\s+\S+:\d+:\d+/);
     });
   });
