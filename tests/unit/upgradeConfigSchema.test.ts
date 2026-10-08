@@ -102,6 +102,36 @@ describe("upgradeConfigSchema", () => {
     }
   });
 
+  it("describes the brief key with a required command in both schemas, leaving phax.json alone", () => {
+    const phaxJson = JSON.stringify({
+      version: 1,
+      name: "example",
+      gateProfiles: {
+        standard: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+      },
+    });
+    writeFileSync(join(repoDir, "phax.json"), phaxJson);
+
+    upgradeConfigSchema(repoDir);
+
+    expect(readFileSync(join(repoDir, "phax.json"), "utf8")).toBe(phaxJson);
+    for (const file of ["phax.schema.json", "phax.user.schema.json"]) {
+      const schema = JSON.parse(readFileSync(join(repoDir, file), "utf8")) as {
+        properties: Record<
+          string,
+          {
+            required?: string[];
+            properties?: Record<string, { description?: string }>;
+          }
+        >;
+      };
+      const brief = schema.properties["brief"];
+      expect(brief, file).toBeDefined();
+      expect(brief?.required, file).toEqual(["command"]);
+      expect(brief?.properties?.["command"]?.description, file).toContain("brief answer");
+    }
+  });
+
   it("writes the schema even when phax.json contains invalid JSON", () => {
     writeFileSync(join(repoDir, "phax.json"), "not valid json {{");
     const result = upgradeConfigSchema(repoDir);
