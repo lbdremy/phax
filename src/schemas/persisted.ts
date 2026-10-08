@@ -18,8 +18,9 @@
 // pre-schema decoder, so a document of it without `$schema` is refused. On the
 // way out, `withSchemaUrl` stamps the `$schema` a writer puts first.
 //
-// It also reads the one answer phax decodes with a file decoder: the
-// `gate-diagnostics` document a gate step prints (`readGateDiagnosticsAnswer`).
+// It also reads the two answers phax decodes with a file decoder: the
+// `gate-diagnostics` document a gate step prints (`readGateDiagnosticsAnswer`)
+// and the `brief-answer` document a brief provider prints (`readBriefAnswer`).
 import { Either, type ParseResult } from "effect";
 import {
   decodeApprovalRecordFile,
@@ -32,6 +33,14 @@ import {
   type RecordManifest,
   type RecordManifestFile,
 } from "./authoringRecord.js";
+import {
+  decodeBriefAnswerFile,
+  decodeBriefRecordFile,
+  decodeBriefRequestFile,
+  type BriefAnswer,
+  type BriefRecord,
+  type BriefRequest,
+} from "./brief.js";
 import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
 import { formatFirstViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
@@ -466,6 +475,102 @@ export function readGateDiagnosticsAnswer(
   }
   return Either.right({ diagnostics: decoded.right.diagnostics });
 }
+
+/**
+ * The release current when the `brief-answer` format was added. An answer's
+ * `$schema` names an answer release only when it is newer than this, or is
+ * the running release itself (a development build reads its own release as
+ * the next shape, as the schemas package does). A historical fact: it never
+ * moves at a release cut.
+ */
+export const LAST_RELEASE_WITHOUT_BRIEF_ANSWER = "0.19.0";
+
+/** Why a brief provider's answer was not read. */
+export type BriefAnswerError =
+  | { readonly kind: "schema"; readonly reason: string }
+  | { readonly kind: "newer"; readonly reason: string }
+  | { readonly kind: "shape"; readonly reason: string };
+
+/**
+ * Reads the parsed document a brief provider printed. Never throws. In order:
+ * 1. a non-object is a `shape` error;
+ * 2. a document without its own `$schema` key is a `schema` error: there is
+ *    no unversioned reading;
+ * 3. a `$schema` that is not a `brief-answer` schema URL is a `schema` error;
+ * 4. a release newer than `PHAX_RELEASE` is refused as `newer`, by name;
+ * 5. a release that is neither the running one nor newer than
+ *    `LAST_RELEASE_WITHOUT_BRIEF_ANSWER` is a `schema` error;
+ * 6. a document the decoder rejects is a `shape` error, with the first
+ *    violation.
+ * The decoded answer keeps only `guarantees`: `$schema` and any extra key are
+ * dropped.
+ */
+export function readBriefAnswer(input: unknown): Either.Either<BriefAnswer, BriefAnswerError> {
+  if (!isDocumentObject(input)) {
+    return Either.left({ kind: "shape", reason: "a brief-answer document is a JSON object" });
+  }
+  if (!Object.hasOwn(input, "$schema")) {
+    return Either.left({ kind: "schema", reason: "a brief-answer document must carry $schema" });
+  }
+  const named = parseSchemaUrl(input["$schema"]);
+  if (named === undefined || named.formatId !== "brief-answer") {
+    return Either.left({
+      kind: "schema",
+      reason: `$schema ${JSON.stringify(input["$schema"])} does not name brief-answer`,
+    });
+  }
+  const { release } = named;
+  if (compareReleases(release, PHAX_RELEASE) > 0) {
+    return Either.left({
+      kind: "newer",
+      reason: `brief-answer written by phax ${release} is newer than this phax (${PHAX_RELEASE}) — upgrade phax to read it`,
+    });
+  }
+  if (
+    release !== PHAX_RELEASE &&
+    compareReleases(release, LAST_RELEASE_WITHOUT_BRIEF_ANSWER) <= 0
+  ) {
+    return Either.left({ kind: "schema", reason: `brief-answer ${release} has no known shape` });
+  }
+  const decoded = decodeBriefAnswerFile(input);
+  if (Either.isLeft(decoded)) {
+    return Either.left({
+      kind: "shape",
+      reason: `schema mismatch: ${formatFirstViolation(decoded.left)}`,
+    });
+  }
+  return Either.right({ guarantees: decoded.right.guarantees });
+}
+
+/** The one-line reason a refused brief answer gives, in the run output, the prompt and `phax brief`. */
+export function describeBriefAnswerError(error: BriefAnswerError): string {
+  return error.kind === "shape"
+    ? `brief answer refused: ${error.reason}`
+    : `brief answer refused at $schema: ${error.reason}`;
+}
+
+/** Reads a phase worktree's `.phax-context/brief-request.json`. Born with `$schema`. */
+export const readBriefRequestFile: Reader<BriefRequest> = (file, input) =>
+  readSchemaBornPersisted(input, {
+    format: "brief-request",
+    label: "brief request",
+    file,
+    decodeCurrent: decodeBriefRequestFile,
+    fromCurrent: ({ $schema: _schema, ...request }) => request,
+  });
+
+/**
+ * Reads a phase folder's `brief-NN.json`. Born with `$schema`. Only the
+ * record's own `$schema` is dropped: its request and answer stay as recorded.
+ */
+export const readBriefRecordFile: Reader<BriefRecord> = (file, input) =>
+  readSchemaBornPersisted(input, {
+    format: "brief-record",
+    label: "brief record",
+    file,
+    decodeCurrent: decodeBriefRecordFile,
+    fromCurrent: ({ $schema: _schema, ...record }) => record,
+  });
 
 /**
  * Reads a phase's `file-reconciliation.json`. It never carried a `version`:

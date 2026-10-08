@@ -26,4 +26,7 @@ export const CURRENT_SHAPES = {
   "plan-approval-record": "0.19.0",
   "spec-approval-record": "0.19.0",
   "gate-request": "next",
+  "brief-request": "next",
+  "brief-answer": "next",
+  "brief-record": "next",
 } as const;

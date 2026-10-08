@@ -2,6 +2,12 @@ import type {
   AnyDocument,
   AuthoringRecordManifest,
   AuthoringRecordManifestShape,
+  BriefAnswer,
+  BriefAnswerShape,
+  BriefRecord,
+  BriefRecordShape,
+  BriefRequest,
+  BriefRequestShape,
   ComplianceReview,
   ComplianceReviewShape,
   DocumentFormatId,
@@ -12,6 +18,9 @@ import type {
   GateRequest,
   GateRequestShape,
   LatestAuthoringRecordManifest,
+  LatestBriefAnswer,
+  LatestBriefRecord,
+  LatestBriefRequest,
   LatestComplianceReview,
   LatestGateAttribution,
   LatestGateDiagnostics,
@@ -79,6 +88,9 @@ import type {
 } from "../../packages/schemas/src/index.js";
 import {
   parseAuthoringRecordManifest,
+  parseBriefAnswer,
+  parseBriefRecord,
+  parseBriefRequest,
   parseComplianceReview,
   parseDocument,
   parseGateAttribution,
@@ -98,6 +110,9 @@ import {
   parseSpecApprovals,
   parseSpecDocument,
   toLatestAuthoringRecordManifest,
+  toLatestBriefAnswer,
+  toLatestBriefRecord,
+  toLatestBriefRequest,
   toLatestComplianceReview,
   toLatestGateAttribution,
   toLatestGateDiagnostics,
@@ -140,6 +155,14 @@ import type {
   GateDiagnosticsDocument,
   GateDiagnosticsFile,
 } from "../../src/schemas/gateDiagnostics.js";
+import type {
+  BriefAnswer as PhaxBriefAnswer,
+  BriefAnswerFile as PhaxBriefAnswerFile,
+  BriefRecord as PhaxBriefRecord,
+  BriefRecordFile as PhaxBriefRecordFile,
+  BriefRequest as PhaxBriefRequest,
+  BriefRequestFile as PhaxBriefRequestFile,
+} from "../../src/schemas/brief.js";
 import type {
   GateRequest as PhaxGateRequest,
   GateRequestFile as PhaxGateRequestFile,
@@ -355,6 +378,9 @@ const formats: Equals<
   | "plan-approval-record"
   | "spec-approval-record"
   | "gate-request"
+  | "brief-request"
+  | "brief-answer"
+  | "brief-record"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -427,7 +453,10 @@ const shapeIds: Equals<
   | GateDiagnosticsShape
   | PlanApprovalRecordShape
   | SpecApprovalRecordShape
-  | GateRequestShape,
+  | GateRequestShape
+  | BriefRequestShape
+  | BriefAnswerShape
+  | BriefRecordShape,
   "pre-schema" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -654,6 +683,42 @@ if (document.ok && document.format === "gate-request") {
   const requestShape: Equals<typeof document.shape, Current<"gate-request">> = true;
   void exact;
   void requestShape;
+}
+
+// The three brief formats are born with $schema: phax's own types, both ways,
+// one current shape each, and in-memory values without a top-level $schema
+const briefTypes: [
+  Equals<BriefRequest, PhaxBriefRequestFile>,
+  Equals<BriefAnswer, PhaxBriefAnswerFile>,
+  Equals<BriefRecord, PhaxBriefRecordFile>,
+  Equals<BriefRequestShape, Current<"brief-request">>,
+  Equals<BriefAnswerShape, Current<"brief-answer">>,
+  Equals<BriefRecordShape, Current<"brief-record">>,
+  Equals<Value<typeof parseBriefRequest>, PhaxBriefRequestFile>,
+  Equals<Value<typeof parseBriefAnswer>, PhaxBriefAnswerFile>,
+  Equals<Value<typeof parseBriefRecord>, PhaxBriefRecordFile>,
+  Equals<LatestBriefRequest, PhaxBriefRequest>,
+  Equals<LatestBriefAnswer, PhaxBriefAnswer>,
+  Equals<LatestBriefRecord, PhaxBriefRecord>,
+  Equals<Parameters<typeof toLatestBriefRequest>, [value: PhaxBriefRequestFile]>,
+  Equals<Parameters<typeof toLatestBriefAnswer>, [value: PhaxBriefAnswerFile]>,
+  Equals<Parameters<typeof toLatestBriefRecord>, [value: PhaxBriefRecordFile]>,
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+void briefTypes;
+declare const latestBriefRequest: LatestBriefRequest;
+// @ts-expect-error: the in-memory brief request carries no $schema
+void latestBriefRequest.$schema;
+declare const latestBriefAnswer: LatestBriefAnswer;
+// @ts-expect-error: the in-memory brief answer carries no $schema
+void latestBriefAnswer.$schema;
+declare const latestBriefRecord: LatestBriefRecord;
+// @ts-expect-error: the in-memory brief record carries no top-level $schema
+void latestBriefRecord.$schema;
+if (document.ok && document.format === "brief-record") {
+  const exact: Equals<typeof document.value, PhaxBriefRecordFile> = true;
+  const recordShape: Equals<typeof document.shape, Current<"brief-record">> = true;
+  void exact;
+  void recordShape;
 }
 
 declare const latestRegistry: LatestRegistry;

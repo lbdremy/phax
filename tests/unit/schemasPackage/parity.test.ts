@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
 import {
   parseAuthoringRecordManifest,
+  parseBriefAnswer,
+  parseBriefRecord,
+  parseBriefRequest,
   parseComplianceReview,
   parseGateAttribution,
   parseGateDiagnostics,
@@ -30,6 +33,11 @@ import {
   decodeRecordManifestFile,
   isAuthoringRecordManifest,
 } from "../../../src/schemas/authoringRecord.js";
+import {
+  decodeBriefAnswerFile,
+  decodeBriefRecordFile,
+  decodeBriefRequestFile,
+} from "../../../src/schemas/brief.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateDiagnosticsFile } from "../../../src/schemas/gateDiagnostics.js";
@@ -222,6 +230,30 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeGateRequestFile,
     wrongType: ["base", "abc1234"],
     required: "terminal",
+    excess: "error",
+  },
+  "brief-request": {
+    id: "brief-request",
+    parse: parseBriefRequest,
+    phax: decodeBriefRequestFile,
+    wrongType: ["files", []],
+    required: "terminal",
+    excess: "error",
+  },
+  "brief-answer": {
+    id: "brief-answer",
+    parse: parseBriefAnswer,
+    phax: decodeBriefAnswerFile,
+    wrongType: ["guarantees", {}],
+    required: "guarantees",
+    excess: "ignore",
+  },
+  "brief-record": {
+    id: "brief-record",
+    parse: parseBriefRecord,
+    phax: decodeBriefRecordFile,
+    wrongType: ["moment", "later"],
+    required: "outcome",
     excess: "error",
   },
 };
@@ -424,6 +456,44 @@ const NESTED: ReadonlyArray<readonly [FormatId, string, Doc, Verdict]> = [
     "gate-request",
     "a phases entry with an extra key",
     withFirst(validDocuments["gate-request"], "phases", { optional: ["src/extra.ts"] }),
+    "rejected",
+  ],
+  [
+    "brief-request",
+    "the outside variant: $schema and files only",
+    { $schema: validDocuments["brief-request"]["$schema"], files: ["src/example.ts"] },
+    "accepted",
+  ],
+  [
+    "brief-request",
+    "the outside variant with null files",
+    { $schema: validDocuments["brief-request"]["$schema"], files: null },
+    "rejected",
+  ],
+  [
+    "brief-answer",
+    "a place whose state is outside its literals",
+    withFirst(validDocuments["brief-answer"], "guarantees", {
+      places: [{ location: { file: "src/example.ts" }, state: "stale" }],
+    }),
+    "rejected",
+  ],
+  [
+    "brief-answer",
+    "a guarantee without places",
+    withFirst(validDocuments["brief-answer"], "guarantees", { places: [] }),
+    "rejected",
+  ],
+  [
+    "brief-record",
+    "an answered outcome whose answer is not an object",
+    withKey(validDocuments["brief-record"], "outcome", { kind: "answered", answer: [] }),
+    "rejected",
+  ],
+  [
+    "brief-record",
+    "a failed outcome with an empty reason",
+    withKey(validDocuments["brief-record"], "outcome", { kind: "failed", reason: "" }),
     "rejected",
   ],
 ];

@@ -19,6 +19,9 @@ import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js
 import {
   UNKNOWN,
   parseAuthoringRecordManifest,
+  parseBriefAnswer,
+  parseBriefRecord,
+  parseBriefRequest,
   parseComplianceReview,
   parseGateAttribution,
   parseGateDiagnostics,
@@ -36,6 +39,9 @@ import {
   parseSpecApprovals,
   parseSpecDocument,
   toLatestAuthoringRecordManifest,
+  toLatestBriefAnswer,
+  toLatestBriefRecord,
+  toLatestBriefRequest,
   toLatestComplianceReview,
   toLatestGateAttribution,
   toLatestGateDiagnostics,
@@ -54,6 +60,8 @@ import {
   toLatestSpecDocument,
 } from "../../../packages/schemas/src/index.js";
 import {
+  readBriefRecordFile,
+  readBriefRequestFile,
   readComplianceReviewFile,
   readGateAttributionFile,
   readPhaseFileReconciliationFile,
@@ -88,14 +96,17 @@ const lock = JSON.parse(
 interface RenderedSchema {
   readonly required?: ReadonlyArray<string>;
   readonly properties?: Readonly<Record<string, { readonly pattern?: string }>>;
+  readonly anyOf?: ReadonlyArray<RenderedSchema>;
 }
 
-function rendered(id: FormatId): RenderedSchema {
+/** The rendered JSON Schema's document shapes: each variant of a root union, else the root. */
+function rendered(id: FormatId): ReadonlyArray<RenderedSchema> {
   const entry = JSON_SCHEMA_FORMATS.find((format) => format.format === id);
   if (entry === undefined) throw new Error(`no JSON Schema table entry for ${id}`);
   const { files, failures } = renderJsonSchemas([entry]);
   expect(failures).toEqual([]);
-  return JSON.parse(files.get(entry.fileName) ?? "null") as RenderedSchema;
+  const schema = JSON.parse(files.get(entry.fileName) ?? "null") as RenderedSchema;
+  return schema.anyOf ?? [schema];
 }
 
 function readSnapshot(id: FormatId, name: string): string {
@@ -121,10 +132,11 @@ describe("every format's current shape", () => {
   });
 
   it.each(FORMAT_IDS)("%s: requires $schema bound to its own id, and has no version", (id) => {
-    const schema = rendered(id);
-    expect(schema.required).toContain("$schema");
-    expect(schema.properties?.["$schema"]?.pattern).toContain(`schemas\\/${id}\\/`);
-    expect(schema.properties).not.toHaveProperty("version");
+    for (const schema of rendered(id)) {
+      expect(schema.required).toContain("$schema");
+      expect(schema.properties?.["$schema"]?.pattern).toContain(`schemas\\/${id}\\/`);
+      expect(schema.properties).not.toHaveProperty("version");
+    }
   });
 
   it.each(PRE_SCHEMA_FORMAT_IDS)(
@@ -193,11 +205,15 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "plan-approval-record": latest(parsePlanApprovalRecord, toLatestPlanApprovalRecord),
   "spec-approval-record": latest(parseSpecApprovalRecord, toLatestSpecApprovalRecord),
   "gate-request": latest(parseGateRequest, toLatestGateRequest),
+  "brief-request": latest(parseBriefRequest, toLatestBriefRequest),
+  "brief-answer": latest(parseBriefAnswer, toLatestBriefAnswer),
+  "brief-record": latest(parseBriefRecord, toLatestBriefRecord),
 };
 
 type BridgeReader = (file: string, input: unknown) => Either.Either<unknown, unknown>;
 
-// phax never reads gate diagnostics documents or gate requests back.
+// phax never reads gate diagnostics documents or gate requests back, and reads
+// a brief answer only as a provider's answer, through readBriefAnswer.
 const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   registry: readRegistryFile,
   "run-status": readRunStatusFile,
@@ -216,6 +232,9 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "plan-approval-record": readPlanRecordFile,
   "spec-approval-record": readSpecRecordFile,
   "gate-request": undefined,
+  "brief-request": readBriefRequestFile,
+  "brief-answer": undefined,
+  "brief-record": readBriefRecordFile,
 };
 
 const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined);

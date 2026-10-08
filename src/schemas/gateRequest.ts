@@ -12,7 +12,11 @@ const GateRequestPhaseSchema = Schema.Struct({
   }),
 });
 
-const gateRequestFields = {
+/**
+ * The phase facts: the gate request's keys after `$schema`. A brief request
+ * inside a phase spreads exactly these field schemas.
+ */
+export const gateRequestFields = {
   phase: PhaseIdSchema.annotations({ description: "The gated phase." }),
   base: FullCommitShaSchema.annotations({
     description: "The full object name of the commit the gated phase's branch was created from.",
