@@ -21,6 +21,7 @@ const TOP_LEVEL_COMMANDS = [
   "review-code",
   "plans",
   "adjust-plan",
+  "brief",
   "init",
   "resume",
   "reset-phase",

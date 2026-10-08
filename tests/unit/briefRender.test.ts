@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { BRIEF_PUSH_CAP, renderBriefSection } from "../../src/domain/brief/render.js";
+import {
+  BRIEF_PUSH_CAP,
+  renderBriefSection,
+  renderNoBrief,
+  renderWholeBrief,
+} from "../../src/domain/brief/render.js";
 import type { BriefAnswer, BriefGuarantee } from "../../src/schemas/brief.js";
 
 // Made-up guarantees, paths and wording throughout.
@@ -164,5 +169,90 @@ describe("renderBriefSection — every variant", () => {
     for (const section of variants) {
       expect(section.endsWith(`\n\n${INSTRUCTIONS}`)).toBe(true);
     }
+  });
+});
+
+describe("renderWholeBrief", () => {
+  it("prints every place with its state, location, due, what and repair", () => {
+    const answer: BriefAnswer = {
+      guarantees: [
+        {
+          id: "core-no-adapters",
+          statement: "src/core imports no adapter from src/infra",
+          places: [
+            {
+              location: { file: "src/core/billing/invoice.ts", line: 3 },
+              state: "forbidden",
+              due: "this-phase",
+              what: "imports src/infra/stripe.ts",
+              repair: "depend on PaymentPort from src/core/billing/port.ts",
+            },
+            { location: { file: "src/core/billing/port.ts" }, state: "met" },
+          ],
+        },
+        {
+          id: "money-as-cents",
+          statement: "amounts are integer cents",
+          places: [
+            {
+              location: { file: "src/core/billing/tax.ts" },
+              state: "missing",
+              due: "later",
+              what: "tax amounts are computed as floats in the plan",
+              repair: "compute tax in integer cents",
+            },
+            {
+              location: { file: "src/core/billing/legacy.ts", line: 40 },
+              state: "accepted",
+              what: "floats kept for the old export",
+            },
+            {
+              location: { file: "src/core/billing/rates.ts" },
+              state: "forbidden",
+              due: null,
+              what: "rates are floats",
+              repair: "store rates in basis points",
+            },
+          ],
+        },
+      ],
+    };
+    expect(renderWholeBrief(answer)).toBe(
+      [
+        "core-no-adapters — src/core imports no adapter from src/infra",
+        "  forbidden  src/core/billing/invoice.ts:3   due this phase",
+        "    what:    imports src/infra/stripe.ts",
+        "    repair:  depend on PaymentPort from src/core/billing/port.ts",
+        "  met        src/core/billing/port.ts",
+        "money-as-cents — amounts are integer cents",
+        "  missing    src/core/billing/tax.ts   due later",
+        "    what:    tax amounts are computed as floats in the plan",
+        "    repair:  compute tax in integer cents",
+        "  accepted   src/core/billing/legacy.ts:40",
+        "    what:    floats kept for the old export",
+        "  forbidden  src/core/billing/rates.ts",
+        "    what:    rates are floats",
+        "    repair:  store rates in basis points",
+      ].join("\n"),
+    );
+  });
+
+  it("prints all 53 guarantees in the provider's order, with no cap", () => {
+    const ids = Array.from({ length: 53 }, (_, n) => `g${String(n + 1).padStart(2, "0")}`);
+    const whole = renderWholeBrief({ guarantees: ids.map(metGuarantee) });
+    const headers = lines(whole).filter((line) => !line.startsWith(" "));
+    expect(headers).toEqual(ids.map((id) => `${id} — statement of ${id}`));
+    expect(whole).not.toContain("not shown");
+  });
+});
+
+describe("renderNoBrief", () => {
+  it("names the paths asked about", () => {
+    expect(renderNoBrief(["src/x.ts"])).toBe("No brief for src/x.ts.");
+    expect(renderNoBrief(["src/x.ts", "src/y.ts"])).toBe("No brief for src/x.ts, src/y.ts.");
+  });
+
+  it("names the phase's planned files for the phase's brief", () => {
+    expect(renderNoBrief(null)).toBe("No brief for this phase's planned files.");
   });
 });

@@ -48,6 +48,13 @@ export class FakeFileSystemImpl implements FileSystemOps {
     return Effect.void;
   }
 
+  createExclusive(path: string, content: string): Effect.Effect<boolean, FsError> {
+    if (this.files.has(path) || this.dirs.has(path)) return Effect.succeed(false);
+    this.files.set(path, content);
+    this.registerParentDirs(path);
+    return Effect.succeed(true);
+  }
+
   mkdirp(path: string): Effect.Effect<void, FsError> {
     this.dirs.add(path);
     return Effect.void;
@@ -158,6 +165,7 @@ function makeRootedFakeFileSystemOps(base: FakeFileSystemImpl, root: string): Fi
   return {
     readText: (path) => base.readText(resolveKey(path)),
     writeAtomic: (path, content) => base.writeAtomic(resolveKey(path), content),
+    createExclusive: (path, content) => base.createExclusive(resolveKey(path), content),
     appendLine: (path, line) => base.appendLine(resolveKey(path), line),
     mkdirp: (path) => base.mkdirp(resolveKey(path)),
     exists: (path) => base.exists(resolveKey(path)),

@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { execSync } from "node:child_process";
 import { Either } from "effect";
@@ -160,6 +160,41 @@ export function describeConfigSources(cwd: string = process.cwd()): ConfigSource
     localOverlay: existsSync(localPath) ? localPath : undefined,
     globalOverlay: existsSync(globalPath) ? globalPath : undefined,
   };
+}
+
+function findGitCommonDir(startDir: string): string | undefined {
+  try {
+    const dir = execSync("git rev-parse --path-format=absolute --git-common-dir", {
+      cwd: startDir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return dir.length > 0 ? dir : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export interface WorkingTreeLocation {
+  /** The root of the working tree holding the cwd (a linked worktree's own root). */
+  readonly root: string;
+  /** The repository's main checkout: the parent of git's common dir. */
+  readonly mainRoot: string;
+}
+
+/**
+ * Locates the working tree holding `cwd` and the repository's main checkout,
+ * found through git's common dir. In the main checkout both are the same
+ * root. `mainRoot` falls back to `root` when the common dir is not a `.git`
+ * folder (a bare repository's worktree). Undefined outside any working tree.
+ */
+export function locateWorkingTree(cwd: string): WorkingTreeLocation | undefined {
+  const root = findGitRoot(cwd);
+  if (!root) return undefined;
+  const commonDir = findGitCommonDir(cwd);
+  const mainRoot =
+    commonDir !== undefined && basename(commonDir) === ".git" ? dirname(commonDir) : root;
+  return { root, mainRoot };
 }
 
 export function locatePhaxConfig(cwd: string): string | undefined {

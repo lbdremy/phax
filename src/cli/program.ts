@@ -31,6 +31,7 @@ import { registerSkillsCommand } from "./commands/skills.js";
 import { registerArtifactCommand } from "./commands/artifact.js";
 import { registerRecordsCommand } from "./commands/records.js";
 import { runInit } from "./commands/init.js";
+import { runBrief } from "./commands/brief.js";
 import { registerSchemaCommand } from "./commands/schema.js";
 import { runCompletions } from "./commands/completions.js";
 import { runReport } from "./commands/report.js";
@@ -310,6 +311,17 @@ export function buildProgram(): Command {
         process.exit(exitCode);
       },
     );
+
+  program
+    .command("brief")
+    .description(
+      "Ask the configured brief provider which guarantees range over the given paths and how each stands there; with no path, inside a phase, the phase's brief",
+    )
+    .argument("[path...]", "Paths to brief, existing or not, relative to the current directory")
+    .action(async (paths: string[]) => {
+      const exitCode = await runBrief(paths, consoleOutput);
+      process.exit(exitCode);
+    });
 
   program
     .command("init")

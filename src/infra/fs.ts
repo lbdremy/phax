@@ -6,6 +6,7 @@ import {
   rm,
   rename as nodeRename,
   readFile,
+  writeFile,
   appendFile,
   readdir,
   lstat,
@@ -64,6 +65,20 @@ export function makeNodeFileSystemOps(resolvePath: (path: string) => string): Fi
             await handle.close();
           }
           await nodeRename(tmpPath, resolved);
+        },
+        catch: wrapFsError,
+      }),
+
+    createExclusive: (path, content) =>
+      Effect.tryPromise({
+        try: async () => {
+          try {
+            await writeFile(resolvePath(path), content, { encoding: "utf8", flag: "wx" });
+            return true;
+          } catch (err) {
+            if ((err as NodeJS.ErrnoException).code === "EEXIST") return false;
+            throw err;
+          }
         },
         catch: wrapFsError,
       }),
