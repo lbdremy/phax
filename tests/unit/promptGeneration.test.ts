@@ -160,6 +160,33 @@ describe("buildPhasePrompt", () => {
     expect(prompt).toContain("No deviations.");
   });
 
+  it("places the brief section between the current phase JSON and the execution rules", () => {
+    const briefSection = "## Brief for this phase\n\nA made-up brief.";
+    const prompt = buildPhasePrompt({
+      planMd: "# Plan",
+      planJson: samplePlan,
+      currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
+      briefSection,
+    });
+    expect(prompt).toContain(
+      `${JSON.stringify(samplePhase, null, 2)}\n\n${briefSection}\n\n## Execution rules\n`,
+    );
+  });
+
+  it("is byte-identical without a brief section", () => {
+    const base = {
+      planMd: "# Plan",
+      planJson: samplePlan,
+      currentPhase: samplePhase,
+      gateCommands: sampleGateCommands,
+    };
+    const prompt = buildPhasePrompt({ ...base, briefSection: undefined });
+    expect(prompt).toBe(buildPhasePrompt(base));
+    expect(prompt).not.toContain("## Brief for this phase");
+    expect(prompt).toContain(`${JSON.stringify(samplePhase, null, 2)}\n\n## Execution rules\n`);
+  });
+
   it("matches the expected snapshot", () => {
     const prompt = buildPhasePrompt({
       planMd: "# My Plan\n\nPhase overview.",

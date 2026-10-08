@@ -86,6 +86,11 @@ import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
 import { recordGateProfileInRunStatus, serializeGateRequest } from "./gates.js";
 import { makeGateRequest } from "../domain/gate/gateRequest.js";
+import { phaseBriefRequest } from "../domain/brief/request.js";
+import type { BriefRequestFile } from "../schemas/brief.js";
+import type { GateRequest } from "../schemas/gateRequest.js";
+import { stampBriefRequest } from "./briefProvider.js";
+import { PHASE_BRIEF_REQUEST_FILE, pushBrief, writePhaseBriefRequest } from "./pushedBrief.js";
 import { runGatesWithFixLoop } from "./fixLoop.js";
 import { generatePhaseHandoff, HandoffValidationError } from "./handoffGeneration.js";
 import { readPreviousHandoff, readPreviousReconciliation } from "./handoffInjection.js";
@@ -153,6 +158,24 @@ function maxAttemptIndexInPhaseFolder(phaseFolderPath: string): number {
     }
   }
   return max;
+}
+
+// The phase request file `phax brief` reads its phase from (spec §5.13). A
+// write failure is a warning: a brief never blocks the phase.
+function writeBriefRequestOrWarn(
+  worktreePath: string,
+  phaseId: string,
+  request: BriefRequestFile,
+): Effect.Effect<void, never, FileSystem> {
+  return writePhaseBriefRequest(worktreePath, request).pipe(
+    Effect.catchAll((e) =>
+      Effect.sync(() => {
+        process.stderr.write(
+          `[phax] Warning: phase "${phaseId}" — failed to write ${PHASE_BRIEF_REQUEST_FILE} (${e.message}).\n`,
+        );
+      }),
+    ),
+  );
 }
 
 export interface ExecutePlanOptions {
@@ -368,6 +391,21 @@ export function executePlan(
     };
   }
 
+  // The phase facts, one builder for the gate request and the brief request:
+  // the base noted in status.json when phax created the branch (never
+  // re-derived from git), the terminal flag and the plan's projection.
+  function phaseFactsFor(
+    phaseFolderPath: string,
+    phaseId: string,
+    isFinal: boolean,
+  ): Effect.Effect<GateRequest, FsError, FileSystem> {
+    return readPhaseBase(phaseFolderPath).pipe(
+      Effect.map((base) =>
+        makeGateRequest({ phaseId, base, terminal: isFinal, phases: plan.phases }),
+      ),
+    );
+  }
+
   const program = Effect.gen(function* () {
     const telemetry = yield* SystemTelemetry;
     const git = yield* Git;
@@ -534,6 +572,9 @@ export function executePlan(
       let worktreePath: WorktreePath;
       let sessionId: ClaudeSessionId;
       let agentOptions: AgentRunOptions;
+      // Built at most once per phase entry, and shared by the brief request
+      // and the gate request.
+      let phaseFacts: GateRequest | undefined;
 
       if (
         isResumeFromGate ||
@@ -586,6 +627,15 @@ export function executePlan(
           );
         }
         worktreePath = worktreePathResult.right;
+        // A resume asks no new brief (spec §5.6) but restores the request file.
+        if (config.brief !== undefined) {
+          phaseFacts = yield* phaseFactsFor(phaseFolderPath, phase.id, isFinal);
+          yield* writeBriefRequestOrWarn(
+            worktreePath as string,
+            phase.id,
+            stampBriefRequest(phaseBriefRequest(phaseFacts, null)),
+          );
+        }
         sessionId = resumeSessionId as ClaudeSessionId;
         currentPhaseId = phase.id;
         currentPhaseFolderPath = phaseFolderPath;
@@ -699,6 +749,20 @@ export function executePlan(
 
         const fs = yield* FileSystem;
 
+        let briefSection: string | undefined;
+        if (config.brief !== undefined) {
+          phaseFacts = yield* phaseFactsFor(phaseFolderPath, phase.id, isFinal);
+          const briefRequest = stampBriefRequest(phaseBriefRequest(phaseFacts, null));
+          yield* writeBriefRequestOrWarn(worktreePath as string, phase.id, briefRequest);
+          briefSection = yield* pushBrief({
+            command: config.brief.command,
+            request: briefRequest,
+            worktreePath: worktreePath as string,
+            phaseFolderPath,
+            phaseId: phase.id,
+          });
+        }
+
         const promptText = buildPhasePrompt({
           planMd,
           planJson: plan,
@@ -706,6 +770,7 @@ export function executePlan(
           previousHandoff,
           previousReconciliation,
           gateCommands: gateCommandStrings,
+          briefSection,
         });
 
         yield* fs.writeAtomic(join(phaseFolderPath, "prompt.md"), promptText);
@@ -941,9 +1006,8 @@ export function executePlan(
         // One request per phase entry, from the base noted when phax created
         // the branch — never re-derived from git — so every attempt, and a
         // resume, hands declaring steps the same facts.
-        const base = yield* readPhaseBase(phaseFolderPath);
         const gateRequest = serializeGateRequest(
-          makeGateRequest({ phaseId: phase.id, base, terminal: isFinal, phases: plan.phases }),
+          phaseFacts ?? (yield* phaseFactsFor(phaseFolderPath, phase.id, isFinal)),
         );
         yield* runGatesWithFixLoop({
           steps: phaseSteps,

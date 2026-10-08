@@ -1,6 +1,7 @@
 // ac-producer and ac-identify-alone: drive phax's writers through in-memory
 // ports — run creation, status transitions, approvals, headless authoring, a
-// gate run, a file reconciliation, a phase record and a compliance review —
+// gate run, a file reconciliation, a pushed brief, a phase record and a
+// compliance review —
 // then check every persisted file they wrote. Each starts with `$schema`
 // naming its format at the root package.json release, carries no `version`,
 // and is identified by `parseDocument` from its content alone. Every value
@@ -14,7 +15,10 @@ import { parseDocument } from "../../packages/schemas/src/index.js";
 import { putPlanApprovalRecord, putSpecApprovalRecord } from "../../src/app/approvalRecordStore.js";
 import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorArtifact.js";
 import { dispatch, type DispatcherContext } from "../../src/app/dispatcher.js";
+import { stampBriefRequest } from "../../src/app/briefProvider.js";
 import { runGates, serializeGateRequest } from "../../src/app/gates.js";
+import { pushBrief, writePhaseBriefRequest } from "../../src/app/pushedBrief.js";
+import { phaseBriefRequest } from "../../src/domain/brief/request.js";
 import { makeGateRequest } from "../../src/domain/gate/gateRequest.js";
 import { createPhaseFolder } from "../../src/app/phaseFolder.js";
 import { reconcilePhaseFiles } from "../../src/app/reconcilePhaseFiles.js";
@@ -237,6 +241,18 @@ const MIXED_DIAGNOSTICS = JSON.stringify({
   ],
 });
 
+// A brief provider's stdout, stamped at the running release.
+const BRIEF_ANSWER = JSON.stringify({
+  $schema: schemaUrl("brief-answer", PHAX_RELEASE),
+  guarantees: [
+    {
+      id: "example-pure",
+      statement: "src/example.ts imports no node: module",
+      places: [{ location: { file: "src/example.ts" }, state: "met" }],
+    },
+  ],
+});
+
 const COMPLIANCE_VERDICT = JSON.stringify({
   version: 1,
   verdict: "conformant",
@@ -270,6 +286,8 @@ function formatAt(
   if (name === "compliance-review.json") return "compliance-review";
   if (name === "gate-attribution.json") return "gate-attribution";
   if (name === "file-reconciliation.json") return "phase-file-reconciliation";
+  if (name === "brief-request.json") return "brief-request";
+  if (/^brief-\d{2,}\.json$/.test(name)) return "brief-record";
   if (name.endsWith(".diagnostics.json")) return "gate-diagnostics";
   if (name.endsWith(".request.json")) return "gate-request";
   if (name === "record.json") {
@@ -469,6 +487,27 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   );
   if (Either.isLeft(reconciled)) throw new Error("reconcilePhaseFiles failed");
 
+  // A pushed brief: the phase request file in the worktree, and brief-00.json
+  // in the phase folder, from a provider answering at the running release.
+  shell.impl.setResponse("node ./brief.mjs", { exitCode: 0, stdout: BRIEF_ANSWER, stderr: "" });
+  const briefRequest = stampBriefRequest(
+    phaseBriefRequest(
+      makeGateRequest({ phaseId: "phase-01", base: BASELINE, terminal: true, phases: plan.phases }),
+      null,
+    ),
+  );
+  const requestWritten = await run(writePhaseBriefRequest(WORKTREE, briefRequest));
+  if (Either.isLeft(requestWritten)) throw new Error("writePhaseBriefRequest failed");
+  await run(
+    pushBrief({
+      command: "node ./brief.mjs",
+      request: briefRequest,
+      worktreePath: WORKTREE,
+      phaseFolderPath: PHASE_FOLDER,
+      phaseId: "phase-01",
+    }),
+  );
+
   // The phase's record, which also carries the phase folder's timeline files.
   const recorded = await run(
     writeRecord({
@@ -549,7 +588,10 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   const written: Written[] = [];
   for (const [location, content] of locations) {
     const format = formatAt(location, authoringKinds);
-    if (format === undefined || location.includes("/.phax-context/")) continue;
+    // The worktree's `.phax-context/` holds agent files, except the phase
+    // request file phax writes there.
+    if (format === undefined) continue;
+    if (location.includes("/.phax-context/") && format !== "brief-request") continue;
     written.push({
       location,
       format,
@@ -569,9 +611,6 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // phax never writes a brief answer as a file: it is the brief provider's
   // stdout, held as printed inside a brief record.
   "brief-answer",
-  // phax starts writing these in the brief-provider plan's phase-03.
-  "brief-request",
-  "brief-record",
 ];
 
 describe("every persisted file phax writes", () => {

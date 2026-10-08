@@ -11,17 +11,28 @@ export interface BuildPhasePromptOptions {
   readonly previousHandoff?: string | undefined;
   readonly previousReconciliation?: string | undefined;
   readonly gateCommands: string[];
+  /** The `## Brief for this phase` section, present exactly when a brief provider is configured. */
+  readonly briefSection?: string | undefined;
 }
 
 export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
-  const { planMd, planJson, currentPhase, previousHandoff, previousReconciliation, gateCommands } =
-    opts;
+  const {
+    planMd,
+    planJson,
+    currentPhase,
+    previousHandoff,
+    previousReconciliation,
+    gateCommands,
+    briefSection,
+  } = opts;
   const handoffSection = previousHandoff ?? "(no previous phase)";
 
   const reconciliationSection =
     previousReconciliation !== undefined
       ? ["## Previous phase file reconciliation", "", previousReconciliation, ""]
       : [];
+
+  const briefLines = briefSection !== undefined ? [briefSection, ""] : [];
 
   return [
     "# Execute one implementation phase",
@@ -59,6 +70,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "",
     JSON.stringify(currentPhase, null, 2),
     "",
+    ...briefLines,
     "## Execution rules",
     "",
     "- Respect the current phase scope.",
@@ -119,6 +131,7 @@ export interface GeneratePhasePromptOptions {
   readonly previousHandoff?: string | undefined;
   readonly previousReconciliation?: string | undefined;
   readonly gateCommands: string[];
+  readonly briefSection?: string | undefined;
 }
 
 export function generatePhasePrompt(
