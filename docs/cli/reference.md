@@ -1354,3 +1354,7 @@ Print the full transcript
 #### `--gates`
 
 Print the gate check logs, each followed by its gate request
+
+#### `--briefs`
+
+Print the phase's brief records (brief-NN.json) in number order

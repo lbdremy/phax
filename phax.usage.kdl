@@ -723,5 +723,8 @@ cmd "records" {
         flag "--gates" {
             help "Print the gate check logs, each followed by its gate request"
         }
+        flag "--briefs" {
+            help "Print the phase's brief records (brief-NN.json) in number order"
+        }
     }
 }
