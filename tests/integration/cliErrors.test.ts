@@ -86,8 +86,8 @@ describe("CLI error messages", () => {
       const result = runCli(["run", "--plan", planPath], repo);
       expect(result.status).not.toBe(0);
       const combined = (result.stderr ?? "") + (result.stdout ?? "");
-      expect(combined).toContain(planPath);
-      expect(combined).toMatch(/Draft/);
+      // The path is printed relative to the repository, so name the file only.
+      expect(combined).toContain("plan.md is still in Draft status");
       expect(combined).not.toMatch(/at\s+\S+:\d+:\d+/);
     });
   });
