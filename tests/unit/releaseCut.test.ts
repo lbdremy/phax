@@ -51,6 +51,7 @@ const COPIED_FILES = [
   "packages/schemas/history.lock.json",
   "packages/schemas/releases.json",
   "examples/hello-world/audit.mjs",
+  "examples/hello-world/brief.mjs",
 ];
 const COPIED_DIRS = ["src", "packages/schemas/snapshots", "packages/schemas/src"];
 const MANIFESTS = ["package.json", "npm/package.json", "packages/schemas/package.json"];
@@ -59,6 +60,7 @@ const RELEASE_MODULE = "src/schemas/release.ts";
 const LOCK = "packages/schemas/history.lock.json";
 const LEDGER = "packages/schemas/releases.json";
 const EXAMPLE_AUDIT = "examples/hello-world/audit.mjs";
+const EXAMPLE_BRIEF = "examples/hello-world/brief.mjs";
 /** Every path the cut could touch, as files or directories. */
 const CUT_SCOPE = [
   ...MANIFESTS,
@@ -68,11 +70,18 @@ const CUT_SCOPE = [
   LOCK,
   LEDGER,
   EXAMPLE_AUDIT,
+  EXAMPLE_BRIEF,
 ];
 
-/** The gate-diagnostics `$schema` literal the example audit prints at `release`. */
-function exampleStamp(release: string): string {
-  return `"${schemaUrl("gate-diagnostics", release)}"`;
+/** Each example script with the format of the one `$schema` literal it prints. */
+const EXAMPLE_SCRIPTS = [
+  [EXAMPLE_AUDIT, "gate-diagnostics"],
+  [EXAMPLE_BRIEF, "brief-answer"],
+] as const;
+
+/** The `format` `$schema` literal an example script prints at `release`. */
+function exampleStamp(release: string, format: FormatId = "gate-diagnostics"): string {
+  return `"${schemaUrl(format, release)}"`;
 }
 
 function ledgerOf(root: string): ReadonlyArray<string> {
@@ -251,9 +260,19 @@ describe("cutRelease on a copy of the tree", () => {
 
     const after = hashTree(copy, ["."]);
     expect(differences(before, after)).toEqual(
-      [...MANIFESTS, GENERATED_INDEX, RELEASE_MODULE, LEDGER, EXAMPLE_AUDIT].toSorted(),
+      [
+        ...MANIFESTS,
+        GENERATED_INDEX,
+        RELEASE_MODULE,
+        LEDGER,
+        EXAMPLE_AUDIT,
+        EXAMPLE_BRIEF,
+      ].toSorted(),
     );
     expect(readFileSync(join(copy, EXAMPLE_AUDIT), "utf8")).toContain(exampleStamp(Y));
+    expect(readFileSync(join(copy, EXAMPLE_BRIEF), "utf8")).toContain(
+      exampleStamp(Y, "brief-answer"),
+    );
     expect(ledgerOf(copy).slice(-2)).toEqual([X, Y]);
     expect(changed).toEqual(differences(before, after));
     for (const manifest of MANIFESTS) expect(versionOf(copy, manifest)).toBe(Y);
@@ -279,39 +298,52 @@ describe("cutRelease on a copy of the tree", () => {
     expect(changed).toContain(LEDGER);
   });
 
-  it(`rewrites the example audit's stamp to ${X}, keeping every other byte, and reports it`, () => {
-    const before = readFileSync(join(copy, EXAMPLE_AUDIT), "utf8");
-    expect(before).toContain(exampleStamp(rootVersion));
+  it.each(EXAMPLE_SCRIPTS)(
+    `rewrites %s's %s stamp to ${X}, keeping every other byte, and reports it`,
+    (script, format) => {
+      const before = readFileSync(join(copy, script), "utf8");
+      expect(before).toContain(exampleStamp(rootVersion, format));
 
-    const { changed } = cutRelease(copy, X);
+      const { changed } = cutRelease(copy, X);
 
-    expect(readFileSync(join(copy, EXAMPLE_AUDIT), "utf8")).toBe(
-      before.replace(exampleStamp(rootVersion), exampleStamp(X)),
-    );
-    expect(changed).toContain(EXAMPLE_AUDIT);
-  });
+      expect(readFileSync(join(copy, script), "utf8")).toBe(
+        before.replace(exampleStamp(rootVersion, format), exampleStamp(X, format)),
+      );
+      expect(changed).toContain(script);
+    },
+  );
 
   describe("refuses before writing anything", () => {
-    it("a missing example audit", () => {
-      rmSync(join(copy, EXAMPLE_AUDIT));
+    it.each(EXAMPLE_SCRIPTS)("a missing %s", (script) => {
+      rmSync(join(copy, script));
       const before = hashTree(copy, ["."]);
-      expect(() => cutRelease(copy, X)).toThrow(`${EXAMPLE_AUDIT} is missing — nothing cut`);
+      expect(() => cutRelease(copy, X)).toThrow(`${script} is missing — nothing cut`);
       expect(hashTree(copy, ["."])).toEqual(before);
     });
 
-    it.each([
-      ["without a stamp", (content: string) => content.replace(exampleStamp(rootVersion), '""'), 0],
-      [
-        "with a duplicated stamp",
-        (content: string) => `${content}// ${exampleStamp(rootVersion)}\n`,
-        2,
-      ],
-    ])("an example audit %s", (_label, edit, found) => {
-      const path = join(copy, EXAMPLE_AUDIT);
+    it.each(
+      EXAMPLE_SCRIPTS.flatMap(([script, format]) => [
+        [
+          script,
+          format,
+          "without a stamp",
+          (content: string) => content.replace(exampleStamp(rootVersion, format), '""'),
+          0,
+        ] as const,
+        [
+          script,
+          format,
+          "with a duplicated stamp",
+          (content: string) => `${content}// ${exampleStamp(rootVersion, format)}\n`,
+          2,
+        ] as const,
+      ]),
+    )("%s (%s) %s", (script, format, _label, edit, found) => {
+      const path = join(copy, script);
       writeFileSync(path, edit(readFileSync(path, "utf8")));
       const before = hashTree(copy, ["."]);
       expect(() => cutRelease(copy, X)).toThrow(
-        `${EXAMPLE_AUDIT} must hold exactly one gate-diagnostics $schema literal, found ${found} — nothing cut`,
+        `${script} must hold exactly one ${format} $schema literal, found ${found} — nothing cut`,
       );
       expect(hashTree(copy, ["."])).toEqual(before);
     });

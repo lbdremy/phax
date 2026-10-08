@@ -12,8 +12,8 @@ were completed: headless authoring (0.15/0.16), the `schemas-package` spec in fi
 (`docs-site`, live at docs.phax.run since v0.18.0 on 2026-10-04; both npm packages approved
 and the global install bumped on 2026-10-05). Five approved specs are open:
 artifact-decide is next; headless-review and oracle-phases follow it; 23 and 24 stay parked.
-The steme gate specs (drop-gate-scopes, gate-request, brief-provider) are Approved;
-drop-gate-scopes and gate-request have landed. No plan is in flight.
+The steme gate specs (drop-gate-scopes, gate-request, brief-provider) are Approved, and all
+three have landed. No plan is in flight.
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -148,7 +148,7 @@ spec of its own. In this order:
       beside the attempt so the verdict replays; `base` is noted in the phase status when the
       phase branch is created, and a pre-release run folder is refused. The hello-world
       diagnostics step declares the input.
-- [ ] **`brief-provider`** — `docs/specs/2610061346-brief-provider.md`, Approved, §9 decided
+- [x] **`brief-provider`** — `docs/specs/2610061346-brief-provider.md`, Approved, §9 decided
       2026-10-06 (re-authored for versioned answers). Replaces `brief-replaces-orient` (abandoned): purely additive, orient is already
       gone. A **brief** is feed-forward and never blocks (the audit is the gate's and blocks):
       - woven into the phase's first prompt from the plan, and pulled with `phax brief [path…]`

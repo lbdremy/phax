@@ -5,8 +5,9 @@
 // PACKAGE_VERSION, FIRST_SUPPORTED_RELEASE, CURRENT_SHAPES and
 // src/schemas/release.ts, then appends the release to the release ledger
 // packages/schemas/releases.json, from which the docs site serves every
-// release's schemas, and rewrites the gate-diagnostics stamp the hello-world
-// example's audit.mjs prints to the cut release. Prints every repo-relative
+// release's schemas, and rewrites the answer stamps the hello-world example
+// prints (audit.mjs's gate-diagnostics, brief.mjs's brief-answer) to the cut
+// release. Prints every repo-relative
 // path it created, modified or removed, one per line on stdout, so
 // scripts/release.sh stages
 // exactly those; progress goes to stderr.
@@ -83,24 +84,31 @@ function readLedger(repoRoot: string, current: string): ReadonlyArray<string> {
   return ledger;
 }
 
-const EXAMPLE_AUDIT = "examples/hello-world/audit.mjs";
+/** The hello-world scripts that each print one answer `$schema` literal, with its format. */
+const EXAMPLE_STAMPS = [
+  { path: "examples/hello-world/audit.mjs", format: "gate-diagnostics" },
+  { path: "examples/hello-world/brief.mjs", format: "brief-answer" },
+] as const;
 
-/** The one `gate-diagnostics` `$schema` literal the example's audit prints. */
-const EXAMPLE_STAMP =
-  /(https:\/\/docs\.phax\.run\/schemas\/gate-diagnostics\/)\d+\.\d+\.\d+(\.json)/g;
+/** The `$schema` literals of `format`, the release between the two groups. */
+function stampPattern(format: string): RegExp {
+  return new RegExp(
+    `(https://docs\\.phax\\.run/schemas/${format}/)\\d+\\.\\d+\\.\\d+(\\.json)`,
+    "g",
+  );
+}
 
 /**
- * The example audit's content. Throws unless the file exists and holds exactly
- * one gate-diagnostics stamp literal.
+ * The example script's content. Throws unless the file exists and holds
+ * exactly one `format` stamp literal.
  */
-function readExampleAudit(repoRoot: string): string {
-  const path = join(repoRoot, EXAMPLE_AUDIT);
-  if (!existsSync(path)) throw new Error(`${EXAMPLE_AUDIT} is missing — nothing cut`);
-  const content = readFileSync(path, "utf8");
-  const stamps = content.match(EXAMPLE_STAMP)?.length ?? 0;
+function readExampleScript(repoRoot: string, path: string, format: string): string {
+  if (!existsSync(join(repoRoot, path))) throw new Error(`${path} is missing — nothing cut`);
+  const content = readFileSync(join(repoRoot, path), "utf8");
+  const stamps = content.match(stampPattern(format))?.length ?? 0;
   if (stamps !== 1) {
     throw new Error(
-      `${EXAMPLE_AUDIT} must hold exactly one gate-diagnostics $schema literal, found ${stamps} — nothing cut`,
+      `${path} must hold exactly one ${format} $schema literal, found ${stamps} — nothing cut`,
     );
   }
   return content;
@@ -112,8 +120,9 @@ function readExampleAudit(repoRoot: string): string {
  * when `version` is not `X.Y.Z`, is not newer than the root package.json
  * version, already names a snapshot, the release ledger is missing,
  * unordered or does not end at the current version, a frozen module
- * differs from its lock entry, or the example audit is missing or does not
- * hold exactly one gate-diagnostics stamp.
+ * differs from its lock entry, or an example script is missing or does not
+ * hold exactly one stamp: audit.mjs's gate-diagnostics, brief.mjs's
+ * brief-answer.
  */
 export function cutRelease(repoRoot: string, version: string): { changed: ReadonlyArray<string> } {
   if (!isRelease(version)) throw new Error(`${version} is not a release (X.Y.Z)`);
@@ -135,7 +144,9 @@ export function cutRelease(repoRoot: string, version: string): { changed: Readon
     const content = readFileSync(join(repoRoot, path), "utf8");
     return [path, bumpedManifest(path, content, version)] as const;
   });
-  const exampleAudit = readExampleAudit(repoRoot);
+  const examples = EXAMPLE_STAMPS.map(
+    ({ path, format }) => [path, format, readExampleScript(repoRoot, path, format)] as const,
+  );
 
   const changed = new Set<string>();
   for (const [path, content] of manifests) {
@@ -158,11 +169,10 @@ export function cutRelease(repoRoot: string, version: string): { changed: Readon
   const releases = { releases: [...ledger, version] };
   writeFileSync(join(repoRoot, LEDGER), `${JSON.stringify(releases, null, 2)}\n`);
   changed.add(LEDGER);
-  writeFileSync(
-    join(repoRoot, EXAMPLE_AUDIT),
-    exampleAudit.replace(EXAMPLE_STAMP, `$1${version}$2`),
-  );
-  changed.add(EXAMPLE_AUDIT);
+  for (const [path, format, content] of examples) {
+    writeFileSync(join(repoRoot, path), content.replace(stampPattern(format), `$1${version}$2`));
+    changed.add(path);
+  }
   return { changed: [...changed].toSorted() };
 }
 
