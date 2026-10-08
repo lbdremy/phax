@@ -4,7 +4,7 @@ source-spec: docs/specs/2610061346-brief-provider.md
 ---
 # Brief provider
 
-Implements the whole of the Approved spec `brief-provider` (docs/specs/2610061346-brief-provider.md), so this plan completes the spec. A configured `brief` provider gets a versioned `brief-request` on stdin and answers a versioned `brief-answer` on stdout: the guarantees that range over some paths, and their state at each place. phax pushes the phase's brief in compact form into the phase's first prompt. The agent pulls more with `phax brief [path…]` and gets the whole form. Every brief is recorded as `brief-NN.json` in the phase folder, and `phax records explain --briefs` prints them. A brief never blocks and phax judges nothing in it: decoding the answer by its own `$schema` is the only check. The spec's §9 Q1–Q10 were decided by the author and are not reopened.
+Implements the whole of the Approved spec `brief-provider` (docs/specs/2610061346-brief-provider.md), so this plan completes the spec. A configured `brief` provider gets a versioned `brief-request` on stdin and answers a versioned `brief-answer` on stdout: the guarantees that range over some paths, and their state at each place. phax pushes the phase's brief in compact form into the phase's first prompt. The agent pulls more with `phax brief [path…]` and gets the whole form. Every brief is recorded as `brief-NN.json` in the phase folder, and `phax records explain --briefs` prints them. A brief never blocks and phax judges nothing in it: decoding the answer by its own `$schema` is the only check. The spec's §9 Q1–Q10 were decided by the author and are not reopened. Beyond the spec, by the author's decision of 2026-10-08, phase-05 also adds a phase guard: inside a phase worktree phax refuses every command but `phax brief` and those that touch only the working tree (see Technical arbitrations).
 
 Ground: `drop-orient`, `drop-gate-scopes` and `gate-request` have landed. The running release is `0.19.0` (`src/schemas/release.ts`). Read the code, not the spec's §1 ground. The phase facts come from the landed gate request: `makeGateRequest` (src/domain/gate/gateRequest.ts) builds them from the base noted in `status.json` (`readPhaseBase`, src/app/phaseStatusUpdates.ts), the terminal flag and `plan.phases`. The bridge (src/schemas/persisted.ts) already reads one provider answer, `readGateDiagnosticsAnswer`, and `brief-answer` gets a sibling reader with the same guard test. `phax run --append` is not built.
 
@@ -26,7 +26,7 @@ Every command above is already allowed by `security.agentCommands` in this repos
 - The phase facts have one builder and one set of inputs. executePlan builds them once per phase entry with `makeGateRequest`, from the base noted in status.json, the loop's `isFinal` and `plan.phases`. The gate request and the brief request are both cut from that one value, and the brief request adds only `files`. A pull never recomputes facts: it copies them from `.phax-context/brief-request.json`. Loss accepted: a pull trusts a file the agent can edit (Q2), and this misleads only the agent's own advice.
 - The pushed brief is requested once per phase folder, exactly when `brief-00.json` is absent. A rate-limited phase re-enters the fresh path with its branch and folder kept, and rebuilds its first prompt. Its brief section is re-rendered from the recorded `brief-00.json`, with no provider call (§5.6). `reset-phase` archives the folder, so the re-run asks again. `run --append` is not built, and the same rule covers it when it lands. Loss accepted: after a rate-limit pause, the prompt shows the brief as the code stood at the phase's first start.
 - Pulled records go through `.phax-context/`. `phax brief` writes `.phax-context/briefs/brief-NN.json`, numbered from 01 as the next free number. A new `FileSystem.createExclusive` claims each number, so concurrent pulls never overwrite each other. At the phase's terminal outcome (committed or failed), phax copies those files into the phase folder and writes the marker `.phax-context/briefs/closed`. This happens before the phase record is written, and whether records are on or off. A pull that finds the marker is answered and not recorded (Q7). Loss accepted: the agent can edit or delete its own pulled records before they are collected, the same trust as the phase request file. A paused phase collects nothing until it ends.
-- An in-phase pull reads config from the main working tree. `phax brief` finds the repository's main checkout through git's common dir and loads phax.json, phax.local.json and ~/.phax/config.json from there. It runs the provider from the phase worktree's root. Otherwise a `brief` declared only in the gitignored phax.local.json, absent from every worktree, would be invisible to pulls (§5.1). Loss accepted: `phax brief` is the one command that reads config outside the cwd's working tree. It reads the main checkout's phax.json, not the phase branch's copy. That copy is the config the run itself loaded.
+- An in-phase pull reads config from the main working tree. `phax brief` finds the repository's main checkout through git's common dir and loads phax.json, phax.local.json and ~/.phax/config.json from there. It runs the provider from the phase worktree's root. Otherwise a `brief` declared only in the gitignored phax.local.json, absent from every worktree, would be invisible to pulls (§5.1). Loss accepted: `phax brief` is the one command that reads config outside the cwd's working tree. It reads the main checkout's phax.json, not the phase branch's copy. That copy is the config the run itself loaded. It is also the safe source: the phase worktree, `.phax-context/` included, is the agent's to write, so a `brief.command` read there would let the agent choose the command `phax brief` runs and step around the command allowlist. `phax brief` never reads config from the worktree or from any file under `.phax-context/`.
 - `brief-record` embeds the answer as printed, as an open JSON object. The package parser `parseBriefAnswer` resolves it by its own `$schema`. phax gets the provider's stdout through `runProviderQuery` with an identity decoder, then decodes it with `readBriefAnswer`, so the record keeps the parsed value untouched. Loss accepted: `parseBriefRecord` does not validate the embedded answer. A consumer calls `parseBriefAnswer` on `outcome.answer`.
 - The 60-second limit is a constant (`BRIEF_TIMEOUT_MS`, Q9), the same for pushes and pulls. The query takes an internal `timeoutMs` override only so tests can prove the provider process is stopped without waiting a minute. Loss accepted: none in behaviour, because the override is unreachable from config or flags.
 - The grant lands with the command, in phase-05, not with the config key. `phax brief` is added to the frozen agent commands with source `brief`, after `config` and `gate`, so an explicit config entry keeps source `config`. It is a narrow allowance, so it is degraded on providers without prefix enforcement, like any narrow command. Loss accepted: a secure Codex or Vibe run with a brief provider always carries the `command-precision` mark.
@@ -34,6 +34,7 @@ Every command above is already allowed by `security.agentCommands` in this repos
 - `phax records explain` with no flag prints a `briefs   N` line only when the record holds brief files, and `--briefs` prints them. A record with no brief files prints exactly as today. Loss accepted: a record from a project without a brief provider does not say why it has none.
 - The compact line, the whole-form layout, the section heading, the instruction wording and the refusal wording follow spec §6's indicative examples, rendered by a pure module in src/domain/brief/render.ts. A missing or invalid phax.json makes `phax brief` exit 2, like every command (README §Exit codes). Every case the spec names exits 1. Loss accepted: an invalid config is the one `phax brief` failure that does not exit 1.
 - The phase split departs from the brief's suggested six phases. It uses seven, so the `phax brief` command (phase-04) and the executePlan wiring that collects its records and grants it (phase-05) each stay reviewable. Loss accepted: one more commit, and between phase-03 and phase-05 the prompt names a command the agent is not yet granted. The run lands all seven commits together.
+- The phase guard (added by the author on 2026-10-08, beyond the spec). Inside a phase worktree, phax refuses every command that acts on phax state or an artifact's lifecycle, before the command runs. It lets through `phax brief`, `--help`, `--usage` and `--version`, and the commands that only read or that write only the working tree: `schema upgrade` (this repository's phases run it), and the read-only ones, starting from `plans lint`, `plans status`, `artifact status`, `artifact schema`, `records explain`, `records status`, `ls` and `path`. A phase worktree is recognised from the cwd alone: a linked git worktree whose root holds `.phax-context/`. There is no environment variable, because the agent's test processes would inherit it, and no escape hatch, because that would be a bypass. Loss accepted: this guards against an agent running `phax run`, `archive` or `unlock` by mistake on a provider without command enforcement. It is not a boundary, since a determined agent can leave the worktree first. The boundary is the sandbox's write scope, and this repository's opt-in to writing `~/.phax` is handled outside this plan. A test that runs the CLI with the repository as its cwd must use a temporary cwd.
 
 ---
 
@@ -481,12 +482,12 @@ In a phase whose briefs are not yet collected, each pull is recorded as `.phax-c
 
 ---
 
-## phase-05 — Pulled records reach the phase, and the grant {#phase-05-pulled-records-and-grant}
+## phase-05 — Pulled records reach the phase, the grant, and the phase guard {#phase-05-pulled-records-and-grant}
 
 **Recommended model:** claude-opus-5-5
 **Recommended effort:** medium
 
-Every brief that shaped a phase's gated work is kept with the phase and its record. The agent may actually run `phax brief` under a command allowlist whenever a brief provider is configured.
+Every brief that shaped a phase's gated work is kept with the phase and its record. The agent may actually run `phax brief` under a command allowlist whenever a brief provider is configured. A phax command run by mistake inside the phase cannot act on phax state.
 
 ### Detailed instructions
 
@@ -498,10 +499,17 @@ Every brief that shaped a phase's gated work is kept with the phase and its reco
 - src/schemas/securityPosture.ts: the source literal becomes `Schema.Literal("config", "gate", "brief")`. security.json is phax-internal and stays version 1. Add no other field.
 - src/app/executePlan.ts, grant: at both `computeFrozenAgentCommands` call sites (fresh and resume), pass `briefCommands: config.brief !== undefined ? ["phax brief"] : []`. Then the fresh path's security.json and both paths' `agentOptions.agentCommands` carry it exactly when a provider is configured (§5.29, §5.30).
 - Test brief records and answers are made up. To simulate pulls inside the agent's turns, use the fake backend's `setOnRunAgent` hook to write made-up `brief-NN.json` documents into the worktree's `.phax-context/briefs/`, or call `pullBrief` with the fake shell, whichever exercises the real numbering.
+- Phase guard, classification (src/domain/security/phaseGuard.ts, pure): classify every subcommand path registered in src/cli/program.ts as allowed or refused inside a phase. Allowed: `brief`, `schema upgrade`, and the commands that only read. Start from `plans lint`, `plans status`, `artifact status`, `artifact schema`, `records explain`, `records status`, `ls` and `path`, and confirm each against its code. Everything else is refused. A command added later is refused until it is classified, and a unit test that enumerates the commands registered in program.ts fails on any command missing from the classification.
+- Phase guard, detection: the cwd is inside a phase worktree when its git working tree is a linked worktree (its git dir differs from its common dir) and the tree's root holds a `.phax-context/` directory. Extend phase-04's `locateWorkingTree` in src/app/loadConfig.ts with `isLinkedWorktree`, and check for `.phax-context/` with the same Node helpers that file already uses. Add no new `node:fs` import in app/, domain/ or cli/. There is no environment variable, flag or escape hatch.
+- Phase guard, wiring: in src/cli/program.ts's `preAction` hook, after the `--usage` handling, resolve the action's command path. Inside a phase worktree, a refused command prints `✗ phax <command> is not available inside a phase worktree; phax brief is` on stderr and exits 1 before its action runs. `--help`, `--usage` and `--version` never reach the check.
+- Phase guard and the gate: the gate runs in the phase worktree, so a test that runs the CLI with the repository as its cwd now meets the guard. Give such a test a temporary cwd; never weaken the guard for it.
 
 ### Planned files to create
 
 - `tests/integration/briefRecords.test.ts`
+- `src/domain/security/phaseGuard.ts`
+- `tests/unit/security/phaseGuard.test.ts`
+- `tests/integration/phaseGuard.test.ts`
 
 ### Planned files to edit
 
@@ -510,6 +518,8 @@ Every brief that shaped a phase's gated work is kept with the phase and its reco
 - `src/domain/security/agentCommands.ts`
 - `src/schemas/securityPosture.ts`
 - `tests/unit/security/agentCommands.test.ts`
+- `src/cli/program.ts`
+- `src/app/loadConfig.ts`
 
 ### Optional files that may be edited
 
@@ -537,12 +547,15 @@ Then tests/integration/briefRecords.test.ts drives executePlan with fakes and a 
 (d) With records disabled, the briefs still land in the phase folder.
 (e) A run without `brief` writes no marker and no brief files.
 
+Phase guard (write first): tests/unit/security/phaseGuard.test.ts covers the classification, the detection rule and the test that enumerates program.ts's registered commands. tests/integration/phaseGuard.test.ts builds a made-up temporary repository with a linked worktree holding `.phax-context/` and runs the CLI from source there. `phax archive x` and `phax run --plan p` are refused with the guard's message and exit 1. `phax --version`, `phax schema upgrade` and `phax brief` reach their own code (`phax brief` without a provider gets its own refusal, not the guard's). From the main checkout, and from a linked worktree without `.phax-context/`, `phax archive x` is not refused by the guard.
+
 ### Implementation order
 
 1. agentCommands and securityPosture source, with unit tests.
 2. executePlan grant at both call sites.
 3. closePulledBriefs and its executePlan call sites.
 4. tests/integration/briefRecords.test.ts.
+5. Phase guard: classification and detection with their unit tests, then the preAction wiring with tests/integration/phaseGuard.test.ts, then any CLI test the gate shows running with the repository as its cwd.
 
 ### Excluded scope
 
@@ -551,6 +564,8 @@ Then tests/integration/briefRecords.test.ts drives executePlan with fakes and a 
 - Any change to records layout, the records manifest, or `phax records explain` (phase-06).
 - Run-level or preflight changes beyond the frozen command set.
 - Any `.claude/skills/` edit.
+- An environment variable, flag or escape hatch for the phase guard.
+- Changing this repository's `security.filesystem.allowWrite` (handled outside this plan).
 
 ### Verification
 
@@ -558,17 +573,19 @@ The `standard` gate profile in phax.json.
 
 ### Expected handoff content
 
-The signature of `closePulledBriefs` and the exact places in executePlan where it is called, and where it is deliberately not called. The new `computeFrozenAgentCommands` input and the source precedence. Confirmation that collected brief files appear in a written record. The exact collection-warning wording. Any deviation from the planned file lists, with the reason.
+The signature of `closePulledBriefs` and the exact places in executePlan where it is called, and where it is deliberately not called. The new `computeFrozenAgentCommands` input and the source precedence. Confirmation that collected brief files appear in a written record. The exact collection-warning wording. Any deviation from the planned file lists, with the reason. For the phase guard: the final classification of every command, the detection rule as implemented, the refusal message, and every test moved to a temporary cwd.
 
 ### Commit subject
 
-`feat(brief): collect pulled briefs into the phase and grant phax brief`
+`feat(brief): collect pulled briefs, grant phax brief, guard phax in a phase`
 
 ### Commit body
 
 At a phase's terminal outcome, committed or failed, and before its record is written, phax copies the phase's pulled brief records from `.phax-context/briefs/` into the phase folder and closes the folder to further recording. This happens whether or not records are enabled. The phase record on phax/records/v1 therefore carries brief-00 and every pull in call order across sessions. A pull after that point is answered and not recorded.
 
 With a brief provider configured, the in-phase agent is allowed `phax brief` without an agentCommands entry. security.json records the grant with the new source `brief`, after config and gate entries. Without a provider there is no such grant.
+
+Inside a phase worktree (a linked worktree holding .phax-context/), phax now refuses every command but `phax brief`, `schema upgrade` and the read-only ones, before the command runs. It guards against an agent running a state-changing phax command by mistake on a provider without command enforcement; the sandbox's write scope remains the boundary.
 
 ---
 
@@ -660,7 +677,7 @@ A brief-provider author, such as steme's `steme brief`, learns from the README w
 - README, new `### Brief provider` subsection after `### Gate request` and before `### Plan auditor`, written from spec §11 for the provider author, with made-up values and `0.20.0` `$schema` URLs as the other README examples use. Part 1: the `brief` key (any layer, nearer overrides) and that phax ties it to no gate step. Then the two moments: pushed once per fresh phase start into `## Brief for this phase` (compact, 50 guarantees max), and pulled with `phax brief [path…]` (whole form, exit 0 on any answer, 1 otherwise).
 - Brief provider subsection, part 2: both request variants and their keys. The phase facts equal the gate request's for the same phase. `files: null` means brief the phase's planned files. Paths may not exist yet. The provider runs from the working tree root.
 - Brief provider subsection, part 3: the answer, `{"$schema": "https://docs.phax.run/schemas/brief-answer/0.20.0.json", "guarantees": [...]}`, with per-state places, `due`, order as rank, extra keys ignored, and `[]` meaning nothing to report. A missing, foreign or newer `$schema` makes the brief fail, never the phase. Then the 60-second limit and that a failure is a warning plus an unavailable line. Then `.phax-context/brief-request.json` and replay with `node ./brief.mjs < .phax-context/brief-request.json`, and the records: `brief-NN.json`, `jq -c .request brief-01.json | node ./brief.mjs`, and `phax records explain --briefs`.
-- Brief provider subsection, part 4: in secure mode `phax brief` is granted with source `brief`, and a pull runs inside the agent's sandbox. Add one sentence that the authoring `--brief` flag and docs/briefs/ are a different, person-written brief. Keep the plan auditor section and the closing example link.
+- Brief provider subsection, part 4: in secure mode `phax brief` is granted with source `brief`, and a pull runs inside the agent's sandbox. Add one sentence that the authoring `--brief` flag and docs/briefs/ are a different, person-written brief. Keep the plan auditor section and the closing example link. Add one sentence that inside a phase worktree phax refuses every command but `phax brief` and the read-only ones, as a guard against mistakes; the sandbox's write scope is the boundary.
 - Create examples/hello-world/brief.mjs, part 1. Read the request from `process.stdin` to end of file with `for await`, never `readFileSync(0)`, then `JSON.parse` it. Its files are `request.files` when non-null, otherwise the `files` of the `phases` entry whose `id` equals `request.phase`. For each file under `src/` ending in `.ts`, make one `hw-no-io` place. When the file exists and has an import from a `node:` module, the place is `forbidden` at the first such line, with `what: imports node:<module>` and `repair: remove the import; greet is pure`. Otherwise the place is `met`; a file that does not exist yet is `met`.
 - brief.mjs, part 2: `due` is null when the request has no `phase`. Otherwise it is `later` when a later `phases` entry plans the file and the current one does not, and `this-phase` in every other case. Print `{ "$schema": "https://docs.phax.run/schemas/brief-answer/<release>.json", "guarantees": [...] }`, with one guarantee `{ id: "hw-no-io", statement: "nothing under src/ imports a node: module", places }` when there are places, else `[]`. The script must hold exactly one brief-answer `$schema` literal. `<release>` is the value of `PHAX_RELEASE` in src/schemas/release.ts.
 - examples/hello-world/phax.json: add `"brief": { "command": "node ./brief.mjs" }` before `planAuditor`.
