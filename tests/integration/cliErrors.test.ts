@@ -9,9 +9,12 @@ import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js"
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
 const mainTs = join(repoRoot, "src/cli/main.ts");
 
-function runCli(args: string[]): SpawnSyncReturns<string> {
+// A command the phase guard refuses must run from a temporary cwd: this
+// repository's own phases run the tests from inside a phase worktree.
+function runCli(args: string[], cwd?: string): SpawnSyncReturns<string> {
   return spawnSync("tsx", [mainTs, ...args], {
     encoding: "utf8",
+    ...(cwd !== undefined ? { cwd } : {}),
   });
 }
 
@@ -59,14 +62,28 @@ describe("CLI error messages", () => {
     });
 
     it("Draft plan: non-zero exit, message names the file and status, no stack trace", () => {
+      // The CLI runs from a made-up repository; the plan lives outside it.
       tmpDir = mkdtempSync(join(tmpdir(), "phax-cli-errors-"));
+      const repo = join(tmpDir, "repo");
+      mkdirSync(repo);
+      execSync("git init -q", { cwd: repo });
+      disableGitAutoMaintenance(repo);
+      writeFileSync(
+        join(repo, "phax.json"),
+        JSON.stringify({
+          version: 1,
+          name: "test",
+          state: { root: join(repo, ".phax-state") },
+          gateProfiles: { fast: [{ command: "true", surface: "local", firing: "every-phase" }] },
+        }),
+      );
       const planPath = join(tmpDir, "plan.md");
       writeFileSync(
         planPath,
         "---\nstatus: Draft\nsource-spec: null\n---\n# Draft plan\n\n## Context\n",
       );
 
-      const result = runCli(["run", "--plan", planPath]);
+      const result = runCli(["run", "--plan", planPath], repo);
       expect(result.status).not.toBe(0);
       const combined = (result.stderr ?? "") + (result.stdout ?? "");
       expect(combined).toContain(planPath);

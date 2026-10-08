@@ -101,6 +101,48 @@ function recordPull(
   );
 }
 
+const PULLED_BRIEF_RECORD = /^brief-(\d{2,})\.json$/;
+
+/**
+ * At a phase's terminal outcome (committed or failed), copies the pulled
+ * records waiting in `<worktree>/.phax-context/briefs/` into the phase folder,
+ * in number order, then writes the `closed` marker so later pulls are answered
+ * and not recorded (spec Q7). Runs once per phase: an existing marker makes it
+ * a no-op. `brief-00.json` is the pushed brief's and is never copied from
+ * here. Never fails: a FsError becomes a warning.
+ */
+export function closePulledBriefs(input: {
+  readonly worktreePath: string;
+  readonly phaseFolderPath: string;
+  readonly phaseId: string;
+}): Effect.Effect<void, never, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const dir = join(input.worktreePath, PULLED_BRIEFS_DIR);
+    const marker = join(dir, BRIEFS_CLOSED_MARKER);
+    if (yield* fs.exists(marker)) return;
+    const names = (yield* fs.exists(dir)) ? yield* fs.list(dir) : [];
+    const pulled = names
+      .map((name) => ({ name, n: PULLED_BRIEF_RECORD.exec(name)?.[1] }))
+      .filter((e): e is { name: string; n: string } => e.n !== undefined && Number(e.n) > 0)
+      .toSorted((a, b) => Number(a.n) - Number(b.n));
+    for (const { name } of pulled) {
+      const text = yield* fs.readText(join(dir, name));
+      yield* fs.writeAtomic(join(input.phaseFolderPath, name), text);
+    }
+    yield* fs.mkdirp(dir);
+    yield* fs.writeAtomic(marker, "");
+  }).pipe(
+    Effect.catchAll((e) =>
+      Effect.sync(() => {
+        process.stderr.write(
+          `[phax] Warning: phase "${input.phaseId}" — failed to collect pulled briefs (${e.message}).\n`,
+        );
+      }),
+    ),
+  );
+}
+
 /**
  * One `phax brief` call. Inside a phase worktree (its root holds
  * `.phax-context/brief-request.json`) the request carries the phase's facts,
