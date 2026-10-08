@@ -3,9 +3,6 @@
   "version": 1,
   "name": "phax",
   "security": {
-    "filesystem": {
-      "allowWrite": ["~/.phax"]
-    },
     "agentCommands": [
       "deno",
       "ctx7",
