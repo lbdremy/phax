@@ -198,22 +198,23 @@ spec of its own. In this order:
       by the ledger. phax's formats flatten or drop most of it.
       1. `open-next-release`, with stamps that name the format's shape (brief
          `docs/briefs/open-next-release.md`): consumers upgrade only when a format changes.
-      2. `structured-diagnostics` (brief `docs/briefs/structured-diagnostics.md`): the finding's
-         identity, statement apart from what is wrong, ranges and related files, the repair as
-         data, accepted debt carried and shown, the whole document saved.
-      3. The brief answer, the same way, in its own spec, reusing step 2's vocabulary.
-      4. A `decision` class that stops the phase for the owner, joining the parked
+      2. `guarantee-reports` (brief `docs/briefs/guarantee-reports.md`): one green-field spec
+         for what a gate step and a brief provider answer, designed from steme's model as if
+         today's `gate-diagnostics` and `brief-answer` did not exist (the author, 2026-10-08):
+         guarantee, legs and their states, ranges, repairs by kind, accepted debt, judgement for
+         the human review; the fix prompt, the pushed brief, review and records use them.
+      3. A `decision` class that stops the phase for the owner, joining the parked
          `phase-decision-requests` spec.
 
       steme's side, not phax's: its target stamps `gate-diagnostics/0.19.0`, which phax 0.20
       refuses; its brief answers carry steme's own `$schema` and an object `repair`; its copy of
       the brief-request schema pins 0.19.0.
 
-Not prerequisites, and not specced yet (same note, changes 1–3, 6, 7 and the brief at plan
-authoring): a stable `id` on a diagnostic (oscillation), a `decision` class that stops for the
-owner, `accepted` debt in the document, a structured repair, `endLine`, and the brief at plan
-authoring (the same verb, an earlier moment). The optional keys pass phax's
-documents already, so steme can write them before phax reads them.
+The coordination note's other asks (changes 1–3, 6, 7): a stable identity on a finding, accepted
+debt in the document, a structured repair and an end line are `guarantee-reports`' to design; the
+`decision` class is step 3. Still unspecced: the brief at plan authoring (the same verb, an earlier
+moment). phax drops every key its answer readers do not name, so steme gains nothing by writing
+them before `guarantee-reports` lands.
 
 Deferred from `schemas-package` with the author (2026-09-29): **a Standard Schema export** per
 format (only if a consumer needs to hand the schemas to a non-Effect validator; the cockpit
