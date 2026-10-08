@@ -73,6 +73,16 @@ Decided 2026-09-15: the first four were the blockers (`phax prune`, the fourth, 
 
       Migration guide: `https://github.com/Effect-TS/effect/blob/main/MIGRATION.md`, with its
       `migration/*.md` sub-guides.
+- [ ] **Check whether user-installed Claude Code mods run in phase sessions.** Raised
+      2026-10-08. Claude Code mods are plugin code that runs inside Claude Code, unsandboxed;
+      plugins load in `claude -p` too, so a mod the operator installed may run inside phax's
+      headless phase sessions. A mod that approves tool calls can approve one a permission rule
+      or hook would deny, so it can step around secure mode's command allowlist. Find out what a
+      phase session loads, then decide how secure mode keeps the operator's mods out: for example
+      `--safe-mode` or `--bare`, checked against what those also turn off (the project skills
+      phases rely on). Docs: `https://code.claude.com/docs/en/plugins/mods/overview`
+      (§Decide whether to trust a mod, §Turn mods on or off). A secure-mode boundary, so before
+      the freeze.
 - [ ] **Distribution polish.** macOS binaries are neither signed nor notarized
       (`docs/release.md`); npm install works, the raw binary is Gatekeeper-blocked. Either
       sign, or make npm the only documented install path for 1.0.
@@ -386,6 +396,18 @@ of the **plan**, so a spec parked here does not rot; the plans written against i
       (Plan 41, `claude-protected-path-approval-hook`, was abandoned on 2026-09-23.)
 
 ## Longer horizon (unspecced, revisit deliberately)
+
+- [ ] **A Claude Code plugin for phax, after the 1.0 freeze.** Raised 2026-10-08. Ship phax's
+      skills (`phax-planning`, `phax-spec`, the `phax-decide-*` skills) as one plugin instead of
+      copies under `~/.claude/skills/`, with a small mod for the operator's interactive session:
+      a pane with the live run (phases, gate attempts, a pause, the PR link, read from
+      `~/.phax/runs`) and `/phax` commands that run without a model turn. Mods draw nothing in
+      `claude -p`, so this is for the operator's session, not the phases. Distribution, in order:
+      a `.claude-plugin/marketplace.json` in this repository (`claude plugin marketplace add
+      lbdremy/phax`); then Anthropic's directory through the developer portal
+      (`claude.ai/directory/manage`, paid plan, reviewed; skills reach claude.ai and Cowork, a
+      mod only Claude Code); and a hint from the CLI (`phax init`) to install it. The official
+      marketplace takes no submissions. Docs: `https://code.claude.com/docs/en/plugins/publish`.
 
 Reading of the data-engineering article, second pass (2026-08-10): phax already sits on
 the right side of lesson 1 (deterministic orchestration, probabilistic nodes) and
