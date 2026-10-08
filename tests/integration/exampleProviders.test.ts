@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, cpSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -32,13 +32,30 @@ function runScript(
   }
 }
 
+// A made-up gate request; only `base` and `terminal` steer the example audit.
+function gateRequest(base: string, terminal: boolean): string {
+  return JSON.stringify({
+    $schema: "https://docs.phax.run/schemas/gate-request/0.20.0.json",
+    phase: "phase-01",
+    base,
+    terminal,
+    phases: [{ id: "phase-01", files: ["src/greet.ts"] }],
+  });
+}
+
+const TERMINAL_REQUEST = gateRequest("0".repeat(40), true);
+
+function git(args: readonly string[], cwd: string): string {
+  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+}
+
 describe("examples/hello-world audit provider", () => {
   const auditScript = join(exampleDir, "audit.mjs");
 
   // Read as phax reads a gate step's document: accepted means the example's
   // stamp names an answer release this build reads.
   it("prints an empty diagnostics list on the example tree (no src/ node: imports)", () => {
-    const { stdout, status } = runScript(auditScript, "", exampleDir);
+    const { stdout, status } = runScript(auditScript, TERMINAL_REQUEST, exampleDir);
     expect(status).toBe(0);
     expect(readGateDiagnosticsAnswer(JSON.parse(stdout))).toEqual(
       Either.right({ diagnostics: [] }),
@@ -51,7 +68,7 @@ describe("examples/hello-world audit provider", () => {
     mkdirSync(join(tmpDir, "src"), { recursive: true });
     writeFileSync(join(tmpDir, "src/x.ts"), 'import { readFileSync } from "node:fs";\n');
 
-    const { stdout, status } = runScript(auditScript, "", tmpDir);
+    const { stdout, status } = runScript(auditScript, TERMINAL_REQUEST, tmpDir);
     expect(status).toBe(0);
     const result = readGateDiagnosticsAnswer(JSON.parse(stdout));
     expect(Either.isRight(result)).toBe(true);
@@ -62,6 +79,49 @@ describe("examples/hello-world audit provider", () => {
       expect(finding?.class).toBe("invariant");
       expect(finding?.location).toEqual({ file: "src/x.ts", line: 1 });
     }
+  });
+
+  describe("scoped by the gate request's base", () => {
+    function repoWithCleanBase(): { dir: string; base: string } {
+      const dir = mkdtempSync(join(tmpdir(), "phax-hw-base-"));
+      cpSync(auditScript, join(dir, "audit.mjs"));
+      mkdirSync(join(dir, "src"));
+      writeFileSync(join(dir, "src/greet.ts"), "export const greet = () => 'hi';\n");
+      git(["init", "-q"], dir);
+      git(["add", "."], dir);
+      git(
+        ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base"],
+        dir,
+      );
+      return { dir, base: git(["rev-parse", "HEAD"], dir) };
+    }
+
+    it("names a file added since base when the phase is not terminal", () => {
+      const { dir, base } = repoWithCleanBase();
+      writeFileSync(join(dir, "src/io.ts"), 'import { readFileSync } from "node:fs";\n');
+      writeFileSync(join(dir, "request.json"), gateRequest(base, false));
+
+      const stdout = execSync("node ./audit.mjs < request.json", { cwd: dir, encoding: "utf8" });
+      const result = readGateDiagnosticsAnswer(JSON.parse(stdout));
+      expect(Either.isRight(result)).toBe(true);
+      if (Either.isRight(result)) {
+        expect(result.right.diagnostics.map((d) => d.location.file)).toEqual(["src/io.ts"]);
+      }
+    });
+
+    it("prints no finding when nothing changed since a base that already holds the file", () => {
+      const { dir } = repoWithCleanBase();
+      writeFileSync(join(dir, "src/io.ts"), 'import { readFileSync } from "node:fs";\n');
+      git(["add", "src/io.ts"], dir);
+      git(["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "io"], dir);
+      const base = git(["rev-parse", "HEAD"], dir);
+
+      const { stdout, status } = runScript("audit.mjs", gateRequest(base, false), dir);
+      expect(status).toBe(0);
+      const parsed = JSON.parse(stdout);
+      expect(parsed.$schema).toMatch(/^https:\/\/docs\.phax\.run\/schemas\/gate-diagnostics\//);
+      expect(readGateDiagnosticsAnswer(parsed)).toEqual(Either.right({ diagnostics: [] }));
+    });
   });
 });
 
@@ -83,6 +143,7 @@ describe("examples/hello-world phax.json", () => {
       const steps = config.gateProfiles?.["standard"] ?? [];
       const diagStep = steps.find((s) => s.output === "diagnostics");
       expect(diagStep?.command).toBe("node ./audit.mjs");
+      expect(diagStep?.input).toBe("gate-request");
     }
   });
 });

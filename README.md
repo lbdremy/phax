@@ -158,7 +158,7 @@ A `phax.json` looks like this:
 
 - **`name`** is the namespace of your runs: a run is `<name>.<run name>`.
 - **`commands.setup`** runs in each phase's fresh worktree before the agent starts; **`commands.cleanup`** runs in it once the phase has committed, to free space (`node_modules`, build output).
-- **`gateProfiles`** holds your checks. Each step has a `command`, a `firing` (`every-phase`, or `terminal` for the last phase only) and a `surface` that says what it verifies (`local`, `structural` or `product`). phax records each step's surface and result, and the run's summary lists the surfaces it verified. A step can also return structured findings instead of a log — see [Extend phax](#extend-phax).
+- **`gateProfiles`** holds your checks. Each step has a `command`, a `firing` (`every-phase`, or `terminal` for the last phase only) and a `surface` that says what it verifies (`local`, `structural` or `product`). phax records each step's surface and result, and the run's summary lists the surfaces it verified. A step can also return structured findings instead of a log — see [Extend phax](#extend-phax). An optional `input` key, `"gate-request"` (the only value), has phax write the phase's facts on the step's stdin — see [Gate request](#gate-request).
 - **`review.compliance`** and **`publish`** run a compliance review and open a pull request when a run reaches review — see [Review and land](#review-and-land). `review.code` sets the model for `phax review-code`, and `authoring.spec` and `authoring.plan` the model for headless authoring.
 - **`security.profile`** sets the default security mode (`secure` unless you say otherwise) — see [Providers and security](#providers-and-security).
 - **`agent.maxFixAttempts`** is how many times a failing gate goes back to the agent (1 by default).
@@ -394,7 +394,7 @@ The agent can run your gate commands and the commands in `security.agentCommands
 
 ## Extend phax
 
-Two hooks let your own tools inform a run: a gate step that prints diagnostics, and one provider. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout.
+Two hooks let your own tools inform a run: a gate step that prints diagnostics, and one provider. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout. A gate step reads a request only when it declares `"input": "gate-request"` (see [Gate request](#gate-request)); otherwise its stdin is not connected.
 
 ### Diagnostics gate steps
 
@@ -417,7 +417,48 @@ A gate step with `"output": "diagnostics"` prints a JSON document instead of a l
 
 `$schema` names the `gate-diagnostics` release the document is written for. A document without it fails the step, and so does one stamped with a release newer than the running phax.
 
-The step must print the document every time it runs, `{ "$schema": …, "diagnostics": [] }` when it passes; empty or non-JSON output counts as a missing document and fails the step, even on exit 0. An `invariant` finding (something forbidden is present) and a `completion` finding (something required is missing) both fail the step. phax never decides when a finding is due, so report only what is. The failing findings, not the raw log, are what the agent is asked to fix.
+The step must print the document every time it runs, `{ "$schema": …, "diagnostics": [] }` when it passes; empty or non-JSON output counts as a missing document and fails the step, even on exit 0. An `invariant` finding (something forbidden is present) and a `completion` finding (something required is missing) both fail the step. phax never decides when a finding is due, so report only what is: the [gate request](#gate-request) is how a step learns what the phase changed and what later phases will bring. The failing findings, not the raw log, are what the agent is asked to fix.
+
+### Gate request
+
+A gate step that declares `"input": "gate-request"` gets a JSON request on stdin, whatever its `output`:
+
+```json
+{
+  "command": "node ./audit.mjs",
+  "surface": "structural",
+  "firing": "every-phase",
+  "output": "diagnostics",
+  "input": "gate-request"
+}
+```
+
+```json
+{
+  "$schema": "https://docs.phax.run/schemas/gate-request/0.20.0.json",
+  "phase": "phase-02",
+  "base": "3f9c2a7d1e8b4c6a0f5d9e2b7a1c4d8e6f0b3a5c",
+  "terminal": false,
+  "phases": [
+    { "id": "phase-01", "files": ["src/greet.ts"] },
+    { "id": "phase-02", "files": ["src/cli.ts", "tests/cli.test.ts"] },
+    { "id": "phase-03", "files": ["README.md"] }
+  ]
+}
+```
+
+- **`phase`** is the phase being gated.
+- **`base`** is the full object name of the commit the phase's branch was created from. phax notes it when it creates the branch and never re-derives it.
+- **`terminal`** is `true` exactly when the gated phase is the run's terminal phase, the one `terminal` steps fire on.
+- **`phases`** is every phase of the run in execution order, each with its planned files to create and edit (optional files excluded).
+
+phax sends facts, never a judgement: the step decides what is due. Read stdin to its end, then parse it. The past is `git diff --name-only <base>` plus the untracked files (`git ls-files --others --exclude-standard`). The future is the `phases` entries after `phase`, so a finding a later phase is planned to fix need not fail this one. When `terminal` is `true`, audit everything. A diagnostics step still prints `{"$schema": "https://docs.phax.run/schemas/gate-diagnostics/0.20.0.json", "diagnostics": [...]}`, never a document without `$schema`.
+
+phax writes the same bytes to every declaring step of every attempt, then closes stdin. Before an attempt's first declaring step it saves them beside the attempt's log as `checks-attempt-NN.request.json`, and the log shows `stdin: checks-attempt-NN.request.json` right after the step's `$` line; `phax records explain --gates` prints the request after its attempt's log. To replay a verdict, run the step on the saved copy in the phase's worktree:
+
+```bash
+node ./audit.mjs < checks-attempt-01.request.json
+```
 
 ### Plan auditor
 
